@@ -1,0 +1,37 @@
+# NOTE: shipped as `gitignore` (no dot); `forge new-repo` renames it to
+# `.gitignore` when stamping. Keeping the dot off inside forge stops git from
+# interpreting this file against the template's own tracked stubs.
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+venv-win/
+*.egg-info/
+.pytest_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.log
+
+# Agent bootstrap (ephemeral, replaced per-session by dispatch).
+CLAUDE.md
+
+# data/ layout (forge CONVENTIONS.md): data contents are gitignored (fs is
+# canonical); directory skeletons are tracked via .gitkeep.
+data/inbox/*
+!data/inbox/.gitkeep
+data/runs/*
+!data/runs/.gitkeep
+data/runs.jsonl
+data/projections/*
+!data/projections/.gitkeep

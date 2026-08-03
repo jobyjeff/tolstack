@@ -1,0 +1,62 @@
+# ops.toml — tolstack's ops manifest (forge CONVENTIONS.md §8).
+#
+# Declares which standard ops verbs this repo has and the exact argv for each.
+# The manifest is the WHOLE interface: a repo with no ops.toml does not appear on
+# the ops console, and a fact that isn't written here can't be shown or run —
+# the console never learns per-repo quirks. Rules:
+#
+#   * The verbs are install | serve | deploy | smoke, and only those. All are
+#     optional and independent. (`test` and `build` were rejected — see §8.)
+#   * `cmd` is an argv LIST, never a shell string: argv keeps paths with spaces
+#     and parens safe.
+#   * Commands run with cwd = this repo's MAIN checkout root, never a worktree
+#     (venv-win and data/ live only in the main checkout).
+#   * Uncomment a verb only once its command really exists. A verb naming a
+#     command that isn't there is worse than an absent verb — stale/wrong
+#     commands are the exact failure this convention exists to kill.
+
+[repo]
+name = "tolstack"
+
+# Idempotent local dev setup (venv + deps). Re-runnable; exit 0 = ready to work.
+[verbs.install]
+cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", "setup.ps1"]
+
+# Run the app locally for dev, foreground; Ctrl-C is the stop. A freshly stamped
+# repo is a CLI/pipeline with nothing to serve — uncomment when that changes.
+# [verbs.serve]
+# cmd = ["venv-win\\Scripts\\python.exe", "-m", "tolstack", "serve"]
+# long_running = true
+
+# Build AND publish in one motion — there is deliberately no separate `build`
+# verb (two ways to publish is two ways to end up with a stale artifact).
+# `targets` names the [[targets]] this verb publishes to.
+# [verbs.deploy]
+# cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", "deploy.ps1"]
+# targets = ["frontend"]
+
+# A per-repo quirk stays a DECLARATION instead of console code: a verb may
+# declare params a renderer turns into generic inputs. Resolved argv =
+# cmd + [flag, value] per supplied param (omit `flag` for a bare positional).
+# [[verbs.deploy.params]]
+# name = "runs"
+# flag = "-Runs"
+# label = "Run ids"
+# required = true
+
+# Verify a hosted target is healthy AND serving the expected version. Exit 0
+# only if healthy; non-zero otherwise, and print why.
+# [verbs.smoke]
+# cmd = ["venv-win\\Scripts\\python.exe", "scripts\\smoke.py"]
+# targets = ["frontend"]
+
+# Hosted targets. Each must serve GET <url><version_path> returning JSON with
+# repo/target/commit/built_at (the `deploy` verb bakes it). Static nginx targets
+# fall back to index.html with HTTP 200, so a probe counts only parseable JSON
+# carrying those keys — a 200 alone is `unknown`, never `ok`.
+# [[targets]]
+# name = "frontend"
+# url = "https://tolstack.ai.joby.aero"
+# version_path = "/version.json"
+# kibot_project = 121
+# org_repo = "Joby-AI/tolstack-frontend"
