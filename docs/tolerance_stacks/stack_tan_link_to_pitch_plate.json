@@ -1,0 +1,364 @@
+{
+  "schema": "joby.tolerance_stack/stack_definition/v0",
+  "id": "tan_link_to_pitch_plate",
+  "title": "Tangential link to pitch plate -- grip length",
+  "units": "mm",
+  "joint": {
+    "assembly_drawing": "217755",
+    "assembly_revision": "A.1",
+    "sheet": 4,
+    "view": "DETAIL B",
+    "zone": "I6",
+    "zone_note": "printed zone of the DETAIL B caption on the 2026-JUL-23 POST export; the view body sits above it. Jeff located this joint as 'sheet 4, detail B (top-right corner)'.",
+    "description": "Bolt through the tangential-link spherical bearing and its bushings into the pitch-plate flange, retained by a nut on the far side of a washer.",
+    "scope": "grip length only -- diameter/hole fits are out of scope for this slice"
+  },
+  "provenance": {
+    "transcribed_from": "data/inbox/tolerance_stacks/260729_sample_tol_stack.xlsx",
+    "workbook_sheet": "grip length tols old",
+    "workbook_rows": "6-31",
+    "source_note": "20260729T173648_qjk2xk (forge atomic note attachment; original is immutable, this repo holds a copy)",
+    "workbook_authored": "2026-07-30T00:25Z (file metadata; the stack itself is older -- the sheet is named 'old')",
+    "transcribed_by": "handoff tolerance_stack_slice1, 2026-07-30",
+    "drift_warning": "The workbook may predate the current design. Mismatches against 217755/215197 are recorded as findings in WORKSHEET_tan_link_to_pitch_plate.md, not corrected here."
+  },
+  "elements": [
+    {
+      "id": "flange_bushing_L",
+      "name": "flange bushing L thickness",
+      "role": "bushing",
+      "nominal": 3.81,
+      "min": 3.683,
+      "max": 3.937,
+      "lmc": 3.683,
+      "mmc": 3.937,
+      "note": "0.150 in +/-0.005 in. The barrel of the flanged bushing, the part that sits inside the bore.",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E14",
+        "confidence": "untraced",
+        "note": "No flanged-bushing part drawing in this repo. Candidate as-drawn part is 214936-002 (BUSHING, PLAIN, COUNTERSUNK, .1900 in ID), balloned on 217755 sheet 5 DETAIL F -- not DETAIL B."
+      }
+    },
+    {
+      "id": "bushing_chamfer",
+      "name": "bushing chamfer size",
+      "role": "relief",
+      "nominal": 0.762,
+      "min": 0.635,
+      "max": 0.889,
+      "lmc": 0.889,
+      "mmc": 0.635,
+      "note": "0.025-0.035 in. Subtracted from the bushing length: a BIGGER chamfer removes MORE material, which is why the workbook's LMC column (0.889) is larger than its MMC column (0.635). Nominal is the midpoint, not a separately specified value.",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E15",
+        "confidence": "untraced"
+      }
+    },
+    {
+      "id": "flange_bushing_flange",
+      "name": "flange bushing flange thickness",
+      "role": "bushing",
+      "nominal": 1.575,
+      "min": 1.4478,
+      "max": 1.5748,
+      "lmc": 1.4478,
+      "mmc": 1.5748,
+      "note": "0.062 in -0.005/-0. Nominal 1.575 was typed in mm and is 0.0002 mm above MMC -- harmless, but it is not the midpoint.",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E9",
+        "confidence": "untraced"
+      }
+    },
+    {
+      "id": "straight_bushing",
+      "name": "straight bushing",
+      "role": "bushing",
+      "nominal": 4.762,
+      "min": 4.63,
+      "max": 4.76,
+      "lmc": 4.63,
+      "mmc": 4.76,
+      "hardware_ref": "214820-002",
+      "note": "Nominal 4.762 = 0.1875 in, which is 0.002 mm ABOVE the transcribed MMC of 4.76 -- the workbook's own nominal is outside its own limits by a rounding artifact.",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A",
+        "sheet": 4,
+        "view": "DETAIL B",
+        "callout": "214820-002 BUSHING, PLAIN, ALUMINUM BRONZE, .1900\" ID X .1875\" LONG (find 34)",
+        "confidence": "inferred",
+        "note": "Length 0.1875 in matches the workbook nominal exactly; the 4.63/4.76 limits are NOT on the assembly drawing and no part drawing for 214820-002 is in this repo."
+      }
+    },
+    {
+      "id": "spherical_bearing",
+      "name": "spherical bearing width",
+      "role": "bearing",
+      "nominal": 11.1,
+      "min": 11.05,
+      "max": 11.1,
+      "lmc": 11.05,
+      "mmc": 11.1,
+      "note": "Nominal equals MMC; the tolerance is one-sided (-0.05/-0).",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E8",
+        "confidence": "untraced",
+        "note": "No bearing balloon in DETAIL B -- the bearing is internal to 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY (find 24, qty 3). Its width can only come from that subassembly's drawing or a bearing standard, neither of which is in this repo."
+      }
+    },
+    {
+      "id": "pitch_plate_flange",
+      "name": "pitch plate flange thickness",
+      "role": "clamped_member",
+      "nominal": 4.06,
+      "min": 3.98,
+      "max": 4.14,
+      "lmc": 3.98,
+      "mmc": 4.14,
+      "plus_minus": 0.08,
+      "hardware_ref": null,
+      "note": "TRACED. The only stack value in this workbook that lands on a part drawing held in this repo.",
+      "source_ref": {
+        "kind": "drawing",
+        "document": "215197",
+        "revision": "A.1",
+        "sheet": 2,
+        "zone": "B4",
+        "view": "SECTION A-A",
+        "callout": "3X 4.06 ±0.08",
+        "confidence": "traced",
+        "note": "215197 PITCH PLATE, PROPELLER, [PRELIM 2025-MAY-22] fixture. 3X matches the three tangential links (212956-005 qty 3). Carries positional 0.2 A B C and perpendicularity 0.05 F, 3X INDIVIDUALLY. Do NOT confuse with the 5X 4.06 ±0.10 group at sheet 2 zone D10 or the 1X 4.06 ±0.10 at sheet 1 zone D5."
+      }
+    },
+    {
+      "id": "washer_thin",
+      "name": "washer thickness (thin, .032 in)",
+      "role": "washer",
+      "nominal": 0.8128,
+      "min": 0.7112,
+      "max": 0.9144,
+      "plus_minus": 0.1016,
+      "hardware_ref": "NAS1149V0332",
+      "note": "0.032 +/-0.004 in. This is the washer actually ballooned in DETAIL B (find 32, NAS1149V0332H) -- but the workbook never evaluated a check with it. See the worksheet.",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E11",
+        "confidence": "inferred",
+        "note": "Part present on 217755 as NAS1149V0332H (find 32, qty 9), nomenclature '.203\" X .438\" X .032\" MIN'. The parts list says .032 MIN; the workbook models it as .032 +/-.004. The NAS1149 standard is not in this repo, so the +/-.004 is untraced."
+      }
+    },
+    {
+      "id": "washer_thick",
+      "name": "washer thickness (thick, .063 in)",
+      "role": "washer",
+      "nominal": 1.6002,
+      "min": 1.4478,
+      "max": 1.7526,
+      "plus_minus": 0.1524,
+      "hardware_ref": "NAS1149V0363",
+      "note": "0.063 +/-0.006 in. Every check the workbook actually evaluated uses this washer -- and it is ABSENT from the 217755 parts list.",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E12",
+        "confidence": "untraced"
+      }
+    },
+    {
+      "id": "thread_transition",
+      "name": "thread transition allowance (all fasteners)",
+      "role": "allowance",
+      "nominal": 1.5875,
+      "min": 0.0,
+      "max": 1.5875,
+      "lmc": 0.0,
+      "mmc": 1.5875,
+      "note": "1/16 in. Not a measured feature: the run-out length between full shank diameter and full thread. The workbook's 'nominal' is its MAXIMUM (min is 0), so nominal-column shank-out results are pessimistic by up to 0.79 mm.",
+      "source_ref": {
+        "kind": "assumed",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E22",
+        "confidence": "untraced",
+        "note": "Rule-of-thumb allowance, no cited standard. NAS6403 defines the real transition; that spec is not in this repo."
+      }
+    },
+    {
+      "id": "fastener_grip_13",
+      "name": "fastener grip, -13 (.812 in)",
+      "role": "fastener",
+      "nominal": 20.6248,
+      "min": 20.3708,
+      "max": 20.8788,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U13H",
+      "note": "0.812 +/-0.010 in.",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A",
+        "callout": "NAS6403U13H BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .812\" GRIP (find 95, qty 3)",
+        "confidence": "inferred",
+        "note": "Present in the parts list at qty 3 but carries NO balloon on any sheet. The grip +/-.010 is untraced (NAS6403 spec absent)."
+      }
+    },
+    {
+      "id": "fastener_grip_14",
+      "name": "fastener grip, -14 (.875 in)",
+      "role": "fastener",
+      "nominal": 22.225,
+      "min": 21.971,
+      "max": 22.479,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U14D",
+      "note": "0.875 +/-0.010 in. This is the fastener actually ballooned in DETAIL B.",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A",
+        "sheet": 4,
+        "view": "DETAIL B",
+        "callout": "NAS6403U14D BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .875\" GRIP (find 35, qty 3)",
+        "confidence": "traced",
+        "note": "Balloon 35 in DETAIL B. The grip +/-.010 is untraced (NAS6403 spec absent)."
+      }
+    }
+  ],
+  "paths": [
+    {
+      "id": "bore_min_grip",
+      "label": "bore min \"grip length\" (measured to inside of c'sink)",
+      "workbook_cells": "E18/G18/H18",
+      "terms": [
+        {"element": "straight_bushing"},
+        {"element": "spherical_bearing"},
+        {"element": "flange_bushing_flange"},
+        {"element": "flange_bushing_L"},
+        {"element": "bushing_chamfer", "sign": -1}
+      ]
+    },
+    {
+      "id": "bore_max_grip_thin",
+      "label": "bore max \"grip length\" (measured to outside of thin washer)",
+      "workbook_cells": "E19/G19/H19",
+      "terms": [
+        {"element": "straight_bushing"},
+        {"element": "spherical_bearing"},
+        {"element": "flange_bushing_flange"},
+        {"element": "pitch_plate_flange"},
+        {"element": "washer_thin"}
+      ]
+    },
+    {
+      "id": "bore_max_grip_thick",
+      "label": "bore max \"grip length\" (measured to outside of thick washer)",
+      "workbook_cells": "E20/G20/H20",
+      "terms": [
+        {"element": "straight_bushing"},
+        {"element": "spherical_bearing"},
+        {"element": "flange_bushing_flange"},
+        {"element": "pitch_plate_flange"},
+        {"element": "washer_thick"}
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "threads_in_bore__13",
+      "label": "threads in bore, -13 fastener",
+      "configuration": {"fastener": "NAS6403U13H (.812 grip)"},
+      "criterion": ">= 0",
+      "workbook_cells": "E30/G30",
+      "guidance": "Negative means the thread run-out sits inside the bore, bearing on the bushing ID.",
+      "terms": [
+        {"element": "fastener_grip_13"},
+        {"path": "bore_min_grip", "sign": -1}
+      ]
+    },
+    {
+      "check_id": "threads_in_bore__14",
+      "label": "threads in bore, -14 fastener",
+      "configuration": {"fastener": "NAS6403U14D (.875 grip)"},
+      "criterion": ">= 0",
+      "workbook_cells": "E31/G31",
+      "guidance": "Negative means the thread run-out sits inside the bore, bearing on the bushing ID.",
+      "terms": [
+        {"element": "fastener_grip_14"},
+        {"path": "bore_min_grip", "sign": -1}
+      ]
+    },
+    {
+      "check_id": "shank_out__13_thick",
+      "label": "shank out, -13 fastener + thick (.063) washer",
+      "configuration": {"fastener": "NAS6403U13H (.812 grip)", "washer": "NAS1149V0363 (.063)"},
+      "criterion": ">= 0",
+      "workbook_cells": "F30/H30",
+      "guidance": "Negative means full-diameter shank protrudes past the washer face, so the nut cannot pull up on thread.",
+      "terms": [
+        {"path": "bore_max_grip_thick"},
+        {"element": "fastener_grip_13", "sign": -1},
+        {"element": "thread_transition", "sign": -1}
+      ]
+    },
+    {
+      "check_id": "shank_out__14_thick",
+      "label": "shank out, -14 fastener + thick (.063) washer",
+      "configuration": {"fastener": "NAS6403U14D (.875 grip)", "washer": "NAS1149V0363 (.063)"},
+      "criterion": ">= 0",
+      "workbook_cells": "F31/H31",
+      "guidance": "Negative means full-diameter shank protrudes past the washer face, so the nut cannot pull up on thread.",
+      "terms": [
+        {"path": "bore_max_grip_thick"},
+        {"element": "fastener_grip_14", "sign": -1},
+        {"element": "thread_transition", "sign": -1}
+      ]
+    },
+    {
+      "check_id": "shank_out__13_thin",
+      "label": "shank out, -13 fastener + thin (.032) washer [NOT IN WORKBOOK]",
+      "configuration": {"fastener": "NAS6403U13H (.812 grip)", "washer": "NAS1149V0332 (.032)"},
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Added by the slice-1 re-derivation: the .032 washer is the one ballooned in DETAIL B, but the workbook left rows 32-34 (its thin-washer block) blank.",
+      "terms": [
+        {"path": "bore_max_grip_thin"},
+        {"element": "fastener_grip_13", "sign": -1},
+        {"element": "thread_transition", "sign": -1}
+      ]
+    },
+    {
+      "check_id": "shank_out__14_thin",
+      "label": "shank out, -14 fastener + thin (.032) washer [NOT IN WORKBOOK]",
+      "configuration": {"fastener": "NAS6403U14D (.875 grip)", "washer": "NAS1149V0332 (.032)"},
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Added by the slice-1 re-derivation: this is the as-drawn combination (balloons 35 + 32 in DETAIL B).",
+      "terms": [
+        {"path": "bore_max_grip_thin"},
+        {"element": "fastener_grip_14", "sign": -1},
+        {"element": "thread_transition", "sign": -1}
+      ]
+    }
+  ],
+  "notes": [
+    "Element order in this file is the physical order through the joint as best it can be read from the workbook and DETAIL B; only the path term lists are load-bearing for the arithmetic.",
+    "The as-drawn joint uses a slotted nut (MS9363-09) + cotter pin (MS24665-153), not a plain nut. The workbook's shank-out check does not model castellation/cotter-hole alignment at all -- see the worksheet's 'what this stack does not check'.",
+    "RSS was never computed in the workbook (row 50 carries the label 'rss' and nothing else). All RSS figures here are new."
+  ]
+}

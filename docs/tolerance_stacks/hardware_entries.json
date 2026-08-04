@@ -1,0 +1,253 @@
+{
+  "schema": "joby.tolerance_stack/hardware_entry/v0",
+  "description": "Seed of the fastener-library stream (DRAFT_tolerance_stack_mvp groundwork item 1). Every entry here carries INLINE values transcribed from a stack workbook and/or an assembly parts list -- none of them come from a fastener standard document, because no NAS/MS standard PDF exists in this repo. `library_ref` is the slot a real library entry drops into; when it is filled, `values_status` moves from `inline` to `library` and the inline numbers become a cross-check rather than the source.",
+  "provenance": {
+    "stack_workbook": "data/inbox/tolerance_stacks/260729_sample_tol_stack.xlsx (note 20260729T173648_qjk2xk)",
+    "parts_list_run": "data/runs/20260723_163810_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER (read-only; 217755 rev A, 9 sheets, 105 parts-list rows, 96 balloons)",
+    "transcribed_by": "handoff tolerance_stack_slice1, 2026-07-30"
+  },
+  "entries": [
+    {
+      "id": "NAS1149V0332",
+      "standard": "NAS1149",
+      "dash": "V0332",
+      "class": "washer_flat",
+      "for_thread": ".190-32",
+      "values_status": "inline",
+      "library_ref": null,
+      "dimensions_in": {"thickness": 0.032, "thickness_tol": 0.004},
+      "dimensions_mm": {"thickness": 0.8128, "thickness_tol": 0.1016},
+      "used_by": ["tan_link_to_pitch_plate:washer_thin"],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "as": "NAS1149V0332H",
+        "find_no": 32,
+        "qty": 9,
+        "nomenclature": "WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\" MIN, .1900-32 UNJF-3B",
+        "balloons": [{"sheet": 4, "view": "DETAIL B"}, {"sheet": 8, "view": "SECTION T-T"}]
+      },
+      "gaps": [
+        "The workbook models .032 +/-.004; the parts list nomenclature says '.032 MIN'. The real tolerance needs the NAS1149 standard, which is not in this repo.",
+        "The workbook omits the 'H' suffix carried by the as-drawn part number."
+      ]
+    },
+    {
+      "id": "NAS1149V0363",
+      "standard": "NAS1149",
+      "dash": "V0363",
+      "class": "washer_flat",
+      "for_thread": ".190-32",
+      "values_status": "inline",
+      "library_ref": null,
+      "dimensions_in": {"thickness": 0.063, "thickness_tol": 0.006},
+      "dimensions_mm": {"thickness": 1.6002, "thickness_tol": 0.1524},
+      "used_by": ["tan_link_to_pitch_plate:washer_thick"],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": false,
+        "note": "ABSENT from the parts list. Every check the workbook actually evaluated uses this washer, so the evaluated configuration is not the as-drawn one."
+      },
+      "gaps": ["No standard document; existence in the current design unconfirmed."]
+    },
+    {
+      "id": "NAS6403U13H",
+      "standard": "NAS6403",
+      "dash": "U13H",
+      "class": "bolt_hex_head",
+      "thread": ".190-32",
+      "values_status": "inline",
+      "library_ref": null,
+      "dimensions_in": {"grip": 0.812, "grip_tol": 0.010},
+      "dimensions_mm": {"grip": 20.6248, "grip_tol": 0.254},
+      "used_by": [
+        "tan_link_to_pitch_plate:fastener_grip_13",
+        "tan_link_to_pitch_plate_take2:fastener_grip_13"
+      ],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 95,
+        "qty": 3,
+        "nomenclature": "BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .812\" GRIP",
+        "balloons": [],
+        "note": "In the parts list at qty 3 but ballooned on NO sheet -- worth a look independent of the stack work."
+      },
+      "gaps": ["The +/-.010 in grip tolerance and the thread run-out length both need the NAS6403 standard, absent from this repo."]
+    },
+    {
+      "id": "NAS6403U14D",
+      "standard": "NAS6403",
+      "dash": "U14D",
+      "class": "bolt_hex_head",
+      "thread": ".190-32",
+      "values_status": "inline",
+      "library_ref": null,
+      "dimensions_in": {"grip": 0.875, "grip_tol": 0.010},
+      "dimensions_mm": {"grip": 22.225, "grip_tol": 0.254},
+      "used_by": ["tan_link_to_pitch_plate:fastener_grip_14"],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 35,
+        "qty": 3,
+        "nomenclature": "BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .875\" GRIP",
+        "balloons": [{"sheet": 4, "view": "DETAIL B"}],
+        "note": "This is the fastener the drawing actually selects at the tan-link joint."
+      },
+      "gaps": ["Same NAS6403 standard gap as the -13."]
+    },
+    {
+      "id": "NAS6404U13D",
+      "standard": "NAS6404",
+      "dash": "U13D",
+      "class": "bolt_hex_head",
+      "thread": ".250-28",
+      "values_status": "inline",
+      "library_ref": null,
+      "dimensions_in": {"grip": 0.812, "grip_tol": 0.010},
+      "dimensions_mm": {"grip": 20.6248, "grip_tol": 0.254},
+      "used_by": ["vpa_output_to_pitch_plate:fastener_grip"],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 27,
+        "qty": 1,
+        "nomenclature": "BOLT, HEX HEAD, 6Al-4V, .250\"-28 X .812\" GRIP .1875\" LONG",
+        "balloons": [{"sheet": 5, "view": "DETAIL X"}]
+      },
+      "gaps": ["NAS6404 standard absent."]
+    },
+    {
+      "id": "NAS77A4-015",
+      "standard": "NAS77",
+      "dash": "A4-015",
+      "class": "bushing_plain",
+      "values_status": "inline",
+      "library_ref": null,
+      "dimensions_mm": {"length": 4.762, "length_min": 4.71, "length_max": 4.81},
+      "used_by": ["vpa_output_to_pitch_plate:straight_bushing"],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": false,
+        "note": "ABSENT. The as-drawn bushing at DETAIL X is Joby 214943-002 (BUSHING, PLAIN, ALUMINUM BRONZE, .250\" ID), find 28, qty 1, balloon in DETAIL X. Either the workbook predates the switch to a Joby part, or NAS77A4-015 was a placeholder."
+      },
+      "gaps": ["NAS77 standard absent; 214943-002 part drawing absent."]
+    },
+    {
+      "id": "MS21299C4K",
+      "standard": "MS21299",
+      "dash": "C4K",
+      "class": "washer_countersunk",
+      "values_status": "inline",
+      "library_ref": null,
+      "dimensions_in": {"id": 0.253, "od": 0.491, "thickness": 0.063, "thickness_tol": 0.006},
+      "dimensions_mm": {"thickness": 1.6002, "thickness_tol": 0.1524},
+      "used_by": ["vpa_output_to_pitch_plate:under_head_chamfer_washer"],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 29,
+        "qty": 1,
+        "nomenclature": "WASHER, COUNTERSUNK, 17-4PH, .253\" X .491\" X .063\"",
+        "balloons": [{"sheet": 5, "view": "DETAIL X"}]
+      },
+      "gaps": ["MS21299 standard absent -- the +/-.006 in and the countersink geometry (which is what 'under head chamfer' is really about) are both untraced."]
+    },
+    {
+      "id": "214820-002",
+      "standard": null,
+      "class": "bushing_plain",
+      "values_status": "inline",
+      "library_ref": null,
+      "dimensions_in": {"id": 0.1900, "length": 0.1875},
+      "dimensions_mm": {"length": 4.7625, "length_min": 4.63, "length_max": 4.76},
+      "used_by": ["tan_link_to_pitch_plate:straight_bushing"],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 34,
+        "qty": 8,
+        "nomenclature": "BUSHING, PLAIN, ALUMINUM BRONZE, .1900\" ID X .1875\" LONG",
+        "balloons": [{"sheet": 4, "view": "DETAIL B"}]
+      },
+      "gaps": [
+        "A Joby detail part, not a standard -- it belongs to part-level harvesting (groundwork item 4), not the fastener library. Its part drawing is not in this repo, so the 4.63/4.76 limits are untraced."
+      ]
+    },
+    {
+      "id": "MS9363-09",
+      "standard": "MS9363",
+      "dash": "09",
+      "class": "nut_slotted",
+      "values_status": "not_transcribed",
+      "library_ref": null,
+      "used_by": [],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 33,
+        "qty": 11,
+        "nomenclature": "NUT, SLOTTED, HEXAGON, SHEAR, A286, 130 KSI",
+        "balloons": [{"sheet": 4, "view": "DETAIL B"}, {"sheet": 5, "view": "DETAIL F"}]
+      },
+      "gaps": [
+        "The as-drawn retention at the tan-link joint. The workbook models a plain nut and never touches castellation geometry, so nothing here is transcribed. Slot count/depth and the mating cotter-hole position are exactly what a castle-nut check needs and exactly what is missing."
+      ]
+    },
+    {
+      "id": "MS9363-10",
+      "standard": "MS9363",
+      "dash": "10",
+      "class": "nut_castellated",
+      "values_status": "not_transcribed",
+      "library_ref": null,
+      "used_by": [],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 25,
+        "qty": 1,
+        "nomenclature": "NUT, CASTELLATED HEX, .25\"-28",
+        "balloons": [{"sheet": 5, "view": "DETAIL X"}]
+      },
+      "gaps": ["Same as MS9363-09, for the VPA joint."]
+    },
+    {
+      "id": "MS24665-153",
+      "standard": "MS24665",
+      "dash": "153",
+      "class": "pin_cotter",
+      "values_status": "not_transcribed",
+      "library_ref": null,
+      "used_by": [],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 36,
+        "qty": 11,
+        "nomenclature": "PIN, COTTER (SPLIT), CRES, .063\" DIA X .750\" LONG",
+        "balloons": [{"sheet": 4, "view": "DETAIL B"}, {"sheet": 5, "view": "DETAIL F"}]
+      },
+      "gaps": ["Cotter-hole position on the mating bolt is unknown -- it is a NAS6403 feature."]
+    },
+    {
+      "id": "MS24665-229",
+      "standard": "MS24665",
+      "dash": "229",
+      "class": "pin_cotter",
+      "values_status": "not_transcribed",
+      "library_ref": null,
+      "used_by": [],
+      "assembly_status": {
+        "drawing": "217755",
+        "present": true,
+        "find_no": 26,
+        "qty": 1,
+        "nomenclature": "PIN, COTTER (SPLIT), CRES, .078\" DIA X .750\" LONG",
+        "balloons": [{"sheet": 5, "view": "DETAIL X"}]
+      },
+      "gaps": ["Same, for the VPA joint (NAS6404)."]
+    }
+  ]
+}

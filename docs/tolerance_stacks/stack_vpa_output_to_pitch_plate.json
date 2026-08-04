@@ -1,0 +1,182 @@
+{
+  "schema": "joby.tolerance_stack/stack_definition/v0",
+  "id": "vpa_output_to_pitch_plate",
+  "title": "VPA output to pitch plate -- grip length",
+  "units": "mm",
+  "joint": {
+    "assembly_drawing": "217755",
+    "assembly_revision": "A.1",
+    "sheet": 5,
+    "view": "DETAIL X",
+    "zone": "C10",
+    "zone_note": "Jeff located this joint as 'sheet 5, zone C10 (middle-left, lower)'. The DETAIL X caption prints at zone B10 on the 2026-JUL-23 POST export, with the view body immediately above it -- consistent.",
+    "description": "0.250-28 bolt through the VPA output rod end into the mating flange, castellated nut + cotter pin retained, with a countersunk washer under the head.",
+    "scope": "grip length only"
+  },
+  "provenance": {
+    "transcribed_from": "data/inbox/tolerance_stacks/260729_sample_tol_stack.xlsx",
+    "workbook_sheet": "grip length tols old",
+    "workbook_rows": "60-75",
+    "source_note": "20260729T173648_qjk2xk",
+    "transcribed_by": "handoff tolerance_stack_slice1, 2026-07-30",
+    "column_I_caveat": "In this block the workbook's comments column is a LOOSE HARDWARE LIST, not row-aligned: I62 (NAS77A4-015) sits on the header row and I64 (MS21299C4K) sits next to 'spherical bearing'. MS21299C4K is a countersunk washer, and its .063 +/-.006 in thickness matches the 'under head chamfer washer' at E67 exactly -- so I64 labels row 67, not row 64. Do not read column I positionally here."
+  },
+  "elements": [
+    {
+      "id": "straight_bushing",
+      "name": "straight bushing",
+      "role": "bushing",
+      "nominal": 4.762,
+      "min": 4.71,
+      "max": 4.81,
+      "lmc": 4.71,
+      "mmc": 4.81,
+      "hardware_ref": "NAS77A4-015",
+      "note": "Same 0.1875 in nominal as the tan-link bushing but a DIFFERENT tolerance band (4.71/4.81 vs 4.63/4.76) -- a different part, for the .250 in bolt.",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E63",
+        "confidence": "untraced",
+        "note": "NAS77A4-015 is ABSENT from the 217755 parts list. The as-drawn bushing at this joint is Joby 214943-002 (BUSHING, PLAIN, ALUMINUM BRONZE, .250\" ID), balloon 28 in DETAIL X."
+      }
+    },
+    {
+      "id": "spherical_bearing",
+      "name": "spherical bearing width",
+      "role": "bearing",
+      "nominal": 8.71,
+      "min": 8.66,
+      "max": 8.71,
+      "lmc": 8.66,
+      "mmc": 8.71,
+      "note": "Nominal equals MMC; one-sided (-0.05/-0).",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E64",
+        "confidence": "untraced",
+        "note": "No bearing balloon in DETAIL X -- internal to 208510-007 VARIABLE PITCH ACTUATOR ASSEMBLY (balloon 1). The workbook's comment column names MS21299C4K on this row, but that part is a countersunk washer (see column_I_caveat)."
+      }
+    },
+    {
+      "id": "bushing_flange_thickness",
+      "name": "bushing flange thickness",
+      "role": "bushing",
+      "nominal": 1.575,
+      "min": 1.4478,
+      "max": 1.5748,
+      "lmc": 1.4478,
+      "mmc": 1.5748,
+      "note": "0.062 in -0.005/-0. Identical treatment to the tan-link stack's flange.",
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E65",
+        "confidence": "untraced"
+      }
+    },
+    {
+      "id": "pitch_flange_thickness",
+      "name": "pitch flange thickness",
+      "role": "clamped_member",
+      "nominal": 4.06,
+      "min": 3.96,
+      "max": 4.16,
+      "lmc": 3.96,
+      "mmc": 4.16,
+      "plus_minus": 0.1,
+      "note": "Value + tolerance traced to 215197, but WHICH feature is ambiguous -- see source_ref. This is the clearest example in the workbook of why feature identity, not just value matching, is needed.",
+      "source_ref": {
+        "kind": "drawing",
+        "document": "215197",
+        "revision": "A.1",
+        "sheet": 2,
+        "zone": "D10",
+        "callout": "5X 4.06 ±0.10",
+        "confidence": "inferred",
+        "note": "215197 carries TWO 4.06 ±0.10 callouts: '5X 4.06 ±0.10' at sheet 2 zone D10 (perpendicularity 0.05 G, 5X INDIVIDUALLY) and a single '4.06 ±0.10' at sheet 1 zone D5 (positional 0.2 A B C, datum D). The workbook's 3.96/4.16 matches both. This joint is qty 1, which argues for the sheet-1 D5 callout; the tolerance alone cannot decide. Separately, DETAIL X balloons the VPA (1) against the TANGENTIAL LINK MOUNT 215175-002 (72), not the pitch plate 215177-001 -- so 215197 may be the wrong part entirely for this flange."
+      }
+    },
+    {
+      "id": "under_head_chamfer_washer",
+      "name": "under head chamfer washer",
+      "role": "washer",
+      "nominal": 1.6002,
+      "min": 1.4478,
+      "max": 1.7526,
+      "lmc": 1.4478,
+      "mmc": 1.7526,
+      "plus_minus": 0.1524,
+      "hardware_ref": "MS21299C4K",
+      "note": "0.063 +/-0.006 in. Nominal is the midpoint (the workbook computes it as such).",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A",
+        "sheet": 5,
+        "view": "DETAIL X",
+        "callout": "MS21299C4K WASHER, COUNTERSUNK, 17-4PH, .253\" X .491\" X .063\" (find 29, qty 1)",
+        "confidence": "traced",
+        "note": "Balloon 29 in DETAIL X. Thickness .063 in confirms the workbook value; the +/-.006 in band is untraced (MS21299 spec absent from this repo)."
+      }
+    },
+    {
+      "id": "fastener_grip",
+      "name": "fastener grip (.812 in)",
+      "role": "fastener",
+      "nominal": 20.6248,
+      "min": 20.3708,
+      "max": 20.8788,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6404U13D",
+      "note": "0.812 +/-0.010 in. Workbook row 71 restates the grip with no tolerance; row 73 is the toleranced one and is the row used.",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A",
+        "sheet": 5,
+        "view": "DETAIL X",
+        "callout": "NAS6404U13D BOLT, HEX HEAD, 6Al-4V, .250\"-28 X .812\" GRIP .1875\" LONG (find 27, qty 1)",
+        "confidence": "traced",
+        "note": "Balloon 27 in DETAIL X. The .812 in grip matches the workbook exactly; the +/-.010 in is untraced (NAS6404 spec absent)."
+      }
+    }
+  ],
+  "paths": [
+    {
+      "id": "total",
+      "label": "total stack under the fastener grip",
+      "workbook_cells": "E69/G69/H69",
+      "terms": [
+        {"element": "straight_bushing"},
+        {"element": "spherical_bearing"},
+        {"element": "bushing_flange_thickness"},
+        {"element": "pitch_flange_thickness"},
+        {"element": "under_head_chamfer_washer"}
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "worst_case_shank_out",
+      "label": "worst case (MMC+ = max shank out)",
+      "configuration": {"fastener": "NAS6404U13D (.812 grip)", "washer": "MS21299C4K (.063)"},
+      "criterion": ">= 0",
+      "workbook_cells": "G75/H75",
+      "guidance": "Grip minus the clamped stack. Negative at minimum means the thread run-out is pulled inside the joint; positive at maximum means full-diameter shank protrudes past the nut face. This stack has NO thread-transition allowance, unlike the tan-link take 1.",
+      "terms": [
+        {"element": "fastener_grip"},
+        {"path": "total", "sign": -1}
+      ]
+    }
+  ],
+  "notes": [
+    "The as-drawn joint is a castellated nut (MS9363-10, balloon 25) + cotter pin (MS24665-229, balloon 26). Grip length alone cannot answer this joint: the binding constraint is whether a castellation slot lines up with the cotter hole. The workbook does not model it; neither does this transcription.",
+    "This stack has no thread-transition element and no second washer branch, so it has strictly less modelling than the tan-link take 1.",
+    "No RSS in the workbook."
+  ]
+}
