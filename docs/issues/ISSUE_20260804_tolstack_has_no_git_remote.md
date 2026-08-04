@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: medium
-status: open
+status: resolved
 area: repo-setup
 reporter: agent
 ---
@@ -9,6 +9,14 @@ reporter: agent
 # tolstack has no git remote — nothing is pushed anywhere
 
 Found during the `tolstack_founding` review (2026-08-04) at the integration step.
+
+> **RESOLVED 2026-08-04.** Jeff created the repo; `origin` is
+> `https://github.com/jobyjeff/tolstack.git`, matching the pattern every other
+> workspace repo uses. `master` pushed and tracking (`41d3893`, which includes the
+> founding work and this review). The **upstream half is still open** — see the
+> suggested fix below: neither `forge new-repo` nor `forge check` knows about
+> remotes, so the next repo founded will hit this too. That part belongs in forge,
+> not here.
 
 ## What
 
