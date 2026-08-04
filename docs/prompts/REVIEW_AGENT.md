@@ -121,6 +121,20 @@ correctly, and no element is double-counted across a path and a check that also
 includes it directly. Slice 1's F3 is the live example — a blank source cell that
 is *deliberate* de-duplication, where "fixing" it double-counts 1.575 mm.
 
+**And check the direction of the prose, not just of the terms.** A sign can also
+be wrong *outside* the term list, in the sentence that interprets the result —
+where no test is looking. The specific case: a check written as a **budget** for a
+missing element (an `INCOMPLETE`-labelled check, per the SOP's Step 5c) has a
+deficit interval whose two ends look symmetric and mean opposite things, and the
+worksheet converts one of them into "the width the joint requires". For
+`column − grip ≥ 0` the **binding** requirement is grip at `max` against the
+column at `min` — the **larger** magnitude. The smaller one is where the check
+fails even at its most favourable, and quoting it as the worst-case requirement
+understates the requirement. Sighted in `pitch_link_stack`, which quoted
+7.4859 mm where 8.1939 mm binds — 0.708 mm, in the stack's headline number, with
+every folded value correct and every test green. Read the requirement sentence
+against the interval, and check a test pins which end binds.
+
 ### 3. LMC/MMC direction, per element
 
 For each element carrying `lmc`/`mmc`, confirm the mapping to `min`/`max` is
@@ -136,6 +150,14 @@ The seeded reference cases: the tan-link bushing chamfer has **LMC 0.889 > MMC
 4.25** and is internal. If a stack has `max == mmc` on every element without
 exception, that is a smell — check whether an inverting element was folded the
 naive way.
+
+There is one legitimate exit, and it must be *earned*: a joint containing **no
+subtracted material feature at all** — no chamfer, no relief, no counterbore —
+has `max == mmc` everywhere correctly. `pitch_link_to_pitch_plate` is the live
+example. Absence of the smell's cause is not absence of the check, so require
+both: the author states the absence explicitly, and **you** confirm it by looking
+for a chamfer/relief/counterbore in the view and by checking that the only
+negative signs in the file are on whole-element or whole-path subtractions.
 
 Confirm also that `fold()` was not modified to read `lmc`/`mmc`. It must read
 `min`/`max` only.
@@ -276,7 +298,31 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 - [ ] **Documented vocabularies drifting from the seeded data.** The SOP's `role`
       list omitted `nut_geometry`, which the seeded take-2 uses three times. When a
       doc says "one of X | Y | Z", enumerate the actual values in
-      `docs/tolerance_stacks/*.json` and diff the two sets.
+      `docs/tolerance_stacks/*.json` and diff the two sets. **Second sighting
+      (`pitch_link_stack`):** the same class, one layer worse — `kind: "spec"` was
+      *mandated* by the SOP, omitted from `SourceRef.kind`'s comment, **and**
+      omitted from the whitelist in
+      `test_source_ref_leaves_the_feature_identity_slot_open_and_empty`, so the
+      first compliant from-scratch stack made the suite fail. A vocabulary lives in
+      **three** places (SOP prose, the dataclass comment, the enforcing test);
+      check all three, not two.
+- [ ] **Documents cited from a worktree that cannot see them.** `data/` is
+      gitignored, so `data/inbox/specs/` in a worktree holds one tracked
+      `README.md` and nothing else — the 42-file pile exists only in the main
+      checkout at `C:\workspace\tolstack\data\inbox\specs\`. Check 1 tells you a
+      citation to a missing document is worse than none; an `ls` in your own cwd
+      will manufacture exactly that finding for every correctly-cited spec in the
+      stack. **Read the pile in the main checkout.** Same for
+      `data/inbox/tolerance_stacks/`.
+- [ ] **A "byte-identical" PROVENANCE row read as a freeze.** `PROVENANCE.md`
+      declares ten imported files byte-identical, but the SOP *requires* changing
+      three of them for every new stack (`hardware_entries.json` Step 4,
+      `tests/test_tolerance_stack.py` Step 7, `docs/tolerance_stacks/README.md`).
+      Sighted in `pitch_link_stack`, which changed all three plus a comment in
+      `tolerance_stack/stack.py` and amended nothing, leaving PROVENANCE making
+      three false claims. Diff every path PROVENANCE calls byte-identical against
+      the branch (`git diff master..handoff/<slug> --name-only`) and check the
+      Amended column moved in the same commit.
 
 ## Architectural errors to check
 
@@ -290,8 +336,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       drawing-checker). If one genuinely must change, the amendment goes in
       PROVENANCE's Amended column in the same commit — otherwise the provenance
       record is now false, which in this repo is the worst class of defect.
-- [ ] **drawing-checker is read-only and one-way.** Nothing here writes there;
-      check its `git status` is unchanged by the work.
+- [ ] **drawing-checker is read-only and one-way.** Nothing here writes there.
+      **`git status` there does not prove it** — `data/runs/*` and
+      `data/inbox/*` are gitignored, so a session that ran the pipeline, added a
+      run, or dropped in a PDF leaves that repo's status completely clean and the
+      check passes vacuously (`docs/issues/ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth.md`).
+      Until that issue is closed: if the work **cites** a run, check the run
+      directory's mtime and its `run_meta.json` `ts` against the session's own
+      commit dates, and check `purpose` / `pipeline_commit` — a `"purpose": "test"`
+      run with a `+dirty` commit during a drawing-checker session is theirs, not
+      the stack author's.
 - [ ] **`data/inbox/specs/` is append-only.** No renames, no de-duplication, no
       tidying — check the diff *and* the filesystem.
 - [ ] **`docs/reference/` is verbatim imports.** No edits beyond the import
