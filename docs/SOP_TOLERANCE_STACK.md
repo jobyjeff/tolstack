@@ -41,6 +41,48 @@ stated plainly beats a confident wrong one.
 
 ---
 
+## The four schemas
+
+All four are defined in `tolerance_stack/stack.py` and all are versioned `/v0`.
+The `joby.tolerance_stack/...` ids are **not** repo-scoped — they mean the same
+thing they meant in drawing-checker, so moving repos did not rev them.
+
+| schema id | you write it? | what it is |
+|---|---|---|
+| `joby.tolerance_stack/stack_definition/v0` | **yes** — one JSON file per stack | ordered `elements`, named `paths`, `checks` over them, plus `joint`, `provenance`, `notes` |
+| `source_ref` (embedded in an element, no id of its own) | **yes** — one per element, mandatory | where the value came from, and how well: `confidence: traced \| inferred \| untraced` |
+| `joby.tolerance_stack/hardware_entry/v0` | **yes** — `docs/tolerance_stacks/hardware_entries.json`, one entry per standard part | a standard part with inline values, an empty `library_ref`, `assembly_status`, and a mandatory `gaps` list |
+| `joby.tolerance_stack/check_result/v0` | **no** — produced, never stored | the outcome of folding a check: nominal, worst-case min/max, RSS, and a `verdict` |
+
+How they fit together:
+
+```
+stack_definition/v0                     <- you author this
+  elements[]  --hardware_ref-->  hardware_entry/v0     <- you author this
+      |                            (a test asserts every ref resolves)
+      +--source_ref                <- you author one per element, always
+  paths[]     signed term lists  --+
+  checks[]    signed term lists  --+--> fold() --> check_result/v0   <- produced
+```
+
+**`stack_definition` is the only file whose shape you must get exactly right**,
+because `load_stack()` validates its `schema` string and refuses anything else.
+Load it and fold it as you go rather than writing the whole thing blind:
+
+```powershell
+venv-win\Scripts\python.exe -c "from tolerance_stack import load_stack; s = load_stack('docs/tolerance_stacks/stack_<id>.json'); print([c.verdict for c in s.all_checks()])"
+```
+
+The load-bearing structural decision: **`paths` and `checks` are the same shape**
+— a list of `{element|path, sign}`. One `fold()` serves both, so worst-case and
+RSS are computed in exactly one place, and **there is exactly one place a sign can
+be wrong**. Do not add a second code path for checks.
+
+`check_result` being *produced, not stored* is deliberate: a stored verdict goes
+stale the moment an element value changes, and nothing would notice. Recompute it.
+The worksheet is where a result gets written down for humans, and the tests are
+what stop it drifting.
+
 ## Step 0 — set up and orient
 
 ```powershell
