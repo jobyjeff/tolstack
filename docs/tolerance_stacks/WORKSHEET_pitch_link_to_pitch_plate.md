@@ -145,9 +145,9 @@ Criterion is `≥ 0` on both. `marginal` = nominal passes, worst case does not.
 leaving as an absence: nominal and worst case agree in sign on both, because the
 only element carrying a real band is the ±0.10 mm pitch-plate lug and the two
 margins are an order of magnitude larger than it. Nothing was rounded or nudged
-to avoid the marginal verdict — if the pitch-link eye width arrives near
-7.5–8.2 mm, `shank_out__11_sourced_only` will land marginal, and that will be the
-informative answer.
+to avoid the marginal verdict — if the pitch-link eye width arrives between
+**7.8399 and 8.1939 mm**, `shank_out__11_sourced_only` will land marginal, and
+that will be the informative answer.
 
 | check | nominal | WC min | WC max | RSS min | RSS max | verdict |
 |-------|---------|--------|--------|---------|---------|---------|
@@ -163,14 +163,18 @@ informative answer.
 >
 > | | required pitch-link eye width |
 > |---|---|
-> | at nominal | **7.8399 mm** (0.3087 in) |
-> | worst case (grip max vs column min) | **≥ 7.4859 mm** |
-> | worst case (grip min vs column max) | **≤ 8.1939 mm** |
+> | to pass at **worst case** — grip **max** 17.7292 vs column **min** 9.5353 — **the binding requirement** | **≥ 8.1939 mm** |
+> | to pass at nominal | **≥ 7.8399 mm** (0.3087 in) |
+> | below this it fails even in the most favourable combination — grip **min** 17.2212 vs column **max** 9.7353 | < **7.4859 mm** |
 >
-> i.e. the eye must be about **7.49–8.19 mm** wide for the -11 bolt to satisfy
-> JPS00094 Rev C §5.5.5, *"The nut, nutplate, insert, part body, etc., shall not
-> engage any incomplete threads of the bolt shank."* Sourcing that one number
-> flips this check to a real verdict. Nothing else is needed.
+> i.e. the -11 bolt satisfies JPS00094 Rev C §5.5.5, *"The nut, nutplate, insert,
+> part body, etc., shall not engage any incomplete threads of the bolt shank,"*
+> only if the eye is at least **8.1939 mm** wide. **7.49–8.19 mm is not the
+> requirement** — it is the band in which the answer depends on where in tolerance
+> the parts land, and within it 7.84–8.19 mm is specifically `marginal` (nominal
+> passes, worst case does not). Note the two zero-width bands make even 8.1939 mm
+> a *lower* bound on the real requirement. Sourcing that one number flips this
+> check to a real verdict. Nothing else is needed.
 >
 > For scale, not as a substitute: slice 1's *tangential*-link stack folds an
 > 11.05–11.10 mm spherical bearing plus a 1.4478–1.5748 mm bushing flange. Those

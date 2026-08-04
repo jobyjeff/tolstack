@@ -361,6 +361,36 @@ def test_pitch_link_shank_out_deficit_is_the_required_link_eye_width(pitch_link)
     assert "INCOMPLETE" in got.label
 
 
+def test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end(pitch_link):
+    """Added by review/pitch_link_stack. The deficit interval is symmetric-looking
+    and its two ends mean opposite things, so which one the worksheet quotes as
+    "the requirement" matters: a reader who takes the SMALLER magnitude accepts an
+    eye that fails worst case. Pinned so the prose cannot drift back.
+
+      >= 8.1939  eye needed to PASS worst case  (grip MAX - column MIN) <- binding
+      >= 7.8399  eye needed to pass nominal; 7.8399..8.1939 is `marginal`
+      <  7.4859  fails even at grip MIN - column MAX, the favourable end
+    """
+    got = pitch_link.check("shank_out__11_sourced_only")
+    grip = pitch_link.element("bolt_grip_11")
+    column = pitch_link.path("clamped_stack_sourced")
+
+    binding = grip.max - column.min
+    assert binding == pytest.approx(8.1939, abs=TOL)
+    assert binding == pytest.approx(-got.interval.min, abs=TOL)
+
+    at_nominal = grip.nominal - column.nominal
+    assert at_nominal == pytest.approx(7.8399, abs=TOL)
+    assert at_nominal == pytest.approx(-got.interval.nominal, abs=TOL)
+
+    favourable = grip.min - column.max
+    assert favourable == pytest.approx(7.4859, abs=TOL)
+    assert favourable == pytest.approx(-got.interval.max, abs=TOL)
+
+    # The binding requirement is the LARGEST of the three, which is the whole point.
+    assert binding > at_nominal > favourable
+
+
 def test_pitch_link_cotter_hole_budget(pitch_link):
     """Head-to-cotter-hole minus the sourced column: the budget left for the
     pitch-link eye PLUS the MS9363-09 nut's thread-start-to-castellation

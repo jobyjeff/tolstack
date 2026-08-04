@@ -20,8 +20,14 @@ one-way and additive, and no drawing-checker file was edited or deleted to make
 this repo exist. Only `data/inbox/specs/` was **moved**, because nothing in
 drawing-checker had ever consumed it.
 
-Where a copied file was amended here, the amendment is limited to an
-"imported"/"where this lives" note and is listed in the Amended column.
+Where a copied file was amended here, the amendment is listed in the Amended
+column. At founding every amendment was limited to an "imported"/"where this
+lives" note. Three files have since changed substantively, because the repo's own
+SOP requires it — `hardware_entries.json` (Step 4), `tests/test_tolerance_stack.py`
+(Step 7) and `docs/tolerance_stacks/README.md` grow with every new stack. **A
+"byte-identical" row is a claim about the import, not a freeze**; when one of
+these files changes, amend its row in the same commit. The rows below say when
+each stopped being byte-identical and why.
 
 ## Copied — `docs/tolerance_stacks/`
 
@@ -32,7 +38,7 @@ Design artifacts, committed (not run data).
 | `docs/tolerance_stacks/stack_tan_link_to_pitch_plate.json` | same path | no — byte-identical |
 | `docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json` | same path | no — byte-identical |
 | `docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json` | same path | no — byte-identical |
-| `docs/tolerance_stacks/hardware_entries.json` | same path | no — byte-identical |
+| `docs/tolerance_stacks/hardware_entries.json` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import. Added the `NAS6403U11D` entry (the first whose inline values are traced to a standard rather than to the 260729 workbook, carrying a proposed additive `values_source` field), extended four entries' `gaps`, and added `used_by` back-references. SOP Step 4 requires a hardware entry per standard part, so this file changes with every new stack |
 | `docs/tolerance_stacks/WORKSHEET_tan_link_to_pitch_plate.md` | same path | no — byte-identical |
 | `docs/tolerance_stacks/WORKSHEET_vpa_output_to_pitch_plate.md` | same path | no — byte-identical |
 | `docs/tolerance_stacks/README.md` | same path | **yes** — its "Where this lives is NOT decided" section is now answered (it lives here); added pointers to the SOP and to `docs/reference/`, and corrected "three shapes" to four |
@@ -42,7 +48,7 @@ Design artifacts, committed (not run data).
 | source | destination | amended |
 |---|---|---|
 | `tolerance_stack/__init__.py` | same path | no — byte-identical |
-| `tolerance_stack/stack.py` | same path | no — byte-identical |
+| `tolerance_stack/stack.py` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import. **Comment only:** `SourceRef.kind`'s inline list gained `spec`, which the SOP already mandates for a `data/inbox/specs/` file and which the imported comment omitted. No executable line changed; `fold()` is untouched and still reads `min`/`max` only |
 
 Stdlib only. `SCHEMA_*` constants keep the `joby.tolerance_stack/...` namespace
 they were minted with — the schema id is not repo-scoped, so moving repos does
@@ -52,7 +58,7 @@ not rev it.
 
 | source | destination | amended |
 |---|---|---|
-| `tests/test_tolerance_stack.py` | same path | no — byte-identical. **34 tests, all green here** under this repo's `venv-win` |
+| `tests/test_tolerance_stack.py` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import (**34 tests, all green** under this repo's `venv-win`). Added the pitch-link stack's value and provenance tests, hoisted the stack-file list into `ALL_STACK_FILES`, and admitted `spec` to the `source_ref.kind` whitelist. **50 tests** as of that commit. SOP Step 7 requires new tests per stack, so this file changes with every new stack |
 | `tests/__init__.py` | same path | no — empty, both |
 | `tests/debug_dump_tol_stack_xlsx.py` | same path | **yes** — import note; dropped a "drawing-checker's venv-win" aside; folded in the shared-formula gotcha |
 | `tests/debug_report_tolerance_stacks.py` | same path | **yes** — import note |

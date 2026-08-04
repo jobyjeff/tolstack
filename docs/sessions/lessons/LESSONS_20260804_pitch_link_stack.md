@@ -1,7 +1,7 @@
 # Lessons — pitch_link_stack (worked 2026-08-04)
 
 Handoff: `docs/sessions/completed/HANDOFF_20260803_pitch_link_stack.md`.
-Branch: `handoff/pitch_link_stack`, cut from `main`.
+Branch: `handoff/pitch_link_stack`, cut from `master` (this repo has no `main`).
 
 Build the **pitch link → pitch plate** grip stack from scratch following
 `docs/SOP_TOLERANCE_STACK.md`, sourcing every value or naming the gap. First
@@ -78,7 +78,9 @@ three washers; §5.5.5 supplies the shank-out criterion (*"The nut … shall not
 engage any incomplete threads of the bolt shank"*). Slice 1's F8/F16 had to argue
 this from first principles.
 
-## SOP friction report — 13 proposed edits
+## SOP friction report — 14 proposed edits
+
+*(13 from this session; edit 14 was added by the reviewer.)*
 
 The handoff says **propose, do not edit**. Nothing below has been applied to
 `docs/SOP_TOLERANCE_STACK.md`. Ordered by how much time each cost.
@@ -150,8 +152,13 @@ It never says how to **shape the stack** around a missing element, and the two
 available shapes are not equivalent: omit the element and let the checks be
 quietly wrong, or omit it and write the checks so the missing value appears as an
 explicit budget. This session did the second and it is the more useful artifact —
-`shank_out__11_sourced_only` reports −7.4859 … −8.1939 mm, and that deficit **is**
-the required pitch-link eye width. One document flips the check.
+`shank_out__11_sourced_only` reports −8.1939 … −7.4859 mm, and that deficit **is**
+the required pitch-link eye width. One document flips the check. (Review note: the
+*binding* requirement is the worst-case end, **8.1939 mm** — the first draft of the
+worksheet and the check's `guidance` quoted the favourable end, 7.4859 mm, as
+"worst case". Corrected on `review/pitch_link_stack` and pinned by
+`test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end`; see
+proposed edit 14.)
 
 > **Proposed edit** — new "Step 5c — when an element cannot be sourced at all":
 > *"Never create a placeholder element. Omit it, and then write the check anyway
@@ -319,6 +326,31 @@ the PDF by hand.
   assembly view, which is the only way to read what a joint physically consists
   of. It is the single most useful tool in the repo for Step 1 and the usage
   block does not mention it.
+
+### 14. Step 5c: which end of a budget check's interval is the requirement
+
+*Added by `review/pitch_link_stack`, from a defect in this session's own output.*
+
+Proposed edit 4 (Step 5c) says to write an incomplete check so the shortfall *is*
+the missing value. It does not say **which end of the resulting interval is the
+requirement**, and getting that backwards is easy: the interval's two ends look
+symmetric and mean opposite things. For `shank_out__11_sourced_only`
+(`column − grip`, criterion `≥ 0`), the missing eye width must satisfy
+`eye ≥ grip − column`, so the **binding** bound comes from `grip` at its **max**
+against the column at its **min** — the *larger* magnitude, 8.1939 mm. The other
+end, 7.4859 mm, is merely where the check fails even in the most favourable
+combination. Both the worksheet table and the check's `guidance` originally quoted
+7.4859 mm as the worst-case requirement, understating it by 0.708 mm; a reader who
+sourced a 7.6 mm eye would have concluded the joint passed worst case.
+
+> **Proposed edit** — Step 5c, new bullet: *"State which end of the interval is the
+> requirement, and why. For a shortfall check the binding bound is the one built
+> from the **worst** combination for the criterion — for `column − grip ≥ 0` that is
+> grip at `max` against the column at `min`, i.e. the **larger** deficit magnitude.
+> The smaller magnitude is where the check fails even at its most favourable, and it
+> is not a requirement. Quote the binding one, name the combination that produced
+> it, and pin all of it with a test — the two numbers are one subtraction apart and
+> prose drifts."*
 
 ## Gap list, in spec-library-intake form
 
