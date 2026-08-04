@@ -1,0 +1,279 @@
+{
+  "schema": "joby.tolerance_stack/stack_definition/v0",
+  "id": "pitch_link_to_pitch_plate",
+  "title": "Pitch link to pitch plate -- grip length (built from scratch, no source workbook)",
+  "units": "mm",
+  "joint": {
+    "assembly_drawing": "217755",
+    "assembly_revision": "A.1",
+    "assembly_export": "[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf (drawing-checker run 20260804_114000 / 20260803_145243)",
+    "sheet": 4,
+    "sheet_description": "SPINDLE CLAMP AND PITCH PLATE",
+    "view": "DETAIL B",
+    "scale": "2:1",
+    "zone": "H3",
+    "zone_note": "printed zone of the DETAIL B caption on the 2026-AUG-3 export; the view body sits above it, spanning printed J3-K4. Slice 1 cited I6 for the same caption on the 2026-JUL-23 POST export -- a view's printed zone is not stable across exports (see the worksheet, finding F4).",
+    "description": "The 5-place joint in DETAIL B: NAS6403U11D bolt down through the pitch-link eye (spherical bearing) and a plain bushing, through a 4.06 mm pitch-plate lug, retained by a slotted nut + cotter pin over a flat washer. DETAIL B shows TWO grip stacks of identical architecture: this one (5 places, -11 bolt) and the tangential-link joint analysed in slice 1 (3 places, -14 bolt).",
+    "places": 5,
+    "parts": [
+      {"find_no": 38, "part_number": "NAS6403U11D", "qty": 5, "balloon": "5X in DETAIL B", "role": "bolt, .190-32 x .688 grip, unplated, drilled shank"},
+      {"find_no": 34, "part_number": "214820-002", "qty": 8, "balloon": "8X in DETAIL B", "role": "plain bushing, .1900 in ID x .1875 in long (8 = 3 tangential-link places + 5 here)"},
+      {"find_no": 31, "part_number": "215177-001", "qty": 1, "balloon": "in DETAIL B (with 74 = 215177-002 CCW)", "role": "PITCH PLATE ASSEMBLY, PROPELLER, CW -- contains the 215197 pitch plate"},
+      {"find_no": 32, "part_number": "NAS1149V0332H", "qty": 9, "balloon": "8X in DETAIL B", "role": "flat washer, .032 in"},
+      {"find_no": 33, "part_number": "MS9363-09", "qty": 11, "balloon": "8X in DETAIL B", "role": "NUT, SLOTTED, HEXAGON, SHEAR -- retention"},
+      {"find_no": 36, "part_number": "MS24665-153", "qty": 11, "balloon": "8X in DETAIL B", "role": "PIN, COTTER (SPLIT) -- retention"}
+    ],
+    "clamped": "The bolt clamps, in order from its head: the 214820-002 bushing, the pitch-link eye (unsourced -- see gaps), the 4.06 mm pitch-plate lug, and the NAS1149V0332H washer. Retention is the MS9363-09 slotted nut with an MS24665-153 cotter pin through the drilled shank ('D' suffix, NAS6403 sheet 2 CODE block).",
+    "question": "Does the NAS6403U11D (.688 in grip) work in this joint -- i.e. does the end of its full cylindrical shank clear the nut bearing face (JPS00094 Rev C section 5.5.5), and does its cotter hole sit clear of the clamped stack?",
+    "scope": "Grip length only, and only along the bolt axis. Out of scope, deliberately: diameter and hole fits (simple two-component fits); bushing-to-bore interference (JPS00176); the pitch link's own internal stack; the joint at the other end of the pitch link; torque and preload.",
+    "identification_note": "No part in the 217755 parts list is named 'pitch link'. This joint is identified as Jeff's 'pitch link to pitch plate' by elimination and corroboration, not by nomenclature: (1) his note says the joint is visible in the same view as the tangential-link joint, and DETAIL B contains exactly two grip stacks; (2) slice 1 claimed the 3X / -14 stack as the tangential link, matching 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY at qty 3; (3) this one is 5 places, the propeller has FIVE blades (217755 sheet 2 FRONT VIEW), and one pitch link per blade gives five; (4) the pitch plate part drawing 215197 carries a distinct 5X 4.06 +/-0.10 flange group, separate from the 3X +/-0.08 (tangential) and 1X +/-0.10 (VPA) groups. The link part number itself is gap 1."
+  },
+  "provenance": {
+    "transcribed_from": null,
+    "source_note": "Built from scratch per docs/SOP_TOLERANCE_STACK.md Step 5b. There is NO source workbook for this joint -- that is the point of the exercise (Jeff's atomic note 20260803T153839_cwzuzq: 'there will be no excel sheet to cheat off of'). No element here carries a source_ref of kind 'workbook'.",
+    "authored_by": "handoff pitch_link_stack, 2026-08-04",
+    "sources_used": [
+      "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf -- sheets 1, 2, 3 (scan, no text layer; read by vision)",
+      "data/inbox/specs/JPS00094 Process Specification -- Installation of Bolts and Nuts.pdf Rev C 05/Sep/2024 -- pages 3 and 7 of 14 (criteria only, no dimensions)",
+      "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf -- sheet 2 SECTION A-A (read-only)",
+      "C:/workspace/drawing-checker/data/runs/20260803_145243_217755_A.1_.../217755_A_balloons.json and the 2026-AUG-3 PDF (read-only)"
+    ],
+    "not_used": "The 214820-002 bushing length band (4.63/4.76) and the NAS1149V0332 thickness band (+/-.004 in) already sitting in hardware_entries.json were NOT adopted here. Both are slice-1 transcriptions of the 260729 workbook, i.e. untraced, and SOP Step 5b requires zero workbook-sourced values in a from-scratch stack. Those two elements therefore carry a ZERO-WIDTH band, which makes every worst-case interval below a LOWER bound on the true spread. See the worksheet."
+  },
+  "elements": [
+    {
+      "id": "bushing_214820",
+      "name": "plain bushing length (214820-002)",
+      "role": "bushing",
+      "nominal": 4.7625,
+      "min": 4.7625,
+      "max": 4.7625,
+      "lmc": null,
+      "mmc": null,
+      "plus_minus": null,
+      "hardware_ref": "214820-002",
+      "note": "0.1875 in, read out of the parts-list nomenclature. ZERO-WIDTH BAND: no document in this repo gives a tolerance on this length. The Joby part drawing for 214820-002 is not here, and the 4.63/4.76 limits in hardware_entries.json come from the 260729 workbook (untraced), which a from-scratch stack may not use. Treat the folded worst case as a lower bound on the real spread.",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A",
+        "sheet": 4,
+        "zone": "H3",
+        "view": "DETAIL B",
+        "cell": null,
+        "callout": "214820-002  BUSHING, PLAIN, ALUMINUM BRONZE, .1900\" ID X .1875\" LONG  (find 34, qty 8; balloon reads 8X in DETAIL B)",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "inferred",
+        "note": "Presence and nominal only. qty 8 = the 3 tangential-link places plus the 5 places of this joint, which is how one bushing per joint is inferred; the balloon prefix 8X in DETAIL B is consistent. Band untraced -> gap 3."
+      }
+    },
+    {
+      "id": "pitch_plate_flange",
+      "name": "pitch plate lug thickness (5X group)",
+      "role": "clamped_member",
+      "nominal": 4.06,
+      "min": 3.96,
+      "max": 4.16,
+      "lmc": 3.96,
+      "mmc": 4.16,
+      "plus_minus": 0.1,
+      "hardware_ref": null,
+      "note": "TRACED, and the only element here whose full tolerance band comes off a part drawing. Additive member: MMC (most material) is the thickest, so mmc -> max.",
+      "source_ref": {
+        "kind": "drawing",
+        "document": "215197",
+        "revision": "A.1",
+        "sheet": 2,
+        "zone": "D10",
+        "view": "SECTION A-A",
+        "cell": null,
+        "callout": "5X 4.06 ±0.10",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "215197 PITCH PLATE, PROPELLER, [PRELIM 2025-MAY-22] export held at drawing-checker/tests/fixtures/drawings/. Carries positional ⌖⌀0.2 A B C and perpendicularity ⊥0.05 G, annotated 5X INDIVIDUALLY. The 5X count is what ties this callout to this joint. Do NOT confuse with the 3X 4.06 ±0.08 group at sheet 2 zone B4 (tangential links, slice 1) or the 1X 4.06 ±0.10 at sheet 1 zone D5 (VPA output)."
+      }
+    },
+    {
+      "id": "washer_nas1149v0332",
+      "name": "washer thickness, NAS1149V0332H (.032 in)",
+      "role": "washer",
+      "nominal": 0.8128,
+      "min": 0.8128,
+      "max": 0.8128,
+      "lmc": null,
+      "mmc": null,
+      "plus_minus": null,
+      "hardware_ref": "NAS1149V0332",
+      "note": "0.032 in, read out of the parts-list nomenclature. ZERO-WIDTH BAND: the NAS1149 standard is not in data/inbox/specs/, and the +/-.004 in in hardware_entries.json is a 260729-workbook value (untraced), unusable here. Treat the folded worst case as a lower bound.",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A",
+        "sheet": 4,
+        "zone": "H3",
+        "view": "DETAIL B",
+        "cell": null,
+        "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\"  (find 32, qty 9; balloon reads 8X in DETAIL B)",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "inferred",
+        "note": "The 2026-AUG-3 export reads '.032\"'. The 2026-JUL-23 POST export slice 1 worked from read '.032\" MIN, .1900-32 UNJF-3B' -- the MIN qualifier and the thread call have been dropped between exports (worksheet finding F3). Either way the parts list gives no band -> gap 4."
+      }
+    },
+    {
+      "id": "bolt_grip_11",
+      "name": "NAS6403U11D grip length (.688 in)",
+      "role": "fastener",
+      "nominal": 17.4752,
+      "min": 17.2212,
+      "max": 17.7292,
+      "lmc": 17.2212,
+      "mmc": 17.7292,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U11D",
+      "note": "0.688 +/-0.010 in. TRACED to the NAS standard, not to a workbook or to recall -- this is the value slice 1 could not source (its ranked gap 1). External additive feature, so MMC (most material) is the longest grip -> mmc -> max.",
+      "source_ref": {
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4 (sheet 1 rev 4, sheet 2 rev 2, sheet 3 NEW, sheet 4 rev 2)",
+        "sheet": 3,
+        "zone": null,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 11'",
+        "callout": "Grip Dash No. 11  |  Grip ±.010 = .688  |  LENGTH ±.015, NAS6403 .1900-32 = 1.011",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "The ±.010 is the printed column header 'Grip ±.010'. Sheet 2 note (a) defines it: 'Grip-length of bolts shall be measured from the underside of head to the end of the full cylindrical portion of the shank.' Sheet 2 CODE block decodes the part number: dash number = grip in .0625 increments, 'U' after the basic number = unplated, 'D' after the dash number = drilled shank. .688 = 11 x .0625 rounded to 3 places, exactly as the sheet-3 note says. Scan, no text layer -- read by vision at 2.2x-8x."
+      }
+    },
+    {
+      "id": "bolt_length_11",
+      "name": "NAS6403U11D overall length, head bearing face to point (1.011 in)",
+      "role": "fastener",
+      "nominal": 25.6794,
+      "min": 25.2984,
+      "max": 26.0604,
+      "lmc": 25.2984,
+      "mmc": 26.0604,
+      "plus_minus": 0.381,
+      "hardware_ref": "NAS6403U11D",
+      "note": "1.011 +/-0.015 in. Only used to locate the cotter hole relative to the head; it is NOT part of the clamped column.",
+      "source_ref": {
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 3,
+        "zone": null,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 11', column 'NAS6403 .1900-32'",
+        "callout": "LENGTH ±.015 (See Note Below) ... NAS6403 .1900-32, dash 11 = 1.011",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Sheet 3's closing note: 'Nominal length equals nominal grip plus T (see Sheet 1).' Sheet 1 gives T (Ref) = .323 for NAS6403, and 1.011 - .688 = .323 exactly -- two independently-read table columns agreeing, pinned by the thread_region_T path and its test."
+      }
+    },
+    {
+      "id": "cotter_hole_from_point",
+      "name": "cotter-hole centreline to bolt point (dimension M)",
+      "role": "fastener",
+      "nominal": 4.1656,
+      "min": 3.9116,
+      "max": 4.4196,
+      "lmc": null,
+      "mmc": null,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U11D",
+      "note": "M = .174/.154 in, i.e. .164 +/-.010. A LOCATION, not a material condition, so lmc/mmc are deliberately null -- there is no 'most material' reading of where a hole sits. Its nominal 4.1656 is the MIDPOINT of the printed limits: the standard's table has no nominal column, which is a case the SOP's 'nominal is transcribed, not computed' rule does not cover (see the lesson).",
+      "source_ref": {
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 1,
+        "zone": null,
+        "view": "side-elevation figure + dimension table, NAS6403 row",
+        "cell": "column M, row NAS6403",
+        "callout": "M = .174 / .154   (drill P = .080 / .070 'Drill P (j) when specified by part number')",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "The sheet-1 table prints M as .174/.154 for NAS6403. Which two features M spans is read off the figure, not from text: its extension lines land on the cotter-hole centreline and on the bolt point. A reviewer should re-check that reading against the figure -- the standard nowhere defines M in words. Sheet 2 note (j) adds the position tolerance: 'Cotter pin hole centerline: Within .010 and normal within 2° of bolt centerline.'"
+      }
+    }
+  ],
+  "paths": [
+    {
+      "id": "clamped_stack_sourced",
+      "label": "clamped column, sourced members only (bushing + pitch-plate lug + washer) -- EXCLUDES the unsourced pitch-link eye",
+      "workbook_cells": null,
+      "terms": [
+        {"element": "bushing_214820"},
+        {"element": "pitch_plate_flange"},
+        {"element": "washer_nas1149v0332"}
+      ]
+    },
+    {
+      "id": "head_to_cotter_hole",
+      "label": "head bearing face to cotter-hole centreline (length - M)",
+      "workbook_cells": null,
+      "terms": [
+        {"element": "bolt_length_11"},
+        {"element": "cotter_hole_from_point", "sign": -1}
+      ]
+    },
+    {
+      "id": "thread_region_T",
+      "label": "grip end to point, i.e. the standard's T (Ref) -- a provenance cross-check, not a design quantity",
+      "workbook_cells": null,
+      "terms": [
+        {"element": "bolt_length_11"},
+        {"element": "bolt_grip_11", "sign": -1}
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "shank_out__11_sourced_only",
+      "label": "shank out, NAS6403U11D -- INCOMPLETE: pitch-link eye width unsourced",
+      "configuration": {
+        "fastener": "NAS6403U11D (.688 in grip)",
+        "washer": "NAS1149V0332H (.032 in)",
+        "excluded": "pitch-link eye / spherical bearing width -- no document"
+      },
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "clamped column minus grip. Negative means the end of the full cylindrical shank sits proud of the nut bearing face, so the nut would engage incomplete threads -- which JPS00094 Rev C section 5.5.5 forbids outright ('The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank'). This check is INCOMPLETE by construction: the pitch-link eye is missing from the column, so the verdict below is not a design conclusion. Read the magnitude instead -- it is exactly the pitch-link eye width the joint REQUIRES: >= 7.4859 mm worst case, 7.8399 mm at nominal. Sourcing that one number flips this check.",
+      "terms": [
+        {"path": "clamped_stack_sourced"},
+        {"element": "bolt_grip_11", "sign": -1}
+      ]
+    },
+    {
+      "check_id": "cotter_hole_clear_of_sourced_stack",
+      "label": "cotter hole clear of the clamped column -- budget for pitch-link eye + nut, INCOMPLETE",
+      "configuration": {
+        "fastener": "NAS6403U11D (.688 in grip, drilled shank)",
+        "nut": "MS9363-09 slotted -- height and castellation geometry unsourced",
+        "excluded": "pitch-link eye / spherical bearing width -- no document"
+      },
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Head-to-cotter-hole minus the sourced clamped column. What is left over must cover the pitch-link eye PLUS the nut's thread-start-to-castellation distance; both are unsourced, so this is a budget, not a verdict on the joint. It passes with 11.1435 mm worst case available. It cannot settle the joint: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the notes and the worksheet.",
+      "terms": [
+        {"path": "head_to_cotter_hole"},
+        {"path": "clamped_stack_sourced", "sign": -1}
+      ]
+    }
+  ],
+  "notes": [
+    "BUILT FROM SCRATCH. No source workbook exists for this joint, so there is no re-derivation section in the worksheet, no `workbook_cells` on any path or check, and no `[NOT IN WORKBOOK]` markers -- every check here is original. `kind: \"workbook\"` appears zero times, as SOP Step 5b requires.",
+    "THE STACK IS INCOMPLETE AND SAYS SO. The pitch-link eye / spherical bearing width is not in any document available here, so it is NOT modelled as an element with invented or recalled numbers -- it is a named gap, and the two checks are written so that the missing value appears as an explicit budget. Nothing in this file was filled from memory.",
+    "ZERO-WIDTH BANDS. `bushing_214820` and `washer_nas1149v0332` carry min == max == nominal because no document gives a tolerance. Every worst-case interval below is therefore a LOWER bound on the true spread, and the RSS half-ranges likewise understate it. This is stated rather than papered over with a plausible band.",
+    "NO INVERTING ELEMENT EXISTS HERE. Every element is an additive external length or a hole location; there is no chamfer, relief or counterbore, so `max == mmc` on all three elements that carry lmc/mmc, and `cotter_hole_from_point` carries neither. That is not the naive-MMC-mapping smell the review checklist warns about -- it is the absence of a subtracted material feature. The only negative signs in this file are on whole-element/whole-path subtractions.",
+    "QUANTISED GRIP -- THE MODEL DOES NOT SETTLE THIS JOINT. Retention is MS9363-09 (NUT, SLOTTED, HEXAGON, SHEAR) plus MS24665-153 cotter pin through the drilled shank. The governing constraint is whether a castellation slot lines up with the bolt's cotter hole, which quantises acceptable grip into discrete workable values instead of bounding it in a continuous interval. JPS00094 Rev C section 5.9.7 states the remedy in as many words -- 'If the hole and nut castellation do not align, change/add a washer or a different nut, and try again' with a footnote that 'Different nuts likely have different manufactured thread-start to castellation-hole spacing' -- and section 5.5.3.a caps the remedy at three washers per fastener. So this is assembly-time selection by specification, and no grip interval computed here can replace it. The two documents that would close it: MS9363 (slot count and depth) and the nut height; the bolt side is already closed by NAS6403 sheet 1 M = .174/.154.",
+    "Element order is the physical order from the bolt head: bushing, [pitch-link eye -- MISSING], pitch-plate lug, washer; the three fastener dimensions follow. Only the path term lists are load-bearing for the arithmetic."
+  ]
+}

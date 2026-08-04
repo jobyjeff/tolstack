@@ -69,7 +69,9 @@ class SourceRef:
     it yet.
     """
 
-    kind: str                       # drawing | parts_list | workbook | pipeline_element | assumed
+    # spec = a file in data/inbox/specs/ (document = filename, sheet = page);
+    # added by handoff pitch_link_stack, which is the first stack to cite one.
+    kind: str                       # drawing | parts_list | workbook | spec | pipeline_element | assumed
     document: Optional[str] = None  # drawing number, workbook filename, ...
     revision: Optional[str] = None
     sheet: Optional[Any] = None     # int sheet number, or a workbook sheet name

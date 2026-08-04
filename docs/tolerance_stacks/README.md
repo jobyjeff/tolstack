@@ -22,9 +22,16 @@ constraint on nearly every value here. `hardware_entries.json` is deliberately
 shaped so a `library_ref` can supersede its inline numbers without touching any
 stack.
 
-**To build a new stack, follow `docs/SOP_TOLERANCE_STACK.md`.** These three
-stacks are its worked examples, and every caveat the SOP states was learned from
-them.
+**To build a new stack, follow `docs/SOP_TOLERANCE_STACK.md`.** The first three
+stacks here are its worked examples, and every caveat the SOP states was learned
+from them.
+
+`stack_pitch_link_to_pitch_plate.json` (2026-08-04) is the fourth, and the first
+to be *produced by* the SOP rather than distilled into it — built from scratch
+with no workbook, sourcing four of six element values to a NAS standard and a
+part drawing. Its worksheet carries the friction report's evidence and
+`docs/sessions/lessons/LESSONS_20260804_pitch_link_stack.md` carries the proposed
+SOP edits.
 
 ## Contents
 
@@ -33,9 +40,11 @@ them.
 | `stack_tan_link_to_pitch_plate.json` | Tangential link ↔ pitch plate, 217755 sheet 4 DETAIL B. The fullest of the three. |
 | `stack_tan_link_to_pitch_plate_take2.json` | Jeff's second pass at the same joint — a restatement, same total. |
 | `stack_vpa_output_to_pitch_plate.json` | VPA output ↔ pitch plate, 217755 sheet 5 DETAIL X (zone C10). |
+| `stack_pitch_link_to_pitch_plate.json` | **Pitch link ↔ pitch plate**, 217755 sheet 4 DETAIL B — the 5-place joint beside the tangential one. The first stack built **from scratch** (no source workbook) and the first to cite `data/inbox/specs/`. |
 | `hardware_entries.json` | Fastener-library seed: every standard part the stacks consume, with inline values and an empty `library_ref` slot. |
 | `WORKSHEET_tan_link_to_pitch_plate.md` | Elements, results, re-derivation vs Jeff's cells, discrepancies, source gaps. |
 | `WORKSHEET_vpa_output_to_pitch_plate.md` | Same, for the VPA joint. |
+| `WORKSHEET_pitch_link_to_pitch_plate.md` | Same shape minus the re-derivation section (nothing to re-derive), plus the joint-identification argument and a **Refused** table of values not filled from memory. |
 
 Source workbook: `data/inbox/tolerance_stacks/` (gitignored contents, see its
 `PROVENANCE.md`).
