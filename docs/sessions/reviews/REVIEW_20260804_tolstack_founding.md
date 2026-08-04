@@ -186,6 +186,29 @@ dispatch-seeded untracked copy in `C:\workspace\tolstack\docs\prompts\` is the f
 the absolute path in my launch seed resolved to, and it physically blocked the
 merge into `master` until set aside.
 
+## Integration notes
+
+Merged `review/tolstack_founding` into `master` fast-forward (`4db9f7d`). Two
+things in the main checkout blocked it and were set aside **non-destructively**,
+not discarded:
+
+- an **unrelated uncommitted `.gitignore` edit** (`.dispatch/` + a `data/*`
+  blanket) — `git stash push -- .gitignore`, merged, then `git stash pop`, which
+  auto-merged cleanly. It is back in the working tree exactly as found.
+- the **untracked dispatch-seeded `docs/prompts/REVIEW_AGENT.md`**, which occupied
+  the path the branch adds as a tracked file. Moved aside (a copy is preserved in
+  this session's scratchpad) so the repo's own checklist — the deliverable — is
+  what now lives there. It should not be restored: that is the whole point of the
+  per-repo override.
+
+That restored `.gitignore` edit interacts badly with `c951a82` and is filed as
+`docs/issues/ISSUE_20260804_gitignore_data_blanket_shadows_inbox_streams.md` —
+its `data/*` sits after the per-stream inbox negations and overrides them, so any
+*future* `data/inbox/<stream>/README.md` or `PROVENANCE.md` is silently ignored.
+Already-tracked docs are unaffected and the specs pile is still correctly ignored,
+so nothing is broken today; it is a trap for the next session that adds an inbox
+stream. Out of scope for this handoff, hence an issue rather than a fix.
+
 ## Verdict
 
 **APPROVE** — 0 blockers.
