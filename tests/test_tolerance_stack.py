@@ -37,6 +37,28 @@ def vpa():
     return load_stack(STACKS_DIR / "stack_vpa_output_to_pitch_plate.json")
 
 
+@pytest.fixture(scope="module")
+def pitch_link():
+    return load_stack(STACKS_DIR / "stack_pitch_link_to_pitch_plate.json")
+
+
+# Every stack file in docs/tolerance_stacks/. The schema-hygiene tests below are
+# parametrized over this so a new stack cannot be added without them applying.
+ALL_STACK_FILES = [
+    "stack_tan_link_to_pitch_plate.json",
+    "stack_tan_link_to_pitch_plate_take2.json",
+    "stack_vpa_output_to_pitch_plate.json",
+    "stack_pitch_link_to_pitch_plate.json",
+]
+
+
+def test_the_stack_file_list_is_complete():
+    """The parametrized lists below are hand-written; this catches a new stack
+    JSON that was added without being wired into them."""
+    on_disk = sorted(p.name for p in STACKS_DIR.glob("stack_*.json"))
+    assert on_disk == sorted(ALL_STACK_FILES)
+
+
 # ---------------------------------------------------------------------------
 # The fold primitive
 # ---------------------------------------------------------------------------
@@ -250,18 +272,177 @@ def test_vpa_and_tan_link_use_different_pitch_plate_tolerances(vpa, tan_link):
 
 
 # ---------------------------------------------------------------------------
-# Schema hygiene across all three stacks
+# Pitch link to pitch plate -- built from scratch, so there are no workbook
+# cells to cite. Every number below carries the DOCUMENT AND ADDRESS it came
+# from instead (SOP Step 5b), which is what makes this a provenance check
+# rather than a self-consistency check.
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "filename",
-    [
-        "stack_tan_link_to_pitch_plate.json",
-        "stack_tan_link_to_pitch_plate_take2.json",
-        "stack_vpa_output_to_pitch_plate.json",
-    ],
-)
+def test_pitch_link_bolt_grip_is_the_traced_nas6403_value(pitch_link):
+    """NAS6403-NAS6420 Rev 4 sh3: 'Grip Dash No. 11' -> Grip .688, column header
+    'Grip +/-.010'. Slice 1's ranked gap 1, closed from the spec pile."""
+    grip = pitch_link.element("bolt_grip_11")
+    assert grip.nominal == pytest.approx(0.688 * 25.4, abs=TOL)    # NAS6403 sh3 dash 11
+    assert grip.min == pytest.approx(17.2212, abs=TOL)             # .688 - .010 in
+    assert grip.max == pytest.approx(17.7292, abs=TOL)             # .688 + .010 in
+    assert grip.source_ref.kind == "spec"
+    assert grip.source_ref.confidence == "traced"
+    assert grip.source_ref.document == "NAS6403-NAS6420 Rev 4.pdf"
+    assert grip.source_ref.sheet == 3
+    # External additive feature: most material is the LONGEST grip.
+    assert (grip.lmc, grip.mmc) == (grip.min, grip.max)
+
+
+def test_pitch_link_bolt_length_minus_grip_reproduces_the_specs_own_T_ref(pitch_link):
+    """Cross-check between two independently-read parts of the same photocopy:
+    sh3 gives dash-11 grip .688 and length 1.011; sh1's table gives T (Ref)
+    = .323 for NAS6403, and sh3's closing note says length = grip + T. If the
+    vision read of either column were wrong this would not land on .323."""
+    got = pitch_link.path("thread_region_T")
+    assert got.nominal == pytest.approx(0.323 * 25.4, abs=TOL)     # NAS6403 sh1 "T (Ref)" = .323
+    assert got.nominal == pytest.approx(8.2042, abs=TOL)
+    # ...and the worst case of that path is NOT a real spread: T is a reference
+    # dimension (sh2 note (b)), so grip and length are not independent. F5.
+    assert got.worst_case_half == pytest.approx(0.254 + 0.381, abs=TOL)
+
+
+def test_pitch_link_cotter_hole_position_is_traced_and_carries_no_material_condition(pitch_link):
+    """NAS6403-NAS6420 Rev 4 sh1, table column M, NAS6403 row: .174/.154 from the
+    bolt point. A LOCATION, so lmc/mmc are deliberately null -- 'most material'
+    has no meaning for where a hole sits."""
+    m = pitch_link.element("cotter_hole_from_point")
+    assert m.max == pytest.approx(0.174 * 25.4, abs=TOL)           # NAS6403 sh1 M max
+    assert m.min == pytest.approx(0.154 * 25.4, abs=TOL)           # NAS6403 sh1 M min
+    assert m.lmc is None and m.mmc is None
+    assert m.source_ref.sheet == 1 and m.source_ref.confidence == "traced"
+
+
+def test_pitch_link_pitch_plate_lug_is_the_5X_group_not_the_3X_or_1X(pitch_link, tan_link):
+    """215197 carries three distinct 4.06 callouts. Only the COUNT ties one to a
+    joint: 5X for the five pitch links (five blades), 3X for the three
+    tangential links, 1X for the VPA. Matching on 4.06 alone gets you nowhere."""
+    mine = pitch_link.element("pitch_plate_flange")
+    theirs = tan_link.element("pitch_plate_flange")
+    assert mine.nominal == theirs.nominal == 4.06
+    assert (mine.min, mine.max) == (3.96, 4.16)                    # 215197 sh2 D10 "5X 4.06 +-0.10"
+    assert (theirs.min, theirs.max) == (3.98, 4.14)                # 215197 sh2 B4  "3X 4.06 +-0.08"
+    assert mine.source_ref.callout == "5X 4.06 ±0.10"
+    assert (mine.source_ref.document, mine.source_ref.sheet, mine.source_ref.zone) == (
+        "215197", 2, "D10",
+    )
+    assert mine.source_ref.confidence == "traced"
+
+
+def test_pitch_link_clamped_stack_excludes_the_unsourced_link_eye(pitch_link):
+    """The sourced part of the clamped column only. The pitch-link eye /
+    spherical bearing is NOT an element: no document gives its width, and the
+    neighbouring tan-link stack's 11.05/11.10 is an untraced workbook value for
+    a different link."""
+    assert "spherical_bearing" not in {e.id for e in pitch_link.elements}
+    got = pitch_link.path("clamped_stack_sourced")
+    assert got.nominal == pytest.approx(4.7625 + 4.06 + 0.8128, abs=TOL)
+    assert got.min == pytest.approx(9.5353, abs=TOL)               # lug at 3.96
+    assert got.max == pytest.approx(9.7353, abs=TOL)               # lug at 4.16
+    # The lug is the ONLY term with a band, so the whole spread is its +-0.10.
+    assert got.worst_case_half == pytest.approx(0.10, abs=TOL)
+
+
+def test_pitch_link_shank_out_deficit_is_the_required_link_eye_width(pitch_link):
+    """This check 'fails' by construction -- the eye is missing from the column.
+    Its magnitude is the useful output: the eye width the joint requires for
+    JPS00094 Rev C section 5.5.5 ('the nut ... shall not engage any incomplete
+    threads of the bolt shank')."""
+    got = pitch_link.check("shank_out__11_sourced_only")
+    assert got.interval.nominal == pytest.approx(-7.8399, abs=TOL)
+    assert got.interval.min == pytest.approx(-8.1939, abs=TOL)
+    assert got.interval.max == pytest.approx(-7.4859, abs=TOL)
+    assert got.verdict == "fail"
+    assert "INCOMPLETE" in got.label
+
+
+def test_pitch_link_cotter_hole_budget(pitch_link):
+    """Head-to-cotter-hole minus the sourced column: the budget left for the
+    pitch-link eye PLUS the MS9363-09 nut's thread-start-to-castellation
+    distance. Passes, and settles nothing -- see the worksheet."""
+    got = pitch_link.check("cotter_hole_clear_of_sourced_stack")
+    assert got.interval.nominal == pytest.approx(11.8785, abs=TOL)
+    assert got.interval.min == pytest.approx(11.1435, abs=TOL)
+    assert got.interval.max == pytest.approx(12.6135, abs=TOL)
+    assert got.verdict == "pass"
+
+
+def test_pitch_link_declares_its_zero_width_bands_rather_than_inventing_one(pitch_link):
+    """Two elements have min == max == nominal because NO document gives a
+    tolerance. The workbook-derived bands in hardware_entries.json (4.63/4.76
+    and +-.004 in) are untraced, so SOP Step 5b forbids them here. Guards
+    against a later 'tidy-up' quietly filling them in."""
+    zero_width = {e.id for e in pitch_link.elements if e.min == e.max}
+    assert zero_width == {"bushing_214820", "washer_nas1149v0332"}
+    for eid in zero_width:
+        e = pitch_link.element(eid)
+        assert e.source_ref.confidence == "inferred"
+        assert e.source_ref.kind == "parts_list"
+        assert "ZERO-WIDTH BAND" in e.note
+
+
+def test_pitch_link_has_no_workbook_source_and_no_untraced_value(pitch_link):
+    """SOP Step 5b: a from-scratch stack cites no workbook. And with no workbook
+    to supply a number, `untraced` has nothing to attach to -- every unsourced
+    value is a listed gap instead of a quiet element."""
+    kinds = {e.source_ref.kind for e in pitch_link.elements}
+    assert "workbook" not in kinds
+    confidences = [e.source_ref.confidence for e in pitch_link.elements]
+    assert confidences.count("traced") == 4
+    assert confidences.count("inferred") == 2
+    assert confidences.count("untraced") == 0
+
+
+def test_pitch_link_carries_no_invented_thread_transition_allowance(pitch_link):
+    """Slice 1's `thread_transition` (1/16 in) is `kind: assumed`, 'rule-of-thumb
+    allowance, no cited standard'. NAS6403 was opened specifically to close it
+    and does not dimension the run-out, so no allowance element exists here."""
+    assert "allowance" not in {e.role for e in pitch_link.elements}
+    assert not any("transition" in e.id for e in pitch_link.elements)
+
+
+def test_pitch_link_checks_are_original_so_they_carry_no_workbook_markers(pitch_link):
+    """The inverse of slice 1's convention: there, an added check needed
+    `workbook_cells: null` + '[NOT IN WORKBOOK]' to distinguish it from Jeff's.
+    Here EVERY check is new, so the markers would be noise on all of them --
+    SOP Step 5b says drop them and say so in the worksheet instead."""
+    for spec in pitch_link.checks:
+        assert spec.get("workbook_cells") is None
+        assert "[NOT IN WORKBOOK]" not in spec["label"]
+    assert pitch_link.provenance["transcribed_from"] is None
+
+
+def test_pitch_link_no_stack_element_is_folded_from_lmc_or_mmc(pitch_link):
+    """fold() must read min/max only. With no subtracted feature in this joint
+    every element that carries lmc/mmc has max == mmc, which is the review
+    checklist's smell -- so assert the reason: nothing here is subtracted at the
+    element level, and the two negative signs are on whole terms."""
+    for e in pitch_link.elements:
+        if e.mmc is not None:
+            assert e.max == e.mmc and e.min == e.lmc
+    negatives = [
+        (p["id"], t.get("element") or t.get("path"))
+        for p in pitch_link.paths.values()
+        for t in p["terms"]
+        if t.get("sign") == -1
+    ]
+    assert negatives == [
+        ("head_to_cotter_hole", "cotter_hole_from_point"),
+        ("thread_region_T", "bolt_grip_11"),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Schema hygiene across all four stacks
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
 def test_every_element_carries_a_source_ref_with_a_confidence(filename):
     stack = load_stack(STACKS_DIR / filename)
     for element in stack.elements:
@@ -269,14 +450,7 @@ def test_every_element_carries_a_source_ref_with_a_confidence(filename):
         assert element.source_ref.confidence in ("traced", "inferred", "untraced")
 
 
-@pytest.mark.parametrize(
-    "filename",
-    [
-        "stack_tan_link_to_pitch_plate.json",
-        "stack_tan_link_to_pitch_plate_take2.json",
-        "stack_vpa_output_to_pitch_plate.json",
-    ],
-)
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
 def test_source_ref_leaves_the_feature_identity_slot_open_and_empty(filename):
     """Slice 1 cites human readings only. When extraction addresses dimensions
     stably, element_id/run_id get filled -- until then they must be None, so a
@@ -285,7 +459,12 @@ def test_source_ref_leaves_the_feature_identity_slot_open_and_empty(filename):
     for element in stack.elements:
         ref = element.source_ref
         assert ref.element_id is None and ref.run_id is None
-        assert ref.kind in ("drawing", "parts_list", "workbook", "pipeline_element", "assumed")
+        # "spec" is the SOP's kind for a file in data/inbox/specs/. It was
+        # missing from this whitelist (and from SourceRef's docstring) because
+        # slice 1 had no spec to cite; pitch_link_to_pitch_plate cites three.
+        assert ref.kind in (
+            "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
+        )
 
 
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
@@ -302,6 +481,31 @@ def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     absent = {e["id"] for e in data["entries"] if not e["assembly_status"].get("present")}
     assert absent == {"NAS1149V0363", "NAS77A4-015"}
+
+
+def test_the_nas6403_entry_cites_the_standard_its_inline_values_came_from():
+    """The first entry in this file whose inline numbers come from an actual
+    standard rather than from the 260729 workbook or a parts list. `values_source`
+    is an additive extension proposed by handoff pitch_link_stack --
+    `hardware_entry/v0` has nowhere to say where inline values came from, which
+    is a hole in a repo whose whole point is provenance."""
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    entry = next(e for e in data["entries"] if e["id"] == "NAS6403U11D")
+    src = entry["values_source"]
+    assert src["kind"] == "spec"
+    assert src["document"] == "NAS6403-NAS6420 Rev 4.pdf"
+    assert src["confidence"] == "traced"
+    assert entry["dimensions_in"]["grip"] == 0.688          # NAS6403 sh3 dash 11
+    assert entry["dimensions_in"]["grip_tol"] == 0.010      # NAS6403 sh3 column header
+    assert entry["dimensions_in"]["length"] == 1.011        # NAS6403 sh3 dash 11
+    assert entry["dimensions_in"]["T_ref"] == 0.323         # NAS6403 sh1 "T (Ref)"
+    assert entry["dimensions_in"]["length"] - entry["dimensions_in"]["grip"] == pytest.approx(
+        entry["dimensions_in"]["T_ref"], abs=1e-9
+    )
+    # values_status stays "inline" and library_ref stays null even though these
+    # numbers are now traced: "library" means a fastener library owns them, and
+    # no such library exists yet.
+    assert entry["values_status"] == "inline" and entry["library_ref"] is None
 
 
 def test_every_hardware_entry_has_an_empty_library_ref_and_a_gap_list():
