@@ -1,10 +1,53 @@
 # REVIEW_AGENT — tolstack
 
-Per-repo review prompt override for tolstack (dispatch serves the canonical
-`REVIEW_AGENT.md` from `dispatch/dispatch/prompts/`; this file replaces it for
-this repo). Follow the canonical prompt's process — read the handoff, review the
-diff, write `docs/sessions/reviews/`. Everything below is **additional and
-mandatory** when the work under review is a tolerance stack.
+Per-repo review prompt override for tolstack. **This file *replaces* the
+canonical prompt — it does not supplement it.** `RepoConfig.role_path`
+(`dispatch/config.py:144`) resolves a repo-local `docs/prompts/<ROLE>.md` ahead
+of `dispatch/dispatch/prompts/`, so this is the *only* review prompt you were
+handed. The canonical process is therefore restated below rather than referenced;
+read `C:\workspace\dispatch\dispatch\prompts\REVIEW_AGENT.md` too if you want the
+full version, but everything you are required to do is here.
+
+Everything under "The mandatory checks" is **additional and mandatory** when the
+work under review is a tolerance stack.
+
+## The review job (canonical process, restated)
+
+1. **Read the handoff**, then review the diff (`git diff master..handoff/<slug>`).
+   Optionally write failing tests against the pre-work state first, then merge and
+   confirm they pass.
+2. **Fix trivial blockers inline** (a typo, a missing import, a one-liner) on your
+   review branch, and say so explicitly in the report. Anything larger you do not
+   fix — you surface it.
+3. **File, don't fix — for anything outside this handoff.** An unrelated
+   bug/chore goes in `docs/issues/ISSUE_<YYYYMMDD>_<slug>.md` (frontmatter:
+   `type`, `priority`, `status: open`, `area`, `reporter: agent`), not in your
+   diff. In-scope findings go in the report instead.
+4. **Severity vocabulary:** blocker / should-fix / nit. Each finding gets
+   location, what's wrong, and the smallest fix.
+5. **Always write the report**, even on a clean APPROVE:
+   `docs/sessions/reviews/REVIEW_<YYYYMMDD>_<slug>.md`, frontmatter `type:
+   review`, `handoff:`, `reviewer:`, `date:`, `verdict:`, `blockers:` (count).
+   Skim that directory first — a finding that appears in an earlier report is a
+   second sighting, so promote it to **Recurring bugs** below and say you did.
+6. **Maintain this checklist.** Append or refine an entry for any genuinely new
+   failure class this review surfaced; prune entries that keep finding nothing.
+   Committing that update is part of the job. Edit the **worktree-relative** path
+   so it lands on your review branch.
+7. **On APPROVE with a green suite, integrate — do not stop and ask.** Merging,
+   committing your inline fixes, and pushing are pre-authorized; the review
+   assignment IS the user instruction. Merge into `master` (set aside unrelated
+   dirty files non-destructively, e.g. `git stash push -- <file>`, then restore),
+   `git push origin master`, `git worktree remove` every *other* worktree from
+   this handoff and delete the merged `handoff/<slug>` and `review/<slug>`
+   branches. You cannot remove your own worktree — Windows locks a live process's
+   cwd; leave it for dispatch.
+8. **Uncommitted tactical work is not a loopback.** If the handoff branch plus the
+   tactical worktree together carry reviewable work, commit it yourself on the
+   tactical branch on the author's behalf and review the result. The only
+   empty-deliverable blocker is genuinely nothing to review.
+9. On **REQUEST CHANGES**, do not merge; leave the worktrees and branches in
+   place.
 
 The stack author was following `docs/SOP_TOLERANCE_STACK.md`. Read it first: it
 is what they were told to do, and a gap between the SOP and what a competent
@@ -203,6 +246,66 @@ number looks like from the outside.
   de-duplication, no tidying. Check the diff and the filesystem.
 - **Nothing was written into drawing-checker.** The dependency is read-only and
   one-way.
+
+## Recurring bugs to check (any work in this repo, stack or not)
+
+Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
+
+- [ ] **Editing the wrong `REVIEW_AGENT.md` copy.** The absolute path dispatch
+      tells you to `Read` resolves to the **main checkout** (where an untracked
+      dispatch-seeded copy may also be sitting and shadowing the tracked one),
+      while your cwd is a **worktree**. Always edit the worktree-relative
+      `docs/prompts/REVIEW_AGENT.md`. Sighted in this repo's founding review: the
+      seeded copy in `C:\workspace\tolstack` was untracked and blocked the merge.
+- [ ] **`forge check` passes in the main checkout and fails in the worktree.**
+      `docs/issues/` and friends are created by `dispatch init` in the main
+      checkout only. A session that checks only `C:\workspace\tolstack` ships a
+      non-conforming branch. Check the worktree.
+- [ ] **`data/inbox/*` silently drops per-stream tracked docs.** Git does not
+      descend into an excluded directory, so `!data/inbox/<s>/README.md` alone does
+      nothing — re-include the directory, exclude its contents, *then* negate the
+      doc. Verify with `git check-ignore -v <path>` and `git ls-files data/`, never
+      by eye.
+- [ ] **Surviving `{{REPO_NAME}}` from the template stamp.** forge's
+      `conventions._substitute_names` walks only `.md`/`.txt`/`.toml`, so
+      placeholders live on in `.ps1`/`.py` stubs. Grep the diff for `{{`.
+- [ ] **Stale inventory numbers in lessons and provenance.** Line counts, file
+      counts and dates written before the last commit go wrong silently (founding
+      lesson claimed a 467-line SOP that shipped at 509, and 39 tracked files of
+      40). Recompute any count a doc asserts; don't read it.
+- [ ] **Documented vocabularies drifting from the seeded data.** The SOP's `role`
+      list omitted `nut_geometry`, which the seeded take-2 uses three times. When a
+      doc says "one of X | Y | Z", enumerate the actual values in
+      `docs/tolerance_stacks/*.json` and diff the two sets.
+
+## Architectural errors to check
+
+- [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
+      and checks are the same signed term list. And `fold()` reads `min`/`max`
+      only: it must never read `lmc`/`mmc`.
+- [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
+      the moment an element changes and nothing notices.
+- [ ] **Do not edit a file `PROVENANCE.md` claims is byte-identical.** Ten
+      imported files carry that claim (verify with `sha256sum` against
+      drawing-checker). If one genuinely must change, the amendment goes in
+      PROVENANCE's Amended column in the same commit — otherwise the provenance
+      record is now false, which in this repo is the worst class of defect.
+- [ ] **drawing-checker is read-only and one-way.** Nothing here writes there;
+      check its `git status` is unchanged by the work.
+- [ ] **`data/inbox/specs/` is append-only.** No renames, no de-duplication, no
+      tidying — check the diff *and* the filesystem.
+- [ ] **`docs/reference/` is verbatim imports.** No edits beyond the import
+      header. If imported reference and this repo's docs disagree, the repo's docs
+      change and the divergence goes in a lesson.
+- [ ] **`CLAUDE.md` is gitignored**, so any durable fact written there must be
+      mirrored into `README.md` or `ARCHITECTURE.md` or it dies with the session.
+
+## Universal checks (keep these when customizing)
+
+- [ ] **Tests don't pollute production data.** Run the suite and verify `data/`
+      is exactly as it was — no run folders, no appended log lines, no modified
+      fixtures. Test I/O belongs in pytest tmp dirs. `git status --short` after
+      the run is the cheap version of this check.
 
 ## Writing the review
 

@@ -138,7 +138,11 @@ One `StackElement` per physical feature along the path, in physical order.
 ```
 
 `role` is one of `bushing | bearing | washer | clamped_member | relief |
-fastener | allowance`.
+fastener | allowance | nut_geometry`. The last one is for values you transcribe
+but deliberately do **not** fold in — see the castellated-nut caveat in Step 5;
+the seeded take-2 uses it for three nut dimensions. (`stack.py`'s docstring
+comment predates it and lists only the first seven; the seeded data is
+authoritative.)
 
 ### Store lengths. Never fold "MMC → max".
 
@@ -468,11 +472,19 @@ non-empty `gaps` list.
 venv-win\Scripts\python.exe -m pytest -q
 ```
 
-Then, from the forge repo root:
+Then, from the forge repo root (cwd must be forge — `-m forge` fails elsewhere),
+pointed at **your worktree**, not the main checkout:
 
 ```powershell
-venv-win\Scripts\python.exe -m forge check C:\workspace\tolstack
+cd C:\workspace\forge
+venv-win\Scripts\python.exe -m forge check C:\workspace\tolstack-worktrees\<slug>
 ```
+
+Checking `C:\workspace\tolstack` instead gives a **false pass**: parts of the
+standard layout are created by `dispatch init` in the main checkout only, so the
+main checkout can conform while the branch you are about to ship does not
+(founding lesson, `docs/sessions/lessons/`). Check the worktree; check the main
+checkout too if you like, but never only that one.
 
 ## Step 8 — hand off
 
