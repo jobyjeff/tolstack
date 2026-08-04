@@ -337,6 +337,33 @@ read back as the source's numbers:
 
 and add a test asserting both.
 
+## Step 5b — if there is no source workbook
+
+The three seeded stacks were **transcriptions**: a hand-built workbook existed,
+and half the work was re-deriving its cells and reporting where it drifted from
+the drawings. A stack built **from scratch** has no such source, and several
+instructions in this SOP have to be read differently.
+
+| where a workbook is assumed | from scratch instead |
+|---|---|
+| "Re-derivation vs the source" worksheet section | **Omit it.** There are no cells to re-derive. Replace it with a short note saying the stack has no source workbook, so the fold is the only computation and the tests pin it directly. |
+| `# JEFF <cell>` test comments | Cite the **document and address** instead — `# 215197 sh2 B4 "3X 4.06 ±0.08"`. The marker's purpose is to say "this number came from outside this repo"; a drawing reference does that just as well as a cell reference. |
+| `workbook_cells: null` + `[NOT IN WORKBOOK]` on added checks | Not applicable — **every** check is new. Drop both markers rather than putting them on everything, and say in the worksheet that the whole stack is original. |
+| `[slip]` and `[drift]` findings (source errors, source-vs-drawing divergence) | Mostly will not occur; there is no source to slip or drift. `[model]` and `[read]` still very much apply. |
+| `kind: "workbook"` source refs | Should appear **zero** times. If one does, ask where that number really came from. |
+
+Everything else applies unchanged, and the one rule applies *harder*: with no
+workbook to lean on, the temptation to supply a "standard" value from memory is
+much stronger, and there is no cached formula result to contradict it. A
+from-scratch stack is where invented numbers are most likely and least
+detectable.
+
+Expect a **worse** traced ratio than a transcription in one respect and a better
+one in another: fewer values will have any number at all (a workbook at least
+supplies an `untraced` figure), but the ones that do will be honestly cited. A
+gap with no number is a perfectly good result — record what is missing and what
+document would supply it. Do not fill a hole to make the stack look finished.
+
 ## Step 6 — write the worksheet
 
 `docs/tolerance_stacks/WORKSHEET_<stack_id>.md`, following the two seeded ones.
@@ -351,7 +378,7 @@ Sections, in order:
    at full precision, with the delta. Paste from
    `debug_report_tolerance_stacks.py --compare`. Deltas around 1e-15 are float
    summation order and are fine; anything larger is a real disagreement and a
-   finding.
+   finding. *Omit this section if there is no source workbook — see Step 5b.*
 6. **Findings**, each tagged with a diagnosis code:
 
    | code | meaning |
@@ -381,11 +408,14 @@ not to reconcile it silently.
 ## Step 7 — pin the numbers, then verify
 
 Add tests to `tests/test_tolerance_stack.py` following the existing pattern: a
-fixture per stack, and assertions carrying the **source cell reference in a
-comment** for every number that came from the source. The convention is a `JEFF`
-marker plus the cell (`# JEFF E18`), meaning "this number is the source's own
-arithmetic, not something this repo produced". That marker is what makes the test
-suite a transcription check rather than a self-consistency check.
+fixture per stack, and assertions carrying the **source reference in a comment**
+for every number that came from outside this repo. For a transcription the
+convention is a `JEFF` marker plus the cell (`# JEFF E18`), meaning "this number
+is the source's own arithmetic, not something this repo produced". For a
+from-scratch stack, cite the document and address instead (`# 215197 sh2 B4`).
+Either way the marker is what makes the suite a **provenance** check rather than a
+self-consistency check — without it, the tests only prove the fold agrees with
+itself.
 
 Also assert the structural invariants, as the seeded tests do: every element has
 a `source_ref` with a valid `confidence`; `element_id`/`run_id` are null; every
