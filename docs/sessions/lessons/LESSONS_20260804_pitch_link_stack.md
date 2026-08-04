@@ -320,6 +320,34 @@ the PDF by hand.
   of. It is the single most useful tool in the repo for Step 1 and the usage
   block does not mention it.
 
+## Gap list, in spec-library-intake form
+
+The worksheet ranks these by what they block in *this* stack. Here they are
+restated as an **intake queue** — one row per document to acquire, with what it
+unblocks across the repo. Slice 1's ranked list is folded in, with its status
+updated.
+
+| # | document | kind | in the pile? | unblocks | stacks affected |
+|---|---|---|---|---|---|
+| 1 | **MS9363** (slotted / castellated nut, `-09` and `-10`) | NAS/MS standard | **no** | nut height, slot count, slot depth — i.e. the thread-start-to-castellation spacing. The **governing** check on every cotter-retained joint here. The bolt half is now closed, so this is the last piece. | pitch_link, tan_link (+take2), vpa |
+| 2 | Pitch-link assembly drawing — part number **unknown**; candidates 215177, 214849-003, 216231-001 | Joby part/assy drawing | no | the spherical-bearing / link-eye width: the one missing term in this stack's clamped column | pitch_link |
+| 3 | **NAS1149** (flat washer, `V0332`) | NAS/MS standard | **no** | `.032 in` thickness band. Currently a zero-width band; the parts list has now dropped even the `MIN` qualifier | pitch_link, tan_link |
+| 4 | **MIL-S-8879** (UNJF-3A thread form, invoked by NAS6403 sheet 1) | MIL standard | **no** | **thread run-out / incomplete-thread length** — the last third of slice 1's ranked gap 1, and what its 1/16 in allowance was standing in for | all four |
+| 5 | **214820-002** plain bushing | Joby part drawing | no | length band (zero-width here; slice 1 used untraced workbook limits) | pitch_link, tan_link |
+| 6 | **214936-002** countersunk bushing | Joby part drawing | no | flange / barrel / chamfer, slice 1's untraced elements 1–3. Note it balloons at sheet 5 DETAIL F, the tangential link's *other* end — worksheet F7 | tan_link |
+| 7 | **212956-005** anti-rotation link assy | Joby assy drawing | no | the tan-link spherical-bearing width | tan_link |
+| 8 | **MS21299** countersunk washer | NAS/MS standard | **no** | thickness band + the countersink geometry "under head chamfer" refers to | vpa |
+| 9 | **NAS6404** (.250-28 bolt) | NAS/MS standard | **YES** — same file as NAS6403 (`NAS6403-NAS6420 Rev 4.pdf`) | grip, length, cotter-hole position for the VPA joint. **Free**: the table row is right beside the one this session read (dash 13 → grip .812, length 1.182, M .180/.160, P .086/.076) | vpa |
+| 10 | **NAS6403 sheet 5 of 5** | NAS/MS standard (partial file) | file is incomplete | nothing currently needed; recorded so a library ingest does not assume completeness | — |
+| 11 | **215197** at a current revision | Joby part drawing | only a `[PRELIM 2025-MAY-22]` export, in drawing-checker's test fixtures | whether the three 4.06 flange groups still read as they did 14 months before the assembly export | pitch_link, tan_link, vpa |
+| 12 | MS24665 / **NASM24665** cotter pin | NAS/MS standard | no | pin-to-hole fit only. Low value: `.063 in` pin in a `.070/.080 in` hole is consistent, and the parts list and JPS00094 §5.7.6.a disagree on the MS/NASM prefix | all cotter joints |
+
+**Closed this session:** NAS6403 grip `±.010` and cotter-hole position
+`M = .174/.154` — two thirds of slice 1's ranked gap 1 — plus the castellated-nut
+caveat, which JPS00094 Rev C §5.9.7 now *states* rather than this repo asserting
+it. Row 9 is the cheapest item on the list: the document is already in the pile
+and the VPA stack's fastener values are one table row away.
+
 ## Notes for the next agent
 
 - **Reading a photocopied standard.** No text layer, so `page.get_text()` returns

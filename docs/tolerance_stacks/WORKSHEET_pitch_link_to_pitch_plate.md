@@ -141,6 +141,14 @@ right. A test pins it. Its *worst case* is meaningless — see F5.
 
 Criterion is `≥ 0` on both. `marginal` = nominal passes, worst case does not.
 
+**Neither check here is `marginal`**, and that is worth stating rather than
+leaving as an absence: nominal and worst case agree in sign on both, because the
+only element carrying a real band is the ±0.10 mm pitch-plate lug and the two
+margins are an order of magnitude larger than it. Nothing was rounded or nudged
+to avoid the marginal verdict — if the pitch-link eye width arrives near
+7.5–8.2 mm, `shank_out__11_sourced_only` will land marginal, and that will be the
+informative answer.
+
 | check | nominal | WC min | WC max | RSS min | RSS max | verdict |
 |-------|---------|--------|--------|---------|---------|---------|
 | shank_out__11_sourced_only | **−7.8399** | **−8.1939** | **−7.4859** | −8.1129 | −7.5669 | **fail** |
