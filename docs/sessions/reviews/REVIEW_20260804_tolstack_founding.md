@@ -201,6 +201,13 @@ not discarded:
   what now lives there. It should not be restored: that is the whole point of the
   per-repo override.
 
+**The push failed: tolstack has no git remote at all** (`git remote -v` is empty),
+so the merge exists on this machine only. Not blocking the rest of the cleanup, per
+the review process, but filed as
+`docs/issues/ISSUE_20260804_tolstack_has_no_git_remote.md` — the repo was founded
+after the "every repo has a GitHub remote" convention took effect and `forge check`
+does not look for one.
+
 That restored `.gitignore` edit interacts badly with `c951a82` and is filed as
 `docs/issues/ISSUE_20260804_gitignore_data_blanket_shadows_inbox_streams.md` —
 its `data/*` sits after the per-stream inbox negations and overrides them, so any
