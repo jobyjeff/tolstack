@@ -1,4 +1,4 @@
-# {{REPO_NAME}} setup (Windows-native). Creates venv-win and installs deps.
+# tolstack setup (Windows-native). Creates venv-win and installs deps.
 # Run from the repo root:  powershell -ExecutionPolicy Bypass -File setup.ps1
 $ErrorActionPreference = "Stop"
 

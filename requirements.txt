@@ -1,0 +1,11 @@
+pytest>=7.4.0
+
+# Deliberately nothing else. The stack fold is stdlib-only arithmetic, and the
+# xlsx reader (tests/debug_dump_tol_stack_xlsx.py) reads the sheet out of the zip
+# with stdlib zipfile + ElementTree rather than adding openpyxl -- the raw XML
+# carries the formula AND the cached result on every cell in one pass, which is
+# what lets a re-derivation compare like for like (slice-1 lesson).
+#
+# tests/debug_trace_stack_values.py needs PyMuPDF (`fitz`) and a drawing PDF; it
+# is a cross-repo tool, run it from drawing-checker's venv-win. See
+# docs/reference/LESSONS_20260729_tolerance_stack_slice1.md.
