@@ -30,6 +30,16 @@ CLAUDE.md
 # canonical); directory skeletons are tracked via .gitkeep.
 data/inbox/*
 !data/inbox/.gitkeep
+# Per-stream skeletons. `data/inbox/*` excludes the directories themselves, and
+# git does not descend into an excluded directory -- so each stream that has a
+# tracked doc must be re-included by name, then have its own contents excluded.
+!data/inbox/specs/
+data/inbox/specs/*
+!data/inbox/specs/README.md
+!data/inbox/tolerance_stacks/
+data/inbox/tolerance_stacks/*
+!data/inbox/tolerance_stacks/.gitkeep
+!data/inbox/tolerance_stacks/PROVENANCE.md
 data/runs/*
 !data/runs/.gitkeep
 data/runs.jsonl
