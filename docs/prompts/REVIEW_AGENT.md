@@ -1,60 +1,21 @@
-# REVIEW_AGENT — tolstack
+# Review checklist — tolstack
 
-Per-repo review prompt override for tolstack. **This file *replaces* the
-canonical prompt — it does not supplement it.** `RepoConfig.role_path`
-(`dispatch/config.py:144`) resolves a repo-local `docs/prompts/<ROLE>.md` ahead
-of `dispatch/dispatch/prompts/`, so this is the *only* review prompt you were
-handed. The canonical process is therefore restated below rather than referenced;
-read `C:\workspace\dispatch\dispatch\prompts\REVIEW_AGENT.md` too if you want the
-full version, but everything you are required to do is here.
+<!-- OVERLAY. dispatch composes this file onto the END of its canonical
+     REVIEW_AGENT.md at launch, under "Repo-specific additions". Hold ONLY
+     repo-specific knowledge here: the canonical process (severity vocabulary,
+     the report file, integrate-on-APPROVE, file-don't-fix, universal checks)
+     arrives above and must NOT be restated -- a restated copy drifts, which is
+     why this file was split out of a full canonical copy on 2026-08-05
+     (dispatch handoff prompt_composition_worktree). The review agent owns this
+     file: edit it in your review WORKTREE and commit it on your review branch. -->
 
 Everything under "The mandatory checks" is **additional and mandatory** when the
 work under review is a tolerance stack.
-
-## The review job (canonical process, restated)
-
-1. **Read the handoff**, then review the diff (`git diff master..handoff/<slug>`).
-   Optionally write failing tests against the pre-work state first, then merge and
-   confirm they pass.
-2. **Fix trivial blockers inline** (a typo, a missing import, a one-liner) on your
-   review branch, and say so explicitly in the report. Anything larger you do not
-   fix — you surface it.
-3. **File, don't fix — for anything outside this handoff.** An unrelated
-   bug/chore goes in `docs/issues/ISSUE_<YYYYMMDD>_<slug>.md` (frontmatter:
-   `type`, `priority`, `status: open`, `area`, `reporter: agent`), not in your
-   diff. In-scope findings go in the report instead.
-4. **Severity vocabulary:** blocker / should-fix / nit. Each finding gets
-   location, what's wrong, and the smallest fix.
-5. **Always write the report**, even on a clean APPROVE:
-   `docs/sessions/reviews/REVIEW_<YYYYMMDD>_<slug>.md`, frontmatter `type:
-   review`, `handoff:`, `reviewer:`, `date:`, `verdict:`, `blockers:` (count).
-   Skim that directory first — a finding that appears in an earlier report is a
-   second sighting, so promote it to **Recurring bugs** below and say you did.
-6. **Maintain this checklist.** Append or refine an entry for any genuinely new
-   failure class this review surfaced; prune entries that keep finding nothing.
-   Committing that update is part of the job. Edit the **worktree-relative** path
-   so it lands on your review branch.
-7. **On APPROVE with a green suite, integrate — do not stop and ask.** Merging,
-   committing your inline fixes, and pushing are pre-authorized; the review
-   assignment IS the user instruction. Merge into `master` (set aside unrelated
-   dirty files non-destructively, e.g. `git stash push -- <file>`, then restore),
-   `git push origin master`, `git worktree remove` every *other* worktree from
-   this handoff and delete the merged `handoff/<slug>` and `review/<slug>`
-   branches. You cannot remove your own worktree — Windows locks a live process's
-   cwd; leave it for dispatch.
-8. **Uncommitted tactical work is not a loopback.** If the handoff branch plus the
-   tactical worktree together carry reviewable work, commit it yourself on the
-   tactical branch on the author's behalf and review the result. The only
-   empty-deliverable blocker is genuinely nothing to review.
-9. On **REQUEST CHANGES**, do not merge; leave the worktrees and branches in
-   place.
 
 The stack author was following `docs/SOP_TOLERANCE_STACK.md`. Read it first: it
 is what they were told to do, and a gap between the SOP and what a competent
 author produced is a finding **against the SOP**, which you should report as
 such.
-
----
 
 ## Why this checklist exists
 
@@ -269,16 +230,16 @@ number looks like from the outside.
 - **Nothing was written into drawing-checker.** The dependency is read-only and
   one-way.
 
-## Recurring bugs to check (any work in this repo, stack or not)
+## Recurring bugs to check (any work here, stack or not)
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
-- [ ] **Editing the wrong `REVIEW_AGENT.md` copy.** The absolute path dispatch
-      tells you to `Read` resolves to the **main checkout** (where an untracked
-      dispatch-seeded copy may also be sitting and shadowing the tracked one),
-      while your cwd is a **worktree**. Always edit the worktree-relative
-      `docs/prompts/REVIEW_AGENT.md`. Sighted in this repo's founding review: the
-      seeded copy in `C:\workspace\tolstack` was untracked and blocked the merge.
+- [ ] **Editing the wrong `REVIEW_AGENT.md`.** The absolute path dispatch tells
+      you to `Read` is the *generated* composed prompt in the main checkout's
+      gitignored `.dispatch/prompts/` — edits there are discarded at the next
+      launch. Always edit the worktree-relative `docs/prompts/REVIEW_AGENT.md`
+      (this overlay). Sighted in this repo's founding review: the dispatch-seeded
+      copy in `C:\workspace\tolstack` was untracked and blocked the merge.
 - [ ] **`forge check` passes in the main checkout and fails in the worktree.**
       `docs/issues/` and friends are created by `dispatch init` in the main
       checkout only. A session that checks only `C:\workspace\tolstack` ships a
@@ -353,13 +314,6 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       change and the divergence goes in a lesson.
 - [ ] **`CLAUDE.md` is gitignored**, so any durable fact written there must be
       mirrored into `README.md` or `ARCHITECTURE.md` or it dies with the session.
-
-## Universal checks (keep these when customizing)
-
-- [ ] **Tests don't pollute production data.** Run the suite and verify `data/`
-      is exactly as it was — no run folders, no appended log lines, no modified
-      fixtures. Test I/O belongs in pytest tmp dirs. `git status --short` after
-      the run is the cheap version of this check.
 
 ## Writing the review
 
