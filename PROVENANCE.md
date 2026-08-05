@@ -48,7 +48,7 @@ Design artifacts, committed (not run data).
 | source | destination | amended |
 |---|---|---|
 | `tolerance_stack/__init__.py` | same path | no — byte-identical |
-| `tolerance_stack/stack.py` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import. **Comment only:** `SourceRef.kind`'s inline list gained `spec`, which the SOP already mandates for a `data/inbox/specs/` file and which the imported comment omitted. No executable line changed; `fold()` is untouched and still reads `min`/`max` only |
+| `tolerance_stack/stack.py` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import. **Comment only:** `SourceRef.kind`'s inline list gained `spec`, which the SOP already mandates for a `data/inbox/specs/` file and which the imported comment omitted. No executable line changed; `fold()` is untouched and still reads `min`/`max` only. **Amended again 2026-08-05** (`sop_edits_apply`), also **comment only**: `StackElement.role`'s inline list gained `nut_geometry`, which the seeded take-2 has used three times since the import and which the SOP already documented |
 
 Stdlib only. `SCHEMA_*` constants keep the `joby.tolerance_stack/...` namespace
 they were minted with — the schema id is not repo-scoped, so moving repos does
@@ -58,7 +58,7 @@ not rev it.
 
 | source | destination | amended |
 |---|---|---|
-| `tests/test_tolerance_stack.py` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import (**34 tests, all green** under this repo's `venv-win`). Added the pitch-link stack's value and provenance tests, hoisted the stack-file list into `ALL_STACK_FILES`, and admitted `spec` to the `source_ref.kind` whitelist. **50 tests** as of that commit (51 after the review added one). SOP Step 7 requires new tests per stack, so this file changes with every new stack. **Amended again 2026-08-05** (`sop_edits_apply`): three tests for the `values_source` requirement and for Step 5b's transitive workbook ban. **54 tests** as of that commit |
+| `tests/test_tolerance_stack.py` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import (**34 tests, all green** under this repo's `venv-win`). Added the pitch-link stack's value and provenance tests, hoisted the stack-file list into `ALL_STACK_FILES`, and admitted `spec` to the `source_ref.kind` whitelist. **50 tests** as of that commit (51 after the review added one). SOP Step 7 requires new tests per stack, so this file changes with every new stack. **Amended again 2026-08-05** (`sop_edits_apply`): three tests for the `values_source` requirement and for Step 5b's transitive workbook ban, plus a parametrized `role`-vocabulary test. **58 tests** at the end of that handoff |
 | `tests/__init__.py` | same path | no — empty, both |
 | `tests/debug_dump_tol_stack_xlsx.py` | same path | **yes** — import note; dropped a "drawing-checker's venv-win" aside; folded in the shared-formula gotcha |
 | `tests/debug_report_tolerance_stacks.py` | same path | **yes** — import note |

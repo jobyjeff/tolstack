@@ -126,7 +126,8 @@ Then write down, and put in the stack's `joint` block:
 
 - the **assembly** drawing number and revision;
 - the **sheet and view** the joint is detailed in (`sheet 4, DETAIL B`), plus the
-  **printed** zone (see the zone warning in Step 3);
+  **printed** zone (see the zone warning in Step 3) **and the export you read it
+  on** (see the `source_ref` bullets in Step 2 — a zone expires between exports);
 - every part in the joint, by part number, with its find number and quantity;
 - what is being clamped by what, and what retains it;
 - **what is out of scope.** Say it explicitly. The seeded stacks are grip length
@@ -161,9 +162,10 @@ One `StackElement` per physical feature along the path, in physical order.
 `role` is one of `bushing | bearing | washer | clamped_member | relief |
 fastener | allowance | nut_geometry`. The last one is for values you transcribe
 but deliberately do **not** fold in — see the castellated-nut caveat in Step 5;
-the seeded take-2 uses it for three nut dimensions. (`stack.py`'s docstring
-comment predates it and lists only the first seven; the seeded data is
-authoritative.)
+the seeded take-2 uses it for three nut dimensions. This list lives in three
+places (see the `kind` bullet below for why that matters):
+`StackElement.role`'s comment, and
+`tests/test_tolerance_stack.py::test_element_role_comes_from_the_documented_vocabulary`.
 
 ### Store lengths. Never fold "MMC → max".
 

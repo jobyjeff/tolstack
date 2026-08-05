@@ -497,6 +497,21 @@ def test_source_ref_leaves_the_feature_identity_slot_open_and_empty(filename):
         )
 
 
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
+def test_element_role_comes_from_the_documented_vocabulary(filename):
+    """The `role` list is the repo's original vocabulary-drift case: the SOP and
+    `StackElement.role`'s comment both omitted `nut_geometry`, which the seeded
+    take-2 uses three times, and nothing enforced either list. `kind` then drifted
+    the same way and broke the suite. A vocabulary lives in three places (SOP
+    prose, the dataclass comment, and this test); this is the third."""
+    stack = load_stack(STACKS_DIR / filename)
+    for element in stack.elements:
+        assert element.role in (
+            "bushing", "bearing", "washer", "clamped_member",
+            "relief", "fastener", "allowance", "nut_geometry",
+        ), f"{stack.id}:{element.id} has undocumented role {element.role!r}"
+
+
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
     """215197 is the one part drawing this repo holds for these joints, and
     exactly one element traces to it. Everything else is a fastener-library gap."""
