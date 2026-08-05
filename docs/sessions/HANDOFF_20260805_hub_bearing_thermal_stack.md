@@ -5,15 +5,24 @@ depends_on: [sop_edits_apply]
 
 # HANDOFF 2026-08-05 — hub_bearing_thermal_stack: two-stage thermal-fit archetype from Jeff's hub-bearing workbook
 
-> **⚠ INTERACTIVE EXCEPTION (HITL), 1 item:** the part drawings for the hub /
-> sleeve / bearings are being pulled by Jeff (2026-08-05: "drawings I can pull
-> shortly") and may not be in the inbox at launch. **Don't block** — import
-> and re-derive the workbook, build the archetype and the materials table,
-> and write every drawing-sourced value as a gap or zero-width band per the
-> SOP; re-source from the drawings only if they have landed (check
-> `C:\workspace\tolstack\data\inbox\` and
-> `C:\workspace\drawing-checker\data\inbox\drawings\` by absolute path — new
-> files there since 2026-08-05 are likely these).
+The part drawings ARE in hand (Jeff pulled them 2026-08-05, into
+`C:\workspace\drawing-checker\data\inbox\drawings\` — worktree reality:
+absolute path; COPY into this repo's own inbox with provenance noted, never
+move the originals):
+
+- `214589-002-A.pdf`, `214959-002-A.pdf`, `214588-002-A.pdf`,
+  `214955-004-A.pdf`, `212966-006-A.pdf` — the hub, both bearings, and both
+  sleeves (which is which: read the title blocks; do not assume from part
+  number). All five are structured into 217755, so the identity-by-counting
+  discipline (SOP Step 1) has the assembly's parts list and balloons
+  available as cross-checks.
+
+**Scope boundary, per Jeff:** the INNER side of the bearings — the spindle
+and its sleeves — is deliberately excluded (that joint is owned by a
+separate team he works closely with; may be swept in later, not now). The
+stack's inner boundary is the bearing↔sleeve↔hub chain; the bearing-bore↔
+spindle fit is out of scope — record it as an explicit scope boundary in the
+worksheet, not as a gap to chase.
 
 Source: Jeff's atomic note `20260804T173624_vwb8ia` + strategy session
 2026-08-05. Baseline: `master` with `sop_edits_apply` merged (build against

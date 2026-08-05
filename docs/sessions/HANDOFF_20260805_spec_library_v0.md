@@ -54,6 +54,14 @@ tracked README is all you'll see). Cite repo-relative.
    lesson's row 9, "free, one table row away", unblocks the VPA stack).
    JPS00094 Rev C is criteria-not-dimensions: capture the three sections
    stacks cite (§5.5.3.a, §5.5.5, §5.9.7) as quoted-criterion entries.
+   **Plus `MS9363 Rev C.pdf` — Jeff dropped it into the pile 2026-08-05**
+   (his warning: "another awful photocopy, good luck"). It is intake-queue
+   rank 1: extract nut height, slot count, and slot depth for the `-09` and
+   `-10` dash numbers — the thread-start-to-castellation geometry that
+   governs every cotter-retained joint in the repo. If a value is genuinely
+   illegible after the render recipe, record it as unreadable-with-crop
+   rather than guessing — an illegible photocopy is an acquisition gap
+   (better scan), not a license to infer.
 3. **The intake queue becomes tracked state.** The 12-row table in
    `LESSONS_20260804_pitch_link_stack.md` ("Gap list, in spec-library-intake
    form") — encode it (in-pile / missing / entered, what each unblocks) so
@@ -71,11 +79,15 @@ tracked README is all you'll see). Cite repo-relative.
 - Library projection rebuilds from events; NAS6403/6404 values above appear
   with exact per-value source locations; a deliberate correction event
   demonstrably wins the fold.
-- Intake queue queryable; MS9363 + NAS1149 + MIL-S-8879 + MS21299 show
-  `missing`.
+- Intake queue queryable; MS9363 shows `in pile → entered` (it arrived
+  2026-08-05); NAS1149 + MIL-S-8879 + MS21299 show `missing`.
 - Suite green; review launched via dispatch flow after merge (standing
   tolstack rule).
 - Lesson: schema decisions (per-family table vs per-document extraction —
   the draft left it open; record what you chose and why), time-per-document
   actually spent (calibrates whether automated vision is ever worth it),
-  and any value you could not read from the photocopy.
+  and any value you could not read from the photocopy. Also state plainly
+  whether the MS9363 entries suffice to COMPLETE the pitch_link stack's
+  `INCOMPLETE` shank-out checks — actually completing that stack is a
+  follow-up handoff, not yours (stack JSONs are out of scope here), but
+  your lesson is what triggers it.
