@@ -38,7 +38,7 @@ Design artifacts, committed (not run data).
 | `docs/tolerance_stacks/stack_tan_link_to_pitch_plate.json` | same path | no — byte-identical |
 | `docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json` | same path | no — byte-identical |
 | `docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json` | same path | no — byte-identical |
-| `docs/tolerance_stacks/hardware_entries.json` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import. Added the `NAS6403U11D` entry (the first whose inline values are traced to a standard rather than to the 260729 workbook, carrying a proposed additive `values_source` field), extended four entries' `gaps`, and added `used_by` back-references. SOP Step 4 requires a hardware entry per standard part, so this file changes with every new stack |
+| `docs/tolerance_stacks/hardware_entries.json` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import. Added the `NAS6403U11D` entry (the first whose inline values are traced to a standard rather than to the 260729 workbook, carrying a proposed additive `values_source` field), extended four entries' `gaps`, and added `used_by` back-references. SOP Step 4 requires a hardware entry per standard part, so this file changes with every new stack. **Amended again 2026-08-05** (`sop_edits_apply`): `values_source` backfilled to all 13 entries — eight `kind: "workbook"` / `untraced`, four explicit `null` for the not-transcribed entries — the `sheets` key on `NAS6403U11D` renamed to `sheet` to match `SourceRef`, and the file `description` corrected (it still claimed no entry came from a standard document) |
 | `docs/tolerance_stacks/WORKSHEET_tan_link_to_pitch_plate.md` | same path | no — byte-identical |
 | `docs/tolerance_stacks/WORKSHEET_vpa_output_to_pitch_plate.md` | same path | no — byte-identical |
 | `docs/tolerance_stacks/README.md` | same path | **yes** — its "Where this lives is NOT decided" section is now answered (it lives here); added pointers to the SOP and to `docs/reference/`, and corrected "three shapes" to four |
@@ -58,7 +58,7 @@ not rev it.
 
 | source | destination | amended |
 |---|---|---|
-| `tests/test_tolerance_stack.py` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import (**34 tests, all green** under this repo's `venv-win`). Added the pitch-link stack's value and provenance tests, hoisted the stack-file list into `ALL_STACK_FILES`, and admitted `spec` to the `source_ref.kind` whitelist. **50 tests** as of that commit. SOP Step 7 requires new tests per stack, so this file changes with every new stack |
+| `tests/test_tolerance_stack.py` | same path | **yes, since 2026-08-04** (`pitch_link_stack`) — was byte-identical at import (**34 tests, all green** under this repo's `venv-win`). Added the pitch-link stack's value and provenance tests, hoisted the stack-file list into `ALL_STACK_FILES`, and admitted `spec` to the `source_ref.kind` whitelist. **50 tests** as of that commit (51 after the review added one). SOP Step 7 requires new tests per stack, so this file changes with every new stack. **Amended again 2026-08-05** (`sop_edits_apply`): three tests for the `values_source` requirement and for Step 5b's transitive workbook ban. **54 tests** as of that commit |
 | `tests/__init__.py` | same path | no — empty, both |
 | `tests/debug_dump_tol_stack_xlsx.py` | same path | **yes** — import note; dropped a "drawing-checker's venv-win" aside; folded in the shared-formula gotcha |
 | `tests/debug_report_tolerance_stacks.py` | same path | **yes** — import note |
@@ -115,6 +115,11 @@ one sanctioned change outside this repo.
 Moved rather than copied because nothing in drawing-checker had ever read it, and
 because it is the *trace target* for stack elements — it belongs with the stacks
 that cite it. **Append-only from now on**; see `data/inbox/specs/README.md`.
+
+Those two numbers pin the **move**, not the current contents. The pile has since
+grown — 64 files / 249,105,891 bytes on 2026-08-05, including `MS9363 Rev C.pdf`
+and five hub-bearing drawings — which is append-only working as intended, not a
+falsified row. Count it before quoting it.
 
 Note for anyone auditing drawing-checker's data tree: that folder was
 **untracked**, not gitignored. The founding handoff described both sides as
