@@ -30,10 +30,14 @@ provenance, and of re-reading. An **entry** inside it covers one `subject`, and
 a subject is deliberately *the string a stack already cites*: `NAS6403U11D`,
 `MS9363-09`, `JPS00094 5.9.7`.
 
-Why not per-family tables: NAS6403–6420 is 18 basic numbers × 96 grip dash
-numbers ≈ 1700 rows. Transcribing all of them by hand to get the two this repo
-uses is the kind of completeness that never actually gets done, and doing it
-badly would put 1698 unreviewed numbers behind a `confidence: "traced"` label.
+Why not per-family tables: NAS6403–6420's sheet-3 table is 13 basic numbers ×
+64 tabulated grip dash rows ≈ 830 cells (the dash numbers run 1–32, then evens
+to 96; the basic numbers skip odd values above 6410). Transcribing all of them
+by hand to get the two this repo uses is the kind of completeness that never
+actually gets done, and doing it badly would put ~830 unreviewed numbers behind
+a `confidence: "traced"` label. *(Counts corrected in `review/spec_library_v0`
+from "18 × 96 ≈ 1700"; the argument is unchanged, but a number a doc asserts
+has to be recomputable.)*
 Subject-keyed extraction is demand-driven — you enter the part the drawing calls
 out. The cost of the decision is that family-wide facts (the CODE block, note
 (a)'s definition of grip, MS9363 requirement 10) live one lookup away under a

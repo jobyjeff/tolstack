@@ -106,9 +106,10 @@ subject**:
   *the string a stack already cites*: a full part number (`NAS6403U11D`,
   `MS9363-09`) or a cited criterion (`JPS00094 5.9.7`).
 
-Why not per-family tables: NAS6403-6420 is 18 basic numbers × 96 grip dash
-numbers ≈ 1700 rows, and transcribing all of them by hand to get two is the
-kind of completeness that never gets done. Subject-keyed extraction is
+Why not per-family tables: NAS6403-6420's sheet-3 table is 13 basic numbers ×
+64 tabulated grip dash rows ≈ 830 cells (dash numbers run 1-32, then evens to
+96), and transcribing all of them by hand to get two is the kind of
+completeness that never gets done. Subject-keyed extraction is
 demand-driven — you enter the part the drawing actually calls out — and the
 addition of `NAS6404U13D` beside `NAS6403U11D` cost one render, because the
 second row was in a table already open.

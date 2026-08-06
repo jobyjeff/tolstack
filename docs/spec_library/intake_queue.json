@@ -134,7 +134,7 @@
       "closes": ["MS24665-153", "MS24665-229"],
       "unblocks": "Pin-to-hole fit only.",
       "stacks": ["pitch_link", "tan_link", "vpa"],
-      "note": "Low value: a .063 in pin in a .070/.080 in hole is consistent, and MS9363's slot at .073/.088 is wider than the hole, so the bolt hole governs. The MS/NASM prefix disagreement between the parts list and JPS00094 5.7.6.a is now recorded as a library criterion rather than a lesson footnote."
+      "note": "Low value: a .063 in pin clears the minimum of every relevant feature -- the NAS6403 hole at .070, the NAS6404 hole at .076, and the MS9363 slot at .073. CORRECTED in review/spec_library_v0: an earlier wording here said the slot is wider than the hole so the bolt hole governs. It does not, at worst case, on either joint -- slot .073/.088 against hole .070/.080 (-09/NAS6403) and .076/.086 (-10/NAS6404) are OVERLAPPING bands, so a slot at minimum is narrower than a hole at maximum and the slot is then the governing feature. The conclusion (low value) survives; the reason did not. Pinned by tests/test_spec_library_review.py::test_neither_the_slot_nor_the_bolt_hole_governs_the_cotter_pin_outright. The MS/NASM prefix disagreement between the parts list and JPS00094 5.7.6.a is now recorded as a library criterion rather than a lesson footnote."
     }
   ]
 }

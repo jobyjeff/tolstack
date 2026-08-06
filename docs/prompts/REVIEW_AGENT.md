@@ -211,10 +211,13 @@ number looks like from the outside.
 - **The re-derivation table** covers every result cell the source computes, at
   full precision. Deltas ~1e-15 are float summation order. Anything larger is a
   real disagreement that must be a recorded finding, not a rounded-away one.
-- **Schema hygiene.** `element_id` / `run_id` null; `library_ref` null; every
-  hardware entry's `gaps` non-empty; every `hardware_ref` resolves;
-  `values_status` ∈ `inline | library | not_transcribed`; the `schema` string
-  present and `/v0`.
+- **Schema hygiene.** `element_id` / `run_id` null; every hardware entry's `gaps`
+  non-empty; every `hardware_ref` resolves; `values_status` ∈
+  `inline | library | not_transcribed`; the `schema` string present and `/v0`.
+  `library_ref` is **no longer always null** — since 2026-08-05 (`spec_library_v0`)
+  `NAS6403U11D` carries `spec_library:NAS6403U11D`. The invariant is now the
+  *pairing*: a filled ref ⟺ `values_status == "library"`, and a `library` entry
+  keeps its `values_source` because its inline numbers survive as a cross-check.
 - **`values_source` on every inline hardware entry** (SOP Step 4, mandatory since
   2026-08-05), null when `values_status` is `not_transcribed`. Then use it: if a
   stack element takes a **band** from an entry whose `values_source` is
@@ -236,6 +239,61 @@ number looks like from the outside.
   de-duplication, no tidying. Check the diff and the filesystem.
 - **Nothing was written into drawing-checker.** The dependency is read-only and
   one-way.
+
+---
+
+## When the work is a spec-library parse event (not a stack)
+
+Added 2026-08-05 after `spec_library_v0`, the first work here that was neither a
+stack nor plumbing. Everything above is written for stacks; a `spec-parse/v0`
+event is the *same provenance audit one layer upstream*, and it is higher
+leverage, because a bad library value launders itself into every stack that
+later cites it wearing `confidence: "traced"`.
+
+**Re-read the document yourself. There is no substitute and no shortcut.** The
+pile is in the MAIN checkout (`C:\workspace\tolstack\data\inbox\specs\`); render
+with drawing-checker's venv (`venv-win\Scripts\python.exe`, PyMuPDF is
+deliberately absent here). Recipe and the resolution-ceiling trick are in
+`docs/spec_library/README.md`. Then:
+
+- [ ] **Every tabulated value against its own cell.** Not the event's note —
+      the cell. Check the *row label* especially: MS9363's `-09` and `-10` have
+      identical `G`/`H`/`S`, so a row mis-registration is invisible in exactly
+      the three columns the document was acquired for. Merged cells are the
+      other trap (NAS6403's `R Rad` and NAS6404's `P` are merged across two
+      basic-number rows, and NAS6403's `R Rad` is *blank* — reading the merged
+      value up into it invents a fillet radius).
+- [ ] **Every `text` field word for word.** These are quotes, and the library's
+      whole premise is that the words are the value. An unmarked elision is a
+      defect even when the dropped clause is harmless — a consumer cannot tell
+      an abridged quote from a complete one. Sighted first time out, in
+      `NAS6403 thru NAS6420 / part_number_code`.
+- [ ] **Figure-read meanings get the `inferred` label unless the extension
+      lines settle it.** Zoom the figure and follow the lines yourself. The
+      author closing a *prior* gap on a figure reading (`spec_library_v0` closed
+      dimension `M`) is exactly where a second reader is the whole point.
+- [ ] **A computed `nominal` inside a `traced` value.** `confidence` is
+      per-value, but `SpecValue` lets a transcribed band sit beside a midpoint
+      the author calculated (MS9363 `slot_width` .0805 from a limits-only cell).
+      The SOP bans nominal-as-midpoint; the library records it in a prose `note`
+      that no consumer reads. Check whether a derived nominal is disclosed, and
+      whether the band actually corroborates it (`H` .178/.198 does, via the
+      ±.010 default; `S` .073/.088 does not).
+- [ ] **Absences are as load-bearing as values, and there are two kinds.** An
+      absence with `closed_by: null` claims *no document will ever close this* —
+      a much stronger claim than "not in the pile", and one you must verify by
+      reading the whole document, not by trusting the note. Confirm the
+      distinction from an `unreadable`, which is an acquisition gap and must
+      carry the crop that was tried.
+- [ ] **An illegible token stayed illegible.** Render it yourself at the scan's
+      ceiling. A plausible standard number where the ink does not support one is
+      the invented-value failure mode in its purest form.
+- [ ] **The intake queue's prose, not just its shape.** `status()` is derived and
+      tested; the `note` and `unblocks` fields are free text asserting
+      engineering conclusions and nothing checks them. `spec_library_v0`'s rank-12
+      note argued MS24665 was low value because "the slot is wider than the hole,
+      so the bolt hole governs" — false at worst case on both joints, where the
+      bands overlap. Recompute any comparison a note asserts.
 
 ## Recurring bugs to check (any work here, stack or not)
 
@@ -291,7 +349,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tolerance_stack/stack.py` and amended nothing, leaving PROVENANCE making
       three false claims. Diff every path PROVENANCE calls byte-identical against
       the branch (`git diff master..handoff/<slug> --name-only`) and check the
-      Amended column moved in the same commit.
+      Amended column moved in the same commit. **Second sighting
+      (`spec_library_v0`)**, and it moved to a row nobody watches: adding
+      `spec_library.py` to the package meant re-exporting it from
+      `tolerance_stack/__init__.py`, whose row still read "no — byte-identical".
+      The three SOP-mandated files get remembered; the *package* files do not.
+- [ ] **A sibling handoff landed on `master` while you were reviewing.** The board
+      runs handoffs in parallel, and two that are each internally correct can
+      merge into a contradiction. `sop_edits_apply` and `spec_library_v0` both
+      touched `hardware_entries.json` and `test_tolerance_stack.py` on 2026-08-05:
+      the first asserted `values_status != "inline"` ⟹ `values_source is None`,
+      the second promoted an entry to `library` while deliberately keeping its
+      `values_source`. Neither branch's suite could see it; the merged tree failed.
+      **Before you write the verdict: `git log --oneline HEAD..master`, merge
+      master into your review branch, and re-run the suite there.** A review that
+      only tests `handoff/<slug>` against its own merge-base is testing a tree
+      that will never exist.
 
 ## Architectural errors to check
 
