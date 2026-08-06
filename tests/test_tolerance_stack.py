@@ -633,7 +633,10 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
     refs = {e.id: e.hardware_ref for e in pitch_link.elements if e.hardware_ref}
     workbook_backed = {
         eid for eid, ref in refs.items()
-        if entries[ref]["values_source"]["kind"] == "workbook"
+        # `or {}` because a not_transcribed entry's values_source is null, and a
+        # future hardware_ref to one (MS9363 is the named next document) should
+        # fail this test cleanly rather than TypeError out of it.
+        if (entries[ref]["values_source"] or {}).get("kind") == "workbook"
     }
     assert workbook_backed == {"bushing_214820", "washer_nas1149v0332"}
 

@@ -163,7 +163,7 @@ One `StackElement` per physical feature along the path, in physical order.
 fastener | allowance | nut_geometry`. The last one is for values you transcribe
 but deliberately do **not** fold in — see the castellated-nut caveat in Step 5;
 the seeded take-2 uses it for three nut dimensions. This list lives in three
-places (see the `kind` bullet below for why that matters):
+places (see the `kind` bullet below for why that matters): this list,
 `StackElement.role`'s comment, and
 `tests/test_tolerance_stack.py::test_element_role_comes_from_the_documented_vocabulary`.
 
@@ -325,7 +325,7 @@ Four traps here — the first three cost slice 1 real time, the fourth cost
   between exports.
 - **A value matching is not a feature matching.** 215197 carries *three* distinct
   4.06 flange callouts (`3X ±0.08`, `5X ±0.10`, and a 1× `±0.10`). Matching on
-  the number gets you to "one of two"; only quantity, view, and GD&T context get
+  the number gets you to "one of three"; only quantity, view, and GD&T context get
   you to *which*. If you cannot get there, say `inferred` and say why. This is
   the cleanest argument in the whole slice for why `element_id` exists.
 - **A balloon's `nX` prefix is not in the extraction.** Every balloon record in
