@@ -179,4 +179,181 @@
       images: { "crops/demo_joint__plate.png": true },
     };
   };
+
+  // A second miniature projection: the GENERATED-check surface, which the demo
+  // stack above cannot exercise because its checks are authored and every one of
+  // its weights is 1.
+  //
+  // The states this one exists to render honestly: a stack whose checks are not
+  // in its own JSON, terms with NON-UNITY coefficients (a diametral 2 and two
+  // soak factors), a sensitivity probe that is not a result, a worksheet declared
+  // rather than matched by name, and materials whose CTE values are untraced.
+  //
+  // The elements and the two soak factors are arbitrary; the folded numbers are
+  // NOT — they are what tolerance_stack.fold() returns for these terms, rounded
+  // in Python to 6 dp exactly as the real projection does, so the fixture cannot
+  // teach a reading the real surface would contradict. Nothing here is a claim
+  // about a real part or a real material.
+  VA.generatedFixture = function () {
+    var F_SLEEVE = 1.0005;      // stainless at the demo hot soak
+    var F_HUB = 1.0012;         // aluminium, growing faster — this is the mechanism
+    var F_BEARING = 1.0011;
+    return {
+      startState: VA.STATE.READY,
+      results: {
+        schema: "joby.tolerance_stack/viewer_projection/v0",
+        built_at: "2026-08-06T00:00:00+00:00",
+        stacks: [{
+          id: "demo_fit",
+          title: "Demo shrink fit — generated checks, weighted terms",
+          units: "mm",
+          archetype: "demo_thermal_fit",
+          checks_source: "generated",
+          checks_generated_not_rendered: false,
+          source_file: "docs/tolerance_stacks/stack_demo_fit.json",
+          worksheet_file: "docs/tolerance_stacks/WORKSHEET_demo_fits.md",
+          worksheet_source: "declared",
+          stack: {
+            joint: { assembly: "none — a demo", question: "Does the fit stay interfering?" },
+            elements: [
+              { id: "hub_bore", name: "hub bore", role: "clamped_member",
+                nominal: 20.0, min: 19.98, max: 20.02, lmc: 20.02, mmc: 19.98,
+                plus_minus: 0.02, hardware_ref: null,
+                source_ref: { kind: "drawing", document: "DEMO-1", sheet: 1,
+                              confidence: "traced" } },
+              { id: "sleeve_bore", name: "sleeve bore", role: "clamped_member",
+                nominal: 19.9, min: 19.89, max: 19.91, lmc: 19.91, mmc: 19.89,
+                plus_minus: 0.01, hardware_ref: null,
+                source_ref: { kind: "drawing", document: "DEMO-2", sheet: 1,
+                              confidence: "traced" } },
+              { id: "sleeve_wall", name: "sleeve radial wall", role: "bushing",
+                nominal: 0.06, min: 0.055, max: 0.065, lmc: 0.055, mmc: 0.065,
+                plus_minus: 0.005, hardware_ref: null,
+                note: "Enters DIAMETRALLY: the OD is bore + 2 × wall, and the two " +
+                  "walls are one turned dimension.",
+                source_ref: { kind: "drawing", document: "DEMO-2", sheet: 1,
+                              confidence: "traced" } },
+              { id: "bearing_od", name: "bearing OD", role: "bearing",
+                nominal: 19.91, min: 19.905, max: 19.915, lmc: 19.905, mmc: 19.915,
+                plus_minus: 0.005, hardware_ref: null,
+                source_ref: { kind: "parts_list", document: "DEMO-1", sheet: 2,
+                              confidence: "inferred" } },
+            ],
+            notes: ["CHECKS ARE GENERATED. `checks` is empty in the file on purpose."],
+          },
+          elements: [
+            { id: "hub_bore", confidence: "traced", kind: "drawing", has_source_ref: true,
+              zero_width: false, hardware_gaps: [], material: "DEMO_ALUMINIUM" },
+            { id: "sleeve_bore", confidence: "traced", kind: "drawing", has_source_ref: true,
+              zero_width: false, hardware_gaps: [], material: "DEMO_STAINLESS" },
+            { id: "sleeve_wall", confidence: "traced", kind: "drawing", has_source_ref: true,
+              zero_width: false, hardware_gaps: [], material: "DEMO_STAINLESS" },
+            { id: "bearing_od", confidence: "inferred", kind: "parts_list",
+              has_source_ref: true, zero_width: false, hardware_gaps: [],
+              material: "DEMO_BEARING_STEEL" },
+          ],
+          materials: [
+            { id: "DEMO_ALUMINIUM", confidence: "untraced", kind: "workbook",
+              designation_confidence: "traced", used_by_elements: ["hub_bore"],
+              material: {
+                schema: "joby.tolerance_stack/material_entry/v0", id: "DEMO_ALUMINIUM",
+                designation: "a demo aluminium", specification: "DEMO-SPEC",
+                condition: "T7451", cte_1e6_per_c: 23.0,
+                cte_temperature_range_c: null,
+                gaps: ["The CTE is a demo number and is traced to nothing."],
+                values_source: { kind: "workbook", document: "demo.xlsx", cell: "C5",
+                                 confidence: "untraced" },
+                note: "Grows roughly twice as fast as the sleeve — that difference " +
+                  "IS the mechanism this archetype is about.",
+              } },
+            { id: "DEMO_STAINLESS", confidence: "untraced", kind: "workbook",
+              designation_confidence: "traced",
+              used_by_elements: ["sleeve_bore", "sleeve_wall"],
+              material: {
+                schema: "joby.tolerance_stack/material_entry/v0", id: "DEMO_STAINLESS",
+                designation: "a demo stainless", cte_1e6_per_c: 10.3,
+                cte_temperature_range_c: [20.0, 100.0],
+                gaps: ["The CTE is a demo number and is traced to nothing."],
+                values_source: { kind: "workbook", document: "demo.xlsx", cell: "C6",
+                                 confidence: "untraced" },
+              } },
+            { id: "DEMO_BEARING_STEEL", confidence: "no_source_ref", kind: null,
+              designation_confidence: "no_source_ref",
+              used_by_elements: ["bearing_od"],
+              material: {
+                schema: "joby.tolerance_stack/material_entry/v0",
+                id: "DEMO_BEARING_STEEL", designation: "a demo bearing steel",
+                cte_1e6_per_c: 11.9, cte_temperature_range_c: null,
+                gaps: ["No citation at all for this CTE — the loudest state."],
+                values_source: null,
+              } },
+          ],
+          paths: [],
+          checks: [
+            {
+              schema: "joby.tolerance_stack/check_result/v0",
+              check_id: "seat__hub_to_sleeve__hot",
+              label: "demo seat: hub bore to sleeve OD (stage 1) @ hot (72 C)",
+              configuration: { chain: "seat", stage: "hub_to_sleeve", temperature: "hot",
+                               temperature_c: "72", stiffness_ratio: "0.8" },
+              criterion: ">= 0", units: "mm", verdict: "marginal",
+              guidance: "Interference, positive = interfering. The worst-case " +
+                "minimum is the loosest corner and is the binding one.",
+              nominal: 0.00601, worst_case_min: -0.034024, worst_case_max: 0.046044,
+              worst_case_half: 0.040034, rss_center: 0.00601, rss_half: 0.024519,
+              rss_min: -0.018509, rss_max: 0.030529,
+              terms: [
+                { element: "sleeve_bore", sign: 1, coefficient: F_SLEEVE },
+                { element: "sleeve_wall", sign: 1, coefficient: 2 * F_SLEEVE },
+                { element: "hub_bore", sign: -1, coefficient: F_HUB },
+              ],
+              element_terms: [
+                { element_id: "sleeve_bore", sign: 1, coefficient: F_SLEEVE },
+                { element_id: "sleeve_wall", sign: 1, coefficient: 2 * F_SLEEVE },
+                { element_id: "hub_bore", sign: -1, coefficient: F_HUB },
+              ],
+              incomplete: false, sensitivity: false, generated: true,
+              input_confidence: { traced: 3, inferred: 0, untraced: 0, no_source_ref: 0 },
+              worst_confidence: "traced", zero_width_inputs: [], workbook_cells: null,
+            },
+            {
+              schema: "joby.tolerance_stack/check_result/v0",
+              check_id: "seat__sleeve_to_bearing__hot__k1",
+              label: "[SENSITIVITY] demo seat: installed sleeve bore to bearing OD " +
+                "(stage 2) @ hot with stiffness ratio 1 instead of 0.8",
+              configuration: { chain: "seat", stage: "sleeve_to_bearing",
+                               temperature: "hot", temperature_c: "72",
+                               stiffness_ratio: "1", sensitivity: "true" },
+              criterion: ">= 0", units: "mm", verdict: "marginal",
+              guidance: "NOT A RESULT. k = 1 means the sleeve absorbs all of stage " +
+                "1's interference, so its own free size drops out of the term list.",
+              nominal: 0.027961, worst_case_min: -0.007073, worst_case_max: 0.062996,
+              worst_case_half: 0.035034, rss_center: 0.027961, rss_half: 0.022937,
+              rss_min: 0.005024, rss_max: 0.050898,
+              terms: [
+                { element: "bearing_od", sign: 1, coefficient: F_BEARING },
+                { element: "sleeve_wall", sign: 1, coefficient: 2 * F_SLEEVE },
+                { element: "hub_bore", sign: -1, coefficient: F_HUB },
+              ],
+              element_terms: [
+                { element_id: "bearing_od", sign: 1, coefficient: F_BEARING },
+                { element_id: "sleeve_wall", sign: 1, coefficient: 2 * F_SLEEVE },
+                { element_id: "hub_bore", sign: -1, coefficient: F_HUB },
+              ],
+              incomplete: false, sensitivity: true, generated: true,
+              input_confidence: { traced: 2, inferred: 1, untraced: 0, no_source_ref: 0 },
+              worst_confidence: "inferred", zero_width_inputs: [], workbook_cells: null,
+            },
+          ],
+          provenance_counts: { traced: 3, inferred: 1, untraced: 0, no_source_ref: 0 },
+          zero_width_count: 0,
+          gaps: [],
+        }],
+        hardware_entries: { entries: [] },
+      },
+      crops: null,
+      texts: {},
+      images: {},
+    };
+  };
 })(window.ViewerApp = window.ViewerApp || {});
