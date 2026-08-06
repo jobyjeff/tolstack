@@ -331,6 +331,17 @@ must be confirmed before the property is looked up.
   de-duplication, no tidying. Check the diff and the filesystem.
 - **Nothing was written into drawing-checker.** The dependency is read-only and
   one-way.
+- **`confidence` against `kind`, on every element, not just the `traced` ones.**
+  Since 2026-08-06 a test forbids `traced` + `kind: "parts_list"`, so that corner
+  is mechanised and you can skip it. The corner that is *not* mechanised is one
+  notch down: `inferred` on a `kind: "workbook"` ref, which the SOP's own rule
+  says should be `untraced` unless something outside the workbook corroborates it
+  — and if something does, the `kind` is wrong. Three seeded instances sit that
+  way (`ISSUE_20260806_inferred_on_a_workbook_only_citation_...`), including the
+  same bolt labelled `parts_list`/`inferred` in one stack and
+  `workbook`/`inferred` in the next. **Cross-check an element that appears in two
+  stacks against its twin**; a joint's take-1 and take-2 must agree about where a
+  number came from.
 
 ---
 
@@ -475,7 +486,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       that element `traced` and the other `inferred`). **Treat "byte-identical"
       anywhere as a claim to verify, not read**, and check what the test actually
       compares: a cached numeric table is not the sheet. Diff the whole row block,
-      comment column included.
+      comment column included. **Fourth sighting (`traced_labels_and_ratio`), and
+      the most on-the-nose: a handoff whose whole purpose was to correct a false
+      provenance claim left four new ones in PROVENANCE itself** — the two seeded
+      stack JSONs and two seeded worksheets it edited all still read "no —
+      byte-identical", plus `debug_report_tolerance_stacks.py` (row said "import
+      note" after gaining 69 executable lines) and the `docs/reference/` lesson
+      (section said "verbatim"). The rows that go false are never the three
+      SOP-mandated ones — they are **whichever rows had never moved before**, which
+      is exactly why the author does not think to look. One command settles it:
+      `git diff master..HEAD --name-only`, read beside PROVENANCE's tables.
+      Reviewers have amended these rows four times now; on a fifth, stop amending
+      and mechanise it (a test greping the byte-identical rows against `git diff`
+      is ~15 lines).
 - [ ] **Prose asserting a field is `null` while the field is not.** Same class as
       stale counts, one level down. `hub_bearing_thermal_stack`'s
       `identification_note` said "find numbers, balloons and quantities are
@@ -533,6 +556,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `configuration.excluded` and the INCOMPLETE label agree (nothing validates
       the pairing —
       `docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`).
+- [ ] **A derived headline figure with no single computing command.** The
+      strongest form of "recompute any count a doc asserts", learned the expensive
+      way — the superseded traced ratio, quoted in eleven files for a month:
+
+      > *"1 of 17"* — and **neither half reproduced.** The denominator silently
+      > dropped `take2`; the numerator counted part-drawing-traced values while
+      > the JSON said four elements were `traced`.
+
+      It survived three reviews *because this checklist supplied the stale
+      constant*: the `pitch_link_stack` reviewer computed 4 of 26 correctly, wrote
+      it down, and then quoted the stale figure in the same document. **A
+      checklist that hands you a constant will beat your own correct
+      arithmetic.** So: when
+      a doc quotes a derived figure, find the *one* place that computes it and run
+      it (for the traced ratio:
+      `tests\debug_report_tolerance_stacks.py --ratio`, defined in the SOP's "The
+      traced ratio"). If there is no such place, that absence is the finding —
+      a ratio with an unstated denominator is not a measurement. And when a
+      handoff corrects such a figure, check that the fix is *structural*: one
+      definition, one computing function, a test importing that function rather
+      than re-implementing it, and a doc-level test that fails on a stale quote.
+- [ ] **`docs/reference/` edited — verbatim, or a sanctioned exception?** First
+      sighting `traced_labels_and_ratio` (2026-08-06), which inserted an additive,
+      dated `CORRECTION` blockquote into
+      `docs/reference/LESSONS_20260729_tolerance_stack_slice1.md` *after* the
+      paragraph the wrong ratio came from, deleting and rewording nothing. The
+      architectural rule below says no edits beyond the import header. That review
+      let it stand and recorded it in `PROVENANCE.md` rather than reverting,
+      because the original text survives intact and diffs cleanly — but **the rule
+      still says otherwise and nobody has decided**. Until Jeff or a strategy
+      session rules: any edit here is a finding you must surface, and an edit that
+      *changes or removes* imported text is a blocker regardless.
 
 ## Architectural errors to check
 
