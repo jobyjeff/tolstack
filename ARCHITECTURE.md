@@ -124,19 +124,30 @@ deliberately never reads RSS.
 
 ```
 data/inbox/specs/         (append-only spec + datasheet pile — the trace targets)
+data/inbox/drawings/      (part + assembly drawing PDFs; copies, never the originals)
 data/inbox/tolerance_stacks/  (source workbooks; gitignored, provenance committed)
         |
         |  hand transcription, by an agent following docs/SOP_TOLERANCE_STACK.md
         v
-docs/tolerance_stacks/*.json   (stack_definition + hardware_entry — COMMITTED)
+docs/tolerance_stacks/*.json   (stack_definition + hardware_entry + material_entry
+                                — COMMITTED)
         |
         |  tolerance_stack.fold  (via load_stack / path / check)
+        |  ...or, for the thermal_fit archetype, via
+        |  tolerance_stack.thermal.load_thermal_fit_stack, which GENERATES the
+        |  checks from a `thermal_fit` block and then folds them the same way
         v
 check_result/v0  (produced on demand, never stored)
         |
         v
 docs/tolerance_stacks/WORKSHEET_*.md   (the human-readable result + findings)
 ```
+
+All three inbox streams are gitignored by design (forge data convention): the
+filesystem is canonical, a tracked `PROVENANCE.md` / `README.md` is the skeleton,
+and **from a worktree those directories are empty apart from the skeleton**. Read
+the data in the main checkout at `C:\workspace\tolstack\data\`; cite it
+repo-relative.
 
 Nothing lands in `data/runs/` yet: no run-producing pipeline exists here. The
 `data/runs/` and `data/projections/` skeletons are the standard-layout
@@ -168,3 +179,21 @@ The binding constraint on nearly every value is the **absence of a fastener-spec
 library**: 1 of 17 element instances across the three seeded stacks is `traced`.
 `hardware_entries.json` carries a per-entry `gaps` list, and those lists are that
 library's intake queue.
+
+The thermal-fit stacks invert that picture and expose a second gap. Their
+*dimensions* are almost fully traced (12 of 16 element instances, because Jeff
+supplied five released part drawings), while every **material property and every
+scenario parameter** is untraced: three CTEs, two operating temperatures, two
+stiffness ratios, 0 of 7. So there are two intake queues now, and
+`materials.json`'s `cindas_request` fields are the second one. Quoting a
+dimension-only traced ratio for a thermal stack overstates it — the worksheet
+states both.
+
+Two model-level gaps carried by the thermal archetype rather than by any one
+stack, both stated in `ARCHETYPE_thermal_fit.md`: the soak is **isothermal and
+free** (no gradient, no coupling between the pressing members' expansions), and a
+**dimensional interference is not a torque capacity** — the check says the parts
+touch, not that the joint can carry the torque that would spin the inner member.
+That second one is the direct analogue of the castellated-nut caveat above, and
+for the same reason: a correctly computed number that does not settle the
+question, which must say so next to itself.
