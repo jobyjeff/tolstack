@@ -44,12 +44,19 @@ venv-win\Scripts\python.exe -m pytest -q
   per-repo override dispatch serves to review agents).
 - `docs/tolerance_stacks/` — the stack definitions, the hardware-entry seed, and
   the worksheets. Committed: these are design artifacts, not run data.
+- `docs/spec_library/` — **the structured spec library**: `events/` holds one
+  immutable `spec-parse/v0` event per (document, parser-version),
+  `intake_queue.json` says which document closes which gap. Read its `README.md`
+  before adding either. Rebuild the projection with
+  `venv-win\Scripts\python.exe -m tolerance_stack`.
 - `docs/reference/` — imported reference material (verbatim copies, not authored
   here).
 - `tolerance_stack/` — the Python package: the data shapes and the single
-  `fold()` that computes worst-case and RSS for both paths and checks.
-- `tests/` — `test_tolerance_stack.py` (34 tests pinning the ground-truth
-  numbers) plus `debug_*.py` inspection tools, run by hand, never by pytest.
+  `fold()` that computes worst-case and RSS for both paths and checks, plus
+  `spec_library.py` (the parse-event shapes and the library fold).
+- `tests/` — `test_tolerance_stack.py` and `test_spec_library.py`, both pinning
+  ground-truth numbers value by value, plus `debug_*.py` inspection tools, run
+  by hand, never by pytest. Expect a green suite.
 - `data/inbox/specs/` — the spec/datasheet pile. **Append-only**: never rename,
   reorganise, or clean up its contents (see `data/inbox/specs/README.md`).
 - `data/inbox/tolerance_stacks/` — source workbooks. Gitignored contents,
@@ -62,16 +69,20 @@ venv-win\Scripts\python.exe -m pytest -q
 
 Code lives at the top level and in packages — never under `data/`.
 
-## The four schemas
+## The schemas
 
-All versioned `/v0`, all defined in `tolerance_stack/stack.py`:
+All versioned `/v0`. The stack schemas live in `tolerance_stack/stack.py`, the
+spec-library ones in `tolerance_stack/spec_library.py`:
 
 | schema | what it is |
 |---|---|
 | `joby.tolerance_stack/stack_definition/v0` | ordered `elements`, named `paths`, `checks` over them |
-| `joby.tolerance_stack/hardware_entry/v0` | a standard part, `values_status: inline`, `library_ref: null` |
+| `joby.tolerance_stack/hardware_entry/v0` | a standard part; `values_status: inline \| library \| not_transcribed`, `library_ref` pointing at a spec-library subject once one exists |
 | `joby.tolerance_stack/check_result/v0` | produced not stored; verdict `pass \| marginal \| fail` |
 | `source_ref` (embedded) | where a value came from, `confidence: traced \| inferred \| untraced` |
+| `joby.tolstack/spec-parse/v0` | one immutable read of one document by one parser version; values, absences and unreadables, each with a source location |
+| `joby.tolstack/spec_library/v0` | the fold of the event log, keyed by subject. Derived, gitignored, rebuilt |
+| `joby.tolstack/spec_intake/v0` | the intake queue; **status is derived from the library, never stored** |
 
 Two load-bearing decisions, both explained in the SOP:
 

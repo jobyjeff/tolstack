@@ -107,8 +107,9 @@
       "dash": "U11D",
       "class": "bolt_hex_head",
       "thread": ".190-32",
-      "values_status": "inline",
-      "library_ref": null,
+      "values_status": "library",
+      "library_ref": "spec_library:NAS6403U11D",
+      "library_ref_note": "FILLED 2026-08-05 by handoff spec_library_v0 -- the first entry in this file to defer to the spec library, and the demonstration of the seam docs/tolerance_stacks/hardware_entries.json's own description promised: \"when it is filled, values_status moves from inline to library and the inline numbers become a cross-check rather than the source\". `dimensions_in` below is now exactly that cross-check: every one of its numbers is re-derivable from the library subject NAS6403U11D, and `test_the_nas6403_hardware_entry_defers_to_the_library` asserts each one against it. Nothing on the STACK side changed -- stack_pitch_link_to_pitch_plate.json's elements still cite the standard through their own source_ref, which is the zero-rework property the slice-1 lesson designed the slot for. Resolve the ref against data/projections/spec_library/library.json (rebuild: python -m tolerance_stack). The other twelve entries keep values_status \"inline\" and belong to sop_edits_apply's backfill.",
       "values_source": {
         "kind": "spec",
         "document": "NAS6403-NAS6420 Rev 4.pdf",
@@ -161,7 +162,7 @@
       "gaps": [
         "The THREAD RUN-OUT / incomplete-thread length is still not sourced. NAS6403 dimensions grip (to the end of the full cylindrical shank) and length (to the point) and gives T = .323 in as a reference between them, but never dimensions the transition itself. So slice 1's 1/16 in 'thread transition allowance' remains an uncited rule of thumb; the document that would close it is MIL-S-8879 (the thread spec sheet 1 invokes for UNJF-3A), which is not in data/inbox/specs/.",
         "Sheet 5 of 5 is MISSING from the PDF. Sheet 1's LIST OF CURRENT SHEETS names five sheets (1 rev 4, 2 rev 2, 3 NEW, 4 rev 2, 5 rev 3); the file holds four. Nothing this stack uses lives on sheet 5, but a library ingest must not assume the file is complete.",
-        "The MEANING of dimension M (.174/.154) is read off the sheet-1 figure's extension lines, not from any text -- the standard never defines M in words. Highest-value item for a second reader to confirm.",
+        "CLOSED 2026-08-05 (spec_library_v0): the MEANING of dimension M (.174/.154) is read off the sheet-1 figure's extension lines, not from any text -- the standard never defines M in words -- and was the highest-value item for a second reader to confirm. A second reader has now confirmed it, at Matrix(14) on the pt rect [340,108,400,185]: M's left extension line is the long vertical that runs down through the shank to the drilled cotter hole's centerline, and its right terminus is the point end face. So M IS cotter-hole centerline to point. Recorded on the library subject NAS6403U11D. The remaining figure-read value on this entry is `point_chamfer_max` (column U), whose meaning the extension lines do NOT settle -- it is now the highest-value item for a third reader.",
         "Grip tolerance and length tolerance are folded here as independent variates. They are not: T = length - grip is a reference dimension, so the worst-case spread on `thread_region_T` (7.5692 .. 8.8392) is wider than the real part can be. Whether the standard controls length, grip, or both as the independent feature is not stated."
       ]
     },

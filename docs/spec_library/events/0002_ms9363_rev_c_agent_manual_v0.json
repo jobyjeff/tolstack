@@ -1,0 +1,320 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "20260805-ms9363-revc-agentmanual-v0",
+  "seq": 2,
+  "mode": "full",
+  "document": "MS9363 Rev C.pdf",
+  "parsed_at": "2026-08-05",
+  "parser": {
+    "name": "agent-manual",
+    "version": "v0",
+    "agent": "handoff spec_library_v0",
+    "recipe": "No text layer beyond the ASSIST download banner. Rendered with PyMuPDF from drawing-checker's venv-win: get_pixmap(Matrix(2.2)) on both sheets, then Matrix(6..12) with clips on TABLE I, the hex-face view and the axial section. Sheet 2 (REQUIREMENTS and NOTES) was read BEFORE the table, per the pitch_link recipe -- it is what tells you that the .190-32 in the THREAD column is a UNJF-3B thread per MIL-S-8879 and that unspecified linear tolerances are +/-.010. The embedded scans are 2519x3105 px (sheet 1) and 2443x3444 px (sheet 2) for 605x745 and 586x827 pt pages, so zoom 4.16 is the resolution ceiling on both."
+  },
+  "document_meta": {
+    "title": "NUT, SLOTTED, HEXAGON-SHEAR, A-286",
+    "designation": "MS9363",
+    "issuer": "Military Specification Sheet, DD Form 672 / preparing activity DLA-IS",
+    "revision": "C",
+    "revision_date": "26 OCT 94",
+    "supersedes": "MS9363 B, 30 SEP 86",
+    "fsc": "5310",
+    "sheets_present_in_the_file": [1, 2],
+    "sheets_named_by_the_document": [1, 2],
+    "source_banner": "Source: https://assist.dla.mil -- Downloaded: 2018-10-23T20:43Z. Check the source to verify that this is the current version before use.",
+    "arrived_in_the_pile": "2026-08-05, dropped in by Jeff. Intake-queue rank 1."
+  },
+  "entries": [
+    {
+      "subject": "MS9363",
+      "subject_kind": "family",
+      "note": "Sheet-2 REQUIREMENTS and NOTES, which apply to every dash number. The per-dash geometry is on the MS9363-09 and MS9363-10 subjects.",
+      "values": {
+        "thread_spec": {
+          "text": "THREADS: Threads in accordance with MIL-S-8879.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "requirement 2"},
+          "confidence": "traced",
+          "note": "The SAME standard NAS6403 sheet 1 invokes for the bolt. One acquisition closes the thread form on both halves of every cotter-retained joint in this repo -- and it is the document that would close the bolt's thread run-out absence. That raises MIL-S-8879's intake value above what the pitch_link queue gave it."
+        },
+        "default_tolerances": {
+          "text": "TOLERANCES: Unless otherwise specified, tolerances for angular dimensions +/-5 degrees, linear dimensions +/-.010.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "requirement 9"},
+          "confidence": "traced",
+          "note": "Reads directly on TABLE I: every two-value geometry column on this sheet is a .020-wide band, i.e. a nominal with the default +/-.010 already applied. So H .178/.198 IS .188 +/-.010."
+        },
+        "opposite_slots": {
+          "text": "OPPOSITE SLOTS: Opposite slots shall coincide within .005 and slot axis shall be within .005 of thread PD axis.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "requirement 10"},
+          "confidence": "traced",
+          "note": "This is the ONLY control the standard places on where the slots are. It relates slots to each other and to the thread pitch-diameter axis -- never to the thread START. See the absence below."
+        },
+        "part_number_rule": {
+          "text": "PART NUMBER: The part number shall consist of the basic MS number followed by a dash number from Table I. Example MS9363-08. MS9363-08 indicates - NUT SLOTTED HEXAGON SHEAR A-286 .164-36 UNJF-3B.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "requirement 11"},
+          "confidence": "traced",
+          "note": "The dash number carries the thread size and nothing else -- unlike NAS6403, where the dash carries the grip. A MS9363 part number therefore says nothing about height."
+        },
+        "dimensioning_standard": {
+          "text": "DIMENSIONING AND TOLERANCING: Dimensioning and tolerancing shall be in accordance with ANSI Y14.5M.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "requirement 6"},
+          "confidence": "traced"
+        },
+        "edges": {
+          "text": "EDGES: Break sharp edges .003-.015 unless otherwise specified.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "requirement 8"},
+          "confidence": "traced"
+        },
+        "units": {
+          "text": "All dimensions are in inches.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "note 1"},
+          "confidence": "traced"
+        },
+        "material_secondary": {
+          "text": "AMS 5737",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "requirement 1 (MATERIAL)"},
+          "confidence": "traced",
+          "note": "The second of the two alternative material specifications in requirement 1. The first is unreadable -- see below. Both are A-286 corrosion and heat resistant steel; the requirement reads \"CORROSION AND HEAT RESISTANT STEEL IN ACCORDANCE WITH AMS <unreadable> OR AMS 5737\"."
+        }
+      },
+      "absences": [
+        {
+          "name": "thread_start_to_castellation_spacing",
+          "why": "THE HEADLINE ABSENCE OF THIS DOCUMENT. Requirement 10 relates opposite slots to each other (within .005) and the slot axis to the thread PD axis (within .005). Nothing anywhere on either sheet relates a slot's ANGULAR position to where the thread starts. So the phase between a nut's castellations and its thread -- the quantity that decides which grips let a cotter hole line up with a slot -- is simply not controlled by this standard, and cannot be derived from it. JPS00094 Rev C 5.9.7 footnote (a) says exactly this in words: \"Different nuts likely have different manufactured thread-start to castellation-hole spacing.\" It is therefore NOT an acquisition gap: no better scan and no further document closes it, because the geometry is not specified anywhere. The remedy is the procedural one JPS00094 5.9.7 gives (change/add a washer, capped at three by 5.5.3.a).",
+          "closed_by": "nothing -- uncontrolled by design; handle procedurally per JPS00094 5.9.7"
+        },
+        {
+          "name": "slot_root_radius",
+          "why": "The section view carries a leader reading \"R .005 MIN\" pointing at the slot root, so there is a minimum but no maximum and no column in TABLE I.",
+          "closed_by": null
+        }
+      ],
+      "unreadable": [
+        {
+          "name": "material_spec_primary",
+          "what_it_looks_like": "Requirement 1 reads \"CORROSION AND HEAT RESISTANT STEEL IN ACCORDANCE WITH AMS <this> OR AMS 5737\". The token resolves to \"AM\" + a gap + \"5\" + two characters that fuse into one blob + a final digit. AMS 5735 and AMS 5731 are both A-286 bar specifications and both fit the ink. NOT GUESSED.",
+          "crop": {
+            "pdf_page": 2,
+            "rect": [315, 178, 380, 189],
+            "zoom": 16,
+            "also_tried": [{"rect": [235, 179, 295, 188], "zoom": 30, "result": "wrong x range, landed on \"...TANT STEEL IN AC(\""}]
+          },
+          "ceiling": "The embedded scan of sheet 2 is 2443x3444 px for a 586x827 pt page, i.e. ~300 dpi -- zoom 4.16 is the resolution ceiling. The zoom-16 render above is interpolation and adds no information; do not burn renders going higher.",
+          "resolution": "A better scan of MS9363 Rev C sheet 2, e.g. a fresh pull from https://assist.dla.mil (this copy was downloaded 2018-10-23). Not load-bearing for any stack in this repo -- both candidates are A-286, which is what the parts-list nomenclature already says."
+        }
+      ]
+    },
+    {
+      "subject": "MS9363-09",
+      "subject_kind": "part_number",
+      "note": "The .190-32 slotted shear nut. Find 33 on 217755, retaining BOTH the 5-place pitch-link joint and the 3-place tangential-link joint in DETAIL B (balloon prefix 8X = 3 + 5). Mates with NAS6403U11D.",
+      "values": {
+        "thread": {
+          "text": ".190-32 UNJF-3B",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "THREAD T", "callout": "190-32"},
+          "confidence": "traced",
+          "note": "The UNJF-3B form comes from the family part_number_rule example and requirement 2, not from the THREAD column, which prints the size only."
+        },
+        "nut_height": {
+          "nominal": 0.188,
+          "min": 0.178,
+          "max": 0.198,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "H", "callout": "178- 198"},
+          "confidence": "traced",
+          "note": "H, on the axial section, spans the whole nut: from the slotted end face to datum -J-, the bearing face. THE VALUE THIS DOCUMENT WAS ACQUIRED FOR. The nominal is the midpoint and is computed, not transcribed -- TABLE I prints limits only -- but the family default_tolerances (+/-.010) confirms .188 is the intended basic size rather than an artefact of averaging."
+        },
+        "unslotted_height": {
+          "nominal": 0.094,
+          "min": 0.084,
+          "max": 0.104,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "G", "callout": "084- 104"},
+          "confidence": "traced",
+          "note": "MEANING READ OFF THE FIGURE, not defined in words. On the section, G's two extension lines are the slot ROOT and datum -J-: it is the solid height beneath the slots, measured from the bearing face. Confirmed at Matrix(12) on the pt rect [355,175,450,300]. Everything about slot depth follows from G meaning this and not 'depth of slot'."
+        },
+        "slot_width": {
+          "nominal": 0.0805,
+          "min": 0.073,
+          "max": 0.088,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "S", "callout": "073- 088"},
+          "confidence": "traced",
+          "note": "S is dimensioned across a slot on the hex-face view. The nominal is COMPUTED as the midpoint because TABLE I prints limits only; unlike H and G, S's band is .015 wide rather than .020, so the family default_tolerances (+/-.010) does not corroborate the midpoint and .0805 is arithmetic, nothing more. Note that the mating cotter pin must pass through the slot AND through the bolt's P hole (.080/.070 on NAS6403): the slot is the wider of the two, so the bolt hole governs pin size."
+        },
+        "slot_count": {
+          "count": 6,
+          "at": {"sheet": 1, "pdf_page": 1, "figure": "hex-face view", "callout": "position .005 (I), 6 PLACES; datum -K- 3 PLACES"},
+          "confidence": "traced",
+          "note": "Family-wide: the figure governs every dash number. Six slots, printed as \"6 PLACES\" on the slot position callout, and cross-checked by the \"-K- 3 PLACES\" datum labelling (three slot AXES, i.e. three opposite pairs) and by counting six slots in the view. So the castellations index every 60 degrees."
+        },
+        "slot_depth": {
+          "nominal": 0.094,
+          "min": 0.074,
+          "max": 0.114,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "H minus G"},
+          "confidence": "inferred",
+          "note": "NOT PRINTED. Derived as H - G, both of which are dimensioned from datum -J-, so the slot depth is what is left: .188 - .094 = .094 nominal. The band .074/.114 is the WORST CASE of two independently toleranced dimensions and is therefore wider than the real part can be -- H and G share the same datum face, so a nut at H max is not free to also be at G min. Same non-independence as NAS6403's grip and length (see that document's nominal_length_rule). Use the nominal, and treat the band as an upper bound on the spread."
+        },
+        "width_across_flats": {
+          "min": 0.367,
+          "max": 0.376,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "A", "callout": "367- 376"},
+          "confidence": "traced"
+        },
+        "width_across_corners_min": {
+          "min": 0.419,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "B MIN", "callout": "419"},
+          "confidence": "traced"
+        },
+        "countersink_dia": {
+          "min": 0.19,
+          "max": 0.21,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "C dia", "callout": "190- 210"},
+          "confidence": "traced",
+          "note": "Section-view leader: \"CSK 90 TO C dia BOTH SIDES\"."
+        },
+        "chamfer_dia": {
+          "min": 0.365,
+          "max": 0.385,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "D dia", "callout": "365- 385"},
+          "confidence": "traced",
+          "note": "Section-view leader: \"CHAMFER 30 TO D dia\"."
+        },
+        "approx_mass_lb_per_100": {
+          "nominal": 0.37,
+          "units": "lb/100",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-09", "column": "APPROX MASS LB/100", "callout": "0 37"},
+          "confidence": "traced"
+        },
+        "bearing_end_step": {
+          "min": 0.006,
+          "max": 0.026,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "figure": "axial section, unlabelled dimension at the datum -J- end", "callout": "026 / 006"},
+          "confidence": "inferred",
+          "note": "MEANING NOT CONFIRMED. The number is legible; the dimension has no letter, no TABLE I column and no words. Its extension lines sit between a step just inboard of datum -J- and datum -J- itself, which reads as a raised washer/bearing face. Recorded because it is the only axial dimension on the section other than H and G, and a reader deriving nut geometry will meet it. Do NOT fold it into a stack on this reading."
+        }
+      },
+      "absences": [
+        {
+          "name": "thread_start_to_castellation_spacing",
+          "why": "See the MS9363 family absence -- uncontrolled by this standard and by any other.",
+          "closed_by": "nothing -- handle procedurally per JPS00094 5.9.7"
+        }
+      ]
+    },
+    {
+      "subject": "MS9363-10",
+      "subject_kind": "part_number",
+      "note": "The .250-28 slotted shear nut. Find 25 on 217755, DETAIL X -- the VPA joint. Mates with NAS6404U13D. Note that -09 and -10 share G, H and S exactly: the .250-28 nut is no taller than the .190-32 one, only wider across the flats.",
+      "values": {
+        "thread": {
+          "text": ".250-28 UNJF-3B",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "THREAD T", "callout": "250-28"},
+          "confidence": "traced"
+        },
+        "nut_height": {
+          "nominal": 0.188,
+          "min": 0.178,
+          "max": 0.198,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "H", "callout": "178- 198"},
+          "confidence": "traced",
+          "note": "Identical to -09. Read the row label twice: -09 and -10 are adjacent and their G/H/S cells are the same numbers, so a mis-registered row looks correct."
+        },
+        "unslotted_height": {
+          "nominal": 0.094,
+          "min": 0.084,
+          "max": 0.104,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "G", "callout": "084- 104"},
+          "confidence": "traced",
+          "note": "Meaning as for -09: solid height from datum -J- to the slot root."
+        },
+        "slot_width": {
+          "nominal": 0.0805,
+          "min": 0.073,
+          "max": 0.088,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "S", "callout": "073- 088"},
+          "confidence": "traced",
+          "note": "Nominal computed as the midpoint of a limits-only cell -- see MS9363-09 slot_width. Against NAS6404's cotter hole P .086/.076 the slot and the hole are nearly the same size, unlike the -09/NAS6403 pair."
+        },
+        "slot_count": {
+          "count": 6,
+          "at": {"sheet": 1, "pdf_page": 1, "figure": "hex-face view", "callout": "position .005 (I), 6 PLACES; datum -K- 3 PLACES"},
+          "confidence": "traced",
+          "note": "Family-wide, as for -09: six slots, indexing every 60 degrees."
+        },
+        "slot_depth": {
+          "nominal": 0.094,
+          "min": 0.074,
+          "max": 0.114,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "H minus G"},
+          "confidence": "inferred",
+          "note": "Derived as H - G; same non-independence caveat as -09."
+        },
+        "width_across_flats": {
+          "min": 0.43,
+          "max": 0.439,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "A", "callout": "430- 439"},
+          "confidence": "traced"
+        },
+        "width_across_corners_min": {
+          "min": 0.491,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "B MIN", "callout": "491"},
+          "confidence": "traced"
+        },
+        "countersink_dia": {
+          "min": 0.25,
+          "max": 0.27,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "C dia", "callout": "250- 270"},
+          "confidence": "traced"
+        },
+        "chamfer_dia": {
+          "min": 0.428,
+          "max": 0.448,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "D dia", "callout": "428- 448"},
+          "confidence": "traced"
+        },
+        "approx_mass_lb_per_100": {
+          "nominal": 0.51,
+          "units": "lb/100",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I DASH NUMBERS AND DIMENSIONS", "row": "-10", "column": "APPROX MASS LB/100", "callout": "0 51"},
+          "confidence": "traced"
+        },
+        "bearing_end_step": {
+          "min": 0.006,
+          "max": 0.026,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "figure": "axial section, unlabelled dimension at the datum -J- end", "callout": "026 / 006"},
+          "confidence": "inferred",
+          "note": "Meaning not confirmed -- see MS9363-09 bearing_end_step. Figure dimension, family-wide."
+        }
+      },
+      "absences": [
+        {
+          "name": "thread_start_to_castellation_spacing",
+          "why": "See the MS9363 family absence.",
+          "closed_by": "nothing -- handle procedurally per JPS00094 5.9.7"
+        }
+      ],
+      "unreadable": []
+    }
+  ],
+  "notes": [
+    "Jeff's warning on dropping this file in was \"another awful photocopy, good luck\". It is not: sheet 1 is a clean 300 dpi bitonal scan and TABLE I read cleanly at Matrix(8) first time. The genuinely awful scan in this pair of documents is NAS6403-NAS6420 Rev 4.pdf at 200 dpi. Recorded because a warning that turns out to be wrong is worth the same as one that turns out right -- both calibrate the next estimate.",
+    "TABLE I is grouped in blocks of three dash numbers with blank rows between; -08/-09/-10 are the first block. -09 and -10 have IDENTICAL G, H and S cells, which makes a row mis-registration invisible in those three columns. Both rows were re-read against the block boundary at Matrix(8).",
+    "The dimension letters used here are the standard's own: A across flats, B across corners min, C countersink dia, D chamfer dia, G solid height from the bearing face to the slot root, H overall nut height, S slot width, T thread. Only G, H and S carry any figure-reading risk, and all three were confirmed on a Matrix(12) crop of the axial section."
+  ]
+}

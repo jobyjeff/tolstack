@@ -532,18 +532,34 @@ def test_the_nas6403_entry_cites_the_standard_its_inline_values_came_from():
     assert entry["dimensions_in"]["length"] - entry["dimensions_in"]["grip"] == pytest.approx(
         entry["dimensions_in"]["T_ref"], abs=1e-9
     )
-    # values_status stays "inline" and library_ref stays null even though these
-    # numbers are now traced: "library" means a fastener library owns them, and
-    # no such library exists yet.
-    assert entry["values_status"] == "inline" and entry["library_ref"] is None
+    # `values_source` stays on the entry after the promotion below: it records
+    # where the INLINE numbers came from, which is still a true and useful fact
+    # once those numbers are a cross-check rather than the source.
+    #
+    # This entry's `values_status` was "inline" with a null `library_ref` until
+    # 2026-08-05, when handoff spec_library_v0 built the library and promoted it
+    # to "library". The promotion, and the cross-check that the inline numbers
+    # still agree with the library value by value, are asserted in
+    # tests/test_spec_library.py::test_the_nas6403_hardware_entry_defers_to_the_library.
+    assert entry["values_status"] == "library"
+    assert entry["library_ref"] == "spec_library:NAS6403U11D"
 
 
-def test_every_hardware_entry_has_an_empty_library_ref_and_a_gap_list():
+def test_every_hardware_entry_has_a_gap_list_and_a_resolvable_values_status():
+    """`library_ref` was null on all thirteen entries until 2026-08-05. Exactly
+    one is promoted now (the spec_library_v0 seam demonstration); the remaining
+    twelve are still `inline` and are sop_edits_apply's backfill. The invariant
+    that survives is the pairing: a filled ref means status "library", a null
+    ref means it does not."""
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     for entry in data["entries"]:
-        assert entry["library_ref"] is None
         assert entry["gaps"], f"{entry['id']} claims no source gaps"
         assert entry["values_status"] in ("inline", "library", "not_transcribed")
+        if entry["library_ref"] is None:
+            assert entry["values_status"] != "library", entry["id"]
+        else:
+            assert entry["values_status"] == "library", entry["id"]
+            assert entry["library_ref"].startswith("spec_library:"), entry["id"]
 
 
 def test_every_hardware_ref_on_a_stack_element_resolves():
