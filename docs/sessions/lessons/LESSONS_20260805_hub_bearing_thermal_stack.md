@@ -284,8 +284,8 @@ In priority order:
    central? It moves the lower seat's hot stage 2 by 0.066 mm across k = 0→1 and
    flips its verdict at k = 0.
 4. **Was the M2 change meant to address the upper seat too?** Rows 31–44 are
-   identical between the sheets, so it did not — and the upper seat is where both
-   this stack and the workbook itself report the hot clearance.
+   numerically identical between the sheets, so it did not — and the upper seat is
+   where both this stack and the workbook itself report the hot clearance.
 5. **Why is ⌀129.968 printed in a highlight colour** on 214959-002, uniquely on
    that sheet? Observed, not interpreted. May mark a critical characteristic.
 6. **Do the hub's anodize/chem-conversion flag notes cover the bearing bores?**

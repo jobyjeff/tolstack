@@ -27,8 +27,11 @@ combination that produces it — see **F1**, which is the most consequential fin
 in this worksheet.
 
 **And the upper seat is the seat the M2 change did not touch.** Rows 31–44 are
-identical between the two sheets; the M2 change thickened and tightened the
-*lower* sleeve only.
+**numerically** identical between the two sheets — every value and every formula,
+which is what a test asserts; the only differences in that row block are in the
+comment column (`O31` names 212966-**005** on M2 and 212966-**004** on M1, `O32`
+differs by a trailing space, and M1 carries a tolerance-change note in `O34` that
+M2 does not). The M2 change thickened and tightened the *lower* sleeve only.
 
 Traced / inferred / untraced, as a ratio:
 
@@ -132,7 +135,11 @@ finding. It is never reconciled away.
   participates in the fit.
 - **Hoop stress, contact pressure, and whether the interference is survivable or
   sufficient.** See the torque caveat below.
-- **Surface roughness** (hub bore Ra 0.8 on the 132.073; sleeves Ra 3.2 general).
+- **Surface roughness.** Ra 0.8 flags appear in *both* hub bore details on sheet 3
+  — two at C11/E11 beside DETAIL E (202.140) and two at G10/G11 beside DETAIL D
+  (132.073) — against Ra 3.2 general per note 7; the sleeves are Ra 3.2 general.
+  Which face each flag attaches to was not resolved by crop, because roughness is
+  out of scope either way.
 - **Coating thickness at the interfaces** — see F5.
 - **Bearing internal geometry, outer-ring thickness, radial internal clearance.**
   The bearing is an OD.
@@ -422,8 +429,11 @@ least-material corner.
 
 **It does not change M1's conclusion.** Corrected, room-temperature `D25` moves
 from +0.006 (clearance) to −0.004 (interference) — but the hot LMC corner `H25` is
-+0.0965 clearance either way, an order of magnitude larger. M1's slip risk
-survives the correction.
+a clearance either way and an order of magnitude larger: **+0.0965 as written,
++0.0865 corrected**. (The corrected figure is already in this worksheet — it is
+the M1 `lower_seat__sleeve_to_bearing__hot` WC min of −0.08650, negated, because
+stage 2's coherent LMC corner and its worst-case fold coincide exactly.) M1's
+slip risk survives the correction.
 
 ### F4 `[model]` — the stiffness ratio is the largest unsourced lever, and it is load-bearing
 
@@ -523,10 +533,13 @@ configuration as the newer one and gets the direction of the fix backwards.
 
 ### F11 `[model]` — presence on the assembly was not checked
 
-217755 was not opened by this handoff. Find numbers, quantities and balloons are
-`null` throughout — not guessed — and both bearing hardware entries carry a "not
-checked" gap. Slice 1's most valuable finding was a washer that was not in the
-parts list at all, so this is a real omission, not a formality.
+217755 was not opened by this handoff. Every parts-list field is `null` — not
+guessed: find numbers, balloons, and `assembly_status.qty` on both bearing
+hardware entries, each of which carries a "not checked" gap. (The `qty: 1` on the
+`joint.parts` rows is a count *within this joint*, taken from the hub drawing's two
+seats, not a parts-list quantity.) Slice 1's most valuable finding was a washer
+that was not in the parts list at all, so this is a real omission, not a
+formality.
 
 ---
 

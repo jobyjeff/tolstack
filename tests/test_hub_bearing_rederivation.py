@@ -536,8 +536,12 @@ def test_workbook_inputs_are_transcribed_consistently_on_both_sheets():
                        (7, T_HOT), (8, T_COLD), (9, CTE_BEARING)):
         assert CACHED["M2"][row]["C"] == value
         assert CACHED["M1"][row]["C"] == value
-    # the upper bore is byte-identical between M1 and M2: the M2 change was to
-    # the LOWER sleeve only (214955-002 -> -003), and the upper was left alone.
+    # the upper bore is NUMERICALLY identical between M1 and M2 -- CACHED holds the
+    # numeric cells, and every one of them agrees -- because the M2 change was to
+    # the LOWER sleeve only (214955-002 -> -003) and the upper was left alone. The
+    # sheets are NOT byte-identical over these rows: the comment column differs
+    # (O31 names 212966-005 on M2 and -004 on M1, O32 by a trailing space, and O34
+    # carries a tolerance-change note on M1 only). Those are prose, not values.
     for row in range(31, 45):
         assert CACHED["M2"][row] == CACHED["M1"][row], f"row {row} differs between sheets"
     # the lower bore is not

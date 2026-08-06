@@ -355,7 +355,7 @@ def test_the_upper_seat_lands_on_the_workbooks_cells_wherever_the_method_agrees(
       sleeve bore's tolerance width times the soak factor, in the direction that
       makes the fold the more conservative of the two.
 
-    Both sheets, since rows 31-44 are identical between them. An earlier draft of
+    Both sheets, since rows 31-44 are numerically identical between them. An earlier draft of
     this test claimed all 18 were exact, which was wrong in the interesting
     direction -- it would have made the stage-1 divergence look like a bug rather
     than the finding it is.
@@ -628,7 +628,8 @@ def test_the_upper_seat_is_the_same_joint_in_both_configurations(m2, m1):
                    "sleeve_wall_upper", "bearing_od_upper"):
         a, b = m2.element(suffix), m1.element(suffix)
         assert (a.nominal, a.min, a.max, a.lmc, a.mmc) == (b.nominal, b.min, b.max, b.lmc, b.mmc)
-    # and the workbook agrees: rows 31-44 are identical between the sheets
+    # and the workbook agrees: rows 31-44 are numerically identical between the
+    # sheets (CACHED is the numeric cells; the comment column O does differ)
     for row in range(31, 45):
         assert CACHED["M2"][row] == CACHED["M1"][row]
 
