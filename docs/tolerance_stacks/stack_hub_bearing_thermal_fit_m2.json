@@ -1,0 +1,370 @@
+{
+  "schema": "joby.tolerance_stack/stack_definition/v0",
+  "id": "hub_bearing_thermal_fit_m2",
+  "title": "Main spindle bearing seats, M2/TC intent design -- two-stage thermal shrink fit, hub bore to sleeve to bearing",
+  "units": "mm",
+  "archetype": "thermal_fit",
+  "joint": {
+    "assembly": "217755",
+    "assembly_revision": "A.1",
+    "assembly_export": "not read for this stack -- see identification_note",
+    "configuration": "M2 / TC intent design (the current design)",
+    "question": "At every corner of (fit condition x operating temperature), does either shrink-fit joint in the main spindle bearing seats reach zero interference? A slip fit anywhere is a failure, not a marginal result.",
+    "parts": [
+      {"part": "212966-006", "revision": "A", "nomenclature": "PROPELLER HUB, DUAL BEARING GEN 5", "role": "outer member of stage 1; carries both bearing seats", "find_no": null, "qty": 1},
+      {"part": "214955-004", "revision": "A", "nomenclature": "HUB SPINDLE SLEEVE, LOWER, PROPELLER", "role": "inner member of stage 1 and outer member of stage 2, LOWER seat", "find_no": null, "qty": 1},
+      {"part": "214959-002", "revision": "A", "nomenclature": "HUB SPINDLE BEARING SLEEVE, UPPER, PROPELLER", "role": "inner member of stage 1 and outer member of stage 2, UPPER seat", "find_no": null, "qty": 1},
+      {"part": "214589-002", "revision": "A", "nomenclature": "BEARING, ANGULAR CONTACT, ID 160, OD 200", "role": "inner member of stage 2, LOWER seat; NSK 7832ASN24TSUP0P6U1, ISO class 6", "find_no": null, "qty": 1},
+      {"part": "214588-002", "revision": "A", "nomenclature": "BEARING, ANGULAR CONTACT, ID 95, OD 130", "role": "inner member of stage 2, UPPER seat; NSK 7919A5SN24TRV1VSUP0P4U1, ISO class 4", "find_no": null, "qty": 1}
+    ],
+    "identification_note": "INFERRED, and by chained diameters plus title-block nomenclature rather than by counting -- SOP Step 1's identity-by-count applies to a joint named in words that do not appear in a parts list, and this one is not that case. Chain: (a) the workbook's own comment column names its parts -- O13 '212966-005', O14 'wear ring: 214955-003', O31 '212966-005', O32 'wear ring: 214959-002'; (b) the hub drawing carries exactly two bearing-seat bores, 202.140 (sheet 3 DETAIL E) and 132.073 (sheet 3 DETAIL D), matching the workbook's two sections to 3 decimal places including tolerance; (c) 214955-004's title block reads LOWER and its bore is 200.000, which only fits the 202.140 seat, and 214959-002 reads UPPER with bore 129.968, which only fits the 132.073 seat; (d) each bearing pairs to the sleeve whose bore equals its OD -- 214589-002 OD 200 into the lower sleeve's 200.000 bore, 214588-002 OD 130 into the upper sleeve's 129.968 bore. Four independent agreements. NOTE: the pairing is NOT the part-number order, and the drawing filenames give no hint -- 214588 (the smaller bearing) sorts before 214589 (the larger) while the sleeves sort the other way. The assembly drawing 217755 was NOT consulted; find numbers, balloons and quantities are therefore null rather than guessed, and confirming this joint against the assembly's parts list is listed as a gap.",
+    "revision_note": "DRIFT. The workbook models hub 212966-005 and lower sleeve 214955-003. The drawings in hand are 212966-006 and 214955-004, both LATER. The upper sleeve is 214959-002 on both. Where the drawing and the workbook disagree, this stack takes the DRAWING and records the divergence as a finding -- see the wall-thickness finding in the worksheet. Elements whose values match across the revision are cited to the drawing; the one that does not is cited to the drawing with the workbook value named in its note.",
+    "clamped": "Two independent shrink-fit chains, one per bearing seat, both in the same hub. Nothing is clamped by a fastener: each joint is retained by interference alone, which is precisely why the criterion is 'interference never reaches zero'. Assembly is by interference fit per JPS00176 (Method A cryogenic shrink fit is the default when the spec is referenced without a method).",
+    "out_of_scope": [
+      "THE INNER SIDE OF THE BEARINGS. The bearing bore to spindle fit, and the spindle sleeves, are deliberately excluded: that joint is owned by a separate team (Jeff, 2026-08-05). This is a SCOPE BOUNDARY, not a gap to chase -- the stack's inner boundary is the bearing OD, and the bearing bores (160.000 0/-0.018 and 95.000 0/-0.008, both printed on the drawings) are not modelled even though they are in hand.",
+      "AXIAL everything. The workbook is radial only. Bearing width, sleeve length, seat depth, axial gap and preload are all outside it -- which matters, because the Decision Matrix sheet says the M2 assembly drawings already added an axial-gap inspection step and that an axial gap causing loss of preload is one of the candidate root causes. So the axial half of the same failure investigation exists and is not analysed here.",
+      "The sleeve flange and its retention. 214955-004 is an L-section with a radial flange (axial thickness 1.110 +/-0.035, flange bore 191.50 +/-0.15); only the cylindrical wall participates in the fit.",
+      "Hoop stress, contact pressure, and whether the achieved interference is SURVIVABLE. This stack answers 'is there interference', not 'is the interference safe'. The sleeve is 1.19 mm thick in a 202 mm bore; the hub seat stiffness is one of the Decision Matrix's candidate root causes; neither is a tolerance question.",
+      "Surface roughness. The hub bores are Ra 0.8 (132.073) and the sleeves Ra 3.2 general. Asperity flattening on assembly reduces effective interference below the dimensional interference computed here, always in the unfavourable direction.",
+      "Coating thickness at the interfaces -- see the coating finding; the two parts use opposite before/after-treatment conventions.",
+      "Both bearings' internal geometry, ring thickness and radial internal clearance. The bearing is modelled as an OD only. Whether the outer ring's own deflection under interference changes the fit is a bearing-supplier question (JED01848), not a stack question."
+    ]
+  },
+  "provenance": {
+    "source_workbook": "data/inbox/tolerance_stacks/260209_Hub Bearing Fits.xlsx",
+    "source_sheet": "260209_Hub wear ring shrink M2",
+    "source_sheet_title": "M2/TC Intent Design",
+    "source_rows": "lower seat rows 12-27, upper seat rows 29-44",
+    "rederivation": "tests/test_hub_bearing_rederivation.py -- 427 formula cells, zero mismatches, worst delta 2.842e-14",
+    "drawings": [
+      "data/inbox/drawings/212966-006-A.pdf",
+      "data/inbox/drawings/214955-004-A.pdf",
+      "data/inbox/drawings/214959-002-A.pdf",
+      "data/inbox/drawings/214589-002-A.pdf",
+      "data/inbox/drawings/214588-002-A.pdf"
+    ],
+    "materials": "docs/tolerance_stacks/materials.json",
+    "handoff": "hub_bearing_thermal_stack, 2026-08-05",
+    "worksheet": "docs/tolerance_stacks/WORKSHEET_hub_bearing_thermal_fit.md"
+  },
+  "notes": [
+    "CHECKS ARE GENERATED, NOT AUTHORED. `checks` is empty on purpose. Load this file with tolerance_stack.thermal.load_thermal_fit_stack(), which reads the `thermal_fit` block and builds the term lists -- every coefficient in them is computed from the CTEs and the stiffness ratio at load time, so this file cannot carry a stale weight. The generated terms are tabulated in the worksheet so that every sign and weight is still readable by a human.",
+    "INTERFERENCE IS POSITIVE HERE, and negative in the workbook ('negative is inx'). Every check's criterion is '>= 0' meaning 'still interfering'; the worksheet prints both signs.",
+    "THIS STACK'S WORST CASE IS WIDER THAN THE WORKBOOK'S FOR STAGE 1, by exactly 0.05003 mm at every corner. The drawings tolerance the sleeve bore and the sleeve wall independently and do not dimension the sleeve OD at all, so the loosest real OD is smallest-bore-with-thinnest-wall; the workbook's coherent LMC/MMC columns cannot express that combination. Stage 2's worst case coincides with the workbook's columns exactly. This is a modelling divergence, not a transcription error, and it changes a conclusion.",
+    "THE SLEEVE OD IS DERIVED, NOT DRAWN. Neither sleeve drawing dimensions its OD; both dimension the bore (as datum B, with perpendicularity to A) and the radial wall. So there is no `sleeve_od` element -- the wall enters with coefficient 2, which is both the correct diametral arithmetic and the correct fully-correlated RSS treatment for one turned dimension.",
+    "RSS IS REPORTED AND MEANS LESS HERE THAN USUAL. See the worksheet's RSS caveat: the members' bands are independent, but the temperature is not a variate at all -- it is a scenario -- so an RSS half-range within one temperature check says nothing about the probability of being at that temperature. The verdicts never read RSS.",
+    "THE STIFFNESS RATIO IS THE BIGGEST UNSOURCED NUMBER IN THE STACK. 0.8 lower, 0.9 upper, labelled 'estimate' in the workbook with no derivation. It has no element of its own because it is dimensionless; it lives in `thermal_fit.stiffness_ratio` with its own source_ref, it is listed as a gap, and `stiffness_sensitivity` generates explicitly-labelled [SENSITIVITY] checks at k=0 and k=1 so a reader can see how much rests on it. Stage 1 does not depend on it at all.",
+    "NO NUT, NO COTTER PIN, NO QUANTISED CONSTRAINT. The SOP's castellated-nut caveat does not apply: neither joint is retained by a threaded fastener. The analogous caveat that DOES apply is that a dimensional interference is not a torque capacity -- see the worksheet."
+  ],
+  "elements": [
+    {
+      "id": "hub_bore_lower",
+      "name": "hub lower bearing-seat bore (LOWER seat, stage 1 outer member)",
+      "role": "clamped_member",
+      "nominal": 202.14,
+      "min": 202.125,
+      "max": 202.155,
+      "lmc": 202.155,
+      "mmc": 202.125,
+      "plus_minus": 0.015,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "drawing",
+        "document": "212966-006",
+        "revision": "A",
+        "sheet": 3,
+        "zone": "C9",
+        "view": "DETAIL E",
+        "cell": null,
+        "callout": "⌀ 202.140 ±0.015",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Read on data/inbox/drawings/212966-006-A.pdf. Printed border zone (A-H x 1-12). Datum B, with cylindricity 0.02 and ⊥⌀0.015 A. The workbook's C13/D13/E13 carry the identical value and band, so this element does not drift across 212966-005 -> -006. Adjacent features not modelled: ⌓⌀203.57±0.25 X 90°±2° chamfer, ⌀214.055±0.015."
+      },
+      "note": "INTERNAL feature, so the LMC/MMC mapping inverts against an external one: least material = the LARGER bore = max. Enters stage 1 with sign -1 (a bigger bore is less interference) and stage 2 with sign -1 scaled by k."
+    },
+    {
+      "id": "sleeve_bore_lower",
+      "name": "lower sleeve bore (stage 1 inner member, stage 2 outer member)",
+      "role": "bushing",
+      "nominal": 200.0,
+      "min": 199.975,
+      "max": 200.025,
+      "lmc": 200.025,
+      "mmc": 199.975,
+      "plus_minus": 0.025,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214955-004",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "G3",
+        "view": "SECTION A-A (detail at the right-hand end)",
+        "cell": null,
+        "callout": "⌀ 200.000 ±0.025",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Read on data/inbox/drawings/214955-004-A.pdf. Datum B, with ⊥⌀0.02 A. Identical to the workbook's C17 and its ±0.025 (D16/E16), so this element does not drift across 214955-003 -> -004. The workbook's O16 comment records that the ±0.025 was itself a change 'to match drawing (250617 stack had +/-.015)' -- so a previous version of this analysis used a tighter band than the part carries."
+      },
+      "note": "INTERNAL feature: LMC is the larger bore = max. This is the element that makes stage 1's worst case wider than the workbook's LMC column, because stage 1 wants it at MIN (smallest bore = smallest OD = loosest) while the sleeve's LMC condition puts it at MAX."
+    },
+    {
+      "id": "sleeve_wall_lower",
+      "name": "lower sleeve radial wall thickness",
+      "role": "bushing",
+      "nominal": 1.19,
+      "min": 1.165,
+      "max": 1.215,
+      "lmc": 1.165,
+      "mmc": 1.215,
+      "plus_minus": 0.025,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214955-004",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "G8",
+        "view": "SECTION A-A",
+        "cell": null,
+        "callout": "1.190 ±0.025",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Read on data/inbox/drawings/214955-004-A.pdf, and CONFIRMED BY CROP, not by the text layer alone: 1.190 ±0.025 and 1.110 ±0.035 sit side by side on this sheet and only the rendered geometry shows that the first is the radial wall of the cylindrical section and the second is the AXIAL thickness of the flange. DRIFT: the workbook's C15 is 1.18, 0.010 thinner. This element takes the drawing."
+      },
+      "note": "EXTERNAL-direction material: more material = thicker = MMC = max. Enters both stages with coefficient 2 (diametral) -- the two walls across a diameter are ONE turned dimension, so 2x is exact and the RSS half-range scales by 2, not sqrt(2)."
+    },
+    {
+      "id": "bearing_od_lower",
+      "name": "lower bearing outer-ring OD (214589-002, ID 160 / OD 200)",
+      "role": "bearing",
+      "nominal": 200.0,
+      "min": 199.98,
+      "max": 200.0,
+      "lmc": 199.98,
+      "mmc": 200.0,
+      "plus_minus": null,
+      "hardware_ref": "214589-002",
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214589-002",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "F5",
+        "view": "SECTION A-A",
+        "cell": null,
+        "callout": "⌀ 200.000 0.000 / -0.020",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Read on data/inbox/drawings/214589-002-A.pdf. Source control drawing, NSK 7832ASN24TSUP0P6U1, ISO class 6 tolerance. The band 199.980-200.000 matches the workbook's D24/E24 exactly. NOMINAL DIFFERS: this element's nominal is the drawing's basic size 200.000 (= MMC), where the workbook's C24 transcribes 199.980 (= LMC). Both sit inside the band; the workbook's choice makes its nominal COLUMN the loose end for this feature, which is worth knowing when comparing columns."
+      },
+      "note": "EXTERNAL feature: most material = the larger OD = MMC = max. One-sided band (0 / -0.020), so it is not symmetric about its midpoint -- an RSS caveat, see the worksheet."
+    },
+    {
+      "id": "hub_bore_upper",
+      "name": "hub upper bearing-seat bore (UPPER seat, stage 1 outer member)",
+      "role": "clamped_member",
+      "nominal": 132.073,
+      "min": 132.056,
+      "max": 132.09,
+      "lmc": 132.09,
+      "mmc": 132.056,
+      "plus_minus": 0.017,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "drawing",
+        "document": "212966-006",
+        "revision": "A",
+        "sheet": 3,
+        "zone": "G9",
+        "view": "DETAIL D",
+        "cell": null,
+        "callout": "⌀ 132.073 ±0.017",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Read on data/inbox/drawings/212966-006-A.pdf. Printed border zone. Total runout 0.025 to A B; surface finish Ra 0.8 called out on the bore; chamfer ⌓⌀134.07±0.25 X 90°±5°. Identical to the workbook's C31 and ±0.017."
+      },
+      "note": "INTERNAL feature: LMC = larger bore = max. This is the seat where the workbook itself already reports a clearance at the hot LMC corner."
+    },
+    {
+      "id": "sleeve_bore_upper",
+      "name": "upper sleeve bore (stage 1 inner member, stage 2 outer member)",
+      "role": "bushing",
+      "nominal": 129.968,
+      "min": 129.943,
+      "max": 129.993,
+      "lmc": 129.993,
+      "mmc": 129.943,
+      "plus_minus": 0.025,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214959-002",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "G4",
+        "view": "SECTION A-A (detail)",
+        "cell": null,
+        "callout": "⌀ 129.968 ±0.025",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Read on data/inbox/drawings/214959-002-A.pdf. Carries ⊥⌀0.02 A. Printed in a highlight colour on this sheet, unlike every other dimension on it -- observed, not interpreted; whether that marks a critical characteristic or a revision is not established and is listed as a gap. Identical to the workbook's C35 and ±0.025."
+      },
+      "note": "INTERNAL feature: LMC = larger bore = max."
+    },
+    {
+      "id": "sleeve_wall_upper",
+      "name": "upper sleeve radial wall thickness",
+      "role": "bushing",
+      "nominal": 1.11,
+      "min": 1.085,
+      "max": 1.135,
+      "lmc": 1.085,
+      "mmc": 1.135,
+      "plus_minus": 0.025,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214959-002",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "G5",
+        "view": "SECTION A-A (detail)",
+        "cell": null,
+        "callout": "1.110 ±0.025",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Read on data/inbox/drawings/214959-002-A.pdf, confirmed by crop: the dimension measures the radial thickness of the cylindrical wall, with the part's axis vertical in that view and (19.63) its axial length. Identical to the workbook's C33 and ±0.025 -- the upper sleeve did NOT change between M1 and M2."
+      },
+      "note": "EXTERNAL-direction material: MMC = thicker = max. Coefficient 2 (diametral), one turned dimension."
+    },
+    {
+      "id": "bearing_od_upper",
+      "name": "upper bearing outer-ring OD (214588-002, ID 95 / OD 130)",
+      "role": "bearing",
+      "nominal": 130.0,
+      "min": 129.991,
+      "max": 130.0,
+      "lmc": 129.991,
+      "mmc": 130.0,
+      "plus_minus": null,
+      "hardware_ref": "214588-002",
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214588-002",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "D5",
+        "view": "SECTION A-A",
+        "cell": null,
+        "callout": "⌀ 130.000 0.000 / -0.009",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Read on data/inbox/drawings/214588-002-A.pdf. Source control drawing, NSK 7919A5SN24TRV1VSUP0P4U1, ISO class 4 tolerance -- tighter than the lower bearing's class 6, and the band 129.991-130.000 is correspondingly less than half as wide. Matches the workbook's D42/E42 exactly, and here the workbook's nominal C42 = 130.000 agrees with the drawing's basic size too."
+      },
+      "note": "EXTERNAL feature: MMC = larger OD = max. One-sided band (0 / -0.009)."
+    }
+  ],
+  "paths": [],
+  "checks": [],
+  "thermal_fit": {
+    "reference_temperature_c": 20.0,
+    "temperatures_c": {"cold": -20.0, "room": 20.0, "hot": 72.0},
+    "temperature_source": {
+      "kind": "workbook",
+      "document": "260209_Hub Bearing Fits.xlsx",
+      "revision": null,
+      "sheet": "260209_Hub wear ring shrink M1",
+      "zone": null,
+      "view": null,
+      "cell": "C4/C7/C8, with the note in D7",
+      "callout": "room temp 20 | Operational T_hot 72 | Operational T_cold -20 | 'Max seen in whirly temp at spindle bearing temp sensor was 72C'",
+      "element_id": null,
+      "run_id": null,
+      "confidence": "untraced",
+      "note": "The hot case is a MEASURED MAXIMUM from one whirly test, per the workbook's own annotation, not a certified operating envelope. No document in the repo states the qualified temperature range of this assembly. -20 C carries no annotation at all. Both are listed as gaps; the hot one is the governing corner, so an envelope hotter than 72 C moves every stage-1 result the wrong way."
+    },
+    "chains": [
+      {
+        "id": "lower_seat",
+        "label": "LOWER bearing seat (hub bore 202.140 / sleeve 214955-004 / bearing 214589-002)",
+        "members": {
+          "hub": {"bore_element": "hub_bore_lower", "material": "AL_7050_T7451"},
+          "sleeve": {"bore_element": "sleeve_bore_lower", "wall_element": "sleeve_wall_lower", "material": "SS_AISI_420_AMS5621"},
+          "bearing": {"od_element": "bearing_od_lower", "material": "BEARING_STEEL_52100"}
+        },
+        "stiffness_ratio": {
+          "value": 0.8,
+          "source_ref": {
+            "kind": "workbook",
+            "document": "260209_Hub Bearing Fits.xlsx",
+            "revision": null,
+            "sheet": "260209_Hub wear ring shrink M2",
+            "zone": null,
+            "view": null,
+            "cell": "C21",
+            "callout": "stiffness ratio 0.8 -- 'what fraction of interference is imposed on wear ring (estimate)'",
+            "element_id": null,
+            "run_id": null,
+            "confidence": "untraced",
+            "note": "The workbook's own word is 'estimate'. No derivation, no reference, no uncertainty. It is dimensionless so it cannot be a StackElement, and it is the largest unsourced lever in the model -- hence the [SENSITIVITY] checks at k=0 and k=1."
+          }
+        },
+        "note": "The seat the M2 change tightened: workbook C15 wall 1.125 -> 1.18 and C17 bore 200.035 -> 200.000 against the M1 sheet, roughly doubling nominal interference at stage 1."
+      },
+      {
+        "id": "upper_seat",
+        "label": "UPPER bearing seat (hub bore 132.073 / sleeve 214959-002 / bearing 214588-002)",
+        "members": {
+          "hub": {"bore_element": "hub_bore_upper", "material": "AL_7050_T7451"},
+          "sleeve": {"bore_element": "sleeve_bore_upper", "wall_element": "sleeve_wall_upper", "material": "SS_AISI_420_AMS5621"},
+          "bearing": {"od_element": "bearing_od_upper", "material": "BEARING_STEEL_52100"}
+        },
+        "stiffness_ratio": {
+          "value": 0.9,
+          "source_ref": {
+            "kind": "workbook",
+            "document": "260209_Hub Bearing Fits.xlsx",
+            "revision": null,
+            "sheet": "260209_Hub wear ring shrink M2",
+            "zone": null,
+            "view": null,
+            "cell": "C39",
+            "callout": "stiffness ratio 0.9 -- 'what fraction of interference is imposed on wear ring (estimate)'",
+            "element_id": null,
+            "run_id": null,
+            "confidence": "untraced",
+            "note": "0.9 here against 0.8 on the lower seat, with no stated reason for the difference -- which is itself evidence that the number is judgement rather than calculation. Both are 'estimate' in the workbook's own words."
+          }
+        },
+        "note": "UNCHANGED from M1: identical hub bore, identical sleeve part number and dimensions. Rows 31-44 are byte-identical between the two sheets, and a test asserts it. So the M2 change addressed the lower seat only, and this is the seat at which the workbook itself already reports a clearance."
+      }
+    ],
+    "stiffness_sensitivity": [0.0, 1.0],
+    "interference_fraction_target": 0.001,
+    "interference_fraction_target_source": {
+      "kind": "workbook",
+      "document": "260209_Hub Bearing Fits.xlsx",
+      "revision": null,
+      "sheet": "260209_Hub wear ring shrink M2",
+      "zone": null,
+      "view": null,
+      "cell": "O20/O26/O38/O44",
+      "callout": "interference as fraction of nominal diameter (target 1/1000)",
+      "element_id": null,
+      "run_id": null,
+      "confidence": "untraced",
+      "note": "A design target the workbook states in a comment column and never enforces -- no cell compares against it. It is recorded here and reported in the worksheet, but it is NOT a generated check: it has no cited source, and turning an uncited comment into a pass/fail criterion would dress it as a requirement. JPS00176 (Interference Fit Assembly), which IS in the spec pile, contains no interference-magnitude requirement at all."
+    },
+    "note": "Two chains, one per bearing seat, sharing one set of temperature scenarios -- because the duty cycle belongs to the assembly, not to a seat. This mirrors the workbook's own layout: one sheet per configuration, two independent row blocks on it. The seats share the hub part and the two material CTEs and share nothing else; neither seat's result depends on the other's."
+  }
+}

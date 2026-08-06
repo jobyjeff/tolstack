@@ -1,0 +1,172 @@
+{
+  "description": "Curated material properties with provenance -- this repo's first. One entry per material+condition that a thermal-fit stack needs a CTE for. Created 2026-08-05 by handoff hub_bearing_thermal_stack. The MATERIAL DESIGNATION on each entry is traced to a drawing note where the drawing states one; the CTE VALUE on every entry is not traced to anything, and each entry's `gaps` says exactly which CINDAS pull would close it. Read `values_source` before reusing a number -- an inline value here is NOT a source (the same rule as hardware_entries.json, SOP trap 17).",
+  "source_of_record": {
+    "database": "CINDAS",
+    "note": "Jeff confirmed 2026-08-05 that Joby has CINDAS access and that it is the citable source of record for material properties in this repo. Google-sourced and recalled CTE values are PROHIBITED, on the same footing as recalled fastener dimensions (SOP, 'The one rule'). Do not attempt to scrape CINDAS -- the pull is a human step, and `cindas_request` on each entry below is the request to make.",
+    "what_a_closed_citation_looks_like": {
+      "kind": "spec",
+      "document": "CINDAS <database name>",
+      "sheet": "<material + condition as CINDAS names it>",
+      "callout": "<property / curve identifier, and the mean-CTE temperature range>",
+      "revision": "<retrieval date>",
+      "confidence": "traced"
+    }
+  },
+  "temperature_dependence_note": "CTE is temperature-dependent, and the workbook does not say what its scalars are the mean over. Each scalar below is applied by the workbook as a MEAN CTE over both 20 -> 72 degC and 20 -> -20 degC -- the same number in both directions, across a 92 degC span straddling room temperature. That is a modelling simplification, not a transcription question, and it is recorded on each entry as `applied_over_c` so that a CINDAS pull can be asked for over the matching ranges rather than at a point.",
+  "materials": [
+    {
+      "schema": "joby.tolerance_stack/material_entry/v0",
+      "id": "AL_7050_T7451",
+      "designation": "7050-T7451",
+      "specification": "AMS4050",
+      "condition": "plate / billet, max billet thickness 7.000 in, ASTM B594 class A or AA",
+      "class": "aluminium_alloy",
+      "cte_1e6_per_c": 23.04,
+      "cte_temperature_range_c": null,
+      "applied_over_c": [[20.0, 72.0], [20.0, -20.0]],
+      "values_status": "inline",
+      "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260209_Hub Bearing Fits.xlsx",
+        "revision": null,
+        "sheet": "260209_Hub wear ring shrink M2",
+        "zone": null,
+        "view": null,
+        "cell": "C5",
+        "callout": "Hub CTE (aluminum)  23.04",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "untraced",
+        "note": "The workbook's own scalar. It states no reference temperature range and no source. The DESIGNATION is separately traced -- see designation_source -- but the number is not."
+      },
+      "designation_source": {
+        "kind": "drawing",
+        "document": "212966-006",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "D9",
+        "view": "NOTES",
+        "cell": null,
+        "callout": "PRODUCE FROM MATERIAL 7050 - T7451 PER AMS4050, MAX BILLET THICKNESS OF 7.000\", ASTM B594 CLASS A. ... OR ... CLASS AA.",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Note 1 of the hub drawing. The workbook only ever says 'aluminum'; the alloy comes from here, so the CINDAS request can name a specific material and condition."
+      },
+      "cindas_request": "Mean linear CTE of 7050-T7451 over 20 to 72 degC and over -20 to 20 degC. Confirm whether 23.04e-6/degC is a 20-100 degC mean (a common tabulation for 7050) and whether the cold range differs enough to matter -- the hot corner is the governing one, so a hot-range value that is LARGER than 23.04 would make the fit looser than analysed.",
+      "used_by": [
+        "hub_bearing_thermal_fit_m2:hub_bore_lower",
+        "hub_bearing_thermal_fit_m2:hub_bore_upper",
+        "hub_bearing_thermal_fit_m1:hub_bore_lower",
+        "hub_bearing_thermal_fit_m1:hub_bore_upper"
+      ],
+      "gaps": [
+        "CTE 23.04e-6/degC is the workbook's own number with no cited source and no stated temperature range. CINDAS pull required (see cindas_request). This is the single highest-leverage gap in the stack: the hub is the fastest-growing member, so its CTE sets how quickly heat eats the interference.",
+        "No reference temperature range is recorded, so the value cannot be checked for being a point value misapplied as a mean, or a mean over a range that does not include 72 degC.",
+        "JPS00176 (Interference Fit Assembly) Table 3-1 caps 'Aluminum 7050' at 90 degC for assembly heating. The workbook's 72 degC operating hot case is below that, but no document in the repo states the qualified OPERATING temperature range of the hub -- only the assembly-process cap. Whether 72 degC is the certified envelope or the highest number seen on one test is not established here; the M1 sheet's D7 says 'Max seen in whirly temp at spindle bearing temp sensor was 72C', which reads as the latter."
+      ],
+      "note": "The hub. Anodized per note 12 (A040, MIL-PRF-8625 Type I Class 1, max 15 um) or chem-conversion coated per flag note 11, and note 15 says dimensional limits apply BEFORE those coatings -- so the as-analysed bore is the pre-finish bore. See the coating finding in the worksheet."
+    },
+    {
+      "schema": "joby.tolerance_stack/material_entry/v0",
+      "id": "SS_AISI_420_AMS5621",
+      "designation": "AISI 420",
+      "specification": "AMS5621",
+      "condition": "heat treated 46-51 HRC (lower sleeve, 214955-004) / 48-54 HRC (upper sleeve, 214959-002), per AMS2759/5; zinc-nickel plated per AMS2417 Type 2 (finish code S330)",
+      "class": "martensitic_stainless_steel",
+      "cte_1e6_per_c": 10.3,
+      "cte_temperature_range_c": null,
+      "applied_over_c": [[20.0, 72.0], [20.0, -20.0]],
+      "values_status": "inline",
+      "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260209_Hub Bearing Fits.xlsx",
+        "revision": null,
+        "sheet": "260209_Hub wear ring shrink M2",
+        "zone": null,
+        "view": null,
+        "cell": "C6",
+        "callout": "Wear ring CTE: (AISI420)  10.3",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "untraced",
+        "note": "The workbook's own scalar. It names the alloy, which the drawings independently confirm, but gives no source for the number and no temperature range."
+      },
+      "designation_source": {
+        "kind": "drawing",
+        "document": "214955-004",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "E3",
+        "view": "NOTES",
+        "cell": null,
+        "callout": "MATERIAL: AISI 420 PER AMS5621",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Note 1 of the lower sleeve drawing; 214959-002 note 1 is identical text. The two sleeves differ only in heat-treat range (46-51 vs 48-54 HRC), and the workbook applies one CTE to both."
+      },
+      "cindas_request": "Mean linear CTE of AISI 420 (UNS S42000) in the hardened-and-tempered condition, over 20 to 72 degC and over -20 to 20 degC. Also confirm whether the 46-51 HRC and 48-54 HRC tempers differ enough in CTE to be worth separating -- the workbook uses one value for both sleeves, and if they do differ the upper sleeve is the one to check, because it is the bore that reaches clearance first.",
+      "used_by": [
+        "hub_bearing_thermal_fit_m2:sleeve_bore_lower",
+        "hub_bearing_thermal_fit_m2:sleeve_wall_lower",
+        "hub_bearing_thermal_fit_m2:sleeve_bore_upper",
+        "hub_bearing_thermal_fit_m2:sleeve_wall_upper",
+        "hub_bearing_thermal_fit_m1:sleeve_bore_lower",
+        "hub_bearing_thermal_fit_m1:sleeve_wall_lower",
+        "hub_bearing_thermal_fit_m1:sleeve_bore_upper",
+        "hub_bearing_thermal_fit_m1:sleeve_wall_upper"
+      ],
+      "gaps": [
+        "CTE 10.3e-6/degC is the workbook's own number with no cited source and no stated temperature range. CINDAS pull required (see cindas_request).",
+        "One CTE is applied to two different heat-treat conditions (46-51 HRC and 48-54 HRC). Probably immaterial for CTE, but it is an assumption nobody has checked.",
+        "The sleeves are zinc-nickel plated (AMS2417 Type 2, finish code S330) and note 12 on both drawings says dimensional tolerances apply AFTER surface treatment -- the opposite convention to the hub, whose note 15 says before. So the sleeve is analysed as-plated and the hub as-unfinished, and the plating/anodize thickness at the interface is therefore counted once, not twice, or not at all. No document in the repo gives the S330 thickness. See the coating finding in the worksheet.",
+        "CTE of the plating itself is neither modelled nor needed at this thickness, but that is an assumption, not a finding."
+      ],
+      "note": "Both sleeves ('wear rings' in the workbook). The OD is NOT a drawing dimension on either part -- the drawings control the bore and the radial wall independently and let the OD fall out, which is why the stack models bore + 2 x wall and why the worst-case sleeve OD is wider than the workbook's coherent LMC/MMC columns."
+    },
+    {
+      "schema": "joby.tolerance_stack/material_entry/v0",
+      "id": "BEARING_STEEL_52100",
+      "designation": "AISI 52100",
+      "specification": null,
+      "condition": "bearing outer ring, hardened; as supplied by NSK under Joby source-control drawings 214588-002 / 214589-002",
+      "class": "through_hardening_bearing_steel",
+      "cte_1e6_per_c": 11.9,
+      "cte_temperature_range_c": null,
+      "applied_over_c": [[20.0, 72.0], [20.0, -20.0]],
+      "values_status": "inline",
+      "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260209_Hub Bearing Fits.xlsx",
+        "revision": null,
+        "sheet": "260209_Hub wear ring shrink M2",
+        "zone": null,
+        "view": null,
+        "cell": "C9",
+        "callout": "bearing CTE (52100)  11.9",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "untraced",
+        "note": "The workbook's own scalar, and the workbook is ALSO the only source for the material designation -- unlike the hub and the sleeves, this entry's designation is untraced too."
+      },
+      "designation_source": null,
+      "cindas_request": "Mean linear CTE of AISI 52100 (UNS G52986) in the hardened condition, over 20 to 72 degC and over -20 to 20 degC -- but confirm the material FIRST: see gaps.",
+      "used_by": [
+        "hub_bearing_thermal_fit_m2:bearing_od_lower",
+        "hub_bearing_thermal_fit_m2:bearing_od_upper",
+        "hub_bearing_thermal_fit_m1:bearing_od_lower",
+        "hub_bearing_thermal_fit_m1:bearing_od_upper"
+      ],
+      "gaps": [
+        "THE MATERIAL ITSELF IS UNTRACED. Both bearing drawings are SOURCE CONTROL DRAWINGS (NSK 7919A5SN24TRV1VSUP0P4U1 and 7832ASN24TSUP0P6U1) and neither states a material. '52100' comes only from the workbook's own cell label. It is a plausible outer-ring steel and it is not established. Closing this needs the NSK material certificate -- which the drawings themselves require ('MATERIAL AND DIMENSIONAL INSPECTION CERTIFICATES TO BE PROVIDED FOR EACH LOT/SERIAL NUMBER', note 7 / note 6) -- or JED01848 (Propulsion Bearing Engineering Specification), which both drawings cite and which is not in data/inbox/specs/.",
+        "CTE 11.9e-6/degC is the workbook's own number, no source, no temperature range. Ask CINDAS only after the material is confirmed; a CINDAS pull for the wrong alloy is worse than no pull, because it arrives wearing a traced citation.",
+        "This is the LEAST consequential of the three CTEs for the governing corner. The bearing sits inside the sleeve, and the sleeve-to-bearing stage is the one whose worst case the workbook already captures exactly; the hub-to-sleeve stage, which is where the clearance appears, does not involve the bearing at all."
+      ],
+      "note": "Both bearings. Angular contact, ISO Class 4 (upper, 214588-002) and ISO Class 6 (lower, 214589-002). The ISO class governs the ring tolerances, and the drawings print the OD limits directly, so the class is context rather than a source -- the OD bands are traced to the drawing faces themselves."
+    }
+  ]
+}

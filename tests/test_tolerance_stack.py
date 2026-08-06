@@ -49,6 +49,12 @@ ALL_STACK_FILES = [
     "stack_tan_link_to_pitch_plate_take2.json",
     "stack_vpa_output_to_pitch_plate.json",
     "stack_pitch_link_to_pitch_plate.json",
+    # thermal_fit archetype (hub_bearing_thermal_stack, 2026-08-05). These load
+    # through load_stack() for the schema-hygiene tests below, which is all those
+    # need; their checks are GENERATED, so their values are pinned in
+    # tests/test_hub_bearing_thermal_fit.py via load_thermal_fit_stack().
+    "stack_hub_bearing_thermal_fit_m2.json",
+    "stack_hub_bearing_thermal_fit_m1.json",
 ]
 
 
@@ -587,10 +593,55 @@ def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
     assert ref.callout == "3X 4.06 ±0.08"
 
 
-def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():
+def test_hardware_entry_values_source_counts_match_the_description():
+    """``description`` asserts counts in prose. Prose goes stale silently.
+
+    This is the repo's named recurring bug (stale inventory numbers in docs), and
+    it bit this very field: the description said "all but one entry transcribes
+    the 260729 workbook" and stayed that way when ``hub_bearing_thermal_stack``
+    added two drawing-traced bearing entries. Recount, don't read.
+    """
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
-    absent = {e["id"] for e in data["entries"] if not e["assembly_status"].get("present")}
-    assert absent == {"NAS1149V0363", "NAS77A4-015"}
+    entries = data["entries"]
+    assert len(entries) == 15
+    counted = {}
+    for entry in entries:
+        src = entry.get("values_source") or {}
+        counted[(entry["values_status"], src.get("kind"))] = counted.get(
+            (entry["values_status"], src.get("kind")), 0) + 1
+    assert counted == {
+        ("inline", "workbook"): 8,     # forbidden as a source in a from-scratch stack
+        ("inline", "spec"): 1,         # NAS6403U11D
+        ("inline", "drawing"): 2,      # 214589-002, 214588-002 -- source control drawings
+        ("not_transcribed", None): 4,
+    }
+    text = data["description"]
+    for phrase in ("eight of the fifteen", "THREE entries are traced",
+                   "Four entries are `not_transcribed`"):
+        assert phrase in text, f"description no longer says {phrase!r}"
+
+
+def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():
+    """``present`` is three-valued and the three values mean different things.
+
+    ``False`` is a **finding** -- the part is not in 217755's parts list, which is
+    how slice 1 discovered that every evaluated check used a `.063` washer the
+    assembly does not contain. ``None`` is **not checked**, which is a gap on the
+    author, not on the design. Collapsing them (``if not entry[...]["present"]``)
+    reads a null as a finding and manufactures one; this test was written that way
+    and ``hub_bearing_thermal_stack`` was the first handoff to add a
+    deliberately-null entry, which exposed it.
+    """
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    states = {}
+    for entry in data["entries"]:
+        states.setdefault(entry["assembly_status"].get("present"), set()).add(entry["id"])
+    assert states[False] == {"NAS1149V0363", "NAS77A4-015"}, "absent-from-assembly findings"
+    assert states[None] == {"214589-002", "214588-002"}, "assembly presence not yet checked"
+    for entry_id in states[None]:
+        entry = next(e for e in data["entries"] if e["id"] == entry_id)
+        assert any("not checked" in g.lower() for g in entry["gaps"]), (
+            f"{entry_id}: a null `present` must be listed as a gap, not left silent")
 
 
 def test_the_nas6403_entry_cites_the_standard_its_inline_values_came_from():

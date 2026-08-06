@@ -1,0 +1,365 @@
+{
+  "schema": "joby.tolerance_stack/stack_definition/v0",
+  "id": "hub_bearing_thermal_fit_m1",
+  "title": "Main spindle bearing seats, M1 as-built -- two-stage thermal shrink fit, the configuration that slipped",
+  "units": "mm",
+  "archetype": "thermal_fit",
+  "joint": {
+    "assembly": "217755",
+    "assembly_revision": null,
+    "assembly_export": "not read for this stack",
+    "configuration": "M1 as-built (superseded by M2; retained because it is the FAILURE case)",
+    "question": "Same question as the M2 stack -- does either shrink-fit joint reach zero interference at any corner? -- asked of the configuration that actually slipped, so that the M2 change can be read against something.",
+    "why_this_stack_exists": "M1 is not a live design and nothing here is a decision input for it. It is the CONTROL. Jeff's account is that bearings and sleeves slipped and rotated under certain conditions and that this analysis validated the fix ahead of system-level testing; a fix is only validated against the thing it fixed. Modelling both configurations with the same code is also the only way to show that the archetype distinguishes them -- if M1 and M2 read the same, the model is not measuring what the failure was about.",
+    "parts": [
+      {"part": "212966-004", "revision": null, "nomenclature": "PROPELLER HUB, DUAL BEARING (dash inferred from the workbook's O13/O31 comments)", "role": "outer member of stage 1, both seats", "find_no": null, "qty": 1},
+      {"part": "214955-002", "revision": null, "nomenclature": "HUB SPINDLE SLEEVE, LOWER (dash from the workbook's O14 comment)", "role": "inner member of stage 1 / outer of stage 2, LOWER seat", "find_no": null, "qty": 1},
+      {"part": "214959-002", "revision": "A", "nomenclature": "HUB SPINDLE BEARING SLEEVE, UPPER, PROPELLER", "role": "inner member of stage 1 / outer of stage 2, UPPER seat -- UNCHANGED into M2", "find_no": null, "qty": 1},
+      {"part": "214589-002", "revision": "A", "nomenclature": "BEARING, ANGULAR CONTACT, ID 160, OD 200", "role": "inner member of stage 2, LOWER seat", "find_no": null, "qty": 1},
+      {"part": "214588-002", "revision": "A", "nomenclature": "BEARING, ANGULAR CONTACT, ID 95, OD 130", "role": "inner member of stage 2, UPPER seat", "find_no": null, "qty": 1}
+    ],
+    "identification_note": "INFERRED, and more weakly than the M2 stack's. The M1 part numbers come only from the workbook's comment column -- O13 '212966-004', O14 'wear ring: 214955-002 (M1 and M2 original is same, M2 becoming -003)', O31 '212966-004', O32 'wear ring: 214959-002'. NO DRAWING IS IN HAND for 212966-004 or 214955-002, so two of the five parts are identified by a spreadsheet comment and nothing else. The upper seat's parts and both bearings ARE the same part numbers the M2 stack traces to drawings. SOP trap 12 applies to that comment column and was checked: these comments are in column O against the row they describe (O13 names the hub on the hub-bore row, O14 the sleeve on the sleeve-thickness row), not a free-floating list, so reading them positionally is safe here -- unlike the 260729 workbook's comments column, which is a loose hardware list and is not row-aligned.",
+    "clamped": "Same construction as M2: two independent shrink-fit chains, retained by interference alone.",
+    "out_of_scope": [
+      "Everything the M2 stack excludes, identically: the bearing-bore-to-spindle fit and the spindle sleeves (scope boundary, a separate team's joint), all axial dimensions and preload, the sleeve flange, hoop stress and contact pressure, surface roughness, coating thickness, and the bearings' internal geometry.",
+      "WHY M1 slipped. This stack shows that M1's loosest corners reach clearance; it does not establish that clearance was the root cause. The workbook's own Decision Matrix sheet lists FOUR candidate root causes -- axial gap causing loss of preload, radial gap under thermal expansion, inadequate hub seat stiffness, and combinations -- and only the second is a tolerance question. Reading this stack as the root-cause finding would be reading past the workbook's own author."
+    ]
+  },
+  "provenance": {
+    "source_workbook": "data/inbox/tolerance_stacks/260209_Hub Bearing Fits.xlsx",
+    "source_sheet": "260209_Hub wear ring shrink M1",
+    "source_sheet_title": "M1 As-built",
+    "source_rows": "lower seat rows 12-26, upper seat rows 29-44",
+    "rederivation": "tests/test_hub_bearing_rederivation.py -- and note that this sheet contains a slip, at row 18; see the notes below",
+    "drawings": [
+      "data/inbox/drawings/214959-002-A.pdf",
+      "data/inbox/drawings/214589-002-A.pdf",
+      "data/inbox/drawings/214588-002-A.pdf"
+    ],
+    "drawings_not_available": [
+      "212966-004 (the M1 hub). 212966-006 rev A is in hand and carries identical bore callouts, which corroborates the workbook's values without tracing them.",
+      "214955-002 (the M1 lower sleeve). 214955-004 rev A is in hand and its dimensions DIFFER, which is the point of the M2 change -- so it corroborates nothing here."
+    ],
+    "materials": "docs/tolerance_stacks/materials.json",
+    "handoff": "hub_bearing_thermal_stack, 2026-08-05",
+    "worksheet": "docs/tolerance_stacks/WORKSHEET_hub_bearing_thermal_fit.md"
+  },
+  "notes": [
+    "CHECKS ARE GENERATED. Same as the M2 stack -- load with tolerance_stack.thermal.load_thermal_fit_stack(); interference is POSITIVE here and negative in the workbook.",
+    "THIS STACK DOES NOT REPRODUCE THE WORKBOOK'S ROW-18 SLIP, deliberately. The M1 sheet builds its LOWER seat's LMC sleeve OD from the MMC column (D18 = E17 + 2*E15, filled across to H18 and L18), so its LMC column carries more interference than its nominal column -- backwards for a least-material corner. A stack models the design, not the spreadsheet, so the arithmetic here is correct and the slip is pinned where it belongs, in tests/test_hub_bearing_rederivation.py::test_m1_lower_lmc_sleeve_od_is_a_workbook_slip. Consequence: for the M1 lower seat only, this stack's coherent-LMC comparison differs from the workbook's cached cell by 0.05 mm ON TOP of the stage-1 methodological difference. The correction does not rescue M1 -- its hot corners are clearances either way, by an order of magnitude more.",
+    "THE UPPER SEAT IS IDENTICAL TO M2's, element for element, and a test asserts that rows 31-44 are byte-identical between the two sheets. So every upper-seat number in this file also appears in the M2 stack, and the M2 change touched the lower seat only.",
+    "CONFIDENCE IS LOWER HERE THAN IN THE M2 STACK AND THAT IS THE HONEST STATE, not an omission: the two M1-specific parts have no drawing in the repo. The lower sleeve's bore and wall are `untraced` -- workbook-only, listed as gaps. The hub bores are `inferred`, on the strength of a later revision of the same drawing carrying the identical callout, which is corroboration and not a trace.",
+    "SAME OUT-OF-SCOPE SET AND SAME CAVEATS as the M2 stack: no nut or cotter pin so the SOP's quantised-constraint caveat does not apply; a dimensional interference is not a torque capacity; RSS is a relative softening indicator and temperature is a scenario, not a variate."
+  ],
+  "elements": [
+    {
+      "id": "hub_bore_lower",
+      "name": "hub lower bearing-seat bore, M1 hub 212966-004",
+      "role": "clamped_member",
+      "nominal": 202.14,
+      "min": 202.125,
+      "max": 202.155,
+      "lmc": 202.155,
+      "mmc": 202.125,
+      "plus_minus": 0.015,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260209_Hub Bearing Fits.xlsx",
+        "revision": null,
+        "sheet": "260209_Hub wear ring shrink M1",
+        "zone": null,
+        "view": null,
+        "cell": "C13, with the band from D13/E13 (=C13+0.015 / =C13-0.015)",
+        "callout": "lower hub bore: 202.14, +/-0.015",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "inferred",
+        "note": "212966-004 is not in the repo. INFERRED, not traced, and the inference is stated so it can be rejected: 212966-006 rev A (two revisions later, in hand) prints '⌀ 202.140 ±0.015' at sheet 3 DETAIL E zone C9, identical to the workbook's value AND band. A later revision of the same drawing carrying the same callout is real corroboration that the workbook transcribed its own revision correctly, but it is NOT evidence about 212966-004 -- the bore could have changed at -005 and changed back. Downgrade to untraced if that is not accepted; the 212966-004 drawing closes it either way and is listed as a gap."
+      },
+      "note": "INTERNAL feature: LMC = larger bore = max."
+    },
+    {
+      "id": "sleeve_bore_lower",
+      "name": "M1 lower sleeve bore, 214955-002",
+      "role": "bushing",
+      "nominal": 200.035,
+      "min": 200.01,
+      "max": 200.06,
+      "lmc": 200.06,
+      "mmc": 200.01,
+      "plus_minus": 0.025,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260209_Hub Bearing Fits.xlsx",
+        "revision": null,
+        "sheet": "260209_Hub wear ring shrink M1",
+        "zone": null,
+        "view": null,
+        "cell": "C17, band from D16/E16",
+        "callout": "wear ring ID 200.035, wear ring tolerance +/-0.025",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "untraced",
+        "note": "UNTRACED AND LISTED AS A GAP. 214955-002 is not in the repo, and unlike the hub bore there is no corroborating later revision -- 214955-004's bore is 200.000, a deliberate change. So this value rests on the workbook alone. The workbook's O16 comment on this row records that the +/-0.025 band was itself changed 'to match drawing (250617 stack had +/-.015)', which says the band was reconciled against a drawing at some point but does not put that drawing in this repo."
+      },
+      "note": "INTERNAL feature: LMC = larger bore = max. 0.035 mm larger than M2's, which together with the thinner wall is what made M1 loose."
+    },
+    {
+      "id": "sleeve_wall_lower",
+      "name": "M1 lower sleeve radial wall thickness, 214955-002",
+      "role": "bushing",
+      "nominal": 1.125,
+      "min": 1.1,
+      "max": 1.15,
+      "lmc": 1.1,
+      "mmc": 1.15,
+      "plus_minus": 0.025,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260209_Hub Bearing Fits.xlsx",
+        "revision": null,
+        "sheet": "260209_Hub wear ring shrink M1",
+        "zone": null,
+        "view": null,
+        "cell": "C15, band from D14/E14 (-0.025 / +0.025)",
+        "callout": "wear ring thickness 1.125, wear ring thickness tol -0.025 / +0.025",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "untraced",
+        "note": "UNTRACED AND LISTED AS A GAP. No 214955-002 drawing. 214955-004 carries 1.190 ±0.025, i.e. 0.065 thicker -- the single largest design change between the two configurations, and the reason no corroboration is available for the M1 value."
+      },
+      "note": "EXTERNAL-direction material: MMC = thicker = max. Coefficient 2 (diametral)."
+    },
+    {
+      "id": "bearing_od_lower",
+      "name": "lower bearing outer-ring OD (214589-002, ID 160 / OD 200)",
+      "role": "bearing",
+      "nominal": 200.0,
+      "min": 199.98,
+      "max": 200.0,
+      "lmc": 199.98,
+      "mmc": 200.0,
+      "plus_minus": null,
+      "hardware_ref": "214589-002",
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214589-002",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "F5",
+        "view": "SECTION A-A",
+        "cell": null,
+        "callout": "⌀ 200.000 0.000 / -0.020",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Same part in both configurations -- the bearings did not change. Read on data/inbox/drawings/214589-002-A.pdf. Matches the workbook's D24/E24 exactly; nominal taken as the drawing's basic size 200.000 where the workbook's C24 uses 199.980."
+      },
+      "note": "EXTERNAL feature: MMC = larger OD = max. One-sided band (0 / -0.020)."
+    },
+    {
+      "id": "hub_bore_upper",
+      "name": "hub upper bearing-seat bore, M1 hub 212966-004",
+      "role": "clamped_member",
+      "nominal": 132.073,
+      "min": 132.056,
+      "max": 132.09,
+      "lmc": 132.09,
+      "mmc": 132.056,
+      "plus_minus": 0.017,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260209_Hub Bearing Fits.xlsx",
+        "revision": null,
+        "sheet": "260209_Hub wear ring shrink M1",
+        "zone": null,
+        "view": null,
+        "cell": "C31, band from D31/E31",
+        "callout": "hub bore: 132.073, +/-0.017",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "inferred",
+        "note": "Same inference as hub_bore_lower and the same caveat: 212966-006 rev A prints '⌀ 132.073 ±0.017' at sheet 3 DETAIL D zone G9, identical value and band, but that is a later revision of the part and not 212966-004."
+      },
+      "note": "INTERNAL feature: LMC = larger bore = max."
+    },
+    {
+      "id": "sleeve_bore_upper",
+      "name": "upper sleeve bore, 214959-002 (unchanged into M2)",
+      "role": "bushing",
+      "nominal": 129.968,
+      "min": 129.943,
+      "max": 129.993,
+      "lmc": 129.993,
+      "mmc": 129.943,
+      "plus_minus": 0.025,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214959-002",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "G4",
+        "view": "SECTION A-A (detail)",
+        "cell": null,
+        "callout": "⌀ 129.968 ±0.025",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "The upper sleeve is the SAME PART in both configurations -- the workbook's O32 comment names 214959-002 on both sheets -- so the M2 stack's drawing citation applies unchanged here. Read on data/inbox/drawings/214959-002-A.pdf. Carries ⊥⌀0.02 A."
+      },
+      "note": "INTERNAL feature: LMC = larger bore = max."
+    },
+    {
+      "id": "sleeve_wall_upper",
+      "name": "upper sleeve radial wall thickness, 214959-002 (unchanged into M2)",
+      "role": "bushing",
+      "nominal": 1.11,
+      "min": 1.085,
+      "max": 1.135,
+      "lmc": 1.085,
+      "mmc": 1.135,
+      "plus_minus": 0.025,
+      "hardware_ref": null,
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214959-002",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "G5",
+        "view": "SECTION A-A (detail)",
+        "cell": null,
+        "callout": "1.110 ±0.025",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Same part, same drawing, both configurations. Confirmed by crop that the dimension is the radial wall. Identical to the workbook's C33 and its band."
+      },
+      "note": "EXTERNAL-direction material: MMC = thicker = max. Coefficient 2 (diametral)."
+    },
+    {
+      "id": "bearing_od_upper",
+      "name": "upper bearing outer-ring OD (214588-002, ID 95 / OD 130)",
+      "role": "bearing",
+      "nominal": 130.0,
+      "min": 129.991,
+      "max": 130.0,
+      "lmc": 129.991,
+      "mmc": 130.0,
+      "plus_minus": null,
+      "hardware_ref": "214588-002",
+      "source_ref": {
+        "kind": "drawing",
+        "document": "214588-002",
+        "revision": "A",
+        "sheet": 1,
+        "zone": "D5",
+        "view": "SECTION A-A",
+        "cell": null,
+        "callout": "⌀ 130.000 0.000 / -0.009",
+        "element_id": null,
+        "run_id": null,
+        "confidence": "traced",
+        "note": "Same part in both configurations. Read on data/inbox/drawings/214588-002-A.pdf. ISO class 4. Matches the workbook's C42/D42/E42 exactly, nominal included."
+      },
+      "note": "EXTERNAL feature: MMC = larger OD = max. One-sided band (0 / -0.009)."
+    }
+  ],
+  "paths": [],
+  "checks": [],
+  "thermal_fit": {
+    "reference_temperature_c": 20.0,
+    "temperatures_c": {"cold": -20.0, "room": 20.0, "hot": 72.0},
+    "temperature_source": {
+      "kind": "workbook",
+      "document": "260209_Hub Bearing Fits.xlsx",
+      "revision": null,
+      "sheet": "260209_Hub wear ring shrink M1",
+      "zone": null,
+      "view": null,
+      "cell": "C4/C7/C8, with the note in D7",
+      "callout": "room temp 20 | Operational T_hot 72 | Operational T_cold -20 | 'Max seen in whirly temp at spindle bearing temp sensor was 72C'",
+      "element_id": null,
+      "run_id": null,
+      "confidence": "untraced",
+      "note": "The D7 annotation lives on THIS sheet -- the M1 as-built one -- which is consistent with 72 C being an observation from the M1 whirly test rather than a design requirement. Both sheets use the same 72 C. Listed as a gap; the hot case is the governing corner."
+    },
+    "chains": [
+      {
+        "id": "lower_seat",
+        "label": "LOWER bearing seat, M1 (hub bore 202.140 / sleeve 214955-002 / bearing 214589-002)",
+        "members": {
+          "hub": {"bore_element": "hub_bore_lower", "material": "AL_7050_T7451"},
+          "sleeve": {"bore_element": "sleeve_bore_lower", "wall_element": "sleeve_wall_lower", "material": "SS_AISI_420_AMS5621"},
+          "bearing": {"od_element": "bearing_od_lower", "material": "BEARING_STEEL_52100"}
+        },
+        "stiffness_ratio": {
+          "value": 0.8,
+          "source_ref": {
+            "kind": "workbook",
+            "document": "260209_Hub Bearing Fits.xlsx",
+            "revision": null,
+            "sheet": "260209_Hub wear ring shrink M1",
+            "zone": null,
+            "view": null,
+            "cell": "C21",
+            "callout": "stiffness ratio 0.8 -- 'what fraction of interference is imposed on wear ring (estimate)'",
+            "element_id": null,
+            "run_id": null,
+            "confidence": "untraced",
+            "note": "Same value and same 'estimate' label as the M2 sheet, even though the M1 sleeve is 0.065 mm thinner and therefore less stiff. A stiffness ratio that does not move when the member's thickness changes by 6% is a further sign it is judgement rather than calculation -- and it is the M1 configuration where the number matters least, because M1's clearances at hot are an order of magnitude larger than the sensitivity to k."
+          }
+        },
+        "note": "The seat the M2 change addressed. Sleeve bore 200.035 (vs M2's 200.000) and wall 1.125 (vs the -004 drawing's 1.190)."
+      },
+      {
+        "id": "upper_seat",
+        "label": "UPPER bearing seat, M1 (hub bore 132.073 / sleeve 214959-002 / bearing 214588-002)",
+        "members": {
+          "hub": {"bore_element": "hub_bore_upper", "material": "AL_7050_T7451"},
+          "sleeve": {"bore_element": "sleeve_bore_upper", "wall_element": "sleeve_wall_upper", "material": "SS_AISI_420_AMS5621"},
+          "bearing": {"od_element": "bearing_od_upper", "material": "BEARING_STEEL_52100"}
+        },
+        "stiffness_ratio": {
+          "value": 0.9,
+          "source_ref": {
+            "kind": "workbook",
+            "document": "260209_Hub Bearing Fits.xlsx",
+            "revision": null,
+            "sheet": "260209_Hub wear ring shrink M1",
+            "zone": null,
+            "view": null,
+            "cell": "C39",
+            "callout": "stiffness ratio 0.9 -- 'what fraction of interference is imposed on wear ring (estimate)'",
+            "element_id": null,
+            "run_id": null,
+            "confidence": "untraced",
+            "note": "Identical to the M2 sheet's C39, as is every other cell in rows 31-44."
+          }
+        },
+        "note": "UNCHANGED into M2 -- same parts, same numbers. Which means the seat that reaches clearance at hot was NOT addressed by the M2 change."
+      }
+    ],
+    "stiffness_sensitivity": [0.0, 1.0],
+    "interference_fraction_target": 0.001,
+    "interference_fraction_target_source": {
+      "kind": "workbook",
+      "document": "260209_Hub Bearing Fits.xlsx",
+      "revision": null,
+      "sheet": "260209_Hub wear ring shrink M1",
+      "zone": null,
+      "view": null,
+      "cell": "O20/O26/O38/O44",
+      "callout": "interference as fraction of nominal diameter (target 1/1000)",
+      "element_id": null,
+      "run_id": null,
+      "confidence": "untraced",
+      "note": "Same uncited target as the M2 sheet, and not turned into a check for the same reason. Worth noting against M1: its room-temperature nominal stage-1 fraction is 7.17e-4, i.e. it never met the stated target even at nominal even before temperature was applied."
+    },
+    "note": "Two chains, same shape as the M2 stack, so the two configurations are directly comparable check id for check id."
+  }
+}
