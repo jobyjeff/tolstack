@@ -10,6 +10,11 @@ venv-win/
 *.egg-info/
 .pytest_cache/
 
+# Node — TEST TOOLING ONLY (forge CONVENTIONS.md §7). apps/ frontends stay
+# build-free classic scripts; package.json + the lockfile are tracked, the
+# installed tree is not.
+node_modules/
+
 # IDE / OS
 .vscode/
 .idea/

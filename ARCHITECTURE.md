@@ -17,6 +17,12 @@ tolerance_stack/
   __main__.py       `python -m tolerance_stack` -- rebuild the spec projection
   stack.py          the stack shapes + the fold. ~330 lines, stdlib only.
   spec_library.py   the parse-event shapes + the library fold. stdlib only.
+scripts/
+  build_viewer_projection.py   fold() -> data/projections/viewer/results.json
+  build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
+  run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code)
+apps/
+  viewer/           the static stack/check review surface (see its README)
 ```
 
 `stack.py` is deliberately the whole stack implementation. Its contents:
@@ -126,25 +132,68 @@ data/projections/spec_library/library.json   (derived, gitignored, disposable)
         |  hardware_entry.library_ref   v
         +---------------------> docs/tolerance_stacks/*.json
                                   (stack_definition + hardware_entry — COMMITTED)
-                                       |
-                                       |  tolerance_stack.fold
-                                       v
-                                check_result/v0  (produced on demand, never stored)
-                                       |
-                                       v
-                          docs/tolerance_stacks/WORKSHEET_*.md
+                                       |                     |
+                       tolerance_stack.fold                  |  build_viewer_crops.py
+                       (via load_stack/path/check)           |  (+ drawing-checker
+                                       |                     |   exports, PyMuPDF)
+                                       v                     v
+                          check_result/v0         data/projections/viewer/crops.json
+                             |      |                    + crops/*.png
+                             |      |  build_viewer_projection.py    |
+                             |      v                                |
+                             |  data/projections/viewer/results.json |
+                             |      |                                |
+                             |      +------> apps/viewer/ <----------+
+                             v               (renders, computes nothing)
+                    docs/tolerance_stacks/WORKSHEET_*.md
+                             \______________ read live by apps/viewer
 ```
 
 Nothing lands in `data/runs/` yet: no run-producing pipeline exists here. The
 `data/runs/` skeleton is the standard-layout requirement, held for when a stack
 synthesizer does produce runs for forge to ingest. `data/projections/` is now
-live — it holds the spec library, rebuilt from the committed event log.
+live — it holds the spec library, rebuilt from the committed event log, and
+`data/projections/viewer/`, wiped and rebuilt by the two viewer scripts.
 
 The **events are committed and the projection is not**, which inverts the usual
 `data/` placement. It follows from the same rule as the stack JSONs: the events
 are hand-authored design artifacts whose loss would be unrecoverable, and
 `data/` contents are gitignored by the forge convention. The projection is a
 pure function of them, so it goes where derived things go.
+
+### The viewer and the one-fold rule (2026-08-05, `stack_viewer_v0`)
+
+`apps/viewer/` is a static, read-only review surface (forge `apps/` pattern:
+classic scripts, no build, no npm, no daemon, File System Access grant at
+`mode: "read"`). It exists because reviewing a stack meant reading JSON.
+
+It renders **projections**, not the stacks, and the reason is the one-fold rule
+above: the viewer must not contain a second arithmetic path. So
+
+- `scripts/build_viewer_projection.py` calls `fold()` and writes `results.json`,
+  which embeds each stack **verbatim** and carries the derived blocks
+  (`paths`, `checks` with verdicts, per-element flags, provenance counts, gaps)
+  beside them. Fold outputs are rounded there, in Python, so the browser prints
+  `String(n)` and never decides how a number reads. A test pins the embedded
+  stack byte-identical to the authored file.
+- `scripts/build_viewer_crops.py` resolves each `source_ref` to a page of a real
+  PDF and renders a crop, or records **why not**. The viewer cannot roam the
+  filesystem or reach drawing-checker, so hovers read pre-rendered PNGs.
+
+Resolution never guesses: the spec pile by filename; a drawing through
+`joint.assembly_export`'s run (sha256 verified against `run_meta.json`); else a
+single unambiguous `provenance.sources_used` entry. Anything else is
+`unresolvable` **with a reason**, and the reasons are design input — see
+`docs/sessions/lessons/LESSONS_20260805_stack_viewer_v0.md`.
+
+Derived flags worth knowing, because neither has a schema field:
+
+- **zero-width band** = `min == max`, i.e. no document gives a tolerance, so
+  every interval it feeds is a lower bound. Rendered as its own axis, not as a
+  fourth confidence.
+- **INCOMPLETE check** is detected from the word `INCOMPLETE` in the authored
+  label/guidance. `check_result/v0` has no `complete` field; that is a gap
+  (`docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`).
 
 ## Cross-repo dependencies
 
