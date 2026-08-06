@@ -1,10 +1,18 @@
 """Stack definition shapes + the worst-case / RSS fold.
 
 One primitive does all the arithmetic: :func:`fold` takes a list of
-:class:`Term` (an element and a sign) and returns an :class:`Interval`. Both a
-*path* through the joint ("bore min grip length") and a *check* ("fastener grip
-minus that path") are just term lists with different signs, so there is exactly
-one place where min/max/RSS logic lives.
+:class:`Term` (an element, a sign, and an optional positive coefficient) and
+returns an :class:`Interval`. Both a *path* through the joint ("bore min grip
+length") and a *check* ("fastener grip minus that path") are just term lists with
+different signs, so there is exactly one place where min/max/RSS logic lives.
+
+``Term.coefficient`` was added 2026-08-05 (handoff ``hub_bearing_thermal_stack``)
+so that a *diametral thermal fit* could use this same one fold: a diameter is
+twice a wall, an isothermal soak scales a diameter by ``1 + dT * alpha``, and a
+stiffness ratio splits an interference across two members. Those are weights on
+term entries, not a second way to combine element values -- so the fold stayed
+the only place, and every previously authored stack folds to the same numbers
+because the default weight is the ``+-1`` it always was.
 
 Material condition vs. min/max
 ------------------------------
@@ -135,14 +143,46 @@ class StackElement:
 
 @dataclass(frozen=True)
 class Term:
-    """An element and the sign with which it enters an expression."""
+    """An element, the sign it enters with, and an optional scale on that entry.
+
+    ``sign`` is still exactly ``+1`` or ``-1`` and is still where direction
+    lives: it is the field a reviewer reads term-by-term against the physical
+    direction of the feature.
+
+    ``coefficient`` is a **positive** magnitude, default ``1.0``, so the
+    effective weight is ``sign * coefficient`` and the direction stays legible in
+    the field named for it. It exists because a fit stack needs weights that a
+    grip stack never did (added 2026-08-05 by handoff
+    ``hub_bearing_thermal_stack``):
+
+    * a *diametral* term is twice a radial one -- a sleeve OD is
+      ``bore + 2 x wall``, and the two walls are **one** dimension, not two
+      independent ones, so ``coefficient=2`` is exact where two separate terms
+      would understate the RSS half-range by a factor of sqrt(2);
+    * an *isothermal soak* multiplies a diameter by ``1 + dT * alpha``, which is
+      a per-term scale and nothing else;
+    * an interference *redistributed* across two members by a stiffness ratio
+      ``k`` enters as ``k`` and ``1 - k`` weights.
+
+    All three would otherwise need a second place where element values get
+    combined. They do not get one: see ARCHITECTURE.md, "Why one ``fold()``".
+    """
 
     element: StackElement
     sign: int = 1
+    coefficient: float = 1.0
 
     def __post_init__(self) -> None:
         if self.sign not in (1, -1):
             raise ValueError(f"sign must be +1 or -1, got {self.sign!r}")
+        if not self.coefficient > 0:
+            raise ValueError(
+                f"coefficient must be > 0 (direction belongs in sign), got {self.coefficient!r}")
+
+    @property
+    def weight(self) -> float:
+        """``sign * coefficient`` -- the number this term multiplies its element by."""
+        return self.sign * self.coefficient
 
 
 # ---------------------------------------------------------------------------
@@ -186,21 +226,27 @@ class Interval:
 
 
 def fold(terms: Iterable[Term]) -> Interval:
-    """Worst-case and RSS fold of a signed term list.
+    """Worst-case and RSS fold of a signed, optionally weighted term list.
 
-    Worst case is the arithmetic extreme: an element entering with ``sign=+1``
-    contributes its ``max`` to the maximum and its ``min`` to the minimum; with
-    ``sign=-1`` the roles swap. RSS combines half-ranges in quadrature about the
-    midpoint sum -- sign does not matter to the half-range, only to the center.
+    **The only place element values are combined.** Worst case is the arithmetic
+    extreme: a term entering with a positive weight contributes its ``max`` to
+    the maximum and its ``min`` to the minimum; with a negative weight the roles
+    swap. RSS combines half-ranges in quadrature about the midpoint sum -- the
+    *sign* does not matter to the half-range, only to the center, but the
+    *coefficient* magnitude does, because scaling a variate scales its spread.
+
+    A ``Term``'s weight is ``sign * coefficient`` and defaults to the ``+-1`` this
+    function has always used, so every stack authored before coefficients existed
+    folds to the same numbers.
     """
     terms = list(terms)
     if not terms:
         return Interval(0.0, 0.0, 0.0, 0.0, 0.0)
-    nominal = sum(t.sign * t.element.nominal for t in terms)
-    lo = sum(t.element.min if t.sign > 0 else -t.element.max for t in terms)
-    hi = sum(t.element.max if t.sign > 0 else -t.element.min for t in terms)
-    center = sum(t.sign * t.element.mid for t in terms)
-    half = math.sqrt(sum(t.element.half_range ** 2 for t in terms))
+    nominal = sum(t.weight * t.element.nominal for t in terms)
+    lo = sum(t.weight * (t.element.min if t.weight > 0 else t.element.max) for t in terms)
+    hi = sum(t.weight * (t.element.max if t.weight > 0 else t.element.min) for t in terms)
+    center = sum(t.weight * t.element.mid for t in terms)
+    half = math.sqrt(sum((t.coefficient * t.element.half_range) ** 2 for t in terms))
     return Interval(nominal, lo, hi, center, half)
 
 
@@ -282,8 +328,16 @@ class StackDefinition:
             raise KeyError(f"stack {self.id!r} has no element {element_id!r}") from None
 
     def terms(self, spec: Sequence[Dict[str, Any]]) -> List[Term]:
-        """Turn a JSON term list (``[{"element": id, "sign": -1}, ...]``) into Terms."""
-        return [Term(self.element(t["element"]), int(t.get("sign", 1))) for t in spec]
+        """Turn a JSON term list into Terms.
+
+        ``[{"element": id, "sign": -1, "coefficient": 2}, ...]``; ``sign`` defaults
+        to ``+1`` and ``coefficient`` to ``1.0``.
+        """
+        return [
+            Term(self.element(t["element"]), int(t.get("sign", 1)),
+                 float(t.get("coefficient", 1.0)))
+            for t in spec
+        ]
 
     def path(self, path_id: str) -> Interval:
         try:
@@ -297,7 +351,8 @@ class StackDefinition:
 
         A check's ``terms`` may reference a ``path`` instead of an ``element``;
         a path term expands to that path's own terms with the signs multiplied
-        through, so nesting never changes the arithmetic.
+        and the coefficients multiplied through, so nesting never changes the
+        arithmetic.
         """
         for spec in self.checks:
             if spec["check_id"] == check_id:
@@ -321,11 +376,15 @@ class StackDefinition:
         out: List[Term] = []
         for t in spec:
             sign = int(t.get("sign", 1))
+            coefficient = float(t.get("coefficient", 1.0))
             if "path" in t:
                 inner = self.paths[t["path"]]["terms"]
-                out.extend(Term(term.element, term.sign * sign) for term in self._expand(inner))
+                out.extend(
+                    Term(term.element, term.sign * sign, term.coefficient * coefficient)
+                    for term in self._expand(inner)
+                )
             else:
-                out.append(Term(self.element(t["element"]), sign))
+                out.append(Term(self.element(t["element"]), sign, coefficient))
         return out
 
 

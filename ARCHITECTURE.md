@@ -23,12 +23,27 @@ tolerance_stack/
 |---|---|
 | `SourceRef` | where a value came from; `confidence`, plus `element_id`/`run_id` held open for feature identity |
 | `StackElement` | one ordered element: `nominal`/`min`/`max` lengths, `lmc`/`mmc` as transcribed, `hardware_ref`, `source_ref` |
-| `Term` | an element and a sign (`+1`/`-1`), validated |
+| `Term` | an element, a sign (`+1`/`-1`), and a positive `coefficient` (default `1.0`), all validated |
 | `Interval` | a fold result: nominal, worst-case min/max, RSS center/half |
-| `fold(terms)` | **the only arithmetic in the repo** |
+| `fold(terms)` | **the only place element values are combined** |
 | `CheckResult` | a check outcome + the `verdict` property |
 | `StackDefinition` | elements + paths + checks; `path()`, `check()`, `all_checks()` |
 | `load_stack(path)` | read + schema-check a stack-definition JSON |
+
+```
+tolerance_stack/
+  thermal.py        the thermal-fit archetype: materials + the corner expander.
+                    ~200 lines, stdlib only, no arithmetic of its own beyond
+                    thermal_factor(). Added 2026-08-05.
+```
+
+| name | what it is |
+|---|---|
+| `MaterialEntry` | one material's CTE with a `values_source`-shaped citation and a `gaps` list |
+| `load_materials(path)` | read + schema-check `docs/tolerance_stacks/materials.json` |
+| `thermal_factor(cte, dT)` | `1 + dT * cte * 1e-6` — the archetype's one new arithmetic primitive |
+| `ThermalFitInterface` | one member-pair: inner/outer element ids, materials, stiffness split |
+| `expand_thermal_fit(stack, materials)` | turn a `thermal_fit` block into `checks` whose terms carry the weights, then hand them to `fold()` |
 
 There is no pipeline, no CLI, no service. A stack is authored by hand (by an
 agent following the SOP) into JSON, and the module makes that JSON *executable*
@@ -44,7 +59,41 @@ consequential arithmetic error a stack can contain, and the one an eyeball check
 of plausible-looking totals will not catch.
 
 Signs multiply through nesting: a `{"path": p, "sign": -1}` term expands to `p`'s
-own terms with every sign flipped, so nesting never changes the arithmetic.
+own terms with every sign flipped, so nesting never changes the arithmetic. The
+same holds for coefficients, which multiply through.
+
+### Where computation may live — and the coefficient
+
+The rule that matters is not "no new code does arithmetic". It is **one place
+where element values get combined**. A second combiner is what makes a sign error
+undetectable; a per-term *weight* does not, because it is visible in the JSON next
+to the sign it scales.
+
+So when the two-stage thermal fit arrived (2026-08-05,
+`hub_bearing_thermal_stack`) needing three things `fold()` could not express —
+a diametral term worth twice a radial one, an isothermal soak that multiplies a
+diameter by `1 + ΔT·α`, and an interference split across two members by a
+stiffness ratio `k` — the answer was **not** a second engine. `Term` gained a
+positive `coefficient` (default `1.0`), the effective weight is
+`sign * coefficient`, and the whole archetype folds through the existing
+primitive. Every stack authored before it folds to the same numbers; the seeded
+three re-derive against the 260729 workbook with a largest delta of 6.4e-15,
+unchanged.
+
+Two consequences worth knowing:
+
+- **Direction stays in `sign`.** `coefficient` must be `> 0` and a test enforces
+  it. A term with a negative coefficient would have two places to be backwards,
+  which is the property this design exists to remove.
+- **A coefficient scales the RSS half-range linearly**, where duplicating a term
+  scales it by √2. That difference is the reason a sleeve's two walls are
+  `coefficient: 2` on one element rather than the element listed twice: the two
+  walls are *one turned dimension*, perfectly correlated, and listing it twice
+  understates the half-range by 29%.
+
+`thermal.py` computes **weights** — thermal factors, `2k`, `1−k`. It never
+combines two element values. That is the line, and it is the one to hold if a
+third archetype wants its own layer.
 
 ### Material condition is not an extreme
 

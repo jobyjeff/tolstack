@@ -108,6 +108,71 @@ def test_term_rejects_a_non_unit_sign():
         Term(_el("a", 1.0, 1.0, 1.0), sign=2)
 
 
+# --- Term.coefficient (added 2026-08-05, handoff hub_bearing_thermal_stack) ---
+
+
+def test_term_coefficient_defaults_to_one_so_every_older_stack_is_unchanged():
+    t = Term(_el("a", 1.0, 1.0, 1.0))
+    assert t.coefficient == 1.0
+    assert t.weight == 1.0
+    assert Term(_el("a", 1.0, 1.0, 1.0), sign=-1).weight == -1.0
+
+
+def test_term_rejects_a_non_positive_coefficient():
+    """Direction lives in ``sign``, magnitude in ``coefficient``.
+
+    Allowing a negative coefficient would give a term two places to be
+    backwards, which is precisely the property the one-fold design exists to
+    prevent.
+    """
+    for bad in (0.0, -1.0, -2.5):
+        with pytest.raises(ValueError, match="coefficient must be > 0"):
+            Term(_el("a", 1.0, 1.0, 1.0), coefficient=bad)
+
+
+def test_fold_coefficient_scales_the_extremes_and_the_nominal():
+    got = fold([Term(_el("a", 10.0, 9.0, 11.0)),
+                Term(_el("b", 2.0, 1.5, 2.5), coefficient=2.0)])
+    assert got.nominal == 14.0            # 10 + 2*2
+    assert got.min == 9.0 + 2 * 1.5       # 12.0
+    assert got.max == 11.0 + 2 * 2.5      # 16.0
+
+
+def test_fold_coefficient_with_a_negative_sign_still_swaps_the_extremes():
+    got = fold([Term(_el("a", 10.0, 9.0, 11.0)),
+                Term(_el("c", 1.0, 0.5, 2.0), sign=-1, coefficient=3.0)])
+    assert got.nominal == 10.0 - 3 * 1.0
+    assert got.min == 9.0 - 3 * 2.0       # the subtracted term's MAX drives the min
+    assert got.max == 11.0 - 3 * 0.5
+
+
+def test_fold_coefficient_scales_the_rss_half_range_linearly():
+    """A scaled variate has a scaled spread -- and this is why a diametral term
+    is ``coefficient=2`` rather than the same element listed twice.
+
+    Twice one wall and two independent walls give the same worst case and
+    *different* RSS: 2*h against sqrt(2)*h. The two walls of a sleeve are one
+    turned dimension, so ``coefficient=2`` is the correct, fully-correlated
+    treatment and duplicating the term would understate the half-range by 29%.
+    """
+    half = 0.5
+    doubled = fold([Term(_el("w", 1.0, 1.0 - half, 1.0 + half), coefficient=2.0)])
+    twice = fold([Term(_el("w", 1.0, 1.0 - half, 1.0 + half)),
+                  Term(_el("w", 1.0, 1.0 - half, 1.0 + half))])
+    assert doubled.min == twice.min and doubled.max == twice.max
+    assert doubled.rss_half == pytest.approx(2 * half)
+    assert twice.rss_half == pytest.approx(2 ** 0.5 * half)
+    assert doubled.rss_half > twice.rss_half
+
+
+def test_fold_is_still_the_only_arithmetic_and_still_never_reads_lmc_or_mmc():
+    """``fold()`` reads ``min``/``max`` lengths. Coefficients did not change that."""
+    source = Path(__file__).resolve().parent.parent / "tolerance_stack" / "stack.py"
+    body = source.read_text(encoding="utf-8")
+    fold_src = body.split("def fold(", 1)[1].split("\n# ---", 1)[0]
+    assert ".lmc" not in fold_src and ".mmc" not in fold_src
+
+
 # ---------------------------------------------------------------------------
 # Tan link to pitch plate -- paths (JEFF: E18/G18/H18, E19/.., E20/..)
 # ---------------------------------------------------------------------------
