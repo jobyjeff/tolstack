@@ -1,0 +1,140 @@
+{
+  "schema": "joby.tolstack/spec_intake/v0",
+  "description": "The spec-library intake queue: one row per document to acquire or read, ranked by what it unblocks across the repo. Promoted verbatim (with statuses re-derived) from the 12-row markdown table in docs/sessions/lessons/LESSONS_20260804_pitch_link_stack.md, section 'Gap list, in spec-library-intake form', which itself folded in slice 1's ranked list. It lived in a lesson, so 'which document closes which gap' was answerable only by lesson archaeology; here it is a query. STATUS IS NOT STORED -- IntakeQueue.status() derives it from the library projection, so a row cannot claim to be entered while the library holds nothing it promised in `closes`. `in_pile` is stored, because data/inbox/specs/ is gitignored and invisible from a worktree; it is a human assertion about the main checkout, checked against the pile by hand.",
+  "provenance": {
+    "promoted_by": "handoff spec_library_v0, 2026-08-05",
+    "from": "docs/sessions/lessons/LESSONS_20260804_pitch_link_stack.md",
+    "pile": "data/inbox/specs/ in the MAIN checkout C:\\workspace\\tolstack -- 43 files as of 2026-08-05 (42 at founding, plus MS9363 Rev C.pdf)"
+  },
+  "rows": [
+    {
+      "rank": 1,
+      "document": "MS9363",
+      "kind": "NAS/MS standard",
+      "in_pile": true,
+      "pile_filename": "MS9363 Rev C.pdf",
+      "closes": ["MS9363-09", "MS9363-10"],
+      "unblocks": "Nut height, slot count, slot depth for the -09 and -10 dash numbers -- the nut half of every cotter-retained joint in the repo.",
+      "stacks": ["pitch_link", "tan_link", "vpa"],
+      "note": "Arrived in the pile 2026-08-05 and was read the same day by handoff spec_library_v0. It supplies nut height (.188 +/-.010) and slot geometry, but NOT the thread-start-to-castellation spacing the pitch_link lesson hoped for: MS9363 does not control that, and neither does anything else (see the MS9363 family absence). The alignment remedy is procedural per JPS00094 5.9.7, capped at three washers by 5.5.3.a."
+    },
+    {
+      "rank": 2,
+      "document": "Pitch-link assembly drawing",
+      "kind": "Joby part/assy drawing",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": [],
+      "unblocks": "The spherical-bearing / link-eye width: the one missing term in the pitch_link stack's clamped column, and the value both of that stack's INCOMPLETE checks are written as a budget around.",
+      "stacks": ["pitch_link"],
+      "note": "Part number UNKNOWN; candidates 215177, 214849-003, 216231-001. Now that MS9363 is in, THIS is the document standing between the repo and a complete pitch_link verdict -- it was rank 2 and is effectively rank 1 for that stack."
+    },
+    {
+      "rank": 3,
+      "document": "NAS1149",
+      "kind": "NAS/MS standard",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": ["NAS1149V0332"],
+      "unblocks": "The .032 in flat-washer thickness band, currently a ZERO-WIDTH BAND in the pitch_link stack. The parts list has dropped even the MIN qualifier.",
+      "stacks": ["pitch_link", "tan_link"],
+      "note": "Also the washer whose thickness bounds the JPS00094 5.5.3.a three-washer shim remedy, so it now has a second consumer."
+    },
+    {
+      "rank": 4,
+      "document": "MIL-S-8879",
+      "kind": "MIL standard",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": [],
+      "unblocks": "Thread run-out / incomplete-thread length -- the last third of slice 1's ranked gap 1, and what its uncited 1/16 in allowance was standing in for. It is also what JPS00094 5.5.5 (\"shall not engage any incomplete threads\") needs to be checkable.",
+      "stacks": ["pitch_link", "tan_link", "vpa"],
+      "note": "PROMOTED by this session's reading. It was rank 4 as the bolt's thread spec (NAS6403 sheet 1); MS9363 sheet 2 requirement 2 invokes the SAME standard for the nut. One acquisition closes the thread form on both halves of every joint here, and it is the only named document that closes a recorded absence."
+    },
+    {
+      "rank": 5,
+      "document": "214820-002 plain bushing",
+      "kind": "Joby part drawing",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": ["214820-002"],
+      "unblocks": "Length band -- zero-width in the pitch_link stack; slice 1 used untraced workbook limits (4.63/4.76).",
+      "stacks": ["pitch_link", "tan_link"]
+    },
+    {
+      "rank": 6,
+      "document": "214936-002 countersunk bushing",
+      "kind": "Joby part drawing",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": ["214936-002"],
+      "unblocks": "Flange / barrel / chamfer -- slice 1's untraced elements 1-3.",
+      "stacks": ["tan_link"],
+      "note": "Balloons at sheet 5 DETAIL F, the tangential link's OTHER end (pitch_link worksheet F7)."
+    },
+    {
+      "rank": 7,
+      "document": "212956-005 anti-rotation link assy",
+      "kind": "Joby assy drawing",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": ["212956-005"],
+      "unblocks": "The tan-link spherical-bearing width.",
+      "stacks": ["tan_link"]
+    },
+    {
+      "rank": 8,
+      "document": "MS21299",
+      "kind": "NAS/MS standard",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": ["MS21299C4K"],
+      "unblocks": "Countersunk-washer thickness band plus the countersink geometry that the VPA stack's \"under head chamfer\" refers to.",
+      "stacks": ["vpa"]
+    },
+    {
+      "rank": 9,
+      "document": "NAS6404",
+      "kind": "NAS/MS standard",
+      "in_pile": true,
+      "pile_filename": "NAS6403-NAS6420 Rev 4.pdf",
+      "closes": ["NAS6404U13D"],
+      "unblocks": "Grip, length and cotter-hole position for the VPA joint's fastener.",
+      "stacks": ["vpa"],
+      "note": "ENTERED 2026-08-05. The cheapest item the queue has ever held: same file as NAS6403, the dash-13 row four rows below the one the pitch_link session read. It cost one render."
+    },
+    {
+      "rank": 10,
+      "document": "NAS6403-NAS6420 sheet 5 of 5",
+      "kind": "NAS/MS standard (partial file)",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": [],
+      "unblocks": "Nothing currently needed.",
+      "stacks": [],
+      "note": "Recorded so a library ingest does not assume completeness. Sheet 1's LIST OF CURRENT SHEETS names five sheets at revisions 4/2/NEW/2/3; the file in the pile holds four. The seq-1 parse event carries the same warning in its document_meta. `in_pile` is false because the SHEET is not in the pile, even though the file it belongs to is."
+    },
+    {
+      "rank": 11,
+      "document": "215197 at a current revision",
+      "kind": "Joby part drawing",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": [],
+      "unblocks": "Whether the three 4.06 flange groups still read as they did 14 months before the assembly export.",
+      "stacks": ["pitch_link", "tan_link", "vpa"],
+      "note": "Only a [PRELIM 2025-MAY-22] export exists, and it is in drawing-checker's test fixtures, not in any inbox: C:\\workspace\\drawing-checker\\tests\\fixtures\\drawings\\[PRELIM 2025-MAY-22] 215197 A.1.pdf"
+    },
+    {
+      "rank": 12,
+      "document": "MS24665 / NASM24665 cotter pin",
+      "kind": "NAS/MS standard",
+      "in_pile": false,
+      "pile_filename": null,
+      "closes": ["MS24665-153", "MS24665-229"],
+      "unblocks": "Pin-to-hole fit only.",
+      "stacks": ["pitch_link", "tan_link", "vpa"],
+      "note": "Low value: a .063 in pin in a .070/.080 in hole is consistent, and MS9363's slot at .073/.088 is wider than the hole, so the bolt hole governs. The MS/NASM prefix disagreement between the parts list and JPS00094 5.7.6.a is now recorded as a library criterion rather than a lesson footnote."
+    }
+  ]
+}

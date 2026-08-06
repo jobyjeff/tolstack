@@ -1,0 +1,113 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "20260805-jps00094-revc-agentmanual-v0",
+  "seq": 3,
+  "mode": "full",
+  "document": "JPS00094 Process Specification — Installation of Bolts and Nuts.pdf",
+  "parsed_at": "2026-08-05",
+  "parser": {
+    "name": "agent-manual",
+    "version": "v0",
+    "agent": "handoff spec_library_v0",
+    "recipe": "UNLIKE almost everything else in data/inbox/specs/, this document HAS a text layer: 37 pdf pages, page.get_text() returns clean prose, and the quoted criteria below are verbatim extractions rather than vision readings. No rendering was needed. The document's own page numbering runs 1..14 and is offset from the pdf page index -- pdf page 15 is document page 3, pdf page 19 is document page 7 -- so both are recorded on every citation."
+  },
+  "document_meta": {
+    "title": "Process Specification — Installation of Bolts and Nuts",
+    "designation": "JPS00094",
+    "issuer": "Joby Aero",
+    "revision": "C",
+    "revision_date": "05/Sep/2024",
+    "pdf_pages": 37,
+    "document_pages": 14,
+    "has_text_layer": true
+  },
+  "entries": [
+    {
+      "subject": "JPS00094 5.5.3.a",
+      "subject_kind": "criterion",
+      "note": "Cited by every cotter-retained joint in this repo as the cap on the washer remedy. Quoted, not paraphrased: this is criteria-not-dimensions, and the words are the value.",
+      "values": {
+        "criterion": {
+          "text": "The number of washers used on a fastener shall be limited to three: one washer under the head and two under the nut, or two under the head and one under the nut. Any identification mark on the washer used under the nut shall be placed opposite the face of the nut.",
+          "at": {"section": "5.5.3.a", "sheet": "3 of 14", "pdf_page": 15, "note": "5.5 Bolt Grip Length, item 3.a"},
+          "confidence": "traced",
+          "note": "The lead-in at 5.5.3 is \"When a longer bolt is substituted, additional washers of the type specified on the engineering drawing may be added subject to the following limitations\". So the three-washer cap is the arithmetic bound on JPS00094 5.9.7's castle-nut remedy: at most three washer thicknesses of shim are available to move a cotter hole onto a castellation."
+        },
+        "washer_count_max": {
+          "count": 3,
+          "at": {"section": "5.5.3.a", "sheet": "3 of 14", "pdf_page": 15},
+          "confidence": "traced",
+          "note": "The number, pulled out of the quoted text so a check can fold it."
+        }
+      }
+    },
+    {
+      "subject": "JPS00094 5.5.5",
+      "subject_kind": "criterion",
+      "note": "The shank-out criterion. This is the sentence that makes a grip stack a pass/fail question rather than a description.",
+      "values": {
+        "criterion": {
+          "text": "The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank.",
+          "at": {"section": "5.5.5", "sheet": "3 of 14", "pdf_page": 15, "note": "5.5 Bolt Grip Length, item 5"},
+          "confidence": "traced",
+          "note": "Requires the length of the incomplete-thread region to be known, which is exactly NAS6403's thread_runout_length absence. The criterion is sourced; the number it needs is not."
+        }
+      },
+      "absences": [
+        {
+          "name": "incomplete_thread_length",
+          "why": "JPS00094 states the criterion but supplies no geometry -- it is a process specification, not a fastener standard.",
+          "closed_by": "MIL-S-8879 -- not in data/inbox/specs/"
+        }
+      ]
+    },
+    {
+      "subject": "JPS00094 5.5.4",
+      "subject_kind": "criterion",
+      "note": "The protrusion criterion, the other half of a grip stack's verdict. Read alongside 5.5.5 -- one bounds the grip from below, the other from above.",
+      "values": {
+        "criterion": {
+          "text": "All fastener connections which involve self-locking or plain nuts should have at least one thread of the bolt protruding through the nut and any locking element.",
+          "at": {"section": "5.5.4", "sheet": "3 of 14", "pdf_page": 15, "note": "5.5 Bolt Grip Length, item 4"},
+          "confidence": "traced",
+          "note": "Note the modal verb: \"should\", against 5.5.5's \"shall\". Not extracted before this event; recorded because a stack that writes a protrusion check needs to know it is quoting a should and not a shall."
+        }
+      }
+    },
+    {
+      "subject": "JPS00094 5.9.7",
+      "subject_kind": "criterion",
+      "note": "Castle Nuts. The paragraph that turns this repo's castellated-nut caveat from an assertion into a citation -- and, with MS9363 now read, the paragraph that explains why no document will ever close the alignment gap.",
+      "values": {
+        "criterion": {
+          "text": "When installing a castle nut, start alignment with the cotter pin hole at the minimum recommended torque plus friction drag torque. Note: Do not exceed the maximum torque plus the friction drag. If the hole and nut castellation do not align, change/add a washer or a different nut, and try again. Exceeding the maximum recommended torque is not allowed.",
+          "at": {"section": "5.9.7", "sheet": "7 of 14", "pdf_page": 19, "note": "5.9 Fastener Torque, item 7 (Castle Nuts)"},
+          "confidence": "traced"
+        },
+        "footnote_a": {
+          "text": "Different nuts likely have different manufactured thread-start to castellation-hole spacing.",
+          "at": {"section": "5.9.7", "sheet": "7 of 14", "pdf_page": 19, "note": "footnote (a) on \"a different nut\""},
+          "confidence": "traced",
+          "note": "MS9363 Rev C confirms this from the other direction: it controls slot-to-slot and slot-to-thread-PD-axis position and says nothing at all about thread start. So the spacing is not merely variable between manufacturers -- it is UNSPECIFIED by the governing standard, which is why the remedy here is procedural (try again with a washer) and not analytical."
+        }
+      }
+    },
+    {
+      "subject": "JPS00094 5.7.6.a",
+      "subject_kind": "criterion",
+      "note": "Recorded because the pitch_link session found the parts list and this specification disagreeing on the cotter pin's MS/NASM prefix, and left the disagreement in a lesson. Now it is a query.",
+      "values": {
+        "criterion": {
+          "text": "Unless otherwise specified by the engineering drawing, cotter pins (split) shall conform to NASM24665 and this specification.",
+          "at": {"section": "5.7.6.a", "sheet": "5 of 14", "pdf_page": 17, "note": "5.7 Safety Wire, Safety Cable, and Cotter Pins, item 6.a"},
+          "confidence": "traced",
+          "note": "\"NASM24665\". 217755's parts list calls the same part MS24665 (finds 26 and 34, hardware entries MS24665-153 and MS24665-229). The prefixes name the same standard at different points in its custody history; the drawing wins per the \"unless otherwise specified\" lead-in. Neither document is in data/inbox/specs/."
+        }
+      }
+    }
+  ],
+  "notes": [
+    "Only the sections stacks actually cite were extracted. The document also carries torque tables (Appendix B), hole-preparation tables 5-1..5-11, thread-locker rules (5.6) and safety-wire practice (5.7) -- all unread, all potentially useful, none currently blocking a stack. A later event against this same document may add them; that is what mode \"full\" from a later seq is for.",
+    "5.5.1 and 5.5.2 (the definition of grip length as the total thickness of material held, and the permission to use unthreaded grip to aid assembly) were read and are consistent with NAS6403 sheet 2 note (a). Not recorded as separate subjects because Figure 5-1 carries the definition and a figure is not quotable text."
+  ]
+}
