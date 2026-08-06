@@ -396,7 +396,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       sha256-verified", where `crops.json` says `joint_export_run: 2`,
       `spec_pile: 3`, `provenance.sources_used: 1` and `sha256_verified` on 2 of
       6. A count that inflates *how strong the provenance is* is not a typo in
-      this repo. When a doc asserts anything about the crop or results
+      this repo. (Those figures are the 2026-08-06 *pre*-`citation_export_provenance`
+      state, quoted to make the point — do not carry them forward; recompute.)
+      When a doc asserts anything about the crop or results
       projection, recompute it from `data/projections/viewer/*.json` — never from
       the prose, and never from another doc's copy of the number.
 - [ ] **A corroboration flag shown without the evidence that produced it.**
