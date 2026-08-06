@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>tolstack viewer — tests</title>
+  <style>
+    body { font: 14px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+           background: #16181d; color: #e6e8ec; margin: 20px; }
+    h1 { font-size: 16px; }
+    li { list-style: none; }
+    .ok { color: #43a047; }
+    .fail { color: #e05252; }
+    .skip { color: #9aa1ac; }
+    .err { color: #d98a00; margin-left: 6ch; white-space: pre-wrap; }
+    #summary { margin-top: 14px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>tolstack viewer — logic + rendering tests</h1>
+  <p class="skip">The node-fs tier is skipped here: a browser has no filesystem.
+     Run <code>node apps/viewer/run_tests.cjs</code> for that tier.</p>
+  <ul id="out"></ul>
+  <div id="summary"></div>
+
+  <script src="./config.js"></script>
+  <script src="./viewer.js"></script>
+  <script src="./fixtures.js"></script>
+  <script src="./vendor/markdown.js"></script>
+  <script src="./storage/adapter.js"></script>
+  <script src="./storage/memory.js"></script>
+  <script src="./storage/node_fs.js"></script>
+  <script src="./views/dom.js"></script>
+  <script src="./views/banner.js"></script>
+  <script src="./views/list.js"></script>
+  <script src="./views/stack.js"></script>
+  <script src="./views/crop.js"></script>
+  <script src="./views/worksheet.js"></script>
+  <script src="./tests.js"></script>
+  <script>
+    // Publish results on window so the Playwright truth tier can read them,
+    // exactly as forge's apps do.
+    (async function () {
+      var results = await window.ViewerApp.runTests();
+      var out = document.getElementById("out");
+      var passed = 0;
+      results.forEach(function (r) {
+        var li = document.createElement("li");
+        li.className = r.skipped ? "skip" : r.ok ? "ok" : "fail";
+        li.textContent = (r.skipped ? "SKIP  " : r.ok ? "PASS  " : "FAIL  ") + r.name;
+        out.appendChild(li);
+        if (r.ok) passed++;
+        if (r.error) {
+          var e = document.createElement("div");
+          e.className = "err";
+          e.textContent = r.error;
+          out.appendChild(e);
+        }
+      });
+      document.getElementById("summary").textContent =
+        passed + "/" + results.length + " passed";
+      window.__TEST_RESULTS__ = { passed: passed, total: results.length, results: results };
+    })();
+  </script>
+</body>
+</html>

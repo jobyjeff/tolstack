@@ -1,0 +1,13 @@
+{
+  "name": "tolstack-browser-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Browser-test tooling for apps/viewer. Test tier only — NOT app code; the viewer stays build-free classic scripts that run by double-clicking index.html from file://. playwright-core (never the full playwright package: no bundled-browser download) drives the INSTALLED Chrome/Edge over CDP. See forge CONVENTIONS.md §7.",
+  "scripts": {
+    "test:fast": "node apps/viewer/run_tests.cjs",
+    "test:browser": "node scripts/run_viewer_browser_tests.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}

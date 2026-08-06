@@ -58,6 +58,15 @@ RESULTS_NAME = "results.json"
 
 CONFIDENCE_ORDER = ["traced", "inferred", "untraced"]
 
+# Fold outputs are rounded here, on the Python side, where the arithmetic
+# already lives. Element nominal/min/max are NEVER touched -- those are
+# transcribed values and ride through verbatim. Rounding the derived floats is
+# what lets the viewer print a number with `String(n)` and no rounding of its
+# own: 1e-6 mm is a nanometre, and the alternative is JS deciding how to display
+# `-8.193899999999999`, which is a small arithmetic decision in the one place
+# this repo has decided not to make any.
+INTERVAL_DECIMALS = 6
+
 
 # ---------------------------------------------------------------------------
 # derived-flag helpers (no arithmetic on tolerances lives outside fold())
@@ -79,6 +88,11 @@ def is_incomplete(check_spec: Dict[str, Any]) -> bool:
         str(check_spec.get(k) or "") for k in ("label", "guidance", "check_id")
     )
     return "INCOMPLETE" in haystack
+
+
+def rounded(interval: Dict[str, float]) -> Dict[str, float]:
+    """An :meth:`Interval.as_dict` with every float rounded for display."""
+    return {k: round(v, INTERVAL_DECIMALS) for k, v in interval.items()}
 
 
 def worst_confidence(counts: Dict[str, int]) -> Optional[str]:
@@ -230,7 +244,7 @@ def project_stack(
                 "label": spec.get("label", spec["id"]),
                 "terms": spec["terms"],
                 "element_terms": rows,
-                "interval": stack.path(spec["id"]).as_dict(),
+                "interval": rounded(stack.path(spec["id"]).as_dict()),
                 "input_confidence": counts,
                 "worst_confidence": worst_confidence(counts),
                 "zero_width_inputs": [
@@ -244,7 +258,9 @@ def project_stack(
 
     checks = []
     for spec in raw.get("checks", []):
-        result = stack.check(spec["check_id"]).as_dict()
+        outcome = stack.check(spec["check_id"])
+        result = outcome.as_dict()
+        result.update(rounded(outcome.interval.as_dict()))
         rows = term_elements(stack, spec["terms"])
         counts = count_confidence([stack.element(r["element_id"]) for r in rows])
         result.update(
