@@ -32,12 +32,71 @@ wrong number, and no way for a reader to tell. So:
 
 `untraced` is permitted **only** as an explicitly-listed gap. It is not a
 fallback you may use quietly to make a stack look complete — a stack of untraced
-numbers is a stack with no result. Slice 1's headline was **1 element traced out
-of 17**, and reporting that honestly was the most valuable thing it produced.
+numbers is a stack with no result. Slice 1's headline ratio, reported honestly,
+was the most valuable thing it produced — see "The traced ratio" below for what
+that number actually is and how to compute it.
 
 If a value cannot be sourced, the stack still ships. It ships with the gap named,
 ranked, and pointed at whatever document would close it. An unanswerable stack
 stated plainly beats a confident wrong one.
+
+### `kind: "parts_list"` can never be `traced`
+
+Row 3 of that table is a hard rule with **no exception**, and it is worth stating
+separately because three seeded elements broke it for a month:
+
+> A parts-list row gives a part number and a nomenclature string. The
+> nomenclature carries a **nominal** (`.875" GRIP`, `.063"`); it never carries a
+> **tolerance band**. So a `source_ref` with `kind: "parts_list"` tops out at
+> `confidence: "inferred"`.
+
+The tempting exception — *"the nominal is from the parts list but I found the
+band in the standard, surely that's traced"* — was considered and **rejected**.
+That case is two citations, and a `source_ref` holds one. Cite the document that
+prints the band, and name the parts list in the `note` as the evidence for
+*which part sits in this joint*. `tan_link:fastener_grip_14` and
+`vpa_output:fastener_grip` are worked examples of exactly that shape.
+
+Enforced by `tests/test_tolerance_stack.py::test_no_traced_element_cites_a_parts_list`
+(and the matching one over `hardware_entries.json`).
+
+### The traced ratio
+
+**This section is the single definition. Every other document in this repo that
+quotes the ratio points here and must not restate the rule.**
+
+> **traced ratio** = element **instances** whose `source_ref.confidence` is
+> `"traced"`, over **all element instances in a named set of stacks**.
+
+Three things that definition fixes, each of which had already gone wrong:
+
+- **Instances, not distinct ids.** An element appearing in two stacks is two
+  instances — each stack cites it separately and each citation can be right or
+  wrong on its own. (The seeded three hold 26 instances of 18 distinct ids.)
+  Do not use "elements carrying a `hardware_ref`" as a denominator either.
+- **Name the scope.** "Across the seeded stacks" means `tan_link_to_pitch_plate`,
+  `tan_link_to_pitch_plate_take2` and `vpa_output_to_pitch_plate` — all three,
+  `take2` included. A ratio quoted without its stack list is not checkable.
+- **`traced` means the band is in the cited document**, per the rule above. It
+  does *not* mean "traced to a part drawing" — that is a narrower, useful thing,
+  so if you mean it, say it in those words and give the ratio too.
+
+**Do not count it by hand, and do not copy it out of another document.** Run:
+
+```powershell
+venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --ratio
+```
+
+As of 2026-08-06 that prints **3 of 26 element instances across the three seeded
+stacks are `traced`; 7 are `inferred` and 16 are `untraced`** — and 19 of 48
+across all six stacks. `tests/test_tolerance_stack.py` pins both, so a doc
+quoting a stale number fails the suite rather than merely being wrong.
+
+**An element-only ratio flatters some archetypes.** Values a `StackElement`
+cannot hold — material properties, temperature scenarios, stiffness ratios — are
+outside this ratio by construction. Count and report those *separately*;
+`hub_bearing_thermal_fit` is 12 of 16 element instances and **0 of 7**
+non-element values, and quoting only the first would be true and misleading.
 
 ---
 
@@ -621,8 +680,10 @@ Sections, in order:
 7. **Source gaps** — ranked, each with the document that would close it and what
    it would resolve. This section is the handoff to whoever builds the fastener
    library.
-8. **The traced / inferred / untraced count.** State it as a ratio. This is the
-   headline of the stack, not a footnote.
+8. **The traced / inferred / untraced count.** State it as a ratio, computed by
+   `debug_report_tolerance_stacks.py --ratio` and never by hand or by copying
+   another document — the definition and the reason are in "The traced ratio"
+   above. This is the headline of the stack, not a footnote.
 
 **A mismatch against the drawings is a finding, never a transcription error to
 fix.** The source may predate the design. Your job is to report the divergence,

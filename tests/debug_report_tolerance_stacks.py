@@ -7,9 +7,17 @@ silently disagreeing with it.
 Usage:
     venv-win\\Scripts\\python.exe tests\\debug_report_tolerance_stacks.py [stack_id ...]
     venv-win\\Scripts\\python.exe tests\\debug_report_tolerance_stacks.py --compare
+    venv-win\\Scripts\\python.exe tests\\debug_report_tolerance_stacks.py --ratio
 
 ``--compare`` prints the re-derivation table (Jeff's cached xlsx cells vs this
 repo's fold, full precision) that both worksheets embed.
+
+``--ratio`` prints the traced / inferred / untraced counts, per stack and
+totalled, under the single definition in ``docs/SOP_TOLERANCE_STACK.md`` ("The
+traced ratio"). Every document in this repo that quotes the ratio points at this
+command; if a document and this output disagree, the document is wrong. Added
+2026-08-06 after the headline figure sat wrong for a month (handoff
+``traced_labels_and_ratio``).
 
 IMPORTED from drawing-checker at tolstack's founding (see PROVENANCE.md), verbatim
 apart from this note. Stdlib only, so it runs under this repo's venv-win as-is --
@@ -104,6 +112,65 @@ WORKBOOK_CELLS = [
 ]
 
 
+# The three stacks transcribed from 260729_sample_tol_stack.xlsx at founding.
+# "The seeded stacks" / "slice 1" in every document that quotes a traced ratio
+# means exactly these three -- naming the scope is half the definition.
+SEEDED_STACK_FILES = [
+    "stack_tan_link_to_pitch_plate.json",
+    "stack_tan_link_to_pitch_plate_take2.json",
+    "stack_vpa_output_to_pitch_plate.json",
+]
+
+CONFIDENCES = ("traced", "inferred", "untraced")
+
+
+def _counts(paths) -> dict:
+    out = {c: 0 for c in CONFIDENCES}
+    out["instances"] = 0
+    for p in paths:
+        for e in load_stack(p).elements:
+            out["instances"] += 1
+            out[e.source_ref.confidence] += 1
+    return out
+
+
+def ratio() -> None:
+    """Print the traced ratio, per the definition in docs/SOP_TOLERANCE_STACK.md.
+
+    Denominator = **element instances**, not distinct element ids: an element
+    that appears in two stacks is two instances, because each stack cites it
+    separately and each citation can be right or wrong on its own. Numerator =
+    instances whose ``source_ref.confidence`` is ``traced``.
+
+    This is the command every document quoting the ratio points at. If a doc's
+    number and this output disagree, the doc is wrong.
+    """
+    print("| stack | instances | traced | inferred | untraced |")
+    print("|---|---|---|---|---|")
+    for p in sorted(STACKS_DIR.glob("stack_*.json")):
+        c = _counts([p])
+        seeded = "*" if p.name in SEEDED_STACK_FILES else " "
+        print(f"| {seeded}{p.stem.replace('stack_', '')} | {c['instances']} | "
+              f"{c['traced']} | {c['inferred']} | {c['untraced']} |")
+
+    seeded = _counts(STACKS_DIR / n for n in SEEDED_STACK_FILES)
+    every = _counts(sorted(STACKS_DIR.glob("stack_*.json")))
+    print("\n(* = a seeded slice-1 stack)\n")
+    for label, c in (("seeded (slice 1, 3 stacks)", seeded), ("all stacks", every)):
+        print(f"{label:28s} {c['traced']} traced / {c['inferred']} inferred / "
+              f"{c['untraced']} untraced, out of {c['instances']} element instances")
+    print(
+        "\nHEADLINE (copy this shape into any doc that quotes it):\n"
+        f"  {seeded['traced']} of {seeded['instances']} element instances across the three "
+        f"seeded stacks are `traced`;\n"
+        f"  {seeded['inferred']} are `inferred` and {seeded['untraced']} are `untraced`."
+    )
+    print(
+        "\nNOT counted here: values a StackElement cannot hold -- material properties,\n"
+        "temperature scenarios, stiffness ratios. Report those separately (SOP)."
+    )
+
+
 def compare() -> None:
     """Print the re-derivation table: Jeff's cached cell vs our fold, full precision."""
     print("| stack | cell | quantity | Jeff (xlsx cached) | re-derived | delta | |")
@@ -127,6 +194,8 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if args and args[0] == "--compare":
         compare()
+    elif args and args[0] == "--ratio":
+        ratio()
     else:
         for p in sorted(STACKS_DIR.glob("stack_*.json")):
             if not args or p.stem in args:

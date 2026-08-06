@@ -32,6 +32,15 @@ Scope is **grip length only**. Diameter/hole fits are deliberately out of scope
 
 ## Ordered elements
 
+> **Provenance update, 2026-08-06** (handoff `traced_labels_and_ratio`).
+> Element 11's citation changed. It read `217755 sh4 DETAIL B` / `traced` while
+> its own note said *"The grip +/-.010 is untraced (NAS6403 spec absent)"* — a
+> parts list gives a nominal and never a band, so that label was wrong. The
+> spec has since arrived, so it is now cited to `NAS6403-NAS6420 Rev 4.pdf`
+> sheet 3 and is **legitimately** `traced`: same value, real source. Which bolt
+> sits in this joint is still balloon 35's evidence. No arithmetic below
+> changed — `check_result` is produced, not stored, and no number moved.
+
 | # | element | role | nominal | min | max | source | conf |
 |---|---------|------|---------|-----|-----|--------|------|
 | 1 | flange bushing L thickness | bushing | 3.8100 | 3.6830 | 3.9370 | workbook E14 | untraced |
@@ -44,7 +53,7 @@ Scope is **grip length only**. Diameter/hole fits are deliberately out of scope
 | 8 | washer thickness (thick, .063 in) | washer | 1.6002 | 1.4478 | 1.7526 | workbook E12 | untraced |
 | 9 | thread transition allowance | allowance | 1.5875 | 0.0000 | 1.5875 | workbook E22 | untraced |
 | 10 | fastener grip, -13 (.812 in) | fastener | 20.6248 | 20.3708 | 20.8788 | 217755 (NAS6403U13H) | inferred |
-| 11 | fastener grip, -14 (.875 in) | fastener | 22.2250 | 21.9710 | 22.4790 | 217755 sh4 DETAIL B (NAS6403U14D) | **traced** |
+| 11 | fastener grip, -14 (.875 in) | fastener | 22.2250 | 21.9710 | 22.4790 | **NAS6403-NAS6420 Rev 4.pdf sh3, row *Grip Dash No. 14*** | **traced** |
 
 Element order is the physical order as best it can be read from the workbook
 and DETAIL B; only the path term lists below are load-bearing for the
@@ -263,7 +272,7 @@ This list is the answer to "what must the fastener library ingest first".
 
 | # | source needed | what it would resolve | priority |
 |---|---|---|---|
-| 1 | **NAS6403** (.190-32 hex bolt) | grip ±.010, thread run-out length (the whole `thread_transition` allowance), **cotter-hole position** | **1 — blocks F7/F8** |
+| 1 | ~~**NAS6403** (.190-32 hex bolt)~~ — **PARTIALLY CLOSED 2026-08-06.** `NAS6403-NAS6420 Rev 4.pdf` is now in `data/inbox/specs/`. Sheet 3 gives grip and length per dash number, sheet 1 gives `M` (cotter-hole position) and `T (Ref)`. | Element 11's grip ±.010 is now `traced` to it. **Still open on this stack:** element 10 (`fastener_grip_13`) has not been re-cited though sheet 3 row 13 covers it, and `thread_transition`'s 1/16 in rule of thumb has not been re-derived from `T (Ref)` = .323 in. Both are `docs/issues/ISSUE_20260806_three_more_slice1_fastener_values_are_now_sourceable.md`. | 2 |
 | 2 | **MS9363** slotted/castellated nut | castellation slot count + depth; the check that actually governs this joint | **1 — blocks F8** |
 | 3 | **NAS1149** flat washer | thickness tolerance. Parts list says `.032" MIN`; the workbook models `.032 ±.004`. These disagree. | 2 |
 | 4 | 214936-002 BUSHING, PLAIN, COUNTERSUNK (Joby part drawing) | flange 0.062", L 0.150", chamfer 0.025–0.035" — elements 1–3, all currently untraced. Candidate part; it balloons in sheet 5 DETAIL F, not DETAIL B. | 2 |
@@ -272,11 +281,29 @@ This list is the answer to "what must the fastener library ingest first".
 | 7 | MS24665 cotter pin | hole fit (diameter and length are already on the parts list) | 3 |
 | 8 | NAS1149V0363 (.063 washer) | whether it exists in the current design at all | 3 |
 
-**Traced, for contrast:** exactly one element — the pitch plate flange, `3X 4.06
-±0.08` on 215197 sheet 2 zone B4 (SECTION A-A), carrying ⌖⌀0.2 A B C and ⊥0.05 F,
-3X INDIVIDUALLY. The `3X` matches the three tangential links. Two fastener part
-numbers and one bushing are *inferred* from the assembly parts list — present and
-nominally consistent, but their tolerance bands come from the workbook, not from
-a document.
+**Traced, for contrast:** two elements.
 
-One element traced out of eleven is the real headline of this slice.
+1. The **pitch plate flange**, `3X 4.06 ±0.08` on 215197 sheet 2 zone B4
+   (SECTION A-A), carrying ⌖⌀0.2 A B C and ⊥0.05 F, 3X INDIVIDUALLY. The `3X`
+   matches the three tangential links. This is still the only value on this
+   stack traced to a **part drawing**.
+2. The **-14 fastener grip**, `.875 ±.010 in`, `NAS6403-NAS6420 Rev 4.pdf`
+   sheet 3, row *Grip Dash No. 14*, band from the printed column header
+   `Grip ±.010`. Added 2026-08-06 — see the provenance update above.
+
+Three elements are *inferred*: two from the assembly parts list (the -13
+fastener and the 214820-002 bushing — present and nominally consistent, band
+from the workbook) and the thin washer.
+
+**This stack: 2 traced / 3 inferred / 6 untraced out of 11 element instances.**
+Across all three seeded stacks: **3 of 26 `traced`**, 7 `inferred`, 16
+`untraced`. The ratio's definition lives in `docs/SOP_TOLERANCE_STACK.md`
+("The traced ratio"); reproduce it with
+`tests\debug_report_tolerance_stacks.py --ratio` rather than reading it here.
+
+> **Correction, 2026-08-06.** This section used to end *"One element traced out
+> of eleven is the real headline of this slice"*, and the repo-wide figure was
+> quoted as *"1 of 17"*. The 17 omitted `take2` entirely; the 1 counted only
+> part-drawing-traced values while the JSON labelled four elements `traced`.
+> See `ARCHITECTURE.md` and the lesson
+> `docs/sessions/lessons/LESSONS_20260806_traced_labels_and_ratio.md`.

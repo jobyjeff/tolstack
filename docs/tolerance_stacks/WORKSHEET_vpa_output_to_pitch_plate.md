@@ -24,14 +24,27 @@ Every balloon in DETAIL X is qty 1 — a single joint, unlike the tan-link's 3×
 
 ## Ordered elements
 
+> **Provenance update, 2026-08-06** (handoff `traced_labels_and_ratio`).
+> Both of this stack's `traced` labels were wrong, and each said so in its own
+> note. Elements 5 and 6 cited the 217755 **parts list**, which gives a
+> nomenclature nominal and never a tolerance band.
+> - **Element 6** is now cited to `NAS6403-NAS6420 Rev 4.pdf` sheet 3, row
+>   *Grip Dash No. 13*, NAS6404 column — the band is that table's printed
+>   header `Grip ±.010`. Legitimately `traced`: same value, real source.
+> - **Element 5** could not be rescued: **MS21299 is not in
+>   `data/inbox/specs/`**, so the ±.006 in band still has no document.
+>   Downgraded to `inferred`, band still listed as gap 3.
+>
+> No arithmetic below changed — `check_result` is produced, not stored.
+
 | # | element | role | nominal | min | max | source | conf |
 |---|---------|------|---------|-----|-----|--------|------|
 | 1 | straight bushing | bushing | 4.7620 | 4.7100 | 4.8100 | workbook E63 | untraced |
 | 2 | spherical bearing width | bearing | 8.7100 | 8.6600 | 8.7100 | workbook E64 | untraced |
 | 3 | bushing flange thickness | bushing | 1.5750 | 1.4478 | 1.5748 | workbook E65 | untraced |
 | 4 | pitch flange thickness | clamped_member | 4.0600 | 3.9600 | 4.1600 | 215197 sh2 zone D10 | inferred |
-| 5 | under head chamfer washer | washer | 1.6002 | 1.4478 | 1.7526 | 217755 sh5 DETAIL X (MS21299C4K) | **traced** |
-| 6 | fastener grip (.812 in) | fastener | 20.6248 | 20.3708 | 20.8788 | 217755 sh5 DETAIL X (NAS6404U13D) | **traced** |
+| 5 | under head chamfer washer | washer | 1.6002 | 1.4478 | 1.7526 | 217755 sh5 DETAIL X (MS21299C4K) | inferred |
+| 6 | fastener grip (.812 in) | fastener | 20.6248 | 20.3708 | 20.8788 | **NAS6403-NAS6420 Rev 4.pdf sh3, row *Grip Dash No. 13*, NAS6404 column** | **traced** |
 
 This stack has **no thread-transition allowance** and **no second washer
 branch** — strictly less modelling than the tan-link's first pass.
@@ -161,15 +174,26 @@ say so rather than pretend a clean answer exists."* Slice 1's answer: it says so
 
 | # | source needed | what it would resolve | priority |
 |---|---|---|---|
-| 1 | **NAS6404** (.250-28 hex bolt) | grip ±.010, thread run-out, **cotter-hole position** | **1 — blocks F16** |
+| 1 | ~~**NAS6404** (.250-28 hex bolt)~~ — **PARTIALLY CLOSED 2026-08-06.** `NAS6403-NAS6420 Rev 4.pdf` covers NAS6403 through NAS6420 in one document; it is now in `data/inbox/specs/`. | Element 6's grip ±.010 is now `traced` to sheet 3 (dash 13, NAS6404 column: grip .812, length 1.182). **Still open:** thread run-out and cotter-hole position (`M`) are on sheet 1 and have not been modelled — this stack has no thread-transition element at all. | 2 |
 | 2 | **MS9363-10** castellated nut | slot count + depth; the check that governs | **1 — blocks F16** |
-| 3 | **MS21299** countersunk washer | the ±.006 in band, and the countersink geometry that "under head chamfer" is really about | 2 |
+| 3 | **MS21299** countersunk washer | the ±.006 in band, and the countersink geometry that "under head chamfer" is really about. **Confirmed absent from `data/inbox/specs/` on 2026-08-06**, which is why element 5 is `inferred` and not `traced`. | 2 |
 | 4 | 214943-002 bushing (Joby part drawing) | the as-drawn bushing's length limits (replaces NAS77A4-015 entirely) | 2 |
 | 5 | 208510-007 VPA ASSEMBLY | the 8.66/8.71 spherical bearing width — no bearing balloon in DETAIL X because it is internal to the actuator | 3 |
 | 6 | 215175-001/-002 TANGENTIAL LINK MOUNT | whether the 4.06 flange belongs here rather than on 215197 (F14) | 2 |
 | 7 | NAS77 (plain bushing) | whether the workbook's original part exists in the design at all | 4 |
 
-**Traced, for contrast:** two elements — the MS21299C4K washer thickness and the
-NAS6404U13D grip, both from the assembly parts list + balloons, both nominal-only
-(their tolerance bands still come from the workbook). Nothing on this joint is
-traced to a *part drawing*; 215197's contribution is `inferred` at best (F15).
+**Traced, for contrast:** one element — the NAS6404U13D grip, `.812 ±.010 in`
+off `NAS6403-NAS6420 Rev 4.pdf` sheet 3. Nothing on this joint is traced to a
+*part drawing*; 215197's contribution is `inferred` at best (F15).
+
+**This stack: 1 traced / 2 inferred / 3 untraced out of 6 element instances.**
+Across all three seeded stacks: **3 of 26 `traced`**, 7 `inferred`, 16
+`untraced`. The definition lives in `docs/SOP_TOLERANCE_STACK.md` ("The traced
+ratio"); reproduce with `tests\debug_report_tolerance_stacks.py --ratio`.
+
+> **Correction, 2026-08-06.** This paragraph used to say *"two elements — the
+> MS21299C4K washer thickness and the NAS6404U13D grip, both from the assembly
+> parts list + balloons, both nominal-only (their tolerance bands still come
+> from the workbook)"*. That sentence describes `inferred` and then calls it
+> traced; the JSON agreed with the label, not with the description. The grip
+> earned the label on 2026-08-06 by acquiring its standard; the washer lost it.

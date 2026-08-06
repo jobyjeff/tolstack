@@ -15,7 +15,25 @@ consumer of the SOP; the friction report below is deliverable 3.
 | *(this one)* | README, this lesson, handoff → `completed/` |
 
 **The headline: 4 traced / 2 inferred / 0 untraced out of 6 element instances.**
-Slice 1 scored 1 of 17. That comparison flatters this session and should be read
+
+> **CORRECTION, 2026-08-06** (handoff `traced_labels_and_ratio`). The next
+> sentence said *"Slice 1 scored 1 of 17"* — the repo-wide figure, wrong in both
+> halves. Slice 1's three seeded stacks score **3 traced of 26 element
+> instances** (7 `inferred`, 16 `untraced`); the old 17 dropped `take2` and the
+> old 1 counted only part-drawing-traced values. **This session's own 4/6 was
+> right, reproduces today, and is pinned by a test** — it is what made the
+> divergence visible, because the reviewer recomputed one ratio and not the
+> other. The definition now lives in `docs/SOP_TOLERANCE_STACK.md`, "The traced
+> ratio", and is computed by `tests\debug_report_tolerance_stacks.py --ratio`.
+>
+> The comparison's *point* survives intact and gets sharper: two of the three
+> labels corrected on 2026-08-06 were fixed by reading the very NAS6403 sheet 3
+> this session opened. The gap between 3/26 and 4/6 was never mostly about
+> diligence — the second half of it was slice-1 values that had been sourceable
+> from day one and were labelled instead of looked up.
+
+Slice 1 scored 3 traced of 26 element instances. That comparison flatters this
+session and should be read
 with the three caveats in the worksheet's ratio section — chiefly that three of
 the four traced values are the NAS6403 bolt, which was sitting in
 `data/inbox/specs/` the whole time and which slice 1 (working inside

@@ -574,11 +574,21 @@ Gaps 1, 2, 5 and 6 are the **CINDAS asks** and Jeff can close them cheaply. Gaps
 > **M1: 4 traced / 2 inferred / 2 untraced, out of 8 element instances.**
 > **Across both stacks: 12 traced / 2 inferred / 2 untraced, out of 16.**
 
-For calibration: slice 1 traced **1 of 17**, and `pitch_link_to_pitch_plate` was
-not much better. This stack traces 12 of 16 — and the reason is not diligence, it
-is that **Jeff supplied the five part drawings**. Every traced element here points
-at a released drawing that landed in the repo on the day the stack was built. The
-lesson is about the inputs, not the method.
+For calibration: the three seeded slice-1 stacks trace **3 of 26 element
+instances**, and `pitch_link_to_pitch_plate` traces 4 of 6 in a much smaller
+denominator it refused to pad. This stack traces 12 of 16 — and the reason is not
+diligence, it is that **Jeff supplied the five part drawings**. Every traced
+element here points at a released drawing that landed in the repo on the day the
+stack was built. The lesson is about the inputs, not the method.
+
+> **Correction, 2026-08-06** (handoff `traced_labels_and_ratio`). This line read
+> *"slice 1 traced 1 of 17"*. That figure was wrong in both halves and is now
+> 3 of 26; see `ARCHITECTURE.md` for what happened. The definition of the ratio
+> lives in `docs/SOP_TOLERANCE_STACK.md`, "The traced ratio", and is reproduced
+> by `tests\debug_report_tolerance_stacks.py --ratio` — which counts elements
+> only, so the 0-of-7 point below is *not* something that command can tell you.
+> The three seeded stacks carry no non-element values, so for them the element
+> ratio is the whole story; for this one it is not.
 
 **And the ratio is measuring the wrong thing for this archetype.** Seven
 non-element values carry the analysis — three CTEs, two temperatures, two

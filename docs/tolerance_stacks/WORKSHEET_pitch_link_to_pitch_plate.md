@@ -441,8 +441,24 @@ Counting **element instances in this stack**:
 > pitch-link eye), and **2 of the 6 carrying a zero-width band** because no
 > document gives one.
 
-Slice 1 scored **1 traced out of 17** across three stacks. The honest comparison
-is not 4/6 vs 1/17, because the two are not the same shape of work:
+The three seeded slice-1 stacks score **3 traced out of 26 element instances**
+(7 `inferred`, 16 `untraced`). The honest comparison is not 4/6 vs 3/26, because
+the two are not the same shape of work:
+
+> **Correction, 2026-08-06** (handoff `traced_labels_and_ratio`). This line read
+> *"Slice 1 scored 1 traced out of 17 across three stacks"* — the number every
+> document in the repo quoted, and wrong in both halves. The 17 was
+> `tan_link` + `vpa` only (11 + 6), silently dropping `take2`'s 9; the 1 counted
+> only values traced to a *part drawing* while the JSON labelled four elements
+> `traced`, three of them illegitimately from parts-list citations. Two of those
+> three have since been re-cited to the same `NAS6403-NAS6420 Rev 4.pdf` this
+> stack uses, so slice 1's real figure is 3 of 26. The definition of the ratio
+> now lives in one place (`docs/SOP_TOLERANCE_STACK.md`, "The traced ratio") and
+> is reproduced by `tests\debug_report_tolerance_stacks.py --ratio`.
+>
+> This stack's own **4 traced / 2 inferred / 0 untraced out of 6** was correct
+> when written, reproduces today, and has a test. It is the counterexample that
+> made the divergence visible.
 
 - **The ratio improved mostly because the documents were there.** Three of the
   four traced values are the NAS6403 bolt, which was in `data/inbox/specs/` the

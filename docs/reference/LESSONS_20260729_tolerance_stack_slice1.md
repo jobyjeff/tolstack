@@ -159,6 +159,36 @@ flange, `3X 4.06 ±0.08`, 215197 sheet 2 zone B4. Five more are `inferred` from
 the assembly parts list — part present and nominal consistent, tolerance band
 still from the workbook. That ratio is the real result of the slice.
 
+> **CORRECTION, 2026-08-06** (handoff `traced_labels_and_ratio`). **This is the
+> paragraph the wrong number came from**, and it is left standing above so the
+> mistake is legible; the corrected figure is **3 traced of 26**, 7 `inferred`,
+> 16 `untraced`. Both halves were wrong, in different ways:
+>
+> - **The denominator counted two stacks and said three.** 11 (`tan_link`) + 6
+>   (`vpa`) = 17. `tan_link_to_pitch_plate_take2`'s 9 instances were omitted —
+>   defensibly, since take 2 is a restatement of take 1 rather than a new joint,
+>   but the omission was never written down, so the figure could not be
+>   reproduced by anyone counting what the sentence said to count.
+> - **The numerator counted one thing and the JSON said another.** "One" is the
+>   count of values traced to a **part drawing**, which is the honest reading of
+>   this slice and is what `test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange`
+>   pins. But three more elements carried `confidence: "traced"` in the stack
+>   files, each on a `kind: "parts_list"` citation, and each with a `note`
+>   admitting its band was untraced. The prose was right and the machine-readable
+>   field was wrong, and the field is what every consumer reads.
+>
+> The three mislabelled elements were fixed on 2026-08-06: `fastener_grip_14`
+> and `fastener_grip` re-cited to `NAS6403-NAS6420 Rev 4.pdf` sheet 3 (which had
+> been in `data/inbox/specs/` the whole time), `under_head_chamfer_washer`
+> downgraded to `inferred`. The definition of the ratio now lives in exactly one
+> place — `docs/SOP_TOLERANCE_STACK.md`, "The traced ratio" — and is computed by
+> `tests\debug_report_tolerance_stacks.py --ratio`, not by hand.
+>
+> **The transferable lesson:** a ratio with an unstated denominator is not a
+> measurement. This one propagated into eleven files over a month, including the
+> review checklist that told reviewers to compute it, and every reviewer who did
+> compute it got a different answer and moved on.
+
 ## Where should stacks and the fastener library live? (input to strategy, not a decision)
 
 **Recommendation: split them.**

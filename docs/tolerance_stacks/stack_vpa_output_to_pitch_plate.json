@@ -112,7 +112,7 @@
       "mmc": 1.7526,
       "plus_minus": 0.1524,
       "hardware_ref": "MS21299C4K",
-      "note": "0.063 +/-0.006 in. Nominal is the midpoint (the workbook computes it as such).",
+      "note": "0.063 +/-0.006 in. Nominal is the midpoint (the workbook computes it as such). The nominal is sourced; the BAND IS NOT -- see source_ref and gap 3 in the worksheet.",
       "source_ref": {
         "kind": "parts_list",
         "document": "217755",
@@ -120,8 +120,8 @@
         "sheet": 5,
         "view": "DETAIL X",
         "callout": "MS21299C4K WASHER, COUNTERSUNK, 17-4PH, .253\" X .491\" X .063\" (find 29, qty 1)",
-        "confidence": "traced",
-        "note": "Balloon 29 in DETAIL X. Thickness .063 in confirms the workbook value; the +/-.006 in band is untraced (MS21299 spec absent from this repo)."
+        "confidence": "inferred",
+        "note": "DOWNGRADED 2026-08-06 (handoff traced_labels_and_ratio) from `traced`, which contradicted this note's own second clause. Balloon 29 in DETAIL X. Thickness .063 in confirms the workbook value, so the nominal is sourced; the +/-.006 in band is NOT -- it comes from the 260729 workbook, and MS21299 is absent from data/inbox/specs/ (checked 2026-08-06). Per the SOP a parts-list nominal with the band from somewhere else is `inferred`. Acquiring MS21299 is the only thing that makes this `traced`; it stays listed as gap 3."
       }
     },
     {
@@ -133,16 +133,17 @@
       "max": 20.8788,
       "plus_minus": 0.254,
       "hardware_ref": "NAS6404U13D",
-      "note": "0.812 +/-0.010 in. Workbook row 71 restates the grip with no tolerance; row 73 is the toleranced one and is the row used.",
+      "note": "0.812 +/-0.010 in. Workbook row 71 restates the grip with no tolerance; row 73 is the toleranced one and is the row used. RE-CITED 2026-08-06 (handoff traced_labels_and_ratio): the band now comes off the NAS6404 standard, not the parts list.",
       "source_ref": {
-        "kind": "parts_list",
-        "document": "217755",
-        "revision": "A",
-        "sheet": 5,
-        "view": "DETAIL X",
-        "callout": "NAS6404U13D BOLT, HEX HEAD, 6Al-4V, .250\"-28 X .812\" GRIP .1875\" LONG (find 27, qty 1)",
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 3,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 13', column 'NAS6404 .2500-28'",
+        "callout": "Grip Dash No. 13  |  Grip ±.010 = .812  |  LENGTH ±.015, NAS6404 .2500-28 = 1.182",
         "confidence": "traced",
-        "note": "Balloon 27 in DETAIL X. The .812 in grip matches the workbook exactly; the +/-.010 in is untraced (NAS6404 spec absent)."
+        "note": "One sheet covers NAS6403 through NAS6420: the 'Grip ±.010' column is shared by every basic number, and the per-basic-number columns to its right give overall LENGTH ±.015 (NAS6404 = .2500-28, the .250-28 thread this joint uses; its dash-13 length is 1.182). Sheet 2 CODE block decodes the part number -- dash 13 x .0625 = .8125 -> .812 as printed, 'U' = unplated, 'D' = drilled shank -- and its EXAMPLE OF PART NUMBER block is written against NAS6404 specifically. Sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank. WAS `kind: parts_list` / `confidence: traced` citing 217755 balloon 27, whose own note admitted 'the +/-.010 in is untraced (NAS6404 spec absent)'. Which bolt sits in this joint is still the parts list's evidence: NAS6404U13D, find 27 qty 1, ballooned in 217755 sheet 5 DETAIL X. Scan, no text layer -- read by vision from a crop, command in docs/sessions/lessons/LESSONS_20260806_traced_labels_and_ratio.md."
       }
     }
   ],

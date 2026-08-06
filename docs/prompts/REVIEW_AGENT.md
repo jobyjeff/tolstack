@@ -52,7 +52,13 @@ For **every** element value, verify:
   address actually leads there;
 - `confidence` is **honest**. Downgrade aggressively:
   - a value from a parts-list part number, with the tolerance band coming from
-    somewhere else, is **`inferred`** — not `traced`;
+    somewhere else, is **`inferred`** — not `traced`. `kind: "parts_list"` with
+    `confidence: "traced"` has **no legitimate form**: a parts list carries a
+    nominal and never a band. Three seeded elements sat that way for a month,
+    each admitting it in its own `note`, so a test now enforces it
+    (`test_no_traced_element_cites_a_parts_list`). **Read the `note` against the
+    field** — where they disagree, the field is what downstream reads and the
+    note is where the author told you the truth;
   - a value whose only support is "the source workbook says so" is
     **`untraced`** — no matter how reasonable it looks;
   - `traced` requires the actual band to be in the cited document.
@@ -218,15 +224,33 @@ worksheet:
 
 > *N traced / M inferred / K untraced, out of T element instances.*
 
+**The definition of that ratio lives in one place** —
+`docs/SOP_TOLERANCE_STACK.md`, "The traced ratio" — and this checklist
+deliberately does not restate it. Read it there, then compute with
+`tests\debug_report_tolerance_stacks.py --ratio`. The short version: instances
+(not distinct ids), a named set of stacks, and `traced` means *the band is in
+the cited document*.
+
 Then check that every `untraced` value appears in the stack's **explicitly listed
 gaps**. An `untraced` value not listed as a gap is a violation of the SOP's one
 rule — the stack is claiming completeness it does not have.
 
-For calibration: slice 1 traced **1 of 17**, and reporting that plainly was the
-most valuable thing it produced. A stack claiming a much better ratio deserves
+For calibration: the three seeded slice-1 stacks trace **3 of 26 element
+instances** (7 inferred, 16 untraced), and reporting that plainly was the most
+valuable thing slice 1 produced. A stack claiming a much better ratio deserves
 proportionally more scrutiny per `traced` value, not less. **A high traced count
 is a reason to audit harder, not a reason to relax** — it is what an invented
 number looks like from the outside.
+
+> **Correction, 2026-08-06.** This paragraph read *"slice 1 traced 1 of 17"*
+> from 2026-07-29 until 2026-08-06, and every document in the repo quoted it.
+> Neither half reproduced: the denominator dropped `take2` (11 + 6 = 17 of 26),
+> and the numerator counted only the value traced to a *part drawing* while the
+> JSON said four elements were `traced` — three of them on parts-list citations
+> that check 1 forbids. Handoff `traced_labels_and_ratio` re-cited two of those
+> three to the NAS6403 standard, downgraded the third, and pinned the result.
+> **The lesson for a reviewer: the ratio is the one number in a review that a
+> reader will re-use without re-deriving, so it is the one you must re-derive.**
 
 **Count the values that are not elements, separately, and demand them.** An
 element-only ratio flatters any archetype whose answer rests on numbers a

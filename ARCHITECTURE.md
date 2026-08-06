@@ -306,11 +306,28 @@ washer, capped at three by §5.5.3.a). Recorded as an absence with
 `closed_by: null` on the `MS9363` library subject.
 
 The binding constraint on nearly every value was the **absence of a
-fastener-spec library**: 1 of 17 element instances across the three seeded
-stacks was `traced`. That library now exists (`docs/spec_library/`), holds the
-two bolts and both nuts, and carries its own intake queue — the per-entry `gaps`
-lists in `hardware_entries.json` are being superseded by it one entry at a time,
-starting with `NAS6403U11D`.
+fastener-spec library**: **3 of 26 element instances across the three seeded
+stacks are `traced`** (7 `inferred`, 16 `untraced`). That library now exists
+(`docs/spec_library/`), holds the two bolts and both nuts, and carries its own
+intake queue — the per-entry `gaps` lists in `hardware_entries.json` are being
+superseded by it one entry at a time, starting with `NAS6403U11D`.
+
+**What that ratio means and how to compute it is defined in exactly one place**
+— `docs/SOP_TOLERANCE_STACK.md`, "The traced ratio" — and reproduced by
+`tests\debug_report_tolerance_stacks.py --ratio`. This file quotes the number
+and does not restate the rule.
+
+> **Correction, 2026-08-06** (handoff `traced_labels_and_ratio`). This sentence
+> read *"1 of 17 element instances … was `traced`"* from founding until
+> 2026-08-06 and neither half reproduced from the stacks: the denominator
+> silently omitted `tan_link_to_pitch_plate_take2` (11 + 6 = 17 of 26), and the
+> numerator counted only the value traced to a *part drawing* while three more
+> elements carried `confidence: "traced"` in the JSON — illegitimately, on
+> parts-list citations whose own notes admitted the band was untraced. Two of
+> those three were re-cited to `NAS6403-NAS6420 Rev 4.pdf` sheet 3 and are now
+> properly `traced`; the third (MS21299C4K) was downgraded to `inferred`. So the
+> repo understated its own sourcing 4x on the field count, and 3x against the
+> corrected one, for its first month. The number is now pinned by a test.
 
 The thermal-fit stacks invert that picture and expose a **second** intake queue.
 Their
@@ -330,21 +347,3 @@ touch, not that the joint can carry the torque that would spin the inner member.
 That second one is the direct analogue of the castellated-nut caveat above, and
 for the same reason: a correctly computed number that does not settle the
 question, which must say so next to itself.
-**Reading MS9363 Rev C (2026-08-05) settled how far that gap can ever close.**
-The standard controls slot-to-slot coincidence (within .005) and slot-axis to
-thread-PD-axis (within .005), and gives nut height, slot count and slot width —
-so the *axial window* a cotter hole must fall in is now sourced (`G` to `H` from
-the nut bearing face). It says nothing about where a slot sits relative to the
-**thread start**, and JPS00094 Rev C §5.9.7 footnote (a) confirms that spacing
-varies between manufactured nuts. So the phase is not merely undocumented here,
-it is uncontrolled — no acquisition closes it. A stack can bound the window and
-must then defer to the assembly procedure §5.9.7 prescribes (change or add a
-washer, capped at three by §5.5.3.a). Recorded as an absence with
-`closed_by: null` on the `MS9363` library subject.
-
-The binding constraint on nearly every value was the **absence of a
-fastener-spec library**: 1 of 17 element instances across the three seeded
-stacks was `traced`. That library now exists (`docs/spec_library/`), holds the
-two bolts and both nuts, and carries its own intake queue — the per-entry `gaps`
-lists in `hardware_entries.json` are being superseded by it one entry at a time,
-starting with `NAS6403U11D`.

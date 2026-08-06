@@ -30,10 +30,19 @@ that cite it, not with the CATIA parser.
 
 ## Why this folder is the point of the repo
 
-Slice 1's headline finding was that **1 of 17** element instances across three
-tolerance stacks could be traced to an actual document. The rest were "the
-workbook says so", which is not a source. This pile is the trace target that
-closes that gap — and it already holds the top-priority one:
+Slice 1's headline finding was that only **3 of 26** element instances across
+its three tolerance stacks could be traced to an actual document. The rest were
+"the workbook says so", which is not a source. This pile is the trace target
+that closes that gap — and it already holds the top-priority one:
+
+> **Correction, 2026-08-06** (handoff `traced_labels_and_ratio`). This read
+> *"1 of 17"* until 2026-08-06; neither number reproduced from the stacks. The
+> definition of the ratio now lives in one place —
+> `docs/SOP_TOLERANCE_STACK.md`, "The traced ratio" — and is computed by
+> `tests\debug_report_tolerance_stacks.py --ratio`. Two of the three `traced`
+> labels this correction touched were fixed **by this pile**:
+> `NAS6403-NAS6420 Rev 4.pdf` sheet 3 turned out to cover both bolts, so the
+> file below was already sitting here answering a question nobody had asked it.
 
 | slice-1 gap | file here |
 |---|---|
@@ -45,10 +54,11 @@ closes that gap — and it already holds the top-priority one:
 | interference fits | `JPS00176 Interference Fit Assembly.pdf` |
 
 Still **not** here, and still blocking: **NAS1149** flat washers, **MS21299**
-countersunk washers, **MS24665** cotter pins, **MIL-S-8879** (the UNJF-3A thread
-form NAS6403 sheet 1 invokes, which is what would close the thread run-out), and
-every Joby part drawing. See the `gaps` lists in
-`docs/tolerance_stacks/hardware_entries.json`.
+countersunk washers (re-confirmed absent 2026-08-06 — this is the one gap that
+forced `vpa_output:under_head_chamfer_washer` down to `inferred`), **MS24665**
+cotter pins, **MIL-S-8879** (the UNJF-3A thread form NAS6403 sheet 1 invokes,
+which is what would close the thread run-out), and every Joby part drawing. See
+the `gaps` lists in `docs/tolerance_stacks/hardware_entries.json`.
 
 The pile grows (append-only), so treat the two lists above as a snapshot and the
 counts in `PROVENANCE.md` as a record of the 2026-08-03 move. `ls` it before

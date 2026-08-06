@@ -161,13 +161,18 @@ def test_a_stack_whose_joint_names_no_export_cannot_be_crop_resolved(tan_link_ra
     drawing/parts-list citation in the three slice-1 stacks therefore resolves to
     nothing -- not because the drawing is missing, but because the citation never
     says *which export* it read. Stable element addresses are the cure.
+
+    Cited element changed 2026-08-06 (handoff ``traced_labels_and_ratio``): this
+    used to use ``fastener_grip_14``, which was re-cited from the 217755 parts
+    list to ``NAS6403-NAS6420 Rev 4.pdf`` and now resolves down the *spec* branch
+    instead. ``straight_bushing`` is the same shape of citation the test was
+    always about -- a parts-list row on a stack with no export.
     """
     assert (tan_link_raw.get("joint") or {}).get("assembly_export") in (None, "")
+    ref = element(tan_link_raw, "straight_bushing")["source_ref"]
+    assert ref["kind"] == "parts_list"
     with pytest.raises(bvc.Unresolvable, match="citation names no export"):
-        bvc.resolve_pdf(
-            tan_link_raw, element(tan_link_raw, "fastener_grip_14")["source_ref"],
-            tmp_path, tmp_path, [],
-        )
+        bvc.resolve_pdf(tan_link_raw, ref, tmp_path, tmp_path, [])
 
 
 def test_the_pitch_link_joint_export_names_two_runs(pitch_link_raw):

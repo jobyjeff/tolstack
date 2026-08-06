@@ -196,7 +196,7 @@
         "sheet": "grip length tols old",
         "cell": "E22",
         "confidence": "untraced",
-        "note": "Rule-of-thumb allowance, no cited standard. NAS6403 defines the real transition; that spec is not in this repo."
+        "note": "Rule-of-thumb allowance, no cited standard. NAS6403 defines the real transition. CORRECTION 2026-08-06: the parenthetical that used to end this note -- 'that spec is not in this repo' -- went stale when NAS6403-NAS6420 Rev 4.pdf arrived in data/inbox/specs/. The spec is here; this element has simply not been re-derived from it. Sheet 1 gives T (Ref) = .323 in for NAS6403 (grip end to point), which is not the same quantity as this 1/16 in run-out allowance but is the document that would replace it. Still `untraced` and still a listed gap -- see docs/issues/ISSUE_20260806_three_more_slice1_fastener_values_are_now_sourceable.md."
       }
     },
     {
@@ -215,7 +215,7 @@
         "revision": "A",
         "callout": "NAS6403U13H BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .812\" GRIP (find 95, qty 3)",
         "confidence": "inferred",
-        "note": "Present in the parts list at qty 3 but carries NO balloon on any sheet. The grip +/-.010 is untraced (NAS6403 spec absent)."
+        "note": "Present in the parts list at qty 3 but carries NO balloon on any sheet. The grip +/-.010 comes from the workbook here, not from this citation -- so `inferred`, which is the correct label. CORRECTION 2026-08-06: the reason used to read '(NAS6403 spec absent)' and that is no longer true. NAS6403-NAS6420 Rev 4.pdf sheet 3 row 'Grip Dash No. 13' prints .812 under the 'Grip ±.010' header, so this element can be re-cited to `kind: spec` / `traced` exactly as fastener_grip_14 was. Deliberately left for a follow-up rather than folded into a relabelling handoff -- docs/issues/ISSUE_20260806_three_more_slice1_fastener_values_are_now_sourceable.md."
       }
     },
     {
@@ -227,16 +227,17 @@
       "max": 22.479,
       "plus_minus": 0.254,
       "hardware_ref": "NAS6403U14D",
-      "note": "0.875 +/-0.010 in. This is the fastener actually ballooned in DETAIL B.",
+      "note": "0.875 +/-0.010 in. This is the fastener actually ballooned in DETAIL B. RE-CITED 2026-08-06 (handoff traced_labels_and_ratio): the band now comes off the NAS6403 standard, not the parts list.",
       "source_ref": {
-        "kind": "parts_list",
-        "document": "217755",
-        "revision": "A",
-        "sheet": 4,
-        "view": "DETAIL B",
-        "callout": "NAS6403U14D BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .875\" GRIP (find 35, qty 3)",
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 3,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 14'",
+        "callout": "Grip Dash No. 14  |  Grip ±.010 = .875  |  LENGTH ±.015, NAS6403 .1900-32 = 1.198",
         "confidence": "traced",
-        "note": "Balloon 35 in DETAIL B. The grip +/-.010 is untraced (NAS6403 spec absent)."
+        "note": "Both the .875 nominal and the ±.010 band are printed on sheet 3: the value in the 'Grip ±.010' column, the band in that column's own header. Sheet 2 CODE block decodes the part number -- 'Dash number indicates grip in .0625 increments' (14 x .0625 = .875), 'U' after the basic number = unplated, 'D' after the dash number = drilled shank -- and sheet 2 note (a) defines what grip means: 'from the underside of head to the end of the full cylindrical portion of the shank'. WAS `kind: parts_list` / `confidence: traced` citing 217755 balloon 35, whose own note admitted 'the grip +/-.010 is untraced (NAS6403 spec absent)' -- a parts list gives the nomenclature nominal and never a band, so that label was wrong even though the value was right. Which bolt sits in this joint is still the parts list's evidence: NAS6403U14D, find 35 qty 3, ballooned in 217755 sheet 4 DETAIL B. Scan, no text layer -- read by vision from a crop, command in docs/sessions/lessons/LESSONS_20260806_traced_labels_and_ratio.md."
       }
     }
   ],

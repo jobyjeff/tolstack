@@ -583,6 +583,192 @@ def test_element_role_comes_from_the_documented_vocabulary(filename):
         ), f"{stack.id}:{element.id} has undocumented role {element.role!r}"
 
 
+# ---------------------------------------------------------------------------
+# The `traced` label, and the ratio built out of it
+#
+# Added by handoff traced_labels_and_ratio (2026-08-06). Three seeded elements
+# carried `confidence: "traced"` on a `kind: "parts_list"` citation while their
+# own `note` admitted the band was untraced -- honest prose, wrong machine field,
+# and the field is what every downstream consumer reads.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
+def test_no_traced_element_cites_a_parts_list(filename):
+    """A parts list can never support `traced`, and there is no exception.
+
+    A parts-list row gives a part number and a nomenclature string. The
+    nomenclature carries a NOMINAL (`.875" GRIP`, `.063"`) and never a tolerance
+    band -- so the best a `kind: "parts_list"` citation can honestly claim is
+    `inferred`, exactly as the SOP's table and REVIEW_AGENT check 1 say. This is
+    a shape test, not a spot check: it fails for any future element that reaches
+    for the label the same way.
+
+    The SOP considered keeping an exception for "parts-list nominal, band
+    documented elsewhere" and rejected it: that case is two citations, not one,
+    and a single `source_ref` cannot hold both. Cite the document with the band
+    and name the parts list in the `note` -- which is what the two re-cited
+    fastener grips below now do.
+    """
+    stack = load_stack(STACKS_DIR / filename)
+    offenders = [
+        e.id for e in stack.elements
+        if e.source_ref.kind == "parts_list" and e.source_ref.confidence == "traced"
+    ]
+    assert offenders == [], (
+        f"{stack.id}: {offenders} claim `traced` from a parts list. A parts list "
+        f"gives a nominal, never a band -- see docs/SOP_TOLERANCE_STACK.md."
+    )
+
+
+def test_no_traced_hardware_entry_cites_a_parts_list():
+    """Same rule, the other file that carries a ``confidence``.
+
+    ``hardware_entries.json`` is the leak the SOP already warns about (trap 17):
+    it looks like a source. If the parts-list rule only held for stacks, an
+    entry could launder the label and a stack could then cite the entry.
+    """
+    entries = json.loads(
+        (STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8")
+    )["entries"]
+    offenders = [
+        e["id"] for e in entries
+        if (e.get("values_source") or {}).get("kind") == "parts_list"
+        and (e.get("values_source") or {}).get("confidence") == "traced"
+    ]
+    assert offenders == []
+
+
+def test_the_two_re_cited_fastener_grips_trace_to_nas6403_sheet_3(tan_link, vpa):
+    """Both grips now cite the standard that prints the band, not the parts list.
+
+    Sheet 3 of ``NAS6403-NAS6420 Rev 4.pdf`` is one table for the whole family:
+    a shared ``Grip ±.010`` column, then one LENGTH column per basic number. The
+    band lives in the column HEADER, which is why the value and its tolerance
+    come off the same page -- the thing a parts list can never do. Read by vision
+    from a crop (the scan has no text layer); the crop command is in
+    ``docs/sessions/lessons/LESSONS_20260806_traced_labels_and_ratio.md``.
+
+    Values pinned here are the printed cells, not the mm the elements carry, so
+    a unit-conversion slip cannot hide behind a matching label.
+    """
+    for stack, element_id, dash, inch_grip, printed in (
+        (tan_link, "fastener_grip_14", 14, 0.875, "NAS6403 .1900-32 = 1.198"),
+        (vpa, "fastener_grip", 13, 0.812, "NAS6404 .2500-28 = 1.182"),
+    ):
+        ref = stack.element(element_id).source_ref
+        assert ref.kind == "spec", f"{stack.id}:{element_id}"
+        assert ref.document == "NAS6403-NAS6420 Rev 4.pdf"
+        assert ref.sheet == 3
+        assert ref.confidence == "traced"
+        assert f"Grip Dash No. {dash}" in ref.callout
+        assert printed in ref.callout
+        # dash number x .0625, rounded to 3 places (sheet 2 CODE block, and the
+        # sheet 3 closing note) -- and that is the nominal the element carries.
+        assert round(dash * 0.0625, 3) == inch_grip
+        element = stack.element(element_id)
+        assert element.nominal == pytest.approx(inch_grip * 25.4, abs=1e-9)
+        assert element.plus_minus == pytest.approx(0.010 * 25.4, abs=1e-9)
+
+
+def test_the_ms21299_washer_is_inferred_because_the_standard_is_not_here(vpa):
+    """The one of the three that could not be rescued.
+
+    MS21299 is absent from ``data/inbox/specs/``, so the ±.006 in band has no
+    document. The parts list gives the .063 nominal and that is all -- `inferred`,
+    with the band staying on the gap list rather than being quietly dropped.
+    """
+    ref = vpa.element("under_head_chamfer_washer").source_ref
+    assert ref.confidence == "inferred"
+    assert ref.kind == "parts_list" and ref.document == "217755"
+
+
+def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
+    """The repo's headline calibration figure, pinned to the stacks themselves.
+
+    It was quoted as "1 of 17" from 2026-07-29 to 2026-08-06 and neither half
+    reproduced: the denominator silently dropped ``take2`` (11 + 6 = 17 of 26),
+    and the numerator counted only the value traced to a *part drawing* while the
+    JSON said four elements were ``traced``. Both halves were defensible readings
+    and neither was written down, so nothing could catch the drift.
+
+    The definition now lives in exactly one place -- docs/SOP_TOLERANCE_STACK.md,
+    "The traced ratio" -- and the counting lives in exactly one place,
+    ``debug_report_tolerance_stacks.ratio()``. This test is what makes a document
+    quoting a stale number fail the suite instead of merely being wrong.
+    """
+    from tests.debug_report_tolerance_stacks import SEEDED_STACK_FILES, _counts
+
+    # scope is half the definition: "the seeded stacks" means these three
+    assert SEEDED_STACK_FILES == [
+        "stack_tan_link_to_pitch_plate.json",
+        "stack_tan_link_to_pitch_plate_take2.json",
+        "stack_vpa_output_to_pitch_plate.json",
+    ]
+    seeded = _counts(STACKS_DIR / n for n in SEEDED_STACK_FILES)
+    assert seeded == {"instances": 26, "traced": 3, "inferred": 7, "untraced": 16}
+
+    every = _counts(sorted(STACKS_DIR.glob("stack_*.json")))
+    assert every == {"instances": 48, "traced": 19, "inferred": 11, "untraced": 18}
+
+    # Instances, not distinct ids, and not "elements that carry a hardware_ref".
+    # Those are the two denominators a reader reaches for by mistake; recording
+    # them here is what makes the choice legible rather than arbitrary.
+    stacks = [load_stack(STACKS_DIR / n) for n in SEEDED_STACK_FILES]
+    elements = [e for s in stacks for e in s.elements]
+    assert len({e.id for e in elements}) == 18
+    assert sum(1 for e in elements if e.hardware_ref) == 10
+
+
+def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
+    """The stale-number bug this repo keeps having, caught at the doc level.
+
+    ``1 of 17`` reached eleven files and survived three reviews. Prose cannot be
+    parsed, but two mechanical rules cover the failure that actually happened:
+
+    1. every live doc that discusses the ratio states the **current** figure; and
+    2. the **superseded** figure appears only inside a blockquote — i.e. as a
+       quotation in a dated correction note, never as an assertion. That is the
+       repo's rule for a number a review already read: correct it in place and
+       leave the old one visible, don't silently overwrite it.
+
+    Historical records are deliberately out of scope: `docs/sessions/reviews/`
+    and `docs/sessions/completed/` are what someone believed on a date, and
+    rewriting them would destroy the evidence this correction rests on.
+    """
+    repo_root = STACKS_DIR.parent.parent
+    live_docs = [
+        repo_root / "ARCHITECTURE.md",
+        repo_root / "docs" / "SOP_TOLERANCE_STACK.md",
+        repo_root / "docs" / "prompts" / "REVIEW_AGENT.md",
+        repo_root / "data" / "inbox" / "specs" / "README.md",
+        *sorted((repo_root / "docs" / "tolerance_stacks").glob("WORKSHEET_*.md")),
+    ]
+
+    from tests.debug_report_tolerance_stacks import SEEDED_STACK_FILES, _counts
+
+    c = _counts(STACKS_DIR / n for n in SEEDED_STACK_FILES)
+    current = f"{c['traced']} of {c['instances']}"          # "3 of 26"
+    superseded = "of 17"
+
+    missing, asserted_stale = [], []
+    for p in live_docs:
+        if not p.exists():          # data/ is gitignored; absent in a worktree
+            continue
+        text = p.read_text(encoding="utf-8")
+        if current not in text:
+            missing.append(str(p.relative_to(repo_root)))
+        for n, line in enumerate(text.splitlines(), 1):
+            if superseded in line and not line.lstrip().startswith(">"):
+                asserted_stale.append(f"{p.relative_to(repo_root)}:{n}")
+
+    assert missing == [], f"traced ratio not stated as {current!r} in {missing}"
+    assert asserted_stale == [], (
+        f"superseded traced ratio asserted outside a correction blockquote at "
+        f"{asserted_stale}"
+    )
+
+
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
     """215197 is the one part drawing this repo holds for these joints, and
     exactly one element traces to it. Everything else is a fastener-library gap."""
