@@ -64,6 +64,16 @@
         "callout": "214820-002  BUSHING, PLAIN, ALUMINUM BRONZE, .1900\" ID X .1875\" LONG  (find 34, qty 8; balloon reads 8X in DETAIL B)",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+          "sha256": "c6381f204582dc7a87d25664855bbc547b619226997e9fa62697b6d6ea4294d8",
+          "runs": [
+            "20260803_145243",
+            "20260804_114000"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance from the prose joint.assembly_export: data/runs.jsonl and run_meta.json both record this file and this sha256 as the input of runs 20260803_145243 and 20260804_114000, and the file in drawing-checker's inbox still hashes to it (mtime 2026-08-03T21:52:43Z, unchanged since the run)."
+        },
         "confidence": "inferred",
         "note": "Presence and nominal only. qty 8 = the 3 tangential-link places plus the 5 places of this joint, which is how one bushing per joint is inferred; the balloon prefix 8X in DETAIL B is consistent. Band untraced -> gap 3."
       }
@@ -91,6 +101,17 @@
         "callout": "5X 4.06 ±0.10",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
+          "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
+          "runs": [
+            "20260409_170546",
+            "20260409_172341",
+            "20260730_133912"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This is the ONLY export of 215197 anywhere in the workspace: all three drawing-checker runs of it record this same sha256 in data/runs.jsonl, 20260730_133912's 215197_A_p01.json records source_pdf '[PRELIM 2025-MAY-22] 215197 A.1.pdf', and no other 215197 PDF exists in drawing-checker's inbox or fixtures. Unlike 217755 (six exports on disk), 'which export' has a unique answer here."
+        },
         "confidence": "traced",
         "note": "215197 PITCH PLATE, PROPELLER, [PRELIM 2025-MAY-22] export held at drawing-checker/tests/fixtures/drawings/. Carries positional ⌖⌀0.2 A B C and perpendicularity ⊥0.05 G, annotated 5X INDIVIDUALLY. The 5X count is what ties this callout to this joint. Do NOT confuse with the 3X 4.06 ±0.08 group at sheet 2 zone B4 (tangential links, slice 1) or the 1X 4.06 ±0.10 at sheet 1 zone D5 (VPA output)."
       }
@@ -118,6 +139,16 @@
         "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\"  (find 32, qty 9; balloon reads 8X in DETAIL B)",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+          "sha256": "c6381f204582dc7a87d25664855bbc547b619226997e9fa62697b6d6ea4294d8",
+          "runs": [
+            "20260803_145243",
+            "20260804_114000"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance from the prose joint.assembly_export: data/runs.jsonl and run_meta.json both record this file and this sha256 as the input of runs 20260803_145243 and 20260804_114000, and the file in drawing-checker's inbox still hashes to it (mtime 2026-08-03T21:52:43Z, unchanged since the run)."
+        },
         "confidence": "inferred",
         "note": "The 2026-AUG-3 export reads '.032\"'. The 2026-JUL-23 POST export slice 1 worked from read '.032\" MIN, .1900-32 UNJF-3B' -- the MIN qualifier and the thread call have been dropped between exports (worksheet finding F3). Either way the parts list gives no band -> gap 4."
       }
@@ -145,6 +176,13 @@
         "callout": "Grip Dash No. 11  |  Grip ±.010 = .688  |  LENGTH ±.015, NAS6403 .1900-32 = 1.011",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. data/inbox/specs/ is append-only (files never move or change -- see its PROVENANCE.md), so the filename already identified the bytes; the sha256 is recorded here so a re-drop under the same name cannot be silently substituted. No drawing-checker run consumes a spec."
+        },
         "confidence": "traced",
         "note": "The ±.010 is the printed column header 'Grip ±.010'. Sheet 2 note (a) defines it: 'Grip-length of bolts shall be measured from the underside of head to the end of the full cylindrical portion of the shank.' Sheet 2 CODE block decodes the part number: dash number = grip in .0625 increments, 'U' after the basic number = unplated, 'D' after the dash number = drilled shank. .688 = 11 x .0625 rounded to 3 places, exactly as the sheet-3 note says. Scan, no text layer -- read by vision at 2.2x-8x."
       }
@@ -172,6 +210,13 @@
         "callout": "LENGTH ±.015 (See Note Below) ... NAS6403 .1900-32, dash 11 = 1.011",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. data/inbox/specs/ is append-only (files never move or change -- see its PROVENANCE.md), so the filename already identified the bytes; the sha256 is recorded here so a re-drop under the same name cannot be silently substituted. No drawing-checker run consumes a spec."
+        },
         "confidence": "traced",
         "note": "Sheet 3's closing note: 'Nominal length equals nominal grip plus T (see Sheet 1).' Sheet 1 gives T (Ref) = .323 for NAS6403, and 1.011 - .688 = .323 exactly -- two independently-read table columns agreeing, pinned by the thread_region_T path and its test."
       }
@@ -199,6 +244,13 @@
         "callout": "M = .174 / .154   (drill P = .080 / .070 'Drill P (j) when specified by part number')",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. data/inbox/specs/ is append-only (files never move or change -- see its PROVENANCE.md), so the filename already identified the bytes; the sha256 is recorded here so a re-drop under the same name cannot be silently substituted. No drawing-checker run consumes a spec."
+        },
         "confidence": "traced",
         "note": "The sheet-1 table prints M as .174/.154 for NAS6403. Which two features M spans is read off the figure, not from text: its extension lines land on the cotter-hole centreline and on the bolt point. A reviewer should re-check that reading against the figure -- the standard nowhere defines M in words. Sheet 2 note (j) adds the position tolerance: 'Cotter pin hole centerline: Within .010 and normal within 2° of bolt centerline.'"
       }

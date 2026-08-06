@@ -8,7 +8,9 @@ revision's geometry and looks perfectly fine on screen. So every branch of
 stdlib-only venv; ``fitz`` is imported lazily by the script for exactly this
 reason.
 
-Handoff: stack_viewer_v0 (2026-08-05).
+Handoff: stack_viewer_v0 (2026-08-05); the ``source_ref.export`` rules and the
+removal of the ``provenance.sources_used`` prose fallback are
+citation_export_provenance (2026-08-06).
 """
 
 from __future__ import annotations
@@ -105,69 +107,168 @@ def test_a_spec_not_in_the_pile_is_unresolvable(tmp_path):
                         tmp_path, tmp_path, [])
 
 
-# --- provenance.sources_used, the one fallback ----------------------------
+# --- source_ref.export: the structured per-citation export -----------------
+#
+# Rule 1, and the reason this module was rewritten on 2026-08-06. The sha256 is
+# the export's identity: a filename gets re-exported over, and a printed zone is
+# not stable between exports of the same revision, so cropping a same-named file
+# without checking its bytes renders the wrong revision's geometry and looks
+# perfectly correct on screen.
 
 
-def test_sources_used_path_must_start_the_entry():
-    entry = "C:/x/[PRELIM 2025-MAY-22] 215197 A.1.pdf -- sheet 2 SECTION A-A (read-only)"
-    assert bvc.pdf_paths_in(entry) == "C:/x/[PRELIM 2025-MAY-22] 215197 A.1.pdf"
-    # A prose mention of "the 2026-AUG-3 PDF" carries no path and must not match.
-    assert bvc.pdf_paths_in("...balloons.json and the 2026-AUG-3 PDF (read-only)") is None
+def established(on_disk: Path, **over) -> dict:
+    """An established export of the file at ``on_disk`` -- override ``pdf`` to
+    cite it by some other path (repo-relative, or absolute on another machine)."""
+    export = {"status": "established", "pdf": on_disk.as_posix(),
+              "sha256": bvc.sha256_of(on_disk), "runs": []}
+    export.update(over)
+    return export
 
 
-def test_sources_used_resolves_the_215197_fixture(tmp_path):
-    pdf = tmp_path / "215197.pdf"
-    pdf.write_bytes(b"%PDF-1.4\n")
-    got = bvc.pdf_from_sources_used(
-        [f"{pdf.as_posix()} -- sheet 2 SECTION A-A (read-only)"], "215197", []
+def write_pdf(path: Path, payload: bytes = b"%PDF-1.4\nthe real export\n") -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(payload)
+    return path
+
+
+def test_an_established_export_resolves_and_is_always_sha_verified(tmp_path):
+    pdf = write_pdf(tmp_path / "d.pdf")
+    got = bvc.resolve_pdf(
+        {}, {"kind": "drawing", "document": "215197", "export": established(pdf)},
+        tmp_path, tmp_path, [tmp_path],
     )
-    assert got == pdf
+    assert got["resolved_by"] == "source_ref_export"
+    assert got["pdf"] == pdf
+    # Not "None because nobody checked" -- this rule cannot resolve without checking.
+    assert got["sha256_verified"] is True
 
 
-def test_two_different_pdfs_for_one_document_is_ambiguous_not_a_coin_flip(tmp_path):
-    a, b = tmp_path / "215197 a.pdf", tmp_path / "215197 b.pdf"
-    for p in (a, b):
-        p.write_bytes(b"%PDF-1.4\n")
-    with pytest.raises(bvc.Unresolvable, match="ambiguous"):
-        bvc.pdf_from_sources_used(
-            [f"{a.as_posix()} -- one", f"{b.as_posix()} -- two"], "215197", []
-        )
+def test_an_export_whose_sha_does_not_match_the_file_is_refused(tmp_path):
+    pdf = write_pdf(tmp_path / "d.pdf")
+    export = established(pdf, sha256="0" * 64)
+    with pytest.raises(bvc.Unresolvable, match="not the export this citation was read from"):
+        bvc.resolve_pdf({"joint": {"assembly_drawing": "215197",
+                                   "assembly_export": "run 20260804_114000"}},
+                        {"kind": "drawing", "document": "215197", "export": export},
+                        tmp_path, tmp_path, [tmp_path])
 
 
-def test_a_relative_sources_used_path_is_tried_against_the_given_roots(tmp_path):
-    (tmp_path / "data" / "inbox" / "specs").mkdir(parents=True)
-    pdf = tmp_path / "data" / "inbox" / "specs" / "X.pdf"
-    pdf.write_bytes(b"%PDF-1.4\n")
-    got = bvc.pdf_from_sources_used(
-        ["data/inbox/specs/X.pdf -- sheets 1, 2"], "X.pdf", [tmp_path]
-    )
-    assert got == pdf
+def test_an_export_with_no_sha_is_refused_because_a_filename_is_not_an_export(tmp_path):
+    pdf = write_pdf(tmp_path / "d.pdf")
+    for bad in (None, "", "deadbeef", "z" * 64):
+        export = established(pdf, sha256=bad)
+        with pytest.raises(bvc.Unresolvable, match="no usable sha256"):
+            bvc.resolve_pdf({}, {"kind": "drawing", "document": "x", "export": export},
+                            tmp_path, tmp_path, [tmp_path])
 
 
-def test_a_cited_pdf_that_is_not_on_disk_is_unresolvable(tmp_path):
-    with pytest.raises(bvc.Unresolvable, match="not on disk"):
-        bvc.pdf_from_sources_used(
-            [f"{(tmp_path / 'gone.pdf').as_posix()} -- x"], "gone", []
-        )
+def test_an_unestablished_export_is_unresolvable_and_reports_why(tmp_path):
+    """The honest answer, and it must not be routed around.
 
-
-# --- the joint block is what pins an export -------------------------------
-
-
-def test_a_stack_whose_joint_names_no_export_cannot_be_crop_resolved(tan_link_raw, tmp_path):
-    """The finding this session exists to surface.
-
-    Only ``pitch_link_to_pitch_plate`` fills ``joint.assembly_export``. Every
-    drawing/parts-list citation in the three slice-1 stacks therefore resolves to
-    nothing -- not because the drawing is missing, but because the citation never
-    says *which export* it read. Stable element addresses are the cure.
+    A citation that says its export cannot be established is a *statement*. Any
+    weaker rule that then resolved it would contradict the stack file, so this
+    short-circuits -- note the joint block here would otherwise have matched.
     """
-    assert (tan_link_raw.get("joint") or {}).get("assembly_export") in (None, "")
-    with pytest.raises(bvc.Unresolvable, match="citation names no export"):
+    export = {"status": "unestablished", "pdf": None, "sha256": None, "runs": [],
+              "why": "three candidate exports, nothing records which was read"}
+    with pytest.raises(bvc.Unresolvable, match="unestablished: three candidate exports"):
         bvc.resolve_pdf(
-            tan_link_raw, element(tan_link_raw, "fastener_grip_14")["source_ref"],
-            tmp_path, tmp_path, [],
+            {"joint": {"assembly_drawing": "217755", "assembly_export": "run 20260804_114000"}},
+            {"kind": "drawing", "document": "217755", "export": export},
+            tmp_path, tmp_path, [tmp_path],
         )
+
+
+def test_an_unestablished_export_that_names_a_pdf_is_a_self_contradiction(tmp_path):
+    """The guard the handoff asked for: no unestablished export is ever cropped.
+
+    ``SourceExport.__post_init__`` refuses to construct this, but the crop script
+    reads raw JSON and never the dataclass, so it re-checks rather than trusting
+    that something upstream did.
+    """
+    pdf = write_pdf(tmp_path / "d.pdf")
+    export = {"status": "unestablished", "pdf": pdf.as_posix(),
+              "sha256": bvc.sha256_of(pdf), "runs": [], "why": "..."}
+    with pytest.raises(bvc.Unresolvable, match="contradicts itself"):
+        bvc.resolve_pdf({}, {"kind": "drawing", "document": "x", "export": export},
+                        tmp_path, tmp_path, [tmp_path])
+
+
+def test_an_unknown_export_status_is_unresolvable_not_best_effort(tmp_path):
+    pdf = write_pdf(tmp_path / "d.pdf")
+    export = established(pdf, status="probably")
+    with pytest.raises(bvc.Unresolvable, match="not one of established/unestablished"):
+        bvc.resolve_pdf({}, {"kind": "drawing", "document": "x", "export": export},
+                        tmp_path, tmp_path, [tmp_path])
+
+
+def test_a_repo_relative_export_path_resolves_against_the_main_checkout(tmp_path):
+    pdf = write_pdf(tmp_path / "data" / "inbox" / "drawings" / "212966-006-A.pdf")
+    export = established(pdf, pdf="data/inbox/drawings/212966-006-A.pdf")
+    got = bvc.resolve_pdf({}, {"kind": "drawing", "document": "212966-006", "export": export},
+                          tmp_path, tmp_path, [tmp_path])
+    assert got["pdf"] == pdf
+
+
+def test_an_absolute_drawing_checker_path_is_rerooted_at_the_given_dc_root(tmp_path):
+    """So a stack file still reads on a machine that keeps drawing-checker elsewhere."""
+    dc_root = tmp_path / "elsewhere" / "drawing-checker"
+    pdf = write_pdf(dc_root / "data" / "inbox" / "drawings" / "d.pdf")
+    export = established(
+        pdf, pdf="C:/workspace/drawing-checker/data/inbox/drawings/d.pdf")
+    got = bvc.resolve_pdf({}, {"kind": "drawing", "document": "x", "export": export},
+                          tmp_path, dc_root, [tmp_path])
+    assert got["pdf"] == pdf
+
+
+def test_an_export_naming_a_file_that_is_not_on_disk_is_unresolvable(tmp_path):
+    export = {"status": "established", "pdf": "data/inbox/drawings/gone.pdf",
+              "sha256": "a" * 64, "runs": []}
+    with pytest.raises(bvc.Unresolvable, match="not on disk"):
+        bvc.resolve_pdf({}, {"kind": "drawing", "document": "x", "export": export},
+                        tmp_path, tmp_path, [tmp_path])
+
+
+def test_the_first_named_run_is_reported_but_is_not_what_resolved_the_crop(tmp_path):
+    """``runs`` is corroboration and a pointer to extracted JSON, never identity.
+
+    One export legitimately feeds several runs and some feed none at all (no
+    drawing-checker run has ever consumed the five hub-bearing part drawings), so
+    an absent run directory cannot make an export unresolvable.
+    """
+    pdf = write_pdf(tmp_path / "d.pdf")
+    export = established(pdf, runs=["20260723_163810", "20260727_153847"])
+    got = bvc.resolve_pdf({}, {"kind": "drawing", "document": "x", "export": export},
+                          tmp_path, tmp_path, [tmp_path])
+    assert got["run_id"] == "20260723_163810" and got["run_dir"] is None
+    assert got["sha256_verified"] is True
+
+
+# --- there is no prose fallback any more -----------------------------------
+
+
+def test_the_provenance_sources_used_prose_scan_is_gone():
+    """Removed 2026-08-06, deliberately.
+
+    It resolved exactly one crop, could not sha-verify it, and landed on a copy
+    of 215197 under drawing-checker's ``tests/fixtures/`` rather than the export
+    the stack meant. A resolved count that rises because a rule got looser is a
+    regression; this test exists so the rule cannot quietly come back.
+    """
+    assert not hasattr(bvc, "pdf_from_sources_used")
+    assert not hasattr(bvc, "pdf_paths_in")
+
+
+def test_a_citation_naming_no_export_at_all_is_unresolvable(tmp_path):
+    """Even when ``provenance.sources_used`` spells the PDF out in full."""
+    pdf = write_pdf(tmp_path / "215197.pdf")
+    raw = {"provenance": {"sources_used": [f"{pdf.as_posix()} -- sheet 2 SECTION A-A"]}}
+    with pytest.raises(bvc.Unresolvable, match="citation names no export"):
+        bvc.resolve_pdf(raw, {"kind": "drawing", "document": "215197", "sheet": 2},
+                        tmp_path, tmp_path, [tmp_path])
+
+
+# --- the legacy joint block, kept so a pre-2026-08-06 stack still resolves --
 
 
 def test_the_pitch_link_joint_export_names_two_runs(pitch_link_raw):
@@ -175,13 +276,13 @@ def test_the_pitch_link_joint_export_names_two_runs(pitch_link_raw):
     assert bvc._RUN_ID_RE.findall(export) == ["20260804_114000", "20260803_145243"]
 
 
-def test_a_run_directory_that_is_absent_is_named_in_the_reason(pitch_link_raw, tmp_path):
+def test_a_run_directory_that_is_absent_is_named_in_the_reason(tmp_path):
     (tmp_path / "data" / "runs").mkdir(parents=True)
+    raw = {"joint": {"assembly_drawing": "217755",
+                     "assembly_export": "x.pdf (drawing-checker run 20260804_114000)"}}
     with pytest.raises(bvc.Unresolvable, match="no drawing-checker run directory"):
-        bvc.resolve_pdf(
-            pitch_link_raw, element(pitch_link_raw, "bushing_214820")["source_ref"],
-            tmp_path, tmp_path, [],
-        )
+        bvc.resolve_pdf(raw, {"kind": "parts_list", "document": "217755"},
+                        tmp_path, tmp_path, [])
 
 
 def test_a_pdf_whose_sha_does_not_match_the_run_is_refused(tmp_path):
@@ -263,3 +364,45 @@ def test_needles_are_longest_first_and_deduped():
 def test_center_in_is_the_cell_membership_test():
     assert bvc.center_in((0, 0, 10, 10), (4, 4, 6, 6))
     assert not bvc.center_in((0, 0, 10, 10), (20, 20, 22, 22))
+
+
+# --- the summary: which rule, and was the sha checked ----------------------
+
+
+def test_the_summary_breaks_the_resolved_count_down_by_rule_and_by_sha():
+    """"6 of 48 resolve" got read as six trustworthy crops when two were verified.
+
+    Both facts already sat in every entry and both were easy to skip past, so
+    they are rolled up here: a rise in the resolved count has to be attributable
+    to a rule, and an unverified crop is countable rather than merely inferable.
+    """
+    summary = bvc.resolution_summary(
+        [
+            {"resolved_by": "source_ref_export", "sha256_verified": True},
+            {"resolved_by": "source_ref_export", "sha256_verified": True},
+            {"resolved_by": "spec_pile", "sha256_verified": None},
+            {"resolved_by": "joint_export_run", "sha256_verified": False},
+        ],
+        [{"reason": "citation names no export"}],
+    )
+    assert summary["citations"] == 5
+    assert summary["resolved"] == 4 and summary["unresolvable"] == 1
+    assert summary["by_resolved_by"] == {
+        "joint_export_run": 1, "source_ref_export": 2, "spec_pile": 1}
+    assert summary["sha256_verified"] == {"true": 2, "false": 1, "unverified": 1}
+
+
+def test_the_viewers_two_summary_keys_survive_the_breakdown():
+    """``apps/viewer/viewer.js`` reads ``summary.resolved``/``.unresolvable``.
+
+    That app is another handoff's; the new keys are additions, not a rename.
+    """
+    summary = bvc.resolution_summary([], [])
+    assert summary["resolved"] == 0 and summary["unresolvable"] == 0
+
+
+def test_a_sha_mismatch_is_shouted_in_the_printed_report():
+    lines = bvc.summary_lines(bvc.resolution_summary(
+        [{"resolved_by": "source_ref_export", "sha256_verified": False}], []))
+    assert any("MISMATCHED" in line for line in lines)
+    assert any("1  source_ref_export" in line for line in lines)

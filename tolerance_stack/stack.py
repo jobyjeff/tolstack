@@ -64,17 +64,108 @@ SCHEMA_CHECK = "joby.tolerance_stack/check_result/v0"
 # ---------------------------------------------------------------------------
 
 
+SHA256_HEX_LEN = 64
+
+EXPORT_STATUSES = ("established", "unestablished")
+
+
+@dataclass(frozen=True)
+class SourceExport:
+    """*Which export* of the cited document was read -- the file, by its bytes.
+
+    A drawing number and a printed zone are not an address. ``217755`` has six
+    exports on disk and a printed zone is **not stable between exports of the
+    same revision**: DETAIL B of sheet 4 prints at ``I6`` on the 2026-JUL-23 POST
+    export and at ``H3`` on the 2026-AUG-3 one, same revision, both citations
+    correct for their own file. So a citation that names no export names a
+    location on *some* PDF, and neither a tool nor a human can re-find it without
+    guessing -- and a guess renders the wrong revision's geometry while looking
+    perfectly correct. Added 2026-08-06 by handoff ``citation_export_provenance``.
+
+    Identity is ``sha256``, not the filename and not the ``runs``. Filenames get
+    re-used (Jeff re-exports over them); one export legitimately feeds several
+    drawing-checker runs (``[PRELIM 2026-AUG-3] 217755`` feeds two) and some feed
+    **none at all** (the five hub-bearing part drawings were read straight off
+    the PDF -- no run exists for any of them), so a run id can never be an
+    export's identity. Only the bytes can.
+
+    Two statuses, and the difference is the whole point:
+
+    * ``established`` -- ``pdf`` and ``sha256`` are both required. ``runs`` lists
+      the drawing-checker run ids whose recorded input sha256 equals this one:
+      corroboration and a pointer to extracted JSON, never the identity.
+    * ``unestablished`` -- ``why`` is required and ``pdf``/``sha256``/``runs``
+      must stay empty. **An unresolvable citation is honest; a wrong one is
+      not**, so there is a first-class way to say "the export cannot be
+      established" and it is enforced here rather than left to prose:
+      constructing an ``unestablished`` export that also carries a concrete
+      ``pdf`` or ``sha256`` raises.
+
+    This is a **sibling** of ``element_id``/``run_id``, not a filling-in of them.
+    Those two remain the *feature-identity* slot -- a stable extracted-element
+    address that makes a human zone reading unnecessary -- and their ``run_id``
+    means "the run that produced the extracted element", a different claim from
+    "the run that consumed the PDF I read by eye". Overloading it would also
+    destroy the "not yet wired" vs "wired to nothing" signal a test pins. See
+    ``docs/sessions/lessons/LESSONS_20260806_citation_export_provenance.md``.
+    """
+
+    status: str                      # established | unestablished
+    pdf: Optional[str] = None        # path as cited: repo-relative for this repo's
+                                     # data/, absolute for drawing-checker's
+    sha256: Optional[str] = None     # 64 hex chars -- the export's identity
+    runs: Sequence[str] = ()         # drawing-checker run ids with this input sha
+    why: Optional[str] = None        # required when unestablished
+    note: Optional[str] = None       # how the export was established
+
+    def __post_init__(self) -> None:
+        if self.status not in EXPORT_STATUSES:
+            raise ValueError(
+                f"export status must be one of {EXPORT_STATUSES}, got {self.status!r}")
+        if self.status == "established":
+            if not self.pdf:
+                raise ValueError("an established export must name a pdf")
+            sha = (self.sha256 or "").lower()
+            if len(sha) != SHA256_HEX_LEN or any(c not in "0123456789abcdef" for c in sha):
+                raise ValueError(
+                    f"an established export must carry a {SHA256_HEX_LEN}-hex sha256, "
+                    f"got {self.sha256!r}")
+        else:
+            # The guard this class exists for: no unestablished export ever
+            # carries a concrete one's fields.
+            for name in ("pdf", "sha256"):
+                if getattr(self, name):
+                    raise ValueError(
+                        f"an unestablished export must not name a {name} -- "
+                        f"say why it cannot be established instead")
+            if list(self.runs):
+                raise ValueError("an unestablished export must not name runs")
+            if not self.why:
+                raise ValueError("an unestablished export must say why")
+
+    @property
+    def established(self) -> bool:
+        return self.status == "established"
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "SourceExport":
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        known["runs"] = tuple(known.get("runs") or ())
+        return cls(**known)
+
+
 @dataclass(frozen=True)
 class SourceRef:
     """Where a value came from.
 
     The drawing coordinates (``document``/``sheet``/``zone``) are the minimum a
-    human needs to re-find the value. ``element_id`` + ``run_id`` are the slot
-    for feature identity: once extraction addresses a dimension stably, a stack
-    element cites the extracted element instead of a human reading, and a
-    re-exported drawing can re-run the stack with no re-transcription. Slice 1
-    leaves them ``None`` everywhere -- the door is open, nothing walks through
-    it yet.
+    human needs to re-find the value **on a named export** -- see
+    :class:`SourceExport`, which every ``drawing``/``parts_list`` citation
+    carries. ``element_id`` + ``run_id`` are the slot for feature identity: once
+    extraction addresses a dimension stably, a stack element cites the extracted
+    element instead of a human reading, and a re-exported drawing can re-run the
+    stack with no re-transcription. Slice 1 leaves them ``None`` everywhere --
+    the door is open, nothing walks through it yet.
     """
 
     # spec = a file in data/inbox/specs/ (document = filename, sheet = page);
@@ -87,6 +178,9 @@ class SourceRef:
     view: Optional[str] = None      # e.g. "DETAIL B", "SECTION A-A"
     cell: Optional[str] = None      # workbook cell, e.g. "E7"
     callout: Optional[str] = None   # the text as it reads on the drawing
+    # which export of `document` was read -- mandatory for drawing/parts_list,
+    # optional for spec (the pile is append-only, so a filename is bytes).
+    export: Optional[SourceExport] = None
     element_id: Optional[str] = None  # future: stable extracted-element address
     run_id: Optional[str] = None      # future: pipeline run that produced it
     confidence: str = "untraced"    # traced | inferred | untraced
@@ -94,7 +188,11 @@ class SourceRef:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SourceRef":
-        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        export = known.get("export")
+        if isinstance(export, dict):
+            known["export"] = SourceExport.from_dict(export)
+        return cls(**known)
 
 
 # ---------------------------------------------------------------------------

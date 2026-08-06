@@ -97,6 +97,17 @@
         "sheet": 2,
         "zone": "D10",
         "callout": "5X 4.06 ±0.10",
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
+          "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
+          "runs": [
+            "20260409_170546",
+            "20260409_172341",
+            "20260730_133912"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This is the ONLY export of 215197 anywhere in the workspace: all three drawing-checker runs of it record this same sha256 in data/runs.jsonl, 20260730_133912's 215197_A_p01.json records source_pdf '[PRELIM 2025-MAY-22] 215197 A.1.pdf', and no other 215197 PDF exists in drawing-checker's inbox or fixtures. Unlike 217755 (six exports on disk), 'which export' has a unique answer here. This element's own note, unlike its tan_link sibling's, does not name the export it was read on -- so the basis here is uniqueness (there is only one 215197 export for 'sheet 2 zone D10' to refer to), not a written record of the reading."
+        },
         "confidence": "inferred",
         "note": "215197 carries TWO 4.06 ±0.10 callouts: '5X 4.06 ±0.10' at sheet 2 zone D10 (perpendicularity 0.05 G, 5X INDIVIDUALLY) and a single '4.06 ±0.10' at sheet 1 zone D5 (positional 0.2 A B C, datum D). The workbook's 3.96/4.16 matches both. This joint is qty 1, which argues for the sheet-1 D5 callout; the tolerance alone cannot decide. Separately, DETAIL X balloons the VPA (1) against the TANGENTIAL LINK MOUNT 215175-002 (72), not the pitch plate 215177-001 -- so 215197 may be the wrong part entirely for this flange."
       }
@@ -120,6 +131,18 @@
         "sheet": 5,
         "view": "DETAIL X",
         "callout": "MS21299C4K WASHER, COUNTERSUNK, 17-4PH, .253\" X .491\" X .063\" (find 29, qty 1)",
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+          "sha256": "d0f1b50fa069f42e52f73a9d5f2d1bcbccac0651fee453c9c605e01bd7864a3f",
+          "runs": [
+            "20260723_163810",
+            "20260727_153847",
+            "20260730_131903",
+            "20260730_132230"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance, confirmed not assumed. hardware_entries.json's provenance.parts_list_run names run 20260723_163810; that run's own 217755_A_balloons.json records source_pdf '[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf' (a contemporaneous record, written by the run), and data/runs.jsonl records the same file and this sha256 as its input. Independently corroborated by this stack's joint.zone_note, which says the cited zone is the one printed on the 2026-JUL-23 POST export. The file still hashes to this sha (mtime 2026-07-23T23:38:10Z, unchanged since the run)."
+        },
         "confidence": "traced",
         "note": "Balloon 29 in DETAIL X. Thickness .063 in confirms the workbook value; the +/-.006 in band is untraced (MS21299 spec absent from this repo)."
       }
@@ -141,6 +164,18 @@
         "sheet": 5,
         "view": "DETAIL X",
         "callout": "NAS6404U13D BOLT, HEX HEAD, 6Al-4V, .250\"-28 X .812\" GRIP .1875\" LONG (find 27, qty 1)",
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+          "sha256": "d0f1b50fa069f42e52f73a9d5f2d1bcbccac0651fee453c9c605e01bd7864a3f",
+          "runs": [
+            "20260723_163810",
+            "20260727_153847",
+            "20260730_131903",
+            "20260730_132230"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance, confirmed not assumed. hardware_entries.json's provenance.parts_list_run names run 20260723_163810; that run's own 217755_A_balloons.json records source_pdf '[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf' (a contemporaneous record, written by the run), and data/runs.jsonl records the same file and this sha256 as its input. Independently corroborated by this stack's joint.zone_note, which says the cited zone is the one printed on the 2026-JUL-23 POST export. The file still hashes to this sha (mtime 2026-07-23T23:38:10Z, unchanged since the run)."
+        },
         "confidence": "traced",
         "note": "Balloon 27 in DETAIL X. The .812 in grip matches the workbook exactly; the +/-.010 in is untraced (NAS6404 spec absent)."
       }

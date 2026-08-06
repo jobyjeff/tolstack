@@ -79,6 +79,13 @@
         "callout": "⌀ 202.140 ±0.015",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/212966-006-A.pdf",
+          "sha256": "b0c19da5a8cf992bf3ae31c3b589edb14e1d68347617964f2f847b0c219d0d6b",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 212966-006 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Read on data/inbox/drawings/212966-006-A.pdf. Printed border zone (A-H x 1-12). Datum B, with cylindricity 0.02 and ⊥⌀0.015 A. The workbook's C13/D13/E13 carry the identical value and band, so this element does not drift across 212966-005 -> -006. Adjacent features not modelled: ⌓⌀203.57±0.25 X 90°±2° chamfer, ⌀214.055±0.015."
       },
@@ -106,6 +113,13 @@
         "callout": "⌀ 200.000 ±0.025",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214955-004-A.pdf",
+          "sha256": "1dd02be3e2f6bc5e8cab36e5a7d0cb233b6df48b0e0a89f0f7dd4b27324a1544",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214955-004 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Read on data/inbox/drawings/214955-004-A.pdf. Datum B, with ⊥⌀0.02 A. Identical to the workbook's C17 and its ±0.025 (D16/E16), so this element does not drift across 214955-003 -> -004. The workbook's O16 comment records that the ±0.025 was itself a change 'to match drawing (250617 stack had +/-.015)' -- so a previous version of this analysis used a tighter band than the part carries."
       },
@@ -133,6 +147,13 @@
         "callout": "1.190 ±0.025",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214955-004-A.pdf",
+          "sha256": "1dd02be3e2f6bc5e8cab36e5a7d0cb233b6df48b0e0a89f0f7dd4b27324a1544",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214955-004 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Read on data/inbox/drawings/214955-004-A.pdf, and CONFIRMED BY CROP, not by the text layer alone: 1.190 ±0.025 and 1.110 ±0.035 sit side by side on this sheet and only the rendered geometry shows that the first is the radial wall of the cylindrical section and the second is the AXIAL thickness of the flange. DRIFT: the workbook's C15 is 1.18, 0.010 thinner. This element takes the drawing."
       },
@@ -160,6 +181,13 @@
         "callout": "⌀ 200.000 0.000 / -0.020",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214589-002-A.pdf",
+          "sha256": "994f316665c82b6fe73c9b6f0c7affeca3e3692fc9d441f8404c2f646b9cc991",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214589-002 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Read on data/inbox/drawings/214589-002-A.pdf. Source control drawing, NSK 7832ASN24TSUP0P6U1, ISO class 6 tolerance. The band 199.980-200.000 matches the workbook's D24/E24 exactly. NOMINAL DIFFERS: this element's nominal is the drawing's basic size 200.000 (= MMC), where the workbook's C24 transcribes 199.980 (= LMC). Both sit inside the band; the workbook's choice makes its nominal COLUMN the loose end for this feature, which is worth knowing when comparing columns."
       },
@@ -187,6 +215,13 @@
         "callout": "⌀ 132.073 ±0.017",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/212966-006-A.pdf",
+          "sha256": "b0c19da5a8cf992bf3ae31c3b589edb14e1d68347617964f2f847b0c219d0d6b",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 212966-006 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Read on data/inbox/drawings/212966-006-A.pdf. Printed border zone. Total runout 0.025 to A B; surface finish Ra 0.8 called out on the bore; chamfer ⌓⌀134.07±0.25 X 90°±5°. Identical to the workbook's C31 and ±0.017."
       },
@@ -214,6 +249,13 @@
         "callout": "⌀ 129.968 ±0.025",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214959-002-A.pdf",
+          "sha256": "f9eac183a4b4176275e28f930483261e48b8430b77096714027502c876a007ef",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214959-002 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Read on data/inbox/drawings/214959-002-A.pdf. Carries ⊥⌀0.02 A. Printed in a highlight colour on this sheet, unlike every other dimension on it -- observed, not interpreted; whether that marks a critical characteristic or a revision is not established and is listed as a gap. Identical to the workbook's C35 and ±0.025."
       },
@@ -241,6 +283,13 @@
         "callout": "1.110 ±0.025",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214959-002-A.pdf",
+          "sha256": "f9eac183a4b4176275e28f930483261e48b8430b77096714027502c876a007ef",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214959-002 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Read on data/inbox/drawings/214959-002-A.pdf, confirmed by crop: the dimension measures the radial thickness of the cylindrical wall, with the part's axis vertical in that view and (19.63) its axial length. Identical to the workbook's C33 and ±0.025 -- the upper sleeve did NOT change between M1 and M2."
       },
@@ -268,6 +317,13 @@
         "callout": "⌀ 130.000 0.000 / -0.009",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214588-002-A.pdf",
+          "sha256": "1943ac920776d129b80c3419fabc7f34a9e4aa71c8f5987112686156dd7793d7",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214588-002 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Read on data/inbox/drawings/214588-002-A.pdf. Source control drawing, NSK 7919A5SN24TRV1VSUP0P4U1, ISO class 4 tolerance -- tighter than the lower bearing's class 6, and the band 129.991-130.000 is correspondingly less than half as wide. Matches the workbook's D42/E42 exactly, and here the workbook's nominal C42 = 130.000 agrees with the drawing's basic size too."
       },

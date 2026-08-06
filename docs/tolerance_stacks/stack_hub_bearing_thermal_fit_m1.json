@@ -155,6 +155,13 @@
         "callout": "⌀ 200.000 0.000 / -0.020",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214589-002-A.pdf",
+          "sha256": "994f316665c82b6fe73c9b6f0c7affeca3e3692fc9d441f8404c2f646b9cc991",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214589-002 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Same part in both configurations -- the bearings did not change. Read on data/inbox/drawings/214589-002-A.pdf. Matches the workbook's D24/E24 exactly; nominal taken as the drawing's basic size 200.000 where the workbook's C24 uses 199.980."
       },
@@ -209,6 +216,13 @@
         "callout": "⌀ 129.968 ±0.025",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214959-002-A.pdf",
+          "sha256": "f9eac183a4b4176275e28f930483261e48b8430b77096714027502c876a007ef",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214959-002 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "The upper sleeve is the SAME PART in both configurations -- the workbook's O32 comment names 214959-002 on both sheets -- so the M2 stack's drawing citation applies unchanged here. Read on data/inbox/drawings/214959-002-A.pdf. Carries ⊥⌀0.02 A."
       },
@@ -236,6 +250,13 @@
         "callout": "1.110 ±0.025",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214959-002-A.pdf",
+          "sha256": "f9eac183a4b4176275e28f930483261e48b8430b77096714027502c876a007ef",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214959-002 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Same part, same drawing, both configurations. Confirmed by crop that the dimension is the radial wall. Identical to the workbook's C33 and its band."
       },
@@ -263,6 +284,13 @@
         "callout": "⌀ 130.000 0.000 / -0.009",
         "element_id": null,
         "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/drawings/214588-002-A.pdf",
+          "sha256": "1943ac920776d129b80c3419fabc7f34a9e4aa71c8f5987112686156dd7793d7",
+          "runs": [],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This repo's own copy, taken 2026-08-05 by handoff hub_bearing_thermal_stack from drawing-checker's inbox; data/inbox/drawings/PROVENANCE.md recorded this sha256 for 214588-002 at copy time and the file still hashes to it (mtime 2026-08-05, unchanged since the stack was written). No drawing-checker run has ever consumed this PDF -- the value was read straight off the file, so `runs` is empty by fact, not by omission."
+        },
         "confidence": "traced",
         "note": "Same part in both configurations. Read on data/inbox/drawings/214588-002-A.pdf. ISO class 4. Matches the workbook's C42/D42/E42 exactly, nominal included."
       },
