@@ -117,9 +117,21 @@ because it is the *trace target* for stack elements — it belongs with the stac
 that cite it. **Append-only from now on**; see `data/inbox/specs/README.md`.
 
 Those two numbers pin the **move**, not the current contents. The pile has since
-grown — 64 files / 249,105,891 bytes on 2026-08-05, including `MS9363 Rev C.pdf`
-and five hub-bearing drawings — which is append-only working as intended, not a
+grown — **64 files / 249,106,379 bytes**, re-counted 2026-08-05 by
+`hub_bearing_thermal_stack` — which is append-only working as intended, not a
 falsified row. Count it before quoting it.
+
+**Correction, 2026-08-05** (`hub_bearing_thermal_stack`): the previous wording of
+this paragraph said the pile included "`MS9363 Rev C.pdf` and five hub-bearing
+drawings". `MS9363 Rev C.pdf` is there; the **five hub-bearing drawings are
+not** — Jeff dropped those into drawing-checker's
+`data\inbox\drawings\`, and they were copied into this repo's *own* new
+`data/inbox/drawings/` stream, not into `specs/`. An `ls` of `specs/` returns no
+`212966` / `214955` / `214959` / `214588` / `214589`. The byte count in the same
+sentence was also 488 bytes stale. Both halves were written one day before the
+drawings existed here, which is the recurring-bug class the review checklist
+names: **an inventory number or contents claim written from expectation rather
+than from a count.** Recount, don't read.
 
 Note for anyone auditing drawing-checker's data tree: that folder was
 **untracked**, not gitignored. The founding handoff described both sides as

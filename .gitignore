@@ -40,6 +40,10 @@ data/inbox/specs/*
 data/inbox/tolerance_stacks/*
 !data/inbox/tolerance_stacks/.gitkeep
 !data/inbox/tolerance_stacks/PROVENANCE.md
+!data/inbox/drawings/
+data/inbox/drawings/*
+!data/inbox/drawings/.gitkeep
+!data/inbox/drawings/PROVENANCE.md
 data/runs/*
 !data/runs/.gitkeep
 data/runs.jsonl
