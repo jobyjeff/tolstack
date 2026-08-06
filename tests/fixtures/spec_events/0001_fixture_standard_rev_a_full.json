@@ -1,0 +1,45 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "fixture-0001-full",
+  "seq": 1,
+  "mode": "full",
+  "document": "FIXTURE-0001 Example Standard Rev A.pdf",
+  "parsed_at": "2026-08-05",
+  "parser": {"name": "agent-manual", "version": "v0", "agent": "test fixture"},
+  "document_meta": {
+    "title": "SYNTHETIC. Not a real standard and not in data/inbox/specs/.",
+    "why": "The committed event log holds no correction, because re-reading found no error. The correction path still has to be tested, and a tested-by-fixture path is the difference between the first real correction landing on tried code and on untried code. These numbers are invented; the shapes are not."
+  },
+  "entries": [
+    {
+      "subject": "FIXTURE-0001-09",
+      "subject_kind": "part_number",
+      "values": {
+        "nut_height": {
+          "nominal": 0.188,
+          "min": 0.178,
+          "max": 0.198,
+          "at": {"sheet": 1, "table": "TABLE I", "row": "-09", "column": "H"},
+          "confidence": "traced"
+        },
+        "slot_width": {
+          "nominal": 0.08,
+          "min": 0.073,
+          "max": 0.088,
+          "at": {"sheet": 1, "table": "TABLE I", "row": "-09", "column": "S"},
+          "confidence": "traced"
+        }
+      },
+      "absences": [
+        {"name": "slot_phase", "why": "not controlled by this fixture", "closed_by": null}
+      ],
+      "unreadable": [
+        {
+          "name": "material_spec",
+          "what_it_looks_like": "AMS 57xx",
+          "crop": {"pdf_page": 2, "rect": [1, 2, 3, 4], "zoom": 16}
+        }
+      ]
+    }
+  ]
+}
