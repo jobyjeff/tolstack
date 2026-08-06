@@ -1,0 +1,331 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "20260805-nas6403-nas6420-rev4-agentmanual-v0",
+  "seq": 1,
+  "mode": "full",
+  "document": "NAS6403-NAS6420 Rev 4.pdf",
+  "parsed_at": "2026-08-05",
+  "parser": {
+    "name": "agent-manual",
+    "version": "v0",
+    "agent": "handoff spec_library_v0",
+    "recipe": "No text layer (page.get_text() returns empty on all four pages). Rendered with PyMuPDF from drawing-checker's venv-win: get_pixmap(Matrix(2.2)) per page to locate the tables, then Matrix(6) with a clip on the specific table rows and on the sheet-1 figure. The embedded scan is 1696x2340 px for a 611x842 pt page, so zoom 2.78 is the resolution ceiling -- renders above it are interpolation, not information."
+  },
+  "document_meta": {
+    "title": "BOLT, HEX HEAD, CLOSE TOLERANCE, 6AL-4V TITANIUM ALLOY, SELF-LOCKING AND NONLOCKING",
+    "designation": "NAS6403 thru NAS6420",
+    "issuer": "National Aerospace Standard / Aerospace Industries Association of America",
+    "revision": "4",
+    "approval_date": "7 November 1980 (revision 4); December 1968 original",
+    "fed_sup_class": "5305",
+    "sheets_named_by_the_document": [1, 2, 3, 4, 5],
+    "sheets_present_in_the_file": [1, 2, 3, 4],
+    "sheet_revisions_per_sheet_1_LIST_OF_CURRENT_SHEETS": {"1": "4", "2": "2", "3": "NEW", "4": "2", "5": "3"},
+    "completeness_warning": "Sheet 5 of 5 is MISSING from this file. Nothing extracted here lives on sheet 5, but no consumer may assume this document is complete."
+  },
+  "entries": [
+    {
+      "subject": "NAS6403 thru NAS6420",
+      "subject_kind": "family",
+      "note": "Criteria and definitions that apply across the whole standard, separated from the per-part-number dimensions so a stack citing one bolt does not have to re-read the family rules. Columns J and N are printed in the sheet-1 table and are never defined in words anywhere in the document; they were deliberately NOT extracted rather than guessed. N is also printed with the SMALLER value on top (.18 over .20 for NAS6403), the opposite of every other two-value column on that sheet, which is a second reason not to assume its meaning.",
+      "values": {
+        "part_number_code": {
+          "text": "Dash number indicates grip in .0625 increments. Add \"A\" after basic part number for aluminum coating. Add \"D\" after dash number for drilled shank. Add \"H\" after dash number for drilled head. Add \"L\" after basic part number for self-locking bolts, optional configuration. Add \"U\" after basic part number for unplated bolts. Add \"P\" after basic part number for self-locking bolts, patch type.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "CODE block"},
+          "confidence": "traced",
+          "note": "This is what settles, FROM THE PART NUMBER ALONE, that NAS6403U11D is an unplated, drilled-shank bolt -- i.e. that the joint it appears in is cotter-retained through the shank. No drawing is needed for that claim."
+        },
+        "grip_increment": {
+          "nominal": 0.0625,
+          "at": {"sheet": 2, "pdf_page": 2, "note": "CODE block; restated in the sheet-3 footnote"},
+          "confidence": "traced",
+          "note": "Sheet 3 footnote: \"Nominal grip dimension equals grip dash number times .0625 (rounded to 3 decimal places).\" Checks: dash 11 -> .6875 -> .688 tabulated; dash 13 -> .8125 -> .812 tabulated."
+        },
+        "grip_definition": {
+          "text": "Grip-length of bolts shall be measured from the underside of head to the end of the full cylindrical portion of the shank.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "note (a)"},
+          "confidence": "traced",
+          "note": "The definition the sheet-3 grip column tabulates. A stack element for grip means THIS length and no other."
+        },
+        "reference_dimension_meaning": {
+          "text": "Reference dimensions are for design purposes only, not an inspection requirement.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "note (b)"},
+          "confidence": "traced",
+          "note": "What makes T a reference: it is not independently controlled, so folding a band on T alongside bands on grip and length double-counts."
+        },
+        "nominal_length_rule": {
+          "text": "Intermediate and longer lengths may be specified by use of whole grip dash numbers only. Nominal grip dimension equals grip dash number times .0625 (rounded to 3 decimal places). Nominal length equals nominal grip plus \"T\" (see Sheet 1).",
+          "at": {"sheet": 3, "pdf_page": 3, "note": "footnote beneath the grip/length table"},
+          "confidence": "traced",
+          "note": "New in this reading; the pitch_link session did not record it. It states in words that length and grip are NOT independent at nominal -- length is DEFINED as grip + T. The two are still toleranced separately (grip +/-.010, length +/-.015), so a worst-case fold that varies both independently overstates the real spread. This is the document text behind pitch_link worksheet finding F5."
+        },
+        "cotter_hole_centerline_tolerance": {
+          "text": "Cotter pin hole centerline: Within .010 and normal within 2 degrees of bolt centerline.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "note (j)"},
+          "confidence": "traced"
+        },
+        "washer_face_diameter_rule": {
+          "text": "Washer face diameter: Max not to exceed actual width across flats, min as tabulated.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "note (k)"},
+          "confidence": "traced",
+          "note": "Why the sheet-1 table prints only \"E Dia Min\": the maximum is not a number, it is a relation to the as-built hex."
+        },
+        "thread_form": {
+          "text": "UNJF-3A threads per MIL-S-8879 except for reduction of thread major diameter per \"TD\".",
+          "at": {"sheet": 1, "pdf_page": 1, "figure": "bolt side view, leader at the threaded end"},
+          "confidence": "traced",
+          "note": "MIL-S-8879 is not in data/inbox/specs/. It is the document that would close the thread run-out absence below -- and MS9363 sheet 2 requirement 2 invokes the same standard for the mating nut, so one acquisition closes both sides of the joint."
+        },
+        "material": {
+          "text": "6AL-4V Titanium Alloy per AMS 4928 or AMS 4967. Locking element - Plastic per MIL-F-18240 and QPL18240.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "MATERIAL"},
+          "confidence": "traced"
+        },
+        "heat_treat": {
+          "text": "160 to 180 KSI ultimate tensile, 95 KSI minimum ultimate shear",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "HEAT TREAT"},
+          "confidence": "traced"
+        },
+        "bearing_surface_squareness": {
+          "text": "Bearing surface squareness: Within .003 TIR of shank diameter.",
+          "at": {"sheet": 2, "pdf_page": 2, "note": "note (c)"},
+          "confidence": "traced"
+        }
+      },
+      "absences": [
+        {
+          "name": "thread_runout_length",
+          "why": "The standard dimensions grip (underside of head to the end of the full cylindrical shank, note (a)) and length (to the point), and prints T (Ref) between them, but it never dimensions the transition from full shank to full thread. Four sheets read; it is not there.",
+          "closed_by": "MIL-S-8879 (the thread form sheet 1 invokes) -- not in data/inbox/specs/"
+        },
+        {
+          "name": "thread_length",
+          "why": "No thread-length column and no threaded-length dimension on the sheet-1 figure. X and Y are locking-element regions (notes (g) and (h)), not the thread length.",
+          "closed_by": "MIL-S-8879, or the procurement specification NAS4004"
+        }
+      ]
+    },
+    {
+      "subject": "NAS6403U11D",
+      "subject_kind": "part_number",
+      "note": "Basic NAS6403 (.1900-32), unplated (\"U\"), grip dash 11, drilled shank (\"D\"). Per-basic-number values come from the sheet-1 dimension table row NAS6403; per-dash values from the sheet-3 grip/length table row 11. The part-number suffixes are what select WHICH column of sheet 1 applies -- \"U\" selects the unplated D-diameter column, \"D\" makes the optional drill P mandatory.",
+      "values": {
+        "grip": {
+          "nominal": 0.688,
+          "plus_minus": 0.01,
+          "units": "in",
+          "at": {"sheet": 3, "pdf_page": 3, "table": "grip and length", "row": "grip dash no. 11", "column": "Grip +/-.010", "callout": ".688"},
+          "confidence": "traced",
+          "note": "The tolerance is the printed column header \"Grip +/-.010\", not a computed midpoint. Meaning per family value grip_definition (sheet 2 note (a))."
+        },
+        "length": {
+          "nominal": 1.011,
+          "plus_minus": 0.015,
+          "units": "in",
+          "at": {"sheet": 3, "pdf_page": 3, "table": "grip and length", "row": "grip dash no. 11", "column": "NAS6403 .1900-32", "callout": "1.011", "note": "block header: LENGTH +/-.015 (See Note Below)"},
+          "confidence": "traced",
+          "note": "Not independent of grip: 1.011 - .688 = .323 = T exactly, per the family nominal_length_rule."
+        },
+        "T_ref": {
+          "nominal": 0.323,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "T (Ref) (5)", "callout": ".323"},
+          "confidence": "traced",
+          "note": "Reference dimension (family reference_dimension_meaning). Carries no tolerance of its own."
+        },
+        "cotter_hole_to_point": {
+          "max": 0.174,
+          "min": 0.154,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "M", "callout": ".174 / .154"},
+          "confidence": "traced",
+          "note": "MEANING CONFIRMED BY THIS READING, which the pitch_link session asked a second reader to do (it could only mark M's meaning as read off the figure). On the sheet-1 figure the M dimension terminates on two extension lines: the left one is the long vertical line that runs down through the shank to the drilled cotter hole (its centerline), the right one is the point end face. So M is cotter-hole centerline to point. Rendered at Matrix(14) on the pt rect [340,108,400,185] to separate it from the neighbouring X, Y and U extension lines. The standard still never defines M in words."
+        },
+        "cotter_hole_dia": {
+          "max": 0.08,
+          "min": 0.07,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "P", "callout": ".080 / .070"},
+          "confidence": "traced",
+          "note": "Sheet-1 figure: \"Drill P (j) when specified by part number chamfer optional, Csk optional\". The \"D\" suffix is what specifies it (family part_number_code)."
+        },
+        "shank_dia": {
+          "max": 0.1895,
+          "min": 0.189,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "D Dia / Unplated", "callout": ".1895 / .1890"},
+          "confidence": "traced",
+          "note": "The \"U\" in the part number selects this column. The plated columns of the same row read .1887/.1881 (before) and .1895/.1885 (after) -- citing the wrong one is a silent 0.6 thou error."
+        },
+        "thread_major_dia_reduced": {
+          "max": 0.184,
+          "min": 0.181,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "TD", "callout": ".1840 / .1810"},
+          "confidence": "traced",
+          "note": "TD is the reduced thread major diameter the figure's thread-form note excepts from MIL-S-8879."
+        },
+        "head_height": {
+          "max": 0.125,
+          "min": 0.11,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "H", "callout": ".125 / .110"},
+          "confidence": "traced"
+        },
+        "head_across_flats": {
+          "max": 0.376,
+          "min": 0.367,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "C", "callout": ".376 / .367"},
+          "confidence": "traced"
+        },
+        "head_across_corners_min": {
+          "min": 0.41,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "second table (U/W/X/Y/AA/BB/CC)", "row": "NAS6403", "column": "W Min", "callout": ".410"},
+          "confidence": "traced"
+        },
+        "washer_face_dia_min": {
+          "min": 0.335,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "E Dia Min", "callout": ".335"},
+          "confidence": "traced",
+          "note": "Max is not tabulated by design -- family washer_face_diameter_rule (note (k)) makes it a relation to the as-built width across flats."
+        },
+        "lockwire_hole_dia": {
+          "max": 0.056,
+          "min": 0.046,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6403", "column": "K Dia", "callout": ".056 / .046"},
+          "confidence": "traced",
+          "note": "The drilled-HEAD lockwire holes (\"Drill K hole(s) within .010 of center of hex flats when specified by part number\"), i.e. the \"H\" suffix -- NOT the shank cotter hole, which is P. NAS6403U11D has no H suffix, so this bolt has no K holes; the value is recorded because the two hole diameters are one column apart and easy to swap."
+        },
+        "point_chamfer_U_max": {
+          "max": 0.039,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "second table (U/W/X/Y/AA/BB/CC)", "row": "NAS6403", "column": "U Max", "callout": ".039"},
+          "confidence": "inferred",
+          "note": "MEANING NOT CONFIRMED. The standard never defines U in words; on the figure U is dimensioned against the point end face, beside the leader reading \"Point shall be flat and chamfered. See Procurement specifications for details.\", so it reads as the point chamfer/flat. Same class as M, but unlike M the extension lines do not settle it. Flagged for a third reader."
+        }
+      },
+      "absences": [
+        {
+          "name": "thread_runout_length",
+          "why": "See the family absence of the same name. This is the element the pitch_link stack could not source and the slice-1 stack filled with an uncited 1/16 in rule of thumb.",
+          "closed_by": "MIL-S-8879 -- not in data/inbox/specs/"
+        }
+      ]
+    },
+    {
+      "subject": "NAS6404U13D",
+      "subject_kind": "part_number",
+      "note": "Basic NAS6404 (.2500-28), unplated, grip dash 13, drilled shank. The VPA joint's fastener. Row 9 of the pitch_link intake queue: the document was already in the pile and this row of the table sits four rows below the one that session read.",
+      "values": {
+        "grip": {
+          "nominal": 0.812,
+          "plus_minus": 0.01,
+          "units": "in",
+          "at": {"sheet": 3, "pdf_page": 3, "table": "grip and length", "row": "grip dash no. 13", "column": "Grip +/-.010", "callout": ".812"},
+          "confidence": "traced"
+        },
+        "length": {
+          "nominal": 1.182,
+          "plus_minus": 0.015,
+          "units": "in",
+          "at": {"sheet": 3, "pdf_page": 3, "table": "grip and length", "row": "grip dash no. 13", "column": "NAS6404 .2500-28", "callout": "1.182", "note": "block header: LENGTH +/-.015 (See Note Below)"},
+          "confidence": "traced",
+          "note": "1.182 - .812 = .370 = T, per the family nominal_length_rule."
+        },
+        "T_ref": {
+          "nominal": 0.37,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "T (Ref) (5)", "callout": ".370"},
+          "confidence": "traced"
+        },
+        "cotter_hole_to_point": {
+          "max": 0.18,
+          "min": 0.16,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "M", "callout": ".180 / .160"},
+          "confidence": "traced",
+          "note": "Same meaning as NAS6403's M, confirmed on the shared figure."
+        },
+        "cotter_hole_dia": {
+          "max": 0.086,
+          "min": 0.076,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "P", "callout": ".086 / .076"},
+          "confidence": "traced",
+          "note": "READ WITH CARE: the P cell is MERGED across the NAS6404 and NAS6405 rows and is printed on the boundary between them, so it sits visually closer to NAS6405. Confirmed at Matrix(6) on the pt rect [98,250,545,315]. R Rad .020/.010 is merged the same way."
+        },
+        "shank_dia": {
+          "max": 0.2495,
+          "min": 0.249,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "D Dia / Unplated", "callout": ".2495 / .2490"},
+          "confidence": "traced"
+        },
+        "thread_major_dia_reduced": {
+          "max": 0.244,
+          "min": 0.241,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "TD", "callout": ".2440 / .2410"},
+          "confidence": "traced"
+        },
+        "head_height": {
+          "max": 0.14,
+          "min": 0.125,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "H", "callout": ".140 / .125"},
+          "confidence": "traced"
+        },
+        "head_across_flats": {
+          "max": 0.439,
+          "min": 0.429,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "C", "callout": ".439 / .429"},
+          "confidence": "traced"
+        },
+        "head_across_corners_min": {
+          "min": 0.48,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "second table (U/W/X/Y/AA/BB/CC)", "row": "NAS6404", "column": "W Min", "callout": ".480"},
+          "confidence": "traced"
+        },
+        "washer_face_dia_min": {
+          "min": 0.398,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "E Dia Min", "callout": ".398"},
+          "confidence": "traced"
+        },
+        "head_fillet_radius": {
+          "max": 0.02,
+          "min": 0.01,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "BASIC NUMBER dimensions", "row": "NAS6404", "column": "R Rad", "callout": ".020 / .010"},
+          "confidence": "inferred",
+          "note": "The figure labels R at the head-to-shank fillet, so this is that fillet radius; the standard does not say so in words. The NAS6403 row's R Rad cell is EMPTY -- the merged .020/.010 belongs to NAS6404 and NAS6405 only, which is why no fillet radius is recorded for NAS6403U11D."
+        },
+        "point_chamfer_U_max": {
+          "max": 0.045,
+          "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "second table (U/W/X/Y/AA/BB/CC)", "row": "NAS6404", "column": "U Max", "callout": ".045"},
+          "confidence": "inferred",
+          "note": "Meaning not confirmed -- see NAS6403U11D point_chamfer_U_max."
+        }
+      },
+      "absences": [
+        {
+          "name": "thread_runout_length",
+          "why": "See the family absence of the same name.",
+          "closed_by": "MIL-S-8879 -- not in data/inbox/specs/"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Sheet 4 is a RESTRICTED USAGE sheet: .0156 and .0312 oversize shank bolts for repair work only, identified by an X or Y in the part number. Nothing in this repo uses one; recorded so a later reader does not mistake its D-diameter table for the sheet-1 table.",
+    "Sheet 5 of 5 is absent from the file (see document_meta). The sheet-1 LIST OF CURRENT SHEETS says it is at revision 3.",
+    "The pitch_link session read the NAS6403 half of this document by hand on 2026-08-04 and transcribed it inline into docs/tolerance_stacks/hardware_entries.json. Every value it recorded was re-read from the renders for this event and every one agreed; no correction event was needed. The NAS6404 half had never been read."
+  ]
+}

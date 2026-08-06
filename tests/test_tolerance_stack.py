@@ -597,9 +597,17 @@ def test_hardware_entry_values_source_counts_match_the_description():
     """``description`` asserts counts in prose. Prose goes stale silently.
 
     This is the repo's named recurring bug (stale inventory numbers in docs), and
-    it bit this very field: the description said "all but one entry transcribes
-    the 260729 workbook" and stayed that way when ``hub_bearing_thermal_stack``
-    added two drawing-traced bearing entries. Recount, don't read.
+    it bit this very field **twice in one day**: the description said "all but one
+    entry transcribes the 260729 workbook" and stayed that way when
+    ``hub_bearing_thermal_stack`` added two drawing-traced bearing entries, and the
+    replacement said ``("inline", "spec")`` where ``spec_library_v0`` had promoted
+    ``NAS6403U11D`` to ``library`` on the same branch point. Recount, don't read.
+
+    The distinction the counts preserve is the one that matters for reuse: a
+    ``kind: "workbook"`` source is forbidden in a from-scratch stack however clean
+    the citing element looks (SOP Step 5b, trap 17), and ``values_status`` is
+    orthogonal to it -- a promoted entry keeps saying where its inline numbers came
+    from.
     """
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     entries = data["entries"]
@@ -611,10 +619,14 @@ def test_hardware_entry_values_source_counts_match_the_description():
             (entry["values_status"], src.get("kind")), 0) + 1
     assert counted == {
         ("inline", "workbook"): 8,     # forbidden as a source in a from-scratch stack
-        ("inline", "spec"): 1,         # NAS6403U11D
+        ("library", "spec"): 1,        # NAS6403U11D, promoted by spec_library_v0
         ("inline", "drawing"): 2,      # 214589-002, 214588-002 -- source control drawings
         ("not_transcribed", None): 4,
     }
+    # traced-ness is a property of values_source, not of values_status
+    traced = {e["id"] for e in entries
+              if (e.get("values_source") or {}).get("confidence") == "traced"}
+    assert traced == {"NAS6403U11D", "214589-002", "214588-002"}
     text = data["description"]
     for phrase in ("eight of the fifteen", "THREE entries are traced",
                    "Four entries are `not_transcribed`"):
@@ -666,10 +678,17 @@ def test_the_nas6403_entry_cites_the_standard_its_inline_values_came_from():
     assert entry["dimensions_in"]["length"] - entry["dimensions_in"]["grip"] == pytest.approx(
         entry["dimensions_in"]["T_ref"], abs=1e-9
     )
-    # values_status stays "inline" and library_ref stays null even though these
-    # numbers are now traced: "library" means a fastener library owns them, and
-    # no such library exists yet.
-    assert entry["values_status"] == "inline" and entry["library_ref"] is None
+    # `values_source` stays on the entry after the promotion below: it records
+    # where the INLINE numbers came from, which is still a true and useful fact
+    # once those numbers are a cross-check rather than the source.
+    #
+    # This entry's `values_status` was "inline" with a null `library_ref` until
+    # 2026-08-05, when handoff spec_library_v0 built the library and promoted it
+    # to "library". The promotion, and the cross-check that the inline numbers
+    # still agree with the library value by value, are asserted in
+    # tests/test_spec_library.py::test_the_nas6403_hardware_entry_defers_to_the_library.
+    assert entry["values_status"] == "library"
+    assert entry["library_ref"] == "spec_library:NAS6403U11D"
 
 
 def test_the_214820_entry_says_its_band_is_a_workbook_transcription():
@@ -705,7 +724,15 @@ def test_every_inline_hardware_entry_cites_where_its_values_came_from():
     for entry in data["entries"]:
         assert "values_source" in entry, f"{entry['id']} has no values_source key"
         src = entry["values_source"]
-        if entry["values_status"] != "inline":
+        # Only `not_transcribed` means "no inline values, nothing to cite". A
+        # `library` entry still HAS inline numbers -- they are demoted to a
+        # cross-check, not deleted -- so where they came from stays a true and
+        # useful fact and `values_source` stays filled. This guard read
+        # `!= "inline"` when sop_edits_apply wrote it, which was equivalent
+        # while no entry was `library`; spec_library_v0 promoted NAS6403U11D
+        # the same day and the two rules collided at the merge. Narrowed to
+        # match this test's own docstring. (review/spec_library_v0, 2026-08-05)
+        if entry["values_status"] == "not_transcribed":
             assert src is None, f"{entry['id']} has no inline values but cites a source"
             continue
         assert src, f"{entry['id']} has inline values and does not say where they came from"
@@ -757,12 +784,21 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
     assert workbook_backed == {"bushing_214820", "washer_nas1149v0332"}
 
 
-def test_every_hardware_entry_has_an_empty_library_ref_and_a_gap_list():
+def test_every_hardware_entry_has_a_gap_list_and_a_resolvable_values_status():
+    """`library_ref` was null on all thirteen entries until 2026-08-05. Exactly
+    one is promoted now (the spec_library_v0 seam demonstration); the remaining
+    twelve are still `inline` and are sop_edits_apply's backfill. The invariant
+    that survives is the pairing: a filled ref means status "library", a null
+    ref means it does not."""
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     for entry in data["entries"]:
-        assert entry["library_ref"] is None
         assert entry["gaps"], f"{entry['id']} claims no source gaps"
         assert entry["values_status"] in ("inline", "library", "not_transcribed")
+        if entry["library_ref"] is None:
+            assert entry["values_status"] != "library", entry["id"]
+        else:
+            assert entry["values_status"] == "library", entry["id"]
+            assert entry["library_ref"].startswith("spec_library:"), entry["id"]
 
 
 def test_every_hardware_ref_on_a_stack_element_resolves():

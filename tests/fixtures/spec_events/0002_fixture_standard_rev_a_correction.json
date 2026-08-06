@@ -1,0 +1,34 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "fixture-0002-correction",
+  "seq": 2,
+  "mode": "correction",
+  "document": "FIXTURE-0001 Example Standard Rev A.pdf",
+  "parsed_at": "2026-08-06",
+  "supersedes": "fixture-0001-full",
+  "reason": "The seq-1 read took H off the -09 row of a table whose rows are grouped in blocks of three with blank lines between; it had registered one row low and reported the -10 row's H. Re-rendered at Matrix(8) against the block boundary. The slot_phase absence is also withdrawn: requirement 12, which the first read missed, does control it.",
+  "parser": {"name": "agent-manual", "version": "v0", "agent": "test fixture"},
+  "entries": [
+    {
+      "subject": "FIXTURE-0001-09",
+      "subject_kind": "part_number",
+      "values": {
+        "nut_height": {
+          "nominal": 0.161,
+          "min": 0.151,
+          "max": 0.171,
+          "at": {"sheet": 1, "table": "TABLE I", "row": "-09", "column": "H"},
+          "confidence": "traced",
+          "note": "Re-read against the block boundary."
+        },
+        "slot_phase": {
+          "nominal": 60.0,
+          "units": "deg",
+          "at": {"sheet": 2, "note": "requirement 12"},
+          "confidence": "traced",
+          "note": "A correction may also promote an absence to a value -- which is the case the projection has to get right, because the absence must stop being reported at the same moment."
+        }
+      }
+    }
+  ]
+}

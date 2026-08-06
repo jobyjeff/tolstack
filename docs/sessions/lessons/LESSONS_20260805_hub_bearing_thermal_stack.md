@@ -2,7 +2,7 @@
 
 Handoff: `docs/sessions/completed/HANDOFF_20260805_hub_bearing_thermal_stack.md`.
 Branch: `handoff/hub_bearing_thermal_stack`, cut from `master` with
-`sop_edits_apply` merged (58 tests green at the baseline; 119 at the end).
+`sop_edits_apply` merged (58 tests green at the baseline; 193 at the end, after merging `spec_library_v0`).
 
 Build the **two-stage thermal-fit archetype** from Jeff's
 `260209_Hub Bearing Fits.xlsx` — the repo's **second archetype**, and the template
@@ -17,7 +17,13 @@ for the CTE-mismatch layer he wants computed for all designs.
 | `5c6bf97` | `Term.coefficient`, so one `fold()` serves a thermal fit |
 | `0b7e5f1` | `tolerance_stack/thermal.py`, `materials.json`, both stacks, two bearing hardware entries, 36 new tests, a reporter |
 | `ab01e87` | worksheet, `ARCHETYPE_thermal_fit.md`, README + ARCHITECTURE |
-| *(this one)* | this lesson, one SOP pointer line, handoff → `completed/` |
+| `5362fcb` | this lesson + the one SOP pointer line (labelled `wip:` — it was a pre-merge checkpoint, and the label is honest rather than tidy) |
+| *(the merge commit, this one)* | merge master (`spec_library_v0` had landed), conflicts resolved, three PROVENANCE rows re-amended, handoff → `completed/`. No hash here: a commit cannot carry its own |
+
+**Suite: 193 tests green** — 71 `test_tolerance_stack`, 12 `test_hub_bearing_rederivation`,
+36 `test_hub_bearing_thermal_fit`, 44 + 30 from `spec_library_v0`.
+`forge check` OK against the **worktree** (not only the main checkout — the
+founding lesson's false-pass trap).
 
 Results, all eleven findings, the ranked gaps and both traced counts are in
 `docs/tolerance_stacks/WORKSHEET_hub_bearing_thermal_fit.md`. Not repeated here.

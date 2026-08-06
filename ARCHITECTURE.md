@@ -14,10 +14,15 @@ Founded 2026-08-03 by handoff `tolstack_founding`, importing the
 ```
 tolerance_stack/
   __init__.py       re-exports the public names
-  stack.py          the shapes + the fold. ~330 lines, stdlib only.
+  __main__.py       `python -m tolerance_stack` -- rebuild the spec projection
+  stack.py          the stack shapes + the fold. ~330 lines, stdlib only.
+  spec_library.py   the parse-event shapes + the library fold. stdlib only.
+  thermal.py        the thermal-fit archetype: materials + the check generator.
+                    stdlib only, and no arithmetic of its own beyond
+                    thermal_factor(). Added 2026-08-05.
 ```
 
-`stack.py` is deliberately the whole implementation. Its contents:
+`stack.py` is deliberately the whole stack implementation. Its contents:
 
 | name | what it is |
 |---|---|
@@ -30,24 +35,71 @@ tolerance_stack/
 | `StackDefinition` | elements + paths + checks; `path()`, `check()`, `all_checks()` |
 | `load_stack(path)` | read + schema-check a stack-definition JSON |
 
-```
-tolerance_stack/
-  thermal.py        the thermal-fit archetype: materials + the corner expander.
-                    ~200 lines, stdlib only, no arithmetic of its own beyond
-                    thermal_factor(). Added 2026-08-05.
-```
+There is no pipeline and no service. A stack is authored by hand (by an agent
+following the SOP) into JSON, and the module makes that JSON *executable* so
+tests can pin the numbers. Nothing generates a stack automatically yet — though
+since 2026-08-05 one archetype generates its own **checks** from a declared
+`thermal_fit` block, which is not the same thing and is discussed below.
+
+The one executable entry point is `python -m tolerance_stack`, which rebuilds
+the spec-library projection. A projection needs a rebuild command by the forge
+data convention; a stack does not.
+
+### The thermal-fit archetype (`thermal.py`)
+
+The repo's **second** archetype, added 2026-08-05 by `hub_bearing_thermal_stack`:
+isothermal heat soak over a chained diametral interference fit, evaluated at every
+corner of (fit condition × temperature). Full statement of inputs, arithmetic and
+caveats in `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`.
 
 | name | what it is |
 |---|---|
-| `MaterialEntry` | one material's CTE with a `values_source`-shaped citation and a `gaps` list |
-| `load_materials(path)` | read + schema-check `docs/tolerance_stacks/materials.json` |
-| `thermal_factor(cte, dT)` | `1 + dT * cte * 1e-6` — the archetype's one new arithmetic primitive |
-| `ThermalFitInterface` | one member-pair: inner/outer element ids, materials, stiffness split |
-| `expand_thermal_fit(stack, materials)` | turn a `thermal_fit` block into `checks` whose terms carry the weights, then hand them to `fold()` |
+| `MaterialEntry` | one material + condition, its CTE, a `values_source`-shaped citation, a separate `designation_source`, and a non-empty `gaps` list |
+| `load_materials(path)` | read + schema-check `docs/tolerance_stacks/materials.json` (`material_entry/v0`) |
+| `thermal_factor(cte, dT)` | `1 + dT * cte * 1e-6` — the archetype's **one** new arithmetic primitive |
+| `ThermalFitChain` | one seat: hub bore, sleeve bore + wall, bearing OD, and the stiffness ratio that splits stage 1's interference |
+| `ThermalFitSpec` | the whole `thermal_fit` block: shared temperature scenarios plus one or more chains |
+| `build_checks(spec, materials)` | chains × 2 stages × N temperatures, as term lists whose coefficients carry the weights |
+| `load_thermal_fit_stack(path)` | `load_stack()` + generated checks, returning an ordinary `StackDefinition` |
+| `expanded_terms_table(stack)` | every generated term flattened, so the signs and weights can be read on a page |
+| `workbook_corner(...)` | a source spreadsheet's **coherent material corner**, for comparison only — the one function in the repo that reads `lmc`/`mmc`, and deliberately not routed through `fold()` |
 
-There is no pipeline, no CLI, no service. A stack is authored by hand (by an
-agent following the SOP) into JSON, and the module makes that JSON *executable*
-so tests can pin the numbers. Nothing generates a stack automatically yet.
+**Checks are generated, not authored**, and a `thermal_fit` stack file with a
+hand-written check is refused. That buys correctness — no coefficient can go stale
+in a data file — at the cost of the term lists not existing in the JSON for a
+reviewer to read. `tests/debug_report_thermal_fit.py --terms` and the worksheet's
+appendix are how that cost is paid back, and it is a compromise rather than a
+solution. Noted as such in the archetype doc's registry-input section.
+
+### The spec library (`spec_library.py`)
+
+| name | what it is |
+|---|---|
+| `ValueLocation` | the re-findable address of ONE value: sheet, table, row, column, note, figure |
+| `SpecValue` | one extracted value + its `at` location and `confidence` |
+| `Absence` | a value the document was read for and demonstrably does not contain |
+| `Unreadable` | a value the scan will not give up, carrying the crop that was tried |
+| `SpecEntry` | everything one event says about one `subject` |
+| `ParseEvent` | one immutable read of one document by one parser version |
+| `build_library(events)` | **the fold**: latest-per-document, corrections overlaid field by field |
+| `IntakeQueue` | which document closes which gap; `status()` is DERIVED from the library |
+| `rebuild()` | wipe-and-rebuild `data/projections/spec_library/library.json` |
+
+Reading a standard is an **event, not an edit** — the same disposition culture
+the stacks run on, and for the same reason: the two questions this repo asks are
+*who read this number, off which sheet* and *what did it say before somebody
+changed it*, and an append-only log answers both by construction.
+
+Three outcomes rather than two: a **value**, an **absence** (read for, not
+there — names the document that would close it), and an **unreadable** (on the
+page, the photocopy will not give it up — an acquisition gap, never a licence to
+infer). The SOP's gap discipline consumes those differently. Some absences close
+nothing at all: MS9363 does not control thread-start-to-castellation spacing and
+neither does any other document, so that absence carries `closed_by: null` and
+the queue does not go looking.
+
+Full detail, including the per-document-vs-per-family schema decision and the
+render recipe for photocopied standards, is in `docs/spec_library/README.md`.
 
 ### Why one `fold()`
 
@@ -126,21 +178,33 @@ deliberately never reads RSS.
 data/inbox/specs/         (append-only spec + datasheet pile — the trace targets)
 data/inbox/drawings/      (part + assembly drawing PDFs; copies, never the originals)
 data/inbox/tolerance_stacks/  (source workbooks; gitignored, provenance committed)
-        |
-        |  hand transcription, by an agent following docs/SOP_TOLERANCE_STACK.md
-        v
-docs/tolerance_stacks/*.json   (stack_definition + hardware_entry + material_entry
-                                — COMMITTED)
-        |
-        |  tolerance_stack.fold  (via load_stack / path / check)
-        |  ...or, for the thermal_fit archetype, via
-        |  tolerance_stack.thermal.load_thermal_fit_stack, which GENERATES the
-        |  checks from a `thermal_fit` block and then folds them the same way
-        v
-check_result/v0  (produced on demand, never stored)
-        |
-        v
-docs/tolerance_stacks/WORKSHEET_*.md   (the human-readable result + findings)
+        |                              |
+        |  an agent reads page renders  |  hand transcription, by an agent
+        |  (parser agent-manual/v0)     |  following docs/SOP_TOLERANCE_STACK.md
+        v                              |
+docs/spec_library/events/*.json        |
+  (spec-parse/v0 — COMMITTED, immutable, append-only)
+        |                              |
+        |  build_library  (latest-per-document; corrections overlay)
+        v                              |
+data/projections/spec_library/library.json   (derived, gitignored, disposable)
+        |                              |
+        |  hardware_entry.library_ref   v
+        +---------------------> docs/tolerance_stacks/*.json
+                                  (stack_definition + hardware_entry
+                                   + material_entry — COMMITTED)
+                                       |
+                                       |  tolerance_stack.fold, via
+                                       |  load_stack / path / check ...or, for the
+                                       |  thermal_fit archetype, via
+                                       |  thermal.load_thermal_fit_stack, which
+                                       |  GENERATES the checks from a thermal_fit
+                                       |  block and then folds them the same way
+                                       v
+                                check_result/v0  (produced on demand, never stored)
+                                       |
+                                       v
+                          docs/tolerance_stacks/WORKSHEET_*.md
 ```
 
 All three inbox streams are gitignored by design (forge data convention): the
@@ -150,9 +214,15 @@ the data in the main checkout at `C:\workspace\tolstack\data\`; cite it
 repo-relative.
 
 Nothing lands in `data/runs/` yet: no run-producing pipeline exists here. The
-`data/runs/` and `data/projections/` skeletons are the standard-layout
-requirement, held for when a stack synthesizer does produce runs for forge to
-ingest.
+`data/runs/` skeleton is the standard-layout requirement, held for when a stack
+synthesizer does produce runs for forge to ingest. `data/projections/` is now
+live — it holds the spec library, rebuilt from the committed event log.
+
+The **events are committed and the projection is not**, which inverts the usual
+`data/` placement. It follows from the same rule as the stack JSONs: the events
+are hand-authored design artifacts whose loss would be unrecoverable, and
+`data/` contents are gitignored by the forge convention. The projection is a
+pure function of them, so it goes where derived things go.
 
 ## Cross-repo dependencies
 
@@ -166,7 +236,7 @@ Read-only, one way:
   workbook (see `data/inbox/tolerance_stacks/PROVENANCE.md`). Forge attachments
   are immutable; treat copies as read-only.
 
-## Known modelling gaps (inherited, not fixed)
+## Known modelling gaps
 
 Both seeded joints are retained by a **slotted/castellated nut + cotter pin**.
 The governing constraint there is castellation-slot vs cotter-hole alignment,
@@ -175,19 +245,34 @@ plain nut and a continuous grip, so their shank-out numbers do not settle either
 joint. This is stated, not hidden — see the SOP's castellated-nut caveat and
 findings F8/F16 in `docs/reference/`.
 
-The binding constraint on nearly every value is the **absence of a fastener-spec
-library**: 1 of 17 element instances across the three seeded stacks is `traced`.
-`hardware_entries.json` carries a per-entry `gaps` list, and those lists are that
-library's intake queue.
+**Reading MS9363 Rev C (2026-08-05) settled how far that gap can ever close.**
+The standard controls slot-to-slot coincidence (within .005) and slot-axis to
+thread-PD-axis (within .005), and gives nut height, slot count and slot width —
+so the *axial window* a cotter hole must fall in is now sourced (`G` to `H` from
+the nut bearing face). It says nothing about where a slot sits relative to the
+**thread start**, and JPS00094 Rev C §5.9.7 footnote (a) confirms that spacing
+varies between manufactured nuts. So the phase is not merely undocumented here,
+it is uncontrolled — no acquisition closes it. A stack can bound the window and
+must then defer to the assembly procedure §5.9.7 prescribes (change or add a
+washer, capped at three by §5.5.3.a). Recorded as an absence with
+`closed_by: null` on the `MS9363` library subject.
 
-The thermal-fit stacks invert that picture and expose a second gap. Their
+The binding constraint on nearly every value was the **absence of a
+fastener-spec library**: 1 of 17 element instances across the three seeded
+stacks was `traced`. That library now exists (`docs/spec_library/`), holds the
+two bolts and both nuts, and carries its own intake queue — the per-entry `gaps`
+lists in `hardware_entries.json` are being superseded by it one entry at a time,
+starting with `NAS6403U11D`.
+
+The thermal-fit stacks invert that picture and expose a **second** intake queue.
+Their
 *dimensions* are almost fully traced (12 of 16 element instances, because Jeff
 supplied five released part drawings), while every **material property and every
 scenario parameter** is untraced: three CTEs, two operating temperatures, two
-stiffness ratios, 0 of 7. So there are two intake queues now, and
-`materials.json`'s `cindas_request` fields are the second one. Quoting a
-dimension-only traced ratio for a thermal stack overstates it — the worksheet
-states both.
+stiffness ratios, 0 of 7. `materials.json`'s `cindas_request` fields are that
+queue, and its upstream is **CINDAS**, not the spec pile — so unlike the fastener
+gaps it cannot be closed by appending a PDF. Quoting a dimension-only traced ratio
+for a thermal stack overstates it; the worksheet states both.
 
 Two model-level gaps carried by the thermal archetype rather than by any one
 stack, both stated in `ARCHETYPE_thermal_fit.md`: the soak is **isothermal and
@@ -197,3 +282,21 @@ touch, not that the joint can carry the torque that would spin the inner member.
 That second one is the direct analogue of the castellated-nut caveat above, and
 for the same reason: a correctly computed number that does not settle the
 question, which must say so next to itself.
+**Reading MS9363 Rev C (2026-08-05) settled how far that gap can ever close.**
+The standard controls slot-to-slot coincidence (within .005) and slot-axis to
+thread-PD-axis (within .005), and gives nut height, slot count and slot width —
+so the *axial window* a cotter hole must fall in is now sourced (`G` to `H` from
+the nut bearing face). It says nothing about where a slot sits relative to the
+**thread start**, and JPS00094 Rev C §5.9.7 footnote (a) confirms that spacing
+varies between manufactured nuts. So the phase is not merely undocumented here,
+it is uncontrolled — no acquisition closes it. A stack can bound the window and
+must then defer to the assembly procedure §5.9.7 prescribes (change or add a
+washer, capped at three by §5.5.3.a). Recorded as an absence with
+`closed_by: null` on the `MS9363` library subject.
+
+The binding constraint on nearly every value was the **absence of a
+fastener-spec library**: 1 of 17 element instances across the three seeded
+stacks was `traced`. That library now exists (`docs/spec_library/`), holds the
+two bolts and both nuts, and carries its own intake queue — the per-entry `gaps`
+lists in `hardware_entries.json` are being superseded by it one entry at a time,
+starting with `NAS6403U11D`.
