@@ -15,6 +15,12 @@ Founded 2026-08-03 by handoff `tolstack_founding`, importing the
 tolerance_stack/
   __init__.py       re-exports the public names
   stack.py          the shapes + the fold. ~330 lines, stdlib only.
+scripts/
+  build_viewer_projection.py   fold() -> data/projections/viewer/results.json
+  build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
+  run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code)
+apps/
+  viewer/           the static stack/check review surface (see its README)
 ```
 
 `stack.py` is deliberately the whole implementation. Its contents:
@@ -80,19 +86,60 @@ data/inbox/tolerance_stacks/  (source workbooks; gitignored, provenance committe
         |  hand transcription, by an agent following docs/SOP_TOLERANCE_STACK.md
         v
 docs/tolerance_stacks/*.json   (stack_definition + hardware_entry — COMMITTED)
-        |
-        |  tolerance_stack.fold  (via load_stack / path / check)
-        v
-check_result/v0  (produced on demand, never stored)
-        |
-        v
+        |                                    |
+        |  tolerance_stack.fold              |  scripts/build_viewer_crops.py
+        |  (via load_stack/path/check)       |  (+ drawing-checker exports, PyMuPDF)
+        v                                    v
+check_result/v0                       data/projections/viewer/crops.json
+   |         |                              + crops/*.png
+   |         |  scripts/build_viewer_projection.py    |
+   |         v                                        |
+   |    data/projections/viewer/results.json          |
+   |         |                                        |
+   |         +----------------> apps/viewer/ <---------+
+   v                            (renders, computes nothing)
 docs/tolerance_stacks/WORKSHEET_*.md   (the human-readable result + findings)
+        \_______________________________ read live by apps/viewer
 ```
 
-Nothing lands in `data/runs/` yet: no run-producing pipeline exists here. The
-`data/runs/` and `data/projections/` skeletons are the standard-layout
-requirement, held for when a stack synthesizer does produce runs for forge to
-ingest.
+Nothing lands in `data/runs/` yet: no run-producing pipeline exists here.
+`data/projections/viewer/` is the first thing in `data/projections/` — derived,
+gitignored, wipe-and-rebuild, and the `data/runs/` skeleton is still held for
+when a stack synthesizer does produce runs for forge to ingest.
+
+### The viewer and the one-fold rule (2026-08-05, `stack_viewer_v0`)
+
+`apps/viewer/` is a static, read-only review surface (forge `apps/` pattern:
+classic scripts, no build, no npm, no daemon, File System Access grant at
+`mode: "read"`). It exists because reviewing a stack meant reading JSON.
+
+It renders **projections**, not the stacks, and the reason is the one-fold rule
+above: the viewer must not contain a second arithmetic path. So
+
+- `scripts/build_viewer_projection.py` calls `fold()` and writes `results.json`,
+  which embeds each stack **verbatim** and carries the derived blocks
+  (`paths`, `checks` with verdicts, per-element flags, provenance counts, gaps)
+  beside them. Fold outputs are rounded there, in Python, so the browser prints
+  `String(n)` and never decides how a number reads. A test pins the embedded
+  stack byte-identical to the authored file.
+- `scripts/build_viewer_crops.py` resolves each `source_ref` to a page of a real
+  PDF and renders a crop, or records **why not**. The viewer cannot roam the
+  filesystem or reach drawing-checker, so hovers read pre-rendered PNGs.
+
+Resolution never guesses: the spec pile by filename; a drawing through
+`joint.assembly_export`'s run (sha256 verified against `run_meta.json`); else a
+single unambiguous `provenance.sources_used` entry. Anything else is
+`unresolvable` **with a reason**, and the reasons are design input — see
+`docs/sessions/lessons/LESSONS_20260805_stack_viewer_v0.md`.
+
+Derived flags worth knowing, because neither has a schema field:
+
+- **zero-width band** = `min == max`, i.e. no document gives a tolerance, so
+  every interval it feeds is a lower bound. Rendered as its own axis, not as a
+  fourth confidence.
+- **INCOMPLETE check** is detected from the word `INCOMPLETE` in the authored
+  label/guidance. `check_result/v0` has no `complete` field; that is a gap
+  (`docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`).
 
 ## Cross-repo dependencies
 

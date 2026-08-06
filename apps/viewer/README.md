@@ -1,0 +1,157 @@
+# tolstack — stack viewer (`apps/viewer/`)
+
+**Review a stack without opening a `.json`.** Elements, folds, checks with
+verdicts, notes and gaps for every stack in `docs/tolerance_stacks/`, coloured by
+where each value came from, with the drawing region behind a citation one hover
+away.
+
+Static and build-free — plain HTML + classic scripts, no framework, no npm
+build, no daemon, no server (the forge `apps/notes/` and `apps/dashboard/`
+pattern). **Read-only**: the File System Access grant it asks for is
+`mode: "read"`, and there is no code path that writes.
+
+## Launch (one-click, `file://`)
+
+**Double-click `apps/viewer/index.html`.** Classic scripts exist precisely so
+this works with no server. For a desktop shortcut, run from the repo root:
+
+```powershell
+$ws = New-Object -ComObject WScript.Shell
+$sc = $ws.CreateShortcut("$env:USERPROFILE\Desktop\Tolstack Viewer.lnk")
+$sc.TargetPath = "$PWD\apps\viewer\index.html"
+$sc.Save()
+```
+
+## First use
+
+```powershell
+# 1. build what the viewer renders (fast, stdlib only)
+venv-win\Scripts\python.exe scripts\build_viewer_projection.py
+
+# 2. build the drawing crops (needs PyMuPDF -> drawing-checker's venv)
+C:\workspace\drawing-checker\venv-win\Scripts\python.exe scripts\build_viewer_crops.py
+```
+
+3. Open the page, click **Connect folder**, pick the **tolstack repo root**
+   (`C:\workspace\tolstack`), grant **read**. The banner turns into a build line:
+   *results built … · crops built … (6 resolved, 26 unresolvable)*.
+
+Both steps are **wipe-and-rebuild** and each owns its own files, so either can
+be re-run alone. Re-run step 1 after editing a stack JSON; re-run step 2 after a
+new drawing export lands. The banner always says when each was built — the
+viewer never guesses whether a projection is stale, it tells you when it was
+made and lets you judge.
+
+No folder grant handy? `index.html?mock=1` renders a seeded demo stack that
+exercises every provenance state. Nothing touches disk.
+
+## The one rule: the viewer computes nothing
+
+`tolerance_stack.fold()` is the only arithmetic in this repo — *"there is exactly
+one line where a sign can be wrong"* (`ARCHITECTURE.md`). A second fold written
+in JavaScript would be a second such line, so there isn't one:
+
+- every interval and every verdict is read out of `results.json`, which
+  `scripts/build_viewer_projection.py` produced by calling `fold()`;
+- element `nominal`/`min`/`max`/`lmc`/`mmc` are printed **as transcribed** —
+  `String(n)`, no `toFixed`, no unit conversion, no band derived from limits;
+- even the rounding happens in Python (fold outputs are rounded to 6 dp at build
+  time) so the browser is never the thing deciding how a number reads.
+
+`tests/test_viewer_projection.py` pins the embedded stack as byte-identical to
+the authored file, and re-asserts the ground-truth numbers *through* the
+projection.
+
+## Reading the colours
+
+Provenance is the only saturated colour on the page; everything else is grey.
+
+| | meaning |
+|---|---|
+| green `traced` | the value comes off the cited document |
+| amber `inferred` | a reading or an argument sits between the document and the value |
+| **filled red `UNTRACED`** | no document backs it. Filled, plus a row tint — an untraced value has to survive being skimmed |
+| **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all |
+| dashed blue `zero-width band` | `min == max`; no document gives a tolerance, so every interval it feeds is a **lower bound** on the real spread. A separate axis from confidence, not a fourth confidence |
+| striped card + amber `INCOMPLETE` | a term is missing from the check. Read the magnitude as a budget for the missing term, never as a verdict on the joint |
+
+A path or check also shows the **weakest** confidence among its expanded inputs:
+a check fed by four traced elements and one untraced one is an untraced result.
+
+## Hover crops
+
+Each element has a **drawing crop** button. Hover, focus or click it (✕, `Esc`
+or an outside click closes it). The popover shows the pre-rendered crop, *how it
+was placed*, and click-throughs: the drawing-checker run page when a run is
+behind the citation (needs `cmd /c serve.bat` in that repo — see
+`config.js`), plus the source PDF as a `file://` link and as a copyable path.
+
+`crops.json` reports four different answers and the difference matters:
+
+| status | what it means |
+|---|---|
+| `resolved` | there's a crop |
+| `unresolvable` | the citation could not be pinned to a page **without guessing** — a finding about the stack, with the reason |
+| `not-built` | nobody has run `build_viewer_crops.py` — a chore, and the popover shows the command |
+| `no-entry` | `crops.json` predates this element, i.e. it's stale |
+
+Placement, in order: the **cited printed zone** (padded a cell) when the sheet's
+border grid is legible; else a **unique callout-text match**; else the **whole
+sheet**, saying why. When a zone is cropped, the popover also says whether the
+callout's own text was found inside that cell — corroboration, not a
+requirement (a parts-list nomenclature is cited at the balloon and lives on the
+parts-list sheet).
+
+## Worksheets
+
+`WORKSHEET_*.md` is authored prose, so it is read **live** from
+`docs/tolerance_stacks/` rather than copied into the projection: edit the
+markdown, reload, see it. Rendered with the dependency-free markdown renderer
+vendored from forge's notes app (escape-first, no sanitize pass). A stack with no
+worksheet of its own says so instead of borrowing a neighbour's.
+
+## Tests
+
+Two tiers (forge `CONVENTIONS.md` §7):
+
+```powershell
+node apps\viewer\run_tests.cjs                          # fast tier (node + DOM shim)
+node apps\viewer\run_tests.cjs --repo C:\workspace\tolstack   # ...from a worktree
+venv-win\Scripts\python.exe -m pytest -q                # runs the fast tier too
+
+npm install                                             # once: playwright-core, no browser download
+node scripts\run_viewer_browser_tests.mjs               # truth tier (installed Chrome, file:// + http)
+```
+
+The fast tier includes a **node-fs adapter** tier that drives the real
+`data/projections/viewer/` through the same adapter contract the browser uses, so
+"Jeff's actual stacks render" is asserted rather than assumed. It reports itself
+skipped when the projection isn't there (e.g. from a worktree, where `data/`
+lives only in the main checkout) rather than failing.
+
+The truth tier is not optional theatre: it caught a NodeList-vs-array divergence
+between the shim and real Chrome, and a hover popover that closed itself the
+instant it opened.
+
+**Not automatable:** the FSA directory picker needs a user gesture, so the
+`Connect folder` path is verified by hand, not by Playwright — the same
+limitation forge's notes app records.
+
+## Layout
+
+```
+apps/viewer/
+  index.html          shell + the whole stylesheet (the colour system lives here)
+  test.html           browser test page; publishes window.__TEST_RESULTS__
+  config.js           paths, the drawing-checker webui base, rebuild commands
+  viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
+  fixtures.js         the ?mock=1 demo projection (every provenance state)
+  app.js              boot + wiring; the only place views and adapters meet
+  storage/adapter.js  the read-only adapter contract
+  storage/fsa.js      File System Access (mode: read), handle persisted in IndexedDB
+  storage/memory.js   in-memory mock (?mock=1, tests)
+  storage/node_fs.js  real-checkout adapter for the node test tier
+  views/              dom, banner, list, stack, crop, worksheet
+  vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
+  run_tests.cjs       fast-tier runner (node vm + DOM shim)
+```

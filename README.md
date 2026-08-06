@@ -37,9 +37,25 @@ powershell -ExecutionPolicy Bypass -File setup.ps1
 venv-win\Scripts\python.exe -m pytest -q
 ```
 
+## Reviewing a stack
+
+Double-click **`apps/viewer/index.html`** — a static, read-only page that renders
+every stack with its folds, checks, verdicts, notes and gaps, coloured by
+provenance, with the drawing region behind each citation one hover away. It needs
+two projections built first (`scripts/build_viewer_projection.py`, then
+`scripts/build_viewer_crops.py` for the crops); see `apps/viewer/README.md`.
+
+The viewer **computes nothing** — every number it shows comes out of a projection
+built by `fold()`, because a second arithmetic path is a second place a sign can
+be wrong.
+
 ## Layout
 
 - `docs/SOP_TOLERANCE_STACK.md` — **start here** to build a stack.
+- `apps/viewer/` — the static review surface (forge `apps/` pattern: classic
+  scripts, no build, no npm, runs from `file://`). Read-only.
+- `scripts/` — the two projection builders the viewer reads, plus the browser
+  test runner. Nothing here authors a stack.
 - `docs/prompts/REVIEW_AGENT.md` — the review checklist for this repo (also the
   per-repo override dispatch serves to review agents).
 - `docs/tolerance_stacks/` — the stack definitions, the hardware-entry seed, and
@@ -56,6 +72,10 @@ venv-win\Scripts\python.exe -m pytest -q
   committed `PROVENANCE.md`.
 - `data/` — data only; contents gitignored, skeletons tracked via `.gitkeep`.
   Absence from git is not data loss.
+- `data/projections/viewer/` — the viewer's projections (`results.json`,
+  `crops.json`, `crops/*.png`). Derived, gitignored, wipe-and-rebuild.
+- `package.json` — **test tooling only** (`playwright-core` for the browser
+  tier). App code stays build-free; `node_modules/` is gitignored.
 - `ops.toml` — the ops manifest (forge `CONVENTIONS.md` §8).
 - `PROVENANCE.md` — every path imported into this repo at founding, with the
   source repo's sha at the time of the copy.
