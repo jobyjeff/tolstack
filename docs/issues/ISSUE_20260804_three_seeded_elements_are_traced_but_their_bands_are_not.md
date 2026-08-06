@@ -1,13 +1,38 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: closed
 area: tolerance-stacks
 reporter: agent
-handoff: docs/sessions/HANDOFF_20260806_traced_labels_and_ratio.md
+handoff: docs/sessions/active/HANDOFF_20260806_traced_labels_and_ratio.md
+closed: 2026-08-06
+closed_by: handoff traced_labels_and_ratio
 ---
 
 # Three seeded elements say `confidence: "traced"` while their own note says the band is untraced
+
+> **CLOSED 2026-08-06** by handoff `traced_labels_and_ratio`. All three fixed,
+> each verified against a rendered crop of the actual document before writing —
+> the suggested-fix table below was taken from a review, not from the page, and
+> two of its three rows needed the page to confirm them.
+>
+> | element | outcome |
+> |---|---|
+> | `tan_link:fastener_grip_14` | `kind: "spec"`, `NAS6403-NAS6420 Rev 4.pdf` sheet 3, row *Grip Dash No. 14*: grip **.875** under the printed column header `Grip ±.010`. **Legitimately `traced`.** |
+> | `vpa_output:fastener_grip` | same sheet, row *Grip Dash No. 13*, **NAS6404 .2500-28** column (grip **.812**, length **1.182**). **Legitimately `traced`.** |
+> | `vpa_output:under_head_chamfer_washer` | MS21299 re-confirmed absent from `data/inbox/specs/`. **Downgraded to `inferred`**, band stays as gap 3. |
+>
+> The exception this issue offered ("a parts-list *nominal* with a documented
+> band elsewhere") was **considered and rejected**: that case is two citations
+> and a `source_ref` holds one. `kind: "parts_list"` can never be `traced`, full
+> stop — written into `docs/SOP_TOLERANCE_STACK.md` and enforced by
+> `test_no_traced_element_cites_a_parts_list` over every stack, plus a matching
+> test over `hardware_entries.json` so the label cannot be laundered through the
+> file the SOP already warns is a leak.
+>
+> No arithmetic changed, as predicted. The ratio consequence is
+> `ISSUE_20260805_architecture_traced_ratio_disagrees_with_the_stacks.md`, closed
+> in the same commit: **3 traced / 7 inferred / 16 untraced out of 26**.
 
 Found during the `pitch_link_stack` review (2026-08-04) while recomputing the
 traced ratio. **Not** a finding against that handoff — the defect is in the

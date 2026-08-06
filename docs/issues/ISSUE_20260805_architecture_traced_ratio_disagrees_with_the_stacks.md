@@ -1,11 +1,40 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: closed
 area: docs / provenance accounting
 reporter: agent
-handoff: docs/sessions/HANDOFF_20260806_traced_labels_and_ratio.md
+handoff: docs/sessions/active/HANDOFF_20260806_traced_labels_and_ratio.md
+closed: 2026-08-06
+closed_by: handoff traced_labels_and_ratio
 ---
+
+> **CLOSED 2026-08-06** by handoff `traced_labels_and_ratio`, after Part 1 moved
+> the counts. Recomputed, not copied — the pre-relabel table below is superseded:
+>
+> **3 traced / 7 inferred / 16 untraced, out of 26 element instances** across
+> `tan_link_to_pitch_plate`, `tan_link_to_pitch_plate_take2` and
+> `vpa_output_to_pitch_plate`. (19 of 48 across all six stacks.) The three traced
+> instances are `tan_link:pitch_plate_flange` (215197 sheet 2 B4),
+> `tan_link:fastener_grip_14` and `vpa_output:fastener_grip` (both
+> `NAS6403-NAS6420 Rev 4.pdf` sheet 3).
+>
+> **Denominator adopted: element instances**, as this issue suggested. The
+> definition — instances rather than distinct ids, the stack set named
+> explicitly, and `traced` meaning *the band is in the cited document* — now
+> lives in **exactly one place**, `docs/SOP_TOLERANCE_STACK.md` § "The traced
+> ratio". Every other document quotes the number and points there. The count
+> itself is produced by `tests\debug_report_tolerance_stacks.py --ratio` and
+> pinned by `test_the_seeded_traced_ratio_is_the_number_every_document_quotes`,
+> so the next divergence fails the suite instead of surviving three reviews.
+>
+> Corrected with a dated note, not silently, in: `ARCHITECTURE.md` (which also
+> lost an 18-line block duplicated by an earlier merge conflict — it held a
+> second copy of this very sentence), `docs/prompts/REVIEW_AGENT.md`,
+> `docs/SOP_TOLERANCE_STACK.md`, all four worksheets,
+> `data/inbox/specs/README.md`, and both lessons. `docs/sessions/reviews/` and
+> `docs/sessions/completed/` were deliberately left alone: they record what was
+> believed on a date, and they are the evidence this correction rests on.
 
 > **Triaged 2026-08-06.** Routed into the same handoff as
 > `ISSUE_20260804_three_seeded_elements_are_traced_but_their_bands_are_not.md`
