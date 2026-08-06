@@ -4,7 +4,7 @@ handoff: docs/sessions/active/HANDOFF_20260806_citation_export_provenance.md
 reviewer: review agent (review/citation_export_provenance)
 date: 2026-08-06
 verdict: APPROVE
-blockers: 1 (PROVENANCE.md rows falsified — fixed inline, see below)
+blockers: 2 (PROVENANCE.md rows falsified; a cwd-dependent path resolution that made the suite red in the main checkout — both fixed inline, see below)
 ---
 
 # Review — citation_export_provenance
@@ -194,6 +194,40 @@ and this author's changes were about as additive as a change can be.
 house style, counts recomputed rather than inferred (I re-collected
 `test_viewer_crops.py` on master to confirm 27 → 36 before writing it). No other
 blocker, so per the canonical process this does not send the work back.
+
+### Blocker — fixed inline (and caught late, which is the lesson)
+
+**`export_pdf_path` resolved a relative cited path against the process's cwd, so
+the suite was green in the review worktree and red in the main checkout.**
+`scripts/build_viewer_crops.py:191`,
+`test_a_repo_relative_export_path_resolves_against_the_main_checkout`.
+
+The function tried `Path(cited).exists()` before consulting the explicit `roots`.
+From the main checkout, `data/inbox/drawings/212966-006-A.pdf` *really exists*
+relative to the cwd, so the real repo file won over the tmp-path file the roots
+named, and the sha check then reported *"the file on disk is not the export this
+citation was read from"* — a provenance alarm for what is really a cwd accident.
+From a worktree, whose `data/` is gitignored and therefore empty, the same
+relative path missed, the roots were used, and the test passed. The function's
+own docstring already said what it should do ("repo-relative … means the MAIN
+checkout's, which is `roots[0]`"); the code just checked cwd first.
+
+It fails closed in every case — the sha guard means no wrong bytes were ever
+croppable, and I re-ran the projection after the fix to confirm resolution is
+unchanged at 24/48, all sha-verified. So the impact is a false provenance alarm
+and a red suite, not a bad crop. Fixed inline: the bare `exists()` shortcut now
+applies to absolute paths only, where it was meant to be. Added
+`test_a_repo_relative_export_path_ignores_the_process_cwd`, which plants a
+*differing* decoy on the cwd so only the roots can produce the right file.
+`267 passed` in the main checkout, `266 passed / 1 skipped` in the worktree.
+
+**Worth recording that I found this only after merging.** I ran the suite in the
+review worktree, got green, and it was the post-merge run in the main checkout
+that caught it. The overlay's existing entry is "`forge check` passes in the main
+checkout and fails in the worktree"; this is the same class in the opposite
+direction, and the worktree is the *more* permissive environment for anything
+that touches `data/` — precisely because `data/` is empty there. Run the suite in
+both.
 
 ### Should-fix — for a follow-up, not this branch
 
