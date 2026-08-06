@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: tolerance-stacks
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260806_traced_labels_and_ratio.md
 ---
 
 # Three seeded elements say `confidence: "traced"` while their own note says the band is untraced

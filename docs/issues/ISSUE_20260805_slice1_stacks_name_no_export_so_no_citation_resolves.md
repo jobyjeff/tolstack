@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: stack definitions / provenance
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260806_citation_export_provenance.md
 ---
 
 # The three slice-1 stacks name no export, so not one of their citations can be re-found

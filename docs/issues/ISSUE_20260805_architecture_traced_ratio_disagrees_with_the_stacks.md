@@ -1,10 +1,17 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: docs / provenance accounting
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260806_traced_labels_and_ratio.md
 ---
+
+> **Triaged 2026-08-06.** Routed into the same handoff as
+> `ISSUE_20260804_three_seeded_elements_are_traced_but_their_bands_are_not.md`
+> (Part 2 of it): relabelling those three elements moves the counts, so
+> restating the ratio first would just be wrong twice. The table below is
+> pre-relabel and must be recomputed, not copied.
 
 # ARCHITECTURE.md's "1 of 17 element instances is traced" does not match the stacks
 

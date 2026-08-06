@@ -1,10 +1,17 @@
 ---
 type: bug
 priority: medium
-status: open
+status: triaged
 area: repo-conventions
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260806_gitignore_data_precedence.md
 ---
+
+> **Triaged 2026-08-06.** Re-confirmed still live: `.gitignore:62:data/*` still
+> shadows the per-stream exceptions and the edit is still uncommitted in the
+> main checkout two days on. Nobody claimed it, so it is now routed rather than
+> left for its author. The handoff carries an integration note — merging the
+> branch does not clear the main checkout's dirty copy.
 
 # An uncommitted `data/*` blanket in `.gitignore` shadows the per-stream inbox exceptions
 

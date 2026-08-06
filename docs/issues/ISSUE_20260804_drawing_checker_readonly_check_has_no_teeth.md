@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: medium
-status: open
+status: triaged
 area: review-process
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260806_readonly_invariant_evidence.md
 ---
 
 # The "drawing-checker is read-only" invariant cannot be verified the way the checklist says

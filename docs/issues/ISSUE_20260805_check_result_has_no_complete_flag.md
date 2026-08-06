@@ -1,9 +1,10 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: schema / tolerance_stack
 reporter: agent
+strategy: docs/strategy/BRIEF_20260806_check_completeness_schema.md
 ---
 
 # `check_result/v0` has no `complete` flag, so "INCOMPLETE" rides on prose

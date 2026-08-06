@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: apps/viewer + scripts/build_viewer_projection.py
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260806_viewer_generated_checks.md
 ---
 
 # The viewer renders no checks for a `thermal_fit` stack, because the projection folds with `load_stack()`
