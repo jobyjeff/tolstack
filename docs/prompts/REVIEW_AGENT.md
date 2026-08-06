@@ -320,7 +320,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 - [ ] **Stale inventory numbers in lessons and provenance.** Line counts, file
       counts and dates written before the last commit go wrong silently (founding
       lesson claimed a 467-line SOP that shipped at 509, and 39 tracked files of
-      40). Recompute any count a doc asserts; don't read it.
+      40). Recompute any count a doc asserts; don't read it. **Third sighting
+      (`stack_viewer_v0`), and the worst variant so far:** the counts were about a
+      *derived projection the repo can recompute in one line*, and one of them
+      conflated "how many resolved" with "how many were **sha256-verified**" — the
+      issue file said `joint.assembly_export` was "why six crops resolve,
+      sha256-verified", where `crops.json` says `joint_export_run: 2`,
+      `spec_pile: 3`, `provenance.sources_used: 1` and `sha256_verified` on 2 of
+      6. A count that inflates *how strong the provenance is* is not a typo in
+      this repo. When a doc asserts anything about the crop or results
+      projection, recompute it from `data/projections/viewer/*.json` — never from
+      the prose, and never from another doc's copy of the number.
+- [ ] **A corroboration flag shown without the evidence that produced it.**
+      `crops.json` records `callout_text_in_zone`, and the viewer rendered it as
+      a bare "(callout text found there)". The needle that actually matched is
+      whichever candidate hit *first*, and `callout_needles` splits on
+      whitespace, so it can be a bare token: `pitch_plate_flange` corroborates on
+      `±0.10` (5 hits on that sheet) while the discriminating `4.06 ±0.10`
+      (1 hit) is never tried. Fixed in `review/stack_viewer_v0` by naming the
+      needle in `cropProvenanceLine`. Generalise it: any derived "matched" /
+      "verified" / "confirmed" flag this repo surfaces must show *what* matched,
+      or it reads as stronger evidence than it is.
 - [ ] **Documented vocabularies drifting from the seeded data.** The SOP's `role`
       list omitted `nut_geometry`, which the seeded take-2 uses three times. When a
       doc says "one of X | Y | Z", enumerate the actual values in
@@ -364,13 +384,47 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       **Before you write the verdict: `git log --oneline HEAD..master`, merge
       master into your review branch, and re-run the suite there.** A review that
       only tests `handoff/<slug>` against its own merge-base is testing a tree
-      that will never exist.
+      that will never exist. **Second sighting (`stack_viewer_v0`):** same cause,
+      a doc this time — `spec_library_v0` and `stack_viewer_v0` each rewrote
+      `ARCHITECTURE.md`'s data-flow ASCII diagram from its founding shape, and
+      git could not merge them. Nothing fails a test; the conflict is yours to
+      resolve, and the resolution must keep *both* narratives (the merge is
+      additive: two new branches on one diagram), not pick a side.
+- [ ] **The projections are stale unless you rebuild them.** Nothing rebuilds
+      `data/projections/viewer/` — no hook, no ops verb, no watcher. A stack
+      changed on the branch under review will render as the previous build, and
+      the viewer's banner reports the build time rather than refusing. Re-run
+      both scripts against the MAIN checkout before you judge anything the viewer
+      shows: `venv-win\Scripts\python.exe scripts\build_viewer_projection.py
+      --data-root C:\workspace\tolstack\data`, then the same with
+      `C:\workspace\drawing-checker\venv-win\...` and `build_viewer_crops.py`
+      (PyMuPDF is deliberately absent from this repo's venv). Both are
+      wipe-and-rebuild and each owns only its own files, so either can be re-run
+      alone; a rebuild that changes anything but `built_at` means the committed
+      claims were made against a different tree.
+- [ ] **`INCOMPLETE` is a prose convention, not a schema field.**
+      `build_viewer_projection.is_incomplete` greps the check's
+      `label`/`guidance`/`check_id` for the literal upper-case string. A stack
+      that writes "incomplete", "PARTIAL" or "budget only" renders as an ordinary
+      failing check — losing exactly the "this is a budget, not a verdict on the
+      joint" warning the SOP's Step 5c exists to carry. When reviewing a stack
+      with an excluded term, check the authored string, and check that
+      `configuration.excluded` and the INCOMPLETE label agree (nothing validates
+      the pairing —
+      `docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`).
 
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
       and checks are the same signed term list. And `fold()` reads `min`/`max`
-      only: it must never read `lmc`/`mmc`.
+      only: it must never read `lmc`/`mmc`. **Since `stack_viewer_v0` this
+      extends to JavaScript.** `apps/viewer/` renders `results.json` and computes
+      nothing: no `+`, `-`, comparison-of-tolerances, `toFixed` or verdict logic
+      anywhere under `apps/viewer/`. Rounding happens once, in
+      `build_viewer_projection.py` (`INTERVAL_DECIMALS`), and `VA.fmt` is
+      `String(n)` on purpose. Grep any viewer diff for arithmetic operators on a
+      projection field — a second fold in JS is a second line where a sign can be
+      wrong, and it would be in the language nothing in `tests/` executes.
 - [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
       the moment an element changes and nothing notices.
 - [ ] **Do not edit a file `PROVENANCE.md` claims is byte-identical.** Ten

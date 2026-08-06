@@ -141,7 +141,10 @@
       var line = VA.cropProvenanceLine(CROPS.by_stack.demo_joint.plate);
       has(line, "provenance.sources_used");
       has(line, "cited zone D10");
-      has(line, "callout text found there");
+      // The matched needle is named, not just "found": "4.06" corroborates far
+      // less than the whole callout would, and the line must let a reader see
+      // which it was. (review/stack_viewer_v0, 2026-08-06)
+      has(line, "callout text \"4.06\" found there");
     });
 
     await test("cropProvenanceLine warns when the callout was NOT found in the zone", function () {

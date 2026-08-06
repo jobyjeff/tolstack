@@ -184,9 +184,17 @@
       bits.push("from data/inbox/specs/");
     }
     if (cropEntry.located_by === "zone_cell") {
+      // Name the string that corroborated, never just "found". The needle is
+      // whichever candidate matched FIRST, and the candidates include bare
+      // tokens: the pitch-plate flange's zone D10 corroborates on "±0.10",
+      // which occurs five times on that sheet, while the discriminating
+      // "4.06 ±0.10" occurs once and is never tried (callout_needles splits on
+      // whitespace). An unqualified "callout text found there" reads as much
+      // stronger evidence than a generic token is, which is the one thing a
+      // provenance surface must not do.
       bits.push("showing the cited zone " + cropEntry.cited_zone +
         (cropEntry.callout_text_in_zone === true
-          ? " (callout text found there)"
+          ? " (callout text " + JSON.stringify(cropEntry.needle || "") + " found there)"
           : cropEntry.callout_text_in_zone === false
             ? " (callout text NOT found there — the crop is the citation, not a match)"
             : ""));

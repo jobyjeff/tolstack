@@ -10,7 +10,7 @@ reporter: agent
 
 `scripts/build_viewer_crops.py` resolves 6 of 32 element citations. All six are
 in `stack_pitch_link_to_pitch_plate.json`. The other three stacks resolve
-**zero**, and 6 of their failures are the same root cause:
+**zero**, and 7 of their failures are the same root cause:
 
 ```
 tan_link_to_pitch_plate:straight_bushing        citation names no export, ...
@@ -22,8 +22,9 @@ vpa_output_to_pitch_plate:under_head_chamfer_washer citation names no export, ..
 vpa_output_to_pitch_plate:fastener_grip         citation names no export, ...
 ```
 
-(The remaining 20 are `kind: "workbook"` or `"assumed"` — those name no drawing
-at all, which is a different and already-known problem.)
+(The remaining 19 are `kind: "workbook"` (18) or `"assumed"` (1) — those name no
+drawing at all, which is a different and already-known problem. 7 + 19 = the 26
+unresolvable of 32. The session lesson's table has the same split.)
 
 ## Why it matters
 
@@ -45,9 +46,20 @@ stack-level field:
 }
 ```
 
-That one line is why six crops resolve, sha256-verified against the run's
-`run_meta.json`. It is a free-text field the crop script has to regex run ids out
-of, which is itself worth tightening.
+That one line is why **2** of the six crops resolve, and those two are the only
+ones sha256-verified against the run's `run_meta.json`. The other four come from
+weaker rules and carry no sha check: 3 from the spec pile by filename, and 1
+(`pitch_plate_flange`, the best demo crop) from the `provenance.sources_used`
+prose scan — which here lands on a copy of 215197 under drawing-checker's
+`tests/fixtures/drawings/`, not the inbox. It is a free-text field the crop
+script has to regex run ids out of, which is itself worth tightening.
+
+*(Counts corrected during `review/stack_viewer_v0`, 2026-08-06, by recomputing
+`resolved_by` from `crops.json`: `joint_export_run` 2, `spec_pile` 3,
+`provenance.sources_used` 1; `sha256_verified` true on 2 of 6. The original text
+read "6 of their failures", "the remaining 20", and "why six crops resolve,
+sha256-verified", which overstated both the reach of `assembly_export` and the
+sha256 coverage.)*
 
 ## Suggested fix
 

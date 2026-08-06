@@ -40,8 +40,12 @@ does so at the **stack** level, not the citation level:
 "joint": { "assembly_export": "[PRELIM 2026-AUG-3] 217755 ... .pdf (drawing-checker run 20260804_114000 / 20260803_145243)" }
 ```
 
-That single sentence is why 3 of its crops resolve, sha256-verified against the
-run's `run_meta.json`. Three conclusions:
+That single sentence is why 2 of its crops resolve (`bushing_214820`,
+`washer_nas1149v0332`), sha256-verified against the run's `run_meta.json` — and
+those two are the *only* sha-verified crops in the projection. Of the other four,
+3 come from the spec pile by filename and 1 from the `sources_used` fallback
+(corrected during `review/stack_viewer_v0`; `resolved_by` in `crops.json` is the
+count). Three conclusions:
 
 1. **The missing address is the EXPORT, not the element.** I expected the
    identity gap to be "which dimension on the sheet" — the thing
