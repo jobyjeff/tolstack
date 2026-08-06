@@ -100,7 +100,9 @@ class StackElement:
 
     id: str
     name: str
-    role: str                        # bushing | bearing | washer | clamped_member | relief | fastener | allowance
+    # nut_geometry = transcribed but deliberately not folded in (the castellated-nut
+    # caveat); the seeded take-2 uses it three times and this comment omitted it.
+    role: str                        # bushing | bearing | washer | clamped_member | relief | fastener | allowance | nut_geometry
     nominal: float
     min: float
     max: float

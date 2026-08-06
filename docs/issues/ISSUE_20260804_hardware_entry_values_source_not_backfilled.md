@@ -1,12 +1,26 @@
 ---
 type: chore
 priority: medium
-status: open
+status: closed
 area: schemas
 reporter: agent
+closed: 2026-08-05
+closed_by: handoff sop_edits_apply
 ---
 
 # `hardware_entry/v0` has a `values_source` field on 1 of 13 entries
+
+> **CLOSED 2026-08-05** by handoff `sop_edits_apply` (commit `7aa4d9e`). All 13
+> entries carry the field: 8 `kind: "workbook"` / `untraced` with the exact
+> workbook cells, 1 `spec` / `traced` (`NAS6403U11D`), and 4 explicit `null` for
+> the `not_transcribed` entries — the `library_ref` convention, so "nothing to
+> cite" reads differently from "not backfilled". Enforced by
+> `test_every_inline_hardware_entry_cites_where_its_values_came_from`, with a
+> workbook-kind entry pinned by exact content beside the existing spec-kind one,
+> and by `test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry`,
+> which makes Step 5b's transitive ban checkable rather than prose. Recorded in
+> SOP Step 4; `hardware_entry` stays `/v0` — the field is additive and no reader
+> breaks on it. Suggestion 3's open question is answered that way.
 
 Filed during the `pitch_link_stack` review (2026-08-04). The half-landed state is
 in scope for that handoff (which proposed it deliberately); **finishing it is

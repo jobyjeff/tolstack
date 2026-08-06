@@ -215,6 +215,13 @@ number looks like from the outside.
   hardware entry's `gaps` non-empty; every `hardware_ref` resolves;
   `values_status` ∈ `inline | library | not_transcribed`; the `schema` string
   present and `/v0`.
+- **`values_source` on every inline hardware entry** (SOP Step 4, mandatory since
+  2026-08-05), null when `values_status` is `not_transcribed`. Then use it: if a
+  stack element takes a **band** from an entry whose `values_source` is
+  `kind: "workbook"`, that is a laundered untraced value and Step 5b forbids it
+  in a from-scratch stack, however clean the element's own `source_ref` looks.
+  Eight of the nine inline entries are workbook transcriptions, so this is the
+  common case, not the exotic one.
 - **Checks the source does not contain** are marked `workbook_cells: null` and
   `[NOT IN WORKBOOK]` in the label, with a test asserting it.
 - **Scope is stated**, including what was excluded and why.
@@ -269,8 +276,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       check all three, not two.
 - [ ] **Documents cited from a worktree that cannot see them.** `data/` is
       gitignored, so `data/inbox/specs/` in a worktree holds one tracked
-      `README.md` and nothing else — the 42-file pile exists only in the main
-      checkout at `C:\workspace\tolstack\data\inbox\specs\`. Check 1 tells you a
+      `README.md` and nothing else — the pile (several dozen files, and growing;
+      count it rather than quoting a number) exists only in the main checkout at
+      `C:\workspace\tolstack\data\inbox\specs\`. Check 1 tells you a
       citation to a missing document is worse than none; an `ls` in your own cwd
       will manufacture exactly that finding for every correctly-cited spec in the
       stack. **Read the pile in the main checkout.** Same for

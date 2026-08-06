@@ -75,7 +75,12 @@ with `values_status: inline` and `library_ref: null`. When the fastener library
 exists, `library_ref` points at it, `values_status` becomes `library`, and the
 inline numbers become a cross-check rather than the source. Each entry also
 carries `assembly_status` (present/absent in the 217755 parts list, find number,
-balloons) and a `gaps` list.
+balloons) and a `gaps` list. Since 2026-08-05 it carries **`values_source`** too
+— a `source_ref`-shaped dict saying where the inline numbers came from, required
+whenever they are inline and explicitly `null` when nothing is transcribed.
+Eight of the nine inline entries say `kind: "workbook"`, which is the point:
+those numbers are slice-1 transcriptions and a from-scratch stack may not reuse
+them through the entry any more than out of the xlsx (SOP Step 5b).
 
 **check result** (`joby.tolerance_stack/check_result/v0`) — produced, not
 stored: `worst_case_min/max`, `rss_min/max`, and a verdict of
