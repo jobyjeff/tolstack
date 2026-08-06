@@ -187,15 +187,27 @@ def export_pdf_path(cited: str, roots: Sequence[Path], dc_root: Path) -> Path:
     stays readable on a machine that keeps drawing-checker elsewhere. Which of
     these found the file does not matter: the caller sha256-verifies it, so a
     same-named file under the wrong root is refused, not cropped.
+
+    A **relative** cited path is never tried against the process's cwd, only
+    against ``roots``. ``data/inbox/drawings/x.pdf`` means the MAIN checkout's
+    ``data/``, and resolving it relative to wherever the script happened to be
+    invoked from makes the answer depend on the cwd: run from the main checkout
+    it finds the real file, run from a worktree (whose ``data/`` is gitignored
+    and empty) it does not. The sha check makes that fail closed rather than
+    crop the wrong bytes -- but it fails with "the file on disk is not the
+    export this citation was read from", which reads as a provenance alarm when
+    it is really a cwd accident. Found in ``review/citation_export_provenance``
+    (2026-08-06): the suite was green in the worktree and red in the main
+    checkout for exactly this reason.
     """
     raw = Path(cited)
-    if raw.exists():
-        return raw
     if not raw.is_absolute():
         for root in roots:
             candidate = root / cited
             if candidate.exists():
                 return candidate
+    elif raw.exists():
+        return raw
     else:
         parts = [p.replace("\\", "/") for p in raw.parts]
         for i, part in enumerate(parts):

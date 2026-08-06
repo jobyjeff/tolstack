@@ -210,6 +210,29 @@ def test_a_repo_relative_export_path_resolves_against_the_main_checkout(tmp_path
     assert got["pdf"] == pdf
 
 
+def test_a_repo_relative_export_path_ignores_the_process_cwd(tmp_path, monkeypatch):
+    """The given roots decide, never wherever the script was invoked from.
+
+    Regression, `review/citation_export_provenance` 2026-08-06: `export_pdf_path`
+    tried the bare relative path first, so running from the MAIN checkout (where
+    `data/inbox/drawings/212966-006-A.pdf` really exists) found that file instead
+    of the one the roots name -- and the sha check then reported "the file on disk
+    is not the export this citation was read from", a provenance alarm for what
+    was a cwd accident. The test above was green in a worktree, whose `data/` is
+    gitignored and empty, and red in the main checkout. Here both files exist and
+    differ, so only the roots can produce the right one.
+    """
+    cwd = tmp_path / "cwd"
+    decoy = write_pdf(cwd / "data" / "inbox" / "drawings" / "d.pdf", b"%PDF-1.4\nthe decoy\n")
+    real = write_pdf(tmp_path / "main" / "data" / "inbox" / "drawings" / "d.pdf")
+    assert bvc.sha256_of(decoy) != bvc.sha256_of(real)
+    monkeypatch.chdir(cwd)
+    export = established(real, pdf="data/inbox/drawings/d.pdf")
+    got = bvc.resolve_pdf({}, {"kind": "drawing", "document": "d", "export": export},
+                          tmp_path, tmp_path, [tmp_path / "main"])
+    assert got["pdf"] == real and got["sha256_verified"] is True
+
+
 def test_an_absolute_drawing_checker_path_is_rerooted_at_the_given_dc_root(tmp_path):
     """So a stack file still reads on a machine that keeps drawing-checker elsewhere."""
     dc_root = tmp_path / "elsewhere" / "drawing-checker"
