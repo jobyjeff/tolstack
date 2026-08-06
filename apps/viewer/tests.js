@@ -311,6 +311,26 @@
       has(root.textContent, "Pick a stack");
     });
 
+    // A thermal_fit stack GENERATES its checks, so the projection carries none.
+    // "no checks" would be false and reassuring; say what is actually true.
+    // (review/stack_viewer_v0, 2026-08-06)
+    await test("a generated-check archetype says so instead of 'no checks'", function () {
+      var base = FIXTURE.results.stacks[0];
+      var generated = JSON.parse(JSON.stringify(base));
+      generated.checks = [];
+      generated.archetype = "thermal_fit";
+      generated.checks_generated_not_rendered = true;
+      var root = render(function (r) { VA.renderStack(r, generated, CROPS, {}); });
+      has(root.textContent, "GENERATED");
+      has(root.textContent, "thermal_fit");
+      has(root.textContent, "NOT a stack without checks");
+
+      var plain = JSON.parse(JSON.stringify(base));
+      plain.checks = [];
+      var plainRoot = render(function (r) { VA.renderStack(r, plain, CROPS, {}); });
+      has(plainRoot.textContent, "no checks");
+    });
+
     // --- crop popover -------------------------------------------------------
 
     await test("a resolved popover shows the image, the sheet and both links", function () {

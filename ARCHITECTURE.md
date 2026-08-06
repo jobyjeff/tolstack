@@ -17,6 +17,9 @@ tolerance_stack/
   __main__.py       `python -m tolerance_stack` -- rebuild the spec projection
   stack.py          the stack shapes + the fold. ~330 lines, stdlib only.
   spec_library.py   the parse-event shapes + the library fold. stdlib only.
+  thermal.py        the thermal-fit archetype: materials + the check generator.
+                    stdlib only, and no arithmetic of its own beyond
+                    thermal_factor(). Added 2026-08-05.
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
@@ -31,20 +34,48 @@ apps/
 |---|---|
 | `SourceRef` | where a value came from; `confidence`, plus `element_id`/`run_id` held open for feature identity |
 | `StackElement` | one ordered element: `nominal`/`min`/`max` lengths, `lmc`/`mmc` as transcribed, `hardware_ref`, `source_ref` |
-| `Term` | an element and a sign (`+1`/`-1`), validated |
+| `Term` | an element, a sign (`+1`/`-1`), and a positive `coefficient` (default `1.0`), all validated |
 | `Interval` | a fold result: nominal, worst-case min/max, RSS center/half |
-| `fold(terms)` | **the only arithmetic in the repo** |
+| `fold(terms)` | **the only place element values are combined** |
 | `CheckResult` | a check outcome + the `verdict` property |
 | `StackDefinition` | elements + paths + checks; `path()`, `check()`, `all_checks()` |
 | `load_stack(path)` | read + schema-check a stack-definition JSON |
 
 There is no pipeline and no service. A stack is authored by hand (by an agent
 following the SOP) into JSON, and the module makes that JSON *executable* so
-tests can pin the numbers. Nothing generates a stack automatically yet.
+tests can pin the numbers. Nothing generates a stack automatically yet — though
+since 2026-08-05 one archetype generates its own **checks** from a declared
+`thermal_fit` block, which is not the same thing and is discussed below.
 
 The one executable entry point is `python -m tolerance_stack`, which rebuilds
 the spec-library projection. A projection needs a rebuild command by the forge
 data convention; a stack does not.
+
+### The thermal-fit archetype (`thermal.py`)
+
+The repo's **second** archetype, added 2026-08-05 by `hub_bearing_thermal_stack`:
+isothermal heat soak over a chained diametral interference fit, evaluated at every
+corner of (fit condition × temperature). Full statement of inputs, arithmetic and
+caveats in `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`.
+
+| name | what it is |
+|---|---|
+| `MaterialEntry` | one material + condition, its CTE, a `values_source`-shaped citation, a separate `designation_source`, and a non-empty `gaps` list |
+| `load_materials(path)` | read + schema-check `docs/tolerance_stacks/materials.json` (`material_entry/v0`) |
+| `thermal_factor(cte, dT)` | `1 + dT * cte * 1e-6` — the archetype's **one** new arithmetic primitive |
+| `ThermalFitChain` | one seat: hub bore, sleeve bore + wall, bearing OD, and the stiffness ratio that splits stage 1's interference |
+| `ThermalFitSpec` | the whole `thermal_fit` block: shared temperature scenarios plus one or more chains |
+| `build_checks(spec, materials)` | chains × 2 stages × N temperatures, as term lists whose coefficients carry the weights |
+| `load_thermal_fit_stack(path)` | `load_stack()` + generated checks, returning an ordinary `StackDefinition` |
+| `expanded_terms_table(stack)` | every generated term flattened, so the signs and weights can be read on a page |
+| `workbook_corner(...)` | a source spreadsheet's **coherent material corner**, for comparison only — the one function in the repo that reads `lmc`/`mmc`, and deliberately not routed through `fold()` |
+
+**Checks are generated, not authored**, and a `thermal_fit` stack file with a
+hand-written check is refused. That buys correctness — no coefficient can go stale
+in a data file — at the cost of the term lists not existing in the JSON for a
+reviewer to read. `tests/debug_report_thermal_fit.py --terms` and the worksheet's
+appendix are how that cost is paid back, and it is a compromise rather than a
+solution. Noted as such in the archetype doc's registry-input section.
 
 ### The spec library (`spec_library.py`)
 
@@ -86,7 +117,41 @@ consequential arithmetic error a stack can contain, and the one an eyeball check
 of plausible-looking totals will not catch.
 
 Signs multiply through nesting: a `{"path": p, "sign": -1}` term expands to `p`'s
-own terms with every sign flipped, so nesting never changes the arithmetic.
+own terms with every sign flipped, so nesting never changes the arithmetic. The
+same holds for coefficients, which multiply through.
+
+### Where computation may live — and the coefficient
+
+The rule that matters is not "no new code does arithmetic". It is **one place
+where element values get combined**. A second combiner is what makes a sign error
+undetectable; a per-term *weight* does not, because it is visible in the JSON next
+to the sign it scales.
+
+So when the two-stage thermal fit arrived (2026-08-05,
+`hub_bearing_thermal_stack`) needing three things `fold()` could not express —
+a diametral term worth twice a radial one, an isothermal soak that multiplies a
+diameter by `1 + ΔT·α`, and an interference split across two members by a
+stiffness ratio `k` — the answer was **not** a second engine. `Term` gained a
+positive `coefficient` (default `1.0`), the effective weight is
+`sign * coefficient`, and the whole archetype folds through the existing
+primitive. Every stack authored before it folds to the same numbers; the seeded
+three re-derive against the 260729 workbook with a largest delta of 6.4e-15,
+unchanged.
+
+Two consequences worth knowing:
+
+- **Direction stays in `sign`.** `coefficient` must be `> 0` and a test enforces
+  it. A term with a negative coefficient would have two places to be backwards,
+  which is the property this design exists to remove.
+- **A coefficient scales the RSS half-range linearly**, where duplicating a term
+  scales it by √2. That difference is the reason a sleeve's two walls are
+  `coefficient: 2` on one element rather than the element listed twice: the two
+  walls are *one turned dimension*, perfectly correlated, and listing it twice
+  understates the half-range by 29%.
+
+`thermal.py` computes **weights** — thermal factors, `2k`, `1−k`. It never
+combines two element values. That is the line, and it is the one to hold if a
+third archetype wants its own layer.
 
 ### Material condition is not an extreme
 
@@ -117,6 +182,7 @@ deliberately never reads RSS.
 
 ```
 data/inbox/specs/         (append-only spec + datasheet pile — the trace targets)
+data/inbox/drawings/      (part + assembly drawing PDFs; copies, never the originals)
 data/inbox/tolerance_stacks/  (source workbooks; gitignored, provenance committed)
         |                              |
         |  an agent reads page renders  |  hand transcription, by an agent
@@ -131,23 +197,34 @@ data/projections/spec_library/library.json   (derived, gitignored, disposable)
         |                              |
         |  hardware_entry.library_ref   v
         +---------------------> docs/tolerance_stacks/*.json
-                                  (stack_definition + hardware_entry — COMMITTED)
+                                  (stack_definition + hardware_entry
+                                   + material_entry — COMMITTED)
                                        |                     |
-                       tolerance_stack.fold                  |  build_viewer_crops.py
-                       (via load_stack/path/check)           |  (+ drawing-checker
-                                       |                     |   exports, PyMuPDF)
+                    tolerance_stack.fold, via                |  build_viewer_crops.py
+                    load_stack / path / check ...or,         |  (+ drawing-checker
+                    for the thermal_fit archetype, via       |   exports, PyMuPDF)
+                    thermal.load_thermal_fit_stack, which    |
+                    GENERATES the checks from a thermal_fit  |
+                    block and then folds them the same way   |
                                        v                     v
                           check_result/v0         data/projections/viewer/crops.json
-                             |      |                    + crops/*.png
-                             |      |  build_viewer_projection.py    |
-                             |      v                                |
-                             |  data/projections/viewer/results.json |
-                             |      |                                |
-                             |      +------> apps/viewer/ <----------+
-                             v               (renders, computes nothing)
+                       (on demand, never stored)        + crops/*.png
+                             |      |                          |
+                             |      |  build_viewer_projection.py
+                             |      v                          |
+                             |  data/projections/viewer/results.json
+                             |      |                          |
+                             |      +------> apps/viewer/ <----+
+                             v               (renders, combines nothing)
                     docs/tolerance_stacks/WORKSHEET_*.md
                              \______________ read live by apps/viewer
 ```
+
+All three inbox streams are gitignored by design (forge data convention): the
+filesystem is canonical, a tracked `PROVENANCE.md` / `README.md` is the skeleton,
+and **from a worktree those directories are empty apart from the skeleton**. Read
+the data in the main checkout at `C:\workspace\tolstack\data\`; cite it
+repo-relative.
 
 Nothing lands in `data/runs/` yet: no run-producing pipeline exists here. The
 `data/runs/` skeleton is the standard-layout requirement, held for when a stack
@@ -216,6 +293,43 @@ plain nut and a continuous grip, so their shank-out numbers do not settle either
 joint. This is stated, not hidden — see the SOP's castellated-nut caveat and
 findings F8/F16 in `docs/reference/`.
 
+**Reading MS9363 Rev C (2026-08-05) settled how far that gap can ever close.**
+The standard controls slot-to-slot coincidence (within .005) and slot-axis to
+thread-PD-axis (within .005), and gives nut height, slot count and slot width —
+so the *axial window* a cotter hole must fall in is now sourced (`G` to `H` from
+the nut bearing face). It says nothing about where a slot sits relative to the
+**thread start**, and JPS00094 Rev C §5.9.7 footnote (a) confirms that spacing
+varies between manufactured nuts. So the phase is not merely undocumented here,
+it is uncontrolled — no acquisition closes it. A stack can bound the window and
+must then defer to the assembly procedure §5.9.7 prescribes (change or add a
+washer, capped at three by §5.5.3.a). Recorded as an absence with
+`closed_by: null` on the `MS9363` library subject.
+
+The binding constraint on nearly every value was the **absence of a
+fastener-spec library**: 1 of 17 element instances across the three seeded
+stacks was `traced`. That library now exists (`docs/spec_library/`), holds the
+two bolts and both nuts, and carries its own intake queue — the per-entry `gaps`
+lists in `hardware_entries.json` are being superseded by it one entry at a time,
+starting with `NAS6403U11D`.
+
+The thermal-fit stacks invert that picture and expose a **second** intake queue.
+Their
+*dimensions* are almost fully traced (12 of 16 element instances, because Jeff
+supplied five released part drawings), while every **material property and every
+scenario parameter** is untraced: three CTEs, two operating temperatures, two
+stiffness ratios, 0 of 7. `materials.json`'s `cindas_request` fields are that
+queue, and its upstream is **CINDAS**, not the spec pile — so unlike the fastener
+gaps it cannot be closed by appending a PDF. Quoting a dimension-only traced ratio
+for a thermal stack overstates it; the worksheet states both.
+
+Two model-level gaps carried by the thermal archetype rather than by any one
+stack, both stated in `ARCHETYPE_thermal_fit.md`: the soak is **isothermal and
+free** (no gradient, no coupling between the pressing members' expansions), and a
+**dimensional interference is not a torque capacity** — the check says the parts
+touch, not that the joint can carry the torque that would spin the inner member.
+That second one is the direct analogue of the castellated-nut caveat above, and
+for the same reason: a correctly computed number that does not settle the
+question, which must say so next to itself.
 **Reading MS9363 Rev C (2026-08-05) settled how far that gap can ever close.**
 The standard controls slot-to-slot coincidence (within .005) and slot-axis to
 thread-PD-axis (within .005), and gives nut height, slot count and slot width —

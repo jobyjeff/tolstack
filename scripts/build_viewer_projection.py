@@ -286,6 +286,19 @@ def project_stack(
         "id": stack.id,
         "title": stack.title,
         "units": stack.units,
+        "archetype": raw.get("archetype"),
+        # An archetype whose checks are GENERATED ships an empty `checks` array
+        # in the file -- `thermal_fit` does, and thermal.load_thermal_fit_stack()
+        # refuses a hand-written one. This script calls plain load_stack(), so
+        # those stacks project with zero checks, and a viewer that renders that
+        # as "no checks" would be lying by omission on the one surface built to
+        # stop exactly that. Say so instead, until the projection learns to
+        # generate them WITH their coefficients (rendering a `2k`-weighted term
+        # as a bare "+ element" would be worse than not rendering it at all).
+        # See docs/issues/ISSUE_20260806_viewer_does_not_render_generated_checks.md.
+        "checks_generated_not_rendered": bool(
+            raw.get("archetype") and not raw.get("checks")
+        ),
         "source_file": as_posix_rel(path),
         "worksheet_file": as_posix_rel(worksheet) if worksheet.exists() else None,
         "stack": raw,

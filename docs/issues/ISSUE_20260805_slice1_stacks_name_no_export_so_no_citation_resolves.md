@@ -81,3 +81,25 @@ sha256 coverage.)*
 Found by handoff `stack_viewer_v0`, 2026-08-05. Do not "fix" this by loosening
 the crop script's resolution rules: guessing an export renders a crop of the
 wrong revision's geometry and looks perfectly correct on screen.
+
+## Update 2026-08-06 — it is not a slice-1 problem, it is the default
+
+`hub_bearing_thermal_stack` landed on `master` during `review/stack_viewer_v0`,
+adding two stacks written *fresh* — and rebuilding the crop projection on the
+merged tree shows they inherit the same failure:
+
+```
+hub_bearing_thermal_fit_m2:hub_bore_upper     citation names no export, ... no PDF for '212966-006'
+hub_bearing_thermal_fit_m1:sleeve_bore_upper  citation names no export, ... no PDF for '214959-002'
+hub_bearing_thermal_fit_m1:bearing_od_lower   citation names no export, ... no PDF for '214589-002'
+```
+
+The drawings are real and present (they were dropped into drawing-checker's
+`data/inbox/drawings/` on 2026-08-05), and the citations name sheet and drawing
+number — but again nothing names *which export*. So this is not three legacy
+imported stacks carrying a legacy defect: it is what the SOP currently produces
+by default, and `stack_pitch_link_to_pitch_plate.json`'s `joint.assembly_export`
+remains the only counter-example in the repo. Overall: **6 of 48** element
+citations now resolve, all six still in that one stack. Raising the priority of
+the SOP-side fix (suggestion 2 above: make the export a structured, per-`source_ref`
+field) accordingly.

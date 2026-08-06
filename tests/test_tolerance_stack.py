@@ -49,6 +49,12 @@ ALL_STACK_FILES = [
     "stack_tan_link_to_pitch_plate_take2.json",
     "stack_vpa_output_to_pitch_plate.json",
     "stack_pitch_link_to_pitch_plate.json",
+    # thermal_fit archetype (hub_bearing_thermal_stack, 2026-08-05). These load
+    # through load_stack() for the schema-hygiene tests below, which is all those
+    # need; their checks are GENERATED, so their values are pinned in
+    # tests/test_hub_bearing_thermal_fit.py via load_thermal_fit_stack().
+    "stack_hub_bearing_thermal_fit_m2.json",
+    "stack_hub_bearing_thermal_fit_m1.json",
 ]
 
 
@@ -106,6 +112,71 @@ def test_element_rejects_inverted_limits():
 def test_term_rejects_a_non_unit_sign():
     with pytest.raises(ValueError, match=r"\+1 or -1"):
         Term(_el("a", 1.0, 1.0, 1.0), sign=2)
+
+
+# --- Term.coefficient (added 2026-08-05, handoff hub_bearing_thermal_stack) ---
+
+
+def test_term_coefficient_defaults_to_one_so_every_older_stack_is_unchanged():
+    t = Term(_el("a", 1.0, 1.0, 1.0))
+    assert t.coefficient == 1.0
+    assert t.weight == 1.0
+    assert Term(_el("a", 1.0, 1.0, 1.0), sign=-1).weight == -1.0
+
+
+def test_term_rejects_a_non_positive_coefficient():
+    """Direction lives in ``sign``, magnitude in ``coefficient``.
+
+    Allowing a negative coefficient would give a term two places to be
+    backwards, which is precisely the property the one-fold design exists to
+    prevent.
+    """
+    for bad in (0.0, -1.0, -2.5):
+        with pytest.raises(ValueError, match="coefficient must be > 0"):
+            Term(_el("a", 1.0, 1.0, 1.0), coefficient=bad)
+
+
+def test_fold_coefficient_scales_the_extremes_and_the_nominal():
+    got = fold([Term(_el("a", 10.0, 9.0, 11.0)),
+                Term(_el("b", 2.0, 1.5, 2.5), coefficient=2.0)])
+    assert got.nominal == 14.0            # 10 + 2*2
+    assert got.min == 9.0 + 2 * 1.5       # 12.0
+    assert got.max == 11.0 + 2 * 2.5      # 16.0
+
+
+def test_fold_coefficient_with_a_negative_sign_still_swaps_the_extremes():
+    got = fold([Term(_el("a", 10.0, 9.0, 11.0)),
+                Term(_el("c", 1.0, 0.5, 2.0), sign=-1, coefficient=3.0)])
+    assert got.nominal == 10.0 - 3 * 1.0
+    assert got.min == 9.0 - 3 * 2.0       # the subtracted term's MAX drives the min
+    assert got.max == 11.0 - 3 * 0.5
+
+
+def test_fold_coefficient_scales_the_rss_half_range_linearly():
+    """A scaled variate has a scaled spread -- and this is why a diametral term
+    is ``coefficient=2`` rather than the same element listed twice.
+
+    Twice one wall and two independent walls give the same worst case and
+    *different* RSS: 2*h against sqrt(2)*h. The two walls of a sleeve are one
+    turned dimension, so ``coefficient=2`` is the correct, fully-correlated
+    treatment and duplicating the term would understate the half-range by 29%.
+    """
+    half = 0.5
+    doubled = fold([Term(_el("w", 1.0, 1.0 - half, 1.0 + half), coefficient=2.0)])
+    twice = fold([Term(_el("w", 1.0, 1.0 - half, 1.0 + half)),
+                  Term(_el("w", 1.0, 1.0 - half, 1.0 + half))])
+    assert doubled.min == twice.min and doubled.max == twice.max
+    assert doubled.rss_half == pytest.approx(2 * half)
+    assert twice.rss_half == pytest.approx(2 ** 0.5 * half)
+    assert doubled.rss_half > twice.rss_half
+
+
+def test_fold_is_still_the_only_arithmetic_and_still_never_reads_lmc_or_mmc():
+    """``fold()`` reads ``min``/``max`` lengths. Coefficients did not change that."""
+    source = Path(__file__).resolve().parent.parent / "tolerance_stack" / "stack.py"
+    body = source.read_text(encoding="utf-8")
+    fold_src = body.split("def fold(", 1)[1].split("\n# ---", 1)[0]
+    assert ".lmc" not in fold_src and ".mmc" not in fold_src
 
 
 # ---------------------------------------------------------------------------
@@ -522,10 +593,67 @@ def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
     assert ref.callout == "3X 4.06 ±0.08"
 
 
-def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():
+def test_hardware_entry_values_source_counts_match_the_description():
+    """``description`` asserts counts in prose. Prose goes stale silently.
+
+    This is the repo's named recurring bug (stale inventory numbers in docs), and
+    it bit this very field **twice in one day**: the description said "all but one
+    entry transcribes the 260729 workbook" and stayed that way when
+    ``hub_bearing_thermal_stack`` added two drawing-traced bearing entries, and the
+    replacement said ``("inline", "spec")`` where ``spec_library_v0`` had promoted
+    ``NAS6403U11D`` to ``library`` on the same branch point. Recount, don't read.
+
+    The distinction the counts preserve is the one that matters for reuse: a
+    ``kind: "workbook"`` source is forbidden in a from-scratch stack however clean
+    the citing element looks (SOP Step 5b, trap 17), and ``values_status`` is
+    orthogonal to it -- a promoted entry keeps saying where its inline numbers came
+    from.
+    """
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
-    absent = {e["id"] for e in data["entries"] if not e["assembly_status"].get("present")}
-    assert absent == {"NAS1149V0363", "NAS77A4-015"}
+    entries = data["entries"]
+    assert len(entries) == 15
+    counted = {}
+    for entry in entries:
+        src = entry.get("values_source") or {}
+        counted[(entry["values_status"], src.get("kind"))] = counted.get(
+            (entry["values_status"], src.get("kind")), 0) + 1
+    assert counted == {
+        ("inline", "workbook"): 8,     # forbidden as a source in a from-scratch stack
+        ("library", "spec"): 1,        # NAS6403U11D, promoted by spec_library_v0
+        ("inline", "drawing"): 2,      # 214589-002, 214588-002 -- source control drawings
+        ("not_transcribed", None): 4,
+    }
+    # traced-ness is a property of values_source, not of values_status
+    traced = {e["id"] for e in entries
+              if (e.get("values_source") or {}).get("confidence") == "traced"}
+    assert traced == {"NAS6403U11D", "214589-002", "214588-002"}
+    text = data["description"]
+    for phrase in ("eight of the fifteen", "THREE entries are traced",
+                   "Four entries are `not_transcribed`"):
+        assert phrase in text, f"description no longer says {phrase!r}"
+
+
+def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():
+    """``present`` is three-valued and the three values mean different things.
+
+    ``False`` is a **finding** -- the part is not in 217755's parts list, which is
+    how slice 1 discovered that every evaluated check used a `.063` washer the
+    assembly does not contain. ``None`` is **not checked**, which is a gap on the
+    author, not on the design. Collapsing them (``if not entry[...]["present"]``)
+    reads a null as a finding and manufactures one; this test was written that way
+    and ``hub_bearing_thermal_stack`` was the first handoff to add a
+    deliberately-null entry, which exposed it.
+    """
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    states = {}
+    for entry in data["entries"]:
+        states.setdefault(entry["assembly_status"].get("present"), set()).add(entry["id"])
+    assert states[False] == {"NAS1149V0363", "NAS77A4-015"}, "absent-from-assembly findings"
+    assert states[None] == {"214589-002", "214588-002"}, "assembly presence not yet checked"
+    for entry_id in states[None]:
+        entry = next(e for e in data["entries"] if e["id"] == entry_id)
+        assert any("not checked" in g.lower() for g in entry["gaps"]), (
+            f"{entry_id}: a null `present` must be listed as a gap, not left silent")
 
 
 def test_the_nas6403_entry_cites_the_standard_its_inline_values_came_from():

@@ -43,6 +43,18 @@ stated plainly beats a confident wrong one.
 
 ## The four schemas
 
+> **If the stack you are building is not a linear grip stack, read
+> `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md` first.** This file is the
+> procedure for the repo's **first** archetype — a linear grip-length stack — and
+> it does not say so anywhere else. A second archetype exists (a two-stage
+> diametral thermal fit, 2026-08-05), it has a fifth schema
+> (`material_entry/v0`), and it needed things this file does not mention: real
+> term coefficients, material properties, generated rather than hand-authored
+> checks. Everything below still applies to it — the one rule most of all — but
+> several steps have to be read differently, in the same spirit as Step 5b.
+> `docs/sessions/lessons/LESSONS_20260805_hub_bearing_thermal_stack.md` itemises
+> which, as proposed edits to this file that have not yet been applied.
+
 All four are defined in `tolerance_stack/stack.py` and all are versioned `/v0`.
 The `joby.tolerance_stack/...` ids are **not** repo-scoped — they mean the same
 thing they meant in drawing-checker, so moving repos did not rev them.

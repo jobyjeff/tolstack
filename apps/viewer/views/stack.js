@@ -293,7 +293,19 @@
       section.appendChild(checkCard(stackProj, check));
     });
     if (!(stackProj.checks || []).length) {
-      section.appendChild(VA.el("p", "muted", "no checks"));
+      // "no checks" and "this stack's checks are generated and this surface
+      // cannot render them yet" are different facts, and only one of them is
+      // true of a thermal_fit stack. Never let the second render as the first.
+      section.appendChild(stackProj.checks_generated_not_rendered
+        ? VA.el("p", "check__warn",
+            "This stack declares archetype \"" + (stackProj.archetype || "?") +
+            "\", whose checks are GENERATED from its own block rather than " +
+            "authored in the file — so there are none here to render, and this " +
+            "is NOT a stack without checks. The viewer does not build them yet " +
+            "(their terms carry coefficients it would have to show). Read them " +
+            "with: venv-win\\Scripts\\python.exe tests\\debug_report_thermal_fit.py " +
+            "--terms --markdown")
+        : VA.el("p", "muted", "no checks"));
     }
     return section;
   }

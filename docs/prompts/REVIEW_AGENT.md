@@ -96,6 +96,35 @@ understates the requirement. Sighted in `pitch_link_stack`, which quoted
 every folded value correct and every test green. Read the requirement sentence
 against the interval, and check a test pins which end binds.
 
+**If the stack's `checks` array is empty, the signs are not in the file.** Since
+`hub_bearing_thermal_stack` (2026-08-05) one archetype **generates** its checks
+from a `thermal_fit` block, and `load_thermal_fit_stack()` *refuses* a
+hand-written one — so this check cannot be done by reading the JSON, and reading
+the JSON will tell you there are no terms at all. Run
+`venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --terms --markdown`
+and read that table row by row instead; the worksheet appendix is a paste of it,
+so also diff the two rather than trusting the paste. What to check per row is
+archetype-specific and stated in `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`;
+for `thermal_fit` it is: sleeve bore and wall `+1`, hub bore `-1` at stage 1; the
+wall's coefficient exactly twice the bore's (diametral) and `2k` times it at
+stage 2; every coefficient exactly `1`/`2`/`k`/`2k`/`1-k` at the reference
+temperature, where the soak factors drop out; and cold coefficients below their
+room values with hot above, the fastest-CTE member always furthest from room.
+
+### 2b. Coherent material corners are not a worst-case fold
+
+New with the `thermal_fit` archetype and **general to any transcription**. A
+hand-built spreadsheet evaluates *coherent corners* — every feature at LMC at
+once, or every feature at MMC. `fold()` takes each feature to its own worst limit
+independently. They coincide only when every term's weight sign agrees with the
+direction its material condition moves it; if any term disagrees, the
+spreadsheet's column is **narrower than the truth** and the gap is the disagreeing
+features' tolerance widths. Two features of one part entering on the same sign is
+the smell (a derived dimension built from two independently-toleranced ones — here
+a sleeve OD as `bore + 2×wall`). Do not let a re-derivation delta of this kind be
+written off as a transcription error: check whether it is methodological, and
+whether it moves a verdict. It did here — 0.05003 mm at every stage-1 corner.
+
 ### 3. LMC/MMC direction, per element
 
 For each element carrying `lmc`/`mmc`, confirm the mapping to `min`/`max` is
@@ -199,6 +228,24 @@ proportionally more scrutiny per `traced` value, not less. **A high traced count
 is a reason to audit harder, not a reason to relax** — it is what an invented
 number looks like from the outside.
 
+**Count the values that are not elements, separately, and demand them.** An
+element-only ratio flatters any archetype whose answer rests on numbers a
+`StackElement` cannot hold — material properties, temperature scenarios,
+dimensionless ratios. `hub_bearing_thermal_stack` traced **12 of 16 element
+instances** (Jeff supplied five released part drawings) and **0 of 7** non-element
+values: three CTEs, two operating temperatures, two stiffness ratios. Quoting the
+first alone would have been true and misleading. So: enumerate every number any
+check consumes, find where each one's `source_ref` lives (a `materials.json`
+entry, a `temperature_source` key, a per-chain `stiffness_ratio.source_ref` — there
+is no single home yet), and state both ratios. **Recalled material properties are
+prohibited on the same footing as recalled fastener dimensions**, and they are
+*more* dangerous: they are more widely tabulated, so a model reproduces them more
+fluently. CINDAS is the source of record for this repo (Jeff, 2026-08-05);
+Google-sourced or recalled CTE is an invented number and blocks the merge. Check
+also that a gap-closing *instruction* cannot launder a guess — a CINDAS pull for
+an unconfirmed alloy comes back wearing `confidence: "traced"`, so the material
+must be confirmed before the property is looked up.
+
 ---
 
 ## Also verify
@@ -210,7 +257,28 @@ number looks like from the outside.
   new tests pinning its numbers is incomplete.
 - **The re-derivation table** covers every result cell the source computes, at
   full precision. Deltas ~1e-15 are float summation order. Anything larger is a
-  real disagreement that must be a recorded finding, not a rounded-away one.
+  real disagreement that must be a recorded finding, not a rounded-away one — but
+  see check 2b: a delta can be a **method** difference rather than a transcription
+  error, and hunting for the latter will waste your time. Recount the cell counts a
+  re-derivation asserts; they are checkable in one pass over the sheet XML
+  (`hub_bearing_thermal_stack`'s 427 formula / 480 numeric were both exact).
+- **`materials.json` (`material_entry/v0`), if the work has one.** Same hygiene as
+  `hardware_entry`: `values_status` ∈ `inline | library | not_transcribed`,
+  `library_ref` null until a materials library exists, `values_source` mandatory
+  when inline, `gaps` non-empty. Its own addition is **`designation_source`
+  separate from `values_source`** — a material's *name* and its *numbers* have
+  different provenance, and conflating them is how a drawing-traced alloy name
+  lends credibility to a spreadsheet CTE. Check both fields separately, and check
+  `cte_temperature_range_c` is `null` when the source states no range: writing one
+  in invents a provenance detail, which is worse than an untraced number because it
+  makes the citation look complete.
+- **The archetype's own caveat, next to the numbers.** Check 6's castellated-nut
+  rule generalises: every archetype has a question its arithmetic does not settle,
+  and it must be stated where the results are, not in a gaps section. For
+  `thermal_fit` it is that **a dimensional interference is not a torque capacity** —
+  contact pressure, friction and hoop stress are all outside it, so a `pass` is
+  necessary and not sufficient. If a stack's joint has no cotter/castellation
+  hardware, check 6 exits — but require the *analogous* caveat rather than none.
 - **Schema hygiene.** `element_id` / `run_id` null; every hardware entry's `gaps`
   non-empty; every `hardware_ref` resolves; `values_status` ∈
   `inline | library | not_transcribed`; the `schema` string present and `/v0`.
@@ -374,6 +442,35 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `spec_library.py` to the package meant re-exporting it from
       `tolerance_stack/__init__.py`, whose row still read "no — byte-identical".
       The three SOP-mandated files get remembered; the *package* files do not.
+      **Third sighting (`hub_bearing_thermal_stack`)**, and the phrase had escaped
+      PROVENANCE entirely: a stack note, a worksheet headline and two test comments
+      all claimed two workbook sheets were "byte-identical" over rows 31–44 while a
+      test asserted only that the *numeric* cells matched. Four cells differed, and
+      one was **the hub part number the identity argument rests on** (`O31` reads
+      212966-005 on M2 and 212966-004 on M1 — which is exactly why one stack calls
+      that element `traced` and the other `inferred`). **Treat "byte-identical"
+      anywhere as a claim to verify, not read**, and check what the test actually
+      compares: a cached numeric table is not the sheet. Diff the whole row block,
+      comment column included.
+- [ ] **Prose asserting a field is `null` while the field is not.** Same class as
+      stale counts, one level down. `hub_bearing_thermal_stack`'s
+      `identification_note` said "find numbers, balloons and quantities are
+      therefore null rather than guessed" with `qty: 1` on all five rows of the same
+      JSON (a within-joint count, defensible — the sentence was not). When a note
+      claims a field is empty, grep the field.
+- [ ] **A text layer is a locator, not a reading.** New with
+      `data/inbox/drawings/`: unlike the photocopied spec pile, these part-drawing
+      PDFs *are* searchable, which invites grepping a dimension and folding it. A
+      text layer gives a value and not what it measures. `1.190 ±0.025` and
+      `1.110 ±0.035` sit side by side on 214955-004 sheet 1 — the first is the
+      radial wall, the second the flange's *axial* thickness, and 1.110 is also
+      nearly the upper sleeve's wall (`1.110 ±0.025`), so the wrong reading is
+      doubly plausible and re-derives perfectly. The author caught this one and
+      recorded it as a `[read]` finding; verify any dimension you are checking by
+      crop (`debug_trace_stack_values.py --crop "<page>,<cx>,<cy>,<half>" --zoom 6`
+      from drawing-checker's venv), and verify printed zones from the border ticks
+      rather than by eye — all nine citations in this stack were exact when checked
+      against the callout text's own centre.
 - [ ] **A sibling handoff landed on `master` while you were reviewing.** The board
       runs handoffs in parallel, and two that are each internally correct can
       merge into a contradiction. `sop_edits_apply` and `spec_library_v0` both
@@ -417,14 +514,30 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
       and checks are the same signed term list. And `fold()` reads `min`/`max`
-      only: it must never read `lmc`/`mmc`. **Since `stack_viewer_v0` this
-      extends to JavaScript.** `apps/viewer/` renders `results.json` and computes
-      nothing: no `+`, `-`, comparison-of-tolerances, `toFixed` or verdict logic
-      anywhere under `apps/viewer/`. Rounding happens once, in
+      only: it must never read `lmc`/`mmc`. Since 2026-08-05 the precise invariant
+      is **one place where element *values* get combined**: an archetype layer may
+      compute per-term *weights* (`thermal.py` computes soak factors, `2k`, `1−k`)
+      and may not combine two element values. Check that any new layer respects
+      that line, and that `Term.coefficient` is still `> 0` — direction lives in
+      `sign`, and a negative coefficient would give a sign error two places to
+      hide. `workbook_corner()` is the one sanctioned reader of `lmc`/`mmc`; it
+      reproduces a source spreadsheet's coherent corner for comparison and is
+      deliberately not routed through `fold()`.
+- [ ] **A generated check must not be hand-writable, and must be readable.**
+      A `thermal_fit` stack file's own `checks` array is empty and
+      `load_thermal_fit_stack()` refuses a hand-written entry — a check in the file
+      would be a second, unverified source of coefficients. The cost is that the
+      repo's central safety property (a reviewer reads every sign) has no JSON to
+      read, so require the expanded-terms appendix in the worksheet and re-generate
+      it yourself rather than trusting the paste.
+- [ ] **The no-second-combiner rule extends to JavaScript** (`stack_viewer_v0`,
+      2026-08-05). `apps/viewer/` renders `results.json` and combines nothing: no
+      `+`, `-`, comparison-of-tolerances, `toFixed` or verdict logic anywhere
+      under `apps/viewer/`. Rounding happens once, in
       `build_viewer_projection.py` (`INTERVAL_DECIMALS`), and `VA.fmt` is
       `String(n)` on purpose. Grep any viewer diff for arithmetic operators on a
-      projection field — a second fold in JS is a second line where a sign can be
-      wrong, and it would be in the language nothing in `tests/` executes.
+      projection field — a second combiner in JS is one nothing in `tests/`
+      executes.
 - [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
       the moment an element changes and nothing notices.
 - [ ] **Do not edit a file `PROVENANCE.md` claims is byte-identical.** Ten

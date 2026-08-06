@@ -24,18 +24,24 @@ That is where I concentrated.
 
 ## What I verified
 
-**Merged before judging.** `master` had moved (`spec_library_v0` landed), so I
-merged `handoff/stack_viewer_v0` into `review/stack_viewer_v0` on top of current
-`master` and tested the tree that will actually exist. It **conflicted** —
-`ARCHITECTURE.md`, see finding 1 — resolved additively and committed.
+**Merged before judging — twice.** `master` moved under me *during* the review,
+not once but twice: `spec_library_v0` had landed when I started, and
+`hub_bearing_thermal_stack` landed while I was writing the report. Both times I
+merged into `review/stack_viewer_v0` and re-tested the tree that will actually
+exist. Both merges **conflicted** (`ARCHITECTURE.md` both times, plus this
+overlay the second time — findings 1 and 6), and the second merge surfaced a real
+cross-handoff defect that neither branch's suite can see (finding 6).
 
-**Three test tiers, all re-run by me, all green:**
+**Three test tiers, all re-run by me on the final merged tree, all green:**
 
 | tier | command | result |
 |---|---|---|
-| pytest | `venv-win\Scripts\python.exe -m pytest -q` | **179 passed, 1 skipped** |
-| fast JS (node + DOM shim, incl. node-fs tier on the real projection) | `node apps\viewer\run_tests.cjs --repo C:\workspace\tolstack` | **58/58** |
-| truth tier (installed Chrome 150 over CDP, `file://` **and** `http`) | `npm ci && node scripts\run_viewer_browser_tests.mjs` | **4/4 checks; 48+48 suite, 16+16 live-DOM sub-checks** |
+| pytest | `venv-win\Scripts\python.exe -m pytest -q` | **241 passed, 1 skipped** |
+| fast JS (node + DOM shim, incl. node-fs tier on the real projection) | `node apps\viewer\run_tests.cjs --repo C:\workspace\tolstack` | **59/59** |
+| truth tier (installed Chrome 150 over CDP, `file://` **and** `http`) | `npm ci && node scripts\run_viewer_browser_tests.mjs` | **4/4 checks; 49+49 suite, 16+16 live-DOM sub-checks** |
+
+(Pre-merge, against `master` as it stood at the start: 179 / 58 / 4-of-4. The
+growth is `hub_bearing_thermal_stack`'s tests plus the two I added.)
 
 The one skip is honest and self-explaining: the node-fs tier reports itself
 skipped from a worktree, where `data/` exists only in the main checkout, and
@@ -83,11 +89,12 @@ reasons are specific enough to act on.
 **drawing-checker stayed read-only.** The crop script only opens and hashes. The
 cited run `20260804_114000` predates this handoff (dir mtime 2026-08-04 11:40,
 `ts` 2026-08-04T18:40Z) and is cited by `stack_pitch_link_to_pitch_plate.json`,
-which is `master` content. Five PDFs were dropped into drawing-checker's inbox
-on 2026-08-05 afternoon (`212966-006-A`, `214588-002-A`, `214589-002-A`,
-`214955-004-A`, `214959-002-A`) — none is cited or touched by this work; they
-belong to another session, most likely `hub_bearing_thermal_stack`. Noted, not
-charged here (the teeth-less-check issue already covers the general weakness).
+which is `master` content. Five PDFs were dropped into drawing-checker's inbox on
+2026-08-05 afternoon (`212966-006-A`, `214588-002-A`, `214589-002-A`,
+`214955-004-A`, `214959-002-A`); the crop rebuild after the second merge
+identified them for me — they are the drawings `hub_bearing_thermal_fit_m1`/`m2`
+cite, so they are that handoff's, not this one's. Nothing here wrote them, and
+its own review is closed; noted factually, not charged.
 
 **Other overlay items.** `PROVENANCE.md`: no file it calls byte-identical was
 touched — the diff is `apps/`, `scripts/`, `tests/`, `docs/`, `README.md`,
@@ -169,6 +176,55 @@ surface whose whole job is not doing that. *Fixed:* the line now names the strin
 that matched — `(callout text "4.06" found there)` — and the fast-tier test
 asserts it. All three tiers re-run green after the change.
 
+### Should-fix — from the second merge; honesty guard fixed inline, feature filed
+
+**6. The viewer renders *no checks at all* for the two `thermal_fit` stacks that
+landed on `master` mid-review.** `build_viewer_projection.py` folds with
+`load_stack()`; a `thermal_fit` stack's `checks` array is empty in the file by
+design, because `thermal.load_thermal_fit_stack()` **generates** the checks and
+refuses a hand-written one. So on the merged tree:
+
+```
+hub_bearing_thermal_fit_m1   8 elements (4T/2I/2U), 0 paths, 0 checks
+hub_bearing_thermal_fit_m2   8 elements (8T/0I/0U), 0 paths, 0 checks
+```
+
+Two of six stacks reach the review surface as an elements table and nothing else
+— every interference result, the whole point of the archetype, absent with no
+error and no failing test. Neither handoff is at fault; both suites are green on
+both branches *and* on the merge, because nothing tests the viewer against a
+generated-check stack. Textbook instance of the overlay's own
+"sibling handoff landed on master" entry.
+
+*Fixed inline — the honesty guard only.* The projection now carries `archetype`
+and `checks_generated_not_rendered`, and the viewer prints a loud notice naming
+the archetype and the command that *does* show the terms
+(`tests/debug_report_thermal_fit.py --terms --markdown`) instead of a quiet
+"no checks". Pinned by a new pytest and a new fast-tier JS test.
+
+*Not fixed — filed as
+`docs/issues/ISSUE_20260806_viewer_does_not_render_generated_checks.md`
+(priority high).* Actually rendering these checks is not a one-liner and I
+deliberately did not attempt it: generated terms carry **coefficients**
+(`2`, `k`, `2k`, `1−k`, soak factors) that `term_elements()` drops and
+`stack.js` does not render, so dispatching to the thermal loader without first
+plumbing coefficients through would display a `2k`-weighted sleeve wall as a bare
+`+ sleeve_wall`. That is worse than showing nothing — a term list that looks
+readable and is wrong, on the surface whose job is letting a reviewer read every
+sign. The issue says to plumb coefficients first, for that reason.
+
+**7. The no-export defect is not a slice-1 legacy problem — it is the default.**
+Rebuilding crops on the merged tree, the two brand-new thermal stacks fail
+*identically* to the three imported ones: `citation names no export, and
+provenance.sources_used names no PDF for '212966-006'` and friends. The drawings
+exist and the citations name sheet and number; nothing names which export. So
+resolution across the repo is now **6 of 48**, all six still in the one stack
+that fills `joint.assembly_export`. This makes the SOP-side fix considerably more
+urgent than the original issue implied. *Fixed:* appended a dated update to
+`ISSUE_20260805_slice1_stacks_name_no_export_so_no_citation_resolves.md` with
+the evidence; the SOP change itself is out of scope here (and this handoff was
+told not to touch the SOP).
+
 ### Nits
 
 - **The browser tier dies with a raw `ERR_MODULE_NOT_FOUND` stack trace** when
@@ -188,6 +244,12 @@ asserts it. All three tiers re-run green after the change.
 - `vendor/markdown.js` carries a `summaryLine` that calls an undefined
   `firstLine`. It is dead here and **also dead upstream in forge**; the file's
   own rule is "re-copy rather than diverge", so leaving it is correct.
+- **`WORKSHEET_hub_bearing_thermal_fit.md` serves both thermal stacks**, but the
+  projection matches worksheets by name (`stack_X.json` → `WORKSHEET_X.md`), so
+  both report `worksheet_file: null`. The viewer correctly says "no worksheet"
+  rather than borrowing one — the right default, and tested — but one worksheet
+  serving several stacks is now a real pattern and probably wants an explicit
+  `worksheet` field. Recorded in the filed issue's "Related, smaller" section.
 
 ## Note for the next reviewer
 
@@ -213,9 +275,14 @@ I recomputed independently and it is exactly right.
 
 ## Verdict
 
-**APPROVE.** No blockers. Five should-fix findings, all fixed inline on the
-review branch; four were overstated or stale numbers in the issue and lesson
-prose, one was an honesty overstatement in the UI. The engineering underneath is
+**APPROVE.** No blockers. Seven should-fix findings. Six are fixed inline on the
+review branch: four were overstated or stale numbers in the issue and lesson
+prose, one an honesty overstatement in the UI, one a two-way `ARCHITECTURE.md`
+merge. The seventh — the viewer not rendering generated `thermal_fit` checks —
+arises **only from the merge with a sibling handoff**, is not a defect of the
+work as authored, and cannot be fixed safely without plumbing term coefficients
+first; its silent half is guarded inline and its real half is filed at priority
+high. The engineering underneath is
 careful: the one-fold rule is preserved into a second language, resolution
 refuses to guess and is tested branch by branch, the unresolvable *reasons* are
 treated as the deliverable they are, and the handoff's headline ask — "which
