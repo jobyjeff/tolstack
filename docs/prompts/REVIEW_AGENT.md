@@ -49,7 +49,26 @@ For **every** element value, verify:
   to a document that is not there is worse than no citation, because it reads as
   diligence;
 - the `callout` text matches what the document says, and the `sheet`/`zone`/`view`
-  address actually leads there;
+  address actually leads there — **on the export the citation names**. Since
+  `citation_export_provenance` (2026-08-06) every `drawing`/`parts_list`
+  `source_ref` carries `export` (`SourceExport`), and its identity is `sha256`,
+  not the filename: Jeff re-exports over the same name and a printed zone is not
+  stable between exports of one revision. **Re-hash every established export
+  yourself** — a one-line walk over the stack files, and it is the only thing
+  standing between a citation and a crop of the wrong revision that looks
+  perfectly correct. Then check the *claims around* the hash, which no test
+  reads: that `runs` lists exactly the drawing-checker runs whose recorded input
+  sha equals it (`data/runs.jsonl`, not `run_meta.json` — runs before
+  `20260730_161157` have no `inputs` key), that `runs: []` means no run consumed
+  the file rather than nobody looked, and that the chain in `export.note`
+  re-walks. An `unestablished` export is the honest answer and is enforced from
+  both sides; a *plausible* run id is the failure this field exists to prevent;
+- a `drawing`/`parts_list` export naming a PDF **outside this repo** is a
+  should-fix, not a pass: SOP Step 3 says copy the file into
+  `data/inbox/drawings/` and cite it repo-relative, with a `PROVENANCE.md` row.
+  The three 215197 citations still point into drawing-checker's
+  `tests/fixtures/drawings/` (the only copy in existence) — another repo's test
+  fixture as production provenance. Check whether that is still true;
 - `confidence` is **honest**. Downgrade aggressively:
   - a value from a parts-list part number, with the tolerance band coming from
     somewhere else, is **`inferred`** — not `traced`;
@@ -453,7 +472,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       that element `traced` and the other `inferred`). **Treat "byte-identical"
       anywhere as a claim to verify, not read**, and check what the test actually
       compares: a cached numeric table is not the sheet. Diff the whole row block,
-      comment column included.
+      comment column included. **Fourth sighting
+      (`citation_export_provenance`, 2026-08-06)** — on a handoff whose entire
+      subject was provenance, which is the point: this one is not caught by
+      caring about provenance, only by running the diff. Two rows went from true
+      to false (`stack_tan_link_to_pitch_plate.json` and
+      `stack_vpa_output_to_pitch_plate.json`, both "no — byte-identical", both
+      gained `source_ref.export` blocks) and three Amended rows went stale
+      (`stack.py`, `__init__.py`, `test_tolerance_stack.py` — whose test count
+      was 15 out of date). **A purely additive change still falsifies the row**;
+      "no value changed" is not "no edit happened". Fixed inline in the review.
+      Run the diff every time — it is four seconds and it has never once come
+      back clean.
 - [ ] **Prose asserting a field is `null` while the field is not.** Same class as
       stale counts, one level down. `hub_bearing_thermal_stack`'s
       `identification_note` said "find numbers, balloons and quantities are
