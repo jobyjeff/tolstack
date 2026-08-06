@@ -38,16 +38,22 @@ closes that gap — and it already holds the top-priority one:
 | slice-1 gap | file here |
 |---|---|
 | **NAS6403 / NAS6404** hex bolts — grip ±.010, thread run-out, cotter-hole position (blocked findings F7, F8, F16) | `NAS6403-NAS6420 Rev 4.pdf` |
+| **MS9363** slotted / castellated nuts — nut height, slot count, slot depth: the check that governs every cotter-retained joint here | `MS9363 Rev C.pdf` — **landed 2026-08-05**, not yet read by any stack |
 | **NAS77** plain bushing | `JB_NAS77.pdf`, `RBC - Plain bearings (NAS77 p92).pdf`, `RBC_Aerospace_Plain_Bearings_Web.pdf` |
 | bolt/nut installation practice | `JPS00094 Process Specification — Installation of Bolts and Nuts.pdf` |
 | bearing/bushing installation practice | `JPS00078 Installation of Bearings and Bushings.pdf` |
 | interference fits | `JPS00176 Interference Fit Assembly.pdf` |
 
-Still **not** here, and still blocking: **MS9363** slotted/castellated nuts
-(slot count and depth — the check that actually governs both seeded joints),
-**NAS1149** flat washers, **MS21299** countersunk washers, **MS24665** cotter
-pins, and every Joby part drawing. See the `gaps` lists in
+Still **not** here, and still blocking: **NAS1149** flat washers, **MS21299**
+countersunk washers, **MS24665** cotter pins, **MIL-S-8879** (the UNJF-3A thread
+form NAS6403 sheet 1 invokes, which is what would close the thread run-out), and
+every Joby part drawing. See the `gaps` lists in
 `docs/tolerance_stacks/hardware_entries.json`.
+
+The pile grows (append-only), so treat the two lists above as a snapshot and the
+counts in `PROVENANCE.md` as a record of the 2026-08-03 move. `ls` it before
+concluding a document is absent — `MS9363` was on this paragraph's blocking list
+until it landed on 2026-08-05.
 
 A `source_ref` citing a file here uses `kind: "spec"`, the filename as
 `document`, and a page number as `sheet` — see `docs/SOP_TOLERANCE_STACK.md`.

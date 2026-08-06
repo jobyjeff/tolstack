@@ -1,10 +1,11 @@
 {
   "schema": "joby.tolerance_stack/hardware_entry/v0",
-  "description": "Seed of the fastener-library stream (DRAFT_tolerance_stack_mvp groundwork item 1). Every entry here carries INLINE values transcribed from a stack workbook and/or an assembly parts list -- none of them come from a fastener standard document, because no NAS/MS standard PDF exists in this repo. `library_ref` is the slot a real library entry drops into; when it is filled, `values_status` moves from `inline` to `library` and the inline numbers become a cross-check rather than the source.",
+  "description": "Seed of the fastener-library stream (DRAFT_tolerance_stack_mvp groundwork item 1). Every entry carries INLINE values and a `values_source` saying where those numbers came from -- a source_ref-shaped dict, mandatory whenever `values_status == \"inline\"` and explicitly null when it is `not_transcribed`. Read it before reusing a band: all but one entry transcribes the 260729 workbook (with parts-list nomenclature corroborating some nominals), which makes those numbers UNUSABLE as a source in a from-scratch stack -- citing the entry instead of the xlsx launders the same untraced value (SOP Step 5b). NAS6403U11D is the one exception, traced to the NAS6403 standard now in the spec pile. `library_ref` is the slot a real library entry drops into; when it is filled, `values_status` moves from `inline` to `library` and the inline numbers become a cross-check rather than the source.",
   "provenance": {
     "stack_workbook": "data/inbox/tolerance_stacks/260729_sample_tol_stack.xlsx (note 20260729T173648_qjk2xk)",
     "parts_list_run": "data/runs/20260723_163810_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER (read-only; 217755 rev A, 9 sheets, 105 parts-list rows, 96 balloons)",
-    "transcribed_by": "handoff tolerance_stack_slice1, 2026-07-30"
+    "transcribed_by": "handoff tolerance_stack_slice1, 2026-07-30",
+    "values_source_backfilled_by": "handoff sop_edits_apply, 2026-08-05 -- `values_source` was proposed by pitch_link_stack and landed on one entry; the cells cited in each backfilled entry were re-read from the workbook with tests/debug_dump_tol_stack_xlsx.py, not copied from the stack JSONs."
   },
   "entries": [
     {
@@ -15,6 +16,14 @@
       "for_thread": ".190-32",
       "values_status": "inline",
       "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E11/F11",
+        "confidence": "untraced",
+        "note": "Slice-1 transcription: E11 is `=0.032*25.4`, F11 is `=0.004*25.4`, and the workbook's comment column names NAS1149V0332 at I11. The .032 in nominal is corroborated by the 217755 parts-list nomenclature (find 32), but the +/-.004 band is the workbook's alone -- the parts list read '.032\" MIN' on the 2026-JUL-23 export and gives no qualifier at all on the 2026-AUG-3 one. NAS1149 is not in the spec pile. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+      },
       "dimensions_in": {"thickness": 0.032, "thickness_tol": 0.004},
       "dimensions_mm": {"thickness": 0.8128, "thickness_tol": 0.1016},
       "used_by": [
@@ -44,6 +53,14 @@
       "for_thread": ".190-32",
       "values_status": "inline",
       "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E12/F12",
+        "confidence": "untraced",
+        "note": "Slice-1 transcription: E12 is `=0.063*25.4`, F12 is `=0.006*25.4`, comment column names NAS1149V0363 at I12. This washer is ABSENT from the 217755 parts list, so nothing outside the workbook corroborates even the nominal -- and every check the workbook actually evaluated uses it. NAS1149 is not in the spec pile. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+      },
       "dimensions_in": {"thickness": 0.063, "thickness_tol": 0.006},
       "dimensions_mm": {"thickness": 1.6002, "thickness_tol": 0.1524},
       "used_by": ["tan_link_to_pitch_plate:washer_thick"],
@@ -62,6 +79,14 @@
       "thread": ".190-32",
       "values_status": "inline",
       "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E23/D23 (take-2 repeats it at E52/D52)",
+        "confidence": "untraced",
+        "note": "Slice-1 transcription of row 23, `fastener grip (-13)`: E23 is `=0.812*25.4` and the band is the free-text label `+/-.01` in D23, applied in G23/H23 as `=(0.812-0.01)*25.4` / `=(0.812+0.01)*25.4`. The .812 in grip is corroborated by the 217755 parts-list nomenclature (find 95, qty 3, ballooned nowhere); the +/-.010 band is the workbook's alone. NAS6403-NAS6420 Rev 4.pdf is now in the spec pile and its sheet-3 grip/length table covers every dash number, so this entry could be re-sourced to the standard the way NAS6403U11D was -- that work is NOT done here. Until it is, not usable as a source in a from-scratch stack (SOP Step 5b)."
+      },
       "dimensions_in": {"grip": 0.812, "grip_tol": 0.010},
       "dimensions_mm": {"grip": 20.6248, "grip_tol": 0.254},
       "used_by": [
@@ -87,6 +112,14 @@
       "thread": ".190-32",
       "values_status": "inline",
       "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E25/D25",
+        "confidence": "untraced",
+        "note": "Slice-1 transcription of row 25, `fastener grip (-14)`: E25 is `=0.875*25.4`, band from the free-text `+/-.01` label in D25 and applied in G25/H25. The .875 in grip is corroborated by the 217755 parts-list nomenclature (find 35, qty 3, balloon in DETAIL B -- this is the fastener the drawing actually selects at the tan-link joint); the +/-.010 band is the workbook's alone. Re-sourceable from NAS6403-NAS6420 Rev 4.pdf, now in the spec pile; not done here. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+      },
       "dimensions_in": {"grip": 0.875, "grip_tol": 0.010},
       "dimensions_mm": {"grip": 22.225, "grip_tol": 0.254},
       "used_by": ["tan_link_to_pitch_plate:fastener_grip_14"],
@@ -113,9 +146,9 @@
       "values_source": {
         "kind": "spec",
         "document": "NAS6403-NAS6420 Rev 4.pdf",
-        "sheets": [1, 2, 3],
+        "sheet": [1, 2, 3],
         "confidence": "traced",
-        "note": "FIRST entry in this file whose inline numbers come from the actual standard rather than from the 260729 workbook or a parts list. `hardware_entry/v0` has no field for citing where inline values came from, so `values_source` is an additive extension proposed by handoff pitch_link_stack -- see LESSONS_20260804_pitch_link_stack.md. Scan with no text layer; read by vision. Part-number decode from the sheet-2 CODE block: 'U' after the basic number = unplated, 'D' after the dash number = drilled shank, dash number = grip in .0625 increments."
+        "note": "The ONLY entry in this file whose inline numbers come from the actual standard rather than from the 260729 workbook or a parts list. `hardware_entry/v0` had no field for citing where inline values came from, so `values_source` was added as an additive extension by handoff pitch_link_stack -- see LESSONS_20260804_pitch_link_stack.md -- and made mandatory-for-inline by handoff sop_edits_apply, which also renamed this dict's `sheets` key to `sheet` so it matches SourceRef. Scan with no text layer; read by vision. Part-number decode from the sheet-2 CODE block: 'U' after the basic number = unplated, 'D' after the dash number = drilled shank, dash number = grip in .0625 increments."
       },
       "dimensions_in": {
         "grip": 0.688,
@@ -174,6 +207,14 @@
       "thread": ".250-28",
       "values_status": "inline",
       "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E73/D73 (E71 repeats the nominal)",
+        "confidence": "untraced",
+        "note": "Slice-1 transcription of row 73, `grip tols`: E73 is `=0.812*25.4`, band from the free-text `+/-.01` label in D73 and applied in G73/H73. The .812 in grip is corroborated by the 217755 parts-list nomenclature (find 27, qty 1, balloon in DETAIL X); the +/-.010 band is the workbook's alone. NAS6404 shares a file with NAS6403 in the spec pile (`NAS6403-NAS6420 Rev 4.pdf`), so this is the cheapest entry in the file to re-source -- not done here. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+      },
       "dimensions_in": {"grip": 0.812, "grip_tol": 0.010},
       "dimensions_mm": {"grip": 20.6248, "grip_tol": 0.254},
       "used_by": ["vpa_output_to_pitch_plate:fastener_grip"],
@@ -194,6 +235,14 @@
       "class": "bushing_plain",
       "values_status": "inline",
       "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E63/G63/H63",
+        "confidence": "untraced",
+        "note": "Slice-1 transcription of the VPA block's `straight bushing` row: E63, G63, H63 are hand-typed literals (4.762 / 4.71 / 4.81 mm), not formulas -- there is no inch source behind them in the sheet. NAS77A4-015 is ABSENT from the 217755 parts list (the as-drawn part at DETAIL X is Joby 214943-002), so nothing corroborates any of it; the comment column names NAS77A4-015 on the block HEADER row I62, which is a loose label, not a row-aligned one (slice-1 F5). `JB_NAS77.pdf` and the two RBC plain-bearing PDFs in the spec pile are candidates for re-sourcing; not attempted here. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+      },
       "dimensions_mm": {"length": 4.762, "length_min": 4.71, "length_max": 4.81},
       "used_by": ["vpa_output_to_pitch_plate:straight_bushing"],
       "assembly_status": {
@@ -210,6 +259,14 @@
       "class": "washer_countersunk",
       "values_status": "inline",
       "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E67/G67/H67",
+        "confidence": "untraced",
+        "note": "Mixed provenance, cited at its weakest. The id .253 / od .491 / thickness .063 in are the 217755 parts-list nomenclature verbatim (find 29, qty 1, balloon in DETAIL X). The BAND is the workbook's row 67, `under head chamfer washer`: G67 `=(0.057)*25.4`, H67 `=(0.069)*25.4`, E67 `=(G67+H67)/2` -- i.e. .063 +/-.006, stated as limits and never as a tolerance. Note the workbook never labels row 67 as this part: its comment column names MS21299C4K at I64, the SPHERICAL BEARING row, and that column is a loose hardware list rather than a row-aligned one (slice-1 F5), so even the attribution of the band to this washer is a reading. MS21299 is not in the spec pile. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+      },
       "dimensions_in": {"id": 0.253, "od": 0.491, "thickness": 0.063, "thickness_tol": 0.006},
       "dimensions_mm": {"thickness": 1.6002, "thickness_tol": 0.1524},
       "used_by": ["vpa_output_to_pitch_plate:under_head_chamfer_washer"],
@@ -229,6 +286,14 @@
       "class": "bushing_plain",
       "values_status": "inline",
       "library_ref": null,
+      "values_source": {
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "sheet": "grip length tols old",
+        "cell": "E7/G7/H7 (take-2 repeats it at E39/G39/H39)",
+        "confidence": "untraced",
+        "note": "Mixed provenance, cited at its weakest. The .1900 in ID and .1875 in length are the 217755 parts-list nomenclature verbatim (find 34, qty 8, balloon reads 8X in DETAIL B), and the 4.7625 mm here is .1875 x 25.4 exactly -- the workbook's own E7 is the hand-typed literal 4.762. The LIMITS 4.63 / 4.76 mm are workbook literals G7/H7 with no inch source and no formula behind them, and they are the reason this entry is the file's worked example of laundering: citing it for the band would have shown `kind: \"parts_list\"`, `confidence: \"inferred\"` and zero workbook references. pitch_link_to_pitch_plate refused them and used a zero-width band instead. The 214820-002 part drawing is the single cheapest fix. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+      },
       "dimensions_in": {"id": 0.1900, "length": 0.1875},
       "dimensions_mm": {"length": 4.7625, "length_min": 4.63, "length_max": 4.76},
       "used_by": [
@@ -256,6 +321,7 @@
       "class": "nut_slotted",
       "values_status": "not_transcribed",
       "library_ref": null,
+      "values_source": null,
       "used_by": [],
       "assembly_status": {
         "drawing": "217755",
@@ -277,6 +343,7 @@
       "class": "nut_castellated",
       "values_status": "not_transcribed",
       "library_ref": null,
+      "values_source": null,
       "used_by": [],
       "assembly_status": {
         "drawing": "217755",
@@ -295,6 +362,7 @@
       "class": "pin_cotter",
       "values_status": "not_transcribed",
       "library_ref": null,
+      "values_source": null,
       "used_by": [],
       "assembly_status": {
         "drawing": "217755",
@@ -316,6 +384,7 @@
       "class": "pin_cotter",
       "values_status": "not_transcribed",
       "library_ref": null,
+      "values_source": null,
       "used_by": [],
       "assembly_status": {
         "drawing": "217755",

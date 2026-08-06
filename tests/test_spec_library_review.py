@@ -364,15 +364,28 @@ def test_the_washer_cap_is_three(library):
 # ---------------------------------------------------------------------------
 
 
-def test_the_cotter_pin_passes_the_bolt_hole_before_the_nut_slot(library):
-    """MS9363's slot is wider than the mating bolt's cotter hole on both joints,
-    so the hole governs pin size. Worth pinning because the library now holds
-    both halves and the comparison is the sort a stack will make."""
+def test_neither_the_slot_nor_the_bolt_hole_governs_the_cotter_pin_outright(library):
+    """intake_queue.json rank 12 argues MS24665 is low value because "MS9363's
+    slot at .073/.088 is wider than the hole, so the bolt hole governs".
+
+    At worst case that is not true of either pair. The slot band and the hole
+    band OVERLAP on both joints, so a slot at its minimum is narrower than a
+    hole at its maximum and the slot is then the governing feature:
+
+        MS9363-09 slot .073/.088  vs  NAS6403 hole .070/.080
+        MS9363-10 slot .073/.088  vs  NAS6404 hole .076/.086
+
+    The rank-12 CONCLUSION survives -- a .063 pin clears both minima -- but the
+    stated reason does not, and this file exists to keep reasons honest. Pinned
+    so that a stack cannot later lean on "the hole governs" as though a test
+    had checked it.
+    """
     for nut, bolt in (("MS9363-09", "NAS6403U11D"), ("MS9363-10", "NAS6404U13D")):
         slot = library.value(nut, "slot_width").value
         hole = library.value(bolt, "cotter_hole_dia").value
-        assert slot.min > hole.min, (nut, bolt)
-        assert slot.max > hole.max, (nut, bolt)
+        assert slot.min < hole.max, (nut, bolt, "bands overlap; neither governs outright")
+        assert slot.min > 0.063, (nut, "a .063 MS24665 pin still clears the slot")
+        assert hole.min > 0.063, (bolt, "a .063 MS24665 pin still clears the hole")
 
 
 def test_both_halves_of_the_joint_invoke_the_same_thread_standard(library):

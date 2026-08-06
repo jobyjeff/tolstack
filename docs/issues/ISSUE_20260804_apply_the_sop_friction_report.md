@@ -1,12 +1,23 @@
 ---
 type: chore
 priority: high
-status: open
+status: closed
 area: docs
 reporter: agent
+closed: 2026-08-05
+closed_by: handoff sop_edits_apply
 ---
 
 # Apply the pitch_link_stack SOP friction report (14 proposed edits)
+
+> **CLOSED 2026-08-05** by handoff `sop_edits_apply` (commit `61e7386`). All 14
+> edits are in `docs/SOP_TOLERANCE_STACK.md`, except edit 10, which the
+> `pitch_link_stack` reviewer had already applied inline to
+> `docs/prompts/REVIEW_AGENT.md` §3 in `6a5ce62` — verified there, not re-applied.
+> Both extras filed below landed too: the pinned test count is gone from Step 0,
+> and 217755 sheet 4's printed border range is corrected to A–L × 1–16. See
+> `docs/sessions/lessons/LESSONS_20260805_sop_edits_apply.md` for what changed in
+> wording and why.
 
 Filed during the `pitch_link_stack` review (2026-08-04) so 14 well-formed,
 already-drafted edits do not decay inside a lesson.

@@ -51,7 +51,7 @@ thing they meant in drawing-checker, so moving repos did not rev them.
 |---|---|---|
 | `joby.tolerance_stack/stack_definition/v0` | **yes** — one JSON file per stack | ordered `elements`, named `paths`, `checks` over them, plus `joint`, `provenance`, `notes` |
 | `source_ref` (embedded in an element, no id of its own) | **yes** — one per element, mandatory | where the value came from, and how well: `confidence: traced \| inferred \| untraced` |
-| `joby.tolerance_stack/hardware_entry/v0` | **yes** — `docs/tolerance_stacks/hardware_entries.json`, one entry per standard part | a standard part with inline values, an empty `library_ref`, `assembly_status`, and a mandatory `gaps` list |
+| `joby.tolerance_stack/hardware_entry/v0` | **yes** — `docs/tolerance_stacks/hardware_entries.json`, one entry per standard part | a standard part with inline values, a `values_source` saying where they came from, an empty `library_ref`, `assembly_status`, and a mandatory `gaps` list |
 | `joby.tolerance_stack/check_result/v0` | **no** — produced, never stored | the outcome of folding a check: nominal, worst-case min/max, RSS, and a `verdict` |
 
 How they fit together:
@@ -87,8 +87,12 @@ what stop it drifting.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File setup.ps1
-venv-win\Scripts\python.exe -m pytest -q          # expect 34 passed
+venv-win\Scripts\python.exe -m pytest -q          # expect a green suite
 ```
+
+The suite grows with every stack, so this file does **not** pin the count — a
+number written here goes stale the next time someone follows this SOP, and stale
+inventory numbers are a recurring bug in this repo. Green is the requirement.
 
 Read, in this order:
 
@@ -101,11 +105,29 @@ Read, in this order:
 
 ## Step 1 — bound the joint before you touch a number
 
-Write down, and put in the stack's `joint` block:
+**If the handoff names the joint in words that do not appear in the parts list,
+resolve the identity first** and write the argument into the worksheet — and into
+the stack's `joint` block — as an explicitly `inferred` claim. Resolve it by
+**count**, not by value: the balloon `nX` prefix, the parts-list qty, the number
+of places in the view, the feature count on the part drawing (`3X` / `5X` / `1X`
+groups), and any physical count that constrains it (blades, links, lugs).
+Agreeing counts are evidence; a matching dimension is not (trap 11). Do not start
+on numbers until the joint is bounded — a stack of correct values for the wrong
+joint re-derives perfectly.
+
+`pitch_link_to_pitch_plate` is the worked example. No part on 217755 is named
+"pitch link", and bounding the joint took the largest single share of that
+session; what settled it was **four independent counts agreeing** — five blades
+in sheet 2's front view, the `5X` prefix on balloon 38, the parts-list qty 5, and
+215197's distinct `5X 4.06 ±0.10` flange group. Read its
+`joint.identification_note` before writing your own.
+
+Then write down, and put in the stack's `joint` block:
 
 - the **assembly** drawing number and revision;
 - the **sheet and view** the joint is detailed in (`sheet 4, DETAIL B`), plus the
-  **printed** zone (see the zone warning in Step 3);
+  **printed** zone (see the zone warning in Step 3) **and the export you read it
+  on** (see the `source_ref` bullets in Step 2 — a zone expires between exports);
 - every part in the joint, by part number, with its find number and quantity;
 - what is being clamped by what, and what retains it;
 - **what is out of scope.** Say it explicitly. The seeded stacks are grip length
@@ -140,9 +162,10 @@ One `StackElement` per physical feature along the path, in physical order.
 `role` is one of `bushing | bearing | washer | clamped_member | relief |
 fastener | allowance | nut_geometry`. The last one is for values you transcribe
 but deliberately do **not** fold in — see the castellated-nut caveat in Step 5;
-the seeded take-2 uses it for three nut dimensions. (`stack.py`'s docstring
-comment predates it and lists only the first seven; the seeded data is
-authoritative.)
+the seeded take-2 uses it for three nut dimensions. This list lives in three
+places (see the `kind` bullet below for why that matters): this list,
+`StackElement.role`'s comment, and
+`tests/test_tolerance_stack.py::test_element_role_comes_from_the_documented_vocabulary`.
 
 ### Store lengths. Never fold "MMC → max".
 
@@ -184,6 +207,16 @@ Worst-case results never read `nominal`, so they are unaffected — but the
 checks (F1); if it does not hold, that is a finding to record, not a number to
 quietly fix.
 
+**When the source states limits only.** That rule is about sources that *have* a
+nominal column — a hand-built workbook's nominal carries information, and
+computing over the top of one destroys a finding. A standard's dimension table
+usually does not: NAS6403 sheet 1 prints `M = .174 / .154` and nothing else, and
+the schema requires the field. There, `nominal` **is** the midpoint, and the
+element's `note` must say the value was computed and why. Note also that a basic
+size with a symmetric tolerance in a column header (`Grip ±.010`, `LENGTH ±.015`)
+or on a drawing (`4.06 ±0.10`) **is** a transcribed nominal — the symmetry is the
+source's, not yours.
+
 ### Every element gets a `source_ref`
 
 ```json
@@ -195,9 +228,24 @@ quietly fix.
 
 - `kind`: `drawing | parts_list | workbook | spec | pipeline_element | assumed`.
   Use `spec` for a file in `data/inbox/specs/`, with the filename as `document`
-  and the **page number** as `sheet`.
+  and the **page number** as `sheet`. This vocabulary lives in **three** places:
+  this list, the inline comment on `SourceRef.kind` in `tolerance_stack/stack.py`,
+  and the whitelist in
+  `tests/test_tolerance_stack.py::test_source_ref_leaves_the_feature_identity_slot_open_and_empty`.
+  A new kind must be added to all three, or the SOP is describing something the
+  suite rejects — which is exactly what happened to `spec`, the first time a
+  compliant from-scratch stack used it. The same applies to the `role` list above.
 - `callout` is the text **as it reads on the drawing**. This is what lets a human
   re-find the value; without it a citation is an address with no content.
+- **A zone is only re-findable against the export you read it on.** Name the
+  export (PDF filename or drawing-checker run id) alongside the zone. `source_ref`
+  has no field for it yet — put it in the stack's `joint` block (as
+  `assembly_export`) and in the worksheet until it does. DETAIL B of 217755 sheet
+  4 is at printed **I6** on the 2026-JUL-23 POST export and printed **H3** on the
+  2026-AUG-3 one: same view, same revision, both citations correct for their own
+  file. This is the cleanest argument in the repo for why `element_id` exists — a
+  stable extracted-element address survives a re-export; a zone label demonstrably
+  does not.
 - `element_id` and `run_id` stay **`null`**. They are the reserved slot for stable
   feature identity — when extraction can address a dimension durably, an element
   will cite the extracted element instead of a human reading, and a re-exported
@@ -205,14 +253,36 @@ quietly fix.
   null, so a later consumer can tell "not yet wired" from "wired to nothing".
   Do not fill them in.
 
+### Zero-width bands — nominal sourced, band not
+
+**If the nominal is sourced and the band is not**, set `min == max == nominal`,
+put `ZERO-WIDTH BAND` in the element's `note`, list the band as a gap, and state
+in the worksheet that **every worst-case interval is therefore a lower bound on
+the true spread** (and every RSS half-range likewise understates it — see the RSS
+caveat in Step 5). Do not substitute a plausible band.
+
+A zero-width band is a visible lie the reader can price; a plausible band is an
+invisible one. `pitch_link_to_pitch_plate` has two of them — a parts-list
+nomenclature gives the bushing and washer nominals and no document in the repo
+gives either tolerance — and a test pins them so a later tidy-up cannot quietly
+fill them in.
+
 ## Step 3 — trace what you can
 
 For each element, try to close the gap, in this order of preference:
 
-1. **A spec or datasheet in `data/inbox/specs/`.** Check here first — 42 files,
-   and it already holds `NAS6403-NAS6420 Rev 4.pdf`, which was slice 1's #1
-   blocking gap. `data/inbox/specs/README.md` maps the known gaps to files.
-   Expect poor photocopies: no text layer, so read the page, don't grep it.
+1. **A spec or datasheet in the spec pile.** Check here first. The pile is
+   untracked data and therefore lives only in the **main checkout**: read it at
+   `C:\workspace\tolstack\data\inbox\specs\`, not at `data/inbox/specs/` — from
+   your worktree that directory holds only its tracked `README.md`. Cite it as
+   `data/inbox/specs/<filename>` regardless of where you read it. Same for
+   `data/inbox/tolerance_stacks/`.
+
+   It is several dozen files and it grows (append-only); `ls` it rather than
+   trusting any count written down. It already holds `NAS6403-NAS6420 Rev 4.pdf`,
+   which was slice 1's #1 blocking gap. `data/inbox/specs/README.md` maps the
+   known gaps to files. Expect poor photocopies: no text layer, so read the page,
+   don't grep it.
 2. **A drawing callout**, via drawing-checker's extracted runs:
    ```powershell
    venv-win\Scripts\python.exe tests\debug_stack_hardware_crosscheck.py `
@@ -223,10 +293,23 @@ For each element, try to close the gap, in this order of preference:
    `tests\debug_trace_stack_values.py <pdf> --pattern "4\.06"` — note it needs
    PyMuPDF, which this repo deliberately does not install; run it from
    drawing-checker's `venv-win`.
+
+   **Where the PDFs are.** A run directory holds *page images and extracted
+   JSON*, not always the PDF itself. The assembly export lives in
+   drawing-checker's `data/inbox/drawings/`; **215197** — the only part drawing
+   either slice has traced anything to — is not there at all, but at
+   `C:\workspace\drawing-checker\tests\fixtures\drawings\[PRELIM 2025-MAY-22] 215197 A.1.pdf`.
+   Look in both, and say in the `source_ref` which export you read.
+
+   **`--crop` is the tool for Step 1.** `debug_trace_stack_values.py --crop
+   "<page>,<cx>,<cy>,<half>" --zoom 8` renders a high-resolution crop of an
+   assembly view, and it is the only way to see what a joint physically consists
+   of. Use it before you write a single element.
 3. **The parts list alone** → `inferred` at best. Part present and nominal
    consistent does not give you a tolerance band.
 
-Three traps here, all of which cost slice 1 real time:
+Four traps here — the first three cost slice 1 real time, the fourth cost
+`pitch_link_stack`:
 
 - **`item_no` vs `find_no`.** In `*_balloons.json`, the parts-list row is keyed
   `item_no` under `balloons` but `find_no` under `parts_list`. Join on the wrong
@@ -235,13 +318,26 @@ Three traps here, all of which cost slice 1 real time:
 - **Printed zone ≠ zone-mapper zone.** drawing-checker's `pipeline.zone_mapper`
   addresses a synthetic 16×12 grid built for vision prompts. A human-facing
   citation — and Jeff's "sheet 5, zone C10" — means the grid **printed in the
-  sheet border** (217755 is A–L × 2–15). Cite the printed one. Read it off the
-  PDF with `debug_trace_stack_values.py`; never compute it from percentages.
+  sheet border** (217755 sheet 4 is A–L × 1–16 on the 2026-AUG-3 export; read the
+  border ticks yourself rather than assuming a range). Cite the printed one. Read
+  it off the PDF with `debug_trace_stack_values.py`; never compute it from
+  percentages. And see the export warning in Step 2: a printed zone expires
+  between exports.
 - **A value matching is not a feature matching.** 215197 carries *three* distinct
   4.06 flange callouts (`3X ±0.08`, `5X ±0.10`, and a 1× `±0.10`). Matching on
-  the number gets you to "one of two"; only quantity, view, and GD&T context get
+  the number gets you to "one of three"; only quantity, view, and GD&T context get
   you to *which*. If you cannot get there, say `inferred` and say why. This is
   the cleanest argument in the whole slice for why `element_id` exists.
+- **A balloon's `nX` prefix is not in the extraction.** Every balloon record in
+  `*_balloons.json` reads `qty: 1, view_places: 1`; the multiplier is a separate
+  text run printed beside the balloon. So `check_quantities.quantity_rollup`
+  reports `qty_match: False` for every multi-place part in a detail — six of them
+  in DETAIL B — which reads exactly like a real balloon-quantity finding and is
+  not one. Read the prefixes off the PDF
+  (`debug_trace_stack_values.py --pattern "^\d+X"`; some runs read as `8X 14`, a
+  multiplier and a flag-note number in one text run, so do not anchor the end).
+  You will need them anyway: the place count is how a joint is identified
+  (Step 1).
 
 ## Step 4 — hardware entries
 
@@ -255,6 +351,10 @@ Every standard part the stack consumes gets an entry in
   "class": "washer_flat", "for_thread": ".190-32",
   "values_status": "inline",
   "library_ref": null,
+  "values_source": { "kind": "workbook", "document": "260729_sample_tol_stack.xlsx",
+                     "sheet": "grip length tols old", "cell": "E11/F11",
+                     "confidence": "untraced",
+                     "note": "the .032 nominal is corroborated by the parts list; the +/-.004 band is the workbook's alone" },
   "dimensions_in": { "thickness": 0.032, "thickness_tol": 0.004 },
   "dimensions_mm": { "thickness": 0.8128, "thickness_tol": 0.1016 },
   "used_by": ["tan_link_to_pitch_plate:washer_thin"],
@@ -269,6 +369,20 @@ Every standard part the stack consumes gets an entry in
 Rules:
 
 - **`values_status: "inline"`** — the numbers live in this file for now.
+- **`values_source` says where those numbers came from, and it is mandatory
+  whenever `values_status == "inline"`.** It is a `source_ref`-shaped dict (same
+  keys, same `confidence` vocabulary) and a test enforces both the requirement and
+  the shape. For an entry with no transcribed values (`values_status:
+  "not_transcribed"`) it is explicitly `null` — the same convention as
+  `library_ref`, so "nothing to cite" is distinguishable from "nobody filled it
+  in". Added 2026-08-05; `hardware_entry` stays `/v0` because the field is
+  additive and no reader breaks on it.
+- **An entry's inline values are NOT a source, and citing the entry does not
+  launder them.** Most of the numbers in this file are slice-1 transcriptions of
+  the 260729 workbook, and `values_status: "inline"` says where they *live*, not
+  where they came from. Read the entry's `values_source` before you reuse a band:
+  a `kind: "workbook"` one is forbidden in a from-scratch stack exactly as if you
+  had read it out of the xlsx yourself (Step 5b). This is why the field exists.
 - **`library_ref` stays `null` until a fastener library exists.** When it does,
   `library_ref` points at it, `values_status` becomes `"library"`, and the inline
   numbers demote to a cross-check rather than the source. Do not invent a
@@ -333,7 +447,7 @@ applied. Emit all three, always, as one set.
 
 **But state what RSS does not claim.** `fold()` combines half-ranges in
 quadrature about the *midpoint*, which treats every band as an independent,
-symmetric, equal-confidence variate. Two kinds of element are not:
+symmetric, equal-confidence variate. Three kinds of element are not:
 
 - `role: "allowance"` is a deterministic geometric bias, not a variate. The
   thread transition (min 0 / max 1.5875) gets re-centered at 0.794 by RSS, which
@@ -341,6 +455,17 @@ symmetric, equal-confidence variate. Two kinds of element are not:
   0.638 of that shift is bookkeeping, not statistics.
 - one-sided bands (the spherical bearing, −0.05/−0) are not symmetric about their
   midpoint.
+- a **zero-width band** (Step 2) is not a tight band, it is an **unknown** one.
+  RSS reads it as zero variance, so the RSS half-range is understated, not merely
+  uninterpretable. This is the worst of the three: the other two make RSS hard to
+  read, this one makes it wrong in a known direction.
+
+A fourth, narrower case is *correlated* terms. `bolt_length_11` and
+`bolt_grip_11` in `pitch_link_to_pitch_plate` are not independent — NAS6403 sheet
+2 note (b) makes `T = length − grip` a *reference* dimension, so `fold()` stacks
+two tolerances the real part cannot both carry. Correlation would need a second
+arithmetic path, which the architecture forbids; record it as a limitation
+instead.
 
 So RSS here is a **relative softening indicator, not a probability statement**,
 and it is not directly comparable to the worst-case columns. Say so in the
@@ -397,6 +522,7 @@ instructions in this SOP have to be read differently.
 | `workbook_cells: null` + `[NOT IN WORKBOOK]` on added checks | Not applicable — **every** check is new. Drop both markers rather than putting them on everything, and say in the worksheet that the whole stack is original. |
 | `[slip]` and `[drift]` findings (source errors, source-vs-drawing divergence) | Mostly will not occur; there is no source to slip or drift. `[model]` and `[read]` still very much apply. |
 | `kind: "workbook"` source refs | Should appear **zero** times. If one does, ask where that number really came from. |
+| `hardware_entries.json` as a source | **The ban is transitive, and this is where it leaks.** The file is an in-repo design artifact that *looks* like a legitimate source, but most of its inline numbers are slice-1 transcriptions of the 260729 workbook. Citing the entry for the 214820-002 length band would have shown `kind: "parts_list"`, `confidence: "inferred"`, zero workbook references — and laundered an untraced workbook value into the stack, passing every test and every mechanical checklist item in the repo. Read each entry's `values_source` (Step 4) before reusing a band, and treat a workbook-derived one as forbidden here exactly as if you had read the xlsx yourself. |
 
 Everything else applies unchanged, and the one rule applies *harder*: with no
 workbook to lean on, the temptation to supply a "standard" value from memory is
@@ -409,6 +535,45 @@ one in another: fewer values will have any number at all (a workbook at least
 supplies an `untraced` figure), but the ones that do will be honestly cited. A
 gap with no number is a perfectly good result — record what is missing and what
 document would supply it. Do not fill a hole to make the stack look finished.
+
+## Step 5c — when an element cannot be sourced at all
+
+Step 5b says a gap with no number is a perfectly good *result*. This says how to
+**shape the stack** around it, because the two available shapes are not
+equivalent: omit the element and let the checks be quietly wrong, or omit it and
+write the checks so the missing value appears as an explicit budget.
+
+**Never create a placeholder element.** Omit it, and then write the check anyway
+over the members you do have, so the shortfall *is* the missing value:
+
+- put `INCOMPLETE — <what is missing>` in the check `label`;
+- in `guidance`, say what the magnitude means and which document closes it;
+- expect a verdict that is `fail` or `pass` **by construction**. That verdict is
+  not a design conclusion, and the worksheet must say so **next to the number**,
+  in the same place and for the same reason as the castellated-nut caveat;
+- add the omitted element to `gaps` as item 1;
+- **state which end of the interval is the requirement, and why.** For a
+  shortfall check the binding bound is the one built from the **worst**
+  combination for the criterion — for `column − grip ≥ 0` that is grip at `max`
+  against the column at `min`, i.e. the **larger** deficit magnitude. The smaller
+  magnitude is where the check fails even at its most favourable, and it is not a
+  requirement. Quote the binding one, name the combination that produced it, and
+  pin all of it with a test: the two numbers are one subtraction apart, they look
+  symmetric, they mean opposite things, and prose drifts.
+
+`pitch_link_to_pitch_plate` is the worked example. Its link-eye width is in no
+document this repo holds, so no element exists for it, and
+`shank_out__11_sourced_only` reports **−8.1939 … −7.4859 mm** — a deficit that
+*is* the required eye width. One document flips the check. The binding
+requirement is **8.1939 mm** (grip at max, sourced column at min); the first
+draft of that worksheet and the check's own `guidance` quoted the favourable end,
+7.4859 mm, as "worst case", understating the requirement by 0.708 mm — a reader
+who then sourced a 7.6 mm eye would have concluded the joint passed. Every folded
+value was correct and every test was green; the error was entirely in the
+sentence. `test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end`
+now pins it.
+
+A check with a hole in it, labelled, beats a check with a guess in it.
 
 ## Step 6 — write the worksheet
 
@@ -465,8 +630,9 @@ itself.
 
 Also assert the structural invariants, as the seeded tests do: every element has
 a `source_ref` with a valid `confidence`; `element_id`/`run_id` are null; every
-`hardware_ref` resolves; every hardware entry has a null `library_ref` and a
-non-empty `gaps` list.
+`hardware_ref` resolves; every hardware entry has a null `library_ref`, a
+non-empty `gaps` list, and a `values_source` whenever its `values_status` is
+`inline` (explicitly null when it is `not_transcribed`).
 
 ```powershell
 venv-win\Scripts\python.exe -m pytest -q
@@ -493,8 +659,12 @@ checkout too if you like, but never only that one.
 - Tests green.
 - A lesson in `docs/sessions/lessons/`, and the handoff moved to `completed/`.
 - **Report the friction you hit in this SOP.** It is new as of 2026-08-03 and
-  under-tested; the first sessions to use it are how it gets fixed. Name the step
-  that was wrong, missing, or ambiguous.
+  still under-tested; the first sessions to use it are how it gets fixed. Name
+  the step that was wrong, missing, or ambiguous. It works: the first cold
+  consumer (`pitch_link_stack`, 2026-08-04) filed 14 edits, and every one of them
+  is in this file — Step 1's identity-by-counting, Step 2's limits-only nominal
+  and zero-width bands, Step 3's spec-pile path and `nX` trap, Step 4's
+  `values_source`, Step 5b's transitive workbook ban and the whole of Step 5c.
 
 ---
 
@@ -519,3 +689,16 @@ checkout too if you like, but never only that one.
 13. xlsx shared formulas (`<f t="shared" si="1"/>`) read as empty to a naive
     reader.
 14. A mismatch against the drawings is a finding, not something to fix.
+15. The spec pile is untracked, so it exists only in the **main checkout**. From
+    a worktree `data/inbox/specs/` holds one `README.md` — read the pile at
+    `C:\workspace\tolstack\data\inbox\specs\` and cite the repo-relative path.
+16. A balloon's `nX` prefix is not in the extraction, so `quantity_rollup`
+    manufactures a `qty_match: False` finding for every multi-place part.
+17. `hardware_entries.json` inline values are **not** a source. Read the entry's
+    `values_source`: most of them are workbook transcriptions, and citing the
+    entry launders one into your stack.
+18. A printed zone expires between exports. Name the export beside the zone.
+19. Sourced nominal, unsourced band ⇒ a **zero-width band**, declared as such —
+    never a plausible one. RSS reads it as certainty.
+20. In a budget check, the **larger** deficit magnitude is the requirement; the
+    smaller one is where the check fails at its most favourable.

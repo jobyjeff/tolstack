@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from tolerance_stack import StackElement, Term, fold, load_stack
+from tolerance_stack import SourceRef, StackElement, Term, fold, load_stack
 
 STACKS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tolerance_stacks"
 TOL = 1e-6  # the workbook's cached values are full-precision floats
@@ -497,6 +497,21 @@ def test_source_ref_leaves_the_feature_identity_slot_open_and_empty(filename):
         )
 
 
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
+def test_element_role_comes_from_the_documented_vocabulary(filename):
+    """The `role` list is the repo's original vocabulary-drift case: the SOP and
+    `StackElement.role`'s comment both omitted `nut_geometry`, which the seeded
+    take-2 uses three times, and nothing enforced either list. `kind` then drifted
+    the same way and broke the suite. A vocabulary lives in three places (SOP
+    prose, the dataclass comment, and this test); this is the third."""
+    stack = load_stack(STACKS_DIR / filename)
+    for element in stack.elements:
+        assert element.role in (
+            "bushing", "bearing", "washer", "clamped_member",
+            "relief", "fastener", "allowance", "nut_geometry",
+        ), f"{stack.id}:{element.id} has undocumented role {element.role!r}"
+
+
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
     """215197 is the one part drawing this repo holds for these joints, and
     exactly one element traces to it. Everything else is a fastener-library gap."""
@@ -514,16 +529,19 @@ def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():
 
 
 def test_the_nas6403_entry_cites_the_standard_its_inline_values_came_from():
-    """The first entry in this file whose inline numbers come from an actual
+    """The one entry in this file whose inline numbers come from an actual
     standard rather than from the 260729 workbook or a parts list. `values_source`
     is an additive extension proposed by handoff pitch_link_stack --
-    `hardware_entry/v0` has nowhere to say where inline values came from, which
-    is a hole in a repo whose whole point is provenance."""
+    `hardware_entry/v0` had nowhere to say where inline values came from, which
+    is a hole in a repo whose whole point is provenance. This is the `spec`-kind
+    half of that field's coverage; the `workbook`-kind half is the 214820-002
+    test below."""
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     entry = next(e for e in data["entries"] if e["id"] == "NAS6403U11D")
     src = entry["values_source"]
     assert src["kind"] == "spec"
     assert src["document"] == "NAS6403-NAS6420 Rev 4.pdf"
+    assert src["sheet"] == [1, 2, 3]    # NAS6403 sheets read; `sheet`, not `sheets`
     assert src["confidence"] == "traced"
     assert entry["dimensions_in"]["grip"] == 0.688          # NAS6403 sh3 dash 11
     assert entry["dimensions_in"]["grip_tol"] == 0.010      # NAS6403 sh3 column header
@@ -543,6 +561,99 @@ def test_the_nas6403_entry_cites_the_standard_its_inline_values_came_from():
     # tests/test_spec_library.py::test_the_nas6403_hardware_entry_defers_to_the_library.
     assert entry["values_status"] == "library"
     assert entry["library_ref"] == "spec_library:NAS6403U11D"
+
+
+def test_the_214820_entry_says_its_band_is_a_workbook_transcription():
+    """The `workbook`-kind counterpart to the NAS6403 test, and the entry the
+    laundering trap is named after: its .1900/.1875 in nominals are the 217755
+    parts list, but the 4.63/4.76 mm LIMITS are two hand-typed workbook cells.
+    Before `values_source` existed, citing this entry produced a `parts_list`
+    source_ref with zero workbook references and an untraced band inside it."""
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    entry = next(e for e in data["entries"] if e["id"] == "214820-002")
+    src = entry["values_source"]
+    assert src["kind"] == "workbook"
+    assert src["document"] == "260729_sample_tol_stack.xlsx"
+    assert src["sheet"] == "grip length tols old"
+    assert src["cell"].startswith("E7/G7/H7")
+    assert src["confidence"] == "untraced"
+    # 260729 'grip length tols old' G7 / H7 -- literals, no formula behind them
+    assert entry["dimensions_mm"]["length_min"] == 4.63
+    assert entry["dimensions_mm"]["length_max"] == 4.76
+    # ... while the nominal is the parts-list .1875 in converted exactly, which
+    # is NOT what the workbook's own E7 says (4.762). Both numbers are kept.
+    assert entry["dimensions_in"]["length"] == 0.1875
+    assert entry["dimensions_mm"]["length"] == pytest.approx(0.1875 * 25.4, abs=1e-9)
+
+
+def test_every_inline_hardware_entry_cites_where_its_values_came_from():
+    """SOP Step 4: `values_source` is mandatory whenever `values_status` is
+    `inline`, and explicitly null when it is `not_transcribed` -- the same
+    convention as `library_ref`, so "nothing to cite" reads differently from
+    "nobody filled it in". It is source_ref-shaped, which is what lets a reader
+    apply Step 5b's transitive workbook ban to a hardware entry."""
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    for entry in data["entries"]:
+        assert "values_source" in entry, f"{entry['id']} has no values_source key"
+        src = entry["values_source"]
+        # Only `not_transcribed` means "no inline values, nothing to cite". A
+        # `library` entry still HAS inline numbers -- they are demoted to a
+        # cross-check, not deleted -- so where they came from stays a true and
+        # useful fact and `values_source` stays filled. This guard read
+        # `!= "inline"` when sop_edits_apply wrote it, which was equivalent
+        # while no entry was `library`; spec_library_v0 promoted NAS6403U11D
+        # the same day and the two rules collided at the merge. Narrowed to
+        # match this test's own docstring. (review/spec_library_v0, 2026-08-05)
+        if entry["values_status"] == "not_transcribed":
+            assert src is None, f"{entry['id']} has no inline values but cites a source"
+            continue
+        assert src, f"{entry['id']} has inline values and does not say where they came from"
+        assert set(src) <= set(SourceRef.__dataclass_fields__), (
+            f"{entry['id']}: values_source is not source_ref-shaped: "
+            f"{sorted(set(src) - set(SourceRef.__dataclass_fields__))}"
+        )
+        assert src["kind"] in (
+            "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
+        )
+        assert src["confidence"] in ("traced", "inferred", "untraced")
+        assert src["document"], f"{entry['id']}: values_source names no document"
+    # The file's whole provenance story in one line: one entry traced to a
+    # standard, the rest still the 260729 workbook.
+    by_kind = {}
+    for entry in data["entries"]:
+        if entry["values_source"]:
+            by_kind.setdefault(entry["values_source"]["kind"], []).append(entry["id"])
+    assert by_kind["spec"] == ["NAS6403U11D"]
+    assert len(by_kind["workbook"]) == 8
+
+
+def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_link):
+    """SOP Step 5b's workbook ban is TRANSITIVE, and `values_source` is what
+    makes it checkable. Where pitch_link_to_pitch_plate points at a hardware
+    entry whose inline values are a workbook transcription, it may take the
+    parts-list nominal but NOT the band -- so the element is zero-width. Without
+    this test the ban is prose, and the laundered value passes everything."""
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    entries = {e["id"]: e for e in data["entries"]}
+    laundered = []
+    for element in pitch_link.elements:
+        if not element.hardware_ref:
+            continue
+        src = entries[element.hardware_ref]["values_source"]
+        if src and src["kind"] == "workbook" and element.min != element.max:
+            laundered.append(element.id)
+    assert not laundered, f"workbook-derived band reused via hardware_ref: {laundered}"
+    # And the two that do point at workbook-sourced entries are exactly the two
+    # zero-width elements -- i.e. this test is not passing vacuously.
+    refs = {e.id: e.hardware_ref for e in pitch_link.elements if e.hardware_ref}
+    workbook_backed = {
+        eid for eid, ref in refs.items()
+        # `or {}` because a not_transcribed entry's values_source is null, and a
+        # future hardware_ref to one (MS9363 is the named next document) should
+        # fail this test cleanly rather than TypeError out of it.
+        if (entries[ref]["values_source"] or {}).get("kind") == "workbook"
+    }
+    assert workbook_backed == {"bushing_214820", "washer_nas1149v0332"}
 
 
 def test_every_hardware_entry_has_a_gap_list_and_a_resolvable_values_status():
