@@ -396,6 +396,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `docs/issues/` and friends are created by `dispatch init` in the main
       checkout only. A session that checks only `C:\workspace\tolstack` ships a
       non-conforming branch. Check the worktree.
+- [ ] **…and the same thing in reverse: run the suite in BOTH checkouts.** The
+      worktree is the *more permissive* environment for anything that reads
+      `data/`, because `data/` is gitignored and therefore empty there. Sighted
+      in `citation_export_provenance`: `export_pdf_path` tried a relative cited
+      path against the process cwd before its explicit roots, so from the main
+      checkout `data/inbox/drawings/212966-006-A.pdf` resolved to the *real* file
+      instead of the test's, the sha check fired, and the suite went red — while
+      the worktree, where that path does not exist, stayed green. A green
+      worktree suite is not evidence the merged tree is green. Re-run in
+      `C:\workspace\tolstack` after you merge, before you push.
 - [ ] **`data/inbox/*` silently drops per-stream tracked docs.** Git does not
       descend into an excluded directory, so `!data/inbox/<s>/README.md` alone does
       nothing — re-include the directory, exclude its contents, *then* negate the
