@@ -118,3 +118,21 @@ Anyone reading the viewer between now and the fix: **check `built_at` against
 `git log -1 --format=%cI` on `master` before believing a provenance count**, and
 re-derive the ratio with `tests\debug_report_tolerance_stacks.py --ratio`, which
 reads the stack files directly and cannot be stale.
+
+### The stand-off was broken, by convention, not by a fix — 2026-08-07T00:30
+
+`review/viewer_generated_checks` rebuilt both projections. The tie-break that
+makes this safe rather than a third occurrence: **a review worktree holds
+`master` + the handoff, which is the newest tree in existence**, so its script can
+never be the older one losing to a newer. Add to the timeline above:
+
+| time (UTC) | who | state of `results.json` |
+|---|---|---|
+| 2026-08-07T00:30 | `review/viewer_generated_checks` | current — the three `traced_labels_and_ratio` labels restored, plus that handoff's generated checks. Old-vs-new key-by-key diff: `built_at`, the three relabellings, and nothing else |
+
+**This does not close the issue.** The convention ("under concurrency, the
+reviewer of the newest tree rebuilds") is now in the review overlay, but it is a
+rule a human has to remember, and it does not help two concurrent *reviews*, nor
+tell a reader of the file which tree produced it. The suggested fix above —
+stamp `--stacks-dir`, branch and HEAD sha into both files, then refuse a rebuild
+whose recorded sha is not an ancestor — is still the fix. Status stays `open`.
