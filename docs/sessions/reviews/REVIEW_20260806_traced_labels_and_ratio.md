@@ -156,12 +156,25 @@ author's `_counts`), over the three seeded stacks:
 > Per stack: `tan_link` 2/3/6 of 11 · `take2` 0/2/7 of 9 · `vpa` 1/2/3 of 6.
 > All six stacks: 19 / 11 / 18 of 48.
 
-That agrees with `--ratio`, with the test's asserted tuple, with every document on
-the branch, and with the viewer projection's `provenance_counts`
-(`tan_link 2/3/6`, `vpa 1/2/3` — so the DoD's "scoreboard rebuilt so it agrees
-with the prose" is genuinely satisfied; `results.json` in the main checkout is
-built at 2026-08-06T22:43Z and already carries `under_head_chamfer_washer:
-inferred`).
+That agrees with `--ratio`, with the test's asserted tuple, and with every document
+on the branch.
+
+**The viewer projection agreed too, when I first checked it, and no longer does —
+through no fault of this handoff.** At 2026-08-06T22:43Z `results.json` carried
+`tan_link 2/3/6`, `vpa 1/2/3` and `under_head_chamfer_washer: inferred`, so the
+DoD's "scoreboard rebuilt so it agrees with the prose" was genuinely satisfied. By
+00:24Z the live `viewer_generated_checks` worktree — branched before this merge —
+had rebuilt the shared `data/projections/viewer/` from its own tree, putting all
+three corrected labels back to `traced`/`parts_list` and `vpa` back to 2/1/3. I
+did **not** rebuild to fix it: that handoff owns
+`scripts/build_viewer_projection.py`, its worktree is live, and rebuilding with
+`master`'s copy over a live session's newer-script output is exactly the mistake
+this handoff's own lesson records. **Which is the finding: with two live sessions
+the correct action for each is "don't rebuild", so nobody rebuilds and the shared
+artifact stays wrong.** Recorded as a second occurrence on
+`ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection.md`,
+which I raised `med` → `high`; the ratio itself is unaffected because `--ratio`
+reads the stack files and cannot go stale.
 
 Every `untraced` value remains on an explicitly-listed gap, and the one
 *downgraded* value was added to a gap entry rather than dropped (`vpa` gap 3, with
@@ -418,14 +431,19 @@ and the two should be worked together.
   citing them are `traced` to the standard. Known, filed, deliberately deferred
   (`ISSUE_20260806_three_more_slice1_fastener_values_are_now_sourceable.md`) —
   don't re-report it as new, and expect the ratio to move to 5 of 26 when it lands.
+- **`data/projections/viewer/` is currently wrong, and don't trust the viewer
+  until it's rebuilt from `master`.** It shows three pre-correction `confidence`
+  labels because a live sibling worktree rebuilt it from a pre-merge tree; the
+  viewer's banner reports `built_at` rather than refusing, so it presents them as
+  current. Once `viewer_generated_checks` lands, whoever merges it should rebuild
+  both files from `master` and check `vpa_output` reads 1 traced / 2 inferred / 3
+  untraced. Until then, `tests\debug_report_tolerance_stacks.py --ratio` is the
+  authority — it reads the stack files and cannot be stale. Details and the
+  timeline are on the issue, now `high`.
 - **Before rebuilding anything under `data/projections/`, check
-  `git worktree list`.** That directory is shared by every worktree and written by
-  absolute `--data-root`; this session clobbered a parallel session's `crops.json`
-  and restored it. Read `built_by`/`built_at` in the file you're about to
-  overwrite. Filed as
-  `ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection.md`.
-  I inspected the projection rather than rebuilding it, for exactly that reason —
-  `citation_export_provenance` is still live.
+  `git worktree list` and the file's own `built_by`/`built_at`.** And know that
+  the check has no good answer under concurrency: I followed it, correctly
+  concluded "don't rebuild", and the artifact stayed wrong.
 
 ## Verdict
 
