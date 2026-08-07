@@ -31,13 +31,33 @@ temp/
 # Agent bootstrap (ephemeral, replaced per-session by dispatch).
 CLAUDE.md
 
+# dispatch runtime dir (per-repo state + generated launch scripts).
+.dispatch/
+
 # data/ layout (forge CONVENTIONS.md): data contents are gitignored (fs is
-# canonical); directory skeletons are tracked via .gitkeep.
+# canonical, absence from git is not data loss); directory skeletons and the
+# provenance docs beside them are tracked.
+#
+# DIRECTORY-DESCENT RULE -- read this before editing anything below. Git does
+# not descend into an excluded *directory*, so a `!` negation underneath a rule
+# that excluded the directory itself is unreachable no matter where you put it.
+# A `*` never crosses `/`, so `data/*` matches `data/inbox` (the directory), and
+# `data/inbox/*` matches `data/inbox/specs` (the directory). Each level you want
+# a tracked file at must therefore be re-included **by name** before its own
+# contents are excluded: exclude, re-include the dir, exclude its contents,
+# negate the docs. Verify every edit with `git check-ignore -v <path>` and
+# `git ls-files data/` -- never by eye.
+
+# Ignore-by-default at the top level, then descend into the three standard
+# streams. A new top-level `data/` child is ignored until it is listed here.
+data/*
+!data/inbox/
+!data/runs/
+!data/projections/
+
 data/inbox/*
 !data/inbox/.gitkeep
-# Per-stream skeletons. `data/inbox/*` excludes the directories themselves, and
-# git does not descend into an excluded directory -- so each stream that has a
-# tracked doc must be re-included by name, then have its own contents excluded.
+# Per-stream skeletons.
 !data/inbox/specs/
 data/inbox/specs/*
 !data/inbox/specs/README.md
@@ -49,6 +69,7 @@ data/inbox/tolerance_stacks/*
 data/inbox/drawings/*
 !data/inbox/drawings/.gitkeep
 !data/inbox/drawings/PROVENANCE.md
+
 data/runs/*
 !data/runs/.gitkeep
 data/runs.jsonl
