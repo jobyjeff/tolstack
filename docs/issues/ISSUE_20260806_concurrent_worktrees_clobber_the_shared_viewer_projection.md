@@ -1,6 +1,6 @@
 ---
 type: bug
-priority: med
+priority: high
 status: open
 area: viewer / projections
 reporter: agent
@@ -72,3 +72,49 @@ Related: the worktree/data-root split itself is documented in the tactical
 prompt and in `.gitignore` precedence
 (`ISSUE_20260804_gitignore_data_blanket_shadows_inbox_streams.md`); this is the
 concurrency consequence of it, which no document currently mentions.
+
+---
+
+## Second occurrence, hours later, and this one shows the real cost
+
+Recorded by `review/traced_labels_and_ratio` (2026-08-06), which raises this from
+`med` to **high**: the first occurrence was a session clobbering an artifact and
+noticing; the second is the shared projection **disagreeing with `master`** with
+nobody watching.
+
+Timeline, from `built_at` in the files themselves:
+
+| time (UTC) | who | state of `results.json` |
+|---|---|---|
+| 2026-08-06T22:43 | `traced_labels_and_ratio` | agreed with its relabelling — `vpa_output` 1 traced / 2 inferred / 3 untraced, verified by the review as the handoff's definition-of-done |
+| 2026-08-06T23:30 | *(crops rebuilt by another session)* | — |
+| 2026-08-07T00:24 | `viewer_generated_checks` (live worktree, branched before the merge) | **stale**: `fastener_grip_14` and `under_head_chamfer_washer` back to `traced` / `parts_list`, `vpa_output` back to 2/1/3 |
+
+So the projection now shows three `confidence` labels that no longer exist on
+`master`, and the viewer's banner reports `built_at` rather than refusing —
+meaning it presents pre-correction provenance as current. Nothing failed. No test
+covers it, because the projection is gitignored.
+
+The review deliberately did **not** rebuild to fix this: `git worktree list` shows
+`viewer_generated_checks` live, that handoff *owns*
+`scripts/build_viewer_projection.py`, and rebuilding with `master`'s copy over a
+live session's output with a newer script is precisely the first occurrence's
+mistake. **Which is the finding: with two live sessions the correct action for
+both of them is "don't rebuild", and then nobody rebuilds.** A convention that
+resolves to a stand-off under concurrency is not a convention.
+
+Two consequences for whoever picks this up:
+
+- The **stamp-provenance** step above is now the minimum, not a nice-to-have: with
+  `--stacks-dir`, branch and HEAD sha in the file, a reader could have seen in one
+  line that this projection was built from a branch that predates the labels it
+  shows.
+- Prefer the **per-branch output subdir**, or at least make a rebuild refuse (not
+  warn) when the existing file's recorded branch/sha is not an ancestor of the
+  rebuilding tree's HEAD. The "rebuild first, trust nothing" option does not help
+  here: both sessions did rebuild, and the loser was whoever ran first.
+
+Anyone reading the viewer between now and the fix: **check `built_at` against
+`git log -1 --format=%cI` on `master` before believing a provenance count**, and
+re-derive the ratio with `tests\debug_report_tolerance_stacks.py --ratio`, which
+reads the stack files directly and cannot be stale.
