@@ -81,10 +81,20 @@ Rebuild output (main checkout, the DoD's command):
   pitch_link_to_pitch_plate           6 elements (4T/2I/0U), 3 paths, 2 checks, 2 INCOMPLETE, 2 zero-width
   tan_link_to_pitch_plate            11 elements (2T/3I/6U), 3 paths, 6 checks
   tan_link_to_pitch_plate_take2       9 elements (0T/2I/7U), 1 paths, 1 checks, NO WORKSHEET
-  vpa_output_to_pitch_plate           6 elements (2T/1I/3U), 1 paths, 1 checks
+  vpa_output_to_pitch_plate           6 elements (1T/2I/3U), 1 paths, 1 checks
 ```
 
 Compare the two thermal lines with the issue's: `0 checks, NO WORKSHEET`.
+
+> **Corrected during `review/viewer_generated_checks`.** The `vpa_output` line was
+> pasted as `(2T/1I/3U)`, which was true of this branch's tree and **is not true
+> of the merged one**: `traced_labels_and_ratio` landed on `master` after this
+> branch last merged it and downgraded `under_head_chamfer_washer` from `traced`
+> to `inferred`. The transcript above is the reviewer's rebuild on
+> `master + this branch`, which is the tree that ships. The recurring-bugs class
+> is "stale inventory numbers", and the traced count is the one that must never
+> be quoted stale — re-derive it with
+> `tests\debug_report_tolerance_stacks.py --ratio`, never from a pasted build log.
 
 ### No-regression evidence for the four authored stacks
 
@@ -180,9 +190,17 @@ its sourcing cell instead.
 
 ## 6. Verification, including what I did not verify
 
-- `pytest -q`: **279 passed, 1 skipped** (the skip is the JS suite's node-fs tier,
-  which has no projection in a worktree — `test_viewer_js_suite.py` skips loudly
-  and says so).
+- `pytest -q`: **279 passed, 1 skipped** on this branch (the skip is the JS
+  suite's node-fs tier, which has no projection in a worktree —
+  `test_viewer_js_suite.py` skips loudly and says so). **On the merged tree
+  (`master` + this branch) it is 290 passed, 1 skipped** — measured during
+  `review/viewer_generated_checks`, and the figure that describes what ships.
+  The gap is not this branch's: `master` gained five commits
+  (`traced_labels_and_ratio`, +11 tests) after this branch last merged it, so
+  the DoD's `git log --oneline HEAD..master` was empty when it was run and was
+  no longer empty an hour later. That is the "a sibling handoff landed on
+  `master` while you were reviewing" item firing again — the check has to be the
+  *reviewer's* last act, not the author's.
 - JS fast tier: **59/59** in the worktree; **75/75** with
   `--repo C:\workspace\tolstack`, i.e. including the 7 new `[real]` tests that
   render the actual thermal stacks (16 cards, 46 of 52 terms weighted, 4 probes, 3
@@ -194,7 +212,8 @@ its sourcing cell instead.
   three of my first-draft tests failed on descendant selectors that a browser
   would have accepted. The reverse of the drift `stack_viewer_v0` recorded, and the
   same cure: keep every test query in both tiers' intersection.
-- `git log --oneline HEAD..master` empty after merging `master` in.
+- `git log --oneline HEAD..master` empty after merging `master` in (true when
+  run; see the pytest bullet above for why it did not stay true).
 
 **Not verified:** nobody has looked at the new Materials table or the recessed
 sensitivity card in a browser *by eye* — the truth tier asserts the DOM and CSS

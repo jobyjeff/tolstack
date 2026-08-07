@@ -578,6 +578,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       git could not merge them. Nothing fails a test; the conflict is yours to
       resolve, and the resolution must keep *both* narratives (the merge is
       additive: two new branches on one diagram), not pick a side.
+      **Third sighting (`viewer_generated_checks`, 2026-08-06)**, and it shows the
+      check has to be the *reviewer's last act*, not the author's: that handoff's
+      DoD asked for `git log --oneline HEAD..master` and the author ran it and got
+      empty — then `traced_labels_and_ratio` (5 commits, +11 tests) landed. Nothing
+      conflicted and nothing failed, so the only symptom was **two counts in the
+      lesson that were true of the branch and false of the merged tree** (`279
+      passed` vs 290; a `2T/1I/3U` build transcript where the merged tree says
+      `1T/2I/3U`). So: an author's green `HEAD..master` is evidence about a moment,
+      not about the tree that ships. Re-run it yourself, and **re-derive every
+      count the lesson pastes** — a build transcript ages exactly like a hand-typed
+      figure does.
 - [ ] **The projections are stale unless you rebuild them.** Nothing rebuilds
       `data/projections/viewer/` — no hook, no ops verb, no watcher. A stack
       changed on the branch under review will render as the previous build, and
@@ -590,6 +601,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       wipe-and-rebuild and each owns only its own files, so either can be re-run
       alone; a rebuild that changes anything but `built_at` means the committed
       claims were made against a different tree.
+      **And under concurrency, YOU are the one who rebuilds.**
+      `ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection.md`
+      records the stand-off: `data/projections/viewer/` is one directory shared by
+      every live worktree, so both a live tactical session and a reviewer have a
+      good reason not to overwrite it — and then nobody does, and the shared file
+      silently disagrees with `master`. That is exactly what happened here: the
+      00:24 build showed three `confidence` labels `traced_labels_and_ratio` had
+      already retired. **The tie-break: the review worktree holds `master` + the
+      handoff, which is the newest tree in existence, so the reviewer's rebuild is
+      never the older script losing to a newer one.** Rebuild, then diff old
+      against new key by key — the diff is the evidence for "the four other stacks
+      did not regress", and it costs one script.
 - [ ] **`INCOMPLETE` is a prose convention, not a schema field.**
       `build_viewer_projection.is_incomplete` greps the check's
       `label`/`guidance`/`check_id` for the literal upper-case string. A stack
@@ -653,14 +676,39 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       repo's central safety property (a reviewer reads every sign) has no JSON to
       read, so require the expanded-terms appendix in the worksheet and re-generate
       it yourself rather than trusting the paste.
+      **Since `viewer_generated_checks` (2026-08-06) the viewer renders them too**,
+      and the rule that makes that safe is a one-dict dispatch: `ARCHETYPE_LOADERS`
+      in `scripts/build_viewer_projection.py` maps `archetype` → that archetype's
+      own loader, so the checks are generated **once, in Python**. A new archetype
+      whose loader is not in that dict projects zero checks and the viewer says so
+      (`checks_generated_not_rendered`) — check the dict got its entry, and check
+      nobody grew a *second* generator in JS or in the projection.
+- [ ] **A term rendered without its coefficient is a wrong term list.**
+      `element_terms` is `{element_id, sign, coefficient}` and every consumer must
+      print a non-unity weight: a `2k`-weighted sleeve wall shown as
+      `+ sleeve_wall` is wrong by a factor of two on the one surface built for
+      reading signs, and it looks perfectly readable. Check `VA.termLabel` (or
+      whatever renders a term) is used everywhere a term is drawn, and that
+      `coefficient > 0` in the projection, with direction still in `sign` alone.
+      As of 2026-08-06 only the check cards draw terms — `pathsSection` shows a
+      path's folded interval and no term chips at all — so an archetype that ever
+      generates weighted *paths* needs that section revisited, not just
+      re-styled. The verification that actually settles it is
+      mechanical: the projection's term rows must equal
+      `tests\debug_report_thermal_fit.py --terms --markdown` row for row
+      (104 rows across the two thermal stacks; pinned by
+      `test_the_projected_terms_are_the_report_that_reviews_them_term_for_term`).
+      Re-run both and diff them yourself.
 - [ ] **The no-second-combiner rule extends to JavaScript** (`stack_viewer_v0`,
       2026-08-05). `apps/viewer/` renders `results.json` and combines nothing: no
       `+`, `-`, comparison-of-tolerances, `toFixed` or verdict logic anywhere
       under `apps/viewer/`. Rounding happens once, in
-      `build_viewer_projection.py` (`INTERVAL_DECIMALS`), and `VA.fmt` is
+      `build_viewer_projection.py` (`INTERVAL_DECIMALS`, and `COEFFICIENT_DECIMALS`
+      = 9 for term weights since 2026-08-06), and `VA.fmt` is
       `String(n)` on purpose. Grep any viewer diff for arithmetic operators on a
       projection field — a second combiner in JS is one nothing in `tests/`
-      executes.
+      executes. Note the false positive: `app.js`'s popover clamp
+      (`Math.max(8, Math.min(...))`) is CSS pixels, not a tolerance.
 - [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
       the moment an element changes and nothing notices.
 - [ ] **Do not edit a file `PROVENANCE.md` claims is byte-identical.** Ten
