@@ -55,12 +55,38 @@ in JavaScript would be a second such line, so there isn't one:
   `scripts/build_viewer_projection.py` produced by calling `fold()`;
 - element `nominal`/`min`/`max`/`lmc`/`mmc` are printed **as transcribed** —
   `String(n)`, no `toFixed`, no unit conversion, no band derived from limits;
-- even the rounding happens in Python (fold outputs are rounded to 6 dp at build
-  time) so the browser is never the thing deciding how a number reads.
+- even the rounding happens in Python (fold outputs are rounded to 6 dp, term
+  coefficients to 9 dp, at build time) so the browser is never the thing deciding
+  how a number reads.
 
 `tests/test_viewer_projection.py` pins the embedded stack as byte-identical to
 the authored file, and re-asserts the ground-truth numbers *through* the
 projection.
+
+### Generated checks are generated in Python too
+
+Some archetypes do not author their checks: a `thermal_fit` stack ships an empty
+`checks` array on purpose, and `tolerance_stack.thermal` builds the term lists
+from its own block at load time so the file cannot carry a stale coefficient. The
+projection dispatches on the stack's `archetype` and runs that loader
+(`ARCHETYPE_LOADERS` in `build_viewer_projection.py`) — so the checks are
+generated **once, in Python, by the same code the tests pin**, and the viewer
+renders them like any other. There is no archetype logic in JS.
+
+Their terms carry real **coefficients** — `2` because a sleeve OD is bore + 2 ×
+wall, a soak factor `1 + ΔT·α` per member per temperature, and a `k` / `1−k`
+stiffness split — so every weighted term prints its weight
+(`+ 2.0010712 × sleeve_wall_lower`). A weighted term rendered as a bare
+`+ sleeve_wall` would look readable and be wrong by a factor of two, which is
+worse than rendering nothing at all. The identical term table prints outside the
+browser with:
+
+```powershell
+venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --terms --markdown
+```
+
+A stack declaring an archetype the projection has **no** loader for still renders
+zero checks — and says exactly that, rather than "no checks".
 
 ## Reading the colours
 
@@ -74,9 +100,19 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all |
 | dashed blue `zero-width band` | `min == max`; no document gives a tolerance, so every interval it feeds is a **lower bound** on the real spread. A separate axis from confidence, not a fourth confidence |
 | striped card + amber `INCOMPLETE` | a term is missing from the check. Read the magnitude as a budget for the missing term, never as a verdict on the joint |
+| dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |
+| blue `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above) |
+| monospaced weighted chip | a term whose coefficient is not 1: `+ 2.0010712 × sleeve_wall_lower`. Hover says what a coefficient can be |
 
 A path or check also shows the **weakest** confidence among its expanded inputs:
 a check fed by four traced elements and one untraced one is an untraced result.
+
+A stack whose archetype has **material properties** also gets a Materials table:
+the `materials.json` entry verbatim (designation, CTE, the range it is a mean
+over) beside its own sourcing — and the CTEs are the least-traced numbers in this
+repo, so the table speaks the same colour language as the elements table. A
+thermal fit's answer is a CTE *difference*, and the soak factor in a term's
+coefficient is `1 + ΔT·α` from that table with the ΔT on the check card.
 
 ## Hover crops
 
@@ -109,6 +145,13 @@ parts-list sheet).
 markdown, reload, see it. Rendered with the dependency-free markdown renderer
 vendored from forge's notes app (escape-first, no sanitize pass). A stack with no
 worksheet of its own says so instead of borrowing a neighbour's.
+
+Which sheet belongs to a stack is decided by the projection, two rules deep: a
+`provenance.worksheet` in the stack file wins (one worksheet legitimately covers
+several stacks — `WORKSHEET_hub_bearing_thermal_fit.md` covers both thermal
+configurations, which are one analysis), otherwise `stack_X.json` →
+`WORKSHEET_X.md`. The pane says when the sheet was *declared* rather than matched,
+so a name that does not match the stack is explained instead of suspicious.
 
 ## Tests
 

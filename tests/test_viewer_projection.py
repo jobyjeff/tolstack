@@ -306,6 +306,39 @@ def test_a_generated_term_reaches_the_projection_with_its_coefficient():
     assert room[("sleeve_bore_lower", -1)] == pytest.approx(0.2)     # 1 - k
 
 
+def test_the_projected_terms_are_the_report_that_reviews_them_term_for_term():
+    """The viewer's term list must equal ``debug_report_thermal_fit.py --terms``.
+
+    That report is how the generated coefficients were made reviewable before
+    this surface existed -- the worksheet pastes its output -- so it is the right
+    thing to be identical to. Same order, same element, same sign, same
+    coefficient at the projection's display precision, for every term of every
+    check of both stacks. If the projection ever grows its own generation, or the
+    display rounding starts losing a digit the report shows, this is where it
+    surfaces.
+    """
+    materials = thermal.load_materials(STACKS_DIR / "materials.json")
+    compared = 0
+    for stack_id in THERMAL_STACKS:
+        report = thermal.expanded_terms_table(
+            thermal.load_thermal_fit_stack(
+                STACKS_DIR / f"stack_{stack_id}.json", materials)
+        )
+        projected = [
+            dict(check_id=check["check_id"], **term)
+            for check in project_one(stack_id)["checks"]
+            for term in check["element_terms"]
+        ]
+        assert len(projected) == len(report), stack_id
+        for row, term in zip(report, projected):
+            assert (row["check_id"], row["element"], row["sign"]) == (
+                term["check_id"], term["element_id"], term["sign"])
+            assert round(row["coefficient"], bvp.COEFFICIENT_DECIMALS) == (
+                term["coefficient"]), f"{row['check_id']} / {row['element']}"
+            compared += 1
+    assert compared == 104, "52 terms per stack, both stacks"
+
+
 def test_every_coefficient_is_rounded_for_display_and_carries_no_float_noise():
     """Display rounding, in Python, like every other number in the projection.
 
