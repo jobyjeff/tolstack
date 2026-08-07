@@ -28,6 +28,7 @@ from tolerance_stack.spec_library import (  # noqa: F401
 from tolerance_stack.stack import (  # noqa: F401
     CheckResult,
     Interval,
+    SourceExport,
     SourceRef,
     StackDefinition,
     StackElement,
@@ -43,6 +44,7 @@ __all__ = [
     "IntakeRow",
     "Interval",
     "ParseEvent",
+    "SourceExport",
     "SourceRef",
     "SpecEntry",
     "SpecLibrary",

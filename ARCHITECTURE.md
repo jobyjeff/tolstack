@@ -257,11 +257,16 @@ above: the viewer must not contain a second arithmetic path. So
   PDF and renders a crop, or records **why not**. The viewer cannot roam the
   filesystem or reach drawing-checker, so hovers read pre-rendered PNGs.
 
-Resolution never guesses: the spec pile by filename; a drawing through
-`joint.assembly_export`'s run (sha256 verified against `run_meta.json`); else a
-single unambiguous `provenance.sources_used` entry. Anything else is
+Resolution never guesses: `source_ref.export`, whose `sha256` is mandatory and
+always verified; else the spec pile by filename; else the legacy free-text
+`joint.assembly_export`'s run (sha256 verified against `run_meta.json`), kept only
+so a stack written before 2026-08-06 still resolves. There is deliberately **no
+prose fallback** — scanning `provenance.sources_used` for a `.pdf` path was a
+rule until `citation_export_provenance` removed it, because a resolved count that
+rises through a looser rule is a regression, not progress. Anything else is
 `unresolvable` **with a reason**, and the reasons are design input — see
-`docs/sessions/lessons/LESSONS_20260805_stack_viewer_v0.md`.
+`docs/sessions/lessons/LESSONS_20260805_stack_viewer_v0.md` and
+`LESSONS_20260806_citation_export_provenance.md`.
 
 Derived flags worth knowing, because neither has a schema field:
 

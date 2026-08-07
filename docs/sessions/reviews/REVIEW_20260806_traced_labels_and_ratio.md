@@ -4,18 +4,28 @@ handoff: docs/sessions/active/HANDOFF_20260806_traced_labels_and_ratio.md
 reviewer: review agent (dispatch), branch review/traced_labels_and_ratio
 date: 2026-08-06
 verdict: APPROVE
-blockers: 1 (fixed inline — PROVENANCE.md rows, see below)
+blockers: 1 (fixed inline — PROVENANCE.md rows, see B1); plus 1 cross-branch test failure from a sibling handoff, resolved on the review branch (M1)
 ---
 
 # REVIEW — traced_labels_and_ratio (2026-08-06)
 
 Work reviewed: `handoff/traced_labels_and_ratio` @ `455b210` (3 commits), merged
 fast-forward into `review/traced_labels_and_ratio` from `master` @ `2097d59`.
-`git log --oneline HEAD..master` was empty and the handoff branch had already
-merged master itself (`9fb7ecc`), so the tree I tested is the tree that ships.
 
-**Suite: 252 passed, 1 skipped** (`venv-win\Scripts\python.exe -m pytest -q`),
-re-run by me on the merged tree, and again after my inline fix.
+**Then master moved.** `citation_export_provenance` landed while I was reviewing
+(11 commits, including its own review's fixes) and `viewer_generated_checks` went
+active. So there are two test runs in this report and only the second one counts:
+
+| tree | result |
+|---|---|
+| `handoff/traced_labels_and_ratio` on `master` @ `2097d59` | 252 passed, 1 skipped |
+| the same work merged with `master` @ `c339c3a` — **the tree that ships** | **277 passed, 1 skipped** |
+
+Getting to the second number took resolving five conflicts and **fixing one real
+cross-branch failure that neither branch's suite could see** — see M1 below. This
+is the checklist's *"a sibling handoff landed on master while you were reviewing"*
+item paying for itself; I had checked `git log --oneline HEAD..master` at the start
+of the review and it was empty, which is exactly how you get caught.
 
 This is a **provenance-hygiene** handoff, not a new stack: it relabels three
 `confidence` fields and corrects a headline ratio. So the audit below is mostly
@@ -228,6 +238,52 @@ worksheet's correction both say so explicitly. Good.
 
 ## Findings
 
+### Merge findings — the sibling handoff (resolved on the review branch)
+
+**M1. A hard-coded cross-stack total broke on the merge, and it was a real
+coupling, not a mechanical clash.** (`tests/test_tolerance_stack.py`,
+`test_the_export_is_a_sibling_of_the_feature_identity_slot_not_a_filling_in`.)
+`citation_export_provenance` backfilled `source_ref.export` onto 25
+`drawing`/`parts_list` citations and asserted that total. This handoff re-cited two
+of them to `kind: "spec"` — which that same handoff's
+`test_every_drawing_citation_says_which_export_it_was_read_from` **exempts** from
+the export requirement, because `data/inbox/specs/` is append-only so the filename
+already identifies the bytes. So the true count on the merged tree is **23**: two
+export blocks correctly dropped, not lost.
+
+Resolved: count updated to 23, with the reasoning in the docstring and a note that
+**a hard-coded total over all stacks is a cross-handoff coupling** — it moves
+whenever any handoff changes a citation's `kind`, in either direction — and that
+the invariant test already covers what matters. Each affected element's
+`source_ref.note` now records that the sha256 was dropped deliberately and where
+to find it (the sibling handoff's commit, and the same block still live on
+`fastener_grip_13` / `under_head_chamfer_washer`). **Neither branch's suite could
+have caught this.** `handoff/traced_labels_and_ratio` was green; `master` was
+green; the merge was red.
+
+**M2. Four other conflicts, resolved additively.**
+- `PROVENANCE.md` — **both reviews had independently amended the same rows.**
+  Merged into one row per file telling both stories in order, and the
+  `test_tolerance_stack.py` row now carries the merged-tree counts, which are the
+  only ones measured on a tree where both sets of tests exist.
+- `docs/prompts/REVIEW_AGENT.md` — **both reviews independently wrote "Fourth
+  sighting" of the byte-identical bug, for different handoffs, on the same day,
+  neither knowing about the other.** Merged as fourth (`citation_export_provenance`)
+  and fifth (this one). See B1.
+- Both stack JSONs — the semantic conflict above; `under_head_chamfer_washer`
+  keeps its parts-list export (still a parts-list citation, only the confidence
+  claim changed) while both re-cited grips drop theirs.
+- `tests/test_viewer_crops.py` — master rewrote this module wholesale around the
+  new `resolve_pdf` API and deleted the test this handoff had patched
+  (`test_a_stack_whose_joint_names_no_export_cannot_be_crop_resolved`). Took
+  master's version entirely: the patch is obsolete, and master's replacement uses
+  synthetic fixtures rather than reaching into real data by element id — which is
+  the better fix for the coupling this handoff's lesson complains about.
+
+Re-verified after resolution: **277 passed, 1 skipped**; ratio still 3 of 26;
+re-derivation still 27 cells / 6.439e-15; `ARCHITECTURE.md` still has exactly one
+copy of the binding-constraint paragraph.
+
 ### Blocker — fixed inline on the review branch
 
 **B1. `PROVENANCE.md` was not amended for four files this branch changed —
@@ -265,6 +321,18 @@ of these has been caught by a reviewer rather than an author. **If it recurs a
 fifth time, mechanise it** — a test greping the byte-identical rows against
 `git diff` is ~15 lines; I did not write it because it is out of this handoff's
 scope.
+
+**And it did recur a fifth time — in parallel.** Merging master revealed that
+`review/citation_export_provenance` found the *same bug on the same two rows the
+same day*, and both reviews independently wrote "Fourth sighting" into the
+checklist without knowing about the other. That is five sightings, five inline
+reviewer fixes, **zero author catches** — and two of the five were on handoffs
+whose own subject was provenance. A human-executed check demonstrably does not
+compose across concurrent work. The escalation trigger has therefore fired, and
+per file-don't-fix I filed rather than built it:
+`docs/issues/ISSUE_20260806_mechanise_the_byte_identical_provenance_check.md`,
+priority high, with the five-sighting table and the five things the test must get
+right (each one learned from a different sighting).
 
 ### Should-fix — for the next session, not a merge blocker
 
@@ -363,9 +431,12 @@ and the two should be worked together.
 
 **APPROVE.** One blocker (B1, PROVENANCE rows), fixed inline on the review branch
 per the checklist's trivial-fix allowance and the precedent set in
-`review/spec_library_v0`; suite re-run green afterwards. Two should-fixes, neither
-a merge blocker: S1 needs a rule decision from Jeff and is recorded rather than
-resolved; S2 is out of scope and filed as an issue.
+`review/spec_library_v0`. Two merge findings from the sibling handoff (M1, M2),
+resolved on the review branch — M1 was a genuine cross-branch test failure, so the
+merged tree was red before it was green. Two should-fixes, neither a merge blocker:
+S1 needs a rule decision from Jeff and is recorded rather than resolved; S2 is out
+of scope and filed as an issue. Suite green on the merged tree, **277 passed, 1
+skipped**, which is the only run that describes the tree that ships.
 
 The substance is right, and the part that matters most is right for the right
 reason: the two `traced` labels this handoff *kept* are backed by a page I read

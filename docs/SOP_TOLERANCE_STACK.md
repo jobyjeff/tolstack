@@ -197,8 +197,10 @@ Then write down, and put in the stack's `joint` block:
 
 - the **assembly** drawing number and revision;
 - the **sheet and view** the joint is detailed in (`sheet 4, DETAIL B`), plus the
-  **printed** zone (see the zone warning in Step 3) **and the export you read it
-  on** (see the `source_ref` bullets in Step 2 — a zone expires between exports);
+  **printed** zone (see the zone warning in Step 3) and the export you read it on
+  — a zone expires between exports. The `joint` block's export is prose, for the
+  reader; the machine-readable one is `source_ref.export`, per citation, and it is
+  mandatory (Step 2);
 - every part in the joint, by part number, with its find number and quantity;
 - what is being clamped by what, and what retains it;
 - **what is out of scope.** Say it explicitly. The seeded stacks are grip length
@@ -293,7 +295,13 @@ source's, not yours.
 ```json
 { "kind": "drawing", "document": "215197", "revision": null, "sheet": 2,
   "zone": "B4", "view": "SECTION A-A", "cell": null,
-  "callout": "3X 4.06 ±0.08", "element_id": null, "run_id": null,
+  "callout": "3X 4.06 ±0.08",
+  "export": { "status": "established",
+              "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
+              "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
+              "runs": ["20260730_133912"],
+              "note": "how you established it" },
+  "element_id": null, "run_id": null,
   "confidence": "traced", "note": null }
 ```
 
@@ -308,21 +316,49 @@ source's, not yours.
   compliant from-scratch stack used it. The same applies to the `role` list above.
 - `callout` is the text **as it reads on the drawing**. This is what lets a human
   re-find the value; without it a citation is an address with no content.
-- **A zone is only re-findable against the export you read it on.** Name the
-  export (PDF filename or drawing-checker run id) alongside the zone. `source_ref`
-  has no field for it yet — put it in the stack's `joint` block (as
-  `assembly_export`) and in the worksheet until it does. DETAIL B of 217755 sheet
-  4 is at printed **I6** on the 2026-JUL-23 POST export and printed **H3** on the
-  2026-AUG-3 one: same view, same revision, both citations correct for their own
-  file. This is the cleanest argument in the repo for why `element_id` exists — a
-  stable extracted-element address survives a re-export; a zone label demonstrably
-  does not.
-- `element_id` and `run_id` stay **`null`**. They are the reserved slot for stable
-  feature identity — when extraction can address a dimension durably, an element
+- **`export` — which export of `document` you read. Mandatory on every `drawing`
+  and `parts_list` citation, and identified by `sha256`, not by filename.** A
+  zone is only re-findable against the export you read it on: DETAIL B of 217755
+  sheet 4 is at printed **I6** on the 2026-JUL-23 POST export and printed **H3**
+  on the 2026-AUG-3 one — same view, same revision, both citations correct for
+  their own file. 217755 has six exports on disk and Jeff re-exports over the same
+  filename, so only the bytes pin it. `runs` lists the drawing-checker run ids
+  whose recorded input sha256 equals yours: corroboration and a pointer to
+  extracted JSON, never the identity — one export feeds several runs, and a part
+  drawing read straight off the PDF feeds none (`runs: []`, empty by fact).
+  `spec` is exempt: `data/inbox/specs/` is append-only, so the filename already
+  identifies the bytes — record the sha anyway if you have it.
+
+  **If you cannot establish which export you read, say so** —
+  `{"status": "unestablished", "why": "..."}`, with no `pdf` and no `sha256`. An
+  unresolvable citation is honest; a wrong one is not, and a guessed export
+  renders a crop of the wrong revision's geometry that looks perfectly correct on
+  screen. Never name a plausible run. The shape is enforced in
+  `SourceExport.__post_init__` (an `unestablished` export carrying a `pdf` raises
+  at load time), in `scripts/build_viewer_crops.py`, and in
+  `tests/test_tolerance_stack.py::test_no_unestablished_export_is_written_as_a_concrete_one`.
+
+  How to establish one, in order of strength: the file's sha256 recorded in a
+  tracked doc at copy time (`data/inbox/drawings/PROVENANCE.md`); the run's own
+  artifacts — a `*_balloons.json` or per-page JSON carries `source_pdf`, written
+  by the run itself; **`C:\workspace\drawing-checker\data\runs.jsonl`**, which
+  records `inputs` (path + sha256) for runs whose own `run_meta.json` does not —
+  every run before `20260730_161157` is in that category, so check the log, not
+  just the run dir; or uniqueness, when only one export of the document exists in
+  the whole recorded history (215197). Whichever it was, put the chain in the
+  export's `note` so a reviewer can re-walk it. Then re-hash the file and confirm
+  it still matches.
+- `element_id` and `run_id` stay **`null`**, and **`run_id` is not where the
+  export goes** — put it in `export.runs`. They are the reserved slot for stable
+  feature identity: when extraction can address a dimension durably, an element
   will cite the extracted element instead of a human reading, and a re-exported
-  drawing will re-run the stack with no re-transcription. A test asserts they are
-  null, so a later consumer can tell "not yet wired" from "wired to nothing".
-  Do not fill them in.
+  drawing will re-run the stack with no re-transcription. `run_id` there means
+  "the run that produced the extracted element", which is a different claim from
+  "the run that consumed the PDF I read by eye". A test asserts they are null, so
+  a later consumer can tell "not yet wired" from "wired to nothing". Do not fill
+  them in. (This is also the cleanest argument in the repo for why `element_id`
+  exists: a stable extracted-element address survives a re-export; a zone label
+  demonstrably does not, which is why `export` has to exist meanwhile.)
 
 ### Zero-width bands — nominal sourced, band not
 
@@ -367,10 +403,18 @@ For each element, try to close the gap, in this order of preference:
 
    **Where the PDFs are.** A run directory holds *page images and extracted
    JSON*, not always the PDF itself. The assembly export lives in
-   drawing-checker's `data/inbox/drawings/`; **215197** — the only part drawing
-   either slice has traced anything to — is not there at all, but at
+   drawing-checker's `data/inbox/drawings/`; **215197** — the first part drawing
+   either slice traced anything to — is not there at all, but at
    `C:\workspace\drawing-checker\tests\fixtures\drawings\[PRELIM 2025-MAY-22] 215197 A.1.pdf`.
-   Look in both, and say in the `source_ref` which export you read.
+   Look in both, and record the export in `source_ref.export` (Step 2).
+
+   **If a stack element depends on a part drawing, copy the PDF into this repo's
+   `data/inbox/drawings/` and cite it repo-relative.** A drawing-checker inbox
+   file is not immutable — Jeff re-exports — and a citation has to name a file
+   this repo can still open. `data/inbox/drawings/PROVENANCE.md` records the
+   upstream path, the title-block identity, and the **sha256 verified identical on
+   both sides after the copy**; append a row when you add one, because that row is
+   what later lets someone establish which export a citation was read from.
 
    **`--crop` is the tool for Step 1.** `debug_trace_stack_values.py --crop
    "<page>,<cx>,<cy>,<half>" --zoom 8` renders a high-resolution crop of an
@@ -702,10 +746,19 @@ self-consistency check — without it, the tests only prove the fold agrees with
 itself.
 
 Also assert the structural invariants, as the seeded tests do: every element has
-a `source_ref` with a valid `confidence`; `element_id`/`run_id` are null; every
+a `source_ref` with a valid `confidence`; every `drawing`/`parts_list` citation
+carries an `export` with a valid `status`, and no `unestablished` export carries a
+concrete `pdf`/`sha256`/`runs`; `element_id`/`run_id` are null; every
 `hardware_ref` resolves; every hardware entry has a null `library_ref`, a
 non-empty `gaps` list, and a `values_source` whenever its `values_status` is
 `inline` (explicitly null when it is `not_transcribed`).
+
+These are parametrized over `ALL_STACK_FILES`, so a new stack inherits them the
+moment you add its filename — which is the point: `citation_export_provenance`
+(2026-08-06) found that *every* stack in the repo, including two written from
+scratch the day before, shipped drawing citations naming no export at all. That
+was not a legacy defect; it was what this SOP produced by default, because nothing
+enforced it.
 
 ```powershell
 venv-win\Scripts\python.exe -m pytest -q
@@ -747,7 +800,7 @@ checkout too if you like, but never only that one.
 2. `nominal` is transcribed, not computed, and may sit outside its own min/max.
 3. Every value cites a `source_ref`; recall is not a source; `untraced` only as a
    listed gap.
-4. `element_id` / `run_id` stay null.
+4. `element_id` / `run_id` stay null — the export goes in `export.runs`, not there.
 5. `library_ref` stays null; every hardware entry needs a non-empty `gaps` list.
 6. RSS always computed, never read by a verdict, never called a probability.
 7. Emit nominal *and* worst case *and* RSS — each one alone has hidden a real
@@ -770,7 +823,10 @@ checkout too if you like, but never only that one.
 17. `hardware_entries.json` inline values are **not** a source. Read the entry's
     `values_source`: most of them are workbook transcriptions, and citing the
     entry launders one into your stack.
-18. A printed zone expires between exports. Name the export beside the zone.
+18. A printed zone expires between exports. Every `drawing`/`parts_list` citation
+    carries `source_ref.export` with the **sha256** — a filename is not an export,
+    because Jeff re-exports over it. Cannot establish it? `status:
+    "unestablished"` with a `why`, never a plausible run.
 19. Sourced nominal, unsourced band ⇒ a **zero-width band**, declared as such —
     never a plausible one. RSS reads it as certainty.
 20. In a budget check, the **larger** deficit magnitude is the requirement; the

@@ -10,20 +10,39 @@ why there isn't one*.
 **Never guess.** A crop is only rendered when the citation pins a document this
 script can name without inference:
 
-1. ``kind: "spec"`` -- ``document`` is a filename in ``data/inbox/specs/``.
-2. ``kind: "drawing" | "parts_list"`` whose ``document`` equals the stack's
-   ``joint.assembly_drawing`` -- resolved through ``joint.assembly_export``,
-   which names the drawing-checker run; the run's ``run_meta.json`` names the
-   input PDF and its sha256, and the sha is **verified** before cropping.
-3. otherwise, ``provenance.sources_used`` -- but only if **exactly one** entry
-   begins with a ``.pdf`` path and mentions the cited document. Two matches is
-   ambiguity, and ambiguity is unresolvable, not a coin flip.
+1. ``source_ref.export`` -- the structured per-citation export (``SourceExport``
+   in ``tolerance_stack/stack.py``). ``status: "established"`` names the ``pdf``
+   and its ``sha256``, and the sha is **mandatory and always verified**: a
+   filename alone is not an export, because filenames get re-exported over.
+   ``status: "unestablished"`` is a first-class answer and short-circuits to
+   unresolvable with the recorded ``why`` -- once a citation says its export
+   cannot be established, resolving it by a weaker rule would contradict the
+   stack.
+2. ``kind: "spec"`` -- ``document`` is a filename in ``data/inbox/specs/``. No
+   sha (the pile is append-only, so a filename is bytes), so this rule reports
+   ``sha256_verified: null`` and the summary counts it as unverified.
+3. ``kind: "drawing" | "parts_list"`` whose ``document`` equals the stack's
+   ``joint.assembly_drawing`` -- resolved through the legacy free-text
+   ``joint.assembly_export``, which names the drawing-checker run; the run's
+   ``run_meta.json`` names the input PDF and its sha256, and the sha is verified
+   before cropping. Superseded by rule 1 and kept only so a stack written before
+   2026-08-06 still resolves.
 
-Everything else is recorded as unresolvable with the reason. The reason list is
-the point as much as the crops are: zone citations expire between exports (the
-pitch_link lesson's edit 11 -- DETAIL B moved I6 -> H3 between two exports of the
-same revision), and a stack whose ``joint`` block names no export cannot be
-crop-resolved at all. Both show up in the report.
+Everything else is recorded as unresolvable with the reason. **There is no prose
+fallback.** Scanning ``provenance.sources_used`` for a ``.pdf`` path used to be
+rule 3 and was removed 2026-08-06 (handoff ``citation_export_provenance``):
+regexing a path out of a free-text sentence resolved exactly one crop, could not
+sha-verify it, and landed on a copy of the drawing under drawing-checker's
+``tests/fixtures/`` rather than the export the stack meant. A structured field
+that says which bytes were read replaces it, and the removal is deliberate -- a
+resolved count that rises because a rule got looser is a regression, not
+progress.
+
+The reason list is the point as much as the crops are: zone citations expire
+between exports (the pitch_link lesson's edit 11 -- DETAIL B moved I6 -> H3
+between two exports of the same revision), and a citation that names no export
+cannot be crop-resolved at all. Both show up in the report, broken down by which
+rule resolved each crop and whether its sha256 was verified.
 
 Where the crop is taken (in order):
 
@@ -158,52 +177,95 @@ def pdf_from_run(dc_root: Path, run_id: str) -> Tuple[Path, Path, Optional[bool]
     raise Unresolvable(f"run {run_dir.name} cites {name!r}, which is not on disk")
 
 
-def pdf_paths_in(text: str) -> Optional[str]:
-    """The ``.pdf`` path a ``sources_used`` entry **starts with**, else ``None``.
+def export_pdf_path(cited: str, roots: Sequence[Path], dc_root: Path) -> Path:
+    """The file a ``source_ref.export.pdf`` names, wherever the caller keeps it.
 
-    Deliberately anchored at the start: these entries are written
-    ``<path> -- <what was read>``, and a rule that hunts for a path anywhere in
-    free prose is a rule that eventually finds the wrong one.
+    A cited path is either repo-relative (``data/inbox/drawings/x.pdf`` -- this
+    repo's own data, so the MAIN checkout's, which is ``roots[0]``) or absolute
+    into drawing-checker. An absolute drawing-checker path is **re-rooted** at
+    ``--drawing-checker-root`` when it does not exist as written, so a stack file
+    stays readable on a machine that keeps drawing-checker elsewhere. Which of
+    these found the file does not matter: the caller sha256-verifies it, so a
+    same-named file under the wrong root is refused, not cropped.
+
+    A **relative** cited path is never tried against the process's cwd, only
+    against ``roots``. ``data/inbox/drawings/x.pdf`` means the MAIN checkout's
+    ``data/``, and resolving it relative to wherever the script happened to be
+    invoked from makes the answer depend on the cwd: run from the main checkout
+    it finds the real file, run from a worktree (whose ``data/`` is gitignored
+    and empty) it does not. The sha check makes that fail closed rather than
+    crop the wrong bytes -- but it fails with "the file on disk is not the
+    export this citation was read from", which reads as a provenance alarm when
+    it is really a cwd accident. Found in ``review/citation_export_provenance``
+    (2026-08-06): the suite was green in the worktree and red in the main
+    checkout for exactly this reason.
     """
-    lowered = text.lower()
-    idx = lowered.find(".pdf")
-    if idx == -1:
-        return None
-    return text[: idx + 4].strip()
+    raw = Path(cited)
+    if not raw.is_absolute():
+        for root in roots:
+            candidate = root / cited
+            if candidate.exists():
+                return candidate
+    elif raw.exists():
+        return raw
+    else:
+        parts = [p.replace("\\", "/") for p in raw.parts]
+        for i, part in enumerate(parts):
+            if part.strip("/").lower() == "drawing-checker":
+                candidate = dc_root.joinpath(*parts[i + 1:])
+                if candidate.exists():
+                    return candidate
+                break
+    raise Unresolvable(f"export names {cited!r}, which is not on disk")
 
 
-def pdf_from_sources_used(
-    sources_used: Sequence[str], document: str, roots: Sequence[Path]
-) -> Path:
-    """The one cited PDF naming ``document``; ambiguity is unresolvable."""
-    hits = []
-    for entry in sources_used or []:
-        if document not in entry:
-            continue
-        raw = pdf_paths_in(entry)
-        if not raw:
-            continue
-        path = Path(raw)
-        if not path.is_absolute():
-            for root in roots:
-                if (root / raw).exists():
-                    path = root / raw
-                    break
-        hits.append(path)
-    if not hits:
+def pdf_from_export(
+    export: Dict[str, Any], roots: Sequence[Path], dc_root: Path
+) -> Dict[str, Any]:
+    """Resolve a structured ``source_ref.export``; the sha256 is not optional.
+
+    Mirrors ``SourceExport.__post_init__`` deliberately: this script reads raw
+    JSON, never the dataclass, so it re-checks rather than trusting that
+    something upstream did. A malformed export is unresolvable -- never a
+    best-effort crop.
+    """
+    status = export.get("status")
+    if status == "unestablished":
+        for name in ("pdf", "sha256"):
+            if export.get(name):
+                raise Unresolvable(
+                    f"export is marked unestablished but names a {name} -- "
+                    f"the stack file contradicts itself"
+                )
+        why = export.get("why") or "no reason recorded"
+        raise Unresolvable(f"the export this value was read from is unestablished: {why}")
+    if status != "established":
+        raise Unresolvable(f"export status {status!r} is not one of established/unestablished")
+
+    cited, want_sha = export.get("pdf"), (export.get("sha256") or "").lower()
+    if not cited:
+        raise Unresolvable("export status is established but it names no pdf")
+    if len(want_sha) != 64 or any(c not in "0123456789abcdef" for c in want_sha):
         raise Unresolvable(
-            f"citation names no export, and provenance.sources_used names no "
-            f"PDF for {document!r}"
+            f"export names {cited!r} with no usable sha256 -- a filename is not "
+            f"an export, because a filename gets re-exported over"
         )
-    if len({str(p) for p in hits}) > 1:
+
+    path = export_pdf_path(str(cited), roots, dc_root)
+    got = sha256_of(path)
+    if got != want_sha:
         raise Unresolvable(
-            f"provenance.sources_used names {len(hits)} different PDFs for "
-            f"{document!r} -- ambiguous, refusing to pick one"
+            f"{path.name} hashes {got[:12]}..., but the export records "
+            f"{want_sha[:12]}... -- the file on disk is not the export this "
+            f"citation was read from"
         )
-    path = hits[0]
-    if not path.exists():
-        raise Unresolvable(f"provenance.sources_used cites {path}, which is not on disk")
-    return path
+    runs = [str(r) for r in (export.get("runs") or [])]
+    run_dir = None
+    if runs:
+        matches = [d for d in run_dirs(dc_root) if d.name.startswith(runs[0])]
+        run_dir = matches[0].name if matches else None
+    return {"pdf": path, "resolved_by": "source_ref_export", "run_dir": run_dir,
+            "run_id": runs[0] if runs else None, "sha256_verified": True}
 
 
 def resolve_pdf(
@@ -215,8 +277,8 @@ def resolve_pdf(
 ) -> Dict[str, Any]:
     """Pin one ``source_ref`` to a PDF, or raise :class:`Unresolvable`.
 
-    ``rel_roots`` are the roots a repo-relative path in ``sources_used`` is
-    tried against, most-likely first.
+    ``rel_roots`` are the roots a repo-relative cited path is tried against,
+    most-likely first.
     """
     kind = source_ref.get("kind")
     document = source_ref.get("document")
@@ -224,6 +286,12 @@ def resolve_pdf(
         raise Unresolvable("source_ref names no document")
     if kind in NO_DOCUMENT_KINDS:
         raise Unresolvable(NO_DOCUMENT_KINDS[kind])
+
+    # Rule 1: the citation says which export it read. Strongest, and it wins --
+    # including when it says the export cannot be established.
+    export = source_ref.get("export")
+    if isinstance(export, dict) and export:
+        return pdf_from_export(export, rel_roots, dc_root)
 
     if kind == "spec":
         path = specs_dir / document
@@ -254,13 +322,13 @@ def resolve_pdf(
                     "sha256_verified": verified}
         raise Unresolvable("; ".join(errors))
 
-    # No export pinned by the joint block. One structured fallback, then stop.
-    provenance = raw_stack.get("provenance") or {}
-    path = pdf_from_sources_used(
-        provenance.get("sources_used") or [], str(document), rel_roots
+    # Nothing left. There is deliberately no prose fallback -- see the module
+    # docstring: a citation that names no export is unresolvable, and the fix is
+    # to name the export, not to guess it from a sentence.
+    raise Unresolvable(
+        f"citation names no export -- source_ref.export is absent and no "
+        f"joint.assembly_export covers {document!r}"
     )
-    return {"pdf": path, "resolved_by": "provenance.sources_used", "run_dir": None,
-            "run_id": None, "sha256_verified": None}
 
 
 def page_number(source_ref: Dict[str, Any]) -> int:
@@ -494,11 +562,11 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     by_stack: Dict[str, Dict[str, Any]] = {}
     unresolved: List[Dict[str, str]] = []
-    resolved_count = 0
+    resolved: List[Dict[str, Any]] = []
     open_docs: Dict[str, Any] = {}
-    # Roots a repo-relative path in provenance.sources_used is tried against.
-    # data_root.parent first: `data/inbox/specs/x.pdf` means the MAIN checkout's
-    # data/, which is not this worktree's.
+    # Roots a repo-relative cited path is tried against. data_root.parent first:
+    # `data/inbox/drawings/x.pdf` means the MAIN checkout's data/, which is not
+    # this worktree's.
     rel_roots = [data_root.parent, REPO_ROOT, dc_root]
 
     for path in sorted(stacks_dir.glob("stack_*.json")):
@@ -512,7 +580,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
             by_stack[stack_id][element["id"]] = entry
             if entry["status"] == "resolved":
-                resolved_count += 1
+                resolved.append({"stack": stack_id, "element": element["id"], **entry})
             else:
                 unresolved.append({
                     "stack": stack_id,
@@ -522,6 +590,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     "reason": entry["reason"],
                 })
 
+    summary = resolution_summary(resolved, unresolved)
     index = {
         "schema": SCHEMA_CROPS,
         "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -529,7 +598,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "drawing_checker_root": dc_root.as_posix(),
         "drawing_checker_available": dc_available,
         "crops_dir": "crops",
-        "summary": {"resolved": resolved_count, "unresolvable": len(unresolved)},
+        "summary": summary,
         "by_stack": by_stack,
         "unresolved": unresolved,
     }
@@ -539,11 +608,54 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
 
     print(f"wrote {out_dir / 'crops.json'}")
-    print(f"  {resolved_count} crop(s) rendered into {crops_dir}")
+    print(f"  {summary['resolved']} of {summary['citations']} citation(s) resolved "
+          f"into {crops_dir}")
+    for line in summary_lines(summary):
+        print("  " + line)
     print(f"  {len(unresolved)} citation(s) unresolvable:")
     for row in unresolved:
         print(f"    {row['stack']}:{row['element']:28s} {row['reason']}")
     return 0
+
+
+def resolution_summary(
+    resolved: Sequence[Dict[str, Any]], unresolved: Sequence[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """Counts broken down by **which rule** resolved a crop and whether its
+    sha256 was verified.
+
+    Both facts already sat in every ``crops.json`` entry and both were easy to
+    skip past, which is how "6 of 48 resolve" got read as six trustworthy crops
+    when only two were sha-verified. Rolling them into the summary makes a rise
+    in the resolved count answerable: a crop resolved by ``source_ref_export`` is
+    sha-verified by construction, and anything else is visible as such here.
+    """
+    by_rule: Dict[str, int] = {}
+    verified: Dict[str, int] = {"true": 0, "false": 0, "unverified": 0}
+    for row in resolved:
+        by_rule[row.get("resolved_by") or "unknown"] = (
+            by_rule.get(row.get("resolved_by") or "unknown", 0) + 1)
+        flag = row.get("sha256_verified")
+        verified["unverified" if flag is None else ("true" if flag else "false")] += 1
+    return {
+        "citations": len(resolved) + len(unresolved),
+        "resolved": len(resolved),
+        "unresolvable": len(unresolved),
+        "by_resolved_by": dict(sorted(by_rule.items())),
+        "sha256_verified": verified,
+    }
+
+
+def summary_lines(summary: Dict[str, Any]) -> List[str]:
+    lines = ["by rule:"]
+    for rule, count in (summary["by_resolved_by"] or {"(none)": 0}).items():
+        lines.append(f"  {count:3d}  {rule}")
+    sha = summary["sha256_verified"]
+    lines.append(
+        f"sha256: {sha['true']} verified, {sha['false']} MISMATCHED, "
+        f"{sha['unverified']} not checked"
+    )
+    return lines
 
 
 def crop_element(raw, element, specs_dir, dc_root, rel_roots, crops_dir,

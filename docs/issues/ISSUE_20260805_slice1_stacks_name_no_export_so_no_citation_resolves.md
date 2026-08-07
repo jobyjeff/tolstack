@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: stack definitions / provenance
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260806_citation_export_provenance.md
@@ -104,3 +104,34 @@ remains the only counter-example in the repo. Overall: **6 of 48** element
 citations now resolve, all six still in that one stack. Raising the priority of
 the SOP-side fix (suggestion 2 above: make the export a structured, per-`source_ref`
 field) accordingly.
+
+## Resolved 2026-08-06 — handoff `citation_export_provenance`
+
+Suggestion 2 shipped as `SourceExport` (`tolerance_stack/stack.py`): a per-citation
+`source_ref.export` whose identity is `sha256`, not the filename and not a run id.
+All 25 `drawing`/`parts_list` citations across the five stacks were backfilled and
+**every one was established from a record**, so nothing needed the
+`status: "unestablished"` escape hatch the schema provides. Crop projection:
+**6 of 48 → 24 of 48**, `sha256_verified` **2 → 24**, all 24 by the new rule.
+
+Two things the suggestions above got wrong, worth recording:
+
+- Suggestion 1 assumed `20260723_163810` was only *evidence* for `tan_link`.
+  It is confirmable: that run's own `217755_A_balloons.json` records
+  `source_pdf: "[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf"`,
+  written by the run itself, and `drawing-checker/data/runs.jsonl` records the same
+  file with a sha256 the file on disk still matches. `run_meta.json` for that run
+  carries **no** `inputs` at all — only runs from `20260730_161157` onward do — so
+  the run log, not the run dir, is where pre-August provenance lives. Nothing in
+  either repo said so.
+- Suggestion 3 ("longer term this is the `source_ref.element_id`/`run_id` slot")
+  was declined, deliberately. Those mean "the run that produced the extracted
+  element"; the export is "the bytes I read by eye" — a different claim — and one
+  export legitimately maps to several runs or to none, so a scalar run id cannot
+  be an export's identity. `export` is a sibling; the slot stays null and its test
+  stays meaningful. Reasoning in the session lesson.
+
+The prose `provenance.sources_used` fallback the last paragraph called "itself
+worth tightening" is gone as a resolution path, with a test that fails if it comes
+back. Follow-on filed:
+`ISSUE_20260806_viewer_does_not_label_the_source_ref_export_rule.md`.

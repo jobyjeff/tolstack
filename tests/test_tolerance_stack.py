@@ -16,7 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from tolerance_stack import SourceRef, StackElement, Term, fold, load_stack
+from tolerance_stack import (
+    SourceExport, SourceRef, StackElement, Term, fold, load_stack,
+)
 
 STACKS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tolerance_stacks"
 TOL = 1e-6  # the workbook's cached values are full-precision floats
@@ -566,6 +568,117 @@ def test_source_ref_leaves_the_feature_identity_slot_open_and_empty(filename):
         assert ref.kind in (
             "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
         )
+
+
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
+def test_every_drawing_citation_says_which_export_it_was_read_from(filename):
+    """The third place the ``export`` shape lives (SOP prose + ``SourceExport``'s
+    docstring are the other two).
+
+    A drawing number and a printed zone are not an address: ``217755`` has six
+    exports on disk and DETAIL B of sheet 4 prints at ``I6`` on one and ``H3`` on
+    another, same revision. Before 2026-08-06 every stack in the repo shipped
+    citations that named no export at all -- not a legacy defect, what the SOP
+    produced by default -- so this test is what stops the next from-scratch stack
+    reproducing it. ``spec`` is exempt: ``data/inbox/specs/`` is append-only, so
+    the filename already identifies the bytes.
+    """
+    stack = load_stack(STACKS_DIR / filename)
+    for element in stack.elements:
+        ref = element.source_ref
+        if ref.kind not in ("drawing", "parts_list"):
+            continue
+        assert ref.export is not None, (
+            f"{stack.id}:{element.id} cites {ref.document} sheet {ref.sheet} "
+            f"zone {ref.zone} but names no export -- unresolvable, and a tool that "
+            f"guessed would crop the wrong revision's geometry"
+        )
+        assert ref.export.status in ("established", "unestablished")
+
+
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
+def test_no_unestablished_export_is_written_as_a_concrete_one(filename):
+    """An unresolvable citation is honest; a wrong one is not.
+
+    ``SourceExport.__post_init__`` raises on the contradiction, so a stack file
+    carrying it cannot even load -- this asserts the guard is live on the real
+    files rather than only in the unit test below.
+    """
+    stack = load_stack(STACKS_DIR / filename)
+    for element in stack.elements:
+        export = element.source_ref.export
+        if export is None:
+            continue
+        if export.established:
+            assert export.pdf and len(export.sha256) == 64
+        else:
+            assert not export.pdf and not export.sha256 and not list(export.runs)
+            assert export.why, f"{stack.id}:{element.id} does not say why"
+
+
+def test_an_unestablished_export_cannot_carry_a_pdf_or_a_sha():
+    """The guard, from the other side: constructing the lie raises."""
+    with pytest.raises(ValueError, match="must not name a pdf"):
+        SourceExport(status="unestablished", pdf="d.pdf", why="unknown")
+    with pytest.raises(ValueError, match="must not name a sha256"):
+        SourceExport(status="unestablished", sha256="a" * 64, why="unknown")
+    with pytest.raises(ValueError, match="must not name runs"):
+        SourceExport(status="unestablished", runs=["20260804_114000"], why="unknown")
+    with pytest.raises(ValueError, match="must say why"):
+        SourceExport(status="unestablished")
+    # ...and the honest form is constructible.
+    assert not SourceExport(status="unestablished", why="three candidates").established
+
+
+def test_an_established_export_must_carry_a_real_sha256():
+    """A filename is not an export: Jeff re-exports over the same name."""
+    with pytest.raises(ValueError, match="must name a pdf"):
+        SourceExport(status="established", sha256="a" * 64)
+    for bad in (None, "", "deadbeef", "z" * 64, "A" * 63):
+        with pytest.raises(ValueError, match="64-hex sha256"):
+            SourceExport(status="established", pdf="d.pdf", sha256=bad)
+    assert SourceExport(status="established", pdf="d.pdf", sha256="A" * 64).established
+    with pytest.raises(ValueError, match="status must be one of"):
+        SourceExport(status="probably", pdf="d.pdf", sha256="a" * 64)
+
+
+def test_the_export_is_a_sibling_of_the_feature_identity_slot_not_a_filling_in():
+    """``run_id`` still means "the run that produced the extracted element".
+
+    Backfilling exports could have been done by writing a run id into
+    ``source_ref.run_id``, and that would have been wrong twice over: it means a
+    different thing, and it would have destroyed the "not yet wired" vs "wired to
+    nothing" signal the test above pins. So exports landed as their own field and
+    the slot stays empty.
+
+    **Count went 25 -> 23 in the merge of `review/traced_labels_and_ratio`**
+    (2026-08-06), and this is the only place either branch's suite could have
+    noticed. `citation_export_provenance` backfilled 25 `drawing`/`parts_list`
+    citations; the sibling handoff `traced_labels_and_ratio`, running in parallel,
+    re-cited `tan_link:fastener_grip_14` and `vpa_output:fastener_grip` from the
+    217755 parts list to `NAS6403-NAS6420 Rev 4.pdf`, making them `kind: "spec"` —
+    which is *exempt* from the export requirement, because `data/inbox/specs/` is
+    append-only so the filename already identifies the bytes. So two export blocks
+    were correctly dropped rather than lost, and each element's `source_ref.note`
+    records the sha256 that was on it. **A hard-coded total over all stacks is a
+    cross-handoff coupling**: it moves whenever any handoff changes a citation's
+    `kind`, in either direction. If it churns again, assert the invariant
+    (every `drawing`/`parts_list` ref has an export, which
+    `test_every_drawing_citation_says_which_export_it_was_read_from` already does)
+    rather than the total.
+    """
+    backfilled = [
+        (stack.id, element.id)
+        for filename in ALL_STACK_FILES
+        for stack in [load_stack(STACKS_DIR / filename)]
+        for element in stack.elements
+        if element.source_ref.export is not None
+    ]
+    assert len(backfilled) == 23, backfilled
+    for filename in ALL_STACK_FILES:
+        for element in load_stack(STACKS_DIR / filename).elements:
+            ref = element.source_ref
+            assert ref.element_id is None and ref.run_id is None
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)

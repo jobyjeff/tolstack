@@ -49,7 +49,26 @@ For **every** element value, verify:
   to a document that is not there is worse than no citation, because it reads as
   diligence;
 - the `callout` text matches what the document says, and the `sheet`/`zone`/`view`
-  address actually leads there;
+  address actually leads there — **on the export the citation names**. Since
+  `citation_export_provenance` (2026-08-06) every `drawing`/`parts_list`
+  `source_ref` carries `export` (`SourceExport`), and its identity is `sha256`,
+  not the filename: Jeff re-exports over the same name and a printed zone is not
+  stable between exports of one revision. **Re-hash every established export
+  yourself** — a one-line walk over the stack files, and it is the only thing
+  standing between a citation and a crop of the wrong revision that looks
+  perfectly correct. Then check the *claims around* the hash, which no test
+  reads: that `runs` lists exactly the drawing-checker runs whose recorded input
+  sha equals it (`data/runs.jsonl`, not `run_meta.json` — runs before
+  `20260730_161157` have no `inputs` key), that `runs: []` means no run consumed
+  the file rather than nobody looked, and that the chain in `export.note`
+  re-walks. An `unestablished` export is the honest answer and is enforced from
+  both sides; a *plausible* run id is the failure this field exists to prevent;
+- a `drawing`/`parts_list` export naming a PDF **outside this repo** is a
+  should-fix, not a pass: SOP Step 3 says copy the file into
+  `data/inbox/drawings/` and cite it repo-relative, with a `PROVENANCE.md` row.
+  The three 215197 citations still point into drawing-checker's
+  `tests/fixtures/drawings/` (the only copy in existence) — another repo's test
+  fixture as production provenance. Check whether that is still true;
 - `confidence` is **honest**. Downgrade aggressively:
   - a value from a parts-list part number, with the tolerance band coming from
     somewhere else, is **`inferred`** — not `traced`. `kind: "parts_list"` with
@@ -412,6 +431,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `docs/issues/` and friends are created by `dispatch init` in the main
       checkout only. A session that checks only `C:\workspace\tolstack` ships a
       non-conforming branch. Check the worktree.
+- [ ] **…and the same thing in reverse: run the suite in BOTH checkouts.** The
+      worktree is the *more permissive* environment for anything that reads
+      `data/`, because `data/` is gitignored and therefore empty there. Sighted
+      in `citation_export_provenance`: `export_pdf_path` tried a relative cited
+      path against the process cwd before its explicit roots, so from the main
+      checkout `data/inbox/drawings/212966-006-A.pdf` resolved to the *real* file
+      instead of the test's, the sha check fired, and the suite went red — while
+      the worktree, where that path does not exist, stayed green. A green
+      worktree suite is not evidence the merged tree is green. Re-run in
+      `C:\workspace\tolstack` after you merge, before you push.
 - [ ] **`data/inbox/*` silently drops per-stream tracked docs.** Git does not
       descend into an excluded directory, so `!data/inbox/<s>/README.md` alone does
       nothing — re-include the directory, exclude its contents, *then* negate the
@@ -431,7 +460,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       sha256-verified", where `crops.json` says `joint_export_run: 2`,
       `spec_pile: 3`, `provenance.sources_used: 1` and `sha256_verified` on 2 of
       6. A count that inflates *how strong the provenance is* is not a typo in
-      this repo. When a doc asserts anything about the crop or results
+      this repo. (Those figures are the 2026-08-06 *pre*-`citation_export_provenance`
+      state, quoted to make the point — do not carry them forward; recompute.)
+      When a doc asserts anything about the crop or results
       projection, recompute it from `data/projections/viewer/*.json` — never from
       the prose, and never from another doc's copy of the number.
 - [ ] **A corroboration flag shown without the evidence that produced it.**
@@ -486,19 +517,32 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       that element `traced` and the other `inferred`). **Treat "byte-identical"
       anywhere as a claim to verify, not read**, and check what the test actually
       compares: a cached numeric table is not the sheet. Diff the whole row block,
-      comment column included. **Fourth sighting (`traced_labels_and_ratio`), and
-      the most on-the-nose: a handoff whose whole purpose was to correct a false
-      provenance claim left four new ones in PROVENANCE itself** — the two seeded
-      stack JSONs and two seeded worksheets it edited all still read "no —
-      byte-identical", plus `debug_report_tolerance_stacks.py` (row said "import
-      note" after gaining 69 executable lines) and the `docs/reference/` lesson
-      (section said "verbatim"). The rows that go false are never the three
-      SOP-mandated ones — they are **whichever rows had never moved before**, which
-      is exactly why the author does not think to look. One command settles it:
-      `git diff master..HEAD --name-only`, read beside PROVENANCE's tables.
-      Reviewers have amended these rows four times now; on a fifth, stop amending
-      and mechanise it (a test greping the byte-identical rows against `git diff`
-      is ~15 lines).
+      comment column included. **Fourth sighting
+      (`citation_export_provenance`, 2026-08-06)** — on a handoff whose entire
+      subject was provenance, which is the point: this one is not caught by
+      caring about provenance, only by running the diff. Two rows went from true
+      to false (`stack_tan_link_to_pitch_plate.json` and
+      `stack_vpa_output_to_pitch_plate.json`, both "no — byte-identical", both
+      gained `source_ref.export` blocks) and three Amended rows went stale
+      (`stack.py`, `__init__.py`, `test_tolerance_stack.py` — whose test count
+      was 15 out of date). **A purely additive change still falsifies the row**;
+      "no value changed" is not "no edit happened". Fixed inline in the review.
+      Run the diff every time — it is four seconds and it has never once come
+      back clean. **Fifth sighting (`traced_labels_and_ratio`), the same day, on
+      the sibling handoff — and the two reviews each independently wrote "fourth
+      sighting" without knowing about the other.** That one falsified *the same
+      two stack rows* plus both seeded worksheets, `debug_report_tolerance_stacks.py`
+      (row said "import note" after the file gained 69 executable lines) and the
+      `docs/reference/` lesson section (said "verbatim") — in a handoff whose whole
+      purpose was to correct a false provenance claim. The rows that go false are
+      never the three SOP-mandated ones; they are **whichever rows had never moved
+      before**, which is exactly why the author does not think to look. **Five
+      sightings, five inline reviewer fixes, zero author catches: the trigger to
+      mechanise this has fired.** A test greping the byte-identical rows against
+      `git diff master..HEAD --name-only` is ~15 lines and would end the class —
+      filed as
+      `docs/issues/ISSUE_20260806_mechanise_the_byte_identical_provenance_check.md`.
+      Until it exists, run the diff yourself.
 - [ ] **Prose asserting a field is `null` while the field is not.** Same class as
       stale counts, one level down. `hub_bearing_thermal_stack`'s
       `identification_note` said "find numbers, balloons and quantities are

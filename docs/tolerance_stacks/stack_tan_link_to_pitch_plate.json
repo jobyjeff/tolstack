@@ -96,6 +96,18 @@
         "sheet": 4,
         "view": "DETAIL B",
         "callout": "214820-002 BUSHING, PLAIN, ALUMINUM BRONZE, .1900\" ID X .1875\" LONG (find 34)",
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+          "sha256": "d0f1b50fa069f42e52f73a9d5f2d1bcbccac0651fee453c9c605e01bd7864a3f",
+          "runs": [
+            "20260723_163810",
+            "20260727_153847",
+            "20260730_131903",
+            "20260730_132230"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance, confirmed not assumed. hardware_entries.json's provenance.parts_list_run names run 20260723_163810; that run's own 217755_A_balloons.json records source_pdf '[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf' (a contemporaneous record, written by the run), and data/runs.jsonl records the same file and this sha256 as its input. Independently corroborated by this stack's joint.zone_note, which says the cited zone is the one printed on the 2026-JUL-23 POST export. The file still hashes to this sha (mtime 2026-07-23T23:38:10Z, unchanged since the run)."
+        },
         "confidence": "inferred",
         "note": "Length 0.1875 in matches the workbook nominal exactly; the 4.63/4.76 limits are NOT on the assembly drawing and no part drawing for 214820-002 is in this repo."
       }
@@ -139,6 +151,17 @@
         "zone": "B4",
         "view": "SECTION A-A",
         "callout": "3X 4.06 ±0.08",
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
+          "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
+          "runs": [
+            "20260409_170546",
+            "20260409_172341",
+            "20260730_133912"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance. This is the ONLY export of 215197 anywhere in the workspace: all three drawing-checker runs of it record this same sha256 in data/runs.jsonl, 20260730_133912's 215197_A_p01.json records source_pdf '[PRELIM 2025-MAY-22] 215197 A.1.pdf', and no other 215197 PDF exists in drawing-checker's inbox or fixtures. Unlike 217755 (six exports on disk), 'which export' has a unique answer here."
+        },
         "confidence": "traced",
         "note": "215197 PITCH PLATE, PROPELLER, [PRELIM 2025-MAY-22] fixture. 3X matches the three tangential links (212956-005 qty 3). Carries positional 0.2 A B C and perpendicularity 0.05 F, 3X INDIVIDUALLY. Do NOT confuse with the 5X 4.06 ±0.10 group at sheet 2 zone D10 or the 1X 4.06 ±0.10 at sheet 1 zone D5."
       }
@@ -214,6 +237,18 @@
         "document": "217755",
         "revision": "A",
         "callout": "NAS6403U13H BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .812\" GRIP (find 95, qty 3)",
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+          "sha256": "d0f1b50fa069f42e52f73a9d5f2d1bcbccac0651fee453c9c605e01bd7864a3f",
+          "runs": [
+            "20260723_163810",
+            "20260727_153847",
+            "20260730_131903",
+            "20260730_132230"
+          ],
+          "note": "Established 2026-08-06 by handoff citation_export_provenance, confirmed not assumed. hardware_entries.json's provenance.parts_list_run names run 20260723_163810; that run's own 217755_A_balloons.json records source_pdf '[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf' (a contemporaneous record, written by the run), and data/runs.jsonl records the same file and this sha256 as its input. Independently corroborated by this stack's joint.zone_note, which says the cited zone is the one printed on the 2026-JUL-23 POST export. The file still hashes to this sha (mtime 2026-07-23T23:38:10Z, unchanged since the run)."
+        },
         "confidence": "inferred",
         "note": "Present in the parts list at qty 3 but carries NO balloon on any sheet. The grip +/-.010 comes from the workbook here, not from this citation -- so `inferred`, which is the correct label. CORRECTION 2026-08-06: the reason used to read '(NAS6403 spec absent)' and that is no longer true. NAS6403-NAS6420 Rev 4.pdf sheet 3 row 'Grip Dash No. 13' prints .812 under the 'Grip ±.010' header, so this element can be re-cited to `kind: spec` / `traced` exactly as fastener_grip_14 was. Deliberately left for a follow-up rather than folded into a relabelling handoff -- docs/issues/ISSUE_20260806_three_more_slice1_fastener_values_are_now_sourceable.md."
       }
@@ -237,7 +272,7 @@
         "cell": "row 'Grip Dash No. 14'",
         "callout": "Grip Dash No. 14  |  Grip ±.010 = .875  |  LENGTH ±.015, NAS6403 .1900-32 = 1.198",
         "confidence": "traced",
-        "note": "Both the .875 nominal and the ±.010 band are printed on sheet 3: the value in the 'Grip ±.010' column, the band in that column's own header. Sheet 2 CODE block decodes the part number -- 'Dash number indicates grip in .0625 increments' (14 x .0625 = .875), 'U' after the basic number = unplated, 'D' after the dash number = drilled shank -- and sheet 2 note (a) defines what grip means: 'from the underside of head to the end of the full cylindrical portion of the shank'. WAS `kind: parts_list` / `confidence: traced` citing 217755 balloon 35, whose own note admitted 'the grip +/-.010 is untraced (NAS6403 spec absent)' -- a parts list gives the nomenclature nominal and never a band, so that label was wrong even though the value was right. Which bolt sits in this joint is still the parts list's evidence: NAS6403U14D, find 35 qty 3, ballooned in 217755 sheet 4 DETAIL B. Scan, no text layer -- read by vision from a crop, command in docs/sessions/lessons/LESSONS_20260806_traced_labels_and_ratio.md."
+        "note": "Both the .875 nominal and the ±.010 band are printed on sheet 3: the value in the 'Grip ±.010' column, the band in that column's own header. Sheet 2 CODE block decodes the part number -- 'Dash number indicates grip in .0625 increments' (14 x .0625 = .875), 'U' after the basic number = unplated, 'D' after the dash number = drilled shank -- and sheet 2 note (a) defines what grip means: 'from the underside of head to the end of the full cylindrical portion of the shank'. WAS `kind: parts_list` / `confidence: traced` citing 217755 balloon 35, whose own note admitted 'the grip +/-.010 is untraced (NAS6403 spec absent)' -- a parts list gives the nomenclature nominal and never a band, so that label was wrong even though the value was right. Which bolt sits in this joint is still the parts list's evidence: NAS6403U14D, find 35 qty 3, ballooned in 217755 sheet 4 DETAIL B. Scan, no text layer -- read by vision from a crop, command in docs/sessions/lessons/LESSONS_20260806_traced_labels_and_ratio.md. MERGE NOTE 2026-08-06 (review/traced_labels_and_ratio): the sibling handoff citation_export_provenance had added a source_ref.export block here, naming the 2026-JUL-23 POST export of 217755 by sha256. That block was DROPPED, not lost, when the two branches merged -- it described the parts-list citation this element no longer makes, and `kind: \"spec\"` is exempt from the export requirement because data/inbox/specs/ is append-only, so the filename already identifies the bytes (test_every_drawing_citation_says_which_export_it_was_read_from). The 217755 evidence for WHICH bolt this is stays in prose above; if it ever needs a machine-readable export again, that sha256 is on the sibling handoff's commit and in the same block still live on fastener_grip_13."
       }
     }
   ],
