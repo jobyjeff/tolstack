@@ -35,6 +35,9 @@
     var FIXTURE = VA.demoFixture();
     var DEMO = FIXTURE.results.stacks[0];
     var CROPS = FIXTURE.crops;
+    // The generated-check surface: checks that are not in the stack file, terms
+    // with non-unity coefficients, a sensitivity probe, and materials.
+    var GEN = VA.generatedFixture().results.stacks[0];
 
     function render(fn) {
       var root = document.createElement("div");
@@ -65,6 +68,25 @@
       eq(VA.fmtPlusMinus(null), "—");
     });
 
+    // A `thermal_fit` term weights a sleeve wall by 2k times a soak factor.
+    // Printing that as a bare "+ sleeve_wall" is WORSE than printing nothing:
+    // it looks readable and is wrong by a factor of two.
+    await test("termLabel never swallows a coefficient other than 1", function () {
+      eq(VA.termLabel({ element_id: "sleeve_wall", sign: 1, coefficient: 2.0010712 }),
+         "+ 2.0010712 × sleeve_wall");
+      eq(VA.termLabel({ element_id: "hub_bore", sign: -1, coefficient: 0.8 }),
+         "− 0.8 × hub_bore");
+      ok(VA.termTitle({ element_id: "x", sign: 1, coefficient: 2 }), "weighted terms explain");
+    });
+
+    await test("termLabel stays silent at unity, so an authored stack reads as before", function () {
+      eq(VA.termLabel({ element_id: "plate", sign: 1, coefficient: 1 }), "+ plate");
+      eq(VA.termLabel({ element_id: "eye", sign: -1, coefficient: 1 }), "− eye");
+      // A projection built before coefficients existed carries no field at all.
+      eq(VA.termLabel({ element_id: "plate", sign: 1 }), "+ plate");
+      eq(VA.termTitle({ element_id: "plate", sign: 1, coefficient: 1 }), null);
+    });
+
     // --- provenance --------------------------------------------------------
 
     await test("confidenceClass maps the four states and degrades safely", function () {
@@ -78,6 +100,16 @@
       var texts = VA.summaryChips(DEMO).map(function (c) { return c.text; });
       eq(texts, ["1 traced", "1 inferred", "1 UNTRACED",
                  "1 zero-width band", "1 INCOMPLETE check"]);
+    });
+
+    await test("summaryChips says the checks are generated and counts the probes", function () {
+      var texts = VA.summaryChips(GEN).map(function (c) { return c.text; });
+      eq(texts, ["3 traced", "1 inferred", "checks GENERATED", "1 sensitivity probe"]);
+      var generated = VA.summaryChips(GEN).filter(function (c) {
+        return c.kind === "generated";
+      })[0];
+      has(generated.title, "demo_thermal_fit");
+      has(generated.title, "re-derives nothing");
     });
 
     await test("summaryChips omits a confidence nobody scored", function () {
@@ -311,19 +343,107 @@
       has(root.textContent, "Pick a stack");
     });
 
-    // A thermal_fit stack GENERATES its checks, so the projection carries none.
+    // --- generated checks: the whole point of the surface --------------------
+
+    // THE deliverable. A weighted term must arrive on the page carrying its
+    // weight; the alternative is a term list that looks readable and is wrong.
+    await test("a non-unity coefficient reaches the DOM on the weighted term", function () {
+      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+      var weighted = all(root, "span.chip--weighted");
+      var chips = weighted.map(function (c) { return c.textContent; });
+      // 2 × the stainless soak factor on the wall, and the hub's own factor.
+      has(chips.join(" | "), "+ 2.001 × sleeve_wall");
+      has(chips.join(" | "), "− 1.0012 × hub_bore");
+      ok(chips.length >= 4, "both cards weight every term: " + chips.join(" | "));
+      // ...and the weight is explained on hover rather than left as a bare number.
+      has(weighted[0].getAttribute("title"), "sign × coefficient");
+    });
+
+    await test("the checks section says the checks are not in the stack file", function () {
+      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+      var note = all(root, ".check__note")[0];
+      ok(note, "a generated-check stack must say so");
+      has(note.textContent, "GENERATED CHECKS");
+      has(note.textContent, "demo_thermal_fit");
+      has(note.textContent, "stack_demo_fit.json");
+      // The escape hatch out of the browser: the command that prints the same
+      // term table, so the surface is checkable and not just believable.
+      has(note.textContent, "debug_report_thermal_fit.py");
+      // An authored stack gets no such note.
+      var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      eq(all(plain, ".check__note").length, 0);
+    });
+
+    await test("a sensitivity probe is marked NOT A RESULT, not shown as a verdict", function () {
+      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+      var probes = all(root, "article.check--sensitivity");
+      eq(probes.length, 1);
+      has(probes[0].textContent, "NOT A RESULT");
+      has(probes[0].textContent, "[SENSITIVITY]");
+      // The result card beside it is not tarred with it.
+      eq(all(root, "article.check").length, 2);
+    });
+
+    await test("a generated card names the corner of (fit × temperature) it describes", function () {
+      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+      var corner = all(root, "div.check__corner")[0].textContent;
+      has(corner, "chain seat");
+      has(corner, "stage hub_to_sleeve");
+      has(corner, "temperature hot (72 °C)");
+      has(corner, "k 0.8");
+      // An authored check has none of that vocabulary and gets no corner row.
+      var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      eq(all(plain, "div.check__corner").length, 0);
+    });
+
+    await test("the materials table shows each CTE and how untraced it is", function () {
+      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+      var rows = all(root, "tr.mat-row");
+      eq(rows.length, 3);
+      has(rows[0].textContent, "23");                    // the CTE, printed verbatim
+      has(rows[0].textContent, "UNTRACED");              // ...and how sourced it is
+      has(rows[0].textContent, "designation: traced");   // name and number differ
+      has(rows[1].textContent, "20 … 100");              // the range, when stated
+      has(rows[2].textContent, "NO CITATION");
+      // The gaps ride along, folded — three material rows, three gap rows, and
+      // no element in this fixture has a hardware gap.
+      var folds = all(root, "details.el-gaps");
+      eq(folds.length, 3);
+      has(folds[0].textContent, "traced to nothing");
+      // Each element says which material it is cut in.
+      has(all(root, "tr.el-row")[0].textContent, "DEMO_ALUMINIUM");
+    });
+
+    await test("a stack with no materials draws no Materials section", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      eq(all(root, "table.mattable").length, 0);
+      ok(root.textContent.indexOf("Materials") === -1, "no empty heading");
+    });
+
+    await test("a declared worksheet says it was declared, not matched by name", function () {
+      var root = render(function (r) { VA.renderWorksheet(r, GEN, "# demo\n"); });
+      has(all(root, ".worksheet__note")[0].textContent, "provenance.worksheet");
+      has(root.textContent, "several stacks");
+      // A by-name worksheet says nothing extra.
+      var plain = render(function (r) { VA.renderWorksheet(r, DEMO, "# demo\n"); });
+      eq(all(plain, ".worksheet__note").length, 0);
+    });
+
+    // The honesty guard that stood in for this feature, narrowed to the case the
+    // projection's ARCHETYPE_LOADERS cannot close: an archetype with no loader.
     // "no checks" would be false and reassuring; say what is actually true.
-    // (review/stack_viewer_v0, 2026-08-06)
-    await test("a generated-check archetype says so instead of 'no checks'", function () {
+    // (originally review/stack_viewer_v0, 2026-08-06)
+    await test("an archetype with no loader says so instead of 'no checks'", function () {
       var base = FIXTURE.results.stacks[0];
       var generated = JSON.parse(JSON.stringify(base));
       generated.checks = [];
-      generated.archetype = "thermal_fit";
+      generated.archetype = "some_future_archetype";
       generated.checks_generated_not_rendered = true;
       var root = render(function (r) { VA.renderStack(r, generated, CROPS, {}); });
       has(root.textContent, "GENERATED");
-      has(root.textContent, "thermal_fit");
+      has(root.textContent, "some_future_archetype");
       has(root.textContent, "NOT a stack without checks");
+      has(root.textContent, "ARCHETYPE_LOADERS");
 
       var plain = JSON.parse(JSON.stringify(base));
       plain.checks = [];
@@ -525,6 +645,81 @@
         realResults.stacks.forEach(function (stackProj) {
           var root = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
           ok(all(root, "tr.el-row").length > 0, stackProj.id + " rendered no rows");
+        });
+      });
+
+      // --- [real] the generated-check stacks, which is why this handoff exists --
+
+      var thermal = VA.findStack(realResults, "hub_bearing_thermal_fit_m1");
+
+      await test("[real] a thermal_fit stack renders its generated checks", function () {
+        ok(thermal, "hub_bearing_thermal_fit_m1 must be in the projection");
+        var root = render(function (r) { VA.renderStack(r, thermal, realCrops, {}); });
+        eq(thermal.checks_source, "generated");
+        eq(thermal.checks_generated_not_rendered, false);
+        eq(all(root, "article.check").length, 16, "2 chains × 2 stages × 3 temps + 4 probes");
+        has(all(root, ".check__note")[0].textContent, "thermal_fit");
+      });
+
+      await test("[real] the hot stage-1 wall term carries its 2 × soak weight", function () {
+        var root = render(function (r) { VA.renderStack(r, thermal, realCrops, {}); });
+        var chips = all(root, "span.chip--weighted")
+          .map(function (c) { return c.textContent; });
+        // 2 (diametral) × (1 + 52 × 10.3e-6) for AISI 420 at the hot corner.
+        has(chips.join(" | "), "+ 2.0010712 × sleeve_wall_lower");
+        has(chips.join(" | "), "− 1.00119808 × hub_bore_lower");   // AL 7050 at hot
+        has(chips.join(" | "), "− 0.8 × hub_bore_lower");          // the stiffness split
+        // Every non-unity coefficient in the projection got a chip, and the six
+        // that did not are the ROOM-temperature terms whose soak factor is
+        // exactly 1 and whose k-weight is 1 — where a silent chip is correct.
+        var unity = 0, weightedTerms = 0;
+        thermal.checks.forEach(function (check) {
+          check.element_terms.forEach(function (term) {
+            if (term.coefficient === 1) unity++; else weightedTerms++;
+          });
+        });
+        eq([unity, weightedTerms], [6, 46], "term census");
+        eq(chips.length, weightedTerms, "one chip per weighted term");
+      });
+
+      await test("[real] the four sensitivity probes are not shown as results", function () {
+        var root = render(function (r) { VA.renderStack(r, thermal, realCrops, {}); });
+        eq(all(root, "article.check--sensitivity").length, 4);
+        has(all(root, "article.check--sensitivity")[0].textContent, "NOT A RESULT");
+      });
+
+      await test("[real] the thermal stack's CTEs and materials reach the page", function () {
+        var root = render(function (r) { VA.renderStack(r, thermal, realCrops, {}); });
+        eq(all(root, "tr.mat-row").length, 3);
+        has(root.textContent, "23.04");     // AL 7050-T7451, the fast-growing member
+        has(root.textContent, "10.3");      // AISI 420 sleeve
+        // Not one CTE in the repo is traced, and the table has to say so.
+        eq(all(root, "tr.mat-row").filter(function (row) {
+          return row.className.indexOf("conf--untraced") !== -1;
+        }).length, 3);
+      });
+
+      await test("[real] both thermal stacks resolve the one worksheet that covers them",
+        async function () {
+          for (var i = 0; i < 2; i++) {
+            var stack = VA.findStack(realResults,
+              "hub_bearing_thermal_fit_m" + (i + 1));
+            eq(stack.worksheet_source, "declared");
+            eq(stack.worksheet_file,
+               "docs/tolerance_stacks/WORKSHEET_hub_bearing_thermal_fit.md");
+            var md = await real.readText(VA.worksheetSegments(stack));
+            ok(md, stack.id + "'s worksheet must be readable");
+            var root = render(function (r) { VA.renderWorksheet(r, stack, md); });
+            has(root.querySelector("div.worksheet__body").innerHTML, "<table>");
+          }
+        });
+
+      await test("[real] no authored stack grew a coefficient on any term", function () {
+        realResults.stacks.forEach(function (stackProj) {
+          if (stackProj.checks_source === "generated") return;
+          var root = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
+          eq(all(root, "span.chip--weighted").length, 0, stackProj.id);
+          eq(all(root, "table.mattable").length, 0, stackProj.id);
         });
       });
 

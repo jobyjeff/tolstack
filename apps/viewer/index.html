@@ -91,6 +91,13 @@
     .chip--kind { color: var(--muted); font-family: ui-monospace, monospace; }
     .chip--zero-width { color: var(--zero); border-color: var(--zero); border-style: dashed; }
     .chip--incomplete { color: #0b1020; background: var(--inferred); border-color: var(--inferred); font-weight: 700; }
+    .chip--material { color: var(--accent); border-color: var(--accent); font-family: ui-monospace, monospace; }
+    .chip--corner { color: var(--muted); border-style: dashed; }
+    .chip--generated { color: var(--accent); border-color: var(--accent); }
+    .chip--sensitivity { color: #0b1020; background: var(--marginal); border-color: var(--marginal); font-weight: 700; }
+    /* A weighted term is monospaced so "+ 2.0010712 × sleeve_wall" lines up
+       against its neighbours — the digits are the reason the chip exists. */
+    .chip--weighted { font-family: ui-monospace, monospace; }
     .chip--gap-excluded_from_model { color: #fff; background: var(--untraced); border-color: var(--untraced); }
     .chip--gap-hardware_entry { color: var(--muted); }
     .verdict { font-weight: 700; text-transform: uppercase; }
@@ -117,16 +124,23 @@
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     /* The topbar and banner are sticky, so anything scrolled to must leave room
        for them or it lands underneath and stops being clickable. */
-    .el-row, .crop-trigger, .check, .gaplist li { scroll-margin-top: 120px; }
+    .el-row, .mat-row, .crop-trigger, .check, .gaplist li { scroll-margin-top: 120px; }
 
-    /* Provenance tint on the whole row + a 3px spine in the confidence colour. */
-    .el-row td:first-child { border-left: 3px solid transparent; }
-    .el-row.conf--traced   td:first-child { border-left-color: var(--traced); }
-    .el-row.conf--inferred td:first-child { border-left-color: var(--inferred); }
-    .el-row.conf--untraced td:first-child { border-left-color: var(--untraced); }
-    .el-row.conf--no_source_ref td:first-child { border-left-color: var(--nocite); }
-    .el-row.conf--untraced { background: rgba(224, 82, 82, .10); }
-    .el-row.conf--no_source_ref { background: rgba(195, 85, 195, .12); }
+    /* Provenance tint on the whole row + a 3px spine in the confidence colour.
+       The Materials table speaks the same language: a CTE nobody traced has to
+       be as loud as an untraced length. */
+    .el-row td:first-child, .mat-row td:first-child { border-left: 3px solid transparent; }
+    .el-row.conf--traced   td:first-child,
+    .mat-row.conf--traced  td:first-child { border-left-color: var(--traced); }
+    .el-row.conf--inferred td:first-child,
+    .mat-row.conf--inferred td:first-child { border-left-color: var(--inferred); }
+    .el-row.conf--untraced td:first-child,
+    .mat-row.conf--untraced td:first-child { border-left-color: var(--untraced); }
+    .el-row.conf--no_source_ref td:first-child,
+    .mat-row.conf--no_source_ref td:first-child { border-left-color: var(--nocite); }
+    .el-row.conf--untraced, .mat-row.conf--untraced { background: rgba(224, 82, 82, .10); }
+    .el-row.conf--no_source_ref,
+    .mat-row.conf--no_source_ref { background: rgba(195, 85, 195, .12); }
     .el-row--zero-width .num--zero-width {
       color: var(--zero); border-bottom: 1px dashed var(--zero);
     }
@@ -160,6 +174,13 @@
     }
     .check--incomplete { border-left-color: var(--inferred);
       background: repeating-linear-gradient(135deg, var(--panel), var(--panel) 10px, #23242a 10px, #23242a 20px); }
+    /* A sensitivity probe is NOT a result: recessed and dashed so it reads as an
+       aside beside the cards that are, however loud its verdict chip is. */
+    .check--sensitivity { border-left-color: var(--marginal); border-style: dashed;
+      opacity: .88; }
+    .check__note { font-size: 12px; color: var(--accent); border: 1px dashed var(--accent);
+      border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
+    .check__corner { display: flex; gap: 5px; flex-wrap: wrap; margin: 4px 0 6px; }
     .check__head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .check__id { margin-left: auto; color: var(--muted); font-size: 12px; }
     .check__label { margin: 6px 0; font-weight: 600; }
@@ -186,6 +207,7 @@
       max-height: calc(100vh - 47px); overflow: auto;
     }
     .worksheet__path { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; margin-bottom: 8px; }
+    .worksheet__note { color: var(--muted); font-size: 11px; margin: -4px 0 8px; }
     .worksheet__body { font-size: 13px; overflow-wrap: anywhere; }
     .worksheet__body table { font-size: 12px; }
     .worksheet__body th, .worksheet__body td { border: 1px solid var(--line); padding: 3px 7px; }

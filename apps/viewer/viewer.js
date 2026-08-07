@@ -28,6 +28,40 @@
     return value === null || value === undefined ? "—" : "±" + VA.fmt(value);
   };
 
+  // One expanded term of a check or path, as a reviewer reads it:
+  //   "+ sleeve_bore"                unity weight — the coefficient is silent
+  //   "+ 2.0010712 × sleeve_wall"    anything else — the weight is NEVER silent
+  //
+  // The coefficient is the whole reason this function exists. A `thermal_fit`
+  // check weights a sleeve wall by `2k` times a soak factor, and rendering that
+  // as a bare "+ sleeve_wall" is worse than rendering nothing: it looks readable
+  // and it is wrong, on the surface whose job is letting a reviewer read every
+  // sign. `sign` still carries direction on its own (Term.coefficient is a
+  // positive magnitude), so this prints `sign` then `coefficient`, exactly the
+  // two fields the projection carries — no multiplying, no re-deriving.
+  VA.termLabel = function (term) {
+    if (!term) return "—";
+    var head = term.sign < 0 ? "− " : "+ ";
+    var weighted = typeof term.coefficient === "number" && term.coefficient !== 1;
+    return head + (weighted ? VA.fmt(term.coefficient) + " × " : "") + term.element_id;
+  };
+
+  // The hover "why" on a weighted term. Generic on purpose: the specific reason
+  // a weight is 2.0010712 belongs to the archetype and is in the check's own
+  // guidance and configuration, and restating it here would be a second,
+  // unverified claim about a number this file did not compute.
+  VA.TERM_WEIGHT_TITLE =
+    "weight = sign × coefficient. A coefficient other than 1 scales this " +
+    "element's entry — a diametral factor of 2, an isothermal soak factor " +
+    "1 + ΔT·α, or a stiffness split k / 1−k. It was computed in Python by the " +
+    "archetype's loader and folded at that value; see the check's guidance.";
+
+  VA.termTitle = function (term) {
+    return term && typeof term.coefficient === "number" && term.coefficient !== 1
+      ? VA.TERM_WEIGHT_TITLE
+      : null;
+  };
+
   // --- provenance ---------------------------------------------------------
 
   VA.CONFIDENCES = ["traced", "inferred", "untraced", "no_source_ref"];
@@ -81,6 +115,28 @@
         text: incomplete.length + " INCOMPLETE check" + (incomplete.length === 1 ? "" : "s"),
         title: "A term is missing from the model, so the verdict is a budget, " +
           "not a conclusion about the joint.",
+      });
+    }
+    // Where the checks came from is a review fact, not a footnote: a generated
+    // term list cannot be read in the stack JSON, so a reviewer needs to know
+    // before reading the numbers that the signs live in Python.
+    if (stackProj.checks_source === "generated") {
+      chips.push({
+        kind: "generated",
+        text: "checks GENERATED",
+        title: "These checks are not authored in the stack file — the " +
+          (stackProj.archetype || "archetype") + " loader builds them, with their " +
+          "coefficients, from the stack's own block. The projection ran it in " +
+          "Python; the viewer re-derives nothing.",
+      });
+    }
+    var probes = (stackProj.checks || []).filter(function (c) { return c.sensitivity; });
+    if (probes.length) {
+      chips.push({
+        kind: "sensitivity",
+        text: probes.length + " sensitivity probe" + (probes.length === 1 ? "" : "s"),
+        title: "NOT results. Each re-runs a check with an undocumented input " +
+          "moved, so a reader can see how much of the answer rests on it.",
       });
     }
     return chips;

@@ -1,13 +1,22 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: apps/viewer + scripts/build_viewer_projection.py
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260806_viewer_generated_checks.md
 ---
 
 # The viewer renders no checks for a `thermal_fit` stack, because the projection folds with `load_stack()`
+
+> **RESOLVED 2026-08-06** by handoff `viewer_generated_checks`. The projection
+> dispatches on `archetype` (`ARCHETYPE_LOADERS`) so both stacks now project
+> their 16 generated checks; `element_terms` carries `coefficient` and the viewer
+> prints every weighted term (`+ 2.0010712 × sleeve_wall_lower`), verified term
+> for term against `debug_report_thermal_fit.py --terms` by a test; the shared
+> worksheet resolves for both through `provenance.worksheet`. The honesty guard
+> survives, narrowed to an archetype with no loader. See
+> `docs/sessions/lessons/LESSONS_20260806_viewer_generated_checks.md`.
 
 `scripts/build_viewer_projection.py` builds every stack with
 `tolerance_stack.stack.load_stack()`. A `thermal_fit` stack's `checks` array is

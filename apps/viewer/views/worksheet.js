@@ -18,6 +18,15 @@
       return root;
     }
     root.appendChild(VA.el("div", "worksheet__path", path));
+    // A declared worksheet (provenance.worksheet) overrides the stack_X ->
+    // WORKSHEET_X naming convention, and the reason it exists is that one sheet
+    // can serve several stacks — so a reader who notices the name does not match
+    // the stack is told why rather than left to suspect the wrong sheet.
+    if (stackProj.worksheet_source === "declared") {
+      root.appendChild(VA.el("div", "worksheet__note",
+        "declared by the stack file (provenance.worksheet), not matched by name — " +
+        "one worksheet may cover several stacks"));
+    }
     if (markdown === null || markdown === undefined) {
       root.appendChild(VA.el("p", "muted",
         "The projection names this worksheet but it could not be read from the " +

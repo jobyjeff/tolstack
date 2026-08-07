@@ -21,6 +21,10 @@
     root.appendChild(header(stackProj));
     root.appendChild(jointBlock(stackProj.stack.joint));
     root.appendChild(elementsSection(stackProj, cropsIndex, handlers));
+    // Only archetypes with material properties have one; a grip stack shows no
+    // empty Materials heading.
+    var materials = materialsSection(stackProj);
+    if (materials) root.appendChild(materials);
     root.appendChild(pathsSection(stackProj));
     root.appendChild(checksSection(stackProj));
     root.appendChild(gapsSection(stackProj));
@@ -158,6 +162,15 @@
     chips.appendChild(VA.chip(VA.confidenceClass(derived.confidence),
       VA.CONFIDENCE_LABEL[derived.confidence] || derived.confidence));
     if (derived.kind) chips.appendChild(VA.chip("chip--kind", derived.kind));
+    // The material this feature is cut in, for an archetype that has one. It is
+    // a property of the chain, not of the element, so it arrives derived — and
+    // it belongs next to the citation because a thermal fit's answer is a CTE
+    // difference, not a diameter. Its own sourcing is in Materials below.
+    if (derived.material) {
+      chips.appendChild(VA.chip("chip--material", derived.material,
+        "the material this element's feature is cut in — see Materials below " +
+        "for its CTE and where the CTE came from"));
+    }
     if (derived.zero_width) {
       chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
         "min == max: every interval this feeds is a LOWER bound on the real spread."));
@@ -235,6 +248,98 @@
     return tr;
   }
 
+  // --- materials -----------------------------------------------------------
+
+  // Null unless the projection carries materials (only a `thermal_fit` stack
+  // does today). Every number here is authored in materials.json and printed
+  // verbatim; the chips are the derived sourcing flags beside it.
+  //
+  // This section exists because the CTEs were reaching this surface not at all,
+  // and they are both the mechanism (a fit loosens because two members grow at
+  // different rates) and the least-traced numbers in the stack. They are also
+  // what makes a term's coefficient auditable: 2.0010712 on a sleeve wall is
+  // 2 (diametral) × (1 + ΔT·α), and ΔT is on the check card.
+  var MATERIAL_COLUMNS = ["material", "designation", "CTE 1e-6/°C",
+    "CTE range °C", "used by", "sourcing"];
+
+  function materialsSection(stackProj) {
+    var materials = stackProj.materials || [];
+    if (!materials.length) return null;
+    var section = VA.el("section", "sv__section");
+    section.appendChild(VA.el("h3", null, "Materials"));
+    section.appendChild(VA.el("p", "muted",
+      "The soak factor on every weighted term below is 1 + ΔT·α from this table " +
+      "(ΔT is on each check card). A scalar CTE hides that α varies with " +
+      "temperature — the range each value is a mean over is stated when the " +
+      "source states one."));
+
+    var table = VA.el("table", "mattable");
+    var head = VA.el("tr");
+    MATERIAL_COLUMNS.forEach(function (name) { head.appendChild(VA.el("th", null, name)); });
+    table.appendChild(VA.el("thead", null, head));
+
+    var body = VA.el("tbody");
+    materials.forEach(function (row) {
+      var authored = row.material || {};
+      var tr = VA.el("tr", "mat-row " + VA.confidenceClass(row.confidence));
+      tr.appendChild(VA.el("td", null, VA.el("code", null, row.id)));
+      var name = VA.el("td");
+      name.appendChild(VA.el("div", null, authored.designation || "—"));
+      var detail = [authored.specification, authored.condition, authored.class]
+        .filter(function (x) { return x; }).join(" · ");
+      if (detail) name.appendChild(VA.el("div", "muted", detail));
+      tr.appendChild(name);
+      tr.appendChild(VA.el("td", "num", VA.fmt(authored.cte_1e6_per_c)));
+      tr.appendChild(VA.el("td", "num", (authored.cte_temperature_range_c || [])
+        .map(VA.fmt).join(" … ") || "—"));
+      tr.appendChild(VA.el("td", null, (row.used_by_elements || []).join(", ")));
+      tr.appendChild(materialSourcingCell(row, authored));
+      body.appendChild(tr);
+      var gaps = authored.gaps || [];
+      if (gaps.length) body.appendChild(materialGapsRow(row.id, gaps));
+    });
+    table.appendChild(body);
+    section.appendChild(table);
+    return section;
+  }
+
+  function materialSourcingCell(row, authored) {
+    var cell = VA.el("td", "el-row__source");
+    var chips = VA.el("div", "el-row__chips");
+    chips.appendChild(VA.chip(VA.confidenceClass(row.confidence),
+      VA.CONFIDENCE_LABEL[row.confidence] || row.confidence,
+      "how the CTE VALUE is sourced — the designation is sourced separately"));
+    if (row.kind) chips.appendChild(VA.chip("chip--kind", row.kind));
+    // The name and the number have different provenance, and materials.json
+    // keeps them in different fields on purpose: most designations are traced to
+    // a drawing note, and no CTE value in this repo is traced to anything.
+    chips.appendChild(VA.chip(VA.confidenceClass(row.designation_confidence),
+      "designation: " + (VA.CONFIDENCE_LABEL[row.designation_confidence] ||
+        row.designation_confidence)));
+    cell.appendChild(chips);
+    cell.appendChild(VA.el("div", "el-row__where",
+      VA.citationWhere(authored.values_source)));
+    if (authored.note) {
+      cell.appendChild(VA.el("div", "el-row__srcnote el-row__srcnote--open", authored.note));
+    }
+    return cell;
+  }
+
+  function materialGapsRow(materialId, gaps) {
+    var tr = VA.el("tr", "el-note el-note--gap");
+    var td = VA.el("td");
+    td.setAttribute("colspan", String(MATERIAL_COLUMNS.length));
+    var box = VA.el("details", "el-gaps");
+    box.appendChild(VA.el("summary", null,
+      gaps.length + " material gap" + (gaps.length === 1 ? "" : "s") + " — " + materialId));
+    var list = VA.el("ul", "plainlist");
+    gaps.forEach(function (gap) { list.appendChild(VA.el("li", null, gap)); });
+    box.appendChild(list);
+    td.appendChild(box);
+    tr.appendChild(td);
+    return tr;
+  }
+
   // --- paths ---------------------------------------------------------------
 
   function pathsSection(stackProj) {
@@ -289,30 +394,75 @@
   function checksSection(stackProj) {
     var section = VA.el("section", "sv__section");
     section.appendChild(VA.el("h3", null, "Checks"));
+    // A generated term list is not readable in the stack JSON — the repo's usual
+    // safety property — so the surface has to say where the signs live and how a
+    // reader reproduces them outside the browser.
+    if (stackProj.checks_source === "generated") {
+      section.appendChild(VA.el("p", "check__note",
+        "GENERATED CHECKS. These are not authored in " + stackProj.source_file +
+        " — its `checks` array is empty on purpose. The archetype \"" +
+        (stackProj.archetype || "?") + "\" builds them, coefficients included, " +
+        "from the stack's own block, and the projection ran that loader in " +
+        "Python: the same code the tests pin, so nothing here was re-derived in " +
+        "the browser. The identical term table prints from: " +
+        "venv-win\\Scripts\\python.exe tests\\debug_report_thermal_fit.py " +
+        "--terms --markdown"));
+    }
     (stackProj.checks || []).forEach(function (check) {
       section.appendChild(checkCard(stackProj, check));
     });
     if (!(stackProj.checks || []).length) {
       // "no checks" and "this stack's checks are generated and this surface
-      // cannot render them yet" are different facts, and only one of them is
-      // true of a thermal_fit stack. Never let the second render as the first.
+      // cannot render them" are different facts, and only one of them is ever
+      // true of an archetype stack. Never let the second render as the first.
+      // Reachable now only for an archetype the projection has no loader for —
+      // `thermal_fit` renders above.
       section.appendChild(stackProj.checks_generated_not_rendered
         ? VA.el("p", "check__warn",
             "This stack declares archetype \"" + (stackProj.archetype || "?") +
             "\", whose checks are GENERATED from its own block rather than " +
-            "authored in the file — so there are none here to render, and this " +
-            "is NOT a stack without checks. The viewer does not build them yet " +
-            "(their terms carry coefficients it would have to show). Read them " +
-            "with: venv-win\\Scripts\\python.exe tests\\debug_report_thermal_fit.py " +
-            "--terms --markdown")
+            "authored in the file — and the projection has NO LOADER for that " +
+            "archetype, so there are none here to render. This is NOT a stack " +
+            "without checks. Add the archetype's loader to ARCHETYPE_LOADERS in " +
+            "scripts\\build_viewer_projection.py and rebuild.")
         : VA.el("p", "muted", "no checks"));
     }
     return section;
   }
 
+  // The archetype vocabulary a generated check's `configuration` carries, in the
+  // order a reader asks for it: which seat, which stage, which temperature, and
+  // what the stiffness split was set to. Only the FIELD LABELS are here — every
+  // value is the string the archetype wrote, so the viewer holds no copy of the
+  // archetype's vocabulary that could drift from it. Which corner of
+  // (fit × temperature) a card describes is the point of a fit stack, and a card
+  // that does not say is not legible.
+  var CORNER_FIELDS = [
+    ["chain", "chain"],
+    ["stage", "stage"],
+    ["temperature", "temperature"],
+    ["stiffness_ratio", "k"],
+  ];
+
+  function cornerChips(check) {
+    var configuration = check.configuration || {};
+    var chips = [];
+    CORNER_FIELDS.forEach(function (pair) {
+      var value = configuration[pair[0]];
+      if (value === null || value === undefined || value === "") return;
+      var text = pair[1] + " " + value;
+      if (pair[0] === "temperature" && configuration.temperature_c) {
+        text += " (" + configuration.temperature_c + " °C)";
+      }
+      chips.push(VA.chip("chip--corner", text));
+    });
+    return chips;
+  }
+
   function checkCard(stackProj, check) {
-    var card = VA.el("article",
-      "check" + (check.incomplete ? " check--incomplete" : ""));
+    var card = VA.el("article", "check" +
+      (check.incomplete ? " check--incomplete" : "") +
+      (check.sensitivity ? " check--sensitivity" : ""));
 
     var head = VA.el("header", "check__head");
     head.appendChild(VA.chip("verdict " + VA.verdictClass(check.verdict), check.verdict));
@@ -321,11 +471,27 @@
         "A term is missing from the model. Read the magnitude as a budget for " +
         "the missing term, not as a verdict on the joint."));
     }
+    // A sensitivity probe re-runs a check with an undocumented input moved. Its
+    // verdict is about that hypothetical, not about the joint — so it says so
+    // beside the verdict chip, not only in the guidance underneath.
+    if (check.sensitivity) {
+      head.appendChild(VA.chip("chip--sensitivity", "NOT A RESULT",
+        "A sensitivity probe: the same check with an undocumented input moved, " +
+        "so a reader can see how much of the answer rests on it. Its verdict is " +
+        "about that hypothetical, not about this joint."));
+    }
     head.appendChild(VA.chip(VA.confidenceClass(check.worst_confidence),
       "weakest input: " + (VA.CONFIDENCE_LABEL[check.worst_confidence] || "—")));
     head.appendChild(VA.el("code", "check__id", check.check_id));
     card.appendChild(head);
     card.appendChild(VA.el("div", "check__label", check.label));
+
+    var corner = cornerChips(check);
+    if (corner.length) {
+      var corners = VA.el("div", "check__corner");
+      corner.forEach(function (chip) { corners.appendChild(chip); });
+      card.appendChild(corners);
+    }
 
     var numbers = VA.el("div", "check__numbers");
     [["criterion", check.criterion], ["nominal", VA.fmt(check.nominal)],
@@ -348,8 +514,10 @@
     inputs.appendChild(VA.el("span", "muted", "inputs:"));
     (check.element_terms || []).forEach(function (term) {
       var derived = findDerived(stackProj, term.element_id);
-      inputs.appendChild(VA.chip(VA.confidenceClass(derived.confidence),
-        (term.sign < 0 ? "− " : "+ ") + term.element_id));
+      var weighted = typeof term.coefficient === "number" && term.coefficient !== 1;
+      inputs.appendChild(VA.chip(
+        VA.confidenceClass(derived.confidence) + (weighted ? " chip--weighted" : ""),
+        VA.termLabel(term), VA.termTitle(term)));
     });
     card.appendChild(inputs);
 
