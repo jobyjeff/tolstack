@@ -134,6 +134,18 @@ comparing a backfilled `ts` to a same-day commit is comparing against a stamp
 that could be seven hours off in the direction that matters. Check
 `backfilled` before you lean on one.
 
+> **Reviewer correction, 2026-08-08 (`review/readonly_invariant_evidence`).**
+> The flag is *not* sufficient, and a rule keyed on it alone lets the same stamp
+> through. Six **further** entries — the two 2026-04-09 runs of 215197,
+> `20260409_170546` and `20260409_172341`, cited by all three stacks — carry
+> `ts` `2026-04-09T17:05:46+00:00` / `...T17:23:41+00:00`: whole seconds,
+> digit-for-digit the id, `pipeline_commit: null`, and **no `backfilled` key at
+> all**. Twelve of the 25 entries are id-derived, not six. So the tell is the
+> *shape* — a whole-second `ts` that spells its own run id — and `backfilled:
+> true` merely confirms it where drawing-checker happened to record the flag.
+> Nothing turns on these two either (April, four months before this repo), which
+> is exactly why they are the ones a future session would trust.
+
 **3. The `run_meta.json` `run_id` key is the full directory name, not the
 15-character id.** `run_meta.json` for `20260804_114000_217755_A.1_PROPULSION...`
 records `run_id: "20260804_114000_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER"`,

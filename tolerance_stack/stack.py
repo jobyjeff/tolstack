@@ -95,11 +95,15 @@ class ExportRun:
     * it is **not** the run id re-spelled. ``20260804_114000`` is local time and
       stamped when the run *started*; ``ts`` is UTC and, on runs that record a
       duration, later (``20260730_133912`` -> ``2026-07-30T20:39:33Z``, 21 s).
-    * a backfilled row (``run_meta.json`` with ``backfilled: true``) has a ``ts``
-      *derived from the run id* by ``scripts/reconcile_run_log.py``, so it reads
-      as UTC when it was local. Still contemporaneous to within a timezone, and
-      the runs it applies to here predate this repo by weeks -- but say so rather
-      than presenting it as a stamped instant.
+    * some rows have a ``ts`` *derived from the run id* by drawing-checker's
+      ``scripts/reconcile_run_log.py``, so it reads as UTC when it was local.
+      Still contemporaneous to within a timezone, and the runs it applies to here
+      predate this repo by weeks -- but say so rather than presenting it as a
+      stamped instant. The tell is the **shape**: whole seconds spelling the id
+      back (``20260723_163810`` -> ``2026-07-23T16:38:10+00:00``).
+      ``backfilled: true`` in ``run_meta.json`` confirms one where that repo
+      recorded the flag and misses the rest -- the two 2026-04-09 runs of 215197
+      are derived and unflagged -- so read the stamp, not only the flag.
 
     ``ts`` may be ``None`` only when the run's own metadata carries none. Write
     the reason in the export's ``note`` if you ever hit that; every run in the

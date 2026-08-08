@@ -362,10 +362,13 @@ source's, not yours.
   another repo's commit log, which is as far as the evidence went for the first
   month of this repo's life. Two gotchas, both real: the `ts` is **not** the run
   id re-spelled (the id is local time at run *start*, the `ts` is UTC and can be
-  seconds later), and a `backfilled: true` run's `ts` was *derived* from its id
-  by drawing-checker's `reconcile_run_log.py`, so it reads as UTC when it was
-  local — still contemporaneous, but say so rather than presenting it as a
-  stamped instant.
+  seconds later), and some runs' `ts` was *derived* from the id by
+  drawing-checker's `reconcile_run_log.py`, so it reads as UTC when it was local
+  — still contemporaneous, but say so rather than presenting it as a stamped
+  instant. The tell for a derived stamp is its **shape**: whole seconds that
+  spell the run id back. `backfilled: true` in `run_meta.json` confirms one but
+  does not catch them all (the two 2026-04-09 runs of 215197 are derived and
+  unflagged), so read the stamp, not only the flag.
   `spec` is exempt: `data/inbox/specs/` is append-only, so the filename already
   identifies the bytes — record the sha anyway if you have it.
 

@@ -576,6 +576,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       filed as
       `docs/issues/ISSUE_20260806_mechanise_the_byte_identical_provenance_check.md`.
       Until it exists, run the diff yourself.
+      **First clean pass on the sixth run (`readonly_invariant_evidence`,
+      2026-08-07):** the author amended all five rows their branch falsified
+      (both seeded stack JSONs, `stack.py`, `__init__.py`,
+      `test_tolerance_stack.py`) and stated in the lesson that the table was
+      diffed rather than recalled. So the class *is* catchable by an author who
+      runs the command — which raises the value of the mechanising test, not
+      lowers it. Keep running the diff: one catch is not a trend, and the review
+      that skips it is the one that meets sighting six.
 - [ ] **Prose asserting a field is `null` while the field is not.** Same class as
       stale counts, one level down. `hub_bearing_thermal_stack`'s
       `identification_note` said "find numbers, balloons and quantities are
@@ -778,7 +786,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
          `test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit`
          is the worked example. Check the `ts` values are *real* — copied from
          the run, not from the run id, which is local time at run start and can
-         differ (`20260730_133912` → `2026-07-30T20:39:33Z`).
+         differ (`20260730_133912` → `2026-07-30T20:39:33Z`). Re-read all of
+         them from `run_meta.json` yourself; it is one loop over the stack files
+         and it is the only thing between a citation and a plausible stamp.
+         **And know which stamps are themselves derived:** a `ts` of whole
+         seconds that spells its run id back was reconstructed from the id by
+         drawing-checker's `reconcile_run_log.py` and reads as UTC when it was
+         local — up to a timezone wrong, in the direction that matters for a
+         same-day comparison. `backfilled: true` in `run_meta.json` flags some
+         and not others (12 of the 25 seeded entries are derived; only 6 carry
+         the flag), so judge by the shape, not the flag.
       3. `purpose` / `pipeline_commit` on any run that still needs attributing —
          a `"purpose": "test"` run with a `+dirty` commit during a
          drawing-checker session is theirs, not the stack author's. This is
