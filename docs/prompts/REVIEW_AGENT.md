@@ -445,7 +445,30 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       descend into an excluded directory, so `!data/inbox/<s>/README.md` alone does
       nothing — re-include the directory, exclude its contents, *then* negate the
       doc. Verify with `git check-ignore -v <path>` and `git ls-files data/`, never
-      by eye.
+      by eye. **Second sighting (`gitignore_data_precedence`, 2026-08-07), one
+      level up:** a `data/*` blanket re-introduced exactly this, and `*` never
+      crosses `/`, so it matched `data/inbox`, `data/runs` *and* `data/projections`
+      — the issue and the handoff both claimed the latter two were "unaffected"
+      and both were wrong. `.gitignore` now carries the descent rule as a comment;
+      the shape is exclude → re-include the dir by name → exclude its contents →
+      negate the docs, applied at **every** level. Two review-time traps: a
+      **reorder does not fix a descent problem** (a `!` under an excluded
+      *directory* is unreachable regardless of position — only re-inclusion
+      works), and **`git check-ignore -v` prints a line for negation matches too**,
+      so the verdict is the per-path exit code (`-q`), not the presence of output.
+      Use `--no-index` or tracked paths are skipped, hiding exactly the rows that
+      prove the regression. The author hit the exit-code trap and it inverted
+      eight rows.
+- [ ] **The defect is an uncommitted edit in the MAIN checkout — a branch cannot
+      fix it.** First sighting `gitignore_data_precedence` (2026-08-07): the bad
+      `data/*` hunk never lived in a commit, only in `C:\workspace\tolstack`'s
+      dirty ` M .gitignore`, where it had sat shadowing the tracked file for two
+      days. Merging the branch updates the tracked file and leaves the dirty copy
+      on top of it — repo fixed, working tree still broken, and the branch looks
+      like it worked. When a handoff's subject is a main-checkout dirty file, the
+      merge is not done until you have discarded it (`git -C C:\workspace\tolstack
+      checkout -- <file>`) **and re-run the verification there**, not just in your
+      worktree. Generalise: verify the fix in the tree where the bug lives.
 - [ ] **Surviving `{{REPO_NAME}}` from the template stamp.** forge's
       `conventions._substitute_names` walks only `.md`/`.txt`/`.toml`, so
       placeholders live on in `.ps1`/`.py` stubs. Grep the diff for `{{`.

@@ -1,11 +1,24 @@
 ---
 type: bug
 priority: medium
-status: triaged
+status: resolved
 area: repo-conventions
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260806_gitignore_data_precedence.md
 ---
+
+> **RESOLVED 2026-08-07** by handoff `gitignore_data_precedence`. The blanket is
+> kept (ignore-by-default for a new top-level `data/` child) but now re-includes
+> the three directories git must descend into — `!data/inbox/`, `!data/runs/`,
+> `!data/projections/` — above the unchanged per-stream rules, and the
+> directory-descent rule is stated as a comment in `.gitignore` itself. The
+> uncommitted main-checkout copy was discarded at merge. Verified by an
+> 18-row `git check-ignore` matrix (0 mismatches, re-run by the reviewer in both
+> the merged worktree and the main checkout) and `git ls-files data/` unchanged
+> at 8 files. **Note this issue's own "unaffected" row was wrong**: `data/*`
+> matched `data/runs` and `data/projections` too, so those `.gitkeep` negations
+> were equally unreachable. See
+> `docs/sessions/lessons/LESSONS_20260806_gitignore_data_precedence.md`.
 
 > **Triaged 2026-08-06.** Re-confirmed still live: `.gitignore:62:data/*` still
 > shadows the per-stream exceptions and the edit is still uncommitted in the
