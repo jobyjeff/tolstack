@@ -1,11 +1,33 @@
 ---
 type: bug
 priority: medium
-status: triaged
+status: closed
 area: review-process
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260806_readonly_invariant_evidence.md
+closed: 2026-08-07
 ---
+
+> **CLOSED 2026-08-07** by handoff `readonly_invariant_evidence`. All three
+> suggested fixes landed, in the order the issue ranked them:
+>
+> 3. The checklist entry no longer offers `git status` as the check — it names it
+>    as the thing *not* to do and gives three ordered checks instead.
+> 1. `source_ref.export.runs` entries are now `{run_id, ts}` (`ExportRun`), the
+>    `ts` copied verbatim from the run's own `run_meta.json`. The specific run
+>    this issue could not attribute, `20260804_114000` (`ts`
+>    **2026-08-04T18:40:27Z**), is now pinned by test against `pitch_link_stack`'s
+>    first commit `d6829f2` (**2026-08-04T22:42:57Z**) — four hours later, so the
+>    run cannot be that session's output. The sibling run `20260803_145243`
+>    predates tolstack's root commit.
+> 2. `scripts/snapshot_drawing_checker.py` takes and diffs the before/after
+>    listing, wired into SOP Steps 0 and 8 with what a non-empty diff obliges the
+>    author to explain.
+>
+> The evidence for this session itself is in
+> `docs/sessions/lessons/LESSONS_20260807_readonly_invariant_evidence.md`: an
+> empty diff over 1,628 entries, which is the first time the claim has been made
+> with anything behind it.
 
 # The "drawing-checker is read-only" invariant cannot be verified the way the checklist says
 

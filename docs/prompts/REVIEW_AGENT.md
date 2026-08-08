@@ -349,7 +349,9 @@ must be confirmed before the property is looked up.
 - **`data/inbox/specs/` was not reorganised.** It is append-only: no renames, no
   de-duplication, no tidying. Check the diff and the filesystem.
 - **Nothing was written into drawing-checker.** The dependency is read-only and
-  one-way.
+  one-way — and it is checked with the session's snapshot diff and the cited
+  runs' timestamps, **not** with `git status` over there. See the architectural
+  entry below for what that check has to consist of.
 - **`confidence` against `kind`, on every element, not just the `traced` ones.**
   Since 2026-08-06 a test forbids `traced` + `kind: "parts_list"`, so that corner
   is mechanised and you can skip it. The corner that is *not* mechanised is one
@@ -748,15 +750,44 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       PROVENANCE's Amended column in the same commit — otherwise the provenance
       record is now false, which in this repo is the worst class of defect.
 - [ ] **drawing-checker is read-only and one-way.** Nothing here writes there.
-      **`git status` there does not prove it** — `data/runs/*` and
+      **Do not check this with `git status` over there** — `data/runs/*` and
       `data/inbox/*` are gitignored, so a session that ran the pipeline, added a
-      run, or dropped in a PDF leaves that repo's status completely clean and the
-      check passes vacuously (`docs/issues/ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth.md`).
-      Until that issue is closed: if the work **cites** a run, check the run
-      directory's mtime and its `run_meta.json` `ts` against the session's own
-      commit dates, and check `purpose` / `pipeline_commit` — a `"purpose": "test"`
-      run with a `+dirty` commit during a drawing-checker session is theirs, not
-      the stack author's.
+      run, or dropped in a PDF leaves that repo's status completely clean. The
+      check does not fail; it passes **vacuously**, which is worse, and it did so
+      for the two lessons that cite it
+      (`ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth`, closed
+      2026-08-07 by `readonly_invariant_evidence`). What to check instead, in
+      order:
+      1. **The session's snapshot diff.** SOP Step 0 and Step 8 require a
+         before/after listing of drawing-checker's `data/runs/` and
+         `data/inbox/drawings/`
+         (`scripts/snapshot_drawing_checker.py`), and the lesson must report it.
+         An **absent** diff is a finding — it is the one piece of evidence the
+         author could produce and cannot reconstruct afterwards. A **non-empty**
+         diff is not automatically a violation (Jeff runs the pipeline too), but
+         it must be explained entry by entry, and an unexplained entry that
+         postdates the session's first commit is blocking. Re-run the diff
+         yourself from the author's `before.json`: it costs a second, and it
+         also covers the window *since* they took theirs.
+      2. **Every cited run's `ts`, against the session's own commit dates.**
+         Since 2026-08-07 each `export.runs` entry is `{run_id, ts}` with the
+         `ts` copied from that run's `run_meta.json`, so this is arithmetic on
+         the stack file rather than a walk through another repo. A run that
+         predates the session's first commit cannot be its output — that is the
+         whole test.
+         `test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit`
+         is the worked example. Check the `ts` values are *real* — copied from
+         the run, not from the run id, which is local time at run start and can
+         differ (`20260730_133912` → `2026-07-30T20:39:33Z`).
+      3. `purpose` / `pipeline_commit` on any run that still needs attributing —
+         a `"purpose": "test"` run with a `+dirty` commit during a
+         drawing-checker session is theirs, not the stack author's. This is
+         corroboration now, not the argument: it was the *only* evidence
+         available to the `pitch_link_stack` review, which is why that review
+         could get no further than "almost certainly".
+      **And take your own snapshot at the start of the review.** You are a
+      session too, and reading drawing-checker for check 1 is exactly the
+      activity that could write there by accident.
 - [ ] **`data/inbox/specs/` is append-only.** No renames, no de-duplication, no
       tidying — check the diff *and* the filesystem.
 - [ ] **`docs/reference/` is verbatim imports.** No edits beyond the import

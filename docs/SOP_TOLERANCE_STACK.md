@@ -165,6 +165,30 @@ The suite grows with every stack, so this file does **not** pin the count — a
 number written here goes stale the next time someone follows this SOP, and stale
 inventory numbers are a recurring bug in this repo. Green is the requirement.
 
+**Then snapshot drawing-checker, before you read a single drawing.**
+
+```powershell
+venv-win\Scripts\python.exe scripts\snapshot_drawing_checker.py take `
+    C:\workspace\tolstack\data\sessions\<slug>\before.json
+```
+
+The dependency on `C:\workspace\drawing-checker` is **read-only and one-way**,
+and you will be asked at the end to say that nothing was written there. The check
+this repo used to prescribe — `git status` in that repo — cannot answer it:
+everything the pipeline produces is gitignored over there (`data/runs/*`), so a
+session that ran the pipeline, created a run directory or dropped a PDF into
+`data/inbox/drawings/` leaves that status **completely clean**. Two lessons in
+this repo assert the invariant held and neither assertion was falsifiable by the
+method it cites
+(`docs/issues/ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth.md`).
+
+The snapshot is a directory listing plus mtimes of the two directories a write
+would land in. It takes a second, it writes nothing over there, and it is the
+only thing that makes your closing statement evidence rather than a belief. Take
+it **first**: a snapshot taken after you started is a snapshot of your own
+writes. Snapshots go in this repo's gitignored `data/` (main checkout — `<slug>`
+is your handoff's), never inside the tree being watched.
+
 Read, in this order:
 
 1. This file.
@@ -299,7 +323,8 @@ source's, not yours.
   "export": { "status": "established",
               "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
               "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
-              "runs": ["20260730_133912"],
+              "runs": [{"run_id": "20260730_133912",
+                        "ts": "2026-07-30T20:39:33.291499+00:00"}],
               "note": "how you established it" },
   "element_id": null, "run_id": null,
   "confidence": "traced", "note": null }
@@ -322,10 +347,25 @@ source's, not yours.
   sheet 4 is at printed **I6** on the 2026-JUL-23 POST export and printed **H3**
   on the 2026-AUG-3 one — same view, same revision, both citations correct for
   their own file. 217755 has six exports on disk and Jeff re-exports over the same
-  filename, so only the bytes pin it. `runs` lists the drawing-checker run ids
+  filename, so only the bytes pin it. `runs` lists the drawing-checker runs
   whose recorded input sha256 equals yours: corroboration and a pointer to
   extracted JSON, never the identity — one export feeds several runs, and a part
   drawing read straight off the PDF feeds none (`runs: []`, empty by fact).
+
+  **Each run is `{"run_id": ..., "ts": ...}`, and the `ts` is copied verbatim
+  from that run's own `run_meta.json`** (since 2026-08-07,
+  `readonly_invariant_evidence`). A bare run id is refused — by `ExportRun` at
+  load time and again by `scripts/build_viewer_crops.py` — because a run id is a
+  *name* and the question a cited run raises is *did this session produce it?*
+  With the `ts` in the file, a reviewer answers that by comparing it to your
+  first commit, which is a test; without it, the answer is an inference about
+  another repo's commit log, which is as far as the evidence went for the first
+  month of this repo's life. Two gotchas, both real: the `ts` is **not** the run
+  id re-spelled (the id is local time at run *start*, the `ts` is UTC and can be
+  seconds later), and a `backfilled: true` run's `ts` was *derived* from its id
+  by drawing-checker's `reconcile_run_log.py`, so it reads as UTC when it was
+  local — still contemporaneous, but say so rather than presenting it as a
+  stamped instant.
   `spec` is exempt: `data/inbox/specs/` is append-only, so the filename already
   identifies the bytes — record the sha anyway if you have it.
 
@@ -783,6 +823,33 @@ checkout too if you like, but never only that one.
 - Stack JSON and worksheet committed in `docs/tolerance_stacks/`.
 - Hardware entries updated, gaps listed.
 - Tests green.
+- **The drawing-checker snapshot, taken again and diffed.** Step 0's other half:
+
+  ```powershell
+  venv-win\Scripts\python.exe scripts\snapshot_drawing_checker.py take `
+      C:\workspace\tolstack\data\sessions\<slug>\after.json
+  venv-win\Scripts\python.exe scripts\snapshot_drawing_checker.py diff `
+      C:\workspace\tolstack\data\sessions\<slug>\before.json `
+      C:\workspace\tolstack\data\sessions\<slug>\after.json
+  ```
+
+  Put the result in your lesson either way — an empty diff is the finding as much
+  as a non-empty one, because it is the sentence nobody in this repo has been able
+  to write with evidence behind it. Say which two directories were watched and how
+  many entries they held; "the diff was empty" over a directory that does not
+  exist is the vacuous check again in a new costume (the script prints a `WARNING`
+  when a root is absent — do not paste past it).
+
+  **A non-empty diff is not automatically a violation.** Jeff runs the pipeline
+  while sessions are working, and his runs land in the same directory. What it
+  means is that you now owe the reader an explanation, per entry: name it, say
+  whose it is, and say how you know — the run's `run_meta.json` `purpose` and
+  `pipeline_commit` (a `"purpose": "test"` run with a `+dirty` commit during a
+  drawing-checker session is theirs), and its `ts` against your own commit times.
+  A run that postdates your first commit and that you cannot attribute is the
+  finding this step exists to surface: report it in the lesson and file an issue.
+  Do **not** re-run the snapshot until it comes back clean, and do not delete
+  anything to make it so — the diff is a measurement, not a target.
 - A lesson in `docs/sessions/lessons/`, and the handoff moved to `completed/`.
 - **Report the friction you hit in this SOP.** It is new as of 2026-08-03 and
   still under-tested; the first sessions to use it are how it gets fixed. Name
@@ -800,7 +867,9 @@ checkout too if you like, but never only that one.
 2. `nominal` is transcribed, not computed, and may sit outside its own min/max.
 3. Every value cites a `source_ref`; recall is not a source; `untraced` only as a
    listed gap.
-4. `element_id` / `run_id` stay null — the export goes in `export.runs`, not there.
+4. `element_id` / `run_id` stay null — the export goes in `export.runs`, not
+   there, and each run is `{run_id, ts}` with the `ts` from its own
+   `run_meta.json`.
 5. `library_ref` stays null; every hardware entry needs a non-empty `gaps` list.
 6. RSS always computed, never read by a verdict, never called a probability.
 7. Emit nominal *and* worst case *and* RSS — each one alone has hidden a real
@@ -831,3 +900,6 @@ checkout too if you like, but never only that one.
     never a plausible one. RSS reads it as certainty.
 20. In a budget check, the **larger** deficit magnitude is the requirement; the
     smaller one is where the check fails at its most favourable.
+21. `git status` in drawing-checker proves **nothing** about "we wrote nothing
+    there" — `data/runs/*` and `data/inbox/*` are gitignored, so the check passes
+    vacuously. Snapshot at Step 0, diff at Step 8, and report the diff.
