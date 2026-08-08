@@ -441,6 +441,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the worktree, where that path does not exist, stayed green. A green
       worktree suite is not evidence the merged tree is green. Re-run in
       `C:\workspace\tolstack` after you merge, before you push.
+      **Second sighting (`gitignore_data_precedence`, 2026-08-07), benign but
+      it pins the rule with a number:** the same tree reports **290 passed,
+      1 skipped** in a worktree and **291 passed, 0 skipped** in the main
+      checkout. Same 291 tests; one is data-dependent and *skips* where `data/`
+      is empty. Both green, so nothing broke — but it means **a pasted suite
+      line is checkout-specific**, and a lesson quoting one without saying which
+      checkout produced it is quoting a number the shipping tree does not
+      report. When you re-derive a suite count, say where you ran it.
 - [ ] **`data/inbox/*` silently drops per-stream tracked docs.** Git does not
       descend into an excluded directory, so `!data/inbox/<s>/README.md` alone does
       nothing — re-include the directory, exclude its contents, *then* negate the
