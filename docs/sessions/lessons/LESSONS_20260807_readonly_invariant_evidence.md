@@ -25,17 +25,22 @@ Jeff produced. Both are a directory of JSON with a plausible name.
 ## The invariant, verified rather than asserted — this session's evidence
 
 Two snapshots of drawing-checker's `data/runs/` and `data/inbox/drawings/`,
-31 minutes apart, spanning every read this session made:
+43 minutes apart, spanning every read this session made — `before` taken ahead of
+the first drawing-checker read, `after` taken after the last commit:
 
 ```
 C:\workspace\tolstack\data\sessions\readonly_invariant_evidence\before.json
     1628 entries at 2026-08-08T00:24:26Z   (1596 in data/runs, 32 in data/inbox/drawings)
 ...\after.json
-    1628 entries at 2026-08-08T00:55:53Z
+    1628 entries at 2026-08-08T01:07:17Z
 
-drawing-checker snapshot diff: 2026-08-08T00:24:26Z -> 2026-08-08T00:55:53Z
+drawing-checker snapshot diff: 2026-08-08T00:24:26Z -> 2026-08-08T01:07:17Z
   EMPTY -- no entry added, removed or modified.       (exit 0)
 ```
+
+(An intermediate `after` at 00:55:53Z diffed empty too. The one quoted is the
+**last** one, deliberately: a snapshot that stops before the session does is the
+same partial evidence the `git status` check gave.)
 
 And `git -C C:\workspace\drawing-checker status --porcelain` identical at both
 ends — the same three untracked entries (`data/inbox/specs/`,
