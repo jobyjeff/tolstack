@@ -12,12 +12,13 @@ Handoff: tolerance_stack_slice1 (2026-07-29).
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
 from tolerance_stack import (
-    SourceExport, SourceRef, StackElement, Term, fold, load_stack,
+    ExportRun, SourceExport, SourceRef, StackElement, Term, fold, load_stack,
 )
 
 STACKS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tolerance_stacks"
@@ -623,7 +624,11 @@ def test_an_unestablished_export_cannot_carry_a_pdf_or_a_sha():
     with pytest.raises(ValueError, match="must not name a sha256"):
         SourceExport(status="unestablished", sha256="a" * 64, why="unknown")
     with pytest.raises(ValueError, match="must not name runs"):
-        SourceExport(status="unestablished", runs=["20260804_114000"], why="unknown")
+        SourceExport(
+            status="unestablished",
+            runs=[ExportRun(run_id="20260804_114000", ts="2026-08-04T18:40:27Z")],
+            why="unknown",
+        )
     with pytest.raises(ValueError, match="must say why"):
         SourceExport(status="unestablished")
     # ...and the honest form is constructible.
@@ -679,6 +684,87 @@ def test_the_export_is_a_sibling_of_the_feature_identity_slot_not_a_filling_in()
         for element in load_stack(STACKS_DIR / filename).elements:
             ref = element.source_ref
             assert ref.element_id is None and ref.run_id is None
+
+
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
+def test_every_cited_run_carries_the_ts_from_its_own_run_meta(filename):
+    """A run id is a name; a run id plus its ``ts`` is an identity.
+
+    The question a cited drawing-checker run raises is *did this session produce
+    it?* -- and the check the review checklist prescribed for that, ``git status``
+    in drawing-checker, cannot answer it: ``data/runs/*`` is gitignored there, so
+    a session that ran the pipeline leaves that status completely clean
+    (``ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth``). With the
+    ``ts`` in the citation, the check is arithmetic against the session's own
+    commit dates instead of an inference about someone else's commit log.
+    """
+    stack = load_stack(STACKS_DIR / filename)
+    for element in stack.elements:
+        export = element.source_ref.export
+        for run in (export.runs if export else ()):
+            assert run.run_id, f"{stack.id}:{element.id} names a run with no id"
+            assert run.ts, (
+                f"{stack.id}:{element.id} cites run {run.run_id} with no ts -- "
+                f"copy it from that run's run_meta.json"
+            )
+            # Parseable, and tz-aware: a naive stamp cannot be compared with a
+            # commit time, which is the only use this field has.
+            parsed = datetime.fromisoformat(run.ts)
+            assert parsed.tzinfo is not None, f"{run.ts} has no timezone"
+
+
+def test_a_bare_run_id_is_refused_because_a_name_is_not_an_identity():
+    """The old shape, from both sides. Accepting it would let the next stack
+    write a run id with no ``ts`` and leave the invariant uncheckable again --
+    which is how the previous vacuous check survived two sessions asserting it
+    held."""
+    with pytest.raises(ValueError, match="bare run id"):
+        ExportRun.from_dict("20260804_114000")
+    with pytest.raises(ValueError, match="needs a run id"):
+        ExportRun(run_id="")
+    assert SourceExport.from_dict({
+        "status": "established", "pdf": "d.pdf", "sha256": "a" * 64,
+        "runs": [{"run_id": "20260804_114000", "ts": "2026-08-04T18:40:27.959980+00:00"}],
+    }).run_ids == ["20260804_114000"]
+
+
+def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
+    """**The invariant, verified rather than asserted** -- the first time.
+
+    ``pitch_link_stack``'s review found ``data/runs/20260804_114000_217755_A.1_...``
+    dated the same day that handoff was worked, cited by this stack, and could get
+    no further than "almost certainly not the session's": ``run_meta.json`` says
+    ``purpose: test`` with a ``+dirty`` ``pipeline_commit`` and drawing-checker had
+    three of its own handoffs merging that afternoon. All true, all inference about
+    another repo's commit log.
+
+    The run's ``ts`` settles it directly. Both runs this stack cites predate
+    ``d6829f2`` -- ``pitch_link_stack``'s first commit, 2026-08-04T22:42:57Z, and
+    the earliest commit that session could have made -- so neither can be its
+    output. ``20260803_145243`` predates tolstack's root commit ``e7bd996``
+    (2026-08-03T23:05:08Z) as well: it existed before this repo did.
+
+    The constants are git history, which does not move. If this test ever fails,
+    either a citation gained a run that postdates the session (the finding this
+    exists to surface) or history was rewritten.
+    """
+    # git -C C:\workspace\tolstack log --format='%h %ad' --date=iso-strict
+    PITCH_LINK_FIRST_COMMIT = datetime(2026, 8, 4, 22, 42, 57, tzinfo=timezone.utc)  # d6829f2
+    TOLSTACK_ROOT_COMMIT = datetime(2026, 8, 3, 23, 5, 8, tzinfo=timezone.utc)       # e7bd996
+
+    stack = load_stack(STACKS_DIR / "stack_pitch_link_to_pitch_plate.json")
+    cited = {
+        run.run_id: datetime.fromisoformat(run.ts)
+        for element in stack.elements
+        for run in (element.source_ref.export.runs if element.source_ref.export else ())
+    }
+    assert "20260804_114000" in cited, "the run the review could not attribute"
+    for run_id, ts in cited.items():
+        assert ts < PITCH_LINK_FIRST_COMMIT, (
+            f"run {run_id} ({ts.isoformat()}) postdates the session's first commit -- "
+            f"it may be this repo's own write into a read-only dependency"
+        )
+    assert cited["20260803_145243"] < TOLSTACK_ROOT_COMMIT
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)

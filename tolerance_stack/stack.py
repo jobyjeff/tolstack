@@ -70,6 +70,68 @@ EXPORT_STATUSES = ("established", "unestablished")
 
 
 @dataclass(frozen=True)
+class ExportRun:
+    """A drawing-checker run that consumed this export -- id **and** its ``ts``.
+
+    A run id alone is a name. What a reviewer needs is the run's *identity in
+    time*, because the question a cited run raises is: **did this session
+    produce it?** tolstack's dependency on drawing-checker is read-only and
+    one-way, and until 2026-08-06 the only prescribed check was that repo's
+    ``git status`` -- which is vacuous, since everything the pipeline writes is
+    gitignored there (``data/runs/*``). A session that ran the pipeline left that
+    status completely clean
+    (``docs/issues/ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth.md``).
+
+    With ``ts`` recorded here, the check becomes arithmetic a reader can do
+    without leaving the file: **a run whose ``ts`` predates the citing session's
+    first commit cannot be that session's output.** That is a test. "Its
+    ``purpose`` says test and drawing-checker had handoffs merging that
+    afternoon" is an inference about someone else's commit log, which is as far
+    as the evidence went before.
+
+    ``ts`` is copied verbatim from the run's own ``run_meta.json``. Two notes
+    that cost time if you rediscover them:
+
+    * it is **not** the run id re-spelled. ``20260804_114000`` is local time and
+      stamped when the run *started*; ``ts`` is UTC and, on runs that record a
+      duration, later (``20260730_133912`` -> ``2026-07-30T20:39:33Z``, 21 s).
+    * a backfilled row (``run_meta.json`` with ``backfilled: true``) has a ``ts``
+      *derived from the run id* by ``scripts/reconcile_run_log.py``, so it reads
+      as UTC when it was local. Still contemporaneous to within a timezone, and
+      the runs it applies to here predate this repo by weeks -- but say so rather
+      than presenting it as a stamped instant.
+
+    ``ts`` may be ``None`` only when the run's own metadata carries none. Write
+    the reason in the export's ``note`` if you ever hit that; every run in the
+    workspace's recorded history has one.
+    """
+
+    run_id: str
+    ts: Optional[str] = None        # verbatim from that run's run_meta.json
+
+    def __post_init__(self) -> None:
+        if not self.run_id or not isinstance(self.run_id, str):
+            raise ValueError(f"an export run needs a run id, got {self.run_id!r}")
+
+    @classmethod
+    def from_dict(cls, d: Any) -> "ExportRun":
+        if isinstance(d, str):
+            # The pre-2026-08-07 shape: a bare run id. Refused rather than
+            # silently accepted -- a run id with no ts is exactly the "names the
+            # run but not its identity" state this class exists to end, and
+            # accepting both shapes would let the next stack write the old one.
+            raise ValueError(
+                f"export run {d!r} is a bare run id -- write "
+                f'{{"run_id": "{d}", "ts": "<run_meta.json ts>"}} instead, so a '
+                f"reviewer can check the run predates the session's first commit"
+            )
+        if not isinstance(d, dict):
+            raise ValueError(f"an export run must be an object, got {d!r}")
+        known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**known)
+
+
+@dataclass(frozen=True)
 class SourceExport:
     """*Which export* of the cited document was read -- the file, by its bytes.
 
@@ -92,8 +154,11 @@ class SourceExport:
     Two statuses, and the difference is the whole point:
 
     * ``established`` -- ``pdf`` and ``sha256`` are both required. ``runs`` lists
-      the drawing-checker run ids whose recorded input sha256 equals this one:
-      corroboration and a pointer to extracted JSON, never the identity.
+      the drawing-checker runs whose recorded input sha256 equals this one:
+      corroboration and a pointer to extracted JSON, never the identity. Each is
+      an :class:`ExportRun` -- id **and** ``ts``, since 2026-08-07 -- so a
+      reviewer can check the run predates the citing session and settle the
+      read-only invariant from the stack file alone.
     * ``unestablished`` -- ``why`` is required and ``pdf``/``sha256``/``runs``
       must stay empty. **An unresolvable citation is honest; a wrong one is
       not**, so there is a first-class way to say "the export cannot be
@@ -114,7 +179,7 @@ class SourceExport:
     pdf: Optional[str] = None        # path as cited: repo-relative for this repo's
                                      # data/, absolute for drawing-checker's
     sha256: Optional[str] = None     # 64 hex chars -- the export's identity
-    runs: Sequence[str] = ()         # drawing-checker run ids with this input sha
+    runs: Sequence[ExportRun] = ()   # runs with this input sha: id + run_meta ts
     why: Optional[str] = None        # required when unestablished
     note: Optional[str] = None       # how the export was established
 
@@ -147,10 +212,18 @@ class SourceExport:
     def established(self) -> bool:
         return self.status == "established"
 
+    @property
+    def run_ids(self) -> List[str]:
+        """The ids alone, for a consumer that only wants to find the run dir."""
+        return [r.run_id for r in self.runs]
+
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SourceExport":
         known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
-        known["runs"] = tuple(known.get("runs") or ())
+        known["runs"] = tuple(
+            r if isinstance(r, ExportRun) else ExportRun.from_dict(r)
+            for r in (known.get("runs") or ())
+        )
         return cls(**known)
 
 

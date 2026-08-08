@@ -219,6 +219,27 @@ def export_pdf_path(cited: str, roots: Sequence[Path], dc_root: Path) -> Path:
     raise Unresolvable(f"export names {cited!r}, which is not on disk")
 
 
+def export_run_ids(export: Dict[str, Any]) -> List[str]:
+    """The run ids out of ``export.runs``, whose entries are ``{run_id, ts}``.
+
+    Mirrors ``ExportRun.from_dict`` for the same reason the rest of this module
+    mirrors ``SourceExport``: it reads raw JSON and never the dataclass. A bare
+    run id is the pre-2026-08-07 shape and is refused here too -- a run named
+    without its ``ts`` is a name, not an identity, and the crop would resolve
+    while the read-only invariant it was supposed to let a reviewer check stayed
+    uncheckable.
+    """
+    ids = []
+    for entry in export.get("runs") or []:
+        if not isinstance(entry, dict) or not entry.get("run_id"):
+            raise Unresolvable(
+                f"export run {entry!r} is not a {{run_id, ts}} object -- a run id "
+                f"alone does not say when the run happened"
+            )
+        ids.append(str(entry["run_id"]))
+    return ids
+
+
 def pdf_from_export(
     export: Dict[str, Any], roots: Sequence[Path], dc_root: Path
 ) -> Dict[str, Any]:
@@ -259,7 +280,7 @@ def pdf_from_export(
             f"{want_sha[:12]}... -- the file on disk is not the export this "
             f"citation was read from"
         )
-    runs = [str(r) for r in (export.get("runs") or [])]
+    runs = export_run_ids(export)
     run_dir = None
     if runs:
         matches = [d for d in run_dirs(dc_root) if d.name.startswith(runs[0])]

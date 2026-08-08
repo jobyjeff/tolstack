@@ -27,6 +27,7 @@ from tolerance_stack.spec_library import (  # noqa: F401
 )
 from tolerance_stack.stack import (  # noqa: F401
     CheckResult,
+    ExportRun,
     Interval,
     SourceExport,
     SourceRef,
@@ -40,6 +41,7 @@ from tolerance_stack.stack import (  # noqa: F401
 __all__ = [
     "Absence",
     "CheckResult",
+    "ExportRun",
     "IntakeQueue",
     "IntakeRow",
     "Interval",

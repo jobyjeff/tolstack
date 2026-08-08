@@ -260,11 +260,30 @@ def test_the_first_named_run_is_reported_but_is_not_what_resolved_the_crop(tmp_p
     an absent run directory cannot make an export unresolvable.
     """
     pdf = write_pdf(tmp_path / "d.pdf")
-    export = established(pdf, runs=["20260723_163810", "20260727_153847"])
+    export = established(pdf, runs=[
+        {"run_id": "20260723_163810", "ts": "2026-07-23T16:38:10+00:00"},
+        {"run_id": "20260727_153847", "ts": "2026-07-27T15:38:47+00:00"},
+    ])
     got = bvc.resolve_pdf({}, {"kind": "drawing", "document": "x", "export": export},
                           tmp_path, tmp_path, [tmp_path])
     assert got["run_id"] == "20260723_163810" and got["run_dir"] is None
     assert got["sha256_verified"] is True
+
+
+def test_a_run_named_without_its_ts_is_unresolvable_rather_than_cropped(tmp_path):
+    """The pre-2026-08-07 shape, refused here as well as in ``ExportRun``.
+
+    This script re-checks rather than trusting the dataclass (it reads raw JSON),
+    and the reason to refuse rather than shrug is that a bare run id is exactly
+    the state the read-only invariant could not be checked from: the citation
+    names a run and says nothing about *when* it happened, so a reviewer cannot
+    tell a run Jeff produced from one the citing session produced.
+    """
+    pdf = write_pdf(tmp_path / "d.pdf")
+    export = established(pdf, runs=["20260723_163810"])
+    with pytest.raises(bvc.Unresolvable, match="does not say when the run happened"):
+        bvc.resolve_pdf({}, {"kind": "drawing", "document": "x", "export": export},
+                        tmp_path, tmp_path, [tmp_path])
 
 
 # --- there is no prose fallback any more -----------------------------------

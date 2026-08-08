@@ -101,10 +101,10 @@
           "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
           "sha256": "d0f1b50fa069f42e52f73a9d5f2d1bcbccac0651fee453c9c605e01bd7864a3f",
           "runs": [
-            "20260723_163810",
-            "20260727_153847",
-            "20260730_131903",
-            "20260730_132230"
+            {"run_id": "20260723_163810", "ts": "2026-07-23T16:38:10+00:00"},
+            {"run_id": "20260727_153847", "ts": "2026-07-27T15:38:47+00:00"},
+            {"run_id": "20260730_131903", "ts": "2026-07-30T20:21:09.210383+00:00"},
+            {"run_id": "20260730_132230", "ts": "2026-07-30T20:28:36.282195+00:00"}
           ],
           "note": "Established 2026-08-06 by handoff citation_export_provenance, confirmed not assumed. hardware_entries.json's provenance.parts_list_run names run 20260723_163810; that run's own 217755_A_balloons.json records source_pdf '[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf' (a contemporaneous record, written by the run), and data/runs.jsonl records the same file and this sha256 as its input. Independently corroborated by this stack's joint.zone_note, which says the cited zone is the one printed on the 2026-JUL-23 POST export. The file still hashes to this sha (mtime 2026-07-23T23:38:10Z, unchanged since the run)."
         },
@@ -156,9 +156,9 @@
           "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
           "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
           "runs": [
-            "20260409_170546",
-            "20260409_172341",
-            "20260730_133912"
+            {"run_id": "20260409_170546", "ts": "2026-04-09T17:05:46+00:00"},
+            {"run_id": "20260409_172341", "ts": "2026-04-09T17:23:41+00:00"},
+            {"run_id": "20260730_133912", "ts": "2026-07-30T20:39:33.291499+00:00"}
           ],
           "note": "Established 2026-08-06 by handoff citation_export_provenance. This is the ONLY export of 215197 anywhere in the workspace: all three drawing-checker runs of it record this same sha256 in data/runs.jsonl, 20260730_133912's 215197_A_p01.json records source_pdf '[PRELIM 2025-MAY-22] 215197 A.1.pdf', and no other 215197 PDF exists in drawing-checker's inbox or fixtures. Unlike 217755 (six exports on disk), 'which export' has a unique answer here."
         },
@@ -242,10 +242,10 @@
           "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
           "sha256": "d0f1b50fa069f42e52f73a9d5f2d1bcbccac0651fee453c9c605e01bd7864a3f",
           "runs": [
-            "20260723_163810",
-            "20260727_153847",
-            "20260730_131903",
-            "20260730_132230"
+            {"run_id": "20260723_163810", "ts": "2026-07-23T16:38:10+00:00"},
+            {"run_id": "20260727_153847", "ts": "2026-07-27T15:38:47+00:00"},
+            {"run_id": "20260730_131903", "ts": "2026-07-30T20:21:09.210383+00:00"},
+            {"run_id": "20260730_132230", "ts": "2026-07-30T20:28:36.282195+00:00"}
           ],
           "note": "Established 2026-08-06 by handoff citation_export_provenance, confirmed not assumed. hardware_entries.json's provenance.parts_list_run names run 20260723_163810; that run's own 217755_A_balloons.json records source_pdf '[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf' (a contemporaneous record, written by the run), and data/runs.jsonl records the same file and this sha256 as its input. Independently corroborated by this stack's joint.zone_note, which says the cited zone is the one printed on the 2026-JUL-23 POST export. The file still hashes to this sha (mtime 2026-07-23T23:38:10Z, unchanged since the run)."
         },
