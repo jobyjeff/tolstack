@@ -66,6 +66,12 @@ data/inbox/drawings/PROVENANCE.md            data/projections/.gitkeep
 data/inbox/specs/README.md                   data/runs/.gitkeep
 ```
 
+And in the **main checkout**, where the data actually lives: all 64 files of the
+real `data/inbox/specs/` pile check out ignored (verified with quoting intact —
+these filenames contain spaces), `data/inbox/specs/README.md` does not, and
+`git status --porcelain --untracked-files=all data/` offers **nothing**. The
+pile stays invisible; the provenance docs stay tracked.
+
 Empirical confirmation, not just pattern-matching: I created
 `data/inbox/newstream/README.md`, `data/inbox/specs/NEWDOC.md`,
 `data/inbox/specs/fake_spec.pdf` and `data/newtoplevel/README.md` on disk in the
@@ -116,9 +122,18 @@ no write into forge, which the cross-repo rule requires.
 - merged review worktree: **290 passed, 1 skipped** (1.27s) — matches the
   lesson's claim exactly, re-derived rather than copied.
 - main checkout after merge and after discarding the dirty `.gitignore`:
-  **290 passed, 1 skipped**. (The checklist's "run it in BOTH checkouts" item
-  matters here for the usual reason — `data/` is populated in one and empty in
-  the other.)
+  **291 passed, 0 skipped** (0.95s).
+
+**The two totals differ, and that is the checklist's "run it in BOTH checkouts"
+item paying out.** 290+1s vs 291+0s is the same 291 tests; the skip is
+data-dependent — a test that needs a real `data/` file skips in a worktree,
+where `data/` is gitignored and therefore empty, and runs for real in the main
+checkout. Both trees green, and the main checkout is the stricter of the two.
+Worth carrying: a lesson quoting "290 passed, 1 skipped" is quoting a
+*worktree* transcript, and the merged tree the repo actually ships says
+something different. That is not an error in this lesson — it names its
+interpreter and its tree — but the next author who pastes a suite line should
+say which checkout produced it.
 
 ### 6. Checklist items that could have fired, and did not
 
@@ -196,11 +211,23 @@ survived two days — the same argument this handoff exists to prove.
 ## For the next reviewer
 
 The integration note in the handoff and the merge block in the lesson were both
-correct and both necessary. I executed them: merged to `master`, ran
-`git -C C:\workspace\tolstack checkout -- .gitignore`, re-ran the 18-row matrix
-and the suite **in the main checkout**, and confirmed
-`git status --porcelain` there no longer lists `.gitignore`. Every DoD row is
-met.
+correct and both necessary. I executed them: merged to `master`, cleared the
+main checkout's dirty `.gitignore`, re-ran the 18-row matrix (0 mismatches) and
+the suite **in the main checkout**, and confirmed `git status --porcelain`
+there no longer lists `.gitignore` — only the out-of-scope `?? .dispatch.toml`
+that issue 20260807 is about. Every DoD row is met.
+
+One deviation from the lesson's script, recorded so nobody is surprised: rather
+than `checkout -- .gitignore` I used `git stash push -- .gitignore`, merged, and
+then **dropped** the stash. Same end state, but the discard happened after the
+merge succeeded rather than before, so there was no window in which the edit was
+gone and the merge had not landed. Dropping it is safe for the reason the lesson
+gives — the `.dispatch/` line is the only part worth keeping and the branch
+carries it — and the full superseded hunk is quoted verbatim in both
+`ISSUE_20260804_gitignore_data_blanket_shadows_inbox_streams.md` and the
+handoff, so nothing is unrecoverable. I dropped it rather than leaving it
+because a stash entry containing the exact bug is a loaded gun for the next
+session that runs `git stash pop`.
 
 **Verdict: APPROVE.** Zero blockers. One should-fix fixed inline. The work does
 what it says, and — unusually for this repo — every number it asserts reproduced.
