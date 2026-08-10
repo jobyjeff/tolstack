@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260810_fastener_citations_and_confidence.md
 area: tolerance-stacks
 reporter: agent
 ---

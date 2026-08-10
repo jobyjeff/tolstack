@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260810_sop_library_ref_pairing.md
 area: docs/SOP_TOLERANCE_STACK.md / vocabulary drift
 reporter: agent
 ---

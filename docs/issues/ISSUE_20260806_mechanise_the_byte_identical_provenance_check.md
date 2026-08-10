@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: high
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260810_provenance_byte_identical_test.md
 area: provenance / tests
 reporter: agent
 ---

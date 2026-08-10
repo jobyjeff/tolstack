@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
+handoff: forge/docs/sessions/HANDOFF_20260810_gitignore_data_deny_all.md
 area: repo-conventions
 reporter: agent
 ---

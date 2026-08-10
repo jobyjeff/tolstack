@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260810_viewer_source_ref_export_label.md
 area: apps/viewer / crop provenance display
 reporter: agent
 ---

@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260810_viewer_projection_provenance.md
 area: viewer / projections
 reporter: agent
 ---
