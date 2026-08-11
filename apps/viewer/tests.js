@@ -192,6 +192,61 @@
       has(VA.builtLine(FIXTURE.results, CROPS), "1 resolved, 1 unresolvable");
     });
 
+    // --- provenance: which tree built what you are looking at ---------------
+    //
+    // On 2026-08-07 the shared projection showed three confidence labels that no
+    // longer existed on master, and this banner reported `built_at` — a
+    // timestamp answers "when", and the question was "which tree".
+
+    await test("provenanceLine names the branch, the sha and the stacks-dir", function () {
+      var line = VA.provenanceLine("results", FIXTURE.results);
+      has(line, "master @ 012345678");
+      has(line, "C:/workspace/tolstack/docs/tolerance_stacks");
+    });
+
+    await test("provenanceLine says so when a projection carries no stamp", function () {
+      has(VA.provenanceLine("results", { built_at: "2026-08-06T00:00:00+00:00" }),
+          "predates provenance stamping");
+      // Nothing to say about a projection that was never built — the builtLine
+      // already says NOT BUILT, and two lines saying it is one too many.
+      eq(VA.provenanceLine("results", null), null);
+    });
+
+    await test("a matching pair of stamps raises no alarm", function () {
+      eq(VA.provenanceAlarms(FIXTURE.results, CROPS), []);
+    });
+
+    // The failure mode that is provable from the data alone: the two files are
+    // written by DIFFERENT scripts, each preserving the other's file, so the
+    // pair genuinely can describe two different trees.
+    await test("results and crops from different trees is an alarm, not a footnote", function () {
+      var crops = JSON.parse(JSON.stringify(CROPS));
+      crops.provenance.head_sha = "fedcba9876543210fedcba9876543210fedcba98";
+      crops.provenance.branch = "handoff/somebody_else";
+      var alarms = VA.provenanceAlarms(FIXTURE.results, crops);
+      eq(alarms.length, 1);
+      has(alarms[0], "DIFFERENT trees");
+      has(alarms[0], "handoff/somebody_else @ fedcba987654");
+    });
+
+    await test("a projection built behind trunk says which labels it may predate", function () {
+      var results = JSON.parse(JSON.stringify(FIXTURE.results));
+      results.provenance.behind_trunk = 4;
+      has(VA.provenanceAlarms(results, CROPS)[0], "4 commit(s) behind master");
+      has(VA.provenanceLine("results", results), "4 commit(s) behind master");
+    });
+
+    await test("a dirty build tree is an alarm — the sha does not identify the code", function () {
+      var results = JSON.parse(JSON.stringify(FIXTURE.results));
+      results.provenance.dirty = true;
+      has(VA.provenanceAlarms(results, CROPS)[0], "uncommitted changes");
+    });
+
+    await test("an unstamped projection is called out rather than assumed fine", function () {
+      var results = { built_at: "2026-08-06T00:00:00+00:00", stacks: [] };
+      has(VA.provenanceAlarms(results, CROPS)[0], "no provenance stamp");
+    });
+
     await test("findStack returns null for an unknown id", function () {
       ok(VA.findStack(FIXTURE.results, "demo_joint"));
       eq(VA.findStack(FIXTURE.results, "nope"), null);
@@ -560,6 +615,35 @@
       });
       has(root.textContent, "build_viewer_crops.py");
       ok(root.textContent.indexOf("No results projection") === -1);
+    });
+
+    await test("the banner shows which tree built each projection", function () {
+      var root = render(function (r) {
+        VA.renderBanner(r, {
+          connection: VA.STATE.READY, results: FIXTURE.results, crops: CROPS,
+        }, {});
+      });
+      has(root.textContent, "results ← master @ 012345678");
+      has(root.textContent, "crops ← master @ 012345678");
+      // Nothing is wrong with this pair, so no alarm box.
+      eq(all(root, ".banner__stale").length, 0);
+    });
+
+    await test("the banner refuses to present a mismatched pair as current", function () {
+      var crops = JSON.parse(JSON.stringify(CROPS));
+      crops.provenance.head_sha = "fedcba9876543210fedcba9876543210fedcba98";
+      crops.provenance.branch = "handoff/somebody_else";
+      var root = render(function (r) {
+        VA.renderBanner(r, {
+          connection: VA.STATE.READY, results: FIXTURE.results, crops: crops,
+        }, {});
+      });
+      eq(all(root, ".banner__stale").length, 1);
+      has(root.textContent, "may not be what you think it is");
+      has(root.textContent, "DIFFERENT trees");
+      // An alarm a reader cannot act on is an alarm they learn to ignore.
+      has(root.textContent, "build_viewer_projection.py");
+      has(root.textContent, "build_viewer_crops.py");
     });
 
     // --- node-fs tier: the REAL projection ----------------------------------

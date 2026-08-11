@@ -53,6 +53,19 @@
     .banner__error { flex-basis: 100%; color: var(--untraced); }
     .banner__built { color: var(--muted); font-variant-numeric: tabular-nums; }
     .banner__missing { flex-basis: 100%; border-left: 3px solid var(--inferred); padding: 6px 10px; }
+    /* Which tree built each projection. Quiet by default — it is context, not an
+       alarm — but the alarm above it is loud, because a projection built from a
+       superseded branch looked exactly like a current one for six hours. */
+    .banner__provenance {
+      flex-basis: 100%; color: var(--muted); font-size: 12px;
+      font-variant-numeric: tabular-nums; word-break: break-all;
+    }
+    .banner__stale {
+      flex-basis: 100%; border-left: 3px solid var(--untraced); padding: 6px 10px;
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .banner__stale-head { color: var(--untraced); font-weight: 600; }
+    .banner__stale-list { margin: 4px 0 6px; padding-left: 20px; }
     .banner__cmd, .croppop__cmd {
       display: inline-block; margin-top: 5px; background: var(--bg);
       padding: 3px 7px; border-radius: 4px; font-size: 12px; color: var(--ink);

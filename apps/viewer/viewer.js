@@ -295,4 +295,79 @@
       : "crops NOT BUILT");
     return parts.join(" · ");
   };
+
+  // --- provenance: WHICH TREE built what you are looking at ----------------
+  //
+  // `data/projections/viewer/` is one directory shared by every live worktree,
+  // so a projection can perfectly well have been built from a branch that
+  // predates the labels it shows — on 2026-08-07 one did, for six hours, while
+  // this banner reported `built_at` and nothing else
+  // (ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection,
+  // occurrence 2). `scripts/projection_provenance.py` now stamps branch, HEAD
+  // sha and the resolved stacks-dir into both files; these two functions are
+  // what put that in front of a reader.
+
+  VA.shortSha = function (sha) {
+    return sha ? String(sha).slice(0, 12) : "?";
+  };
+
+  // One line per projection: which branch, which commit, which stacks-dir.
+  VA.provenanceLine = function (label, projection) {
+    var p = projection && projection.provenance;
+    if (!projection) return null;
+    if (!p) {
+      return label + " built by a script that predates provenance stamping — " +
+        "which tree it came from is unknowable; rebuild it";
+    }
+    var bits = [label + " ← " + (p.branch || "(detached)") + " @ " + VA.shortSha(p.head_sha)];
+    if (p.dirty) bits.push("tree was DIRTY");
+    if (p.behind_trunk) {
+      bits.push(p.behind_trunk + " commit(s) behind " + (p.trunk || "trunk") +
+        " when built");
+    }
+    if (p.stacks_dir) bits.push(p.stacks_dir);
+    return bits.join(" · ");
+  };
+
+  // What the banner must not stay quiet about. The viewer computes nothing and
+  // cannot run git, so it never guesses at staleness — it reports only what the
+  // two stamps *prove*, and the strongest of those is the pair disagreeing:
+  // results.json and crops.json are written by different scripts, each
+  // preserving the other's file, so the pair genuinely can describe two
+  // different trees. That is a fact about the data in front of it, not an
+  // inference about the repo.
+  VA.provenanceAlarms = function (results, crops) {
+    var alarms = [];
+    var rp = results && results.provenance;
+    var cp = crops && crops.provenance;
+
+    if (results && !rp) alarms.push("results.json carries no provenance stamp");
+    if (crops && !cp) alarms.push("crops.json carries no provenance stamp");
+
+    if (rp && cp && rp.head_sha && cp.head_sha && rp.head_sha !== cp.head_sha) {
+      alarms.push(
+        "results and crops were built from DIFFERENT trees — results from " +
+        (rp.branch || "(detached)") + " @ " + VA.shortSha(rp.head_sha) +
+        ", crops from " + (cp.branch || "(detached)") + " @ " + VA.shortSha(cp.head_sha) +
+        ". The two halves of this page do not describe the same stacks. " +
+        "Rebuild both from the newest tree.");
+    }
+
+    // Stamped at build time, so it is a statement about then, not now — which
+    // is exactly the honest form: "this was already out of date when it was
+    // built" is provable, "it is out of date now" is not, from a static page.
+    [["results", rp], ["crops", cp]].forEach(function (pair) {
+      var p = pair[1];
+      if (p && p.behind_trunk) {
+        alarms.push(pair[0] + " was built from a tree " + p.behind_trunk +
+          " commit(s) behind " + (p.trunk || "trunk") + " — it may show labels " +
+          (p.trunk || "trunk") + " has already moved past");
+      }
+      if (p && p.dirty) {
+        alarms.push(pair[0] + " was built from a tree with uncommitted changes, " +
+          "so " + VA.shortSha(p.head_sha) + " does not identify the code that ran");
+      }
+    });
+    return alarms;
+  };
 })(window.ViewerApp = window.ViewerApp || {});

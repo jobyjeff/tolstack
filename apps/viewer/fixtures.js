@@ -12,12 +12,38 @@
 (function (VA) {
   "use strict";
 
+  // The stamp scripts/projection_provenance.py writes into both projection
+  // files, saying which TREE built them. Shared by the two fixtures below so
+  // they agree with each other — a fixture pair that disagreed would put the
+  // viewer's own "these describe two different trees" alarm on screen in
+  // ?mock=1, where nothing is wrong.
+  VA.demoProvenance = function (builtBy) {
+    return {
+      schema: "joby.tolerance_stack/projection_provenance/v0",
+      built_at: "2026-08-05T00:00:00+00:00",
+      built_by: builtBy,
+      repo_root: "C:/workspace/tolstack",
+      stacks_dir: "C:/workspace/tolstack/docs/tolerance_stacks",
+      branch: "master",
+      head_sha: "0123456789abcdef0123456789abcdef01234567",
+      dirty: false,
+      trunk: "master",
+      trunk_sha: "0123456789abcdef0123456789abcdef01234567",
+      behind_trunk: 0,
+    };
+  };
+
   VA.demoFixture = function () {
     return {
       startState: VA.STATE.READY,
       results: {
         schema: "joby.tolerance_stack/viewer_projection/v0",
         built_at: "2026-08-05T00:00:00+00:00",
+        // Both fixture projections are stamped from the SAME tree, clean and
+        // level with trunk — the quiet case, so ?mock=1 shows the provenance
+        // line without the alarm. The alarms have their own tests, which build
+        // the disagreeing pair inline.
+        provenance: VA.demoProvenance("scripts/build_viewer_projection.py"),
         stacks: [{
           id: "demo_joint",
           title: "Demo joint — every provenance state in one stack",
@@ -146,6 +172,7 @@
       crops: {
         schema: "joby.tolerance_stack/viewer_crops/v0",
         built_at: "2026-08-05T00:00:00+00:00",
+        provenance: VA.demoProvenance("scripts/build_viewer_crops.py"),
         summary: { resolved: 1, unresolvable: 1 },
         by_stack: {
           demo_joint: {

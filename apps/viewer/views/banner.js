@@ -20,6 +20,7 @@
     } else {
       root.appendChild(VA.el("span", "banner__built", VA.builtLine(state.results, state.crops)));
       root.appendChild(button("Reload", "banner__action", handlers.onReload));
+      provenance(root, state);
     }
 
     if (state.error) {
@@ -41,6 +42,34 @@
     }
     return root;
   };
+
+  // Which tree built each projection, and what is provably wrong with the pair.
+  // `built_at` alone is what let a projection from a superseded branch sit in
+  // front of a reader for six hours on 2026-08-07 looking current
+  // (ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection).
+  // A timestamp answers "when", and the question was "which tree".
+  function provenance(root, state) {
+    var alarms = VA.provenanceAlarms(state.results, state.crops);
+    if (alarms.length) {
+      var box = VA.el("div", "banner__stale");
+      box.appendChild(VA.el("div", "banner__stale-head",
+        "This projection may not be what you think it is:"));
+      var list = VA.el("ul", "banner__stale-list");
+      alarms.forEach(function (text) {
+        list.appendChild(VA.el("li", null, text));
+      });
+      box.appendChild(list);
+      box.appendChild(VA.el("div", null, "Rebuild both, newest tree first:"));
+      box.appendChild(VA.el("code", "banner__cmd", VA.CONFIG.rebuild.results));
+      box.appendChild(VA.el("code", "banner__cmd", VA.CONFIG.rebuild.crops));
+      root.appendChild(box);
+    }
+
+    [["results", state.results], ["crops", state.crops]].forEach(function (pair) {
+      var line = VA.provenanceLine(pair[0], pair[1]);
+      if (line) root.appendChild(VA.el("div", "banner__provenance", line));
+    });
+  }
 
   function missing(text, command) {
     var box = VA.el("div", "banner__missing");
