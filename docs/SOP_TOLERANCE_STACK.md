@@ -130,7 +130,7 @@ thing they meant in drawing-checker, so moving repos did not rev them.
 |---|---|---|
 | `joby.tolerance_stack/stack_definition/v0` | **yes** — one JSON file per stack | ordered `elements`, named `paths`, `checks` over them, plus `joint`, `provenance`, `notes` |
 | `source_ref` (embedded in an element, no id of its own) | **yes** — one per element, mandatory | where the value came from, and how well: `confidence: traced \| inferred \| untraced` |
-| `joby.tolerance_stack/hardware_entry/v0` | **yes** — `docs/tolerance_stacks/hardware_entries.json`, one entry per standard part | a standard part with inline values, a `values_source` saying where they came from, an empty `library_ref`, `assembly_status`, and a mandatory `gaps` list |
+| `joby.tolerance_stack/hardware_entry/v0` | **yes** — `docs/tolerance_stacks/hardware_entries.json`, one entry per standard part | a standard part with inline values, a `values_source` saying where they came from, a `library_ref` filled **if and only if** `values_status` is `"library"`, `assembly_status`, and a mandatory `gaps` list |
 | `joby.tolerance_stack/check_result/v0` | **no** — produced, never stored | the outcome of folding a check: nominal, worst-case min/max, RSS, and a `verdict` |
 
 How they fit together:
@@ -532,6 +532,38 @@ Every standard part the stack consumes gets an entry in
 }
 ```
 
+That is the common case: a part **without** a spec-library subject, so
+`values_status: "inline"` and `library_ref: null`. A part the library **does**
+hold differs in exactly two fields, and in one field that deliberately does *not*
+change — abridged from the real `NAS6403U11D` entry (how many entries are in this
+state is owned by `test_only_the_one_entry_was_promoted`, not by this sentence):
+
+```json
+{
+  "id": "NAS6403U11D", "standard": "NAS6403", "dash": "U11D",
+  "class": "bolt_hex_head", "thread": ".190-32",
+  "values_status": "library",
+  "library_ref": "spec_library:NAS6403U11D",
+  "values_source": { "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf",
+                     "sheet": [1, 2, 3], "confidence": "traced",
+                     "note": "where the inline numbers below were READ FROM. Still true after the promotion, which is why this field is not deleted with them." },
+  "dimensions_in": { "grip": 0.688, "grip_tol": 0.010,
+                     "length": 1.011, "length_tol": 0.015, "T_ref": 0.323 },
+  "used_by": ["pitch_link_to_pitch_plate:bolt_grip_11"],
+  "assembly_status": { "drawing": "217755", "present": true, "find_no": 38, "qty": 5,
+                       "nomenclature": "BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .688\" GRIP",
+                       "balloons": [{ "sheet": 4, "view": "DETAIL B", "prefix": "5X" }] },
+  "gaps": ["The thread run-out length is still not sourced: NAS6403 dimensions grip and length and gives T = .323 in as a reference between them, but never dimensions the transition inside it. MIL-S-8879 would close it and is not in data/inbox/specs/."]
+}
+```
+
+`tests/test_tolerance_stack.py` reads both of these blocks out of this file,
+checks them against the same invariants it checks the real entries against, and
+checks the fields above against the two real entries they are abridged from — so
+an example here that teaches the wrong shape fails the suite (added 2026-08-11,
+`sop_library_ref_pairing`, after the prose below had told authors to null a ref
+that had been filled for six days).
+
 Rules:
 
 - **`values_status: "inline"`** — the numbers live in this file for now.
@@ -543,20 +575,65 @@ Rules:
   `library_ref`, so "nothing to cite" is distinguishable from "nobody filled it
   in". Added 2026-08-05; `hardware_entry` stays `/v0` because the field is
   additive and no reader breaks on it.
+  **`not_transcribed` is the *only* status that nulls it.** A `library` entry
+  keeps its `values_source`, because a promotion demotes the inline numbers to a
+  cross-check rather than deleting them, so where they were read from stays a true
+  and useful fact. The enforcing test was written as "not `inline` ⟹ no
+  `values_source`", which was equivalent only while no entry was `library`;
+  `spec_library_v0` promoted one the same day and the two rules collided in the
+  merge, where the test contradicted itself. Narrowed to `not_transcribed` during
+  `review/spec_library_v0` (2026-08-05) — a decision that lived only in
+  `docs/sessions/reviews/REVIEW_20260805_spec_library_v0.md` until 2026-08-11,
+  which is this same drift one level up.
 - **An entry's inline values are NOT a source, and citing the entry does not
   launder them.** Most of the numbers in this file are slice-1 transcriptions of
   the 260729 workbook, and `values_status: "inline"` says where they *live*, not
   where they came from. Read the entry's `values_source` before you reuse a band:
   a `kind: "workbook"` one is forbidden in a from-scratch stack exactly as if you
   had read it out of the xlsx yourself (Step 5b). This is why the field exists.
-- **`library_ref` stays `null` until a fastener library exists.** When it does,
-  `library_ref` points at it, `values_status` becomes `"library"`, and the inline
-  numbers demote to a cross-check rather than the source. Do not invent a
-  `library_ref`; a test asserts it is null.
+- **`library_ref` and `values_status: "library"` are one decision, not two.** The
+  invariant a test enforces is the **pairing**, in both directions: a filled
+  `library_ref` ⟺ `values_status == "library"`. Writing one half without the
+  other fails
+  `test_every_hardware_entry_has_a_gap_list_and_a_resolvable_values_status`,
+  which also requires a filled ref to read `spec_library:<subject>`. A null ref
+  means `values_status` is `"inline"` or `"not_transcribed"`, never `"library"`.
+  So, when you author an entry:
+  - **The part has a library subject** — rebuild with
+    `python -m tolerance_stack` and look, don't guess; the ref must *resolve*.
+    Fill both halves. The inline numbers stay, demoted to a cross-check rather
+    than the source: every one of `NAS6403U11D`'s inline dimensions is asserted
+    against its library subject by
+    `test_the_nas6403_hardware_entry_defers_to_the_library`, which is what makes
+    "cross-check" a fact rather than a claim.
+  - **It does not** — still the ordinary case; `test_only_the_one_entry_was_promoted`
+    is where the current count of promoted entries lives, so read it there rather
+    than from a number in this file. Leave `library_ref` null and `values_status`
+    `"inline"` or `"not_transcribed"`. Do not invent a ref for a subject the
+    library does not hold: that is not a null-vs-filled question, it is a citation
+    to a document nobody read.
+
+  > **Corrected 2026-08-11** (`sop_library_ref_pairing`). This bullet read
+  > *"`library_ref` stays `null` until a fastener library exists. When it does,
+  > `library_ref` points at it, `values_status` becomes `"library"`, and the inline
+  > numbers demote to a cross-check rather than the source. Do not invent a
+  > `library_ref`; a test asserts it is null."* The library has existed since
+  > 2026-08-05 (`tolerance_stack/spec_library.py`, `docs/spec_library/events/`), so
+  > the precondition had been met and the instruction had inverted: following it,
+  > an author would have nulled a ref that is filled, or "corrected" the promoted
+  > entry back and broken the pairing test. The old wording stays visible here
+  > rather than being overwritten, per the same rule the traced ratio follows —
+  > and it is inside a blockquote because
+  > `test_no_live_doc_still_asserts_the_superseded_nullness_rule` reads an
+  > *asserted* form of it as the drift coming back.
+
 - **Every entry carries a non-empty `gaps` list** — a test asserts this too. An
   entry claiming no gaps is almost always an entry whose gaps were not looked
-  for. These lists *are* the future library's intake queue, which is the whole
-  reason the field is mandatory.
+  for. These lists are what the spec-library intake queue is built out of —
+  `docs/spec_library/intake_queue.json`, ranked by what each document unblocks,
+  with every row's status *derived* from the library projection rather than
+  stored. That queue is no longer hypothetical, which is the whole reason the
+  field is mandatory.
 - `assembly_status` records present/absent in the parts list, the find number,
   and the balloons. **Absent is a finding**, not an error: slice 1 found every
   evaluated check using a `.063` washer that is not in the parts list at all.
@@ -773,8 +850,10 @@ Sections, in order:
    bearing element.
 
 7. **Source gaps** — ranked, each with the document that would close it and what
-   it would resolve. This section is the handoff to whoever builds the fastener
-   library.
+   it would resolve. This section is the input to the spec library's intake queue
+   (`docs/spec_library/intake_queue.json`), which since 2026-08-05 is a file and
+   not a hypothesis. It holds only a few of the documents these gaps name, so
+   ranking them here is still real work and not a formality.
 8. **The traced / inferred / untraced count.** State it as a ratio, computed by
    `debug_report_tolerance_stacks.py --ratio` and never by hand or by copying
    another document — the definition and the reason are in "The traced ratio"
@@ -800,9 +879,11 @@ Also assert the structural invariants, as the seeded tests do: every element has
 a `source_ref` with a valid `confidence`; every `drawing`/`parts_list` citation
 carries an `export` with a valid `status`, and no `unestablished` export carries a
 concrete `pdf`/`sha256`/`runs`; `element_id`/`run_id` are null; every
-`hardware_ref` resolves; every hardware entry has a null `library_ref`, a
-non-empty `gaps` list, and a `values_source` whenever its `values_status` is
-`inline` (explicitly null when it is `not_transcribed`).
+`hardware_ref` resolves; every hardware entry's `library_ref` is filled if and
+only if its `values_status` is `library` (and a filled one reads
+`spec_library:<subject>`), has a non-empty `gaps` list, and has a `values_source`
+unless its `values_status` is `not_transcribed`, in which case that is explicitly
+null.
 
 These are parametrized over `ALL_STACK_FILES`, so a new stack inherits them the
 moment you add its filename — which is the point: `citation_export_provenance`
@@ -881,7 +962,9 @@ checkout too if you like, but never only that one.
 4. `element_id` / `run_id` stay null — the export goes in `export.runs`, not
    there, and each run is `{run_id, ts}` with the `ts` from its own
    `run_meta.json`.
-5. `library_ref` stays null; every hardware entry needs a non-empty `gaps` list.
+5. A filled `library_ref` and `values_status: "library"` are one decision — never
+   write one without the other, in either direction; every hardware entry needs a
+   non-empty `gaps` list.
 6. RSS always computed, never read by a verdict, never called a probability.
 7. Emit nominal *and* worst case *and* RSS — each one alone has hidden a real
    answer.

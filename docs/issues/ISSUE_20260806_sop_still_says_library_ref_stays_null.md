@@ -1,11 +1,33 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: closed
 handoff: docs/sessions/HANDOFF_20260810_sop_library_ref_pairing.md
 area: docs/SOP_TOLERANCE_STACK.md / vocabulary drift
 reporter: agent
+closed: 2026-08-11
+closed_by: handoff sop_library_ref_pairing
 ---
+
+> **CLOSED 2026-08-11** by handoff `sop_library_ref_pairing`. All five sites now
+> state the pairing (a filled `library_ref` ⟺ `values_status == "library"`), the
+> Step 4 rule bullet was replaced rather than edited and quotes its old wording in
+> a dated blockquote, and Step 4 now carries **two** examples so both the
+> with-a-library-subject and without cases can be copied — the promoted one keeps
+> its `values_source` and its inline dimensions. Three further homes were found and
+> fixed (`docs/tolerance_stacks/README.md` ×4, the root `README.md` schema table,
+> and a stale count in `test_tolerance_stack.py`'s docstring);
+> `docs/prompts/REVIEW_AGENT.md` already stated the pairing, and the
+> `materials.json` / `thermal.py` nullness claims are still **true** and were left
+> alone. The `sop_edits_apply` guard narrowing this issue said lived only in the
+> review report is now in the SOP's `values_source` bullet.
+>
+> Mechanised in `tests/test_sop_vocabulary.py` (3 tests): Step 4's examples are
+> parsed and run through the same invariant function as the real entries, and a
+> scan fails any live doc that still asserts the superseded nullness rule —
+> replayed against the drifted blob at `abfaf5a` so it is red on the real sighting.
+> See `docs/sessions/lessons/LESSONS_20260811_sop_library_ref_pairing.md` for what
+> that scan can and cannot catch, and for the definition-of-done proposal.
 
 # The SOP still says `library_ref` stays null, in five places, and it has not since 2026-08-05
 
