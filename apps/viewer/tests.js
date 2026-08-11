@@ -169,14 +169,71 @@
       eq(VA.fileUrl(null), null);
     });
 
-    await test("cropProvenanceLine says how much to trust the placement", function () {
+    // The rule EVERY export-resolved crop in the real projection carries. Its
+    // three facts — which rule, whether the sha256 was verified, which file —
+    // were invisible until 2026-08-10: a crop of a *guessed* export looks
+    // perfectly correct on screen, so a hover that cannot distinguish verified
+    // from guessed is worse than no hover
+    // (ISSUE_20260806_viewer_does_not_label_the_source_ref_export_rule).
+    await test("cropProvenanceLine names the rule, the export and the sha verdict", function () {
       var line = VA.cropProvenanceLine(CROPS.by_stack.demo_joint.plate);
-      has(line, "provenance.sources_used");
+      has(line, "read from the export this citation names");
+      has(line, "215197 A.1.pdf");
+      has(line, "sha256 VERIFIED");
       has(line, "cited zone D10");
       // The matched needle is named, not just "found": "4.06" corroborates far
       // less than the whole callout would, and the line must let a reader see
       // which it was. (review/stack_viewer_v0, 2026-08-06)
       has(line, "callout text \"4.06\" found there");
+    });
+
+    // `false` and `null` are different answers and must not read the same: one
+    // is a rule that had a sha and could not check it, the other a rule with no
+    // sha to check (the append-only spec pile).
+    await test("cropProvenanceLine keeps the three sha states distinct", function () {
+      var base = { status: "resolved", resolved_by: "source_ref_export",
+                   pdf_name: "x.pdf", located_by: "sheet_full", note: "whole sheet" };
+      has(VA.cropProvenanceLine(base), "no sha256 to verify");
+      base.sha256_verified = false;
+      has(VA.cropProvenanceLine(base), "sha256 NOT verified");
+      base.sha256_verified = true;
+      has(VA.cropProvenanceLine(base), "sha256 VERIFIED");
+      has(VA.cropProvenanceLine({
+        status: "resolved", resolved_by: "spec_pile",
+        pdf_name: "NAS6403-NAS6420 Rev 4.pdf", sha256_verified: null,
+        located_by: "sheet_full", note: "whole sheet -- no text layer",
+      }), "from data/inbox/specs/ by filename");
+    });
+
+    // THE GUARD AGAINST THIS BUG RECURRING. The old code switched on three
+    // literals and fell through to silence for anything else, which is how 24
+    // crops went unexplained for four days. An unknown rule is now loud.
+    await test("a resolved_by the viewer has no label for is loud, not silent", function () {
+      var line = VA.cropProvenanceLine({
+        status: "resolved", resolved_by: "some_new_rule", sha256_verified: true,
+        located_by: "sheet_full", note: "whole sheet",
+      });
+      has(line, "\"some_new_rule\"");
+      has(line, "no label for");
+      // Including the case that made the old fall-through invisible: no
+      // resolved_by at all.
+      has(VA.cropProvenanceLine({ status: "resolved", located_by: "sheet_full" }),
+          "no label for");
+      // And the rule this file used to pretend it handled is gone: nothing can
+      // carry it, so it gets the unlabelled treatment like any other stranger.
+      ok(!VA.CROP_RULES["provenance.sources_used"],
+         "the removed rule must not have a branch");
+    });
+
+    await test("unlabelledCropRules reads the rollup, and finds a stranger in it", function () {
+      eq(VA.unlabelledCropRules(CROPS), []);
+      var crops = JSON.parse(JSON.stringify(CROPS));
+      crops.summary.by_resolved_by = { source_ref_export: 1, some_new_rule: 3 };
+      eq(VA.unlabelledCropRules(crops), ["some_new_rule"]);
+      // A crops.json from before the rollup existed: fall back to the entries.
+      delete crops.summary.by_resolved_by;
+      crops.by_stack.demo_joint.plate.resolved_by = "some_new_rule";
+      eq(VA.unlabelledCropRules(crops), ["some_new_rule"]);
     });
 
     await test("cropProvenanceLine warns when the callout was NOT found in the zone", function () {
@@ -186,10 +243,59 @@
       }), "callout text NOT found there");
     });
 
+    // Kept, not deleted: the rule is still in the crop script for a stack
+    // written before 2026-08-06, so it is reachable in principle — but it pins
+    // the export from the JOINT block rather than from the citation, and the
+    // label has to say which.
+    await test("joint_export_run is labelled as the legacy path", function () {
+      var line = VA.cropProvenanceLine({
+        status: "resolved", resolved_by: "joint_export_run", run_id: "20260804_114000",
+        sha256_verified: true, located_by: "sheet_full", note: "whole sheet",
+      });
+      has(line, "LEGACY RULE");
+      has(line, "not by this citation");
+      has(line, "20260804_114000");
+      ok(VA.CROP_RULES.joint_export_run.legacy === true, "flagged legacy in the table");
+    });
+
     await test("builtLine names each projection that is missing", function () {
       has(VA.builtLine(null, null), "results NOT BUILT");
       has(VA.builtLine(null, null), "crops NOT BUILT");
-      has(VA.builtLine(FIXTURE.results, CROPS), "1 resolved, 1 unresolvable");
+      has(VA.builtLine(FIXTURE.results, CROPS), "1 unresolvable");
+    });
+
+    // A resolved count says nothing about whether anything was CHECKED, and
+    // that gap is what let "6 of 48 resolve" read as six trustworthy crops when
+    // only two were sha-verified. The verification counts now sit beside the
+    // resolved count they qualify.
+    await test("builtLine puts the sha256 counts beside the resolved count", function () {
+      has(VA.builtLine(FIXTURE.results, CROPS), "1 resolved — 1 sha256-verified");
+      var crops = JSON.parse(JSON.stringify(CROPS));
+      crops.summary.resolved = 26;
+      crops.summary.sha256_verified = { "true": 20, "false": 2, unverified: 4 };
+      var line = VA.builtLine(FIXTURE.results, crops);
+      has(line, "20 sha256-verified");
+      has(line, "2 NOT VERIFIED");
+      has(line, "4 with no sha to check");
+      // A crops.json built before the rollups existed still renders — it just
+      // cannot say more than it knows.
+      delete crops.summary.sha256_verified;
+      has(VA.builtLine(FIXTURE.results, crops), "26 resolved; 1 unresolvable");
+    });
+
+    await test("cropRulesLine names each rule, its count and its status", function () {
+      has(VA.cropRulesLine(CROPS), "source_ref_export 1");
+      var crops = JSON.parse(JSON.stringify(CROPS));
+      crops.summary.by_resolved_by = {
+        source_ref_export: 22, spec_pile: 4, joint_export_run: 1, some_new_rule: 2,
+      };
+      var line = VA.cropRulesLine(crops);
+      has(line, "spec_pile 4");
+      has(line, "joint_export_run 1 (LEGACY rule)");
+      has(line, "some_new_rule 2 (NO LABEL)");
+      has(line, "no label for some_new_rule");
+      eq(VA.cropRulesLine({ summary: {} }), null);
+      eq(VA.cropRulesLine(null), null);
     });
 
     // --- provenance: which tree built what you are looking at ---------------
@@ -536,7 +642,7 @@
       eq(hrefs.length, 2);
       has(hrefs[0], "/run/20260804_114000_x");
       has(hrefs[1], "file:///C:/x.pdf");
-      has(root.textContent, "sha256 verified");
+      has(root.textContent, "sha256 VERIFIED");
     });
 
     await test("an unresolvable popover shows the reason and offers no image", function () {
@@ -615,6 +721,16 @@
       });
       has(root.textContent, "build_viewer_crops.py");
       ok(root.textContent.indexOf("No results projection") === -1);
+    });
+
+    await test("the banner surfaces the crop rollups, not just the resolved count", function () {
+      var root = render(function (r) {
+        VA.renderBanner(r, {
+          connection: VA.STATE.READY, results: FIXTURE.results, crops: CROPS,
+        }, {});
+      });
+      has(root.textContent, "1 sha256-verified");
+      has(all(root, ".banner__crop-rules")[0].textContent, "source_ref_export 1");
     });
 
     await test("the banner shows which tree built each projection", function () {
@@ -707,6 +823,99 @@
           }
         }
         eq(missing, [], "crops.json is stale");
+      });
+
+      // --- [real] the labels, against the live crops.json ---------------------
+      //
+      // This block is the reason this handoff exists. The fixture tier was green
+      // for four days while the live data carried a `resolved_by` value the
+      // viewer had never seen, because the fixture was hand-written from an
+      // older shape and no test compared the two.
+
+      await test("[real] every rule in the live crops.json has a label", function () {
+        // The guard: a new resolution rule in build_viewer_crops.py fails HERE,
+        // in the tier that reads real data, rather than shipping as a silent
+        // hover.
+        eq(VA.unlabelledCropRules(realCrops), [],
+           "teach VA.CROP_RULES every rule the crop script can emit");
+        ok(Object.keys(realCrops.summary.by_resolved_by).length > 0,
+           "the summary must carry the by_resolved_by rollup");
+      });
+
+      await test("[real] a source_ref_export hover names the rule, the file and the sha",
+        function () {
+          var entries = [];
+          var byStack = realCrops.by_stack || {};
+          Object.keys(byStack).forEach(function (stackId) {
+            Object.keys(byStack[stackId]).forEach(function (elementId) {
+              var entry = byStack[stackId][elementId];
+              if (entry.status === "resolved" &&
+                  entry.resolved_by === "source_ref_export") {
+                entries.push([stackId, elementId, entry]);
+              }
+            });
+          });
+          ok(entries.length > 0, "the live projection must have export-resolved crops");
+          entries.forEach(function (row) {
+            var where = row[0] + ":" + row[1], entry = row[2];
+            var line = VA.cropProvenanceLine(entry);
+            has(line, "read from the export this citation names", where);
+            has(line, entry.pdf_name, where);
+            // Under this rule the sha is mandatory and always checked, so a live
+            // entry that is not verified is a finding, not a display case.
+            eq(entry.sha256_verified, true, where + " must be sha-verified");
+            has(line, "sha256 VERIFIED", where);
+          });
+          // And it reaches the popover, not just the string function.
+          var root = render(function (r) {
+            VA.renderCrop(r, entries[0][2], { url: "blob:x" }, VA.CONFIG);
+          });
+          has(root.textContent, "sha256 VERIFIED");
+          has(root.textContent, entries[0][2].pdf_name);
+        });
+
+      await test("[real] the banner reports the live verification counts", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: realResults, crops: realCrops,
+          }, {});
+        });
+        var sha = realCrops.summary.sha256_verified;
+        has(root.textContent, realCrops.summary.resolved + " resolved");
+        has(root.textContent, sha["true"] + " sha256-verified");
+        if (sha.unverified) {
+          has(root.textContent, sha.unverified + " with no sha to check");
+        }
+        Object.keys(realCrops.summary.by_resolved_by).forEach(function (rule) {
+          has(all(root, ".banner__crop-rules")[0].textContent,
+              rule + " " + realCrops.summary.by_resolved_by[rule]);
+        });
+      });
+
+      // THE ROOT CAUSE, pinned. `fixtures.js` is hand-authored, so nothing
+      // stopped it describing a shape the builder had stopped emitting. This
+      // compares the two key sets: a field added to (or dropped from) a real
+      // entry fails here, naming the fixture as the thing to update.
+      await test("[real] the fixture's crop shapes still match the builder's", function () {
+        function keys(o) { return Object.keys(o).sort(); }
+        var realResolved = null, realUnresolvable = null;
+        var byStack = realCrops.by_stack || {};
+        Object.keys(byStack).forEach(function (stackId) {
+          Object.keys(byStack[stackId]).forEach(function (elementId) {
+            var entry = byStack[stackId][elementId];
+            if (entry.status === "resolved" && !realResolved) realResolved = entry;
+            if (entry.status === "unresolvable" && !realUnresolvable) realUnresolvable = entry;
+          });
+        });
+        ok(realResolved && realUnresolvable, "need one live entry of each status");
+        eq(keys(CROPS.by_stack.demo_joint.plate), keys(realResolved),
+           "fixtures.js's resolved crop entry has drifted from crops.json");
+        eq(keys(CROPS.by_stack.demo_joint.washer), keys(realUnresolvable),
+           "fixtures.js's unresolvable crop entry has drifted from crops.json");
+        eq(keys(CROPS.summary), keys(realCrops.summary),
+           "fixtures.js's crop summary has drifted from crops.json");
+        eq(keys(CROPS.summary.sha256_verified), keys(realCrops.summary.sha256_verified),
+           "fixtures.js's sha256_verified rollup has drifted from crops.json");
       });
 
       await test("[real] an unresolvable citation carries a reason, never a blank", function () {

@@ -173,23 +173,42 @@
         schema: "joby.tolerance_stack/viewer_crops/v0",
         built_at: "2026-08-05T00:00:00+00:00",
         provenance: VA.demoProvenance("scripts/build_viewer_crops.py"),
-        summary: { resolved: 1, unresolvable: 1 },
+        // The rollups build_viewer_crops.py's resolution_summary() writes. Every
+        // key the real one has, because a fixture summary missing
+        // `by_resolved_by`/`sha256_verified` is exactly how the banner shipped
+        // reading only the bare resolved count
+        // (ISSUE_20260806_viewer_does_not_label_the_source_ref_export_rule) —
+        // and the [real] key-set test below pins the shape so it cannot drift
+        // again.
+        summary: {
+          citations: 2,
+          resolved: 1,
+          unresolvable: 1,
+          by_resolved_by: { source_ref_export: 1 },
+          sha256_verified: { "true": 1, "false": 0, unverified: 0 },
+        },
         by_stack: {
           demo_joint: {
             plate: {
               status: "resolved", reason: null, png: "crops/demo_joint__plate.png",
               width: 800, height: 600, pdf: "C:/workspace/demo/215197.pdf",
               pdf_name: "215197 A.1.pdf", page: 2,
-              resolved_by: "provenance.sources_used", run_dir: null, run_id: null,
-              sha256_verified: null, located_by: "zone_cell", needle: "4.06",
+              // `source_ref_export` is what EVERY export-resolved crop in the
+              // real projection carries, and the sha is verified by construction
+              // under that rule — the fixture used to say
+              // `provenance.sources_used`, a rule deleted from the crop script on
+              // 2026-08-06, so the suite was green against a shape the live data
+              // could not produce.
+              resolved_by: "source_ref_export", run_dir: null, run_id: null,
+              sha256_verified: true, located_by: "zone_cell", needle: "4.06",
               cited_zone: "D10", zone_grid: "read", callout_text_in_zone: true,
               note: "printed zone D10 padded by 1 cell(s)",
               rect_pt: [0, 0, 100, 100],
             },
             washer: {
               status: "unresolvable", png: null,
-              reason: "citation names no export, and provenance.sources_used names " +
-                "no PDF for '217755'",
+              reason: "citation names no export — source_ref.export is absent and " +
+                "no joint.assembly_export covers '217755'",
             },
             // `eye` deliberately absent: a crops.json older than the stack.
           },

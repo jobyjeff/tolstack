@@ -208,8 +208,9 @@
   };
 
   // The drawing-checker run page for a crop resolved through a run. null when
-  // the crop came from the spec pile or a sources_used path: there is no run to
-  // link to, and inventing a URL would be worse than showing the file path.
+  // the crop came from the spec pile, or from a `source_ref.export` that names
+  // no run: there is no run to link to, and inventing a URL would be worse than
+  // showing the file path.
   VA.runUrl = function (config, cropEntry) {
     if (!cropEntry || !cropEntry.run_dir) return null;
     var base = String((config && config.drawingCheckerWebui) || "").replace(/\/+$/, "");
@@ -226,19 +227,104 @@
     return "file:///" + normalised.replace(/^\/+/, "");
   };
 
+  // Whether the bytes that were cropped are the bytes the citation names. Three
+  // states, and collapsing any two of them is the bug this file had: a crop of a
+  // *guessed* export looks perfectly correct on screen, so "verified" is the one
+  // fact a hover cannot leave out. `false` and `null` are different answers —
+  // `false` is a rule that had a sha to check and could not, `null` is a rule
+  // with no sha available at all (the spec pile is append-only, so a filename is
+  // its identity).
+  VA.cropShaText = function (cropEntry) {
+    if (cropEntry.sha256_verified === true) return "sha256 VERIFIED";
+    if (cropEntry.sha256_verified === false) return "sha256 NOT verified";
+    return "no sha256 to verify";
+  };
+
+  // Every value `scripts/build_viewer_crops.py` can write into `resolved_by`,
+  // with the sentence each one earns. A rule missing from this table renders as
+  // the loud unlabelled text below rather than falling through to silence —
+  // silence is what let all 24 `source_ref_export` crops sit unexplained from
+  // 2026-08-06 to 2026-08-10
+  // (ISSUE_20260806_viewer_does_not_label_the_source_ref_export_rule).
+  //
+  // Two rules that USED to be here and their fate, so the next reader does not
+  // reinstate them:
+  //   * `provenance.sources_used` — deleted. The rule was removed from the crop
+  //     script on 2026-08-06 (it regexed a PDF path out of a free-text
+  //     sentence), so no entry can ever carry it again. A branch for an
+  //     impossible value reads as "this case is handled".
+  //   * `joint_export_run` — KEPT, marked legacy. Still reachable in principle:
+  //     a citation with no `source_ref.export`, of kind drawing/parts_list,
+  //     whose `document` equals the stack's `joint.assembly_drawing`, in a stack
+  //     whose `joint.assembly_export` names a drawing-checker run id. No stack
+  //     in the repo is shaped that way any more, but one written before
+  //     2026-08-06 is, and the script still resolves it.
+  VA.CROP_RULES = {
+    source_ref_export: {
+      legacy: false,
+      text: function (e) {
+        return "read from the export this citation names, " +
+          (e.pdf_name || "(the entry names no file)") + " — " + VA.cropShaText(e);
+      },
+    },
+    spec_pile: {
+      legacy: false,
+      text: function (e) {
+        return "from data/inbox/specs/ by filename (" +
+          (e.pdf_name || "(the entry names no file)") + ") — " + VA.cropShaText(e);
+      },
+    },
+    joint_export_run: {
+      legacy: true,
+      text: function (e) {
+        return "LEGACY RULE: export pinned by the joint block, not by this " +
+          "citation (drawing-checker run " + (e.run_id || e.run_dir || "?") +
+          ") — " + VA.cropShaText(e);
+      },
+    },
+  };
+
+  // What a crop resolved by a rule this viewer has never heard of must say. It
+  // names the value rather than describing it, because the reader's next step is
+  // to grep the crop script for it.
+  VA.unlabelledRuleText = function (resolvedBy) {
+    return "resolved by " + JSON.stringify(resolvedBy === undefined ? null : resolvedBy) +
+      ", a rule this viewer has no label for — how much to trust this " +
+      "placement is NOT shown here; read the entry in crops.json";
+  };
+
+  // The `resolved_by` values in a crops index that VA.CROP_RULES cannot explain.
+  // Reads `summary.by_resolved_by` (the rollup the crop script computes) and
+  // falls back to scanning the entries when an older crops.json has no rollup.
+  VA.unlabelledCropRules = function (crops) {
+    var seen = {};
+    var byRule = (crops && crops.summary && crops.summary.by_resolved_by) || null;
+    if (byRule) {
+      Object.keys(byRule).forEach(function (rule) { seen[rule] = true; });
+    } else {
+      var byStack = (crops && crops.by_stack) || {};
+      Object.keys(byStack).forEach(function (stackId) {
+        Object.keys(byStack[stackId]).forEach(function (elementId) {
+          var entry = byStack[stackId][elementId];
+          if (entry && entry.status === "resolved") {
+            seen[String(entry.resolved_by)] = true;
+          }
+        });
+      });
+    }
+    return Object.keys(seen).filter(function (rule) {
+      return !VA.CROP_RULES[rule];
+    }).sort();
+  };
+
   // One line saying how much to trust a crop's placement.
   VA.cropProvenanceLine = function (cropEntry) {
     if (!cropEntry || cropEntry.status !== "resolved") return "";
     var bits = [];
-    if (cropEntry.resolved_by === "joint_export_run") {
-      bits.push("export pinned by the joint block" +
-        (cropEntry.sha256_verified ? ", sha256 verified" : ""));
-    } else if (cropEntry.resolved_by === "provenance.sources_used") {
-      bits.push("export taken from provenance.sources_used (the joint block " +
-        "names none)");
-    } else if (cropEntry.resolved_by === "spec_pile") {
-      bits.push("from data/inbox/specs/");
-    }
+    var rule = VA.CROP_RULES[cropEntry.resolved_by];
+    bits.push(rule
+      ? rule.text(cropEntry)
+      : VA.unlabelledRuleText(cropEntry.resolved_by));
     if (cropEntry.located_by === "zone_cell") {
       // Name the string that corroborated, never just "found". The needle is
       // whichever candidate matched FIRST, and the candidates include bare
@@ -280,6 +366,45 @@
     return null;
   };
 
+  // The sha256 half of the crop scoreboard, from `summary.sha256_verified` —
+  // the rollup the crop script computes. It sits immediately beside the resolved
+  // count on purpose: "26 resolved" on its own is the number that got read as 26
+  // trustworthy crops when only 22 of them had been checked against anything.
+  // null when the rollup is absent (a crops.json built before 2026-08-06).
+  VA.shaCountsText = function (summary) {
+    var counts = (summary || {}).sha256_verified;
+    if (!counts) return null;
+    var bits = [(counts["true"] || 0) + " sha256-verified"];
+    if (counts["false"]) bits.push(counts["false"] + " NOT VERIFIED");
+    if (counts.unverified) bits.push(counts.unverified + " with no sha to check");
+    return bits.join(", ");
+  };
+
+  // Which rule resolved them, from `summary.by_resolved_by`, so a rise in the
+  // resolved count is answerable — a count that rose because a rule got looser
+  // is a regression, and the rule names are what show it. Unlabelled rules are
+  // called out here too: this page cannot explain their crops in a hover, and
+  // that is a fact about the viewer the reader should not have to discover by
+  // hovering.
+  VA.cropRulesLine = function (crops) {
+    var byRule = (crops && crops.summary && crops.summary.by_resolved_by) || null;
+    if (!byRule) return null;
+    var unlabelled = VA.unlabelledCropRules(crops);
+    var bits = Object.keys(byRule).sort().map(function (rule) {
+      return rule + " " + byRule[rule] +
+        (VA.CROP_RULES[rule]
+          ? (VA.CROP_RULES[rule].legacy ? " (LEGACY rule)" : "")
+          : " (NO LABEL)");
+    });
+    var line = "crops by rule: " + bits.join(" · ");
+    if (unlabelled.length) {
+      line += " — this viewer has no label for " + unlabelled.join(", ") +
+        ", so those hovers cannot say how much to trust the crop. Teach " +
+        "VA.CROP_RULES the rule.";
+    }
+    return line;
+  };
+
   // The banner's freshness line. Purely descriptive — the viewer does not try
   // to decide whether a projection is stale, it shows when each was built and
   // lets the reader judge.
@@ -288,11 +413,16 @@
     parts.push(results && results.built_at
       ? "results built " + results.built_at
       : "results NOT BUILT");
-    parts.push(crops && crops.built_at
-      ? "crops built " + crops.built_at +
-        " (" + ((crops.summary || {}).resolved || 0) + " resolved, " +
-        ((crops.summary || {}).unresolvable || 0) + " unresolvable)"
-      : "crops NOT BUILT");
+    if (crops && crops.built_at) {
+      var summary = crops.summary || {};
+      var sha = VA.shaCountsText(summary);
+      parts.push("crops built " + crops.built_at +
+        " (" + (summary.resolved || 0) + " resolved" +
+        (sha ? " — " + sha : "") + "; " +
+        (summary.unresolvable || 0) + " unresolvable)");
+    } else {
+      parts.push("crops NOT BUILT");
+    }
     return parts.join(" · ");
   };
 
