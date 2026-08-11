@@ -94,7 +94,11 @@ archetype reads; `load_stack()` ignores it, `load_thermal_fit_stack()` uses it t
 **material entry** (`joby.tolerance_stack/material_entry/v0`, new 2026-08-05) —
 one material + condition and the CTE a stack may cite for it, in
 `materials.json`. Same discipline as `hardware_entry`: `values_status: inline`,
-`library_ref: null`, a mandatory `values_source`, a non-empty `gaps`. Its one
+`library_ref: null`, a mandatory `values_source`, a non-empty `gaps`. Here the
+null ref really is unconditional — **there is no materials library**, and
+`test_material_entries_keep_library_ref_null_and_schema_v0` asserts it. That is
+the one thing this shape does *not* share with `hardware_entry`, whose ref has
+been filled on one entry since the spec library was built. Its one
 addition is **`designation_source` separate from `values_source`**, because a
 material's *name* and its *numbers* have different provenance — every designation
 here but one is traced to a drawing note, and no CTE value is traced at all.
