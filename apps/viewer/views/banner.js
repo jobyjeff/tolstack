@@ -20,6 +20,9 @@
     } else {
       root.appendChild(VA.el("span", "banner__built", VA.builtLine(state.results, state.crops)));
       root.appendChild(button("Reload", "banner__action", handlers.onReload));
+      // Which rule resolved the crops, beneath the counts they belong to.
+      var rules = VA.cropRulesLine(state.crops);
+      if (rules) root.appendChild(VA.el("div", "banner__crop-rules", rules));
       provenance(root, state);
     }
 

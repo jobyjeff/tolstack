@@ -34,7 +34,12 @@ C:\workspace\drawing-checker\venv-win\Scripts\python.exe scripts\build_viewer_cr
 
 3. Open the page, click **Connect folder**, pick the **tolstack repo root**
    (`C:\workspace\tolstack`), grant **read**. The banner turns into a build line:
-   *results built … · crops built … (6 resolved, 26 unresolvable)*.
+   *results built … · crops built … (26 resolved — 22 sha256-verified, 4 with no
+   sha to check; 22 unresolvable)*, then *crops by rule: source_ref_export 22 ·
+   spec_pile 4*. A resolved count on its own says nothing about whether anything
+   was **checked**, which is the whole difference between a crop of the export a
+   citation names and a crop of a file that happens to share its name — so the
+   verification counts sit beside it, out of `crops.json`'s own `summary`.
 
 Both steps are **wipe-and-rebuild** and each owns its own files, so either can
 be re-run alone. Re-run step 1 after editing a stack JSON; re-run step 2 after a
@@ -142,6 +147,17 @@ behind the citation (needs `cmd /c serve.bat` in that repo — see
 | `unresolvable` | the citation could not be pinned to a page **without guessing** — a finding about the stack, with the reason |
 | `not-built` | nobody has run `build_viewer_crops.py` — a chore, and the popover shows the command |
 | `no-entry` | `crops.json` predates this element, i.e. it's stale |
+
+A resolved popover then says **which rule** pinned the document and **whether
+the bytes were verified** — a crop of a *guessed* export looks perfectly correct
+on screen, so this is the fact the hover exists for:
+
+| `resolved_by` | what the popover says |
+|---|---|
+| `source_ref_export` | *read from the export this citation names, `X.pdf` — sha256 VERIFIED*. The rule every export-resolved crop in the repo uses; the sha is mandatory under it, so a crop can only exist if the bytes matched. |
+| `spec_pile` | *from `data/inbox/specs/` by filename — no sha256 to verify*. The pile is append-only, so a filename **is** the identity; there is no sha to check and the line says so rather than implying one passed. |
+| `joint_export_run` | *LEGACY RULE: export pinned by the joint block, not by this citation*. Still in the crop script for a stack written before 2026-08-06 (no `source_ref.export`, `document` == `joint.assembly_drawing`, and a `joint.assembly_export` naming a drawing-checker run). No stack in the repo reaches it today. |
+| anything else | *resolved by `"X"`, a rule this viewer has no label for* — loud, and `VA.unlabelledCropRules()` puts it in the banner too. `provenance.sources_used`, deleted from the crop script on 2026-08-06, gets exactly this treatment: a branch for a value nothing can carry reads as "this case is handled". |
 
 Placement, in order: the **cited printed zone** (padded a cell) when the sheet's
 border grid is legible; else a **unique callout-text match**; else the **whole

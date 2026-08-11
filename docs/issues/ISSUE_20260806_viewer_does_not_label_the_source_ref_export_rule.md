@@ -1,13 +1,37 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20260810_viewer_source_ref_export_label.md
 area: apps/viewer / crop provenance display
 reporter: agent
 ---
 
 # The viewer has no label for `resolved_by: "source_ref_export"`, and its two labelled branches are now dead
+
+> **RESOLVED 2026-08-11** by handoff `viewer_source_ref_export_label`. The if/else
+> chain is now `VA.CROP_RULES`, one entry per rule the crop script can emit; an
+> export-resolved hover reads *"read from the export this citation names,
+> 212966-006-A.pdf — sha256 VERIFIED"*. `provenance.sources_used` is deleted,
+> `joint_export_run` is kept and labelled LEGACY (the input that still reaches it
+> is named in the code comment), and a `resolved_by` value with no entry in the
+> table now renders loudly and shows up in the banner via
+> `VA.unlabelledCropRules()` — the guard against a repeat. The banner reads
+> `summary.sha256_verified` and `summary.by_resolved_by`, so the count arrives as
+> *"26 resolved — 22 sha256-verified, 4 with no sha to check"*.
+>
+> The misleading fixture was the root cause and is fixed too: `fixtures.js`
+> carried a fabricated `provenance.sources_used` entry and a summary with no
+> rollups, and a `[real]` test now compares the fixture's crop-entry and summary
+> key sets against the live `crops.json` so it cannot drift again. JS 95/95,
+> Python 340 passed / 1 skipped.
+>
+> One count correction: the issue says 24 resolved crops, all
+> `source_ref_export`. At the time of the fix the live projection has **26** — 22
+> `source_ref_export` and 4 `spec_pile` — because `fastener_citations_and_confidence`
+> landed four spec-pile citations in between. `spec_pile` has no sha to verify
+> (the pile is append-only, so a filename is its identity), which is exactly why
+> the label distinguishes "not verified" from "no sha to check".
 
 `apps/viewer/viewer.js` explains a crop's provenance by switching on
 `crops.json`'s `resolved_by`. As of `citation_export_provenance` (2026-08-06) all

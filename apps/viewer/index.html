@@ -60,6 +60,13 @@
       flex-basis: 100%; color: var(--muted); font-size: 12px;
       font-variant-numeric: tabular-nums; word-break: break-all;
     }
+    /* Which RULE resolved each crop. Same quiet register as the tree line — it
+       is the answer to "why did the resolved count change", read after the
+       counts, not instead of them. */
+    .banner__crop-rules {
+      flex-basis: 100%; color: var(--muted); font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
     .banner__stale {
       flex-basis: 100%; border-left: 3px solid var(--untraced); padding: 6px 10px;
       background: rgba(0, 0, 0, 0.15);
