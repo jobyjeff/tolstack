@@ -1,6 +1,12 @@
 # Lessons — tolerance_stack_slice1 (worked 2026-07-30)
 
-> **IMPORTED REFERENCE — verbatim, do not edit.** This is a **drawing-checker**
+> **IMPORTED REFERENCE — insert-only.** Nothing below this header is ever
+> edited, reworded or deleted; a dated correction blockquote may be *inserted*
+> after the passage it corrects, leaving the original standing (the rule and its
+> argument: `ARCHITECTURE.md`, "Imported material"; enforced by
+> `tests/test_provenance.py`, which diffs this file against the imported
+> original and fails on anything that is not an insertion). This is a
+> **drawing-checker**
 > lesson, copied into tolstack at its founding (2026-08-03, handoff
 > `tolstack_founding`; see the repo-root `PROVENANCE.md` for the source path and
 > drawing-checker's sha at the time of the copy). It is here because it is the

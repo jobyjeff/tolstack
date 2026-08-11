@@ -1,13 +1,28 @@
 ---
 type: chore
 priority: high
-status: triaged
+status: closed
 handoff: docs/sessions/HANDOFF_20260810_provenance_byte_identical_test.md
 area: provenance / tests
 reporter: agent
+closed: 2026-08-10
 ---
 
 # Five sightings, five reviewer fixes, zero author catches: make a test assert PROVENANCE's "byte-identical" rows against `git diff`
+
+> **CLOSED 2026-08-10** by handoff `provenance_byte_identical_test`.
+> `tests/test_provenance.py` is the test: it parses the Amended column (whose
+> vocabulary is now load-bearing and documented in `PROVENANCE.md`), diffs every
+> claimed path against the merge-base, against this repo's import commit
+> `c157300` and against drawing-checker's blob at the recorded sha, and fails
+> naming the row and what to write. Every point below is addressed, including the
+> grep — an asserted byte-identity in a live file must now name what checks it —
+> and the `docs/reference/` question, settled as **insert-only** in
+> `ARCHITECTURE.md`, "Imported material". Sightings 4 and 5 are replayed out of
+> git as regression cases (`_SIGHTINGS`), so the test is demonstrably red on the
+> two real falsifying diffs and clean on the review commits that fixed them. The
+> checklist item that asked reviewers to run the diff by hand is deleted; what
+> remains there is only what the test cannot judge.
 
 Filed by `review/traced_labels_and_ratio` (2026-08-06). The review checklist's
 own escalation trigger for this bug has fired: it said *"on a fifth sighting,
