@@ -42,13 +42,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
+# This script's own directory, so `projection_provenance` imports whether we were
+# started as a script (sys.path[0] is scripts/ already) or imported by a test.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import projection_provenance as prov  # noqa: E402
 from tolerance_stack.stack import (  # noqa: E402
     SCHEMA_HARDWARE,
     StackDefinition,
@@ -518,7 +521,14 @@ def as_posix_rel(path: Path) -> str:
         return path.as_posix()
 
 
-def build(stacks_dir: Path, hardware_path: Path) -> Dict[str, Any]:
+BUILT_BY = "scripts/build_viewer_projection.py"
+
+
+def build(
+    stacks_dir: Path,
+    hardware_path: Path,
+    provenance: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     hardware: Dict[str, Any] = {"entries": []}
     if hardware_path.exists():
         hardware = json.loads(hardware_path.read_text(encoding="utf-8"))
@@ -543,13 +553,26 @@ def build(stacks_dir: Path, hardware_path: Path) -> Dict[str, Any]:
         raw = json.loads(path.read_text(encoding="utf-8"))
         stacks.append(project_stack(path, raw, hardware, materials_raw))
 
+    if provenance is None:
+        provenance = prov.stamp(REPO_ROOT, stacks_dir, BUILT_BY)
+
     return {
         "schema": SCHEMA_PROJECTION,
-        "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "built_by": "scripts/build_viewer_projection.py",
+        # `built_at` here and `provenance.built_at` are the same instant, kept
+        # both places on purpose: the top-level pair is what the viewer's banner
+        # and every existing reader already reads, and renaming a field other
+        # consumers read to tidy up a duplication would be a worse trade.
+        "built_at": provenance["built_at"],
+        "built_by": BUILT_BY,
+        # Repo-RELATIVE, unchanged, and therefore useless for saying which tree
+        # built this: `docs/tolerance_stacks` is the same string in every
+        # worktree in existence. `provenance.stacks_dir` is the resolved
+        # absolute one. Kept because it is a published field.
         "stacks_dir": stacks_dir.as_posix()
         if not stacks_dir.is_absolute()
         else as_posix_rel(stacks_dir),
+        # Which TREE built this file -- see scripts/projection_provenance.py.
+        prov.PROVENANCE_KEY: provenance,
         "stacks": stacks,
         "hardware_entries": hardware,
     }
@@ -567,6 +590,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         default=str(REPO_ROOT / STACKS_DIR),
         help="directory holding stack_*.json + hardware_entries.json",
     )
+    ap.add_argument(
+        "--allow-older-tree",
+        action="store_true",
+        help="overwrite a projection built from a tree this one does not contain "
+        "(the gate refuses by default -- see scripts/projection_provenance.py)",
+    )
     args = ap.parse_args(argv)
 
     stacks_dir = Path(args.stacks_dir)
@@ -575,7 +604,28 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
     out_dir = Path(args.data_root) / PROJECTION_SUBDIR
-    projection = build(stacks_dir, stacks_dir / "hardware_entries.json")
+    out_path = out_dir / RESULTS_NAME
+
+    # The gate runs BEFORE the build, not before the write: refusing after a
+    # minute of work would still be correct and would still read as a crash.
+    provenance = prov.stamp(REPO_ROOT, stacks_dir, BUILT_BY)
+    rebuild_command = (
+        f"python scripts\\build_viewer_projection.py "
+        f"--data-root {Path(args.data_root)}"
+    )
+    try:
+        notes = prov.guard(
+            out_path, provenance, REPO_ROOT, args.allow_older_tree, rebuild_command
+        )
+    except prov.RebuildRefused as refusal:
+        print(str(refusal), file=sys.stderr)
+        return 3
+    for line in notes:
+        print(f"note: {line}", file=sys.stderr)
+    for line in prov.note_lines(provenance):
+        print(line, file=sys.stderr)
+
+    projection = build(stacks_dir, stacks_dir / "hardware_entries.json", provenance)
 
     # Wipe-and-rebuild, but only this script's own file: crops.json + crops/
     # belong to build_viewer_crops.py and must survive a results rebuild.

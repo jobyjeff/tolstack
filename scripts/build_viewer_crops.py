@@ -83,13 +83,18 @@ import json
 import re
 import shutil
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# This script's own directory, so `projection_provenance` imports whether we were
+# started as a script (sys.path[0] is scripts/ already) or imported by a test.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import projection_provenance as prov  # noqa: E402
 
 SCHEMA_CROPS = "joby.tolerance_stack/viewer_crops/v0"
+BUILT_BY = "scripts/build_viewer_crops.py"
 
 DEFAULT_DC_ROOT = Path(r"C:\workspace\drawing-checker")
 STACKS_DIR = Path("docs") / "tolerance_stacks"
@@ -545,6 +550,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="points of context around a located callout")
     ap.add_argument("--max-px", type=int, default=2400,
                     help="cap on a crop's longest side")
+    ap.add_argument("--allow-older-tree", action="store_true",
+                    help="overwrite a crop index built from a tree this one does "
+                         "not contain (the gate refuses by default -- see "
+                         "scripts/projection_provenance.py)")
     args = ap.parse_args(argv)
 
     try:
@@ -566,6 +575,25 @@ def main(argv: Optional[List[str]] = None) -> int:
     specs_dir = data_root / "inbox" / "specs"
     out_dir = data_root / PROJECTION_SUBDIR
     crops_dir = out_dir / "crops"
+
+    # The gate runs first -- before the rmtree below, and before a few minutes of
+    # PDF rendering. Refusing after wiping crops/ would be a refusal that
+    # destroyed the thing it was protecting.
+    provenance = prov.stamp(REPO_ROOT, stacks_dir, BUILT_BY)
+    rebuild_command = (
+        r"C:\workspace\drawing-checker\venv-win\Scripts\python.exe "
+        f"scripts\\build_viewer_crops.py --data-root {data_root}"
+    )
+    try:
+        notes = prov.guard(out_dir / "crops.json", provenance, REPO_ROOT,
+                           args.allow_older_tree, rebuild_command)
+    except prov.RebuildRefused as refusal:
+        print(str(refusal), file=sys.stderr)
+        return 3
+    for line in notes:
+        print(f"note: {line}", file=sys.stderr)
+    for line in prov.note_lines(provenance):
+        print(line, file=sys.stderr)
 
     dc_available = (dc_root / "data").is_dir()
     if not dc_available:
@@ -614,8 +642,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     summary = resolution_summary(resolved, unresolved)
     index = {
         "schema": SCHEMA_CROPS,
-        "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "built_by": "scripts/build_viewer_crops.py",
+        # Unchanged fields, same instant as `provenance.built_at` -- other
+        # consumers (the viewer's banner) already read these two by name.
+        "built_at": provenance["built_at"],
+        "built_by": BUILT_BY,
+        # Which TREE built this file -- see scripts/projection_provenance.py.
+        # crops.json recorded no stacks_dir at all before this; it is in here.
+        prov.PROVENANCE_KEY: provenance,
         "drawing_checker_root": dc_root.as_posix(),
         "drawing_checker_available": dc_available,
         "crops_dir": "crops",
