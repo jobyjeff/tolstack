@@ -137,3 +137,33 @@ rule a human has to remember, and it does not help two concurrent *reviews*, nor
 tell a reader of the file which tree produced it. The suggested fix above —
 stamp `--stacks-dir`, branch and HEAD sha into both files, then refuse a rebuild
 whose recorded sha is not an ancestor — is still the fix. Status stays `open`.
+
+---
+
+## What landed — handoff `viewer_projection_provenance`, 2026-08-10
+
+The suggested fix, both halves: `scripts/projection_provenance.py` stamps branch,
+HEAD sha, `dirty`, `behind_trunk` and the **resolved absolute** `--stacks-dir`
+into both projection files, and refuses (exit 3, writes nothing) a rebuild whose
+recorded sha is not an ancestor of the rebuilding tree's HEAD.
+`--allow-older-tree` overrides, loudly. The viewer's banner shows which tree
+built each projection and raises an alarm when the pair disagrees. Demonstrated
+against a real throwaway worktree, not just unit-tested.
+
+Two corrections to this issue's text, for anyone reading it as a record:
+
+- `results.json` **did** record `built_at` and `built_by`, from the original
+  viewer commit — this issue's own timeline is quoted from that `built_at`. What
+  it lacked was a tree identity: its `stacks_dir` was repo-*relative*
+  (`docs/tolerance_stacks`), the same string in every worktree.
+- The per-branch subdir was prototyped and is **recommended against**: the
+  viewer's reading path is easy (~30 lines, back-compatible, real suite green
+  through the indirection), but every candidate update rule for the `current`
+  pointer reintroduces last-writer-wins and so still needs the ancestry gate
+  underneath, at a cost of 13 MB per branch with no GC rule. Reasoning in
+  `docs/sessions/lessons/LESSONS_20260810_viewer_projection_provenance.md`.
+
+**Not yet closable.** The gate lives in the build scripts, so it protects only
+trees that have merged it. A worktree branched before this work still runs the
+gate-less script and still clobbers, stamp and all. Closing this should wait
+until the live worktrees are gone or merged.
