@@ -1,11 +1,35 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: closed
 handoff: docs/sessions/HANDOFF_20260810_fastener_citations_and_confidence.md
 area: tolerance-stacks
 reporter: agent
+closed: 2026-08-10
+closed_by: handoff fastener_citations_and_confidence
 ---
+
+> **Closed 2026-08-10.** All three instances resolved, and this issue was right
+> that doing the sibling issue first would shrink it: `take2:fastener_grip_13`
+> disappeared from the list by being re-cited to the standard rather than
+> downgraded, which also fixed the two-labels-one-bolt defect at its root.
+> `tan_link:washer_thin` and `take2:straight_bushing` went `untraced` and joined
+> the gap lists.
+>
+> **Suggested fix 3 turned out to be half wrong, and that is the durable part.**
+> The proposed rule — `kind == "workbook"` ⟹ `confidence == "untraced"` — is
+> **false**: `hub_bearing_thermal_fit_m1`'s `hub_bore_lower` / `hub_bore_upper`
+> cite the 260209 workbook and are correctly `inferred`, because 212966-006 rev A
+> (a later revision of the same part drawing, in hand) prints the identical value
+> *and* band, and both notes say so and pre-authorise the downgrade. `kind`
+> records which document the numbers were transcribed **from**; corroboration can
+> arrive from a different document named only in the `note`. So the guard shipped
+> as an **allowlist** —
+> `test_a_workbook_only_value_is_untraced_unless_its_exception_is_registered` —
+> which costs one line per exception and makes each one reviewable, rather than
+> as an implication that would have demanded two correct elements be relabelled.
+> The note-vs-field half is unmechanisable as this issue said, and is now written
+> into `docs/prompts/REVIEW_AGENT.md` check 1 alongside the test's name.
 
 # Three seeded elements carry `confidence: "inferred"` on `kind: "workbook"`, and the same bolt is labelled two different ways in two stacks
 

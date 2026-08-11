@@ -353,8 +353,8 @@ washer, capped at three by §5.5.3.a). Recorded as an absence with
 `closed_by: null` on the `MS9363` library subject.
 
 The binding constraint on nearly every value was the **absence of a
-fastener-spec library**: **3 of 26 element instances across the three seeded
-stacks are `traced`** (7 `inferred`, 16 `untraced`). That library now exists
+fastener-spec library**: **5 of 26 element instances across the three seeded
+stacks are `traced`** (3 `inferred`, 18 `untraced`). That library now exists
 (`docs/spec_library/`), holds the two bolts and both nuts, and carries its own
 intake queue — the per-entry `gaps` lists in `hardware_entries.json` are being
 superseded by it one entry at a time, starting with `NAS6403U11D`.
@@ -375,6 +375,18 @@ and does not restate the rule.
 > properly `traced`; the third (MS21299C4K) was downgraded to `inferred`. So the
 > repo understated its own sourcing 4x on the field count, and 3x against the
 > corrected one, for its first month. The number is now pinned by a test.
+
+> **Moved, 2026-08-10** (handoff `fastener_citations_and_confidence`). Not a
+> correction — the figure above read **3 of 26** (7 `inferred`, 16 `untraced`)
+> and was right when written. It moved because five slice-1 element instances
+> were re-decided in one sitting, in two directions: both `fastener_grip_13`
+> instances were re-cited to `NAS6403-NAS6420 Rev 4.pdf` sheet 3 (`inferred` →
+> `traced`), and `tan_link:washer_thin` and `take2:straight_bushing` were
+> downgraded `inferred` → `untraced` because their only support was the source
+> workbook. `tan_link:thread_transition` was decided on the merits and left
+> `untraced`: the standard gives `T (Ref)`, which is the whole thread region,
+> not the run-out inside it. **No numeric value changed and no check result
+> moved** — this is a provenance-label change end to end.
 
 The thermal-fit stacks invert that picture and expose a **second** intake queue.
 Their

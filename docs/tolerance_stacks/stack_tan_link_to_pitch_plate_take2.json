@@ -36,8 +36,8 @@
         "document": "260729_sample_tol_stack.xlsx",
         "sheet": "grip length tols old",
         "cell": "E39",
-        "confidence": "inferred",
-        "note": "Identical to take 1's E7."
+        "confidence": "untraced",
+        "note": "Identical to take 1's E7. DOWNGRADED `inferred` -> `untraced` 2026-08-10 (handoff fastener_citations_and_confidence). This source_ref cites a workbook cell and nothing else, and the numbers it carries are workbook literals: E39/G39/H39 are hand-typed 4.762 / 4.63 / 4.76 mm with no inch source and no formula behind them (hardware_entries.json:214820-002 calls those limits the file's worked example of laundering). So its only support is 'the workbook says so' -- `untraced` by the SOP, and now on the gap list. NOT relabelled to `kind: parts_list` to match take 1's instance of this bushing: take 1 cites 217755 find 34 with the balloon and export block, which corroborates the PART and its .1875 in nomenclature nominal and honestly says in its own note that the 4.63/4.76 limits are not on that drawing -- that is the SOP's sanctioned `parts_list`/`inferred` shape. Promoting this one to match would mean ADDING a citation to a document that prints neither the band nor even this nominal (.1875 x 25.4 = 4.7625, not the 4.762 typed here), i.e. manufacturing corroboration to improve a label. The two instances therefore cite two different documents and are each graded for the document they cite. Unlike fastener_grip_13, there is no spec that would make both `traced`: 214820-002 is a Joby detail part whose drawing is not in this repo."
       }
     },
     {
@@ -118,13 +118,17 @@
       "max": 20.8788,
       "plus_minus": 0.254,
       "hardware_ref": "NAS6403U13H",
+      "note": "0.812 +/-0.010 in. RE-CITED 2026-08-10 (handoff fastener_citations_and_confidence) to the same sheet-3 row as take 1's fastener_grip_13: take 2 is a restatement of take 1, so the same bolt now carries the same provenance shape in both stacks.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E52",
-        "confidence": "inferred",
-        "note": "Take 2 evaluates only the -13; the -14 branch was dropped."
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 3,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 13', column 'NAS6403 .1900-32'",
+        "callout": "Grip Dash No. 13  |  Grip ±.010 = .812  |  LENGTH ±.015, NAS6403 .1900-32 = 1.135",
+        "confidence": "traced",
+        "note": "Same row, same reading and same crop as tan_link_to_pitch_plate:fastener_grip_13 -- see that element for the full sheet-2 CODE-block decode of NAS6403U13H. WAS `kind: workbook` (cell E52) / `confidence: inferred`, which was the sharpest instance of the note-vs-field defect in the repo: the same bolt was `parts_list`/`inferred` in take 1 and `workbook`/`inferred` here, so one of the two was wrong about where the number came from and neither said which. Take 2 evaluates only the -13; the -14 branch was dropped, which is why this stack has no fastener_grip_14."
       }
     },
     {

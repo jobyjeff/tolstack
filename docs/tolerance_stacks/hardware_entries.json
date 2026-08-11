@@ -1,6 +1,6 @@
 {
   "schema": "joby.tolerance_stack/hardware_entry/v0",
-  "description": "Seed of the fastener-library stream (DRAFT_tolerance_stack_mvp groundwork item 1), now also holding vendor bearings under Joby source-control drawings. Every entry carries a `values_source` saying where its numbers came from -- a source_ref-shaped dict, mandatory unless `values_status` is `not_transcribed`, in which case it is explicitly null. It stays filled after a promotion to `library`, because where the inline numbers came from is still true and useful once they are a cross-check rather than the source. READ IT BEFORE REUSING A BAND: eight of the fifteen entries transcribe the 260729 workbook (with parts-list nomenclature corroborating some nominals), which makes those numbers UNUSABLE as a source in a from-scratch stack -- citing the entry instead of the xlsx launders the same untraced value (SOP Step 5b, trap 17). THREE entries are traced and safe to reuse: NAS6403U11D, whose values the spec library now owns (`values_status: library`), traced to the NAS6403 standard in the spec pile; and 214589-002 / 214588-002, traced to their own source-control drawings, where the drawing IS the controlling document for the vendor part and prints its limits directly. Four entries are `not_transcribed` with `values_source: null`. Counts in this paragraph are asserted by tests/test_tolerance_stack.py::test_hardware_entry_values_source_counts_match_the_description, because a count written in prose goes stale silently -- as this one already did once. `library_ref` is the slot a real library entry drops into; when it is filled, `values_status` becomes `library` and the inline numbers become a cross-check rather than the source.",
+  "description": "Seed of the fastener-library stream (DRAFT_tolerance_stack_mvp groundwork item 1), now also holding vendor bearings under Joby source-control drawings. Every entry carries a `values_source` saying where its numbers came from -- a source_ref-shaped dict, mandatory unless `values_status` is `not_transcribed`, in which case it is explicitly null. It stays filled after a promotion to `library`, because where the inline numbers came from is still true and useful once they are a cross-check rather than the source. READ IT BEFORE REUSING A BAND: five of the fifteen entries transcribe the 260729 workbook (with parts-list nomenclature corroborating some nominals), which makes those numbers UNUSABLE as a source in a from-scratch stack -- citing the entry instead of the xlsx launders the same untraced value (SOP Step 5b, trap 17). SIX entries are traced and safe to reuse: the four NAS bolts, whose grips and ±.010 bands are printed on sheet 3 of `NAS6403-NAS6420 Rev 4.pdf` in the spec pile -- NAS6403U11D, whose values the spec library now owns (`values_status: library`), plus NAS6403U13H, NAS6403U14D and NAS6404U13D, re-sourced 2026-08-10 by handoff fastener_citations_and_confidence; and 214589-002 / 214588-002, traced to their own source-control drawings, where the drawing IS the controlling document for the vendor part and prints its limits directly. Four entries are `not_transcribed` with `values_source: null`. That the workbook-transcribed count fell from eight to five in one sitting is the finding worth carrying: those three bolts were re-sourceable from the day NAS6403-NAS6420 Rev 4.pdf landed in `data/inbox/specs/`, and nothing in the repo noticed that a new document had made an existing gap closable. Counts in this paragraph are asserted by tests/test_tolerance_stack.py::test_hardware_entry_values_source_counts_match_the_description, because a count written in prose goes stale silently -- as this one already did once. `library_ref` is the slot a real library entry drops into; when it is filled, `values_status` becomes `library` and the inline numbers become a cross-check rather than the source.",
   "provenance": {
     "stack_workbook": "data/inbox/tolerance_stacks/260729_sample_tol_stack.xlsx (note 20260729T173648_qjk2xk)",
     "parts_list_run": "data/runs/20260723_163810_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER (read-only; 217755 rev A, 9 sheets, 105 parts-list rows, 96 balloons)",
@@ -105,12 +105,15 @@
       "values_status": "inline",
       "library_ref": null,
       "values_source": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E23/D23 (take-2 repeats it at E52/D52)",
-        "confidence": "untraced",
-        "note": "Slice-1 transcription of row 23, `fastener grip (-13)`: E23 is `=0.812*25.4` and the band is the free-text label `+/-.01` in D23, applied in G23/H23 as `=(0.812-0.01)*25.4` / `=(0.812+0.01)*25.4`. The .812 in grip is corroborated by the 217755 parts-list nomenclature (find 95, qty 3, ballooned nowhere); the +/-.010 band is the workbook's alone. NAS6403-NAS6420 Rev 4.pdf is now in the spec pile and its sheet-3 grip/length table covers every dash number, so this entry could be re-sourced to the standard the way NAS6403U11D was -- that work is NOT done here. Until it is, not usable as a source in a from-scratch stack (SOP Step 5b)."
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 3,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 13', column 'NAS6403 .1900-32'",
+        "callout": "Grip Dash No. 13  |  Grip ±.010 = .812  |  LENGTH ±.015, NAS6403 .1900-32 = 1.135",
+        "confidence": "traced",
+        "note": "RE-SOURCED 2026-08-10 (handoff fastener_citations_and_confidence). Both inline numbers are printed on sheet 3: .812 in the shared `Grip ±.010` column, the band in that column's own header. WAS a slice-1 transcription of workbook row 23, `fastener grip (-13)` -- E23 `=0.812*25.4`, band from the free-text label `+/-.01` in D23 applied in G23/H23 -- with the .812 corroborated only by the 217755 parts-list nomenclature (find 95, qty 3, ballooned nowhere) and the +/-.010 the workbook's alone. That entry disagreed with the stacks it serves from the moment both `fastener_grip_13` instances were re-cited; it is now the same citation they make. Sheet 2 CODE block decodes the part number: `U` after the basic number = unplated, `H` after the dash number = drilled HEAD, dash number = grip in .0625 increments. Scan with no text layer; read by vision. Safe to reuse under SOP Step 5b -- unlike the five entries still transcribing the 260729 workbook."
       },
       "dimensions_in": {
         "grip": 0.812,
@@ -134,7 +137,9 @@
         "note": "In the parts list at qty 3 but ballooned on NO sheet -- worth a look independent of the stack work."
       },
       "gaps": [
-        "The +/-.010 in grip tolerance and the thread run-out length both need the NAS6403 standard, absent from this repo."
+        "CLOSED 2026-08-10 (fastener_citations_and_confidence): the +/-.010 in grip tolerance is printed on NAS6403-NAS6420 Rev 4 sheet 3 and this entry now cites it. The gap read 'the +/-.010 in grip tolerance and the thread run-out length both need the NAS6403 standard, absent from this repo' -- that parenthetical had been false since the standard arrived in data/inbox/specs/.",
+        "The THREAD RUN-OUT length is still not sourced, and NAS6403 does not close it: sheet 1 dimensions grip and length and gives T (Ref) = .323 in as the reference difference between them, but never dimensions the transition inside T. Sheet 1's other candidates are ruled out by sheet 2's notes -- X (g) is 5 thread pitches of locking-element engagement, Y (h) is 3. The document that would close it is MIL-S-8879 (the thread spec sheet 1 invokes for UNJF-3A), which is not in data/inbox/specs/. Same gap as NAS6403U11D's.",
+        "Ballooned on NO sheet of 217755 while sitting in the parts list at qty 3 -- worth a look independent of the stack work."
       ]
     },
     {
@@ -146,12 +151,15 @@
       "values_status": "inline",
       "library_ref": null,
       "values_source": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E25/D25",
-        "confidence": "untraced",
-        "note": "Slice-1 transcription of row 25, `fastener grip (-14)`: E25 is `=0.875*25.4`, band from the free-text `+/-.01` label in D25 and applied in G25/H25. The .875 in grip is corroborated by the 217755 parts-list nomenclature (find 35, qty 3, balloon in DETAIL B -- this is the fastener the drawing actually selects at the tan-link joint); the +/-.010 band is the workbook's alone. Re-sourceable from NAS6403-NAS6420 Rev 4.pdf, now in the spec pile; not done here. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 3,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 14', column 'NAS6403 .1900-32'",
+        "callout": "Grip Dash No. 14  |  Grip ±.010 = .875  |  LENGTH ±.015, NAS6403 .1900-32 = 1.198",
+        "confidence": "traced",
+        "note": "RE-SOURCED 2026-08-10 (handoff fastener_citations_and_confidence) -- the backfill the 2026-08-06 re-citation of tan_link:fastener_grip_14 left behind. Both inline numbers are printed on sheet 3: .875 in the shared `Grip ±.010` column, the band in that column's own header. WAS a slice-1 transcription of workbook row 25 (E25 `=0.875*25.4`, band from the free-text `+/-.01` in D25) with the .875 corroborated only by the 217755 parts-list nomenclature. That parts-list evidence still stands and is still worth having, for a different question: it is what says WHICH bolt sits in this joint (find 35, qty 3, balloon in DETAIL B -- the fastener the drawing actually selects at the tan-link joint), and it is recorded under assembly_status below. `D` after the dash number = drilled shank (sheet 2 CODE block). Safe to reuse under SOP Step 5b."
       },
       "dimensions_in": {
         "grip": 0.875,
@@ -179,7 +187,8 @@
         "note": "This is the fastener the drawing actually selects at the tan-link joint."
       },
       "gaps": [
-        "Same NAS6403 standard gap as the -13."
+        "CLOSED 2026-08-10 (fastener_citations_and_confidence): the gap read 'Same NAS6403 standard gap as the -13', and the grip half of it is now cited on this entry.",
+        "The thread run-out length is still open, for the same reason as NAS6403U13H and NAS6403U11D: NAS6403 gives T (Ref) = .323 in but never dimensions the transition inside it. MIL-S-8879 closes it and is not in data/inbox/specs/."
       ]
     },
     {
@@ -190,7 +199,7 @@
       "thread": ".190-32",
       "values_status": "library",
       "library_ref": "spec_library:NAS6403U11D",
-      "library_ref_note": "FILLED 2026-08-05 by handoff spec_library_v0 -- the first entry in this file to defer to the spec library, and the demonstration of the seam docs/tolerance_stacks/hardware_entries.json's own description promised: \"when it is filled, values_status moves from inline to library and the inline numbers become a cross-check rather than the source\". `dimensions_in` below is now exactly that cross-check: every one of its numbers is re-derivable from the library subject NAS6403U11D, and `test_the_nas6403_hardware_entry_defers_to_the_library` asserts each one against it. Nothing on the STACK side changed -- stack_pitch_link_to_pitch_plate.json's elements still cite the standard through their own source_ref, which is the zero-rework property the slice-1 lesson designed the slot for. Resolve the ref against data/projections/spec_library/library.json (rebuild: python -m tolerance_stack). The other twelve entries keep values_status \"inline\" and belong to sop_edits_apply's backfill.",
+      "library_ref_note": "FILLED 2026-08-05 by handoff spec_library_v0 -- the first entry in this file to defer to the spec library, and the demonstration of the seam docs/tolerance_stacks/hardware_entries.json's own description promised: \"when it is filled, values_status moves from inline to library and the inline numbers become a cross-check rather than the source\". `dimensions_in` below is now exactly that cross-check: every one of its numbers is re-derivable from the library subject NAS6403U11D, and `test_the_nas6403_hardware_entry_defers_to_the_library` asserts each one against it. Nothing on the STACK side changed -- stack_pitch_link_to_pitch_plate.json's elements still cite the standard through their own source_ref, which is the zero-rework property the slice-1 lesson designed the slot for. Resolve the ref against data/projections/spec_library/library.json (rebuild: python -m tolerance_stack). This is still the ONLY entry that defers to the library; the other fourteen do not (ten `inline`, four `not_transcribed`) and belong to sop_edits_apply's backfill. CORRECTION 2026-08-10 (fastener_citations_and_confidence): that clause read \"The other twelve entries keep values_status inline\", which was true of the thirteen-entry file it was written against and went stale when hub_bearing_thermal_stack added the two bearings -- the repo's recurring stale-count bug, in the same file whose description-level counts a test already pins. Note that being re-sourced to the standard did NOT promote NAS6403U13H/U14D/NAS6404U13D to `library`: `values_status` says who owns the numbers, `values_source` says where they came from, and they are orthogonal.",
       "values_source": {
         "kind": "spec",
         "document": "NAS6403-NAS6420 Rev 4.pdf",
@@ -266,12 +275,15 @@
       "values_status": "inline",
       "library_ref": null,
       "values_source": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E73/D73 (E71 repeats the nominal)",
-        "confidence": "untraced",
-        "note": "Slice-1 transcription of row 73, `grip tols`: E73 is `=0.812*25.4`, band from the free-text `+/-.01` label in D73 and applied in G73/H73. The .812 in grip is corroborated by the 217755 parts-list nomenclature (find 27, qty 1, balloon in DETAIL X); the +/-.010 band is the workbook's alone. NAS6404 shares a file with NAS6403 in the spec pile (`NAS6403-NAS6420 Rev 4.pdf`), so this is the cheapest entry in the file to re-source -- not done here. Not usable as a source in a from-scratch stack (SOP Step 5b)."
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 3,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 13', column 'NAS6404 .2500-28'",
+        "callout": "Grip Dash No. 13  |  Grip ±.010 = .812  |  LENGTH ±.015, NAS6404 .2500-28 = 1.182",
+        "confidence": "traced",
+        "note": "RE-SOURCED 2026-08-10 (handoff fastener_citations_and_confidence) -- the backfill the 2026-08-06 re-citation of vpa_output:fastener_grip left behind, and the cheapest one in the file, because NAS6404 shares its document with NAS6403. Sheet 3 is one table for the whole NAS6403-NAS6420 family: the `Grip ±.010` column is SHARED across every basic number, so dash 13 is .812 in for the NAS6404 exactly as it is for the NAS6403, and only the LENGTH column differs (1.182 vs 1.135). WAS a slice-1 transcription of workbook row 73 (E73 `=0.812*25.4`, band from the free-text `+/-.01` in D73) with the .812 corroborated only by the 217755 parts-list nomenclature (find 27, qty 1, balloon in DETAIL X), which remains the evidence for which bolt is in the VPA joint. Sheet 2's EXAMPLE OF PART NUMBER block is written against NAS6404 specifically, which is the corroboration that the sheet-3 NAS6404 column decodes the same way. Safe to reuse under SOP Step 5b."
       },
       "dimensions_in": {
         "grip": 0.812,
@@ -298,7 +310,8 @@
         ]
       },
       "gaps": [
-        "NAS6404 standard absent."
+        "CLOSED 2026-08-10 (fastener_citations_and_confidence): the gap read 'NAS6404 standard absent', which stopped being true when NAS6403-NAS6420 Rev 4.pdf -- one document covering NAS6403 THROUGH NAS6420 -- arrived in data/inbox/specs/. The filename is the reason nobody noticed: it does not say 6404.",
+        "Only the grip is transcribed. The VPA joint's real binding constraint is castellation/cotter alignment (MS9363-10 + MS24665-229), and the NAS6404 row of sheet 1 -- M = .180/.160 in, P = .086/.076 in dia (that P cell is merged across the NAS6404 and NAS6405 rows, so read the row rules carefully) -- is now readable for the bolt half of it. Transcribed nowhere yet, because this stack does not model castellation."
       ]
     },
     {

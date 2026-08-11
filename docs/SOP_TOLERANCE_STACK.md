@@ -87,10 +87,18 @@ Three things that definition fixes, each of which had already gone wrong:
 venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --ratio
 ```
 
-As of 2026-08-06 that prints **3 of 26 element instances across the three seeded
-stacks are `traced`; 7 are `inferred` and 16 are `untraced`** — and 19 of 48
+As of 2026-08-10 that prints **5 of 26 element instances across the three seeded
+stacks are `traced`; 3 are `inferred` and 18 are `untraced`** — and 21 of 48
 across all six stacks. `tests/test_tolerance_stack.py` pins both, so a doc
 quoting a stale number fails the suite rather than merely being wrong.
+
+**Expect it to move in both directions at once.** The 2026-08-10 change
+(`fastener_citations_and_confidence`) took it from 3 of 26 to 5 by re-citing two
+elements *up* to a standard and pushing two *down* to `untraced` in the same
+commit — the numerator rose while the `inferred` column more than halved. A
+ratio that only ever climbs is a ratio someone is managing rather than counting;
+`untraced` going up because a label stopped overstating its support is the
+system working.
 
 **An element-only ratio flatters some archetypes.** Values a `StackElement`
 cannot hold — material properties, temperature scenarios, stiffness ratios — are

@@ -187,9 +187,17 @@ off `NAS6403-NAS6420 Rev 4.pdf` sheet 3. Nothing on this joint is traced to a
 *part drawing*; 215197's contribution is `inferred` at best (F15).
 
 **This stack: 1 traced / 2 inferred / 3 untraced out of 6 element instances.**
-Across all three seeded stacks: **3 of 26 `traced`**, 7 `inferred`, 16
+Across all three seeded stacks: **5 of 26 `traced`**, 3 `inferred`, 18
 `untraced`. The definition lives in `docs/SOP_TOLERANCE_STACK.md` ("The traced
 ratio"); reproduce with `tests\debug_report_tolerance_stacks.py --ratio`.
+
+> **Moved, 2026-08-10** (handoff `fastener_citations_and_confidence`). The
+> three-stack figure above was 3 of 26 (7 `inferred`, 16 `untraced`). **Nothing
+> on this stack changed** — the move is entirely in the two tan-link stacks. One
+> thing here did move, in `hardware_entries.json` rather than in the stack:
+> `NAS6404U13D`'s `values_source` was still `kind: "workbook"` / `untraced` with
+> a gap reading *"NAS6404 standard absent"*, four days after element 6 was
+> traced to that very standard. It now cites sheet 3 like the element does.
 
 > **Correction, 2026-08-06.** This paragraph used to say *"two elements — the
 > MS21299C4K washer thickness and the NAS6404U13D grip, both from the assembly

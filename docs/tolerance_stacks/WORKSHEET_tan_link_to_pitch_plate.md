@@ -41,6 +41,23 @@ Scope is **grip length only**. Diameter/hole fits are deliberately out of scope
 > sits in this joint is still balloon 35's evidence. No arithmetic below
 > changed — `check_result` is produced, not stored, and no number moved.
 
+> **Provenance update, 2026-08-10** (handoff
+> `fastener_citations_and_confidence`). Three more citations changed, and
+> again no arithmetic below moved.
+> **Element 10** (`fastener_grip_13`) made exactly the move element 11 made on
+> 08-06 and for the same reason: it was `parts_list` / `inferred` on 217755
+> find 95 with the band coming off the workbook, and sheet 3 row *Grip Dash No.
+> 13* prints `.812` under the same `Grip ±.010` header. Now `traced`.
+> **Element 7** (`washer_thin`) went `inferred` → **`untraced`**: the `.032
+> ±.004` band has no support but workbook cell E11, which its own note already
+> said, and the SOP makes that `untraced` and puts it on the gap list.
+> **Element 9** (`thread_transition`) was re-examined against NAS6403 and
+> deliberately **left as it is** — `kind: assumed`, `untraced`, 1.5875 mm. The
+> standard gives `T (Ref)` = .323 in, which is the whole thread region rather
+> than the run-out inside it, so taking it would have replaced a 1.6 mm
+> allowance with an 8.2 mm one on no better authority. It stays the most
+> pessimistic term in the shank-out checks and stays a listed gap.
+
 | # | element | role | nominal | min | max | source | conf |
 |---|---------|------|---------|-----|-----|--------|------|
 | 1 | flange bushing L thickness | bushing | 3.8100 | 3.6830 | 3.9370 | workbook E14 | untraced |
@@ -49,10 +66,10 @@ Scope is **grip length only**. Diameter/hole fits are deliberately out of scope
 | 4 | straight bushing | bushing | 4.7620 | 4.6300 | 4.7600 | 217755 sh4 DETAIL B (214820-002) | inferred |
 | 5 | spherical bearing width | bearing | 11.1000 | 11.0500 | 11.1000 | workbook E8 | untraced |
 | 6 | pitch plate flange thickness | clamped_member | 4.0600 | 3.9800 | 4.1400 | **215197 sh2 zone B4** | **traced** |
-| 7 | washer thickness (thin, .032 in) | washer | 0.8128 | 0.7112 | 0.9144 | workbook E11 | inferred |
+| 7 | washer thickness (thin, .032 in) | washer | 0.8128 | 0.7112 | 0.9144 | workbook E11 | untraced |
 | 8 | washer thickness (thick, .063 in) | washer | 1.6002 | 1.4478 | 1.7526 | workbook E12 | untraced |
 | 9 | thread transition allowance | allowance | 1.5875 | 0.0000 | 1.5875 | workbook E22 | untraced |
-| 10 | fastener grip, -13 (.812 in) | fastener | 20.6248 | 20.3708 | 20.8788 | 217755 (NAS6403U13H) | inferred |
+| 10 | fastener grip, -13 (.812 in) | fastener | 20.6248 | 20.3708 | 20.8788 | **NAS6403-NAS6420 Rev 4.pdf sh3, row *Grip Dash No. 13*** | **traced** |
 | 11 | fastener grip, -14 (.875 in) | fastener | 22.2250 | 21.9710 | 22.4790 | **NAS6403-NAS6420 Rev 4.pdf sh3, row *Grip Dash No. 14*** | **traced** |
 
 Element order is the physical order as best it can be read from the workbook
@@ -272,16 +289,16 @@ This list is the answer to "what must the fastener library ingest first".
 
 | # | source needed | what it would resolve | priority |
 |---|---|---|---|
-| 1 | ~~**NAS6403** (.190-32 hex bolt)~~ — **PARTIALLY CLOSED 2026-08-06.** `NAS6403-NAS6420 Rev 4.pdf` is now in `data/inbox/specs/`. Sheet 3 gives grip and length per dash number, sheet 1 gives `M` (cotter-hole position) and `T (Ref)`. | Element 11's grip ±.010 is now `traced` to it. **Still open on this stack:** element 10 (`fastener_grip_13`) has not been re-cited though sheet 3 row 13 covers it, and `thread_transition`'s 1/16 in rule of thumb has not been re-derived from `T (Ref)` = .323 in. Both are `docs/issues/ISSUE_20260806_three_more_slice1_fastener_values_are_now_sourceable.md`. | 2 |
+| 1 | ~~**NAS6403** (.190-32 hex bolt)~~ — **CLOSED for grip 2026-08-10.** `NAS6403-NAS6420 Rev 4.pdf` is in `data/inbox/specs/`. Sheet 3 gives grip and length per dash number, sheet 1 gives `M` (cotter-hole position) and `T (Ref)`. Elements 10 and 11 (`fastener_grip_13`, `fastener_grip_14`) both now trace their `.812`/`.875 ±.010` to sheet 3. | **Still open, and NAS6403 does not close it:** the thread run-out length behind `thread_transition`. Sheet 1 dimensions grip and length and gives their difference as `T (Ref)` = .323 in — the whole thread region, not the run-out inside it — and sheet 2 note (b) makes `T` a reference dimension. Sheet 1's `X`/`Y` are locking-element regions in thread pitches (sheet 2 notes (g), (h)), not run-outs. The document that closes it is **MIL-S-8879**, the thread spec sheet 1 invokes for UNJF-3A, and it is not in the pile. | 2 |
 | 2 | **MS9363** slotted/castellated nut | castellation slot count + depth; the check that actually governs this joint | **1 — blocks F8** |
-| 3 | **NAS1149** flat washer | thickness tolerance. Parts list says `.032" MIN`; the workbook models `.032 ±.004`. These disagree. | 2 |
+| 3 | **NAS1149** flat washer | thickness tolerance for `washer_thin`, which is `untraced` as of 2026-08-10 (it was `inferred`, on a `kind: workbook` citation whose own note ended *"the +/-.004 is untraced"*). Parts list says `.032" MIN`; the workbook models `.032 ±.004`. These disagree, and only the standard settles it. | 2 |
 | 4 | 214936-002 BUSHING, PLAIN, COUNTERSUNK (Joby part drawing) | flange 0.062", L 0.150", chamfer 0.025–0.035" — elements 1–3, all currently untraced. Candidate part; it balloons in sheet 5 DETAIL F, not DETAIL B. | 2 |
 | 5 | 214820-002 bushing (Joby part drawing) | the 4.63/4.76 length limits (only the .1875" nominal is on the assembly) | 3 |
 | 6 | 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY | the 11.05/11.1 spherical bearing width — no bearing is ballooned in DETAIL B because it is internal to this subassembly | 3 |
 | 7 | MS24665 cotter pin | hole fit (diameter and length are already on the parts list) | 3 |
 | 8 | NAS1149V0363 (.063 washer) | whether it exists in the current design at all | 3 |
 
-**Traced, for contrast:** two elements.
+**Traced, for contrast:** three elements.
 
 1. The **pitch plate flange**, `3X 4.06 ±0.08` on 215197 sheet 2 zone B4
    (SECTION A-A), carrying ⌖⌀0.2 A B C and ⊥0.05 F, 3X INDIVIDUALLY. The `3X`
@@ -290,13 +307,18 @@ This list is the answer to "what must the fastener library ingest first".
 2. The **-14 fastener grip**, `.875 ±.010 in`, `NAS6403-NAS6420 Rev 4.pdf`
    sheet 3, row *Grip Dash No. 14*, band from the printed column header
    `Grip ±.010`. Added 2026-08-06 — see the provenance update above.
+3. The **-13 fastener grip**, `.812 ±.010 in`, same table, row *Grip Dash No.
+   13*, same header band. Added 2026-08-10. It was `kind: parts_list` /
+   `inferred` on 217755 find 95 — a bolt that sits in the parts list at qty 3
+   and is ballooned on no sheet at all (F9), so the parts list was the only
+   place it appeared and it still never printed a band.
 
-Three elements are *inferred*: two from the assembly parts list (the -13
-fastener and the 214820-002 bushing — present and nominally consistent, band
-from the workbook) and the thin washer.
+One element is *inferred*: the 214820-002 bushing, from the assembly parts list
+— present and nominally consistent, band from the workbook, which is exactly
+what `inferred` is for.
 
-**This stack: 2 traced / 3 inferred / 6 untraced out of 11 element instances.**
-Across all three seeded stacks: **3 of 26 `traced`**, 7 `inferred`, 16
+**This stack: 3 traced / 1 inferred / 7 untraced out of 11 element instances.**
+Across all three seeded stacks: **5 of 26 `traced`**, 3 `inferred`, 18
 `untraced`. The ratio's definition lives in `docs/SOP_TOLERANCE_STACK.md`
 ("The traced ratio"); reproduce it with
 `tests\debug_report_tolerance_stacks.py --ratio` rather than reading it here.
@@ -307,3 +329,20 @@ Across all three seeded stacks: **3 of 26 `traced`**, 7 `inferred`, 16
 > part-drawing-traced values while the JSON labelled four elements `traced`.
 > See `ARCHITECTURE.md` and the lesson
 > `docs/sessions/lessons/LESSONS_20260806_traced_labels_and_ratio.md`.
+
+> **Moved, 2026-08-10** (handoff `fastener_citations_and_confidence`), from
+> *"2 traced / 3 inferred / 6 untraced"* on this stack and 3 of 26 across the
+> three. Two changes, opposite directions, one commit: `fastener_grip_13` went
+> `inferred` → `traced` (item 3 above), and `washer_thin` went `inferred` →
+> `untraced` because its only support for `.032 ±.004` was the source workbook,
+> which the SOP makes `untraced` and puts on the gap list — where it now is, as
+> source gap 3. `thread_transition` was decided on the merits and deliberately
+> left `untraced`; see source gap 1 for why the standard does not close it.
+> **Take 2**, which this worksheet also covers and which has no element table of
+> its own, took the mirror of both: its `fastener_grip_13` was re-cited to the
+> same sheet-3 row — it is the same bolt, and it had been `kind: workbook` here
+> and `kind: parts_list` in take 1, so the two stacks of one joint disagreed
+> about where the number came from — and its `straight_bushing` went `inferred`
+> → `untraced` on the same workbook-only reasoning as `washer_thin`. Take 2 is
+> now **1 traced / 0 inferred / 8 untraced of 9**.
+> **No element value changed and no check result in this worksheet moved.**
