@@ -17,10 +17,14 @@ directory is a copy imported at that founding (`PROVENANCE.md` in the repo root
 records the source paths and drawing-checker's sha at the time). The originals
 stay in drawing-checker, untouched — the import was one-way and additive.
 
-The fastener library is still a separate open question, and still the binding
-constraint on nearly every value here. `hardware_entries.json` is deliberately
-shaped so a `library_ref` can supersede its inline numbers without touching any
-stack.
+The fastener library **now exists** — `spec_library_v0` (2026-08-05) built the
+event-sourced spec library at `docs/spec_library/`, and `NAS6403U11D` is the first
+entry here to defer to it (`values_status: "library"`,
+`library_ref: "spec_library:NAS6403U11D"`). It holds only a handful of documents,
+so it is still the binding constraint on nearly every value here. The seam worked
+as designed: `hardware_entries.json` is shaped so a `library_ref` can supersede an
+entry's inline numbers without touching any stack, and that promotion changed no
+stack file.
 
 **To build a new stack, follow `docs/SOP_TOLERANCE_STACK.md`.** The first three
 stacks here are its worked examples, and every caveat the SOP states was learned
@@ -56,7 +60,7 @@ There is deliberately **no registry**. A registry wants three archetypes.
 | `stack_hub_bearing_thermal_fit_m2.json` | **Main spindle bearing seats, M2/TC intent** — the current design. `thermal_fit` archetype: two chained shrink fits per seat, two seats, three temperatures. 8 of 8 elements traced to released part drawings. |
 | `stack_hub_bearing_thermal_fit_m1.json` | The same joint **as built** — the configuration that slipped. Kept as the control: a fix is only validated against the thing it fixed. |
 | `materials.json` | **Material CTEs with provenance** — the repo's first. `material_entry/v0`. Designations traced to drawing notes; **not one CTE value traced to anything**, each with its CINDAS request written out. |
-| `hardware_entries.json` | Fastener-library seed: every standard part the stacks consume, with inline values and an empty `library_ref` slot. Now also the two NSK bearings under source-control drawings. |
+| `hardware_entries.json` | Fastener-library seed: every standard part the stacks consume, each with inline values and a `library_ref` filled exactly where the spec library holds the part (one entry so far). Now also the two NSK bearings under source-control drawings. |
 | `ARCHETYPE_thermal_fit.md` | What the thermal-fit archetype is, its inputs, its arithmetic, its caveats, and what it needed that the linear stack did not. |
 | `WORKSHEET_tan_link_to_pitch_plate.md` | Elements, results, re-derivation vs Jeff's cells, discrepancies, source gaps. |
 | `WORKSHEET_vpa_output_to_pitch_plate.md` | Same, for the VPA joint. |
@@ -90,7 +94,11 @@ archetype reads; `load_stack()` ignores it, `load_thermal_fit_stack()` uses it t
 **material entry** (`joby.tolerance_stack/material_entry/v0`, new 2026-08-05) —
 one material + condition and the CTE a stack may cite for it, in
 `materials.json`. Same discipline as `hardware_entry`: `values_status: inline`,
-`library_ref: null`, a mandatory `values_source`, a non-empty `gaps`. Its one
+`library_ref: null`, a mandatory `values_source`, a non-empty `gaps`. Here the
+null ref really is unconditional — **there is no materials library**, and
+`test_material_entries_keep_library_ref_null_and_schema_v0` asserts it. That is
+the one thing this shape does *not* share with `hardware_entry`, whose ref has
+been filled on one entry since the spec library was built. Its one
 addition is **`designation_source` separate from `values_source`**, because a
 material's *name* and its *numbers* have different provenance — every designation
 here but one is traced to a drawing note, and no CTE value is traced at all.
@@ -106,9 +114,13 @@ re-runs the stack with no re-transcription. Slice 1 leaves both `None`
 everywhere — the door is open, nothing walks through it.
 
 **hardware entry** (`joby.tolerance_stack/hardware_entry/v0`) — a standard part
-with `values_status: inline` and `library_ref: null`. When the fastener library
-exists, `library_ref` points at it, `values_status` becomes `library`, and the
-inline numbers become a cross-check rather than the source. Each entry also
+whose `library_ref` is filled **if and only if** its `values_status` is `library`;
+a null ref means `inline` or `not_transcribed`. That pairing, not nullness, is
+what the test enforces, and it has been the invariant since 2026-08-05, when the
+spec library was built and `NAS6403U11D` was promoted: `library_ref` points at the
+subject, `values_status` reads `library`, and the inline numbers become a
+cross-check rather than the source — asserted value by value against the library,
+which is what stops "cross-check" being a word. Each entry also
 carries `assembly_status` (present/absent in the 217755 parts list, find number,
 balloons) and a `gaps` list. Since 2026-08-05 it carries **`values_source`** too
 — a `source_ref`-shaped dict saying where the inline numbers came from, required
