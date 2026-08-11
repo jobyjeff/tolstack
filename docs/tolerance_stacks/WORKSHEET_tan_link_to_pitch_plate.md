@@ -117,6 +117,16 @@ RSS softens but does not resolve it: `threads_in_bore__13` at RSS is −0.0295,
 still negative. RSS is **new here** — the workbook has a row labelled `rss`
 (row 50) and nothing in it.
 
+> **These intervals do not settle this joint** (added by review, 2026-08-10).
+> The as-drawn retention is an MS9363-09 slotted nut plus an MS24665-153 cotter
+> pin, so the governing constraint is **whether a castellation slot lines up with
+> the bolt's cotter hole** — which *quantises* acceptable grip rather than
+> bounding it. A continuous grip interval, pass or fail, cannot answer it. See
+> **F8**; the documents that would close it are the nut's slot count and depth
+> and the bolt's cotter-hole position, source gap 2 (priority 1). This note
+> repeats F8 here, next to the numbers, because that is where the reader who
+> takes a verdict away from this table is standing.
+
 > **What the RSS columns do not claim** (added by review). The fold combines
 > half-ranges in quadrature about the midpoint, which assumes every band is an
 > independent, symmetric, equal-confidence manufacturing variation. The
