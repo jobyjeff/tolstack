@@ -34,6 +34,11 @@ checkout (``docs/prompts`` worktree-reality rule)::
     C:\\workspace\\tolstack\\venv-win\\Scripts\\python.exe ^
         scripts\\build_viewer_projection.py --data-root C:\\workspace\\tolstack\\data
 
+That output directory is **shared by every live worktree**, so this script
+stamps which tree it built from and **refuses** to overwrite a projection built
+from a tree this one does not contain -- ``scripts/projection_provenance.py``
+holds both, and ``--allow-older-tree`` overrides the refusal.
+
 Stdlib only, plus this repo's own ``tolerance_stack`` package.
 """
 

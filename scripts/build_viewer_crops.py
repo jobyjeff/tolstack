@@ -64,6 +64,13 @@ Output (wipe-and-rebuild; owns only its own files, ``results.json`` is
     <data-root>/projections/viewer/crops.json
     <data-root>/projections/viewer/crops/*.png
 
+That directory is **shared by every live worktree**, so this script stamps which
+tree it built from and **refuses** to overwrite a crop index built from a tree
+this one does not contain -- ``scripts/projection_provenance.py`` holds both, and
+``--allow-older-tree`` overrides the refusal. The check runs before the
+``rmtree`` below: a refusal that had already wiped ``crops/`` would have
+destroyed what it was protecting.
+
 Needs **PyMuPDF** (``fitz``), deliberately absent from ``requirements.txt`` --
 run it from drawing-checker's venv, the ``tests/debug_trace_stack_values.py``
 precedent::
@@ -640,22 +647,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 })
 
     summary = resolution_summary(resolved, unresolved)
-    index = {
-        "schema": SCHEMA_CROPS,
-        # Unchanged fields, same instant as `provenance.built_at` -- other
-        # consumers (the viewer's banner) already read these two by name.
-        "built_at": provenance["built_at"],
-        "built_by": BUILT_BY,
-        # Which TREE built this file -- see scripts/projection_provenance.py.
-        # crops.json recorded no stacks_dir at all before this; it is in here.
-        prov.PROVENANCE_KEY: provenance,
-        "drawing_checker_root": dc_root.as_posix(),
-        "drawing_checker_available": dc_available,
-        "crops_dir": "crops",
-        "summary": summary,
-        "by_stack": by_stack,
-        "unresolved": unresolved,
-    }
+    index = build_index(provenance, dc_root, dc_available, summary, by_stack,
+                        unresolved)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "crops.json").write_text(
         json.dumps(index, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -670,6 +663,40 @@ def main(argv: Optional[List[str]] = None) -> int:
     for row in unresolved:
         print(f"    {row['stack']}:{row['element']:28s} {row['reason']}")
     return 0
+
+
+def build_index(
+    provenance: Dict[str, Any],
+    dc_root: Path,
+    dc_available: bool,
+    summary: Dict[str, Any],
+    by_stack: Dict[str, Dict[str, Any]],
+    unresolved: Sequence[Dict[str, str]],
+) -> Dict[str, Any]:
+    """``crops.json``'s top level.
+
+    A function rather than a dict literal in :func:`main` so the *shape* -- and
+    in particular the provenance stamp, which is the whole point of
+    ``ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection``
+    -- is testable under this repo's stdlib-only venv. ``main()`` itself is not:
+    it needs PyMuPDF and a drawing PDF.
+    """
+    return {
+        "schema": SCHEMA_CROPS,
+        # Unchanged fields, same instant as `provenance.built_at` -- other
+        # consumers (the viewer's banner) already read these two by name.
+        "built_at": provenance["built_at"],
+        "built_by": BUILT_BY,
+        # Which TREE built this file -- see scripts/projection_provenance.py.
+        # crops.json recorded no stacks_dir at all before this; it is in here.
+        prov.PROVENANCE_KEY: provenance,
+        "drawing_checker_root": dc_root.as_posix(),
+        "drawing_checker_available": dc_available,
+        "crops_dir": "crops",
+        "summary": summary,
+        "by_stack": by_stack,
+        "unresolved": list(unresolved),
+    }
 
 
 def resolution_summary(
