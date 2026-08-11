@@ -1297,21 +1297,75 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
     assert workbook_backed == {"bushing_214820", "washer_nas1149v0332"}
 
 
+def hardware_entry_problems(entry: dict) -> list[str]:
+    """Every way one `hardware_entry` breaks SOP Step 4's structural rules.
+
+    A function returning complaints rather than a test asserting them, for one
+    reason: `tests/test_sop_vocabulary.py` runs the SOP's own worked examples of
+    this shape through **this** code, so the document that teaches the shape is
+    checked by the same rules as the data. That is the mechanised half of the
+    answer to the third sighting of "the SOP documents a vocabulary the repo no
+    longer implements" (`sop_library_ref_pairing`, 2026-08-11).
+
+    The `library_ref` rule is the **pairing** and has been since 2026-08-05: a
+    filled ref ⟺ `values_status == "library"`. Nullness is not the rule; it was,
+    until the spec library existed and `NAS6403U11D` was promoted.
+    """
+    eid = entry.get("id", "<no id>")
+    out: list[str] = []
+    if not entry.get("gaps"):
+        out.append(f"{eid} claims no source gaps")
+    status = entry.get("values_status")
+    if status not in ("inline", "library", "not_transcribed"):
+        out.append(f"{eid} has undocumented values_status {status!r}")
+    if "library_ref" not in entry:
+        # Explicitly null, never absent -- the same convention as `values_source`,
+        # so "nothing to cite" reads differently from "nobody filled it in".
+        out.append(f"{eid} has no library_ref key at all")
+    elif entry["library_ref"] is None:
+        if status == "library":
+            out.append(f"{eid} says values_status 'library' with a null library_ref")
+    else:
+        if status != "library":
+            out.append(
+                f"{eid} has a filled library_ref with values_status {status!r} -- "
+                f"a filled ref and 'library' are one decision"
+            )
+        if not entry["library_ref"].startswith("spec_library:"):
+            out.append(
+                f"{eid} library_ref {entry['library_ref']!r} does not name a "
+                f"spec_library subject"
+            )
+    if "values_source" not in entry:
+        out.append(f"{eid} has no values_source key")
+    elif status == "not_transcribed":
+        if entry["values_source"] is not None:
+            out.append(f"{eid} has no inline values but cites a source")
+    elif not entry["values_source"]:
+        # Note `library` is on this side of the branch: a promotion demotes the
+        # inline numbers to a cross-check rather than deleting them, so where they
+        # came from stays a true fact. (review/spec_library_v0 narrowed the guard
+        # from `!= "inline"` to exactly `not_transcribed`.)
+        out.append(f"{eid} has inline values and does not say where they came from")
+    return out
+
+
 def test_every_hardware_entry_has_a_gap_list_and_a_resolvable_values_status():
-    """`library_ref` was null on all thirteen entries until 2026-08-05. Exactly
-    one is promoted now (the spec_library_v0 seam demonstration); the remaining
-    twelve are still `inline` and are sop_edits_apply's backfill. The invariant
-    that survives is the pairing: a filled ref means status "library", a null
-    ref means it does not."""
+    """The pairing invariant over the seeded file.
+
+    `library_ref` was null on every entry until 2026-08-05, when the spec library
+    was built and `NAS6403U11D` was promoted; the invariant that survives that is
+    the **pairing** -- a filled ref means `values_status == "library"`, a null ref
+    means it does not. How many entries are currently promoted is deliberately not
+    asserted here: `test_only_the_one_entry_was_promoted` in
+    `tests/test_spec_library.py` owns that count, and a second copy of it is the
+    stale-inventory-number bug this repo keeps having.
+    """
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
-    for entry in data["entries"]:
-        assert entry["gaps"], f"{entry['id']} claims no source gaps"
-        assert entry["values_status"] in ("inline", "library", "not_transcribed")
-        if entry["library_ref"] is None:
-            assert entry["values_status"] != "library", entry["id"]
-        else:
-            assert entry["values_status"] == "library", entry["id"]
-            assert entry["library_ref"].startswith("spec_library:"), entry["id"]
+    problems = [p for entry in data["entries"] for p in hardware_entry_problems(entry)]
+    assert problems == [], "hardware_entries.json breaks SOP Step 4:\n" + "\n".join(
+        f"  {p}" for p in problems
+    )
 
 
 def test_every_hardware_ref_on_a_stack_element_resolves():
