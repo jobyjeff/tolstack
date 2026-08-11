@@ -60,7 +60,7 @@ There is deliberately **no registry**. A registry wants three archetypes.
 | `stack_hub_bearing_thermal_fit_m2.json` | **Main spindle bearing seats, M2/TC intent** — the current design. `thermal_fit` archetype: two chained shrink fits per seat, two seats, three temperatures. 8 of 8 elements traced to released part drawings. |
 | `stack_hub_bearing_thermal_fit_m1.json` | The same joint **as built** — the configuration that slipped. Kept as the control: a fix is only validated against the thing it fixed. |
 | `materials.json` | **Material CTEs with provenance** — the repo's first. `material_entry/v0`. Designations traced to drawing notes; **not one CTE value traced to anything**, each with its CINDAS request written out. |
-| `hardware_entries.json` | Fastener-library seed: every standard part the stacks consume, each with inline values and a `library_ref` filled exactly where the spec library holds the part (one entry so far). Now also the two NSK bearings under source-control drawings. |
+| `hardware_entries.json` | Fastener-library seed: every standard part the stacks consume, each with inline values and a `library_ref` filled exactly where the spec library holds the part (`test_only_the_one_entry_was_promoted` owns how many that is). Now also the two NSK bearings under source-control drawings. |
 | `ARCHETYPE_thermal_fit.md` | What the thermal-fit archetype is, its inputs, its arithmetic, its caveats, and what it needed that the linear stack did not. |
 | `WORKSHEET_tan_link_to_pitch_plate.md` | Elements, results, re-derivation vs Jeff's cells, discrepancies, source gaps. |
 | `WORKSHEET_vpa_output_to_pitch_plate.md` | Same, for the VPA joint. |

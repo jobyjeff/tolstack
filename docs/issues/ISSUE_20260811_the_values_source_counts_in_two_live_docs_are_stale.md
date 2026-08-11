@@ -53,3 +53,19 @@ Two options, and the second is the one worth the effort:
 
 The traced ratio has precedent for option 2 and it worked: the ratio is quoted in
 several live docs and a test now fails when any of them goes stale.
+
+## Half done, 2026-08-11 (`review/sop_library_ref_pairing`)
+
+`docs/prompts/REVIEW_AGENT.md:348` is the review overlay, which the review agent
+owns and rewrites every review — a checklist stating a false count misleads the
+next reviewer directly — so that sentence was corrected in this review by
+**option 2**: it no longer states a share at all, it points at
+`test_hardware_entry_values_source_counts_match_the_description` and says to
+recount there. The wording it replaced is recorded above and in
+`docs/sessions/reviews/REVIEW_20260811_sop_library_ref_pairing.md`.
+
+**`docs/tolerance_stacks/README.md:128` is untouched and this issue stays open
+for it** — that paragraph is `fastener_citations_and_confidence`'s prose. Option 2
+applies there too, and the observation that makes it worth doing is unchanged: the
+paragraph already ends by telling the reader not to quote counts from it, and the
+test it points at guards a different file's copy of the number.

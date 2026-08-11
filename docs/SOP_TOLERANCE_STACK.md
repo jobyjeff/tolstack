@@ -535,8 +535,8 @@ Every standard part the stack consumes gets an entry in
 That is the common case: a part **without** a spec-library subject, so
 `values_status: "inline"` and `library_ref: null`. A part the library **does**
 hold differs in exactly two fields, and in one field that deliberately does *not*
-change — abridged from the real `NAS6403U11D` entry, still the only one in this
-file in this state:
+change — abridged from the real `NAS6403U11D` entry (how many entries are in this
+state is owned by `test_only_the_one_entry_was_promoted`, not by this sentence):
 
 ```json
 {

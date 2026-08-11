@@ -345,8 +345,14 @@ must be confirmed before the property is looked up.
   stack element takes a **band** from an entry whose `values_source` is
   `kind: "workbook"`, that is a laundered untraced value and Step 5b forbids it
   in a from-scratch stack, however clean the element's own `source_ref` looks.
-  Eight of the nine inline entries are workbook transcriptions, so this is the
-  common case, not the exotic one.
+  **Recount before you quote a share here**: this line said *"eight of the nine"*
+  until 2026-08-11 and it was five of eleven by then
+  (`fastener_citations_and_confidence` re-sourced three bolts on 2026-08-10) — so
+  it is no longer even a majority, and the "common case" argument weakens with it.
+  The one computing place is
+  `test_hardware_entry_values_source_counts_match_the_description`, which pins
+  `hardware_entries.json`'s own `description`; read the count there, and treat a
+  workbook-sourced band as the failure to hunt regardless of how many there are.
 - **Checks the source does not contain** are marked `workbook_cells: null` and
   `[NOT IN WORKBOOK]` in the label, with a test asserting it.
 - **Scope is stated**, including what was excluded and why.
@@ -509,6 +515,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       When a doc asserts anything about the crop or results
       projection, recompute it from `data/projections/viewer/*.json` — never from
       the prose, and never from another doc's copy of the number.
+      **A new variant, and the cheapest one to miss (`sop_library_ref_pairing`,
+      2026-08-11): the count a *doc fix* introduces.** That handoff's lesson said in
+      so many words that it had kept counts out of the new prose and replaced them
+      with pointers to the test that owns the number — and the same commit wrote
+      *"still the only one in this file in this state"* into the SOP and *"(one
+      entry so far)"* into `docs/tolerance_stacks/README.md`, sixty lines from its
+      own instruction to read that number off
+      `test_only_the_one_entry_was_promoted`. Fixed inline in review. So do not let
+      a lesson's claim that it avoided a class stand in for checking: **read the
+      added prose for counts, not the prose it replaced**, and treat "N so far" /
+      "the only one" / "still the first" as counts, because they age exactly like
+      digits do.
 - [ ] **A corroboration flag shown without the evidence that produced it.**
       `crops.json` records `callout_text_in_zone`, and the viewer rendered it as
       a bare "(callout text found there)". The needle that actually matched is
@@ -571,7 +589,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `test_source_ref_leaves_the_feature_identity_slot_open_and_empty`, so the
       first compliant from-scratch stack made the suite fail. A vocabulary lives in
       **three** places (SOP prose, the dataclass comment, the enforcing test);
-      check all three, not two.
+      check all three, not two. **Third sighting (`sop_library_ref_pairing`,
+      2026-08-11)** — and it changes what you have to do here, twice over. It is
+      the variant *no* vocabulary-vs-data test can catch: every value the SOP named
+      (`inline | library | not_transcribed`) was documented and its example was
+      internally valid; what was wrong was a **sentence about a rule** — the SOP
+      still made `library_ref`'s nullness unconditional, and pinned it on a
+      precondition (no fastener library yet) that had been met six days earlier
+      when `spec_library_v0` filled one and generalised the test to the pairing.
+      So:
+      (a) when a handoff changes an invariant, ask which *sentence* states it and
+      whether that sentence moved, not just which enum did; and (b) the mechanised
+      half now lives in **`tests/test_sop_vocabulary.py`** — the SOP's Step 4 JSON
+      examples are parsed and run through the same `hardware_entry_problems()` the
+      seeded file is checked with, plus a phrase scan for the superseded rule,
+      replayed against the drifted blob at `abfaf5a`. **Know what that scan does
+      not see**: it is a literal phrase list near the `library_ref` token, so a
+      *newly invented* wrong sentence passes; it skips blockquotes (the correction
+      escape) and `docs/sessions/`, `docs/issues/`, `docs/reference/`. It is a
+      tripwire, not a parser — do not let its green count as "the prose was
+      checked".
 - [ ] **Documents cited from a worktree that cannot see them.** `data/` is
       gitignored, so `data/inbox/specs/` in a worktree holds one tracked
       `README.md` and nothing else — the pile (several dozen files, and growing;
