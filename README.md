@@ -99,7 +99,7 @@ spec-library ones in `tolerance_stack/spec_library.py`:
 | schema | what it is |
 |---|---|
 | `joby.tolerance_stack/stack_definition/v0` | ordered `elements`, named `paths`, `checks` over them |
-| `joby.tolerance_stack/hardware_entry/v0` | a standard part; `values_status: inline \| library \| not_transcribed`, `library_ref` pointing at a spec-library subject once one exists |
+| `joby.tolerance_stack/hardware_entry/v0` | a standard part; `values_status: inline \| library \| not_transcribed`, and a `library_ref` naming a spec-library subject **iff** that status is `library` |
 | `joby.tolerance_stack/check_result/v0` | produced not stored; verdict `pass \| marginal \| fail` |
 | `source_ref` (embedded) | where a value came from, `confidence: traced \| inferred \| untraced` |
 | `joby.tolstack/spec-parse/v0` | one immutable read of one document by one parser version; values, absences and unreadables, each with a source location |
