@@ -256,8 +256,9 @@ above: the viewer must not contain a second arithmetic path. So
   which embeds each stack **verbatim** and carries the derived blocks
   (`paths`, `checks` with verdicts, per-element flags, provenance counts, gaps)
   beside them. Fold outputs are rounded there, in Python, so the browser prints
-  `String(n)` and never decides how a number reads. A test pins the embedded
-  stack byte-identical to the authored file.
+  `String(n)` and never decides how a number reads.
+  `tests/test_viewer_projection.py::test_stack_block_is_byte_identical` pins the
+  embedded stack byte-identical to the authored file.
 - `scripts/build_viewer_crops.py` resolves each `source_ref` to a page of a real
   PDF and renders a crop, or records **why not**. The viewer cannot roam the
   filesystem or reach drawing-checker, so hovers read pre-rendered PNGs.
@@ -293,6 +294,42 @@ Read-only, one way:
 - **forge** — the atomic-notes attachment stream is the upstream of the source
   workbook (see `data/inbox/tolerance_stacks/PROVENANCE.md`). Forge attachments
   are immutable; treat copies as read-only.
+
+## Imported material — what may change, and how it is recorded
+
+`PROVENANCE.md` is the register of everything copied in at founding, one row per
+file, with an Amended column saying whether it has changed since. That register
+is **the single statement of this rule**; every other document points here or
+there rather than restating it. Two rules, both enforced by
+`tests/test_provenance.py` rather than by remembering:
+
+- **Any imported file may change — the row must change with it, in the same
+  commit.** A "byte-identical" row is a claim about the import, not a freeze:
+  the SOP *requires* changing three of them for every new stack. A purely
+  additive change still falsifies the row. The test parses the tables, diffs
+  every claimed path against both baselines (this repo's import commit
+  `c157300` and drawing-checker's blob at the recorded sha), and fails naming
+  the row and what to write. That check went unrun by five authors in a row
+  before it existed; do not re-add it to a checklist.
+- **`docs/reference/` is insert-only.** It holds imported reference material —
+  another repo's lesson, the primary source behind the SOP and the review
+  checklist. Imported text is **never edited, reworded or deleted**, and the
+  file is not required to stay byte-identical: a **dated, additive correction
+  blockquote** may be inserted *after* the passage it corrects, leaving the
+  original standing so the mistake stays legible. Record every such insertion in
+  `PROVENANCE.md`.
+
+  Settled 2026-08-10 (`provenance_byte_identical_test`), replacing a "no edits"
+  rule that the repo had already broken for a good reason. Rationale: this
+  directory is a *source*, so a reader who follows a pointer into it and finds a
+  figure the repo has since corrected is misled by the rule that was supposed to
+  protect them; and correct-in-place-leave-the-old-visible is already the house
+  pattern for a superseded number everywhere else
+  (`test_every_document_quoting_the_traced_ratio_quotes_the_current_number`).
+  Reverting a true correction to satisfy a freeze is the wrong trade. The
+  freeze's one real benefit — you can tell at a glance that nobody rewrote
+  history — is what the insert-only test now provides instead, and it is
+  strictly stronger than reading the file and trusting it.
 
 ## Known modelling gaps
 

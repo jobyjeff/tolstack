@@ -65,8 +65,10 @@ be wrong.
   `intake_queue.json` says which document closes which gap. Read its `README.md`
   before adding either. Rebuild the projection with
   `venv-win\Scripts\python.exe -m tolerance_stack`.
-- `docs/reference/` — imported reference material (verbatim copies, not authored
-  here).
+- `docs/reference/` — imported reference material, not authored here.
+  **Insert-only**: imported text is never edited, only annotated with dated
+  correction blockquotes (rule and rationale in `ARCHITECTURE.md`, "Imported
+  material"; enforced by `tests/test_provenance.py`).
 - `tolerance_stack/` — the Python package: the data shapes and the single
   `fold()` that computes worst-case and RSS for both paths and checks, plus
   `spec_library.py` (the parse-event shapes and the library fold).
