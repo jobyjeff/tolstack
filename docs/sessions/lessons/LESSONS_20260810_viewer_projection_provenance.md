@@ -121,7 +121,13 @@ need the gate underneath. Revisit only if rebuild cost stops being cheap (a
 projection that takes minutes changes the trade) or if concurrent *reviews*
 become routine.
 
-## Other scripts writing to a shared `data/` path — audited, and it is only these two
+## Other scripts writing to a shared `data/` path — audited, and there are three
+
+> **Correction, `review/viewer_projection_provenance` 2026-08-10.** This section
+> shipped saying *"exactly two members"*. There are three: `tolerance_stack/`
+> was not in the search, and it holds one — see the correction at the end of the
+> section. The audit below is right about everything it looked at; the miss is
+> the scope, and the scope is stated in its own first sentence.
 
 The class is "shared gitignored output dir", not "the viewer", so the whole
 `scripts/` + `tests/` tree was checked for writers with a `--data-root`-style
@@ -133,11 +139,37 @@ default:
   (`take <out>`, a required positional). No default under `data/`. Not exposed.
 - `tests/debug_dump_tol_stack_xlsx.py --csv` — same, caller-named and optional.
 
-So today the class has exactly two members and both are now stamped and gated. The
-thing to watch is a *new* script picking up the `--data-root` default by copying
-one of these: it would inherit the shared path without the gate. If a third one
-appears, `projection_provenance.stamp()`/`guard()` is two calls and works on any
-JSON output file — it is not viewer-specific.
+The thing to watch is a *new* script picking up the `--data-root` default by
+copying one of these: it would inherit the shared path without the gate. If
+another appears, `projection_provenance.stamp()`/`guard()` is two calls and works
+on any JSON output file — it is not viewer-specific.
+
+**The third member, found in review: `tolerance_stack/spec_library.rebuild()`.**
+`python -m tolerance_stack` wipe-and-rebuilds
+`data/projections/spec_library/library.json`, and it is the same class with the
+knobs turned worse:
+
+- `PROJECTION_DIR` is `REPO_ROOT / "data" / "projections" / "spec_library"` and
+  `main()` takes **no arguments at all** — there is no `--data-root`, which is
+  why the grep above (looking for a `--data-root`-style default) did not find it.
+- So from a worktree it writes into *that worktree's* gitignored `data/`, which
+  is deleted at cleanup. A worktree can never update the shared artifact and
+  nothing says so. Reproduced in the review: it wrote to
+  `…/viewer_projection_provenance-review/data/projections/spec_library/`.
+- From the main checkout — the only invocation that lands the artifact — two
+  sessions are last-writer-wins on a shared file that carries **no `built_at`,
+  no `built_by` and no stamp of any kind**. Staleness is knowable only from the
+  mtime, and the copy in the main checkout has been sitting there since
+  2026-08-05 (its content still matches a fresh rebuild, which is luck, not a
+  property).
+- And it is the *higher*-leverage projection: `library.json` is what
+  `library_ref: "spec_library:NAS6403U11D"` resolves through, so a wrong value
+  there launders into a stack wearing `confidence: "traced"`.
+
+Filed as `docs/issues/ISSUE_20260810_the_spec_library_projection_is_the_third_shared_writer.md`.
+The generalisation for the next audit: **enumerate writers by what they write,
+not by the flag they accept.** Grepping for `--data-root` finds the members that
+already look like the two you are fixing.
 
 ## Smaller things the next agent would otherwise rediscover
 

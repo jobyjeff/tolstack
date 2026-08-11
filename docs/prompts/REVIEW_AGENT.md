@@ -508,6 +508,48 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       needle in `cropProvenanceLine`. Generalise it: any derived "matched" /
       "verified" / "confirmed" flag this repo surfaces must show *what* matched,
       or it reads as stronger evidence than it is.
+- [ ] **A new warning that is always on — evaluate it on a clean tree, in BOTH
+      checkouts.** The mirror image of the entry above, and the same harm: an alarm
+      that fires on every ordinary run gets skipped, so the one real firing is
+      invisible. First sighting `viewer_projection_provenance` (2026-08-10):
+      `projection_provenance.stamp()` derived `dirty` from `git status --porcelain`
+      with untracked files counted, and **the main checkout permanently carries an
+      untracked `.dispatch.toml`** (dispatch writes it there; it is not
+      gitignored) — so every build from the *documented canonical invocation*
+      stamped `dirty: true` and lit the viewer's red banner box twice on a tree
+      where nothing was wrong. Green in every worktree, where that file does not
+      exist. Fixed inline (`--untracked-files=no`, plus a test pinning both
+      directions). So when work under review adds a warning, alarm or `*_status`
+      derived from environment state, **run it on a clean tree in the main checkout
+      *and* in a worktree and confirm the quiet case is actually quiet** — the
+      false-positive direction feels safe and is not, and `.dispatch.toml` /
+      `.dispatch/` are the named local footguns. Check the *wording* too: this
+      review also softened a pair-mismatch alarm that asserted the two projections
+      "do not describe the same stacks" when an ancestor build is the ordinary case
+      — an alarm may only claim what its data proves.
+- [ ] **A new file in `scripts/` or `tolerance_stack/` and an unchanged inventory
+      in `ARCHITECTURE.md`.** That file's tree block (line ~23) names every script
+      by hand, so it goes stale silently. `viewer_projection_provenance` added
+      `projection_provenance.py` without a row, and `snapshot_drawing_checker.py`
+      had been missing since `readonly_invariant_evidence` — two handoffs, same
+      block, neither noticed. Both added inline. Same question for
+      `apps/viewer/README.md`'s Layout block, and for any durable *operational*
+      fact (here: a build can now exit 3 and `--allow-older-tree` overrides it) —
+      a fact that lives only in a script docstring and a lesson dies with the
+      session, per the `CLAUDE.md`-is-gitignored rule below.
+- [ ] **An audit enumerated by flag rather than by behaviour.** When a handoff
+      reports "I checked the whole tree and the class has N members", re-run the
+      enumeration on the *behaviour* the class is named for.
+      `viewer_projection_provenance` audited "writers to a shared gitignored
+      `data/` dir" by grepping `scripts/` + `tests/` for a `--data-root`-style
+      default, and so missed `tolerance_stack/spec_library.rebuild()` — a
+      wipe-and-rebuild of `data/projections/spec_library/library.json` that has no
+      such flag, cannot be pointed at the main checkout at all, and carries no
+      stamp of any kind. Grepping for the shape of the members you already know
+      finds only those (`ISSUE_20260810_the_spec_library_projection_is_the_third_shared_writer.md`).
+      Two greps that would have caught it: writers (`write_text`, `json.dump`,
+      `open(..., "w")`) and `REPO_ROOT / "data"` across **every** package dir, not
+      just `scripts/`.
 - [ ] **Documented vocabularies drifting from the seeded data.** The SOP's `role`
       list omitted `nut_geometry`, which the seeded take-2 uses three times. When a
       doc says "one of X | Y | Z", enumerate the actual values in
@@ -642,18 +684,30 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       wipe-and-rebuild and each owns only its own files, so either can be re-run
       alone; a rebuild that changes anything but `built_at` means the committed
       claims were made against a different tree.
-      **And under concurrency, YOU are the one who rebuilds.**
-      `ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection.md`
-      records the stand-off: `data/projections/viewer/` is one directory shared by
-      every live worktree, so both a live tactical session and a reviewer have a
-      good reason not to overwrite it — and then nobody does, and the shared file
-      silently disagrees with `master`. That is exactly what happened here: the
-      00:24 build showed three `confidence` labels `traced_labels_and_ratio` had
-      already retired. **The tie-break: the review worktree holds `master` + the
-      handoff, which is the newest tree in existence, so the reviewer's rebuild is
-      never the older script losing to a newer one.** Rebuild, then diff old
-      against new key by key — the diff is the evidence for "the four other stacks
-      did not regress", and it costs one script.
+      **And under concurrency, YOU are still the one who rebuilds — but the
+      tie-break is now the machine's, not yours** (`viewer_projection_provenance`,
+      2026-08-10). `data/projections/viewer/` is one directory shared by every live
+      worktree, and the old rule here was a sentence a reviewer had to remember:
+      *the review worktree holds `master` + the handoff, the newest tree in
+      existence, so its rebuild is never the older script losing to a newer.* That
+      sentence is now `scripts/projection_provenance.py`: both builders stamp
+      branch/HEAD-sha/resolved-stacks-dir into their output and **refuse (exit 3)**
+      to overwrite a projection whose recorded commit is not an ancestor of theirs.
+      So: **rebuild, and a refusal is the gate working, not a bug** — read the
+      message, which names the other tree's branch, sha and path; rebuild from
+      *that* tree, or merge it in here first, and reach for `--allow-older-tree`
+      only when overwriting a newer projection is genuinely what you mean. What the
+      gate does *not* do is oblige anyone to rebuild, so the stand-off is still
+      reachable — it is merely safe now instead of lossy. Then diff old against new
+      key by key: the diff is the evidence for "the other stacks did not regress",
+      and after that handoff the only legitimate differences are `built_at` and the
+      `provenance` block. Two things the gate cannot see, so you must: it compares
+      commits and not **content** (two trees on one sha with different uncommitted
+      edits both pass — `provenance.dirty` is the only tell), and it gates each
+      script against **its own** file only, so `results.json` and `crops.json` can
+      still name different commits. The banner flags that pair, and an *ancestor*
+      crop build is the ordinary, harmless case — do not read that alarm as proof
+      of divergence.
 - [ ] **`INCOMPLETE` is a prose convention, not a schema field.**
       `build_viewer_projection.is_incomplete` greps the check's
       `label`/`guidance`/`check_id` for the literal upper-case string. A stack

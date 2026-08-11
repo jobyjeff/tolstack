@@ -167,3 +167,43 @@ Two corrections to this issue's text, for anyone reading it as a record:
 trees that have merged it. A worktree branched before this work still runs the
 gate-less script and still clobbers, stamp and all. Closing this should wait
 until the live worktrees are gone or merged.
+
+---
+
+## Reviewer's note — `review/viewer_projection_provenance`, 2026-08-10
+
+Verified end to end, not from the report: a throwaway worktree branched off
+`master` and carrying only this branch's `scripts/` was **refused** by both
+builders (exit 3, output byte-identical afterwards), `--allow-older-tree` got
+through and said so, and the newest tree's rebuild was allowed with an
+"already contains" note. The stamp diff against a `master`-built projection is
+exactly eleven new `provenance` leaves plus `built_at`: **no computed number
+moved.**
+
+Two residual gaps, both recorded here rather than fixed, because both are design
+calls and neither is a defect in what landed:
+
+1. **The pair is gated per-file, so `results.json` and `crops.json` can still
+   name different commits, and the viewer cannot tell an ancestor from a
+   divergence.** This is not exotic — `apps/viewer/README.md` tells you to re-run
+   step 1 alone after editing a stack, and once you commit that edit the pair's
+   shas differ while the crop index is perfectly current. The banner alarm was
+   asserting "the two halves of this page do not describe the same stacks"; the
+   review softened it to what the data proves. The structural fix, if this proves
+   annoying: `build_viewer_projection.py` can already run git, so it could read
+   the neighbour's stamp and record whether it is an ancestor, turning the
+   viewer's guess into a stamped fact. Deliberately not done here — it is a new
+   field on a schema one handoff old.
+
+2. **`dirty` was true on every build from the main checkout**, because dispatch
+   leaves an untracked `.dispatch.toml` there and `git status --porcelain` counts
+   it. Fixed inline (`--untracked-files=no`, so `dirty` means *tracked content
+   differs from `head_sha`*, which is the claim the field is used to make) with a
+   test pinning both directions. Recorded because the *class* is the interesting
+   part and it is now a checklist item: a warning derived from environment state
+   must be evaluated on a clean tree in **both** checkouts before it ships.
+
+**Status: still `open`, and the author's reasoning for that is right.** The gate
+protects only trees that have merged it, and two live worktrees
+(`provenance_byte_identical_test`, `tolstack_founding-review`) branched before it
+and still run the gate-less script. Close this when they are gone, not now.
