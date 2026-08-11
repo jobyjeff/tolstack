@@ -574,7 +574,7 @@ Gaps 1, 2, 5 and 6 are the **CINDAS asks** and Jeff can close them cheaply. Gaps
 > **M1: 4 traced / 2 inferred / 2 untraced, out of 8 element instances.**
 > **Across both stacks: 12 traced / 2 inferred / 2 untraced, out of 16.**
 
-For calibration: the three seeded slice-1 stacks trace **3 of 26 element
+For calibration: the three seeded slice-1 stacks trace **5 of 26 element
 instances**, and `pitch_link_to_pitch_plate` traces 4 of 6 in a much smaller
 denominator it refused to pad. This stack traces 12 of 16 — and the reason is not
 diligence, it is that **Jeff supplied the five part drawings**. Every traced
@@ -589,6 +589,21 @@ stack was built. The lesson is about the inputs, not the method.
 > only, so the 0-of-7 point below is *not* something that command can tell you.
 > The three seeded stacks carry no non-element values, so for them the element
 > ratio is the whole story; for this one it is not.
+
+> **Update, 2026-08-10** (handoff `fastener_citations_and_confidence`). Slice 1's
+> figure is now **5 of 26**; nothing on either M1 or M2 changed. But M1's two
+> `inferred` elements — `hub_bore_lower` and `hub_bore_upper` — acquired a
+> mechanical guard by becoming its only registered exception. That handoff added
+> `test_a_workbook_only_value_is_untraced_unless_its_exception_is_registered`,
+> which states the SOP's rule that a workbook-only value is `untraced`. These two
+> cite the 260209 workbook and claim `inferred`, and they are **right** to: their
+> support is not workbook-only, because 212966-006 rev A prints the identical
+> value and band and both notes say so, name the weakness, and pre-authorise the
+> downgrade. The test is written as an allowlist rather than an implication
+> precisely so these two do not have to be relabelled to satisfy it — but that
+> makes the argument above load-bearing. **If 212966-004 ever arrives, or the
+> -006 inference is rejected, these drop to `untraced` and come off the
+> allowlist.**
 
 **And the ratio is measuring the wrong thing for this archetype.** Seven
 non-element values carry the analysis — three CTEs, two temperatures, two

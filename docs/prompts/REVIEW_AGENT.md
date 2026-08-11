@@ -79,7 +79,18 @@ For **every** element value, verify:
     field** — where they disagree, the field is what downstream reads and the
     note is where the author told you the truth;
   - a value whose only support is "the source workbook says so" is
-    **`untraced`** — no matter how reasonable it looks;
+    **`untraced`** — no matter how reasonable it looks. Three seeded elements sat
+    at `kind: "workbook"` / `inferred` for a month, one of them with a `note`
+    that ended *"the +/-.004 is untraced"*, so this corner is now partly
+    mechanised too:
+    `test_a_workbook_only_value_is_untraced_unless_its_exception_is_registered`.
+    **Read what it does not cover.** It is an *allowlist*, not an implication —
+    `kind` says which document the numbers were transcribed from, and real
+    corroboration can arrive from a different document named only in the `note`
+    (`hub_bearing_thermal_fit_m1`'s two hub bores are the registered case). So
+    two questions stay yours: is a registered exception's argument still true,
+    and does any `workbook` element's `note` claim support the field does not
+    admit? The test sees the field. Only you can read the note against it;
   - `traced` requires the actual band to be in the cited document.
 
 **Specifically hunt for invented numbers.** The failure mode is a `traced` or
@@ -254,8 +265,8 @@ Then check that every `untraced` value appears in the stack's **explicitly liste
 gaps**. An `untraced` value not listed as a gap is a violation of the SOP's one
 rule — the stack is claiming completeness it does not have.
 
-For calibration: the three seeded slice-1 stacks trace **3 of 26 element
-instances** (7 inferred, 16 untraced), and reporting that plainly was the most
+For calibration: the three seeded slice-1 stacks trace **5 of 26 element
+instances** (3 inferred, 18 untraced), and reporting that plainly was the most
 valuable thing slice 1 produced. A stack claiming a much better ratio deserves
 proportionally more scrutiny per `traced` value, not less. **A high traced count
 is a reason to audit harder, not a reason to relax** — it is what an invented

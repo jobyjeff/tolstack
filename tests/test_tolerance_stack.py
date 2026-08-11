@@ -671,15 +671,27 @@ def test_the_export_is_a_sibling_of_the_feature_identity_slot_not_a_filling_in()
     (every `drawing`/`parts_list` ref has an export, which
     `test_every_drawing_citation_says_which_export_it_was_read_from` already does)
     rather than the total.
+
+    **It churned again on 2026-08-10** (`fastener_citations_and_confidence`,
+    23 -> 22: `tan_link:fastener_grip_13` re-cited to the same standard, its
+    export block dropped for the same reason), so the total is gone and the
+    instruction above is taken. What is left is the invariant this test was
+    always about -- an export is a SIBLING of the feature-identity slot, so
+    filling one must never fill the other -- checked in both directions, which
+    the total never was: no `export` implies a filled `run_id`, and no
+    `element_id`/`run_id` is filled at all. The count is not lost; it is
+    derivable and is printed by
+    `tests/debug_report_tolerance_stacks.py` if anyone wants it.
     """
-    backfilled = [
-        (stack.id, element.id)
-        for filename in ALL_STACK_FILES
-        for stack in [load_stack(STACKS_DIR / filename)]
-        for element in stack.elements
-        if element.source_ref.export is not None
-    ]
-    assert len(backfilled) == 23, backfilled
+    for filename in ALL_STACK_FILES:
+        for element in load_stack(STACKS_DIR / filename).elements:
+            ref = element.source_ref
+            if ref.export is None:
+                continue
+            assert ref.run_id is None, (
+                f"{filename}:{element.id} has an export AND a run_id -- the "
+                f"export is a sibling of the identity slot, not a filling-in"
+            )
     for filename in ALL_STACK_FILES:
         for element in load_stack(STACKS_DIR / filename).elements:
             ref = element.source_ref
@@ -820,6 +832,94 @@ def test_no_traced_element_cites_a_parts_list(filename):
     )
 
 
+#: The one place in the repo where `kind: "workbook"` may carry something other
+#: than `untraced`, with the argument, so that adding a second one is a
+#: deliberate act someone has to write down rather than a label that slips past.
+#:
+#: `hub_bearing_thermal_fit_m1`'s two hub bores transcribe the 260209 workbook,
+#: but their support is NOT workbook-only: 212966-006 rev A -- a later revision
+#: of the same part drawing, in hand -- prints the identical value AND the
+#: identical band at sheet 3 DETAIL E/D, and both notes say so, name the
+#: weakness ("the bore could have changed at -005 and changed back"), and
+#: pre-authorise the downgrade to `untraced` if the inference is not accepted.
+#: That is a stated judgement resting on a second document, which is exactly
+#: what `inferred` is for.
+_WORKBOOK_INFERRED_ALLOWED = {
+    ("hub_bearing_thermal_fit_m1", "hub_bore_lower"),
+    ("hub_bearing_thermal_fit_m1", "hub_bore_upper"),
+}
+
+
+@pytest.mark.parametrize("filename", ALL_STACK_FILES)
+def test_a_workbook_only_value_is_untraced_unless_its_exception_is_registered(filename):
+    """The SOP's other hard rule, mechanised one corner at a time.
+
+    > "a value whose only support is 'the source workbook says so' is `untraced`
+    > -- no matter how reasonable it looks."
+
+    ``test_no_traced_element_cites_a_parts_list`` closes the ``traced`` +
+    ``parts_list`` corner. This closes the notch below it, which nothing guarded:
+    three seeded elements sat at ``kind: "workbook"`` / ``inferred`` for a month,
+    including one whose own note ended *"the +/-.004 is untraced"*, and the
+    sharpest case was the same bolt labelled ``parts_list``/``inferred`` in one
+    stack and ``workbook``/``inferred`` in a restatement of that same stack.
+    ``inferred`` is a weaker claim than ``traced``, so the cost is lower -- but
+    the SOP's one hard rule is that ``untraced`` must appear on the gap list, and
+    an element ``inferred`` on workbook-only support has quietly left it.
+
+    **Written as an allowlist, not as an implication, because the implication is
+    false.** ``kind`` records which document the numbers were transcribed FROM,
+    and corroboration can arrive from a different document named only in the
+    ``note`` -- see ``_WORKBOOK_INFERRED_ALLOWED``. Stating the rule as
+    ``kind == "workbook" => confidence == "untraced"`` would have failed on two
+    correct elements; refining it to "unless the note names another document"
+    would be a grep whose pattern matches the thing under test, which is this
+    repo's named vacuous-check failure. An allowlist costs one line per exception
+    and makes each one reviewable.
+
+    **What this does NOT cover**, and cannot: whether the ``note`` agrees with
+    the field. A ``kind: "workbook"`` element correctly marked ``untraced`` whose
+    note claims a standard supports it passes here. That half stays a human
+    check -- ``docs/prompts/REVIEW_AGENT.md`` check 1.
+    """
+    stack = load_stack(STACKS_DIR / filename)
+    offenders = sorted(
+        (e.id, e.source_ref.confidence) for e in stack.elements
+        if e.source_ref.kind == "workbook"
+        and e.source_ref.confidence != "untraced"
+        and (stack.id, e.id) not in _WORKBOOK_INFERRED_ALLOWED
+    )
+    assert offenders == [], (
+        f"{stack.id}: {offenders} cite a workbook and claim better than "
+        f"`untraced`. Either the support is really another document -- then cite "
+        f"THAT document -- or it is the workbook alone, which the SOP makes "
+        f"`untraced` and puts on the gap list. If it is a stated judgement "
+        f"resting on a second document, register it in "
+        f"_WORKBOOK_INFERRED_ALLOWED with the argument."
+    )
+
+
+def test_the_workbook_allowlist_has_no_dead_entries():
+    """An allowlist that outlives its exceptions silently unguards them.
+
+    The registered pairs must still exist and must still be the shape the
+    allowlist exists to permit; otherwise a future element inheriting one of
+    these ids gets a free pass nobody granted it.
+    """
+    live = {
+        (stack.id, e.id): e.source_ref
+        for stack in (load_stack(STACKS_DIR / f) for f in ALL_STACK_FILES)
+        for e in stack.elements
+    }
+    for key in _WORKBOOK_INFERRED_ALLOWED:
+        assert key in live, f"{key} is registered but no longer exists"
+        ref = live[key]
+        assert (ref.kind, ref.confidence) == ("workbook", "inferred"), (
+            f"{key} is registered as a workbook/inferred exception but is now "
+            f"{ref.kind}/{ref.confidence} -- drop it from the allowlist"
+        )
+
+
 def test_no_traced_hardware_entry_cites_a_parts_list():
     """Same rule, the other file that carries a ``confidence``.
 
@@ -838,22 +938,31 @@ def test_no_traced_hardware_entry_cites_a_parts_list():
     assert offenders == []
 
 
-def test_the_two_re_cited_fastener_grips_trace_to_nas6403_sheet_3(tan_link, vpa):
-    """Both grips now cite the standard that prints the band, not the parts list.
+def test_every_re_cited_fastener_grip_traces_to_nas6403_sheet_3(tan_link, take2, vpa):
+    """Every grip now cites the standard that prints the band, not the parts list.
 
     Sheet 3 of ``NAS6403-NAS6420 Rev 4.pdf`` is one table for the whole family:
     a shared ``Grip ±.010`` column, then one LENGTH column per basic number. The
     band lives in the column HEADER, which is why the value and its tolerance
     come off the same page -- the thing a parts list can never do. Read by vision
-    from a crop (the scan has no text layer); the crop command is in
-    ``docs/sessions/lessons/LESSONS_20260806_traced_labels_and_ratio.md``.
+    from a crop (the scan has no text layer); the crop commands are in
+    ``docs/sessions/lessons/LESSONS_20260810_fastener_citations_and_confidence.md``.
 
     Values pinned here are the printed cells, not the mm the elements carry, so
     a unit-conversion slip cannot hide behind a matching label.
+
+    Grew from two rows to four on 2026-08-10 (``fastener_citations_and_confidence``).
+    The last two are the SAME BOLT in two stacks of one joint -- it was
+    ``parts_list``/``inferred`` in take 1 and ``workbook``/``inferred`` in take 2,
+    so one of the two was necessarily wrong about where the number came from.
+    Asserting both rows here is what stops that pair drifting apart again: a
+    change to one instance that is not made to the other fails.
     """
     for stack, element_id, dash, inch_grip, printed in (
         (tan_link, "fastener_grip_14", 14, 0.875, "NAS6403 .1900-32 = 1.198"),
         (vpa, "fastener_grip", 13, 0.812, "NAS6404 .2500-28 = 1.182"),
+        (tan_link, "fastener_grip_13", 13, 0.812, "NAS6403 .1900-32 = 1.135"),
+        (take2, "fastener_grip_13", 13, 0.812, "NAS6403 .1900-32 = 1.135"),
     ):
         ref = stack.element(element_id).source_ref
         assert ref.kind == "spec", f"{stack.id}:{element_id}"
@@ -868,6 +977,16 @@ def test_the_two_re_cited_fastener_grips_trace_to_nas6403_sheet_3(tan_link, vpa)
         element = stack.element(element_id)
         assert element.nominal == pytest.approx(inch_grip * 25.4, abs=1e-9)
         assert element.plus_minus == pytest.approx(0.010 * 25.4, abs=1e-9)
+
+    # ...and the same bolt is cited the same way in both stacks of the one joint.
+    # Take 2 is a restatement of take 1, so a provenance difference between these
+    # two is a defect by construction, whatever either one says on its own.
+    one, two = (tan_link.element("fastener_grip_13").source_ref,
+                take2.element("fastener_grip_13").source_ref)
+    shape = lambda r: (r.kind, r.document, r.sheet, r.cell, r.callout, r.confidence)
+    assert shape(one) == shape(two), (
+        "tan_link and take2 disagree about where NAS6403U13H's grip came from"
+    )
 
 
 def test_the_ms21299_washer_is_inferred_because_the_standard_is_not_here(vpa):
@@ -905,10 +1024,10 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
         "stack_vpa_output_to_pitch_plate.json",
     ]
     seeded = _counts(STACKS_DIR / n for n in SEEDED_STACK_FILES)
-    assert seeded == {"instances": 26, "traced": 3, "inferred": 7, "untraced": 16}
+    assert seeded == {"instances": 26, "traced": 5, "inferred": 3, "untraced": 18}
 
     every = _counts(sorted(STACKS_DIR.glob("stack_*.json")))
-    assert every == {"instances": 48, "traced": 19, "inferred": 11, "untraced": 18}
+    assert every == {"instances": 48, "traced": 21, "inferred": 7, "untraced": 20}
 
     # Instances, not distinct ids, and not "elements that carry a hardware_ref".
     # Those are the two denominators a reader reaches for by mistake; recording
@@ -1003,17 +1122,22 @@ def test_hardware_entry_values_source_counts_match_the_description():
         counted[(entry["values_status"], src.get("kind"))] = counted.get(
             (entry["values_status"], src.get("kind")), 0) + 1
     assert counted == {
-        ("inline", "workbook"): 8,     # forbidden as a source in a from-scratch stack
+        ("inline", "workbook"): 5,     # forbidden as a source in a from-scratch stack
+        ("inline", "spec"): 3,         # the three bolts re-sourced 2026-08-10
         ("library", "spec"): 1,        # NAS6403U11D, promoted by spec_library_v0
         ("inline", "drawing"): 2,      # 214589-002, 214588-002 -- source control drawings
         ("not_transcribed", None): 4,
     }
-    # traced-ness is a property of values_source, not of values_status
+    # traced-ness is a property of values_source, not of values_status: the three
+    # bolts re-sourced by `fastener_citations_and_confidence` are `traced` and
+    # still `inline`, because being printed in the standard is not the same fact
+    # as the spec library owning the numbers.
     traced = {e["id"] for e in entries
               if (e.get("values_source") or {}).get("confidence") == "traced"}
-    assert traced == {"NAS6403U11D", "214589-002", "214588-002"}
+    assert traced == {"NAS6403U11D", "NAS6403U13H", "NAS6403U14D", "NAS6404U13D",
+                      "214589-002", "214588-002"}
     text = data["description"]
-    for phrase in ("eight of the fifteen", "THREE entries are traced",
+    for phrase in ("five of the fifteen", "SIX entries are traced",
                    "Four entries are `not_transcribed`"):
         assert phrase in text, f"description no longer says {phrase!r}"
 
@@ -1130,14 +1254,18 @@ def test_every_inline_hardware_entry_cites_where_its_values_came_from():
         )
         assert src["confidence"] in ("traced", "inferred", "untraced")
         assert src["document"], f"{entry['id']}: values_source names no document"
-    # The file's whole provenance story in one line: one entry traced to a
-    # standard, the rest still the 260729 workbook.
+    # The file's whole provenance story in one line: the four NAS bolts traced
+    # to the one standard in the spec pile, and five entries still transcribing
+    # the 260729 workbook. Was `== ["NAS6403U11D"]` and `== 8` until 2026-08-10,
+    # when `fastener_citations_and_confidence` re-sourced the other three bolts
+    # -- all of which had been sourceable since the day that PDF landed.
     by_kind = {}
     for entry in data["entries"]:
         if entry["values_source"]:
             by_kind.setdefault(entry["values_source"]["kind"], []).append(entry["id"])
-    assert by_kind["spec"] == ["NAS6403U11D"]
-    assert len(by_kind["workbook"]) == 8
+    assert sorted(by_kind["spec"]) == [
+        "NAS6403U11D", "NAS6403U13H", "NAS6403U14D", "NAS6404U13D"]
+    assert len(by_kind["workbook"]) == 5
 
 
 def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_link):

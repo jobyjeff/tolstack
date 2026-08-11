@@ -181,8 +181,8 @@
         "document": "260729_sample_tol_stack.xlsx",
         "sheet": "grip length tols old",
         "cell": "E11",
-        "confidence": "inferred",
-        "note": "Part present on 217755 as NAS1149V0332H (find 32, qty 9), nomenclature '.203\" X .438\" X .032\" MIN'. The parts list says .032 MIN; the workbook models it as .032 +/-.004. The NAS1149 standard is not in this repo, so the +/-.004 is untraced."
+        "confidence": "untraced",
+        "note": "Part present on 217755 as NAS1149V0332H (find 32, qty 9), nomenclature '.203\" X .438\" X .032\" MIN'. The parts list says .032 MIN; the workbook models it as .032 +/-.004. The NAS1149 standard is not in this repo, so the +/-.004 is untraced. DOWNGRADED `inferred` -> `untraced` 2026-08-10 (handoff fastener_citations_and_confidence): the note above already ended '+/-.004 is untraced' while the field said `inferred`, which is the note-vs-field defect one notch below the 2026-08-06 correction. Decided on the merits rather than relabelled to `parts_list`: the parts list corroborates that this washer exists in the joint and gives a MINIMUM, not a nominal with a band -- so it supports neither number the stack folds. The only support for .032 +/-.004 is 'the workbook says so', which the SOP makes `untraced` no matter how reasonable it looks. It is now on the gap list, where the SOP's one hard rule requires it. NAS1149 closes it."
       }
     },
     {
@@ -219,7 +219,7 @@
         "sheet": "grip length tols old",
         "cell": "E22",
         "confidence": "untraced",
-        "note": "Rule-of-thumb allowance, no cited standard. NAS6403 defines the real transition. CORRECTION 2026-08-06: the parenthetical that used to end this note -- 'that spec is not in this repo' -- went stale when NAS6403-NAS6420 Rev 4.pdf arrived in data/inbox/specs/. The spec is here; this element has simply not been re-derived from it. Sheet 1 gives T (Ref) = .323 in for NAS6403 (grip end to point), which is not the same quantity as this 1/16 in run-out allowance but is the document that would replace it. Still `untraced` and still a listed gap -- see docs/issues/ISSUE_20260806_three_more_slice1_fastener_values_are_now_sourceable.md."
+        "note": "Rule-of-thumb allowance, no cited standard. CORRECTION 2026-08-06: the parenthetical that used to end this note -- 'that spec is not in this repo' -- went stale when NAS6403-NAS6420 Rev 4.pdf arrived in data/inbox/specs/. DECIDED 2026-08-10 (handoff fastener_citations_and_confidence), on the merits and with the value UNCHANGED: NAS6403 does not print this quantity, so the element stays `kind: assumed` / `untraced` and stays on the gap list. What sheet 1 actually gives, read off a crop: T (Ref) = .323 in for NAS6403, which is length minus grip (1.135 - .812 = .323 exactly, from the sheet-3 dash-13 row) -- i.e. the WHOLE region from the end of the full cylindrical shank to the point, thread and run-out and point chamfer together. The 1/16 in modelled here is the run-out INSIDE that region, and taking T for it would be an 8.2 mm allowance where the workbook assumed 1.6 mm. Sheet 2 note (b) additionally makes T a reference dimension, 'for design purposes only, not an inspection requirement'. The only other candidates on sheet 1 are ruled out by sheet 2's own notes: X (g) = .156 in is '5 thread pitches', the minimum female-thread engagement region for the MIL-F-18240 locking element, and Y (h) = .094 in is '3 thread pitches' in which the locking element must not be effective -- both measured in pitches from the threaded end (.156 = 5/32, .094 = 3/32 at the .1900-32 pitch of 1/32 in), neither a run-out length. So NAS6403 dimensions grip and length and gives their difference as a reference, and never dimensions the transition itself. The document that would close it is MIL-S-8879, the thread spec sheet 1 invokes for the UNJF-3A threads, and it is NOT in data/inbox/specs/ -- the same gap already recorded on hardware_entries.json's NAS6403U11D. This term is the single most pessimistic in the tan-link shank-out checks (its 'nominal' is its maximum, min is 0); leaving it alone leaves those check results where they were."
       }
     },
     {
@@ -231,26 +231,17 @@
       "max": 20.8788,
       "plus_minus": 0.254,
       "hardware_ref": "NAS6403U13H",
-      "note": "0.812 +/-0.010 in.",
+      "note": "0.812 +/-0.010 in. RE-CITED 2026-08-10 (handoff fastener_citations_and_confidence): the band now comes off the NAS6403 standard, not the parts list -- the same move fastener_grip_14 made on 2026-08-06.",
       "source_ref": {
-        "kind": "parts_list",
-        "document": "217755",
-        "revision": "A",
-        "callout": "NAS6403U13H BOLT, HEX HEAD, 6Al-4V, .190\"-32 X .812\" GRIP (find 95, qty 3)",
-        "export": {
-          "status": "established",
-          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
-          "sha256": "d0f1b50fa069f42e52f73a9d5f2d1bcbccac0651fee453c9c605e01bd7864a3f",
-          "runs": [
-            {"run_id": "20260723_163810", "ts": "2026-07-23T16:38:10+00:00"},
-            {"run_id": "20260727_153847", "ts": "2026-07-27T15:38:47+00:00"},
-            {"run_id": "20260730_131903", "ts": "2026-07-30T20:21:09.210383+00:00"},
-            {"run_id": "20260730_132230", "ts": "2026-07-30T20:28:36.282195+00:00"}
-          ],
-          "note": "Established 2026-08-06 by handoff citation_export_provenance, confirmed not assumed. hardware_entries.json's provenance.parts_list_run names run 20260723_163810; that run's own 217755_A_balloons.json records source_pdf '[2026-JUL-23 POST] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf' (a contemporaneous record, written by the run), and data/runs.jsonl records the same file and this sha256 as its input. Independently corroborated by this stack's joint.zone_note, which says the cited zone is the one printed on the 2026-JUL-23 POST export. The file still hashes to this sha (mtime 2026-07-23T23:38:10Z, unchanged since the run)."
-        },
-        "confidence": "inferred",
-        "note": "Present in the parts list at qty 3 but carries NO balloon on any sheet. The grip +/-.010 comes from the workbook here, not from this citation -- so `inferred`, which is the correct label. CORRECTION 2026-08-06: the reason used to read '(NAS6403 spec absent)' and that is no longer true. NAS6403-NAS6420 Rev 4.pdf sheet 3 row 'Grip Dash No. 13' prints .812 under the 'Grip ±.010' header, so this element can be re-cited to `kind: spec` / `traced` exactly as fastener_grip_14 was. Deliberately left for a follow-up rather than folded into a relabelling handoff -- docs/issues/ISSUE_20260806_three_more_slice1_fastener_values_are_now_sourceable.md."
+        "kind": "spec",
+        "document": "NAS6403-NAS6420 Rev 4.pdf",
+        "revision": "Rev 4",
+        "sheet": 3,
+        "view": "grip/length table",
+        "cell": "row 'Grip Dash No. 13', column 'NAS6403 .1900-32'",
+        "callout": "Grip Dash No. 13  |  Grip ±.010 = .812  |  LENGTH ±.015, NAS6403 .1900-32 = 1.135",
+        "confidence": "traced",
+        "note": "Both the .812 nominal and the ±.010 band are printed on sheet 3: the value in the 'Grip ±.010' column, the band in that column's own header ('LENGTH ±.015' heads the per-basic-number columns beside it). Sheet 2 CODE block decodes the part number -- 'Dash number indicates grip in .0625 increments' (13 x .0625 = .8125, printed .812), 'U' after the basic number = unplated, 'H' after the dash number = drilled HEAD (not shank: the -14 in this same joint is 'D', drilled shank) -- and sheet 2 note (a) defines grip: 'from the underside of head to the end of the full cylindrical portion of the shank'. WAS `kind: parts_list` / `confidence: inferred` citing 217755 find 95, whose own note admitted 'the grip +/-.010 comes from the workbook here, not from this citation'; a parts list gives the nomenclature nominal and never a band. Which bolt this is remains the parts list's evidence: NAS6403U13H, find 95, qty 3, and -- unlike the -14 -- ballooned on NO sheet of 217755, so the parts list is the only place it appears at all. The `source_ref.export` block that named the 2026-JUL-23 POST export of 217755 by sha256 was DROPPED with the parts-list citation, exactly as fastener_grip_14's was on 2026-08-06: it described a citation this element no longer makes, and `kind: \"spec\"` is exempt from the export requirement because data/inbox/specs/ is append-only, so the filename identifies the bytes (test_every_drawing_citation_says_which_export_it_was_read_from). That same export block is still live on this stack's straight_bushing if the sha256 is wanted. Scan, no text layer -- read by vision from a crop, command in docs/sessions/lessons/LESSONS_20260810_fastener_citations_and_confidence.md."
       }
     },
     {

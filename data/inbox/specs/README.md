@@ -30,7 +30,7 @@ that cite it, not with the CATIA parser.
 
 ## Why this folder is the point of the repo
 
-Slice 1's headline finding was that only **3 of 26** element instances across
+Slice 1's headline finding was that only **5 of 26** element instances across
 its three tolerance stacks could be traced to an actual document. The rest were
 "the workbook says so", which is not a source. This pile is the trace target
 that closes that gap — and it already holds the top-priority one:
@@ -43,6 +43,21 @@ that closes that gap — and it already holds the top-priority one:
 > labels this correction touched were fixed **by this pile**:
 > `NAS6403-NAS6420 Rev 4.pdf` sheet 3 turned out to cover both bolts, so the
 > file below was already sitting here answering a question nobody had asked it.
+
+> **Moved, 2026-08-10** (handoff `fastener_citations_and_confidence`), from
+> 3 of 26 to 5 — and it is this folder's own recurring failure, stated plainly:
+> **a document arriving here does not re-cite anything by itself, and nothing in
+> the repo notices that it could.** `NAS6403-NAS6420 Rev 4.pdf` has been in this
+> pile since founding. Sheet 3's grip/length table covers every dash number of
+> every basic number in the family, so it answered *five* slice-1 gaps the day it
+> landed. Four days and two handoffs later, three of them were still labelled
+> "the workbook says so" — plus three `hardware_entries.json` entries carrying
+> `NAS6403/NAS6404 standard absent`, which was false prose about a file sitting
+> in this directory. Nobody misread the document; nobody re-opened it. The sweep
+> that would catch this is one question asked periodically — *for every*
+> `untraced`/`inferred` *element, is the document that would close it now in the
+> pile?* — and it is filed as
+> `docs/issues/ISSUE_20260810_nothing_sweeps_the_spec_pile_against_open_gaps.md`.
 
 | slice-1 gap | file here |
 |---|---|

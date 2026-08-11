@@ -441,8 +441,8 @@ Counting **element instances in this stack**:
 > pitch-link eye), and **2 of the 6 carrying a zero-width band** because no
 > document gives one.
 
-The three seeded slice-1 stacks score **3 traced out of 26 element instances**
-(7 `inferred`, 16 `untraced`). The honest comparison is not 4/6 vs 3/26, because
+The three seeded slice-1 stacks score **5 traced out of 26 element instances**
+(3 `inferred`, 18 `untraced`). The honest comparison is not 4/6 vs 5/26, because
 the two are not the same shape of work:
 
 > **Correction, 2026-08-06** (handoff `traced_labels_and_ratio`). This line read
@@ -459,6 +459,16 @@ the two are not the same shape of work:
 > This stack's own **4 traced / 2 inferred / 0 untraced out of 6** was correct
 > when written, reproduces today, and has a test. It is the counterexample that
 > made the divergence visible.
+
+> **Moved, 2026-08-10** (handoff `fastener_citations_and_confidence`): slice 1's
+> figure went from 3 of 26 to **5 of 26**, and the paragraph below explains why
+> more precisely than it knew. The remaining two `fastener_grip_13` instances
+> have now been re-cited to the same sheet 3 of the same
+> `NAS6403-NAS6420 Rev 4.pdf` this stack was built from — so **four** of the five
+> traced slice-1 values are that one document, which had been in the pile
+> untouched since founding. Two other slice-1 elements went the other way,
+> `inferred` → `untraced`, because their only support was the source workbook.
+> This stack's own 4/2/0 is unchanged.
 
 - **The ratio improved mostly because the documents were there.** Three of the
   four traced values are the NAS6403 bolt, which was in `data/inbox/specs/` the
