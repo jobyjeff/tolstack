@@ -1,11 +1,23 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: closed
 handoff: docs/sessions/HANDOFF_20260810_fastener_citations_and_confidence.md
 area: tolerance-stacks
 reporter: agent
+closed: 2026-08-10
+closed_by: handoff fastener_citations_and_confidence
 ---
+
+> **Closed 2026-08-10.** Both `fastener_grip_13` instances re-cited to sheet 3;
+> `hardware_entries.json` backfilled for all three bolts. **`thread_transition`
+> was decided the other way and left `untraced`:** NAS6403's `T (Ref)` = .323 in
+> is length minus grip, i.e. the whole thread region, and sheet 2 note (b) makes
+> it a reference dimension; sheet 1's `X`/`Y` are locking-element regions in
+> thread pitches (notes (g), (h)), not run-outs. The standard does not give this
+> quantity — MIL-S-8879 would, and is not in the pile. The pattern this issue
+> named is now filed on its own:
+> `ISSUE_20260810_nothing_sweeps_the_spec_pile_against_open_gaps.md`.
 
 # Three more slice-1 fastener values can be traced to NAS6403 for free, and `hardware_entries.json` lags the two that already were
 
