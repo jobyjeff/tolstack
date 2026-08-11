@@ -660,6 +660,14 @@ _POINTER_RE = re.compile(
 _HISTORICAL = ("docs/sessions/", "docs/issues/", "docs/reference/",
                "apps/viewer/vendor/")
 _SCANNED_SUFFIXES = {".md", ".py", ".json", ".js", ".cjs", ".toml", ".txt", ".ps1"}
+# A definition line is not evidence. Without this the pointer search is nearly
+# vacuous inside a test module: `test_[a-z0-9_]+` matches the enclosing
+# `def test_...` line, so a claim in a test body cites the very test whose
+# comparison is in question. That is sighting 3 exactly -- its comment sat in
+# the body of `test_workbook_inputs_are_transcribed_consistently_on_both_sheets`,
+# whose comparison was numeric-cells-only. Added in review, 2026-08-10; pinned by
+# test_the_grep_catches_the_reconstructed_sighting_three.
+_DEFINITION_RE = re.compile(r"\s*(async\s+)?(def|class)\s", re.I)
 
 
 @dataclass(frozen=True)
@@ -685,6 +693,34 @@ def _blocks(lines: list[str]) -> list[tuple[int, int]]:
     return spans
 
 
+def claims_in(rel: str, text: str) -> list[Claim]:
+    """Every byte-identity claim in one file's text.
+
+    Pure, for the same reason :func:`unamended_rows` is: the scan that guards
+    the working tree can then be replayed against a blob out of history -- see
+    ``test_the_grep_catches_the_reconstructed_sighting_three``.
+    """
+    out: list[Claim] = []
+    lines = text.splitlines()
+    spans = _blocks(lines)
+    for n, line in enumerate(lines, 1):
+        for m in _CLAIM_RE.finditer(line):
+            before = line[max(0, m.start() - 24):m.start()]
+            kind = "denied" if _NEGATED_RE.search(before.rstrip()) else "asserted"
+            span = next((s for s in spans if s[0] <= n <= s[1]), (n, n))
+            block = [
+                b for b in lines[span[0] - 1:span[1]]
+                if not _DEFINITION_RE.match(b)
+            ]
+            found = _POINTER_RE.search("\n".join(block))
+            out.append(Claim(
+                path=rel, line=n, kind=kind,
+                pointer=found.group(0) if found else "",
+                excerpt=line.strip()[:110],
+            ))
+    return out
+
+
 def claim_inventory() -> list[Claim]:
     """Every byte-identity claim in a live, tracked file.
 
@@ -703,20 +739,7 @@ def claim_inventory() -> list[Claim]:
         path = REPO_ROOT / rel
         if not path.exists():
             continue
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-        spans = _blocks(lines)
-        for n, line in enumerate(lines, 1):
-            for m in _CLAIM_RE.finditer(line):
-                before = line[max(0, m.start() - 24):m.start()]
-                kind = "denied" if _NEGATED_RE.search(before.rstrip()) else "asserted"
-                span = next((s for s in spans if s[0] <= n <= s[1]), (n, n))
-                block = "\n".join(lines[span[0] - 1:span[1]])
-                found = _POINTER_RE.search(block)
-                out.append(Claim(
-                    path=rel, line=n, kind=kind,
-                    pointer=found.group(0) if found else "",
-                    excerpt=line.strip()[:110],
-                ))
+        out += claims_in(rel, path.read_text(encoding="utf-8", errors="replace"))
     return out
 
 
@@ -745,6 +768,36 @@ def test_every_byte_identity_claim_in_a_live_file_names_its_verification():
           "`git diff`), or weaken the claim to what is actually checked. "
           "'byte-identical' is a claim about bytes; a cached numeric table is not "
           "the sheet."
+    )
+
+
+# The tip of `hub_bearing_thermal_stack` before its review corrected the claim.
+# Permanent history (an ancestor of master), like the _SIGHTINGS commits.
+_SIGHTING_THREE = ("46a450a", "tests/test_hub_bearing_rederivation.py", 539)
+
+
+def test_the_grep_catches_the_reconstructed_sighting_three():
+    """Sighting 3 replayed, not mimicked -- and the reason for ``_DEFINITION_RE``.
+
+    The comment claiming two sheets byte-identical sat in the body of the very
+    test whose comparison was numeric-cells-only, so the enclosing
+    ``def test_workbook_inputs_are_transcribed_consistently_on_both_sheets``
+    line satisfied the pointer search all by itself and the claim came back
+    backed. A check that a test's own name discharges the claim inside it is the
+    vacuous check in a new costume; definition lines are excluded, and this pins
+    it against the real blob.
+    """
+    rev, rel, line = _SIGHTING_THREE
+    text = _blob(REPO_ROOT, f"{rev}:{rel}")
+    assert text, f"{rev}:{rel} is not in this repo's history"
+    claims = {c.line: c for c in claims_in(rel, text)}
+    assert line in claims, f"the phrase is no longer found at {rel}:{line} in {rev}"
+    caught = claims[line]
+    assert caught.kind == "asserted", caught
+    assert not caught.pointer, (
+        f"sighting 3 must be caught, but the scan backed it with "
+        f"{caught.pointer!r} -- if that came off a `def`/`class` line the "
+        "exclusion has regressed"
     )
 
 

@@ -41,7 +41,7 @@ Four reasons, the third of which is the one I would lead with to Jeff:
    subsequence check on characters could let it through.
 
 The current file is two insertions and nothing else (`insert` at original line 1 →
-the 22-line import header; `insert` at original line 139 → the 30-line correction).
+the 28-line import header; `insert` at original line 139 → the 30-line correction).
 Each insertion must additionally be a **blockquote carrying an ISO date** — that is
 what distinguishes a sanctioned annotation from a paragraph someone wrote into an
 import.
@@ -181,11 +181,11 @@ a historical diff. If you extend the check, keep it pure.
 | where | kind | pointer |
 |---|---|---|
 | `ARCHITECTURE.md` ×3 (256, 302, 312) | asserted | `tests/`, `blob` |
-| `PROVENANCE.md` ×13 (14, 29, 31, 46, 57×2, 58, 60, 61, 62, 69×2, 70, 82) | asserted | `tests/`, `sha256` |
+| `PROVENANCE.md` ×14 (14, 29, 31, 46, 57×2, 58, 60, 61, 62, 69×2, 70, 82) | asserted | `tests/`, `sha256` |
 | `apps/viewer/README.md`:62 | asserted | `tests/test_viewer_projection.py` |
 | `docs/prompts/REVIEW_AGENT.md`:531, 549 | asserted | `sha256` |
 | `stack_hub_bearing_thermal_fit_m1.json`:50, `…m2.json`:405 | **denied** | `tests/` |
-| `tests/test_hub_bearing_rederivation.py`:542 | **denied** | `test_workbook_inputs_are_transcribed_consistently_on_both_sheets` |
+| `tests/test_hub_bearing_rederivation.py`:542 | **denied** | — (see the review's S1) |
 
 The three denials are sighting 3's files after that review corrected them, and they
 are the model for what a claim should look like: they say what *is* identical
@@ -285,3 +285,33 @@ two. If you extend it, do not reach for `status` or anything that stages.
   re-cite stack elements — it is the first branch this test will meet in anger, and
   `stack_tan_link_to_pitch_plate_take2.json` is one of the two rows still claiming
   byte-identity.
+
+## Amended in review, 2026-08-10 (`review/provenance_byte_identical_test`)
+
+See `docs/sessions/reviews/REVIEW_20260810_provenance_byte_identical_test.md`.
+Verdict APPROVE, 0 blockers; three corrections landed here rather than being left
+in a report nobody re-reads.
+
+1. **"The grep fails, it does not merely report" was not true inside a `.py`
+   file, and the file it was not true for is sighting 3's own.** `_POINTER_RE`
+   contains `test_[a-z0-9_]+`, and a claim written in a test body sits in a block
+   that contains that test's `def` line — so the claim cited **the very test whose
+   comparison was in question** and came back backed. Replayed against the real
+   blob: at `46a450a`, `tests/test_hub_bearing_rederivation.py:539` scanned as
+   *asserted, pointer =
+   `test_workbook_inputs_are_transcribed_consistently_on_both_sheets`*, which is
+   the numeric-cells-only test. The whole tree at that commit produced **no** `.py`
+   finding. Fixed in the review: `_DEFINITION_RE` excludes `def`/`class` lines from
+   the pointer search (a definition line is not evidence), `claims_in(rel, text)`
+   is extracted as a pure function per this lesson's own instruction, and
+   `test_the_grep_catches_the_reconstructed_sighting_three` replays that blob so
+   the exclusion cannot regress. Sighting 3 now has a replay alongside 4 and 5.
+   The generalisation, which is the durable part: **when a test greps for
+   evidence, ask what else its pattern can match — a check whose evidence pattern
+   matches the thing under test is the vacuous check wearing a new costume.**
+2. `PROVENANCE.md ×13` in the inventory table above → **×14** (the total of 23 was
+   right and only adds up at 14).
+3. "the 22-line import header" → **28**. 22 is the figure on `master`; this
+   branch's own rewrite of that header added six lines, so the number went stale
+   between being computed and being written down — the repo's number-one recurring
+   class, landing inside the handoff that mechanised the neighbouring one.

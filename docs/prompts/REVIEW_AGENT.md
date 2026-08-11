@@ -539,9 +539,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `traced_labels_and_ratio` — the last two were parallel handoffs and each
       review independently wrote "fourth sighting" without knowing about the
       other, which is what proved a human-executed check does not compose across
-      concurrent work). Both are replayed out of git as regression cases in that
-      file. **Do not re-add the diff to this list.** Two things it cannot do are
-      left for you:
+      concurrent work). Sightings 3, 4 and 5 are replayed out of git as regression
+      cases in that file. **Do not re-add the diff to this list.** Two things it
+      cannot do are left for you:
       - **Is the amendment *true*?** The test asserts the cell moved, never that
         it describes what actually changed. "additive only" written over a diff
         that moved a value is the same false claim in a new place.
@@ -553,6 +553,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
         that element `traced` and the other `inferred`). The test now requires
         every live byte-identity claim to name what checks it; **read what that
         verification actually compares.** A cached numeric table is not the sheet.
+- [ ] **A check whose evidence pattern can match the thing under test.** New
+      2026-08-10 (`provenance_byte_identical_test`), and it is the vacuous-check
+      family's subtlest member: the new grep demanded that a byte-identity claim
+      name its verification, searching the surrounding block for
+      `test_[a-z0-9_]+` — which matches the enclosing `def test_...` line, so a
+      claim in a test body cited **the very test whose comparison was in
+      question** and passed. That is sighting 3 verbatim, and the check written
+      to end sighting 3 did not catch it; replaying `46a450a` proved it in one
+      command. Fixed in review (`_DEFINITION_RE`) and pinned by a replay. So
+      whenever a test *greps for evidence* rather than computing it, ask what
+      else the pattern matches, and **replay it against the historical commit the
+      check was written for** — not a synthetic case, which is where this one
+      looked fine. Related: `ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth`.
 - [ ] **Prose asserting a field is `null` while the field is not.** Same class as
       stale counts, one level down. `hub_bearing_thermal_stack`'s
       `identification_note` said "find numbers, balloons and quantities are
