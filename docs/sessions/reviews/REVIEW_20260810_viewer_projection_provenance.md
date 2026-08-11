@@ -32,15 +32,18 @@ run against a throwaway git repo with a real fork in it.
 
 ## Verified, by re-running rather than reading
 
-- **Full suite: `323 passed, 1 skipped`** — measured **in the review worktree**
+- **Full suite: `323 passed, 1 skipped`** before the sibling merge, **`333 passed,
+  1 skipped`** after it (their handoff added ten) — both measured **in the review
+  worktree**
   (`C:\workspace\tolstack-worktrees\viewer_projection_provenance-review`) with
   `C:\workspace\tolstack\venv-win\Scripts\python.exe -m pytest -q`. The skip is
   the known data-dependent test; the main checkout reports one more passed and
   none skipped. Post-merge re-run in `C:\workspace\tolstack` recorded at the end.
 - **Viewer suites: `84/84`**, including the `[real]` node-fs tier against the
   main checkout's freshly rebuilt projection (24 crop PNGs all on disk).
-- **`git log --oneline HEAD..master`: empty**, checked as the reviewer's last act.
-  No sibling landed during the review. One sibling is *live* — see Concurrency.
+- **`git log --oneline HEAD..master`** — empty early, **not** empty at merge time:
+  `provenance_byte_identical_test` landed underneath me. Handled, and the suite
+  numbers above are the pre-merge ones; the merged-tree numbers are in Concurrency.
 - **`forge check`**: OK in both the worktree (1 expected vacuous-`data/` warning)
   and `C:\workspace\tolstack`.
 - **The projections rebuilt against the main checkout** with both scripts
@@ -61,7 +64,7 @@ run against a throwaway git repo with a real fork in it.
 | A non-ancestor rebuild **refuses**, demonstrated for real | **pass** | reproduced independently — below |
 | Six stacks' computed results **unchanged** | **pass** | key-by-key diff — below |
 | Value-level tests for the gate and the new fields | **pass** | 15 tests; the ancestry ones use a real forked repo, not a mocked predicate |
-| Full suite green | **pass** | 323/1s |
+| Full suite green | **pass** | 323/1s on the branch, 333/1s after merging the sibling that landed mid-review |
 | Lesson with the subdir recommendation, the convention question, the other-writers audit | **pass, with one correction** | the audit missed a third member — see should-fix 3 |
 
 **The refusal, reproduced independently.** `git worktree add` a throwaway on a
@@ -133,7 +136,11 @@ same shape, 745 leaves either side, `summary` and all 24 resolutions identical.
   though for a weaker reason — this one is clean by not touching the set, not by
   the author running the diff. My own doc fixes (`ARCHITECTURE.md`,
   `apps/viewer/README.md`) are also outside the imported set; re-checked after
-  editing.
+  editing. **And now mechanised**: the sibling handoff that landed mid-review
+  brought `tests/test_provenance.py`, which derives the watched paths from the
+  table and runs exactly this diff. It is green on the merged tree, so the check
+  above is confirmed by a machine as well as by hand — and this class should
+  stop consuming reviewer attention from here.
 - **The no-second-combiner rule holds in JavaScript.** `provenanceLine` /
   `provenanceAlarms` / `shortSha` do string concatenation and `slice(0, 12)`.
   No `+` on a projection number, no comparison of tolerances, no `toFixed`, no
@@ -246,12 +253,29 @@ the command is documented, not only in a script docstring and a lesson.
   `provenance.dirty` is the only tell, which the module says plainly — recorded so
   the next reviewer does not re-derive it.
 
-## Concurrency
+## Concurrency — the sibling landed mid-review, and this is the fourth sighting
 
-`git log --oneline HEAD..master` empty at the end of the review; nothing landed
-underneath me. One sibling is **live**: `handoff/provenance_byte_identical_test`
-(+ its review worktree), which mechanises `PROVENANCE.md`'s byte-identical rows.
-Checked for a real collision:
+`git log --oneline HEAD..master` was **empty when I checked it early and not empty
+when I went to merge.** Between those two moments
+`provenance_byte_identical_test` was reviewed, approved and merged (6 commits,
+`d4421b3..53a4933`), and `fastener_citations_and_confidence` was staged → active.
+So the `--ff-only` merge was refused, which is the only reason I looked again.
+**Fourth sighting of this class, and the first where the reviewer's own
+last-act check was the thing that came back stale** — the overlay's advice
+("re-run it yourself, as your last act") is necessary and still not sufficient
+when the merge itself is the last act. The rule that actually holds: *the merge
+attempt is the check*; treat a refused fast-forward as the signal, not as an
+inconvenience.
+
+Resolved properly rather than forced: `git merge master` into the review branch
+(`ARCHITECTURE.md` and `docs/prompts/REVIEW_AGENT.md` both auto-merged — we each
+edited different sections of both), then the suites re-run on the merged tree:
+**333 passed, 1 skipped** and **84/84**. Their new `tests/test_provenance.py`
+(870 lines, which mechanises exactly the byte-identical check I ran by hand
+above) is green against my branch, independently confirming this branch touches
+no imported file. Both sets of overlay entries survive in full.
+
+Checked for a real collision before merging:
 
 - **File overlap: one file, `docs/prompts/REVIEW_AGENT.md`** — this overlay, which
   both reviews are required to edit. Both edits are additive and in different
