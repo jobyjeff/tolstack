@@ -38,9 +38,21 @@ C:\workspace\drawing-checker\venv-win\Scripts\python.exe scripts\build_viewer_cr
 
 Both steps are **wipe-and-rebuild** and each owns its own files, so either can
 be re-run alone. Re-run step 1 after editing a stack JSON; re-run step 2 after a
-new drawing export lands. The banner always says when each was built — the
-viewer never guesses whether a projection is stale, it tells you when it was
-made and lets you judge.
+new drawing export lands. The banner says when each was built **and which tree
+built it** — the viewer never guesses whether a projection is stale, it reports
+what the two stamps say and lets you judge.
+
+### If a build refuses (exit 3)
+
+`data/projections/viewer/` is **one directory shared by every live worktree**, so
+since 2026-08-10 both builders stamp their own branch and HEAD sha into their
+output and **refuse** to overwrite a projection built from a commit this tree
+does not contain (`scripts/projection_provenance.py`, and
+`ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection`,
+which happened three times). The refusal names the other tree's branch, sha and
+filesystem path and says what to run; the fix is normally *rebuild from that
+tree instead*, or merge it in here first. `--allow-older-tree` overrides it,
+loudly, for the one legitimate case — a deliberate rebuild from an older tree.
 
 No folder grant handy? `index.html?mock=1` renders a seeded demo stack that
 exercises every provenance state. Nothing touches disk.

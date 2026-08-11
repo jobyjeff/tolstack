@@ -123,7 +123,16 @@ def stamp(repo_root: Path, stacks_dir: Path, built_by: str) -> Dict[str, Any]:
     """
     head = git(repo_root, "rev-parse", "HEAD")
     branch = git(repo_root, "rev-parse", "--abbrev-ref", "HEAD")
-    status = git(repo_root, "status", "--porcelain")
+    # `--untracked-files=no`, and it matters: the MAIN checkout permanently
+    # carries an untracked `.dispatch.toml` (dispatch writes it there and it is
+    # not gitignored), so counting untracked files made `dirty` true on every
+    # build from the documented canonical invocation -- lighting the viewer's
+    # alarm box, twice, on a tree where nothing was wrong. An alarm that is
+    # always on is an alarm a reader learns to skip, which is the failure this
+    # banner exists to prevent. `dirty` therefore means *tracked content differs
+    # from `head_sha`*, which is exactly the claim the field is used to make.
+    # (Corrected in `review/viewer_projection_provenance`, 2026-08-10.)
+    status = git(repo_root, "status", "--porcelain", "--untracked-files=no")
     trunk_sha = git(repo_root, "rev-parse", "--verify", "--quiet", TRUNK)
     behind = None
     if trunk_sha:

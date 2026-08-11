@@ -23,6 +23,11 @@ tolerance_stack/
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
+  projection_provenance.py     which tree built a projection, + the ancestry gate
+                               that refuses an older tree's rebuild. Added
+                               2026-08-10; stdlib only, both builders import it.
+  snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
+                               the evidence for "nothing was written there"
   run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code)
 apps/
   viewer/           the static stack/check review surface (see its README)

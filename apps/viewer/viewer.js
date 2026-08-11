@@ -349,8 +349,10 @@
         "results and crops were built from DIFFERENT trees — results from " +
         (rp.branch || "(detached)") + " @ " + VA.shortSha(rp.head_sha) +
         ", crops from " + (cp.branch || "(detached)") + " @ " + VA.shortSha(cp.head_sha) +
-        ". The two halves of this page do not describe the same stacks. " +
-        "Rebuild both from the newest tree.");
+        ". They may not describe the same stacks. Two different commits is as far " +
+        "as this page can get: it cannot run git, so it cannot tell the ordinary " +
+        "case (crops built from an ancestor, still current) from two divergent " +
+        "trees. Rebuild both from the newest tree to settle it.");
     }
 
     // Stamped at build time, so it is a statement about then, not now — which

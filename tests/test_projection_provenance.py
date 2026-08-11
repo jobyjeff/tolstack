@@ -134,6 +134,31 @@ def test_the_stamp_names_this_tree_not_the_data_root():
     assert stamp["dirty"] in (True, False)
 
 
+def test_an_untracked_file_alone_does_not_make_a_tree_dirty(tmp_path):
+    """``dirty`` is about tracked content, and the distinction is not academic.
+
+    The MAIN checkout permanently carries an untracked ``.dispatch.toml``, so a
+    ``dirty`` that counted untracked files was ``true`` on **every** build from
+    the documented canonical invocation -- two standing alarms in the viewer's
+    banner on a tree where nothing was wrong. Added in
+    ``review/viewer_projection_provenance``; both directions are pinned, because
+    the fix must not have turned the flag off altogether.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_git(repo, "init", "-q")
+    run_git(repo, "config", "user.email", "test@example.invalid")
+    run_git(repo, "config", "user.name", "provenance test")
+    commit(repo, "committed")
+
+    (repo / ".dispatch.toml").write_text("untracked, and always there\n", encoding="utf-8")
+    assert prov.stamp(repo, repo, "x")["dirty"] is False
+
+    # ...and a real edit to a tracked file still is dirty, which is the point.
+    (repo / "file.txt").write_text("edited, not committed\n", encoding="utf-8")
+    assert prov.stamp(repo, repo, "x")["dirty"] is True
+
+
 def test_the_stamp_survives_a_directory_that_is_not_a_repo(tmp_path):
     """No git, no crash -- ``None`` is an honest answer and the gate handles it."""
     stamp = prov.stamp(tmp_path, tmp_path, "scripts/build_viewer_projection.py")
