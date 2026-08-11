@@ -11,6 +11,7 @@ here: it was imported from **drawing-checker**'s `tolerance_stack_slice1` slice
 | Source repo `master` at time of copy | **`0743640dc5d41fe25d7084694572b29265fe632b`** (`0743640`, 2026-08-04) |
 | Commits that created the material there | `2bb9648` (shapes, fold module, 34 tests, 4 debug tools, inbox copy) and `720df27` (README + both worksheets) |
 | Imported by | handoff `tolstack_founding`, 2026-08-03 |
+| Import commit in this repo | **`c157300`** — "Import the tolerance-stack assets from drawing-checker (34 tests green)". The in-repo baseline every byte-identical row is diffed against by `tests/test_provenance.py`; the row above is the *source* baseline. Both are git history and do not move |
 
 ## The rule
 
@@ -36,6 +37,16 @@ Every one of those was caught by a reviewer rather than by the author, and each
 time the author had changed the file for a good reason and simply not looked here.
 **Before you finish any handoff: `git diff master..HEAD --name-only` against this
 table.**
+
+**Since 2026-08-10 you do not have to remember to** — `tests/test_provenance.py`
+runs that diff for you and fails naming the row and what to write, so the table
+is checked by the suite rather than by whoever thinks to look. It parses the
+tables below, so **the Amended column's wording is load-bearing**: a cell must
+begin `no` (still what was imported), `yes` (changed — say when and why) or
+`not imported` (authored here). It also verifies the byte-identical rows against
+drawing-checker's blobs at the sha above, which was previously a manual
+`sha256sum` step in the review checklist. The five sightings are replayed out of
+git as regression cases in that file.
 
 ## Copied — `docs/tolerance_stacks/`
 
@@ -104,23 +115,26 @@ this second hop.
 |---|---|
 | `docs/sessions/lessons/LESSONS_20260729_tolerance_stack_slice1.md` | `docs/reference/LESSONS_20260729_tolerance_stack_slice1.md` |
 
-Verbatim apart from a prepended header marking it imported reference, stating
-that its paths are drawing-checker-relative, and naming the one part of it this
-repo supersedes (its "leave the stacks where they are through phase 2"
-recommendation). It is the primary source behind the SOP and the review checklist.
+The imported text is intact. Two blocks have been **inserted** into it, and
+nothing has ever been deleted or reworded — `docs/reference/` is **insert-only**,
+the rule and its argument being in ARCHITECTURE.md, "Imported material", and
+`tests/test_provenance.py` diffing this file against drawing-checker's blob at
+the sha above and failing on any opcode that is not an insertion. It is the
+primary source behind the SOP and the review checklist.
 
-**No longer strictly verbatim, since 2026-08-06** (`traced_labels_and_ratio`): a
-30-line dated `CORRECTION` blockquote was inserted *after* — not instead of — the
-paragraph this repo's wrong "1 of 17" traced ratio originated in. The original
-sentence is left standing so the mistake stays legible; the block states the
-corrected figure (3 traced of 26 element instances), how each half of the old one
-went wrong, and where the ratio's definition now lives. Nothing was deleted or
-reworded. Recorded here because ARCHITECTURE.md and the review checklist both
-declare `docs/reference/` verbatim imports — **this is the first exception, and
-whether "an additive, dated correction block" is a sanctioned exception or a rule
-violation to revert is an open question, flagged in
-`docs/sessions/reviews/REVIEW_20260806_traced_labels_and_ratio.md`.** Row added
-during that review, which found this section still claiming verbatim.
+| inserted | what |
+|---|---|
+| at founding (2026-08-03) | the header marking it imported reference, stating that its paths are drawing-checker-relative, and naming the one part of it this repo supersedes (its "leave the stacks where they are through phase 2" recommendation) |
+| 2026-08-06 (`traced_labels_and_ratio`) | a 30-line dated `CORRECTION` blockquote, *after* — not instead of — the paragraph this repo's wrong "1 of 17" traced ratio originated in. The original sentence is left standing so the mistake stays legible; the block states the corrected figure (3 traced of 26 element instances), how each half of the old one went wrong, and where the ratio's definition now lives. Row added during `review/traced_labels_and_ratio`, which found this section still claiming verbatim |
+
+**Amended 2026-08-10** (`provenance_byte_identical_test`): the header block's
+*"verbatim, do not edit"* was the rule that made the 2026-08-06 insertion an open
+question — `review/traced_labels_and_ratio` let it stand and flagged the
+contradiction in
+`docs/sessions/reviews/REVIEW_20260806_traced_labels_and_ratio.md` (finding S1).
+Settled in favour of insert-only rather than reverting a true correction; the
+header now states that rule and points at the test. **No imported line was
+touched by that edit either** — it is a rewrite *within* the inserted header.
 
 ## MOVED — the spec/datasheet pile
 

@@ -528,62 +528,31 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       will manufacture exactly that finding for every correctly-cited spec in the
       stack. **Read the pile in the main checkout.** Same for
       `data/inbox/tolerance_stacks/`.
-- [ ] **A "byte-identical" PROVENANCE row read as a freeze.** `PROVENANCE.md`
-      declares ten imported files byte-identical, but the SOP *requires* changing
-      three of them for every new stack (`hardware_entries.json` Step 4,
-      `tests/test_tolerance_stack.py` Step 7, `docs/tolerance_stacks/README.md`).
-      Sighted in `pitch_link_stack`, which changed all three plus a comment in
-      `tolerance_stack/stack.py` and amended nothing, leaving PROVENANCE making
-      three false claims. Diff every path PROVENANCE calls byte-identical against
-      the branch (`git diff master..handoff/<slug> --name-only`) and check the
-      Amended column moved in the same commit. **Second sighting
-      (`spec_library_v0`)**, and it moved to a row nobody watches: adding
-      `spec_library.py` to the package meant re-exporting it from
-      `tolerance_stack/__init__.py`, whose row still read "no — byte-identical".
-      The three SOP-mandated files get remembered; the *package* files do not.
-      **Third sighting (`hub_bearing_thermal_stack`)**, and the phrase had escaped
-      PROVENANCE entirely: a stack note, a worksheet headline and two test comments
-      all claimed two workbook sheets were "byte-identical" over rows 31–44 while a
-      test asserted only that the *numeric* cells matched. Four cells differed, and
-      one was **the hub part number the identity argument rests on** (`O31` reads
-      212966-005 on M2 and 212966-004 on M1 — which is exactly why one stack calls
-      that element `traced` and the other `inferred`). **Treat "byte-identical"
-      anywhere as a claim to verify, not read**, and check what the test actually
-      compares: a cached numeric table is not the sheet. Diff the whole row block,
-      comment column included. **Fourth sighting
-      (`citation_export_provenance`, 2026-08-06)** — on a handoff whose entire
-      subject was provenance, which is the point: this one is not caught by
-      caring about provenance, only by running the diff. Two rows went from true
-      to false (`stack_tan_link_to_pitch_plate.json` and
-      `stack_vpa_output_to_pitch_plate.json`, both "no — byte-identical", both
-      gained `source_ref.export` blocks) and three Amended rows went stale
-      (`stack.py`, `__init__.py`, `test_tolerance_stack.py` — whose test count
-      was 15 out of date). **A purely additive change still falsifies the row**;
-      "no value changed" is not "no edit happened". Fixed inline in the review.
-      Run the diff every time — it is four seconds and it has never once come
-      back clean. **Fifth sighting (`traced_labels_and_ratio`), the same day, on
-      the sibling handoff — and the two reviews each independently wrote "fourth
-      sighting" without knowing about the other.** That one falsified *the same
-      two stack rows* plus both seeded worksheets, `debug_report_tolerance_stacks.py`
-      (row said "import note" after the file gained 69 executable lines) and the
-      `docs/reference/` lesson section (said "verbatim") — in a handoff whose whole
-      purpose was to correct a false provenance claim. The rows that go false are
-      never the three SOP-mandated ones; they are **whichever rows had never moved
-      before**, which is exactly why the author does not think to look. **Five
-      sightings, five inline reviewer fixes, zero author catches: the trigger to
-      mechanise this has fired.** A test greping the byte-identical rows against
-      `git diff master..HEAD --name-only` is ~15 lines and would end the class —
-      filed as
-      `docs/issues/ISSUE_20260806_mechanise_the_byte_identical_provenance_check.md`.
-      Until it exists, run the diff yourself.
-      **First clean pass on the sixth run (`readonly_invariant_evidence`,
-      2026-08-07):** the author amended all five rows their branch falsified
-      (both seeded stack JSONs, `stack.py`, `__init__.py`,
-      `test_tolerance_stack.py`) and stated in the lesson that the table was
-      diffed rather than recalled. So the class *is* catchable by an author who
-      runs the command — which raises the value of the mechanising test, not
-      lowers it. Keep running the diff: one catch is not a trend, and the review
-      that skips it is the one that meets sighting six.
+- [ ] **PROVENANCE's byte-identical rows — a test now, not your job.**
+      `tests/test_provenance.py` parses the Amended column, diffs every claimed
+      path against the merge-base, against this repo's import commit `c157300`
+      and against drawing-checker's blob at the recorded sha, and fails naming
+      the row and what to write. It replaces the manual diff this checklist asked
+      for through **five consecutive sightings, every one caught by the reviewer
+      and none by the author** (`pitch_link_stack`, `spec_library_v0`,
+      `hub_bearing_thermal_stack`, `citation_export_provenance`,
+      `traced_labels_and_ratio` — the last two were parallel handoffs and each
+      review independently wrote "fourth sighting" without knowing about the
+      other, which is what proved a human-executed check does not compose across
+      concurrent work). Both are replayed out of git as regression cases in that
+      file. **Do not re-add the diff to this list.** Two things it cannot do are
+      left for you:
+      - **Is the amendment *true*?** The test asserts the cell moved, never that
+        it describes what actually changed. "additive only" written over a diff
+        that moved a value is the same false claim in a new place.
+      - **Is a claim outside a table stronger than its evidence?** Sighting 3 had
+        "byte-identical" in a stack note, a worksheet headline and two test
+        comments while the test compared only the *numeric* cells — four cells
+        differed and one was the hub part number the identity argument rested on
+        (`O31`: 212966-004 on M1, 212966-005 on M2, which is why one stack calls
+        that element `traced` and the other `inferred`). The test now requires
+        every live byte-identity claim to name what checks it; **read what that
+        verification actually compares.** A cached numeric table is not the sheet.
 - [ ] **Prose asserting a field is `null` while the field is not.** Same class as
       stale counts, one level down. `hub_bearing_thermal_stack`'s
       `identification_note` said "find numbers, balloons and quantities are
@@ -685,17 +654,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       handoff corrects such a figure, check that the fix is *structural*: one
       definition, one computing function, a test importing that function rather
       than re-implementing it, and a doc-level test that fails on a stale quote.
-- [ ] **`docs/reference/` edited — verbatim, or a sanctioned exception?** First
-      sighting `traced_labels_and_ratio` (2026-08-06), which inserted an additive,
-      dated `CORRECTION` blockquote into
-      `docs/reference/LESSONS_20260729_tolerance_stack_slice1.md` *after* the
-      paragraph the wrong ratio came from, deleting and rewording nothing. The
-      architectural rule below says no edits beyond the import header. That review
-      let it stand and recorded it in `PROVENANCE.md` rather than reverting,
-      because the original text survives intact and diffs cleanly — but **the rule
-      still says otherwise and nobody has decided**. Until Jeff or a strategy
-      session rules: any edit here is a finding you must surface, and an edit that
-      *changes or removes* imported text is a blocker regardless.
+- [ ] **`docs/reference/` edited.** Settled 2026-08-10
+      (`provenance_byte_identical_test`): the directory is **insert-only**, not
+      verbatim — imported text is never edited, reworded or deleted, and a dated
+      correction blockquote may be inserted after the passage it corrects. Rule and
+      argument in `ARCHITECTURE.md`, "Imported material"; mechanised by
+      `test_docs_reference_imports_are_insert_only`, which diffs against
+      drawing-checker's blob and fails on any opcode that is not an insertion. So
+      the mechanical half is covered; what you judge is whether the inserted note
+      is *right* and whether `PROVENANCE.md`'s section records it.
 
 ## Architectural errors to check
 
@@ -752,11 +719,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`Math.max(8, Math.min(...))`) is CSS pixels, not a tolerance.
 - [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
       the moment an element changes and nothing notices.
-- [ ] **Do not edit a file `PROVENANCE.md` claims is byte-identical.** Ten
-      imported files carry that claim (verify with `sha256sum` against
-      drawing-checker). If one genuinely must change, the amendment goes in
-      PROVENANCE's Amended column in the same commit — otherwise the provenance
-      record is now false, which in this repo is the worst class of defect.
+- [ ] **An imported file may change; its `PROVENANCE.md` row must change with
+      it, in the same commit.** Otherwise the provenance record is now false,
+      which in this repo is the worst class of defect. Do not count or list the
+      rows here — the count went stale twice — and do not diff them by hand:
+      `tests/test_provenance.py` does both, including the `sha256`-equivalent
+      comparison against drawing-checker's blobs. See `ARCHITECTURE.md`,
+      "Imported material".
 - [ ] **drawing-checker is read-only and one-way.** Nothing here writes there.
       **Do not check this with `git status` over there** — `data/runs/*` and
       `data/inbox/*` are gitignored, so a session that ran the pipeline, added a
@@ -807,9 +776,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       activity that could write there by accident.
 - [ ] **`data/inbox/specs/` is append-only.** No renames, no de-duplication, no
       tidying — check the diff *and* the filesystem.
-- [ ] **`docs/reference/` is verbatim imports.** No edits beyond the import
-      header. If imported reference and this repo's docs disagree, the repo's docs
-      change and the divergence goes in a lesson.
+- [ ] **`docs/reference/` is insert-only imports** — see the item above and
+      `ARCHITECTURE.md`, "Imported material". If imported reference and this repo's
+      docs disagree, the repo's docs change and the divergence goes in a lesson;
+      correcting the import itself means *inserting* a dated note after the
+      passage, never rewriting it.
 - [ ] **`CLAUDE.md` is gitignored**, so any durable fact written there must be
       mirrored into `README.md` or `ARCHITECTURE.md` or it dies with the session.
 
