@@ -326,7 +326,6 @@ and the pair (`results.json` vs `crops.json` gate independently).
 - **Worktrees.** `handoff/viewer_projection_provenance` deregistered
   (`git worktree list` no longer shows it) and the branch deleted. Its **empty
   directory** at `C:/workspace/tolstack-worktrees/viewer_projection_provenance`
-iewer_projection_provenance`
   would not `rmdir` — "Device or resource busy", i.e. the tactical process still
   holds it as its CWD. Git-side cleanup is complete; the empty folder goes when
   that process exits. This review worktree and the `review/` branch cannot remove
