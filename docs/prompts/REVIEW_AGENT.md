@@ -800,6 +800,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       drawing-checker's blob and fails on any opcode that is not an insertion. So
       the mechanical half is covered; what you judge is whether the inserted note
       is *right* and whether `PROVENANCE.md`'s section records it.
+- [ ] **The viewer's JS suite is green *without having read any real data*, and
+      that is its default.** New 2026-08-11 (`viewer_source_ref_export_label`).
+      `apps/viewer/run_tests.cjs` has two tiers, and the `[real]` one — every
+      test that opens `data/projections/viewer/` — **skips unless you point it at
+      the main checkout**, because `data/` is gitignored and absent from every
+      worktree. On the shipping tree that is **75/75 passed (tier skipped)**
+      versus **95/95 (tier ran)**: 20 tests, including the guards that exist
+      precisely to catch a live shape the fixtures cannot produce. Exit code 0
+      both ways; the only tell is one `SKIP node-fs tier` line above the
+      headline. So a report quoting a JS count **must say whether the tier ran**,
+      and you re-run it yourself as
+      `node apps\viewer\run_tests.cjs --repo C:/workspace/tolstack`. **Forward
+      slashes in that path**: under the Bash tool `C:\\workspace\\tolstack` has
+      its backslashes eaten, the runner looks under
+      `<cwd>/workspacetolstack/...`, finds nothing and — skips, green. Same trap,
+      no error.
 
 ## Architectural errors to check
 
@@ -854,6 +870,29 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       projection field — a second combiner in JS is one nothing in `tests/`
       executes. Note the false positive: `app.js`'s popover clamp
       (`Math.max(8, Math.min(...))`) is CSS pixels, not a tolerance.
+- [ ] **A branch over a value the *data* owns must be a total function, not an
+      `else if` chain.** New 2026-08-11 (`viewer_source_ref_export_label`), and it
+      is the display-layer twin of the invented-number problem: an `else if` chain
+      has a silent default, and **a silent default is indistinguishable from a
+      handled case by reading the code** — which is exactly how a reader concludes
+      the case is handled. Sighted on `crops.json`'s `resolved_by`: the crop script
+      changed its rule set on 2026-08-06, every resolved crop started carrying a
+      value the viewer had never seen, and the hover printed *nothing at all*
+      about provenance for four days while the JS suite stayed green. The
+      shape that fixes it, and what to require of the next one: a **table**
+      (`VA.CROP_RULES`) with one entry per value the producer can emit; a **loud**
+      fallback that names the unknown value rather than falling through to
+      silence; a rollup-reading banner line that surfaces the unknown to a reader
+      who never hovers (`VA.unlabelledCropRules`); and the guard in the `[real]`
+      tier — `eq(VA.unlabelledCropRules(realCrops), [])` — because the assertion
+      that matters is *the live data contains no value this code has no branch
+      for*, and no fixture can make that claim. Ask it of every enumerated field
+      the viewer switches on (`confidence`, `kind`, `located_by`, `values_status`,
+      `worksheet_source`, `status`) — as of 2026-08-11 only `resolved_by` has it
+      (`ISSUE_20260811_viewer_fixtures_lag_the_live_projection_shape.md`, option 3).
+      And note what this is *not*: a key-set/schema diff between fixture and live
+      data would not have caught it, because the stale thing was a **value** in a
+      field that was present and correctly named.
 - [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
       the moment an element changes and nothing notices.
 - [ ] **An imported file may change; its `PROVENANCE.md` row must change with

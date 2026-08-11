@@ -23,8 +23,11 @@ reporter: agent
 > The misleading fixture was the root cause and is fixed too: `fixtures.js`
 > carried a fabricated `provenance.sources_used` entry and a summary with no
 > rollups, and a `[real]` test now compares the fixture's crop-entry and summary
-> key sets against the live `crops.json` so it cannot drift again. JS 95/95,
-> Python 340 passed / 1 skipped.
+> key sets against the live `crops.json` so it cannot drift again. JS 95/95 (run
+> with `--repo C:/workspace/tolstack`; without it the real-data tier skips).
+> Python, re-derived in review on the merged tree: **344 passed / 0 skipped in
+> the main checkout, 343 / 1 in a worktree** — the branch figure of 340/1
+> predates `sop_library_ref_pairing` landing on `master`.
 >
 > One count correction: the issue says 24 resolved crops, all
 > `source_ref_export`. At the time of the fix the live projection has **26** — 22

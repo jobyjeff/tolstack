@@ -296,6 +296,9 @@
       has(line, "no label for some_new_rule");
       eq(VA.cropRulesLine({ summary: {} }), null);
       eq(VA.cropRulesLine(null), null);
+      // A projection where nothing resolved: the builder still writes the key,
+      // as {}. No line at all beats a dangling "crops by rule:".
+      eq(VA.cropRulesLine({ summary: { by_resolved_by: {} } }), null);
     });
 
     // --- provenance: which tree built what you are looking at ---------------

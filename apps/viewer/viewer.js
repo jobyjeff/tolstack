@@ -390,6 +390,10 @@
     var byRule = (crops && crops.summary && crops.summary.by_resolved_by) || null;
     if (!byRule) return null;
     var unlabelled = VA.unlabelledCropRules(crops);
+    // `resolution_summary()` writes `by_resolved_by: {}` when nothing resolved,
+    // and a bare "crops by rule:" with nothing after it reads as a rendering
+    // fault. The banner's "0 resolved" already says it.
+    if (!Object.keys(byRule).length) return null;
     var bits = Object.keys(byRule).sort().map(function (rule) {
       return rule + " " + byRule[rule] +
         (VA.CROP_RULES[rule]

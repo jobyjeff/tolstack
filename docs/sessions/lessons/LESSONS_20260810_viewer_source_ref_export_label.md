@@ -9,7 +9,17 @@ unlabelled fallback and `VA.unlabelledCropRules()`; `VA.cropShaText` keeping the
 three sha states distinct; the banner reading `summary.sha256_verified` and
 `summary.by_resolved_by` (`VA.shaCountsText`, `VA.cropRulesLine`, a
 `.banner__crop-rules` line); `fixtures.js` brought to the live shape; 11 new
-tests, four of them `[real]`. JS 95/95 (was 84/84), Python 340 passed / 1 skipped.
+tests, four of them `[real]`. JS 95/95 (was 84/84), both with
+`--repo C:/workspace/tolstack` — without it the real-data tier skips and the
+headline reads 75/75 (see below).
+
+> **Suite counts re-derived in review, 2026-08-11.** The Python figure above was
+> measured on the branch, and `sop_library_ref_pairing` landed on `master` in the
+> same window with three new tests in `tests/test_sop_vocabulary.py`. The
+> **shipping** tree reports **344 passed / 0 skipped in the main checkout** and
+> **343 passed / 1 skipped in a worktree** (the one data-dependent test skips
+> where `data/` is empty). JS is unaffected at 95/95 in both. A suite count is
+> both branch-specific and checkout-specific: say which tree produced it.
 
 ## The durable finding, and it is not "the fixture was out of date"
 
@@ -144,8 +154,11 @@ fastener citations in between. Two consequences worth carrying forward:
 - **Run the JS suite with forward slashes**: `node apps/viewer/run_tests.cjs
   --repo C:/workspace/tolstack`. With `C:\\workspace\\tolstack` under the Bash
   tool the backslashes are eaten and the runner silently reports the node-fs tier
-  *skipped* — 68/68 green while the whole real-data tier never ran. The skip line
-  names the mangled path, which is the only tell.
+  *skipped* — **75/75 green on the shipping tree** while the whole real-data tier
+  (20 tests, including the four guards this handoff added) never ran. The skip
+  line names the mangled path (`.../workspacetolstack/data/...`), which is the
+  only tell; the exit code is 0 either way. Passing no `--repo` at all from a
+  worktree gives the same 75/75, for the same reason.
 - **Demonstrating against real data without a browser** is ~15 lines: `vm`, load
   `config.js` + `viewer.js` (+ `storage/adapter.js` if you touch `fixtures.js`,
   which needs `VA.STATE`), read `crops.json`, print `VA.builtLine`,
