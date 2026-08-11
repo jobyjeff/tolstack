@@ -4,6 +4,17 @@ Handoff: `docs/sessions/active/HANDOFF_20260810_fastener_citations_and_confidenc
 Baseline `master` @ `d08b1ea`, i.e. `provenance_byte_identical_test` merged, as
 `depends_on` required. Suite before: **318 passed / 1 skipped**. After: **325 / 1**.
 
+> **Both figures are branch-only** (added by review, 2026-08-10). They were
+> measured in the tactical worktree against baseline `d08b1ea`, and
+> `viewer_projection_provenance` merged to `master` while this handoff was
+> active. The tree that ships — `master` + this branch — reports **340 passed /
+> 1 skipped** in a worktree and **341 passed / 0 skipped** in the main checkout
+> (one test is data-dependent and skips where `data/` is gitignored-empty), both
+> re-derived by the reviewer. Nothing conflicted and nothing failed; the counts
+> above are simply true of a tree that no longer exists. Fourth sighting of the
+> overlay's *"a sibling handoff landed on `master` while you were reviewing"* —
+> and, as the third sighting predicted, the only symptom was a number.
+
 ## The five decisions, and the reasoning behind each
 
 The handoff asked for decisions, not relabelling. Here they are with the

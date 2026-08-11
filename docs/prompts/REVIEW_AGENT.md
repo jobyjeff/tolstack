@@ -664,7 +664,29 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `1T/2I/3U`). So: an author's green `HEAD..master` is evidence about a moment,
       not about the tree that ships. Re-run it yourself, and **re-derive every
       count the lesson pastes** — a build transcript ages exactly like a hand-typed
-      figure does.
+      figure does. **Fourth sighting (`fastener_citations_and_confidence`,
+      2026-08-10)**, identical shape and now predictable enough to expect: the
+      lesson's `318 → 325 / 1` was measured against baseline `d08b1ea` while
+      `viewer_projection_provenance` landed; the shipping tree reports **340 / 1**
+      in a worktree and **341 / 0** in the main checkout. Nothing conflicted. If
+      a lesson quotes a suite count and the board ran anything in parallel,
+      assume the count is stale and re-derive it in both checkouts.
+- [ ] **A prior review's PASS is a claim, not evidence — re-locate what it says
+      it located.** New 2026-08-10 (`fastener_citations_and_confidence`), and it
+      is how a *mandatory* check goes vacuous across a whole review chain. Check
+      6 requires the castellation/cotter caveat **next to the numbers**; three
+      consecutive reports recorded it PASS, one wording it as *"both worksheets
+      keep their MS9363 caveat next to the numbers"* — and in
+      `WORKSHEET_tan_link_to_pitch_plate.md` that caveat existed only at finding
+      **F8, ~150 lines below the Checks table**, whose own conclusion paragraph
+      presents a grip verdict and mentions castellation nowhere. The check was
+      satisfied by the caveat *existing*, which is not what it asks. Grepping for
+      `castellat` finds it every time and proves nothing about placement. So when
+      a check has a **location** clause, open the file at the location and read
+      what a reader standing there actually sees; a `Select-String` hit anywhere
+      in the document is not that. Fixed inline in that review (a blockquote
+      under the Checks table). Generalises to every "next to the numbers" /
+      "must sit with the results" requirement in this overlay.
 - [ ] **The projections are stale unless you rebuild them.** Nothing rebuilds
       `data/projections/viewer/` — no hook, no ops verb, no watcher. A stack
       changed on the branch under review will render as the previous build, and
