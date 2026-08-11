@@ -32,9 +32,9 @@ in the family.
 | `hardware_entries.json:NAS6403U14D` | same | 7 |
 | `hardware_entries.json:NAS6404U13D` | same | 7 |
 
-Nobody misread the document. Nobody re-opened it. Each handoff re-cited exactly
-the elements its own scope named and left the identical question unasked one row
-down the same table.
+Ten citations, eight rows, three handoffs, seven days. Nobody misread the
+document. Nobody re-opened it. Each handoff re-cited exactly the elements its own
+scope named and left the identical question unasked one row down the same table.
 
 **The sharper half is the false prose a stale gap leaves behind.** Three
 `hardware_entries.json` gap entries read `NAS6403 standard, absent from this
