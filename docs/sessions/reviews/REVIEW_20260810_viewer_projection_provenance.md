@@ -311,10 +311,27 @@ and the pair (`results.json` vs `crops.json` gate independently).
 
 ## Post-merge
 
-- Merged to `master` (fast-forward), pushed to `origin/master`.
-- Suite re-run in the **main checkout** after the merge: recorded in the merge
-  note below.
-- `handoff/viewer_projection_provenance` worktree and branch removed;
-  `review/viewer_projection_provenance` branch deleted after the merge. This
-  review worktree cannot remove itself (Windows locks a live process's CWD) —
-  dispatch removes it at Complete.
+- **Merged to `master`** at `368e641` (fast-forward, after merging `master` in and
+  re-testing — see Concurrency) and **pushed** to `origin/master`
+  (`d08b1ea..368e641`).
+- **Suite re-run in the main checkout after the merge: `334 passed, 0 skipped`.**
+  One more passed and one fewer skipped than the worktree's `333 passed,
+  1 skipped` — the documented data-dependent test, which skips where `data/` is
+  empty. Both green; the difference is the checkout, not a regression.
+- **Both projections rebuilt from `master`**, so the shared file is now stamped
+  `master @ 368e64141680`, `dirty: false`, `behind_trunk: 0`, matching pair,
+  `stacks_dir: C:/workspace/tolstack/docs/tolerance_stacks`. That last line is the
+  clearest single demonstration that the fix works: before the inline `dirty` fix
+  this exact build stamped `dirty: true` and lit two alarm rows.
+- **Worktrees.** `handoff/viewer_projection_provenance` deregistered
+  (`git worktree list` no longer shows it) and the branch deleted. Its **empty
+  directory** at `C:\workspace	olstack-worktreesiewer_projection_provenance`
+  would not `rmdir` — "Device or resource busy", i.e. the tactical process still
+  holds it as its CWD. Git-side cleanup is complete; the empty folder goes when
+  that process exits. This review worktree and the `review/` branch cannot remove
+  themselves (Windows locks a live process's CWD) — dispatch removes them at
+  Complete.
+- `docs/issues/ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection.md`
+  stays **`open`**, with a reviewer's note appended.
+  `ISSUE_20260810_the_spec_library_projection_is_the_third_shared_writer.md` filed
+  `med`.
