@@ -602,7 +602,7 @@
       var refs = DEMO.stack.elements;
       eq(VA.exportProvenance(refs[0].source_ref).state, "established");
       eq(VA.exportProvenance(refs[1].source_ref).state, "unestablished");
-      // No `export` key at all: 22 of the 48 live citations, and a different fact
+      // No `export` key at all: 26 of the 48 live citations, and a different fact
       // from `unestablished` — that one is a recorded finding with a reason, this
       // is a citation nobody has been through.
       eq(VA.exportProvenance(refs[2].source_ref).state, "none");
@@ -622,7 +622,7 @@
       eq(VA.exportProvenance(refs[0].source_ref).loud, false);
       eq(VA.exportProvenance(refs[1].source_ref).loud, true);
       // `none` is stated plainly, not alarmed: for a workbook or assumed source
-      // there is no exported PDF to name, and a red row on 22 of 48 citations is
+      // there is no exported PDF to name, and a red row on 26 of 48 citations is
       // an alarm a reader learns to ignore.
       eq(VA.exportProvenance(refs[2].source_ref).loud, false);
     });
@@ -645,8 +645,8 @@
       has(line, "export established: 215197.pdf");
       has(line, "drawing-checker runs: 20260804_114000_x");
       // An export no run ever consumed says so — 15 of the 22 live established
-      // exports are in that state, and a blank would read as a missing record
-      // rather than an empty one.
+      // CITATIONS are in that state (6 of the 9 distinct exports they name), and
+      // a blank would read as a missing record rather than an empty one.
       has(VA.exportProvenanceLine({
         export: { status: "established", pdf: "C:/x/y.pdf", sha256: "ab", runs: [] },
       }), "no drawing-checker run has consumed this export");

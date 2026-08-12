@@ -232,7 +232,7 @@
   // until 2026-08-12 (ISSUE_20260811_viewer_shows_nothing_for_source_ref_export).
   //
   // The loud states are `unestablished` and a status this viewer has no branch
-  // for. `none` — a citation with no export block, which is 22 of the 48 live
+  // for. `none` — a citation with no export block, which is 26 of the 48 live
   // citations — is stated plainly rather than alarmed: for a workbook or assumed
   // source there is no exported PDF to name, so a red row on every one of them
   // would be an alarm a reader learns to ignore. The four `traced` spec-pile
@@ -264,8 +264,9 @@
   // The run ids, linked where this page can honestly address the run — see
   // VA.exportRunLinks for why that is only ever the one the element's own crop
   // resolved through. An empty `runs` is stated as a fact, not left blank: 15 of
-  // the 22 live established exports have never been consumed by a run, and
-  // "nothing here" would read as a missing record rather than an empty one.
+  // the 22 live established CITATIONS have never been consumed by a run (6 of the
+  // 9 distinct exports they name), and "nothing here" would read as a missing
+  // record rather than an empty one.
   function runsLine(p, cropsIndex, stackProj, element) {
     var line = VA.el("div", "el-export__runs");
     var links = VA.exportRunLinks(VA.CONFIG,

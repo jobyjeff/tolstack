@@ -217,7 +217,7 @@
 
   // A citation with no `export` key at all. Distinct from `unestablished`: that
   // one is a recorded finding with a reason, this one is a citation nobody has
-  // been through yet. 22 of 48 live citations are here, and four of them are
+  // been through yet. 26 of 48 live citations are here, and four of them are
   // `traced` — so this state is not a synonym for "untraced value" either.
   VA.NO_EXPORT_TEXT =
     "no export block — this citation names no exported file, so nothing here " +
@@ -255,8 +255,9 @@
 
   // The run ids out of `export.runs`, whose entries are `{run_id, ts}`. Runs are
   // CORROBORATION, never identity: one export can feed several drawing-checker
-  // runs or none at all (15 of the 22 live established exports have none), so an
-  // empty list is a fact about the file's history and not a gap in the record.
+  // runs or none at all (15 of the 22 live established CITATIONS have none —
+  // 6 of the 9 distinct exports they name), so an empty list is a fact about the
+  // file's history and not a gap in the record.
   VA.exportRunIds = function (exportBlock) {
     return ((exportBlock && exportBlock.runs) || []).map(function (run) {
       return (run && run.run_id) || "(a run entry with no id)";

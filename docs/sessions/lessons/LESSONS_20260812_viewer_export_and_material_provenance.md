@@ -28,7 +28,7 @@ to be able to reach does not exist for any of them.
 That makes **"names no export" a third state the handoff did not ask for and the
 majority of the live data**, so it is rendered too. Its treatment is deliberately
 *not* loud: for a workbook or assumed source there is no exported PDF to name, and
-a filled magenta block on 22 of 48 rows is an alarm a reader learns to ignore. The
+a filled magenta block on 26 of 48 rows is an alarm a reader learns to ignore. The
 state is stated in plain prose instead.
 
 **The genuinely interesting rows this turned up are the four `traced` `spec`
@@ -60,9 +60,11 @@ clamped to ~4.6em, click to expand, full text as the tooltip — under its own c
 (`el-export__note`, sharing one CSS rule with `el-row__srcnote`).
 
 Why not hover-only, which was the cheapest option: an export note is up to **684
-characters** live (the longest is `bearing_od_lower`'s, which explains that the
-value was read straight off a repo-local copy and that `runs` is empty *by fact,
-not by omission*). A hover cannot be printed, cannot be `Ctrl-F`'d, and does not
+characters** live — `vpa_output_to_pitch_plate:pitch_flange_thickness`'s, which
+argues the export's identity from uniqueness rather than from a written record.
+(`bearing_od_lower`'s, 481 characters, is the one that explains that the value was
+read straight off a repo-local copy and that `runs` is empty *by fact, not by
+omission*.) A hover cannot be printed, cannot be `Ctrl-F`'d, and does not
 exist on touch — and the repo had already decided this class of prose gets the
 clamp treatment when the citation note shipped. Reusing it means one behaviour to
 learn and no new CSS.
@@ -113,9 +115,11 @@ Two honest limits on that answer:
   dir for a directory starting with the id* — something the viewer cannot do. So
   `VA.exportRunLinks` links the one id the element's crop entry resolved through
   (reusing `VA.runUrl` verbatim) and prints every other id as dotted-underlined
-  text with a hover explaining why. **In practice that means one link per export
-  at most**, because the crop script only ever tries `runs[0]`: of the five run
-  ids across the two multi-run live exports, two are linked.
+  text with a hover explaining why. **In practice that means one link per citation
+  at most**, because the crop script only ever tries `runs[0]`: 3 of the 9 distinct
+  live exports carry more than one run id (2, 3 and 4 of them), the 7 citations
+  that name those exports render 21 run ids between them, and 7 of the 21 are
+  links.
 * **`library` with no `library_ref` is loud.** `thermal.py` validates
   `values_status` against a three-value list and validates the pair no further, so
   an entry can say "this CTE resolves through the spec library" and name nothing.
