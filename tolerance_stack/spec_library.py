@@ -45,7 +45,9 @@ of keying events by (document, parser-version).
 
 from __future__ import annotations
 
+import argparse
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -549,28 +551,138 @@ class IntakeQueue:
 # ---------------------------------------------------------------------------
 # Rebuild
 # ---------------------------------------------------------------------------
+#
+# ``data/projections/spec_library/`` is **one directory shared by every live
+# worktree** -- ``data/`` exists only in the main checkout -- and this is the
+# third writer into ``data/projections/`` (with the two viewer builders). It was
+# the only one that could not be pointed at the main checkout and the only one
+# whose output carried no provenance at all
+# (``docs/issues/ISSUE_20260810_the_spec_library_projection_is_the_third_shared_writer.md``).
+# So: ``--data-root``, plus the same stamp and ancestry gate the viewer builders
+# use, out of ``scripts/projection_provenance.py``.
+#
+# **Why the file exists at all**, which was the design question this handoff had
+# to answer before stamping anything (``spec_library_projection_provenance``,
+# 2026-08-12). The projection is a pure function of committed events, so a
+# consumer could fold it in process and the shared file -- and its whole hazard
+# class -- would simply not exist. That is already how every *code* consumer
+# works: nothing in this repo reads ``library.json``, and the tests resolve
+# through ``build_library(load_events(...))``. Converting them is therefore a
+# no-op. What the file uniquely serves is a **reader** -- the agent who has to
+# turn ``library_ref: "spec_library:NAS6403U11D"`` into numbers, and who would
+# otherwise fold three events (with corrections and supersession) by hand. That
+# reader is exactly the path a stale value launders into a stack wearing
+# ``confidence: "traced"``, and deleting the file does not remove them; it sends
+# them to a worse surface. Hence: keep it, and stamp it.
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EVENTS_DIR = REPO_ROOT / "docs" / "spec_library" / "events"
 INTAKE_PATH = REPO_ROOT / "docs" / "spec_library" / "intake_queue.json"
-PROJECTION_DIR = REPO_ROOT / "data" / "projections" / "spec_library"
+#: Under a ``--data-root``. The default data root stays this tree's own ``data/``,
+#: which is what every existing caller got.
+PROJECTION_SUBDIR = Path("projections") / "spec_library"
+PROJECTION_DIR = REPO_ROOT / "data" / PROJECTION_SUBDIR
+LIBRARY_NAME = "library.json"
+
+BUILT_BY = "tolerance_stack/spec_library.py"
 
 
-def rebuild(events_dir: Path = EVENTS_DIR, out_dir: Path = PROJECTION_DIR) -> Path:
-    """Wipe and rebuild ``data/projections/spec_library/library.json``.
+def _provenance():
+    """``scripts/projection_provenance.py``, imported lazily.
+
+    Lazily and by path because ``scripts/`` is not a package and this module is
+    imported by everything: a ``sys.path`` edit at import time would follow every
+    ``from tolerance_stack import ...`` in the repo, and ``build_library`` has no
+    business needing git. Only the two functions that write the shared file do.
+    """
+    scripts = str(REPO_ROOT / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import projection_provenance
+
+    return projection_provenance
+
+
+def rebuild(
+    events_dir: Path = EVENTS_DIR,
+    out_dir: Path = PROJECTION_DIR,
+    *,
+    allow_older: bool = False,
+) -> Path:
+    """Wipe and rebuild ``<data-root>/projections/spec_library/library.json``.
 
     The projection is derived and gitignored: the events are the artifact worth
     committing. Deleting the output directory is always safe.
+
+    The written file carries a ``provenance`` block naming the tree that built it
+    (branch, HEAD sha, dirty, ``events_dir`` resolved **absolute**), and this
+    function **refuses** -- :class:`projection_provenance.RebuildRefused` -- to
+    overwrite a file built from a commit that is not an ancestor of this tree's
+    HEAD, unless ``allow_older``. The gate lives here rather than in :func:`main`
+    so that a direct caller of ``rebuild()`` is gated too; it is the function
+    that writes the shared file.
+
+    Everything else about the output is unchanged, and deliberately: the fold is
+    a pure function of the event log, so a rebuild differs from the previous one
+    only in the provenance block.
     """
+    prov = _provenance()
+    out_dir = Path(out_dir)
+    out_path = out_dir / LIBRARY_NAME
+    # `events_dir`, not `--data-root`: the stamp answers *which tree built this*,
+    # and the data root is the main checkout's for every worktree that writes
+    # here. The events dir is this tree's committed input, resolved absolute.
+    provenance = prov.stamp(REPO_ROOT, Path(events_dir), BUILT_BY, source_key="events_dir")
+    rebuild_command = f"python -m tolerance_stack --data-root {out_dir.parents[1]}"
+
+    # Gate before the fold, not before the write: a refusal after the work is
+    # done is still correct and still reads as a crash.
+    for line in prov.guard(out_path, provenance, REPO_ROOT, allow_older, rebuild_command):
+        print(f"note: {line}", file=sys.stderr)
+    for line in prov.note_lines(provenance):
+        print(line, file=sys.stderr)
+
     library = build_library(load_events(events_dir))
+    data = library.as_dict()
+    # Provenance second, right under `schema`, so it is the first thing a reader
+    # of a 60 kB file sees. Every other key keeps its name, its order and its
+    # bytes -- a stamped rebuild differs from the unstamped file this replaces by
+    # exactly this one block.
+    stamped = {"schema": data["schema"], prov.PROVENANCE_KEY: provenance}
+    stamped.update({k: v for k, v in data.items() if k != "schema"})
+
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "library.json"
-    out_path.write_text(json.dumps(library.as_dict(), indent=2) + "\n", encoding="utf-8")
+    out_path.write_text(json.dumps(stamped, indent=2) + "\n", encoding="utf-8")
     return out_path
 
 
-def main() -> int:
-    out = rebuild()
+def main(argv: Optional[List[str]] = None) -> int:
+    prov = _provenance()
+    ap = argparse.ArgumentParser(
+        prog="python -m tolerance_stack",
+        description="Rebuild the spec-library projection from the committed event log.",
+    )
+    ap.add_argument(
+        "--data-root",
+        default=str(REPO_ROOT / "data"),
+        help="repo data/ dir (the MAIN checkout's, if you are in a worktree -- "
+        "a worktree's own data/ is deleted at cleanup)",
+    )
+    ap.add_argument(
+        "--allow-older-tree",
+        action="store_true",
+        help="overwrite a projection built from a tree this one does not contain "
+        "(the gate refuses by default -- see scripts/projection_provenance.py)",
+    )
+    args = ap.parse_args(argv)
+
+    out_dir = Path(args.data_root) / PROJECTION_SUBDIR
+    try:
+        out = rebuild(EVENTS_DIR, out_dir, allow_older=args.allow_older_tree)
+    except prov.RebuildRefused as refusal:
+        print(str(refusal), file=sys.stderr)
+        return 3
+
     library = build_library(load_events(EVENTS_DIR))
     queue = IntakeQueue.load(INTAKE_PATH)
     print(f"wrote {out}")

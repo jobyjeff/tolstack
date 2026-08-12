@@ -33,7 +33,10 @@ What the gate deliberately does **not** do:
   different uncommitted edits both pass; ``dirty`` in the stamp is what tells a
   reader that happened, and there is nothing cheaper that would catch it.
 * Each script gates **its own** file only (``build_viewer_projection.py`` on
-  ``results.json``, ``build_viewer_crops.py`` on ``crops.json``). Gating on the
+  ``results.json``, ``build_viewer_crops.py`` on ``crops.json``, and since
+  2026-08-12 ``tolerance_stack.spec_library.rebuild()`` on
+  ``data/projections/spec_library/library.json`` -- this module is not
+  viewer-specific and has three callers, not two). Gating on the
   neighbour's file would refuse the perfectly ordinary sequence "rebuild crops
   from the newest tree, then rebuild results from an older one on purpose" --
   and the pair-disagreement it would be trying to catch is a *reader's* problem,
@@ -114,12 +117,26 @@ def short(sha: Optional[str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def stamp(repo_root: Path, stacks_dir: Path, built_by: str) -> Dict[str, Any]:
+def stamp(
+    repo_root: Path,
+    stacks_dir: Path,
+    built_by: str,
+    source_key: str = "stacks_dir",
+) -> Dict[str, Any]:
     """The provenance block to write into a projection file.
 
     ``repo_root`` is the **script's own** repo root, never ``--data-root``: the
     question this answers is which *tree* built the file, and the data root is
     the main checkout's for every worktree that ever writes here.
+
+    ``stacks_dir`` is the builder's committed **input** directory, recorded
+    resolved-absolute, and ``source_key`` is the name it is filed under. The two
+    viewer projections are built from ``--stacks-dir`` and keep that name; the
+    spec-library projection is built from ``docs/spec_library/events/`` and files
+    it as ``events_dir``, because a key called ``stacks_dir`` holding a path to
+    an events directory is the sort of field a reader stops trusting. Nothing in
+    this module reads the key back -- :func:`guard` compares ``head_sha`` -- so it
+    is a label for the reader, and it should say what it is.
     """
     head = git(repo_root, "rev-parse", "HEAD")
     branch = git(repo_root, "rev-parse", "--abbrev-ref", "HEAD")
@@ -145,7 +162,7 @@ def stamp(repo_root: Path, stacks_dir: Path, built_by: str) -> Dict[str, Any]:
         # Absolute, both of them. A relative path here would be the bug this
         # module exists to fix.
         "repo_root": Path(repo_root).resolve().as_posix(),
-        "stacks_dir": Path(stacks_dir).resolve().as_posix(),
+        source_key: Path(stacks_dir).resolve().as_posix(),
         "branch": branch,
         "head_sha": head,
         # The tree had uncommitted changes, so `head_sha` does not identify the

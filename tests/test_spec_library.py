@@ -17,6 +17,8 @@ you do not want under the first real correction.
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -586,17 +588,203 @@ def test_only_the_one_entry_was_promoted(library):
 
 def test_the_projection_can_be_wiped_and_rebuilt(tmp_path):
     """Forge's data convention: projections are derived and disposable. This
-    also pins that a rebuild is a pure function of the event log."""
+    also pins that a rebuild is a pure function of the event log.
+
+    ``provenance`` is the one block that is *not* a function of the event log --
+    it names the tree and the instant -- so the equality is asserted with it
+    removed. That the rest of the file is unchanged by stamping is a separate
+    claim about bytes and is checked separately, by
+    ``test_the_stamp_is_additive_and_the_rest_of_the_file_is_untouched``.
+    """
     from tolerance_stack import rebuild
 
     out = rebuild(events_dir=EVENTS_DIR, out_dir=tmp_path / "spec_library")
     first = out.read_text(encoding="utf-8")
     out.unlink()
     again = rebuild(events_dir=EVENTS_DIR, out_dir=tmp_path / "spec_library")
-    assert again.read_text(encoding="utf-8") == first
+    second = again.read_text(encoding="utf-8")
+
     built = json.loads(first)
+    assert list(built)[:2] == ["schema", "provenance"], (
+        "provenance goes second, under schema -- it is the first thing a reader "
+        "of a 60 kB derived file needs"
+    )
+    assert without_provenance(second) == without_provenance(first)
     assert built["schema"] == "joby.tolstack/spec_library/v0"
     grip = built["subjects"]["NAS6403U11D"]["values"]["grip"]
     assert grip["nominal"] == 0.688
     assert grip["at"]["row"] == "grip dash no. 11"
     assert grip["from_document"] == "NAS6403-NAS6420 Rev 4.pdf"
+
+
+# ---------------------------------------------------------------------------
+# The shared-artifact half: --data-root, the stamp, and the ancestry gate
+#
+# `data/projections/spec_library/` is one directory shared by every live
+# worktree, and this writer was the third member of that class -- the only one
+# that could not be pointed at the main checkout and the only one whose output
+# carried no provenance at all
+# (ISSUE_20260810_the_spec_library_projection_is_the_third_shared_writer).
+# ---------------------------------------------------------------------------
+
+
+def without_provenance(text: str) -> dict:
+    """The projection minus its stamp -- the part that IS a function of the log."""
+    data = json.loads(text)
+    data.pop("provenance", None)
+    return data
+
+
+def run_git(cwd: Path, *args: str) -> str:
+    proc = subprocess.run(
+        ["git", *args], cwd=str(cwd), capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    assert proc.returncode == 0, f"git {' '.join(args)}: {proc.stderr}"
+    return proc.stdout.strip()
+
+
+def dangling_commit(repo: Path) -> str:
+    """A real commit in this repo that is **not** an ancestor of HEAD.
+
+    ``commit-tree`` with no parent writes a loose object and touches no ref, no
+    index and no working tree -- so the real repo is unchanged, but the sha is
+    one ``git cat-file`` finds and ``merge-base --is-ancestor`` rejects. Same
+    trick as ``tests/test_projection_provenance.py``, kept local rather than
+    imported: that module belongs to the viewer projections and this one to the
+    library, and a shared helper across the two is a merge conflict waiting for
+    the next concurrent handoff.
+    """
+    tree = run_git(repo, "rev-parse", "HEAD^{tree}")
+    return run_git(repo, "commit-tree", tree, "-m", "throwaway tree for a gate test")
+
+
+needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not on PATH")
+
+
+@needs_git
+def test_the_stamp_names_the_tree_that_built_the_library(tmp_path):
+    """Branch, sha, and the events dir resolved ABSOLUTE.
+
+    Absolute is the whole point: ``docs/spec_library/events`` is the same 26
+    characters in every worktree in existence and therefore names no tree at all
+    -- the trap `viewer_projection_provenance` found in ``results.json``'s
+    repo-relative ``stacks_dir``. And the key is ``events_dir``, not
+    ``stacks_dir``: this projection is not built from a stacks dir, and a
+    provenance field that misnames its own subject is one a reader stops
+    trusting.
+    """
+    from tolerance_stack import rebuild
+
+    out = rebuild(events_dir=EVENTS_DIR, out_dir=tmp_path / "spec_library")
+    block = json.loads(out.read_text(encoding="utf-8"))["provenance"]
+
+    assert block["built_by"] == "tolerance_stack/spec_library.py"
+    assert block["events_dir"] == EVENTS_DIR.resolve().as_posix()
+    assert Path(block["events_dir"]).is_absolute()
+    assert "stacks_dir" not in block
+    assert len(block["head_sha"]) == 40
+    assert block["branch"]
+    assert block["built_at"].endswith("+00:00")
+    assert block["repo_root"] == REPO_ROOT.resolve().as_posix()
+    assert block["dirty"] in (True, False)
+    # There is exactly ONE timestamp. results.json carries a top-level `built_at`
+    # beside `provenance.built_at` only because consumers already read it by that
+    # name; library.json never had one and has no such consumer, so a second copy
+    # would be a field that can only ever disagree with the one next to it.
+    assert "built_at" not in json.loads(out.read_text(encoding="utf-8"))
+
+
+@needs_git
+def test_the_rebuild_is_REFUSED_from_a_tree_that_does_not_contain_the_last_one(tmp_path):
+    """The definition of done: ``main()`` refuses, and leaves the file alone.
+
+    Not the predicate -- the entry point. A gate whose predicate is right and
+    whose caller warns and carries on is occurrence 1 of
+    ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection
+    again. Driven through ``--data-root``, which is also the flag whose absence
+    meant a worktree's rebuild could only ever land in its own throwaway
+    ``data/``.
+    """
+    from tolerance_stack.spec_library import main
+
+    data_root = tmp_path / "data"
+    out_path = data_root / "projections" / "spec_library" / "library.json"
+    argv = ["--data-root", str(data_root)]
+
+    assert main(argv) == 0
+    assert out_path.exists(), "a worktree can now write to a data root it was given"
+
+    # Re-stamp what is on disk as the work of a tree this one does not contain,
+    # exactly as a neighbouring worktree's build would have left it.
+    projection = json.loads(out_path.read_text(encoding="utf-8"))
+    projection["provenance"]["head_sha"] = dangling_commit(REPO_ROOT)
+    projection["provenance"]["branch"] = "handoff/somebody_else"
+    projection["marker"] = "written by the other worktree"
+    out_path.write_text(json.dumps(projection), encoding="utf-8")
+    before = out_path.read_bytes()
+
+    assert main(argv) == 3
+    # Refusing means not writing. A refusal that still overwrites is the bug.
+    assert out_path.read_bytes() == before
+
+    # ...and the override gets through, because a deliberate rebuild from an
+    # older tree is a real thing that has to remain possible.
+    assert main(argv + ["--allow-older-tree"]) == 0
+    assert json.loads(out_path.read_text(encoding="utf-8")).get("marker") is None
+
+
+@needs_git
+def test_the_stamp_is_additive_and_the_rest_of_the_file_is_untouched(tmp_path):
+    """The stamped file is the old one plus a block, and nothing else moved.
+
+    The definition of done asked for this against the copy sitting in the main
+    checkout's ``data/``, which is gitignored and therefore absent from every
+    worktree -- so the comparison is made against the exact bytes the *previous*
+    writer produced, reconstructed here as ``json.dumps(as_dict(), indent=2)``,
+    which is the whole of what ``rebuild()`` wrote before this handoff. Equal
+    means: same keys, same order, same numbers, same separators. Run against the
+    real 2026-08-05 file in the main checkout as well, once, by hand
+    (``git diff`` is no use on a gitignored path) -- identical.
+    """
+    from tolerance_stack import build_library, load_events, rebuild
+
+    as_it_was = json.dumps(build_library(load_events(EVENTS_DIR)).as_dict(), indent=2) + "\n"
+
+    out = rebuild(events_dir=EVENTS_DIR, out_dir=tmp_path / "spec_library")
+    stamped = json.loads(out.read_text(encoding="utf-8"))
+    assert stamped.pop("provenance")["schema"].endswith("/projection_provenance/v0")
+    assert json.dumps(stamped, indent=2) + "\n" == as_it_was
+
+
+@needs_git
+def test_rebuilding_over_this_trees_own_build_is_allowed(tmp_path):
+    """The gate must not refuse the ordinary case: same tree, twice."""
+    from tolerance_stack import rebuild
+
+    out_dir = tmp_path / "spec_library"
+    first = rebuild(events_dir=EVENTS_DIR, out_dir=out_dir)
+    second = rebuild(events_dir=EVENTS_DIR, out_dir=out_dir)
+    assert without_provenance(second.read_text(encoding="utf-8")) == without_provenance(
+        first.read_text(encoding="utf-8")
+    )
+
+
+@needs_git
+def test_an_unstamped_library_is_overwritten_because_there_is_nothing_to_compare(tmp_path):
+    """Every ``library.json`` in existence before this handoff is unstamped.
+
+    Including the one sitting in the main checkout since 2026-08-05. The gate has
+    to overwrite those -- refusing would mean nobody could ever rebuild again --
+    and the first stamped rebuild is what starts the chain.
+    """
+    from tolerance_stack import rebuild
+
+    out_dir = tmp_path / "spec_library"
+    out_dir.mkdir(parents=True)
+    (out_dir / "library.json").write_text(
+        json.dumps({"schema": "joby.tolstack/spec_library/v0", "subjects": {}}),
+        encoding="utf-8",
+    )
+    out = rebuild(events_dir=EVENTS_DIR, out_dir=out_dir)
+    assert json.loads(out.read_text(encoding="utf-8"))["provenance"]["branch"]
