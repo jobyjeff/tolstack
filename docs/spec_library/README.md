@@ -23,9 +23,12 @@ From a worktree, `data/` is that worktree's own throwaway copy, so name the main
 checkout's or the rebuild lands nowhere anybody reads:
 
 ```
-C:\workspace\tolstack\venv-win\Scripts\python.exe -m tolerance_stack ^
-    --data-root C:\workspace\tolstack\data
+C:\workspace\tolstack\venv-win\Scripts\python.exe -m tolerance_stack --data-root C:\workspace\tolstack\data
 ```
+
+(One line. `^` is cmd's continuation, not PowerShell's, and PowerShell is what
+runs here — split across two lines it fails to parse, and every other command in
+this repo's docs is written on one line for the same reason.)
 
 That output directory is shared by every live worktree, so the rebuild **stamps
 which tree it built from** (`provenance`: branch, HEAD sha, dirty, distance from

@@ -588,6 +588,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       fact (here: a build can now exit 3 and `--allow-older-tree` overrides it) —
       a fact that lives only in a script docstring and a lesson dies with the
       session, per the `CLAUDE.md`-is-gitignored rule below.
+      **Second sighting (`spec_library_projection_provenance`, 2026-08-12), and
+      it widens the question**: no file was added, so the "new file?" trigger
+      never fired — what changed was a *claim inside an existing row*.
+      `projection_provenance.py`'s row said "stdlib only, **both builders** import
+      it", and the handoff made it three importers; the handoff correctly updated
+      that same count in the module's own docstring ("three callers, not two") and
+      missed the copy sixty lines away in `ARCHITECTURE.md`. Fixed inline. So ask
+      the question by *fact*, not by file: **for every count or "both"/"two"/"only"
+      the work invalidates, grep the repo for the other copies of it** — a
+      quantifier word ages exactly like a digit, and the author who fixes one copy
+      is the least likely person to look for the second.
+- [ ] **A documented command that does not run in this repo's shell.** New
+      2026-08-12 (`spec_library_projection_provenance`). `docs/spec_library/README.md`
+      shipped its new `--data-root` recipe split across two lines with a trailing
+      `^` — cmd's continuation character, not PowerShell's, and PowerShell is what
+      runs here, so the pasted command dies with `Missing expression after unary
+      operator '--'`. Every other command in this repo's docs is on one line for
+      exactly this reason. Fixed inline. **Paste-run any command a doc adds**, in
+      PowerShell, before you approve it; it costs one call, and a rebuild recipe
+      that fails on paste is worse than none, because the fallback is the
+      no-`--data-root` invocation the doc was written to prevent.
 - [ ] **An audit enumerated by flag rather than by behaviour.** When a handoff
       reports "I checked the whole tree and the class has N members", re-run the
       enumeration on the *behaviour* the class is named for.
@@ -785,6 +806,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       still name different commits. The banner flags that pair, and an *ancestor*
       crop build is the ordinary, harmless case — do not read that alarm as proof
       of divergence.
+      **There is a THIRD projection since 2026-08-12
+      (`spec_library_projection_provenance`), and it is the one you will forget**,
+      because it is not the viewer's and has no banner to nag you:
+      `data/projections/spec_library/library.json`, rebuilt by
+      `venv-win\Scripts\python.exe -m tolerance_stack --data-root
+      C:\workspace\tolstack\data`. Same stamp, same exit-3 gate, same rule — and
+      the same "only trees that HAVE the gate are gated" hole, so a `master`
+      checkout that predates the merge still clobbers it silently. Rebuild it too
+      whenever `docs/spec_library/events/` moved, and diff old against new: the
+      only legitimate difference is the `provenance` block (there is deliberately
+      no top-level `built_at` on this one).
 - [ ] **`INCOMPLETE` is a prose convention, not a schema field.**
       `build_viewer_projection.is_incomplete` greps the check's
       `label`/`guidance`/`check_id` for the literal upper-case string. A stack

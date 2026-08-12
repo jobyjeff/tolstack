@@ -666,7 +666,7 @@ needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not o
 def test_the_stamp_names_the_tree_that_built_the_library(tmp_path):
     """Branch, sha, and the events dir resolved ABSOLUTE.
 
-    Absolute is the whole point: ``docs/spec_library/events`` is the same 26
+    Absolute is the whole point: ``docs/spec_library/events`` is the same 24
     characters in every worktree in existence and therefore names no tree at all
     -- the trap `viewer_projection_provenance` found in ``results.json``'s
     repo-relative ``stacks_dir``. And the key is ``events_dir``, not

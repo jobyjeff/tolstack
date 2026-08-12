@@ -11,7 +11,7 @@ three recorded occurrences). Two things are needed and this module holds both:
    HEAD sha, whether that tree was dirty, and the ``--stacks-dir`` **resolved
    absolute**. Resolved absolute is the whole point: ``results.json`` has always
    recorded ``stacks_dir`` as the repo-relative ``docs/tolerance_stacks``, which
-   is the same six characters in every worktree in existence and therefore names
+   is the same 21 characters in every worktree in existence and therefore names
    no tree at all.
 
 2. **A gate** -- :func:`guard` -- that **refuses** a rebuild when the file
