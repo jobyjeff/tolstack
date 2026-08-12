@@ -151,8 +151,12 @@ async function testTheApp(browser, url, label) {
 
     await page.locator("button.crop-trigger--unresolvable").first().click();
     await page.waitForSelector(".croppop--unresolvable", { state: "visible", timeout: 5000 });
+    // The fixture's washer citation carries an `unestablished` export, which
+    // build_viewer_crops.py short-circuits to unresolvable with the `why`
+    // carried through. (It said "names no export" until 2026-08-12, a state no
+    // live citation is in any more.)
     push("an unresolvable citation shows its reason, not a broken image",
-      /names no export/.test(await page.locator(".croppop__reason").textContent()) &&
+      /is unestablished/.test(await page.locator(".croppop__reason").textContent()) &&
       await page.locator(".croppop img").count() === 0);
 
     // 4) the worksheet toggle, a real click on real layout.

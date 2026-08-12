@@ -36,8 +36,12 @@
     var DEMO = FIXTURE.results.stacks[0];
     var CROPS = FIXTURE.crops;
     // The generated-check surface: checks that are not in the stack file, terms
-    // with non-unity coefficients, a sensitivity probe, and materials.
-    var GEN = VA.generatedFixture().results.stacks[0];
+    // with non-unity coefficients, a sensitivity probe, and materials. The whole
+    // projection is kept as well as the stack, because the [real] shape guards
+    // read the fixture PAIR — several shapes (materials, the declared worksheet,
+    // an element's material) exist only in this one.
+    var GENFIX = VA.generatedFixture();
+    var GEN = GENFIX.results.stacks[0];
 
     function render(fn) {
       var root = document.createElement("div");
@@ -925,6 +929,335 @@
         eq(keys(CROPS.summary.sha256_verified), keys(realCrops.summary.sha256_verified),
            "fixtures.js's sha256_verified rollup has drifted from crops.json");
       });
+
+      // --- [real] tier 1: the SHAPES ------------------------------------------
+      //
+      // The same guard as the crop one above, over every other shape the
+      // projection writes. Key UNIONS, not per-object equality: both sides
+      // legitimately vary — a citation with no zone carries no `zone` key — and
+      // the drift being hunted is one-directional, the builder GROWS a field and
+      // the hand-authored fixture never hears about it. The reverse direction is
+      // checked too, against a per-shape allowlist, because a fixture field the
+      // builder cannot produce is the other half of the same bug.
+      //
+      // WHAT THIS TIER CANNOT DO: the failure that started all of this was a
+      // stale *value* in a field that was present and correctly named. No key-set
+      // diff would have caught it. Tier 2 below is the one that does.
+
+      function flat(lists) { return Array.prototype.concat.apply([], lists); }
+
+      function keyUnion(objects) {
+        var seen = {};
+        objects.forEach(function (o) {
+          if (o && typeof o === "object") {
+            Object.keys(o).forEach(function (k) { seen[k] = true; });
+          }
+        });
+        return Object.keys(seen).sort();
+      }
+
+      function minus(keys, drop) {
+        return keys.filter(function (k) { return drop.indexOf(k) === -1; });
+      }
+
+      // Collectors. Each pulls every instance of one shape out of a whole
+      // projection, so the fixture and the live data are read by the same code
+      // and cannot be compared through two different readings.
+      function stacksIn(r) { return (r && r.stacks) || []; }
+      function rawIn(r) {
+        return stacksIn(r).map(function (s) { return s.stack; }).filter(Boolean);
+      }
+      function rawElementsIn(r) {
+        return flat(rawIn(r).map(function (s) { return s.elements || []; }));
+      }
+      function derivedIn(r) {
+        return flat(stacksIn(r).map(function (s) { return s.elements || []; }));
+      }
+      function materialsIn(r) {
+        return flat(stacksIn(r).map(function (s) { return s.materials || []; }));
+      }
+      function materialEntriesIn(r) {
+        return materialsIn(r).map(function (m) { return m.material; }).filter(Boolean);
+      }
+      // Every source_ref-SHAPED object the builder writes: an element's citation,
+      // and a material's two — where the CTE came from and, separately, where the
+      // designation came from. One shape, three slots, so one guard.
+      function refsIn(r) {
+        return flat([
+          rawElementsIn(r).map(function (e) { return e.source_ref; }),
+          materialEntriesIn(r).map(function (m) { return m.values_source; }),
+          materialEntriesIn(r).map(function (m) { return m.designation_source; }),
+        ]).filter(Boolean);
+      }
+      function exportsIn(r) {
+        return refsIn(r).map(function (x) { return x.export; }).filter(Boolean);
+      }
+      function checksIn(r) {
+        return flat(stacksIn(r).map(function (s) { return s.checks || []; }));
+      }
+      function pathsIn(r) {
+        return flat(stacksIn(r).map(function (s) { return s.paths || []; }));
+      }
+      function gapsIn(r) {
+        return flat(stacksIn(r).map(function (s) { return s.gaps || []; }));
+      }
+      function cropEntriesIn(c) {
+        var byStack = (c && c.by_stack) || {};
+        return flat(Object.keys(byStack).map(function (stackId) {
+          return Object.keys(byStack[stackId]).map(function (elementId) {
+            return byStack[stackId][elementId];
+          });
+        }));
+      }
+
+      // An archetype's own INPUT block is keyed by the archetype's name
+      // (`thermal_fit`), read by that archetype's loader in Python and by nothing
+      // in the viewer. Skipped by a name COMPUTED FROM THE DATA rather than a
+      // literal, so adding an archetype does not need this line edited — and the
+      // fixture is not asked to invent a synthetic block for one.
+      function archetypeNames(r) {
+        return stacksIn(r).map(function (s) { return s.archetype; }).filter(Boolean);
+      }
+
+      var SIDES = {
+        results: { fixture: [FIXTURE.results, GENFIX.results], live: [realResults] },
+        crops: { fixture: [CROPS], live: [realCrops] },
+      };
+
+      var SHAPES = [
+        { name: "results (top level)", of: "results",
+          collect: function (r) { return [r]; } },
+        { name: "stacks[] — the projected stack", of: "results", collect: stacksIn },
+        { name: "stacks[].stack — the authored stack file, verbatim", of: "results",
+          collect: rawIn, ignoreLive: archetypeNames(realResults) },
+        { name: "stacks[].stack.elements[]", of: "results", collect: rawElementsIn },
+        { name: "source_ref (element citation, material values_source and " +
+                "designation_source)", of: "results", collect: refsIn },
+        { name: "source_ref.export", of: "results", collect: exportsIn,
+          // Required when the status is `unestablished`, forbidden when it is
+          // `established` — and nothing in the repo is unestablished today, which
+          // is precisely why the fixture holds the state.
+          fixtureOnly: ["why"] },
+        { name: "stacks[].elements[] — the derived flags", of: "results",
+          collect: derivedIn },
+        { name: "stacks[].materials[]", of: "results", collect: materialsIn },
+        { name: "stacks[].materials[].material", of: "results",
+          collect: materialEntriesIn },
+        { name: "stacks[].checks[]", of: "results", collect: checksIn },
+        { name: "stacks[].paths[]", of: "results", collect: pathsIn },
+        { name: "stacks[].paths[].interval", of: "results",
+          collect: function (r) { return pathsIn(r).map(function (p) { return p.interval; }); } },
+        { name: "stacks[].gaps[]", of: "results", collect: gapsIn },
+        { name: "hardware_entries", of: "results",
+          collect: function (r) { return [r.hardware_entries]; } },
+        { name: "crops (top level)", of: "crops",
+          collect: function (c) { return [c]; } },
+        { name: "crops.unresolved[]", of: "crops",
+          collect: function (c) { return c.unresolved || []; } },
+      ];
+
+      await test("[real] every fixture shape still matches the builder's", function () {
+        var drift = [];
+        SHAPES.forEach(function (shape) {
+          var side = SIDES[shape.of];
+          var mine = keyUnion(flat(side.fixture.map(shape.collect)));
+          var theirs = keyUnion(flat(side.live.map(shape.collect)));
+          if (!theirs.length) {
+            drift.push(shape.name + ": no live instance of this shape — either " +
+              "the collector in tests.js is wrong or the builder stopped writing it");
+            return;
+          }
+          var missing = minus(theirs, mine.concat(shape.ignoreLive || []));
+          var extra = minus(mine, theirs.concat(shape.fixtureOnly || []));
+          if (missing.length) {
+            drift.push(shape.name + ": the projection writes [" + missing.join(", ") +
+              "] and apps/viewer/fixtures.js does not — ADD THEM TO fixtures.js, " +
+              "so a fixture-tier test can pin how the viewer renders them");
+          }
+          if (extra.length) {
+            drift.push(shape.name + ": apps/viewer/fixtures.js writes [" +
+              extra.join(", ") + "] and no live object does — REMOVE THEM FROM " +
+              "fixtures.js, or list them in this shape's `fixtureOnly` with the " +
+              "reason the fixture holds a state the repo does not");
+          }
+        });
+        eq(drift, [], "fixtures.js has drifted from the live projection");
+      });
+
+      // --- [real] tier 2: the VALUES ------------------------------------------
+      //
+      // THE GUARD THAT CATCHES THE BUG THAT ACTUALLY HAPPENED. `resolved_by:
+      // "provenance.sources_used"` was a stale VALUE in a field that was present
+      // and correctly named, so every key-set test above passes straight through
+      // it. This asks the other question, per enumerated field: does the live
+      // data hold a value the viewer has no branch for?
+      //
+      // `known` asks the VIEWER wherever the viewer owns the table — CROP_RULES,
+      // confidenceClass, verdictClass. That is the strong form: there is nothing
+      // to keep in sync, and teaching the viewer a value teaches the guard. Where
+      // the branch is a chain of `if`s or a set of CSS rules there is nothing to
+      // ask, so the row carries the vocabulary as a list plus a pointer to the
+      // line that owns it — a pinned live vocabulary, which still fails loudly on
+      // a new value but has to be re-read by hand when the code changes.
+      //
+      // Rows whose branch is "NONE" are fields the viewer does not switch on at
+      // all. Pinning their live vocabulary is the only guard available and is
+      // worth having: it is how the next new value gets noticed instead of
+      // silently rendering as the old one.
+
+      var SENTINEL = "__no_viewer_branch_can_exist_for_this__";
+
+      function inList(list) {
+        return function (value) { return list.indexOf(value) !== -1; };
+      }
+      function distinct(values) {
+        var seen = {}, out = [];
+        values.forEach(function (v) {
+          var key = v === undefined ? " undefined" : JSON.stringify(v);
+          if (!seen[key]) { seen[key] = true; out.push(v); }
+        });
+        return out;
+      }
+      function resolvedCrops(c) {
+        return cropEntriesIn(c).filter(function (e) { return e.status === "resolved"; });
+      }
+
+      var VALUE_GUARDS = [
+        { field: "source_ref.confidence and elements[].confidence",
+          branch: "VA.CONFIDENCES, through VA.confidenceClass",
+          known: function (v) { return VA.confidenceClass(v) !== "conf--unknown"; },
+          values: function (r) {
+            return refsIn(r).map(function (x) { return x.confidence; })
+              .concat(derivedIn(r).map(function (d) { return d.confidence; }));
+          } },
+        { field: "materials[].confidence and materials[].designation_confidence",
+          branch: "VA.CONFIDENCES — the CTE's sourcing and the designation's are " +
+            "separate values through the same table",
+          known: function (v) { return VA.confidenceClass(v) !== "conf--unknown"; },
+          values: function (r) {
+            return flat(materialsIn(r).map(function (m) {
+              return [m.confidence, m.designation_confidence];
+            }));
+          } },
+        { field: "checks[].worst_confidence and paths[].worst_confidence",
+          branch: "VA.CONFIDENCES — an unknown one renders as an em dash beside " +
+            "'weakest input:', which reads as 'nothing to say' rather than as a gap",
+          known: function (v) { return VA.confidenceClass(v) !== "conf--unknown"; },
+          values: function (r) {
+            return checksIn(r).map(function (c) { return c.worst_confidence; })
+              .concat(pathsIn(r).map(function (p) { return p.worst_confidence; }));
+          } },
+        { field: "checks[].verdict",
+          branch: "VA.verdictClass",
+          known: function (v) { return VA.verdictClass(v) !== "verdict--unknown"; },
+          values: function (r) {
+            return checksIn(r).map(function (c) { return c.verdict; });
+          } },
+        { field: "crop entry resolved_by",
+          branch: "VA.CROP_RULES — THE ONE THAT WOULD HAVE CAUGHT THE ORIGINAL BUG",
+          known: function (v) { return !!VA.CROP_RULES[v]; },
+          values: function (r, c) {
+            return resolvedCrops(c).map(function (e) { return e.resolved_by; });
+          } },
+        { field: "crop entry located_by",
+          branch: "the located_by chain in VA.cropProvenanceLine (viewer.js) — an " +
+            "unknown one drops the whole 'where on the sheet' clause silently",
+          known: inList(["zone_cell", "callout_text", "sheet_full"]),
+          values: function (r, c) {
+            return resolvedCrops(c).map(function (e) { return e.located_by; });
+          } },
+        { field: "crop entry status",
+          branch: "VA.cropFor + unresolvedHeadline in views/crop.js + the " +
+            ".croppop--* rules in index.html. `unresolvable` is the DEFAULT arm, " +
+            "so a new status renders as 'Crop unresolvable' — a lie, not a gap",
+          known: inList(["resolved", "unresolvable", "not-built", "no-entry"]),
+          values: function (r, c) {
+            return cropEntriesIn(c).map(function (e) { return e.status; });
+          } },
+        { field: "stacks[].worksheet_source",
+          branch: "views/worksheet.js — only `declared` earns the 'one worksheet " +
+            "may cover several stacks' note; `by_name` and null are the silent " +
+            "default, correctly",
+          known: inList(["declared", "by_name", null]),
+          values: function (r) {
+            return stacksIn(r).map(function (s) { return s.worksheet_source; });
+          } },
+        { field: "stacks[].checks_source",
+          branch: "VA.summaryChips + views/stack.js — only `generated` raises the " +
+            "chip and the 'not authored in this file' note",
+          known: inList(["generated", "authored"]),
+          values: function (r) {
+            return stacksIn(r).map(function (s) { return s.checks_source; });
+          } },
+        { field: "gaps[].kind",
+          branch: "the .gap--* and .chip--gap-* rules in index.html — a new kind " +
+            "gets the class and no styling, so it reads as an ordinary gap",
+          known: inList(["excluded_from_model", "hardware_entry"]),
+          values: function (r) {
+            return gapsIn(r).map(function (g) { return g.kind; });
+          } },
+        { field: "source_ref.kind and elements[].kind",
+          branch: "NONE — every kind gets the same .chip--kind styling and is " +
+            "printed verbatim. Pinned so that a new kind is a decision, not a " +
+            "silent new chip",
+          known: inList(["drawing", "parts_list", "spec", "workbook", "assumed"]),
+          values: function (r) {
+            return refsIn(r).map(function (x) { return x.kind; })
+              .concat(derivedIn(r).map(function (d) { return d.kind; }));
+          } },
+        { field: "materials[].material.values_status",
+          branch: "NONE — the viewer renders nothing for it, so `library` would " +
+            "look exactly like `inline` on screen even though one means the " +
+            "number is a cross-check and the other means it is the source. " +
+            "viewer_export_and_material_provenance's deliverable",
+          known: inList(["inline"]),
+          values: function (r) {
+            return materialEntriesIn(r).map(function (m) { return m.values_status; });
+          } },
+        { field: "source_ref.export.status",
+          branch: "NONE — the viewer renders no part of source_ref.export " +
+            "(ISSUE_20260811_viewer_shows_nothing_for_source_ref_export), so an " +
+            "`unestablished` citation is today indistinguishable on screen from " +
+            "an sha-verified one",
+          known: inList(["established"]),
+          values: function (r) {
+            return exportsIn(r).map(function (e) { return e.status; });
+          } },
+      ];
+
+      await test("[real] no live value is one the viewer has no branch for", function () {
+        var unexplained = [];
+        VALUE_GUARDS.forEach(function (guard) {
+          var values = distinct(guard.values(realResults, realCrops));
+          if (!values.length) {
+            unexplained.push(guard.field + ": no live value found — either the " +
+              "collector in tests.js is wrong or the builder stopped writing it");
+            return;
+          }
+          values.forEach(function (value) {
+            if (!guard.known(value)) {
+              unexplained.push(guard.field + " = " + JSON.stringify(value) +
+                " is in the live projection and the viewer has no branch for it. " +
+                "Branch table: " + guard.branch);
+            }
+          });
+        });
+        eq(unexplained, [], "teach the viewer these values — or fix the builder " +
+          "that emitted them");
+      });
+
+      // A guard that cannot fail is documentation. This is exactly the half the
+      // original bug got past: VA.CROP_RULES was a real branch table and nothing
+      // compared the live values against it, so a rule the script had deleted sat
+      // in the fixture for four days looking handled.
+      await test("[real] each value guard bites when fed a value nothing can explain",
+        function () {
+          var toothless = VALUE_GUARDS.filter(function (guard) {
+            return guard.known(SENTINEL);
+          }).map(function (guard) { return guard.field; });
+          eq(toothless, [], "these guards accept any value at all, so they are " +
+            "not guards");
+        });
 
       await test("[real] an unresolvable citation carries a reason, never a blank", function () {
         (realCrops.unresolved || []).forEach(function (row) {
