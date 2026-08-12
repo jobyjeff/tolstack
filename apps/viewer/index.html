@@ -120,6 +120,16 @@
     .chip--weighted { font-family: ui-monospace, monospace; }
     .chip--gap-excluded_from_model { color: #fff; background: var(--untraced); border-color: var(--untraced); }
     .chip--gap-hardware_entry { color: var(--muted); }
+    /* FILLED, like an untraced value, and for the same reason: an unestablished
+       export is the stack saying outright that the bytes behind this number
+       cannot be identified. It has to be legible from the row across a thirty-row
+       table, not only from the block underneath. Same treatment for a CTE nobody
+       transcribed and for a status this viewer cannot explain — a state we cannot
+       name is not a state we may render quietly. */
+    .chip--export-unestablished, .chip--values-not_transcribed,
+    .chip--values-unlabelled {
+      color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700;
+    }
     .verdict { font-weight: 700; text-transform: uppercase; }
     .verdict--pass { color: #fff; background: var(--pass); border-color: var(--pass); }
     .verdict--marginal { color: #0b1020; background: var(--marginal); border-color: var(--marginal); }
@@ -169,12 +179,63 @@
     .el-row__chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
     .el-row__where { font-size: 12px; color: var(--ink); }
     .el-row__callout { font-size: 12px; color: var(--muted); font-family: ui-monospace, monospace; margin-top: 3px; }
-    /* Clamped by default (click to expand) — see views/stack.js. */
-    .el-row__srcnote {
+    /* Clamped by default (click to expand) — see views/stack.js. Three of these
+       now: the citation's own note, the export's, and a material's CINDAS
+       request. Separate class names on purpose, so a selector for one never
+       picks up another; one rule, because they read as one kind of thing. */
+    .el-row__srcnote, .el-export__note, .mat-row__request {
       font-size: 12px; color: var(--muted); margin-top: 3px; cursor: pointer;
       max-height: 4.6em; overflow: hidden; border-left: 2px solid var(--line); padding-left: 6px;
     }
-    .el-row__srcnote--open { max-height: none; }
+    .el-row__srcnote--open, .el-export__note--open,
+    .mat-row__request--open { max-height: none; }
+    .mat-row__request { border-left-color: var(--accent); }
+
+    /* --- source_ref.export: which BYTES the number was read off ----------- */
+    /* Recessed by default: for an established export this is corroboration a
+       reader consults, not an alarm. `--loud` inverts that — see the chip rules
+       above for why. */
+    .el-export {
+      margin-top: 5px; padding: 4px 0 2px 7px; font-size: 12px;
+      border-left: 2px solid var(--line);
+    }
+    .el-export--established { border-left-color: var(--traced); }
+    .el-export--none { border-left-color: var(--line); }
+    .el-export--loud {
+      border-left: 3px solid var(--nocite); background: rgba(195, 85, 195, .12);
+      padding: 5px 7px;
+    }
+    .el-export__head { color: var(--ink); }
+    .el-export--loud .el-export__head { color: var(--nocite); font-weight: 700; }
+    .el-export--none .el-export__head { color: var(--muted); }
+    /* The recorded reason, never clamped and never behind a hover: it was
+       reachable only through a crop popover until 2026-08-12, and that is the
+       defect this block exists to end. */
+    .el-export__why { color: var(--ink); margin-top: 3px; }
+    .el-export__facts, .el-export__runs { color: var(--muted); margin-top: 3px; }
+    .el-export__runid, .el-export__runlink {
+      font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
+    }
+    /* An id this page cannot address is dotted-underlined rather than left to
+       look like an ordinary word — the title says why there is no link. */
+    .el-export__runid { color: var(--muted); border-bottom: 1px dotted var(--line); }
+    .el-export__path {
+      color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace;
+      margin-top: 3px; overflow-wrap: anywhere;
+    }
+
+    /* --- material provenance ---------------------------------------------- */
+    /* The soak ranges a scalar CTE is APPLIED over, under the range the source
+       quoted it for. Accent-coloured because the pair is the comparison, and the
+       viewer states both without deciding whether one covers the other. */
+    .mat-row__applied { color: var(--accent); font-size: 11px; margin-top: 2px; }
+    .mat-row__values { color: var(--muted); font-size: 12px; margin-top: 3px; }
+    .mat-row__values--loud { color: var(--nocite); font-weight: 600; }
+    .mat-row__libref {
+      color: var(--accent); font-size: 12px; font-family: ui-monospace, monospace;
+      margin-top: 3px;
+    }
+    .mat-row__desig { color: var(--ink); font-size: 12px; margin-top: 5px; }
     .el-note td { color: var(--muted); font-size: 12px; padding-top: 0; border-bottom: 1px solid var(--line); }
     .el-note--gap td { color: var(--inferred); }
     .el-gaps summary { cursor: pointer; }
