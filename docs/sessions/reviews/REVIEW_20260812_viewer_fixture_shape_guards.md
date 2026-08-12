@@ -246,6 +246,42 @@ pointer finds both, so this is cosmetic.
 
 ---
 
+## Post-merge condition of the MAIN checkout — read this before you commit there
+
+`master` is correct and pushed (`a322589`). **The main checkout's working tree is
+not**, and I could not fix it: some other live process is holding a **pre-merge
+copy of `apps/viewer/README.md`** and writing it back over the merged file.
+
+What I observed, in `C:\workspace\tolstack`:
+
+* After the merge, `git status` showed ` M apps/viewer/README.md` plus an
+  untracked `apps/viewer/README.md.backup`, neither of which I created.
+* The working-tree `README.md` is **byte-identical to `f395d30`** — the
+  pre-review version — so it carries no third-party work; it is a stale copy
+  written over the merge, not somebody's edit. The `.backup` is byte-identical to
+  `HEAD`'s version (modulo CRLF), i.e. it is a backup *of the merged content*.
+* I restored it once (`git checkout -- apps/viewer/README.md`). **A process
+  re-reverted it ~17 seconds later**, taking a fresh `.backup` of what it found
+  first. I stopped there rather than fight a live writer, which risks clobbering
+  in-flight work I cannot see.
+
+So: **do not `git add -A` in `C:\workspace\tolstack` without looking.** Committing
+that revert would silently delete the README section this review added, and the
+commit would look like ordinary cleanup. `git checkout -- apps/viewer/README.md`
+restores it once whatever holds the copy has exited. The likeliest owner is the
+next staged handoff (`viewer_export_and_material_provenance`, whose scope is this
+same app) working from a snapshot taken before the merge — worth confirming
+before it commits anything.
+
+This is the overlay's *"the defect is an uncommitted edit in the MAIN checkout"*
+entry running in the other direction: the branch is right, the working tree is
+wrong, and the branch looks like it failed. Also unremovable: the tactical
+worktree `C:\workspace\tolstack-worktrees\viewer_fixture_shape_guards`. Git
+deregistered it (`git worktree list` is clean) but the now-empty directory is
+locked by a live process, so the folder remains for dispatch to remove at
+Complete. `handoff/viewer_fixture_shape_guards` is deleted;
+`review/viewer_fixture_shape_guards` stays until my own worktree goes.
+
 ## Note for the next reviewer
 
 The `[real]` tier is now **23 tests** (75/75 skipped vs 98/98 ran). The overlay
