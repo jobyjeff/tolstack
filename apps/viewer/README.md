@@ -200,6 +200,20 @@ The fast tier includes a **node-fs adapter** tier that drives the real
 skipped when the projection isn't there (e.g. from a worktree, where `data/`
 lives only in the main checkout) rather than failing.
 
+That tier also carries the two guards that keep `fixtures.js` honest, and they are
+the reason a builder change can fail a *viewer* test (2026-08-12):
+
+* `[real] every fixture shape still matches the builder's` compares the key union
+  of each shape in `fixtures.js` against the live projection's. **If you add a
+  field in `scripts/build_viewer_projection.py` or `build_viewer_crops.py`, add it
+  to `fixtures.js` too** — the failure names the shape and the keys.
+* `[real] no live value is one the viewer has no branch for` asks, per enumerated
+  field, whether the live data holds a value the viewer cannot render. That is the
+  half a key-set diff cannot do: the bug it exists for was a stale *value* in a
+  field that was present and correctly named.
+
+Both run only when the node-fs tier runs, i.e. only with `--repo`.
+
 The truth tier is not optional theatre: it caught a NodeList-vs-array divergence
 between the shim and real Chrome, and a hover popover that closed itself the
 instant it opened.

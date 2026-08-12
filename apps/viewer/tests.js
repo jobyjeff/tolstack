@@ -1113,7 +1113,7 @@
       function distinct(values) {
         var seen = {}, out = [];
         values.forEach(function (v) {
-          var key = v === undefined ? " undefined" : JSON.stringify(v);
+          var key = v === undefined ? "\u0000undefined" : JSON.stringify(v);
           if (!seen[key]) { seen[key] = true; out.push(v); }
         });
         return out;

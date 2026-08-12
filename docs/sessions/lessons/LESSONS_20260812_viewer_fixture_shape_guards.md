@@ -33,8 +33,9 @@ they are not equally good:
 
 * **Ask the viewer** where the viewer owns a table — `VA.CROP_RULES`,
   `VA.confidenceClass`, `VA.verdictClass`. The guard then stays in sync for free:
-  teaching the viewer a value teaches the guard. Six of the thirteen rows are
-  this form and they are the ones that will still be right in six months.
+  teaching the viewer a value teaches the guard. Five of the thirteen rows are
+  this form (`known: function` in `VALUE_GUARDS`; the other eight are
+  `known: inList`) and they are the ones that will still be right in six months.
 * **Pin the vocabulary in `tests.js`**, with a pointer to the line that owns it,
   where the branch is a chain of `if`s (`located_by` in `cropProvenanceLine`,
   `worksheet_source` in `views/worksheet.js`) or a set of CSS rules
@@ -116,6 +117,16 @@ main checkout to get around it: it would test trunk's source, not your branch.
   `stack.checks[]` (the *authored*, pre-fold spellings now in the fixture) are
   carried so the raw stack's own key set is complete, but their inner key sets are
   unguarded. If a reviewer wants them, they are two more rows in `SHAPES`.
+* **`hardware_entries.entries[]` is unguarded on BOTH tiers, and structurally so**
+  (noted in review, 2026-08-12). The fixture's `entries` array is empty *on
+  purpose* — the demo stack's one `hardware_ref` is the missing-entry state — so a
+  key-union guard over it would compare an empty fixture side against a live pile
+  and fail on every key. The only thing keeping that honest today is that
+  the viewer reads **nothing** out of a hardware entry (`hardware_ref` on the
+  element row is the whole surface, `views/stack.js`), so there is no rendering to
+  drift from. The day the viewer renders an entry's `values_status` or
+  `values_source`, that shape needs a second fixture stack with a populated pile —
+  not a row in `SHAPES`.
 * The reverse direction (a fixture key no live object has) is checked against a
   per-shape `fixtureOnly` allowlist. There is exactly one entry today —
   `source_ref.export.why`, required when the status is `unestablished` and
