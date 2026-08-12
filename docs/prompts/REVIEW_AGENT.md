@@ -896,6 +896,31 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       its backslashes eaten, the runner looks under
       `<cwd>/workspacetolstack/...`, finds nothing and — skips, green. Same trap,
       no error.
+- [ ] **A `[real]` test that asks the view-model instead of the page.** New
+      2026-08-12 (`viewer_export_and_material_provenance`). The `[real]` tier's
+      value is that it reads live data, and that makes it easy to write a test
+      whose subject is a `VA.*` function's return value rather than what a reader
+      sees. `[real] every citation whose crop is unresolvable states its export`
+      asserts `VA.exportProvenance(...).headline` is non-empty — so it stays green
+      with the `cell.appendChild(exportBlock)` line deleted, which is the entire
+      defect the handoff was written to fix. Its DOM siblings caught it. So for
+      every new `[real]` test ask **which line of production code deleting would
+      turn it red**, and require at least one per rendered surface to go through
+      `render(...)` + `all(root, "…")` rather than through the view-model.
+- [ ] **One number, two nouns, both in the same commit.** New 2026-08-12
+      (`viewer_export_and_material_provenance`), and it is the stale-count entry's
+      hardest variant to see because nothing is stale: 48 live citations split
+      **22 established / 26 no-export**, and *"22 of the 48 live citations"* was
+      written for the **no-export** state in five places while the same session's
+      lesson carried the correct table. Same commit, same author, one digit
+      borrowed from its sibling fact. Alongside it, *"15 of the 22 live established
+      **exports** have no runs"* counts **citations**: 22 citations name **9**
+      distinct exports, 6 unconsumed — the traced ratio's instances-vs-ids trap in
+      a new place. Both fixed inline. So: when a diff quotes the same digit for two
+      different sets, **re-derive each occurrence against its own sentence's noun**
+      rather than checking the number once; and read a doc's tables against its own
+      prose before you go near the data — the disagreement was internal here and
+      cost nothing to find.
 
 ## Architectural errors to check
 
