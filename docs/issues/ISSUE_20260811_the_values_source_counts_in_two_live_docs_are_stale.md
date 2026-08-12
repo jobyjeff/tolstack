@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: docs / provenance accounting
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260812_hardware_counts_doc_guard.md
 ---
 
 # Two live docs still say eight hardware entries transcribe the workbook; it has been five since 2026-08-10

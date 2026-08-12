@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: apps/viewer / fixtures.js + tests.js
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260812_viewer_fixture_shape_guards.md
 ---
 
 # `fixtures.js` lags the live projection shape in six places, and only `crops.json` is now guarded against it

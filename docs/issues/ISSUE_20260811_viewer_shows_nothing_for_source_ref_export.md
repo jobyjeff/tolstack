@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/viewer / views/stack.js citation panel
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260812_viewer_export_and_material_provenance.md
 ---
 
 # The citation panel shows nothing for `source_ref.export`, so an unestablished export is invisible unless a crop happened to resolve

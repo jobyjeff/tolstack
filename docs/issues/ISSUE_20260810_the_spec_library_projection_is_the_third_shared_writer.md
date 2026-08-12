@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: spec library / projections
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260812_spec_library_projection_provenance.md
 ---
 
 # `python -m tolerance_stack` is the third writer to a shared gitignored projection, and the only one with no stamp at all

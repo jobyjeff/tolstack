@@ -1,9 +1,10 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: tolerance-stacks / spec-pile
 reporter: agent
+strategy: docs/strategy/BRIEF_20260812_spec_pile_gap_join.md
 ---
 
 # A document arriving in `data/inbox/specs/` does not re-cite anything by itself, and nothing in the repo notices that it could
