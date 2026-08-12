@@ -182,7 +182,7 @@
     // nobody reads. The block below the citation carries all four states in full.
     var exportView = VA.exportProvenance(element.source_ref);
     if (exportView && exportView.loud) {
-      chips.appendChild(VA.chip("chip--export-unestablished",
+      chips.appendChild(VA.chip("chip--export-" + exportView.state,
         exportView.state === "unestablished" ? "EXPORT UNESTABLISHED"
           : "EXPORT STATUS UNKNOWN",
         exportView.headline + (exportView.why ? " — " + exportView.why : "")));
