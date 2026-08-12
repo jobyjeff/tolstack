@@ -504,6 +504,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       merge is not done until you have discarded it (`git -C C:\workspace\tolstack
       checkout -- <file>`) **and re-run the verification there**, not just in your
       worktree. Generalise: verify the fix in the tree where the bug lives.
+      **And know the standing one before it costs you a merge (2026-08-12, second
+      sighting):** a **Ghostwriter** editor window is open on
+      `C:\workspace\tolstack\apps\viewer\README.md` with a stale buffer, and it
+      autosaves — `.backup` the on-disk file, then write its buffer over it —
+      within ~20 s of any change. It aborts `git merge` and undoes
+      `git checkout --`. Restore and merge in **one** command; verify the working
+      copy carries no unique work first (`git hash-object` vs the blob at the
+      pre-merge commit); never `git add -A` in the main checkout. Find the owner
+      with `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like
+      '*tolstack*' }` rather than guessing at an agent —
+      `ISSUE_20260812_ghostwriter_holds_a_stale_apps_viewer_readme_...`.
 - [ ] **Surviving `{{REPO_NAME}}` from the template stamp.** forge's
       `conventions._substitute_names` walks only `.md`/`.txt`/`.toml`, so
       placeholders live on in `.ps1`/`.py` stubs. Grep the diff for `{{`.
