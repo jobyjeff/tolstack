@@ -354,9 +354,40 @@ tactical worktree's instead, one package, no browser download.
 
 ## Integration
 
-Merged to `master` and pushed. Worktree and branch cleanup per the canonical
-process. Post-merge state and the main checkout's condition are recorded in the
-section below.
+Merged to `master` (fast-forward, `3fe82e1`), board moved `active -> completed`,
+pushed. Worktree and branch cleanup per the canonical process.
+
+### Post-merge condition of the MAIN checkout — and the answer to last review's open question
+
+`master` is correct. The main checkout's **working tree** carries a stale
+`apps/viewer/README.md` that is rewritten within ~20 seconds of any change, and
+the `viewer_fixture_shape_guards` review left the culprit unidentified (its guess
+— the next tactical agent — was wrong; no agent is involved).
+
+**It is a Ghostwriter editor window.**
+`C:\Program Files\ghostwriter_2.1.6_win64_portable\ghostwriter.exe`, PID 3132,
+opened on `C:\workspace\tolstack\apps\viewer\README.md` with a buffer loaded
+before today's viewer work. It autosaves: copy the on-disk file to
+`README.md.backup`, then write the stale buffer over it. Found with
+`Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*tolstack*' }`.
+
+It cost me one aborted merge (*"Your local changes to the following files would be
+overwritten"*) and one undone `git checkout --`; the merge went through when I ran
+restore-and-merge as a single command. I did **not** kill the process — it is
+Jeff's editor and I cannot see what else is in it.
+
+Verified before discarding, both times, that the working copy carries **no unique
+work**: it hashes to `1ddefab`, byte-identical to `f395d30:apps/viewer/README.md`,
+i.e. the pre-`viewer_fixture_shape_guards` version. The `.backup` is a Ghostwriter
+artefact — it hashed to `f535c2e` (the pre-merge blob) before my merge and to
+`d311c2f` (the merged file) after it, which is what proved the write order.
+
+So, unchanged from last review and now with a fix: **do not `git add -A` in
+`C:\workspace\tolstack`.** Committing that revert would delete two review's worth
+of README sections and look like tidy-up. Filed as
+`ISSUE_20260812_ghostwriter_holds_a_stale_apps_viewer_readme_over_the_main_checkout.md`
+(`high`) — closing or reloading the Ghostwriter window ends it, and that is a human
+action, not an agent one.
 
 ## Note for the next reviewer
 
@@ -369,9 +400,8 @@ section below.
   citation-level counts the way
   `test_no_live_document_states_an_unguarded_hardware_entry_count` recomputes
   hardware-entry counts. The numbers all come from one projection and one loop.
-* The main checkout carried a **pre-existing** uncommitted revert of
-  `apps/viewer/README.md` plus an untracked `apps/viewer/README.md.backup`,
-  inherited from the `viewer_fixture_shape_guards` review (which recorded, in
-  `REVIEW_20260812_viewer_fixture_shape_guards.md`, that a live process kept
-  re-reverting the file). Neither is mine. See the post-merge section for what I
-  did with it.
+* The main checkout's re-reverting `apps/viewer/README.md` is **a Ghostwriter
+  window, not an agent** — see the post-merge section and
+  `ISSUE_20260812_ghostwriter_holds_a_stale_apps_viewer_readme_over_the_main_checkout.md`.
+  Until someone closes it: restore-and-merge in **one** command, and never
+  `git add -A` in `C:\workspace\tolstack`.
