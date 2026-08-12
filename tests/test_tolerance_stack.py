@@ -12,6 +12,8 @@ Handoff: tolerance_stack_slice1 (2026-07-29).
 from __future__ import annotations
 
 import json
+import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1140,6 +1142,250 @@ def test_hardware_entry_values_source_counts_match_the_description():
     for phrase in ("five of the fifteen", "SIX entries are traced",
                    "Four entries are `not_transcribed`"):
         assert phrase in text, f"description no longer says {phrase!r}"
+
+
+# --- the doc-level guard on hardware-entry counts ----------------------------
+#
+# ``test_hardware_entry_values_source_counts_match_the_description`` above pins
+# ONE file's copy of these counts. The counts kept going stale in the OTHER
+# copies: docs/tolerance_stacks/README.md said "eight of the eleven inline
+# entries" from 2026-08-10 (when three bolts were re-sourced to the NAS standard)
+# to 2026-08-12, and that same sentence ended by telling the reader a test
+# asserted its numbers -- it did, against a different file. Everything below is
+# the same doc-level scan ``test_every_document_quoting_the_traced_ratio_...``
+# uses, applied to these counts: find the claim wherever it lives, recount it
+# against hardware_entries.json, name the document and line when it disagrees.
+
+_NUMBER_WORDS = {
+    w: i for i, w in enumerate(
+        "zero one two three four five six seven eight nine ten eleven twelve "
+        "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty"
+        .split())
+}
+
+# longest-first so "sixteen" is not matched as "six"; \b so the 6403 in NAS6403
+# is not read as a number
+_NUM = r"\b(?:\d{1,3}|" + "|".join(
+    sorted(_NUMBER_WORDS, key=len, reverse=True)) + r")\b"
+
+
+def _stated_number(token: str) -> int:
+    t = token.lower()
+    return int(t) if t.isdigit() else _NUMBER_WORDS[t]
+
+
+def hardware_entry_counts() -> dict[str, int]:
+    """Every count this repo's prose has ever quoted, recounted from the file."""
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    entries = data["entries"]
+    src = lambda e: e.get("values_source") or {}                     # noqa: E731
+    n = lambda pred: sum(1 for e in entries if pred(e))              # noqa: E731
+    c = {
+        "total": len(entries),
+        "sourced": n(lambda e: bool(src(e))),
+        "workbook": n(lambda e: src(e).get("kind") == "workbook"),
+        "spec": n(lambda e: src(e).get("kind") == "spec"),
+        "drawing": n(lambda e: src(e).get("kind") == "drawing"),
+        "traced": n(lambda e: src(e).get("confidence") == "traced"),
+        "inline": n(lambda e: e["values_status"] == "inline"),
+        "library": n(lambda e: e["values_status"] == "library"),
+        "not_transcribed": n(lambda e: e["values_status"] == "not_transcribed"),
+    }
+    c["safe"] = c["sourced"] - c["workbook"]
+    c["not_library"] = c["total"] - c["library"]
+    return c
+
+
+# (label, pattern, the count key each capture group must equal). A key may be a
+# tuple, which means "either denominator is legitimate": the JSON description
+# counts all fifteen entries, the README sentence counted only the eleven that
+# carry a values_source, and both readings are correct. `[^.]{0,N}?` keeps a
+# match inside roughly one sentence.
+_COUNT_CLAIMS = [
+    ("entries sourced kind=workbook, out of",
+     rf"({_NUM})\s+of\s+the\s+({_NUM})[^.]{{0,100}}?\bentries\b[^.]{{0,200}}?workbook",
+     ("workbook", ("total", "sourced"))),
+    ("entries whose values_source is not the workbook",
+     rf"other\s+({_NUM})\s+are\s+safe", ("safe",)),
+    ("entries with a traced values_source",
+     rf"({_NUM})\s+entries\s+are\s+traced", ("traced",)),
+    ("entries traced to the NAS standard",
+     rf"({_NUM})\s+traced\s+to\s+the\s+NAS", ("spec",)),
+    ("entries traced to the NAS standard",
+     rf"the\s+({_NUM})\s+NAS\s+bolts", ("spec",)),
+    ("entries traced to a source-control drawing",
+     rf"({_NUM})\s+(?:traced\s+)?to\s+(?:their\s+own\s+)?source.control\s+drawings",
+     ("drawing",)),
+    ("entries with values_status not_transcribed",
+     rf"({_NUM})\s+entries\s+are\s+`?not_transcribed", ("not_transcribed",)),
+    ("entries that do not defer to the spec library",
+     rf"other\s+({_NUM})\s+do\s+not", ("not_library",)),
+    ("entries with values_status inline / not_transcribed",
+     rf"\(({_NUM})\s+`?inline`?,\s+({_NUM})\s+`?not_transcribed",
+     ("inline", "not_transcribed")),
+]
+_COUNT_CLAIMS = [(lbl, re.compile(p, re.I | re.S), keys)
+                 for lbl, p, keys in _COUNT_CLAIMS]
+
+# Records of what someone believed on a date, not statements of what is true
+# now. Rewriting them would destroy the evidence the corrections rest on --
+# the same scope call test_every_document_quoting_the_traced_ratio_... makes.
+# PROVENANCE.md is on this list for the same reason: every row in it is a dated
+# "this is what changed and what the counts moved from and to".
+_HISTORICAL_DIRS = ("docs/sessions", "docs/issues", "docs/reference")
+_HISTORICAL_NAMES = {"PROVENANCE.md", "CLAUDE.md"}   # CLAUDE.md: gitignored, per-session
+_SKIP_DIR_NAMES = {".git", ".dispatch", ".pytest_cache", "__pycache__",
+                   "node_modules", "venv", "venv-win", ".venv", "storage", "vendor"}
+_SKIP_REL_DIRS = {"data/runs", "data/projections"}   # run output, not documents
+
+
+def live_documents(repo_root: Path) -> list[Path]:
+    """Every live `.md` in the repo, plus the `.json` under `docs/` -- those hold
+    prose in fields (`description`, `library_ref_note`) and have gone stale there.
+
+    Deliberately a walk rather than a hand-kept list: a count copied into a
+    document nobody thought to enumerate is exactly how this bug recurs.
+    """
+    found = []
+    for dirpath, dirnames, filenames in os.walk(repo_root):
+        here = Path(dirpath)
+        rel_dir = here.relative_to(repo_root).as_posix()
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if d not in _SKIP_DIR_NAMES
+            and f"{rel_dir}/{d}".lstrip("./") not in _SKIP_REL_DIRS)
+        if rel_dir.startswith(_HISTORICAL_DIRS):
+            continue
+        for name in sorted(filenames):
+            if name in _HISTORICAL_NAMES:
+                continue
+            if name.endswith(".md") or (
+                    name.endswith(".json") and rel_dir.split("/")[0] == "docs"):
+                found.append(here / name)
+    return found
+
+
+def _prose_blocks(path: Path, repo_root: Path) -> list[tuple[str, str]]:
+    """``(location, text)`` -- a markdown file is one block; a JSON file is one
+    block per string value, since that is where its prose lives."""
+    rel = path.relative_to(repo_root).as_posix()
+    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".md":
+        return [(rel, text)]
+    blocks: list[tuple[str, str]] = []
+
+    def walk(node, trail):
+        if isinstance(node, str):
+            blocks.append((f"{rel} [{trail}]", node))
+        elif isinstance(node, dict):
+            for k, v in node.items():
+                walk(v, f"{trail}.{k}" if trail else k)
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{trail}[{i}]")
+
+    try:
+        walk(json.loads(text), "")
+    except json.JSONDecodeError:      # not our problem to diagnose here
+        return []
+    return blocks
+
+
+def _quoted_spans(text: str) -> list[tuple[int, int]]:
+    """Where a superseded number is allowed to survive: inside a quotation.
+
+    This repo corrects a number a review already read by leaving the old one
+    visible rather than overwriting it -- as a markdown blockquote line, or
+    quoted inline (`that clause read "The other twelve entries..."`, which is how
+    the correction inside `NAS6403U11D`'s `library_ref_note` is written, where
+    JSON gives you no blockquote). A quoted number is a report, not a claim.
+    """
+    spans = [(m.start(), m.end()) for m in re.finditer(r'"[^"\n]{0,300}"', text)]
+    spans += [(m.start(), m.end()) for m in re.finditer(r"(?m)^\s*>.*$", text)]
+    return spans
+
+
+def hardware_entry_count_claims(text: str) -> list[tuple[str, str, int, int]]:
+    """``(label, count_key, stated, offset)`` for every count claim in ``text``."""
+    quoted = _quoted_spans(text)
+    claims = []
+    for label, pattern, keys in _COUNT_CLAIMS:
+        for m in pattern.finditer(text):
+            for group, key in enumerate(keys, 1):
+                start = m.start(group)
+                if any(a <= start < b for a, b in quoted):
+                    continue
+                claims.append((label, key, _stated_number(m.group(group)), start))
+    return claims
+
+
+def test_no_live_document_states_an_unguarded_hardware_entry_count():
+    """The stale-count bug caught wherever the count lives, not where it was last.
+
+    Prose cannot be parsed, so this scans for the claim *shapes* that have
+    actually appeared in this repo ("N of the M entries ... workbook", "N entries
+    are traced", "the other N are safe", ...) and recounts each one against
+    ``hardware_entries.json``. Two consequences worth knowing before you edit a
+    doc:
+
+    * a live document may state these counts -- it just cannot state them wrongly,
+      and it will be named with a line number when it does; and
+    * a shape not listed in ``_COUNT_CLAIMS`` is not caught. If you invent new
+      phrasing for one of these counts, add the shape. The honest reading of this
+      test is "the ways this repo has gone stale before are now mechanical", not
+      "prose is now safe".
+
+    ``docs/tolerance_stacks/README.md`` chose the other way out and states no
+    count at all; this test is what makes that choice stick.
+    """
+    repo_root = STACKS_DIR.parent.parent
+    counts = hardware_entry_counts()
+
+    wrong = []
+    for path in live_documents(repo_root):
+        for location, text in _prose_blocks(path, repo_root):
+            for label, key, stated, offset in hardware_entry_count_claims(text):
+                expected = ({counts[k] for k in key} if isinstance(key, tuple)
+                            else {counts[key]})
+                if stated in expected:
+                    continue
+                where = (f"{location}:{text[:offset].count(chr(10)) + 1}"
+                         if path.suffix == ".md" else location)
+                wrong.append(
+                    f"{where}: says {stated} {label}; hardware_entries.json has "
+                    f"{'/'.join(str(e) for e in sorted(expected))}")
+
+    assert wrong == [], (
+        "live documents state hardware-entry counts that disagree with "
+        "docs/tolerance_stacks/hardware_entries.json:\n  " + "\n  ".join(wrong))
+
+
+def test_the_hardware_entry_count_guard_can_fail():
+    """A guard nobody has watched fail is not yet a guard.
+
+    The scan above is only worth its lines if it catches the exact sentence that
+    went stale, so that sentence is replayed here -- README.md's, verbatim as it
+    read from 2026-08-10 to 2026-08-12 -- along with the correction convention it
+    must NOT flag.
+    """
+    stale = ('**Eight of the eleven inline entries say `kind: "workbook"`**, '
+             "which is the point: those numbers are slice-1 transcriptions. The "
+             "other three are safe -- one traced to the NAS6403 standard, two to "
+             "their own source-control drawings")
+    claims = hardware_entry_count_claims(stale)
+    assert [(str(k), s) for _, k, s, _ in claims] == [
+        ("workbook", 8), ("('total', 'sourced')", 11), ("safe", 3),
+        ("spec", 1), ("drawing", 2)]
+
+    counts = hardware_entry_counts()
+    assert [s for _, k, s, _ in claims
+            if s not in ({counts[x] for x in k} if isinstance(k, tuple)
+                         else {counts[k]})] == [8, 3, 1]
+
+    # ... and the same numbers quoted as a correction are silent, which is what
+    # keeps a dated "this used to say X" from being a permanent test failure.
+    assert hardware_entry_count_claims(f'> {stale}') == []
+    assert hardware_entry_count_claims(f'it read "{stale}" until 2026-08-12') == []
 
 
 def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():
