@@ -353,6 +353,14 @@ must be confirmed before the property is looked up.
   `test_hardware_entry_values_source_counts_match_the_description`, which pins
   `hardware_entries.json`'s own `description`; read the count there, and treat a
   workbook-sourced band as the failure to hunt regardless of how many there are.
+  Since 2026-08-12 (`hardware_counts_doc_guard`) a second test,
+  `test_no_live_document_states_an_unguarded_hardware_entry_count`, recounts these
+  counts **wherever they live** — every live `.md` plus the `.json` under `docs/`.
+  Know its blind spots before you treat its green as "the prose was checked":
+  it matches the claim *shapes* the repo has already written (`_COUNT_CLAIMS`), so
+  new phrasing is invisible; a number inside a blockquote or a `"…"` span is exempt
+  by design; and `docs/sessions/`, `docs/issues/`, `docs/reference/`,
+  `PROVENANCE.md` and `CLAUDE.md` are out of scope as dated history.
 - **Checks the source does not contain** are marked `workbook_cells: null` and
   `[NOT IN WORKBOOK]` in the label, with a test asserting it.
 - **Scope is stated**, including what was excluded and why.
@@ -527,6 +535,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       added prose for counts, not the prose it replaced**, and treat "N so far" /
       "the only one" / "still the first" as counts, because they age exactly like
       digits do.
+      **Fourth sighting (`hardware_counts_doc_guard`, 2026-08-12), and it lands
+      inside the guard itself:** the handoff correctly replaced the README's count
+      with a doc-level scan, and its
+      `test_the_hardware_entry_count_guard_can_fail` — the replay that proves the
+      scan bites — asserted the *digits* the stale sentence disagreed on
+      (`== [8, 3, 1]`) rather than which claims it flagged. Those digits are a
+      function of `hardware_entries.json`'s size, and `PROVENANCE.md` says that
+      file changes with every new stack: appending one drawing-sourced entry made
+      the demonstration fail with a bare `[8, 11, 3, 1, 2] == [8, 3, 1]` and no
+      hint of why. Same shape as `test_the_export_is_a_sibling_...`'s hard-coded
+      total of 23. Narrowed inline in review. So when work under review adds a
+      guard, **audit the guard's own demonstration for a cached live count**, and
+      ask what ordinary next-handoff change breaks it — a demonstration that fails
+      for an unrelated reason is how a guard gets deleted.
 - [ ] **A corroboration flag shown without the evidence that produced it.**
       `crops.json` records `callout_text_in_zone`, and the viewer rendered it as
       a bare "(callout text found there)". The needle that actually matched is

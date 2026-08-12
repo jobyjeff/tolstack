@@ -1377,10 +1377,22 @@ def test_the_hardware_entry_count_guard_can_fail():
         ("workbook", 8), ("('total', 'sourced')", 11), ("safe", 3),
         ("spec", 1), ("drawing", 2)]
 
+    # Asserted by count KEY, not by the stale digits: which of those digits still
+    # disagrees depends on the size of hardware_entries.json, and that file changes
+    # with every new stack (PROVENANCE.md says so). Pinning the digits made adding
+    # one drawing-sourced entry fail this test with a bare ``[8, 11, 3, 1, 2] ==
+    # [8, 3, 1]`` -- the same hard-coded-live-total coupling
+    # ``test_the_export_is_a_sibling_of_the_feature_identity_slot_not_a_filling_in``
+    # already had to give up. The durable claim is about the three NUMERATORS the
+    # sentence got wrong; the denominator ("eleven") was legitimate in 2026-08-12's
+    # file and may not stay so. Narrowed during review/hardware_counts_doc_guard.
     counts = hardware_entry_counts()
-    assert [s for _, k, s, _ in claims
-            if s not in ({counts[x] for x in k} if isinstance(k, tuple)
-                         else {counts[k]})] == [8, 3, 1]
+    flagged = {str(k) for _, k, s, _ in claims
+               if s not in ({counts[x] for x in k} if isinstance(k, tuple)
+                            else {counts[k]})}
+    assert {"workbook", "safe", "spec"} <= flagged, (
+        "the scan no longer flags the numerators the 2026-08-10 README sentence "
+        f"got wrong; it flags {sorted(flagged)}")
 
     # ... and the same numbers quoted as a correction are silent, which is what
     # keeps a dated "this used to say X" from being a permanent test failure.

@@ -106,7 +106,12 @@ silent when the same sentence is quoted as a correction.
 2. Re-inserted the old stale sentence into the README → failed naming
    `docs/tolerance_stacks/README.md:128 … says 8 … has 5`, `:129 … says 3 … has
    6`, `:129 … says 1 … has 4`. Reverted.
-3. Full suite green against the real tree: **345 passed, 1 skipped**.
+3. Full suite green against the real tree: **345 passed, 1 skipped**, measured
+   **in the worktree** (`handoff/hardware_counts_doc_guard`) with the main
+   checkout's interpreter. The skip is the one data-dependent test, which runs
+   where `data/` is populated — a pasted suite line is checkout-specific here, so
+   always say which one produced it. `review/hardware_counts_doc_guard` re-measured
+   both after the merge; see that review report for the main-checkout figure.
 
 ## Gotchas for the next agent here
 
