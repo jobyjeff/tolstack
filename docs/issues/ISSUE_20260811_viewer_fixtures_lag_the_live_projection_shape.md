@@ -1,11 +1,26 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: closed
 area: apps/viewer / fixtures.js + tests.js
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260812_viewer_fixture_shape_guards.md
 ---
+
+> **Closed 2026-08-12** by handoff `viewer_fixture_shape_guards`. Both
+> recommended options landed together, as recommended. Every row of the table
+> below is now covered by `[real] every fixture shape still matches the
+> builder's` in `apps/viewer/tests.js` — plus one row the audit missed,
+> `crops.json`'s own top level (`built_by`, `crops_dir`,
+> `drawing_checker_available`, `drawing_checker_root`) — and the fixture carries
+> every field the live projection writes. Option 3 landed as `[real] no live
+> value is one the viewer has no branch for`: thirteen enumerated fields, asking
+> `VA.CROP_RULES` / `confidenceClass` / `verdictClass` directly where the viewer
+> owns the table. Both tiers were demonstrated failing against a poisoned copy of
+> the live projection, including the historical
+> `resolved_by: "provenance.sources_used"` value that started the thread. Option
+> 1 (generating the fixture from real data) stays rejected for the reasons
+> recorded below.
 
 # `fixtures.js` lags the live projection shape in six places, and only `crops.json` is now guarded against it
 
