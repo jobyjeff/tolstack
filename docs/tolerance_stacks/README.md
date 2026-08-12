@@ -125,14 +125,19 @@ carries `assembly_status` (present/absent in the 217755 parts list, find number,
 balloons) and a `gaps` list. Since 2026-08-05 it carries **`values_source`** too
 — a `source_ref`-shaped dict saying where the inline numbers came from, required
 whenever they are inline and explicitly `null` when nothing is transcribed.
-**Eight of the eleven inline entries say `kind: "workbook"`**, which is the point:
-those numbers are slice-1 transcriptions and a from-scratch stack may not reuse
-them through the entry any more than out of the xlsx (SOP Step 5b). The other
-three are safe — one traced to the NAS6403 standard, two to their own
-source-control drawings, where the drawing *is* the controlling document for a
-vendor part. Do not quote those counts from here: a test asserts them against the
-file (`test_hardware_entry_values_source_counts_match_the_description`) because
-this very sentence had already gone stale once.
+**Read the `kind`, not a tally.** An entry sourced `kind: "workbook"` holds a
+slice-1 transcription, and a from-scratch stack may not reuse those numbers
+through the entry any more than out of the xlsx (SOP Step 5b) — that is the point
+of the field. `kind: "spec"` (the NAS6403/NAS6404 standard) and `kind: "drawing"`
+(a vendor part's source-control drawing, which *is* its controlling document) are
+safe to reuse. **This paragraph deliberately states no count**, because the
+sentence that used to stand here got the count wrong twice — and the second time,
+the stale sentence was the one carrying the warning not to quote counts from here.
+A prose warning is not a guard. The live tally is
+`hardware_entries.json`'s own `description`, recounted from the entries by
+`test_hardware_entry_values_source_counts_match_the_description`; and
+`test_no_live_document_states_an_unguarded_hardware_entry_count` fails the suite
+if any live document — this one included — grows its own copy of it again.
 
 **check result** (`joby.tolerance_stack/check_result/v0`) — produced, not
 stored: `worst_case_min/max`, `rss_min/max`, and a verdict of
