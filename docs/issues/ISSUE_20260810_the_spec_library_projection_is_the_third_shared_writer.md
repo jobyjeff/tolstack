@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: closed
 area: spec library / projections
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260812_spec_library_projection_provenance.md
+closed: 2026-08-12
 ---
 
 # `python -m tolerance_stack` is the third writer to a shared gitignored projection, and the only one with no stamp at all
@@ -84,3 +85,26 @@ fix, and it would make the stamp unnecessary rather than better.
 Nothing is currently wrong in the tree — verified by rebuilding and diffing. This
 is the same latent hazard the viewer projections carried for two months before it
 fired three times.
+
+## Closed 2026-08-12 — `spec_library_projection_provenance`
+
+Fixed as suggested: `main()` takes `--data-root` / `--allow-older-tree`,
+`rebuild()` stamps `provenance` and refuses a rebuild from a non-ancestor tree,
+and `projection_provenance.stamp()` grew a `source_key` so this file records
+`events_dir` rather than the viewer's `stacks_dir`. No top-level `built_at`:
+`results.json` carries one only because consumers already read it by that name,
+and a second copy of `provenance.built_at` here could only ever disagree with the
+one beside it.
+
+The open question — *should this be derived-and-gitignored at all?* — was
+answered **keep it, and stamp it**, with one correction to this issue's own
+premise. "`library.json` is what `library_ref` resolves through" is not true of
+the code: **nothing in the repo reads the file**, and every consumer already
+folds the event log in process, so switching consumers to in-process derivation
+is a no-op. What the file serves is the *reader* who turns a `library_ref` into
+numbers by hand, which is still the path a stale value takes into a stack
+wearing `confidence: "traced"` — and deleting the file sends that reader to the
+raw event log to fold corrections in their head, which is worse. The leverage
+claim survives; the mechanism in it did not. Argument recorded in
+`tolerance_stack/spec_library.py`'s rebuild section and
+`docs/sessions/lessons/LESSONS_20260812_spec_library_projection_provenance.md`.

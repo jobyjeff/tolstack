@@ -594,9 +594,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `viewer_projection_provenance` audited "writers to a shared gitignored
       `data/` dir" by grepping `scripts/` + `tests/` for a `--data-root`-style
       default, and so missed `tolerance_stack/spec_library.rebuild()` — a
-      wipe-and-rebuild of `data/projections/spec_library/library.json` that has no
-      such flag, cannot be pointed at the main checkout at all, and carries no
-      stamp of any kind. Grepping for the shape of the members you already know
+      wipe-and-rebuild of `data/projections/spec_library/library.json` that had no
+      such flag, could not be pointed at the main checkout at all, and carried no
+      stamp of any kind (fixed 2026-08-12 by `spec_library_projection_provenance`,
+      which also re-ran the enumeration by behaviour and got **three** members;
+      the checklist item stands — it is about how the miss happened).
+      Grepping for the shape of the members you already know
       finds only those (`ISSUE_20260810_the_spec_library_projection_is_the_third_shared_writer.md`).
       Two greps that would have caught it: writers (`write_text`, `json.dump`,
       `open(..., "w")`) and `REPO_ROOT / "data"` across **every** package dir, not

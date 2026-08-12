@@ -64,7 +64,9 @@ be wrong.
   immutable `spec-parse/v0` event per (document, parser-version),
   `intake_queue.json` says which document closes which gap. Read its `README.md`
   before adding either. Rebuild the projection with
-  `venv-win\Scripts\python.exe -m tolerance_stack`.
+  `venv-win\Scripts\python.exe -m tolerance_stack` — from a worktree, add
+  `--data-root C:\workspace\tolstack\data`, since `data/` is shared and this
+  tree's copy is deleted at cleanup.
 - `docs/reference/` — imported reference material, not authored here.
   **Insert-only**: imported text is never edited, only annotated with dated
   correction blockquotes (rule and rationale in `ARCHITECTURE.md`, "Imported

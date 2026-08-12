@@ -9,10 +9,38 @@ docs/spec_library/
   events/*.json        spec-parse/v0 -- COMMITTED, immutable, append-only
   intake_queue.json    spec_intake/v0 -- which document closes which gap
 data/projections/spec_library/library.json
-                       the fold. Derived, gitignored, disposable.
+                       the fold. Derived, gitignored, disposable -- and SHARED:
+                       data/ exists only in the main checkout.
 ```
 
-Rebuild: `venv-win\Scripts\python.exe -m tolerance_stack`
+Rebuild, from the main checkout:
+
+```
+venv-win\Scripts\python.exe -m tolerance_stack
+```
+
+From a worktree, `data/` is that worktree's own throwaway copy, so name the main
+checkout's or the rebuild lands nowhere anybody reads:
+
+```
+C:\workspace\tolstack\venv-win\Scripts\python.exe -m tolerance_stack ^
+    --data-root C:\workspace\tolstack\data
+```
+
+That output directory is shared by every live worktree, so the rebuild **stamps
+which tree it built from** (`provenance`: branch, HEAD sha, dirty, distance from
+trunk, and the events dir resolved absolute) and **refuses** to overwrite a
+projection built from a tree this one does not contain — the same gate the two
+viewer projections use, `scripts/projection_provenance.py`, with
+`--allow-older-tree` to override it loudly.
+
+Why the file exists at all, given that the fold is a pure function of committed
+events: nothing in the repo *reads* it — every code consumer calls
+`build_library(load_events(...))` in process. It is there for the **reader** who
+has to turn a `library_ref` into numbers and would otherwise fold the event log
+by hand, which is exactly the path a stale value takes into a stack claiming
+`confidence: "traced"`. Kept, and therefore stamped
+(`spec_library_projection_provenance`, 2026-08-12).
 
 ## Parses are events, not edits
 
