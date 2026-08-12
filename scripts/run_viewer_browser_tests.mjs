@@ -12,8 +12,10 @@
 //      scripts; only a real file:// load proves index.html's script tags load in
 //      the right order with no ESM/CORS surprise.
 //   2. index.html?mock=1 really renders: the stack list, the elements table, an
-//      untraced row that is visibly filled, an INCOMPLETE check, and the gap
-//      list — asserted against the live DOM and CSS, not a shim.
+//      untraced row that is visibly filled, an unestablished export block that is
+//      visibly filled, an INCOMPLETE check, and the gap list — asserted against
+//      the live DOM and CSS, not a shim. "Impossible to miss" is a CSS claim, and
+//      a class-name check would pass straight through a stylesheet typo.
 //   3. The crop popover opens on a REAL click and shows the resolved crop's
 //      links, and shows the *reason* for the unresolvable one. Hover/focus
 //      wiring is exactly what a DOM shim is blind to.
@@ -123,6 +125,29 @@ async function testTheApp(browser, url, label) {
     push("the zero-width band is marked",
       await page.locator("tr.el-row--zero-width").count() === 1 &&
       await page.locator("td.num--zero-width").count() === 2);
+
+    // The export block, and specifically the claim that an UNESTABLISHED export
+    // is impossible to miss. "Impossible to miss" is a CSS claim, and a
+    // stylesheet typo would pass any class-name check the DOM shim can make — so
+    // it is asserted here the same way the untraced chip is, on the computed
+    // style. The washer's fixture citation is the unestablished one; the plate's
+    // is established.
+    push("an established export names its file and its sha on the row",
+      /export established/.test(await page.locator(".el-export--established").textContent()) &&
+      /sha256 recorded/.test(await page.locator(".el-export--established").textContent()));
+    const unestablished = page.locator(".el-export--unestablished");
+    push("an unestablished export shows its recorded why without a crop",
+      await unestablished.count() === 1 &&
+      /none hashes to the one/.test(await page.locator(".el-export__why").textContent()));
+    const exportChipColor = await page.locator(".chip--export-unestablished").first()
+      .evaluate((n) => getComputedStyle(n).backgroundColor);
+    push("the unestablished-export chip is filled, not transparent",
+      exportChipColor && exportChipColor !== "rgba(0, 0, 0, 0)" &&
+      exportChipColor !== "transparent");
+    const exportBg = await unestablished.first()
+      .evaluate((n) => getComputedStyle(n).backgroundColor);
+    push("the unestablished export block is tinted",
+      exportBg && exportBg !== "rgba(0, 0, 0, 0)");
     push("the INCOMPLETE check is flagged",
       await page.locator("article.check--incomplete").count() === 1);
     push("both verdicts render",

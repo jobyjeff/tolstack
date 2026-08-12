@@ -115,6 +115,8 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | amber `inferred` | a reading or an argument sits between the document and the value |
 | **filled red `UNTRACED`** | no document backs it. Filled, plus a row tint — an untraced value has to survive being skimmed |
 | **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all |
+| **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below |
+| **filled magenta `CTE NOT TRANSCRIBED`** | a material whose `values_status` says nobody has read the CTE off a source |
 | dashed blue `zero-width band` | `min == max`; no document gives a tolerance, so every interval it feeds is a **lower bound** on the real spread. A separate axis from confidence, not a fourth confidence |
 | striped card + amber `INCOMPLETE` | a term is missing from the check. Read the magnitude as a budget for the missing term, never as a verdict on the joint |
 | dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |
@@ -124,12 +126,73 @@ Provenance is the only saturated colour on the page; everything else is grey.
 A path or check also shows the **weakest** confidence among its expanded inputs:
 a check fed by four traced elements and one untraced one is an untraced result.
 
+## Which bytes the number was read off
+
+A citation says *where on a page* a value is written. `source_ref.export` says
+*which file that page was in* — and the two are not the same claim, because
+filenames get re-exported over, so a drawing number and a revision do not
+identify bytes. Every element's sourcing cell carries the export block beneath
+its citation:
+
+| state | what the block says |
+|---|---|
+| `established` | *export established: `X.pdf`* · **sha256 recorded** (first 12) · the drawing-checker runs that consumed it, or *no run has consumed this export*. The sha **is** the identity; runs are corroboration, and 15 of the 22 live established exports have none. |
+| `unestablished` | **filled magenta, on the row and on the block**: *EXPORT UNESTABLISHED — which file this value was read off cannot be identified*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
+| no `export` key | *no export block — this citation names no exported file, so nothing here identifies the bytes the value was read off*. Stated, not alarmed: 22 of the 48 live citations are workbook or assumed sources with no PDF to name. Four of them are `traced` `spec` citations, which is the interesting case. |
+| anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. |
+
+Two deliberate limits:
+
+* the block says a sha is **recorded**, never *verified*. The viewer cannot hash a
+  file, so that is the only honest claim available to it; `sha256 VERIFIED`
+  belongs to the crop hover below, where a script really did compare bytes.
+* a run id is a **link** only where the element's own crop resolved through that
+  run. An export carries a run *id* (`20260803_145243`); drawing-checker addresses
+  a run by its *directory* name (the id plus the drawing), which only the crop
+  entry knows. Every other id prints as plain text with a hover saying why —
+  building a URL from a prefix would be a guess, which is the class of mistake
+  this whole surface exists against.
+
+The export block renders whether or not a crop resolved, which is the point: until
+2026-08-12 these facts appeared **only** in the crop popover, so a citation whose
+crop could not be pinned said nothing at all about its export — a fact about a
+*citation* reachable only through a *crop*
+(`ISSUE_20260811_viewer_shows_nothing_for_source_ref_export`).
+
+## Materials — the provenance of a *number*
+
 A stack whose archetype has **material properties** also gets a Materials table:
 the `materials.json` entry verbatim (designation, CTE, the range it is a mean
 over) beside its own sourcing — and the CTEs are the least-traced numbers in this
 repo, so the table speaks the same colour language as the elements table. A
 thermal fit's answer is a CTE *difference*, and the soak factor in a term's
 coefficient is `1 + ΔT·α` from that table with the ΔT on the check card.
+
+A material's *name* and its *number* have different provenance, and the sourcing
+cell keeps them apart:
+
+* **`values_status`** — what kind of record the CTE column is. `inline`: the
+  number is the record. `library`: it is a **cross-check** of the projection named
+  in `library_ref`, not the record. `not_transcribed`: **filled magenta** — nobody
+  read it off anything and the value is a placeholder the schema requires. All
+  three rendered identically until 2026-08-12.
+* **`library_ref`** — printed whenever it is set, *whatever the status says*:
+  `spec_library:NAS6403U11D` is the provenance of a number, and reading the field
+  only under `values_status: "library"` would be the same silent drop one field
+  along. `library` with **no** `library_ref` is a self-contradiction the schema
+  permits, so the viewer says so loudly.
+* **the two temperature ranges, paired** — the range the source *quoted* the mean
+  over, and the ranges this stack *applies* it over (`applied_over_c`, in accent
+  blue beneath it). A mean CTE quoted over 20…100 °C and applied over 20…−20 °C is
+  the quiet way a thermal answer goes wrong. The viewer prints both and compares
+  neither: deciding whether one covers the other is arithmetic, and arithmetic
+  happens in Python.
+* **`designation_source`** — where the *name* came from, with its callout and
+  note. Its confidence chip has been on the row since the table shipped; where the
+  name came from had not.
+* **`cindas_request`** — the outstanding ask for a real value, clamped, where the
+  entry records one. A CTE traced to nothing whose recorded next step is invisible
+  is the same defect one layer down.
 
 ## Hover crops
 

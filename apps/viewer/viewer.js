@@ -180,6 +180,241 @@
     return parts.join(" · ") || "no location";
   };
 
+  // --- source_ref.export: WHICH BYTES the value was read off ---------------
+  //
+  // A citation says where on a page a number is written. The export block says
+  // which FILE that page was in, and the two are not the same claim: filenames
+  // get re-exported over, so a drawing number and a revision do not identify
+  // bytes. Every live citation has carried this block since 2026-08-06 and the
+  // viewer rendered none of it until 2026-08-12
+  // (ISSUE_20260811_viewer_shows_nothing_for_source_ref_export) — which made the
+  // asymmetry the issue was filed for: the crop hover said "sha256 VERIFIED",
+  // but only for a citation whose crop RESOLVED, so a fact about the citation was
+  // reachable only through a crop.
+
+  // Every `status` a SourceExport can carry (tolerance_stack/stack.py), with the
+  // sentence each earns. A table, not an if/else chain, for the reason
+  // VA.CROP_RULES is one: an enumerated field needs a total function, because a
+  // silent default cannot be told apart from a handled case by reading the code.
+  // `loud` is the difference that matters on screen — `unestablished` is the
+  // stack stating outright that the bytes behind this number cannot be
+  // identified, and it must not look like a citation whose export is nailed down.
+  VA.EXPORT_STATUSES = {
+    established: {
+      loud: false,
+      headline: function (x) {
+        return "export established: " + (VA.baseName(x.pdf) || "(names no file)");
+      },
+    },
+    unestablished: {
+      loud: true,
+      headline: function () {
+        return "EXPORT UNESTABLISHED — which file this value was read off cannot " +
+          "be identified";
+      },
+    },
+  };
+
+  // A citation with no `export` key at all. Distinct from `unestablished`: that
+  // one is a recorded finding with a reason, this one is a citation nobody has
+  // been through yet. 22 of 48 live citations are here, and four of them are
+  // `traced` — so this state is not a synonym for "untraced value" either.
+  VA.NO_EXPORT_TEXT =
+    "no export block — this citation names no exported file, so nothing here " +
+    "identifies the bytes the value was read off";
+
+  // A status the viewer has never heard of. Names the value rather than
+  // describing it, because the reader's next step is to grep for it.
+  VA.unlabelledExportStatusText = function (status) {
+    return "export status " + JSON.stringify(status === undefined ? null : status) +
+      ", which this viewer has no branch for — whether the bytes behind this " +
+      "value are identified is NOT shown here; read the citation in the stack file";
+  };
+
+  // Last path segment of a Windows or POSIX path. The export's `pdf` is absolute
+  // and long ("[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER"
+  // lives under a drawing-checker inbox), and the full path is rendered beside
+  // it — this is the part a reader recognises.
+  VA.baseName = function (path) {
+    if (!path) return null;
+    var parts = String(path).replace(/\\/g, "/").split("/");
+    return parts[parts.length - 1] || null;
+  };
+
+  // Whether a sha256 is RECORDED, and its first 12 — never "verified". The
+  // viewer cannot hash a file, so the only honest claim it can make about an
+  // export's sha is that the stack wrote one down. The VERIFIED/NOT-VERIFIED
+  // language belongs to the crop hover, where a script really did compare bytes
+  // (VA.cropShaText).
+  VA.exportShaText = function (exportBlock) {
+    var sha = exportBlock && exportBlock.sha256;
+    return sha
+      ? "sha256 recorded (" + String(sha).slice(0, 12) + "…)"
+      : "NO sha256 recorded — the file is identified by name only";
+  };
+
+  // The run ids out of `export.runs`, whose entries are `{run_id, ts}`. Runs are
+  // CORROBORATION, never identity: one export can feed several drawing-checker
+  // runs or none at all (15 of the 22 live established exports have none), so an
+  // empty list is a fact about the file's history and not a gap in the record.
+  VA.exportRunIds = function (exportBlock) {
+    return ((exportBlock && exportBlock.runs) || []).map(function (run) {
+      return (run && run.run_id) || "(a run entry with no id)";
+    });
+  };
+
+  // Which of an export's run ids this page can actually LINK, and to where.
+  //
+  // The export carries run IDS (`20260803_145243`). drawing-checker addresses a
+  // run by its DIRECTORY name (`20260803_145243_217755_A.1_PROPULSION_...`),
+  // which is the id plus the drawing — a prefix relationship, not the same
+  // string, and build_viewer_crops.py resolves it by scanning the runs dir. So
+  // the viewer cannot build a run URL out of an id, and it does not try: it
+  // reuses the crop popover's link (VA.runUrl) for the one id the element's own
+  // crop entry resolved through, and prints every other id as plain text.
+  // Inventing a URL from a prefix would be the same class of mistake as a crop
+  // of a guessed export.
+  VA.exportRunLinks = function (config, exportBlock, cropEntry) {
+    var url = (cropEntry && cropEntry.status === "resolved")
+      ? VA.runUrl(config, cropEntry) : null;
+    return VA.exportRunIds(exportBlock).map(function (runId) {
+      return {
+        run_id: runId,
+        url: (url && cropEntry.run_id === runId) ? url : null,
+      };
+    });
+  };
+
+  // The view-model of one citation's export block: everything a renderer needs
+  // and no DOM, so the node tier reads exactly what a reader sees.
+  //   state    "established" | "unestablished" | "none" | "unlabelled"
+  //   loud     true when the state must be impossible to miss
+  //   headline the one sentence
+  //   why      the recorded reason, on `unestablished` only
+  // Returns null when there is no citation at all — VA.citationWhere already
+  // says "no source_ref", and saying it twice buys nothing.
+  VA.exportProvenance = function (sourceRef) {
+    if (!sourceRef) return null;
+    var x = sourceRef.export;
+    if (!x) {
+      return { state: "none", loud: false, headline: VA.NO_EXPORT_TEXT,
+               why: null, pdf: null, pdfName: null, shaText: null,
+               runIds: [], note: null };
+    }
+    var rule = VA.EXPORT_STATUSES[x.status];
+    var established = x.status === "established";
+    return {
+      state: rule ? x.status : "unlabelled",
+      loud: rule ? rule.loud : true,
+      headline: rule ? rule.headline(x) : VA.unlabelledExportStatusText(x.status),
+      why: x.why || null,
+      pdf: x.pdf || null,
+      pdfName: VA.baseName(x.pdf),
+      // Only where a sha is part of the claim. An unestablished export names no
+      // file and carries no sha by construction (SourceExport raises if it
+      // does), so "NO sha256 recorded" there would read as a second, separate
+      // failing when it is the same one.
+      shaText: established ? VA.exportShaText(x) : null,
+      runIds: VA.exportRunIds(x),
+      note: x.note || null,
+    };
+  };
+
+  // The one-line text form, for a hover and for a test that wants to read what
+  // the panel says without walking the DOM.
+  VA.exportProvenanceLine = function (sourceRef) {
+    var p = VA.exportProvenance(sourceRef);
+    if (!p) return "";
+    var bits = [p.headline];
+    if (p.why) bits.push("why: " + p.why);
+    if (p.shaText) bits.push(p.shaText);
+    if (p.state === "established") {
+      bits.push(p.runIds.length
+        ? "drawing-checker runs: " + p.runIds.join(", ")
+        : "no drawing-checker run has consumed this export");
+    }
+    return bits.join(" · ");
+  };
+
+  // --- material provenance: the sourcing OF A NUMBER -----------------------
+
+  // Where a material entry's CTE actually comes from
+  // (tolerance_stack/materials.py). Enumerated, so it gets a table for the same
+  // reason `export.status` does — and this one had NO viewer branch at all until
+  // 2026-08-12, which meant `library` rendered identically to `inline` even
+  // though one says the number in front of you is a cross-check and the other
+  // says it is the source.
+  // `loud` is a function of the ENTRY, not a constant, for one state:
+  // `library` with no `library_ref` is a self-contradiction — the entry says the
+  // number resolves through a projection and then names none — and rendering a
+  // contradiction quietly is the defect class this whole surface exists against.
+  VA.VALUES_STATUSES = {
+    inline: {
+      loud: function () { return false; },
+      text: function () {
+        return "CTE transcribed INLINE in materials.json — the number above is " +
+          "the record, and its citation is the one beside it";
+      },
+    },
+    library: {
+      loud: function (entry) { return !entry.library_ref; },
+      text: function (entry) {
+        return entry.library_ref
+          ? "CTE resolved through the spec library: " + entry.library_ref +
+            " — the number above is a CROSS-CHECK of what that projection says, " +
+            "not the record"
+          : "values_status says this CTE resolves through the spec library and " +
+            "the entry names NO library_ref — there is nothing for it to resolve " +
+            "through, so what the number above is a record of is unstated";
+      },
+    },
+    not_transcribed: {
+      loud: function () { return true; },
+      text: function () {
+        return "CTE NOT TRANSCRIBED — nobody has read this number off a source; " +
+          "the value above is a placeholder the schema requires";
+      },
+    },
+  };
+
+  VA.unlabelledValuesStatusText = function (status) {
+    return "values_status " + JSON.stringify(status === undefined ? null : status) +
+      ", which this viewer has no branch for — whether this CTE is a " +
+      "transcription, a library cross-check or nothing at all is NOT shown here";
+  };
+
+  // The view-model of a material entry's value provenance.
+  //   state      a VA.VALUES_STATUSES key, or "unlabelled"
+  //   libraryRef the projection this number resolves through, when there is one.
+  //              Reported independently of `state`, because the schema lets an
+  //              `inline` entry carry one too (thermal.py validates the pair no
+  //              further) — and a field the viewer only reads under one status is
+  //              a field that gets dropped under the others, which is the bug
+  //              this function was written to end.
+  VA.valuesProvenance = function (entry) {
+    if (!entry) return null;
+    var rule = VA.VALUES_STATUSES[entry.values_status];
+    return {
+      state: rule ? entry.values_status : "unlabelled",
+      loud: rule ? rule.loud(entry) : true,
+      text: rule ? rule.text(entry) : VA.unlabelledValuesStatusText(entry.values_status),
+      libraryRef: entry.library_ref || null,
+    };
+  };
+
+  // The soak ranges a scalar CTE is APPLIED over, printed beside the range the
+  // source quoted it for. A mean CTE quoted over 20…100 and applied over 20…−20
+  // is the quiet way a thermal answer goes wrong — so both are rendered and
+  // NEITHER is compared: deciding whether one covers the other is arithmetic,
+  // and arithmetic happens in Python (see the header of this file).
+  VA.appliedOverText = function (ranges) {
+    var list = ranges || [];
+    if (!list.length) return null;
+    return "applied over " + list.map(function (pair) {
+      return (pair || []).map(VA.fmt).join(" … ");
+    }).join(", ") + " °C";
+  };
+
   // --- crops --------------------------------------------------------------
 
   // Four distinct answers, and the difference between them matters:

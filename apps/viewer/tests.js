@@ -588,6 +588,291 @@
       ok(root.textContent.indexOf("Materials") === -1, "no empty heading");
     });
 
+    // --- source_ref.export: WHICH BYTES the number was read off --------------
+    //
+    // Every live citation has carried this block since 2026-08-06 and the viewer
+    // rendered none of it until 2026-08-12
+    // (ISSUE_20260811_viewer_shows_nothing_for_source_ref_export). The asymmetry
+    // is the reason it was a bug and not a missing nicety: the crop hover said
+    // "sha256 VERIFIED", but only for a citation whose crop RESOLVED — so a fact
+    // about the citation was reachable only through a crop, and the citations
+    // whose crop cannot resolve are exactly the ones a reviewer needs it for.
+
+    await test("exportProvenance keeps the four export states apart", function () {
+      var refs = DEMO.stack.elements;
+      eq(VA.exportProvenance(refs[0].source_ref).state, "established");
+      eq(VA.exportProvenance(refs[1].source_ref).state, "unestablished");
+      // No `export` key at all: 22 of the 48 live citations, and a different fact
+      // from `unestablished` — that one is a recorded finding with a reason, this
+      // is a citation nobody has been through.
+      eq(VA.exportProvenance(refs[2].source_ref).state, "none");
+      // A status this viewer has never heard of must be LOUD, not silent — the
+      // same lesson VA.CROP_RULES learned the hard way.
+      var stranger = VA.exportProvenance({ export: { status: "provisional" } });
+      eq(stranger.state, "unlabelled");
+      eq(stranger.loud, true);
+      has(stranger.headline, "\"provisional\"");
+      has(stranger.headline, "no branch for");
+      // And no citation at all says nothing here: citationWhere already says it.
+      eq(VA.exportProvenance(null), null);
+    });
+
+    await test("only the unidentifiable states are loud", function () {
+      var refs = DEMO.stack.elements;
+      eq(VA.exportProvenance(refs[0].source_ref).loud, false);
+      eq(VA.exportProvenance(refs[1].source_ref).loud, true);
+      // `none` is stated plainly, not alarmed: for a workbook or assumed source
+      // there is no exported PDF to name, and a red row on 22 of 48 citations is
+      // an alarm a reader learns to ignore.
+      eq(VA.exportProvenance(refs[2].source_ref).loud, false);
+    });
+
+    // The viewer cannot hash a file, so the only honest claim it can make about
+    // an export's sha is that the stack wrote one down. VERIFIED belongs to the
+    // crop hover, where build_viewer_crops.py really did compare bytes — and
+    // "recorded" reading as "verified" is the same collapse VA.cropShaText exists
+    // to prevent one layer up.
+    await test("an export's sha is RECORDED, never described as verified", function () {
+      var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
+      has(line, "sha256 recorded (a1b2c3d4e5f6…)");
+      ok(line.indexOf("VERIFIED") === -1, "the viewer verifies nothing: " + line);
+      has(VA.exportShaText({ status: "established" }), "NO sha256 recorded");
+    });
+
+    await test("an established export names the file, the sha and the runs", function () {
+      var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
+      // The BASENAME, because the live paths are absolute and 90 characters long.
+      has(line, "export established: 215197.pdf");
+      has(line, "drawing-checker runs: 20260804_114000_x");
+      // An export no run ever consumed says so — 15 of the 22 live established
+      // exports are in that state, and a blank would read as a missing record
+      // rather than an empty one.
+      has(VA.exportProvenanceLine({
+        export: { status: "established", pdf: "C:/x/y.pdf", sha256: "ab", runs: [] },
+      }), "no drawing-checker run has consumed this export");
+    });
+
+    await test("an unestablished export leads with the why, not with the file", function () {
+      var line = VA.exportProvenanceLine(DEMO.stack.elements[1].source_ref);
+      has(line, "EXPORT UNESTABLISHED");
+      has(line, "none hashes to the one this .032\" was read off");
+      // No sha clause at all: an unestablished export carries no sha by
+      // construction (SourceExport raises if it does), so "NO sha256 recorded"
+      // would read as a second, separate failing when it is the same one.
+      ok(line.indexOf("sha256") === -1, "no sha clause on an unestablished export");
+    });
+
+    // The link treatment is REUSED from the crop popover rather than invented,
+    // and it stops exactly where the data stops: an export carries a run ID, and
+    // drawing-checker addresses a run by its DIRECTORY name — the id plus the
+    // drawing. A URL built from the id alone would be a guess, which is the same
+    // class of mistake as a crop of a guessed export.
+    await test("a run id is linked only where the crop entry supplies the run dir", function () {
+      var exportBlock = {
+        status: "established",
+        runs: [{ run_id: "20260409_170546" }, { run_id: "20260409_172341" }],
+      };
+      var resolved = { status: "resolved", run_id: "20260409_170546",
+                       run_dir: "20260409_170546_215197_A.1" };
+      var links = VA.exportRunLinks(VA.CONFIG, exportBlock, resolved);
+      eq(links.length, 2);
+      has(links[0].url, "/run/20260409_170546_215197_A.1");
+      eq(links[1].url, null, "the second run's directory name is unknown here");
+      // The fixture's own crop resolved through the export rather than a run, so
+      // it carries no run_dir and nothing is linkable.
+      eq(VA.exportRunLinks(VA.CONFIG, exportBlock, CROPS.by_stack.demo_joint.plate)
+         .map(function (l) { return l.url; }), [null, null]);
+      // An unresolvable crop supplies nothing either, and the ids still print.
+      eq(VA.exportRunLinks(VA.CONFIG, exportBlock,
+                           CROPS.by_stack.demo_joint.washer).length, 2);
+      // A run entry with no id is named rather than rendered as an empty link.
+      has(VA.exportRunIds({ runs: [{ ts: "2026-08-04T00:00:00+00:00" }] })[0],
+          "no id");
+    });
+
+    await test("baseName survives both slash conventions", function () {
+      eq(VA.baseName("C:\\workspace\\drawing-checker\\a b, c.pdf"), "a b, c.pdf");
+      eq(VA.baseName("/tmp/x.pdf"), "x.pdf");
+      eq(VA.baseName(null), null);
+    });
+
+    // --- source_ref.export, on the page --------------------------------------
+
+    await test("an established export reaches the element row", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      var box = all(root, "div.el-export--established");
+      eq(box.length, 1);
+      has(box[0].textContent, "export established: 215197.pdf");
+      has(box[0].textContent, "sha256 recorded");
+      has(box[0].textContent, "20260804_114000_x");
+      // The absolute path beside the basename, for the same reason the crop
+      // popover prints it: a file:// link only navigates from a file:// page, and
+      // copy-paste is the fallback that always works.
+      has(all(root, "div.el-export__path")[0].textContent, "C:/workspace/demo/215197.pdf");
+      // The export's own note is clamped like the citation's, and does NOT reuse
+      // its class — a selector for one must never pick up the other.
+      var note = all(root, "div.el-export__note")[0];
+      ok(note, "the export note is rendered");
+      has(note.textContent, "hashes nothing");
+      ok(note.className.indexOf("--open") === -1, "clamped by default");
+      note.click();
+      has(note.className, "el-export__note--open");
+    });
+
+    // THE DELIVERABLE. The stack states outright that the bytes behind this
+    // number cannot be identified, with a recorded reason — and until this test
+    // existed the row showed the same "inferred" chip as a citation whose export
+    // is nailed down.
+    await test("an unestablished export is loud on the row and shows its why", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      var box = all(root, "div.el-export--unestablished");
+      eq(box.length, 1);
+      ok(box[0].className.indexOf("el-export--loud") !== -1, "must be loud");
+      has(box[0].textContent, "EXPORT UNESTABLISHED");
+      // The reason, unclamped and not behind a hover: it was reachable only
+      // through a crop popover before, and hiding it behind a second click here
+      // would reproduce that defect one notch down.
+      var why = all(root, "div.el-export__why");
+      eq(why.length, 1);
+      has(why[0].textContent, "none hashes to the one this .032\" was read off");
+      // Legible from the ROW, which is the question the handoff asks: a filled
+      // chip beside the confidence chip, on the washer's row and no other.
+      var chips = all(root, "span.chip--export-unestablished");
+      eq(chips.length, 1);
+      has(chips[0].textContent, "EXPORT UNESTABLISHED");
+      var rows = all(root, "tr.el-row");
+      has(rows[1].textContent, "EXPORT UNESTABLISHED");
+      ok(rows[0].textContent.indexOf("EXPORT UNESTABLISHED") === -1,
+         "the established row is not tarred with it");
+    });
+
+    // ...and it says so WITHOUT a crop, which is the whole asymmetry argument:
+    // the washer's crop is unresolvable and its reason lives in a popover nobody
+    // has opened.
+    await test("the unestablished why needs no crop to be resolved", function () {
+      eq(VA.cropFor(CROPS, "demo_joint", "washer").status, "unresolvable");
+      var root = render(function (r) { VA.renderStack(r, DEMO, null, {}); });
+      has(all(root, "div.el-export__why")[0].textContent, "none hashes to the one");
+      has(root.textContent, "EXPORT UNESTABLISHED");
+    });
+
+    await test("a citation with no export block says so rather than nothing", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      var box = all(root, "div.el-export--none");
+      eq(box.length, 1);
+      has(box[0].textContent, "names no exported file");
+      // Not loud, and no chip: see the comment on the state in views/stack.js.
+      ok(box[0].className.indexOf("--loud") === -1);
+    });
+
+    await test("an export status the viewer cannot explain is loud on the row", function () {
+      var poisoned = JSON.parse(JSON.stringify(DEMO));
+      poisoned.stack.elements[0].source_ref.export = { status: "provisional" };
+      var root = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
+      var box = all(root, "div.el-export--unlabelled");
+      eq(box.length, 1);
+      ok(box[0].className.indexOf("el-export--loud") !== -1);
+      has(box[0].textContent, "\"provisional\"");
+      has(all(root, "span.chip--export-unlabelled")[0].textContent,
+          "EXPORT STATUS UNKNOWN");
+      // The unestablished chip's class is NOT reused for it: the two states are
+      // different facts and a stylesheet must be able to tell them apart, even
+      // though today they share one loud rule. The one on the page is the
+      // washer's, which this poisoning did not touch.
+      eq(all(root, "span.chip--export-unestablished").length, 1);
+      eq(all(root, "div.el-export--unestablished").length, 1);
+    });
+
+    // --- material provenance: the sourcing OF A NUMBER -----------------------
+
+    await test("valuesProvenance says what kind of record a CTE is", function () {
+      var entries = GEN.materials.map(function (m) { return m.material; });
+      eq(VA.valuesProvenance(entries[0]).state, "inline");
+      eq(VA.valuesProvenance(entries[0]).loud, false);
+      has(VA.valuesProvenance(entries[0]).text, "transcribed INLINE");
+      // `not_transcribed` is loud: nobody read this number off anything.
+      eq(VA.valuesProvenance(entries[2]).state, "not_transcribed");
+      eq(VA.valuesProvenance(entries[2]).loud, true);
+      has(VA.valuesProvenance(entries[2]).text, "NOT TRANSCRIBED");
+      // `library` — no live entry and no fixture entry is in this state (no
+      // materials library exists yet), so it is exercised inline. It is the state
+      // the whole field is FOR: `spec_library:NAS6403U11D` is the provenance of a
+      // number, and the CTE column would be a cross-check rather than the record.
+      var library = VA.valuesProvenance({ values_status: "library",
+                                          library_ref: "spec_library:AL_7050" });
+      eq(library.state, "library");
+      eq(library.loud, false);
+      has(library.text, "spec_library:AL_7050");
+      has(library.text, "CROSS-CHECK");
+      // ...and `library` with NO library_ref is a self-contradiction, so it is
+      // loud. The schema does not forbid it (thermal.py validates the pair no
+      // further), which is exactly why the viewer has to.
+      var broken = VA.valuesProvenance({ values_status: "library", library_ref: null });
+      eq(broken.loud, true);
+      has(broken.text, "names NO library_ref");
+      // An unknown status gets the loud unlabelled treatment, same as an export's.
+      var stranger = VA.valuesProvenance({ values_status: "estimated" });
+      eq(stranger.state, "unlabelled");
+      eq(stranger.loud, true);
+      has(stranger.text, "\"estimated\"");
+    });
+
+    await test("appliedOverText prints every soak range and compares none", function () {
+      eq(VA.appliedOverText([[20, 72], [20, -20]]), "applied over 20 … 72, 20 … -20 °C");
+      // Empty and absent both mean "this stack does not say", and neither may be
+      // rendered as a range.
+      eq(VA.appliedOverText([]), null);
+      eq(VA.appliedOverText(null), null);
+    });
+
+    await test("the materials table renders the provenance of the NUMBER", function () {
+      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+      var rows = all(root, "tr.mat-row");
+      // What kind of record each CTE is — three rows that looked identical here
+      // until 2026-08-12.
+      eq(all(root, "div.mat-row__values").length, 3);
+      has(rows[0].textContent, "transcribed INLINE");
+      has(rows[2].textContent, "CTE NOT TRANSCRIBED");
+      // ...and the loudest one is legible from the row, not only from the prose.
+      eq(all(root, "span.chip--values-not_transcribed").length, 1);
+      has(all(root, "div.mat-row__values--loud")[0].textContent, "NOT TRANSCRIBED");
+      // The ranges, paired: what the source quoted the mean over, and what this
+      // stack applies it over. The aluminium quotes none and is applied over one.
+      has(rows[0].textContent, "— not stated");
+      has(all(root, "div.mat-row__applied")[0].textContent, "applied over 20 … 72 °C");
+      has(rows[1].textContent, "20 … 100");
+      // The DESIGNATION's own citation. Its confidence chip has been there since
+      // the table shipped; where the name came from had not.
+      var desig = all(root, "div.mat-row__desig");
+      eq(desig.length, 3);
+      has(desig[0].textContent, "designation from: DEMO-1 · rev A · sheet 1 · NOTES · zone D9");
+      has(rows[0].textContent, "PRODUCE FROM DEMO ALUMINIUM T7451");
+      // A material with no designation_source says so rather than showing a blank.
+      has(desig[2].textContent, "no source_ref");
+      // The outstanding ask for a real value, where one is recorded.
+      var requests = all(root, "div.mat-row__request");
+      eq(requests.length, 2, "the stainless records no CINDAS request");
+      has(requests[0].textContent, "CINDAS request on record");
+      has(requests[0].textContent, "would make the fit looser than analysed");
+    });
+
+    await test("library_ref renders whatever the status says", function () {
+      // Reading it only under `values_status: "library"` would be the same silent
+      // drop this handoff exists to end, one field along — and the schema permits
+      // an `inline` entry to name one.
+      var poisoned = JSON.parse(JSON.stringify(GEN));
+      poisoned.materials[0].material.library_ref = "spec_library:AL_7050_T7451";
+      eq(VA.valuesProvenance(poisoned.materials[0].material).state, "inline");
+      var root = render(function (r) { VA.renderStack(r, poisoned, null, {}); });
+      var refs = all(root, "div.mat-row__libref");
+      eq(refs.length, 1);
+      has(refs[0].textContent, "library_ref: spec_library:AL_7050_T7451");
+      // Null on every live and fixture entry, and a null must render nothing at
+      // all rather than an empty label.
+      var plain = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+      eq(all(plain, "div.mat-row__libref").length, 0);
+    });
+
     await test("a declared worksheet says it was declared, not matched by name", function () {
       var root = render(function (r) { VA.renderWorksheet(r, GEN, "# demo\n"); });
       has(all(root, ".worksheet__note")[0].textContent, "provenance.worksheet");
@@ -1205,21 +1490,27 @@
             return refsIn(r).map(function (x) { return x.kind; })
               .concat(derivedIn(r).map(function (d) { return d.kind; }));
           } },
+        // These two rows were `known: NONE` — a pinned live vocabulary, because
+        // the viewer had no branch for either field — until
+        // viewer_export_and_material_provenance landed on 2026-08-12. They are
+        // now the STRONG form: they ask the viewer's own table, so teaching the
+        // viewer a value teaches the guard and there is nothing to keep in sync.
         { field: "materials[].material.values_status",
-          branch: "NONE — the viewer renders nothing for it, so `library` would " +
-            "look exactly like `inline` on screen even though one means the " +
-            "number is a cross-check and the other means it is the source. " +
-            "viewer_export_and_material_provenance's deliverable",
-          known: inList(["inline"]),
+          branch: "VA.VALUES_STATUSES, through VA.valuesProvenance — `library` no " +
+            "longer looks like `inline` on screen: one says the CTE column is a " +
+            "cross-check of the projection named in `library_ref`, the other says " +
+            "it is the record",
+          known: function (v) { return !!VA.VALUES_STATUSES[v]; },
           values: function (r) {
             return materialEntriesIn(r).map(function (m) { return m.values_status; });
           } },
         { field: "source_ref.export.status",
-          branch: "NONE — the viewer renders no part of source_ref.export " +
-            "(ISSUE_20260811_viewer_shows_nothing_for_source_ref_export), so an " +
-            "`unestablished` citation is today indistinguishable on screen from " +
-            "an sha-verified one",
-          known: inList(["established"]),
+          branch: "VA.EXPORT_STATUSES, through VA.exportProvenance — a status " +
+            "outside the table renders as the loud unlabelled block rather than " +
+            "falling through to silence, which is what the viewer did with the " +
+            "WHOLE export block until 2026-08-12 " +
+            "(ISSUE_20260811_viewer_shows_nothing_for_source_ref_export)",
+          known: function (v) { return !!VA.EXPORT_STATUSES[v]; },
           values: function (r) {
             return exportsIn(r).map(function (e) { return e.status; });
           } },
@@ -1332,6 +1623,131 @@
           return row.className.indexOf("conf--untraced") !== -1;
         }).length, 3);
       });
+
+      // --- [real] source_ref.export, against the live citations ---------------
+
+      function liveCitations() {
+        var out = [];
+        realResults.stacks.forEach(function (stackProj) {
+          ((stackProj.stack || {}).elements || []).forEach(function (element) {
+            if (element.source_ref) out.push([stackProj, element]);
+          });
+        });
+        return out;
+      }
+
+      await test("[real] every established export reaches its element row", function () {
+        var established = liveCitations().filter(function (pair) {
+          return VA.exportProvenance(pair[1].source_ref).state === "established";
+        });
+        // Derived from the data, not hard-coded: the count moves every time a
+        // handoff establishes another export, and a passing suite must not turn
+        // red for that (LESSONS_20260810_viewer_source_ref_export_label).
+        ok(established.length > 0, "the live projection must have established exports");
+        var byStack = {};
+        established.forEach(function (pair) { byStack[pair[0].id] = pair[0]; });
+        var rendered = {};
+        Object.keys(byStack).forEach(function (stackId) {
+          rendered[stackId] = render(function (r) {
+            VA.renderStack(r, byStack[stackId], realCrops, {});
+          }).textContent;
+        });
+        established.forEach(function (pair) {
+          var where = pair[0].id + ":" + pair[1].id;
+          var p = VA.exportProvenance(pair[1].source_ref);
+          var text = rendered[pair[0].id];
+          has(text, p.pdfName, where + " must name the export file");
+          has(text, "sha256 recorded", where + " must say a sha is on record");
+          // Under `established` a sha256 is mandatory (SourceExport raises
+          // without one), so a live export with none is a finding, not a display
+          // case.
+          ok(pair[1].source_ref.export.sha256, where + " must carry a sha256");
+          p.runIds.forEach(function (runId) {
+            has(text, runId, where + " must name run " + runId);
+          });
+        });
+      });
+
+      // THE ASYMMETRY THE ISSUE WAS FILED FOR. 22 of the 48 live citations cannot
+      // be pinned to a page, and for those the export block is the only place a
+      // reader could learn anything about the bytes — the crop popover has nothing
+      // to show. Every one of the 22 turns out to carry NO export block rather
+      // than an `unestablished` one, so this asserts the state they are really in.
+      await test("[real] every citation whose crop is unresolvable states its export",
+        function () {
+          var unresolved = realCrops.unresolved || [];
+          ok(unresolved.length > 0, "the live projection must have unresolvable crops");
+          unresolved.forEach(function (row) {
+            var stackProj = VA.findStack(realResults, row.stack);
+            var element = ((stackProj.stack || {}).elements || []).filter(function (e) {
+              return e.id === row.element;
+            })[0];
+            var where = row.stack + ":" + row.element;
+            var p = VA.exportProvenance(element.source_ref);
+            ok(p, where + " must have a citation");
+            // Whatever the state, the panel says something about it — the one
+            // outcome this handoff exists to make impossible is silence.
+            ok(p.headline && p.headline.length > 10, where + " renders no export headline");
+            eq(VA.cropFor(realCrops, row.stack, row.element).status, "unresolvable",
+               where + " should be the unresolvable case");
+          });
+        });
+
+      // No live citation is `unestablished` — nothing in the repo is — so the
+      // state this handoff most needed is demonstrated the only honest way
+      // available: give a REAL unresolvable citation the export block the schema
+      // would carry if someone had been through it, and read what the page then
+      // says. The fixture tier covers the same path on the washer.
+      await test("[real] an unestablished export on a real citation is loud, with its why",
+        function () {
+          var row = (realCrops.unresolved || [])[0];
+          var stackProj = JSON.parse(JSON.stringify(VA.findStack(realResults, row.stack)));
+          var element = stackProj.stack.elements.filter(function (e) {
+            return e.id === row.element;
+          })[0];
+          element.source_ref.export = {
+            status: "unestablished",
+            why: "no PDF export of " + row.document + " exists, so the bytes this " +
+              "value was read off cannot be identified",
+          };
+          var root = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
+          var box = all(root, "div.el-export--unestablished");
+          eq(box.length, 1, row.stack + ":" + row.element);
+          ok(box[0].className.indexOf("el-export--loud") !== -1, "must be loud");
+          has(all(root, "div.el-export__why")[0].textContent, "cannot be identified");
+          // ...and from the row alone, beside the confidence chip.
+          eq(all(root, "span.chip--export-unestablished").length, 1);
+          // The crop for that element is still unresolvable, which is the point:
+          // the reader learns this without a crop.
+          eq(VA.cropFor(realCrops, row.stack, row.element).status, "unresolvable");
+        });
+
+      await test("[real] the live material entries show the provenance of their CTE",
+        function () {
+          var entries = 0;
+          realResults.stacks.forEach(function (stackProj) {
+            var materials = stackProj.materials || [];
+            if (!materials.length) return;
+            var root = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
+            var text = root.textContent;
+            eq(all(root, "div.mat-row__values").length, materials.length,
+               stackProj.id + ": one values_status line per material row");
+            eq(all(root, "div.mat-row__desig").length, materials.length,
+               stackProj.id + ": one designation citation per material row");
+            materials.forEach(function (m) {
+              var authored = m.material || {};
+              var where = stackProj.id + ":" + m.id;
+              has(text, VA.valuesProvenance(authored).text, where);
+              // Every live entry is applied over two soak ranges and quotes none,
+              // which is exactly the pair a reader has to be able to compare.
+              var applied = VA.appliedOverText(authored.applied_over_c);
+              if (applied) has(text, applied, where);
+              if (authored.cindas_request) has(text, "CINDAS request on record", where);
+              entries++;
+            });
+          });
+          ok(entries > 0, "the live projection must carry material entries");
+        });
 
       await test("[real] both thermal stacks resolve the one worksheet that covers them",
         async function () {

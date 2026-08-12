@@ -175,6 +175,18 @@
       chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
         "min == max: every interval this feeds is a LOWER bound on the real spread."));
     }
+    // A chip only for the export states that must be legible from the ROW, at a
+    // glance, across a thirty-row table: `unestablished` and a status this viewer
+    // cannot explain. `established` and "no export block" get no chip — they are
+    // 48 of the 48 live citations between them, and a chip on every row is a chip
+    // nobody reads. The block below the citation carries all four states in full.
+    var exportView = VA.exportProvenance(element.source_ref);
+    if (exportView && exportView.loud) {
+      chips.appendChild(VA.chip("chip--export-" + exportView.state,
+        exportView.state === "unestablished" ? "EXPORT UNESTABLISHED"
+          : "EXPORT STATUS UNKNOWN",
+        exportView.headline + (exportView.why ? " — " + exportView.why : "")));
+    }
     cell.appendChild(chips);
     cell.appendChild(VA.el("div", "el-row__where", VA.citationWhere(element.source_ref)));
     if (element.source_ref && element.source_ref.callout) {
@@ -185,17 +197,106 @@
       // argument behind a citation — often a paragraph — and left unclamped a
       // six-element stack is metres tall, which is how a review surface stops
       // being reviewed. The full text is also the tooltip.
-      var note = VA.el("div", "el-row__srcnote", element.source_ref.note);
-      note.setAttribute("title", "click to expand / collapse");
-      note.onclick = function () {
-        note.className = note.className.indexOf("el-row__srcnote--open") === -1
-          ? "el-row__srcnote el-row__srcnote--open"
-          : "el-row__srcnote";
-      };
-      cell.appendChild(note);
+      cell.appendChild(clampedNote("el-row__srcnote", element.source_ref.note));
     }
+    // WHICH BYTES the number was read off, beneath where on the page it is
+    // written. Above the crop trigger on purpose: this is a fact about the
+    // CITATION, and until 2026-08-12 the only place it surfaced was the crop
+    // popover — so a citation whose crop could not resolve said nothing at all
+    // about its export, which is the wrong way round in a repo whose worst
+    // defect class is a provenance record making a false-looking claim.
+    var exportBlock = exportProvenanceBlock(stackProj, element, cropsIndex);
+    if (exportBlock) cell.appendChild(exportBlock);
     cell.appendChild(cropTrigger(stackProj, element, cropsIndex, handlers));
     return cell;
+  }
+
+  // A paragraph of provenance prose: clamped, click to expand, full text on
+  // hover. Two of these now (the citation's note and its export's), and they
+  // keep separate class names so a selector for one never picks up the other.
+  function clampedNote(baseClass, text) {
+    var note = VA.el("div", baseClass, text);
+    note.setAttribute("title", "click to expand / collapse");
+    note.onclick = function () {
+      note.className = note.className.indexOf(baseClass + "--open") === -1
+        ? baseClass + " " + baseClass + "--open"
+        : baseClass;
+    };
+    return note;
+  }
+
+  // --- source_ref.export ----------------------------------------------------
+
+  // The export block for one element: its status, the file, that a sha256 is on
+  // record, and the runs that corroborate it. All four were dropped entirely
+  // until 2026-08-12 (ISSUE_20260811_viewer_shows_nothing_for_source_ref_export).
+  //
+  // The loud states are `unestablished` and a status this viewer has no branch
+  // for. `none` — a citation with no export block, which is 22 of the 48 live
+  // citations — is stated plainly rather than alarmed: for a workbook or assumed
+  // source there is no exported PDF to name, so a red row on every one of them
+  // would be an alarm a reader learns to ignore. The four `traced` spec-pile
+  // citations in that same state are the interesting ones, and the sentence names
+  // the fact for them too.
+  function exportProvenanceBlock(stackProj, element, cropsIndex) {
+    var p = VA.exportProvenance(element.source_ref);
+    if (!p) return null;
+    var box = VA.el("div", "el-export el-export--" + p.state +
+      (p.loud ? " el-export--loud" : ""));
+    box.appendChild(VA.el("div", "el-export__head", p.headline));
+    // The recorded reason, unclamped and unhidden: the whole argument for
+    // rendering this block is that an unestablished export's `why` was reachable
+    // only through a crop popover, so putting it behind a second click here would
+    // reproduce the defect one notch down.
+    if (p.why) box.appendChild(VA.el("div", "el-export__why", p.why));
+    var facts = [];
+    if (p.shaText) facts.push(p.shaText);
+    if (facts.length) box.appendChild(VA.el("div", "el-export__facts", facts.join(" · ")));
+    if (p.state === "established") box.appendChild(runsLine(p, cropsIndex, stackProj, element));
+    // The full path beside the basename, same reason the crop popover prints it:
+    // a file:// link only navigates from a file:// page, and copy-paste is the
+    // fallback that always works.
+    if (p.pdf) box.appendChild(VA.el("div", "el-export__path", p.pdf));
+    if (p.note) box.appendChild(clampedNote("el-export__note", p.note));
+    return box;
+  }
+
+  // The run ids, linked where this page can honestly address the run — see
+  // VA.exportRunLinks for why that is only ever the one the element's own crop
+  // resolved through. An empty `runs` is stated as a fact, not left blank: 15 of
+  // the 22 live established exports have never been consumed by a run, and
+  // "nothing here" would read as a missing record rather than an empty one.
+  function runsLine(p, cropsIndex, stackProj, element) {
+    var line = VA.el("div", "el-export__runs");
+    var links = VA.exportRunLinks(VA.CONFIG,
+      (element.source_ref || {}).export,
+      VA.cropFor(cropsIndex, stackProj.id, element.id));
+    if (!links.length) {
+      line.appendChild(VA.el("span", "muted",
+        "no drawing-checker run has consumed this export — the value was read " +
+        "straight off the file, so the sha256 is the whole of its identity"));
+      return line;
+    }
+    line.appendChild(VA.el("span", "muted", "drawing-checker runs: "));
+    links.forEach(function (link, index) {
+      if (index) line.appendChild(VA.el("span", "muted", ", "));
+      if (link.url) {
+        var a = VA.el("a", "el-export__runlink", link.run_id);
+        a.setAttribute("href", link.url);
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noopener");
+        a.setAttribute("title", "this run's page in drawing-checker's local web UI — " +
+          VA.CONFIG.drawingCheckerWebui + " must be serving");
+        line.appendChild(a);
+      } else {
+        var span = VA.el("span", "el-export__runid", link.run_id);
+        span.setAttribute("title", "no link: an export carries a run ID and " +
+          "drawing-checker addresses a run by its DIRECTORY name, which is the id " +
+          "plus the drawing. This page will not guess one.");
+        line.appendChild(span);
+      }
+    });
+    return line;
   }
 
   // The hover target. Carries its crop entry on the node so the app can show the
@@ -290,8 +391,20 @@
       if (detail) name.appendChild(VA.el("div", "muted", detail));
       tr.appendChild(name);
       tr.appendChild(VA.el("td", "num", VA.fmt(authored.cte_1e6_per_c)));
-      tr.appendChild(VA.el("td", "num", (authored.cte_temperature_range_c || [])
-        .map(VA.fmt).join(" … ") || "—"));
+      // Two ranges in one cell, and the pairing is the point: the range the
+      // source QUOTED the mean over, and the ranges this stack APPLIES it over.
+      // Every live entry quotes no range at all and is applied over two, which is
+      // exactly the comparison a reader has to be able to make — and the viewer
+      // makes it visible without making it, because deciding whether one covers
+      // the other is arithmetic.
+      var ranges = VA.el("td", "num");
+      ranges.appendChild(VA.el("div", null, (authored.cte_temperature_range_c || [])
+        .map(VA.fmt).join(" … ") || "— not stated"));
+      var applied = VA.appliedOverText(authored.applied_over_c);
+      if (applied) {
+        ranges.appendChild(VA.el("div", "mat-row__applied", applied));
+      }
+      tr.appendChild(ranges);
       tr.appendChild(VA.el("td", null, (row.used_by_elements || []).join(", ")));
       tr.appendChild(materialSourcingCell(row, authored));
       body.appendChild(tr);
@@ -316,11 +429,56 @@
     chips.appendChild(VA.chip(VA.confidenceClass(row.designation_confidence),
       "designation: " + (VA.CONFIDENCE_LABEL[row.designation_confidence] ||
         row.designation_confidence)));
+    // WHERE the CTE came from, and — since 2026-08-12 — WHAT KIND of record it
+    // is. `values_status` decides whether the number in the CTE column is the
+    // repo's record of it (`inline`), a cross-check of a projection that owns it
+    // (`library`, through `library_ref`), or nothing anybody read off a source
+    // (`not_transcribed`). All three rendered identically until this line
+    // existed, on a column whose numbers are the least-traced in the repo.
+    var values = VA.valuesProvenance(authored);
+    if (values.loud) {
+      chips.appendChild(VA.chip("chip--values-" + values.state,
+        values.state === "not_transcribed" ? "CTE NOT TRANSCRIBED"
+          : "VALUES_STATUS UNKNOWN", values.text));
+    }
     cell.appendChild(chips);
     cell.appendChild(VA.el("div", "el-row__where",
       VA.citationWhere(authored.values_source)));
+    cell.appendChild(VA.el("div",
+      "mat-row__values" + (values.loud ? " mat-row__values--loud" : ""), values.text));
+    // Rendered whenever it is set, whatever the status says. `library_ref` is the
+    // provenance of a NUMBER — `spec_library:NAS6403U11D` is what a value
+    // resolves through — and the schema does not forbid an `inline` entry from
+    // naming one, so reading it only under `values_status: "library"` would be
+    // the same silent drop, one field along.
+    if (values.libraryRef) {
+      cell.appendChild(VA.el("div", "mat-row__libref",
+        "library_ref: " + values.libraryRef));
+    }
     if (authored.note) {
       cell.appendChild(VA.el("div", "el-row__srcnote el-row__srcnote--open", authored.note));
+    }
+    // The DESIGNATION's own citation. Its confidence has had a chip since the
+    // materials table shipped, but the chip says how well sourced the name is
+    // while never saying WHERE from — and a designation is what makes the CTE a
+    // claim about a specific alloy rather than about a word.
+    cell.appendChild(VA.el("div", "mat-row__desig",
+      "designation from: " + VA.citationWhere(authored.designation_source)));
+    if (authored.designation_source && authored.designation_source.callout) {
+      cell.appendChild(VA.el("div", "el-row__callout",
+        authored.designation_source.callout));
+    }
+    if (authored.designation_source && authored.designation_source.note) {
+      cell.appendChild(clampedNote("el-row__srcnote", authored.designation_source.note));
+    }
+    // The outstanding ASK for a real value, when the entry records one. It is the
+    // one field on a material entry that describes future work rather than the
+    // present record, so it is clamped and labelled — but it is here, because a
+    // CTE that is traced to nothing and whose recorded next step is invisible is
+    // the same defect one layer down.
+    if (authored.cindas_request) {
+      cell.appendChild(clampedNote("mat-row__request",
+        "CINDAS request on record: " + authored.cindas_request));
     }
     return cell;
   }

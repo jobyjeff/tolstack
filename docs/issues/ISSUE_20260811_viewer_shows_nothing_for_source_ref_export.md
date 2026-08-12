@@ -1,11 +1,38 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: closed
 area: apps/viewer / views/stack.js citation panel
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260812_viewer_export_and_material_provenance.md
 ---
+
+> **Closed 2026-08-12** by handoff `viewer_export_and_material_provenance`.
+> `VA.exportProvenance` + the `.el-export` block in `views/stack.js` render all
+> four states — `established` (file, `sha256 recorded`, the run ids),
+> `unestablished` (filled magenta on the row **and** the block, with the recorded
+> `why` unclamped), a citation with **no** export block, and a status the viewer
+> has no branch for. The material half landed with it: `values_status`,
+> `library_ref`, `applied_over_c` beside the quoted range, `designation_source`
+> and `cindas_request`.
+>
+> **One premise in this issue and in the handoff is wrong, and it matters** — the
+> 22 citations whose crop is unresolvable do **not** carry an `unestablished`
+> export. They carry **no export block at all**; nothing in the repo is
+> `unestablished` today. So the third state above is the majority of the live
+> data, and it is stated plainly rather than alarmed (a workbook source has no
+> exported PDF to name). The `unestablished` path is demonstrated against a real
+> unresolvable citation via a poisoned copy —
+> `hub_bearing_thermal_fit_m1:hub_bore_lower` — in `[real] an unestablished export
+> on a real citation is loud, with its why`. Full accounting in
+> `docs/sessions/lessons/LESSONS_20260812_viewer_export_and_material_provenance.md`.
+>
+> The two value guards this issue's dependency left as `known: NONE` are now the
+> asked-table form (`VA.EXPORT_STATUSES`, `VA.VALUES_STATUSES`), confirmed failing
+> against a poisoned live projection. **Still open**, filed in the lesson rather
+> than here: the four `traced` `spec` citations that carry no export block, and
+> the absence of a cross-language test that the JS status tables match the
+> vocabularies `tolerance_stack/thermal.py` and `stack.py` enumerate.
 
 # The citation panel shows nothing for `source_ref.export`, so an unestablished export is invisible unless a crop happened to resolve
 
