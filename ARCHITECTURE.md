@@ -56,6 +56,13 @@ The one executable entry point is `python -m tolerance_stack`, which rebuilds
 the spec-library projection. A projection needs a rebuild command by the forge
 data convention; a stack does not.
 
+It writes into `data/`, which exists only in the main checkout and is shared by
+every live worktree, so it takes `--data-root` (name the main checkout's from a
+worktree, or the rebuild lands in a directory that is deleted at cleanup). Like
+the two viewer builders it stamps the tree it built from and **exits 3 rather
+than overwrite** a projection built from a tree this one does not contain;
+`--allow-older-tree` overrides that, loudly. See `scripts/projection_provenance.py`.
+
 ### The thermal-fit archetype (`thermal.py`)
 
 The repo's **second** archetype, added 2026-08-05 by `hub_bearing_thermal_stack`:
@@ -94,7 +101,7 @@ solution. Noted as such in the archetype doc's registry-input section.
 | `ParseEvent` | one immutable read of one document by one parser version |
 | `build_library(events)` | **the fold**: latest-per-document, corrections overlaid field by field |
 | `IntakeQueue` | which document closes which gap; `status()` is DERIVED from the library |
-| `rebuild()` | wipe-and-rebuild `data/projections/spec_library/library.json` |
+| `rebuild()` | wipe-and-rebuild `<data-root>/projections/spec_library/library.json`, stamped with the tree that built it and gated on ancestry (`scripts/projection_provenance.py`) |
 
 Reading a standard is an **event, not an edit** — the same disposition culture
 the stacks run on, and for the same reason: the two questions this repo asks are
@@ -242,6 +249,15 @@ The **events are committed and the projection is not**, which inverts the usual
 are hand-authored design artifacts whose loss would be unrecoverable, and
 `data/` contents are gitignored by the forge convention. The projection is a
 pure function of them, so it goes where derived things go.
+
+The `hardware_entry.library_ref` arrow above is **an agent's lookup, not a code
+path**: no module in this repo reads `library.json` off disk, and the tests
+resolve a subject by folding the event log in process. That is why the file's
+staleness is a *reading* hazard rather than a computation one — and why it is
+stamped rather than deleted (`spec_library_projection_provenance`, 2026-08-12;
+the argument is in `docs/spec_library/README.md` and in `spec_library.py`'s
+rebuild section). All three writers into `data/projections/` now stamp the tree
+they built from and refuse to clobber a newer one.
 
 ### The viewer and the one-fold rule (2026-08-05, `stack_viewer_v0`)
 

@@ -600,7 +600,8 @@ Rules:
   means `values_status` is `"inline"` or `"not_transcribed"`, never `"library"`.
   So, when you author an entry:
   - **The part has a library subject** — rebuild with
-    `python -m tolerance_stack` and look, don't guess; the ref must *resolve*.
+    `python -m tolerance_stack` (from a worktree, `--data-root
+    C:\workspace\tolstack\data`) and look, don't guess; the ref must *resolve*.
     Fill both halves. The inline numbers stay, demoted to a cross-check rather
     than the source: every one of `NAS6403U11D`'s inline dimensions is asserted
     against its library subject by
