@@ -857,13 +857,36 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       drawing-checker's blob and fails on any opcode that is not an insertion. So
       the mechanical half is covered; what you judge is whether the inserted note
       is *right* and whether `PROVENANCE.md`'s section records it.
+- [ ] **A whole-file diff on a file the handoff only edited in places.** New
+      2026-08-12 (`viewer_fixture_shape_guards`). `apps/viewer/tests.js` came back
+      as `1032 -> 1370` lines changed, every line of it; `git diff -w` said 341
+      insertions and 3 deletions. **Run `git diff -w --stat` against every diff
+      whose line count looks disproportionate** — if `-w` collapses it, the file
+      was re-emitted with different whitespace or line endings and the real change
+      is hiding inside a reformat nobody can review.
+      The cause here is worth knowing because it is invisible and recurs: the file
+      carried **one raw NUL byte** (a sentinel written as a literal control
+      character instead of a backslash-`u0000` escape, 56 kB in). Git's
+      `convert.c` calls any buffer containing a NUL *binary*, so
+      `core.autocrlf=true` — which is on here, and which is why every other blob in
+      this repo is LF — skipped normalisation and committed 1370 CRLFs. Two tells,
+      neither an error: `file <path>` says `data` instead of `JavaScript source`,
+      and `grep`/`git grep` print **"Binary file … matches"** and no line, so the
+      file silently drops out of exactly the greps this checklist is made of. Fixed
+      inline. Check with
+      `python -c "print(open(P,'rb').read().count(b'\x00'))"` on any source file
+      whose diff or grep behaviour looks wrong, and compare blob line endings with
+      `git ls-files --eol` rather than by eye.
 - [ ] **The viewer's JS suite is green *without having read any real data*, and
       that is its default.** New 2026-08-11 (`viewer_source_ref_export_label`).
       `apps/viewer/run_tests.cjs` has two tiers, and the `[real]` one — every
       test that opens `data/projections/viewer/` — **skips unless you point it at
       the main checkout**, because `data/` is gitignored and absent from every
       worktree. On the shipping tree that is **75/75 passed (tier skipped)**
-      versus **95/95 (tier ran)**: 20 tests, including the guards that exist
+      versus **98/98 (tier ran)** as of `viewer_fixture_shape_guards`
+      (2026-08-12; it was 95/95 the day before, so **recount rather than quoting
+      this line** — the gap is the whole point, not the digits): 23 tests,
+      including the guards that exist
       precisely to catch a live shape the fixtures cannot produce. Exit code 0
       both ways; the only tell is one `SKIP node-fs tier` line above the
       headline. So a report quoting a JS count **must say whether the tier ran**,
@@ -944,12 +967,31 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       tier — `eq(VA.unlabelledCropRules(realCrops), [])` — because the assertion
       that matters is *the live data contains no value this code has no branch
       for*, and no fixture can make that claim. Ask it of every enumerated field
-      the viewer switches on (`confidence`, `kind`, `located_by`, `values_status`,
-      `worksheet_source`, `status`) — as of 2026-08-11 only `resolved_by` has it
-      (`ISSUE_20260811_viewer_fixtures_lag_the_live_projection_shape.md`, option 3).
-      And note what this is *not*: a key-set/schema diff between fixture and live
-      data would not have caught it, because the stale thing was a **value** in a
-      field that was present and correctly named.
+      the viewer switches on. And note what this is *not*: a key-set/schema diff
+      between fixture and live data would not have caught it, because the stale
+      thing was a **value** in a field that was present and correctly named.
+      **Generalised 2026-08-12 (`viewer_fixture_shape_guards`), so the check
+      changes shape:** the per-field question is now a table, `VALUE_GUARDS` in
+      `apps/viewer/tests.js`, driven by `[real] no live value is one the viewer has
+      no branch for` — so *whether a field is covered* is no longer yours to
+      enumerate; read the rows. What is yours is the **form** of each row, because
+      the two forms have different half-lives:
+      - `known: function (v) { ... }` **asks the viewer** (`VA.CROP_RULES`,
+        `confidenceClass`, `verdictClass`). Self-syncing; teaching the viewer a
+        value teaches the guard. Prefer it, and check a new row could not have been
+        written this way.
+      - `known: inList([...])` **copies a vocabulary** out of an `if` chain or a set
+        of CSS rules. It still fails loudly on a new live value, but it is a copy —
+        so when work under review touches `cropProvenanceLine`, `views/worksheet.js`
+        or an `index.html` `.gap--*` / `.croppop--*` block, **re-read the matching
+        `inList` by hand**; nothing pairs them.
+      Also check the companion test `[real] each value guard bites when fed a value
+      nothing can explain` still covers every row — a guard whose `known` accepts
+      anything is documentation, which is precisely the state `VA.CROP_RULES` was in
+      for the four days the original bug shipped. And know the tier's reach: it
+      reads **live data only**, so a value that exists only in `fixtures.js`
+      (`values_status: "not_transcribed"`, `export.status: "unestablished"`) is
+      unguarded by it by construction.
 - [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
       the moment an element changes and nothing notices.
 - [ ] **An imported file may change; its `PROVENANCE.md` row must change with
