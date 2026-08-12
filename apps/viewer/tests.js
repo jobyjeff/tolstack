@@ -653,7 +653,12 @@
         VA.renderCrop(r, CROPS.by_stack.demo_joint.washer, null, VA.CONFIG);
       });
       eq(all(root, "img").length, 0);
-      has(root.textContent, "citation names no export");
+      // The washer's export is `unestablished`, which build_viewer_crops.py
+      // short-circuits to unresolvable carrying the `why` through: a crop the
+      // reviewer cannot get is a finding about the stack, and it is only
+      // actionable if the popover says which finding.
+      has(root.textContent, "is unestablished");
+      has(root.textContent, "none hashes to the one");
       has(root.className, "croppop--unresolvable");
     });
 

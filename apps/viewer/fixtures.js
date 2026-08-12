@@ -39,6 +39,13 @@
       results: {
         schema: "joby.tolerance_stack/viewer_projection/v0",
         built_at: "2026-08-05T00:00:00+00:00",
+        // Superseded by `provenance` below — which script, and which stacks-dir
+        // it walked — but the builder still writes both at the top level, so the
+        // fixture carries both. A key the live projection has and the fixture
+        // does not is the whole failure this file was audited for; the [real]
+        // shape guards in tests.js now fail when that gap opens again.
+        built_by: "scripts/build_viewer_projection.py",
+        stacks_dir: "docs/tolerance_stacks",
         // Both fixture projections are stamped from the SAME tree, clean and
         // level with trunk — the quiet case, so ?mock=1 shows the provenance
         // line without the alarm. The alarms have their own tests, which build
@@ -50,7 +57,18 @@
           units: "mm",
           source_file: "docs/tolerance_stacks/stack_demo_joint.json",
           worksheet_file: "docs/tolerance_stacks/WORKSHEET_demo_joint.md",
+          // The stack FILE, verbatim: build_viewer_projection.py writes
+          // `"stack": raw`, so every key an authored stack has appears here. The
+          // viewer reads only `joint`, `elements` and `notes` out of it — the
+          // rest is here because the [real] key-set guard compares this whole
+          // key set against a live one, and because a reader looking for the
+          // AUTHORED form of a path or a check should find it where the real
+          // projection keeps it: pre-fold, with no intervals.
           stack: {
+            schema: "joby.tolerance_stack/stack_definition/v0",
+            id: "demo_joint",
+            title: "Demo joint — every provenance state in one stack",
+            units: "mm",
             joint: {
               assembly_drawing: "217755",
               sheet: 4,
@@ -66,6 +84,28 @@
                 source_ref: {
                   kind: "drawing", document: "215197", revision: "A.1", sheet: 2,
                   zone: "D10", view: "SECTION A-A", callout: "5X 4.06 ±0.10",
+                  // The FEATURE-identity slot: an extracted-element address that
+                  // would make the human zone reading above unnecessary. Null in
+                  // every live citation so far — "not yet wired" is a different
+                  // fact from "wired to nothing", and the fixture has to be able
+                  // to hold the distinction rather than omit the fields.
+                  cell: null, element_id: null, run_id: null,
+                  // WHICH BYTES the 4.06 was read off. `established` means the
+                  // sha256 IS the export's identity: filenames get re-exported
+                  // over, and one export can feed several drawing-checker runs or
+                  // none at all, so `runs` is corroboration and never identity.
+                  // This is the state every live citation since 2026-08-06
+                  // carries and no fixture did
+                  // (ISSUE_20260811_viewer_fixtures_lag_the_live_projection_shape).
+                  export: {
+                    status: "established",
+                    pdf: "C:/workspace/demo/215197.pdf",
+                    sha256: "a1b2c3d4e5f60718293a4b5c6d7e8f90" +
+                      "a1b2c3d4e5f60718293a4b5c6d7e8f90",
+                    runs: [{ run_id: "20260804_114000_x",
+                             ts: "2026-08-04T11:40:00+00:00" }],
+                    note: "A demo export. The sha is arbitrary and hashes nothing.",
+                  },
                   confidence: "traced",
                   note: "A long-ish source note, so the clamp-and-click-to-expand " +
                     "behaviour has something to clamp. Real ones carry the written " +
@@ -82,6 +122,25 @@
                 source_ref: {
                   kind: "parts_list", document: "217755", sheet: 4, zone: "H3",
                   view: "DETAIL B", callout: "WASHER, FLAT ... .032\"",
+                  // THE UNESTABLISHED CASE, and the reason it is in the fixture:
+                  // the stack states outright that it cannot pin the bytes, and
+                  // says why. An unresolvable citation is honest; a wrong one is
+                  // not. `pdf`, `sha256` and `runs` must stay ABSENT —
+                  // SourceExport raises on an unestablished export that names one
+                  // (tolerance_stack/stack.py) and build_viewer_crops.py
+                  // re-checks it rather than trusting that something upstream
+                  // did, so an unestablished export carrying a pdf is a
+                  // self-contradiction, not a display case. `why` is the one key
+                  // here that no LIVE export has: nothing in the repo is
+                  // unestablished today, which is exactly why the fixture must
+                  // carry the state.
+                  export: {
+                    status: "unestablished",
+                    why: "three 217755 A.1 exports are in circulation and none " +
+                      "hashes to the one this .032\" was read off; the parts-list " +
+                      "row is identical on all three, so which export it was " +
+                      "cannot be recovered",
+                  },
                   confidence: "inferred",
                 },
               },
@@ -93,6 +152,38 @@
                 source_ref: { kind: "assumed", document: null, confidence: "untraced" },
               },
             ],
+            // Authored, pre-fold: term lists and criteria, no intervals and no
+            // verdicts. The folded versions — the ones the viewer renders — are
+            // the `paths` and `checks` on the projected stack below, computed by
+            // tolerance_stack.fold() in Python. Two spellings of the same
+            // structure is what the real projection carries, so the fixture
+            // carries it too.
+            paths: [{
+              id: "clamped", label: "clamped column", workbook_cells: null,
+              terms: [{ element: "plate" }, { element: "washer" }],
+            }],
+            checks: [
+              {
+                check_id: "clearance", label: "clearance over the clamped column",
+                configuration: { fastener: "demo bolt" }, criterion: ">= 0",
+                workbook_cells: null, guidance: "A complete check, for contrast.",
+                terms: [{ path: "clamped" }],
+              },
+              {
+                check_id: "shank_out",
+                label: "shank out — INCOMPLETE: eye width unsourced",
+                configuration: { excluded: "link eye width — no document" },
+                criterion: ">= 0", workbook_cells: null,
+                guidance: "Read the magnitude as the eye width the joint requires.",
+                terms: [{ path: "clamped" }, { element: "eye", sign: -1 }],
+              },
+            ],
+            provenance: {
+              transcribed_from: null,
+              source_note: "Hand-authored in fixtures.js. There is no workbook, " +
+                "no drawing and no part behind any number here.",
+              authored_by: "apps/viewer/fixtures.js",
+            },
             notes: [
               "A demo stack. Nothing here is a claim about a real part.",
               "The INCOMPLETE check below is a budget, not a verdict.",
@@ -167,11 +258,29 @@
               hardware_id: "NAS1149V0332" },
           ],
         }],
-        hardware_entries: { entries: [] },
+        hardware_entries: {
+          schema: "joby.tolerance_stack/hardware_entry/v0",
+          description: "A demo hardware pile, empty ON PURPOSE: the demo stack's " +
+            "one hardware_ref (NAS1149V0332) is the MISSING-entry state, which is " +
+            "what puts a hardware gap on the washer row and a gap in the list " +
+            "below. An entry here would delete the state this fixture exists to " +
+            "show.",
+          provenance: {
+            transcribed_by: "nobody — apps/viewer/fixtures.js authored this block",
+          },
+          entries: [],
+        },
       },
       crops: {
         schema: "joby.tolerance_stack/viewer_crops/v0",
         built_at: "2026-08-05T00:00:00+00:00",
+        built_by: "scripts/build_viewer_crops.py",
+        crops_dir: "crops",
+        // Whether the crop script could see drawing-checker's data/runs when it
+        // ran. It says so rather than letting an empty `runs` read as "no run
+        // exists" when the truth was "the runs directory was not there".
+        drawing_checker_available: true,
+        drawing_checker_root: "C:/workspace/drawing-checker",
         provenance: VA.demoProvenance("scripts/build_viewer_crops.py"),
         // The rollups build_viewer_crops.py's resolution_summary() writes. Every
         // key the real one has, because a fixture summary missing
@@ -207,14 +316,24 @@
             },
             washer: {
               status: "unresolvable", png: null,
-              reason: "citation names no export — source_ref.export is absent and " +
-                "no joint.assembly_export covers '217755'",
+              // The reason build_viewer_crops.py writes for the washer's
+              // unestablished export, verbatim in form: an unestablished export
+              // short-circuits to unresolvable and the `why` is carried through,
+              // because "no crop" with no reason is the answer a reviewer cannot
+              // act on.
+              reason: "the export this value was read from is unestablished: " +
+                "three 217755 A.1 exports are in circulation and none hashes to " +
+                "the one this .032\" was read off",
             },
             // `eye` deliberately absent: a crops.json older than the stack.
           },
         },
         unresolved: [{ stack: "demo_joint", element: "washer", kind: "parts_list",
-                       document: "217755", reason: "citation names no export" }],
+                       document: "217755",
+                       reason: "the export this value was read from is " +
+                         "unestablished: three 217755 A.1 exports are in " +
+                         "circulation and none hashes to the one this .032\" was " +
+                         "read off" }],
       },
       texts: {
         "docs/tolerance_stacks/WORKSHEET_demo_joint.md":
@@ -260,6 +379,17 @@
           worksheet_file: "docs/tolerance_stacks/WORKSHEET_demo_fits.md",
           worksheet_source: "declared",
           stack: {
+            schema: "joby.tolerance_stack/stack_definition/v0",
+            id: "demo_fit",
+            title: "Demo shrink fit — generated checks, weighted terms",
+            units: "mm",
+            archetype: "demo_thermal_fit",
+            // No archetype INPUT block here (a real `demo_thermal_fit` stack
+            // would carry one, keyed by the archetype name, the way the live
+            // thermal stacks carry `thermal_fit`). Nothing in the viewer reads it
+            // — the loader runs in Python and the projection carries its output —
+            // so a synthetic one would be shape with no state behind it. The
+            // [real] guard skips archetype blocks for the same reason.
             joint: { assembly: "none — a demo", question: "Does the fit stay interfering?" },
             elements: [
               { id: "hub_bore", name: "hub bore", role: "clamped_member",
@@ -285,6 +415,20 @@
                 source_ref: { kind: "parts_list", document: "DEMO-1", sheet: 2,
                               confidence: "inferred" } },
             ],
+            // Empty in the file on purpose, both of them: the archetype's loader
+            // builds the checks (and the paths it needs) from the block above.
+            // This is the emptiness the viewer must never render as "no checks".
+            paths: [],
+            checks: [],
+            provenance: {
+              // What makes `worksheet_source` "declared" on the projected stack:
+              // the file names its worksheet instead of relying on the
+              // stack_X -> WORKSHEET_X convention, because one sheet covers
+              // several fits.
+              worksheet: "docs/tolerance_stacks/WORKSHEET_demo_fits.md",
+              source_workbook: null,
+              authored_by: "apps/viewer/fixtures.js",
+            },
             notes: ["CHECKS ARE GENERATED. `checks` is empty in the file on purpose."],
           },
           elements: [
@@ -298,17 +442,42 @@
               has_source_ref: true, zero_width: false, hardware_gaps: [],
               material: "DEMO_BEARING_STEEL" },
           ],
+          // The provenance OF A NUMBER. Every field below the CTE exists because
+          // the name and the number of a material have different sourcing:
+          // `values_source` / `values_status` / `library_ref` / `cindas_request`
+          // are about the CTE, `designation_source` is about the designation, and
+          // materials.json keeps them apart on purpose. The viewer renders the
+          // two confidence chips and `values_source` today and nothing else of
+          // this — that gap is `viewer_export_and_material_provenance`'s
+          // deliverable, and it needed the fields to be HERE first.
           materials: [
             { id: "DEMO_ALUMINIUM", confidence: "untraced", kind: "workbook",
               designation_confidence: "traced", used_by_elements: ["hub_bore"],
               material: {
                 schema: "joby.tolerance_stack/material_entry/v0", id: "DEMO_ALUMINIUM",
                 designation: "a demo aluminium", specification: "DEMO-SPEC",
-                condition: "T7451", cte_1e6_per_c: 23.0,
+                condition: "T7451", class: "aluminium_alloy", cte_1e6_per_c: 23.0,
                 cte_temperature_range_c: null,
+                // The soak ranges this scalar CTE is actually USED over. A mean
+                // CTE quoted over one range and applied over another is the
+                // quiet way a thermal answer goes wrong, so the entry states
+                // both and lets the two be compared.
+                applied_over_c: [[20, 72]],
+                values_status: "inline", library_ref: null,
                 gaps: ["The CTE is a demo number and is traced to nothing."],
                 values_source: { kind: "workbook", document: "demo.xlsx", cell: "C5",
                                  confidence: "untraced" },
+                designation_source: { kind: "drawing", document: "DEMO-1",
+                                      revision: "A", sheet: 1, zone: "D9",
+                                      view: "NOTES", confidence: "traced",
+                                      callout: "PRODUCE FROM DEMO ALUMINIUM T7451",
+                                      note: "Note 1 of the demo hub drawing. The " +
+                                        "workbook only ever says 'aluminum'; the " +
+                                        "alloy comes from here." },
+                cindas_request: "Mean linear CTE of the demo aluminium over 20 to " +
+                  "72 degC. The hot corner governs, so a hot-range value LARGER " +
+                  "than 23.0 would make the fit looser than analysed.",
+                used_by: ["demo_fit:hub_bore"],
                 note: "Grows roughly twice as fast as the sleeve — that difference " +
                   "IS the mechanism this archetype is about.",
               } },
@@ -317,11 +486,26 @@
               used_by_elements: ["sleeve_bore", "sleeve_wall"],
               material: {
                 schema: "joby.tolerance_stack/material_entry/v0", id: "DEMO_STAINLESS",
-                designation: "a demo stainless", cte_1e6_per_c: 10.3,
-                cte_temperature_range_c: [20.0, 100.0],
+                designation: "a demo stainless", class: "martensitic_stainless_steel",
+                cte_1e6_per_c: 10.3, cte_temperature_range_c: [20.0, 100.0],
+                // Quoted over 20…100 and applied over 20…72: the case
+                // `cte_temperature_range_c` and `applied_over_c` exist to make
+                // visible side by side.
+                applied_over_c: [[20, 72]],
+                // `library_ref` is null in every live material entry and in all
+                // three here: no materials library exists yet, and a fixture that
+                // invented one would teach a reading the repo would contradict.
+                // The slot is present because the builder writes it.
+                values_status: "inline", library_ref: null,
                 gaps: ["The CTE is a demo number and is traced to nothing."],
                 values_source: { kind: "workbook", document: "demo.xlsx", cell: "C6",
                                  confidence: "untraced" },
+                designation_source: { kind: "drawing", document: "DEMO-2",
+                                      revision: "A", sheet: 1, zone: "E3",
+                                      view: "NOTES", confidence: "traced",
+                                      callout: "MATERIAL: DEMO STAINLESS" },
+                cindas_request: null,
+                used_by: ["demo_fit:sleeve_bore", "demo_fit:sleeve_wall"],
               } },
             { id: "DEMO_BEARING_STEEL", confidence: "no_source_ref", kind: null,
               designation_confidence: "no_source_ref",
@@ -329,9 +513,24 @@
               material: {
                 schema: "joby.tolerance_stack/material_entry/v0",
                 id: "DEMO_BEARING_STEEL", designation: "a demo bearing steel",
-                cte_1e6_per_c: 11.9, cte_temperature_range_c: null,
+                class: null, cte_1e6_per_c: 11.9, cte_temperature_range_c: null,
+                applied_over_c: [],
+                // `not_transcribed`, NOT `inline`: MaterialEntry.__post_init__
+                // rejects an inline entry whose `values_source` is null, and
+                // `values_source: null` is the only thing that makes the projected
+                // confidence `no_source_ref` — so "no citation at all", the
+                // loudest state and the one this row exists for, can be spelled
+                // only this way. The fixture defaulted to `inline` until
+                // 2026-08-12, i.e. it described a materials.json the loader would
+                // refuse to read. The CTE below stays because MaterialEntry makes
+                // `cte_1e6_per_c` mandatory even for a not_transcribed entry
+                // (ISSUE_20260812_not_transcribed_material_must_still_carry_a_cte).
+                values_status: "not_transcribed", library_ref: null,
                 gaps: ["No citation at all for this CTE — the loudest state."],
-                values_source: null,
+                values_source: null, designation_source: null,
+                cindas_request: "Confirm the MATERIAL first — there is no citation " +
+                  "for it at all, so a CTE request would be a request about a guess.",
+                used_by: ["demo_fit:bearing_od"],
               } },
           ],
           paths: [],
