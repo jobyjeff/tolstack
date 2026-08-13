@@ -183,6 +183,27 @@ and below the fold of every excerpt. **Fix:** trimmed.
   … and the same is true of a new module **constant**") is a good catch by the
   author.
 
+## Integration — done
+
+Merged into `master` as `8121368`, board moved to `completed` as `6523d11`,
+pushed (`77b491f..6523d11`). Post-merge in the main checkout: Python
+**376 passed / 0 skipped**, JS **122/122** with the `[real]` tier run, and
+`data/projections/viewer/results.json` rebuilt from `master @ 8121368` (the
+CLI line now reads `2 BUDGET-SCOPE` where it read `2 INCOMPLETE`).
+`ISSUE_20260805_check_result_has_no_complete_flag.md` is `status: resolved`.
+
+Two loose ends, neither blocking:
+
+- **`handoff/check_completeness_schema` is deleted and its worktree
+  de-registered, but the directory `C:\workspace\tolstack-worktrees\check_completeness_schema`
+  could not be removed** — `Permission denied`. The tactical agent's process
+  (PID 3592, `claude.exe`, its CWD) is still live and Windows locks it open.
+  Asked the OS rather than guessing, per the checklist. It will go at Complete.
+- **`handoff/spec_pile_gap_join` advanced during this review** (`698b672` →
+  `69169cc`) but is unmerged, so nothing it did could reach `master` under this
+  push. Its reviewer inherits the standing rule: re-run `HEAD..master` before
+  writing a verdict — `master` moved twice while that branch was running.
+
 ## For the next reviewer
 
 Four entries added to this repo's overlay (`docs/prompts/REVIEW_AGENT.md`):
