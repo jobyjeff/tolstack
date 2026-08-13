@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: workspace hygiene / main checkout
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260812_restore_viewer_readme.md
 ---
 
 # A Ghostwriter window is writing a stale `apps/viewer/README.md` over the main checkout, ~20 s after every merge

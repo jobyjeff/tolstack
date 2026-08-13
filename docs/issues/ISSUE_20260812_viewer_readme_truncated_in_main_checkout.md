@@ -1,10 +1,23 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: closed
 area: apps/viewer / main-checkout working tree
 reporter: agent (triage sweep 2026-08-12)
+resolution: duplicate of ISSUE_20260812_ghostwriter_holds_a_stale_apps_viewer_readme_over_the_main_checkout.md, which names the cause (a Ghostwriter window autosaving a pre-merge buffer) rather than the symptom. Filed minutes apart by two sessions that could not see each other. The restore work is routed there.
 handoff: docs/sessions/HANDOFF_20260812_restore_viewer_readme.md
+---
+
+> **CLOSED AS DUPLICATE, same day it was filed.** The triage sweep found the
+> truncated file in `git status` and filed this from the symptom; another session
+> was concurrently diagnosing the same file and found the *writer* —
+> `ghostwriter.exe` PID 3132, holding a pre-2026-08-12 buffer and autosaving it
+> over the real file ~20 s after every merge. That issue supersedes this one and
+> carries the actual fix (which begins with a human closing a window). This file
+> is kept rather than deleted because its measurement — 228 lines vs 305, and the
+> `.backup` proven byte-identical to `HEAD` modulo CRLF — is the evidence that
+> nothing was lost, and because two independent filings of one defect in one hour
+> is itself worth leaving visible.
 ---
 
 # `apps/viewer/README.md` is sitting 77 lines short in the main checkout, uncommitted, undoing documentation merged the same day
