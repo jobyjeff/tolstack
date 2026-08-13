@@ -110,7 +110,12 @@ against the file:
 - **JS: 118/118**, `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`,
   **node-fs tier confirmed to have run** (the runner printed its repo root; no
   `SKIP node-fs tier` line).
-- **Main checkout after the merge**: recorded below under Integration.
+- **Main checkout (`C:\workspace\tolstack`) after the merge landed**: **358
+  passed, 0 skipped** — the same 358 tests, with `test_viewer_js_suite` *running*
+  instead of skipping because `data/` exists there. The worktree/main-checkout gap
+  the overlay warns about is exactly one test, as it has been since
+  `gitignore_data_precedence`. `data/projections/viewer/results.json` carried the
+  same mtime before and after the run: the suite left production data alone.
 - `git log --oneline HEAD..master` empty — no sibling handoff landed during the
   review.
 - The suite touches no production data: the new module only reads tracked source
