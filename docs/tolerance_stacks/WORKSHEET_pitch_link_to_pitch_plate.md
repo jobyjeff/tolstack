@@ -222,6 +222,26 @@ side is closed — NAS6403 sheet 1 `M = .174/.154 in` from the point, sheet 2 no
 (j) *"Cotter pin hole centerline: Within .010 and normal within 2° of bolt
 centerline."* This is one document away from being answerable.
 
+> **CORRECTION 2026-08-13** (`spec_pile_gap_join`). The document arrived the day
+> after this was written and the paragraph above never learned it.
+> `MS9363 Rev C.pdf` landed in `data/inbox/specs/` on 2026-08-05 and was read
+> into the spec library the same day: sheet 1 TABLE I row `-09` prints
+> `H = .178/.198 in` (nut height), `G = .084/.104 in` (unslotted height, so
+> slot depth is `H − G`) and `S = .073/.088 in` (slot width), and the
+> hex-face view's positional callout
+> reads **6 PLACES** (slot count). Re-read off a crop on 2026-08-13 before this
+> correction was written.
+>
+> **But the conclusion of this section survives, for a better reason.** The
+> quantity this joint actually needs is not the slot geometry, it is the
+> *phase* between the castellations and the thread start — and MS9363
+> requirement 10 controls opposite slots against each other (within `.005`) and
+> the slot axis against the thread PD axis (within `.005`), and never relates a
+> slot to where the thread starts. So the alignment is **uncontrolled by the
+> standard**, which means it was never one document away: no acquisition closes
+> it, and JPS00094 §5.9.7's assembly-time selection above is the whole remedy.
+> The footnote quoted at the top of this section says exactly that in words.
+
 ### What the RSS columns do not claim
 
 `fold()` combines half-ranges in quadrature about the **midpoint**, which treats
@@ -402,7 +422,7 @@ This list is the intake queue for the spec-library / fastener-library stream.
 | # | source needed | what it would resolve | priority |
 |---|---|---|---|
 | 1 | **The pitch link's part number, then its assembly drawing** (candidates: 215177 PITCH PLATE ASSEMBLY, 214849-003 SPINDLE SUBASSEMBLY, 216231-001 HUB AND BLADE ASSEMBLY — none of the three is in this repo) | the spherical-bearing / link-eye width, i.e. the only missing term in the clamped column. Flips `shank_out__11_sourced_only` from an incomplete budget to a real verdict. | **1 — blocks the whole stack** |
-| 2 | **MS9363** slotted/castellated nut (absent from `data/inbox/specs/`) | nut height, slot count, slot depth — the thread-start-to-castellation spacing. With NAS6403 now in hand this is the *only* thing between here and answering the joint the way it is actually built. Blocks two joints (this one and slice 1's). | **1 — blocks the governing check** |
+| 2 | ~~**MS9363** slotted/castellated nut (absent from `data/inbox/specs/`)~~ — **CLOSED as an acquisition, 2026-08-05; row corrected 2026-08-13** (`spec_pile_gap_join`). `MS9363 Rev C.pdf` was already in the pile when this row said it was absent. | ~~nut height, slot count, slot depth~~ — all three are printed on sheet 1 TABLE I row `-09` (`H`, `G`, `S`, `6 PLACES`) and live at spec-library subject `MS9363-09`. The **thread-start-to-castellation spacing** the row lumped in with them is a different quantity and is **not acquirable at all**: MS9363 requirement 10 never relates a slot to the thread start (F8 correction). Handle it procedurally per JPS00094 §5.9.7. | ~~1~~ — **not an intake item** |
 | 3 | 214820-002 bushing (Joby part drawing) | the length tolerance. Currently a zero-width band, so every worst-case interval is a lower bound. | 2 |
 | 4 | **NAS1149** flat washer (absent from `data/inbox/specs/`) | the `.032 in` thickness tolerance. Same zero-width-band consequence. The parts list has now dropped even the `MIN` qualifier (F3). | 2 |
 | 5 | **MIL-S-8879** (the thread spec NAS6403 sheet 1 invokes for UNJF-3A) | the **thread run-out / incomplete-thread length**. NAS6403 turns out *not* to dimension it — see below. This is what slice 1's 1/16 in "thread transition allowance" was standing in for. | 2 |
@@ -499,5 +519,5 @@ decision, and it is the specific failure Jeff suspected of the slice-1 agent.
 | **thread transition / run-out allowance** | 1.5875 mm (1/16 in), slice 1's `thread_transition` element | slice 1's own `source_ref` calls it `kind: "assumed"`, *"rule-of-thumb allowance, no cited standard"*. I opened NAS6403 specifically to close it and **it is not there** (gap 5). No allowance element exists in this stack. |
 | **214820-002 bushing length band** | 4.63/4.76 mm, already in `hardware_entries.json` | workbook-sourced, therefore forbidden in a from-scratch stack (SOP Step 5b). Zero-width band + gap 3 instead. |
 | **NAS1149V0332 washer thickness band** | ±.004 in, already in `hardware_entries.json` | same. Zero-width band + gap 4 instead. |
-| **MS9363-09 nut height and slot geometry** | a "typical" hex-nut height for a .190-32 thread | MS9363 is not in the pile. This is the one value that would let the *governing* check be written, which is exactly why guessing it would have been the worst possible place to guess. Gap 2. |
+| **MS9363-09 nut height and slot geometry** | a "typical" hex-nut height for a .190-32 thread | "MS9363 is not in the pile" — true when written on 2026-08-04, false from 2026-08-05, corrected here 2026-08-13. It is `.188 ±.010 in` with six slots, printed on sheet 1 and now at spec-library subject `MS9363-09`. The refusal was still right: guessing it would have been the worst possible place to guess, and the *governing* check needs the castellation phase, which no document gives. Gap 2. |
 | **NAS6403 grip tolerance** | ±.010 in — which I would have recalled correctly | **not refused, but not recalled either.** It is ±.010, and it is `traced` because the printed column header on sheet 3 says so. Had the standard been absent, this would have been a gap, not a recollection. The distinction is the entire point of the SOP's one rule. |

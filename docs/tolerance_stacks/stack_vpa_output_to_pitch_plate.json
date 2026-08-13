@@ -39,7 +39,7 @@
         "sheet": "grip length tols old",
         "cell": "E63",
         "confidence": "untraced",
-        "note": "NAS77A4-015 is ABSENT from the 217755 parts list. The as-drawn bushing at this joint is Joby 214943-002 (BUSHING, PLAIN, ALUMINUM BRONZE, .250\" ID), balloon 28 in DETAIL X."
+        "note": "NAS77A4-015 is ABSENT from the 217755 parts list. The as-drawn bushing at this joint is Joby 214943-002 (BUSHING, PLAIN, ALUMINUM BRONZE, .250\" ID), balloon 28 in DETAIL X. DECIDED 2026-08-13 (handoff spec_pile_gap_join), on the merits and with the value UNCHANGED at 4.762 / 4.71 / 4.81 mm: NAS77 IS in `data/inbox/specs/` -- `JB_NAS77.pdf` and page 92 of both RBC plain-bearing catalogues -- and reading it does not source this element, it rules the part number out. NAS77 is the UNLINED FLANGED series (the straight/plain one is NAS76, page 91 of the same catalogue) and the as-drawn part is a plain bushing; the dash decode printed on the NAS77 page is \"Length in .010 increments (ex: -025 = .25 in.)\", which makes NAS77A4-015 .150 in long against the .1875 in this element folds; and the length tolerance printed there is L +/-.005 in, not the +/-.002 in that 4.71/4.81 mm implies. (For contrast, NAS76 on page 91 decodes its dash as 32nds of an inch and controls length +.000/-.005 -- a different rule and a different band, so neither series supports the modelled numbers.) The element therefore stays `kind: workbook` / `untraced` and stays on the gap list. 214943-002's part drawing is still the document that closes it, and it is still not in the pile."
       }
     },
     {
