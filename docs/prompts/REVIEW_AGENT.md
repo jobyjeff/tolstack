@@ -515,6 +515,31 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       with `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like
       '*tolstack*' }` rather than guessing at an agent —
       `ISSUE_20260812_ghostwriter_holds_a_stale_apps_viewer_readme_...`.
+      **Resolved same day by `restore_viewer_readme`** (window gone, file back at
+      305 lines, verified twice ~97 s apart) — so stop expecting *that* process,
+      and keep the two durable parts. First: a `.backup` / `.bak` / `.orig` / `~`
+      file beside a modified tracked file is a **signature, not litter** — editors
+      leave those, git and agents don't — which is why `*.backup` is deliberately
+      **un**-ignored (comment in `.gitignore`, "IDE / OS"); a diff that adds it to
+      `.gitignore` is deleting the tell and needs the argument reopened. Second:
+      ask the OS who holds the file **early**, not as a last resort. The window had
+      held a doomed buffer for ~28.5 h while matching disk exactly, so every check
+      this repo has read clean — a stale buffer only becomes a defect
+      retroactively, when someone else edits the file.
+- [ ] **A doc-scan guard cannot fail on a *deleted* section — only on a wrong
+      one.** New 2026-08-12 (`restore_viewer_readme`), and it is the stale-count
+      family's blind spot. Both guards
+      (`test_no_live_document_states_an_unguarded_hardware_entry_count`,
+      `test_every_document_quoting_the_traced_ratio_quotes_the_current_number`)
+      walk live docs for claim *shapes* and recount them: **a document that states
+      nothing states nothing false.** Replayed in review — cut the whole
+      `## Which bytes the number was read off` chapter out of
+      `apps/viewer/README.md` and the suite is still `350 passed, 1 skipped`. So
+      when a handoff's evidence is "the doc guards are green", that is evidence
+      about the numbers that are *present* and none at all about the ones that
+      vanished: diff the doc's headings against its previous version yourself.
+      Design question filed, deliberately not patched —
+      `ISSUE_20260812_the_doc_scan_guards_cannot_fail_on_a_deleted_section.md`.
 - [ ] **Surviving `{{REPO_NAME}}` from the template stamp.** forge's
       `conventions._substitute_names` walks only `.md`/`.txt`/`.toml`, so
       placeholders live on in `.ps1`/`.py` stubs. Grep the diff for `{{`.

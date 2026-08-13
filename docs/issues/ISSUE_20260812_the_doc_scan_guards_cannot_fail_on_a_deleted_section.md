@@ -4,6 +4,7 @@ priority: med
 status: open
 area: tests / doc-scan guards
 reporter: agent
+audience: strategy
 ---
 
 # The doc-scan guards cannot fail on a deleted section — only on a wrong one
@@ -50,8 +51,9 @@ related. The same suite is 351 passed in the main checkout.)
 This is not hypothetical. On 2026-08-12 a Ghostwriter editor window holding a
 pre-work buffer wrote itself over `apps/viewer/README.md` in the main checkout,
 cutting it from 305 lines to 228 — deleting exactly that section. The truncation
-was caught by a human reading `git status`, not by the suite, and the suite
-would have stayed green indefinitely. See
+was caught by the 2026-08-12 triage sweep reading `git status` in the main
+checkout, not by the suite, and the suite would have stayed green indefinitely.
+See
 `ISSUE_20260812_ghostwriter_holds_a_stale_apps_viewer_readme_over_the_main_checkout.md`
 and `docs/sessions/lessons/LESSONS_20260812_restore_viewer_readme.md`.
 
