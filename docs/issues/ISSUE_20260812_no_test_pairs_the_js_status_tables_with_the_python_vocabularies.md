@@ -1,13 +1,38 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer / tolerance_stack schema
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260812_js_python_vocabulary_pairing.md
 ---
 
 # Nothing asserts the viewer's status tables spell the same vocabularies Python enumerates
+
+> **RESOLVED 2026-08-12** by handoff `js_python_vocabulary_pairing`, in
+> `tests/test_js_python_vocabulary.py`. **Three** pairings, not the two filed
+> here: `VA.CROP_RULES` against the `resolved_by` literals in
+> `scripts/build_viewer_crops.py` has the identical blind spot
+> (`joint_export_run` has no live instance either), so it is covered too. Each
+> Python side is read from its definition — `EXPORT_STATUSES` by import, the
+> `values_status` vocabulary by AST off the membership check in
+> `MaterialEntry.__post_init__`, the crop rules by AST off the script's dict
+> literals — never re-listed in the test. The JS side is a character scanner over
+> the `VA.<NAME> = {` literal that handles strings and both comment forms; keys
+> attached from outside a literal are refused separately, since the scanner cannot
+> see one. The extraction is asserted before anything is compared (a missing table
+> raises rather than yielding an empty set), and all of it was demonstrated red
+> and reverted — a fourth Python value, a hyphen misspelling in the JS copy, the
+> table renamed away, and a key attached from outside.
+>
+> **`thermal.py` was not refactored** to a module constant, though the handoff
+> allowed it: `material_cte_optional` owns that file. The test reads the check
+> itself instead, and handles the constant form if that handoff introduces it.
+>
+> A **fourth** hand-copied vocabulary — `VA.CONFIDENCES` — could not be paired,
+> because Python has no single definition of it to pair against. Filed as
+> `ISSUE_20260812_the_confidence_vocabulary_has_no_single_definition_to_pair_va_confidences_against.md`.
+> See `docs/sessions/lessons/LESSONS_20260812_js_python_vocabulary_pairing.md`.
 
 Raised by `viewer_export_and_material_provenance` (2026-08-12) in its lesson;
 filed here so it is visible to triage.
