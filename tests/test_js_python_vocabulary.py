@@ -1,6 +1,6 @@
 """The viewer's status tables, paired with the Python enumerations they copy.
 
-Two vocabularies are **defined in Python and hand-copied into JavaScript**:
+Four vocabularies are **defined in Python and hand-copied into JavaScript**:
 
 ===============================================  ==================================
  Python (the definition)                          JavaScript (the copy)
@@ -10,6 +10,7 @@ Two vocabularies are **defined in Python and hand-copied into JavaScript**:
  ``MaterialEntry.__post_init__``
  the ``resolved_by`` literals in                  ``VA.CROP_RULES``
  ``scripts/build_viewer_crops.py``
+ ``VERDICT_SCOPES``, ``tolerance_stack/stack``    ``VA.VERDICT_SCOPES``
 ===============================================  ==================================
 
 The JS tables are the right *shape* -- total functions with a loud fallback for a
@@ -80,7 +81,7 @@ from pathlib import Path
 
 import pytest
 
-from tolerance_stack.stack import EXPORT_STATUSES
+from tolerance_stack.stack import EXPORT_STATUSES, VERDICT_SCOPES
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VIEWER_JS = REPO_ROOT / "apps" / "viewer" / "viewer.js"
@@ -300,6 +301,14 @@ PAIRINGS = (
      "tolerance_stack/thermal.py: the values_status check in MaterialEntry.__post_init__"),
     ("CROP_RULES", python_crop_rules,
      "scripts/build_viewer_crops.py: the `resolved_by` literals in resolve_pdf"),
+    # Added 2026-08-13 (check_completeness_schema). This one is a live-data blind
+    # spot of the same family and worse: `budget` had zero live instances until
+    # that handoff migrated the pitch-link stack in the same commit, and the
+    # failure mode if the JS copy drifts is silence -- an incomplete check
+    # rendering as an ordinary one, which is the misreading the whole field
+    # exists to prevent.
+    ("VERDICT_SCOPES", lambda: tuple(VERDICT_SCOPES),
+     "tolerance_stack/stack.py: VERDICT_SCOPES"),
 )
 
 
