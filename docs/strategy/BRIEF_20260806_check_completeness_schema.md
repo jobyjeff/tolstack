@@ -1,5 +1,13 @@
 # STRATEGY BRIEF 2026-08-06 — completeness as a schema field, not as prose
 
+> **EXPANDED 2026-08-13 (strategy session) — consumed.** Decisions:
+> `complete: bool` + `excluded_terms` (free strings — an excluded term has
+> no element by definition) + derived `verdict_scope: joint|budget` as a
+> second field (verdict's domain untouched); bidirectional validation;
+> string search deleted; extend in place (check_result is produced, not
+> stored). Staged:
+> `docs/sessions/HANDOFF_20260813_check_completeness_schema.md`.
+
 Routed by the 2026-08-06 triage sweep from
 `docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`
 (`type: feature`, `priority: med`, filed by `stack_viewer_v0` on 2026-08-05).

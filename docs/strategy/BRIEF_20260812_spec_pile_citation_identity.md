@@ -1,5 +1,12 @@
 # STRATEGY BRIEF 2026-08-12 — spec_pile_citation_identity: four `traced` citations name no bytes, and the rule that makes that correct is unstatable
 
+> **EXPANDED 2026-08-13 (strategy session) — consumed.** Decision: option 2
+> in its narrow reading — kind-aware rendering derived from the crop's
+> `resolved_by: spec_pile`, hoisted to the citation row; NO enum/vocabulary
+> change (so no dependency on `js_python_vocabulary_pairing`); no export
+> block on the four (preserves the 08-06 exception). Staged:
+> `docs/sessions/HANDOFF_20260813_spec_citation_identity_rendering.md`.
+
 **Routing note.** `docs/issues/ISSUE_20260812_four_traced_spec_citations_carry_no_export_block.md`
 is `type: bug`, `priority: med`, which routes tactical by default — but it
 carries `audience: strategy` and offers two mutually exclusive resolutions plus

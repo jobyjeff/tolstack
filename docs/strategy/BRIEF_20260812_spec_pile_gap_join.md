@@ -1,5 +1,11 @@
 # STRATEGY BRIEF 2026-08-12 — spec_pile_gap_join: join the open-gap list against the spec pile
 
+> **EXPANDED 2026-08-13 (strategy session) — consumed.** Answers: tool +
+> backlog clearing = one handoff, two ordered phases; MS9363-09 fixed in
+> phase 2; enforcement deferred (reporter only, allowlist seeded in the
+> lesson); ratio restated once, last. Staged:
+> `docs/sessions/HANDOFF_20260813_spec_pile_gap_join.md`.
+
 **Routing note.** `docs/issues/ISSUE_20260810_nothing_sweeps_the_spec_pile_against_open_gaps.md`
 is `type: feature`, `priority: med`, so per `TRIAGE_AGENT.md` it goes to strategy
 rather than tactical. Triage has **not** designed this — a strategy agent should
