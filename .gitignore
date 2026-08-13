@@ -83,3 +83,6 @@ data/runs/*
 data/runs.jsonl
 data/projections/*
 !data/projections/.gitkeep
+
+# Claude Code machine-local settings (ISSUE_20260812_sibling_repos_ignore_settings_local)
+.claude/settings.local.json
