@@ -1,11 +1,28 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: workspace hygiene / main checkout
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260812_restore_viewer_readme.md
 ---
+
+> **Resolved 2026-08-12 by `restore_viewer_readme`.** The Ghostwriter process was
+> already gone when that session ran (`Get-CimInstance … '*ghostwriter*'` returned
+> nothing), so step 1 needed no human after all. Steps 2 and 3 done in the main
+> checkout: README back to 305 lines, `.backup` deleted, `git status --porcelain`
+> clean and **re-verified 97 s later** — the check that matters against a ~20 s
+> autosave loop. Full suite green in the main checkout (351 passed). The restored
+> citation counts were re-derived from the live projection and are correct
+> (`26 of 48`, `15 of 22`, `6 of 9`); nothing needed correcting.
+>
+> Two follow-ons, both deliberate: `*.backup` was **not** added to `.gitignore` —
+> the artefact is the tell that a non-git writer owns a file, and hiding it is how
+> this nearly went unnoticed. And the doc-scan guards cannot fail on this defect
+> at all, filed as
+> `ISSUE_20260812_the_doc_scan_guards_cannot_fail_on_a_deleted_section.md`.
+> Timeline and reasoning:
+> `docs/sessions/lessons/LESSONS_20260812_restore_viewer_readme.md`.
 
 # A Ghostwriter window is writing a stale `apps/viewer/README.md` over the main checkout, ~20 s after every merge
 
