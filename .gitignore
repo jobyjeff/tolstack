@@ -22,6 +22,14 @@ node_modules/
 .DS_Store
 Thumbs.db
 
+# DELIBERATELY NOT IGNORED: *.backup / *.bak / *.orig / *~ (2026-08-12,
+# restore_viewer_readme). An editor artefact appearing beside a modified tracked
+# file is the cheapest tell that a non-git writer owns that file -- it is what
+# made the Ghostwriter window rewriting apps/viewer/README.md diagnosable at all.
+# Ignoring the pattern buys quiet in `git status` and pays with that signal.
+# Delete the artefact when you see it; treat its re-appearance as the alarm.
+# See docs/sessions/lessons/LESSONS_20260812_restore_viewer_readme.md.
+
 # Temporary
 tmp/
 temp/
