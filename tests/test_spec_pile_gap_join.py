@@ -24,9 +24,10 @@ from pathlib import Path
 import pytest
 
 from tests.debug_report_spec_pile_gaps import (
-    KNOWN_NON_MATCHES, SKIP_BANNER, Coverage, Designator, Gap, PileDocument,
-    designators_in, hardware_gaps, join, main_checkout, open_questions,
-    parse_coverage, render, resolve_pile, stack_gaps,
+    EXTRA_COVERAGE, KNOWN_NON_MATCHES, SKIP_BANNER, Designator, Gap,
+    PileDocument, coverage_of, designators_in, hardware_gaps, join,
+    main_checkout, open_questions, parse_coverage, render, resolve_pile,
+    stack_gaps,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -265,7 +266,39 @@ def _gap(gid: str, *names: str) -> Gap:
 
 
 def _doc(name: str) -> PileDocument:
-    return PileDocument(name, tuple(parse_coverage(name)))
+    return PileDocument(name, tuple(coverage_of(name)))
+
+
+# --------------------------------------------------------------------------- #
+# coverage a filename does not admit to                                       #
+# --------------------------------------------------------------------------- #
+
+def test_a_catalogue_covers_the_standard_on_the_page_nobody_named_it_after():
+    """The second false negative in this family. `RBC - Plain bearings (NAS77
+    p92).pdf` carries NAS76 on page 91, and the report listed NAS76 as "nothing
+    in the pile" on the afternoon somebody read it out of that very file."""
+    assert not any(c.contains(Designator("NAS", 76)) for c in parse_coverage(RBC))
+    assert any(c.contains(Designator("NAS", 76)) for c in coverage_of(RBC))
+
+
+def test_a_catalogue_whose_filename_names_no_standard_still_covers_what_it_holds():
+    web = "RBC_Aerospace_Plain_Bearings_Web.pdf"
+    assert [c for c in parse_coverage(web) if c.prefix] == []
+    covered = coverage_of(web)
+    assert any(c.contains(Designator("NAS", 76)) for c in covered)
+    assert any(c.contains(Designator("NAS", 77)) for c in covered)
+
+
+def test_every_extra_coverage_row_says_which_page_it_was_read_on():
+    """A row here is a claim that somebody opened the file, and it is the only
+    evidence a later reader gets. One designator per row, so an entry cannot
+    quietly widen; a page, so the claim is checkable."""
+    for filename, rows in EXTRA_COVERAGE.items():
+        assert filename.strip() == filename and filename
+        for text, why in rows:
+            assert len(designators_in(text)) == 1, f"{filename}: {text!r}"
+            assert "page" in why.lower(), f"{filename}/{text} names no page"
+            assert "202" in why, f"{filename}/{text} does not say when it was read"
 
 
 def test_the_join_finds_the_citation_that_sat_open_for_seven_days():

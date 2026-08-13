@@ -25,7 +25,13 @@ rather than eyeballing:
    *found nothing* for a week. This parses ``NAS<lo>-NAS<hi>`` /
    ``NAS<lo> THRU <hi>`` into a range and tests membership. Same shape for
    ``MS9363 Rev C.pdf`` against ``MS9363-09``.
-2. **It skips loudly in a worktree rather than reporting "no candidates".**
+2. **A filename is a claim about contents, and a bad one.** ``EXTRA_COVERAGE``
+   below records what somebody opened a file and found in it:
+   ``RBC - Plain bearings (NAS77 p92).pdf`` also covers NAS76, and
+   ``RBC_Aerospace_Plain_Bearings_Web.pdf`` names no standard at all. Without
+   it the report says "nothing in the pile for NAS76" about a page that was
+   read the same afternoon -- the original false negative wearing a new hat.
+3. **It skips loudly in a worktree rather than reporting "no candidates".**
    ``data/inbox/specs/`` is gitignored, so a worktree sees an empty directory.
    A tool that answers "nothing in the pile closes anything" from a worktree is
    worse than no tool: it is the same false negative it was written to catch,
@@ -249,6 +255,31 @@ def parse_coverage(filename: str) -> list[Coverage]:
     return deduped
 
 
+# What a document covers that its FILENAME does not say. The second false
+# negative in this family, found 2026-08-13 by running the tool against its own
+# output: `RBC - Plain bearings (NAS77 p92).pdf` covers NAS76 on page 91, and
+# `RBC_Aerospace_Plain_Bearings_Web.pdf` names no standard at all -- so the
+# report cheerfully listed NAS76 as "nothing in the pile" on the same day
+# someone read it out of that file. A filename is a claim about contents, and a
+# vendor catalogue's filename is a bad one.
+#
+# One entry per (file, designator) actually OPENED and READ, with the page it
+# was read on. Not exhaustive and not meant to be: it records what somebody
+# looked at, which is the only thing this repo lets a citation rest on. Adding a
+# row here is a claim that you opened the file.
+EXTRA_COVERAGE: dict[str, tuple[tuple[str, str], ...]] = {
+    "RBC - Plain bearings (NAS77 p92).pdf": (
+        ("NAS76", "pdf page 93, printed page 91 -- NAS76 UNLINED STRAIGHT BUSHINGS. "
+                  "Read 2026-08-13 (spec_pile_gap_join)."),
+    ),
+    "RBC_Aerospace_Plain_Bearings_Web.pdf": (
+        ("NAS76", "pdf page 99, printed page 91. Read 2026-08-13."),
+        ("NAS77", "pdf page 100, printed page 92. Read 2026-08-13. The filename "
+                  "names no standard, so the parse finds nothing in it at all."),
+    ),
+}
+
+
 @dataclass(frozen=True)
 class PileDocument:
     name: str
@@ -271,8 +302,19 @@ def pile_documents(pile_dir: Path) -> list[PileDocument]:
     for p in sorted(pile_dir.iterdir()):
         if not p.is_file() or p.name in ("README.md", "desktop.ini", ".gitkeep"):
             continue
-        docs.append(PileDocument(p.name, tuple(parse_coverage(p.name))))
+        docs.append(PileDocument(p.name, tuple(coverage_of(p.name))))
     return docs
+
+
+def coverage_of(filename: str) -> list[Coverage]:
+    """``parse_coverage`` plus anything ``EXTRA_COVERAGE`` records for this file."""
+    out = parse_coverage(filename)
+    for text, _why in EXTRA_COVERAGE.get(filename, ()):
+        for d in designators_in(text):
+            span = Coverage(d.prefix, d.number, d.number, d.width)
+            if span not in out:
+                out.append(span)
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -364,10 +406,21 @@ def open_questions() -> list[Gap]:
 
 # Seeded 2026-08-13 by handoff spec_pile_gap_join. THIS IS THE LIST THAT HAS TO
 # EXIST BEFORE THIS TOOL COULD EVER BECOME A FAILING CHECK: "the document is in
-# the pile" is not "the document gives this quantity", and a naive test would
-# demand a re-citation that would be wrong. Every entry must name the crop or
-# the reading that proves it, and must be a decision someone actually made --
-# not a hunch that saved a look.
+# the pile" is not "this gap is closable", and a naive test would demand a
+# re-citation that would be wrong. Every entry must name the crop or the reading
+# that proves it, and must be a decision someone actually made -- not a hunch
+# that saved a look.
+#
+# Two distinct reasons a row lands here, and a future check needs both:
+#
+#   (a) READ, DOES NOT GIVE THE QUANTITY. The document is the right one and
+#       simply does not print the number (thread_transition x NAS6403), or it
+#       prints numbers that FALSIFY the part number the gap names rather than
+#       sourcing it (the NAS77 rows -- the pile answered, in the negative).
+#   (b) ALREADY CITED. The gap's own record names the document because it has
+#       already been read and the finding written down; the row is history, not
+#       work. Left un-suppressed these are the noisiest rows in the report,
+#       because a correctly-closed gap keeps naming the document that closed it.
 #
 # Keyed ``(gap id, designator)``; ``tests/test_spec_pile_gap_join.py`` fails if
 # an entry stops matching a live gap, so a dead entry cannot silently unguard
@@ -382,6 +435,113 @@ KNOWN_NON_MATCHES: dict[tuple[str, str], str] = {
         "(fastener_citations_and_confidence) with the value UNCHANGED; the reading "
         "is written into the element's source_ref.note. MIL-S-8879 closes this one, "
         "and it is not in the pile."
+    ),
+    ("vpa_output_to_pitch_plate:straight_bushing", "NAS77"): (
+        "(a) NAS77 is in the pile three times over -- JB_NAS77.pdf and page 92 of "
+        "both RBC plain-bearing catalogues -- and reading it on 2026-08-13 ruled the "
+        "PART NUMBER out rather than sourcing the element. NAS77 is the unlined "
+        "FLANGED series (the straight/plain one is NAS76, page 91 of the same "
+        "catalogue) and the as-drawn part is a BUSHING, PLAIN; the dash rule printed "
+        "on the page, 'Length in .010 increments (ex: -025 = .25 in.)', makes "
+        "NAS77A4-015 .150 in long against the .1875 in this element folds; and the "
+        "printed length tolerance is L +/-.005 in, not the +/-.002 in that 4.71/4.81 "
+        "mm implies. Value UNCHANGED, confidence UNCHANGED at untraced. 214943-002's "
+        "part drawing closes it and is not in the pile."
+    ),
+    ("vpa_output_to_pitch_plate:straight_bushing", "NAS76"): (
+        "(a) NAS76 -- the STRAIGHT/plain series, which is the shape this element "
+        "actually is -- was read on page 91 of both RBC catalogues on 2026-08-13 and "
+        "does not source it either. NAS76 decodes its dash as 32nds of an inch "
+        "('Length Code = First Digit in whole inches. Last two digits in 32nds', ex: "
+        "-025 = .7813 in.), so NAS76A4-015 would be .46875 in long, and its printed "
+        "length tolerance is L +.000/-.005 in rather than the +/-.002 in that "
+        "4.71/4.81 mm implies. (.1875 in IS 6/32, i.e. a -006 dash -- an observation, "
+        "not an identification: nothing in the repo calls this part NAS76 anything.) "
+        "214943-002's part drawing remains the closing document."
+    ),
+    ("hardware_entries.json:NAS77A4-015", "NAS76"): (
+        "(a) Same 2026-08-13 reading of RBC page 91 as the "
+        "vpa_output_to_pitch_plate:straight_bushing row: the straight-bushing series "
+        "neither matches this entry's dash number under its own 32nds decode nor "
+        "prints the +/-.002 in band the entry transcribes. Named here only because "
+        "the corrected gap explains why NAS77 was the wrong series."
+    ),
+    ("hardware_entries.json:NAS77A4-015", "NAS77"): (
+        "(a) Same reading as the vpa_output_to_pitch_plate:straight_bushing row, on "
+        "2026-08-13: the pile holds NAS77, and what it prints for NAS77A4-015 (a "
+        "flanged bushing, .150 in long, L +/-.005 in) contradicts the workbook row "
+        "this entry transcribes rather than sourcing it. Re-citing here would have "
+        "replaced an untraced number with a wrong one. The entry's own gap now "
+        "records the reading; 214943-002's drawing is still the closing document."
+    ),
+    ("hardware_entries.json:MS9363-09", "MS9363"): (
+        "(b) Read 2026-08-05 into spec-library subject MS9363-09 and re-read off a "
+        "crop 2026-08-13: sheet 1 TABLE I row -09 gives H, G, S and 6 PLACES, so the "
+        "nut geometry is sourced and the entry's stale 'still missing on the nut "
+        "side' clause is corrected. The entry stays not_transcribed deliberately -- "
+        "no stack consumes it, per test_only_the_one_entry_was_promoted -- so there "
+        "is nothing left here to re-cite. Its true remainder, the castellation "
+        "phase, is uncontrolled by MS9363 and by everything else."
+    ),
+    ("hardware_entries.json:MS9363-10", "MS9363"): (
+        "(b) Same as the -09 row, on the same 2026-08-13 reading: sheet 1 TABLE I row "
+        "-10 prints identical height and slot geometry (the dash number carries only "
+        "the thread size, requirement 11) and it lives at spec-library subject "
+        "MS9363-10. Nothing left to re-cite; the remaining quantity is the "
+        "uncontrolled castellation phase, handled procedurally per JPS00094 5.9.7."
+    ),
+    ("hardware_entries.json:MS9363-09", "NAS6403"): (
+        "(b) The BOLT half of this joint's alignment problem, closed 2026-08-04 by "
+        "handoff pitch_link_stack off NAS6403-NAS6420 Rev 4.pdf sheet 1 (M = "
+        ".174/.154 in from the point). The gap names the document because it already "
+        "cites it. Nothing to re-open."
+    ),
+    ("hardware_entries.json:MS9363-09", "JPS00094"): (
+        "(b) JPS00094 Rev C was read on 2026-08-05 (spec-library event 0003) and is "
+        "cited here for section 5.9.7's assembly-time remedy, not for nut geometry, "
+        "which it does not give. Both halves of that citation are already written "
+        "into the gap."
+    ),
+    ("hardware_entries.json:MS24665-153", "NAS6403"): (
+        "(b) Already cited in this entry's own CLOSED 2026-08-04 line: sheet 1 gives "
+        "the mating bolt's cotter-hole position M = .174/.154 in and drill P = "
+        ".080/.070 in dia. MS24665 itself -- the cotter-pin standard, which is what "
+        "would let this entry be transcribed -- is NOT in the pile and is correctly "
+        "on the intake list."
+    ),
+    ("hardware_entries.json:MS24665-153", "MS9363"): (
+        "(b) Named in the 2026-08-04 gap as the nut half of the same joint, read "
+        "2026-08-05. It is not the document that would transcribe a cotter pin; "
+        "MS24665 is, and that one is still absent."
+    ),
+    ("hardware_entries.json:MS24665-153", "JPS00094"): (
+        "(b) Cited in the 2026-08-04 gap for section 5.7.6.a (cotter pins shall "
+        "conform to NASM24665 unless the drawing says otherwise) -- a pointer to "
+        "another standard, not a source of pin dimensions. Read 2026-08-05."
+    ),
+    ("hardware_entries.json:MS9363-10", "JPS00094"): (
+        "(b) Cited in the 2026-08-13 closure line for section 5.9.7's procedural "
+        "remedy, which is what a joint gets when the geometry is uncontrolled. "
+        "JPS00094 gives no nut dimensions and never could; read 2026-08-05 "
+        "(spec-library event 0003)."
+    ),
+    ("hardware_entries.json:MS24665-229", "MS9363"): (
+        "(b) Named in this entry's 2026-08-13 closure line as the nut half of the "
+        "same joint, read 2026-08-05. As with the -153 row, MS9363 is not the "
+        "document that would transcribe a cotter pin -- MS24665 is, and it is still "
+        "absent from the pile."
+    ),
+    ("hardware_entries.json:MS24665-229", "NAS6403"): (
+        "(b) Appears only because this entry's 2026-08-13 closure line quotes what "
+        "the sibling -153 entry recorded for the NAS6403 row on 2026-08-04. The bolt "
+        "here is the NAS6404, handled by its own allowlist row; there is nothing "
+        "separate to read."
+    ),
+    ("hardware_entries.json:MS24665-229", "NAS6404"): (
+        "(b) Closed 2026-08-13 by this handoff: NAS6403-NAS6420 Rev 4.pdf sheet 1, "
+        "NAS6404 row, gives M = .180/.160 in and P = .086/.076 in, read 2026-08-10 "
+        "into spec-library subject NAS6404U13D. The gap now says so. As with the "
+        "-153, the pin itself still needs MS24665, which is not in the pile."
     ),
 }
 
@@ -530,11 +690,12 @@ def render(result: Join, header: str) -> str:
 
     lines += [
         "",
-        "## 2. CHECKED, NOT CLOSABLE -- in the pile, does not give this quantity",
+        "## 2. CHECKED, NOT CLOSABLE -- in the pile, does not make this gap closable",
         "",
-        "The allowlist (`KNOWN_NON_MATCHES`). These rows are NOT work: someone read",
-        "the document and decided it does not print the number. Do not re-open one",
-        "without reading the reason.",
+        "The allowlist (`KNOWN_NON_MATCHES`). These rows are NOT work. Either the",
+        "document was read and does not give the quantity (a), or the gap's own record",
+        "already cites it and the row is history (b). Do not re-open one without",
+        "reading the reason.",
         "",
     ]
     if not result.checked:

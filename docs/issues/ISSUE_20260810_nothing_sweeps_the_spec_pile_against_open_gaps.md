@@ -1,11 +1,39 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: tolerance-stacks / spec-pile
 reporter: agent
 strategy: docs/strategy/BRIEF_20260812_spec_pile_gap_join.md
+resolved_by: handoff spec_pile_gap_join, 2026-08-13
 ---
+
+> **RESOLVED 2026-08-13** by handoff `spec_pile_gap_join`, in the two phases the
+> handoff ordered.
+>
+> **The tool.** `tests/debug_report_spec_pile_gaps.py` joins every open question
+> — each `untraced`/`inferred` element instance across the stack files, each
+> `hardware_entries.json` entry whose `values_source` is not `traced` — against
+> `data/inbox/specs/`, range-aware, and prints four lists: candidates, checked
+> non-matches, documents still missing (the intake queue), and gaps that name no
+> document at all. It reports and never relabels, and in a worktree it **skips
+> loudly** instead of answering "no candidates" off a gitignored empty
+> directory. 43 value-level tests in `tests/test_spec_pile_gap_join.py`.
+>
+> **The backlog.** Clear. The eight rows in the table below had all been closed
+> by 2026-08-10; what the join found still open was `MS9363-09`/`-10` (the
+> known-live false claim — corrected, and the finding it was hiding recorded),
+> `MS24665-229` (bolt half closed off the NAS6404 row), and `NAS77A4-015` plus
+> `vpa:straight_bushing`, where the pile **answered in the negative** and the
+> values were correctly left alone. **The traced ratio did not move** — 5 of 26
+> across the seeded stacks, 21 of 48 across all — because nothing in the pile
+> closed a gap that was still open. That is the resolution, not a failure of it.
+>
+> **Not done, deliberately:** the check. Enforcement was deferred by the
+> strategy session; `KNOWN_NON_MATCHES` in the tool is the allowlist a check
+> would need, now seeded with real entries in two distinct categories, and
+> `LESSONS_20260813_spec_pile_gap_join.md` carries the evidence for that
+> decision.
 
 # A document arriving in `data/inbox/specs/` does not re-cite anything by itself, and nothing in the repo notices that it could
 

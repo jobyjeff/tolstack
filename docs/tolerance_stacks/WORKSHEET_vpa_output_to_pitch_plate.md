@@ -126,6 +126,26 @@ number was a placeholder while the part was being drawn. The workbook's
 4.71/4.81 length limits therefore have no source at all — they cannot be checked
 against a standard that isn't used or a part drawing this repo doesn't hold.
 
+> **UPDATE 2026-08-13** (`spec_pile_gap_join`). The standard *is* in the pile —
+> `JB_NAS77.pdf` and page 92 of both RBC plain-bearing catalogues — and reading
+> it makes this finding sharper rather than closing it. **NAS77 is the unlined
+> FLANGED bushing series**; the straight/plain one is **NAS76**, page 91 of the
+> same catalogue. The part ballooned at DETAIL X is a `BUSHING, PLAIN`. And the
+> dash-number rule printed on the NAS77 page — *"xxx: Length in .010 increments
+> (ex: -025 = .25 in.)"* — makes `NAS77A4-015` a **.150 in** long bushing, where
+> this stack folds .1875 in. (NAS76 decodes its dash differently again, as
+> 32nds of an inch, so `NAS76A4-015` would be .46875 in — .1875 in is `-006`
+> under that rule.) The printed length tolerances are `L ±.005 in` for NAS77 and
+> `L +.000/−.005 in` for NAS76; neither is the ±.002 in that 4.71/4.81 mm
+> implies.
+>
+> So the workbook's `NAS77A4-015` label does not describe this part on any
+> reading, which strengthens the "placeholder" horn of the fork above. Element 1
+> stays `untraced` with its value **unchanged**: the fix is 214943-002's part
+> drawing (gap 4), not the standard. This is the first entry filed under
+> "document is in the pile and does **not** close the gap" — see
+> `tests/debug_report_spec_pile_gaps.py`'s `KNOWN_NON_MATCHES`.
+
 ### F14 — The joint may not touch the pitch plate **[drift, unresolved]**
 
 The stack is named "VPA Output to Pitch Plate" and its clamped member is a
@@ -175,12 +195,12 @@ say so rather than pretend a clean answer exists."* Slice 1's answer: it says so
 | # | source needed | what it would resolve | priority |
 |---|---|---|---|
 | 1 | ~~**NAS6404** (.250-28 hex bolt)~~ — **PARTIALLY CLOSED 2026-08-06.** `NAS6403-NAS6420 Rev 4.pdf` covers NAS6403 through NAS6420 in one document; it is now in `data/inbox/specs/`. | Element 6's grip ±.010 is now `traced` to sheet 3 (dash 13, NAS6404 column: grip .812, length 1.182). **Still open:** thread run-out and cotter-hole position (`M`) are on sheet 1 and have not been modelled — this stack has no thread-transition element at all. | 2 |
-| 2 | **MS9363-10** castellated nut | slot count + depth; the check that governs | **1 — blocks F16** |
+| 2 | ~~**MS9363-10** castellated nut~~ — **CLOSED as an acquisition 2026-08-05; row corrected 2026-08-13** (`spec_pile_gap_join`). | ~~slot count + depth~~ — sheet 1 TABLE I row `-10` prints `H = .178/.198 in`, `G = .084/.104 in`, `S = .073/.088 in` and the slot pattern reads `6 PLACES`; identical height and slot geometry to the `-09`, since the dash number carries only the thread size (requirement 11). At spec-library subject `MS9363-10`. **F16 stays open and is not an acquisition**: it needs the castellation-to-thread-start phase, which MS9363 does not control. | ~~1~~ — **not an intake item** |
 | 3 | **MS21299** countersunk washer | the ±.006 in band, and the countersink geometry that "under head chamfer" is really about. **Confirmed absent from `data/inbox/specs/` on 2026-08-06**, which is why element 5 is `inferred` and not `traced`. | 2 |
 | 4 | 214943-002 bushing (Joby part drawing) | the as-drawn bushing's length limits (replaces NAS77A4-015 entirely) | 2 |
 | 5 | 208510-007 VPA ASSEMBLY | the 8.66/8.71 spherical bearing width — no bearing balloon in DETAIL X because it is internal to the actuator | 3 |
 | 6 | 215175-001/-002 TANGENTIAL LINK MOUNT | whether the 4.06 flange belongs here rather than on 215197 (F14) | 2 |
-| 7 | NAS77 (plain bushing) | whether the workbook's original part exists in the design at all | 4 |
+| 7 | ~~NAS77 (plain bushing)~~ — **READ 2026-08-13** (`spec_pile_gap_join`). It was in `data/inbox/specs/` all along: `JB_NAS77.pdf` and page 92 of both RBC plain-bearing catalogues. | **Answered, in the negative.** NAS77 is the **flanged** series (the straight/plain one is NAS76, page 91); the as-drawn part is a `BUSHING, PLAIN`; and the dash decode printed on the page — *"Length in .010 increments (ex: -025 = .25 in.)"* — makes `NAS77A4-015` **.150 in** long, not the .1875 in this stack folds. Its length tolerance is `L ±.005 in`, not the ±.002 in that 4.71/4.81 mm implies. So the workbook's part number does not describe this bushing, and reading the standard cannot source element 1 — see F13. | ~~4~~ — **done** |
 
 **Traced, for contrast:** one element — the NAS6404U13D grip, `.812 ±.010 in`
 off `NAS6403-NAS6420 Rev 4.pdf` sheet 3. Nothing on this joint is traced to a
