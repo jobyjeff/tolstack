@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: docs/tolerance_stacks / citation provenance
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260812_spec_pile_citation_identity.md
 ---
 
 # Four `traced` `spec` citations carry no `export` block, so the row says `traced` and nothing identifies the bytes

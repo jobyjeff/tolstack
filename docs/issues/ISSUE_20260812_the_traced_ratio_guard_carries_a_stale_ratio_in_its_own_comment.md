@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tests / traced ratio
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260812_traced_ratio_guard_freshness.md
 ---
 
 # The traced-ratio guard states a stale ratio in its own comment

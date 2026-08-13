@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: apps/viewer / tolerance_stack schema
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260812_js_python_vocabulary_pairing.md
 ---
 
 # Nothing asserts the viewer's status tables spell the same vocabularies Python enumerates

@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tolerance_stack/thermal.py — MaterialEntry
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260812_material_cte_optional.md
 ---
 
 # A `not_transcribed` material entry is still forced to carry a `cte_1e6_per_c`, so it cannot honestly say the number was not transcribed
