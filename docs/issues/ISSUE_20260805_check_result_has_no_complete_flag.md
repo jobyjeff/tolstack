@@ -1,11 +1,25 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: schema / tolerance_stack
 reporter: agent
 strategy: docs/strategy/BRIEF_20260806_check_completeness_schema.md
+resolved_by: docs/sessions/HANDOFF_20260813_check_completeness_schema.md
+resolved_on: 2026-08-13
 ---
+
+> **RESOLVED 2026-08-13** by handoff `check_completeness_schema`, as suggested
+> below and with one addition the brief settled: `verdict_scope` is a **second
+> field** (`joint` | `budget`, derived from `complete`), not a change to
+> `verdict`'s domain — so no consumer of `pass|marginal|fail` had to learn a new
+> value. `excluded_terms` are **free strings**, deliberately: an excluded term
+> has no element to reference, because never being sourced is why it is
+> excluded. Validation is bidirectional, `is_incomplete` is deleted rather than
+> kept alongside, the pitch-link stack's two checks are migrated off the shouted
+> label suffix, and the pinned lower-case-miss test is replaced by its
+> schema-field counterpart. See
+> `docs/sessions/lessons/LESSONS_20260813_check_completeness_schema.md`.
 
 # `check_result/v0` has no `complete` flag, so "INCOMPLETE" rides on prose
 

@@ -58,6 +58,14 @@ SCHEMA_STACK = "joby.tolerance_stack/stack_definition/v0"
 SCHEMA_HARDWARE = "joby.tolerance_stack/hardware_entry/v0"
 SCHEMA_CHECK = "joby.tolerance_stack/check_result/v0"
 
+#: What a check's ``verdict`` is a verdict **about**. Derived from ``complete``,
+#: never authored -- see :class:`CheckResult`. The vocabulary lives here, in
+#: ``docs/SOP_TOLERANCE_STACK.md`` Step 5c, and in ``apps/viewer/viewer.js``'s
+#: ``VA.VERDICT_SCOPES`` (paired against this tuple by
+#: ``tests/test_js_python_vocabulary.py``, so there is one definition and two
+#: renderings, not three copies).
+VERDICT_SCOPES = ("joint", "budget")
+
 
 # ---------------------------------------------------------------------------
 # Source references
@@ -432,7 +440,46 @@ def fold(terms: Iterable[Term]) -> Interval:
 
 @dataclass
 class CheckResult:
-    """A grip-length outcome for one configuration."""
+    """A grip-length outcome for one configuration.
+
+    Completeness is a **schema field, not a word in the prose**
+    -----------------------------------------------------------
+    A check whose term list is knowingly missing a member -- the pitch-link
+    stack's two, which exclude the unsourced link-eye width -- is the single
+    most important thing a reviewer must not misread: its verdict is a *budget
+    for the missing term*, not a conclusion about the joint. Until 2026-08-13
+    that fact lived only in authored English, and ``build_viewer_projection``
+    detected it by searching the label/guidance/check_id for the literal string
+    ``INCOMPLETE``. A stack that wrote "incomplete" in lower case, or "PARTIAL",
+    or "budget only", rendered as an ordinary check with a ``fail`` verdict --
+    exactly the misreading the flag exists to prevent
+    (``docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md``). That
+    string search is deleted, not coexisting: two detectors are worse than one
+    bad detector.
+
+    * ``complete`` -- false when a term the joint needs is not in this check.
+    * ``excluded_terms`` -- what is missing, and why, in words. **Free strings,
+      deliberately.** An excluded term is by definition a thing that has *no
+      element* (it was never sourced -- that is why it is excluded), so an
+      element reference cannot name it. The string should name the missing
+      quantity and the reason: ``"pitch-link eye / spherical bearing width --
+      no document"`` is the exemplar.
+
+    The invariant is **bidirectional** and enforced here rather than left to
+    review: ``complete: false`` with no ``excluded_terms`` is a check that
+    announces a hole without saying what fell in it, and ``excluded_terms`` with
+    ``complete: true`` is a hole nothing announces. Both raise.
+
+    ``verdict``'s domain is untouched
+    --------------------------------
+    :attr:`verdict` still reads ``pass | marginal | fail`` and nothing else, so
+    every consumer that switches on those three keeps working. What an
+    incomplete check needed was not a fourth verdict but a statement of what the
+    verdict is *about*, and that is :attr:`verdict_scope`: ``joint`` normally,
+    ``budget`` when the model has a hole in it. "fail" on an incomplete check is
+    **true of the model and false of the hardware**; scope is where that gets
+    said, and it is said at render time rather than by corrupting the verdict.
+    """
 
     check_id: str
     label: str
@@ -441,6 +488,39 @@ class CheckResult:
     criterion: str = ">= 0"
     units: str = "mm"
     guidance: Optional[str] = None
+    complete: bool = True                    # false = a needed term is missing
+    excluded_terms: Sequence[str] = ()       # what is missing, and why, in words
+
+    def __post_init__(self) -> None:
+        self.excluded_terms = tuple(self.excluded_terms or ())
+        for term in self.excluded_terms:
+            if not isinstance(term, str) or not term.strip():
+                raise ValueError(
+                    f"check {self.check_id!r}: every excluded term must be a "
+                    f"non-empty string naming the missing quantity and why, got "
+                    f"{term!r}")
+        if not self.complete and not self.excluded_terms:
+            raise ValueError(
+                f"check {self.check_id!r} is `complete: false` but names no "
+                f"excluded_terms -- a check that announces a hole must say what "
+                f"fell in it, or the reader cannot tell what the magnitude is a "
+                f"budget for")
+        if self.complete and self.excluded_terms:
+            raise ValueError(
+                f"check {self.check_id!r} names excluded_terms "
+                f"{list(self.excluded_terms)} but is `complete: true` -- either "
+                f"the terms are in the model (drop them) or they are not (set "
+                f"`complete: false`, so the card renders as a budget)")
+
+    @property
+    def verdict_scope(self) -> str:
+        """``joint`` / ``budget`` -- what :attr:`verdict` is a verdict *about*.
+
+        Derived from :attr:`complete`, never authored: ``budget`` iff the check
+        is incomplete. A second field rather than a fourth value of ``verdict``,
+        so no existing consumer of ``pass|marginal|fail`` has to learn anything.
+        """
+        return "joint" if self.complete else "budget"
 
     @property
     def verdict(self) -> str:
@@ -467,6 +547,12 @@ class CheckResult:
             "criterion": self.criterion,
             "units": self.units,
             "verdict": self.verdict,
+            # Both the authored field and the flag derived from it: a consumer
+            # that renders reads `verdict_scope`, a consumer that validates
+            # reads `complete`, and neither has to know the other's rule.
+            "complete": self.complete,
+            "excluded_terms": list(self.excluded_terms),
+            "verdict_scope": self.verdict_scope,
             "guidance": self.guidance,
             **self.interval.as_dict(),
         }
@@ -528,6 +614,11 @@ class StackDefinition:
         a path term expands to that path's own terms with the signs multiplied
         and the coefficients multiplied through, so nesting never changes the
         arithmetic.
+
+        ``complete`` / ``excluded_terms`` ride through from the spec with safe
+        defaults, so a check that says nothing is complete and a **generated**
+        check (whose spec dict is built by an archetype loader, not read from
+        the file) declares incompleteness through exactly the same two keys.
         """
         for spec in self.checks:
             if spec["check_id"] == check_id:
@@ -542,6 +633,8 @@ class StackDefinition:
             criterion=spec.get("criterion", ">= 0"),
             units=self.units,
             guidance=spec.get("guidance"),
+            complete=bool(spec.get("complete", True)),
+            excluded_terms=tuple(spec.get("excluded_terms") or ()),
         )
 
     def all_checks(self) -> List[CheckResult]:

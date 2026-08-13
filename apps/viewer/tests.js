@@ -100,10 +100,28 @@
       eq(VA.confidenceClass("banana"), "conf--unknown");
     });
 
+    // The replacement for the prose search. `is_incomplete` used to look for the
+    // literal "INCOMPLETE" in the label/guidance/check_id, so a stack that wrote
+    // it in lower case — or "PARTIAL", or "budget only" — rendered as an
+    // ordinary check with a fail verdict. Scope is a field now: the prose can
+    // say anything at all and the flag is unmoved.
+    await test("budget scope is read off the field, never off the prose", function () {
+      ok(VA.isBudgetScope({ verdict_scope: "budget", label: "shank out" }));
+      ok(!VA.isBudgetScope({ verdict_scope: "joint",
+                             label: "x -- INCOMPLETE: y",
+                             guidance: "This check is INCOMPLETE." }));
+      ["x -- incomplete: y", "PARTIAL: eye unsourced", "budget only"].forEach(
+        function (prose) {
+          ok(VA.isBudgetScope({ verdict_scope: "budget", label: prose }), prose);
+        });
+      ok(!VA.isBudgetScope(null));
+      ok(!VA.isBudgetScope({}));
+    });
+
     await test("summaryChips scoreboards the stack and flags both soft spots", function () {
       var texts = VA.summaryChips(DEMO).map(function (c) { return c.text; });
       eq(texts, ["1 traced", "1 inferred", "1 UNTRACED",
-                 "1 zero-width band", "1 INCOMPLETE check"]);
+                 "1 zero-width band", "1 budget-scope check"]);
     });
 
     await test("summaryChips says the checks are generated and counts the probes", function () {
@@ -427,14 +445,36 @@
       has(row.textContent, "±0.1");
     });
 
-    await test("the INCOMPLETE check is flagged and its verdict shown", function () {
+    await test("the budget-scope check is flagged and its verdict shown", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      var incomplete = all(root, "article.check--incomplete");
-      eq(incomplete.length, 1);
-      has(incomplete[0].textContent, "INCOMPLETE");
-      has(incomplete[0].textContent, "fail");
+      var budget = all(root, "article.check--budget");
+      eq(budget.length, 1);
+      has(budget[0].textContent, "BUDGET");
+      has(budget[0].textContent, "fail");
       // A check is only as sourced as its weakest term.
-      has(incomplete[0].textContent, "weakest input: UNTRACED");
+      has(budget[0].textContent, "weakest input: UNTRACED");
+    });
+
+    // A budget rendered without the term it is a budget FOR is the misreading
+    // the scope exists to prevent, one screen further down: the reader sees a
+    // number and a `fail` and no statement of what is missing. The gap list
+    // three sections below does not count — this is the card.
+    await test("a budget-scope card names its excluded terms beside the number", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      var excluded = all(all(root, "article.check--budget")[0], ".check__excluded");
+      eq(excluded.length, 1);
+      has(excluded[0].textContent, "link eye width");
+      has(excluded[0].textContent, "budget for the missing");
+    });
+
+    await test("a joint-scope check gets no stripe, no chip and no excluded line", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      var joint = all(root, "article.check").filter(function (c) {
+        return c.className.indexOf("check--budget") === -1;
+      });
+      eq(joint.length, 1);
+      eq(joint[0].textContent.indexOf("BUDGET"), -1);
+      eq(all(joint[0], ".check__excluded").length, 0);
     });
 
     await test("a check lists its expanded inputs with signs", function () {
@@ -1079,9 +1119,15 @@
         ok(pitch, "pitch_link_to_pitch_plate must be there");
       });
 
-      await test("[real] the pitch-link stack renders its two INCOMPLETE checks", function () {
+      await test("[real] the pitch-link stack renders its two budget-scope checks", function () {
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
-        eq(all(root, "article.check--incomplete").length, 2);
+        var budget = all(root, "article.check--budget");
+        eq(budget.length, 2);
+        // The live migration off the `-- INCOMPLETE:` label suffix: the schema
+        // field is what raises the stripe now, so the shout is gone from the
+        // label and the excluded term is on the card instead.
+        has(budget[0].textContent, "spherical bearing");
+        eq(root.textContent.indexOf("INCOMPLETE:"), -1);
       });
 
       await test("[real] gap 1 — the unsourced bearing width — is visible", function () {
@@ -1431,6 +1477,15 @@
           values: function (r) {
             return checksIn(r).map(function (c) { return c.worst_confidence; })
               .concat(pathsIn(r).map(function (p) { return p.worst_confidence; }));
+          } },
+        { field: "checks[].verdict_scope",
+          branch: "VA.VERDICT_SCOPES — an unknown scope raises no stripe and no " +
+            "chip, so an incomplete check would render as an ordinary one: the " +
+            "exact misreading the field replaced the INCOMPLETE prose search to " +
+            "prevent (ISSUE_20260805_check_result_has_no_complete_flag)",
+          known: function (v) { return !!VA.VERDICT_SCOPES[v]; },
+          values: function (r) {
+            return checksIn(r).map(function (c) { return c.verdict_scope; });
           } },
         { field: "checks[].verdict",
           branch: "VA.verdictClass",

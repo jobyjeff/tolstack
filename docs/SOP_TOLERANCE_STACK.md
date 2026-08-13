@@ -790,12 +790,27 @@ write the checks so the missing value appears as an explicit budget.
 **Never create a placeholder element.** Omit it, and then write the check anyway
 over the members you do have, so the shortfall *is* the missing value:
 
-- put `INCOMPLETE — <what is missing>` in the check `label`;
+- set **`"complete": false`** on the check, and name what is missing — and why
+  it is missing — in **`"excluded_terms"`**, one free string per term
+  (`"pitch-link eye / spherical bearing width — no document"` is the worked
+  example). They are *free strings on purpose*: an excluded term has no element
+  to point at, because never being sourced is exactly why it is excluded. The
+  two fields are a **bidirectional invariant** and the code enforces it —
+  `complete: false` with no `excluded_terms` raises, and `excluded_terms` on a
+  check that claims `complete: true` raises. Do **not** put `INCOMPLETE` in the
+  `label`: that convention was a prose flag until 2026-08-13, a stack that wrote
+  it in lower case rendered as an ordinary check, and the schema says it now;
 - in `guidance`, say what the magnitude means and which document closes it;
 - expect a verdict that is `fail` or `pass` **by construction**. That verdict is
-  not a design conclusion, and the worksheet must say so **next to the number**,
-  in the same place and for the same reason as the castellated-nut caveat;
-- add the omitted element to `gaps` as item 1;
+  not a design conclusion — **it is true of the model and false of the
+  hardware** — and that is what `complete: false` states: the check's derived
+  **`verdict_scope`** becomes `budget` instead of `joint`, and the viewer stripes
+  the card and prints the excluded terms beside the number. `verdict` itself
+  still reads `pass | marginal | fail` and means what it always did. The
+  worksheet must still say so **next to the number**, in the same place and for
+  the same reason as the castellated-nut caveat;
+- add the omitted element to `gaps` as item 1 — the viewer's gap list is built
+  from `excluded_terms`, so this happens by writing the field;
 - **state which end of the interval is the requirement, and why.** For a
   shortfall check the binding bound is the one built from the **worst**
   combination for the criterion — for `column − grip ≥ 0` that is grip at `max`
@@ -817,7 +832,8 @@ value was correct and every test was green; the error was entirely in the
 sentence. `test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end`
 now pins it.
 
-A check with a hole in it, labelled, beats a check with a guess in it.
+A check with a hole in it, **declared in the schema**, beats a check with a guess
+in it.
 
 ## Step 6 — write the worksheet
 

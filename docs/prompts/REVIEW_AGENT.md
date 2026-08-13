@@ -863,16 +863,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       whenever `docs/spec_library/events/` moved, and diff old against new: the
       only legitimate difference is the `provenance` block (there is deliberately
       no top-level `built_at` on this one).
-- [ ] **`INCOMPLETE` is a prose convention, not a schema field.**
-      `build_viewer_projection.is_incomplete` greps the check's
-      `label`/`guidance`/`check_id` for the literal upper-case string. A stack
-      that writes "incomplete", "PARTIAL" or "budget only" renders as an ordinary
-      failing check — losing exactly the "this is a budget, not a verdict on the
-      joint" warning the SOP's Step 5c exists to carry. When reviewing a stack
-      with an excluded term, check the authored string, and check that
-      `configuration.excluded` and the INCOMPLETE label agree (nothing validates
-      the pairing —
-      `docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`).
+- [ ] **Completeness is a schema field — check the field, not the prose.**
+      Until 2026-08-13 `INCOMPLETE` was a prose convention that
+      `build_viewer_projection.is_incomplete` grepped for, so a stack writing
+      "incomplete", "PARTIAL" or "budget only" rendered as an ordinary failing
+      check. That function is gone. A check with a knowingly missing term now
+      carries `"complete": false` plus `"excluded_terms": [...]`, and
+      `CheckResult` enforces the pairing in **both** directions, so the thing
+      this item used to ask a human to eyeball is now a test. What still needs a
+      reviewer: that the `excluded_terms` **strings say what is missing and
+      why** (they are free text by design — an unsourced term has no element to
+      reference), that the label does *not* re-shout `INCOMPLETE`, and that the
+      SOP Step 5c "read the magnitude as a budget" caveat is beside the number
+      in the worksheet. A stack authored before the migration and never touched
+      would carry the old label with no `complete` field and render as an
+      ordinary check — grep the stack files for `INCOMPLETE` if one shows up.
 - [ ] **A derived headline figure with no single computing command.** The
       strongest form of "recompute any count a doc asserts", learned the expensive
       way — the superseded traced ratio, quoted in eleven files for a month:

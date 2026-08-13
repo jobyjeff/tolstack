@@ -215,13 +215,35 @@ def test_zero_width_bands_are_flagged(pitch_link):
     assert pitch_link["zero_width_count"] == 2
 
 
-def test_both_pitch_link_checks_are_flagged_incomplete(pitch_link):
-    assert [c["incomplete"] for c in pitch_link["checks"]] == [True, True]
+def test_both_pitch_link_checks_reach_the_viewer_as_budget_scope(pitch_link):
+    """The live migration, at value level: the two checks that used to shout
+    ``-- INCOMPLETE:`` in their labels now carry the schema fields, and the
+    projection hands the viewer all three -- the authored flag, the terms it
+    names, and the scope derived from it."""
+    assert [c["verdict_scope"] for c in pitch_link["checks"]] == ["budget", "budget"]
+    assert [c["complete"] for c in pitch_link["checks"]] == [False, False]
+    for check in pitch_link["checks"]:
+        assert check["excluded_terms"] == [
+            "pitch-link eye / spherical bearing width -- no document"]
+        assert "INCOMPLETE" not in check["label"]
+    # verdict's domain is untouched -- the whole point of a second field.
+    assert [c["verdict"] for c in pitch_link["checks"]] == ["fail", "pass"]
 
 
-def test_a_complete_check_is_not_flagged_incomplete(projection):
+def test_a_complete_check_is_joint_scoped_and_names_nothing_excluded(projection):
     tan_link = by_id(projection, "tan_link_to_pitch_plate")
-    assert not any(c["incomplete"] for c in tan_link["checks"])
+    assert all(c["verdict_scope"] == "joint" for c in tan_link["checks"])
+    assert all(c["complete"] for c in tan_link["checks"])
+    assert all(c["excluded_terms"] == [] for c in tan_link["checks"])
+
+
+def test_no_projected_check_still_carries_the_deleted_prose_flag(projection):
+    """``incomplete`` was a derived key built by searching the prose. It is gone,
+    not shipped beside its replacement: two detectors are worse than one bad
+    detector, and a stale key is how a consumer keeps reading the old one."""
+    for stack in projection["stacks"]:
+        for check in stack["checks"]:
+            assert "incomplete" not in check
 
 
 # --- generated checks: the archetype's own loader, run here ----------------
@@ -544,12 +566,118 @@ def test_element_carries_the_gaps_of_its_own_hardware_entry(pitch_link):
     assert any("MIL-S-8879" in g for g in element["hardware_gaps"])
 
 
-# --- the INCOMPLETE heuristic, stated honestly ----------------------------
+# --- completeness: the schema field that replaced the prose search ---------
+#
+# Replaces `test_incomplete_is_detected_from_authored_prose_not_a_schema_field`,
+# which pinned the lower-case miss ON PURPOSE so it could not be forgotten
+# (ISSUE_20260805_check_result_has_no_complete_flag, brief 2026-08-06). Same
+# misreading scenarios, opposite expectation: they all render correctly now,
+# because detection no longer reads prose at all.
 
 
-def test_incomplete_is_detected_from_authored_prose_not_a_schema_field():
-    assert bvp.is_incomplete({"label": "x -- INCOMPLETE: y"})
-    assert bvp.is_incomplete({"label": "x", "guidance": "This check is INCOMPLETE."})
-    # Lower case is NOT detected: check_result/v0 has no `complete` field, so the
-    # flag rides on a prose convention. Documented in the session lesson.
-    assert not bvp.is_incomplete({"label": "x -- incomplete: y"})
+def test_the_prose_search_is_gone_not_merely_bypassed():
+    """``is_incomplete`` is DELETED. Two detectors would be worse than one bad
+    detector -- a stack could satisfy the schema and still be classified by its
+    label. The script must have no way to read the prose for this."""
+    assert not hasattr(bvp, "is_incomplete")
+    source = (REPO_ROOT / "scripts" / "build_viewer_projection.py").read_text(
+        encoding="utf-8")
+    assert "INCOMPLETE" not in source
+
+
+@pytest.mark.parametrize("prose", [
+    "x -- incomplete: y",          # lower case: the miss the old test pinned
+    "x -- PARTIAL: y",             # another word for it
+    "budget only",                 # and another
+    "x",                           # no announcement in the prose at all
+])
+def test_a_check_renders_as_a_budget_whatever_its_prose_says(tmp_path, prose):
+    write_stack(
+        tmp_path, id="fixture_stack",
+        checks=[{"check_id": "c", "label": prose,
+                 "terms": [{"element": "only"}],
+                 "complete": False, "excluded_terms": ["the eye -- no document"]}],
+    )
+    stack = by_id(bvp.build(tmp_path, tmp_path / "hardware_entries.json"),
+                  "fixture_stack")
+    assert stack["checks"][0]["verdict_scope"] == "budget"
+    assert stack["checks"][0]["excluded_terms"] == ["the eye -- no document"]
+
+
+def test_shouting_incomplete_in_the_prose_no_longer_flags_anything(tmp_path):
+    """The other direction, which the string search could not get right either:
+    a check whose guidance QUOTES the word is not thereby a budget. JPS00094's
+    "shall not engage any incomplete threads" is a live example, and it is in
+    the pitch-link guidance."""
+    write_stack(
+        tmp_path, id="fixture_stack",
+        checks=[{"check_id": "c", "label": "x -- INCOMPLETE: y",
+                 "guidance": "This check is INCOMPLETE.",
+                 "terms": [{"element": "only"}]}],
+    )
+    stack = by_id(bvp.build(tmp_path, tmp_path / "hardware_entries.json"),
+                  "fixture_stack")
+    assert stack["checks"][0]["verdict_scope"] == "joint"
+    assert stack["checks"][0]["complete"] is True
+
+
+def test_the_gap_list_is_built_from_the_schema_field(tmp_path):
+    """``configuration.excluded`` was a free-text value in a free-text dict, and
+    a check could carry it without saying INCOMPLETE. The gap list reads
+    ``excluded_terms`` now, so it cannot disagree with the striped card: the one
+    CheckResult invariant refuses a check that names a term and claims to be
+    whole. Deduplicated across checks, in first-seen order, as before."""
+    write_stack(
+        tmp_path, id="fixture_stack",
+        checks=[{"check_id": "c", "label": "c", "terms": [{"element": "only"}],
+                 "complete": False,
+                 "excluded_terms": ["the eye -- no document", "the nut height"]},
+                {"check_id": "d", "label": "d", "terms": [{"element": "only"}],
+                 "complete": False,
+                 "excluded_terms": ["the eye -- no document"]}],
+    )
+    stack = by_id(bvp.build(tmp_path, tmp_path / "hardware_entries.json"),
+                  "fixture_stack")
+    assert [(g["kind"], g["text"]) for g in stack["gaps"]] == [
+        ("excluded_from_model", "the eye -- no document"),
+        ("excluded_from_model", "the nut height"),
+    ]
+
+
+def test_the_projection_refuses_a_check_that_breaks_the_invariant(tmp_path):
+    """Validation is not a viewer-side nicety: the build itself fails."""
+    write_stack(
+        tmp_path, id="fixture_stack",
+        checks=[{"check_id": "c", "label": "c", "terms": [{"element": "only"}],
+                 "complete": False}],
+    )
+    with pytest.raises(ValueError, match="names no excluded_terms"):
+        bvp.build(tmp_path, tmp_path / "hardware_entries.json")
+
+
+def test_a_generated_thermal_check_can_declare_incompleteness():
+    """Brief question 5: a GENERATED check must be able to say it too.
+
+    ``thermal_fit`` builds its check specs in Python
+    (``thermal.build_checks``), and they are plain dicts consumed by the same
+    ``StackDefinition.check`` every authored stack uses -- so the archetype
+    declares completeness through the identical two keys, with no second code
+    path and nothing for the projection to special-case. Asserted on a real
+    generated stack rather than a hand-built dict, because "the same code path"
+    is the claim.
+    """
+    stack_path = STACKS_DIR / "stack_hub_bearing_thermal_fit_m2.json"
+    raw = json.loads(stack_path.read_text(encoding="utf-8"))
+    loaded = bvp.load_for_projection(stack_path, raw)
+    assert loaded.checks, "the archetype must have generated its checks"
+    target = loaded.checks[0]["check_id"]
+    assert loaded.check(target).verdict_scope == "joint"
+
+    loaded.checks[0]["complete"] = False
+    loaded.checks[0]["excluded_terms"] = [
+        "the bearing bore to spindle fit -- owned by another team"]
+    got = loaded.check(target)
+    assert got.verdict_scope == "budget"
+    assert got.as_dict()["complete"] is False
+    assert got.as_dict()["excluded_terms"] == [
+        "the bearing bore to spindle fit -- owned by another team"]
