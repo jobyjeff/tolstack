@@ -85,6 +85,47 @@
       ? "unknown" : verdict);
   };
 
+  // What a verdict is a verdict ABOUT. The projection derives it from the
+  // check's `complete` field (tolerance_stack/stack.py: VERDICT_SCOPES), so the
+  // viewer never reads prose to decide — a stack that writes "incomplete" in
+  // lower case, or "PARTIAL", or "budget only", is flagged exactly the same,
+  // which is the whole reason the field exists
+  // (ISSUE_20260805_check_result_has_no_complete_flag).
+  //
+  // Paired against that tuple by tests/test_js_python_vocabulary.py: one
+  // definition in Python, one rendering here.
+  VA.VERDICT_SCOPES = {
+    joint: {
+      chip: null,
+      title: "Every term this check needs is in the model.",
+    },
+    budget: {
+      chip: "BUDGET",
+      title: "A term is missing from the model, so this number is a BUDGET for " +
+        "the missing term, not a verdict on the joint. A `fail` here is true of " +
+        "the model and false of the hardware.",
+    },
+  };
+
+  VA.isBudgetScope = function (check) {
+    return !!check && check.verdict_scope === "budget";
+  };
+
+  // What a check whose `verdict_scope` this viewer has never heard of must say.
+  // Names the value, because the reader's next step is to grep for it — and the
+  // fallback has to be LOUD for the same reason VA.unlabelledRuleText does:
+  // falling through to silence renders an incomplete check as an ordinary one,
+  // which is the exact misreading the field replaced the prose search to
+  // prevent. The reachable case is not a new vocabulary word but a **stale
+  // projection** — nothing rebuilds `data/projections/viewer/`, and one built
+  // before 2026-08-13 carries no `verdict_scope` at all.
+  VA.unlabelledVerdictScopeText = function (scope) {
+    return "verdict_scope " + JSON.stringify(scope === undefined ? null : scope) +
+      ", which this viewer has no branch for — whether this number is a verdict " +
+      "on the joint or a BUDGET for a missing term is NOT shown here; read the " +
+      "check in results.json, and check the projection is not stale";
+  };
+
   // Headline chips for a stack: the sourcing scoreboard, then the two things
   // that make a number less trustworthy than its digits suggest.
   VA.summaryChips = function (stackProj) {
@@ -108,13 +149,12 @@
           "interval it feeds is a LOWER bound on the real spread.",
       });
     }
-    var incomplete = (stackProj.checks || []).filter(function (c) { return c.incomplete; });
-    if (incomplete.length) {
+    var budget = (stackProj.checks || []).filter(VA.isBudgetScope);
+    if (budget.length) {
       chips.push({
-        kind: "incomplete",
-        text: incomplete.length + " INCOMPLETE check" + (incomplete.length === 1 ? "" : "s"),
-        title: "A term is missing from the model, so the verdict is a budget, " +
-          "not a conclusion about the joint.",
+        kind: "budget",
+        text: budget.length + " budget-scope check" + (budget.length === 1 ? "" : "s"),
+        title: VA.VERDICT_SCOPES.budget.title,
       });
     }
     // Where the checks came from is a review fact, not a footnote: a generated

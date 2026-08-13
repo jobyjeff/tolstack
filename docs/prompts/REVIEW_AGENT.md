@@ -121,7 +121,8 @@ is *deliberate* de-duplication, where "fixing" it double-counts 1.575 mm.
 **And check the direction of the prose, not just of the terms.** A sign can also
 be wrong *outside* the term list, in the sentence that interprets the result —
 where no test is looking. The specific case: a check written as a **budget** for a
-missing element (an `INCOMPLETE`-labelled check, per the SOP's Step 5c) has a
+missing element (a `complete: false` check, per the SOP's Step 5c — an
+`INCOMPLETE`-labelled one before 2026-08-13) has a
 deficit interval whose two ends look symmetric and mean opposite things, and the
 worksheet converts one of them into "the width the joint requires". For
 `column − grip ≥ 0` the **binding** requirement is grip at `max` against the
@@ -863,16 +864,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       whenever `docs/spec_library/events/` moved, and diff old against new: the
       only legitimate difference is the `provenance` block (there is deliberately
       no top-level `built_at` on this one).
-- [ ] **`INCOMPLETE` is a prose convention, not a schema field.**
-      `build_viewer_projection.is_incomplete` greps the check's
-      `label`/`guidance`/`check_id` for the literal upper-case string. A stack
-      that writes "incomplete", "PARTIAL" or "budget only" renders as an ordinary
-      failing check — losing exactly the "this is a budget, not a verdict on the
-      joint" warning the SOP's Step 5c exists to carry. When reviewing a stack
-      with an excluded term, check the authored string, and check that
-      `configuration.excluded` and the INCOMPLETE label agree (nothing validates
-      the pairing —
-      `docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`).
+- [ ] **Completeness is a schema field — check the field, not the prose.**
+      Until 2026-08-13 `INCOMPLETE` was a prose convention that
+      `build_viewer_projection.is_incomplete` grepped for, so a stack writing
+      "incomplete", "PARTIAL" or "budget only" rendered as an ordinary failing
+      check. That function is gone. A check with a knowingly missing term now
+      carries `"complete": false` plus `"excluded_terms": [...]`, and
+      `CheckResult` enforces the pairing in **both** directions, so the thing
+      this item used to ask a human to eyeball is now a test. What still needs a
+      reviewer: that the `excluded_terms` **strings say what is missing and
+      why** (they are free text by design — an unsourced term has no element to
+      reference), that the label does *not* re-shout `INCOMPLETE`, and that the
+      SOP Step 5c "read the magnitude as a budget" caveat is beside the number
+      in the worksheet. A stack authored before the migration and never touched
+      would carry the old label with no `complete` field and render as an
+      ordinary check — grep the stack files for `INCOMPLETE` if one shows up.
 - [ ] **A derived headline figure with no single computing command.** The
       strongest form of "recompute any count a doc asserts", learned the expensive
       way — the superseded traced ratio, quoted in eleven files for a month:
@@ -994,6 +1000,39 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a missing table **raises** rather than yielding `set()`, and the empty-table
       case is asserted. Replay both — point the extractor at a name that is not
       there, *and* empty a real table — before you accept a set-equality test.
+- [ ] **A normalising `__post_init__` that `tuple()`s a "list of strings" field.**
+      New 2026-08-13 (`check_completeness_schema`). `CheckResult.excluded_terms`
+      is `Sequence[str]`, coerced with `tuple(...)` and then validated
+      element-by-element — and `tuple("abc")` is `('a','b','c')`, every member a
+      non-empty string, so the validator waves it through. A stack file writing
+      `"excluded_terms": "link-eye-width--no-document"` instead of `[...]` — the
+      likeliest slip for a field the SOP calls "one free string per term" —
+      became **27 excluded terms**, printed on the card and expanded into the gap
+      list. Fixed inline by refusing a bare `str` by name. Note the near miss
+      that hides it: a string *containing a space* happens to raise, on the
+      `' '`, with a message about the wrong thing — so a five-second probe with
+      the exemplar text says "validated". **Feed every `Sequence[str]` /
+      `Iterable[str]` field a bare string**, hyphenated, and see what comes back.
+- [ ] **A doc edit that turns an authoring instruction into an automatic
+      consequence — check the two things share more than a name.** New 2026-08-13
+      (`check_completeness_schema`). SOP Step 5c said *"add the omitted element to
+      `gaps` as item 1"*; the handoff appended *"— the viewer's gap list is built
+      from `excluded_terms`, so this happens by writing the field"*. Two different
+      artifacts are called gaps: the **authored, ranked Source gaps** table (Step
+      6, item 7), which carries the closing document and is the input to
+      `docs/spec_library/intake_queue.json`, and the viewer's **derived** gap
+      list, which carries neither. A future author following that bullet skips
+      the ranked entry entirely — i.e. the edit deleted a step by describing it
+      as automatic. Fixed inline. So when a diff rewrites an instruction as a
+      consequence, ask **which artifact actually gets written**, and check the
+      *other* one is still someone's job.
+- [ ] **A harness artifact committed at the end of a written file.**
+      `LESSONS_20260813_check_completeness_schema.md` shipped with a literal
+      `</content>` / `</invoke>` as its last two lines — a tool-call fragment that
+      leaked through a `Write`. Invisible in a rendered markdown preview and
+      below the fold of every excerpt. Trimmed inline. `tail -c 100` (or
+      `git show HEAD:<path> | tail -3`) every file a handoff *created*, and grep
+      a diff for `</invoke>`, `</content>`, `<parameter`.
 
 ## Architectural errors to check
 
@@ -1090,6 +1129,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       reads **live data only**, so a value that exists only in `fixtures.js`
       (`values_status: "not_transcribed"`, `export.status: "unestablished"`) is
       unguarded by it by construction.
+      **Second sighting (`check_completeness_schema`, 2026-08-13), on a table
+      added in the same commit** — so the "did a producer drift?" trigger never
+      fires, and the miss is the *fallback*, not the table.
+      `VA.VERDICT_SCOPES` landed with the table, the `[real]` `VALUE_GUARDS` row
+      and the `known:` self-syncing form all correct, and
+      `VA.VERDICT_SCOPES[check.verdict_scope] || {}` — silence — where its three
+      siblings (`CROP_RULES`, `EXPORT_STATUSES`, `VALUES_STATUSES`) each have a
+      loud `VA.unlabelled*Text`. Fixed inline. Two things it teaches: **a new
+      projection field's reachable unknown value is `undefined`, not a new
+      vocabulary word**, because nothing rebuilds `data/projections/viewer/` and
+      a projection built before the field existed simply has no key — the
+      handoff's own lesson records hitting exactly that (`118/121` until it
+      rebuilt); and the `[real]` guard is not a substitute for the fallback,
+      because it only speaks when someone runs the JS suite against fresh data,
+      whereas the reader opening a stale viewer gets the misreading in silence.
+      **Count the `unlabelled*Text` functions against the tables** — they should
+      pair one-to-one.
 - [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
       the moment an element changes and nothing notices.
 - [ ] **An imported file may change; its `PROVENANCE.md` row must change with

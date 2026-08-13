@@ -115,29 +115,13 @@ COEFFICIENT_DECIMALS = 9
 # ---------------------------------------------------------------------------
 
 
-def is_incomplete(check_spec: Dict[str, Any]) -> bool:
-    """Does this check announce itself as an INCOMPLETE budget?
-
-    ``check_result/v0`` has **no** field for "this check is missing a term", so
-    the flag is read off the authored prose, where the SOP's convention puts it:
-    the word ``INCOMPLETE`` in the label or the guidance. That is a text
-    convention, not a schema guarantee -- if a future stack says "incomplete" in
-    lower case or invents another word, the viewer stops flagging it. Recorded as
-    a design gap in this session's lesson; a real ``complete: false`` field on
-    the check is the fix.
-    """
-    haystack = " ".join(
-        str(check_spec.get(k) or "") for k in ("label", "guidance", "check_id")
-    )
-    return "INCOMPLETE" in haystack
-
-
 def is_sensitivity(check_spec: Dict[str, Any]) -> bool:
     """Is this check a **sensitivity probe** rather than a result?
 
-    Unlike :func:`is_incomplete` this is not a prose convention: the
-    ``thermal_fit`` archetype writes ``configuration.sensitivity`` on the checks
-    it generates at ``k = 0`` and ``k = 1``, whose own guidance opens "NOT A
+    Like completeness (and unlike the prose search that used to detect it), this
+    is structured: the ``thermal_fit`` archetype writes
+    ``configuration.sensitivity`` on the checks it generates at ``k = 0`` and
+    ``k = 1``, whose own guidance opens "NOT A
     RESULT". They exist so a reader can see how much of stage 2 rests on an
     undocumented stiffness estimate -- and a probe rendered as an ordinary
     pass/fail card beside the results would be read as a second opinion about
@@ -200,14 +184,18 @@ def stack_gaps(
 
     Two structured sources, deliberately no markdown scraping:
 
-    1. **Terms excluded from the model** -- each check's
-       ``configuration.excluded``. This is where an unsourced element that was
-       *refused* rather than invented shows up (pitch-link stack: the spherical
-       bearing / link-eye width, its ranked gap 1). A missing term is the most
-       consequential kind of gap, so it is listed first. ``checks`` is the
-       *projected* check list, not ``raw["checks"]``: for a generated-check
+    1. **Terms excluded from the model** -- each check's ``excluded_terms``,
+       the schema field (it was ``configuration.excluded``, a free-text value in
+       a free-text dict, until 2026-08-13). This is where an unsourced element
+       that was *refused* rather than invented shows up (pitch-link stack: the
+       spherical bearing / link-eye width, its ranked gap 1). A missing term is
+       the most consequential kind of gap, so it is listed first. ``checks`` is
+       the *projected* check list, not ``raw["checks"]``: for a generated-check
        archetype the file's array is empty, and a gap its loader declared would
-       otherwise be dropped.
+       otherwise be dropped. Reading the schema field also means the gap list
+       and the striped card can no longer disagree -- both come from the one
+       ``CheckResult`` invariant, which refuses a check that names an excluded
+       term without declaring itself incomplete.
     2. **Hardware-entry gaps** -- ``gaps`` from every ``hardware_entries.json``
        entry whose ``used_by`` names this stack.
 
@@ -218,18 +206,18 @@ def stack_gaps(
     gaps: List[Dict[str, Any]] = []
     seen_excluded = set()
     for check in checks:
-        excluded = (check.get("configuration") or {}).get("excluded")
-        if not excluded or excluded in seen_excluded:
-            continue
-        seen_excluded.add(excluded)
-        gaps.append(
-            {
-                "kind": "excluded_from_model",
-                "label": "term excluded from the model",
-                "text": excluded,
-                "hardware_id": None,
-            }
-        )
+        for excluded in check.get("excluded_terms") or []:
+            if excluded in seen_excluded:
+                continue
+            seen_excluded.add(excluded)
+            gaps.append(
+                {
+                    "kind": "excluded_from_model",
+                    "label": "term excluded from the model",
+                    "text": excluded,
+                    "hardware_id": None,
+                }
+            )
 
     prefix = stack_id + ":"
     for entry in hardware.get("entries", []):
@@ -464,7 +452,11 @@ def project_stack(
             {
                 "terms": spec["terms"],
                 "element_terms": rows,
-                "incomplete": is_incomplete(spec),
+                # `complete` / `excluded_terms` / `verdict_scope` are already in
+                # `result` -- they come out of CheckResult.as_dict(), which is
+                # the point: the viewer's striped card now keys off the same
+                # validated field the arithmetic side carries, not off a string
+                # this script went looking for in the prose.
                 "sensitivity": is_sensitivity(spec),
                 "generated": generated,
                 "input_confidence": counts,
@@ -661,8 +653,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                 else ""
             )
             + (
-                f", {sum(1 for c in stack['checks'] if c['incomplete'])} INCOMPLETE"
-                if any(c["incomplete"] for c in stack["checks"])
+                f", {sum(1 for c in stack['checks'] if c['verdict_scope'] == 'budget')}"
+                " BUDGET-SCOPE"
+                if any(c["verdict_scope"] == "budget" for c in stack["checks"])
                 else ""
             )
             + (

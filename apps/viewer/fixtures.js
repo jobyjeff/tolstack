@@ -2,7 +2,7 @@
 //
 // NOT a copy of a real stack — a deliberately small one that exercises every
 // state the viewer has to render honestly: a traced element, an inferred one, an
-// untraced one with a zero-width band, an INCOMPLETE check, a resolved crop, an
+// untraced one with a zero-width band, a budget-scope check, a resolved crop, an
 // unresolvable crop, and an element crops.json has never heard of (a stale
 // index). The real stacks are covered by the node-fs tier, which reads the
 // actual projection.
@@ -171,8 +171,10 @@
               },
               {
                 check_id: "shank_out",
-                label: "shank out — INCOMPLETE: eye width unsourced",
-                configuration: { excluded: "link eye width — no document" },
+                label: "shank out",
+                configuration: {},
+                complete: false,
+                excluded_terms: ["link eye width — no document"],
                 criterion: ">= 0", workbook_cells: null,
                 guidance: "Read the magnitude as the eye width the joint requires.",
                 terms: [{ path: "clamped" }, { element: "eye", sign: -1 }],
@@ -186,7 +188,7 @@
             },
             notes: [
               "A demo stack. Nothing here is a claim about a real part.",
-              "The INCOMPLETE check below is a budget, not a verdict.",
+              "The budget-scope check below is a budget, not a verdict.",
             ],
           },
           elements: [
@@ -222,15 +224,15 @@
               rss_min: 0.985779, rss_max: 1.268621,
               terms: [{ path: "clamped" }],
               element_terms: [{ element_id: "plate", sign: 1 }, { element_id: "washer", sign: 1 }],
-              incomplete: false,
+              complete: true, excluded_terms: [], verdict_scope: "joint",
               input_confidence: { traced: 1, inferred: 1, untraced: 0, no_source_ref: 0 },
               worst_confidence: "inferred", zero_width_inputs: ["washer"],
               workbook_cells: null,
             },
             {
               schema: "joby.tolerance_stack/check_result/v0",
-              check_id: "shank_out", label: "shank out — INCOMPLETE: eye width unsourced",
-              configuration: { excluded: "link eye width — no document" },
+              check_id: "shank_out", label: "shank out",
+              configuration: {},
               criterion: ">= 0", units: "mm", verdict: "fail",
               guidance: "Read the magnitude as the eye width the joint requires.",
               nominal: -3.1272, worst_case_min: -3.3272, worst_case_max: -2.9272,
@@ -242,7 +244,9 @@
                 { element_id: "washer", sign: 1 },
                 { element_id: "eye", sign: -1 },
               ],
-              incomplete: true,
+              complete: false,
+              excluded_terms: ["link eye width — no document"],
+              verdict_scope: "budget",
               input_confidence: { traced: 1, inferred: 1, untraced: 1, no_source_ref: 0 },
               worst_confidence: "untraced", zero_width_inputs: ["washer"],
               workbook_cells: null,
@@ -557,7 +561,8 @@
                 { element_id: "sleeve_wall", sign: 1, coefficient: 2 * F_SLEEVE },
                 { element_id: "hub_bore", sign: -1, coefficient: F_HUB },
               ],
-              incomplete: false, sensitivity: false, generated: true,
+              complete: true, excluded_terms: [], verdict_scope: "joint",
+              sensitivity: false, generated: true,
               input_confidence: { traced: 3, inferred: 0, untraced: 0, no_source_ref: 0 },
               worst_confidence: "traced", zero_width_inputs: [], workbook_cells: null,
             },
@@ -585,7 +590,8 @@
                 { element_id: "sleeve_wall", sign: 1, coefficient: 2 * F_SLEEVE },
                 { element_id: "hub_bore", sign: -1, coefficient: F_HUB },
               ],
-              incomplete: false, sensitivity: true, generated: true,
+              complete: true, excluded_terms: [], verdict_scope: "joint",
+              sensitivity: true, generated: true,
               input_confidence: { traced: 2, inferred: 1, untraced: 0, no_source_ref: 0 },
               worst_confidence: "inferred", zero_width_inputs: [], workbook_cells: null,
             },

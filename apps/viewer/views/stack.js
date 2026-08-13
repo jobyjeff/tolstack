@@ -4,8 +4,8 @@
 // adds, subtracts or compares a tolerance — see viewer.js for why.
 //
 // Colour carries provenance, not decoration: a row's tint is its element's
-// `confidence`, a zero-width band gets a dashed outline and a chip, and an
-// INCOMPLETE check gets a striped header. Jeff reviews sourcing as much as
+// `confidence`, a zero-width band gets a dashed outline and a chip, and a
+// budget-scope check gets a striped header. Jeff reviews sourcing as much as
 // arithmetic, so an untraced value has to be impossible to miss.
 (function (VA) {
   "use strict";
@@ -619,16 +619,21 @@
   }
 
   function checkCard(stackProj, check) {
+    var budget = VA.isBudgetScope(check);
+    var scope = VA.VERDICT_SCOPES[check.verdict_scope];
     var card = VA.el("article", "check" +
-      (check.incomplete ? " check--incomplete" : "") +
+      (budget ? " check--budget" : "") +
       (check.sensitivity ? " check--sensitivity" : ""));
 
     var head = VA.el("header", "check__head");
     head.appendChild(VA.chip("verdict " + VA.verdictClass(check.verdict), check.verdict));
-    if (check.incomplete) {
-      head.appendChild(VA.chip("chip--incomplete", "INCOMPLETE",
-        "A term is missing from the model. Read the magnitude as a budget for " +
-        "the missing term, not as a verdict on the joint."));
+    if (scope) {
+      if (scope.chip) head.appendChild(VA.chip("chip--budget", scope.chip, scope.title));
+    } else {
+      // Not a known scope — say so where the verdict is, rather than rendering
+      // a card that looks like an ordinary joint-scope result.
+      head.appendChild(VA.chip("chip--budget", "SCOPE UNKNOWN",
+        VA.unlabelledVerdictScopeText(check.verdict_scope)));
     }
     // A sensitivity probe re-runs a check with an undocumented input moved. Its
     // verdict is about that hypothetical, not about the joint — so it says so
@@ -663,6 +668,19 @@
       numbers.appendChild(box);
     });
     card.appendChild(numbers);
+
+    // A budget without its exclusions named beside it is the misreading all over
+    // again: the number above is a budget FOR something, and a reader who cannot
+    // see what reads it as a verdict. So the terms sit directly under the
+    // numbers, not in the gap list three sections down.
+    if (check.excluded_terms && check.excluded_terms.length) {
+      var excluded = VA.el("p", "check__excluded");
+      excluded.appendChild(VA.el("span", "check__excludedlabel",
+        budget ? "budget for the missing:" : "excluded:"));
+      excluded.appendChild(VA.el("span", "check__excludedterms",
+        check.excluded_terms.join("; ")));
+      card.appendChild(excluded);
+    }
 
     if (check.zero_width_inputs && check.zero_width_inputs.length) {
       card.appendChild(VA.el("p", "check__warn",

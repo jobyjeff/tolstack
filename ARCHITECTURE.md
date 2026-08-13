@@ -292,14 +292,24 @@ rises through a looser rule is a regression, not progress. Anything else is
 `docs/sessions/lessons/LESSONS_20260805_stack_viewer_v0.md` and
 `LESSONS_20260806_citation_export_provenance.md`.
 
-Derived flags worth knowing, because neither has a schema field:
+One derived flag worth knowing, because it has no schema field:
 
 - **zero-width band** = `min == max`, i.e. no document gives a tolerance, so
   every interval it feeds is a lower bound. Rendered as its own axis, not as a
   fourth confidence.
-- **INCOMPLETE check** is detected from the word `INCOMPLETE` in the authored
-  label/guidance. `check_result/v0` has no `complete` field; that is a gap
-  (`docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`).
+
+**Completeness used to be the second one, and no longer is.** Until 2026-08-13 an INCOMPLETE check
+was detected from the word `INCOMPLETE` in the authored label/guidance, so a
+stack that wrote it in lower case rendered as an ordinary check with a `fail`
+verdict — the exact misreading the flag existed to prevent. `check_result/v0`
+now carries `complete: bool` and `excluded_terms: [str]` (bidirectionally
+validated: neither may appear without the other), plus a derived
+`verdict_scope` of `joint` or `budget`. `verdict`'s `pass|marginal|fail` domain
+is deliberately **unchanged** — "fail" on an incomplete check is true of the
+model and false of the hardware, so what needed saying was what the verdict is
+*about*, and every existing consumer of `verdict` keeps working. The string
+search is deleted, not coexisting
+(`docs/issues/ISSUE_20260805_check_result_has_no_complete_flag.md`).
 
 ## Cross-repo dependencies
 

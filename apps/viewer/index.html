@@ -110,7 +110,7 @@
     .conf--unknown { color: var(--muted); }
     .chip--kind { color: var(--muted); font-family: ui-monospace, monospace; }
     .chip--zero-width { color: var(--zero); border-color: var(--zero); border-style: dashed; }
-    .chip--incomplete { color: #0b1020; background: var(--inferred); border-color: var(--inferred); font-weight: 700; }
+    .chip--budget { color: #0b1020; background: var(--inferred); border-color: var(--inferred); font-weight: 700; }
     .chip--material { color: var(--accent); border-color: var(--accent); font-family: ui-monospace, monospace; }
     .chip--corner { color: var(--muted); border-style: dashed; }
     .chip--generated { color: var(--accent); border-color: var(--accent); }
@@ -253,8 +253,16 @@
       background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line);
       border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
     }
-    .check--incomplete { border-left-color: var(--inferred);
+    /* A budget-scope check: a term is missing from the model, so the number is a
+       budget for it and not a verdict on the joint. Striped, and its excluded
+       terms print directly under the numbers they are a budget for. */
+    .check--budget { border-left-color: var(--inferred);
       background: repeating-linear-gradient(135deg, var(--panel), var(--panel) 10px, #23242a 10px, #23242a 20px); }
+    .check__excluded { margin: 6px 0 0; font-size: 12px; display: flex; gap: 6px;
+      flex-wrap: wrap; align-items: baseline; }
+    .check__excludedlabel { color: var(--inferred); font-weight: 700;
+      text-transform: uppercase; letter-spacing: .04em; }
+    .check__excludedterms { color: var(--ink); }
     /* A sensitivity probe is NOT a result: recessed and dashed so it reads as an
        aside beside the cards that are, however loud its verdict chip is. */
     .check--sensitivity { border-left-color: var(--marginal); border-style: dashed;

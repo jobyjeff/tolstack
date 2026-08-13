@@ -20,7 +20,8 @@ from pathlib import Path
 import pytest
 
 from tolerance_stack import (
-    ExportRun, SourceExport, SourceRef, StackElement, Term, fold, load_stack,
+    VERDICT_SCOPES, CheckResult, ExportRun, SourceExport, SourceRef,
+    StackDefinition, StackElement, Term, fold, load_stack,
 )
 
 STACKS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tolerance_stacks"
@@ -182,6 +183,112 @@ def test_fold_is_still_the_only_arithmetic_and_still_never_reads_lmc_or_mmc():
     body = source.read_text(encoding="utf-8")
     fold_src = body.split("def fold(", 1)[1].split("\n# ---", 1)[0]
     assert ".lmc" not in fold_src and ".mmc" not in fold_src
+
+
+# ---------------------------------------------------------------------------
+# Completeness -- a schema field, and a BIDIRECTIONAL invariant
+# (2026-08-13, handoff check_completeness_schema; replaces the INCOMPLETE
+# prose convention that ISSUE_20260805_check_result_has_no_complete_flag filed)
+# ---------------------------------------------------------------------------
+
+
+def _check(**kwargs) -> CheckResult:
+    """A CheckResult over a throwaway interval -- completeness reads no numbers."""
+    kwargs.setdefault("check_id", "c")
+    kwargs.setdefault("label", "a check")
+    kwargs.setdefault("configuration", {})
+    kwargs.setdefault("interval", fold([Term(_el("e", 1.0, 0.9, 1.1))]))
+    return CheckResult(**kwargs)
+
+
+def test_a_check_is_complete_and_joint_scoped_by_default():
+    """The defaults are what let this extend ``check_result/v0`` in place: every
+    stack authored before the fields existed keeps producing the same result."""
+    got = _check()
+    assert got.complete is True
+    assert got.excluded_terms == ()
+    assert got.verdict_scope == "joint"
+
+
+def test_an_incomplete_check_is_budget_scoped_and_its_verdict_domain_is_unchanged():
+    """``verdict`` still reads pass/marginal/fail -- the honesty is in the SCOPE.
+
+    This is the design decision the brief asked for and the reason no consumer
+    of ``verdict`` had to change: a `fail` on an incomplete check is true of the
+    model and false of the hardware, so what needed saying was what the verdict
+    is *about*, not a fourth value of it.
+    """
+    got = _check(complete=False, excluded_terms=["link eye width -- no document"])
+    assert got.verdict_scope == "budget"
+    assert got.verdict in ("pass", "marginal", "fail")
+    assert got.verdict_scope in VERDICT_SCOPES
+
+
+def test_an_incomplete_check_that_names_nothing_excluded_is_refused():
+    """Half the invariant: a hole announced without saying what fell in it."""
+    with pytest.raises(ValueError, match="names no excluded_terms"):
+        _check(complete=False)
+    with pytest.raises(ValueError, match="names no excluded_terms"):
+        _check(complete=False, excluded_terms=[])
+
+
+def test_a_complete_check_that_names_an_excluded_term_is_refused():
+    """The other half, and the direction prose could never enforce: a term that
+    is named as missing while the check claims to be whole."""
+    with pytest.raises(ValueError, match="complete: true"):
+        _check(excluded_terms=["link eye width -- no document"])
+
+
+def test_an_excluded_term_must_actually_say_something():
+    """An empty string satisfies "non-empty list" and says nothing at all."""
+    for empty in ([""], ["   "], [None]):
+        with pytest.raises(ValueError, match="non-empty string"):
+            _check(complete=False, excluded_terms=empty)
+
+
+def test_a_bare_string_is_not_a_list_of_one_excluded_term():
+    """Added in `review/check_completeness_schema`.
+
+    ``"excluded_terms": "the eye -- no document"`` instead of ``[...]`` is the
+    likeliest way to mis-author a field the SOP describes as "one free string
+    per term", and ``tuple()`` turns a string into one entry per CHARACTER --
+    every one of which is a non-empty string, so the loop below it passed. The
+    check then rendered 27 excluded terms on its card and expanded 27 rows into
+    the gap list. A spaced string happened to raise (on the ``' '``) with a
+    message about the wrong thing; a hyphenated one sailed through.
+    """
+    for bare in ("link-eye-width--no-document", "the eye -- no document"):
+        with pytest.raises(ValueError, match="LIST of strings"):
+            _check(complete=False, excluded_terms=bare)
+
+
+def test_completeness_rides_through_the_check_spec_with_safe_defaults():
+    """``StackDefinition.check`` reads both keys off the spec dict -- which is
+    the same dict an archetype loader builds, so a GENERATED check declares
+    completeness through the identical two keys (see the thermal test)."""
+    stack = StackDefinition(
+        id="s", title="t", units="mm",
+        elements=[_el("e", 1.0, 0.9, 1.1)],
+        checks=[
+            {"check_id": "quiet", "terms": [{"element": "e"}]},
+            {"check_id": "budgeted", "terms": [{"element": "e"}],
+             "complete": False, "excluded_terms": ["the eye -- no document"]},
+        ],
+    )
+    assert stack.check("quiet").verdict_scope == "joint"
+    budgeted = stack.check("budgeted")
+    assert budgeted.verdict_scope == "budget"
+    assert budgeted.excluded_terms == ("the eye -- no document",)
+
+
+def test_the_check_result_dict_carries_the_field_and_the_derived_scope():
+    """Both, on purpose: a validator reads ``complete``, a renderer reads
+    ``verdict_scope``, and neither has to know the other's rule."""
+    got = _check(complete=False, excluded_terms=["the eye -- no document"]).as_dict()
+    assert got["complete"] is False
+    assert got["excluded_terms"] == ["the eye -- no document"]
+    assert got["verdict_scope"] == "budget"
+    assert got["verdict"] in ("pass", "marginal", "fail")
 
 
 # ---------------------------------------------------------------------------
@@ -434,7 +541,16 @@ def test_pitch_link_shank_out_deficit_is_the_required_link_eye_width(pitch_link)
     assert got.interval.min == pytest.approx(-8.1939, abs=TOL)
     assert got.interval.max == pytest.approx(-7.4859, abs=TOL)
     assert got.verdict == "fail"
-    assert "INCOMPLETE" in got.label
+    # The 'by construction' half is a SCHEMA claim since 2026-08-13, not a word
+    # in the label: `fail` here is true of the model and false of the hardware,
+    # and `verdict_scope` is where that gets said. The label used to shout
+    # `-- INCOMPLETE: pitch-link eye width unsourced` and the projection went
+    # looking for that string; it says neither now.
+    assert got.complete is False
+    assert got.verdict_scope == "budget"
+    assert got.excluded_terms == (
+        "pitch-link eye / spherical bearing width -- no document",)
+    assert "INCOMPLETE" not in got.label
 
 
 def test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end(pitch_link):
