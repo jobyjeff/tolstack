@@ -68,16 +68,27 @@ What `js_object_keys` does:
 
 **What it cannot see**, stated because the next person will hit one of these:
 
-* **Regex literals.** `/}/` inside a table would end the scan early. `viewer.js`
-  contains no regex literal anywhere today (the only `/` runs are comments and
-  division-free), and the indent cross-check in step 4 turns most such drifts into
-  a raise rather than a wrong answer — but it is not a parser and will not become
-  one for free.
+* **Regex literals.** `/}/` inside a table would end the scan early. The claim that
+  matters is **per-span, not per-file**, and this lesson had it wrong on first
+  writing: `viewer.js` does carry four regex literals (lines 240, 452, 462, 463 —
+  `String(path).replace(/\\/g, "/")` and friends). All four are **outside** the
+  three table bodies, which span 202–216, 352–379 and 498–521, so the scan never
+  reaches one. Corrected in review; the check to re-run is the span, not a
+  file-wide grep. The indent cross-check in step 4 turns most such drifts into a
+  raise rather than a wrong answer — but it is not a parser and will not become one
+  for free.
+* **A ternary at depth 1** — `a: cond ? yes : no` yields a spurious key `yes`.
+  Loud rather than silent (the pairing goes red naming a key Python cannot emit),
+  but the message misdescribes the cause. Found in review, documented rather than
+  fixed: hardening the scanner is more risk than the safe-direction failure is
+  worth.
 * **A key attached from outside the literal** — `VA.CROP_RULES.foo = {...}` ten
   screens away. The scanner cannot follow it, so the module **refuses the pattern**
   instead: `test_no_key_is_attached_to_a_status_table_from_outside_its_literal`
   fails on any `VA.<NAME>.x =` or `VA.<NAME>[x] =` outside the definition line.
-  That is the only other way a key can arrive, so the two together are total.
+  That covers assignment; it does **not** match `Object.assign(VA.<NAME>, {...})`,
+  which stays silent — so "the two together are total" (as this lesson first said)
+  overclaims by one form.
 * **Values reached at runtime.** Nothing here executes JS. A table built by a loop
   would defeat it entirely; none is.
 

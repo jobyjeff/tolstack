@@ -585,6 +585,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       guard, **audit the guard's own demonstration for a cached live count**, and
       ask what ordinary next-handoff change breaks it — a demonstration that fails
       for an unrelated reason is how a guard gets deleted.
+      **Fifth sighting (`js_python_vocabulary_pairing`, 2026-08-12), and it moves
+      the count into the *anti-vacuity* assertion**, which is the last place you
+      want a spurious red: `assert len(tables) == 3` over a dict built from a
+      `PAIRINGS` constant in the same file. Not live data this time — but the
+      handoff's **own** filed issue (`..._the_confidence_vocabulary_has_no_single_definition_...`)
+      proposes the fourth pairing that turns it into a bare `4 == 3`. Narrowed to
+      `len(PAIRINGS)` inline. So widen the question past "is this count live?": ask
+      **which already-filed issue makes this digit wrong**, and prefer the
+      expression the guard is actually about — the digit and the constant were two
+      lines apart here.
 - [ ] **A corroboration flag shown without the evidence that produced it.**
       `crops.json` records `callout_text_in_zone`, and the viewer rendered it as
       a bare "(callout text found there)". The needle that actually matched is
@@ -957,6 +967,33 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       rather than checking the number once; and read a doc's tables against its own
       prose before you go near the data — the disagreement was internal here and
       cost nothing to find.
+- [ ] **A hand-rolled parser's "what it cannot see" list is an argument, and you
+      re-derive it like any other claim.** New 2026-08-12
+      (`js_python_vocabulary_pairing`), where a Python test scans
+      `apps/viewer/viewer.js` for the keys of a `VA.<NAME> = {` literal to pair
+      against a Python enumeration. These tests are *correct* to enumerate their
+      own blind spots — that list is the deliverable's honest half — which is
+      exactly why it gets read as checked and is where a wrong sentence survives.
+      Two ways it went wrong here, both fixed inline, both cheap to find:
+      - **Scope: file-wide claim, span-wide scanner.** The docstring said
+        "`viewer.js` contains no regex literal" (a `/}/` would end the scan early).
+        It contains **four** — lines 240, 452, 462, 463, all
+        `String(x).replace(/\\/g, "/")`-shaped. Harmless, because every one is
+        outside the three scanned bodies (202–216, 352–379, 498–521) — but the true
+        sentence and the written one differ in the part a future reader would rely
+        on. **Grep the file for the construct the prose says is absent, then check
+        the spans**, and require the claim be stated per-span.
+      - **Constructs the list never considered.** Feed the extractor a synthetic
+        case rather than reasoning about it: `a: cond ? yes : no` at depth 1 yields
+        a spurious key `yes` (undocumented), and `js_table_mutations`' assignment
+        regex does not match `Object.assign(VA.<NAME>, {...})` — so "the only other
+        way a key can arrive … the two together are total" overclaimed. Sort each
+        gap by **direction**: a spurious key is loud (red, badly worded) and a
+        missed key is silent, and only the silent one is a hole in the guard.
+      The extraction assertions themselves were the strong part and worth copying:
+      a missing table **raises** rather than yielding `set()`, and the empty-table
+      case is asserted. Replay both — point the extractor at a name that is not
+      there, *and* empty a real table — before you accept a set-equality test.
 
 ## Architectural errors to check
 

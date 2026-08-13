@@ -47,11 +47,23 @@ What the JS extraction can and cannot see
 both comment forms, and takes the identifiers (or quoted keys) that are followed by
 ``:`` at **one** nesting level. That is enough for a `something:` inside a comment
 or a string, which is what defeats a regex over these files -- every table here has
-both. It does **not** understand regex literals (``/}/`` inside the table would end
-the scan early; ``viewer.js`` contains none), and it cannot see a key attached from
-somewhere else -- so ``js_table_mutations`` separately refuses any
-``VA.<NAME>.foo =`` or ``VA.<NAME>[x] =`` outside the definition, which is the only
-other way a key can arrive.
+both. Three things it does **not** understand, all of them scoped to the span
+between the anchor and its matching brace:
+
+* **Regex literals.** ``/}/`` inside a table would end the scan early. The check is
+  per-span, not per-file: ``viewer.js`` does carry four regex literals (lines 240,
+  452, 462, 463 as of 2026-08-12), and all four are outside the three table bodies,
+  which today span 202-216, 352-379 and 498-521.
+* **Ternaries at depth 1.** ``a: cond ? yes : no`` yields a spurious key ``yes``,
+  because ``yes`` is an identifier followed by ``:``. That direction is loud rather
+  than silent -- the pairing below goes red reporting a key Python cannot emit --
+  but the message misdescribes what happened, so write a depth-1 ternary out into
+  the function body rather than debugging it here.
+* **A key attached from somewhere else.** ``js_table_mutations`` separately refuses
+  any ``VA.<NAME>.foo =`` or ``VA.<NAME>[x] =`` outside the definition. That covers
+  assignment, which is how a key would realistically arrive; it does **not** match
+  an ``Object.assign(VA.<NAME>, {...})``, and that one *is* silent -- a JS-only
+  branch added that way reads as unpaired to nobody.
 
 Every extraction is asserted before it is compared. An extractor that finds nothing
 and compares ``set() == set()`` is a guard that cannot fail, which is precisely the
@@ -304,7 +316,11 @@ def test_the_extraction_found_every_table_and_none_of_them_is_empty(viewer_js):
     and to be plausible identifiers, before a single set equality is asserted.
     """
     tables = {name: js_object_keys(viewer_js, name) for name, _, _ in PAIRINGS}
-    assert len(tables) == 3
+    # Against `len(PAIRINGS)`, not a digit: a fourth pairing (`VA.CONFIDENCES`, once
+    # it has a definition to pair against) must not fail this assertion for an
+    # unrelated reason. What it still catches is two PAIRINGS rows naming one table,
+    # which the dict comprehension would silently collapse.
+    assert len(tables) == len(PAIRINGS)
     for name, table in tables.items():
         assert table.keys, (
             f"VA.{name} extracted zero keys -- the scanner found the anchor at line "
