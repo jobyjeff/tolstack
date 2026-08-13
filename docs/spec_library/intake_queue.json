@@ -25,7 +25,7 @@
       "in_pile": false,
       "pile_filename": null,
       "closes": [],
-      "unblocks": "The spherical-bearing / link-eye width: the one missing term in the pitch_link stack's clamped column, and the value both of that stack's INCOMPLETE checks are written as a budget around.",
+      "unblocks": "The spherical-bearing / link-eye width: the one missing term in the pitch_link stack's clamped column, and the value both of that stack's budget-scope checks are written as a budget around.",
       "stacks": ["pitch_link"],
       "note": "Part number UNKNOWN; candidates 215177, 214849-003, 216231-001. Now that MS9363 is in, THIS is the document standing between the repo and a complete pitch_link verdict -- it was rank 2 and is effectively rank 1 for that stack."
     },

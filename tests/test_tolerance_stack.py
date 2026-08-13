@@ -246,6 +246,22 @@ def test_an_excluded_term_must_actually_say_something():
             _check(complete=False, excluded_terms=empty)
 
 
+def test_a_bare_string_is_not_a_list_of_one_excluded_term():
+    """Added in `review/check_completeness_schema`.
+
+    ``"excluded_terms": "the eye -- no document"`` instead of ``[...]`` is the
+    likeliest way to mis-author a field the SOP describes as "one free string
+    per term", and ``tuple()`` turns a string into one entry per CHARACTER --
+    every one of which is a non-empty string, so the loop below it passed. The
+    check then rendered 27 excluded terms on its card and expanded 27 rows into
+    the gap list. A spaced string happened to raise (on the ``' '``) with a
+    message about the wrong thing; a hyphenated one sailed through.
+    """
+    for bare in ("link-eye-width--no-document", "the eye -- no document"):
+        with pytest.raises(ValueError, match="LIST of strings"):
+            _check(complete=False, excluded_terms=bare)
+
+
 def test_completeness_rides_through_the_check_spec_with_safe_defaults():
     """``StackDefinition.check`` reads both keys off the spec dict -- which is
     the same dict an archetype loader builds, so a GENERATED check declares

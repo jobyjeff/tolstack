@@ -620,14 +620,21 @@
 
   function checkCard(stackProj, check) {
     var budget = VA.isBudgetScope(check);
-    var scope = VA.VERDICT_SCOPES[check.verdict_scope] || {};
+    var scope = VA.VERDICT_SCOPES[check.verdict_scope];
     var card = VA.el("article", "check" +
       (budget ? " check--budget" : "") +
       (check.sensitivity ? " check--sensitivity" : ""));
 
     var head = VA.el("header", "check__head");
     head.appendChild(VA.chip("verdict " + VA.verdictClass(check.verdict), check.verdict));
-    if (scope.chip) head.appendChild(VA.chip("chip--budget", scope.chip, scope.title));
+    if (scope) {
+      if (scope.chip) head.appendChild(VA.chip("chip--budget", scope.chip, scope.title));
+    } else {
+      // Not a known scope — say so where the verdict is, rather than rendering
+      // a card that looks like an ordinary joint-scope result.
+      head.appendChild(VA.chip("chip--budget", "SCOPE UNKNOWN",
+        VA.unlabelledVerdictScopeText(check.verdict_scope)));
+    }
     // A sensitivity probe re-runs a check with an undocumented input moved. Its
     // verdict is about that hypothetical, not about the joint — so it says so
     // beside the verdict chip, not only in the guidance underneath.

@@ -111,6 +111,21 @@
     return !!check && check.verdict_scope === "budget";
   };
 
+  // What a check whose `verdict_scope` this viewer has never heard of must say.
+  // Names the value, because the reader's next step is to grep for it — and the
+  // fallback has to be LOUD for the same reason VA.unlabelledRuleText does:
+  // falling through to silence renders an incomplete check as an ordinary one,
+  // which is the exact misreading the field replaced the prose search to
+  // prevent. The reachable case is not a new vocabulary word but a **stale
+  // projection** — nothing rebuilds `data/projections/viewer/`, and one built
+  // before 2026-08-13 carries no `verdict_scope` at all.
+  VA.unlabelledVerdictScopeText = function (scope) {
+    return "verdict_scope " + JSON.stringify(scope === undefined ? null : scope) +
+      ", which this viewer has no branch for — whether this number is a verdict " +
+      "on the joint or a BUDGET for a missing term is NOT shown here; read the " +
+      "check in results.json, and check the projection is not stale";
+  };
+
   // Headline chips for a stack: the sourcing scoreboard, then the two things
   // that make a number less trustworthy than its digits suggest.
   VA.summaryChips = function (stackProj) {

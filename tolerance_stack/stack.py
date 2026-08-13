@@ -492,6 +492,18 @@ class CheckResult:
     excluded_terms: Sequence[str] = ()       # what is missing, and why, in words
 
     def __post_init__(self) -> None:
+        # A bare string is a LIST of characters to `tuple()`, and every one of
+        # them is a non-empty string, so it sails through the loop below and
+        # becomes one excluded term per character -- printed on the card and
+        # expanded into the gap list. `"excluded_terms": "..."` instead of
+        # `["..."]` is the likeliest way to mis-author a field the SOP describes
+        # as "one free string per term", so it is refused by name.
+        if isinstance(self.excluded_terms, str):
+            raise ValueError(
+                f"check {self.check_id!r}: excluded_terms is a LIST of strings, "
+                f"one per missing term, and got the bare string "
+                f"{self.excluded_terms!r} -- which would silently become one "
+                f"term per character")
         self.excluded_terms = tuple(self.excluded_terms or ())
         for term in self.excluded_terms:
             if not isinstance(term, str) or not term.strip():

@@ -143,5 +143,3 @@ beats a check with a guess in it."*
   *about the analysis*, which is still exactly right, and it never quoted the
   check labels. Worth a read by whoever next edits it, in case they want the
   worksheet to name the schema fields.
-</content>
-</invoke>

@@ -477,6 +477,31 @@
       eq(all(joint[0], ".check__excluded").length, 0);
     });
 
+    // Added in review/check_completeness_schema. A scope this viewer has no
+    // branch for used to render as an ordinary joint-scope card — silence, in
+    // the one place the repo has decided silence is the defect (see
+    // VA.unlabelledRuleText and the four days VA.CROP_RULES sat unlabelled).
+    // The reachable case is a STALE projection: one built before 2026-08-13
+    // carries no `verdict_scope` at all, and nothing rebuilds the projection.
+    await test("a scope the viewer has no branch for is named, not swallowed",
+      function () {
+        [undefined, "provisional"].forEach(function (scope) {
+          var stack = JSON.parse(JSON.stringify(DEMO));
+          stack.checks.forEach(function (c) {
+            delete c.verdict_scope;
+            if (scope !== undefined) c.verdict_scope = scope;
+          });
+          var root = render(function (r) { VA.renderStack(r, stack, CROPS, {}); });
+          var cards = all(root, "article.check");
+          eq(cards.length, 2, String(scope));
+          cards.forEach(function (card) {
+            has(card.textContent, "SCOPE UNKNOWN");
+          });
+          has(VA.unlabelledVerdictScopeText(scope),
+              JSON.stringify(scope === undefined ? null : scope));
+        });
+      });
+
     await test("a check lists its expanded inputs with signs", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
       var text = all(root, "article.check")[1].textContent;

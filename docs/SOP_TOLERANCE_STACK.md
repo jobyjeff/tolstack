@@ -809,8 +809,12 @@ over the members you do have, so the shortfall *is* the missing value:
   still reads `pass | marginal | fail` and means what it always did. The
   worksheet must still say so **next to the number**, in the same place and for
   the same reason as the castellated-nut caveat;
-- add the omitted element to `gaps` as item 1 — the viewer's gap list is built
-  from `excluded_terms`, so this happens by writing the field;
+- add the omitted element to the worksheet's ranked **Source gaps** (Step 6,
+  item 7) as item 1, with the document that would close it. Writing
+  `excluded_terms` does **not** do this for you: it feeds the *viewer's* derived
+  gap list, which carries neither a rank nor a closing document and does not
+  reach the spec library's intake queue. Two artifacts, and the ranked one is
+  still yours to write;
 - **state which end of the interval is the requirement, and why.** For a
   shortfall check the binding bound is the one built from the **worst**
   combination for the criterion — for `column − grip ≥ 0` that is grip at `max`

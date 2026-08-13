@@ -121,7 +121,8 @@ is *deliberate* de-duplication, where "fixing" it double-counts 1.575 mm.
 **And check the direction of the prose, not just of the terms.** A sign can also
 be wrong *outside* the term list, in the sentence that interprets the result —
 where no test is looking. The specific case: a check written as a **budget** for a
-missing element (an `INCOMPLETE`-labelled check, per the SOP's Step 5c) has a
+missing element (a `complete: false` check, per the SOP's Step 5c — an
+`INCOMPLETE`-labelled one before 2026-08-13) has a
 deficit interval whose two ends look symmetric and mean opposite things, and the
 worksheet converts one of them into "the width the joint requires". For
 `column − grip ≥ 0` the **binding** requirement is grip at `max` against the
