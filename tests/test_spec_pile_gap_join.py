@@ -25,8 +25,8 @@ import pytest
 
 from tests.debug_report_spec_pile_gaps import (
     EXTRA_COVERAGE, KNOWN_NON_MATCHES, SKIP_BANNER, Designator, Gap,
-    PileDocument, coverage_of, designators_in, hardware_gaps, join,
-    main_checkout, open_questions, parse_coverage, render, resolve_pile,
+    PileDocument, _RANGE, _as_range, coverage_of, designators_in, hardware_gaps,
+    join, main_checkout, open_questions, parse_coverage, render, resolve_pile,
     stack_gaps,
 )
 
@@ -124,20 +124,64 @@ def test_a_filename_with_no_standard_in_it_parses_to_no_standard(filename):
 
 
 def test_a_dash_number_in_a_filename_is_not_read_as_a_range():
-    """`MS9363-09.pdf` would be one dash number, not MS9363 through MS9(3)63-09.
-    The digit-count guard is what makes this fall out."""
+    """`MS9363-09.pdf` is one dash number, not MS9363 through MS9(3)63-09.
+
+    Which guard catches it, checked in review 2026-08-13 rather than assumed:
+    it is **`hi > lo`** (9 is not above 9363), not the digit-count guard. That
+    matters because the two guards are documented together and only one of them
+    is doing this job -- see `test_the_digit_count_guard_is_the_only_thing_...`
+    below for the case that needs the other.
+    """
     assert [str(c) for c in parse_coverage("MS9363-09 Rev C.pdf")] == ["MS9363"]
     assert not covers("MS9363-09 Rev C.pdf", "MS9400")
 
 
 def test_a_revision_suffix_and_a_year_are_not_read_as_a_range():
-    """`MIL-STD-889D-2021-Release (1).pdf`: 889 and 2021 are adjacent numbers
-    with a dash between them and are three and four digits, so the digit-count
-    guard rejects the span. Without it this file would claim to cover more than
-    a thousand MIL-STDs."""
+    """`MIL-STD-889D-2021-Release (1).pdf` must not claim a thousand MIL-STDs.
+
+    Corrected in review 2026-08-13: this docstring used to credit the
+    digit-count guard, and `_RANGE` never even matches here -- the revision
+    letter `D` sits between `889` and the dash, so there is no span to reject.
+    Deleting the digit-count guard leaves this test green, which is why the
+    assertion below now pins *that* fact too.
+    """
     covered = parse_coverage("MIL-STD-889D-2021-Release (1).pdf")
     assert [str(c) for c in covered if c.prefix == "MIL-STD"] == ["MIL-STD-889"]
     assert not covers("MIL-STD-889D-2021-Release (1).pdf", "MIL-STD-1500")
+    assert list(_RANGE.finditer("MIL-STD-889D-2021-Release (1)")) == []
+
+
+def test_the_digit_count_guard_is_the_only_thing_rejecting_a_wider_low_end():
+    """The case no other guard catches, added in review 2026-08-13.
+
+    `MS9363-99999`: the prefixes agree, `hi > lo`, and only the same-digit-count
+    rule stands between that filename and a claim to cover 90,636 standards.
+    Deleting the guard turned every other test in this file green, so without
+    this one the guard was documentation. Asserted at `_as_range`, which is
+    where the rule lives -- `parse_coverage` would pass for the wrong reason
+    (it falls back to the bare designator either way).
+    """
+    (match,) = list(_RANGE.finditer("MS9363-99999"))
+    assert _as_range(match) is None
+    assert [str(c) for c in parse_coverage("MS9363-99999.pdf")] == ["MS9363"]
+
+
+def test_a_four_digit_year_after_a_four_digit_basic_number_is_a_known_hole():
+    """**A live false positive the guards do not catch.** Recorded in review
+    2026-08-13 rather than papered over, because the tool's own docstring says a
+    range that matches too much is worse than no range.
+
+    `NAS1121-2025` -- a basic number and a year, both four digits, ascending --
+    satisfies every guard and parses as the 905-wide span NAS1121..NAS2025. No
+    file in the pile hits it today (checked: every one of the 62 documents parses
+    to the right thing), and `NAS1121 THRU 1128_REV_14.pdf` shows the pile does
+    carry year-and-revision suffixes, so one re-export away it would. Rejecting
+    it needs a rule nobody has chosen yet -- a span cap, or a
+    "the second number is a year" test -- which is a design call, not a review
+    fix. This test pins the CURRENT behaviour so that whoever picks the rule
+    sees this line go red rather than discovering the hole a third time.
+    """
+    assert [str(c) for c in parse_coverage("NAS1121-2025.pdf")] == ["NAS1121-NAS2025"]
 
 
 def test_a_backwards_range_is_not_a_range():

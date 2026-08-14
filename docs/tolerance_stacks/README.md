@@ -160,7 +160,18 @@ venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --markdown
 venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --compare --markdown
 venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --workbook --markdown
 venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --terms --markdown
+
+# which open gaps a document in the spec pile could close (MAIN checkout only --
+# `data/inbox/specs/` is gitignored, so a worktree gets a loud skip, not an answer)
+venv-win\Scripts\python.exe tests\debug_report_spec_pile_gaps.py
 ```
+
+Run the last one **whenever a document lands in `data/inbox/specs/`**, and again
+before writing a gap that says a standard is absent. It is report-only: it
+relabels nothing, and a row it prints is "open this file and look", not a
+re-citation. Added 2026-08-13 (`spec_pile_gap_join`) after
+`NAS6403-NAS6420 Rev 4.pdf` sat in the pile for seven days while the gap prose
+went on calling it absent.
 
 These print the worksheet tables; paste them back if an element value changes.
 `tests/debug_dump_tol_stack_xlsx.py` re-reads either source workbook (stdlib only

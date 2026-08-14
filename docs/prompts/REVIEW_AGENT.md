@@ -1033,6 +1033,46 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       below the fold of every excerpt. Trimmed inline. `tail -c 100` (or
       `git show HEAD:<path> | tail -3`) every file a handoff *created*, and grep
       a diff for `</invoke>`, `</content>`, `<parameter`.
+- [ ] **A guard credited with a rejection a *different* guard made.** New
+      2026-08-13 (`spec_pile_gap_join`), and it is the cheapest vacuity check
+      there is: **delete the guard and re-run the suite.** `_as_range` in
+      `tests/debug_report_spec_pile_gaps.py` has three rules, and two tests
+      named the same-digit-count rule as what rejects `MS9363-09` and
+      `MIL-STD-889D-2021`. Neither is true — `MS9363-09` dies on `hi > lo`
+      (9 is not above 9363) and `MIL-STD-889D-2021` never matches the regex at
+      all, because the revision letter `D` sits between the number and the dash.
+      Deleting the digit-count rule left **all 43 tests green**, so the rule was
+      documentation and its own case (`MS9363-99999`, a *wider* low end) was
+      untested. Fixed inline, with the missing case added. The general move: for
+      every rule a comment or docstring says is load-bearing, remove it and see
+      what turns red; a prose attribution is not a check, and a multi-rule
+      validator is where the wrong one gets the credit. And while you are in
+      there, ask what the surviving rules still let through — here
+      `NAS1121-2025` (basic number + year, both four digits, ascending) parses
+      as a 905-wide range and no guard sees it, now pinned as a known hole.
+- [ ] **One page number quoted for two copies of "the same" document.** New
+      2026-08-13 (`spec_pile_gap_join`). The pile holds the RBC plain-bearing
+      catalogue **twice** — a 2016 reprint and the 2008 web edition — and the
+      same NAS76/NAS77 tables sit at printed pages 91/92 in one and **97/98** in
+      the other. The handoff wrote *"page 92 of both RBC plain-bearing
+      catalogues"* into six places (the allowlist, `EXTRA_COVERAGE`, a stack
+      note, a hardware gap, a worksheet blockquote, a gap row) after opening the
+      2016 one. Corrected inline. Two durable parts. First: **when the pile holds
+      more than one copy of a document, a page address is per-copy** — a citation
+      naming a page must name which file, or name the *table* instead of a
+      number. Second: the guard that looks like it covers this
+      (`test_every_extra_coverage_row_says_which_page_it_was_read_on`) asserts
+      the word "page" is present and that the row carries a date; it cannot see
+      whether the page leads there. Open the second copy yourself.
+- [ ] **…and the same handoff's sixth sighting of the stale-count entry above,
+      logged only because of *where* the count was**: the lesson's
+      *"created three new candidate rows"* described the tool's **own output**
+      and was five keys / seven rows. A figure a one-line re-run can produce is
+      the one most likely to be typed from memory, and it sat in the sentence the
+      lesson calls "the single most important input to the enforcement
+      decision". Corrected inline, with the reproducing command written beside
+      it. When a handoff builds a reporter, **run the reporter and diff it
+      against every number the lesson quotes about it.**
 
 ## Architectural errors to check
 

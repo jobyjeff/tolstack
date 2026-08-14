@@ -50,8 +50,8 @@ categories, and the second was not anticipated by the brief:
   ("Length in .010 increments") makes `NAS77A4-015` **.150 in** long where the
   workbook folds .1875 in. Its length tolerance is `L ±.005 in`, not the ±.002
   in that 4.71/4.81 mm implies.
-* the same pair × **NAS76** — the straight series, page 91 of the same
-  catalogue, checked because it is the shape the part actually is. It decodes
+* the same pair × **NAS76** — the straight series, the page before NAS77 in the
+  same catalogues, checked because it is the shape the part actually is. It decodes
   its dash in **32nds** (`-025 = .7813 in`) and controls length `+.000/−.005`,
   so it does not source the value either. (.1875 in is 6/32, i.e. a `-006`
   dash — an observation, not an identification.)
@@ -59,9 +59,14 @@ categories, and the second was not anticipated by the brief:
 **(b) Already cited.** Eleven of the sixteen allowlist keys. A well-written
 closed gap **keeps naming the
 document that closed it**, so the join keeps offering it. Writing this session's
-corrections *created three new candidate rows in the tool's own next run* — the
+corrections *created five new candidate keys — seven new rows — in the tool's own
+next run* (11 keys / 15 rows against the pre-work prose, 16 / 22 after; corrected
+in review 2026-08-13, where it said "three"). The
 better the prose, the noisier the report. This is the single most important
 input to the enforcement decision below, and nothing in the brief predicted it.
+Re-derive it rather than quoting it: run the join with `KNOWN_NON_MATCHES`
+cleared against `git show master:docs/tolerance_stacks/` and against the working
+tree, and diff the `(gap id, designator)` key sets.
 
 ## Should the tool graduate to a failing check? Evidence, not a recommendation
 
@@ -95,10 +100,17 @@ Strategy deferred this. What the session learned that bears on it:
   `data/inbox/specs/README.md` records as moved in at founding. That is a
   founding fact, and `intake_queue.json`'s provenance block already warns about
   it. Count from the filesystem.
-* **Three RBC catalogue PDFs, two of which lie in their filenames.**
-  `RBC - Plain bearings (NAS77 p92).pdf` also carries NAS76 (pdf page 93),
-  MS14237, MS14238, AS81934 and the EN series; `RBC_Aerospace_Plain_Bearings_Web.pdf`
-  names **no** standard at all and carries both NAS76 and NAS77. The tool's
+* **Three RBC catalogue PDFs, two of which lie in their filenames — and they do
+  not paginate alike.** `RBC - Plain bearings (NAS77 p92).pdf` (© 2008, 2011,
+  2016) carries NAS76 on pdf page 93 / printed 91 and NAS77 on pdf 94 / printed
+  92, plus MS14237, MS14238, AS81934 and the EN series;
+  `RBC_Aerospace_Plain_Bearings_Web.pdf` (© 2008) names **no** standard at all
+  and carries the same two tables six printed pages later — NAS76 on pdf 99 /
+  printed **97**, NAS77 on pdf 100 / printed **98**, which is the page
+  `JB_NAS77.pdf` is a one-page extract of. This session's prose said "p91/p92 of
+  both catalogues" throughout and was wrong about the second one; corrected in
+  review 2026-08-13. Address a page by its *table*, not by a number copied from
+  its sibling edition. The tool's
   first run duly reported "NAS76: nothing in the pile" on the afternoon NAS76
   was read out of that file. `EXTRA_COVERAGE` exists because of that hour; add
   a row whenever you open a pile document and find a standard its name does not

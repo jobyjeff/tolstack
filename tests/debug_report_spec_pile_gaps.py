@@ -163,10 +163,27 @@ def _as_range(match: re.Match) -> Coverage | None:
     filenames and prose are full of things that look like ranges and are not:
 
     * the two prefixes must agree when both are printed;
-    * both numbers must have the **same digit count** -- this is what stops
-      ``MS9363-09`` reading as "MS9363 through MS9<9>" and
-      ``MIL-STD-889D-2021`` from reading as a 1132-wide range; and
+    * both numbers must have the **same digit count**; and
     * ``hi`` must exceed ``lo``.
+
+    Which guard does which job, re-derived in review 2026-08-13 because the
+    version of this docstring that shipped credited the wrong one:
+
+    * ``MS9363-09`` is rejected by **hi > lo** (9 is not above 9363), not by the
+      digit count;
+    * ``MIL-STD-889D-2021`` never matches ``_RANGE`` at all -- the revision
+      letter ``D`` sits between the number and the dash -- so no guard runs;
+    * the digit-count guard's own case is a *wider* low end, e.g.
+      ``MS9363-99999``. Deleting the guard left the whole test file green until
+      ``test_the_digit_count_guard_is_the_only_thing_rejecting_a_wider_low_end``
+      was added.
+
+    **Known hole, deliberately unfixed:** ``NAS1121-2025`` -- a four-digit basic
+    number and a four-digit year, ascending -- passes all three guards and
+    parses as a 905-wide span. Nothing in the pile hits it today; rejecting it
+    needs a rule (a span cap? a year test?) that is a design call rather than a
+    review fix, and ``test_a_four_digit_year_after_a_four_digit_basic_number_is_a_known_hole``
+    pins the current behaviour so the next person sees it.
     """
     prefix, lo_text, second, hi_text = match.groups()
     prefix = prefix.upper()
@@ -272,9 +289,14 @@ EXTRA_COVERAGE: dict[str, tuple[tuple[str, str], ...]] = {
         ("NAS76", "pdf page 93, printed page 91 -- NAS76 UNLINED STRAIGHT BUSHINGS. "
                   "Read 2026-08-13 (spec_pile_gap_join)."),
     ),
+    # NOTE THE PAGINATION: this is the 2008 web edition and it is NOT the same
+    # printing as the file above ((c) 2008, 2011, 2016), so the same two tables
+    # sit six printed pages later. Quoting "p91/p92 of both catalogues" is wrong
+    # about this one -- corrected in review 2026-08-13. `JB_NAS77.pdf` is a
+    # one-page extract of THIS edition's printed p98.
     "RBC_Aerospace_Plain_Bearings_Web.pdf": (
-        ("NAS76", "pdf page 99, printed page 91. Read 2026-08-13."),
-        ("NAS77", "pdf page 100, printed page 92. Read 2026-08-13. The filename "
+        ("NAS76", "pdf page 99, printed page 97. Read 2026-08-13."),
+        ("NAS77", "pdf page 100, printed page 98. Read 2026-08-13. The filename "
                   "names no standard, so the parse finds nothing in it at all."),
     ),
 }
@@ -437,10 +459,10 @@ KNOWN_NON_MATCHES: dict[tuple[str, str], str] = {
         "and it is not in the pile."
     ),
     ("vpa_output_to_pitch_plate:straight_bushing", "NAS77"): (
-        "(a) NAS77 is in the pile three times over -- JB_NAS77.pdf and page 92 of "
-        "both RBC plain-bearing catalogues -- and reading it on 2026-08-13 ruled the "
+        "(a) NAS77 is in the pile three times over -- JB_NAS77.pdf and the NAS77 page "
+        "of both RBC plain-bearing catalogues -- and reading it on 2026-08-13 ruled the "
         "PART NUMBER out rather than sourcing the element. NAS77 is the unlined "
-        "FLANGED series (the straight/plain one is NAS76, page 91 of the same "
+        "FLANGED series (the straight/plain one is NAS76, the page before it in the same "
         "catalogue) and the as-drawn part is a BUSHING, PLAIN; the dash rule printed "
         "on the page, 'Length in .010 increments (ex: -025 = .25 in.)', makes "
         "NAS77A4-015 .150 in long against the .1875 in this element folds; and the "
@@ -450,7 +472,7 @@ KNOWN_NON_MATCHES: dict[tuple[str, str], str] = {
     ),
     ("vpa_output_to_pitch_plate:straight_bushing", "NAS76"): (
         "(a) NAS76 -- the STRAIGHT/plain series, which is the shape this element "
-        "actually is -- was read on page 91 of both RBC catalogues on 2026-08-13 and "
+        "actually is -- was read on the NAS76 page of both RBC catalogues on 2026-08-13 and "
         "does not source it either. NAS76 decodes its dash as 32nds of an inch "
         "('Length Code = First Digit in whole inches. Last two digits in 32nds', ex: "
         "-025 = .7813 in.), so NAS76A4-015 would be .46875 in long, and its printed "
@@ -460,7 +482,7 @@ KNOWN_NON_MATCHES: dict[tuple[str, str], str] = {
         "214943-002's part drawing remains the closing document."
     ),
     ("hardware_entries.json:NAS77A4-015", "NAS76"): (
-        "(a) Same 2026-08-13 reading of RBC page 91 as the "
+        "(a) Same 2026-08-13 reading of the RBC NAS76 page as the "
         "vpa_output_to_pitch_plate:straight_bushing row: the straight-bushing series "
         "neither matches this entry's dash number under its own 32nds decode nor "
         "prints the +/-.002 in band the entry transcribes. Named here only because "

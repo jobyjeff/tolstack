@@ -127,10 +127,12 @@ number was a placeholder while the part was being drawn. The workbook's
 against a standard that isn't used or a part drawing this repo doesn't hold.
 
 > **UPDATE 2026-08-13** (`spec_pile_gap_join`). The standard *is* in the pile —
-> `JB_NAS77.pdf` and page 92 of both RBC plain-bearing catalogues — and reading
+> `JB_NAS77.pdf` and the NAS77 page of both RBC plain-bearing catalogues (printed
+> p92 in the 2016 reprint, p98 in the 2008 web edition, of which `JB_NAS77.pdf`
+> is a one-page extract) — and reading
 > it makes this finding sharper rather than closing it. **NAS77 is the unlined
-> FLANGED bushing series**; the straight/plain one is **NAS76**, page 91 of the
-> same catalogue. The part ballooned at DETAIL X is a `BUSHING, PLAIN`. And the
+> FLANGED bushing series**; the straight/plain one is **NAS76**, the page before
+> it in each catalogue. The part ballooned at DETAIL X is a `BUSHING, PLAIN`. And the
 > dash-number rule printed on the NAS77 page — *"xxx: Length in .010 increments
 > (ex: -025 = .25 in.)"* — makes `NAS77A4-015` a **.150 in** long bushing, where
 > this stack folds .1875 in. (NAS76 decodes its dash differently again, as
@@ -200,7 +202,7 @@ say so rather than pretend a clean answer exists."* Slice 1's answer: it says so
 | 4 | 214943-002 bushing (Joby part drawing) | the as-drawn bushing's length limits (replaces NAS77A4-015 entirely) | 2 |
 | 5 | 208510-007 VPA ASSEMBLY | the 8.66/8.71 spherical bearing width — no bearing balloon in DETAIL X because it is internal to the actuator | 3 |
 | 6 | 215175-001/-002 TANGENTIAL LINK MOUNT | whether the 4.06 flange belongs here rather than on 215197 (F14) | 2 |
-| 7 | ~~NAS77 (plain bushing)~~ — **READ 2026-08-13** (`spec_pile_gap_join`). It was in `data/inbox/specs/` all along: `JB_NAS77.pdf` and page 92 of both RBC plain-bearing catalogues. | **Answered, in the negative.** NAS77 is the **flanged** series (the straight/plain one is NAS76, page 91); the as-drawn part is a `BUSHING, PLAIN`; and the dash decode printed on the page — *"Length in .010 increments (ex: -025 = .25 in.)"* — makes `NAS77A4-015` **.150 in** long, not the .1875 in this stack folds. Its length tolerance is `L ±.005 in`, not the ±.002 in that 4.71/4.81 mm implies. So the workbook's part number does not describe this bushing, and reading the standard cannot source element 1 — see F13. | ~~4~~ — **done** |
+| 7 | ~~NAS77 (plain bushing)~~ — **READ 2026-08-13** (`spec_pile_gap_join`). It was in `data/inbox/specs/` all along: `JB_NAS77.pdf` and the NAS77 page of both RBC plain-bearing catalogues. | **Answered, in the negative.** NAS77 is the **flanged** series (the straight/plain one is NAS76, the page before it); the as-drawn part is a `BUSHING, PLAIN`; and the dash decode printed on the page — *"Length in .010 increments (ex: -025 = .25 in.)"* — makes `NAS77A4-015` **.150 in** long, not the .1875 in this stack folds. Its length tolerance is `L ±.005 in`, not the ±.002 in that 4.71/4.81 mm implies. So the workbook's part number does not describe this bushing, and reading the standard cannot source element 1 — see F13. | ~~4~~ — **done** |
 
 **Traced, for contrast:** one element — the NAS6404U13D grip, `.812 ±.010 in`
 off `NAS6403-NAS6420 Rev 4.pdf` sheet 3. Nothing on this joint is traced to a
