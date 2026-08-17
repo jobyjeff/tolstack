@@ -1156,6 +1156,101 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
     assert sum(1 for e in elements if e.hardware_ref) == 10
 
 
+# --- what counts as a QUOTATION -- shared by both doc-level scans ------------
+#
+# Two guards in this file read prose for a number that has gone stale: the
+# traced ratio, immediately below, and hardware-entry counts, in the section
+# further down. Both need the same exemption and until 2026-08-12 they had two
+# different ones -- this one knew only about blockquotes, which is exactly why
+# the second superseded ratio could not be added to it (see the list below).
+# One definition, two callers.
+
+def _quoted_spans(text: str) -> list[tuple[int, int]]:
+    """Where a superseded number is allowed to survive: inside a quotation.
+
+    This repo corrects a number a review already read by leaving the old one
+    visible rather than overwriting it -- as a markdown blockquote line, or
+    quoted inline (`that clause read "The other twelve entries..."`, which is how
+    the correction inside `NAS6403U11D`'s `library_ref_note` is written, where
+    JSON gives you no blockquote). A quoted number is a report, not a claim.
+    """
+    spans = [(m.start(), m.end()) for m in re.finditer(r'"[^"\n]{0,300}"', text)]
+    spans += [(m.start(), m.end()) for m in re.finditer(r"(?m)^\s*>.*$", text)]
+    return spans
+
+
+def _retired_ratio_pattern(figure: str) -> re.Pattern:
+    """``3 of 26`` is also written ``3 traced of 26`` and ``3 traced out of 26``.
+
+    Anchored on **both** numbers, which the bare ``"of 17"`` substring this
+    replaced was not: reading the denominator alone flags a perfectly correct
+    ``4 of 17`` and cannot see any figure that shares its denominator with the
+    live one -- and ``3 of 26`` shares 26 with the current figure. That is a
+    second reason the list below could not grow past one entry.
+
+    The numerator must be **the traced count**, not any number that happens to
+    sit within reach of the denominator, so the wildcard span is only reachable
+    behind the literal word ``traced``. A free ``\\b<n>\\b[^.\\n]{0,40}?of <m>``
+    reads the repo's own long form -- ``N traced / M inferred / K untraced, out
+    of T element instances``, the shape the review checklist asks every report to
+    state -- and matches on the *inferred* column: the **current** figure written
+    out long (``5 traced / 3 inferred / 18 untraced, out of 26``) was flagged as
+    the retired ``3 of 26``, i.e. the guard fired on the one number it exists to
+    protect, and the natural repair is to delete a correct figure. Narrowed
+    during `review/traced_ratio_guard_freshness`; the retired figure in that same
+    long form is still caught, because there the retired numerator *is* the
+    traced column.
+    """
+    traced, instances = figure.split(" of ")
+    return re.compile(
+        rf"\b{traced}\s+of\s+{instances}\b"
+        rf"|\b{traced}\s+traced\b[^.\n]{{0,40}}?\bof\s+{instances}\b"
+    )
+
+
+# Every traced ratio this repo has retired, oldest first. This is history and
+# history does not move, so it is not the cached-copy-of-a-live-number mistake
+# the guard below exists against. The one manual step: **the handoff that moves
+# the ratio appends the figure it retires here.** That handoff is forced to look
+# -- moving the ratio fails the `missing` half against every live doc -- and that
+# failure message says so.
+_RETIRED_TRACED_RATIOS = tuple(
+    (figure, _retired_ratio_pattern(figure), why) for figure, why in (
+        ("1 of 17", "founding 2026-07-29 -> 2026-08-06 (`traced_labels_and_ratio`); "
+                    "wrong in both halves rather than merely superseded"),
+        ("3 of 26", "2026-08-06 -> 2026-08-10 (`fastener_citations_and_confidence`), "
+                    "which re-cited two grips up and pushed two elements down"),
+    ))
+
+
+def _current_traced_ratio() -> str:
+    """The live figure, recomputed from the stacks -- never a literal, and in
+    this file least of all: a cached copy of this number beside the code that
+    computes it is the exact defect the guard below exists against, and it is
+    what an inline comment here had been for two days."""
+    from tests.debug_report_tolerance_stacks import SEEDED_STACK_FILES, _counts
+
+    c = _counts(STACKS_DIR / n for n in SEEDED_STACK_FILES)
+    return f"{c['traced']} of {c['instances']}"
+
+
+def retired_traced_ratio_claims(text: str) -> list[tuple[str, int]]:
+    """``(figure, offset)`` for every retired ratio ``text`` states as a claim.
+
+    A figure inside a quotation -- a blockquote line or a double-quoted phrase,
+    see ``_quoted_spans`` -- is a report of what a document used to say, not an
+    assertion about now. That exemption is what lets this list hold more than one
+    entry: the dated corrections in `ARCHITECTURE.md` and the four worksheets
+    legitimately state ``3 of 26``, and deleting them to get the suite green
+    would destroy the evidence the correction rests on.
+    """
+    quoted = _quoted_spans(text)
+    return [(figure, m.start())
+            for figure, pattern, _ in _RETIRED_TRACED_RATIOS
+            for m in pattern.finditer(text)
+            if not any(a <= m.start() < b for a, b in quoted)]
+
+
 def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
     """The stale-number bug this repo keeps having, caught at the doc level.
 
@@ -1163,10 +1258,17 @@ def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
     parsed, but two mechanical rules cover the failure that actually happened:
 
     1. every live doc that discusses the ratio states the **current** figure; and
-    2. the **superseded** figure appears only inside a blockquote — i.e. as a
-       quotation in a dated correction note, never as an assertion. That is the
-       repo's rule for a number a review already read: correct it in place and
-       leave the old one visible, don't silently overwrite it.
+    2. **every** retired figure appears only inside a quotation -- a dated
+       correction note, never an assertion. That is the repo's rule for a number
+       a review already read: correct it in place and leave the old one visible,
+       don't silently overwrite it.
+
+    Rule 2 said *the* superseded figure and meant ``1 of 17`` alone until
+    2026-08-12, so ``3 of 26`` -- retired on 2026-08-10 and still written in six
+    live docs -- was unguarded. It is on the list now because the exemption is
+    "inside a quotation" rather than "inside a blockquote"; the blockquote-only
+    rule would have made a correction note written inline (the SOP's *"took it
+    from `3 of 26` to 5"*) impossible to write truthfully.
 
     Historical records are deliberately out of scope: `docs/sessions/reviews/`
     and `docs/sessions/completed/` are what someone believed on a date, and
@@ -1181,11 +1283,14 @@ def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
         *sorted((repo_root / "docs" / "tolerance_stacks").glob("WORKSHEET_*.md")),
     ]
 
-    from tests.debug_report_tolerance_stacks import SEEDED_STACK_FILES, _counts
+    current = _current_traced_ratio()
 
-    c = _counts(STACKS_DIR / n for n in SEEDED_STACK_FILES)
-    current = f"{c['traced']} of {c['instances']}"          # "3 of 26"
-    superseded = "of 17"
+    retired = {figure for figure, _, _ in _RETIRED_TRACED_RATIOS}
+    assert current not in retired, (
+        f"the live traced ratio {current!r} is registered as retired in "
+        f"_RETIRED_TRACED_RATIOS -- the ratio moved back, or an entry was added "
+        f"one handoff early"
+    )
 
     missing, asserted_stale = [], []
     for p in live_docs:
@@ -1194,15 +1299,67 @@ def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
         text = p.read_text(encoding="utf-8")
         if current not in text:
             missing.append(str(p.relative_to(repo_root)))
-        for n, line in enumerate(text.splitlines(), 1):
-            if superseded in line and not line.lstrip().startswith(">"):
-                asserted_stale.append(f"{p.relative_to(repo_root)}:{n}")
+        for figure, offset in retired_traced_ratio_claims(text):
+            line = text[:offset].count("\n") + 1
+            asserted_stale.append(f"{p.relative_to(repo_root)}:{line}: {figure}")
 
-    assert missing == [], f"traced ratio not stated as {current!r} in {missing}"
-    assert asserted_stale == [], (
-        f"superseded traced ratio asserted outside a correction blockquote at "
-        f"{asserted_stale}"
+    assert missing == [], (
+        f"traced ratio not stated as {current!r} in {missing}. If the ratio just "
+        f"moved, the figure it replaced is now retired and unguarded: append it "
+        f"to _RETIRED_TRACED_RATIOS in this file as you update these documents."
     )
+    assert asserted_stale == [], (
+        f"retired traced ratio asserted outside a quotation at {asserted_stale}. "
+        f"A dated correction may state it -- as a blockquote line or inside "
+        f"double quotes; a live sentence may not."
+    )
+
+
+def test_the_traced_ratio_guard_can_fail():
+    """A guard nobody has watched fail is not yet a guard.
+
+    The scan above is worth its lines only if it tells a claim from a quotation,
+    so the newly-covered figure is put through all three shapes here. The bare
+    sentence is `docs/SOP_TOLERANCE_STACK.md`'s own, as it read from 2026-08-10
+    until this handoff quoted its retired figure.
+    """
+    stale = ("The 2026-08-10 change took it from 3 of 26 to 5 by re-citing two "
+             "elements up to a standard")
+    assert [f for f, _ in retired_traced_ratio_claims(stale)] == ["3 of 26"]
+
+    # ...and the same sentence as a quotation is silent, in both of the two forms
+    # this repo writes a correction in -- blockquote for markdown, inline double
+    # quotes for JSON, which has no blockquote.
+    assert retired_traced_ratio_claims(f"> {stale}") == []
+    assert retired_traced_ratio_claims(f'it read "{stale}" until 2026-08-12') == []
+
+    # The older figure, in the wordier form the worksheets use for it.
+    assert [f for f, _ in retired_traced_ratio_claims(
+        "Slice 1 scored 1 traced out of 17 across three stacks")] == ["1 of 17"]
+
+    # Not flagged: the live figure, and the arithmetic that explains the
+    # denominator -- "17 of 26" is how the founding count's omission is shown.
+    assert retired_traced_ratio_claims(
+        f"**{_current_traced_ratio()} element instances** are `traced`, and the "
+        f"founding denominator silently omitted take2 (11 + 6 = 17 of 26)") == []
+
+    # The repo's long form, both ways round, added during
+    # `review/traced_ratio_guard_freshness`. This is the shape the review
+    # checklist asks every report to state, so both directions need pinning: a
+    # RETIRED figure written long is still a claim...
+    assert [f for f, _ in retired_traced_ratio_claims(
+        "3 traced / 7 inferred / 16 untraced, out of 26 element instances"
+    )] == ["3 of 26"]
+    # ...and a *current* figure written long is not, even when a retired
+    # numerator sits in its `inferred` column within reach of the denominator.
+    # An unanchored wildcard flagged exactly that -- the guard firing on the one
+    # number it exists to protect. Built from the list itself, so this case can
+    # neither go vacuous nor go stale as the list grows.
+    for figure, _, _ in _RETIRED_TRACED_RATIOS:
+        numerator, instances = figure.split(" of ")
+        assert retired_traced_ratio_claims(
+            f"9 traced / {numerator} inferred / 4 untraced, out of {instances} "
+            f"element instances") == [], figure
 
 
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
@@ -1405,20 +1562,6 @@ def _prose_blocks(path: Path, repo_root: Path) -> list[tuple[str, str]]:
     except json.JSONDecodeError:      # not our problem to diagnose here
         return []
     return blocks
-
-
-def _quoted_spans(text: str) -> list[tuple[int, int]]:
-    """Where a superseded number is allowed to survive: inside a quotation.
-
-    This repo corrects a number a review already read by leaving the old one
-    visible rather than overwriting it -- as a markdown blockquote line, or
-    quoted inline (`that clause read "The other twelve entries..."`, which is how
-    the correction inside `NAS6403U11D`'s `library_ref_note` is written, where
-    JSON gives you no blockquote). A quoted number is a report, not a claim.
-    """
-    spans = [(m.start(), m.end()) for m in re.finditer(r'"[^"\n]{0,300}"', text)]
-    spans += [(m.start(), m.end()) for m in re.finditer(r"(?m)^\s*>.*$", text)]
-    return spans
 
 
 def hardware_entry_count_claims(text: str) -> list[tuple[str, str, int, int]]:

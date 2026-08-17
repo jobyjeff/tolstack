@@ -1,7 +1,7 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tests / traced ratio
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260812_traced_ratio_guard_freshness.md
@@ -49,3 +49,16 @@ correction needs it outside a blockquote sometimes. The `hardware_entry` scan
 added on 2026-08-12 solves that differently (a number inside a blockquote **or a
 double-quoted phrase** is treated as a quotation, not a claim); if this one is
 picked up, that exemption is reusable.
+
+---
+
+**Resolved 2026-08-17** (`traced_ratio_guard_freshness`). Option 2 on the
+comment: it is gone, and the line it annotated now calls
+`_current_traced_ratio()`, which recomputes the figure and says in its docstring
+why no literal belongs there. The adjacent half was the larger one: the single
+`superseded` string is now `_RETIRED_TRACED_RATIOS`, holding both retired figures
+with the handoff that retired each, and the exemption does route through
+`_quoted_spans()` as this issue suggested. Generalising it found one live bare
+claim — `docs/SOP_TOLERANCE_STACK.md:96`, *"took it from 3 of 26 to 5"* — whose
+retired figure is now quoted rather than deleted. See
+`docs/sessions/lessons/LESSONS_20260817_traced_ratio_guard_freshness.md`.
