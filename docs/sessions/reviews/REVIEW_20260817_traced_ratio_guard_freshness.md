@@ -181,8 +181,10 @@ reviewer does not re-litigate it.
 - **Tests, both checkouts.** `C:\workspace\tolstack\venv-win\Scripts\python.exe -m
   pytest -q`: **438 passed, 1 skipped** in this review worktree (merged tree +
   the inline fixes); the one skip is `test_viewer_js_suite`'s node-fs tier, which
-  needs a populated `data/`. The main-checkout count is recorded in the merge
-  commit that follows this report. The handoff branch alone reproduces the
+  needs a populated `data/`. In the **main checkout** (`C:\workspace\tolstack`),
+  after the merge: **439 passed, 0 skipped** — same 439 tests, the node-fs tier
+  running there because `data/` is populated. Both green; the pair is the
+  checkout-specific delta this overlay warns about. The handoff branch alone reproduces the
   lesson's **434 passed, 1 skipped** exactly, and `tests/test_tolerance_stack.py`
   collects **123**, also as the lesson states — both numbers re-derived, both
   correct *for the branch*, and the shipping tree is four higher because
@@ -218,9 +220,25 @@ reviewer does not re-litigate it.
 - **Schema / stack hygiene, `data/inbox/specs/`, `docs/reference/`,
   drawing-checker.** Untouched by the branch — `git diff --name-status` lists five
   files, none under `data/`, `docs/reference/`, `docs/tolerance_stacks/` or the
-  package. Nothing was written into drawing-checker: no run was executed by this
-  session, and a before/after listing of its `data/runs/` and `data/inbox/` over
-  the review is identical.
+  package.
+- **drawing-checker: the snapshot diff is NON-empty, and explained.** I took a
+  file+size listing of its `data/runs/` and `data/inbox/` at the start of the
+  review and again after the merge. Two run directories appeared in between:
+  `20260817_164025_546791_B.1_BLADE_BONDED_ASSEMBLY,_INSTRUMENTED,_PROPELLER,_M1`
+  and `20260817_164115_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER`. Entry by
+  entry: both carry `"purpose": "eager"` in `run_meta.json` (drawing-checker's own
+  watcher, not a stack author's `test` run), both are propeller blade / propulsion
+  assembly drawings unrelated to any joint this repo stacks, and their timestamps
+  (16:40:25 and 16:41:15 local) fall inside this review's window. They are **not**
+  this session's: nothing here invoked drawing-checker's pipeline — the only
+  commands run against that repo were directory listings. The argument that
+  settles it rather than merely asserting it: **this branch adds no citation at
+  all.** `git diff` touches no stack file, so there is no `export.runs` entry
+  anywhere on it, and neither run id appears in `docs/tolerance_stacks/`
+  (`grep -rl "20260817_16"` → nothing). A run that no citation names cannot have
+  been manufactured to support one. Recorded rather than waved past, because an
+  unexplained entry postdating the session's first commit would have been
+  blocking.
 - **Test I/O does not pollute `data/`.** A file+size listing of the main
   checkout's `data/` (115 entries) is identical before and after the post-merge
   suite run.
