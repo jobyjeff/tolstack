@@ -292,11 +292,18 @@ rises through a looser rule is a regression, not progress. Anything else is
 `docs/sessions/lessons/LESSONS_20260805_stack_viewer_v0.md` and
 `LESSONS_20260806_citation_export_provenance.md`.
 
-One derived flag worth knowing, because it has no schema field:
+Two derived flags worth knowing, because neither has a schema field:
 
 - **zero-width band** = `min == max`, i.e. no document gives a tolerance, so
   every interval it feeds is a lower bound. Rendered as its own axis, not as a
   fourth confidence.
+- **`identity_rule`** (2026-08-13) = what identifies the *bytes* behind a value
+  when no `export` block does. `"spec_pile_filename"` on a `kind: "spec"`
+  citation that names no export — the pile is append-only, so the filename is
+  the identity — and `null` everywhere else, including where an export block
+  already identifies them. Derived, never authored: it rides on the projection's
+  `elements[]` row beside `zero_width`, and no authored file carries one
+  (`tests/test_viewer_projection.py::test_the_marker_is_derived_and_never_authored`).
 
 **Completeness used to be the second one, and no longer is.** Until 2026-08-13 an INCOMPLETE check
 was detected from the word `INCOMPLETE` in the authored label/guidance, so a

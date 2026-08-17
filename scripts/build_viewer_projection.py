@@ -207,10 +207,20 @@ def identity_rule_of_ref(source_ref: Any) -> Optional[str]:
     whether the pile currently holds the file, so a missing document still carries
     the marker -- its crop turns unresolvable and says so there, which is the
     right place for a fact about a file that is not there.
+
+    It does **not** diverge on the empty ``document``, and that is not a detail:
+    ``resolve_pdf`` refuses a citation naming no document before it reaches any
+    kind branch, and the rule this marker states is *the filename identifies the
+    bytes* -- with no filename there is no rule, and the viewer would print "the
+    filename above IS the identity" above a blank. ``SourceRef.document``
+    defaults to ``None`` and nothing requires it for ``spec``, so the guard is
+    reachable by an authoring slip rather than by construction (added in review,
+    2026-08-13).
     """
     if source_ref is None:
         return None
-    if source_ref.kind == "spec" and source_ref.export is None:
+    if (source_ref.kind == "spec" and source_ref.export is None
+            and source_ref.document):
         return IDENTITY_RULE_SPEC_PILE
     return None
 

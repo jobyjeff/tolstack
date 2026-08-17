@@ -336,11 +336,19 @@ def test_the_marker_is_derived_and_never_authored(projection):
         ({"kind": "spec", "document": "x.pdf",
           "export": {"status": "established", "pdf": "C:/x.pdf", "sha256": "ab" * 32}},
          None),
+        # No document, so there is no filename to be the identity. `resolve_pdf`
+        # refuses this citation before any kind branch; the marker has to agree,
+        # or the row states "the filename above IS the identity" above a blank.
+        # `SourceRef.document` defaults to None and nothing requires it for
+        # `spec`, so this is an authoring slip away (added in review 2026-08-13).
+        ({"kind": "spec", "document": None}, None),
+        ({"kind": "spec", "document": ""}, None),
         ({"kind": "workbook", "document": "260729_sample_tol_stack.xlsx"}, None),
         ({"kind": "assumed", "document": None}, None),
         ({"kind": "drawing", "document": "215197"}, None),
     ],
-    ids=["spec", "spec-with-export", "workbook", "assumed", "drawing"],
+    ids=["spec", "spec-with-export", "spec-no-document", "spec-blank-document",
+         "workbook", "assumed", "drawing"],
 )
 def test_identity_rule_of_ref_reads_the_kind_and_the_absence_of_an_export(
         source_ref, expected):

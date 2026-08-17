@@ -1073,6 +1073,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       decision". Corrected inline, with the reproducing command written beside
       it. When a handoff builds a reporter, **run the reporter and diff it
       against every number the lesson quotes about it.**
+- [ ] **A second copy of a producer's condition, with its divergences written out
+      as a list.** New 2026-08-13 (`spec_citation_identity_rendering`). Two
+      scripts must stay independently re-runnable, so
+      `build_viewer_projection.identity_rule_of_ref` deliberately re-derives the
+      rule `build_viewer_crops.resolve_pdf` applies rather than reading the
+      answer out of `crops.json` — the right call, and the handoff paired the two
+      with a `[real]` test. What needs reviewing is the docstring's **"the one
+      place it deliberately diverges"**: that sentence is a completeness claim
+      about a hand-copy, and it is exactly as checkable, and as wrong, as a
+      count. Here it named the on-disk check and missed the empty `document` —
+      `resolve_pdf` refuses a citation naming no document before any kind branch,
+      the marker did not, and `SourceRef.document` defaults to `None` with
+      nothing requiring it for `spec`, so a `kind: "spec"` slip rendered *"the
+      filename above IS the identity of the bytes"* above a blank. Fixed inline
+      with the guard and two parametrized cases. **Read the producer top to
+      bottom against the copy** — every early return, not just the branch the
+      author was thinking about — and note the direction: the agreement test only
+      speaks after the live data has already moved.
 
 ## Architectural errors to check
 

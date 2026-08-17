@@ -671,9 +671,11 @@
       var refs = DEMO.stack.elements;
       eq(VA.exportProvenance(refs[0].source_ref).state, "established");
       eq(VA.exportProvenance(refs[1].source_ref).state, "unestablished");
-      // No `export` key at all: 26 of the 48 live citations, and a different fact
-      // from `unestablished` — that one is a recorded finding with a reason, this
-      // is a citation nobody has been through.
+      // No `export` key at all, and no identity rule either: 22 of the 48 live
+      // citations (21 workbook, 1 assumed). A different fact from `unestablished`
+      // — that one is a recorded finding with a reason, this is a citation nobody
+      // has been through. The other 4 of the 26 with no `export` key are the
+      // spec-pile ones, and since 2026-08-13 they are their own state below.
       eq(VA.exportProvenance(refs[2].source_ref).state, "none");
       // A status this viewer has never heard of must be LOUD, not silent — the
       // same lesson VA.CROP_RULES learned the hard way.
