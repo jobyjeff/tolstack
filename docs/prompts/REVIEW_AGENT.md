@@ -727,7 +727,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       cannot do are left for you:
       - **Is the amendment *true*?** The test asserts the cell moved, never that
         it describes what actually changed. "additive only" written over a diff
-        that moved a value is the same false claim in a new place.
+        that moved a value is the same false claim in a new place. **Including
+        its *size*** — an amendment that opens "four sentences inside the
+        material entry paragraph" is a count about the diff you are holding, and
+        `material_cte_optional` (2026-08-17) had added **two**. One command
+        settles it: `git diff -w master...HEAD -- <the row's path>`. Cheapest
+        member of the stale-count family, because the evidence is the diff.
       - **Is a claim outside a table stronger than its evidence?** Sighting 3 had
         "byte-identical" in a stack note, a worksheet headline and two test
         comments while the test compared only the *numeric* cells — four cells
@@ -755,6 +760,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       therefore null rather than guessed" with `qty: 1` on all five rows of the same
       JSON (a within-joint count, defensible — the sentence was not). When a note
       claims a field is empty, grep the field.
+- [ ] **A doc promising a rendering the producer cannot emit.** New 2026-08-17
+      (`material_cte_optional`), and it is the fixture-shape-guard rule moved into
+      prose. Making `MaterialEntry.cte_1e6_per_c` optional is a *schema* fact; the
+      viewer never sees it, because `stack_materials` projects only chain-named
+      materials and a chain naming a CTE-less one raises in
+      `load_thermal_fit_stack`. The lesson worked that out and **deliberately
+      declined an unreachable `cte === null` branch in the JS** — and the same
+      commit wrote the unreachable state into `apps/viewer/README.md`'s legend as
+      *"(a `—` in the CTE column)"*, promising a reader something no build can
+      show. Fixed inline. So when a schema field goes optional, ask **which
+      surfaces can actually observe the new state**, and hold the docs to the same
+      reachability bar the code was held to — a doc has no test to make it fail.
 - [ ] **A text layer is a locator, not a reading.** New with
       `data/inbox/drawings/`: unlike the photocopied spec pile, these part-drawing
       PDFs *are* searchable, which invites grepping a dimension and folding it. A

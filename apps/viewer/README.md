@@ -202,8 +202,10 @@ cell keeps them apart:
   number is the record. `library`: it is a **cross-check** of the projection named
   in `library_ref`, not the record. `not_transcribed`: **filled magenta** — nobody
   read it off anything, so a number in the column is a placeholder and since
-  2026-08-12 the schema lets the entry state none at all (a `—` in the CTE
-  column). All three rendered identically until 2026-08-12.
+  2026-08-12 the schema lets the entry state none at all — though not one you
+  will ever meet here, because a material with no CTE stops its stack loading
+  (`thermal.material_soak_factor`) and so never reaches a projection. All three
+  rendered identically until 2026-08-12.
 * **`library_ref`** — printed whenever it is set, *whatever the status says*:
   `spec_library:NAS6403U11D` is the provenance of a number, and reading the field
   only under `values_status: "library"` would be the same silent drop one field
