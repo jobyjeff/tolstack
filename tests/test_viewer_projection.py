@@ -237,6 +237,121 @@ def test_a_complete_check_is_joint_scoped_and_names_nothing_excluded(projection)
     assert all(c["excluded_terms"] == [] for c in tan_link["checks"])
 
 
+# --- identity_rule: what identifies the bytes when no export does ----------
+#
+# Four live citations are ``confidence: "traced"`` and carry no ``export`` block,
+# and both halves are true: ``data/inbox/specs/`` is append-only, so the filename
+# identifies the bytes and there is nothing to export. The rule that makes the
+# pair legitimate lived on the CROP entry (``resolved_by: "spec_pile"``), one hop
+# from the row a reader reads, so the viewer showed `traced` beside "nothing here
+# identifies the bytes" and the reader had no way to tell that apart from a gap.
+# ``ISSUE_20260812_four_traced_spec_citations_carry_no_export_block``.
+
+#: The four, by ``stack:element``. Named rather than derived on purpose: this is
+#: the set the issue is about, and a test that recomputed the condition would
+#: pass against the condition being wrong.
+SPEC_PILE_CITATIONS = {
+    "tan_link_to_pitch_plate:fastener_grip_13",
+    "tan_link_to_pitch_plate:fastener_grip_14",
+    "tan_link_to_pitch_plate_take2:fastener_grip_13",
+    "vpa_output_to_pitch_plate:fastener_grip",
+}
+
+
+def marked_citations(projection):
+    return {
+        f"{stack['id']}:{element['id']}"
+        for stack in projection["stacks"]
+        for element in stack["elements"]
+        if element["identity_rule"] == bvp.IDENTITY_RULE_SPEC_PILE
+    }
+
+
+def test_the_four_spec_pile_citations_carry_the_derived_marker(projection):
+    assert marked_citations(projection) == SPEC_PILE_CITATIONS
+
+
+def test_no_workbook_assumed_or_drawing_citation_carries_a_marker(projection):
+    """Deliverable 2, at value level: **only** the spec-pile citations.
+
+    The other 22 no-export citations (21 ``workbook``, 1 ``assumed``) are
+    uncontroversial -- a spreadsheet has no exported PDF to name -- and the rule
+    the marker states is not true of them. Nor is it true of a citation that names
+    its export, including the three live ``spec`` ones that do.
+    """
+    seen = {}
+    for stack in projection["stacks"]:
+        raw = {e["id"]: e for e in stack["stack"]["elements"]}
+        for element in stack["elements"]:
+            rule = element["identity_rule"]
+            if rule is None:
+                continue
+            source_ref = raw[element["id"]]["source_ref"]
+            seen[f"{stack['id']}:{element['id']}"] = (
+                source_ref.get("kind"), bool(source_ref.get("export")))
+    assert set(seen) == SPEC_PILE_CITATIONS
+    assert all(pair == ("spec", False) for pair in seen.values()), seen
+
+
+def test_a_spec_citation_that_names_its_export_gets_no_marker(projection):
+    """The precedence, which is ``build_viewer_crops.resolve_pdf``'s own order.
+
+    Three live ``spec`` citations DO carry an export block and resolve by
+    ``source_ref_export``. The pile's filename rule is what identifies the bytes
+    only where nothing stronger does -- and the marker is silent there rather than
+    making a second, weaker claim beside the export's sha256.
+    """
+    with_export = [
+        f"{stack['id']}:{element['id']}"
+        for stack in projection["stacks"]
+        for element in stack["stack"]["elements"]
+        if (element.get("source_ref") or {}).get("kind") == "spec"
+        and (element.get("source_ref") or {}).get("export")
+    ]
+    assert with_export, "no live spec citation names an export -- has the data moved?"
+    assert not set(with_export) & marked_citations(projection)
+
+
+def test_the_marker_is_derived_and_never_authored(projection):
+    """It is a *derived* flag, so no stack file may carry one.
+
+    The embedded ``stack`` block is byte-identical to the file
+    (``test_stack_block_is_byte_identical``), which is where it would show up if
+    somebody started authoring it -- and an authored identity rule is a claim
+    about bytes that nothing checked.
+    """
+    for stack in projection["stacks"]:
+        for element in stack["stack"]["elements"]:
+            assert "identity_rule" not in element
+            assert "identity_rule" not in (element.get("source_ref") or {})
+
+
+@pytest.mark.parametrize(
+    "source_ref,expected",
+    [
+        ({"kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf"},
+         bvp.IDENTITY_RULE_SPEC_PILE),
+        # A spec citation whose export IS established: the export identifies the
+        # bytes and the marker stays out of it.
+        ({"kind": "spec", "document": "x.pdf",
+          "export": {"status": "established", "pdf": "C:/x.pdf", "sha256": "ab" * 32}},
+         None),
+        ({"kind": "workbook", "document": "260729_sample_tol_stack.xlsx"}, None),
+        ({"kind": "assumed", "document": None}, None),
+        ({"kind": "drawing", "document": "215197"}, None),
+    ],
+    ids=["spec", "spec-with-export", "workbook", "assumed", "drawing"],
+)
+def test_identity_rule_of_ref_reads_the_kind_and_the_absence_of_an_export(
+        source_ref, expected):
+    from tolerance_stack.stack import SourceRef
+    assert bvp.identity_rule_of_ref(SourceRef.from_dict(source_ref)) == expected
+
+
+def test_an_element_with_no_citation_carries_no_marker():
+    assert bvp.identity_rule_of_ref(None) is None
+
+
 def test_no_projected_check_still_carries_the_deleted_prose_flag(projection):
     """``incomplete`` was a derived key built by searching the prose. It is gone,
     not shipped beside its replacement: two detectors are worse than one bad

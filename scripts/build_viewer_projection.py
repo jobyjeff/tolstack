@@ -164,6 +164,57 @@ def confidence_of(element: Any) -> str:
     return confidence_of_ref(element.source_ref)
 
 
+#: The one identity rule a citation can carry today: the spec pile's filename
+#: rule. ``data/inbox/specs/`` is append-only -- nothing is renamed and nothing is
+#: written over -- so for a document in it the **filename identifies the bytes**,
+#: and there is no exported file to name. ``SourceRef.export`` says as much
+#: (``tolerance_stack/stack.py``: mandatory for drawing/parts_list, optional for
+#: ``spec``).
+#:
+#: This is a **derived marker, not a vocabulary**: no schema field, no enum value
+#: and no ``export`` block gains anything. It rides beside the verbatim citation
+#: exactly like ``zero_width`` does.
+IDENTITY_RULE_SPEC_PILE = "spec_pile_filename"
+
+
+def identity_rule_of_ref(source_ref: Any) -> Optional[str]:
+    """Which rule identifies the bytes behind this citation, when no export does.
+
+    ``None`` for every citation whose bytes are identified the ordinary way (an
+    ``export`` block) and for every citation where nothing identifies them at all
+    (21 ``workbook`` + 1 ``assumed`` live today -- a spreadsheet is not an
+    exported PDF, and those rows are uncontroversial).
+
+    **Why this exists.** Four live citations are ``confidence: "traced"`` and
+    carry no ``export`` block, so the viewer rendered ``traced`` beside "nothing
+    here identifies the bytes" and both halves were true. The fact that makes the
+    pair legitimate -- that these resolve out of the append-only spec pile -- was
+    statable only on the **crop entry** (``resolved_by: "spec_pile"``), one hop
+    from the row a reader is looking at. This hoists it onto the citation.
+    (``ISSUE_20260812_four_traced_spec_citations_carry_no_export_block``.)
+
+    **Why it is re-derived here rather than read out of ``crops.json``.** Each
+    script owns its own file so either can be re-run alone, and this one runs
+    first -- there is no crops index to read. The condition is deliberately the
+    same one ``build_viewer_crops.resolve_pdf`` applies, in the same order: an
+    ``export`` block wins (three live ``spec`` citations carry one and resolve by
+    ``source_ref_export``), and only then does ``kind == "spec"`` fall through to
+    the pile.
+
+    **The one place it deliberately diverges** from that function: the crop rule
+    also requires the file to be *on disk* in ``data/inbox/specs/``, because it is
+    about to open it. The identity rule is a property of the **citation**, not of
+    whether the pile currently holds the file, so a missing document still carries
+    the marker -- its crop turns unresolvable and says so there, which is the
+    right place for a fact about a file that is not there.
+    """
+    if source_ref is None:
+        return None
+    if source_ref.kind == "spec" and source_ref.export is None:
+        return IDENTITY_RULE_SPEC_PILE
+    return None
+
+
 def count_confidence(elements: List[Any]) -> Dict[str, int]:
     counts = {name: 0 for name in CONFIDENCE_ORDER}
     counts["no_source_ref"] = 0
@@ -404,6 +455,11 @@ def project_stack(
                 "confidence": confidence_of(element),
                 "kind": element.source_ref.kind if element.source_ref else None,
                 "has_source_ref": element.source_ref is not None,
+                # What identifies the BYTES this value was read off, when no
+                # `export` block does. `null` on 44 of the 48 live citations;
+                # `spec_pile_filename` on the four that resolve out of the
+                # append-only spec pile -- see identity_rule_of_ref().
+                "identity_rule": identity_rule_of_ref(element.source_ref),
                 # min == max: no document gives this element a tolerance, so
                 # every interval it feeds is a LOWER bound on the real spread.
                 "zero_width": element.min == element.max,

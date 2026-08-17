@@ -1,6 +1,6 @@
 """The viewer's status tables, paired with the Python enumerations they copy.
 
-Four vocabularies are **defined in Python and hand-copied into JavaScript**:
+Five vocabularies are **defined in Python and hand-copied into JavaScript**:
 
 ===============================================  ==================================
  Python (the definition)                          JavaScript (the copy)
@@ -11,6 +11,8 @@ Four vocabularies are **defined in Python and hand-copied into JavaScript**:
  the ``resolved_by`` literals in                  ``VA.CROP_RULES``
  ``scripts/build_viewer_crops.py``
  ``VERDICT_SCOPES``, ``tolerance_stack/stack``    ``VA.VERDICT_SCOPES``
+ what ``identity_rule_of_ref`` returns in         ``VA.IDENTITY_RULES``
+ ``scripts/build_viewer_projection.py``
 ===============================================  ==================================
 
 The JS tables are the right *shape* -- total functions with a loud fallback for a
@@ -76,6 +78,7 @@ from __future__ import annotations
 import ast
 import re
 import string
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -87,6 +90,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 VIEWER_JS = REPO_ROOT / "apps" / "viewer" / "viewer.js"
 THERMAL_PY = REPO_ROOT / "tolerance_stack" / "thermal.py"
 CROPS_SCRIPT = REPO_ROOT / "scripts" / "build_viewer_crops.py"
+PROJECTION_SCRIPT = REPO_ROOT / "scripts" / "build_viewer_projection.py"
 
 
 # --------------------------------------------------------------------------- #
@@ -288,6 +292,56 @@ def python_crop_rules() -> tuple[str, ...]:
     return tuple(sorted(set(out)))
 
 
+def python_identity_rules() -> tuple[str, ...]:
+    """Every value ``identity_rule_of_ref`` can return, ``None`` aside.
+
+    Same shape of problem as ``python_crop_rules``: there is no enumeration to
+    import, there is a helper that *mints* the value -- so read the helper's own
+    ``return`` statements. A returned name is resolved through the module (the
+    values are module constants today, ``IDENTITY_RULE_SPEC_PILE``); a returned
+    literal is taken as written; ``None`` is skipped, because "no rule identifies
+    these bytes" is the majority answer and not a value the viewer needs a branch
+    for -- ``VA.exportProvenance`` reads a falsy marker as the plain no-export
+    state on purpose.
+
+    A return this reader cannot follow **raises** rather than being skipped: a
+    silently-dropped return is a vocabulary entry the pairing stops checking.
+    """
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import build_viewer_projection  # noqa: PLC0415 -- resolved from scripts/
+
+    functions = [
+        node for node in ast.walk(ast.parse(
+            PROJECTION_SCRIPT.read_text(encoding="utf-8")))
+        if isinstance(node, ast.FunctionDef) and node.name == "identity_rule_of_ref"
+    ]
+    if len(functions) != 1:
+        raise LookupError(
+            "expected exactly one `identity_rule_of_ref` in "
+            f"scripts/build_viewer_projection.py, found {len(functions)}. If the "
+            "helper moved, read it where it now lives -- do NOT hard-code the "
+            "values here."
+        )
+    out: list[str] = []
+    for node in ast.walk(functions[0]):
+        if not isinstance(node, ast.Return) or node.value is None:
+            continue
+        value = node.value
+        if isinstance(value, ast.Constant) and value.value is None:
+            continue
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            out.append(value.value)
+        elif isinstance(value, ast.Name):
+            out.append(getattr(build_viewer_projection, value.id))
+        else:
+            raise LookupError(
+                f"identity_rule_of_ref returns {ast.dump(value)}, which this "
+                "reader cannot follow -- teach it the shape rather than letting "
+                "the value drop out of the pairing"
+            )
+    return tuple(sorted(set(out)))
+
+
 # --------------------------------------------------------------------------- #
 # 3. the extraction itself, asserted before anything is compared              #
 # --------------------------------------------------------------------------- #
@@ -309,6 +363,16 @@ PAIRINGS = (
     # exists to prevent.
     ("VERDICT_SCOPES", lambda: tuple(VERDICT_SCOPES),
      "tolerance_stack/stack.py: VERDICT_SCOPES"),
+    # Added 2026-08-13 (spec_citation_identity_rendering). Not a stack-model
+    # vocabulary -- `identity_rule` is derived by the projection and authored
+    # nowhere -- but it is enumerated, it is minted in Python, and the viewer holds
+    # a hand-copy of it, which is the whole of what this module is about. The
+    # drift it catches: rename the marker in the builder, and the four spec-pile
+    # rows go from stating their identity rule to shouting that the viewer has no
+    # branch for it -- the exact symptom the JS-side guards only see after the
+    # data has already moved.
+    ("IDENTITY_RULES", python_identity_rules,
+     "scripts/build_viewer_projection.py: what identity_rule_of_ref returns"),
 )
 
 

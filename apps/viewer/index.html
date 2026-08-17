@@ -127,6 +127,7 @@
        transcribed and for a status this viewer cannot explain — a state we cannot
        name is not a state we may render quietly. */
     .chip--export-unestablished, .chip--export-unlabelled,
+    .chip--export-identity_unlabelled,
     .chip--values-not_transcribed, .chip--values-unlabelled {
       color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700;
     }
@@ -141,6 +142,12 @@
     .sv__meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; margin-bottom: 6px; }
     .sv__joint { margin: 12px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
     .sv__joint summary { cursor: pointer; color: var(--muted); }
+    /* The sourcing rules, collapsed. Same affordance as the joint block, one size
+       down: a reader needs the rule once, and a rule stated only in a lesson is a
+       rule the next reader re-derives from a row that looks alarming. */
+    .sv__legend { margin: 6px 0 10px; font-size: 12px; color: var(--muted); }
+    .sv__legend summary { cursor: pointer; }
+    .sv__legend li { margin: 4px 0; }
     .kv { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 3px 14px; margin: 8px 0 2px; font-size: 13px; }
     .kv dt { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
     .kv dd { margin: 0; }
@@ -200,6 +207,10 @@
       border-left: 2px solid var(--line);
     }
     .el-export--established { border-left-color: var(--traced); }
+    /* The spec-pile identity rule reads like an established export because that
+       is what it is a sibling of: the bytes ARE identified, by the filename in an
+       append-only pile. Grey (`--none`) would say the opposite. */
+    .el-export--identity_rule { border-left-color: var(--traced); }
     .el-export--none { border-left-color: var(--line); }
     .el-export--loud {
       border-left: 3px solid var(--nocite); background: rgba(195, 85, 195, .12);
@@ -212,6 +223,9 @@
        reachable only through a crop popover until 2026-08-12, and that is the
        defect this block exists to end. */
     .el-export__why { color: var(--ink); margin-top: 3px; }
+    /* Same rule as `why`, one state along: it is the argument for the state, not
+       corroboration beside it, so it is never clamped and never behind a hover. */
+    .el-export__detail { color: var(--muted); margin-top: 3px; }
     .el-export__facts, .el-export__runs { color: var(--muted); margin-top: 3px; }
     .el-export__runid, .el-export__runlink {
       font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;

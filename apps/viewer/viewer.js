@@ -197,6 +197,7 @@
           id: element.id,
           confidence: "no_source_ref",
           kind: null,
+          identity_rule: null,
           zero_width: false,
           hardware_gaps: [],
         },
@@ -262,6 +263,46 @@
   VA.NO_EXPORT_TEXT =
     "no export block — this citation names no exported file, so nothing here " +
     "identifies the bytes the value was read off";
+
+  // --- identity_rule: the citation that names no export AND IS RIGHT NOT TO ---
+  //
+  // Every value `scripts/build_viewer_projection.py` can write into an element's
+  // derived `identity_rule`, with the sentence it earns. A table for the same
+  // reason VA.EXPORT_STATUSES and VA.CROP_RULES are tables: the field is
+  // enumerated, so it gets a total function and a loud fallback.
+  //
+  // `none` above is the honest reading for 22 of the 26 live no-export citations
+  // — a workbook or an assumed value has no exported PDF to name. It is the wrong
+  // reading for the other four. `data/inbox/specs/` is append-only, so for a
+  // document in it the FILENAME identifies the bytes and there is no export to
+  // name; those four are `traced` and correctly so. Until 2026-08-13 the only
+  // place that rule was statable was the crop entry (`resolved_by: "spec_pile"`),
+  // one hop away from the row — so the row said `traced` and "nothing here
+  // identifies the bytes" side by side, and a reader had no way to learn that the
+  // pair is legitimate here and alarming everywhere else
+  // (ISSUE_20260812_four_traced_spec_citations_carry_no_export_block).
+  //
+  // Not loud, on purpose: this states that the bytes ARE identified, by a rule
+  // this repo argued for on 2026-08-06. It reads like an established export,
+  // because that is what it is a sibling of — not an alarm.
+  VA.IDENTITY_RULES = {
+    spec_pile_filename: {
+      headline: "Spec-pile document: identity by filename (append-only pile)",
+      detail: "no export block is missing here — data/inbox/specs/ is " +
+        "append-only, so nothing is renamed or written over and the filename " +
+        "above IS the identity of the bytes",
+    },
+  };
+
+  // An identity rule the viewer has never heard of. Same treatment as an
+  // unlabelled export status, and for the same reason: falling through to
+  // "no export block" would state the exact opposite of what the projection just
+  // said, which is worse than saying nothing.
+  VA.unlabelledIdentityRuleText = function (rule) {
+    return "identity rule " + JSON.stringify(rule) + ", which this viewer has no " +
+      "branch for — the projection says something identifies the bytes behind " +
+      "this value and this page cannot say what; read the citation in the stack file";
+  };
 
   // A status the viewer has never heard of. Names the value rather than
   // describing it, because the reader's next step is to grep for it.
@@ -329,17 +370,37 @@
   // The view-model of one citation's export block: everything a renderer needs
   // and no DOM, so the node tier reads exactly what a reader sees.
   //   state    "established" | "unestablished" | "none" | "unlabelled"
+  //            | "identity_rule" | "identity_unlabelled"
   //   loud     true when the state must be impossible to miss
   //   headline the one sentence
   //   why      the recorded reason, on `unestablished` only
+  //   detail   the second sentence, on `identity_rule` only
+  // `identityRule` is the element's DERIVED `identity_rule` (the projection's
+  // elements[] row, not the authored citation) and is optional: a caller that has
+  // no derived row — or a citation that carries an export — gets exactly the four
+  // states it always did. It is read only in the no-export branch, because an
+  // export block is what identifies the bytes wherever there is one, which is the
+  // same precedence build_viewer_crops.resolve_pdf applies.
   // Returns null when there is no citation at all — VA.citationWhere already
   // says "no source_ref", and saying it twice buys nothing.
-  VA.exportProvenance = function (sourceRef) {
+  VA.exportProvenance = function (sourceRef, identityRule) {
     if (!sourceRef) return null;
     var x = sourceRef.export;
     if (!x) {
+      var identity = identityRule ? VA.IDENTITY_RULES[identityRule] : null;
+      if (identityRule && !identity) {
+        return { state: "identity_unlabelled", loud: true,
+                 headline: VA.unlabelledIdentityRuleText(identityRule),
+                 why: null, detail: null, pdf: null, pdfName: null,
+                 shaText: null, runIds: [], note: null };
+      }
+      if (identity) {
+        return { state: "identity_rule", loud: false, headline: identity.headline,
+                 why: null, detail: identity.detail, pdf: null, pdfName: null,
+                 shaText: null, runIds: [], note: null };
+      }
       return { state: "none", loud: false, headline: VA.NO_EXPORT_TEXT,
-               why: null, pdf: null, pdfName: null, shaText: null,
+               why: null, detail: null, pdf: null, pdfName: null, shaText: null,
                runIds: [], note: null };
     }
     var rule = VA.EXPORT_STATUSES[x.status];
@@ -349,6 +410,7 @@
       loud: rule ? rule.loud : true,
       headline: rule ? rule.headline(x) : VA.unlabelledExportStatusText(x.status),
       why: x.why || null,
+      detail: null,
       pdf: x.pdf || null,
       pdfName: VA.baseName(x.pdf),
       // Only where a sha is part of the claim. An unestablished export names no
@@ -363,11 +425,12 @@
 
   // The one-line text form, for a hover and for a test that wants to read what
   // the panel says without walking the DOM.
-  VA.exportProvenanceLine = function (sourceRef) {
-    var p = VA.exportProvenance(sourceRef);
+  VA.exportProvenanceLine = function (sourceRef, identityRule) {
+    var p = VA.exportProvenance(sourceRef, identityRule);
     if (!p) return "";
     var bits = [p.headline];
     if (p.why) bits.push("why: " + p.why);
+    if (p.detail) bits.push(p.detail);
     if (p.shaText) bits.push(p.shaText);
     if (p.state === "established") {
       bits.push(p.runIds.length
