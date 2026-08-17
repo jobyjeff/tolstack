@@ -92,8 +92,13 @@ stacks are `traced`; 3 are `inferred` and 18 are `untraced`** — and 21 of 48
 across all six stacks. `tests/test_tolerance_stack.py` pins both, so a doc
 quoting a stale number fails the suite rather than merely being wrong.
 
+**A retired figure may still appear — as a quotation.** Correct a number a
+review already read by leaving the old one visible, inside a blockquote or
+inside double quotes, in a dated note. A bare `"3 of 26"` in a live sentence
+fails the same test, which is why this one and the figure below it are quoted.
+
 **Expect it to move in both directions at once.** The 2026-08-10 change
-(`fastener_citations_and_confidence`) took it from 3 of 26 to 5 by re-citing two
+(`fastener_citations_and_confidence`) took it from `"3 of 26"` to 5 by re-citing two
 elements *up* to a standard and pushing two *down* to `untraced` in the same
 commit — the numerator rose while the `inferred` column more than halved. A
 ratio that only ever climbs is a ratio someone is managing rather than counting;
