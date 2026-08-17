@@ -1108,6 +1108,31 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       bottom against the copy** — every early return, not just the branch the
       author was thinking about — and note the direction: the agreement test only
       speaks after the live data has already moved.
+- [ ] **A doc-scan guard's *false positive* — feed it the shapes this repo
+      actually writes.** New 2026-08-17 (`traced_ratio_guard_freshness`), and it
+      is the mirror image of every entry above: those ask what a scanner cannot
+      see, this asks what it sees that isn't there.
+      `_retired_ratio_pattern` matched a retired figure as
+      `\b<n>\b[^.\n]{0,40}?\bof\s+<m>\b` — a 40-character wildcard anchored on the
+      first number alone — so it read the repo's own long form, *N traced /
+      M inferred / K untraced, out of T element instances* (the shape check 7
+      above asks **every review report** to state), and matched on the
+      **inferred** column: the *current* figure written long,
+      *5 traced / 3 inferred / 18 untraced, out of 26*, was flagged as the retired
+      `"3 of 26"` — quoted here because this file is one of the eight the scan
+      reads, which is how the paragraph you are reading was itself caught. The
+      guard firing on the one number it exists to protect, and the
+      natural repair for whoever hits it is to delete a correct figure. Narrowed
+      inline (the wildcard is reachable only behind the literal word `traced`).
+      Two durable moves, both cheap: **feed the scanner the live strings** —
+      here the long form sat three lines above in the handoff's own lesson, and
+      the lesson's character-count argument about the window was wrong in both
+      directions (39 chars, so it *did* reach; and it never considered the
+      inferred column at all) — and **write the negative case from the guard's own
+      list** (`for figure in _RETIRED_TRACED_RATIOS: ...`) so it can neither go
+      vacuous nor go stale as the list grows. Generalise: a matcher with a wide
+      wildcard is a second matcher for shapes nobody enumerated; a green suite
+      only proves no *live* doc trips it *today*.
 
 ## Architectural errors to check
 

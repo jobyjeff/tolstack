@@ -57,10 +57,17 @@ up" the odd-looking quotes and the suite goes red for a reason the file does not
 explain.
 
 That single find is the whole argument for the double-quote exemption. Every
-*other* live occurrence of `3 of 26` (six of them, in `ARCHITECTURE.md`, the four
-worksheets and `data/inbox/specs/README.md`) is already a blockquote, so a
-blockquote-only rule would have looked like it worked, right up to the one
-sentence it could not express.
+*other* live occurrence of `3 of 26` — **seven**, across six documents
+(`ARCHITECTURE.md`, the four worksheets, of which
+`WORKSHEET_pitch_link_to_pitch_plate.md` states it twice, and
+`data/inbox/specs/README.md`) — is already a blockquote, so a blockquote-only
+rule would have looked like it worked, right up to the one sentence it could not
+express.
+
+> **Corrected during `review/traced_ratio_guard_freshness`.** This paragraph
+> read *"six of them"* and named six files: eight occurrences in seven live
+> documents, one of them bare. Occurrences and documents are two nouns and this
+> repo has been caught borrowing one's digit for the other before.
 
 ## Decisions not in the handoff
 
@@ -75,11 +82,31 @@ is not the reason the 2026-08-10 lesson gave. `_retired_ratio_pattern()` builds
 `1 traced out of 17` the worksheets write.
 
 The 40-character window is a judgement call. It is wide enough for
-`N traced out of M` and `N traced of M` and narrow enough that
-`3 traced / 7 inferred / 16 untraced out of 26` (35+ chars, and it appears only
-in `docs/issues/` and `docs/reference/`, both out of scope) does not reach. If a
-live doc ever writes that form, widen it — the tell will be a stale figure the
-guard did not catch, so widen it *when you find one*, not pre-emptively.
+`N traced out of M` and `N traced of M`.
+
+> **Corrected during `review/traced_ratio_guard_freshness`, and the pattern
+> changed with it.** This paragraph continued *"and narrow enough that
+> `3 traced / 7 inferred / 16 untraced out of 26` (35+ chars, and it appears only
+> in `docs/issues/` and `docs/reference/`, both out of scope) does not reach"*.
+> Both halves are wrong. The gap in that string is **39** characters, so it
+> reached — and the shape appears in `docs/sessions/reviews/` and `PROVENANCE.md`
+> too. The half that mattered is the mirror image the sentence never considered:
+> `\b<n>\b` with a 40-character wildcard matches *any* number near the
+> denominator, so the **current** figure in the same long form —
+> `5 traced / 3 inferred / 18 untraced, out of 26` — matched on its `inferred`
+> column and was flagged as the retired `3 of 26`. That is the guard firing on
+> the one number it exists to protect, in the exact shape the review checklist
+> asks every report to state, and the natural repair for whoever hit it is to
+> delete a correct figure. The wildcard is now reachable only behind the literal
+> word `traced`, so the numerator has to be the traced column; the retired figure
+> written long is still caught, and `test_the_traced_ratio_guard_can_fail` pins
+> both directions with the negative case built from `_RETIRED_TRACED_RATIOS`
+> itself.
+
+The durable part: a window this wide is not a tolerance, it is a **second
+matcher** for shapes nobody enumerated. Reason about a scanner's false positives
+by feeding it the strings the repo actually writes — the long form was three
+lines above in this very lesson — rather than by counting characters.
 
 **`_RETIRED_TRACED_RATIOS` is a hand-kept list, and that is not the same defect
 this guard exists against.** It holds *history*, which does not move; the defect
