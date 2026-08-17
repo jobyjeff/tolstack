@@ -1,7 +1,8 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
+strategy: docs/strategy/BRIEF_20260817_doc_scan_deletion_guards.md
 area: tests / doc-scan guards
 reporter: agent
 audience: strategy

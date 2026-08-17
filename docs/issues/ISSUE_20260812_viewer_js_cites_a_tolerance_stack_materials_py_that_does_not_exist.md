@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
+resolution: fixed inline by the 2026-08-17 triage sweep — the pointer now reads tolerance_stack/thermal.py, MaterialEntry.__post_init__ (apps/viewer/viewer.js:446)
 area: apps/viewer
 reporter: agent
 ---

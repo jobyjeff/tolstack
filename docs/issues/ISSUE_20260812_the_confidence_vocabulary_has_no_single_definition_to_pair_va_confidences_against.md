@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260817_confidence_vocabulary_single_definition.md
 area: tolerance_stack / apps/viewer
 reporter: agent
 ---

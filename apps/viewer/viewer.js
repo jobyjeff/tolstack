@@ -443,11 +443,11 @@
   // --- material provenance: the sourcing OF A NUMBER -----------------------
 
   // Where a material entry's CTE actually comes from
-  // (tolerance_stack/materials.py). Enumerated, so it gets a table for the same
-  // reason `export.status` does — and this one had NO viewer branch at all until
-  // 2026-08-12, which meant `library` rendered identically to `inline` even
-  // though one says the number in front of you is a cross-check and the other
-  // says it is the source.
+  // (tolerance_stack/thermal.py, MaterialEntry.__post_init__). Enumerated, so it
+  // gets a table for the same reason `export.status` does — and this one had NO
+  // viewer branch at all until 2026-08-12, which meant `library` rendered
+  // identically to `inline` even though one says the number in front of you is
+  // a cross-check and the other says it is the source.
   // `loud` is a function of the ENTRY, not a constant, for one state:
   // `library` with no `library_ref` is a self-contradiction — the entry says the
   // number resolves through a projection and then names none — and rendering a
