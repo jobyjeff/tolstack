@@ -1187,9 +1187,25 @@ def _retired_ratio_pattern(figure: str) -> re.Pattern:
     ``4 of 17`` and cannot see any figure that shares its denominator with the
     live one -- and ``3 of 26`` shares 26 with the current figure. That is a
     second reason the list below could not grow past one entry.
+
+    The numerator must be **the traced count**, not any number that happens to
+    sit within reach of the denominator, so the wildcard span is only reachable
+    behind the literal word ``traced``. A free ``\\b<n>\\b[^.\\n]{0,40}?of <m>``
+    reads the repo's own long form -- ``N traced / M inferred / K untraced, out
+    of T element instances``, the shape the review checklist asks every report to
+    state -- and matches on the *inferred* column: the **current** figure written
+    out long (``5 traced / 3 inferred / 18 untraced, out of 26``) was flagged as
+    the retired ``3 of 26``, i.e. the guard fired on the one number it exists to
+    protect, and the natural repair is to delete a correct figure. Narrowed
+    during `review/traced_ratio_guard_freshness`; the retired figure in that same
+    long form is still caught, because there the retired numerator *is* the
+    traced column.
     """
     traced, instances = figure.split(" of ")
-    return re.compile(rf"\b{traced}\b[^.\n]{{0,40}}?\bof\s+{instances}\b")
+    return re.compile(
+        rf"\b{traced}\s+of\s+{instances}\b"
+        rf"|\b{traced}\s+traced\b[^.\n]{{0,40}}?\bof\s+{instances}\b"
+    )
 
 
 # Every traced ratio this repo has retired, oldest first. This is history and
@@ -1326,6 +1342,24 @@ def test_the_traced_ratio_guard_can_fail():
     assert retired_traced_ratio_claims(
         f"**{_current_traced_ratio()} element instances** are `traced`, and the "
         f"founding denominator silently omitted take2 (11 + 6 = 17 of 26)") == []
+
+    # The repo's long form, both ways round, added during
+    # `review/traced_ratio_guard_freshness`. This is the shape the review
+    # checklist asks every report to state, so both directions need pinning: a
+    # RETIRED figure written long is still a claim...
+    assert [f for f, _ in retired_traced_ratio_claims(
+        "3 traced / 7 inferred / 16 untraced, out of 26 element instances"
+    )] == ["3 of 26"]
+    # ...and a *current* figure written long is not, even when a retired
+    # numerator sits in its `inferred` column within reach of the denominator.
+    # An unanchored wildcard flagged exactly that -- the guard firing on the one
+    # number it exists to protect. Built from the list itself, so this case can
+    # neither go vacuous nor go stale as the list grows.
+    for figure, _, _ in _RETIRED_TRACED_RATIOS:
+        numerator, instances = figure.split(" of ")
+        assert retired_traced_ratio_claims(
+            f"9 traced / {numerator} inferred / 4 untraced, out of {instances} "
+            f"element instances") == [], figure
 
 
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
