@@ -151,6 +151,31 @@
                 note: "UNTRACED — shown so the colour system has something to shout at.",
                 source_ref: { kind: "assumed", document: null, confidence: "untraced" },
               },
+              {
+                // THE SPEC-PILE CASE: `traced`, and it names no export ON
+                // PURPOSE. `data/inbox/specs/` is append-only, so nothing there is
+                // renamed or re-exported over and the filename identifies the
+                // bytes — which is why `SourceRef.export` is mandatory for
+                // drawing/parts_list and optional for `spec`
+                // (tolerance_stack/stack.py). Four live citations are in this
+                // state and every one of them is a NAS6403 grip.
+                //
+                // Without the derived `identity_rule` beside it, this row renders
+                // as `traced` next to "nothing here identifies the bytes" — both
+                // halves true, and the pair unreadable
+                // (ISSUE_20260812_four_traced_spec_citations_carry_no_export_block).
+                // It is in this fixture so the sentence that replaced that pair is
+                // pinned without reaching for live data.
+                id: "grip", name: "fastener grip (spec pile)", role: "fastener",
+                nominal: 17.4752, min: 17.3482, max: 17.6022, lmc: null, mmc: null,
+                plus_minus: null, hardware_ref: null,
+                note: "Read off the pile PDF by filename — no export block, and " +
+                  "correctly so.",
+                source_ref: {
+                  kind: "spec", document: "NAS6403-NAS6420 Rev 4.pdf", sheet: 3,
+                  callout: "GRIP LENGTH .688", confidence: "traced",
+                },
+              },
             ],
             // Authored, pre-fold: term lists and criteria, no intervals and no
             // verdicts. The folded versions — the ones the viewer renders — are
@@ -193,12 +218,19 @@
           },
           elements: [
             { id: "plate", confidence: "traced", kind: "drawing", has_source_ref: true,
-              zero_width: false, hardware_gaps: [] },
+              identity_rule: null, zero_width: false, hardware_gaps: [] },
             { id: "washer", confidence: "inferred", kind: "parts_list", has_source_ref: true,
-              zero_width: true,
+              identity_rule: null, zero_width: true,
               hardware_gaps: ["NAS1149 is not in the spec pile, so the band is unknown."] },
             { id: "eye", confidence: "untraced", kind: "assumed", has_source_ref: true,
-              zero_width: false, hardware_gaps: [] },
+              identity_rule: null, zero_width: false, hardware_gaps: [] },
+            // The only non-null `identity_rule` in either fixture: what identifies
+            // the bytes when no `export` block does. Derived by
+            // build_viewer_projection.identity_rule_of_ref() from the citation's
+            // `kind` and the ABSENCE of an export — never authored.
+            { id: "grip", confidence: "traced", kind: "spec", has_source_ref: true,
+              identity_rule: "spec_pile_filename", zero_width: false,
+              hardware_gaps: [] },
           ],
           paths: [{
             id: "clamped", label: "clamped column",
@@ -252,7 +284,7 @@
               workbook_cells: null,
             },
           ],
-          provenance_counts: { traced: 1, inferred: 1, untraced: 1, no_source_ref: 0 },
+          provenance_counts: { traced: 2, inferred: 1, untraced: 1, no_source_ref: 0 },
           zero_width_count: 1,
           gaps: [
             { kind: "excluded_from_model", label: "term excluded from the model",
@@ -437,14 +469,17 @@
           },
           elements: [
             { id: "hub_bore", confidence: "traced", kind: "drawing", has_source_ref: true,
-              zero_width: false, hardware_gaps: [], material: "DEMO_ALUMINIUM" },
+              identity_rule: null, zero_width: false, hardware_gaps: [],
+              material: "DEMO_ALUMINIUM" },
             { id: "sleeve_bore", confidence: "traced", kind: "drawing", has_source_ref: true,
-              zero_width: false, hardware_gaps: [], material: "DEMO_STAINLESS" },
+              identity_rule: null, zero_width: false, hardware_gaps: [],
+              material: "DEMO_STAINLESS" },
             { id: "sleeve_wall", confidence: "traced", kind: "drawing", has_source_ref: true,
-              zero_width: false, hardware_gaps: [], material: "DEMO_STAINLESS" },
+              identity_rule: null, zero_width: false, hardware_gaps: [],
+              material: "DEMO_STAINLESS" },
             { id: "bearing_od", confidence: "inferred", kind: "parts_list",
-              has_source_ref: true, zero_width: false, hardware_gaps: [],
-              material: "DEMO_BEARING_STEEL" },
+              has_source_ref: true, identity_rule: null, zero_width: false,
+              hardware_gaps: [], material: "DEMO_BEARING_STEEL" },
           ],
           // The provenance OF A NUMBER. Every field below the CTE exists because
           // the name and the number of a material have different sourcing:

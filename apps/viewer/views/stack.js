@@ -95,6 +95,7 @@
     section.appendChild(VA.el("p", "muted",
       "Values as transcribed. Order is the physical order through the joint; " +
       "only the path term lists below are load-bearing for the arithmetic."));
+    section.appendChild(sourcingLegend());
 
     var table = VA.el("table", "eltable");
     var head = VA.el("tr");
@@ -119,6 +120,36 @@
     table.appendChild(body);
     section.appendChild(table);
     return section;
+  }
+
+  // The rule the sourcing column cannot state row by row without shouting it on
+  // every row: WHEN A CITATION MAY NAME NO EXPORT. Collapsed, because a reader
+  // needs it once; on the page rather than in a lesson, because a rule nothing
+  // surfaces is a rule the next reader re-derives from an alarming-looking row
+  // (the whole of ISSUE_20260812_four_traced_spec_citations_carry_no_export_block:
+  // `traced` beside "nothing here identifies the bytes" is a legitimate pair for
+  // exactly one reason, and that reason was statable only inside a crop entry).
+  function sourcingLegend() {
+    var box = VA.el("details", "sv__legend");
+    box.appendChild(VA.el("summary", null, "How to read the sourcing column"));
+    var list = VA.el("ul", "plainlist");
+    list.appendChild(VA.el("li", null,
+      "A drawing or parts-list citation must name the EXPORT it was read off — a " +
+      "drawing number and a revision do not identify bytes, because exports get " +
+      "written over."));
+    list.appendChild(VA.el("li", null,
+      "A spec-pile citation is the deliberate exception: data/inbox/specs/ is " +
+      "append-only, so nothing there is renamed or re-exported over and the " +
+      "filename IS the identity. Those rows say “" +
+      VA.IDENTITY_RULES.spec_pile_filename.headline +
+      "” in place of an export block, and `traced` beside no export is correct " +
+      "for them and only for them."));
+    list.appendChild(VA.el("li", null,
+      "Any other citation with no export block has nothing identifying its bytes " +
+      "— a workbook or an assumed value has no exported PDF to name, and the row " +
+      "says so plainly."));
+    box.appendChild(list);
+    return box;
   }
 
   function elementRow(stackProj, row, index, cropsIndex, handlers) {
@@ -175,16 +206,16 @@
       chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
         "min == max: every interval this feeds is a LOWER bound on the real spread."));
     }
-    // A chip only for the export states that must be legible from the ROW, at a
-    // glance, across a thirty-row table: `unestablished` and a status this viewer
-    // cannot explain. `established` and "no export block" get no chip — they are
-    // 48 of the 48 live citations between them, and a chip on every row is a chip
-    // nobody reads. The block below the citation carries all four states in full.
-    var exportView = VA.exportProvenance(element.source_ref);
+    // A chip only for the states that must be legible from the ROW, at a glance,
+    // across a thirty-row table: `unestablished`, and a status or identity rule
+    // this viewer cannot explain. `established`, "no export block" and the
+    // spec-pile identity rule get no chip — they are 48 of the 48 live citations
+    // between them, and a chip on every row is a chip nobody reads. The block
+    // below the citation carries every state in full.
+    var exportView = VA.exportProvenance(element.source_ref, derived.identity_rule);
     if (exportView && exportView.loud) {
       chips.appendChild(VA.chip("chip--export-" + exportView.state,
-        exportView.state === "unestablished" ? "EXPORT UNESTABLISHED"
-          : "EXPORT STATUS UNKNOWN",
+        EXPORT_CHIP_TEXT[exportView.state] || "EXPORT STATUS UNKNOWN",
         exportView.headline + (exportView.why ? " — " + exportView.why : "")));
     }
     cell.appendChild(chips);
@@ -205,7 +236,7 @@
     // popover — so a citation whose crop could not resolve said nothing at all
     // about its export, which is the wrong way round in a repo whose worst
     // defect class is a provenance record making a false-looking claim.
-    var exportBlock = exportProvenanceBlock(stackProj, element, cropsIndex);
+    var exportBlock = exportProvenanceBlock(stackProj, row, cropsIndex);
     if (exportBlock) cell.appendChild(exportBlock);
     cell.appendChild(cropTrigger(stackProj, element, cropsIndex, handlers));
     return cell;
@@ -227,19 +258,33 @@
 
   // --- source_ref.export ----------------------------------------------------
 
+  // The row chip's wording, per loud state. A table rather than a ternary because
+  // there are three loud states now and the third one is not about the export
+  // status at all — calling an unknown IDENTITY RULE "EXPORT STATUS UNKNOWN"
+  // would send the reader looking for a field the citation does not have.
+  var EXPORT_CHIP_TEXT = {
+    unestablished: "EXPORT UNESTABLISHED",
+    unlabelled: "EXPORT STATUS UNKNOWN",
+    identity_unlabelled: "IDENTITY RULE UNKNOWN",
+  };
+
   // The export block for one element: its status, the file, that a sha256 is on
   // record, and the runs that corroborate it. All four were dropped entirely
   // until 2026-08-12 (ISSUE_20260811_viewer_shows_nothing_for_source_ref_export).
   //
-  // The loud states are `unestablished` and a status this viewer has no branch
-  // for. `none` — a citation with no export block, which is 26 of the 48 live
-  // citations — is stated plainly rather than alarmed: for a workbook or assumed
-  // source there is no exported PDF to name, so a red row on every one of them
-  // would be an alarm a reader learns to ignore. The four `traced` spec-pile
-  // citations in that same state are the interesting ones, and the sentence names
-  // the fact for them too.
-  function exportProvenanceBlock(stackProj, element, cropsIndex) {
-    var p = VA.exportProvenance(element.source_ref);
+  // The loud states are `unestablished`, a status this viewer has no branch for,
+  // and an identity rule it has no branch for. `none` — a citation with no export
+  // block, 22 of the 48 live citations — is stated plainly rather than alarmed:
+  // for a workbook or assumed source there is no exported PDF to name, so a red
+  // row on every one of them would be an alarm a reader learns to ignore.
+  //
+  // The other four are the `traced` spec-pile citations, and since 2026-08-13
+  // they no longer read as that state at all: the projection hands this row a
+  // derived `identity_rule` and the block says what identifies the bytes instead
+  // of saying that nothing does (ISSUE_20260812_four_traced_spec_citations_...).
+  function exportProvenanceBlock(stackProj, row, cropsIndex) {
+    var element = row.element;
+    var p = VA.exportProvenance(element.source_ref, row.derived.identity_rule);
     if (!p) return null;
     var box = VA.el("div", "el-export el-export--" + p.state +
       (p.loud ? " el-export--loud" : ""));
@@ -249,6 +294,11 @@
     // only through a crop popover, so putting it behind a second click here would
     // reproduce the defect one notch down.
     if (p.why) box.appendChild(VA.el("div", "el-export__why", p.why));
+    // The identity rule's second sentence — the argument for why a citation that
+    // names no export is nonetheless pinned to bytes. Same treatment as `why` and
+    // for the same reason: it IS the content of the state, so it is not clamped
+    // and not behind a hover.
+    if (p.detail) box.appendChild(VA.el("div", "el-export__detail", p.detail));
     var facts = [];
     if (p.shaText) facts.push(p.shaText);
     if (facts.length) box.appendChild(VA.el("div", "el-export__facts", facts.join(" · ")));

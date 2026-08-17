@@ -138,8 +138,35 @@ its citation:
 |---|---|
 | `established` | *export established: `X.pdf`* · **sha256 recorded** (first 12) · the drawing-checker runs that consumed it, or *no run has consumed this export*. The sha **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
 | `unestablished` | **filled magenta, on the row and on the block**: *EXPORT UNESTABLISHED — which file this value was read off cannot be identified*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
-| no `export` key | *no export block — this citation names no exported file, so nothing here identifies the bytes the value was read off*. Stated, not alarmed: 26 of the 48 live citations have no export block — 21 workbook, 1 assumed, and 4 `spec`. The four `spec` ones are `traced` and are the interesting case. |
-| anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. |
+| no `export` key | *no export block — this citation names no exported file, so nothing here identifies the bytes the value was read off*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
+| no `export` key, `identity_rule: "spec_pile_filename"` | *Spec-pile document: identity by filename (append-only pile)*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
+| anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. An identity rule the viewer has no branch for is loud the same way, through `VA.IDENTITY_RULES`. |
+
+### The spec-pile exception
+
+`data/inbox/specs/` is **append-only**: nothing there is renamed, deduplicated or
+re-exported over, so for a document in the pile the **filename identifies the
+bytes** and there is no export to name. `SourceRef.export` says exactly that —
+mandatory for `drawing`/`parts_list`, optional for `spec`.
+
+Four citations are `traced` in that state, and until 2026-08-13 the rule that
+makes the pair legitimate was statable only inside a **crop entry**
+(`resolved_by: "spec_pile"`), one hop from the row a reader is looking at — so
+the row read `traced` beside "nothing here identifies the bytes" and both halves
+were true (`ISSUE_20260812_four_traced_spec_citations_carry_no_export_block`;
+second sighting of "a fact about the citation reachable only through a crop").
+
+`build_viewer_projection.py` now hoists it: a citation of `kind: "spec"` that
+names no export gets a **derived** `identity_rule: "spec_pile_filename"` on its
+`elements[]` row, and the viewer renders the sentence in place of the no-export
+one. Nothing is authored and no vocabulary widened — `export.status` is still two
+values and the four citations still carry no export block, which is the 2026-08-06
+position (*a drawing number plus a revision does not identify bytes*) left intact.
+An `export` block still wins wherever there is one: three live `spec` citations
+carry one and are unaffected.
+
+The rule itself is on the page, not only here: **"How to read the sourcing
+column"**, the collapsed legend above the elements table.
 
 Two deliberate limits:
 

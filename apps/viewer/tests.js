@@ -120,7 +120,7 @@
 
     await test("summaryChips scoreboards the stack and flags both soft spots", function () {
       var texts = VA.summaryChips(DEMO).map(function (c) { return c.text; });
-      eq(texts, ["1 traced", "1 inferred", "1 UNTRACED",
+      eq(texts, ["2 traced", "1 inferred", "1 UNTRACED",
                  "1 zero-width band", "1 budget-scope check"]);
     });
 
@@ -141,7 +141,7 @@
 
     await test("elementRows pairs authored elements with derived flags, unmutated", function () {
       var rows = VA.elementRows(DEMO);
-      eq(rows.length, 3);
+      eq(rows.length, 4);
       eq(rows[0].element.nominal, 4.06, "authored value untouched");
       eq(rows[1].derived.zero_width, true);
       // The authored element must not have acquired derived keys.
@@ -418,7 +418,7 @@
 
     await test("the elements table renders one row per authored element", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      eq(all(root, "tr.el-row").length, 3);
+      eq(all(root, "tr.el-row").length, 4);
     });
 
     await test("an untraced row is filled, not merely outlined", function () {
@@ -549,9 +549,13 @@
     await test("every element gets a crop trigger carrying its own status", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
       var triggers = all(root, "button.crop-trigger");
-      eq(triggers.length, 3);
+      eq(triggers.length, 4);
+      // The grip is a second `no-entry`: a citation the crop script has not been
+      // run for is a different fact from one it could not resolve, and the
+      // spec-pile row must not get a crop it has not earned just because its
+      // export block is legitimately absent.
       eq(triggers.map(function (t) { return t.cropEntry.status; }),
-         ["resolved", "unresolvable", "no-entry"]);
+         ["resolved", "unresolvable", "no-entry", "no-entry"]);
     });
 
     await test("clicking a crop trigger hands the entry to the app", function () {
@@ -568,7 +572,7 @@
       var root = render(function (r) { VA.renderStack(r, DEMO, null, {}); });
       var statuses = all(root, "button.crop-trigger")
         .map(function (t) { return t.cropEntry.status; });
-      eq(statuses, ["not-built", "not-built", "not-built"]);
+      eq(statuses, ["not-built", "not-built", "not-built", "not-built"]);
     });
 
     await test("renderStack with no stack asks for one instead of throwing", function () {
@@ -828,6 +832,112 @@
       has(box[0].textContent, "names no exported file");
       // Not loud, and no chip: see the comment on the state in views/stack.js.
       ok(box[0].className.indexOf("--loud") === -1);
+    });
+
+    // --- identity_rule: the citation that names no export AND IS RIGHT NOT TO --
+    //
+    // `none` above is the honest reading for a workbook or an assumed value. It is
+    // the WRONG reading for a spec-pile citation: the pile is append-only, so the
+    // filename identifies the bytes and there is no export to name. Four live
+    // citations are `traced` in that state, and until 2026-08-13 the rule that
+    // makes the pair legitimate was statable only on the crop entry
+    // (ISSUE_20260812_four_traced_spec_citations_carry_no_export_block).
+
+    await test("the spec-pile identity rule replaces the no-export sentence", function () {
+      var grip = DEMO.stack.elements[3].source_ref;
+      var p = VA.exportProvenance(grip, "spec_pile_filename");
+      eq(p.state, "identity_rule");
+      eq(p.headline,
+         "Spec-pile document: identity by filename (append-only pile)");
+      // Not loud: this says the bytes ARE identified, by a rule this repo argued
+      // for. It is a sibling of `established`, not of `unestablished`.
+      eq(p.loud, false);
+      // The MARKER does this, not the citation's `kind` — the projection derives
+      // it (build_viewer_projection.identity_rule_of_ref) and the viewer computes
+      // nothing. Hand the same citation no marker and it is the plain no-export
+      // state again.
+      eq(VA.exportProvenance(grip).state, "none");
+    });
+
+    await test("an export block still wins over an identity rule", function () {
+      // The projection cannot produce this pair (the marker requires the absence
+      // of an export), and the precedence is asserted anyway because it is the one
+      // build_viewer_crops.resolve_pdf applies: an export block identifies the
+      // bytes wherever there is one. A viewer that let a derived marker overrule
+      // an authored export would be showing a weaker claim than the data makes.
+      var p = VA.exportProvenance(DEMO.stack.elements[0].source_ref,
+                                  "spec_pile_filename");
+      eq(p.state, "established");
+    });
+
+    await test("an identity rule the viewer has no branch for is loud, not silent", function () {
+      var p = VA.exportProvenance(DEMO.stack.elements[3].source_ref, "sha_of_pile");
+      eq(p.state, "identity_unlabelled");
+      eq(p.loud, true);
+      has(p.headline, "\"sha_of_pile\"");
+      has(p.headline, "no branch for");
+      // The failure this prevents: falling through to "nothing here identifies the
+      // bytes" would state the OPPOSITE of what the projection just said.
+      ok(p.headline.indexOf("names no exported file") === -1);
+    });
+
+    await test("the spec-pile line carries the rule's argument, not only its name",
+      function () {
+        var line = VA.exportProvenanceLine(DEMO.stack.elements[3].source_ref,
+                                           "spec_pile_filename");
+        has(line, "identity by filename");
+        has(line, "append-only");
+        ok(line.indexOf("names no exported file") === -1,
+           "the no-export sentence must be replaced, not appended to: " + line);
+      });
+
+    await test("the spec-pile row says what identifies its bytes, on the page", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      var box = all(root, "div.el-export--identity_rule");
+      eq(box.length, 1);
+      has(box[0].textContent, "identity by filename (append-only pile)");
+      // The argument for the state, unclamped and not behind a hover — same rule
+      // as an unestablished export's `why`.
+      has(all(root, "div.el-export__detail")[0].textContent, "append-only");
+      ok(box[0].className.indexOf("--loud") === -1, "not an alarm");
+      // No chip: a chip on a state that is fine is a chip nobody reads. And the
+      // row is still `traced`, which is now readable rather than alarming.
+      eq(all(root, "span.chip--export-identity_rule").length, 0);
+      var rows = all(root, "tr.el-row");
+      has(rows[3].textContent, "fastener grip (spec pile)");
+      ok(rows[3].textContent.indexOf("names no exported file") === -1,
+         "the four spec citations must stop reading as 'nothing identifies this'");
+    });
+
+    await test("an identity rule the viewer cannot explain is loud on the row", function () {
+      var poisoned = JSON.parse(JSON.stringify(DEMO));
+      poisoned.elements[3].identity_rule = "sha_of_pile";
+      var root = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
+      var box = all(root, "div.el-export--identity_unlabelled");
+      eq(box.length, 1);
+      ok(box[0].className.indexOf("el-export--loud") !== -1);
+      has(all(root, "span.chip--export-identity_unlabelled")[0].textContent,
+          "IDENTITY RULE UNKNOWN");
+      // Its own chip class and its own wording: calling an unknown identity rule
+      // "EXPORT STATUS UNKNOWN" would send a reader looking for a field this
+      // citation does not have.
+      eq(all(root, "span.chip--export-unlabelled").length, 0);
+    });
+
+    // DELIVERABLE 3: the rule is written where a reader of the row can find it,
+    // on the surface itself rather than in a lesson.
+    await test("the sourcing legend states the spec-pile exception", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      var legend = all(root, "details.sv__legend");
+      eq(legend.length, 1);
+      has(legend[0].textContent, "How to read the sourcing column");
+      has(legend[0].textContent, "append-only");
+      // The legend quotes the table rather than re-typing the sentence, so the two
+      // cannot drift.
+      has(legend[0].textContent,
+          VA.IDENTITY_RULES.spec_pile_filename.headline);
+      // And it says why the OTHER no-export rows are a different fact.
+      has(legend[0].textContent, "must name the EXPORT");
     });
 
     await test("an export status the viewer cannot explain is loud on the row", function () {
@@ -1584,6 +1694,23 @@
           values: function (r) {
             return materialEntriesIn(r).map(function (m) { return m.values_status; });
           } },
+        // Added 2026-08-13 (spec_citation_identity_rendering). `null` is the
+        // overwhelming majority and is a real answer — "no rule, because an export
+        // block identifies the bytes, or because nothing does" — so it is known by
+        // construction rather than by a table entry. A rule the viewer has no
+        // branch for renders as the loud `identity_unlabelled` block; this row is
+        // what makes that a test failure rather than a reader's discovery.
+        { field: "stacks[].elements[].identity_rule",
+          branch: "VA.IDENTITY_RULES, through VA.exportProvenance — the derived " +
+            "marker that lets a spec-pile citation say what identifies its bytes " +
+            "instead of saying that nothing does " +
+            "(ISSUE_20260812_four_traced_spec_citations_carry_no_export_block)",
+          known: function (v) {
+            return v === null || v === undefined || !!VA.IDENTITY_RULES[v];
+          },
+          values: function (r) {
+            return derivedIn(r).map(function (d) { return d.identity_rule; });
+          } },
         { field: "source_ref.export.status",
           branch: "VA.EXPORT_STATUSES, through VA.exportProvenance — a status " +
             "outside the table renders as the loud unlabelled block rather than " +
@@ -1800,6 +1927,67 @@
           // The crop for that element is still unresolvable, which is the point:
           // the reader learns this without a crop.
           eq(VA.cropFor(realCrops, row.stack, row.element).status, "unresolvable");
+        });
+
+      // --- [real] identity_rule, against the live citations --------------------
+      //
+      // The projection derives the marker from the citation; the crop script picks
+      // its rule from the same condition, one file over. Nothing pairs the two, so
+      // this does: the set of citations the viewer will show the spec-pile
+      // sentence for must be exactly the set of crops that resolved by
+      // `spec_pile`. Derived from the data on both sides — a fifth spec-pile
+      // citation is not a failure, a fifth that only ONE side agrees with is.
+      await test("[real] the marked citations are exactly the spec_pile-resolved ones",
+        function () {
+          var marked = [], plain = [];
+          realResults.stacks.forEach(function (stackProj) {
+            (stackProj.elements || []).forEach(function (derived) {
+              (derived.identity_rule ? marked : plain)
+                .push(stackProj.id + ":" + derived.id);
+            });
+          });
+          var bySpecPile = [];
+          Object.keys(realCrops.by_stack || {}).forEach(function (stackId) {
+            Object.keys(realCrops.by_stack[stackId]).forEach(function (elementId) {
+              if (realCrops.by_stack[stackId][elementId].resolved_by === "spec_pile") {
+                bySpecPile.push(stackId + ":" + elementId);
+              }
+            });
+          });
+          ok(marked.length > 0, "the live projection must have spec-pile citations");
+          eq(marked.slice().sort(), bySpecPile.slice().sort(),
+             "the citation-level marker and the crop-level rule disagree");
+          // The other half of deliverable 2: the 21 workbook + 1 assumed no-export
+          // citations are untouched, and so is every drawing/parts_list one.
+          ok(plain.length > marked.length, "most citations carry no identity rule");
+        });
+
+      await test("[real] a marked row states the rule instead of stating a gap",
+        function () {
+          var stacks = {};
+          realResults.stacks.forEach(function (stackProj) {
+            (stackProj.elements || []).forEach(function (derived) {
+              if (derived.identity_rule) stacks[stackProj.id] = stackProj;
+            });
+          });
+          var ids = Object.keys(stacks);
+          ok(ids.length > 0, "no live stack carries a spec-pile citation");
+          ids.forEach(function (stackId) {
+            var root = render(function (r) {
+              VA.renderStack(r, stacks[stackId], realCrops, {});
+            });
+            var boxes = all(root, "div.el-export--identity_rule");
+            eq(boxes.length,
+               (stacks[stackId].elements || []).filter(function (d) {
+                 return d.identity_rule;
+               }).length, stackId);
+            has(boxes[0].textContent, "identity by filename (append-only pile)",
+                stackId);
+            // The row the issue was filed about: `traced` beside "nothing here
+            // identifies the bytes". That pair must no longer be reachable here.
+            ok(boxes[0].textContent.indexOf("names no exported file") === -1,
+               stackId + " still reads as a gap");
+          });
         });
 
       await test("[real] the live material entries show the provenance of their CTE",

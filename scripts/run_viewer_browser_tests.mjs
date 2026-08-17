@@ -109,7 +109,7 @@ async function testTheApp(browser, url, label) {
 
     push("the stack list renders a row", await page.locator(".stacklist__row").count() === 1);
     push("the elements table renders every element",
-      await page.locator("tr.el-row").count() === 3);
+      await page.locator("tr.el-row").count() === 4);
 
     // Provenance colour is the deliverable, so assert the COMPUTED style, not a
     // class name — a stylesheet typo would pass a class-name check.
@@ -148,8 +148,29 @@ async function testTheApp(browser, url, label) {
       .evaluate((n) => getComputedStyle(n).backgroundColor);
     push("the unestablished export block is tinted",
       exportBg && exportBg !== "rgba(0, 0, 0, 0)");
-    push("the INCOMPLETE check is flagged",
-      await page.locator("article.check--incomplete").count() === 1);
+    // The spec-pile exception, on a real stylesheet: this row names no export and
+    // is right not to, so it must NOT read like the "nothing identifies these
+    // bytes" state one class along. Asserted on the computed spine colour for the
+    // same reason the loud states are — a class-name check passes through a
+    // stylesheet typo, and this one is a claim about how the row READS.
+    const identity = page.locator(".el-export--identity_rule");
+    push("the spec-pile row states its identity rule",
+      await identity.count() === 1 &&
+      /identity by filename \(append-only pile\)/.test(await identity.textContent()));
+    const identitySpine = await identity.first()
+      .evaluate((n) => getComputedStyle(n).borderLeftColor);
+    const noneSpine = await page.locator(".el-export--none").first()
+      .evaluate((n) => getComputedStyle(n).borderLeftColor);
+    push("the spec-pile spine is not the no-export grey",
+      identitySpine && noneSpine && identitySpine !== noneSpine);
+    push("the sourcing legend states the rule on the page",
+      /append-only/.test(await page.locator("details.sv__legend").textContent()));
+    // `check--incomplete` was the class until 2026-08-13, when
+    // `check_completeness_schema` replaced the prose search with the schema field
+    // and renamed it `check--budget`. This tier does not run under pytest, so the
+    // stale selector sat here red until the next agent ran it.
+    push("the budget-scope check is flagged",
+      await page.locator("article.check--budget").count() === 1);
     push("both verdicts render",
       await page.locator(".verdict--pass").count() === 1 &&
       await page.locator(".verdict--fail").count() === 1);
