@@ -98,7 +98,12 @@ one material + condition and the CTE a stack may cite for it, in
 null ref really is unconditional — **there is no materials library**, and
 `test_material_entries_keep_library_ref_null_and_schema_v0` asserts it. That is
 the one thing this shape does *not* share with `hardware_entry`, whose ref has
-been filled on one entry since the spec library was built. Its one
+been filled on one entry since the spec library was built. The **CTE itself is
+conditional in the same way `values_source` is** (2026-08-12): required unless
+`values_status` is `not_transcribed`, which means what it means for a hardware
+entry — nobody read a number off anything, so there is no number. A chain naming
+such a material does not fold against a zero CTE; the stack refuses to load and
+says which material. Its one
 addition is **`designation_source` separate from `values_source`**, because a
 material's *name* and its *numbers* have different provenance — every designation
 here but one is traced to a drawing note, and no CTE value is traced at all.
