@@ -561,9 +561,19 @@
                 // loudest state and the one this row exists for, can be spelled
                 // only this way. The fixture defaulted to `inline` until
                 // 2026-08-12, i.e. it described a materials.json the loader would
-                // refuse to read. The CTE below stays because MaterialEntry makes
-                // `cte_1e6_per_c` mandatory even for a not_transcribed entry
-                // (ISSUE_20260812_not_transcribed_material_must_still_carry_a_cte).
+                // refuse to read.
+                //
+                // The CTE below **stays**, and no longer because the schema forces
+                // it: since `material_cte_optional` (2026-08-12) a
+                // `not_transcribed` entry may state no `cte_1e6_per_c` at all. It
+                // stays because a CTE-less material can never reach a PROJECTION —
+                // `material_soak_factor()` refuses to fold a chain against one, so
+                // `load_thermal_fit_stack()` raises before any materials row is
+                // built. A fixture describing a shape the builder cannot emit is
+                // the defect `viewer_fixture_shape_guards` exists against, so this
+                // row keeps the one spelling the builder can actually produce: the
+                // number is a placeholder nobody read off anything, which is what
+                // the magenta `CTE NOT TRANSCRIBED` chip says.
                 values_status: "not_transcribed", library_ref: null,
                 gaps: ["No citation at all for this CTE — the loudest state."],
                 values_source: null, designation_source: null,

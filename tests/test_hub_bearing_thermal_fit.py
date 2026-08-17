@@ -22,6 +22,7 @@ Handoff: hub_bearing_thermal_stack (2026-08-05).
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -30,10 +31,12 @@ from tolerance_stack import Term, fold
 from tolerance_stack.thermal import (
     SCHEMA_MATERIAL,
     STAGE_IDS,
+    MaterialEntry,
     ThermalFitSpec,
     expanded_terms_table,
     load_materials,
     load_thermal_fit_stack,
+    material_soak_factor,
     thermal_factor,
     workbook_corner,
 )
@@ -198,6 +201,106 @@ def test_a_cold_soak_shrinks_and_a_hot_soak_grows():
     assert thermal_factor(23.04, -40.0) < 1.0
     # aluminium grows faster than AISI 420, which is the whole mechanism
     assert thermal_factor(23.04, 52.0) > thermal_factor(10.3, 52.0)
+
+
+# ---------------------------------------------------------------------------
+# A material whose CTE nobody has transcribed
+# ---------------------------------------------------------------------------
+#
+# `values_status: "not_transcribed"` means what it means in `hardware_entry/v0`:
+# nobody has read a number off a source. Until 2026-08-12 a material entry had to
+# say so and state a CTE anyway
+# (ISSUE_20260812_not_transcribed_material_must_still_carry_a_cte), which is a
+# contradiction the schema forced on the author. The number is now optional in the
+# same conditional way `values_source` is -- and the pair of tests below is the
+# point: optional for `not_transcribed`, still mandatory for the two statuses that
+# claim a number exists. No live material is in this state; these are about the
+# state being expressible, and about what a stack does when one arrives.
+
+
+NO_CTE_ENTRY = {
+    "schema": SCHEMA_MATERIAL,
+    "id": "UNTRANSCRIBED_ALLOY",
+    "designation": "an alloy whose CTE nobody has looked up",
+    "values_status": "not_transcribed",
+    "values_source": None,
+    "gaps": ["No citation at all for this CTE, and no CTE."],
+}
+
+
+def test_a_not_transcribed_material_may_state_no_cte():
+    """The issue's repro, which used to be a bare ``KeyError: 'cte_1e6_per_c'``."""
+    entry = MaterialEntry.from_dict(dict(NO_CTE_ENTRY))
+    assert entry.cte_1e6_per_c is None
+    assert entry.values_source is None
+    # An explicit null reads the same as an absent key, exactly as `values_source`
+    # already did -- otherwise the honest spelling would depend on which one the
+    # author picked.
+    assert MaterialEntry.from_dict(dict(NO_CTE_ENTRY, cte_1e6_per_c=None)).cte_1e6_per_c is None
+    # ...and a `not_transcribed` entry MAY still carry one: that is the state the
+    # viewer fixture spelled before this change, and it stays legal.
+    assert MaterialEntry.from_dict(dict(NO_CTE_ENTRY, cte_1e6_per_c=11.9)).cte_1e6_per_c == 11.9
+
+
+def test_an_inline_or_library_material_with_no_cte_is_still_refused():
+    """The new optionality must not become a hole in the two statuses that claim a number.
+
+    ``inline`` says *the number in front of you is this repo's record of it* and
+    ``library`` says *it is a cross-check of one the spec library owns*. Both are
+    claims about a number, so both need the number, and the message names the
+    material and the status -- the same shape as the ``values_source`` rule beside
+    it, which this mirrors deliberately.
+    """
+    source = {"kind": "workbook", "document": "d.xlsx", "cell": "C5",
+              "confidence": "untraced"}
+    for status in ("inline", "library"):
+        raw = dict(NO_CTE_ENTRY, values_status=status, values_source=source)
+        with pytest.raises(ValueError, match=r"UNTRANSCRIBED_ALLOY.*needs a cte_1e6_per_c"):
+            MaterialEntry.from_dict(raw)
+        # ...and the same entry with a number is accepted, so the raise above is
+        # about the CTE and not about something else in this dict.
+        assert MaterialEntry.from_dict(dict(raw, cte_1e6_per_c=10.3)).cte_1e6_per_c == 10.3
+
+
+def test_a_material_with_no_cte_has_no_soak_factor():
+    """``raise``, not ``0.0``. See :func:`material_soak_factor`'s docstring.
+
+    A zero CTE is not "no information about growth", it is the claim that this
+    member does not grow -- so substituting it reports an interference that looks
+    computed and is not, and is not even conservative (which way it errs depends on
+    which member it lands on).
+    """
+    entry = MaterialEntry.from_dict(dict(NO_CTE_ENTRY))
+    materials = {entry.id: entry}
+    with pytest.raises(ValueError, match=r"UNTRANSCRIBED_ALLOY.*no cte_1e6_per_c"):
+        material_soak_factor(materials, entry.id, 52.0)
+    # The refusal is about the missing number, not about the status: a
+    # `not_transcribed` entry that does carry one still folds.
+    stated = {entry.id: MaterialEntry.from_dict(dict(NO_CTE_ENTRY, cte_1e6_per_c=10.3))}
+    assert material_soak_factor(stated, entry.id, 52.0) == thermal_factor(10.3, 52.0)
+
+
+def test_a_stack_is_refused_rather_than_computed_against_a_cte_less_material(materials):
+    """The consequence at the surface a reader meets: the stack will not load.
+
+    ``build_checks`` runs inside ``load_thermal_fit_stack``, so a chain naming a
+    CTE-less material fails at LOAD time with the material named -- not later, and
+    not as a plausible-looking interference. ``workbook_corner`` (the workbook's
+    coherent corners, the other soak-factor site) refuses the same way.
+    """
+    blanked = dict(materials)
+    blanked["SS_AISI_420_AMS5621"] = replace(
+        materials["SS_AISI_420_AMS5621"],
+        cte_1e6_per_c=None, values_status="not_transcribed", values_source=None)
+    with pytest.raises(ValueError, match=r"SS_AISI_420_AMS5621.*no cte_1e6_per_c"):
+        load_thermal_fit_stack(
+            STACKS_DIR / "stack_hub_bearing_thermal_fit_m2.json", blanked)
+
+    stack = load_thermal_fit_stack(
+        STACKS_DIR / "stack_hub_bearing_thermal_fit_m2.json", dict(materials))
+    stack.materials = blanked          # type: ignore[attr-defined]
+    with pytest.raises(ValueError, match=r"SS_AISI_420_AMS5621.*no cte_1e6_per_c"):
+        workbook_corner(stack, "lower_seat", "hub_to_sleeve", "hot", "lmc")
 
 
 # ---------------------------------------------------------------------------

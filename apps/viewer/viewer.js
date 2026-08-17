@@ -476,7 +476,8 @@
       loud: function () { return true; },
       text: function () {
         return "CTE NOT TRANSCRIBED — nobody has read this number off a source; " +
-          "the value above is a placeholder the schema requires";
+          "a number in the column above is a placeholder, and since 2026-08-12 " +
+          "the schema lets such an entry state no CTE at all";
       },
     },
   };

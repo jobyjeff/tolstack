@@ -112,11 +112,22 @@ class MaterialEntry:
     and the material's *number* have different provenance. Every designation here
     but one is traced to a drawing note; not one CTE value is traced to anything.
     Keeping them in separate fields is what makes that statable.
+
+    ``cte_1e6_per_c`` is **optional in the same conditional way ``values_source``
+    is**, and for the same reason (2026-08-12,
+    ``ISSUE_20260812_not_transcribed_material_must_still_carry_a_cte``): a
+    ``not_transcribed`` entry means *nobody has read a number off a source*, which
+    is exactly what the four ``not_transcribed`` entries in
+    ``hardware_entries.json`` say by carrying no numbers at all. Requiring a CTE
+    from such an entry forced the author to state a number and deny it in the same
+    breath. ``inline`` and ``library`` both still require one -- an entry that
+    claims the number is transcribed here, or cross-checks one the library owns,
+    has to have it.
     """
 
     id: str
     designation: str
-    cte_1e6_per_c: float
+    cte_1e6_per_c: Optional[float]
     values_source: SourceRef
     gaps: List[str]
     specification: Optional[str] = None
@@ -136,6 +147,16 @@ class MaterialEntry:
             raise ValueError(f"material {self.id!r}: bad values_status {self.values_status!r}")
         if self.values_status == "inline" and self.values_source is None:
             raise ValueError(f"material {self.id!r}: inline values need a values_source")
+        # Spelled as "everything except not_transcribed", not as `values_status in
+        # ("inline", "library")`, on purpose: the vocabulary is defined by the
+        # membership test above and `tests/test_js_python_vocabulary.py` reads it
+        # from there, so a second tuple listing two of its three values would be
+        # both a copy to drift and an ambiguity that test refuses. It also fails
+        # SAFE -- a status added later requires a CTE until someone says otherwise.
+        if self.cte_1e6_per_c is None and self.values_status != "not_transcribed":
+            raise ValueError(
+                f"material {self.id!r}: values_status {self.values_status!r} needs a "
+                "cte_1e6_per_c -- only a 'not_transcribed' entry may omit the number")
         if not self.gaps:
             raise ValueError(f"material {self.id!r}: gaps must be non-empty")
 
@@ -145,10 +166,15 @@ class MaterialEntry:
             raise ValueError(f"expected schema {SCHEMA_MATERIAL!r}, got {d.get('schema')!r}")
         src = d.get("values_source")
         dsrc = d.get("designation_source")
+        cte = d.get("cte_1e6_per_c")
         return cls(
             id=d["id"],
             designation=d["designation"],
-            cte_1e6_per_c=float(d["cte_1e6_per_c"]),
+            # Absent and explicitly null read the same, exactly as `values_source`
+            # does above. `__post_init__` is what decides whether that is legal for
+            # this entry's `values_status`, so the error names the material and the
+            # status rather than being a bare KeyError from here.
+            cte_1e6_per_c=float(cte) if cte is not None else None,
             values_source=SourceRef.from_dict(src) if src else None,
             gaps=list(d.get("gaps", [])),
             specification=d.get("specification"),
@@ -196,6 +222,38 @@ def thermal_factor(cte_1e6_per_c: float, delta_t_c: float) -> float:
     caveat in ``docs/tolerance_stacks/ARCHETYPE_thermal_fit.md``.
     """
     return 1.0 + delta_t_c * cte_1e6_per_c / 1_000_000.0
+
+
+def material_soak_factor(
+    materials: Dict[str, MaterialEntry], material_id: str, delta_t_c: float
+) -> float:
+    """:func:`thermal_factor` for a named material -- and a refusal if it has no CTE.
+
+    Every soak factor in this module goes through here, because a material entry's
+    CTE became optional on 2026-08-12 (see :class:`MaterialEntry`) and the two
+    honest answers to "compute this stack against a material whose CTE nobody has
+    transcribed" are *raise* and *substitute something*. It raises, naming the
+    material and its ``values_status``.
+
+    Substituting ``0.0`` -- the tempting one, since it makes the factor exactly 1
+    and the arithmetic proceeds -- would report an interference that looks computed
+    and is not: a zero CTE is not "no information about growth", it is the physical
+    claim that this member does not grow, which no real material makes. It would
+    also read as *tighter or looser depending on which member it lands on*, so it
+    is not even conservative. This repo's worst defect class is a number that looks
+    derived and isn't (ARCHITECTURE.md), and a stack is a refusable thing: there is
+    no live material in this state, and one arriving should stop the stack rather
+    than silently change its answer.
+    """
+    entry = materials[material_id]
+    if entry.cte_1e6_per_c is None:
+        raise ValueError(
+            f"material {material_id!r} carries no cte_1e6_per_c (values_status "
+            f"{entry.values_status!r}), so this stack has no soak factor for it. "
+            "Transcribe the CTE and cite it, or take this material out of the "
+            "chain -- a missing CTE is not 0.0, which would make the fit read as "
+            "computed against a member that does not grow.")
+    return thermal_factor(entry.cte_1e6_per_c, delta_t_c)
 
 
 # ---------------------------------------------------------------------------
@@ -345,9 +403,9 @@ def stage_terms(
         raise ValueError(f"unknown stage {stage!r}")
     k = chain.stiffness_ratio if stiffness is None else stiffness
     dt = spec.delta_t(group)
-    f_hub = thermal_factor(materials[chain.hub_material].cte_1e6_per_c, dt)
-    f_sleeve = thermal_factor(materials[chain.sleeve_material].cte_1e6_per_c, dt)
-    f_bearing = thermal_factor(materials[chain.bearing_material].cte_1e6_per_c, dt)
+    f_hub = material_soak_factor(materials, chain.hub_material, dt)
+    f_sleeve = material_soak_factor(materials, chain.sleeve_material, dt)
+    f_bearing = material_soak_factor(materials, chain.bearing_material, dt)
 
     if stage == "hub_to_sleeve":
         return [
@@ -579,9 +637,9 @@ def workbook_corner(
         return value
 
     dt = spec.delta_t(group)
-    f_hub = thermal_factor(materials[chain.hub_material].cte_1e6_per_c, dt)
-    f_sleeve = thermal_factor(materials[chain.sleeve_material].cte_1e6_per_c, dt)
-    f_bearing = thermal_factor(materials[chain.bearing_material].cte_1e6_per_c, dt)
+    f_hub = material_soak_factor(materials, chain.hub_material, dt)
+    f_sleeve = material_soak_factor(materials, chain.sleeve_material, dt)
+    f_bearing = material_soak_factor(materials, chain.bearing_material, dt)
     k = chain.stiffness_ratio
 
     sleeve_bore = at(chain.sleeve_bore_element) * f_sleeve
