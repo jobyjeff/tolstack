@@ -98,14 +98,17 @@ below rather than skipped.
   test ... found 2`. The claim is true, and the shipped spelling
   (`!= "not_transcribed"`) both keeps the vocabulary in one place and fails safe
   for a status added later.
-- **Python suite.** Merged review worktree: **437 passed, 1 skipped**. Trunk in
-  the **main checkout**: 434 passed, 0 skipped — same 434 tests, the skip being
-  the node-fs tier that has no `data/` in a worktree. Post-merge main checkout
-  count is recorded at the bottom of this report.
+- **Python suite, both checkouts.** Merged review worktree: **437 passed, 1
+  skipped**. Trunk in the **main checkout** before the merge: 434 passed, 0
+  skipped — the same 434 tests, the skip being the node-fs tier that has no
+  `data/` in a worktree. **After the merge landed on `master`, the main checkout
+  reports 438 passed, 0 skipped**, which is the shipping figure; the four new
+  tests are the whole delta and none of them is data-dependent.
 - **JS suite with the `[real]` tier running**: `node apps/viewer/run_tests.cjs
-  --repo C:/workspace/tolstack` → **131/131**, `[real]` tests present in the
-  output (including `[real] the live material entries show the provenance of
-  their CTE`).
+  --repo C:/workspace/tolstack` from the review worktree → **131/131**, `[real]`
+  tests present in the output (including `[real] the live material entries show
+  the provenance of their CTE`), i.e. the tier ran rather than skipping. Re-run
+  bare from the main checkout after the merge: **131/131**, tier also running.
 - **Projection rebuilt and diffed.** `scripts/build_viewer_projection.py
   --data-root C:/workspace/tolstack/data` from this review worktree. The gate did
   not refuse — the previous stamp names `spec_citation_identity_rendering`, now an
