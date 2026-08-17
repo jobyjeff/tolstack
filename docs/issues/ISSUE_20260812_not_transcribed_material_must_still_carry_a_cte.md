@@ -1,13 +1,29 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: tolerance_stack/thermal.py — MaterialEntry
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260812_material_cte_optional.md
 ---
 
 # A `not_transcribed` material entry is still forced to carry a `cte_1e6_per_c`, so it cannot honestly say the number was not transcribed
+
+> **RESOLVED 2026-08-17** by handoff `material_cte_optional`, taking **option 1**:
+> `MaterialEntry.cte_1e6_per_c` is `Optional[float]`, required unless
+> `values_status` is `not_transcribed`. The condition is spelled as
+> `!= "not_transcribed"` rather than `in ("inline", "library")` because
+> `tests/test_js_python_vocabulary.py` reads the vocabulary off the one membership
+> test in `__post_init__` and refuses a second one — the `depends_on` in the
+> handoff bound, though not where it was expected to.
+>
+> Both soak-factor sites now go through `thermal.material_soak_factor()`, which
+> **raises naming the material** instead of substituting `0.0`, so a chain against
+> a CTE-less material fails at stack-load time. Consequence worth knowing: no
+> projection can carry a CTE-less material row, so `views/stack.js` needed nothing
+> (`VA.fmt` already prints `—`) and `DEMO_BEARING_STEEL` keeps its placeholder CTE.
+> Four tests in `tests/test_hub_bearing_thermal_fit.py`, each shown red against the
+> unchanged module.
 
 Found by handoff `viewer_fixture_shape_guards` (2026-08-12) while making
 `apps/viewer/fixtures.js`'s no-citation material row legal against the model.
