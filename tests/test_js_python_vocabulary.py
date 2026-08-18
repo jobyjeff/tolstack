@@ -65,9 +65,16 @@ both. Three things it does **not** understand, all of them scoped to the span
 between the anchor and its matching brace:
 
 * **Regex literals.** ``/}/`` inside a table would end the scan early. The check is
-  per-span, not per-file: ``viewer.js`` does carry four regex literals (lines 240,
-  452, 462, 463 as of 2026-08-12), and all four are outside the three table bodies,
-  which today span 202-216, 352-379 and 498-521.
+  per-span, not per-file: ``viewer.js`` does carry four regex literals, and all four
+  are outside every table body. Re-derived 2026-08-18 in
+  ``review/confidence_vocabulary_single_definition`` (the sentence had been written
+  for **three** tables at 2026-08-12 line numbers and was never recounted as tables
+  four, five and six arrived, so both halves of it had gone stale while staying
+  true): regex literals at lines 321, 556, 566, 567, table bodies at 67 (the
+  ``CONFIDENCES`` array), 97-108, 243-257, 288-295, 455-483 and 602-625. Both lists
+  move with any edit to ``viewer.js`` -- recompute them rather than trusting these
+  digits, and note that ``js_array_strings`` needs no such caveat, because a ``/``
+  that opens neither comment form is one of the things it refuses outright.
 * **Ternaries at depth 1.** ``a: cond ? yes : no`` yields a spurious key ``yes``,
   because ``yes`` is an identifier followed by ``:``. That direction is loud rather
   than silent -- the pairing below goes red reporting a key Python cannot emit --
@@ -227,10 +234,18 @@ def js_array_strings(text: str, name: str) -> JsTable:
 
     The scan is the same shape -- comments and string literals tracked, brackets
     counted -- with one deliberate difference: **anything at depth 1 that is not a
-    string, a separator or a nested bracket raises.** An identifier element
+    string or a separator raises.** An identifier element
     (``VA.CONFIDENCES = [TRACED, ...]``) is a vocabulary word this reader cannot
     resolve, and dropping it silently would shrink the set the pairing compares,
     which is this module's own failure mode one layer down.
+
+    That includes a **nested** literal. Written 2026-08-17 the rule read "not a
+    string, a separator or a nested bracket", and an opening bracket at depth 1 was
+    let through -- so ``["a", ["b"]]`` came back as ``{"a"}``, the exact silent drop
+    the sentence above forbids, because the nested string is at depth 2 and only
+    depth 1 is collected (found in ``review/confidence_vocabulary_single_definition``
+    by feeding it the case). A vocabulary array does not nest; if one ever needs to,
+    teach this reader the shape rather than letting it shrink the compared set.
     """
     anchors = list(re.finditer(
         rf"^[ \t]*VA\.{re.escape(name)}\s*=\s*\[", text, re.M))
@@ -259,20 +274,20 @@ def js_array_strings(text: str, name: str) -> JsTable:
             value, i = _read_js_string(text, i)
             if depth == 1:
                 values.append(value)
-        elif c in "{[(":
-            depth += 1
-            i += 1
         elif c in "}])":
             depth -= 1
             i += 1
         elif c in " \t\r\n,":
             i += 1
         else:
+            # `{[(` lands here too, on purpose: a nested literal's strings would sit
+            # at depth 2 and never be collected, which is a dropped vocabulary word
+            # wearing the shape of a handled case.
             raise ValueError(
                 f"VA.{name} (line {line_no}) contains {text[i:i + 24]!r}, which is "
-                f"not a string literal. This reader takes an array of plain strings; "
-                f"teach it the shape rather than letting a vocabulary word drop out "
-                f"of the pairing."
+                f"not a string literal. This reader takes a FLAT array of plain "
+                f"strings; teach it the shape rather than letting a vocabulary word "
+                f"drop out of the pairing."
             )
 
     if depth != 0:
@@ -585,6 +600,10 @@ def test_the_array_extractor_fails_loudly_rather_than_dropping_a_value(viewer_js
       vocabulary word with a value only the JS runtime knows, and skipping it
       shrinks the compared set silently. That is the one direction ``js_object_keys``
       has no analogue for, because an object key is always written out.
+    * **a nested literal** -- added in review, because the first version let an
+      opening bracket through and ``["a", ["b"]]`` came back as ``{"a"}``: the
+      nested string sits at depth 2 and only depth 1 is collected, so the one
+      construct the rule exempted was also the one that dropped a word in silence.
     """
     with pytest.raises(LookupError) as err:
         js_array_strings(viewer_js, "NO_SUCH_LIST")
@@ -602,6 +621,12 @@ def test_the_array_extractor_fails_loudly_rather_than_dropping_a_value(viewer_js
     with pytest.raises(ValueError) as err:
         js_array_strings('  VA.THINGS = ["a", "a"];\n', "THINGS")
     assert "lists a value twice" in str(err.value)
+
+    for nested in ('  VA.THINGS = ["a", ["b"]];\n',
+                   '  VA.THINGS = ["a", {"b": 1}];\n'):
+        with pytest.raises(ValueError) as err:
+            js_array_strings(nested, "THINGS")
+        assert "not a string literal" in str(err.value), nested
 
     # And the positive control, so the three refusals above are not the only thing
     # this reader is known to do: comments and a trailing comma are ordinary.

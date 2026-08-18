@@ -73,8 +73,16 @@ above. `spec_library.CONFIDENCES` is gone from this grep entirely — it is now
 `tests/` was out of the definition-of-done's scope but had two hand-copies of the
 same tuple; both now read `CONFIDENCES` imported from the package. One of them is
 **not** redundant with the dataclass check and should not be deleted by a later
-tidy-up: `test_every_hardware_entry_has_a_gap_list_and_a_resolvable_values_status`
-reads `hardware_entries.json` as raw JSON and never constructs a `SourceRef`.
+tidy-up: `test_every_inline_hardware_entry_cites_where_its_values_came_from`
+(`tests/test_tolerance_stack.py:1780`) reads `hardware_entries.json` as raw JSON and
+never constructs a `SourceRef`.
+
+> **Corrected in `review/confidence_vocabulary_single_definition`.** This line and
+> the matching `PROVENANCE.md` row both named
+> `test_every_hardware_entry_has_a_gap_list_and_a_resolvable_values_status`, which
+> is a real test forty lines further down (`:1909`) and was not touched. The
+> argument is unaffected — both read the raw JSON — but the pointer sent the next
+> reader to the wrong function, in the sentence telling them not to delete a line.
 
 ## Is a fifth vocabulary still defined by a comment? Yes — three
 
