@@ -52,6 +52,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+from tolerance_stack.stack import CONFIDENCES as STACK_CONFIDENCES
+
 SCHEMA_PARSE_EVENT = "joby.tolstack/spec-parse/v0"
 SCHEMA_LIBRARY = "joby.tolstack/spec_library/v0"
 SCHEMA_INTAKE = "joby.tolstack/spec_intake/v0"
@@ -61,9 +63,13 @@ SCHEMA_INTAKE = "joby.tolstack/spec_intake/v0"
 # (`correction`). A correction must name the event it supersedes.
 EVENT_MODES = ("full", "correction")
 
-# Same vocabulary as SourceRef.confidence in stack.py, plus one this stream
-# needs: `unreadable` values live in their own list and never carry numbers.
-CONFIDENCES = ("traced", "inferred", "untraced")
+# The SAME vocabulary as SourceRef.confidence, imported rather than restated: a
+# spec value read off a page and a stack element citing one answer the same
+# question ("how well is this number supported?") and must answer it in the same
+# words, or the two streams disagree about what `inferred` means. This stream
+# needs no fourth word -- `unreadable` values live in their own list and never
+# carry a number, so they never carry a confidence either.
+CONFIDENCES = STACK_CONFIDENCES
 
 
 # ---------------------------------------------------------------------------

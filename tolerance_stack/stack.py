@@ -239,6 +239,34 @@ class SourceExport:
         return cls(**known)
 
 
+#: How well a citation supports the number it is attached to. **This tuple is the
+#: definition** -- it was an end-of-line comment on ``SourceRef.confidence`` until
+#: 2026-08-17, and a comment is not something another module can read, so the
+#: vocabulary had accumulated three independent copies of itself
+#: (``ISSUE_20260812_the_confidence_vocabulary_has_no_single_definition_to_pair_va_confidences_against``).
+#: The copies now import this:
+#:
+#: * ``tolerance_stack/spec_library.py``'s ``CONFIDENCES`` -- the spec stream reuses
+#:   the same three words for :class:`SpecValue.confidence`;
+#: * ``scripts/build_viewer_projection.py``'s ``CONFIDENCE_ORDER``, which adds the
+#:   **rank** (strongest first) this tuple deliberately does not carry, and is
+#:   checked at import to cover exactly these values;
+#: * ``apps/viewer/viewer.js``'s ``VA.CONFIDENCES``, paired against the projection's
+#:   list by ``tests/test_js_python_vocabulary.py``.
+#:
+#: What each word means is in ``docs/SOP_TOLERANCE_STACK.md`` Step 5b, which is
+#: also the one place allowed to elaborate: ``traced`` = read off a named export at
+#: a re-findable address; ``inferred`` = derived from something traced, with the
+#: derivation written down; ``untraced`` = no support beyond "the source says so",
+#: which puts the value on the gap list.
+#:
+#: ``no_source_ref`` is **not** here on purpose: no ``SourceRef`` can carry it. It
+#: is what the viewer projection synthesises for an element that has no citation at
+#: all, and it lives beside the function that mints it
+#: (``build_viewer_projection.NO_SOURCE_REF``).
+CONFIDENCES = ("traced", "inferred", "untraced")
+
+
 @dataclass(frozen=True)
 class SourceRef:
     """Where a value came from.
@@ -268,8 +296,22 @@ class SourceRef:
     export: Optional[SourceExport] = None
     element_id: Optional[str] = None  # future: stable extracted-element address
     run_id: Optional[str] = None      # future: pipeline run that produced it
-    confidence: str = "untraced"    # traced | inferred | untraced
+    confidence: str = "untraced"    # one of CONFIDENCES, above
     note: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        # Validated, not merely documented. Until 2026-08-17 the vocabulary was an
+        # end-of-line comment and nothing checked it, so
+        # `SourceRef(kind="drawing", confidence="banana")` constructed happily and
+        # the misspelling surfaced as `conf--unknown` on a reader's screen -- a
+        # value rendered as "this viewer has no branch for it" when what actually
+        # happened is that the stack file has a typo.
+        if self.confidence not in CONFIDENCES:
+            raise ValueError(
+                f"source ref confidence must be one of {CONFIDENCES}, got "
+                f"{self.confidence!r}. `no_source_ref` is NOT one of them: it is "
+                f"what the viewer projection synthesises for an element carrying no "
+                f"source_ref at all, so a SourceRef spelling it is a contradiction")
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SourceRef":
