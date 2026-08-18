@@ -26,6 +26,7 @@ from tolerance_stack.spec_library import (  # noqa: F401
     rebuild,
 )
 from tolerance_stack.stack import (  # noqa: F401
+    CONFIDENCES,
     VERDICT_SCOPES,
     CheckResult,
     ExportRun,
@@ -40,6 +41,7 @@ from tolerance_stack.stack import (  # noqa: F401
 )
 
 __all__ = [
+    "CONFIDENCES",
     "VERDICT_SCOPES",
     "Absence",
     "CheckResult",

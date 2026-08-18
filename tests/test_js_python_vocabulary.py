@@ -1,6 +1,6 @@
 """The viewer's status tables, paired with the Python enumerations they copy.
 
-Five vocabularies are **defined in Python and hand-copied into JavaScript**:
+Six vocabularies are **defined in Python and hand-copied into JavaScript**:
 
 ===============================================  ==================================
  Python (the definition)                          JavaScript (the copy)
@@ -13,6 +13,9 @@ Five vocabularies are **defined in Python and hand-copied into JavaScript**:
  ``VERDICT_SCOPES``, ``tolerance_stack/stack``    ``VA.VERDICT_SCOPES``
  what ``identity_rule_of_ref`` returns in         ``VA.IDENTITY_RULES``
  ``scripts/build_viewer_projection.py``
+ ``PROJECTION_CONFIDENCES``, same file --          ``VA.CONFIDENCES``
+ ``stack.CONFIDENCES`` ranked, plus the
+ synthesised ``NO_SOURCE_REF``
 ===============================================  ==================================
 
 The JS tables are the right *shape* -- total functions with a loud fallback for a
@@ -22,10 +25,10 @@ form of that guard. But it is driven by **live data**: it can only fire once a
 value Python actually emits reaches ``data/projections/viewer/``. Two failures it
 cannot see, and this module exists for both:
 
-* **A value Python can emit that no stack has yet.** ``library``, ``unestablished``
-  and ``joint_export_run`` have **zero** live instances today. Rename one, or add a
-  fourth, and nothing is red until data moves -- the first symptom is the loud
-  `unlabelled` block on a reader's screen.
+* **A value Python can emit that no stack has yet.** ``library``, ``unestablished``,
+  ``joint_export_run`` and ``no_source_ref`` have **zero** live instances today.
+  Rename one, or add another, and nothing is red until data moves -- the first
+  symptom is the loud `unlabelled` block on a reader's screen.
 * **A spelling drift in the JS copy.** ``not_transcribed`` vs ``not-transcribed``
   fails no test until an entry uses it.
 
@@ -44,6 +47,14 @@ Handoff: ``js_python_vocabulary_pairing`` (2026-08-12), from
 
 What the JS extraction can and cannot see
 -----------------------------------------
+
+Five of the six tables are object literals, read by ``js_object_keys``;
+``VA.CONFIDENCES`` is an **array** and is read by its sibling ``js_array_strings``,
+which is the same scanner with the depth-1 rule changed from "identifiers followed
+by ``:``" to "string literals" -- and with anything else at depth 1 raising rather
+than being skipped, since an array element this reader cannot resolve is a
+vocabulary word silently dropped out of the comparison. Which extractor a
+vocabulary uses is a column in ``PAIRINGS``, not a guess made from the source.
 
 ``js_object_keys`` is a small character scanner, not a JS parser: it anchors on the
 ``VA.<NAME> = {`` line, walks to the matching brace tracking string literals and
@@ -104,7 +115,10 @@ _IDENT_CHARS = _IDENT_START | frozenset(string.digits)
 @dataclass(frozen=True)
 class JsTable:
     name: str
-    line: int                  # 1-based line of the `VA.<name> = {` anchor
+    line: int                  # 1-based line of the `VA.<name> = {` (or `= [`) anchor
+    #: The vocabulary words the table spells: an object literal's keys, or an array
+    #: literal's string elements. One name because what the pairing compares is the
+    #: same thing either way -- the set of values the viewer has a branch for.
     keys: frozenset[str]
 
 
@@ -203,23 +217,105 @@ def js_object_keys(text: str, name: str) -> JsTable:
     return JsTable(name=name, line=line_no, keys=frozenset(keys))
 
 
+def js_array_strings(text: str, name: str) -> JsTable:
+    """Elements of the ``VA.<name> = [`` array literal in ``text``.
+
+    ``js_object_keys``'s sibling, for the one vocabulary the viewer spells as a
+    list rather than a lookup: ``VA.CONFIDENCES`` needs no per-value sentence
+    (``VA.CONFIDENCE_LABEL`` and the CSS carry those), so it is an array, and an
+    array has no ``key:`` for the object scanner to anchor on.
+
+    The scan is the same shape -- comments and string literals tracked, brackets
+    counted -- with one deliberate difference: **anything at depth 1 that is not a
+    string, a separator or a nested bracket raises.** An identifier element
+    (``VA.CONFIDENCES = [TRACED, ...]``) is a vocabulary word this reader cannot
+    resolve, and dropping it silently would shrink the set the pairing compares,
+    which is this module's own failure mode one layer down.
+    """
+    anchors = list(re.finditer(
+        rf"^[ \t]*VA\.{re.escape(name)}\s*=\s*\[", text, re.M))
+    if len(anchors) != 1:
+        raise LookupError(
+            f"expected exactly one `VA.{name} = [` line in the JS source, found "
+            f"{len(anchors)}. If the array moved or was renamed, this test's "
+            f"comparison is meaningless until the name here is updated."
+        )
+    anchor = anchors[0]
+    line_no = text.count("\n", 0, anchor.start()) + 1
+
+    i = text.index("[", anchor.start()) + 1
+    n = len(text)
+    depth = 1
+    values: list[str] = []
+    while i < n and depth > 0:
+        c = text[i]
+        if c == "/" and text[i + 1:i + 2] == "/":            # line comment
+            nl = text.find("\n", i)
+            i = n if nl < 0 else nl
+        elif c == "/" and text[i + 1:i + 2] == "*":          # block comment
+            end = text.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+        elif c in "\"'`":                                    # an element
+            value, i = _read_js_string(text, i)
+            if depth == 1:
+                values.append(value)
+        elif c in "{[(":
+            depth += 1
+            i += 1
+        elif c in "}])":
+            depth -= 1
+            i += 1
+        elif c in " \t\r\n,":
+            i += 1
+        else:
+            raise ValueError(
+                f"VA.{name} (line {line_no}) contains {text[i:i + 24]!r}, which is "
+                f"not a string literal. This reader takes an array of plain strings; "
+                f"teach it the shape rather than letting a vocabulary word drop out "
+                f"of the pairing."
+            )
+
+    if depth != 0:
+        raise ValueError(
+            f"VA.{name}: the array literal opened at line {line_no} never closes -- "
+            f"the scan ran off the end of the file"
+        )
+    if len(values) != len(set(values)):
+        raise ValueError(f"VA.{name} lists a value twice: {sorted(values)}")
+    return JsTable(name=name, line=line_no, keys=frozenset(values))
+
+
+#: Array methods that add an element. The assignment pattern below is how a *key*
+#: realistically arrives on an object table; for an array it is a ``push``, and an
+#: array vocabulary extended that way is invisible to ``js_array_strings`` in
+#: exactly the way ``VA.CROP_RULES.foo = {}`` is invisible to ``js_object_keys``.
+_JS_ARRAY_MUTATORS = ("push", "unshift", "splice")
+
+
 def js_table_mutations(text: str, table: JsTable) -> list[str]:
-    """Assignments that add to ``VA.<name>`` from outside its literal.
+    """Statements that add to ``VA.<name>`` from outside its literal.
 
     The hole the key scan cannot cover by construction: ``VA.CROP_RULES.foo = {}``
     ten screens away is a fourth vocabulary entry the extractor never sees, and the
     comparison would then be red for a value that is in fact handled. Refuse the
     pattern instead of trying to follow it.
     """
-    pattern = re.compile(
-        rf"VA\.{re.escape(table.name)}\s*(?:\.\s*[A-Za-z_$][\w$]*|\[[^\]\n]*\])?\s*=(?!=)")
-    out = []
-    for m in pattern.finditer(text):
-        line = text.count("\n", 0, m.start()) + 1
-        if line == table.line:
-            continue                                          # the definition itself
-        out.append(f"{line}: {m.group(0).strip()}")
-    return out
+    patterns = (
+        re.compile(
+            rf"VA\.{re.escape(table.name)}"
+            rf"\s*(?:\.\s*[A-Za-z_$][\w$]*|\[[^\]\n]*\])?\s*=(?!=)"),
+        re.compile(
+            rf"VA\.{re.escape(table.name)}"
+            rf"\s*\.\s*(?:{'|'.join(_JS_ARRAY_MUTATORS)})\s*\("),
+    )
+    found: list[tuple[int, str]] = []
+    for pattern in patterns:
+        for m in pattern.finditer(text):
+            line = text.count("\n", 0, m.start()) + 1
+            if line == table.line:
+                continue                                      # the definition itself
+            found.append((line, m.group(0).strip()))
+    return [f"{line}: {snippet}" for line, snippet in sorted(found)]
 
 
 # --------------------------------------------------------------------------- #
@@ -292,6 +388,38 @@ def python_crop_rules() -> tuple[str, ...]:
     return tuple(sorted(set(out)))
 
 
+def _projection_module():
+    """``scripts/build_viewer_projection.py``, imported by path.
+
+    ``scripts/`` is not a package, so the directory goes on ``sys.path`` first --
+    the same thing ``build_viewer_projection`` does to reach its own siblings.
+    """
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import build_viewer_projection  # noqa: PLC0415 -- resolved from scripts/
+
+    return build_viewer_projection
+
+
+def python_projection_confidences() -> tuple[str, ...]:
+    """Every confidence value the viewer projection can write.
+
+    Read from ``PROJECTION_CONFIDENCES``, which is itself derived -- the citation
+    vocabulary (``tolerance_stack.stack.CONFIDENCES``, ranked by
+    ``CONFIDENCE_ORDER``) plus ``NO_SOURCE_REF``, the one value the projection
+    *synthesises* for an element carrying no citation at all. So this pairing reads
+    one list and that list restates nothing, which is what made the vocabulary
+    pairable at last: until 2026-08-17 the three citation words lived in an
+    end-of-line comment plus two independent copies, and ``no_source_ref`` was a
+    bare literal in three branches
+    (``ISSUE_20260812_the_confidence_vocabulary_has_no_single_definition_to_pair_va_confidences_against``).
+
+    The order is the projection's rank (weakest last) and the comparison is by set,
+    so re-ranking is not a red test here -- ``worst_confidence`` owns that, and
+    ``tests/test_viewer_projection.py`` pins it.
+    """
+    return tuple(_projection_module().PROJECTION_CONFIDENCES)
+
+
 def python_identity_rules() -> tuple[str, ...]:
     """Every value ``identity_rule_of_ref`` can return, ``None`` aside.
 
@@ -307,8 +435,7 @@ def python_identity_rules() -> tuple[str, ...]:
     A return this reader cannot follow **raises** rather than being skipped: a
     silently-dropped return is a vocabulary entry the pairing stops checking.
     """
-    sys.path.insert(0, str(REPO_ROOT / "scripts"))
-    import build_viewer_projection  # noqa: PLC0415 -- resolved from scripts/
+    build_viewer_projection = _projection_module()
 
     functions = [
         node for node in ast.walk(ast.parse(
@@ -346,14 +473,15 @@ def python_identity_rules() -> tuple[str, ...]:
 # 3. the extraction itself, asserted before anything is compared              #
 # --------------------------------------------------------------------------- #
 
-#: Each pairing: the JS table name, the Python side, and where the Python side is
-#: defined (for the failure message -- the reader's next step is to open it).
+#: Each pairing: the JS table name, the extractor that reads it out of
+#: ``viewer.js``, the Python side, and where the Python side is defined (for the
+#: failure message -- the reader's next step is to open it).
 PAIRINGS = (
-    ("EXPORT_STATUSES", lambda: tuple(EXPORT_STATUSES),
+    ("EXPORT_STATUSES", js_object_keys, lambda: tuple(EXPORT_STATUSES),
      "tolerance_stack/stack.py: EXPORT_STATUSES"),
-    ("VALUES_STATUSES", python_values_statuses,
+    ("VALUES_STATUSES", js_object_keys, python_values_statuses,
      "tolerance_stack/thermal.py: the values_status check in MaterialEntry.__post_init__"),
-    ("CROP_RULES", python_crop_rules,
+    ("CROP_RULES", js_object_keys, python_crop_rules,
      "scripts/build_viewer_crops.py: the `resolved_by` literals in resolve_pdf"),
     # Added 2026-08-13 (check_completeness_schema). This one is a live-data blind
     # spot of the same family and worse: `budget` had zero live instances until
@@ -361,7 +489,7 @@ PAIRINGS = (
     # failure mode if the JS copy drifts is silence -- an incomplete check
     # rendering as an ordinary one, which is the misreading the whole field
     # exists to prevent.
-    ("VERDICT_SCOPES", lambda: tuple(VERDICT_SCOPES),
+    ("VERDICT_SCOPES", js_object_keys, lambda: tuple(VERDICT_SCOPES),
      "tolerance_stack/stack.py: VERDICT_SCOPES"),
     # Added 2026-08-13 (spec_citation_identity_rendering). Not a stack-model
     # vocabulary -- `identity_rule` is derived by the projection and authored
@@ -371,8 +499,21 @@ PAIRINGS = (
     # rows go from stating their identity rule to shouting that the viewer has no
     # branch for it -- the exact symptom the JS-side guards only see after the
     # data has already moved.
-    ("IDENTITY_RULES", python_identity_rules,
+    ("IDENTITY_RULES", js_object_keys, python_identity_rules,
      "scripts/build_viewer_projection.py: what identity_rule_of_ref returns"),
+    # Added 2026-08-17 (confidence_vocabulary_single_definition), and the reason
+    # this table's rows gained an extractor column: `VA.CONFIDENCES` is an ARRAY,
+    # so it is read by `js_array_strings`. It was named in this module from the
+    # day it was written and left out of it, because on the Python side there was
+    # nothing to read -- three copies of the three citation words and a fourth
+    # value, `no_source_ref`, that none of them contained. Now there is one:
+    # `PROJECTION_CONFIDENCES`. The drift it catches is the loudest one on the
+    # surface -- `no_source_ref` renders as `NO CITATION`, has ZERO live instances,
+    # and every element in the repo carries a source_ref, so `apps/viewer/tests.js`
+    # cannot see a rename of it until data this repo does not have arrives.
+    ("CONFIDENCES", js_array_strings, python_projection_confidences,
+     "scripts/build_viewer_projection.py: PROJECTION_CONFIDENCES "
+     "(tolerance_stack/stack.py: CONFIDENCES, plus the synthesised NO_SOURCE_REF)"),
 )
 
 
@@ -388,11 +529,10 @@ def test_the_extraction_found_every_table_and_none_of_them_is_empty(viewer_js):
     pass. So the tables are counted and each key set is required to be non-empty
     and to be plausible identifiers, before a single set equality is asserted.
     """
-    tables = {name: js_object_keys(viewer_js, name) for name, _, _ in PAIRINGS}
-    # Against `len(PAIRINGS)`, not a digit: a fourth pairing (`VA.CONFIDENCES`, once
-    # it has a definition to pair against) must not fail this assertion for an
-    # unrelated reason. What it still catches is two PAIRINGS rows naming one table,
-    # which the dict comprehension would silently collapse.
+    tables = {name: extract(viewer_js, name) for name, extract, _, _ in PAIRINGS}
+    # Against `len(PAIRINGS)`, not a digit: the next pairing must not fail this
+    # assertion for an unrelated reason. What it still catches is two PAIRINGS rows
+    # naming one table, which the dict comprehension would silently collapse.
     assert len(tables) == len(PAIRINGS)
     for name, table in tables.items():
         assert table.keys, (
@@ -432,6 +572,44 @@ def test_the_extractor_fails_loudly_when_the_table_is_not_there(viewer_js):
     assert "found 2" in str(err.value)
 
 
+def test_the_array_extractor_fails_loudly_rather_than_dropping_a_value(viewer_js):
+    """``js_array_strings``'s half of the same contract.
+
+    Three ways an array pairing could quietly stop checking anything, all of them
+    made loud:
+
+    * **no such array** -- ``LookupError``, not an empty set that agrees with every
+      Python vocabulary;
+    * **two of them** -- the anchor no longer identifies the definition;
+    * **an element this reader cannot resolve** -- a bare identifier is a
+      vocabulary word with a value only the JS runtime knows, and skipping it
+      shrinks the compared set silently. That is the one direction ``js_object_keys``
+      has no analogue for, because an object key is always written out.
+    """
+    with pytest.raises(LookupError) as err:
+        js_array_strings(viewer_js, "NO_SUCH_LIST")
+    assert "found 0" in str(err.value)
+
+    doubled = viewer_js + '\n  VA.CONFIDENCES = ["sneaky"];\n'
+    with pytest.raises(LookupError) as err:
+        js_array_strings(doubled, "CONFIDENCES")
+    assert "found 2" in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        js_array_strings('  VA.THINGS = ["traced", INFERRED];\n', "THINGS")
+    assert "not a string literal" in str(err.value)
+
+    with pytest.raises(ValueError) as err:
+        js_array_strings('  VA.THINGS = ["a", "a"];\n', "THINGS")
+    assert "lists a value twice" in str(err.value)
+
+    # And the positive control, so the three refusals above are not the only thing
+    # this reader is known to do: comments and a trailing comma are ordinary.
+    got = js_array_strings(
+        '  VA.THINGS = [\n    "a",  // first\n    /* and */ "b",\n  ];\n', "THINGS")
+    assert got.keys == frozenset({"a", "b"})
+
+
 def test_no_key_is_attached_to_a_status_table_from_outside_its_literal(viewer_js):
     """The hole the key scan has by construction, closed by refusing the pattern.
 
@@ -441,8 +619,8 @@ def test_no_key_is_attached_to_a_status_table_from_outside_its_literal(viewer_js
     must find all of it in one place.
     """
     problems = []
-    for name, _, _ in PAIRINGS:
-        table = js_object_keys(viewer_js, name)
+    for name, extract, _, _ in PAIRINGS:
+        table = extract(viewer_js, name)
         problems += [f"VA.{name} mutated at {m}" for m in js_table_mutations(viewer_js, table)]
     assert problems == [], (
         "these assignments add to a status table from outside its object literal, "
@@ -455,10 +633,10 @@ def test_no_key_is_attached_to_a_status_table_from_outside_its_literal(viewer_js
 # 4. the pairings                                                             #
 # --------------------------------------------------------------------------- #
 
-@pytest.mark.parametrize("name,python_side,where", PAIRINGS,
+@pytest.mark.parametrize("name,extract,python_side,where", PAIRINGS,
                          ids=[p[0] for p in PAIRINGS])
 def test_the_js_status_table_spells_exactly_what_python_enumerates(
-        name, python_side, where, viewer_js):
+        name, extract, python_side, where, viewer_js):
     """One vocabulary, two languages, one set.
 
     Both directions are failures and they are different bugs:
@@ -478,7 +656,7 @@ def test_the_js_status_table_spells_exactly_what_python_enumerates(
     """
     expected = set(python_side())
     assert expected, f"the Python side of {name} came back empty ({where})"
-    actual = set(js_object_keys(viewer_js, name).keys)
+    actual = set(extract(viewer_js, name).keys)
 
     missing = sorted(expected - actual)
     extra = sorted(actual - expected)
