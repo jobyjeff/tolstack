@@ -101,10 +101,13 @@ import of the producer, not at test time.
 
 ## Also verified
 
-- **Tests, re-run rather than trusted.** Review worktree, main checkout's
-  interpreter: **441 passed, 1 skipped** — matching the lesson, which correctly
-  says *which checkout* produced it. The main-checkout count is recorded in the
-  follow-up commit to this report, after the merge.
+- **Tests, re-run rather than trusted, in BOTH checkouts.** Review worktree,
+  main checkout's interpreter: **441 passed, 1 skipped** — matching the lesson,
+  which correctly says which checkout produced it. After the merge landed,
+  `C:\workspace\tolstack` on `master`: **442 passed, 0 skipped**, and the JS suite
+  there is **131/131 with the node-fs tier running**. The one-test gap is the
+  data-dependent skip this repo's checklist pins; `PROVENANCE.md` quoted only the
+  worktree figure and now names both.
 - **The viewer's JS suite, both tiers, and I say which.** `node
   apps/viewer/run_tests.cjs` → **102/102, node-fs tier SKIPPED**;
   `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` → **131/131, tier
