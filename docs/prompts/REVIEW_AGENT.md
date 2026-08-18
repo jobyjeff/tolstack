@@ -1017,6 +1017,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a missing table **raises** rather than yielding `set()`, and the empty-table
       case is asserted. Replay both — point the extractor at a name that is not
       there, *and* empty a real table — before you accept a set-equality test.
+      **Second sighting (`confidence_vocabulary_single_definition`, 2026-08-18),
+      and it moves the hole into the rule's own exemption clause.** The new sibling
+      `js_array_strings` announced "anything at depth 1 that is not a string, a
+      separator **or a nested bracket** raises" — and that third exemption is the
+      whole bug: an opening bracket bumped `depth`, elements are collected at depth
+      1 only, so `["a", ["b"]]` returned `{"a"}`, dropping a word in silence in the
+      one function written to make silent drops impossible. The sentence stayed
+      literally true throughout. So **read a "this raises" rule for what it
+      exempts, and feed the extractor each exempted construct** — the raising cases
+      are the ones the author already thought about. Fixed inline (the bracket
+      raises; both nested shapes pinned). Same review, the *first* bullet above
+      recurred too: the regex-literal caveat still said "the three table bodies" at
+      2026-08-12 line numbers with six tables present, in a docstring the handoff
+      had just edited two paragraphs higher — re-derived and re-dated inline.
 - [ ] **A normalising `__post_init__` that `tuple()`s a "list of strings" field.**
       New 2026-08-13 (`check_completeness_schema`). `CheckResult.excluded_terms`
       is `Sequence[str]`, coerced with `tuple(...)` and then validated
@@ -1133,6 +1147,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       vacuous nor go stale as the list grows. Generalise: a matcher with a wide
       wildcard is a second matcher for shapes nobody enumerated; a green suite
       only proves no *live* doc trips it *today*.
+- [ ] **A doc citing a symbol by name — resolve the name to the thing that
+      actually changed, not to *a* thing that exists.** New 2026-08-18
+      (`confidence_vocabulary_single_definition`), and it is the stale-count
+      family's non-numeric member: the failure survives every check the repo owns
+      because the name is **real**. That handoff's `PROVENANCE.md` row and its
+      lesson both said the second assertion it rewrote was in
+      `test_every_hardware_entry_has_a_gap_list_and_a_resolvable_values_status`;
+      the edit was in `test_every_inline_hardware_entry_cites_where_its_values_came_from`,
+      forty lines up. Both tests exist, both read `hardware_entries.json` as raw
+      JSON, so the *argument* around the name was sound and a `grep -c` for it
+      returns 1 — and the sentence was the one telling the next agent **not to
+      delete that line**, so the pointer sends them to the wrong function to
+      preserve. Corrected inline. The check costs one command: for every function,
+      constant or file a diff's prose names, `git diff master...HEAD -- <file>`
+      and confirm the hunk falls inside that symbol (`ast`, or just the nearest
+      preceding `def`). Do it for **file:line** citations too, which age faster
+      than names.
 
 ## Architectural errors to check
 
