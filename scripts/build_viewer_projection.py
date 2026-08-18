@@ -58,6 +58,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import projection_provenance as prov  # noqa: E402
 from tolerance_stack.stack import (  # noqa: E402
+    CONFIDENCES,
     SCHEMA_HARDWARE,
     StackDefinition,
     load_stack,
@@ -71,7 +72,26 @@ PROJECTION_SUBDIR = Path("projections") / "viewer"
 RESULTS_NAME = "results.json"
 MATERIALS_NAME = "materials.json"
 
+#: The citation vocabulary in **rank order, strongest first** -- which is all this
+#: list contributes. Membership is ``tolerance_stack.stack.CONFIDENCES`` and is not
+#: restated here: order and membership are separate concerns, and the copy that
+#: used to spell out both is what let three lists of the same three words drift
+#: independently. The coverage check below is what keeps them one vocabulary: add a
+#: word to ``CONFIDENCES`` and this script refuses to import until the new word is
+#: ranked, which is the decision only a human can make.
 CONFIDENCE_ORDER = ["traced", "inferred", "untraced"]
+
+_unranked = [c for c in CONFIDENCES if c not in CONFIDENCE_ORDER]
+_unknown = [c for c in CONFIDENCE_ORDER if c not in CONFIDENCES]
+if _unranked or _unknown:
+    raise RuntimeError(
+        "CONFIDENCE_ORDER must rank exactly tolerance_stack.stack.CONFIDENCES, "
+        f"which is {tuple(CONFIDENCES)}: "
+        + (f"unranked here: {_unranked}. " if _unranked else "")
+        + (f"ranked here but not a confidence: {_unknown}. " if _unknown else "")
+        + "This list carries the ORDER only -- do not fix it by editing the "
+          "vocabulary back into two places."
+    )
 
 #: Archetypes whose checks are **generated** by their own loader rather than
 #: authored in the stack file, and the loader that generates them.
@@ -137,26 +157,54 @@ def rounded(interval: Dict[str, float]) -> Dict[str, float]:
     return {k: round(v, INTERVAL_DECIMALS) for k, v in interval.items()}
 
 
+#: "There is no citation here at all" -- **minted by this projection, never
+#: authored**, and that is why it lives here rather than in
+#: ``tolerance_stack.stack.CONFIDENCES``. A confidence answers *how well is this
+#: number supported*; no ``SourceRef`` can answer it with "there is no
+#: ``SourceRef``", so admitting this word to the citation vocabulary would make
+#: ``SourceRef(confidence="no_source_ref")`` constructible -- a citation asserting
+#: it does not exist. It is the same kind of thing as
+#: :data:`IDENTITY_RULE_SPEC_PILE` below: a derived marker that rides beside the
+#: verbatim citation, minted next to the function that mints it.
+#:
+#: It is nonetheless a **rendered** value, and the loudest one on the surface
+#: (``VA.CONFIDENCE_LABEL`` spells it ``NO CITATION``), so it is a named constant
+#: and not a bare literal in three branches -- ``VA.CONFIDENCES`` is paired against
+#: :data:`PROJECTION_CONFIDENCES` by ``tests/test_js_python_vocabulary.py``, and
+#: that pairing must not have to special-case a word it cannot read.
+NO_SOURCE_REF = "no_source_ref"
+
+#: Every confidence value this projection can write, weakest **last** -- the
+#: citation vocabulary in rank order, plus the one value the projection synthesises.
+#: Derived, so there is still exactly one list of the citation words in Python.
+#: ``apps/viewer/viewer.js``'s ``VA.CONFIDENCES`` is the hand-copy of this.
+PROJECTION_CONFIDENCES = CONFIDENCE_ORDER + [NO_SOURCE_REF]
+
+
 def worst_confidence(counts: Dict[str, int]) -> Optional[str]:
     """The weakest confidence present, ``None`` if nothing was counted.
 
     Weakest wins: a check fed by four traced elements and one untraced one is an
     untraced result. ``no_source_ref`` is weaker still -- an element with no
-    citation at all is worse than one that admits it is untraced.
+    citation at all is worse than one that admits it is untraced -- which is why
+    it is last in :data:`PROJECTION_CONFIDENCES` and read first here.
     """
-    if counts.get("no_source_ref"):
-        return "no_source_ref"
-    for name in reversed(CONFIDENCE_ORDER):
+    for name in reversed(PROJECTION_CONFIDENCES):
         if counts.get(name):
             return name
     return None
 
 
 def confidence_of_ref(source_ref: Any) -> str:
-    """``traced`` / ``inferred`` / ``untraced`` / ``no_source_ref`` for a citation."""
+    """One of :data:`PROJECTION_CONFIDENCES` for a citation, or for its absence.
+
+    Every caller passes a :class:`SourceRef` or ``None``, and since 2026-08-17
+    ``SourceRef.__post_init__`` refuses a ``confidence`` outside ``CONFIDENCES``, so
+    what comes back here is always a word the viewer has a branch for.
+    """
     if source_ref is None:
-        return "no_source_ref"
-    return source_ref.confidence or "untraced"
+        return NO_SOURCE_REF
+    return source_ref.confidence
 
 
 def confidence_of(element: Any) -> str:
@@ -226,8 +274,13 @@ def identity_rule_of_ref(source_ref: Any) -> Optional[str]:
 
 
 def count_confidence(elements: List[Any]) -> Dict[str, int]:
-    counts = {name: 0 for name in CONFIDENCE_ORDER}
-    counts["no_source_ref"] = 0
+    """A count per projection confidence -- every key present, zeros included.
+
+    Keyed off :data:`PROJECTION_CONFIDENCES` so the scoreboard the viewer reads has
+    the same shape for every stack, and so a value that starts being emitted cannot
+    arrive as a key nothing initialised.
+    """
+    counts = {name: 0 for name in PROJECTION_CONFIDENCES}
     for element in elements:
         counts[confidence_of(element)] = counts.get(confidence_of(element), 0) + 1
     return counts

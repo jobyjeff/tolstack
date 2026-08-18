@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from tolerance_stack import (
-    VERDICT_SCOPES, CheckResult, ExportRun, SourceExport, SourceRef,
+    CONFIDENCES, VERDICT_SCOPES, CheckResult, ExportRun, SourceExport, SourceRef,
     StackDefinition, StackElement, Term, fold, load_stack,
 )
 
@@ -669,7 +669,11 @@ def test_every_element_carries_a_source_ref_with_a_confidence(filename):
     stack = load_stack(STACKS_DIR / filename)
     for element in stack.elements:
         assert element.source_ref is not None, f"{stack.id}:{element.id} has no source_ref"
-        assert element.source_ref.confidence in ("traced", "inferred", "untraced")
+        # Read out of the definition rather than re-listed. Since 2026-08-17
+        # `SourceRef.__post_init__` enforces this too, so what is left here is the
+        # `source_ref is not None` half; the membership line stays because a
+        # future loader that bypasses the dataclass would still have to pass it.
+        assert element.source_ref.confidence in CONFIDENCES
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
@@ -856,6 +860,39 @@ def test_a_bare_run_id_is_refused_because_a_name_is_not_an_identity():
         "status": "established", "pdf": "d.pdf", "sha256": "a" * 64,
         "runs": [{"run_id": "20260804_114000", "ts": "2026-08-04T18:40:27.959980+00:00"}],
     }).run_ids == ["20260804_114000"]
+
+
+def test_a_source_ref_refuses_a_confidence_outside_the_vocabulary():
+    """The vocabulary is now **checked**, not documented.
+
+    Until 2026-08-17 ``SourceRef.confidence``'s three words lived in an end-of-line
+    comment and nothing enforced them, so ``confidence="banana"`` constructed, rode
+    into ``data/projections/viewer/results.json`` and surfaced as ``conf--unknown``
+    -- the viewer telling a reader it has no branch for a value, when the truth is
+    that the stack file has a typo. Two words are refused here for two reasons:
+
+    * ``"banana"`` -- an outright misspelling, the case the whitelist exists for.
+    * ``"no_source_ref"`` -- the case a reader is likeliest to think is legal,
+      because the *viewer* renders it. It is minted by the projection for an element
+      that has no ``source_ref`` at all
+      (``build_viewer_projection.NO_SOURCE_REF``), so a ``SourceRef`` spelling it
+      would be a citation asserting that it does not exist.
+
+    And the default is checked from the other side: it must be a member, or every
+    ``SourceRef`` written without one would raise.
+    """
+    for bad in ("banana", "no_source_ref", "", "UNTRACED"):
+        with pytest.raises(ValueError, match="confidence must be one of"):
+            SourceRef(kind="drawing", document="217755", confidence=bad)
+    for good in CONFIDENCES:
+        assert SourceRef(kind="drawing", document="217755",
+                         confidence=good).confidence == good
+    assert SourceRef.__dataclass_fields__["confidence"].default in CONFIDENCES
+    # `from_dict` is the path every stack file takes, and it must refuse too --
+    # the whole point is that a typo cannot reach the viewer.
+    with pytest.raises(ValueError, match="confidence must be one of"):
+        SourceRef.from_dict({"kind": "drawing", "document": "217755",
+                             "confidence": "traced "})
 
 
 def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
@@ -1769,7 +1806,9 @@ def test_every_inline_hardware_entry_cites_where_its_values_came_from():
         assert src["kind"] in (
             "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
         )
-        assert src["confidence"] in ("traced", "inferred", "untraced")
+        # The raw JSON, so this one is NOT redundant with SourceRef's own check:
+        # `hardware_entries.json` is read as a dict here, never constructed.
+        assert src["confidence"] in CONFIDENCES
         assert src["document"], f"{entry['id']}: values_source names no document"
     # The file's whole provenance story in one line: the four NAS bolts traced
     # to the one standard in the spec pile, and five entries still transcribing
