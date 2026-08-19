@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260819_three_field_vocabularies.md
 area: tolerance_stack
 reporter: agent
 ---

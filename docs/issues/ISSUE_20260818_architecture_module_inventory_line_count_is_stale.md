@@ -1,7 +1,8 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260819_architecture_inventory_quantifiers.md
 area: docs
 reporter: agent
 ---
