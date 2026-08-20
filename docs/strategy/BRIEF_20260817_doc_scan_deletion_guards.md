@@ -1,5 +1,10 @@
 # STRATEGY BRIEF 2026-08-17 — doc_scan_deletion_guards: the doc-scan guards can fail on a wrong number and not on a deleted one
 
+> **CONSUMED 2026-08-19 (strategy session, Jeff decided).** Shape 2 (derive
+> the requirement from enumerated code states), with the residual explicitly
+> assigned to the review checklist + working-tree hygiene, written down.
+> Expanded into `HANDOFF_20260819_enumerated_state_doc_guard.md` (staged).
+
 **Routing note.** `docs/issues/ISSUE_20260812_the_doc_scan_guards_cannot_fail_on_a_deleted_section.md`
 is `type: feature`, `priority: med`, `audience: strategy`. Both signals point the
 same way and triage did not have to weigh anything. Triage has **not** chosen among
