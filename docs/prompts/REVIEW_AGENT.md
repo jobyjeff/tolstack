@@ -138,7 +138,7 @@ against the interval, and check a test pins which end binds.
 from a `thermal_fit` block, and `load_thermal_fit_stack()` *refuses* a
 hand-written one — so this check cannot be done by reading the JSON, and reading
 the JSON will tell you there are no terms at all. Run
-`venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --terms --markdown`
+`venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --terms --markdown`
 and read that table row by row instead; the worksheet appendix is a paste of it,
 so also diff the two rather than trusting the paste. What to check per row is
 archetype-specific and stated in `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`;
@@ -305,7 +305,7 @@ must be confirmed before the property is looked up.
 
 ## Also verify
 
-- **Tests.** `venv-win\Scripts\python.exe -m pytest -q` green, and re-run it
+- **Tests.** `venv-win/Scripts/python.exe -m pytest -q` green, and re-run it
   yourself rather than trusting the report. New source-derived numbers carry the
   source cell reference in a comment (`# JEFF E18`), which is what makes the suite
   a transcription check rather than a self-consistency check. A new stack with no
@@ -402,7 +402,7 @@ later cites it wearing `confidence: "traced"`.
 
 **Re-read the document yourself. There is no substitute and no shortcut.** The
 pile is in the MAIN checkout (`C:\workspace\tolstack\data\inbox\specs\`); render
-with drawing-checker's venv (`venv-win\Scripts\python.exe`, PyMuPDF is
+with drawing-checker's venv (`venv-win/Scripts/python.exe`, PyMuPDF is
 deliberately absent here). Recipe and the resolution-ceiling trick are in
 `docs/spec_library/README.md`. Then:
 
@@ -839,7 +839,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       changed on the branch under review will render as the previous build, and
       the viewer's banner reports the build time rather than refusing. Re-run
       both scripts against the MAIN checkout before you judge anything the viewer
-      shows: `venv-win\Scripts\python.exe scripts\build_viewer_projection.py
+      shows: `venv-win/Scripts/python.exe scripts\build_viewer_projection.py
       --data-root C:\workspace\tolstack\data`, then the same with
       `C:\workspace\drawing-checker\venv-win\...` and `build_viewer_crops.py`
       (PyMuPDF is deliberately absent from this repo's venv). Both are
@@ -874,7 +874,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`spec_library_projection_provenance`), and it is the one you will forget**,
       because it is not the viewer's and has no banner to nag you:
       `data/projections/spec_library/library.json`, rebuilt by
-      `venv-win\Scripts\python.exe -m tolerance_stack --data-root
+      `venv-win/Scripts/python.exe -m tolerance_stack --data-root
       C:\workspace\tolstack\data`. Same stamp, same exit-3 gate, same rule — and
       the same "only trees that HAVE the gate are gated" hole, so a `master`
       checkout that predates the merge still clobbers it silently. Rebuild it too
