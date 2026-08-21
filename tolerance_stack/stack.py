@@ -187,7 +187,7 @@ class SourceExport:
     ``docs/sessions/lessons/LESSONS_20260806_citation_export_provenance.md``.
     """
 
-    status: str                      # established | unestablished
+    status: str                      # one of EXPORT_STATUSES, above
     pdf: Optional[str] = None        # path as cited: repo-relative for this repo's
                                      # data/, absolute for drawing-checker's
     sha256: Optional[str] = None     # 64 hex chars -- the export's identity
@@ -266,6 +266,23 @@ class SourceExport:
 #: (``build_viewer_projection.NO_SOURCE_REF``).
 CONFIDENCES = ("traced", "inferred", "untraced")
 
+#: What kind of thing a citation points at. **This tuple is the definition** --
+#: it was an end-of-line comment on :attr:`SourceRef.kind` until 2026-08-19, and
+#: the cost of that is the best-documented case in this repo: ``spec`` had to be
+#: added to the comment, to the SOP's list and to a test whitelist *separately*,
+#: reached two of the three, and broke the suite the first time a compliant
+#: from-scratch stack cited a spec file. ``spec`` = a file in
+#: ``data/inbox/specs/`` (``document`` = the filename, ``sheet`` = the page);
+#: added by handoff ``pitch_link_stack``, the first stack to cite one.
+#:
+#: What each word means is in ``docs/SOP_TOLERANCE_STACK.md`` Step 5b, which is
+#: the one place allowed to elaborate -- and its list is paired against this
+#: tuple by ``tests/test_sop_vocabulary.py``, so the prose an author reads cannot
+#: drift away from what the constructor accepts.
+SOURCE_REF_KINDS = (
+    "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
+)
+
 
 @dataclass(frozen=True)
 class SourceRef:
@@ -281,9 +298,7 @@ class SourceRef:
     the door is open, nothing walks through it yet.
     """
 
-    # spec = a file in data/inbox/specs/ (document = filename, sheet = page);
-    # added by handoff pitch_link_stack, which is the first stack to cite one.
-    kind: str                       # drawing | parts_list | workbook | spec | pipeline_element | assumed
+    kind: str                       # one of SOURCE_REF_KINDS, above
     document: Optional[str] = None  # drawing number, workbook filename, ...
     revision: Optional[str] = None
     sheet: Optional[Any] = None     # int sheet number, or a workbook sheet name
@@ -312,6 +327,15 @@ class SourceRef:
                 f"{self.confidence!r}. `no_source_ref` is NOT one of them: it is "
                 f"what the viewer projection synthesises for an element carrying no "
                 f"source_ref at all, so a SourceRef spelling it is a contradiction")
+        # And `kind`, added 2026-08-19 -- the same defect one field over. Two
+        # documents in this repo already *said* this check existed (the SOP's
+        # "a new kind must be added to all three, or the SOP is describing
+        # something the suite rejects"); until this line it did not, and a
+        # misspelled kind rode into the projection unremarked.
+        if self.kind not in SOURCE_REF_KINDS:
+            raise ValueError(
+                f"source ref kind must be one of {SOURCE_REF_KINDS}, got "
+                f"{self.kind!r}")
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SourceRef":
@@ -327,15 +351,29 @@ class SourceRef:
 # ---------------------------------------------------------------------------
 
 
+#: What part an element plays in the joint. **This tuple is the definition** --
+#: it was an end-of-line comment on :attr:`StackElement.role` until 2026-08-19,
+#: and this is the repo's *original* vocabulary-drift case: the comment and the
+#: SOP's list both omitted ``nut_geometry``, which the seeded take-2 had been
+#: using three times, and nothing enforced either list.
+#:
+#: ``nut_geometry`` is for a dimension transcribed but deliberately **not** folded
+#: in -- see the castellated-nut caveat in ``docs/SOP_TOLERANCE_STACK.md`` Step 5,
+#: which is where the words are elaborated. That list is paired against this tuple
+#: by ``tests/test_sop_vocabulary.py``.
+ELEMENT_ROLES = (
+    "bushing", "bearing", "washer", "clamped_member",
+    "relief", "fastener", "allowance", "nut_geometry",
+)
+
+
 @dataclass
 class StackElement:
     """One ordered element of the joint."""
 
     id: str
     name: str
-    # nut_geometry = transcribed but deliberately not folded in (the castellated-nut
-    # caveat); the seeded take-2 uses it three times and this comment omitted it.
-    role: str                        # bushing | bearing | washer | clamped_member | relief | fastener | allowance | nut_geometry
+    role: str                        # one of ELEMENT_ROLES, above
     nominal: float
     min: float
     max: float
@@ -347,6 +385,10 @@ class StackElement:
     note: Optional[str] = None
 
     def __post_init__(self) -> None:
+        if self.role not in ELEMENT_ROLES:
+            raise ValueError(
+                f"element {self.id!r}: role must be one of {ELEMENT_ROLES}, got "
+                f"{self.role!r}")
         if self.min > self.max:
             raise ValueError(f"element {self.id!r}: min {self.min} > max {self.max}")
 

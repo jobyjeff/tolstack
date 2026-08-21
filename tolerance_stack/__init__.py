@@ -11,6 +11,7 @@ decided by this slice. See ``docs/tolerance_stacks/README.md``.
 """
 
 from tolerance_stack.spec_library import (  # noqa: F401
+    SUBJECT_KINDS,
     Absence,
     IntakeQueue,
     IntakeRow,
@@ -27,6 +28,8 @@ from tolerance_stack.spec_library import (  # noqa: F401
 )
 from tolerance_stack.stack import (  # noqa: F401
     CONFIDENCES,
+    ELEMENT_ROLES,
+    SOURCE_REF_KINDS,
     VERDICT_SCOPES,
     CheckResult,
     ExportRun,
@@ -42,6 +45,9 @@ from tolerance_stack.stack import (  # noqa: F401
 
 __all__ = [
     "CONFIDENCES",
+    "ELEMENT_ROLES",
+    "SOURCE_REF_KINDS",
+    "SUBJECT_KINDS",
     "VERDICT_SCOPES",
     "Absence",
     "CheckResult",

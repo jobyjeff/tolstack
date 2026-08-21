@@ -20,8 +20,9 @@ from pathlib import Path
 import pytest
 
 from tolerance_stack import (
-    CONFIDENCES, VERDICT_SCOPES, CheckResult, ExportRun, SourceExport, SourceRef,
-    StackDefinition, StackElement, Term, fold, load_stack,
+    CONFIDENCES, ELEMENT_ROLES, SOURCE_REF_KINDS, VERDICT_SCOPES, CheckResult,
+    ExportRun, SourceExport, SourceRef, StackDefinition, StackElement, Term, fold,
+    load_stack,
 )
 
 STACKS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tolerance_stacks"
@@ -77,7 +78,14 @@ def test_the_stack_file_list_is_complete():
 
 
 def _el(id_, nominal, lo, hi):
-    return StackElement(id=id_, name=id_, role="test", nominal=nominal, min=lo, max=hi)
+    # `role="test"` until 2026-08-19, when `ELEMENT_ROLES` became enforced rather
+    # than documented. These elements are arithmetic fixtures and their role is
+    # irrelevant to every assertion below -- but "a role no stack may carry" is
+    # exactly what the constructor now refuses, and a test helper is not a reason
+    # to punch a hole in it. `clamped_member` is the most ordinary word in the
+    # vocabulary: it adds, it is not hardware, and it carries no caveat.
+    return StackElement(id=id_, name=id_, role="clamped_member",
+                        nominal=nominal, min=lo, max=hi)
 
 
 def test_fold_adds_max_to_max_and_min_to_min():
@@ -112,7 +120,8 @@ def test_fold_rss_ignores_sign_for_the_half_range():
 
 def test_element_rejects_inverted_limits():
     with pytest.raises(ValueError, match="min .* > max"):
-        StackElement(id="bad", name="bad", role="test", nominal=1.0, min=2.0, max=1.0)
+        StackElement(id="bad", name="bad", role="clamped_member",
+                     nominal=1.0, min=2.0, max=1.0)
 
 
 def test_term_rejects_a_non_unit_sign():
@@ -685,12 +694,13 @@ def test_source_ref_leaves_the_feature_identity_slot_open_and_empty(filename):
     for element in stack.elements:
         ref = element.source_ref
         assert ref.element_id is None and ref.run_id is None
-        # "spec" is the SOP's kind for a file in data/inbox/specs/. It was
-        # missing from this whitelist (and from SourceRef's docstring) because
-        # slice 1 had no spec to cite; pitch_link_to_pitch_plate cites three.
-        assert ref.kind in (
-            "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
-        )
+        # Read out of the definition rather than re-listed. This line used to be
+        # a hand-copy of the six words -- the copy that "spec" reached late,
+        # breaking the suite for the first from-scratch stack to cite a spec
+        # file. Since 2026-08-19 `SourceRef.__post_init__` enforces membership
+        # too; what is left here is the same residual value as the confidence
+        # line above (a future loader bypassing the dataclass still has to pass).
+        assert ref.kind in SOURCE_REF_KINDS
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
@@ -895,6 +905,35 @@ def test_a_source_ref_refuses_a_confidence_outside_the_vocabulary():
                              "confidence": "traced "})
 
 
+def test_a_source_ref_refuses_a_kind_outside_the_vocabulary():
+    """`SOURCE_REF_KINDS` reaches the constructor, and nothing else does.
+
+    Two documents in this repo asserted that this check existed before it did --
+    `docs/SOP_TOLERANCE_STACK.md` Step 5b told authors that *"a new kind must be
+    added to all three, or the SOP is describing something the suite rejects"*,
+    and `SourceRef` had no `__post_init__` at all until 2026-08-17. The prose was
+    describing a check nobody had written; this is it (2026-08-19).
+
+    Both directions are pinned, which is what makes the constant and the
+    validator one thing rather than two:
+
+    * every word in `SOURCE_REF_KINDS` constructs -- add a word to the tuple
+      without the validator reading the tuple and this half reddens;
+    * a word outside it raises -- widen the validator past the tuple and this
+      half reddens.
+    """
+    for good in SOURCE_REF_KINDS:
+        assert SourceRef(kind=good, document="217755").kind == good
+    for bad in ("Drawing", "drawings", "parts list", "", "spec_library", "banana"):
+        assert bad not in SOURCE_REF_KINDS      # anti-vacuity: these must be outside
+        with pytest.raises(ValueError, match="kind must be one of"):
+            SourceRef(kind=bad, document="217755")
+    # `from_dict` is the path every stack file and every `values_source` block
+    # takes; a typo must not survive the loader either.
+    with pytest.raises(ValueError, match="kind must be one of"):
+        SourceRef.from_dict({"kind": "drawing ", "document": "217755"})
+
+
 def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     """**The invariant, verified rather than asserted** -- the first time.
 
@@ -939,14 +978,39 @@ def test_element_role_comes_from_the_documented_vocabulary(filename):
     """The `role` list is the repo's original vocabulary-drift case: the SOP and
     `StackElement.role`'s comment both omitted `nut_geometry`, which the seeded
     take-2 uses three times, and nothing enforced either list. `kind` then drifted
-    the same way and broke the suite. A vocabulary lives in three places (SOP
-    prose, the dataclass comment, and this test); this is the third."""
+    the same way and broke the suite.
+
+    This test used to say "a vocabulary lives in three places (SOP prose, the
+    dataclass comment, and this test); this is the third" -- and being the third
+    copy was the defect, not the guard. Since 2026-08-19 there is one definition
+    (`ELEMENT_ROLES`), the constructor enforces it, `tests/test_sop_vocabulary.py`
+    pairs the SOP's list against it, and this test reads it."""
     stack = load_stack(STACKS_DIR / filename)
     for element in stack.elements:
-        assert element.role in (
-            "bushing", "bearing", "washer", "clamped_member",
-            "relief", "fastener", "allowance", "nut_geometry",
-        ), f"{stack.id}:{element.id} has undocumented role {element.role!r}"
+        assert element.role in ELEMENT_ROLES, (
+            f"{stack.id}:{element.id} has undocumented role {element.role!r}")
+
+
+def test_a_stack_element_refuses_a_role_outside_the_vocabulary():
+    """`ELEMENT_ROLES` reaches the constructor, and nothing else does.
+
+    The test above walks the stacks on disk, so it can only ever say that the
+    four files happen to be clean; it says nothing about the fifth stack somebody
+    writes tomorrow. This says what the constructor accepts, in both directions
+    (see `test_a_source_ref_refuses_a_kind_outside_the_vocabulary` for why both
+    halves are needed to keep the constant and the validator a single fact).
+    """
+    for good in ELEMENT_ROLES:
+        assert StackElement(id="e", name="n", role=good,
+                            nominal=1.0, min=0.9, max=1.1).role == good
+    for bad in ("Bushing", "bushings", "clamped member", "nut", "", "spacer"):
+        assert bad not in ELEMENT_ROLES         # anti-vacuity: these must be outside
+        with pytest.raises(ValueError, match="role must be one of"):
+            StackElement(id="e", name="n", role=bad, nominal=1.0, min=0.9, max=1.1)
+    # `from_dict` is the path `load_stack` takes for every element in every file.
+    with pytest.raises(ValueError, match="role must be one of"):
+        StackElement.from_dict({"id": "e", "name": "n", "role": "washer ",
+                                "nominal": 1.0, "min": 0.9, "max": 1.1})
 
 
 # ---------------------------------------------------------------------------
@@ -1803,9 +1867,7 @@ def test_every_inline_hardware_entry_cites_where_its_values_came_from():
             f"{entry['id']}: values_source is not source_ref-shaped: "
             f"{sorted(set(src) - set(SourceRef.__dataclass_fields__))}"
         )
-        assert src["kind"] in (
-            "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
-        )
+        assert src["kind"] in SOURCE_REF_KINDS
         # The raw JSON, so this one is NOT redundant with SourceRef's own check:
         # `hardware_entries.json` is read as a dict here, never constructed.
         assert src["confidence"] in CONFIDENCES

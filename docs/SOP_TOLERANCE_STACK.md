@@ -272,10 +272,14 @@ One `StackElement` per physical feature along the path, in physical order.
 `role` is one of `bushing | bearing | washer | clamped_member | relief |
 fastener | allowance | nut_geometry`. The last one is for values you transcribe
 but deliberately do **not** fold in — see the castellated-nut caveat in Step 5;
-the seeded take-2 uses it for three nut dimensions. This list lives in three
-places (see the `kind` bullet below for why that matters): this list,
-`StackElement.role`'s comment, and
-`tests/test_tolerance_stack.py::test_element_role_comes_from_the_documented_vocabulary`.
+the seeded take-2 uses it for three nut dimensions. This list is **one of two**
+copies and the other one is the definition: `ELEMENT_ROLES` in
+`tolerance_stack/stack.py`, which `StackElement.__post_init__` enforces. The two
+are compared word for word by
+`tests/test_sop_vocabulary.py::test_the_sop_spells_the_same_vocabularies_the_code_enforces`,
+so a role added here and nowhere else fails the suite rather than teaching you a
+word the code will refuse. (Until 2026-08-19 the list lived in three places, none
+of which checked anything — see the `kind` bullet below.)
 
 ### Store lengths. Never fold "MMC → max".
 
@@ -345,13 +349,24 @@ source's, not yours.
 
 - `kind`: `drawing | parts_list | workbook | spec | pipeline_element | assumed`.
   Use `spec` for a file in `data/inbox/specs/`, with the filename as `document`
-  and the **page number** as `sheet`. This vocabulary lives in **three** places:
-  this list, the inline comment on `SourceRef.kind` in `tolerance_stack/stack.py`,
-  and the whitelist in
-  `tests/test_tolerance_stack.py::test_source_ref_leaves_the_feature_identity_slot_open_and_empty`.
-  A new kind must be added to all three, or the SOP is describing something the
-  suite rejects — which is exactly what happened to `spec`, the first time a
-  compliant from-scratch stack used it. The same applies to the `role` list above.
+  and the **page number** as `sheet`. This vocabulary lives in **two** places:
+  this list, and `SOURCE_REF_KINDS` in `tolerance_stack/stack.py`, which is the
+  definition — `SourceRef.__post_init__` refuses anything else, so a misspelled
+  kind now raises at load instead of riding into the viewer. A new kind must be
+  added to both, and
+  `tests/test_sop_vocabulary.py::test_the_sop_spells_the_same_vocabularies_the_code_enforces`
+  fails if you add it to only one. The same applies to the `role` list above.
+
+  > Until 2026-08-19 this bullet said the vocabulary lived in **three** places —
+  > this list, an inline comment on `SourceRef.kind`, and a whitelist in
+  > `test_source_ref_leaves_the_feature_identity_slot_open_and_empty` — and that
+  > *"a new kind must be added to all three, or the SOP is describing something
+  > the suite rejects"*. Half of that was aspirational: the whitelist covered
+  > only the elements on disk, `SourceRef` validated nothing at all, and the SOP
+  > was describing a check that did not exist. It exists now. What did happen, in
+  > 2026-08-04, is the other failure the sentence predicted: `spec` was mandated
+  > in this prose and missing from the whitelist, and it broke the suite the first
+  > time a compliant from-scratch stack cited a spec file.
 - `callout` is the text **as it reads on the drawing**. This is what lets a human
   re-find the value; without it a citation is an address with no content.
 - **`export` — which export of `document` you read. Mandatory on every `drawing`
