@@ -19,12 +19,13 @@ nothing failing. That has now happened **three times**:
 ===  ==============================  ==========================================
 
 Sighting 1 was mechanised by
-``test_element_role_comes_from_the_documented_vocabulary`` -- but that test pins
-the vocabulary in *a third copy* of it rather than reading the SOP, so the SOP can
-still drift away from the pair. This module reads the SOP.
+``test_element_role_comes_from_the_documented_vocabulary`` -- but that test pinned
+the vocabulary in *a third copy* of it rather than reading the SOP, so the SOP
+could still drift away from the pair. This module reads the SOP.
 
-Two checks, and they catch different failures, which is the point worth carrying
-forward (``sop_library_ref_pairing``, 2026-08-11):
+Three checks, and they catch different failures, which is the point worth carrying
+forward (``sop_library_ref_pairing``, 2026-08-11; check 3 added by
+``three_field_vocabularies``, 2026-08-19):
 
 1. **The examples.** Every ``hardware_entry`` example in the SOP's Step 4 is
    parsed and run through ``hardware_entry_problems`` -- the same function that
@@ -35,6 +36,13 @@ forward (``sop_library_ref_pairing``, 2026-08-11):
    SOP's example was internally valid and every value the data used was
    documented, so no vocabulary or example check fires on it. Only the sentence
    was wrong.
+
+3. **The vocabularies.** The pipe-lists the SOP teaches for ``SourceRef.kind``
+   and ``StackElement.role`` are compared word for word against
+   ``SOURCE_REF_KINDS`` and ``ELEMENT_ROLES`` -- the module constants that are the
+   definitions, and that ``__post_init__`` now enforces. This is what closes
+   sightings 1 and 2: not a third copy of the words, a *pairing* of the only two
+   that remain.
 
 Check 1 would have caught neither sighting 3 nor sightings 1-2; check 2 catches
 only what someone has written a phrase for. That gap is reported in
@@ -54,6 +62,7 @@ from pathlib import Path
 import pytest
 
 from tests.test_tolerance_stack import STACKS_DIR, hardware_entry_problems
+from tolerance_stack import ELEMENT_ROLES, SOURCE_REF_KINDS
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOP_PATH = REPO_ROOT / "docs" / "SOP_TOLERANCE_STACK.md"
@@ -361,3 +370,117 @@ def test_the_scan_catches_the_reconstructed_sighting_three():
     assert [e["library_ref"] for e in old] == [None], (
         "at abfaf5a Step 4 had exactly one example and its library_ref was null"
     )
+
+
+# --------------------------------------------------------------------------- #
+# 3. the vocabularies: the SOP's pipe-lists against the constants that are     #
+#    now enforced                                                             #
+# --------------------------------------------------------------------------- #
+
+#: One row per vocabulary the SOP spells out: ``(field, anchor, constant)``. The
+#: ``anchor`` is the literal text the pipe-list follows; the list itself is the
+#: next backtick-delimited span after it, which may wrap across lines.
+#:
+#: ``SpecEntry.subject_kind`` is deliberately absent: the SOP is the *stack*
+#: author's document and never mentions it, so there is no prose here to pair.
+#: Its definition (``spec_library.SUBJECT_KINDS``) is enforced by
+#: ``SpecEntry.__post_init__`` and pinned by
+#: ``tests/test_spec_library.py::test_an_entry_refuses_a_subject_kind_outside_the_vocabulary``.
+#: ``SpecEntry.kind`` (``# NAS/MS standard | MIL standard | ... | ...``) is not a
+#: vocabulary at all -- it ends in ``| ...``, so it is free text with examples.
+_SOP_VOCABULARIES = (
+    ("SourceRef.kind", "\n- `kind`: ", SOURCE_REF_KINDS),
+    ("StackElement.role", "\n`role` is one of ", ELEMENT_ROLES),
+)
+
+
+def sop_pipe_list(anchor: str, text: str | None = None) -> tuple[str, ...]:
+    """The ``a | b | c`` list in the first backtick span after ``anchor``.
+
+    Takes ``text`` for the same reason ``sop_json_blocks`` does -- so the mutated
+    copies in the can-fail test below exercise the real extractor.
+    """
+    body = text if text is not None else SOP_PATH.read_text(encoding="utf-8")
+    at = body.find(anchor)
+    assert at >= 0, (
+        f"the SOP no longer contains {anchor!r}, so this pairing is reading "
+        f"nothing. Re-anchor it on the sentence that now carries the list -- do "
+        f"not delete the check."
+    )
+    assert body.find(anchor, at + 1) < 0, (
+        f"{anchor!r} appears twice in the SOP; the pairing would silently read "
+        f"whichever came first"
+    )
+    start = body.index("`", at + len(anchor))
+    end = body.index("`", start + 1)
+    return tuple(w.strip() for w in re.sub(r"\s+", " ", body[start + 1:end]).split("|"))
+
+
+@pytest.mark.parametrize(
+    "field, anchor, constant", _SOP_VOCABULARIES,
+    ids=[row[0] for row in _SOP_VOCABULARIES],
+)
+def test_the_sop_spells_the_same_vocabularies_the_code_enforces(field, anchor, constant):
+    """Sightings 1 and 2 of the table above, mechanised — the pairing, not a copy.
+
+    ``test_element_role_comes_from_the_documented_vocabulary`` was this module's
+    docstring's own example of the *wrong* fix: it pinned the vocabulary in a
+    third copy instead of reading the SOP, so the SOP could still drift away from
+    the pair. Since ``three_field_vocabularies`` (2026-08-19) the tuple in
+    ``tolerance_stack/stack.py`` is the single definition and the constructor
+    refuses anything outside it, which leaves exactly one thing left to check:
+    that the words an author reads in the SOP are the words the constructor will
+    accept.
+
+    Order is compared as well as membership. Nothing depends on it, but the two
+    lists agree on it today and a reordering is a diff worth seeing — the
+    message below separates the two failures so a re-order is never reported as
+    a missing word.
+    """
+    spelled = sop_pipe_list(anchor)
+    assert set(spelled) == set(constant), (
+        f"docs/SOP_TOLERANCE_STACK.md and `{field}`'s definition disagree about "
+        f"the vocabulary:\n"
+        f"  the SOP teaches, the code refuses: {sorted(set(spelled) - set(constant))}\n"
+        f"  the code accepts, the SOP omits:   {sorted(set(constant) - set(spelled))}\n"
+        f"A word must reach both. The constant is the definition; the SOP list is "
+        f"what an author reads."
+    )
+    assert spelled == tuple(constant), (
+        f"same words, different order: SOP {spelled} vs {tuple(constant)}"
+    )
+
+
+def test_the_vocabulary_pairing_can_fail():
+    """Both directions of drift, against the real extractor and the real prose.
+
+    A pairing demonstrated only by passing has not shown that it reads anything;
+    this replays the two ways the four historical sightings actually happened —
+    the SOP mandating a word the code does not have (`spec`, 2026-08-04) and the
+    code gaining one the SOP does not teach (`nut_geometry`, before 2026-08-05).
+    """
+    live = SOP_PATH.read_text(encoding="utf-8")
+    for _field, anchor, constant in _SOP_VOCABULARIES:
+        spelled = sop_pipe_list(anchor, live)
+        assert spelled == tuple(constant)       # anti-vacuity: the live text pairs
+
+        # The SOP mandates a word the code will refuse.
+        widened = live.replace(
+            f"{anchor}`{_span(live, anchor)}`",
+            f"{anchor}`{_span(live, anchor)} | invented_kind`",
+        )
+        assert set(sop_pipe_list(anchor, widened)) - set(constant) == {"invented_kind"}
+
+        # The SOP drops a word the code still accepts.
+        span = _span(live, anchor)
+        narrowed = live.replace(f"{anchor}`{span}`",
+                                f"{anchor}`{span.split('|', 1)[1].strip()}`")
+        assert set(constant) - set(sop_pipe_list(anchor, narrowed)) == {spelled[0]}
+
+
+def _span(text: str, anchor: str) -> str:
+    """The raw backtick span after ``anchor``, newlines and all -- what the
+    mutations above have to splice back verbatim."""
+    at = text.find(anchor)
+    start = text.index("`", at + len(anchor))
+    return text[start + 1:text.index("`", start + 1)]

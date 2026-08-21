@@ -23,7 +23,9 @@ from pathlib import Path
 
 import pytest
 
-from tolerance_stack import IntakeQueue, ParseEvent, build_library, load_events
+from tolerance_stack import (
+    SUBJECT_KINDS, IntakeQueue, ParseEvent, build_library, load_events,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EVENTS_DIR = REPO_ROOT / "docs" / "spec_library" / "events"
@@ -463,6 +465,30 @@ def test_the_shapes_reject_inverted_limits_and_an_unknown_confidence():
     with pytest.raises(ValueError, match="confidence"):
         _event(entries=[{"subject": "S", "subject_kind": "part_number",
                          "values": {"x": {"nominal": 1.0, "at": {}, "confidence": "vibes"}}}])
+
+
+def test_an_entry_refuses_a_subject_kind_outside_the_vocabulary():
+    """`SUBJECT_KINDS` reaches the constructor, and nothing else does.
+
+    Until 2026-08-19 this vocabulary was the most exposed of the three the
+    `three_field_vocabularies` handoff closed: it lived in an end-of-line comment
+    on `SpecEntry.subject_kind` and **nowhere else** -- no constant, no test
+    whitelist, no consumer that enumerated it -- so an event file could spell
+    `partnumber` and it would be folded into the library, written into the
+    projection and read by a person before anything noticed.
+
+    Both directions are pinned, so the constant and the validator stay one fact:
+    every word constructs, and a word outside the tuple raises. The path checked
+    is `ParseEvent.from_dict`, which is what `load_event` uses for every file in
+    `docs/spec_library/events/` -- the entry dataclass is never built by hand.
+    """
+    for good in SUBJECT_KINDS:
+        entry = _event(entries=[{"subject": "S", "subject_kind": good}]).entries[0]
+        assert entry.subject_kind == good
+    for bad in ("partnumber", "part number", "Part_Number", "", "part_numbers"):
+        assert bad not in SUBJECT_KINDS         # anti-vacuity: these must be outside
+        with pytest.raises(ValueError, match="subject_kind must be one of"):
+            _event(entries=[{"subject": "S", "subject_kind": bad}])
 
 
 def test_an_event_cannot_name_a_subject_twice():
