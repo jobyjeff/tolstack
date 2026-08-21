@@ -691,10 +691,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       *mandated* by the SOP, omitted from `SourceRef.kind`'s comment, **and**
       omitted from the whitelist in
       `test_source_ref_leaves_the_feature_identity_slot_open_and_empty`, so the
-      first compliant from-scratch stack made the suite fail. A vocabulary lives in
-      **three** places (SOP prose, the dataclass comment, the enforcing test);
-      check all three, not two. **Third sighting (`sop_library_ref_pairing`,
-      2026-08-11)** — and it changes what you have to do here, twice over. It is
+      first compliant from-scratch stack made the suite fail (the whitelist it
+      names was a hand-copy that only walked the elements on disk;
+      `test_source_ref_leaves_the_feature_identity_slot_open_and_empty` now reads
+      the constant instead — see the fourth sighting below for what replaced it).
+      At the time, a vocabulary lived in **three** places (SOP prose, the
+      dataclass comment, the enforcing test); check all three, not two. **Third
+      sighting (`sop_library_ref_pairing`, 2026-08-11)** — and it changes what you
+      have to do here, twice over. It is
       the variant *no* vocabulary-vs-data test can catch: every value the SOP named
       (`inline | library | not_transcribed`) was documented and its example was
       internally valid; what was wrong was a **sentence about a rule** — the SOP
@@ -712,7 +716,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       *newly invented* wrong sentence passes; it skips blockquotes (the correction
       escape) and `docs/sessions/`, `docs/issues/`, `docs/reference/`. It is a
       tripwire, not a parser — do not let its green count as "the prose was
-      checked".
+      checked". **Fourth sighting (`three_field_vocabularies`, 2026-08-19),
+      closing `kind` and `role` rather than adding a fourth copy:** the vocabulary
+      now lives in **two** places, and neither is a comment —
+      `SOURCE_REF_KINDS`/`ELEMENT_ROLES` (`tolerance_stack/stack.py`, enforced by
+      `__post_init__`) and the SOP's pipe-list, paired word-for-word by
+      `tests/test_sop_vocabulary.py::test_the_sop_spells_the_same_vocabularies_the_code_enforces`.
+      Do not look for a dataclass comment; there isn't one, on purpose. What that
+      pairing does not cover is `SpecEntry.subject_kind` (`SUBJECT_KINDS` in
+      `tolerance_stack/spec_library.py`) — the SOP is the *stack* author's document
+      and never mentions it, so it has no prose to pair and is pinned only by its
+      constructor test. Check the pairing test's own can-fail replay
+      (`test_the_vocabulary_pairing_can_fail`) rather than re-deriving the diff by
+      hand — that is the one thing left for you: whether a *sentence about a rule*
+      (not a word list) drifted, which no vocabulary-vs-constant pairing can see.
 - [ ] **Documents cited from a worktree that cannot see them.** `data/` is
       gitignored, so `data/inbox/specs/` in a worktree holds one tracked
       `README.md` and nothing else — the pile (several dozen files, and growing;

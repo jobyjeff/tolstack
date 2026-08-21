@@ -71,6 +71,19 @@ EVENT_MODES = ("full", "correction")
 # carry a number, so they never carry a confidence either.
 CONFIDENCES = STACK_CONFIDENCES
 
+# What kind of thing a library subject names. **This tuple is the definition** --
+# it was an end-of-line comment on `SpecEntry.subject_kind` until 2026-08-19, and
+# it was the most exposed of the repo's comment-defined vocabularies: unlike
+# `SourceRef.kind` and `StackElement.role` it had no test whitelist either, so an
+# event file could spell `subject_kind: "partnumber"` and nothing anywhere failed.
+#
+# A `part_number` is a full callable part (`NAS6403U11D`); a `criterion` is a
+# cited requirement (`JPS00094 5.9.7`); a `family` carries the facts that belong
+# to a standard rather than to any one part of it (the CODE block, note (a)'s
+# definition of grip) -- see `docs/spec_library/README.md`, "Why not per-family
+# tables", for why the family/part split exists at all.
+SUBJECT_KINDS = ("part_number", "criterion", "family")
+
 
 # ---------------------------------------------------------------------------
 # Where in a document one value was read
@@ -214,11 +227,21 @@ class SpecEntry:
     """
 
     subject: str
-    subject_kind: str                     # part_number | criterion | family
+    subject_kind: str                     # one of SUBJECT_KINDS, above
     values: Dict[str, SpecValue] = field(default_factory=dict)
     absences: List[Absence] = field(default_factory=list)
     unreadable: List[Unreadable] = field(default_factory=list)
     note: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        # `from_dict` is the only path a real event takes and it goes through
+        # here, which is the whole point: before 2026-08-19 a misspelled
+        # subject_kind was accepted by the loader, folded into the library and
+        # written into the projection with nothing to notice it.
+        if self.subject_kind not in SUBJECT_KINDS:
+            raise ValueError(
+                f"entry {self.subject!r}: subject_kind must be one of "
+                f"{SUBJECT_KINDS}, got {self.subject_kind!r}")
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "SpecEntry":
