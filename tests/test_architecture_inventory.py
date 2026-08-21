@@ -25,8 +25,9 @@ Precedent and its rule
 ----------------------
 
 ``tests/test_js_python_vocabulary.py`` and ``tests/test_sop_vocabulary.py`` pair a
-document against the code it describes, and ``test_hardware_entry_count_claims``
-in ``tests/test_tolerance_stack.py`` is the count-claim scanner. What is borrowed
+document against the code it describes, and
+``test_no_live_document_states_an_unguarded_hardware_entry_count`` in
+``tests/test_tolerance_stack.py`` is the count-claim scanner. What is borrowed
 is their rule: **never restate the thing being guarded.** No import list, no
 importer list and no module list is written out below -- each is read from the
 tree, and every extraction is asserted non-empty before anything is compared,

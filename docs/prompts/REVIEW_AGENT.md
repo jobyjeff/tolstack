@@ -1164,6 +1164,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       and confirm the hunk falls inside that symbol (`ast`, or just the nearest
       preceding `def`). Do it for **file:line** citations too, which age faster
       than names.
+      **Second sighting (`architecture_inventory_quantifiers`, 2026-08-21), and
+      the wrong name this time is not even real.** The new
+      `tests/test_architecture_inventory.py` module docstring named
+      `test_hardware_entry_count_claims` in `tests/test_tolerance_stack.py` as
+      "the count-claim scanner" — no such test exists anywhere in the repo. The
+      actual scanner is `test_no_live_document_states_an_unguarded_hardware_entry_count`.
+      A one-command check would have caught it: `grep -rn <name> tests/`
+      returning nothing is a stronger tell than a name that resolves to the
+      wrong symbol, and it costs the same command. Fixed inline in review.
 
 ## Architectural errors to check
 
@@ -1177,7 +1186,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `sign`, and a negative coefficient would give a sign error two places to
       hide. `workbook_corner()` is the one sanctioned reader of `lmc`/`mmc`; it
       reproduces a source spreadsheet's coherent corner for comparison and is
-      deliberately not routed through `fold()`.
+      deliberately not routed through `fold()` — but it *does* combine two
+      element values (`sleeve_od = sleeve_bore + 2 * wall`), which is exactly
+      what the "one place element values get combined" sentence above forbids.
+      `ARCHITECTURE.md` currently asserts both "never combines two element
+      values" (unqualified) and the `workbook_corner` exception, in two
+      different sections, unreconciled
+      (`ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values.md`,
+      `audience: strategy`, filed by `architecture_inventory_quantifiers`).
+      Until that issue is decided, do not "fix" either sentence unilaterally —
+      check whether the design call has landed, and if not, that the issue is
+      still open and still describes the tree accurately.
 - [ ] **A generated check must not be hand-writable, and must be readable.**
       A `thermal_fit` stack file's own `checks` array is empty and
       `load_thermal_fit_stack()` refuses a hand-written entry — a check in the file
