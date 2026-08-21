@@ -541,6 +541,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       vanished: diff the doc's headings against its previous version yourself.
       Design question filed, deliberately not patched —
       `ISSUE_20260812_the_doc_scan_guards_cannot_fail_on_a_deleted_section.md`.
+      **Closed 2026-08-19** (`enumerated_state_doc_guard`) for the slice of this
+      that has code-derived ground truth: `test_every_enumerated_viewer_state_is_named_in_a_live_document`
+      requires every state `VA.EXPORT_STATUSES` and the `values_status` check
+      can produce to be named by its code spelling in `apps/viewer/README.md`,
+      and `test_the_enumerated_state_doc_guard_catches_the_08_12_deletion`
+      replays this exact section deletion to prove it goes red. That still
+      does not cover prose documenting no enumerated state (an architecture
+      note, a launch paragraph) — the issue's shape 1 (required-heading
+      manifest) and shape 3 (claim-count baseline) were rejected as their own
+      staleness surfaces, so **that class stays this checklist item's job**:
+      still diff the doc's headings against its previous version yourself.
 - [ ] **Surviving `{{REPO_NAME}}` from the template stamp.** forge's
       `conventions._substitute_names` walks only `.md`/`.txt`/`.toml`, so
       placeholders live on in `.ps1`/`.py` stubs. Grep the diff for `{{`.
