@@ -187,7 +187,7 @@ class SourceExport:
     ``docs/sessions/lessons/LESSONS_20260806_citation_export_provenance.md``.
     """
 
-    status: str                      # established | unestablished
+    status: str                      # one of EXPORT_STATUSES, above
     pdf: Optional[str] = None        # path as cited: repo-relative for this repo's
                                      # data/, absolute for drawing-checker's
     sha256: Optional[str] = None     # 64 hex chars -- the export's identity
