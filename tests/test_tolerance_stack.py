@@ -23,6 +23,9 @@ from tolerance_stack import (
     CONFIDENCES, VERDICT_SCOPES, CheckResult, ExportRun, SourceExport, SourceRef,
     StackDefinition, StackElement, Term, fold, load_stack,
 )
+from tolerance_stack.stack import EXPORT_STATUSES
+
+from tests.test_js_python_vocabulary import python_values_statuses
 
 STACKS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tolerance_stacks"
 TOL = 1e-6  # the workbook's cached values are full-precision floats
@@ -1694,6 +1697,194 @@ def test_the_hardware_entry_count_guard_can_fail():
     # keeps a dated "this used to say X" from being a permanent test failure.
     assert hardware_entry_count_claims(f'> {stale}') == []
     assert hardware_entry_count_claims(f'it read "{stale}" until 2026-08-12') == []
+
+
+# --------------------------------------------------------------------------- #
+# The enumerated-state doc guard (review/enumerated_state_doc_guard,         #
+# 2026-08-19) -- closes ISSUE_20260812_the_doc_scan_guards_cannot_fail_       #
+# on_a_deleted_section.md.                                                   #
+# --------------------------------------------------------------------------- #
+#
+# That issue's design question, decided here: a doc-scan guard built to catch
+# a stale *number* cannot catch a *deleted* section, because "states nothing"
+# disagrees with nothing. BRIEF_20260817_doc_scan_deletion_guards weighed four
+# shapes; this is shape 2, picked over the others for reasons worth keeping
+# next to the code that embodies the choice:
+#
+#   1. A required-heading manifest -- explicit, but hand-kept, and prose gets
+#      restructured legitimately, so it goes stale exactly like a hand-kept
+#      state list would (`live_documents()`'s own docstring names that trap).
+#   3. A stored baseline of how many claims `hardware_entry_count_claims()`
+#      finds -- catches deletion generically, but the baseline is itself a
+#      number nobody re-derives, i.e. its own staleness surface.
+#   4. Do nothing here; treat this as working-tree hygiene (the 2026-08-12
+#      cause really was a stale editor buffer, not an author). Real, but it
+#      leaves the *documentation* gap unguarded even when the cause next time
+#      is an author, not an editor.
+#
+# Shape 2 -- derive the requirement from the data instead of from a list of
+# sections -- is what is built below: every state `VA.EXPORT_STATUSES` and the
+# `values_status` check can produce must be *mentioned by name* in the README
+# of the surface that renders it. Add a state to either enum and this guard
+# demands it be named before it can pass; delete the passage that names an
+# existing state (by cutting a heading, a table row, or the whole file) and
+# this guard goes red where the stale-count guards above stay green, because
+# "the value is X" and "X exists" are different claims and only the second
+# survives a deletion with nothing rewritten in its place.
+#
+# The surface -> README pairing below IS a small hand-kept map, and that looks
+# like exactly the thing shape 1 was rejected for. It is not the same trap:
+# shape 1 hand-keeps *which headings must exist*, which drifts every time
+# prose is restructured (headings get renamed and reworded often). This map
+# hand-keeps *which file documents a branch table the viewer owns*, which
+# changes only when the surface itself moves -- rare enough, and load-bearing
+# enough, that going quiet instead of loud on that move would be the worse
+# failure. Read through `live_documents()` rather than by a bare `Path()`
+# open, so that if the surface's README ever stops being a *live* document
+# (renamed into `docs/sessions/`, or the file deleted outright) this guard
+# raises instead of silently reading nothing.
+#
+# The states themselves are NOT hand-kept: each vocabulary is read the same
+# way tests/test_js_python_vocabulary.py already reads it for the JS/Python
+# pairing -- from the check or the enum itself, never a copy -- so a state
+# this guard misses is a state that vocabulary-pairing test would also miss.
+#
+# The deliberate boundary: this protects sections that document an ENUMERATED
+# CODE STATE, and nothing else. A "how to launch this" paragraph, an
+# architecture rationale, a worked example -- all real prose this repo would
+# also lose to a bad edit -- carry no enumerated state and so are NOT covered.
+# That is intentional, not an oversight: there is no code-derived ground truth
+# for "this paragraph must keep existing" the way there is for "this code
+# value must be named somewhere", so guarding it would mean going back to a
+# hand-kept heading manifest (shape 1) one level down. That prose stays the
+# review checklist's job (REVIEW_AGENT.md, "a doc-scan guard cannot fail on a
+# deleted section") plus working-tree hygiene (shape 4) -- not a test.
+#
+# Why the search is scoped to the owning README rather than "anywhere in
+# `live_documents()`": every stack/materials JSON under docs/ carries these
+# same words as literal FIELD VALUES (`"status": "established"` on a
+# `source_ref.export`), which `_prose_blocks` walks like any other string --
+# so a corpus-wide search never goes empty and the guard could never fail.
+# Scoping to one Markdown file sidesteps that: a `.md` file has exactly one
+# prose block (its own text), no embedded data values to confuse with prose.
+_ENUMERATED_STATE_VOCABULARIES = [
+    ("VA.EXPORT_STATUSES (tolerance_stack/stack.py: EXPORT_STATUSES)",
+     lambda: EXPORT_STATUSES,
+     "apps/viewer/README.md"),
+    ("VA.VALUES_STATUSES (tolerance_stack/thermal.py: the values_status check "
+     "in MaterialEntry.__post_init__)",
+     python_values_statuses,
+     "apps/viewer/README.md"),
+]
+
+
+def _state_mention_pattern(state: str) -> re.Pattern:
+    """Match ``state`` by name: case-insensitive, and with its underscores
+    allowed to read as spaces, because that is how the same name is rendered on
+    screen -- ``not_transcribed`` the code value is ``NOT TRANSCRIBED`` the
+    legend row, and that is one name, not two."""
+    return re.compile(r"\b" + re.escape(state).replace("_", "[_ ]") + r"\b", re.I)
+
+
+def _surface_readme_text(repo_root: Path, surface: str) -> str:
+    """The current text of ``surface`` (a repo-relative path), read through
+    ``live_documents()`` so a surface README that stops being live raises here
+    instead of this guard silently checking nothing."""
+    match = next(
+        (p for p in live_documents(repo_root)
+         if p.relative_to(repo_root).as_posix() == surface), None)
+    if match is None:
+        raise LookupError(
+            f"{surface} is not a live document -- it was renamed, deleted, or "
+            "moved under a directory live_documents() skips. Update the surface "
+            "in _ENUMERATED_STATE_VOCABULARIES to wherever it documents these "
+            "states now."
+        )
+    return match.read_text(encoding="utf-8")
+
+
+def _missing_enumerated_state_mentions(
+        repo_root: Path, overrides: dict[str, str] | None = None,
+) -> list[tuple[str, str, str]]:
+    """``(state, vocabulary, surface)`` for every enumerated state not named in
+    its surface's README. ``overrides`` substitutes a surface's text (used by
+    the replay test below) without touching the file on disk."""
+    overrides = overrides or {}
+    missing = []
+    cache: dict[str, str] = {}
+    for vocabulary, states_fn, surface in _ENUMERATED_STATE_VOCABULARIES:
+        if surface in overrides:
+            text = overrides[surface]
+        else:
+            text = cache.setdefault(surface, _surface_readme_text(repo_root, surface))
+        for state in states_fn():
+            if not _state_mention_pattern(state).search(text):
+                missing.append((state, vocabulary, surface))
+    return missing
+
+
+def test_every_enumerated_viewer_state_is_named_in_a_live_document():
+    """Every state `VA.EXPORT_STATUSES` and the `values_status` check can
+    produce must be named in `apps/viewer/README.md` -- the one file that
+    documents both branch tables today, found by walking `live_documents()`
+    rather than by a bare path open (see the module comment above).
+    """
+    repo_root = STACKS_DIR.parent.parent
+    missing = _missing_enumerated_state_mentions(repo_root)
+    assert missing == [], (
+        "enumerated code states with no mention in their owning surface's "
+        "README -- add a state to VA.EXPORT_STATUSES or the values_status "
+        "check and this fails until that surface's README says its name:\n  " +
+        "\n  ".join(f"{state!r} ({vocabulary}) -- expected in {surface}"
+                     for state, vocabulary, surface in missing))
+
+
+def test_the_enumerated_state_doc_guard_catches_the_08_12_deletion():
+    """The replay `ISSUE_20260812_the_doc_scan_guards_cannot_fail_on_a_deleted_section.md`
+    demands: cut `## Which bytes the number was read off` out of
+    `apps/viewer/README.md`, plus the `EXPORT UNESTABLISHED` and
+    `CTE NOT TRANSCRIBED` legend rows -- the exact edit that left the suite at
+    `350 passed, 0 failed` on 2026-08-12, because the stale-count guards above
+    only recount numbers that are still present. With that section and both
+    rows gone, nothing left in the README names `established` or
+    `unestablished` by their code spelling, so the guard above must go red.
+
+    Done on an in-memory copy of the README's text, never by writing a broken
+    README to disk -- this handoff's scope is explicit that the live documents
+    are not to be restructured beyond what this demonstration needs.
+    """
+    repo_root = STACKS_DIR.parent.parent
+    surface = "apps/viewer/README.md"
+    original = _surface_readme_text(repo_root, surface)
+
+    section = re.compile(
+        r"\n## Which bytes the number was read off\n.*?(?=\n## )", re.S)
+    mutated, n = section.subn("\n", original)
+    assert n == 1, (
+        "the section this test replays deleting has moved or been renamed in "
+        "apps/viewer/README.md -- update the replay, not the assertion below")
+
+    lines = mutated.splitlines(keepends=True)
+    kept = [ln for ln in lines if "EXPORT UNESTABLISHED" not in ln]
+    assert len(kept) == len(lines) - 1, (
+        "the EXPORT UNESTABLISHED legend row has moved or been renamed")
+    lines = kept
+    kept = [ln for ln in lines if "CTE NOT TRANSCRIBED" not in ln]
+    assert len(kept) == len(lines) - 1, (
+        "the CTE NOT TRANSCRIBED legend row has moved or been renamed")
+    mutated = "".join(kept)
+
+    before = _missing_enumerated_state_mentions(repo_root)
+    assert before == [], (
+        "sanity check failed before the replay even starts -- the guard "
+        f"above should already be catching this: {before}")
+
+    after = _missing_enumerated_state_mentions(
+        repo_root, overrides={surface: mutated})
+    after_states = {state for state, _, _ in after}
+    assert {"established", "unestablished"} <= after_states, (
+        "the 08-12 deletion no longer removes every mention of the export "
+        f"states this guard exists to protect; it now flags {sorted(after_states)}")
 
 
 def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():

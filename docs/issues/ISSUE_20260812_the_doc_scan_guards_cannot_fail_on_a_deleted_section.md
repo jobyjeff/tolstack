@@ -1,8 +1,9 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 strategy: docs/strategy/BRIEF_20260817_doc_scan_deletion_guards.md
+handoff: docs/sessions/HANDOFF_20260819_enumerated_state_doc_guard.md
 area: tests / doc-scan guards
 reporter: agent
 audience: strategy
@@ -99,3 +100,24 @@ are not exclusive.
 Filed from `restore_viewer_readme`, whose handoff explicitly scoped the fix out
 ("report the guard gap — do not build the fix here", deliverable 5). Nothing in
 this issue is blocking: the README is restored and correct as of 2026-08-12.
+
+## Resolution (2026-08-19, `enumerated_state_doc_guard`)
+
+Jeff picked shape 2. `tests/test_tolerance_stack.py` now carries
+`test_every_enumerated_viewer_state_is_named_in_a_live_document` (every state
+`VA.EXPORT_STATUSES` and the `values_status` check can produce must be named
+by its code spelling in `apps/viewer/README.md`) and
+`test_the_enumerated_state_doc_guard_catches_the_08_12_deletion` (replays this
+exact deletion on an in-memory copy of the README and asserts the new guard
+goes red where the stale-count guards stayed green). Shape 1 and shape 3 were
+declined for the reasons this issue already gives — see the decision comment
+above `_ENUMERATED_STATE_VOCABULARIES` in that file for the fuller writeup,
+and `docs/prompts/REVIEW_AGENT.md`'s entry on this issue for the reviewer-facing
+version.
+
+**Not fully closed:** shape 2 only protects sections documenting an enumerated
+code state. Prose that documents nothing enumerable (an architecture note, a
+launch paragraph) has no code-derived ground truth to guard it by and is still
+this repo's blind spot — covered by the review checklist and working-tree
+hygiene, not a test. That boundary is deliberate (see the same decision
+comment), not a remaining TODO on this issue.
