@@ -15,11 +15,11 @@ Founded 2026-08-03 by handoff `tolstack_founding`, importing the
 tolerance_stack/
   __init__.py       re-exports the public names
   __main__.py       `python -m tolerance_stack` -- rebuild the spec projection
-  stack.py          the stack shapes + the fold. ~330 lines, stdlib only.
+  stack.py          the stack shapes + the fold. stdlib only.
   spec_library.py   the parse-event shapes + the library fold. stdlib only.
   thermal.py        the thermal-fit archetype: materials + the check generator.
-                    stdlib only, and no arithmetic of its own beyond
-                    thermal_factor(). Added 2026-08-05.
+                    stdlib only. Added 2026-08-05. What arithmetic it may hold is
+                    bounded by "Where computation may live", below.
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
@@ -34,6 +34,15 @@ scripts/
 apps/
   viewer/           the static stack/check review surface (see its README)
 ```
+
+That listing is paired with the tree by `tests/test_architecture_inventory.py`:
+its row set against the directories it names, `stdlib only` against each module's
+imports, `all three projection writers` against the modules that actually import
+`projection_provenance`. It also **refuses a quantifier it does not read from the
+tree**, which is why no row carries a line count: `stack.py` read *"~330 lines"*
+from founding until 2026-08-19, by which point it was 728
+(`ISSUE_20260818_architecture_module_inventory_line_count_is_stale`). A figure
+here that nothing checks is the defect, not the value it happens to have.
 
 `stack.py` is deliberately the whole stack implementation. Its contents:
 
