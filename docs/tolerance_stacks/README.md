@@ -66,11 +66,13 @@ There is deliberately **no registry**. A registry wants three archetypes.
 | `WORKSHEET_vpa_output_to_pitch_plate.md` | Same, for the VPA joint. |
 | `WORKSHEET_pitch_link_to_pitch_plate.md` | Same shape minus the re-derivation section (nothing to re-derive), plus the joint-identification argument and a **Refused** table of values not filled from memory. |
 | `WORKSHEET_hub_bearing_thermal_fit.md` | Both thermal-fit stacks in one worksheet. Carries the finding that the source's coherent-corner method understates the loosest stage-1 fit by 0.05 mm, and an appendix listing **every generated term, sign and weight** — the reviewability the generated checks cost. |
+| `WORKSHEET_end_stop_graft.md` | Structured read of `260825_End_Stop_JC.xlsx`, a **third archetype**: a blade-pitch angular-position-error rollup, not a linear or diametral stack. Traces **0 of 38** element instances — the least traceable source workbook here. Handoff `endstop_graft_workorder`; the slice-and-graft-into-Chao's-sheet deliverable is blocked pending an HITL export and is not in this worksheet yet. |
 
 Source workbooks: `data/inbox/tolerance_stacks/` (gitignored contents, see its
 `PROVENANCE.md`) — `260729_sample_tol_stack.xlsx` for the linear stacks,
-`260209_Hub Bearing Fits.xlsx` for the thermal ones. Part drawings:
-`data/inbox/drawings/`, same convention.
+`260209_Hub Bearing Fits.xlsx` for the thermal ones, `260825_End_Stop_JC.xlsx`
+for the angular-rollup one. Part drawings: `data/inbox/drawings/`, same
+convention.
 
 The full slice-1 lesson — findings F1–F16, the source-gap ranking, and the
 xlsx-reading gotchas — is imported verbatim at
