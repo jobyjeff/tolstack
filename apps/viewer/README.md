@@ -2,8 +2,9 @@
 
 **Review a stack without opening a `.json`.** Elements, folds, checks with
 verdicts, notes and gaps for every stack in `docs/tolerance_stacks/`, coloured by
-where each value came from, with the drawing region behind a citation one hover
-away.
+where each value came from. The elements table is a compact grid — one line per
+element — and clicking a row opens its full sourcing (citation, export
+provenance, drawing crop) in the pane on the right.
 
 Static and build-free — plain HTML + classic scripts, no framework, no npm
 build, no daemon, no server (the forge `apps/notes/` and `apps/dashboard/`
@@ -126,18 +127,30 @@ Provenance is the only saturated colour on the page; everything else is grey.
 A path or check also shows the **weakest** confidence among its expanded inputs:
 a check fed by four traced elements and one untraced one is an untraced result.
 
+## Selecting an element
+
+The elements table shows only a confidence chip, a kind chip, a short one-line
+where-ref, and (for the states that cannot wait) a loud export/identity chip —
+that is the whole compact row. Click anywhere on a row to select it: the row
+gets a visible outline, and the pane on the right (`views/detail.js`) fills in
+with everything the row does not have space for — the callout as printed, the
+citation's own note in full (not clamped), the export-provenance block below,
+and the drawing crop itself, rendered inline rather than only behind a hover.
+Nothing is selected when the page loads; the pane says so and tells you to
+click a row.
+
 ## Which bytes the number was read off
 
 A citation says *where on a page* a value is written. `source_ref.export` says
 *which file that page was in* — and the two are not the same claim, because
 filenames get re-exported over, so a drawing number and a revision do not
-identify bytes. Every element's sourcing cell carries the export block beneath
-its citation:
+identify bytes. Selecting an element's row shows the export block in the right
+pane, beneath its citation:
 
 | state | what the block says |
 |---|---|
 | `established` | *export established: `X.pdf`* · **sha256 recorded** (first 12) · the drawing-checker runs that consumed it, or *no run has consumed this export*. The sha **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
-| `unestablished` | **filled magenta, on the row and on the block**: *EXPORT UNESTABLISHED — which file this value was read off cannot be identified*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
+| `unestablished` | **filled magenta, on the row's chip AND on the panel's block**: *EXPORT UNESTABLISHED — which file this value was read off cannot be identified*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
 | no `export` key | *no export block — this citation names no exported file, so nothing here identifies the bytes the value was read off*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
 | no `export` key, `identity_rule: "spec_pile_filename"` | *Spec-pile document: identity by filename (append-only pile)*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
 | anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. An identity rule the viewer has no branch for is loud the same way, through `VA.IDENTITY_RULES`. |
@@ -224,13 +237,19 @@ cell keeps them apart:
   entry records one. A CTE traced to nothing whose recorded next step is invisible
   is the same defect one layer down.
 
-## Hover crops
+## Hover crops — and the same crop, inline, in the right pane
 
-Each element has a **drawing crop** button. Hover, focus or click it (✕, `Esc`
+Each element has a **drawing crop** button, kept on the compact row alongside
+the crop-trigger's own hover behaviour: hover, focus or click it (✕, `Esc`
 or an outside click closes it). The popover shows the pre-rendered crop, *how it
 was placed*, and click-throughs: the drawing-checker run page when a run is
 behind the citation (needs `cmd /c serve.bat` in that repo — see
 `config.js`), plus the source PDF as a `file://` link and as a copyable path.
+
+Selecting the row does the same thing without a hover: the right pane fetches
+and renders the same crop **inline**, with the same placement text and the same
+links, so the image is visible the whole time the row is selected rather than
+only while the pointer sits on the trigger.
 
 `crops.json` reports four different answers and the difference matters:
 
@@ -260,6 +279,14 @@ requirement (a parts-list nomenclature is cited at the balloon and lives on the
 parts-list sheet).
 
 ## Worksheets
+
+The worksheet ("the agent's report") sits **below the elements table**, in a
+collapsed `<details>` — click the heading, or the **Show/Hide worksheet**
+button in the topbar, to open it. It used to live in the right-hand pane; that
+pane now shows an element's full sourcing instead (see "Selecting an element"
+above), and the worksheet moved out of the way rather than out of the app —
+collapsed by default so it does not compete with the table for width, but one
+click away, not gone.
 
 `WORKSHEET_*.md` is authored prose, so it is read **live** from
 `docs/tolerance_stacks/` rather than copied into the projection: edit the
@@ -329,7 +356,7 @@ apps/viewer/
   storage/fsa.js      File System Access (mode: read), handle persisted in IndexedDB
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
-  views/              dom, banner, list, stack, crop, worksheet
+  views/              dom, banner, list, stack, crop, worksheet, detail
   vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```

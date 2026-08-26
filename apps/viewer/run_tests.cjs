@@ -123,6 +123,18 @@ sandbox.NODE_FS = {
     },
   },
 };
+
+// Reads apps/viewer's OWN source files — always from `here` (this worktree),
+// never through `--repo`. NODE_FS above is deliberately re-pointable at the
+// main checkout to reach gitignored data/; a structural test asserting on
+// index.html/app.js must NOT go through that seam, or `--repo` (needed to
+// reach data/projections/viewer/) would silently check trunk's HTML against
+// this branch's script logic.
+sandbox.VIEWER_SRC = {
+  readText: function (relPath) {
+    try { return fs.readFileSync(path.join(here, relPath), "utf8"); } catch (_) { return null; }
+  },
+};
 vm.createContext(sandbox);
 
 const files = [
@@ -139,6 +151,7 @@ const files = [
   "views/stack.js",
   "views/crop.js",
   "views/worksheet.js",
+  "views/detail.js",
   "tests.js",
 ];
 for (const f of files) {

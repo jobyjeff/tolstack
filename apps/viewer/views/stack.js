@@ -94,7 +94,8 @@
     section.appendChild(VA.el("h3", null, "Elements"));
     section.appendChild(VA.el("p", "muted",
       "Values as transcribed. Order is the physical order through the joint; " +
-      "only the path term lists below are load-bearing for the arithmetic."));
+      "only the path term lists below are load-bearing for the arithmetic. " +
+      "Click a row to see its full sourcing on the right."));
     section.appendChild(sourcingLegend());
 
     var table = VA.el("table", "eltable");
@@ -148,6 +149,12 @@
       "Any other citation with no export block has nothing identifying its bytes " +
       "— a workbook or an assumed value has no exported PDF to name, and the row " +
       "says so plainly."));
+    list.appendChild(VA.el("li", null,
+      "This column shows only a confidence chip, a kind chip and a short where-ref " +
+      "— an unestablished export or an unlabelled state still gets its own chip " +
+      "here, because that has to be legible at a glance, but the full argument " +
+      "(callout, note, export block, crop) is in the panel on the right; click " +
+      "the row."));
     box.appendChild(list);
     return box;
   }
@@ -157,7 +164,14 @@
     var derived = row.derived;
     var classes = ["el-row", VA.confidenceClass(derived.confidence)];
     if (derived.zero_width) classes.push("el-row--zero-width");
+    if (handlers.selectedElementId === element.id) classes.push("el-row--selected");
     var tr = VA.el("tr", classes.join(" "));
+    // Clicking anywhere on the row selects it and populates the right pane
+    // (views/detail.js) — the row's own cell no longer carries enough to read
+    // a citation in full, on purpose (deliverable 2).
+    if (handlers.onElementSelect) {
+      tr.onclick = function () { handlers.onElementSelect(element.id); };
+    }
 
     tr.appendChild(VA.el("td", "num", String(index + 1)));
     var name = VA.el("td", "el-row__name");
@@ -185,6 +199,13 @@
     return tr;
   }
 
+  // The compact indicator (deliverable 2): a confidence chip, a kind chip, and
+  // a one-line where-ref — nothing else. Everything the old composite cell also
+  // carried (callout, the citation's own note, the export-provenance block) now
+  // lives ONLY in the right pane (views/detail.js), reached by clicking the row.
+  // The one exception is the loud export/identity chip: it has to stay legible
+  // from the row, at a glance, across a thirty-row table — that is the one fact
+  // this cell cannot afford to make a reader click through to.
   function sourcingCell(stackProj, row, cropsIndex, handlers) {
     var element = row.element;
     var derived = row.derived;
@@ -210,144 +231,21 @@
     // across a thirty-row table: `unestablished`, and a status or identity rule
     // this viewer cannot explain. `established`, "no export block" and the
     // spec-pile identity rule get no chip — they are 48 of the 48 live citations
-    // between them, and a chip on every row is a chip nobody reads. The block
-    // below the citation carries every state in full.
+    // between them, and a chip on every row is a chip nobody reads. Every state
+    // in full is in the right pane now (click the row).
     var exportView = VA.exportProvenance(element.source_ref, derived.identity_rule);
     if (exportView && exportView.loud) {
       chips.appendChild(VA.chip("chip--export-" + exportView.state,
-        EXPORT_CHIP_TEXT[exportView.state] || "EXPORT STATUS UNKNOWN",
+        VA.EXPORT_CHIP_TEXT[exportView.state] || "EXPORT STATUS UNKNOWN",
         exportView.headline + (exportView.why ? " — " + exportView.why : "")));
     }
     cell.appendChild(chips);
-    cell.appendChild(VA.el("div", "el-row__where", VA.citationWhere(element.source_ref)));
-    if (element.source_ref && element.source_ref.callout) {
-      cell.appendChild(VA.el("div", "el-row__callout", element.source_ref.callout));
-    }
-    if (element.source_ref && element.source_ref.note) {
-      // Clamped to a few lines, click to expand. These notes are the written
-      // argument behind a citation — often a paragraph — and left unclamped a
-      // six-element stack is metres tall, which is how a review surface stops
-      // being reviewed. The full text is also the tooltip.
-      cell.appendChild(clampedNote("el-row__srcnote", element.source_ref.note));
-    }
-    // WHICH BYTES the number was read off, beneath where on the page it is
-    // written. Above the crop trigger on purpose: this is a fact about the
-    // CITATION, and until 2026-08-12 the only place it surfaced was the crop
-    // popover — so a citation whose crop could not resolve said nothing at all
-    // about its export, which is the wrong way round in a repo whose worst
-    // defect class is a provenance record making a false-looking claim.
-    var exportBlock = exportProvenanceBlock(stackProj, row, cropsIndex);
-    if (exportBlock) cell.appendChild(exportBlock);
+    var where = VA.el("div", "el-row__where el-row__where--compact",
+      VA.citationWhere(element.source_ref));
+    where.setAttribute("title", VA.citationWhere(element.source_ref));
+    cell.appendChild(where);
     cell.appendChild(cropTrigger(stackProj, element, cropsIndex, handlers));
     return cell;
-  }
-
-  // A paragraph of provenance prose: clamped, click to expand, full text on
-  // hover. Two of these now (the citation's note and its export's), and they
-  // keep separate class names so a selector for one never picks up the other.
-  function clampedNote(baseClass, text) {
-    var note = VA.el("div", baseClass, text);
-    note.setAttribute("title", "click to expand / collapse");
-    note.onclick = function () {
-      note.className = note.className.indexOf(baseClass + "--open") === -1
-        ? baseClass + " " + baseClass + "--open"
-        : baseClass;
-    };
-    return note;
-  }
-
-  // --- source_ref.export ----------------------------------------------------
-
-  // The row chip's wording, per loud state. A table rather than a ternary because
-  // there are three loud states now and the third one is not about the export
-  // status at all — calling an unknown IDENTITY RULE "EXPORT STATUS UNKNOWN"
-  // would send the reader looking for a field the citation does not have.
-  var EXPORT_CHIP_TEXT = {
-    unestablished: "EXPORT UNESTABLISHED",
-    unlabelled: "EXPORT STATUS UNKNOWN",
-    identity_unlabelled: "IDENTITY RULE UNKNOWN",
-  };
-
-  // The export block for one element: its status, the file, that a sha256 is on
-  // record, and the runs that corroborate it. All four were dropped entirely
-  // until 2026-08-12 (ISSUE_20260811_viewer_shows_nothing_for_source_ref_export).
-  //
-  // The loud states are `unestablished`, a status this viewer has no branch for,
-  // and an identity rule it has no branch for. `none` — a citation with no export
-  // block, 22 of the 48 live citations — is stated plainly rather than alarmed:
-  // for a workbook or assumed source there is no exported PDF to name, so a red
-  // row on every one of them would be an alarm a reader learns to ignore.
-  //
-  // The other four are the `traced` spec-pile citations, and since 2026-08-13
-  // they no longer read as that state at all: the projection hands this row a
-  // derived `identity_rule` and the block says what identifies the bytes instead
-  // of saying that nothing does (ISSUE_20260812_four_traced_spec_citations_...).
-  function exportProvenanceBlock(stackProj, row, cropsIndex) {
-    var element = row.element;
-    var p = VA.exportProvenance(element.source_ref, row.derived.identity_rule);
-    if (!p) return null;
-    var box = VA.el("div", "el-export el-export--" + p.state +
-      (p.loud ? " el-export--loud" : ""));
-    box.appendChild(VA.el("div", "el-export__head", p.headline));
-    // The recorded reason, unclamped and unhidden: the whole argument for
-    // rendering this block is that an unestablished export's `why` was reachable
-    // only through a crop popover, so putting it behind a second click here would
-    // reproduce the defect one notch down.
-    if (p.why) box.appendChild(VA.el("div", "el-export__why", p.why));
-    // The identity rule's second sentence — the argument for why a citation that
-    // names no export is nonetheless pinned to bytes. Same treatment as `why` and
-    // for the same reason: it IS the content of the state, so it is not clamped
-    // and not behind a hover.
-    if (p.detail) box.appendChild(VA.el("div", "el-export__detail", p.detail));
-    var facts = [];
-    if (p.shaText) facts.push(p.shaText);
-    if (facts.length) box.appendChild(VA.el("div", "el-export__facts", facts.join(" · ")));
-    if (p.state === "established") box.appendChild(runsLine(p, cropsIndex, stackProj, element));
-    // The full path beside the basename, same reason the crop popover prints it:
-    // a file:// link only navigates from a file:// page, and copy-paste is the
-    // fallback that always works.
-    if (p.pdf) box.appendChild(VA.el("div", "el-export__path", p.pdf));
-    if (p.note) box.appendChild(clampedNote("el-export__note", p.note));
-    return box;
-  }
-
-  // The run ids, linked where this page can honestly address the run — see
-  // VA.exportRunLinks for why that is only ever the one the element's own crop
-  // resolved through. An empty `runs` is stated as a fact, not left blank: 15 of
-  // the 22 live established CITATIONS have never been consumed by a run (6 of the
-  // 9 distinct exports they name), and "nothing here" would read as a missing
-  // record rather than an empty one.
-  function runsLine(p, cropsIndex, stackProj, element) {
-    var line = VA.el("div", "el-export__runs");
-    var links = VA.exportRunLinks(VA.CONFIG,
-      (element.source_ref || {}).export,
-      VA.cropFor(cropsIndex, stackProj.id, element.id));
-    if (!links.length) {
-      line.appendChild(VA.el("span", "muted",
-        "no drawing-checker run has consumed this export — the value was read " +
-        "straight off the file, so the sha256 is the whole of its identity"));
-      return line;
-    }
-    line.appendChild(VA.el("span", "muted", "drawing-checker runs: "));
-    links.forEach(function (link, index) {
-      if (index) line.appendChild(VA.el("span", "muted", ", "));
-      if (link.url) {
-        var a = VA.el("a", "el-export__runlink", link.run_id);
-        a.setAttribute("href", link.url);
-        a.setAttribute("target", "_blank");
-        a.setAttribute("rel", "noopener");
-        a.setAttribute("title", "this run's page in drawing-checker's local web UI — " +
-          VA.CONFIG.drawingCheckerWebui + " must be serving");
-        line.appendChild(a);
-      } else {
-        var span = VA.el("span", "el-export__runid", link.run_id);
-        span.setAttribute("title", "no link: an export carries a run ID and " +
-          "drawing-checker addresses a run by its DIRECTORY name, which is the id " +
-          "plus the drawing. This page will not guess one.");
-        line.appendChild(span);
-      }
-    });
-    return line;
   }
 
   // The hover target. Carries its crop entry on the node so the app can show the
@@ -520,7 +418,7 @@
         authored.designation_source.callout));
     }
     if (authored.designation_source && authored.designation_source.note) {
-      cell.appendChild(clampedNote("el-row__srcnote", authored.designation_source.note));
+      cell.appendChild(VA.clampedNote("el-row__srcnote", authored.designation_source.note));
     }
     // The outstanding ASK for a real value, when the entry records one. It is the
     // one field on a material entry that describes future work rather than the
@@ -528,7 +426,7 @@
     // CTE that is traced to nothing and whose recorded next step is invisible is
     // the same defect one layer down.
     if (authored.cindas_request) {
-      cell.appendChild(clampedNote("mat-row__request",
+      cell.appendChild(VA.clampedNote("mat-row__request",
         "CINDAS request on record: " + authored.cindas_request));
     }
     return cell;

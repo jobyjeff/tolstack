@@ -294,6 +294,18 @@
     },
   };
 
+  // The row chip's wording, per loud export/identity state. A table because
+  // there are three loud states and the third is not about export status at
+  // all — calling an unknown IDENTITY RULE "EXPORT STATUS UNKNOWN" would send a
+  // reader looking for a field the citation does not have. Shared by
+  // views/stack.js (the compact row's chip, the only export fact still legible
+  // there) and views/detail.js (the full block, moved out of the row).
+  VA.EXPORT_CHIP_TEXT = {
+    unestablished: "EXPORT UNESTABLISHED",
+    unlabelled: "EXPORT STATUS UNKNOWN",
+    identity_unlabelled: "IDENTITY RULE UNKNOWN",
+  };
+
   // An identity rule the viewer has never heard of. Same treatment as an
   // unlabelled export status, and for the same reason: falling through to
   // "no export block" would state the exact opposite of what the projection just
