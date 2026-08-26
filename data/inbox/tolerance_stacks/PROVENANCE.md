@@ -84,3 +84,43 @@ the dump tool: rows 17, 18, 21, 35, 36 and 39 use them heavily in the Hot and
 Cold column groups, so those cells print as `==  -> <value>`. The value is
 cached and correct; the formula has to be inferred from the pattern, which is
 exactly what the re-derivation checks.
+
+## 260825_End_Stop_JC.xlsx
+
+| | |
+|---|---|
+| Source | Jeff's own hand-built end-stop tolerance stack, copied directly into `data/inbox/tolerance_stacks/` by Jeff, 2026-08-25 |
+| Forge atomic notes | `20260825T153610_xyrwgw`, `20260825T175146_eocnel` — announce the drop and the ask (Chao requested a slice of it grafted into his "Hardstop tol" sheet) |
+| Author | Jeff Cortes |
+| sha256 | `8f8a8902e0c8782697124ac46740fd1d16d63008ccda265215b1b34a8735acdf` |
+| Size | 16,479 bytes |
+| Transcribed by | handoff `endstop_graft_workorder`, 2026-08-25 |
+
+**This one has no immutable upstream either** — same asymmetry as the hub
+bearing workbook: no forge attachment carries it, so if this copy is lost it is
+lost. One sheet, `End Stop Tol Stack`: a blade-pitch **angular-position-error
+rollup**, not a linear grip stack or a diametral fit — every element is a linear
+or diametral source tolerance (fastener size, bearing size, link length, mount
+position) converted to an equivalent blade pitch-angle error via motion-ratio
+sensitivities (vertical/tangential-to-angle, both "worst pitch angle" and
+"average pitch angle" columns). See `docs/tolerance_stacks/WORKSHEET_end_stop_graft.md`.
+
+This workbook predates the SOP by a wide margin and it shows: almost nothing in
+it cites a drawing zone or a spec — most rows are a component name and a
+one-line hand comment, some of which read "estimate", "probably", "need to
+correct", "does not exist yet" or "needs updating" in Jeff's own words. Expect
+the traced count to be near zero; that is the finding, not a defect in the
+transcription.
+
+Verify:
+
+```powershell
+(Get-FileHash "C:\workspace\tolstack\data\inbox\tolerance_stacks\260825_End_Stop_JC.xlsx" -Algorithm SHA256).Hash
+# expect 8F8A8902E0C8782697124AC46740FD1D16D63008CCDA265215B1B34A8735ACDF
+```
+
+Shared formulas here are simpler than the hub-bearing workbook's: two masters,
+`D30:D45` (= `$B{row}*D$10`) and `D48:D64` (= `$B{row}*D$12`), each mirrored in
+column F against `F$10`/`F$12`. Every populated cell in both ranges was
+recomputed from its own `B` value and the master's pattern and matched the
+cached value to float precision — see the worksheet's re-derivation section.
