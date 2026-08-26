@@ -88,9 +88,12 @@ venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --ratio
 ```
 
 As of 2026-08-10 that prints **5 of 26 element instances across the three seeded
-stacks are `traced`; 3 are `inferred` and 18 are `untraced`** — and 21 of 48
-across all six stacks. `tests/test_tolerance_stack.py` pins both, so a doc
-quoting a stale number fails the suite rather than merely being wrong.
+stacks are `traced`; 3 are `inferred` and 18 are `untraced`** — and, as of
+2026-08-25 (`fastener_stack_shadow`, which added the `rotor_fastener_length`
+stack), **30 of 59 across all seven stacks** (quoting the retired
+`"21 of 48"` here rather than deleting it, per the rule below). `tests/test_tolerance_stack.py`
+pins both, so a doc quoting a stale number fails the suite rather than merely
+being wrong.
 
 **A retired figure may still appear — as a quotation.** Correct a number a
 review already read by leaving the old one visible, inside a blockquote or
