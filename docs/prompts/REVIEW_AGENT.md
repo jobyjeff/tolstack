@@ -1219,6 +1219,63 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       there is no `_counts()`-style function backing this kind of count the
       way there is for the JSON-stack traced ratio, so nothing mechanises it.
       Both fixed inline in review.
+- [ ] **A `[+clamped_column path, -fastener]` budget check's "worst case" is not
+      always the larger magnitude — verify against the check's own physical
+      mechanism, not against check 2's pitch-link example by shape alone.**
+      New 2026-08-25 (`fastener_stack_shadow`). `rotor_fastener_length`'s nine
+      `grip_budget__*` checks share `pitch_link_to_pitch_plate`'s exact term
+      shape (`{path: clamped_stack}, {element: grip, sign: -1}`, `complete:
+      false`), and naive physical reasoning ("a longer grip clamps more, so
+      it's the safer/best case") says the worksheet's quoted "worst case"
+      (`|WC min|`, grip at max) is backwards — it looks like it's reporting the
+      *most permissive* combination as if it were the binding one. That
+      reasoning is wrong: per JPS00094 5.5.5 and the pitch-link check's own
+      `guidance` comment ("negative means the shank sits proud of the bearing
+      face, so the nut engages incomplete threads"), a grip *longer* than the
+      clamped stack is the failure mode, not a longer stack being short of
+      grip — so the binding (largest-required-missing-material) case really is
+      grip-at-max, and `|WC min|` is correct, matching the pitch-link
+      precedent exactly. **Do not resolve a check-2-shaped question from
+      physical intuition about which end "sounds" conservative — reread the
+      sibling check's own `guidance` string (`git grep` the phrase "incomplete
+      threads" or similar for the archetype) and confirm the new check's
+      criterion polarity and term list are identical before trusting or
+      distrusting either one.** This one was correct as authored; almost
+      flagged as a blocker by working the physics forward instead of checking
+      the established precedent first.
+- [ ] **Never run `git checkout <commit> -- .` (or any whole-tree path
+      checkout) against the MAIN CHECKOUT to "just inspect" something.** New
+      2026-08-25 (`fastener_stack_shadow`). Unlike a branch switch, `git
+      checkout <tree-ish> -- <pathspec>` force-overwrites the working tree
+      *and* the index for every matched path from that tree-ish, regardless of
+      whether the working copy differs because of staged, unstaged, or no
+      changes at all — an unstaged, never-`git add`ed edit is not protected
+      and is not recoverable via `git fsck`/reflog afterward. This review
+      command clobbered seven files' worth of another session's uncommitted
+      `apps/viewer/*` work-in-progress sitting directly in
+      `C:\workspace\tolstack` (recovered only because that session still held
+      the content in its own context — see
+      `ISSUE_20260825_stack_viewer_layout_v2_edited_the_main_checkout_directly.md`
+      for the compounding cause). **Use `git show <commit>:<path>` (fully
+      read-only) to inspect a file at a commit; never a working-tree
+      `checkout` against the shared main checkout**, even to "just look."
+      If you must compare trees in the main checkout, `git stash push -u` your
+      own scratch first and confirm `git status` is clean before any command
+      that touches the working tree there.
+- [ ] **A Windows path with backslashes passed to a Python script's
+      `--data-root`-style flag from the Bash tool silently writes to the wrong
+      place — no error, just a stray directory in cwd.** New 2026-08-25
+      (`fastener_stack_shadow`). `python scripts\build_viewer_projection.py
+      --data-root C:\workspace\tolstack\data` under the Bash tool (POSIX sh)
+      has its backslashes eaten before Python ever sees them, so the script
+      received `C:workspacetolstackdata` and happily created and wrote into a
+      new `workspacetolstackdata/projections/viewer/results.json` relative to
+      cwd — printing a plausible-looking (if you don't read closely) "wrote
+      C:workspacetolstackdata\..." line and exiting 0. **Always pass
+      `--data-root` with forward slashes under the Bash tool**
+      (`C:/workspace/tolstack/data`), and `ls` for a stray
+      `workspace<repo>data`-shaped directory in cwd after running any of this
+      repo's `--data-root` scripts if you ever did use backslashes.
 
 ## Architectural errors to check
 
