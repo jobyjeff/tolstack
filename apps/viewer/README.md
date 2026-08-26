@@ -115,7 +115,7 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | green `traced` | the value comes off the cited document |
 | amber `inferred` | a reading or an argument sits between the document and the value |
 | **filled red `UNTRACED`** | no document backs it. Filled, plus a row tint — an untraced value has to survive being skimmed |
-| **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all |
+| **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all (code: `no_source_ref`) |
 | **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below |
 | **filled magenta `CTE NOT TRANSCRIBED`** | a material whose `values_status` says nobody has read the CTE off a source |
 | dashed blue `zero-width band` | `min == max`; no document gives a tolerance, so every interval it feeds is a **lower bound** on the real spread. A separate axis from confidence, not a fourth confidence |

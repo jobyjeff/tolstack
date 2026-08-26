@@ -1,9 +1,11 @@
 ---
 type: chore
 priority: high
-status: open
+status: triaged
 area: worktree-conventions
 reporter: agent
+audience: strategy
+strategy: docs/strategy/BRIEF_20260826_main_checkout_tracked_edit_guard.md
 ---
 
 # `stack_viewer_layout_v2` edited tracked files directly in the main checkout instead of its worktree

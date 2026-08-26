@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tolerance_stack/thermal
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260826_material_values_status_vocabulary.md
 ---
 
 # `MaterialEntry.values_status`'s vocabulary is an inline tuple literal inside `__post_init__` — the same defect the comment-defined ones had, invisible to the grep that finds them

@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: prompts/review
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260826_review_checklist_vocabulary_wording.md
 ---
 
 # `docs/prompts/REVIEW_AGENT.md` still tells reviewers a vocabulary lives in three places and to check all three

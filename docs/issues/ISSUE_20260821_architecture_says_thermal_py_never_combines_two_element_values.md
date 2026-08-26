@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: docs
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260826_thermal_never_combines_invariant.md
 ---
 
 # `ARCHITECTURE.md` says `thermal.py` "never combines two element values"; `workbook_corner` does

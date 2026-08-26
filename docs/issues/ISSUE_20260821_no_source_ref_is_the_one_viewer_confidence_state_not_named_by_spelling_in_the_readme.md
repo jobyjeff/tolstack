@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
 area: docs / apps/viewer
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260819_enumerated_state_doc_guard.md
+resolution: fixed inline by the 2026-08-26 triage sweep — apps/viewer/README.md's `NO CITATION` row now reads "worse than untraced: no `source_ref` at all (code: `no_source_ref`)"; one-clause addition, no restructuring, matching the issue's own suggested fix verbatim.
 ---
 
 # `no_source_ref` is the one viewer confidence state not named by its code spelling in `apps/viewer/README.md`
