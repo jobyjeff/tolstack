@@ -52,6 +52,11 @@ def pitch_link():
     return load_stack(STACKS_DIR / "stack_pitch_link_to_pitch_plate.json")
 
 
+@pytest.fixture(scope="module")
+def rotor_fastener():
+    return load_stack(STACKS_DIR / "stack_rotor_fastener_length.json")
+
+
 # Every stack file in docs/tolerance_stacks/. The schema-hygiene tests below are
 # parametrized over this so a new stack cannot be added without them applying.
 ALL_STACK_FILES = [
@@ -59,6 +64,7 @@ ALL_STACK_FILES = [
     "stack_tan_link_to_pitch_plate_take2.json",
     "stack_vpa_output_to_pitch_plate.json",
     "stack_pitch_link_to_pitch_plate.json",
+    "stack_rotor_fastener_length.json",
     # thermal_fit archetype (hub_bearing_thermal_stack, 2026-08-05). These load
     # through load_stack() for the schema-hygiene tests below, which is all those
     # need; their checks are GENERATED, so their values are pinned in
@@ -672,6 +678,96 @@ def test_pitch_link_no_stack_element_is_folded_from_lmc_or_mmc(pitch_link):
 
 
 # ---------------------------------------------------------------------------
+# rotor_fastener_length -- the fifth stack (fastener_stack_shadow, 2026-08-25)
+# ---------------------------------------------------------------------------
+
+
+def test_rotor_fastener_grip_family_spans_nine_dash_numbers(rotor_fastener):
+    """217755 sheet 8 SECTION T-T, general note 24: 'SELECT ONE FASTENER FROM
+    PROVIDED OPTIONS AS REQUIRED FOR CORRECT GRIP LENGTH'. Unlike the other
+    three 217755 joints, this one is a genuine nine-way family, not one fixed
+    dash -- NAS6403-NAS6420 Rev 4 sh3, dash 2 through dash 10."""
+    grips = {e.id: e for e in rotor_fastener.elements if e.role == "fastener"}
+    assert set(grips) == {
+        "fastener_grip_u2h", "fastener_grip_u3h", "fastener_grip_u4h",
+        "fastener_grip_u5h", "fastener_grip_u6h", "fastener_grip_u7h",
+        "fastener_grip_u8h", "fastener_grip_u9h", "fastener_grip_u10h",
+    }
+    for e in grips.values():
+        assert e.source_ref.kind == "spec"
+        assert e.source_ref.confidence == "traced"
+        assert e.source_ref.document == "NAS6403-NAS6420 Rev 4.pdf"
+        assert e.source_ref.sheet == 3
+        # additive external length: mmc is the longest grip
+        assert (e.lmc, e.mmc) == (e.min, e.max)
+    # NAS6403-NAS6420 sh3 footnote: nominal grip = dash number x .0625 in
+    assert grips["fastener_grip_u2h"].nominal == pytest.approx(0.125 * 25.4, abs=TOL)   # dash 2
+    assert grips["fastener_grip_u10h"].nominal == pytest.approx(0.625 * 25.4, abs=TOL)  # dash 10
+    assert grips["fastener_grip_u2h"].min == pytest.approx(2.921, abs=TOL)   # .125 - .010 in
+    assert grips["fastener_grip_u2h"].max == pytest.approx(3.429, abs=TOL)   # .125 + .010 in
+
+
+def test_rotor_fastener_sourced_clamped_stack_is_the_two_washers_only(rotor_fastener):
+    """Both washers carry a zero-width band (SOP Step 5b: NAS1149 and MS21299
+    are both absent from data/inbox/specs/), so the path is zero-width too --
+    the balancing mass(es) and the receiving-structure thickness are OMITTED,
+    not folded with an invented number (Step 5c)."""
+    assert "balancing_mass" not in {e.id for e in rotor_fastener.elements}
+    got = rotor_fastener.path("sourced_clamped_stack")
+    assert got.nominal == pytest.approx(0.8128 + 1.6002, abs=TOL)  # NAS1149V0332H + MS21299C3
+    assert got.min == got.max == pytest.approx(2.413, abs=TOL)
+    assert got.worst_case_half == pytest.approx(0.0, abs=TOL)
+
+
+def test_rotor_fastener_grip_budgets_span_shortest_to_longest_option(rotor_fastener):
+    """Every one of the nine checks 'fails' by construction -- see
+    test_pitch_link_shank_out_deficit_is_the_required_link_eye_width for the
+    same shape. The magnitude is the combined mass+structure thickness budget
+    each dash can accommodate; it must strictly widen from the shortest grip
+    (dash 2) to the longest (dash 10)."""
+    ids = ["u2h", "u3h", "u4h", "u5h", "u6h", "u7h", "u8h", "u9h", "u10h"]
+    checks = [rotor_fastener.check(f"grip_budget__{i}") for i in ids]
+    for c in checks:
+        assert c.complete is False
+        assert c.verdict == "fail"
+        assert c.verdict_scope == "budget"
+        assert len(c.excluded_terms) == 2
+    magnitudes = [-c.interval.nominal for c in checks]
+    assert magnitudes == sorted(magnitudes)          # strictly widening budget
+    assert magnitudes[0] == pytest.approx(0.762, abs=TOL)     # dash 2, smallest
+    assert magnitudes[-1] == pytest.approx(13.462, abs=TOL)   # dash 10, largest
+    # worst-case budget (grip MAX vs the zero-width sourced column)
+    assert -checks[0].interval.min == pytest.approx(1.016, abs=TOL)
+    assert -checks[-1].interval.min == pytest.approx(13.716, abs=TOL)
+
+
+def test_rotor_fastener_has_no_workbook_source_and_declares_its_zero_width_bands(rotor_fastener):
+    """SOP Step 5b: no workbook citation anywhere in a from-scratch stack. Both
+    washers are zero-width by declaration, not by omission."""
+    kinds = {e.source_ref.kind for e in rotor_fastener.elements}
+    assert "workbook" not in kinds
+    zero_width = {e.id for e in rotor_fastener.elements if e.min == e.max}
+    assert zero_width == {"washer_ms21299c3", "washer_nas1149v0332_tt"}
+    for eid in zero_width:
+        e = rotor_fastener.element(eid)
+        assert e.source_ref.kind == "parts_list"
+        assert e.source_ref.confidence == "inferred"
+    confidences = [e.source_ref.confidence for e in rotor_fastener.elements]
+    assert confidences.count("traced") == 9
+    assert confidences.count("inferred") == 2
+    assert confidences.count("untraced") == 0
+
+
+def test_rotor_fastener_has_no_castellated_retention(rotor_fastener):
+    """Unlike the other three 217755 joints, this one is a blind tapped hole --
+    no MS9363 nut, no MS24665 cotter pin, so the castellated-grip quantisation
+    caveat (review checklist check 6) does not apply here."""
+    refs = {e.hardware_ref for e in rotor_fastener.elements if e.hardware_ref}
+    assert not any(r.startswith("MS9363") or r.startswith("MS24665") for r in refs)
+    assert "nut_geometry" not in {e.role for e in rotor_fastener.elements}
+
+
+# ---------------------------------------------------------------------------
 # Schema hygiene across all four stacks
 # ---------------------------------------------------------------------------
 
@@ -1249,7 +1345,12 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
     assert seeded == {"instances": 26, "traced": 5, "inferred": 3, "untraced": 18}
 
     every = _counts(sorted(STACKS_DIR.glob("stack_*.json")))
-    assert every == {"instances": 48, "traced": 21, "inferred": 7, "untraced": 20}
+    # Moved 2026-08-25 (fastener_stack_shadow): "21 of 48" -> "30 of 59". The new
+    # rotor_fastener_length stack adds 11 element instances -- 9 traced (the
+    # NAS6403 grip family) and 2 inferred (both washers, zero-width bands, same
+    # treatment as the other from-scratch joints) -- so traced and instances both
+    # rose and untraced did not move.
+    assert every == {"instances": 59, "traced": 30, "inferred": 9, "untraced": 20}
 
     # Instances, not distinct ids, and not "elements that carry a hardware_ref".
     # Those are the two denominators a reader reaches for by mistake; recording
@@ -1494,7 +1595,7 @@ def test_hardware_entry_values_source_counts_match_the_description():
     """
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     entries = data["entries"]
-    assert len(entries) == 15
+    assert len(entries) == 25
     counted = {}
     for entry in entries:
         src = entry.get("values_source") or {}
@@ -1502,9 +1603,11 @@ def test_hardware_entry_values_source_counts_match_the_description():
             (entry["values_status"], src.get("kind")), 0) + 1
     assert counted == {
         ("inline", "workbook"): 5,     # forbidden as a source in a from-scratch stack
-        ("inline", "spec"): 3,         # the three bolts re-sourced 2026-08-10
+        ("inline", "spec"): 12,        # the three bolts re-sourced 2026-08-10, plus nine
+                                        # NAS6403U2H..U10H added 2026-08-25 (rotor_fastener_length)
         ("library", "spec"): 1,        # NAS6403U11D, promoted by spec_library_v0
         ("inline", "drawing"): 2,      # 214589-002, 214588-002 -- source control drawings
+        ("inline", "parts_list"): 1,   # MS21299C3, added 2026-08-25 (rotor_fastener_length)
         ("not_transcribed", None): 4,
     }
     # traced-ness is a property of values_source, not of values_status: the three
@@ -1514,9 +1617,12 @@ def test_hardware_entry_values_source_counts_match_the_description():
     traced = {e["id"] for e in entries
               if (e.get("values_source") or {}).get("confidence") == "traced"}
     assert traced == {"NAS6403U11D", "NAS6403U13H", "NAS6403U14D", "NAS6404U13D",
-                      "214589-002", "214588-002"}
+                      "214589-002", "214588-002",
+                      "NAS6403U2H", "NAS6403U3H", "NAS6403U4H", "NAS6403U5H",
+                      "NAS6403U6H", "NAS6403U7H", "NAS6403U8H", "NAS6403U9H",
+                      "NAS6403U10H"}
     text = data["description"]
-    for phrase in ("five of the fifteen", "SIX entries are traced",
+    for phrase in ("five of the 25", "FIFTEEN entries are traced",
                    "Four entries are `not_transcribed`"):
         assert phrase in text, f"description no longer says {phrase!r}"
 
@@ -2063,18 +2169,24 @@ def test_every_inline_hardware_entry_cites_where_its_values_came_from():
         # `hardware_entries.json` is read as a dict here, never constructed.
         assert src["confidence"] in CONFIDENCES
         assert src["document"], f"{entry['id']}: values_source names no document"
-    # The file's whole provenance story in one line: the four NAS bolts traced
-    # to the one standard in the spec pile, and five entries still transcribing
-    # the 260729 workbook. Was `== ["NAS6403U11D"]` and `== 8` until 2026-08-10,
-    # when `fastener_citations_and_confidence` re-sourced the other three bolts
-    # -- all of which had been sourceable since the day that PDF landed.
+    # The file's whole provenance story in one line: the thirteen NAS bolts
+    # traced to the one standard in the spec pile, and five entries still
+    # transcribing the 260729 workbook. Was `== ["NAS6403U11D"]` and `== 8`
+    # until 2026-08-10, when `fastener_citations_and_confidence` re-sourced the
+    # other three bolts -- all of which had been sourceable since the day that
+    # PDF landed. Moved from four to thirteen 2026-08-25 (fastener_stack_shadow),
+    # which added NAS6403U2H through NAS6403U10H for the rotor balance-mass
+    # joint's grip-selection family, off the same sheet-3 table.
     by_kind = {}
     for entry in data["entries"]:
         if entry["values_source"]:
             by_kind.setdefault(entry["values_source"]["kind"], []).append(entry["id"])
     assert sorted(by_kind["spec"]) == [
-        "NAS6403U11D", "NAS6403U13H", "NAS6403U14D", "NAS6404U13D"]
+        "NAS6403U10H", "NAS6403U11D", "NAS6403U13H", "NAS6403U14D",
+        "NAS6403U2H", "NAS6403U3H", "NAS6403U4H", "NAS6403U5H", "NAS6403U6H",
+        "NAS6403U7H", "NAS6403U8H", "NAS6403U9H", "NAS6404U13D"]
     assert len(by_kind["workbook"]) == 5
+    assert len(by_kind["parts_list"]) == 1
 
 
 def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_link):

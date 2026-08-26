@@ -1,0 +1,545 @@
+{
+  "schema": "joby.tolerance_stack/stack_definition/v0",
+  "id": "rotor_fastener_length",
+  "title": "Rotor balance-mass bolt -- grip length (built from scratch, no source workbook; shadow exercise vs Jason Ryan's independent tolerance stack)",
+  "units": "mm",
+  "joint": {
+    "assembly_drawing": "217755",
+    "assembly_revision": "A.1",
+    "assembly_export": "[PRELIM 2026-AUG-19] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf (drawing-checker runs 20260819_163414 / 20260819_110144, both consuming the same export)",
+    "sheet": 8,
+    "sheet_description": "BALANCE WEIGHTS AND SPINNER",
+    "view": "SECTION T-T",
+    "scale": "3:1",
+    "zone": "H3",
+    "zone_note": "printed zone of the SECTION T-T caption on the [PRELIM 2026-AUG-19] export; the view body sits above the caption, spanning printed zones H4-K4. Stability of this zone across other 217755 exports was not checked for this view (unlike DETAIL B/X, see the pitch-link and VPA worksheets) -- treat it as good for this export only.",
+    "description": "The rotor (hub-and-blade) balance-mass retention bolt: a single fastener, selected at assembly from a nine-member NAS6403 grip family, clamping an optional countersunk washer, zero or more stacked balancing masses, and a flat washer against whatever structure carries the tapped hole at this section. This is a genuinely different joint from the three already in this repo (pitch_link_to_pitch_plate, tan_link_to_pitch_plate, vpa_output_to_pitch_plate): those each use one fixed, as-drawn dash number; this one's own drawing note explicitly says to select a dash for correct grip length, which is exactly the reverse-engineering question this handoff was seeded with.",
+    "places": null,
+    "places_note": "Not a fixed count. General note 12 (JED02183) allows balance weights at 'ANY ONE OF 10 HOLE LOCATIONS' around the hub, used 'AS REQUIRED TO MEET BALANCE SPECIFICATION' up to 80 g per location and 200 g total. This stack models the grip-length question at ONE representative location, not a count of populated locations.",
+    "parts": [
+      { "find_no": 32, "part_number": "NAS1149V0332H", "qty": 9, "balloon": "at SECTION T-T (also DETAIL B, sheet 4)", "role": "flat washer, .032 in, under the countersunk washer / bolt head side of the clamped stack" },
+      { "find_no": 60, "part_number": "MS21299C3", "qty": "AR", "balloon": "at SECTION T-T", "role": "countersunk washer, .063 in, under the bolt head -- JPS00094 5.5.3.a allows 0-3 such washers when a coarser fastener-length step is substituted; this view draws one" },
+      { "find_no": 54, "part_number": "216579-002", "qty": "AR", "balloon": "at SECTION T-T", "role": "balancing mass, 11 gram" },
+      { "find_no": 55, "part_number": "216579-003", "qty": "AR", "balloon": "at SECTION T-T", "role": "balancing mass, 25 gram" },
+      { "find_no": 56, "part_number": "216579-004", "qty": "AR", "balloon": "at SECTION T-T", "role": "balancing mass, 66 gram" },
+      { "find_no": 57, "part_number": "216579-005", "qty": "AR", "balloon": "at SECTION T-T", "role": "balancing mass, 4 gram" },
+      { "find_no": 58, "part_number": "216579-006", "qty": "AR", "balloon": "at SECTION T-T", "role": "balancing mass, 66 gram, W, B777, CLASS 1" },
+      { "find_no": 59, "part_number": "216579-007", "qty": "AR", "balloon": "at SECTION T-T", "role": "balancing mass, 66 gram, W, B777, CLASS 2" },
+      { "find_no": 62, "part_number": "NAS6403U2H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .125 in grip (shortest of nine)" },
+      { "find_no": 63, "part_number": "NAS6403U3H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .188 in grip" },
+      { "find_no": 64, "part_number": "NAS6403U4H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .250 in grip" },
+      { "find_no": 65, "part_number": "NAS6403U5H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .312 in grip" },
+      { "find_no": 66, "part_number": "NAS6403U6H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .375 in grip" },
+      { "find_no": 67, "part_number": "NAS6403U7H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .438 in grip" },
+      { "find_no": 68, "part_number": "NAS6403U8H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .500 in grip" },
+      { "find_no": 69, "part_number": "NAS6403U9H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .562 in grip" },
+      { "find_no": 61, "part_number": "NAS6403U10H", "qty": "AR", "balloon": "at SECTION T-T", "role": "grip-selection family member, .625 in grip (longest of nine)" },
+      { "find_no": 70, "part_number": "216231-002", "qty": "-", "balloon": "reference balloon only, at SECTION T-T", "role": "HUB AND BLADE ASSEMBLY, CCW, PROPELLER -- 'the rotor'; best reading is that this is the tapped member (see identification_note), but the balloon carries no dimension" },
+      { "find_no": 71, "part_number": "208510-008", "qty": "-", "balloon": "reference balloon only, at SECTION T-T", "role": "VARIABLE PITCH ACTUATOR ASSEMBLY, ALPHA4.2, CCW -- adjoining structure cut in the same section; not believed to be the tapped member" },
+      { "find_no": 72, "part_number": "215175-002", "qty": "-", "balloon": "reference balloon only, at SECTION T-T", "role": "TANGENTIAL LINK MOUNT ASSEMBLY, PROPELLER, CCW (parts-list nomenclature spells it 'ASEMBLY') -- adjoining structure cut in the same section; not believed to be the tapped member" }
+    ],
+    "clamped": "From the bolt head down: the MS21299C3 countersunk washer (optional, AR, per JPS00094 5.5.3.a -- modelled here as present, matching what the section draws), zero or more stacked 216579-00X balancing masses (AR per note 12, up to 80 g combined per location -- NOT modelled, no part drawing gives a thickness; gap 1), the NAS1149V0332H flat washer, then whatever structure carries the tapped hole -- read from the balloon set as 216231-002 HUB AND BLADE ASSEMBLY, though the section also cuts through the VPA and tangential-link-mount assemblies at this same location and none of the three balloons here carries a dimension (gap 2). Retention is a blind tapped hole, not a nut: there is no MS9363/MS24665 at this joint, so the castellation-quantisation caveat that governs the other three 217755 joints does not apply here.",
+    "question": "Given whatever balance-mass configuration is actually installed at this location (per note 12, 0 to a stacked combination up to 80 g) and whatever structure the bolt is tapped into, does at least one of the nine as-drawn NAS6403 grip options (note 24: 'SELECT ONE FASTENER FROM PROVIDED OPTIONS AS REQUIRED FOR CORRECT GRIP LENGTH PER JPS00094 AND/OR AC43.13-1B') clamp the stack fully -- i.e. keep the receiving member from engaging the bolt's incomplete threads (JPS00094 Rev C section 5.5.5: 'The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank') -- across the tolerance range?",
+    "scope": "Grip length only, along the bolt axis, exactly as the other three 217755 joints in this repo. Deliberately out of scope: which of up to 10 balance-hole locations is used and how the 200 g total balance budget (JED02183) is allocated across them; torque (note 15: 2.26-2.82 Nm plus running torque per JPS00094); the safety-cable capture (note 7); diameter and hole fits; thread-engagement depth into the tapped member (a diametral/depth question, not a grip-length one). An omission below is a decision, not an oversight.",
+    "identification_note": "Not identified by fastener nomenclature -- identified by the drawing's OWN framing matching the handoff's, word for word. 217755 sheet 1 general note 24 reads 'SELECT ONE FASTENER FROM PROVIDED OPTIONS AS REQUIRED FOR CORRECT GRIP LENGTH PER JPS00094 AND/OR AC43.13-1B', which is the handoff's 'reverse-engineer the rotor fastener length stack' in the drawing's own words. Corroborating evidence: (1) this is the only 217755 joint with a genuine grip-SELECTION family (nine NAS6403 dash options, note 24) rather than one fixed as-drawn dash -- the other three joints (pitch link, tangential link, VPA output) each balloon a single dash number; (2) note 12 ties this joint to balance weights 'AS REQUIRED TO MEET BALANCE SPECIFICATIONS' on the hub-and-blade assembly, i.e. the rotating 'rotor', not the pitch-plate linkage the other three joints clamp; (3) the existing NAS1149V0332 hardware entry (authored before this handoff, for the pitch-link joint) already lists a balloon 'at SECTION T-T' among its assembly_status.balloons, an independent prior sighting of this same joint. A second 217755 candidate was considered and set aside: sheet 4 SECTION K-K retains 214849-003 SPINDLE SUBASSEMBLY with MS21250H03014 bolts at a single fixed .875 in grip (no dash family) plus bearing-preload shims (214935-001/-004/-005) -- a shim-selects-PRELOAD problem, not a select-the-grip-length problem, and its drawing carries no note analogous to 24. Ruled out; if Jason's screenshot names this joint instead once it lands, that comparison will say so.",
+    "as_drawn_notes": "General notes this joint's hardware carries, per 217755 sheet 1: note 7 (install a safety cable to capture the fastener per JPS00094), note 12 (balance-weight installation limits, JED02183), note 15 (dry install per JPS00094, torque 2.26-2.82 Nm plus running torque), note 24 (select fastener for correct grip length, quoted above)."
+  },
+  "provenance": {
+    "transcribed_from": null,
+    "source_note": "Built from scratch per docs/SOP_TOLERANCE_STACK.md Step 5b. There is no source workbook for this joint -- slice 1 and the 260729 workbook never analysed it, and Jason Ryan's independent Excel stack (the shadow-exercise ground truth) is a HITL input pending as of authorship; see the worksheet's comparison section. No element here carries a source_ref of kind 'workbook'.",
+    "authored_by": "handoff fastener_stack_shadow, 2026-08-25",
+    "sources_used": [
+      "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-19] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf -- sheet 8 SECTION T-T (parts list + balloons) and sheet 1 general notes 7, 12, 15, 24 (read-only)",
+      "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf -- sheet 3 grip/length table, dash 2 through 10, NAS6403 .1900-32 column",
+      "data/inbox/specs/JPS00094 Process Specification \u2013 Installation of Bolts and Nuts.pdf Rev C 05/Sep/2024 -- section 5.5 (Figure 5-1 grip-length definition, section 5.5.3.a washer-stack limit, section 5.5.5 incomplete-thread engagement) -- criteria only, no dimensions",
+      "C:/workspace/drawing-checker/data/runs/20260819_163414_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER/217755_A_balloons.json and .../20260819_110144_.../217755_A_balloons.json (read-only, both consume the same export, both recorded in their own run_meta.json)"
+    ],
+    "not_used": "AC43.13-1B_w-chg1.pdf (note 24 also names it as an acceptable-methods alternative to JPS00094 for grip selection) is in data/inbox/specs/ but was not opened for this stack -- JPS00094 section 5.5 already gives the definitional criterion used here, and the AC is a 21 MB scan; left for a reader who wants the FAA-side citation too. Balancing-mass part drawings (216579-002 through -007) and the hub-and-blade assembly drawing (216231-002) are not in this repo at all -- see gaps 1 and 2."
+  },
+  "elements": [
+    {
+      "id": "washer_ms21299c3",
+      "name": "washer thickness, MS21299C3 (.063 in), under the bolt head",
+      "role": "washer",
+      "nominal": 1.6002,
+      "min": 1.6002,
+      "max": 1.6002,
+      "lmc": null,
+      "mmc": null,
+      "plus_minus": null,
+      "hardware_ref": "MS21299C3",
+      "note": "0.063 in, read out of the parts-list nomenclature. ZERO-WIDTH BAND: MS21299 is not in data/inbox/specs/, so no document gives a tolerance. Ballooned 'AR' (find 60) -- JPS00094 5.5.3.a allows 0-3 such washers; this element models the ONE this section draws. Removing it or adding a second/third would shift every check below by \u2213/\u00b11.6002 mm, not modelled as a second configuration.",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A.1",
+        "sheet": 8,
+        "zone": "I4",
+        "view": "SECTION T-T",
+        "cell": null,
+        "callout": "MS21299C3  WASHER, COUNTERSUNK, ALLOY STEEL, CADMIUM PLATED, .193\" X .387\" X .063\"  (find 60, qty AR; balloon at SECTION T-T)",
+        "element_id": null,
+        "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-19] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+          "sha256": "789efa194e39454e5386ae10e016a3a313c8be15c419452dfcd1cc60afb2c939",
+          "runs": [
+            { "run_id": "20260819_110144", "ts": "2026-08-19T18:04:18.360563+00:00" },
+            { "run_id": "20260819_163414", "ts": "2026-08-19T23:36:39.110582+00:00" }
+          ],
+          "note": "Established 2026-08-25 by re-hashing the file in drawing-checker's inbox and matching it against both runs' own run_meta.json, which each record this filename and this sha256 as their input -- data/runs.jsonl does not carry an entry for either run, so run_meta.json is the evidence (SOP Step 2's second-strength method)."
+        },
+        "confidence": "inferred",
+        "note": "Parts list gives nominal only -> gap. New hardware_entries.json entry (MS21299C3), separate from the existing MS21299C4K used at the VPA joint."
+      }
+    },
+    {
+      "id": "washer_nas1149v0332_tt",
+      "name": "washer thickness, NAS1149V0332H (.032 in), rotor balance-mass bolt",
+      "role": "washer",
+      "nominal": 0.8128,
+      "min": 0.8128,
+      "max": 0.8128,
+      "lmc": null,
+      "mmc": null,
+      "plus_minus": null,
+      "hardware_ref": "NAS1149V0332",
+      "note": "0.032 in, read out of the parts-list nomenclature -- same part number the pitch-link and tangential-link joints already cite, a different balloon (find 32, zone K4, SECTION T-T) of the same 217755 sheet. ZERO-WIDTH BAND, same reason as the other two joints: NAS1149 is not in data/inbox/specs/, and the +/-.004 in in hardware_entries.json is the 260729-workbook value, unusable in a from-scratch stack (SOP Step 5b).",
+      "source_ref": {
+        "kind": "parts_list",
+        "document": "217755",
+        "revision": "A.1",
+        "sheet": 8,
+        "zone": "K4",
+        "view": "SECTION T-T",
+        "cell": null,
+        "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\"  (find 32, qty 9 across the assembly; balloon at SECTION T-T)",
+        "element_id": null,
+        "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-19] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+          "sha256": "789efa194e39454e5386ae10e016a3a313c8be15c419452dfcd1cc60afb2c939",
+          "runs": [
+            { "run_id": "20260819_110144", "ts": "2026-08-19T18:04:18.360563+00:00" },
+            { "run_id": "20260819_163414", "ts": "2026-08-19T23:36:39.110582+00:00" }
+          ],
+          "note": "Established 2026-08-25, same method as washer_ms21299c3 above."
+        },
+        "confidence": "inferred",
+        "note": "Same hardware entry (NAS1149V0332) the pitch-link and tangential-link joints already cite; a fresh source_ref because this is a different balloon on a different sheet/view of the same drawing. Parts list gives nominal only -> gap."
+      }
+    },
+    {
+      "id": "fastener_grip_u2h",
+      "name": "NAS6403U2H grip length (.125 in) -- shortest of nine options",
+      "role": "fastener",
+      "nominal": 3.175,
+      "min": 2.921,
+      "max": 3.429,
+      "lmc": 2.921,
+      "mmc": 3.429,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U2H",
+      "note": "0.125 +/-0.010 in. External additive feature: MMC (most material) is the longest grip -> mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 2'",
+        "callout": "Grip Dash No. 2  |  Grip = .125  |  LENGTH, NAS6403 .1900-32 = .448",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; the filename identifies the bytes; sha256 recorded so a re-drop under the same name cannot be silently substituted. Same document and sha already cited by NAS6403U11D/U13H/U14D."
+        },
+        "confidence": "traced",
+        "note": "Same sheet-3 table, same shared 'Grip +/-.010' tolerance (footnote: nominal grip = dash number x .0625, rounded to 3 places) already cited for dash 11/13/14 elsewhere in this repo. dash 2 x .0625 = .125 exactly."
+      }
+    },
+    {
+      "id": "fastener_grip_u3h",
+      "name": "NAS6403U3H grip length (.188 in)",
+      "role": "fastener",
+      "nominal": 4.7752,
+      "min": 4.5212,
+      "max": 5.0292,
+      "lmc": 4.5212,
+      "mmc": 5.0292,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U3H",
+      "note": "0.188 +/-0.010 in (dash 3 x .0625 = .1875, rounded to .188). External additive feature: mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 3'",
+        "callout": "Grip Dash No. 3  |  Grip = .188  |  LENGTH, NAS6403 .1900-32 = .511",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [], "note": "Same document/sha as fastener_grip_u2h."
+        },
+        "confidence": "traced",
+        "note": "Same table and treatment as fastener_grip_u2h."
+      }
+    },
+    {
+      "id": "fastener_grip_u4h",
+      "name": "NAS6403U4H grip length (.250 in)",
+      "role": "fastener",
+      "nominal": 6.35,
+      "min": 6.096,
+      "max": 6.604,
+      "lmc": 6.096,
+      "mmc": 6.604,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U4H",
+      "note": "0.250 +/-0.010 in (dash 4 x .0625 = .250 exactly). External additive feature: mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 4'",
+        "callout": "Grip Dash No. 4  |  Grip = .250  |  LENGTH, NAS6403 .1900-32 = .573",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [], "note": "Same document/sha as fastener_grip_u2h."
+        },
+        "confidence": "traced",
+        "note": "Same table and treatment as fastener_grip_u2h."
+      }
+    },
+    {
+      "id": "fastener_grip_u5h",
+      "name": "NAS6403U5H grip length (.312 in)",
+      "role": "fastener",
+      "nominal": 7.9248,
+      "min": 7.6708,
+      "max": 8.1788,
+      "lmc": 7.6708,
+      "mmc": 8.1788,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U5H",
+      "note": "0.312 +/-0.010 in (dash 5 x .0625 = .3125, rounded to .312). External additive feature: mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 5'",
+        "callout": "Grip Dash No. 5  |  Grip = .312  |  LENGTH, NAS6403 .1900-32 = .635",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [], "note": "Same document/sha as fastener_grip_u2h."
+        },
+        "confidence": "traced",
+        "note": "Same table and treatment as fastener_grip_u2h."
+      }
+    },
+    {
+      "id": "fastener_grip_u6h",
+      "name": "NAS6403U6H grip length (.375 in)",
+      "role": "fastener",
+      "nominal": 9.525,
+      "min": 9.271,
+      "max": 9.779,
+      "lmc": 9.271,
+      "mmc": 9.779,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U6H",
+      "note": "0.375 +/-0.010 in (dash 6 x .0625 = .375 exactly). External additive feature: mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 6'",
+        "callout": "Grip Dash No. 6  |  Grip = .375  |  LENGTH, NAS6403 .1900-32 = .698",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [], "note": "Same document/sha as fastener_grip_u2h."
+        },
+        "confidence": "traced",
+        "note": "Same table and treatment as fastener_grip_u2h."
+      }
+    },
+    {
+      "id": "fastener_grip_u7h",
+      "name": "NAS6403U7H grip length (.438 in)",
+      "role": "fastener",
+      "nominal": 11.1252,
+      "min": 10.8712,
+      "max": 11.3792,
+      "lmc": 10.8712,
+      "mmc": 11.3792,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U7H",
+      "note": "0.438 +/-0.010 in (dash 7 x .0625 = .4375, rounded to .438). External additive feature: mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 7'",
+        "callout": "Grip Dash No. 7  |  Grip = .438  |  LENGTH, NAS6403 .1900-32 = .761",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [], "note": "Same document/sha as fastener_grip_u2h."
+        },
+        "confidence": "traced",
+        "note": "Same table and treatment as fastener_grip_u2h."
+      }
+    },
+    {
+      "id": "fastener_grip_u8h",
+      "name": "NAS6403U8H grip length (.500 in)",
+      "role": "fastener",
+      "nominal": 12.7,
+      "min": 12.446,
+      "max": 12.954,
+      "lmc": 12.446,
+      "mmc": 12.954,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U8H",
+      "note": "0.500 +/-0.010 in (dash 8 x .0625 = .500 exactly). External additive feature: mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 8'",
+        "callout": "Grip Dash No. 8  |  Grip = .500  |  LENGTH, NAS6403 .1900-32 = .823",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [], "note": "Same document/sha as fastener_grip_u2h."
+        },
+        "confidence": "traced",
+        "note": "Same table and treatment as fastener_grip_u2h."
+      }
+    },
+    {
+      "id": "fastener_grip_u9h",
+      "name": "NAS6403U9H grip length (.562 in)",
+      "role": "fastener",
+      "nominal": 14.2748,
+      "min": 14.0208,
+      "max": 14.5288,
+      "lmc": 14.0208,
+      "mmc": 14.5288,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U9H",
+      "note": "0.562 +/-0.010 in (dash 9 x .0625 = .5625, rounded to .562). External additive feature: mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 9'",
+        "callout": "Grip Dash No. 9  |  Grip = .562  |  LENGTH, NAS6403 .1900-32 = .885",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [], "note": "Same document/sha as fastener_grip_u2h."
+        },
+        "confidence": "traced",
+        "note": "Same table and treatment as fastener_grip_u2h."
+      }
+    },
+    {
+      "id": "fastener_grip_u10h",
+      "name": "NAS6403U10H grip length (.625 in) -- longest of nine options",
+      "role": "fastener",
+      "nominal": 15.875,
+      "min": 15.621,
+      "max": 16.129,
+      "lmc": 15.621,
+      "mmc": 16.129,
+      "plus_minus": 0.254,
+      "hardware_ref": "NAS6403U10H",
+      "note": "0.625 +/-0.010 in (dash 10 x .0625 = .625 exactly). External additive feature: mmc -> max.",
+      "source_ref": {
+        "kind": "spec", "document": "NAS6403-NAS6420 Rev 4.pdf", "revision": "Rev 4", "sheet": 3, "zone": null,
+        "view": "grip/length table", "cell": "row 'Grip Dash No. 10'",
+        "callout": "Grip Dash No. 10  |  Grip = .625  |  LENGTH, NAS6403 .1900-32 = .948",
+        "element_id": null, "run_id": null,
+        "export": {
+          "status": "established", "pdf": "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf",
+          "sha256": "24276f73d4e4521221a35ca0bd170cfceb96f3d9390427f2b29dbfcde9480b73",
+          "runs": [], "note": "Same document/sha as fastener_grip_u2h."
+        },
+        "confidence": "traced",
+        "note": "Same table and treatment as fastener_grip_u2h."
+      }
+    }
+  ],
+  "paths": [
+    {
+      "id": "sourced_clamped_stack",
+      "label": "clamped column, sourced members only (MS21299C3 washer + NAS1149V0332H washer) -- EXCLUDES the unsourced balancing mass(es) and receiving-structure thickness",
+      "workbook_cells": null,
+      "terms": [
+        { "element": "washer_ms21299c3" },
+        { "element": "washer_nas1149v0332_tt" }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "check_id": "grip_budget__u2h",
+      "label": "grip budget, NAS6403U2H (.125 in)",
+      "configuration": { "fastener": "NAS6403U2H (.125 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007, 4-66 g each, 0 to a stacked combination up to 80 g per general note 12 / JED02183) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole (216231-002 HUB AND BLADE ASSEMBLY, or whichever of the three reference-balloon assemblies at SECTION T-T actually carries the tapped hole) -- no part drawing in this repo; the balloons here are reference-only (qty '-', no dimension)"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "sourced clamped column minus grip. This check carries `complete: false` -- the balancing mass(es) and the receiving structure are both missing from the column, so the verdict is scoped to a BUDGET, not the joint. Read the magnitude instead: it is the combined mass+structure thickness this dash can accommodate before the receiving member would engage the bolt's incomplete threads (JPS00094 5.5.5). At worst case (grip max vs sourced-column min, both zero-width so nominal=min=max=2.413 mm) that budget is 3.429 - 2.413 = 1.016 mm; at nominal it is 3.175 - 2.413 = 0.762 mm. This is the SHORTEST of the nine options and therefore the smallest budget in the family.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u2h", "sign": -1 }
+      ]
+    },
+    {
+      "check_id": "grip_budget__u3h",
+      "label": "grip budget, NAS6403U3H (.188 in)",
+      "configuration": { "fastener": "NAS6403U3H (.188 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 4.7752 - 2.413 = 2.3622 mm; worst case (grip max) = 5.0292 - 2.413 = 2.6162 mm.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u3h", "sign": -1 }
+      ]
+    },
+    {
+      "check_id": "grip_budget__u4h",
+      "label": "grip budget, NAS6403U4H (.250 in)",
+      "configuration": { "fastener": "NAS6403U4H (.250 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 6.35 - 2.413 = 3.937 mm; worst case = 6.604 - 2.413 = 4.191 mm.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u4h", "sign": -1 }
+      ]
+    },
+    {
+      "check_id": "grip_budget__u5h",
+      "label": "grip budget, NAS6403U5H (.312 in)",
+      "configuration": { "fastener": "NAS6403U5H (.312 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 7.9248 - 2.413 = 5.5118 mm; worst case = 8.1788 - 2.413 = 5.7658 mm.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u5h", "sign": -1 }
+      ]
+    },
+    {
+      "check_id": "grip_budget__u6h",
+      "label": "grip budget, NAS6403U6H (.375 in)",
+      "configuration": { "fastener": "NAS6403U6H (.375 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 9.525 - 2.413 = 7.112 mm; worst case = 9.779 - 2.413 = 7.366 mm.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u6h", "sign": -1 }
+      ]
+    },
+    {
+      "check_id": "grip_budget__u7h",
+      "label": "grip budget, NAS6403U7H (.438 in)",
+      "configuration": { "fastener": "NAS6403U7H (.438 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 11.1252 - 2.413 = 8.7122 mm; worst case = 11.3792 - 2.413 = 8.9662 mm.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u7h", "sign": -1 }
+      ]
+    },
+    {
+      "check_id": "grip_budget__u8h",
+      "label": "grip budget, NAS6403U8H (.500 in)",
+      "configuration": { "fastener": "NAS6403U8H (.500 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 12.7 - 2.413 = 10.287 mm; worst case = 12.954 - 2.413 = 10.541 mm.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u8h", "sign": -1 }
+      ]
+    },
+    {
+      "check_id": "grip_budget__u9h",
+      "label": "grip budget, NAS6403U9H (.562 in)",
+      "configuration": { "fastener": "NAS6403U9H (.562 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 14.2748 - 2.413 = 11.8618 mm; worst case = 14.5288 - 2.413 = 12.1158 mm.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u9h", "sign": -1 }
+      ]
+    },
+    {
+      "check_id": "grip_budget__u10h",
+      "label": "grip budget, NAS6403U10H (.625 in)",
+      "configuration": { "fastener": "NAS6403U10H (.625 in grip)" },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "workbook_cells": null,
+      "guidance": "Same budget shape as grip_budget__u2h -- the LONGEST option, and therefore the largest budget in the family. Nominal budget = 15.875 - 2.413 = 13.462 mm; worst case = 16.129 - 2.413 = 13.716 mm.",
+      "terms": [
+        { "path": "sourced_clamped_stack" },
+        { "element": "fastener_grip_u10h", "sign": -1 }
+      ]
+    }
+  ],
+  "notes": [
+    "BUILT FROM SCRATCH. No source workbook exists for this joint (neither slice 1 nor the 260729 workbook analysed it), so there is no re-derivation section in the worksheet, no `workbook_cells` on any path or check, and no `[NOT IN WORKBOOK]` markers -- every check here is original. `kind: \"workbook\"` appears zero times, as SOP Step 5b requires.",
+    "THE STACK IS INCOMPLETE AND SAYS SO -- more so than the other three 217755 joints. Two members of the clamped column have no document at all: the balancing-mass thickness (only weight in grams is printed; no part drawing for 216579-002..-007) and the receiving structure's engagement thickness (216231-002 HUB AND BLADE ASSEMBLY and its neighbours are reference-only balloons with no dimension). Both are named gaps; neither is filled with a recalled or plausible number.",
+    "NINE-WAY GRIP FAMILY, NOT ONE FASTENER. Unlike the other three 217755 joints (each a single fixed as-drawn dash), this joint's own drawing note (24) says to SELECT a dash at assembly. This stack therefore models all nine as-drawn options and reports, per dash, the combined mass+structure thickness budget it can accommodate before shank-out would go negative -- not a single pass/fail verdict. All nine checks are `complete: false` by construction and read as budgets, exactly like pitch_link_to_pitch_plate's two checks.",
+    "OPTIONAL WASHER INCLUDED BY DEFAULT. MS21299C3 is ballooned 'AR'; JPS00094 5.5.3.a allows 0-3 such washers when a coarser bolt-length step is substituted for the exact grip needed. This stack includes exactly one (matching what SECTION T-T draws), so removing or doubling it shifts every check's budget by 1.6002 mm -- not modelled as a second configuration.",
+    "NO INVERTING ELEMENT AND NO CASTELLATION. The nine fastener elements are the only ones carrying lmc/mmc, and all are additive external lengths (max == mmc); there is no chamfer, relief or counterbore in this joint. The two washers carry null lmc/mmc, same convention as the other joints' zero-width washers -- there is no transcribed material condition to record. Retention here is a blind tapped hole, not a nut: no MS9363 slotted/castellated nut and no MS24665 cotter pin appear at this joint, so the castellated-grip quantisation caveat that governs the pitch-link and tangential-link joints does not apply.",
+    "JOINT IDENTITY IS INFERRED FROM THE DRAWING'S OWN LANGUAGE, NOT FROM NOMENCLATURE. See joint.identification_note for the full argument: general note 24's wording is the handoff's own framing, verbatim, and this is the only 217755 joint with a genuine grip-selection family.",
+    "Element order is head-to-tail as the section draws it: MS21299C3 washer, [balancing mass -- MISSING], NAS1149V0332H washer, [receiving-structure thickness -- MISSING]; the nine fastener grip options follow, one per check. Only the path term list is load-bearing for the arithmetic."
+  ]
+}
