@@ -1276,6 +1276,25 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`C:/workspace/tolstack/data`), and `ls` for a stray
       `workspace<repo>data`-shaped directory in cwd after running any of this
       repo's `--data-root` scripts if you ever did use backslashes.
+- [ ] **A CSS/layout change is unverified by the fast tier — always run the
+      browser truth tier for one.** New 2026-08-25/26 (`stack_viewer_layout_v2`).
+      `apps/viewer/run_tests.cjs`'s DOM shim has no geometry: it cannot fail on
+      "this element is visually behind another" or "this table is wider than the
+      space beside it," so a layout defect ships 100% green on that tier alone.
+      This handoff's own truth-tier run caught a real one:
+      `scripts/run_viewer_browser_tests.mjs` timed out clicking a row because the
+      new right pane intercepted pointer events, root-caused to (a) a flex item's
+      default `min-width: auto` re-asserting itself the moment `.stackview` got
+      wrapped in a new flex container (`.center`) — `min-width: 0` has to be
+      re-applied to the item **at its new nesting level**, it does not inherit
+      through a wrapper — and (b) the table having nowhere to put overflow
+      (`overflow-x: auto` fixed it). A reviewer who trusts `node
+      apps/viewer/run_tests.cjs` alone for a layout/CSS diff is trusting a tier
+      that structurally cannot see the defect class; run
+      `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`
+      (needs `npm install` — `playwright-core` only, no browser download) and
+      confirm 4/4 yourself. Re-verified in this review, still 4/4 on the merged
+      tree.
 
 ## Architectural errors to check
 
