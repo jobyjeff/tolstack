@@ -1201,6 +1201,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       A one-command check would have caught it: `grep -rn <name> tests/`
       returning nothing is a stronger tell than a name that resolves to the
       wrong symbol, and it costs the same command. Fixed inline in review.
+- [ ] **A workbook worksheet's own element-instance count needs
+      re-derivation from its section tables, separately from its `traced`
+      ratio.** New 2026-08-25 (`endstop_graft_workorder`). Every prior
+      "recompute the ratio" sighting was about the `traced`/`inferred`
+      distinction; this one was a plain arithmetic miscount of one section's
+      row range (§2c claimed 11, rows 30–45 are 16), which moved the total
+      from 38 to 43 and was copied into 3 files (the worksheet's own
+      blockquote and prose, the README contents-table row, the LESSONS
+      heading) before anyone re-added the rows. Worse, the blockquote line
+      itself read "38 traced" against a "0 traced" conclusion stated
+      everywhere else in the same document — an inverted assertion sitting
+      right beside the miscount, not just a stale digit. **Count each
+      section's row range yourself** (`tests/debug_dump_tol_stack_xlsx.py`
+      against the source workbook, not the worksheet's table) whenever a
+      non-JSON, workbook-only worksheet states an element-instance count —
+      there is no `_counts()`-style function backing this kind of count the
+      way there is for the JSON-stack traced ratio, so nothing mechanises it.
+      Both fixed inline in review.
 
 ## Architectural errors to check
 

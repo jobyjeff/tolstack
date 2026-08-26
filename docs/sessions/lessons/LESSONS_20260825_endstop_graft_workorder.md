@@ -67,7 +67,11 @@ hub-bearing worksheet's F3 precedent): both matched their cached totals
 exactly, including a deliberate double-reference to `D33` in both lists —
 real, not a transcription error on my part.
 
-## The untraced count: 0 of 38 — the worst so far, and that is the finding
+## The untraced count: 0 of 43 — the worst so far, and that is the finding
+
+(Corrected in review: the handoff's own worksheet miscounted §2c as 11 rows
+when rows 30–45 are 16, making the true total 43 element instances, not 38 —
+the "0 traced" conclusion is unaffected, only the denominator.)
 
 Every contributor element in this sheet is `untraced`: no drawing zone, no
 spec, no citation of any kind beyond a component name and a one-line hand

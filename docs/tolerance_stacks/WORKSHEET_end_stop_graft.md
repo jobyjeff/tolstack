@@ -301,10 +301,14 @@ finding: this is the least-traceable source workbook in the repo so far (see
 
 ## 4. The count
 
-Contributor elements: §2a (7) + §2b (2) + §2c (11) + §2d (17) + §2e (1) = **38
+Contributor elements: §2a (7) + §2b (2) + §2c (16) + §2d (17) + §2e (1) = **43
 element instances**, all rows 15–68 minus the pure geometry inputs of §1.
+(§2c is rows 30–45 inclusive, 16 rows, not 11 — corrected in review; the
+element-instance total and every "of 38" figure below moves to "of 43"
+accordingly. Re-verified against `tests/debug_dump_tol_stack_xlsx.py`'s raw
+dump: all 16 rows 30–45 are populated contributor rows.)
 
-> **38 traced / 0 inferred / 38 untraced.**
+> **0 traced / 0 inferred / 43 untraced, out of 43 element instances.**
 
 No exceptions register. Nothing in this workbook cites a drawing zone, a
 released spec, or even names a document that is in the repo (NAS1154 is named
@@ -312,7 +316,8 @@ but absent — naming a document that cannot be opened does not trace a value,
 it is still `untraced` by SOP vocabulary). For comparison, the previous low
 mark in this repo was `pitch_link_to_pitch_plate` at 4 of 6 in a
 from-scratch stack, and the hub-bearing M1 sheet at 4 of 8 in a superseded
-workbook read. **This workbook traces 0 of 38.** That is not a defect in the
+workbook read; across the three seeded, SOP-grade stacks the current figure
+is **5 of 26** `traced`. **This workbook traces 0 of 43.** That is not a defect in the
 transcription — the workbook is Jeff's own working scratchpad, built for
 himself before there was an SOP that asked for citations, and it says so in
 its own comments ("estimate," "probably," "need to correct," "does not exist
