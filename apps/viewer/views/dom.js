@@ -34,4 +34,19 @@
     if (title) node.setAttribute("title", title);
     return node;
   };
+
+  // A paragraph of provenance prose: clamped, click to expand, full text on
+  // hover. Shared by views/stack.js (a material's note and CINDAS request) and
+  // views/detail.js (an export's own note) — kept in one place so a selector for
+  // one class never picks up another's behaviour by accident.
+  VA.clampedNote = function (baseClass, text) {
+    var note = VA.el("div", baseClass, text);
+    note.setAttribute("title", "click to expand / collapse");
+    note.onclick = function () {
+      note.className = note.className.indexOf(baseClass + "--open") === -1
+        ? baseClass + " " + baseClass + "--open"
+        : baseClass;
+    };
+    return note;
+  };
 })(window.ViewerApp = window.ViewerApp || {});

@@ -8,8 +8,17 @@
     results: null,
     crops: null,
     selectedId: null,
+    // The element selected in the elements table, whose full sourcing renders
+    // in the right pane (views/detail.js). Reset whenever the stack changes —
+    // a selection from the previous stack pointing at this one's row would be
+    // showing the wrong element's citation under the right name.
+    selectedElementId: null,
+    detailImage: null,
     error: null,
-    showWorksheet: true,
+    // The worksheet ("the agent's report") is collapsed by default now that it
+    // lives below the table rather than in the side pane — Jeff wants it out of
+    // the way, not gone.
+    showWorksheet: false,
   };
 
   var adapter = null;
@@ -23,9 +32,28 @@
       banner: document.getElementById("banner"),
       list: document.getElementById("stacklist"),
       stack: document.getElementById("stackview"),
+      worksheetWrap: document.getElementById("worksheet-wrap"),
       worksheet: document.getElementById("worksheet"),
+      detail: document.getElementById("detail"),
       crop: document.getElementById("croppop"),
       worksheetToggle: document.getElementById("worksheet-toggle"),
+    };
+
+    // The worksheet lives in a native <details> now (below the table, collapsed
+    // by default) rather than a pane the app shows/hides itself, so its open
+    // state is set directly on the DOM node instead of round-tripping through a
+    // full render() — clicking the <summary> itself must work exactly the same
+    // way, and forcing `.open` from state on every render would fight that.
+    nodes.worksheetWrap.open = state.showWorksheet;
+    nodes.worksheetToggle.textContent =
+      (state.showWorksheet ? "Hide" : "Show") + " worksheet";
+    nodes.worksheetWrap.addEventListener("toggle", function () {
+      state.showWorksheet = nodes.worksheetWrap.open;
+      nodes.worksheetToggle.textContent =
+        (state.showWorksheet ? "Hide" : "Show") + " worksheet";
+    });
+    nodes.worksheetToggle.onclick = function () {
+      nodes.worksheetWrap.open = !nodes.worksheetWrap.open;
     };
 
     // ?mock=1 gives a UI tour with no folder grant and no disk access at all.
@@ -41,10 +69,6 @@
       return;
     }
 
-    nodes.worksheetToggle.onclick = function () {
-      state.showWorksheet = !state.showWorksheet;
-      render();
-    };
     // A click outside both the triggers and the popover closes it. Clicks INSIDE
     // must survive — handing you a link to the full reference is the point. The
     // 300 ms guard is what stops the very click that opened the popover from
@@ -79,8 +103,9 @@
         var stacks = (state.results && state.results.stacks) || [];
         if (!VA.findStack(state.results, state.selectedId)) {
           state.selectedId = stacks.length ? stacks[0].id : null;
+          state.selectedElementId = null;
         }
-        return loadWorksheet();
+        return Promise.all([loadWorksheet(), loadDetailImage()]);
       });
   }
 
@@ -93,6 +118,37 @@
     }
     return adapter.readText(segments).then(function (text) {
       state.worksheetText = text;
+    });
+  }
+
+  // --- element selection -----------------------------------------------------
+
+  function selectElement(elementId) {
+    state.selectedElementId = elementId;
+    loadDetailImage().then(render);
+  }
+
+  // The right pane renders the crop INLINE (deliverable 3), which means the app
+  // has to fetch it as soon as an element is selected rather than waiting for a
+  // hover. Shares `imageCache` with the popover's showCrop — the same PNG open
+  // in both places is the same object URL, not fetched twice.
+  function loadDetailImage() {
+    state.detailImage = null;
+    var stackProj = VA.findStack(state.results, state.selectedId);
+    var elements = (stackProj && stackProj.stack && stackProj.stack.elements) || [];
+    var element = elements.filter(function (e) { return e.id === state.selectedElementId; })[0];
+    if (!element) return Promise.resolve();
+    var entry = VA.cropFor(state.crops, stackProj.id, element.id);
+    if (entry.status !== "resolved" || !entry.png) return Promise.resolve();
+    if (Object.prototype.hasOwnProperty.call(imageCache, entry.png)) {
+      state.detailImage = imageCache[entry.png];
+      return Promise.resolve();
+    }
+    return adapter.readCropImage(entry.png).then(function (image) {
+      imageCache[entry.png] = image;
+      state.detailImage = image;
+    }).catch(function () {
+      imageCache[entry.png] = null;
     });
   }
 
@@ -184,6 +240,11 @@
 
     VA.renderList(nodes.list, state.results, state.selectedId, function (id) {
       state.selectedId = id;
+      // A selection from the previous stack means nothing on this one — reset
+      // it rather than let a stale element id silently point at nothing (or,
+      // worse, at a different element that happens to share the id).
+      state.selectedElementId = null;
+      state.detailImage = null;
       hideCrop();
       loadWorksheet().then(render);
     });
@@ -191,14 +252,18 @@
     var stackProj = VA.findStack(state.results, state.selectedId);
     VA.renderStack(nodes.stack, stackProj, state.crops, {
       onCropShow: showCrop,
+      onElementSelect: selectElement,
+      selectedElementId: state.selectedElementId,
     });
 
-    nodes.worksheetToggle.textContent =
-      (state.showWorksheet ? "Hide" : "Show") + " worksheet";
-    nodes.worksheet.style.display = state.showWorksheet ? "block" : "none";
-    if (state.showWorksheet) {
-      VA.renderWorksheet(nodes.worksheet, stackProj, state.worksheetText);
-    }
+    VA.renderDetail(nodes.detail, stackProj, state.selectedElementId,
+      state.crops, state.detailImage, VA.CONFIG);
+
+    // The worksheet's open/closed state lives on the <details> node itself
+    // (see boot()) — render() only ever refreshes its CONTENT, never its
+    // collapsed state, so clicking the <summary> directly is not fought on the
+    // next render.
+    VA.renderWorksheet(nodes.worksheet, stackProj, state.worksheetText);
   }
 
   VA.boot = boot;

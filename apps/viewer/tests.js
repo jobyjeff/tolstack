@@ -527,15 +527,16 @@
       has(root.textContent, "budget, not a verdict");
     });
 
-    await test("a source_ref note is clamped until clicked", function () {
+    // The citation's own note used to live on the row, clamped and click to
+    // expand. It moved to the right pane with deliverable 2's compaction, and
+    // deliverable 3 says it renders there UNCLAMPED — see the detail-pane tests
+    // below ("the citation note reaches the panel, in full, unclamped").
+    await test("the compact row carries no note, callout or export block", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      var note = all(root, "div.el-row__srcnote")[0];
-      ok(note, "expected a source note");
-      ok(note.className.indexOf("--open") === -1, "clamped by default");
-      note.click();
-      has(note.className, "el-row__srcnote--open");
-      note.click();
-      ok(note.className.indexOf("--open") === -1, "click again re-clamps");
+      eq(all(root, "div.el-row__srcnote").length, 0);
+      eq(all(root, "div.el-row__callout").length, 0);
+      eq(all(root, "div.el-export").length, 0,
+         "the export block must be in the right pane only, not on the row");
     });
 
     await test("hardware gaps fold into one row per element, nothing dropped", function () {
@@ -578,6 +579,40 @@
     await test("renderStack with no stack asks for one instead of throwing", function () {
       var root = render(function (r) { VA.renderStack(r, null, CROPS, {}); });
       has(root.textContent, "Pick a stack");
+    });
+
+    // --- selection: clicking a row is how the right pane gets populated -----
+
+    await test("clicking anywhere on a row hands its element id to the app", function () {
+      var seen = null;
+      var root = render(function (r) {
+        VA.renderStack(r, DEMO, CROPS, { onElementSelect: function (id) { seen = id; } });
+      });
+      all(root, "tr.el-row")[0].click();
+      eq(seen, "plate");
+      all(root, "tr.el-row")[2].click();
+      eq(seen, "eye");
+    });
+
+    await test("the selected row is visibly marked, and only that one", function () {
+      var root = render(function (r) {
+        VA.renderStack(r, DEMO, CROPS, { selectedElementId: "washer" });
+      });
+      var selected = all(root, "tr.el-row--selected");
+      eq(selected.length, 1);
+      has(selected[0].textContent, "washer thickness");
+    });
+
+    await test("no row is marked selected when nothing is", function () {
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      eq(all(root, "tr.el-row--selected").length, 0);
+    });
+
+    await test("a row is clickable even with no onElementSelect handler wired", function () {
+      // renderStack is called with {} (no handlers) elsewhere in this file and
+      // must not throw just because nothing is listening for a click.
+      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      all(root, "tr.el-row")[0].click();
     });
 
     // --- generated checks: the whole point of the surface --------------------
@@ -767,10 +802,86 @@
       eq(VA.baseName(null), null);
     });
 
-    // --- source_ref.export, on the page --------------------------------------
+    // --- the right pane: full sourcing detail on selection (deliverable 3) ---
 
-    await test("an established export reaches the element row", function () {
-      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+    await test("the callout and the citation note reach the panel, in full", function () {
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "plate", CROPS, null, VA.CONFIG);
+      });
+      has(all(root, "div.detail__callout")[0].textContent, "5X 4.06 ±0.10");
+      // Unclamped: no click-to-expand class exists on this element at all — the
+      // whole point of moving it here is that it no longer needs one.
+      var note = all(root, "div.detail__note")[0];
+      ok(note, "expected the citation note");
+      has(note.textContent, "clamp-and-click-to-expand behaviour has something " +
+        "to clamp");
+      eq(note.className.indexOf("--open"), -1);
+      ok(!note.onclick, "the panel's note is not clamped, so it needs no toggle");
+    });
+
+    await test("the panel header names the element and its confidence", function () {
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "washer", CROPS, null, VA.CONFIG);
+      });
+      has(root.textContent, "washer thickness");
+      has(all(root, "code")[0].textContent, "washer");
+      has(all(root, "span.conf--inferred")[0].textContent, "inferred");
+    });
+
+    await test("the crop renders inline in the panel when it has resolved", function () {
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "plate", CROPS, { url: "blob:x" }, VA.CONFIG);
+      });
+      var img = all(root, "img.detail__crop-img");
+      eq(img.length, 1);
+      eq(img[0].getAttribute("src"), "blob:x");
+      // The height reserved from crops.json's own pixel size, same reason the
+      // hover popover does it.
+      eq(img[0].style.aspectRatio, "800 / 600");
+      has(root.textContent, "sheet 2");
+      has(root.textContent, "read from the export this citation names");
+    });
+
+    await test("the panel names which of the four crop states applies when there is no image",
+      function () {
+        // resolved, but the image has not arrived (or failed) yet.
+        var loading = render(function (r) {
+          VA.renderDetail(r, DEMO, "plate", CROPS, null, VA.CONFIG);
+        });
+        eq(all(loading, "img").length, 0);
+        has(loading.textContent, "sheet 2");
+
+        // unresolvable, with the recorded reason.
+        var unresolvable = render(function (r) {
+          VA.renderDetail(r, DEMO, "washer", CROPS, null, VA.CONFIG);
+        });
+        has(all(unresolvable, "div.detail__crop-reason")[0].textContent,
+            "unestablished");
+
+        // no-entry: crops.json has never heard of this element.
+        var noEntry = render(function (r) {
+          VA.renderDetail(r, DEMO, "eye", CROPS, null, VA.CONFIG);
+        });
+        has(all(noEntry, "div.detail__crop-reason")[0].textContent, "older than");
+
+        // not-built: no crops.json at all.
+        var notBuilt = render(function (r) {
+          VA.renderDetail(r, DEMO, "plate", null, null, VA.CONFIG);
+        });
+        has(all(notBuilt, "div.detail__crop-reason")[0].textContent,
+            "has not been built");
+      });
+
+    // --- source_ref.export, in the right pane ---------------------------------
+    //
+    // The export block moved off the row with deliverable 2's compaction — the
+    // row keeps only the loud chip (still asserted below, via renderStack); the
+    // block itself, in full, is views/detail.js's, reached by selecting the row.
+
+    await test("an established export reaches the detail pane", function () {
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "plate", CROPS, null, VA.CONFIG);
+      });
       var box = all(root, "div.el-export--established");
       eq(box.length, 1);
       has(box[0].textContent, "export established: 215197.pdf");
@@ -780,8 +891,8 @@
       // popover prints it: a file:// link only navigates from a file:// page, and
       // copy-paste is the fallback that always works.
       has(all(root, "div.el-export__path")[0].textContent, "C:/workspace/demo/215197.pdf");
-      // The export's own note is clamped like the citation's, and does NOT reuse
-      // its class — a selector for one must never pick up the other.
+      // The export's own note is clamped like the citation's used to be, and does
+      // NOT reuse its class — a selector for one must never pick up the other.
       var note = all(root, "div.el-export__note")[0];
       ok(note, "the export note is rendered");
       has(note.textContent, "hashes nothing");
@@ -791,49 +902,75 @@
     });
 
     // THE DELIVERABLE. The stack states outright that the bytes behind this
-    // number cannot be identified, with a recorded reason — and until this test
+    // number cannot be identified, with a recorded reason — and until this
     // existed the row showed the same "inferred" chip as a citation whose export
-    // is nailed down.
-    await test("an unestablished export is loud on the row and shows its why", function () {
-      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      var box = all(root, "div.el-export--unestablished");
-      eq(box.length, 1);
-      ok(box[0].className.indexOf("el-export--loud") !== -1, "must be loud");
-      has(box[0].textContent, "EXPORT UNESTABLISHED");
-      // The reason, unclamped and not behind a hover: it was reachable only
-      // through a crop popover before, and hiding it behind a second click here
-      // would reproduce that defect one notch down.
-      var why = all(root, "div.el-export__why");
-      eq(why.length, 1);
-      has(why[0].textContent, "none hashes to the one this .032\" was read off");
-      // Legible from the ROW, which is the question the handoff asks: a filled
-      // chip beside the confidence chip, on the washer's row and no other.
-      var chips = all(root, "span.chip--export-unestablished");
-      eq(chips.length, 1);
-      has(chips[0].textContent, "EXPORT UNESTABLISHED");
-      var rows = all(root, "tr.el-row");
-      has(rows[1].textContent, "EXPORT UNESTABLISHED");
-      ok(rows[0].textContent.indexOf("EXPORT UNESTABLISHED") === -1,
-         "the established row is not tarred with it");
-    });
+    // is nailed down. The chip stays legible from the ROW (compact grid); the
+    // full block is the panel's.
+    await test("an unestablished export is loud on the row, and its why is in the panel",
+      function () {
+        var rowsRoot = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+        // Legible from the ROW, which is the question the handoff asks: a filled
+        // chip beside the confidence chip, on the washer's row and no other.
+        var chips = all(rowsRoot, "span.chip--export-unestablished");
+        eq(chips.length, 1);
+        has(chips[0].textContent, "EXPORT UNESTABLISHED");
+        var rows = all(rowsRoot, "tr.el-row");
+        has(rows[1].textContent, "EXPORT UNESTABLISHED");
+        ok(rows[0].textContent.indexOf("EXPORT UNESTABLISHED") === -1,
+           "the established row is not tarred with it");
+
+        var detailRoot = render(function (r) {
+          VA.renderDetail(r, DEMO, "washer", CROPS, null, VA.CONFIG);
+        });
+        var box = all(detailRoot, "div.el-export--unestablished");
+        eq(box.length, 1);
+        ok(box[0].className.indexOf("el-export--loud") !== -1, "must be loud");
+        has(box[0].textContent, "EXPORT UNESTABLISHED");
+        // The reason, unclamped and not behind a hover: it was reachable only
+        // through a crop popover before, and hiding it behind a second click here
+        // would reproduce that defect one notch down.
+        var why = all(detailRoot, "div.el-export__why");
+        eq(why.length, 1);
+        has(why[0].textContent, "none hashes to the one this .032\" was read off");
+      });
 
     // ...and it says so WITHOUT a crop, which is the whole asymmetry argument:
     // the washer's crop is unresolvable and its reason lives in a popover nobody
     // has opened.
     await test("the unestablished why needs no crop to be resolved", function () {
       eq(VA.cropFor(CROPS, "demo_joint", "washer").status, "unresolvable");
-      var root = render(function (r) { VA.renderStack(r, DEMO, null, {}); });
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "washer", null, null, VA.CONFIG);
+      });
       has(all(root, "div.el-export__why")[0].textContent, "none hashes to the one");
       has(root.textContent, "EXPORT UNESTABLISHED");
     });
 
     await test("a citation with no export block says so rather than nothing", function () {
-      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "eye", CROPS, null, VA.CONFIG);
+      });
       var box = all(root, "div.el-export--none");
       eq(box.length, 1);
       has(box[0].textContent, "names no exported file");
       // Not loud, and no chip: see the comment on the state in views/stack.js.
       ok(box[0].className.indexOf("--loud") === -1);
+    });
+
+    await test("the panel says which element to select when nothing is selected",
+      function () {
+        var root = render(function (r) {
+          VA.renderDetail(r, DEMO, null, CROPS, null, VA.CONFIG);
+        });
+        has(root.textContent, "Select an element");
+        eq(all(root, "div.el-export").length, 0);
+      });
+
+    await test("the panel asks for a stack when there is none", function () {
+      var root = render(function (r) {
+        VA.renderDetail(r, null, "plate", CROPS, null, VA.CONFIG);
+      });
+      has(root.textContent, "Pick a stack");
     });
 
     // --- identity_rule: the citation that names no export AND IS RIGHT NOT TO --
@@ -893,38 +1030,47 @@
            "the no-export sentence must be replaced, not appended to: " + line);
       });
 
-    await test("the spec-pile row says what identifies its bytes, on the page", function () {
-      var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      var box = all(root, "div.el-export--identity_rule");
-      eq(box.length, 1);
-      has(box[0].textContent, "identity by filename (append-only pile)");
-      // The argument for the state, unclamped and not behind a hover — same rule
-      // as an unestablished export's `why`.
-      has(all(root, "div.el-export__detail")[0].textContent, "append-only");
-      ok(box[0].className.indexOf("--loud") === -1, "not an alarm");
-      // No chip: a chip on a state that is fine is a chip nobody reads. And the
-      // row is still `traced`, which is now readable rather than alarming.
-      eq(all(root, "span.chip--export-identity_rule").length, 0);
-      var rows = all(root, "tr.el-row");
+    await test("the spec-pile row says what identifies its bytes, in the panel", function () {
+      // Legible from the row: no chip, and the row text no longer reads as
+      // "nothing identifies this" — that's the row-level half of the deliverable.
+      var rowsRoot = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      eq(all(rowsRoot, "span.chip--export-identity_rule").length, 0);
+      var rows = all(rowsRoot, "tr.el-row");
       has(rows[3].textContent, "fastener grip (spec pile)");
       ok(rows[3].textContent.indexOf("names no exported file") === -1,
          "the four spec citations must stop reading as 'nothing identifies this'");
+
+      // The argument for the state, in full, in the panel — unclamped and not
+      // behind a hover, same rule as an unestablished export's `why`.
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "grip", CROPS, null, VA.CONFIG);
+      });
+      var box = all(root, "div.el-export--identity_rule");
+      eq(box.length, 1);
+      has(box[0].textContent, "identity by filename (append-only pile)");
+      has(all(root, "div.el-export__detail")[0].textContent, "append-only");
+      ok(box[0].className.indexOf("--loud") === -1, "not an alarm");
     });
 
-    await test("an identity rule the viewer cannot explain is loud on the row", function () {
-      var poisoned = JSON.parse(JSON.stringify(DEMO));
-      poisoned.elements[3].identity_rule = "sha_of_pile";
-      var root = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
-      var box = all(root, "div.el-export--identity_unlabelled");
-      eq(box.length, 1);
-      ok(box[0].className.indexOf("el-export--loud") !== -1);
-      has(all(root, "span.chip--export-identity_unlabelled")[0].textContent,
-          "IDENTITY RULE UNKNOWN");
-      // Its own chip class and its own wording: calling an unknown identity rule
-      // "EXPORT STATUS UNKNOWN" would send a reader looking for a field this
-      // citation does not have.
-      eq(all(root, "span.chip--export-unlabelled").length, 0);
-    });
+    await test("an identity rule the viewer cannot explain is loud on the row and in the panel",
+      function () {
+        var poisoned = JSON.parse(JSON.stringify(DEMO));
+        poisoned.elements[3].identity_rule = "sha_of_pile";
+        var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
+        has(all(rowsRoot, "span.chip--export-identity_unlabelled")[0].textContent,
+            "IDENTITY RULE UNKNOWN");
+        // Its own chip class and its own wording: calling an unknown identity rule
+        // "EXPORT STATUS UNKNOWN" would send a reader looking for a field this
+        // citation does not have.
+        eq(all(rowsRoot, "span.chip--export-unlabelled").length, 0);
+
+        var root = render(function (r) {
+          VA.renderDetail(r, poisoned, "grip", CROPS, null, VA.CONFIG);
+        });
+        var box = all(root, "div.el-export--identity_unlabelled");
+        eq(box.length, 1);
+        ok(box[0].className.indexOf("el-export--loud") !== -1);
+      });
 
     // DELIVERABLE 3: the rule is written where a reader of the row can find it,
     // on the surface itself rather than in a lesson.
@@ -942,23 +1088,27 @@
       has(legend[0].textContent, "must name the EXPORT");
     });
 
-    await test("an export status the viewer cannot explain is loud on the row", function () {
-      var poisoned = JSON.parse(JSON.stringify(DEMO));
-      poisoned.stack.elements[0].source_ref.export = { status: "provisional" };
-      var root = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
-      var box = all(root, "div.el-export--unlabelled");
-      eq(box.length, 1);
-      ok(box[0].className.indexOf("el-export--loud") !== -1);
-      has(box[0].textContent, "\"provisional\"");
-      has(all(root, "span.chip--export-unlabelled")[0].textContent,
-          "EXPORT STATUS UNKNOWN");
-      // The unestablished chip's class is NOT reused for it: the two states are
-      // different facts and a stylesheet must be able to tell them apart, even
-      // though today they share one loud rule. The one on the page is the
-      // washer's, which this poisoning did not touch.
-      eq(all(root, "span.chip--export-unestablished").length, 1);
-      eq(all(root, "div.el-export--unestablished").length, 1);
-    });
+    await test("an export status the viewer cannot explain is loud on the row and in the panel",
+      function () {
+        var poisoned = JSON.parse(JSON.stringify(DEMO));
+        poisoned.stack.elements[0].source_ref.export = { status: "provisional" };
+        var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
+        has(all(rowsRoot, "span.chip--export-unlabelled")[0].textContent,
+            "EXPORT STATUS UNKNOWN");
+        // The unestablished chip's class is NOT reused for it: the two states are
+        // different facts and a stylesheet must be able to tell them apart, even
+        // though today they share one loud rule. The washer's is untouched by
+        // this poisoning and still reads unestablished.
+        eq(all(rowsRoot, "span.chip--export-unestablished").length, 1);
+
+        var root = render(function (r) {
+          VA.renderDetail(r, poisoned, "plate", CROPS, null, VA.CONFIG);
+        });
+        var box = all(root, "div.el-export--unlabelled");
+        eq(box.length, 1);
+        ok(box[0].className.indexOf("el-export--loud") !== -1);
+        has(box[0].textContent, "\"provisional\"");
+      });
 
     // --- material provenance: the sourcing OF A NUMBER -----------------------
 
@@ -1168,6 +1318,35 @@
       var root = render(function (r) { VA.renderWorksheet(r, DEMO, null); });
       has(root.textContent, "could not be read");
     });
+
+    // Placement is app.js/index.html wiring, which this file's other tests never
+    // touch (app.js boots on DOMContentLoaded and is not among the files loaded
+    // into the sandbox). Read the shipped source instead of skipping the
+    // deliverable entirely — via VIEWER_SRC, never NODE_FS/`--repo`, so a
+    // worktree run checks THIS branch's HTML, not the main checkout's.
+    var viewerSrc = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+    if (!viewerSrc) {
+      skip("worksheet sits below the table; the right pane is its own element",
+           "no VIEWER_SRC injected (browser tier has no filesystem)");
+    } else {
+      await test("the worksheet sits below the table in a collapsed <details>, " +
+        "and the right pane is its own element", function () {
+          var html = viewerSrc.readText("index.html");
+          var appJs = viewerSrc.readText("app.js");
+          ok(html && appJs, "index.html and app.js must be readable");
+          var stackviewAt = html.indexOf('id="stackview"');
+          var worksheetWrapAt = html.indexOf('id="worksheet-wrap"');
+          var detailAt = html.indexOf('id="detail"');
+          ok(stackviewAt !== -1 && worksheetWrapAt !== -1 && detailAt !== -1,
+             "expected #stackview, #worksheet-wrap and #detail in index.html");
+          ok(stackviewAt < worksheetWrapAt,
+             "the worksheet must sit BELOW the elements table, not beside it");
+          has(html.slice(Math.max(0, worksheetWrapAt - 60), worksheetWrapAt), "<details",
+              "the worksheet must be a native <details> so it collapses on its own");
+          has(appJs, "showWorksheet: false",
+              "the worksheet must default to collapsed — moved out of the way, not gone");
+        });
+    }
 
     // --- banner -------------------------------------------------------------
 
@@ -1845,7 +2024,7 @@
         return out;
       }
 
-      await test("[real] every established export reaches its element row", function () {
+      await test("[real] every established export reaches its element's panel", function () {
         var established = liveCitations().filter(function (pair) {
           return VA.exportProvenance(pair[1].source_ref).state === "established";
         });
@@ -1853,18 +2032,12 @@
         // handoff establishes another export, and a passing suite must not turn
         // red for that (LESSONS_20260810_viewer_source_ref_export_label).
         ok(established.length > 0, "the live projection must have established exports");
-        var byStack = {};
-        established.forEach(function (pair) { byStack[pair[0].id] = pair[0]; });
-        var rendered = {};
-        Object.keys(byStack).forEach(function (stackId) {
-          rendered[stackId] = render(function (r) {
-            VA.renderStack(r, byStack[stackId], realCrops, {});
-          }).textContent;
-        });
         established.forEach(function (pair) {
           var where = pair[0].id + ":" + pair[1].id;
           var p = VA.exportProvenance(pair[1].source_ref);
-          var text = rendered[pair[0].id];
+          var text = render(function (r) {
+            VA.renderDetail(r, pair[0], pair[1].id, realCrops, null, VA.CONFIG);
+          }).textContent;
           has(text, p.pdfName, where + " must name the export file");
           has(text, "sha256 recorded", where + " must say a sha is on record");
           // Under `established` a sha256 is mandatory (SourceExport raises
@@ -1919,13 +2092,17 @@
             why: "no PDF export of " + row.document + " exists, so the bytes this " +
               "value was read off cannot be identified",
           };
-          var root = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
+          // ...and from the row alone, beside the confidence chip.
+          var rowsRoot = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
+          eq(all(rowsRoot, "span.chip--export-unestablished").length, 1);
+
+          var root = render(function (r) {
+            VA.renderDetail(r, stackProj, row.element, realCrops, null, VA.CONFIG);
+          });
           var box = all(root, "div.el-export--unestablished");
           eq(box.length, 1, row.stack + ":" + row.element);
           ok(box[0].className.indexOf("el-export--loud") !== -1, "must be loud");
           has(all(root, "div.el-export__why")[0].textContent, "cannot be identified");
-          // ...and from the row alone, beside the confidence chip.
-          eq(all(root, "span.chip--export-unestablished").length, 1);
           // The crop for that element is still unresolvable, which is the point:
           // the reader learns this without a crop.
           eq(VA.cropFor(realCrops, row.stack, row.element).status, "unresolvable");
@@ -1964,31 +2141,29 @@
           ok(plain.length > marked.length, "most citations carry no identity rule");
         });
 
-      await test("[real] a marked row states the rule instead of stating a gap",
+      await test("[real] a marked element's panel states the rule instead of a gap",
         function () {
-          var stacks = {};
+          var marked = [];
           realResults.stacks.forEach(function (stackProj) {
             (stackProj.elements || []).forEach(function (derived) {
-              if (derived.identity_rule) stacks[stackProj.id] = stackProj;
+              if (derived.identity_rule) {
+                marked.push({ stackProj: stackProj, elementId: derived.id });
+              }
             });
           });
-          var ids = Object.keys(stacks);
-          ok(ids.length > 0, "no live stack carries a spec-pile citation");
-          ids.forEach(function (stackId) {
+          ok(marked.length > 0, "no live stack carries a spec-pile citation");
+          marked.forEach(function (m) {
+            var where = m.stackProj.id + ":" + m.elementId;
             var root = render(function (r) {
-              VA.renderStack(r, stacks[stackId], realCrops, {});
+              VA.renderDetail(r, m.stackProj, m.elementId, realCrops, null, VA.CONFIG);
             });
-            var boxes = all(root, "div.el-export--identity_rule");
-            eq(boxes.length,
-               (stacks[stackId].elements || []).filter(function (d) {
-                 return d.identity_rule;
-               }).length, stackId);
-            has(boxes[0].textContent, "identity by filename (append-only pile)",
-                stackId);
+            var box = all(root, "div.el-export--identity_rule");
+            eq(box.length, 1, where);
+            has(box[0].textContent, "identity by filename (append-only pile)", where);
             // The row the issue was filed about: `traced` beside "nothing here
             // identifies the bytes". That pair must no longer be reachable here.
-            ok(boxes[0].textContent.indexOf("names no exported file") === -1,
-               stackId + " still reads as a gap");
+            ok(box[0].textContent.indexOf("names no exported file") === -1,
+               where + " still reads as a gap");
           });
         });
 

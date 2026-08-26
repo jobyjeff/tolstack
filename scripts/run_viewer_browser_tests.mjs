@@ -111,6 +111,14 @@ async function testTheApp(browser, url, label) {
     push("the elements table renders every element",
       await page.locator("tr.el-row").count() === 4);
 
+    // The elements table is wider than the space beside the 520px right pane at
+    // this viewport (11 columns), and `.stackview` scrolls it rather than
+    // letting it bleed into the sticky pane. Click the row's FIRST cell, not
+    // the row: Playwright's default click targets the bounding box's centre,
+    // which ignores clipping and can land past the visible edge on a row this
+    // wide — the first cell never does.
+    const selectRow = (n) => page.locator("tr.el-row").nth(n).locator("td").first().click();
+
     // Provenance colour is the deliverable, so assert the COMPUTED style, not a
     // class name — a stylesheet typo would pass a class-name check.
     const untraced = page.locator("tr.conf--untraced");
@@ -126,40 +134,55 @@ async function testTheApp(browser, url, label) {
       await page.locator("tr.el-row--zero-width").count() === 1 &&
       await page.locator("td.num--zero-width").count() === 2);
 
-    // The export block, and specifically the claim that an UNESTABLISHED export
-    // is impossible to miss. "Impossible to miss" is a CSS claim, and a
-    // stylesheet typo would pass any class-name check the DOM shim can make — so
-    // it is asserted here the same way the untraced chip is, on the computed
-    // style. The washer's fixture citation is the unestablished one; the plate's
-    // is established.
-    push("an established export names its file and its sha on the row",
+    // The loud export/identity chip is the one fact the compact row still
+    // carries about the export — everything else moved to the right pane,
+    // reached by clicking the row (deliverables 2 and 3).
+    const exportChipColor = await page.locator(".chip--export-unestablished").first()
+      .evaluate((n) => getComputedStyle(n).backgroundColor);
+    push("the unestablished-export chip is filled, not transparent, on the row",
+      exportChipColor && exportChipColor !== "rgba(0, 0, 0, 0)" &&
+      exportChipColor !== "transparent");
+
+    // Select the plate (established export, and the one fixture crop that
+    // resolves) — a real click, which the DOM shim cannot exercise, and the
+    // crop image is fetched asynchronously on selection, not just on hover.
+    await selectRow(0);
+    push("the selected row is visibly marked",
+      await page.locator("tr.el-row--selected").count() === 1);
+    await page.waitForSelector(".detail__crop-img", { timeout: 5000 });
+    push("an established export names its file and its sha in the right pane",
       /export established/.test(await page.locator(".el-export--established").textContent()) &&
       /sha256 recorded/.test(await page.locator(".el-export--established").textContent()));
+    push("the crop renders inline in the right pane, not only behind a hover",
+      await page.locator(".detail__crop-img").count() === 1);
+
+    // Select the washer (unestablished export) — "impossible to miss" is a CSS
+    // claim, and a stylesheet typo would pass any class-name check the DOM shim
+    // can make, so the block's tint is asserted on the computed style.
+    await selectRow(1);
     const unestablished = page.locator(".el-export--unestablished");
     push("an unestablished export shows its recorded why without a crop",
       await unestablished.count() === 1 &&
       /none hashes to the one/.test(await page.locator(".el-export__why").textContent()));
-    const exportChipColor = await page.locator(".chip--export-unestablished").first()
-      .evaluate((n) => getComputedStyle(n).backgroundColor);
-    push("the unestablished-export chip is filled, not transparent",
-      exportChipColor && exportChipColor !== "rgba(0, 0, 0, 0)" &&
-      exportChipColor !== "transparent");
     const exportBg = await unestablished.first()
       .evaluate((n) => getComputedStyle(n).backgroundColor);
     push("the unestablished export block is tinted",
       exportBg && exportBg !== "rgba(0, 0, 0, 0)");
-    // The spec-pile exception, on a real stylesheet: this row names no export and
-    // is right not to, so it must NOT read like the "nothing identifies these
-    // bytes" state one class along. Asserted on the computed spine colour for the
-    // same reason the loud states are — a class-name check passes through a
-    // stylesheet typo, and this one is a claim about how the row READS.
+
+    // Select the eye (no export block at all) for the "none" spine baseline.
+    await selectRow(2);
+    const noneSpine = await page.locator(".el-export--none").first()
+      .evaluate((n) => getComputedStyle(n).borderLeftColor);
+
+    // Select the grip (the spec-pile identity rule) and compare against it: this
+    // row names no export and is right not to, so it must NOT read like the
+    // "nothing identifies these bytes" state one row up.
+    await selectRow(3);
     const identity = page.locator(".el-export--identity_rule");
     push("the spec-pile row states its identity rule",
       await identity.count() === 1 &&
       /identity by filename \(append-only pile\)/.test(await identity.textContent()));
     const identitySpine = await identity.first()
-      .evaluate((n) => getComputedStyle(n).borderLeftColor);
-    const noneSpine = await page.locator(".el-export--none").first()
       .evaluate((n) => getComputedStyle(n).borderLeftColor);
     push("the spec-pile spine is not the no-export grey",
       identitySpine && noneSpine && identitySpine !== noneSpine);
@@ -176,9 +199,13 @@ async function testTheApp(browser, url, label) {
       await page.locator(".verdict--fail").count() === 1);
     push("the gap list leads with the excluded term",
       /link eye width/.test(await page.locator("li.gap").first().textContent()));
+    // The worksheet is content-rendered whether or not its <details> is open —
+    // moved BELOW the table and collapsed by default, not gone (deliverable 1).
     push("the worksheet pane rendered markdown",
       await page.locator(".worksheet__body h1").count() === 1 &&
       await page.locator(".worksheet__body table").count() === 1);
+    push("the worksheet sits below the table, collapsed by default",
+      !(await page.locator("#worksheet-wrap").evaluate((n) => n.open)));
 
     // 3) the popover — a real click, which the DOM shim cannot exercise.
     await page.locator("button.crop-trigger--resolved").first().click();
@@ -205,10 +232,11 @@ async function testTheApp(browser, url, label) {
       /is unestablished/.test(await page.locator(".croppop__reason").textContent()) &&
       await page.locator(".croppop img").count() === 0);
 
-    // 4) the worksheet toggle, a real click on real layout.
+    // 4) the worksheet toggle, a real click on real layout. Collapsed by
+    // default now, so the click OPENS it — the inverse of the old aside toggle.
     await page.locator("#worksheet-toggle").click();
-    push("the worksheet pane hides on toggle",
-      !(await page.locator("#worksheet").isVisible()));
+    push("the worksheet pane opens on toggle",
+      await page.locator("#worksheet-wrap").evaluate((n) => n.open));
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
