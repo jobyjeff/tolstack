@@ -1,0 +1,30 @@
+name = "tolstack"
+main_branch = "master"
+
+[paths]
+sessions_root = "docs/sessions"
+active = "docs/sessions/active"
+completed = "docs/sessions/completed"
+deferred = "docs/sessions/deferred"
+prompts_dir = "docs/prompts"
+issues = "docs/issues"
+
+[roles]
+tactical = "TACTICAL_AGENT.md"
+strategy = "STRATEGY_AGENT.md"
+review = "REVIEW_AGENT.md"
+triage = "TRIAGE_AGENT.md"
+orchestrator = "ORCHESTRATOR_AGENT.md"
+
+[launch]
+agent_command = "claude"
+model = ""
+seed_template = "Read {handoff_path} for instructions"
+branch_prefix = "handoff/"
+review_branch_prefix = "review/"
+
+[worktrees]
+enabled = true
+root = "{repo_parent}/{repo}-worktrees"
+dir_template = "{slug}"
+remove_on_complete = true
