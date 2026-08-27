@@ -98,6 +98,12 @@ STAGE_IDS = ("hub_to_sleeve", "sleeve_to_bearing")
 # ---------------------------------------------------------------------------
 
 
+MATERIAL_VALUES_STATUSES = ("inline", "library", "not_transcribed")
+"""Every value `MaterialEntry.values_status` may carry -- read by
+`MaterialEntry.__post_init__` below, and the one name to import rather than
+re-spell if another schema (e.g. `hardware_entry`) needs the same vocabulary."""
+
+
 @dataclass(frozen=True)
 class MaterialEntry:
     """One material + condition, and the CTE a stack may cite for it.
@@ -143,7 +149,7 @@ class MaterialEntry:
     note: Optional[str] = None
 
     def __post_init__(self) -> None:
-        if self.values_status not in ("inline", "library", "not_transcribed"):
+        if self.values_status not in MATERIAL_VALUES_STATUSES:
             raise ValueError(f"material {self.id!r}: bad values_status {self.values_status!r}")
         if self.values_status == "inline" and self.values_source is None:
             raise ValueError(f"material {self.id!r}: inline values need a values_source")
