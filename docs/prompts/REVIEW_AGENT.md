@@ -696,7 +696,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `test_source_ref_leaves_the_feature_identity_slot_open_and_empty` now reads
       the constant instead — see the fourth sighting below for what replaced it).
       At the time, a vocabulary lived in **three** places (SOP prose, the
-      dataclass comment, the enforcing test); check all three, not two. **Third
+      dataclass comment, the enforcing test) — the fourth sighting below has what
+      replaced two of those three and where the replacement's reach stops; don't
+      check three places today. **Third
       sighting (`sop_library_ref_pairing`, 2026-08-11)** — and it changes what you
       have to do here, twice over. It is
       the variant *no* vocabulary-vs-data test can catch: every value the SOP named
