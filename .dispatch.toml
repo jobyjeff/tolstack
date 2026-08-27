@@ -17,7 +17,8 @@ triage = "TRIAGE_AGENT.md"
 orchestrator = "ORCHESTRATOR_AGENT.md"
 
 [launch]
-agent_command = "claude"
+# bypassPermissions: no permission prompts. See dispatch/.dispatch.example.toml.
+agent_command = "claude --permission-mode bypassPermissions"
 model = ""
 seed_template = "Read {handoff_path} for instructions"
 branch_prefix = "handoff/"
