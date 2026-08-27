@@ -11,6 +11,7 @@ Handoff: tolerance_stack_slice1 (2026-07-29).
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -29,6 +30,7 @@ from tolerance_stack.stack import EXPORT_STATUSES
 from tests.test_js_python_vocabulary import python_values_statuses
 
 STACKS_DIR = Path(__file__).resolve().parent.parent / "docs" / "tolerance_stacks"
+TOLERANCE_STACK_PACKAGE = Path(__file__).resolve().parent.parent / "tolerance_stack"
 TOL = 1e-6  # the workbook's cached values are full-precision floats
 
 
@@ -2231,13 +2233,21 @@ def hardware_entry_problems(entry: dict) -> list[str]:
     The `library_ref` rule is the **pairing** and has been since 2026-08-05: a
     filled ref ⟺ `values_status == "library"`. Nullness is not the rule; it was,
     until the spec library existed and `NAS6403U11D` was promoted.
+
+    `values_status` itself is one vocabulary, not two: `hardware_entry` and
+    `MaterialEntry` mean the same three words by it, so this reads the domain
+    through `python_values_statuses()` (the same AST-read `MaterialEntry`'s own
+    `__post_init__` check is compared against in
+    `tests/test_js_python_vocabulary.py`) instead of re-spelling the tuple --
+    `hardware_entry` is a dict, not a dataclass, so this is the shared-source-
+    of-truth the two schemas can have without `hardware_entry` becoming one.
     """
     eid = entry.get("id", "<no id>")
     out: list[str] = []
     if not entry.get("gaps"):
         out.append(f"{eid} claims no source gaps")
     status = entry.get("values_status")
-    if status not in ("inline", "library", "not_transcribed"):
+    if status not in python_values_statuses():
         out.append(f"{eid} has undocumented values_status {status!r}")
     if "library_ref" not in entry:
         # Explicitly null, never absent -- the same convention as `values_source`,
@@ -2299,3 +2309,75 @@ def test_every_hardware_ref_on_a_stack_element_resolves():
                 assert element.hardware_ref in known, (
                     f"{stack.id}:{element.id} references unknown hardware {element.hardware_ref}"
                 )
+
+
+def _inline_field_vocabulary_literals(package_dir: Path) -> list[str]:
+    """Every ``self.<attr> {in,not in} (...)`` check under ``package_dir`` whose
+    right-hand side is an inline literal of two or more string constants, rather
+    than a name resolving to a module-level constant.
+
+    This is the generalized form of the question ``three_field_vocabularies``
+    (2026-08-19) and ``material_values_status_vocabulary`` (2026-08-26) each
+    answered by hand -- "is there a[nother] field vocabulary with no importable
+    name?" -- turned into a scan instead of a fifth grep, per
+    ``docs/sessions/lessons/LESSONS_20260819_three_field_vocabularies.md``.
+
+    Scoped to ``self.<attr>``, not any ``Name`` (unlike
+    ``tests.test_js_python_vocabulary._values_statuses_from_source``, which
+    already knows which single check it is reading and can afford to be
+    generic about the comparator): a **persisted field's** domain is the thing
+    this guard protects, and a bare local or a function parameter -- e.g.
+    ``thermal.py``'s ``corner not in ("nom", "lmc", "mmc")``, a label argument
+    that produces a value rather than storing one -- is deliberately not one.
+    That distinction is exactly what the previous lesson worked out by hand for
+    ``corner``/``stage``/``group``; encoding it as ``self.`` rather than as a
+    per-name allowlist is what keeps this a scan instead of a fourth hand
+    review.
+    """
+    problems: list[str] = []
+    for path in sorted(package_dir.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Compare) or len(node.ops) != 1:
+                continue
+            if not isinstance(node.ops[0], (ast.In, ast.NotIn)):
+                continue
+            left = node.left
+            if not (isinstance(left, ast.Attribute) and isinstance(left.value, ast.Name)
+                    and left.value.id == "self"):
+                continue
+            comparator = node.comparators[0]
+            if not isinstance(comparator, (ast.Tuple, ast.List, ast.Set)):
+                continue
+            elts = comparator.elts
+            if len(elts) < 2 or not all(
+                    isinstance(e, ast.Constant) and isinstance(e.value, str) for e in elts):
+                continue
+            op = "not in" if isinstance(node.ops[0], ast.NotIn) else "in"
+            words = tuple(e.value for e in elts)
+            problems.append(
+                f"{path.relative_to(package_dir.parent)}:{node.lineno}: "
+                f"self.{left.attr} {op} {words!r}"
+            )
+    return problems
+
+
+def test_no_persisted_field_vocabulary_is_an_inline_literal():
+    """No ``self.<attr>`` membership check in ``tolerance_stack/`` spells its
+    vocabulary as a bare tuple/list/set of strings -- every one must read a
+    module-level constant instead, so it has a name the next schema (or the
+    next reader) can import rather than re-spell.
+
+    Mutate any of the constants this currently passes because of --
+    ``MATERIAL_VALUES_STATUSES``, ``CONFIDENCES``, ``SUBJECT_KINDS``,
+    ``EVENT_MODES``, ``EXPORT_STATUSES``, ``SOURCE_REF_KINDS``,
+    ``ELEMENT_ROLES`` -- back into an inline tuple on the ``if`` line, and this
+    goes red on that line specifically, which is the demonstration that it is
+    not vacuous.
+    """
+    problems = _inline_field_vocabulary_literals(TOLERANCE_STACK_PACKAGE)
+    assert problems == [], (
+        "field vocabulary spelled as an inline literal instead of a named "
+        "module-level constant (see MaterialEntry.values_status / "
+        "MATERIAL_VALUES_STATUSES for the fix shape):\n  " + "\n  ".join(problems)
+    )
