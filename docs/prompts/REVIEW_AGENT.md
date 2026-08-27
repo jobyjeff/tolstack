@@ -1297,6 +1297,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (needs `npm install` — `playwright-core` only, no browser download) and
       confirm 4/4 yourself. Re-verified in this review, still 4/4 on the merged
       tree.
+- [ ] **A doc fix that historicizes the noun clause but leaves the sentence's
+      trailing imperative in the present.** New 2026-08-27
+      (`review_checklist_vocabulary_wording`). This very checklist's
+      "Documented vocabularies drifting" bullet had already been partly fixed,
+      inline in `three_field_vocabularies`'s review, by prefixing "At the
+      time" to the vocabulary-count claim to make it historical — but the same
+      sentence still ended "check all three, not two," an imperative left in
+      the present tense, which a reader hits three sentences before the fourth
+      sighting states the real, current count (two). Scoping the *claim* to
+      the past does not scope the *command* the same sentence still gives —
+      check both halves of a corrected sentence separately, not just the
+      clause that names the stale fact.
 
 ## Architectural errors to check
 
