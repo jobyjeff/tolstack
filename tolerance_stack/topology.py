@@ -861,6 +861,16 @@ def traverse(topology: Topology, study: Study) -> List[Contribution]:
     A selected edge left unconsumed when the chain arrives is also a
     :class:`BrokenChain`: it is a stub hanging off the chain or a disconnected
     second component, and either way the total would silently omit it.
+
+    The cycle guard runs **before** the walk, not inside it, and that ordering is
+    a decision worth knowing. A loop in the selection would in fact surface
+    during the walk -- as :class:`BranchAmbiguity`, at whichever of the loop's
+    nodes the chain reached first, since both of that node's loop edges are
+    unconsumed there. But "you are standing at a fork" is the wrong thing to tell
+    someone whose selection closes a ring: the fix is not to choose a branch, it
+    is to stop selecting the closure. So the loop is detected up front, named by
+    the edge that closes it, and reported as what it is. (It is also why the walk
+    below needs no visited set: a selection that reaches this point is acyclic.)
     """
     if study.topology != topology.id:
         raise StudyError(
@@ -905,9 +915,10 @@ def traverse(topology: Topology, study: Study) -> List[Contribution]:
                 f"study's {study.from_node!r}/{study.to_node!r}. The gap a study "
                 f"closes is the one between its two endpoints.")
 
+    _refuse_a_cycle(study, remaining)
+
     chain: List[Contribution] = []
     node = study.from_node
-    visited = [node]
     while node != study.to_node:
         options = [e for e in topology.incident(node) if e.id in remaining]
         if len(options) > 1:
@@ -933,20 +944,12 @@ def traverse(topology: Topology, study: Study) -> List[Contribution]:
         edge = options[0]
         del remaining[edge.id]
         nxt = edge.other_end(node)
-        if nxt in visited:
-            raise CycleDetected(
-                f"study {study.id!r}: crossing edge {edge.id!r} returns to node "
-                f"{nxt!r}, which this chain already passed through "
-                f"({' -> '.join(visited)}). A study is a chain, not a loop; the "
-                f"loop closure is the gap it computes (`closes`)."
-            )
         transform_id = study.transforms.get(edge.id, edge.transform)
         chain.append(Contribution(
             edge=edge, sign=edge.sign_from(node),
             transform=topology.transform(transform_id),
             entered_at=node, left_at=nxt,
         ))
-        visited.append(nxt)
         node = nxt
 
     if remaining:
@@ -1075,6 +1078,39 @@ def load_study(path: str | Path) -> Study:
 # ---------------------------------------------------------------------------
 # Small shared helpers
 # ---------------------------------------------------------------------------
+
+
+def _refuse_a_cycle(study: "Study", selected: Dict[str, Edge]) -> None:
+    """Raise :class:`CycleDetected` if the selection's subgraph closes a ring.
+
+    Union-find over the selected edges in the order the study lists them, so the
+    edge reported is the one whose *addition* closed the ring. That is not the
+    only edge on the cycle and does not claim to be -- it is the one a reader can
+    remove to make the selection a chain, which is the actionable answer.
+    """
+    parent: Dict[str, str] = {}
+
+    def find(node: str) -> str:
+        parent.setdefault(node, node)
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = parent[node]
+        return node
+
+    for edge_id in study.selection:
+        edge = selected[edge_id]
+        a, b = find(edge.from_node), find(edge.to_node)
+        if a == b:
+            raise CycleDetected(
+                f"study {study.id!r}: edge {edge_id!r} ({selected[edge_id].name!r}) "
+                f"closes a loop -- its two interfaces {edge.from_node!r} and "
+                f"{edge.to_node!r} are already joined by other edges in this "
+                f"selection. A study is a chain between two locations, not a "
+                f"circuit: drop this edge, and if the loop closure is the quantity "
+                f"you are after, name it in `closes` and let the study's two "
+                f"endpoints be its ends."
+            )
+        parent[a] = b
 
 
 def _unique(what: str, items: Iterable[Any]) -> Dict[str, Any]:

@@ -60,6 +60,11 @@ be wrong.
   per-repo override dispatch serves to review agents).
 - `docs/tolerance_stacks/` — the stack definitions, the hardware-entry seed, and
   the worksheets. Committed: these are design artifacts, not run data.
+- `docs/topologies/` — the **tolerance topologies and studies** (the third
+  archetype: interfaces as nodes, dimensions and gaps as edges, a study = a
+  human-lassoed chain). Read `docs/DAG_TOPOLOGY.md` before adding either — it
+  carries the model, the formats, and the not-a-solver rule the archetype is
+  fenced by.
 - `docs/spec_library/` — **the structured spec library**: `events/` holds one
   immutable `spec-parse/v0` event per (document, parser-version),
   `intake_queue.json` says which document closes which gap. Read its `README.md`
@@ -96,7 +101,8 @@ Code lives at the top level and in packages — never under `data/`.
 ## The schemas
 
 All versioned `/v0`. The stack schemas live in `tolerance_stack/stack.py`, the
-spec-library ones in `tolerance_stack/spec_library.py`:
+topology ones in `tolerance_stack/topology.py`, the spec-library ones in
+`tolerance_stack/spec_library.py`:
 
 | schema | what it is |
 |---|---|
@@ -104,6 +110,8 @@ spec-library ones in `tolerance_stack/spec_library.py`:
 | `joby.tolerance_stack/hardware_entry/v0` | a standard part; `values_status: inline \| library \| not_transcribed`, and a `library_ref` naming a spec-library subject **iff** that status is `library` |
 | `joby.tolerance_stack/check_result/v0` | produced not stored; verdict `pass \| marginal \| fail` |
 | `source_ref` (embedded) | where a value came from, `confidence: traced \| inferred \| untraced` |
+| `joby.tolerance_stack/topology/v0` | one mechanism's tolerance topology: `parts`, `nodes` (interfaces), `edges` (`structural \| gap`), named `transforms` |
+| `joby.tolerance_stack/study/v0` | a human-lassoed chain through one topology: a `selection` of edge ids, two endpoints, optional per-study transform overrides |
 | `joby.tolstack/spec-parse/v0` | one immutable read of one document by one parser version; values, absences and unreadables, each with a source location |
 | `joby.tolstack/spec_library/v0` | the fold of the event log, keyed by subject. Derived, gitignored, rebuilt |
 | `joby.tolstack/spec_intake/v0` | the intake queue; **status is derived from the library, never stored** |
