@@ -1,0 +1,27 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "vpa_output_shank_out",
+  "title": "Shank out: fastener grip against the clamped stack it passes through",
+  "topology": "vpa_output_to_pitch_plate",
+  "from": "bushing_far_face",
+  "to": "shank_full_dia_end",
+  "closes": "shank_out",
+  "selection": [
+    "straight_bushing",
+    "spherical_bearing",
+    "bushing_flange_thickness",
+    "pitch_flange_thickness",
+    "under_head_chamfer_washer",
+    "fastener_grip"
+  ],
+  "provenance": {
+    "authored_by": "handoff dag_topology_format, 2026-08-31",
+    "equivalent_to": "check `worst_case_shank_out` of docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json (which folds `fastener_grip` minus path `total`)",
+    "pinned_by": "tests/test_topology.py -- the L1 value-level proof: this study's nominal, worst-case min/max and RSS center/half must equal that check's, exactly."
+  },
+  "notes": [
+    "The selection is a lasso, not a path: the order above is the order a human would tick the rows off, and traverse() re-orders it. It happens to read far-face-first here, which is also the chain order; nothing depends on that, and a shuffled selection folds to the same numbers (a test shuffles it).",
+    "How the signs arise, since this is the study that explains the mechanism: the chain starts at `bushing_far_face` and walks the five clamped edges AGAINST their orientation (each is authored head-side-first), so each enters at -1; it then crosses `fastener_grip` WITH its orientation, at +1. Total = grip - clamped stack = shank out. No sign is authored anywhere in this file -- they are read off the graph, which is the one arithmetic thing the topology format makes safer than a hand-written term list.",
+    "Every transform is the default identity (ratio 1.0, mm -> mm). That is what L1 means, and it is why this study can be checked against a stack authored before transforms existed."
+  ]
+}
