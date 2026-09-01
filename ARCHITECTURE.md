@@ -20,6 +20,10 @@ tolerance_stack/
   thermal.py        the thermal-fit archetype: materials + the check generator.
                     stdlib only. Added 2026-08-05. What arithmetic it may hold is
                     bounded by "Where computation may live", below.
+  topology.py       the tolerance-topology archetype: interfaces as nodes,
+                    dimensions and gaps as edges, human-lassoed studies summed
+                    through fold(). stdlib only. Added 2026-08-31. Explicitly not
+                    a solver -- see docs/DAG_TOPOLOGY.md and the section below.
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
@@ -99,6 +103,51 @@ in a data file — at the cost of the term lists not existing in the JSON for a
 reviewer to read. `tests/debug_report_thermal_fit.py --terms` and the worksheet's
 appendix are how that cost is paid back, and it is a compromise rather than a
 solution. Noted as such in the archetype doc's registry-input section.
+
+### The topology archetype (`topology.py`)
+
+The repo's **third** archetype, added 2026-08-31 by `dag_topology_format`. Where
+the first two ask what a joint stacks up to and what a fit does over temperature,
+this one asks where in a mechanism position error comes from — and *which path*
+you meant. Nodes are interfaces, edges are structural dimensions (on one part) or
+gaps (across a clearance), and a **study** is a human-lassoed chain through one
+global topology. Full statement of the model, the formats and the fence in
+`docs/DAG_TOPOLOGY.md`.
+
+| name | what it is |
+|---|---|
+| `Part` / `Node` / `Edge` | the graph. A node lists the parts that meet at it; a structural edge names the part it is a dimension of, and both its nodes must have that part |
+| `Dimension` | the value an edge carries — `StackElement` with `role` freed, reusing `SourceRef` verbatim so the citation vocabulary is shared, not forked |
+| `Transform` | a constant sensitivity: positive `ratio`, `units_in`/`units_out`, and a `properties` bag nothing reads yet |
+| `Topology` | the document; validates every reference and every kind label, and reports `branch_nodes()` without resolving them |
+| `Study` | a `selection` of edge ids, two endpoints, an optional per-study transform override map, an optional `closes` |
+| `traverse(topology, study)` | orders the selection into a chain, deriving each edge's sign from its orientation; refuses a fork, a break, or a ring |
+| `summarize(topology, study)` | the chain plus one `fold()` over it, refusing to sum contributions in unlike units |
+| `load_topology(path)` / `load_study(path)` | read + schema-check; `load_topology` resolves each `dimension_ref` out of the stack file it names |
+
+**Not a solver, by locked decision.** Parallel load paths in a mechanism are
+statically redundant, and which one binds depends on stiffness, preload and
+assembly — a mechanics question. A selection that reaches a node with two
+unconsumed edges raises `BranchAmbiguity` naming both candidates rather than
+picking one. That fence is written into `docs/DAG_TOPOLOGY.md` and pinned by a
+test, because the natural-looking next feature here is exactly the one that must
+not be built.
+
+**No new arithmetic.** A traversal produces a direction and a transform, and
+those are `Term.sign` and `Term.coefficient` — the two fields the thermal
+archetype already established. So `fold()` remains the only place element values
+are combined, and this archetype *narrows* the surface for a sign error rather
+than widening it: no sign is authored in any topology or study document, they are
+read off the graph. `Dimension` is fed to `Term` by duck typing, which
+`tests/test_topology.py` makes safe by reading `fold`'s own source for every
+element attribute it touches.
+
+The one thing to know before extending it: an edge's transform defaults to the
+identity and a *study* declares its sensitivities, because a sensitivity is a
+property of the quantity being rolled up rather than of the edge. The single
+exception in the tree is the pitch arm's linear↔rotary coupling, where the
+conversion is the part's geometry; a test holds the exceptions to that one, so a
+second has to re-make the argument.
 
 ### The spec library (`spec_library.py`)
 

@@ -1,0 +1,26 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "pitch_system_gas_spring_branch",
+  "title": "The gas-spring branch: pitch plate connection back to the hub A datum (millimetres)",
+  "topology": "pitch_system",
+  "from": "piston_rod_end_bore",
+  "to": "hub_lower_bearing_flange",
+  "selection": [
+    "pitch_plate_flange_to_gas_spring_bushing",
+    "gas_spring_body_height",
+    "gas_spring_mount_position",
+    "tan_link_mount_height",
+    "hub_top_deck_to_tan_link_mount_seat",
+    "hub_top_flange_to_top_deck",
+    "hub_lower_to_top_bearing_flange"
+  ],
+  "provenance": {
+    "authored_by": "handoff dag_topology_format, 2026-08-31",
+    "why_this_study_exists": "The second of the three grounded loops, summed on its own so that the parallel path is a first-class object a human can look at rather than an implication of the graph. Nothing here compares it to the pitch-link path, and nothing decides which of the two binds -- that is the mechanics question the tool does not answer.",
+    "signs_go_both_ways": "This is the study to read for how orientation becomes sign: the four edges out from the pitch plate to the hub top deck are traversed with their orientation (+1), and the three hub edges are traversed against theirs (-1), because the hub's dimensions are authored A-datum-outward and this chain arrives from the far end. No sign is written in this file."
+  },
+  "notes": [
+    "A MILLIMETRE study, deliberately, even though the quantity anyone cares about downstream is an angle. The source sheet places the gas-spring and tangential-link rows in its TANGENTIAL section and converts them with a third sensitivity (its D12/F12) that this topology does not declare, because that column is a finite-difference linearisation of the pitch link's geometry rather than a datum. Until that transform exists honestly, this branch sums in millimetres and says so.",
+    "What is NOT in this chain and matters most: the gas-spring bushing tipping backlash. It is the source sheet's largest single angular contributor and it comes from a RADIAL clearance acting over two lever arms, not from an axial distance along this path -- see the `properties` on `gas_spring_body_height`. A chain of axial dimensions cannot carry it, which is a finding about the schema, not about the gas spring."
+  ]
+}
