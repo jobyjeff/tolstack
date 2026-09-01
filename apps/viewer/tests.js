@@ -1415,6 +1415,426 @@
       has(root.textContent, "build_viewer_crops.py");
     });
 
+    // --- the topology page ---------------------------------------------------
+    //
+    // apps/viewer/topology.html: rails left, grid centre, preview right. The one
+    // claim every test below exists to protect is ALIGNMENT — a grid row and its
+    // rail mark are the same row index, at the same y, or the page is lying
+    // about which dimension sits between which two interfaces. The fixture tier
+    // can assert the numbers that produce it; only the browser tier can assert
+    // the pixels, and it does.
+
+    var TOPOFIX = VA.demoTopologyProjection();
+    var TOPO = TOPOFIX.topologies[0];
+    var TOPOCROPS = VA.demoFixture().crops;
+
+    function topoCtx(over) {
+      var ctx = {
+        topoProj: TOPO, study: null, crops: TOPOCROPS, layoutMode: "topology",
+        selection: null, detailImage: null, onSelect: function () {},
+      };
+      Object.keys(over || {}).forEach(function (k) { ctx[k] = over[k]; });
+      return ctx;
+    }
+
+    function topoStudy(id) { return VA.findStudy(TOPO, id); }
+
+    await test("railGeometry puts a row's mark at the row's own y", function () {
+      var geometry = VA.railGeometry(TOPO.layout, VA.RAIL_METRICS);
+      eq(geometry.marks.length, TOPO.layout.rows.length);
+      geometry.marks.forEach(function (mark, i) {
+        eq(mark.y, VA.railY(i, VA.RAIL_METRICS), "mark " + i);
+        eq(mark.x, VA.railX(TOPO.layout.rows[i].column, VA.RAIL_METRICS));
+      });
+      eq(geometry.height, TOPO.layout.rows.length * VA.RAIL_METRICS.rowHeight);
+    });
+
+    await test("a rail allocated at a fork is drawn from below the fork's dot",
+      function () {
+        // The half-row the `branch` curve covers. A rail drawn from the dot
+        // itself would cross the mark it fans out of.
+        var geometry = VA.railGeometry(TOPO.layout, VA.RAIL_METRICS);
+        var forked = geometry.rails.filter(function (r) { return r.forked; });
+        ok(forked.length >= 1, "the demo mechanism has a fork");
+        forked.forEach(function (rail) {
+          var start = TOPO.layout.rails.filter(function (r) {
+            return r.column === rail.column;
+          })[0];
+          eq(rail.y1, VA.railY(start.start, VA.RAIL_METRICS) +
+             VA.RAIL_METRICS.rowHeight * 0.5);
+        });
+        geometry.rails.filter(function (r) { return !r.forked; })
+          .forEach(function (rail) {
+            ok(rail.y1 % (VA.RAIL_METRICS.rowHeight / 2) === 0,
+               "an unforked rail starts on a row centre");
+          });
+      });
+
+    await test("the grid renders one row per graph element, at the rail's height",
+      function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var rows = all(root, "div.tvrow");
+        eq(rows.length, TOPO.layout.rows.length);
+        rows.forEach(function (row, i) {
+          eq(row.getAttribute("data-id"), TOPO.layout.rows[i].id);
+          eq(row.getAttribute("data-row-kind"), TOPO.layout.rows[i].kind);
+          // Set inline from VA.RAIL_METRICS, not from the stylesheet: this is
+          // the number the SVG's y came from, so it cannot drift from it.
+          eq(row.style.height, VA.RAIL_METRICS.rowHeight + "px");
+        });
+      });
+
+    await test("every node row gets a dot and every edge row gets a bar",
+      function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var nodes = TOPO.layout.rows.filter(function (r) { return r.kind === "node"; });
+        var edges = TOPO.layout.rows.filter(function (r) { return r.kind === "edge"; });
+        eq(all(root, "circle.rail__dot").length, nodes.length);
+        eq(all(root, "line.rail__bar").length, edges.length);
+        // Every fan-out and every loop closure is a curve, and both are in the
+        // projection — the view invents neither.
+        eq(all(root, "path.rail__link").length, TOPO.layout.links.length);
+      });
+
+    await test("a bar wears its citation's confidence, so the rails ARE a " +
+      "provenance map", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        // The demo mechanism holds one of each on purpose.
+        eq(all(root, "line.conf--untraced").length, 1);
+        eq(all(root, "line.conf--no_source_ref").length, 1);
+        eq(all(root, "line.conf--inferred").length, 1);
+        eq(all(root, "line.conf--traced").length, 2);
+      });
+
+    await test("a derived gap says it carries no value, rather than showing an " +
+      "empty one", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var derived = all(root, "div.tvrow--derived");
+        eq(derived.length, 1);
+        has(derived[0].textContent, "DERIVED");
+        has(derived[0].textContent, "no value");
+        has(derived[0].textContent, "across a clearance");
+        eq(all(root, "line.rail__bar--derived").length, 1);
+      });
+
+    await test("a branch point is marked on the row and on the dot", function () {
+      var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+      var marked = all(root, "div.tvrow--branch");
+      eq(marked.length, TOPO.branch_nodes.length);
+      has(marked[0].textContent, "BRANCH");
+      eq(all(root, "circle.rail__dot--branch").length, TOPO.branch_nodes.length);
+    });
+
+    await test("selecting a study numbers its chain and dims everything else",
+      function () {
+        var study = topoStudy("demo_strut_branch");
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ study: study }));
+        });
+        var chain = study.result.chain;
+        var on = all(root, "div.tvrow--on");
+        var off = all(root, "div.tvrow--off");
+        ok(on.length >= chain.length, "every chain edge and its interfaces");
+        ok(off.length > 0, "the rest of the topology is dimmed, not hidden");
+        eq(on.length + off.length, TOPO.layout.rows.length);
+        // The ordinal is the order the SUM runs in, which is NOT the row order:
+        // the rows are a depth-first walk of the whole graph.
+        chain.forEach(function (contribution, i) {
+          var row = all(root, "div.tvrow").filter(function (n) {
+            return n.getAttribute("data-id") === contribution.edge &&
+              n.getAttribute("data-row-kind") === "edge";
+          })[0];
+          ok(row, "chain edge " + contribution.edge + " must have a row");
+          has(row.querySelector("div.tvcell--ord").textContent, String(i + 1));
+        });
+      });
+
+    await test("a chain row prints the weight and the contribution the " +
+      "projection computed, and derives neither", function () {
+        var study = topoStudy("demo_base_to_tip");
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ study: study }));
+        });
+        var contribution = study.result.chain[0];
+        var row = all(root, "div.tvrow").filter(function (n) {
+          return n.getAttribute("data-id") === contribution.edge &&
+            n.getAttribute("data-row-kind") === "edge";
+        })[0];
+        var cell = row.querySelector("div.tvcell--contribution").textContent;
+        // The ratio is 2.5, so the weight is NEVER silent — same rule the stack
+        // viewer's weighted-term chip follows.
+        has(cell, "2.5 ×");
+        has(cell, VA.fmt(contribution.min));
+        has(cell, VA.fmt(contribution.max));
+        has(cell, contribution.units);
+      });
+
+    await test("the study-chain layout is the sum's own order, one rail",
+      function () {
+        var study = topoStudy("demo_base_to_tip");
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ study: study, layoutMode: "chain" }));
+        });
+        var rows = all(root, "div.tvrow");
+        eq(rows.length, study.layout.rows.length);
+        eq(rows.length, study.result.chain.length * 2 + 1);
+        eq(rows[0].getAttribute("data-id"), study.from);
+        eq(rows[rows.length - 1].getAttribute("data-id"), study.to);
+        study.result.chain.forEach(function (contribution, i) {
+          eq(rows[2 * i + 1].getAttribute("data-id"), contribution.edge);
+        });
+      });
+
+    await test("the totals are the projection's numbers, printed verbatim",
+      function () {
+        var study = topoStudy("demo_strut_branch");
+        var root = render(function (r) {
+          VA.renderTopoTotals(r, TOPO, study, VA.topologyIndex(TOPO));
+        });
+        var text = root.textContent;
+        ["nominal", "worst_case_min", "worst_case_max", "worst_case_half",
+         "rss_min", "rss_max", "rss_half"].forEach(function (field) {
+          has(text, VA.fmt(study.result[field]), field);
+        });
+        has(text, study.result.units);
+        has(text, "This page adds nothing up");
+      });
+
+    await test("the weakest input of a study is the weakest of its chain",
+      function () {
+        // Weakest wins, exactly as a check's does. The degrees study crosses the
+        // untraced arm edge, so it is an untraced result however many traced
+        // ones it also sums.
+        var root = render(function (r) {
+          VA.renderTopoTotals(r, TOPO, topoStudy("demo_base_to_tip"),
+                              VA.topologyIndex(TOPO));
+        });
+        has(root.textContent, "weakest input: UNTRACED");
+      });
+
+    await test("a study that refuses to sum renders the refusal, not a total",
+      function () {
+        var study = topoStudy("demo_ambiguous");
+        eq(study.status, "error");
+        var root = render(function (r) {
+          VA.renderTopoTotals(r, TOPO, study, VA.topologyIndex(TOPO));
+        });
+        eq(all(root, "div.tverror").length, 1);
+        has(root.textContent, "The selection reaches a fork");
+        // The exception's own message, whole: it names the node and both
+        // candidate edges, and that IS the feature.
+        has(root.textContent, study.error.message);
+        has(root.textContent, "which parallel path binds");
+        eq(all(root, "div.tvtotal").length, 0);
+      });
+
+    await test("an exception the page has no label for is loud, not silent",
+      function () {
+        var invented = {
+          id: "x", title: "x", from: "a", to: "b", status: "error",
+          error: { type: "SomethingNew", message: "a message" },
+          selection: [], transforms: {}, notes: [],
+        };
+        var root = render(function (r) {
+          VA.renderTopoTotals(r, TOPO, invented, VA.topologyIndex(TOPO));
+        });
+        has(root.textContent, "an error this viewer has no label for");
+      });
+
+    await test("the preview pane says what an interface is, and that it has no " +
+      "value", function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "node", id: "base_post_seat" } }));
+        });
+        has(root.textContent, "base / post seat");
+        has(root.textContent, "mating_surface");
+        has(root.textContent, "base ⇔ post");
+        has(root.textContent, "An interface is a location, not a value");
+      });
+
+    await test("the preview pane shows a dimension as transcribed, with its " +
+      "citation and its export block", function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        has(root.textContent, "4.00 +/-.02");     // the callout, as printed
+        has(root.textContent, "215197");
+        has(root.textContent, "3.98");
+        eq(all(root, "div.el-export--established").length, 1);
+        has(root.textContent, "sha256 recorded");
+      });
+
+    await test("an untraced dimension says so in the pane, not only on the row",
+      function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "arm_pin_to_tip" } }));
+        });
+        has(root.textContent, "No document backs this number");
+        has(root.textContent, "zero-width band");
+        has(root.textContent, "linear_to_rotary");
+      });
+
+    await test("the pane explains a missing crop rather than reporting a stale " +
+      "index", function () {
+        // Three different facts, and the page must not collapse them: an edge
+        // authored in the topology has no crop BECAUSE it is in no stack, which
+        // is not the same as "crops.json is old".
+        var inline = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "post_bushing_offset" } }));
+        });
+        eq(all(inline, "div.detail__crop--no-key").length, 1);
+        has(inline.textContent, "No crop index covers it");
+        has(inline.textContent, "no source_ref at all");
+
+        var derived = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "tip_to_strut_end" } }));
+        });
+        has(derived.textContent, "the quantity a study computes");
+      });
+
+    await test("an edge that re-expresses a stack element reaches the same crop",
+      function () {
+        // The whole of "reuse the stack viewer's thumbnail plumbing": crop_key
+        // is the (stack, element) pair crops.json is keyed by, so the three crop
+        // states come out of VA.cropFor unchanged.
+        var resolved = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "base_thickness" },
+            detailImage: { url: "blob:x", name: "x.png" } }));
+        });
+        eq(all(resolved, "div.detail__crop--resolved").length, 1);
+        eq(all(resolved, "img.detail__crop-img").length, 1);
+        has(resolved.textContent, "215197 A.1.pdf · sheet 2");
+
+        var unresolvable = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "post_height" } }));
+        });
+        eq(all(unresolvable, "div.detail__crop--unresolvable").length, 1);
+        has(unresolvable.textContent, "none hashes to the one");
+
+        var stale = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "strut_length" } }));
+        });
+        eq(all(stale, "div.detail__crop--no-entry").length, 1);
+        has(stale.textContent, "it is older than");
+      });
+
+    await test("the pane shows a selected edge's place in the study's sum",
+      function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            study: topoStudy("demo_base_to_tip"),
+            selection: { kind: "edge", id: "arm_pin_to_tip" } }));
+        });
+        has(root.textContent, "In this study — contribution #");
+        has(root.textContent, "with the edge's orientation");
+        has(root.textContent, "No sign is authored anywhere");
+        // This edge's transform is its OWN default, not a study override, and
+        // the pane distinguishes the two.
+        has(root.textContent, "The edge's own default transform applied.");
+      });
+
+    await test("a study override says it is one", function () {
+      var root = render(function (r) {
+        VA.renderTopoDetail(r, topoCtx({
+          study: topoStudy("demo_base_to_tip"),
+          selection: { kind: "edge", id: "base_thickness" } }));
+      });
+      has(root.textContent, "OVERRIDES the edge's default transform");
+    });
+
+    await test("nothing selected tells you what clicking does", function () {
+      var root = render(function (r) { VA.renderTopoDetail(r, topoCtx()); });
+      has(root.textContent, "Click a dot or a row");
+    });
+
+    await test("the picker offers every topology and study, and flags the one " +
+      "that does not sum", function () {
+        var root = render(function (r) {
+          VA.renderTopoPicker(r, TOPOFIX,
+            { topologyId: TOPO.id, studyId: null, layoutMode: "topology" }, {});
+        });
+        eq(all(root, "option").length,
+           TOPOFIX.topologies.length + TOPO.studies.length + 1);
+        has(root.textContent, "⚠ ");
+        has(root.textContent, "none (whole topology)");
+        // Chain mode needs a chain: with no study there is nothing to lay out.
+        eq(root.querySelector("button.tvpick__mode").disabled, true);
+      });
+
+    await test("chain mode stays disabled for a study that raised", function () {
+      var root = render(function (r) {
+        VA.renderTopoPicker(r, TOPOFIX,
+          { topologyId: TOPO.id, studyId: "demo_ambiguous",
+            layoutMode: "topology" }, {});
+      });
+      eq(root.querySelector("button.tvpick__mode").disabled, true);
+    });
+
+    await test("the banner names the TOPOLOGY projection, not the results one",
+      function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, projection: "topologies",
+            results: TOPOFIX, crops: TOPOCROPS,
+          }, {});
+        });
+        has(root.textContent, "topologies built ");
+        eq(root.textContent.indexOf("results built "), -1);
+      });
+
+    await test("a missing topology projection prints ITS build command",
+      function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, projection: "topologies",
+            results: null, crops: TOPOCROPS,
+          }, {});
+        });
+        has(root.textContent, "build_topology_projection.py");
+        eq(root.textContent.indexOf("build_viewer_projection.py"), -1);
+      });
+
+    await test("a study pointing at a topology nobody declares is an alarm",
+      function () {
+        // Built inline rather than put in the fixture: an alarm in ?mock=1,
+        // where nothing is wrong, is how a reader learns to ignore alarms.
+        var alarms = VA.orphanStudyAlarms({
+          orphan_studies: [{ study: "s", topology: "gone",
+                             source_file: "docs/topologies/study_s.json" }],
+        });
+        eq(alarms.length, 1);
+        has(alarms[0], "no document in docs/topologies/ declares");
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, projection: "topologies",
+            results: TOPOFIX, crops: TOPOCROPS, extraAlarms: alarms,
+          }, {});
+        });
+        has(root.textContent, "may not be what you think it is");
+        has(root.textContent, "gone");
+      });
+
+    await test("a row whose id the topology does not declare is reported",
+      function () {
+        // Unreachable from a clean build, and that is exactly why it is worth a
+        // branch: a layout referring to an id the derived blocks do not have is
+        // a builder bug, and a blank row would hide it.
+        var broken = JSON.parse(JSON.stringify(TOPO));
+        broken.layout.rows[1].id = "not_an_edge";
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ topoProj: broken }));
+        });
+        has(root.textContent, "the topology does not declare");
+      });
+
     // --- node-fs tier: the REAL projection ----------------------------------
 
     var nodeFs = typeof NODE_FS !== "undefined" ? NODE_FS : null;
@@ -2224,6 +2644,340 @@
         ok(all(root, "tr.conf--untraced").length >= 6,
            "expected the workbook-sourced elements to be flagged untraced");
       });
+
+      // --- [real] the topology projection ------------------------------------
+      //
+      // The fixture above is a demo mechanism; this is Jeff's two. It is the
+      // tier that proves the page renders the pitch system's 43 rows and the
+      // grip stack's ring, and — the claim the whole page rests on — that every
+      // total on screen is the number topologies.json carries.
+
+      var realTopologies = await real.readTopologies();
+      if (!realTopologies) {
+        skip("[real] topology projection",
+             "no topologies.json at " + nodeFs.root +
+             "/data/projections/viewer/ — run scripts/build_topology_projection.py");
+      } else {
+        var liveTopos = realTopologies.topologies || [];
+        var livePitch = VA.findTopology(realTopologies, "pitch_system");
+        var liveL1 = VA.findTopology(realTopologies, "vpa_output_to_pitch_plate");
+
+        await test("[real] both MVP topologies are in the projection", function () {
+          ok(liveL1, "the L1 grip stack must be there");
+          ok(livePitch, "the L2 pitch system must be there");
+          eq(realTopologies.orphan_studies, []);
+        });
+
+        await test("[real] every row of both topologies renders, aligned",
+          function () {
+            liveTopos.forEach(function (topoProj) {
+              var root = render(function (r) {
+                VA.renderTopoPane(r, {
+                  topoProj: topoProj, study: null, crops: realCrops,
+                  layoutMode: "topology", selection: null,
+                  onSelect: function () {},
+                });
+              });
+              var rows = all(root, "div.tvrow");
+              eq(rows.length,
+                 topoProj.nodes.length + topoProj.edges.length, topoProj.id);
+              eq(rows.length, topoProj.layout.rows.length, topoProj.id);
+              rows.forEach(function (row, i) {
+                eq(row.getAttribute("data-id"), topoProj.layout.rows[i].id);
+              });
+              // Nothing rendered as "the topology does not declare this id".
+              eq(root.textContent.indexOf("does not declare"), -1, topoProj.id);
+            });
+          });
+
+        await test("[real] the L1 grip stack draws as a ring: two rails, one " +
+          "closing edge, no forks", function () {
+            eq(liveL1.layout.columns, 2);
+            eq(liveL1.branch_nodes, []);
+            var closing = liveL1.layout.rows.filter(function (r) {
+              return r.closes_row !== null && r.closes_row !== undefined;
+            });
+            eq(closing.map(function (r) { return r.id; }), ["fastener_grip"]);
+          });
+
+        await test("[real] the pitch system's four forks are marked", function () {
+          ok(livePitch.branch_nodes.length === 4,
+             "expected 4 branch points, got " + livePitch.branch_nodes.length);
+          var root = render(function (r) {
+            VA.renderTopoPane(r, {
+              topoProj: livePitch, study: null, crops: realCrops,
+              layoutMode: "topology", selection: null, onSelect: function () {},
+            });
+          });
+          eq(all(root, "circle.rail__dot--branch").length, 4);
+          eq(all(root, "div.tvrow--branch").length, 4);
+        });
+
+        await test("[real] the ring gear's cyclic-only branch is visibly a branch",
+          function () {
+            // The brief names this case by hand: the ring gear participates
+            // cyclically and follows along for pure collective, and its edges
+            // hang off the blade-root clocking fork. It must read as a branch
+            // rather than as part of the spine.
+            var clocking = livePitch.layout.rows.filter(function (r) {
+              return r.id === "pitch_arm_blade_root_clocking";
+            })[0];
+            ok(clocking && clocking.branch, "the clocking interface is a fork");
+            var ring = livePitch.layout.rows.filter(function (r) {
+              return r.id === "blade_root_clocking_to_ring_gear_mesh";
+            })[0];
+            ok(ring.column !== clocking.column,
+               "the ring-gear branch must leave the fork's rail");
+            var fanout = livePitch.layout.links.filter(function (l) {
+              return l.kind === "branch" && l.row === clocking.row &&
+                l.to_column === ring.column;
+            });
+            eq(fanout.length, 1, "a fan-out curve leaves the fork for that rail");
+          });
+
+        await test("[real] every study's totals reach the page value for value",
+          function () {
+            var seen = 0;
+            liveTopos.forEach(function (topoProj) {
+              topoProj.studies.forEach(function (study) {
+                if (study.status !== "ok") return;
+                seen++;
+                var root = render(function (r) {
+                  VA.renderTopoTotals(r, topoProj, study,
+                                      VA.topologyIndex(topoProj));
+                });
+                var text = root.textContent;
+                ["nominal", "worst_case_min", "worst_case_max",
+                 "worst_case_half", "rss_min", "rss_max", "rss_half"]
+                  .forEach(function (field) {
+                    has(text, VA.fmt(study.result[field]),
+                        study.id + " " + field);
+                  });
+                has(text, study.result.units, study.id);
+              });
+            });
+            ok(seen >= 5, "expected the five committed studies, got " + seen);
+          });
+
+        await test("[real] the shank-out study's published numbers are on screen",
+          function () {
+            // The one study whose answer is checkable against something outside
+            // this archetype: it is the grip stack's own worst_case_shank_out
+            // check, re-expressed as a loop closure.
+            var study = VA.findStudy(liveL1, "vpa_output_shank_out");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, liveL1, study, VA.topologyIndex(liveL1));
+            });
+            has(root.textContent, "-0.0824");    // nominal
+            has(root.textContent, "0.6449");     // worst-case half
+            has(root.textContent, "shank_out");  // the derived gap it closes
+          });
+
+        await test("[real] selecting a study marks its chain on the real rails",
+          function () {
+            var study = VA.findStudy(livePitch, "pitch_system_blade_angle_worst");
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: study, crops: realCrops,
+                layoutMode: "topology", selection: null, onSelect: function () {},
+              });
+            });
+            var on = all(root, "div.tvrow--on");
+            var off = all(root, "div.tvrow--off");
+            ok(off.length > 0, "a 23-edge topology has rows off a 10-edge chain");
+            eq(on.length + off.length, livePitch.layout.rows.length);
+            eq(all(root, "line.rail__bar--on").length, study.result.chain.length);
+          });
+
+        await test("[real] an L1 edge reaches the stack element's own crop",
+          function () {
+            // "Reuse the existing thumbnail plumbing" — asserted against the
+            // real crops.json rather than assumed: the grip edge's crop_key must
+            // address an entry that is actually in it.
+            var edge = VA.topologyIndex(liveL1).edges.fastener_grip;
+            ok(edge.crop_key, "a dimension_ref edge carries a crop key");
+            var entry = VA.cropFor(realCrops, edge.crop_key.stack,
+                                   edge.crop_key.element);
+            eq(entry.status, "resolved");
+            eq(entry.pdf_name, "NAS6403-NAS6420 Rev 4.pdf");
+          });
+
+        // --- [real] the topology fixture, against the real shapes -------------
+        //
+        // The same two guards the stack projection has, for the same two
+        // reasons: a key the builder writes and the fixture does not is a state
+        // no fixture-tier test can pin, and a VALUE the viewer has no branch for
+        // is the bug a key-set diff cannot see.
+
+        var TOPO_SIDES = { fixture: [TOPOFIX], live: [realTopologies] };
+
+        function topoRows(p) { return p.topologies || []; }
+        function topoEdges(p) {
+          return flat(topoRows(p).map(function (t) { return t.edges; }));
+        }
+        function topoNodes(p) {
+          return flat(topoRows(p).map(function (t) { return t.nodes; }));
+        }
+        function topoStudies(p) {
+          return flat(topoRows(p).map(function (t) { return t.studies; }));
+        }
+        function topoLayouts(p) {
+          return topoRows(p).map(function (t) { return t.layout; }).concat(
+            topoStudies(p).map(function (s) { return s.layout; }).filter(Boolean));
+        }
+        function topoLayoutRows(p) {
+          return flat(topoLayouts(p).map(function (l) { return l.rows; }));
+        }
+        function topoLinks(p) {
+          return flat(topoLayouts(p).map(function (l) { return l.links; }));
+        }
+        function topoChain(p) {
+          return flat(topoStudies(p).map(function (s) {
+            return (s.result && s.result.chain) || [];
+          }));
+        }
+        function topoDimensions(p) {
+          return topoEdges(p).map(function (e) { return e.dimension; })
+            .filter(Boolean);
+        }
+
+        var TOPO_SHAPES = [
+          { name: "topologies (top level)", collect: function (p) { return [p]; } },
+          { name: "topologies[]", collect: topoRows },
+          { name: "topologies[].nodes[]", collect: topoNodes },
+          { name: "topologies[].edges[]", collect: topoEdges },
+          { name: "topologies[].edges[].dimension", collect: topoDimensions },
+          { name: "topologies[].parts[]", collect: function (p) {
+            return flat(topoRows(p).map(function (t) { return t.parts; })); } },
+          { name: "layout (topology and study)", collect: topoLayouts },
+          { name: "layout.rows[]", collect: topoLayoutRows },
+          { name: "layout.links[]", collect: topoLinks },
+          { name: "layout.rails[]", collect: function (p) {
+            return flat(topoLayouts(p).map(function (l) { return l.rails; })); } },
+          { name: "topologies[].studies[]", collect: topoStudies },
+          { name: "studies[].result.chain[]", collect: topoChain },
+        ];
+
+        await test("[real] the topology fixture's shapes still match the builder's",
+          function () {
+            var drift = [];
+            TOPO_SHAPES.forEach(function (shape) {
+              var mine = keyUnion(flat(TOPO_SIDES.fixture.map(shape.collect)));
+              var theirs = keyUnion(flat(TOPO_SIDES.live.map(shape.collect)));
+              if (!theirs.length) {
+                drift.push(shape.name + ": no live instance — either the " +
+                  "collector in tests.js is wrong or the builder stopped " +
+                  "writing it");
+                return;
+              }
+              var missing = minus(theirs, mine.concat(shape.ignoreLive || []));
+              var extra = minus(mine, theirs.concat(shape.fixtureOnly || []));
+              if (missing.length) {
+                drift.push(shape.name + ": the projection writes [" +
+                  missing.join(", ") + "] and apps/viewer/topology_fixtures.js " +
+                  "does not — REGENERATE it (its header says how)");
+              }
+              if (extra.length) {
+                drift.push(shape.name + ": topology_fixtures.js writes [" +
+                  extra.join(", ") + "] and no live object does");
+              }
+            });
+            eq(drift, [], "topology_fixtures.js has drifted from the builder");
+          });
+
+        var TOPO_VALUE_GUARDS = [
+          { field: "layout.rows[].kind",
+            branch: "VA.TOPO_ROW_KINDS — the grid dispatches nodeRow/edgeRow on " +
+              "it, and `node` is the DEFAULT arm, so a new kind renders as an " +
+              "interface with no value: a lie, not a gap",
+            known: inList(VA.TOPO_ROW_KINDS),
+            values: function (p) {
+              return topoLayoutRows(p).map(function (r) { return r.kind; });
+            } },
+          { field: "layout.links[].kind",
+            branch: "VA.TOPO_LINK_KINDS — railGeometry picks the path shape on " +
+              "it, and `close` is the default arm, so a new link kind would be " +
+              "drawn as a loop closure",
+            known: inList(VA.TOPO_LINK_KINDS),
+            values: function (p) {
+              return topoLinks(p).map(function (l) { return l.kind; });
+            } },
+          { field: "edges[].value_source",
+            branch: "VA.VALUE_SOURCES — an unlabelled one renders as the loud " +
+              "magenta chip rather than as one of the three explained states",
+            known: function (v) { return !!VA.VALUE_SOURCES[v]; },
+            values: function (p) {
+              return topoEdges(p).map(function (e) { return e.value_source; });
+            } },
+          { field: "studies[].status",
+            branch: "VA.STUDY_STATUSES — anything but `ok` renders the error " +
+              "block, so a third status would show a study's totals as a refusal",
+            known: inList(VA.STUDY_STATUSES),
+            values: function (p) {
+              return topoStudies(p).map(function (s) { return s.status; });
+            } },
+          { field: "edges[].confidence",
+            branch: "VA.CONFIDENCES, through VA.confidenceClass. `null` is the " +
+              "derived gap, which has no citation because it has no value",
+            known: function (v) {
+              return v === null || VA.confidenceClass(v) !== "conf--unknown";
+            },
+            values: function (p) {
+              return topoEdges(p).map(function (e) { return e.confidence; });
+            } },
+          { field: "nodes[].kind",
+            branch: "the two node kinds render as a plain chip and a filled dot " +
+              "(.rail__dot--datum); a third would read as a mating surface",
+            known: inList(["mating_surface", "datum_feature"]),
+            values: function (p) {
+              return topoNodes(p).map(function (n) { return n.kind; });
+            } },
+          { field: "edges[].kind",
+            branch: "`gap` dashes the bar and drops the part name; `structural` " +
+              "is the default arm",
+            known: inList(["structural", "gap"]),
+            values: function (p) {
+              return topoEdges(p).map(function (e) { return e.kind; });
+            } },
+          { field: "edges[].transform.kind",
+            branch: "anything but `identity` raises the transform chip and " +
+              "prints the sensitivity; a new kind still renders, by name",
+            known: inList(["identity", "ratio", "linear_to_rotary"]),
+            values: function (p) {
+              return topoEdges(p).map(function (e) { return e.transform.kind; });
+            } },
+        ];
+
+        await test("[real] no live topology value is one the page cannot render",
+          function () {
+            var unexplained = [];
+            TOPO_VALUE_GUARDS.forEach(function (guard) {
+              var values = distinct(guard.values(realTopologies));
+              if (!values.length) {
+                unexplained.push(guard.field + ": no live value found — either " +
+                  "the collector is wrong or the builder stopped writing it");
+                return;
+              }
+              values.forEach(function (value) {
+                if (!guard.known(value)) {
+                  unexplained.push(guard.field + " = " + JSON.stringify(value) +
+                    " is in the live projection and the page has no branch for " +
+                    "it. Branch table: " + guard.branch);
+                }
+              });
+            });
+            eq(unexplained, [], "teach the page these values — or fix the builder");
+          });
+
+        await test("[real] each topology value guard bites on a value nothing " +
+          "explains", function () {
+            var toothless = TOPO_VALUE_GUARDS.filter(function (guard) {
+              return guard.known(SENTINEL);
+            }).map(function (guard) { return guard.field; });
+            eq(toothless, [], "these guards accept any value at all");
+          });
+      }
+
     }
 
     return results;

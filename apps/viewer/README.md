@@ -81,6 +81,124 @@ in JavaScript would be a second such line, so there isn't one:
 the authored file, and re-asserts the ground-truth numbers *through* the
 projection.
 
+## The topology page (`topology.html`)
+
+The third archetype's surface — read `docs/DAG_TOPOLOGY.md` first; this section
+is only about how it is drawn.
+
+```powershell
+venv-win\Scripts\python.exe scripts\build_topology_projection.py
+```
+
+Then open `apps/viewer/topology.html` and connect the same repo-root folder.
+(`topology.html?mock=1` runs a demo mechanism with no disk access, exactly like
+the stack viewer's.)
+
+### The row model: one row per graph element
+
+**A dot is an interface; a bar is the dimension between two of them; every id in
+the document has exactly one row, one y and one rail mark.** Nodes and edges
+interleave, so a chain of n edges is 2n+1 rows.
+
+That was a decision, and the two alternatives each drop half of what the page is
+for. One row per *edge* only puts the interfaces between rows, and an interface
+is what a chain's endpoints are named by and what a 3D-annotation surface will
+resolve — it needs somewhere to be clicked. One row per *node* only puts the
+numbers between rows, and the numbers are what a tolerance reviewer came for.
+Interleaving costs vertical space and buys a page where the grid is an index of
+the whole document.
+
+### The rails: a column is a branch, not a part
+
+The serialisation is a depth-first walk from the **document's first node**, with
+rail continuity: a branch keeps its column until it rejoins or ends. So the
+author's node and edge order is the layout's spine — put the datum first, and
+reordering an `edges` array is how you steer the picture without touching a
+value. There is deliberately no cleverness to fight: a heuristic root would move
+the whole diagram when an unrelated edge is added.
+
+Three shapes come out of it, and all three are in the projection:
+
+* **a fan-out** at a fork — a short curve into a freshly allocated column, which
+  then runs as a rail from the fork downwards, past whatever the first branch's
+  subtree puts on screen;
+* **a loop closure** — a long dashed curve back up to an interface the walk has
+  already drawn. There is exactly one per independent cycle (|E| − |V| + 1),
+  which `tests/test_topology_projection.py` checks;
+* **column reuse** — a column is freed when its branch ends, which is what keeps
+  the pitch system nine rails wide instead of twelve.
+
+The L1 grip stack draws as **two rails that rejoin**, not one, and that is the
+truth about it: every interface has exactly two edges — the five clamped members
+in series, the bolt's grip running parallel to them, and the derived `shank_out`
+gap closing the ring. The single-rail case is its *study*, which is what
+"Showing: study chain" draws.
+
+### The colours: there is no lane palette, and that is deliberate
+
+Jeff's second reference image colours a rail per branch. This page does not.
+Green, amber, red and magenta are **provenance** on this surface and nothing else
+may wear them; what is left of a validated categorical palette after removing
+four of its eight hue families cannot separate nine rails, and the pitch system
+has twelve parts, which is past any categorical palette's cap regardless. So:
+
+* rails are neutral, alternating two greys by column parity so two crossing rails
+  can still be told apart;
+* **an edge's bar wears its citation's confidence**, which makes the rail diagram
+  itself a provenance map — a column of red bars is a mechanism nobody has
+  traced, visible before a single row is read;
+* a `gap` bar is dashed (it crosses between lanes and has no rail of its own) and
+  a **derived** gap is dashed and thin, because it carries no value at all: it is
+  the quantity a study computes;
+* the selected study's path is the accent, and that is a binary, so it needs no
+  palette.
+
+Part identity is carried as text, on the row and in the preview pane.
+
+### Studies
+
+Picking a study highlights its chain, numbers each row with **its place in the
+sum** — which is generally not the row order, because the rows are a walk of the
+whole graph — prints each edge's own signed and scaled contribution, and puts the
+totals at the bottom. "Showing: study chain" re-lays the rows as
+`StudyResult.chain`: one rail, the sum's own order.
+
+**A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,
+`BrokenChain`, `CycleDetected` and `UnitMismatch` each render as a block carrying
+the exception's own message — which names the node and the candidate edges — plus
+what to do about it. An author lassoing interactively will hit branch ambiguity
+constantly, and the message *is* the feature: which parallel path binds is a
+mechanics question this tool does not answer (`docs/DAG_TOPOLOGY.md`, "Not a
+solver").
+
+### The preview pane reuses the crop plumbing, and says so when it cannot
+
+An edge that re-expresses a committed stack element **is** that element: same id,
+same citation, same crop. The projection derives a `crop_key` — the `(stack id,
+element id)` pair `crops.json` is keyed by — and the pane runs it through the
+stack viewer's own `VA.cropFor`, so the resolved / unresolvable / not-built /
+stale-index quartet is unchanged.
+
+An edge with no key is **not** a stale index and must not read like one. It says
+which of the two it is: a dimension authored in the topology (in no stack, so no
+crop index covers it) or a derived gap (no value to cite). A citation of kind
+`assumed` says outright that there is no document behind it to crop — which is
+most of the pitch system.
+
+### Alignment is the claim, so it is measured
+
+A grid row and its rail mark describe the same element at the same y. Two things
+enforce it and neither is a stylesheet:
+
+* the row's `height` is set **inline** from `VA.RAIL_METRICS.rowHeight`, the same
+  constant `VA.railY()` computes the SVG's y from;
+* the rails and the rows live in **one scrollport**, so "scrolling keeps them
+  locked together" has nothing to synchronise.
+
+`scripts/run_viewer_browser_tests.mjs` then measures it: box against box, every
+row of both real topologies, in both layouts, after scrolling. That is the check
+no DOM shim can make, and it is why the browser tier is not optional here.
+
 ### Generated checks are generated in Python too
 
 Some archetypes do not author their checks: a `thermal_fit` stack ships an empty
@@ -312,7 +430,14 @@ venv-win\Scripts\python.exe -m pytest -q                # runs the fast tier too
 
 npm install                                             # once: playwright-core, no browser download
 node scripts\run_viewer_browser_tests.mjs               # truth tier (installed Chrome, file:// + http)
+node scripts\run_viewer_browser_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
 ```
+
+The truth tier takes `--repo` for the same reason the fast tier does: it drives
+`topology.html` against the **real** `topologies.json` as well as the demo, and
+that file lives only in the main checkout. Without it the topology page's real
+tier reports itself skipped and the demo tier still runs. The app's own files
+always come from this tree either way.
 
 The fast tier includes a **node-fs adapter** tier that drives the real
 `data/projections/viewer/` through the same adapter contract the browser uses, so
@@ -346,17 +471,31 @@ limitation forge's notes app records.
 
 ```
 apps/viewer/
-  index.html          shell + the whole stylesheet (the colour system lives here)
+  style.css           the SHARED stylesheet — the colour system lives here
+  index.html          the stack viewer's shell
+  topology.html       the topology viewer's shell (three panes + the legend)
+  topology.css        that page's own rules: rails, the grid, the totals footer
   test.html           browser test page; publishes window.__TEST_RESULTS__
   config.js           paths, the drawing-checker webui base, rebuild commands
   viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
+  topology.js         the same, for the topology page: its vocabularies and the
+                      rail GEOMETRY (row index -> pixels; the columns are the
+                      projection's)
   fixtures.js         the ?mock=1 demo projection (every provenance state)
-  app.js              boot + wiring; the only place views and adapters meet
+  topology_fixtures.js  the topology page's ?mock=1 demo, generated by running
+                      the real builder over a demo mechanism
+  app.js              boot + wiring for index.html
+  topology_app.js     boot + wiring for topology.html
   storage/adapter.js  the read-only adapter contract
   storage/fsa.js      File System Access (mode: read), handle persisted in IndexedDB
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
-  views/              dom, banner, list, stack, crop, worksheet, detail
+  views/              dom, banner, list, stack, crop, worksheet, detail, topology
   vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```
+
+The stylesheet was inline in `index.html` until 2026-08-31 and is a linked file
+now, because the topology page needs the same colour system, the same chips and
+the same right-hand pane. A `<link>` is safe from `file://`; an ES module import
+is not, which is the constraint this whole app is shaped by.

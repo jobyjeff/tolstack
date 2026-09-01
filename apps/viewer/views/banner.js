@@ -8,6 +8,9 @@
   VA.renderBanner = function (root, state, handlers) {
     VA.clear(root);
     root.className = "banner banner--" + state.connection;
+    // Which projection sits in `state.results` — see VA.PROJECTION_LABELS. The
+    // topology page passes `topologies`; everything else defaults to `results`.
+    var labels = VA.projectionLabels(state.projection);
 
     if (state.connection === VA.STATE.DISCONNECTED) {
       root.appendChild(VA.el("span", null,
@@ -18,12 +21,13 @@
         "Chrome needs the folder permission re-granted (one click, once per browser restart)."));
       root.appendChild(button("Re-grant", "banner__action", handlers.onReconnect));
     } else {
-      root.appendChild(VA.el("span", "banner__built", VA.builtLine(state.results, state.crops)));
+      root.appendChild(VA.el("span", "banner__built",
+        VA.builtLine(state.results, state.crops, state.projection)));
       root.appendChild(button("Reload", "banner__action", handlers.onReload));
       // Which rule resolved the crops, beneath the counts they belong to.
       var rules = VA.cropRulesLine(state.crops);
       if (rules) root.appendChild(VA.el("div", "banner__crop-rules", rules));
-      provenance(root, state);
+      provenance(root, state, labels);
     }
 
     if (state.error) {
@@ -31,10 +35,8 @@
     }
 
     if (state.connection === VA.STATE.READY && !state.results) {
-      root.appendChild(missing(
-        "No results projection. The viewer renders it dumbly and computes nothing, " +
-        "so without it there is nothing to show. Build it:",
-        VA.CONFIG.rebuild.results));
+      root.appendChild(missing(labels.missing,
+        VA.CONFIG.rebuild[labels.rebuildKey]));
     }
     if (state.connection === VA.STATE.READY && state.results && !state.crops) {
       root.appendChild(missing(
@@ -51,8 +53,14 @@
   // front of a reader for six hours on 2026-08-07 looking current
   // (ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection).
   // A timestamp answers "when", and the question was "which tree".
-  function provenance(root, state) {
-    var alarms = VA.provenanceAlarms(state.results, state.crops);
+  function provenance(root, state, labels) {
+    // `extraAlarms` is the caller's own list, appended to the shared ones rather
+    // than rendered somewhere else: the topology page's orphan studies belong in
+    // the same box as "these two were built from different trees", because they
+    // are the same kind of fact — something about the data in front of you that
+    // the page cannot fix.
+    var alarms = VA.provenanceAlarms(state.results, state.crops, state.projection)
+      .concat(state.extraAlarms || []);
     if (alarms.length) {
       var box = VA.el("div", "banner__stale");
       box.appendChild(VA.el("div", "banner__stale-head",
@@ -63,12 +71,13 @@
       });
       box.appendChild(list);
       box.appendChild(VA.el("div", null, "Rebuild both, newest tree first:"));
-      box.appendChild(VA.el("code", "banner__cmd", VA.CONFIG.rebuild.results));
+      box.appendChild(VA.el("code", "banner__cmd",
+        VA.CONFIG.rebuild[labels.rebuildKey]));
       box.appendChild(VA.el("code", "banner__cmd", VA.CONFIG.rebuild.crops));
       root.appendChild(box);
     }
 
-    [["results", state.results], ["crops", state.crops]].forEach(function (pair) {
+    [[labels.name, state.results], ["crops", state.crops]].forEach(function (pair) {
       var line = VA.provenanceLine(pair[0], pair[1]);
       if (line) root.appendChild(VA.el("div", "banner__provenance", line));
     });

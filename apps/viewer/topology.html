@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tolstack — topology viewer</title>
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./topology.css" />
+</head>
+<body>
+  <div class="topbar">
+    <h1>tolstack — topology viewer</h1>
+    <span class="sub">read-only · renders <code>data/projections/viewer/topologies.json</code> · computes nothing</span>
+    <span class="topbar__spacer"></span>
+    <a href="./index.html">stack viewer →</a>
+  </div>
+  <div id="banner" class="banner"></div>
+  <div id="picker" class="banner tvpick"></div>
+
+  <details class="tv__legend">
+    <summary>How to read the rails</summary>
+    <ul>
+      <li><b>One row per graph element</b>, nodes and edges interleaved: a
+        <b>dot</b> is an interface, a <b>bar</b> is the dimension between two of
+        them. Every id in the document has exactly one row and one mark, and the
+        two share a y by construction.</li>
+      <li><b>A column is a branch, not a part.</b> The walk is depth-first from
+        the document's first node; a branch keeps its column until it rejoins or
+        ends, which is why a fork fans out sideways and a grounded loop closes
+        with a dashed curve back up to the interface it lands on.</li>
+      <li><b>A bar's colour is its citation's confidence</b> — the same green /
+        amber / <b>UNTRACED</b> / <b>NO CITATION</b> vocabulary the stack viewer
+        uses. The rails themselves are neutral on purpose: those four colours are
+        reserved for provenance here, so lane identity is carried by position and
+        by the part named on the row.</li>
+      <li><b>A dashed bar is a gap</b> — its two interfaces share no part, so it
+        crosses between lanes and has no rail of its own. A <b>DERIVED</b> gap
+        carries no value at all: it is the quantity a study computes, and a study
+        that puts it in its selection is refused.</li>
+      <li><b>⑂ marks a branch point.</b> A study reaching one with two unconsumed
+        selected edges raises <code>BranchAmbiguity</code> and names both. Which
+        parallel path binds is a mechanics question this tool does not answer and
+        must not learn to — see <code>docs/DAG_TOPOLOGY.md</code>, "Not a
+        solver".</li>
+      <li><b>Selecting a study</b> highlights its chain, numbers each row with its
+        place in the sum, prints each edge's own signed and scaled contribution,
+        and puts the totals at the bottom. Every one of those numbers came out of
+        <code>tolerance_stack.topology.summarize()</code> → <code>fold()</code>.
+        Nothing on this page is added up in JavaScript.</li>
+    </ul>
+  </details>
+
+  <main class="tv">
+    <div class="tv__main">
+      <section id="topopane" class="tv__scroll"></section>
+      <section id="totals" class="tvtotals"></section>
+    </div>
+    <aside id="detail" class="detail"></aside>
+  </main>
+
+  <!-- Classic scripts (NOT ES modules): the page must run by double-clicking
+       from file://, where Chrome CORS-blocks cross-file `import`. Shared with
+       index.html down to views/crop.js; topology.js / views/topology.js /
+       topology_app.js are this page's own. app.js is deliberately NOT here —
+       it boots the stack viewer against elements this page does not have. -->
+  <script src="./config.js"></script>
+  <script src="./viewer.js"></script>
+  <script src="./topology.js"></script>
+  <script src="./fixtures.js"></script>
+  <script src="./topology_fixtures.js"></script>
+  <script src="./storage/adapter.js"></script>
+  <script src="./storage/memory.js"></script>
+  <script src="./storage/fsa.js"></script>
+  <script src="./views/dom.js"></script>
+  <script src="./views/banner.js"></script>
+  <script src="./views/topology.js"></script>
+  <script src="./topology_app.js"></script>
+</body>
+</html>

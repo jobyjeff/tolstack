@@ -49,13 +49,29 @@ The viewer **computes nothing** — every number it shows comes out of a project
 built by `fold()`, because a second arithmetic path is a second place a sign can
 be wrong.
 
+## Reviewing a topology
+
+Double-click **`apps/viewer/topology.html`** — the same surface, one archetype
+along. A vertical git-graph of the mechanism on the left (interfaces are dots,
+dimensions are the rail segments between them), the grid of those elements in the
+centre with every row locked to its rail mark, and the citation and drawing crop
+for whatever you click on the right. Pick a study and its chain lights up, each
+row numbered with its place in the sum, with the worst-case and RSS totals at the
+bottom. It needs `scripts/build_topology_projection.py` built first (the crops
+are the stack viewer's, shared).
+
+Same rule, one archetype along: **it computes nothing.** Every total comes out of
+`topology.summarize()` → the same `fold()`, and so does the rail layout — which
+column an edge lands on is a claim about the graph, so it is made in Python where
+`tests/test_topology_projection.py` can pin it.
+
 ## Layout
 
 - `docs/SOP_TOLERANCE_STACK.md` — **start here** to build a stack.
 - `apps/viewer/` — the static review surface (forge `apps/` pattern: classic
   scripts, no build, no npm, runs from `file://`). Read-only.
-- `scripts/` — the two projection builders the viewer reads, plus the browser
-  test runner. Nothing here authors a stack.
+- `scripts/` — the projection builders the two viewer pages read, plus the
+  browser test runner. Nothing here authors a stack or a topology.
 - `docs/prompts/REVIEW_AGENT.md` — the review checklist for this repo (also the
   per-repo override dispatch serves to review agents).
 - `docs/tolerance_stacks/` — the stack definitions, the hardware-entry seed, and
@@ -112,6 +128,7 @@ topology ones in `tolerance_stack/topology.py`, the spec-library ones in
 | `source_ref` (embedded) | where a value came from, `confidence: traced \| inferred \| untraced` |
 | `joby.tolerance_stack/topology/v0` | one mechanism's tolerance topology: `parts`, `nodes` (interfaces), `edges` (`structural \| gap`), named `transforms` |
 | `joby.tolerance_stack/study/v0` | a human-lassoed chain through one topology: a `selection` of edge ids, two endpoints, optional per-study transform overrides |
+| `joby.tolerance_stack/topology_projection/v0` | what `apps/viewer/topology.html` renders: each topology's rail serialisation plus every study's fold. Derived, gitignored, wipe-and-rebuild |
 | `joby.tolstack/spec-parse/v0` | one immutable read of one document by one parser version; values, absences and unreadables, each with a source location |
 | `joby.tolstack/spec_library/v0` | the fold of the event log, keyed by subject. Derived, gitignored, rebuilt |
 | `joby.tolstack/spec_intake/v0` | the intake queue; **status is derived from the library, never stored** |

@@ -9,6 +9,7 @@
     this._state = opts.startState || VA.STATE.DISCONNECTED;
     this._results = opts.results || null;
     this._crops = opts.crops || null;
+    this._topologies = opts.topologies || null;
     this._texts = opts.texts || {};   // "docs/tolerance_stacks/X.md" -> string
     this._images = opts.images || {}; // "crops/x.png" -> any truthy marker
   }
@@ -29,6 +30,11 @@
   MemoryAdapter.prototype.readCrops = function () {
     VA.requireReady(this);
     return Promise.resolve(this._crops);
+  };
+
+  MemoryAdapter.prototype.readTopologies = function () {
+    VA.requireReady(this);
+    return Promise.resolve(this._topologies);
   };
 
   MemoryAdapter.prototype.readCropImage = function (relPath) {

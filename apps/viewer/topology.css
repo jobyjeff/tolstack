@@ -1,0 +1,236 @@
+/* apps/viewer/topology.html only. The shared colour system, chips, banner and
+   right-hand pane come from style.css; everything here is the three-pane
+   topology page.
+
+   THE ONE RULE OF THIS FILE: a grid row's height is `--tv-row`, and it is the
+   same number as VA.RAIL_METRICS.rowHeight, which the SVG's y comes from. The
+   view sets each row's height inline from that constant, so this variable is
+   the paint (padding, borders) and never the geometry — if the two ever
+   disagree, the inline value wins and the alignment survives.
+
+   Why the rails carry no categorical palette
+   ------------------------------------------
+   Jeff's second reference image colours a rail per branch. This page does not,
+   and the reason is a constraint the stack viewer already fixed: green, amber,
+   red and magenta are *provenance* here and nothing else may wear them. What is
+   left of a validated categorical palette after removing four of its eight hue
+   families cannot separate the pitch system's nine rails — and the pitch system
+   has twelve parts, past any categorical palette's cap regardless. So:
+
+     * a rail is neutral, alternating two greys by column parity so two crossing
+       rails can still be told apart;
+     * an EDGE's bar wears its citation's confidence, which turns the rail
+       diagram itself into a provenance map — the thing this repo actually
+       reviews;
+     * the selected study's path is the accent, and that is a binary, so it
+       needs no palette at all.
+
+   Part identity is carried as text, on the row and in the preview pane. */
+
+:root {
+  --tv-row: 26px;
+  --rail-even: #59606f;
+  --rail-odd: #7b8494;
+  --rail-dim: #333844;
+}
+
+.tvpick {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.tvpick__label {
+  color: var(--muted); font-size: 12px; text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.tvpick__select {
+  background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 6px; padding: 5px 8px; font: inherit; font-size: 13px;
+  max-width: 340px;
+}
+.tvpick__mode { white-space: nowrap; }
+
+/* The page is a flex column filling the viewport, so the rows get whatever the
+   banner leaves rather than a hard-coded `calc(100vh - N)`. The banner's height
+   is data-dependent — a provenance alarm is four lines and a quiet build is one
+   — and a fixed subtraction is wrong for one of those two by construction.
+   Scoped to this page: topology.css loads nowhere else. */
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; }
+
+.tv {
+  display: flex; align-items: stretch; gap: 0;
+  flex: 1 1 auto; min-height: 0;
+}
+.tv__main {
+  flex: 1 1 640px; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--line);
+}
+.tv__scroll {
+  flex: 1 1 auto; min-height: 0; overflow: auto;
+  /* Rails and rows share ONE scrollport. That is the whole implementation of
+     "scrolling keeps them locked together" — there is nothing to synchronise,
+     so there is nothing to drift. */
+}
+.tv__head {
+  display: flex; position: sticky; top: 0; z-index: 2;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  color: var(--muted); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .04em; height: 26px; line-height: 25px;
+}
+.tv__body { display: flex; align-items: flex-start; }
+/* The rails stay put when the grid is scrolled sideways: a six-column grid is
+   wider than the pane, and rails that scrolled off the left would leave the
+   rows they align with pointing at nothing. */
+.tv__rails {
+  flex: none; display: block; position: sticky; left: 0; z-index: 1;
+  background: var(--bg);
+}
+.tv__rows { flex: 1 1 auto; min-width: 0; }
+
+/* --- the rails ---------------------------------------------------------- */
+
+.rail { stroke-width: 2; }
+.rail--even { stroke: var(--rail-even); }
+.rail--odd { stroke: var(--rail-odd); }
+.rail__link { fill: none; stroke: var(--rail-even); stroke-width: 2; }
+.rail__link--close { stroke: var(--rail-dim); stroke-dasharray: 3 3; }
+
+/* An edge's bar IS the dimension: a fat segment spanning exactly its row. It
+   wears the citation's confidence, through the same conf-- classes the tables
+   use, so there is one vocabulary and one colour decision. */
+.rail__bar { stroke-width: 5; stroke-linecap: butt; cursor: pointer; }
+.rail__bar.conf--traced { stroke: var(--traced); }
+.rail__bar.conf--inferred { stroke: var(--inferred); }
+.rail__bar.conf--untraced { stroke: var(--untraced); }
+.rail__bar.conf--no_source_ref { stroke: var(--nocite); }
+.rail__bar.conf--unknown { stroke: var(--muted); }
+/* A gap crosses between parts and has no lane of its own — dashed, because it
+   is the one edge kind no rail belongs to. A DERIVED gap is the answer a study
+   computes rather than a term in one, so it is hollow as well as dashed. */
+.rail__bar--gap { stroke-dasharray: 4 3; }
+.rail__bar--derived { stroke: var(--zero); stroke-dasharray: 2 4; stroke-width: 3; }
+
+.rail__dot { fill: var(--panel); stroke: var(--rail-odd); stroke-width: 2; cursor: pointer; }
+.rail__dot--datum { fill: var(--rail-odd); }
+.rail__dot--branch { stroke: var(--accent); stroke-width: 2.5; }
+
+/* Study highlighting. Binary, so no palette: on the path or off it. */
+.rail__bar--off, .rail__dot--off { opacity: .28; }
+.rail__bar--on { stroke-width: 7; }
+.rail__dot--on { stroke: var(--accent); fill: var(--on); }
+
+/* --- the grid ----------------------------------------------------------- */
+
+.tvrow {
+  display: flex; align-items: center; cursor: pointer;
+  border-bottom: 1px solid transparent; white-space: nowrap;
+}
+.tvrow:hover { background: #20242c; }
+.tvrow--node {
+  color: var(--muted); font-size: 12px;
+  background: linear-gradient(to right, rgba(255,255,255,.035), transparent 60%);
+}
+.tvrow--edge { font-size: 13px; }
+.tvrow--branch { color: var(--accent); }
+.tvrow--off { opacity: .35; }
+.tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
+/* Same tint the elements table uses: an untraced value has to survive a skim. */
+.tvrow--edge.conf--untraced { background: rgba(224, 82, 82, .1); }
+.tvrow--edge.conf--no_source_ref { background: rgba(195, 85, 195, .12); }
+.tvrow--derived { font-style: italic; }
+.tvrow--closes .tvcell--name::after {
+  content: " ↰ closes back to an interface above";
+  color: var(--muted); font-size: 11px;
+}
+
+.tvcell {
+  padding: 0 8px; overflow: hidden; text-overflow: ellipsis;
+}
+.tvcell--ord {
+  width: 38px; flex: none; text-align: right; color: var(--accent);
+  font-family: ui-monospace, monospace; font-size: 11px;
+}
+.tvcell--name { flex: 1 1 220px; min-width: 150px; }
+.tvcell--part {
+  width: 170px; flex: none; color: var(--muted); font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
+.tvcell--value { width: 175px; flex: none; font-size: 12px; }
+.tvcell--contribution { width: 215px; flex: none; font-size: 12px; }
+.tvcell--chips { width: 200px; flex: none; display: flex; gap: 4px; }
+.tvrow__weight { color: var(--accent); margin-right: 4px; }
+
+.chip--gap { color: var(--zero); border-color: var(--zero); }
+.chip--derived { color: #0b1020; background: var(--zero); border-color: var(--zero); font-weight: 700; }
+.chip--branch { color: var(--accent); border-color: var(--accent); font-weight: 700; }
+.chip--transform { color: var(--accent); border-color: var(--accent); font-family: ui-monospace, monospace; }
+.chip--source { color: var(--muted); }
+.chip--unlabelled { color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700; }
+
+/* --- the totals footer -------------------------------------------------- */
+
+.tvtotals {
+  border-top: 1px solid var(--line); padding: 12px 16px; background: var(--panel2);
+}
+.tvtotals__head { display: flex; gap: 10px; align-items: baseline; }
+.tvtotals__chips { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+.tvtotals__grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.tvtotal {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 12px; min-width: 150px;
+}
+.tvtotal__label {
+  color: var(--muted); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.tvtotal__value { font-size: 15px; font-variant-numeric: tabular-nums; }
+.tvtotal--worst_case_half, .tvtotal--rss_half { border-color: var(--accent); }
+.tvtotals__rule { margin: 10px 0 0; }
+.tvtotals__note {
+  margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--line);
+  color: var(--ink); font-size: 13px;
+}
+
+/* A study that refuses to sum is a RESULT, and it gets the space of one. */
+.tverror {
+  border-left: 3px solid var(--inferred); background: rgba(217, 138, 0, .1);
+  padding: 8px 12px; margin-top: 10px; border-radius: 0 6px 6px 0;
+}
+.tverror__head { font-weight: 700; color: var(--inferred); }
+.tverror__type {
+  font-size: 12px; color: var(--muted); font-family: ui-monospace, monospace;
+}
+.tverror__message { margin: 6px 0; white-space: pre-wrap; }
+.tverror__advice { margin: 6px 0 0; color: var(--muted); }
+
+/* --- the preview pane --------------------------------------------------- */
+
+/* Narrower than the stack viewer's 520px: this page's centre pane carries six
+   columns and a rail gutter, and the preview is a companion to them rather than
+   the main event. */
+.tv .detail {
+  width: 430px; flex: none; overflow: auto; align-self: stretch;
+}
+.detail__values { margin: 8px 0; }
+.detail__valrow { display: flex; gap: 10px; font-size: 13px; }
+.detail__vallabel { width: 110px; flex: none; color: var(--muted); }
+.detail__valnum { font-variant-numeric: tabular-nums; }
+.detail__transform {
+  margin: 8px 0; color: var(--muted); font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+.detail__contribution {
+  margin: 10px 0; padding: 8px 10px; border: 1px solid var(--accent);
+  border-radius: 6px; background: #1b2028;
+}
+.detail__contribution h4 { margin: 0 0 6px; font-size: 13px; }
+.detail__citation { margin-top: 10px; }
+.detail__untraced { color: var(--untraced); font-weight: 600; margin-top: 4px; }
+.detail__crop--no-key { opacity: .85; }
+
+/* --- the legend --------------------------------------------------------- */
+
+.tv__legend { padding: 8px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.tv__legend summary { cursor: pointer; color: var(--muted); }
+.tv__legend ul { margin: 8px 0 0; padding-left: 20px; }
+.tv__legend li { margin-bottom: 4px; }

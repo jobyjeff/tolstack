@@ -27,10 +27,15 @@ tolerance_stack/
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
+  build_topology_projection.py the tolerance-topology archetype's projection:
+                               the rail serialisation plus summarize() ->
+                               data/projections/viewer/topologies.json. Added
+                               2026-08-31; stdlib only. The layout lives here,
+                               not in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
-                               2026-08-10; stdlib only. Imported by all three
-                               projection writers (the two above and
+                               2026-08-10; stdlib only. Imported by all four
+                               projection writers (the three above and
                                `tolerance_stack/spec_library.py`, 2026-08-12).
   snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
                                the evidence for "nothing was written there"

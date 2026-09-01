@@ -26,6 +26,11 @@
 //        — parsed data/projections/viewer/crops.json. null if absent; the app
 //          then shows every element's crop as "not built" rather than pretending
 //          the citation failed to resolve. Those are different facts.
+//   readTopologies(): Promise<object|null>
+//        — parsed data/projections/viewer/topologies.json, the rail layout +
+//          study folds scripts/build_topology_projection.py writes. Read by
+//          apps/viewer/topology.html only; index.html never asks for it, and an
+//          adapter returning null is the ordinary "not built yet" state.
 //   readCropImage(relPath): Promise<{ url, name }|null>
 //        — an object URL for data/projections/viewer/<relPath> (a crops/*.png).
 //          null when the file is gone, e.g. a stale crops.json.
