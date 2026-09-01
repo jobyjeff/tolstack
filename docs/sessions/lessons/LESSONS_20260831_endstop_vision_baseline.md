@@ -301,9 +301,9 @@ dimensional one.
 Snapshot = every entry under `data/inbox/drawings/` and `data/runs/` in the main
 checkout, with size.
 
-- before, taken before any file was opened: **5382** entries,
+- before, taken before any file was opened: **5380** entries,
   `2026-09-01T19:45:46Z`
-- after, taken after all reading and rendering: **5382** entries,
+- after, taken after all reading and rendering: **5380** entries,
   `2026-09-01T20:04:51Z`
 - **diff: EMPTY** — no entry added, removed or changed in size.
 
@@ -311,6 +311,21 @@ Eight PDFs were opened read-only. Every rendered crop and every scratch script
 went to the session scratchpad, never into drawing-checker's tree and never into
 this repo's working directory (so no `crop.png` cleanup was needed before commit,
 unlike the `fastener_stack_shadow` session).
+
+> **Corrected 2026-09-01 in `review/endstop_vision_baseline`.** Both figures
+> read **5382**. That number came from an ad-hoc `find | stat`, not from
+> `scripts/snapshot_drawing_checker.py`, which SOP Steps 0 and 8 name and which
+> reports **5380** for the *identical* entry set — set-differenced in review,
+> the only difference is the two root directories, which `find` lists and the
+> script does not. **Use the script**: it leaves a JSON the next reviewer can
+> `diff`, which a `.txt` in a doomed scratchpad cannot be. The invariant itself
+> was re-verified independently and over a wider window than this session's own:
+> diffing `review/dag_viewer_poc`'s snapshot at `2026-09-01T19:05:09Z` against a
+> fresh one at `2026-09-01T20:15:32Z` — opening 40 minutes before this session's
+> first commit and closing after the review's own re-reads and crops — returns
+> **EMPTY**. Worksheet §6 carries the same correction. And the reviewer's trick
+> is worth keeping: a prior review session's `dc_after.json` is usually still on
+> disk, so one `diff` brackets a whole tactical session and your review at once.
 
 ## Verification
 

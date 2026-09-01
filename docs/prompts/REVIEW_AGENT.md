@@ -862,6 +862,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `dc_after.json` is usually still on disk**, so diffing it against a fresh
       snapshot brackets the whole tactical session *and* your own review in one
       command — that is how this invariant was verified independently.
+- [ ] **Your own inline fix left a residue — grep for the other copies of the
+      figure you just corrected, including in the file you are not editing.**
+      New 2026-09-01 (`endstop_vision_baseline`), and it is the "guarded copy
+      fixed, unguarded copies missed" entry turned on the reviewer. That review
+      filed a finding about a snapshot count being **5382** where the tool says
+      5380, corrected the worksheet's §6 — and left the *lesson's* copy of the
+      same two figures standing; separately it corrected "six more PDFs" to
+      seven in one section and not in another. Caught only by a re-check pass.
+      **A correction is a change, so it has the same residue problem as the
+      change it corrects.** Two habits that cost nothing: after every inline
+      fix, `grep` the whole branch for the superseded literal and confirm the
+      only survivors are inside correction blockquotes; and before you write the
+      verdict, **re-derive the artifact's counts from its own row lists by
+      script** rather than by eye — for a table-heavy worksheet that also proves
+      the cross-table invariants (here: taxonomy class A had to equal the
+      mismatch∪candidate set, G the traced set, the remainder the gaps), which
+      is what makes a later disagreement between two tables impossible rather
+      than merely unobserved.
 - [ ] **A sibling handoff landed on `master` while you were reviewing.** The board
       runs handoffs in parallel, and two that are each internally correct can
       merge into a contradiction. `sop_edits_apply` and `spec_library_v0` both

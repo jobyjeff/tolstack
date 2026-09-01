@@ -799,7 +799,7 @@ only one of them argues for a 3D surface:
 
 - most of it was **document acquisition** (B + F = 23 of 43): the drawing or
   standard exists somewhere in Joby's PLM, it just isn't in this pipeline. No new
-  tool fixes that; someone exports six more PDFs.
+  tool fixes that; someone exports **seven** more PDFs (§4a.2 names them).
 - the genuine 2D-insufficiency case is **1 of 43** where the sheet was in hand,
   read completely, and still silent (row 64) — plus the 11 in class A where the
   sheet spoke but could not be *interpreted*.

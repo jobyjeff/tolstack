@@ -346,3 +346,46 @@ withdrawn: **F4** (rows 32 and 37 both trace to the same `⌖⌀0.2 A B C` in th
 same direction — deliberate second contributor, or one tolerance counted
 twice?) and **F5** (the workbook's 0.15 on row 51 against the drawing's
 `⌖⌀0.2 A B`). The withdrawn one was "the pitch arm needs a part number".
+
+---
+
+## Re-check pass (same day, after the merge)
+
+Re-ran the review against its own output. Three load-bearing facts re-derived
+from scratch and confirmed: `213668-002`'s text layer holds **0** of the nine
+GD&T glyphs across both sheets while sheet 2's frame extracts as the bare tokens
+`0 . 2 A B`; `555786-001` sheet 1 find no 11 is
+`215071-001 PITCH ARM, PROPELLER, CLOCKWISE` and its sheet 4 is titled
+`PITCH ARM AND LINK INSTALL`; `215500-001` find no 1 is `215072-001`; `546791`
+is 5 pages.
+
+The corrected worksheet was then re-derived from its own row lists by script:
+43 score rows, exactly the graft worksheet's 43 contributor elements (the graft
+ids outside that set are §2f's rollup totals and §2h's superseded "OLD STUFF");
+outcomes 4 / 3 / 8 / 28 = 43 with every percentage rounding as printed
+(9 / 7 / 19 / 35 / 65); taxonomy A 11 + B 12 + C 1 + D 0 + E 4 + F 11 + G 4 +
+H 0 = 43 covering each row exactly once; and — the check worth having —
+**class A is exactly the mismatch∪candidate set, class G exactly the traced
+set, and the remainder exactly the gaps**, so the score table and the taxonomy
+cannot now disagree. §4b's five rows sum to 43. Section 1 still hashes
+`fd0c8c78…`, identical to `de99685`.
+
+**Two residues of my own corrections, caught on this pass and fixed** — both
+the same class as finding S3, and both instances of the overlay's *"the handoff
+fixed the one guarded copy of a count and missed every unguarded one"*:
+
+- the **lesson's** own read-only section still said **5382** twice. I corrected
+  the worksheet's §6 and filed S4 about that exact figure, then left the second
+  copy standing. Now corrected, with the same blockquote.
+- §5b said *"someone exports **six** more PDFs"* where §4a.2 (which I had
+  corrected) names **seven**. Now seven, pointing at §4a.2 rather than
+  restating.
+
+Each file now contains exactly one `5382`, inside the blockquote that quotes it
+as superseded. Suite re-run: **559 passed, 1 skipped**. My own review session's
+drawing-checker diff, `20:15:32Z -> 20:38:55Z`: **EMPTY**.
+
+The lesson generalises past this handoff and is worth the next reviewer's
+attention: **a correction is a change, so it has the same residue problem as the
+change it corrects.** After fixing a figure, grep the repo for the other copies
+of it — including the ones in the file you are not editing.
