@@ -1,5 +1,12 @@
 # STRATEGY BRIEF 2026-08-26 — main_checkout_tracked_edit_guard: should something guard against editing tracked files in the main checkout instead of a worktree?
 
+> **CONSUMED 2026-09-01 — Jeff decided: build a mechanical guard if a clean
+> discriminator exists (it recurs often). Dispatch-side per this brief's own
+> analysis: expanded to
+> `dispatch/docs/sessions/HANDOFF_20260901_main_checkout_edit_guard.md` (med) —
+> env-marked worktree sessions + a PreToolUse hook blocking tracked
+> main-checkout writes; investigate-first, no guard that false-positives.**
+
 **Routing note.** `docs/issues/ISSUE_20260825_stack_viewer_layout_v2_edited_the_main_checkout_directly.md`
 is `type: chore`, `priority: high`, with no `audience:` tag — by the closed
 routing table that would default to a tactical handoff. Triage is routing it to

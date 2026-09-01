@@ -1,5 +1,10 @@
 # STRATEGY BRIEF 2026-08-26 — thermal_never_combines_invariant: does `thermal.py` ever combine two element values, or does `workbook_corner` get a declared exception?
 
+> **CONSUMED 2026-09-01 — decided: option 1, the exception is declared in the
+> rule (`workbook_corner` stands; routing it through `fold()` would be the
+> second arithmetic path). Walker/enforcement test built regardless. Expanded
+> to `docs/sessions/HANDOFF_20260901_thermal_exception_declared.md` (low).**
+
 **Routing note.** `docs/issues/ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values.md`
 is `type: bug`, `priority: low`, `audience: strategy` — the filer already marked
 this a design question, and triage agrees: the fix is a decision about the rule,
