@@ -1345,6 +1345,70 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       equivalence claim over a set is a claim about every member; open the source
       and walk them. Narrowed inline.
 
+- [ ] **A counterfactual stated as fact — "X is what keeps it N instead of M".**
+      New 2026-09-01 (`dag_viewer_poc`), and it is the stale-count family's
+      hardest member because **there is no source to recount against**: the
+      figure is about a world that does not exist. The rail serialiser frees a
+      column when a branch ends, and three places (the README, the lesson, and
+      the invariant test's own docstring) said reuse "keeps the pitch system
+      nine rails wide instead of twelve". Nine is right; twelve is nothing.
+      Disabling reuse outright leaves the pitch system at **nine** columns and
+      L1 at **two** — reuse never fires on either committed topology, so the
+      mechanism's whole justification was a number no one had produced. The
+      second half is worse than the first: the invariant it justifies
+      (`test_a_column_never_holds_two_rails_at_the_same_row`) was being
+      quantified over data where every column holds exactly one rail, i.e. it
+      could not tell a correct serialiser from one that never reuses. **Run the
+      counterfactual** — a counterfactual is one `monkeypatch` and one re-run —
+      and when it comes back equal, ask what else the sentence was propping up.
+      All three corrected inline and `test_reuse_is_what_this_invariant_guards`
+      added (the smallest graph that does reuse).
+- [ ] **The handoff fixed the one guarded copy of a count and missed every
+      unguarded one.** Third sighting of the "grep the repo for the other copies"
+      entry above (2026-09-01, `dag_viewer_poc`) and the direction is now
+      *reversed*, which is why it is worth its own line.
+      `test_architecture_inventory.py::test_the_projection_provenance_row_counts_and_names_its_importers`
+      derives its answer from `modules_importing("projection_provenance")`, so
+      adding the fourth writer **forced** the ARCHITECTURE.md row to "all four /
+      the three above" — the guard worked. Nine unguarded copies of the same two
+      facts did not move: ARCHITECTURE.md's own prose in three more places
+      (including line ~49, which *quotes the row's phrase* to explain what the
+      test pairs, and so quoted a string the file no longer contains),
+      `projection_provenance.py`'s docstring twice ("both scripts", "three
+      callers, not two" — the exact sentence the 2026-08-12 sighting fixed in
+      the other direction), `spec_library.py`'s rebuild comment, the viewer
+      README and `config.js`. **A guard that forces one edit is a signal that
+      N other copies just went stale**, and the residue scanner does not help:
+      `test_no_unpinned_quantifier_survives_in_the_block` walks the tree-block
+      **rows** only, so ARCHITECTURE.md's surrounding prose is outside every
+      quantifier guard the repo owns. All nine fixed inline.
+- [ ] **An `inList([...])` value-guard row that copies a Python constant nobody
+      pairs it to.** New 2026-09-01 (`dag_viewer_poc`), and it sharpens the
+      `VALUE_GUARDS` "read the rows, judge the form" item below. The topology
+      page's `TOPO_VALUE_GUARDS` had four rows pointing at `VA.*` tables that
+      `tests/test_topology_projection.py` pairs to Python, and three
+      (`nodes[].kind`, `edges[].kind`, `edges[].transform.kind`) spelling out
+      `NODE_KINDS` / `EDGE_KINDS` / `TRANSFORM_KINDS` inline instead. Those
+      three are the **documents'** vocabularies, validated by a dataclass
+      `__post_init__`, so the `inList` copy only speaks once a document in the
+      tree actually uses the new word — while the pairing would have spoken the
+      moment the constant grew. Fixed inline (three `VA.*` arrays in
+      `topology.js`, three rows added to `JS_PAIRINGS`). Ask of every `inList`
+      row: **does a named Python constant exist for this?** If yes, the copy is
+      the finding regardless of whether it agrees today.
+- [ ] **A new JS vocabulary file that did not inherit the old one's guards.**
+      Same handoff. `apps/viewer/topology.js` grew six enumerated tables and got
+      the pairing test, but not
+      `test_no_key_is_attached_to_a_status_table_from_outside_its_literal` —
+      the guard that refuses `VA.TABLE.newkey = {}` outside the literal, which
+      `viewer.js`'s six tables have had since 2026-08-12. Without it the pairing
+      test reads as equal while the page branches on a word Python cannot write,
+      because the extractor only sees the literal. Added inline, with its own
+      can-fail replay. Generalise: **when a second file joins a class the repo
+      already guards, list that class's guards and check the newcomer is in each
+      one** — the pairing is the visible guard and the mutation scan is the one
+      that gets forgotten.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
@@ -1578,6 +1642,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, so the traced-ratio
       and hardware-count doc scanners already read it — a stale figure quoted
       there is caught, but only for the shapes those scanners know.
+
+- [ ] **A projection field derived twice, once by the module and once inline.**
+      New 2026-09-01 (`dag_viewer_poc`), the `Contribution`/`fold()` entry above
+      one level up. `topologies.json` states "this interface is a fork" in two
+      fields — `nodes[].branch` (from `Topology.branch_nodes()`) and
+      `layout.rows[].branch` (from an inline `len(topology.incident(id)) > 2` in
+      `serialize_topology`) — and the page reads a *different one* in each place
+      it says so: the grid row's marker from the layout, the preview pane's
+      BRANCH POINT chip from the node. Two rules for one claim, agreeing today.
+      Routed through `branch_nodes()` inline and pinned over every topology by
+      `test_every_fork_mark_is_one_of_the_topologys_own_branch_nodes`. Ask of
+      any projection: **which two fields state the same fact, and does one
+      compute it?**
 
 ## Writing the review
 

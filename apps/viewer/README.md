@@ -51,9 +51,9 @@ what the two stamps say and lets you judge.
 ### If a build refuses (exit 3)
 
 `data/projections/viewer/` is **one directory shared by every live worktree**, so
-since 2026-08-10 both builders stamp their own branch and HEAD sha into their
-output and **refuse** to overwrite a projection built from a commit this tree
-does not contain (`scripts/projection_provenance.py`, and
+since 2026-08-10 each builder that writes there stamps its own branch and HEAD
+sha into its output and **refuses** to overwrite a projection built from a commit
+this tree does not contain (`scripts/projection_provenance.py`, and
 `ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection`,
 which happened three times). The refusal names the other tree's branch, sha and
 filesystem path and says what to run; the fix is normally *rebuild from that
@@ -125,8 +125,13 @@ Three shapes come out of it, and all three are in the projection:
 * **a loop closure** — a long dashed curve back up to an interface the walk has
   already drawn. There is exactly one per independent cycle (|E| − |V| + 1),
   which `tests/test_topology_projection.py` checks;
-* **column reuse** — a column is freed when its branch ends, which is what keeps
-  the pitch system nine rails wide instead of twelve.
+* **column reuse** — a column is freed when its branch ends and the next
+  allocation may take it, so a column holds a *list* of disjoint rail spans
+  rather than one extent. Measured in `review/dag_viewer_poc`: on the two
+  committed topologies reuse does not currently fire at all — nine allocations
+  over nine columns for the pitch system, two over two for L1, and disabling
+  reuse entirely leaves both numbers unchanged. It is the mechanism the
+  disjointness invariant guards, not an explanation of today's widths.
 
 The L1 grip stack draws as **two rails that rejoin**, not one, and that is the
 truth about it: every interface has exactly two edges — the five clamped members

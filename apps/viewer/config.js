@@ -7,8 +7,9 @@
 (function (VA) {
   "use strict";
   VA.CONFIG = {
-    // Where the two projection scripts write, relative to the repo root the
-    // folder grant points at.
+    // Where the projection scripts write, relative to the repo root the folder
+    // grant points at. Three of them land here: results.json, crops.json and
+    // topologies.json, one per `rebuild` key below.
     projectionDir: ["data", "projections", "viewer"],
     stacksDir: ["docs", "tolerance_stacks"],
 

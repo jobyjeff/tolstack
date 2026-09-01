@@ -583,7 +583,8 @@ class IntakeQueue:
 #
 # ``data/projections/spec_library/`` is **one directory shared by every live
 # worktree** -- ``data/`` exists only in the main checkout -- and this is the
-# third writer into ``data/projections/`` (with the two viewer builders). It was
+# third writer into ``data/projections/`` (with what were then the two viewer
+# builders; ``build_topology_projection.py`` made four on 2026-08-31). It was
 # the only one that could not be pointed at the main checkout and the only one
 # whose output carried no provenance at all
 # (``docs/issues/ISSUE_20260810_the_spec_library_projection_is_the_third_shared_writer.md``).

@@ -296,6 +296,12 @@ def serialize_topology(topology: Topology) -> Layout:
     ser = _Serializer()
     visited: Dict[str, int] = {}
     used: set = set()
+    # `Topology.branch_nodes()`, not a second `> 2` here: the grid row's fork
+    # marker and the preview pane's BRANCH POINT chip are the same claim read off
+    # two projection fields (`layout.rows[].branch` and `nodes[].branch`), and
+    # this is what stops them being two rules. Pinned over every topology by
+    # `test_every_fork_mark_is_one_of_the_topologys_own_branch_nodes`.
+    branch_nodes = set(topology.branch_nodes())
 
     def walk(node: Node, column: int) -> None:
         pending = [e for e in topology.incident(node.id) if e.id not in used]
@@ -337,7 +343,7 @@ def serialize_topology(topology: Topology) -> Layout:
             else:
                 far = topology.node(far_id)
                 visited[far_id] = ser.node_row(
-                    far, edge_column, branch=len(topology.incident(far_id)) > 2)
+                    far, edge_column, branch=far_id in branch_nodes)
                 walk(far, edge_column)
             if edge_column != column:
                 ser.release(edge_column)
@@ -347,7 +353,7 @@ def serialize_topology(topology: Topology) -> Layout:
             continue
         column = ser.allocate(len(ser.layout.rows))
         visited[node.id] = ser.node_row(
-            node, column, branch=len(topology.incident(node.id)) > 2)
+            node, column, branch=node.id in branch_nodes)
         walk(node, column)
         ser.release(column)
 

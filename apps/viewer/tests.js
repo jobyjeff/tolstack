@@ -2926,23 +2926,25 @@
               return topoEdges(p).map(function (e) { return e.confidence; });
             } },
           { field: "nodes[].kind",
-            branch: "the two node kinds render as a plain chip and a filled dot " +
-              "(.rail__dot--datum); a third would read as a mating surface",
-            known: inList(["mating_surface", "datum_feature"]),
+            branch: "VA.NODE_KINDS — the two node kinds render as a plain chip " +
+              "and a filled dot (.rail__dot--datum), and `mating_surface` is the " +
+              "DEFAULT arm of the chip's explanation, so a third would read as a " +
+              "mating surface",
+            known: inList(VA.NODE_KINDS),
             values: function (p) {
               return topoNodes(p).map(function (n) { return n.kind; });
             } },
           { field: "edges[].kind",
-            branch: "`gap` dashes the bar and drops the part name; `structural` " +
-              "is the default arm",
-            known: inList(["structural", "gap"]),
+            branch: "VA.EDGE_KINDS — `gap` dashes the bar and drops the part " +
+              "name; `structural` is the default arm",
+            known: inList(VA.EDGE_KINDS),
             values: function (p) {
               return topoEdges(p).map(function (e) { return e.kind; });
             } },
           { field: "edges[].transform.kind",
             branch: "anything but `identity` raises the transform chip and " +
               "prints the sensitivity; a new kind still renders, by name",
-            known: inList(["identity", "ratio", "linear_to_rotary"]),
+            known: inList(VA.TRANSFORM_KINDS),
             values: function (p) {
               return topoEdges(p).map(function (e) { return e.transform.kind; });
             } },

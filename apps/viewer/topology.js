@@ -26,6 +26,20 @@
   VA.TOPO_LINK_KINDS = ["branch", "close"];
   VA.STUDY_STATUSES = ["ok", "error"];
 
+  // These three are the DOCUMENTS' vocabularies rather than the projection's --
+  // tolerance_stack.topology's NODE_KINDS, EDGE_KINDS and TRANSFORM_KINDS, which
+  // each dataclass validates its own field against -- and they are here for the
+  // same reason the three above are: the page branches on all three (a
+  // `datum_feature` gets a filled dot, a `gap` gets a dashed bar and its own
+  // chip, a non-`identity` transform raises the sensitivity chip) and each
+  // branch has a silent default arm. They were written out a second time inside
+  // tests.js's TOPO_VALUE_GUARDS until this review; nothing paired those copies
+  // to Python, which is the one thing an `inList` guard cannot do for itself.
+  // Paired by tests/test_topology_projection.py alongside the others.
+  VA.NODE_KINDS = ["mating_surface", "datum_feature"];
+  VA.EDGE_KINDS = ["structural", "gap"];
+  VA.TRANSFORM_KINDS = ["identity", "ratio", "linear_to_rotary"];
+
   // Where an edge's value comes from. A total function with a loud fallback: the
   // three states read differently and collapsing any two is a lie. In
   // particular a `derived` gap has NO value on purpose — it is the quantity a
@@ -174,8 +188,10 @@
     return VA.fmt(d.nominal) + "  [" + VA.fmt(d.min) + " … " + VA.fmt(d.max) + "]";
   };
 
-  // What a study's chain row multiplied this edge by. `sign` and `weight` are
-  // both in the projection; this prints the two it carries and derives neither.
+  // What a study's chain row multiplied this edge by, as the projection's own
+  // `sign` and `ratio` -- the two factors `Contribution.weight` is the product
+  // of. Nothing is derived here: the product itself also rides in the row, and
+  // the preview pane prints it.
   // Unity weights stay silent, a non-unity weight NEVER does — the stack
   // viewer's rule (VA.termLabel), for the same reason.
   VA.contributionWeightText = function (contribution) {

@@ -46,7 +46,7 @@ apps/
 
 That listing is paired with the tree by `tests/test_architecture_inventory.py`:
 its row set against the directories it names, `stdlib only` against each module's
-imports, `all three projection writers` against the modules that actually import
+imports, `all four projection writers` against the modules that actually import
 `projection_provenance`. It also **refuses a quantifier it does not read from the
 tree**, which is why no row carries a line count: `stack.py` read *"~330 lines"*
 from founding until 2026-08-19, by which point it was 728
@@ -79,7 +79,7 @@ data convention; a stack does not.
 It writes into `data/`, which exists only in the main checkout and is shared by
 every live worktree, so it takes `--data-root` (name the main checkout's from a
 worktree, or the rebuild lands in a directory that is deleted at cleanup). Like
-the two viewer builders it stamps the tree it built from and **exits 3 rather
+the three viewer builders it stamps the tree it built from and **exits 3 rather
 than overwrite** a projection built from a tree this one does not contain;
 `--allow-older-tree` overrides that, loudly. See `scripts/projection_provenance.py`.
 
@@ -307,7 +307,7 @@ Nothing lands in `data/runs/` yet: no run-producing pipeline exists here. The
 `data/runs/` skeleton is the standard-layout requirement, held for when a stack
 synthesizer does produce runs for forge to ingest. `data/projections/` is now
 live — it holds the spec library, rebuilt from the committed event log, and
-`data/projections/viewer/`, wiped and rebuilt by the two viewer scripts.
+`data/projections/viewer/`, wiped and rebuilt by the three viewer scripts.
 
 The **events are committed and the projection is not**, which inverts the usual
 `data/` placement. It follows from the same rule as the stack JSONs: the events
@@ -321,7 +321,7 @@ resolve a subject by folding the event log in process. That is why the file's
 staleness is a *reading* hazard rather than a computation one — and why it is
 stamped rather than deleted (`spec_library_projection_provenance`, 2026-08-12;
 the argument is in `docs/spec_library/README.md` and in `spec_library.py`'s
-rebuild section). All three writers into `data/projections/` now stamp the tree
+rebuild section). All four writers into `data/projections/` now stamp the tree
 they built from and refuse to clobber a newer one.
 
 ### The viewer and the one-fold rule (2026-08-05, `stack_viewer_v0`)

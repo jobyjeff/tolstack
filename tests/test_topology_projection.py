@@ -35,9 +35,14 @@ import build_topology_projection as B  # noqa: E402
 from tests.test_js_python_vocabulary import (  # noqa: E402
     js_array_strings,
     js_object_keys,
+    js_table_mutations,
 )
 from tolerance_stack.topology import (  # noqa: E402
+    EDGE_KINDS,
+    NODE_KINDS,
+    TRANSFORM_KINDS,
     Study,
+    Topology,
     load_study,
     load_topology,
     summarize,
@@ -149,9 +154,16 @@ def test_every_node_and_every_edge_gets_exactly_one_row(projection, topologies):
 def test_a_column_never_holds_two_rails_at_the_same_row(projection):
     """The invariant the up-front allocation exists for.
 
-    A column IS reused once a branch ends -- that is what keeps the pitch system
-    nine rails wide instead of twelve -- so the check is that two rails in one
-    column never overlap, not that a column holds one rail.
+    A column IS reusable once a branch ends, so the check is that two rails in
+    one column never overlap, not that a column holds one rail.
+
+    Corrected in ``review/dag_viewer_poc``: this docstring, the README and the
+    lesson all said reuse "keeps the pitch system nine rails wide instead of
+    twelve", and it does not -- reuse never fires on either committed topology
+    (nine allocations over nine columns, and disabling it leaves nine). The
+    invariant is still the right one; the sentence was a claim about data that
+    nothing measured. ``test_reuse_is_what_this_invariant_guards`` below builds a
+    graph that does reuse, so the property is not vacuous.
     """
     for row in projection["topologies"]:
         rails = row["layout"]["rails"]
@@ -165,6 +177,52 @@ def test_a_column_never_holds_two_rails_at_the_same_row(projection):
                     f"{row['id']}: column {column} draws two rails over the same "
                     f"rows ({earlier} and {later}) -- they would be one line"
                 )
+
+
+def test_reuse_is_what_this_invariant_guards():
+    """A graph that DOES reuse a column, because the committed two do not.
+
+    Added in ``review/dag_viewer_poc``, with the corrected sentence above: the
+    disjointness property is quantified over topologies where every column holds
+    exactly one rail, so today it cannot tell a correct serialiser from one that
+    never reuses at all. This is the smallest graph that frees a column and then
+    takes it again -- a root with three edges, whose third branch forks after the
+    second branch has ended and released its column -- and it is here so the
+    invariant has one case with something to say.
+
+    Built in memory rather than committed: it is a property of the serialiser,
+    not a mechanism, and ``docs/topologies/`` is for real mechanisms.
+    """
+    from tolerance_stack.topology import Edge, Node, Part
+
+    def node(node_id):
+        return Node(id=node_id, name=node_id, parts=["p"], kind="datum_feature")
+
+    def edge(edge_id, a, b):
+        return Edge(id=edge_id, name=edge_id, from_node=a, to_node=b, part="p")
+
+    layout = B.serialize_topology(Topology(
+        id="reuse", title="reuse", units="mm",
+        parts=[Part(id="p", name="p")],
+        nodes=[node(f"n{i}") for i in range(6)],
+        edges=[edge("e1", "n0", "n1"), edge("e2", "n0", "n2"),
+               edge("e3", "n0", "n3"), edge("e4", "n3", "n4"),
+               edge("e5", "n3", "n5")],
+    ))
+    rails = layout.as_dict()["rails"]
+    assert len(rails) > layout.columns, (
+        "this graph is supposed to reuse a column -- it allocated "
+        f"{len(rails)} rail(s) over {layout.columns} column(s), so it does not "
+        "and the invariant below is being asserted over nothing again")
+    reused = [c for c in range(layout.columns)
+              if len([r for r in rails if r["column"] == c]) > 1]
+    assert reused, "no column holds two rails"
+    for column in reused:
+        spans = sorted((r["start"], r["end"])
+                       for r in rails if r["column"] == column)
+        for earlier, later in zip(spans, spans[1:]):
+            assert earlier[1] < later[0], (
+                f"column {column} draws {earlier} and {later} over the same rows")
 
 
 def test_every_rail_covers_the_rows_that_sit_on_it(projection):
@@ -281,6 +339,32 @@ def test_the_pitch_system_marks_its_four_branch_points(projection, topologies):
     assert row["branch_nodes"] == expected
     marked = {r["id"] for r in row["layout"]["rows"] if r.get("branch")}
     assert marked == set(expected)
+
+
+def test_every_fork_mark_is_one_of_the_topologys_own_branch_nodes(
+        projection, topologies):
+    """The generalisation of the test above, over every topology in the tree.
+
+    The page states "this is a fork" twice from two projection fields -- the
+    grid row's marker reads ``layout.rows[].branch``, the preview pane's BRANCH
+    POINT chip reads ``nodes[].branch`` -- and the second is
+    ``Topology.branch_nodes()`` while the first was its own inline ``> 2`` until
+    ``review/dag_viewer_poc`` routed it through the same call. Asserted here for
+    both, and for the L1 topology, whose correct answer is the empty set: a
+    degree-2 ring gets a ``branch`` LINK at its root, because the walk fans out
+    there, and that is not the same claim as a branch NODE.
+    """
+    for topology_id, topology in topologies.items():
+        row = projected(projection, topology.id)
+        expected = set(topology.branch_nodes())
+        assert set(row["branch_nodes"]) == expected, topology_id
+        marked = {r["id"] for r in row["layout"]["rows"]
+                  if r["kind"] == "node" and r["branch"]}
+        assert marked == expected, (
+            f"{topology_id}: the layout marks {sorted(marked)} as forks and "
+            f"Topology.branch_nodes() says {sorted(expected)}")
+        chips = {n["id"] for n in row["nodes"] if n["branch"]}
+        assert chips == expected, topology_id
 
 
 def test_a_study_chain_serialises_to_one_rail_in_the_sums_own_order(projection):
@@ -491,11 +575,23 @@ def test_every_confidence_the_projection_writes_is_a_word_the_viewer_knows(proje
 #: as ``tests/test_js_python_vocabulary.py``, which owns the extractors: **never
 #: restate a vocabulary in a third place** -- both sides are read, neither is
 #: written out here.
+#:
+#: The last three are the **documents'** vocabularies rather than the
+#: projection's: they are validated by ``Node``/``Edge``/``Transform``'s own
+#: ``__post_init__`` and ride through :func:`project_node` / :func:`project_edge`
+#: untouched, and the page branches on each with a silent default arm. Added in
+#: ``review/dag_viewer_poc``: they shipped written out a third time inside
+#: ``apps/viewer/tests.js``'s ``TOPO_VALUE_GUARDS``, where an ``inList`` copy
+#: fails loudly on a new **live** value but nothing tells it that Python's
+#: vocabulary grew -- which for a documents' vocabulary is the earlier signal.
 JS_PAIRINGS = (
     ("TOPO_ROW_KINDS", js_array_strings, B.ROW_KINDS),
     ("TOPO_LINK_KINDS", js_array_strings, B.LINK_KINDS),
     ("STUDY_STATUSES", js_array_strings, B.STUDY_STATUSES),
     ("VALUE_SOURCES", js_object_keys, B.VALUE_SOURCES),
+    ("NODE_KINDS", js_array_strings, NODE_KINDS),
+    ("EDGE_KINDS", js_array_strings, EDGE_KINDS),
+    ("TRANSFORM_KINDS", js_array_strings, TRANSFORM_KINDS),
 )
 
 
@@ -516,6 +612,47 @@ def test_the_js_copy_spells_exactly_what_python_enumerates(
         f"  Python writes, JS has no branch for: {sorted(set(python) - table.keys)}\n"
         f"  JS branches on, Python cannot write: {sorted(table.keys - set(python))}"
     )
+
+
+def test_no_key_is_attached_to_a_topology_table_from_outside_its_literal(
+        topology_js):
+    """The hole the pairing above has by construction.
+
+    ``VA.VALUE_SOURCES.provisional = {...}`` ten screens down is a fourth branch
+    the extractor cannot see, so the pairing would read as equal while the page
+    branched on a word Python cannot write. ``viewer.js``'s six tables have been
+    refused this pattern since ``js_python_vocabulary_pairing`` (2026-08-12);
+    ``topology.js``'s shipped without it and it is the same file's rule, so it is
+    the same test. Added in ``review/dag_viewer_poc``.
+    """
+    problems = []
+    for name, extractor, _ in JS_PAIRINGS:
+        table = extractor(topology_js, name)
+        problems += [f"VA.{name} mutated at {m}"
+                     for m in js_table_mutations(topology_js, table)]
+    # STUDY_ERRORS is paired by its own test below, not through JS_PAIRINGS, and
+    # is exactly as reachable from outside its literal.
+    errors = js_object_keys(topology_js, "STUDY_ERRORS")
+    problems += [f"VA.STUDY_ERRORS mutated at {m}"
+                 for m in js_table_mutations(topology_js, errors)]
+    assert problems == [], (
+        "these assignments add to an enumerated table from outside its literal, "
+        "which puts part of a vocabulary somewhere no reader and no pairing test "
+        "will look for it:\n" + "\n".join(f"  {p}" for p in problems)
+    )
+
+
+def test_the_mutation_scan_can_fail(topology_js):
+    """...and the scan itself, watched failing, on each shape it refuses."""
+    table = js_array_strings(topology_js, "TOPO_ROW_KINDS")
+    assert js_table_mutations(topology_js, table) == [], "the live file is clean"
+    assert js_table_mutations(
+        topology_js + '\n  VA.TOPO_ROW_KINDS.push("sneaky");\n', table)
+    assert js_table_mutations(
+        topology_js + '\n  VA.TOPO_ROW_KINDS[2] = "sneaky";\n', table)
+    obj = js_object_keys(topology_js, "VALUE_SOURCES")
+    assert js_table_mutations(
+        topology_js + "\n  VA.VALUE_SOURCES.sneaky = {};\n", obj)
 
 
 def test_the_projection_publishes_its_own_vocabularies(projection):

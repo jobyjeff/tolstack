@@ -78,3 +78,19 @@ Option 1 or 2 unless someone wants the invariant in 3; a flaky assertion in a
 suite this repo treats as reliably green costs more than the signal it carries,
 because the next agent to see it red will spend the time this issue just spent
 proving it is not theirs.
+
+## Second sighting, and the rate has hardened (`review/dag_viewer_poc`, 2026-09-01)
+
+Measured on the merged `review/dag_viewer_poc` tree with the main checkout's
+interpreter: **eight full-suite runs, five red and three green**, against
+**9/9 green** on every isolated `pytest tests/test_dc_snapshot.py` run taken
+immediately after a red one. So the rate is worse than the "roughly one in
+five" recorded above — a full-suite run is now more likely to fail than not —
+while the isolated/full asymmetry is unchanged, which is the direction the
+timing hypothesis predicts as the suite grows (552 tests then, 559 now).
+
+Still intermittent, so it does not read as red on every clean tree — which is
+the worst version for a reviewer, because a single green run is not evidence.
+Every review from here has to argue that the red is not theirs before it can
+report "full suite green", and two handoffs have now paid that cost. Bumping
+the case for fix option 1 or 2.

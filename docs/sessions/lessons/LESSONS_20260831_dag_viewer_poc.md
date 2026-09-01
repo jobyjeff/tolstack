@@ -62,10 +62,19 @@ until it rejoins or ends. Two things about it are decisions:
   the one subtle bug in the whole layout and it looks correct until it does not:
   allocate branch 2's column lazily and it will take a column branch 1's subtree
   has already used and released — and since a branch's rail starts back up at the
-  fork, that rail is then drawn straight through branch 1's rows. Reuse still
-  happens (it is what keeps the pitch system nine rails wide instead of twelve);
-  it just cannot cross a reservation. `test_a_column_never_holds_two_rails_at_the
-  _same_row` is that invariant.
+  fork, that rail is then drawn straight through branch 1's rows. Reuse is still
+  permitted; it just cannot cross a reservation.
+  `test_a_column_never_holds_two_rails_at_the_same_row` is that invariant.
+
+  > **Corrected in `review/dag_viewer_poc`.** This paragraph, `apps/viewer/README.md`
+  > and that test's own docstring each said reuse "is what keeps the pitch system
+  > nine rails wide instead of twelve". Measured: the pitch system allocates
+  > **nine** rails over **nine** columns and L1 two over two, and disabling reuse
+  > outright leaves both unchanged — so reuse does not fire on either committed
+  > topology, and the counterfactual is nine, not twelve. The mechanism and the
+  > invariant are right; the sentence was a claim about data nobody had counted.
+  > `test_reuse_is_what_this_invariant_guards` now builds the smallest graph that
+  > does reuse, so the invariant is not asserted over nothing.
 
 **The L1 case is a ring, not a chain**, and the handoff's *"the degenerate
 single-rail case must look sane, not like a bug"* needed re-reading because of
