@@ -61,7 +61,6 @@ from tolerance_stack.topology import (
     Dimension,
     Edge,
     Node,
-    Study,
     StudyError,
     TopologyError,
     Transform,
