@@ -1712,9 +1712,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tests/test_tolerance_stack.py` and `scripts/build_viewer_projection.py`
       both glob `stack_*.json` under `docs/tolerance_stacks/` and would apply
       grip-stack schema hygiene to a topology dropped in beside the stacks.
-      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, so the traced-ratio
-      and hardware-count doc scanners already read it — a stale figure quoted
-      there is caught, but only for the shapes those scanners know.
+      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, so the hardware-count
+      doc scanner already reads it — but the **traced-ratio** scanner does not
+      walk `live_documents()` at all (corrected during `review/claude_md_tracked`,
+      2026-09-01; see the entry below), so a stale ratio quoted there is *not*
+      caught, and what is caught is only the shapes the scanner that does read it
+      knows.
 
 - [ ] **A projection field derived twice, once by the module and once inline.**
       New 2026-09-01 (`dag_viewer_poc`), the `Contribution`/`fold()` entry above
@@ -1728,6 +1731,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `test_every_fork_mark_is_one_of_the_topologys_own_branch_nodes`. Ask of
       any projection: **which two fields state the same fact, and does one
       compute it?**
+
+- [ ] **Two doc-scan families, two different scopes — check which one you mean.**
+      New 2026-09-01 (`claude_md_tracked`). "The doc guards read it" is not one
+      claim in this repo. `live_documents()` is an `os.walk` (hardware-entry
+      counts, enumerated-state surface lookup); the **traced-ratio** scan
+      `test_every_document_quoting_the_traced_ratio_quotes_the_current_number`
+      builds its own five-entry `live_docs` literal and therefore does **not**
+      read `README.md`, `CLAUDE.md` or `docs/DAG_TOPOLOGY.md`
+      (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Two
+      documents asserted the wrong coverage before anyone injected a figure to
+      check. So when work claims a document is now covered by a scan, **inject
+      the defect and watch the named test go red** — the hardware-count guard
+      firing is not evidence that the traced-ratio guard would.
 
 ## Writing the review
 
