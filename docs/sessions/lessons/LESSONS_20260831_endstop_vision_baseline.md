@@ -16,11 +16,17 @@ seal — verifiable by diffing section 1 across those two commits.
 
 ## Prediction vs. outcome — the calibration, in one table
 
+> **Corrected 2026-09-01 in `review/endstop_vision_baseline`.** Four numbers and
+> one whole taxonomy class in this lesson were wrong; every correction is marked
+> in place below and argued in the worksheet, which is the authority. Nothing
+> the lesson concludes changes direction — the corrections move counts, sharpen
+> one recommendation, and delete one follow-up ask.
+
 | | predicted | range | **actual** |
 |---|---:|---|---:|
-| locatable | 11 of 43 | 6–16 | **14** |
+| locatable | 11 of 43 | 6–16 | **15** |
 | SOP-`traced` | 3 of 43 | 1–6 | **4** |
-| gaps correctly recorded | 32 of 43 | 27–37 | **29** |
+| gaps correctly recorded | 32 of 43 | 27–37 | **28** |
 | geometry inputs derivable | 2 of 11 | 0–4 | **0 fully, 1 half** |
 
 All four inside range. But the *magnitude* being well-predicted is the less
@@ -28,11 +34,11 @@ interesting half. **The taxonomy was structurally wrong**, and that is the part
 worth carrying forward:
 
 - I predicted "nominal absent from 2D" would be 15 of 43. It is **1**.
-- I did not predict two categories that turned out to cover 7 of 43: **identity
-  cardinality** (the callout↔row map is not 1:1) and **feature owner
-  unidentifiable** (a component named in the stack resolves to no part number
-  anywhere).
-- I under-predicted "view/semantics interpretation" 2× (5 → 10). That is the
+- I did not predict **identity cardinality** (the callout↔row map is not 1:1),
+  which covers 4 of 43. *(As written this bullet claimed two missed categories
+  covering 7 of 43; the second — "feature owner unidentifiable" — was withdrawn
+  in review, see below.)*
+- I under-predicted "view/semantics interpretation" 2× (5 → 11). That is the
   real blocker and it is an *identity* problem, not a reading problem.
 
 The direction of the error is the signal: I over-predicted the failure that
@@ -107,6 +113,13 @@ spherical seat. Two workbook rows carry 0.12 (rows 17 and 64) and **neither is
 that feature, on that part, in that direction**. Any correlator matching on value
 alone takes it every time.
 
+**3a. …and I did make exactly that mistake on the blade.** *(Added in review.)*
+`546791` is **5** sheets, not the 3 recorded in the worksheet's document table.
+Sheets 4–5 are AIRFOIL SECTIONS and FINISH DETAILS and carry nothing rows 19–21
+need, so no score moves — but the check below was written after catching the hub
+and was then not re-run across the other seven documents. **Run a page-count
+pass over the whole document set at once, before scoring anything.**
+
 **3. I nearly scored the hub on two sheets when it has seven.** My first sweep
 script reported `212966-006-A.pdf` as 2 pages; it is 7, and sheets 3–4 are the
 blade-root bearing seats — the exact features rows 17–21 need. I caught it only
@@ -132,20 +145,36 @@ reasoning that drawing-checker's structured JSON stops at title block / notes /
 parts list and that "individual linear dimensions exist only as rendered page
 images/crops, not as extracted values a text search can read."
 
-The first half is true. **The second half is false of the PDFs themselves.**
-These are native vector exports with exact text layers; reading the PDF text
-directly returns every dimension losslessly, GD&T glyphs included
-(`⌖ ⌀ ⏥ ⌓ ⊥ ⌭ ↗ Ⓜ Ⓛ`). Not one value in this attempt was resolution-limited.
+The first half is true. **The second half is false of the PDFs themselves** —
+for dimension *values*. These are native vector exports with exact text layers;
+reading the PDF text directly returns every dimension value losslessly. Not one
+value in this attempt was resolution-limited.
+
+> **Correction, 2026-09-01, `review/endstop_vision_baseline`.** This paragraph
+> ended *"...losslessly, GD&T glyphs included (`⌖ ⌀ ⏥ ⌓ ⊥ ⌭ ↗ Ⓜ Ⓛ`)"*, and it
+> does not hold across the document set. `213668-002` puts **zero** GD&T glyphs
+> in its text layer — counted over both sheets, none of `⌀ ⌖ ⏥ ⌓ ⌭ ↗ Ⓜ Ⓛ` —
+> while a 10x crop of sheet 2 shows a boxed `⌖ ⌀0.2 A B`. The frames are drawn
+> as vector geometry on that drawing. So the text layer returns the *value* and
+> drops the *geometric characteristic*, which is exactly the identity
+> information this lesson says is the bottleneck — and that gap is what made the
+> attempt record row 61's position callout as absent. **A false absence is the
+> most expensive error a provenance audit can make**, because it reads as
+> diligence and is never re-checked.
 
 Consequences:
 
 - rows 66/67 (34.7 mm, 83.1 mm) move from *couldn't-check* to **demonstrable
-  absence** — both dimensioned sheets of `213668-002` read in full, neither value
-  present. That is this repo's spec-library third outcome (read for, not there),
-  not an acquisition gap.
+  absence** — reconfirmed in review by grepping both values across *every* PDF
+  in `data/inbox/drawings/`, not just `213668-002`; neither appears anywhere.
+  That is this repo's spec-library third outcome (read for, not there), not an
+  acquisition gap.
 - **drawing-checker growing finer extraction is a cheap, separable win** and is
-  not blocked on any 3D work. The dimensions are sitting in the text layer.
-- do not plan a vision/OCR investment for these documents.
+  not blocked on any 3D work. The dimension values are sitting in the text
+  layer — but the feature control frames are not, on every drawing, so the
+  extractor has to read the frames' geometry, not the words.
+- do not plan an **OCR** investment for these documents; do not conclude from
+  that that a text-layer read is sufficient.
 
 ## Method notes for whoever runs the next drawing-reading session
 
@@ -193,15 +222,16 @@ Consequences:
 ## To the 3D-annotation brief: what the surface must do that 2D provably cannot
 
 The 2D ceiling here is **not** "the dimension is missing." Of 43 rows,
-**document acquisition** blocked 21 (go export six more PDFs and eleven
+**document acquisition** blocked 23 (go export seven more PDFs and eleven
 standards — no tool required), and only **1** was a case where the owning drawing
 was in hand, read completely, and still silent. The case for a 3D surface does
 not rest on missing numbers.
 
 It rests on **identity**. Measurement blocked **0 of 43** rows; identity blocked
-**14**. In every one of those fourteen the callout extracted perfectly as text
+**15**. In fourteen of those fifteen the callout extracted perfectly as text
 and the question that could not be answered was *which physical feature does this
-workbook row mean*. The drawings answer that question for nobody: they carry
+workbook row mean*; in the fifteenth (row 61) the *value* extracted and the
+geometric characteristic did not. The drawings answer that question for nobody: they carry
 ~90 dimensional callouts across five sheets and **not one statement of the
 kinematic chain**. Nothing says the pitch plate's 5X bore position feeds blade
 pitch through a 1.67 deg/mm ratio, or which of the hub's four `5X INDIVIDUALLY`
@@ -228,15 +258,31 @@ So the surface must do four things a drawing provably cannot, and the worksheet'
    workbook says MMC; and `215735-A` is ISO-2768-mK while three sibling parts in
    the same stack print a decimal-place block, so the same "2 decimals ⇒ ±0.1"
    inference is right on three parts and wrong on the fourth.
-4. **Open a set of STEPs keyed by BOM position, and be able to say "owner not in
-   the set" and "owner has no part number at all."** The successful descent was
+4. **Open a set of STEPs keyed by BOM position, be able to say "owner not in the
+   set", and record *which path* found an owner.** The successful descent was
    two levels; the hub was reached only by a **lateral hop through a different
    configuration's assembly drawing** (`555787-001`, a bird-strike variant),
    because the assembly 217755 actually balloons (`216231-001`) is not in the
-   pipeline. Nine of fourteen owners are absent. And the "pitch arm", which owns
-   four stack rows, resolves to no part number in any parts list in the pipeline
-   — a state worse than the vocabulary drift the draft anticipated, and one the
-   surface must be able to represent rather than reject.
+   pipeline. **Ten of fourteen** owners have no piece-part drawing here. And the
+   pitch arm and ring gear resolve *only* through that same off-path
+   configuration — a part number obtained off the BOM path is a hypothesis about
+   identity, not a fact, and the surface must carry that distinction rather than
+   flattening it.
+
+   > **Corrected 2026-09-01 in review.** This item read *"Nine of fourteen
+   > owners are absent. And the 'pitch arm' ... resolves to no part number in
+   > any parts list in the pipeline — a state worse than the vocabulary drift
+   > the draft anticipated"*. It does resolve:
+   > `215071-001 PITCH ARM, PROPELLER, CLOCKWISE` is find no 11 of
+   > `[PRELIM 2026-AUG-31] 555786-001 ... BIRD STRIKE.pdf`, whose sheet 4 is
+   > titled `PITCH ARM AND LINK INSTALL`; the ring gear is `215072-001` via
+   > `[PRELIM] 215500-001 A.1.pdf`. Both documents were in
+   > `data/inbox/drawings/` throughout and neither was opened — 555786-001 is
+   > even named in this session's own sealed prediction. **Taxonomy class H is
+   > withdrawn**, and the real lesson is the method one: the attempt *chased
+   > into* its document set (8 of ~30 PDFs) instead of *enumerating* it, and an
+   > experiment whose deliverable is "which owners are reachable" cannot do
+   > that.
 
 ## Variant arm: did not run
 
@@ -277,13 +323,16 @@ unlike the `fastener_stack_shadow` session).
   guard working as designed. It is worth expecting: a one-row addition to that
   README turns the suite red until the provenance row is amended.
 - No code changed, so `ARCHITECTURE.md`'s module inventory needed no row.
+- **Re-run in review after merging `master`** (board moves) into
+  `review/endstop_vision_baseline`: **559 passed, 1 skipped**, unchanged.
 
 ## Left for the next session
 
 - **F4 and F5 need Jeff** (see above) — one is a possible double-count in the
   vertical direction, one is a 0.05 mm disagreement with a released drawing.
-- **Six drawings and eleven standards would move 21 of 43 rows out of the
-  "blocked" column** with no new tooling: `215175-001` (tangential link mount),
+- **Seven drawings and eleven standards would move 23 of 43 rows out of the
+  "blocked" column** with no new tooling: `215071-001` (pitch arm — rows 23, 27,
+  30), `215175-001` (tangential link mount),
   `215176-002` (lower gas spring body), `214700-002` (piston body — this is the
   owner of row 39, *the row that names the end stop itself*), `212956-005`
   (pitch/anti-rotation link), `216231-001` (hub and blade assembly — restores
@@ -291,9 +340,15 @@ unlike the `fastener_stack_shadow` session).
   and whatever the workbook's "TB" bushing catalog is. That is the cheapest
   available improvement to this stack and it is an acquisition task, not an
   engineering one.
-- **The "pitch arm" needs a part number from Jeff.** Four stack rows (23, 26, 27,
-  30) hang on a component name that appears in no parts list in the pipeline.
-- **drawing-checker: extract dimension values, not just title block / notes /
-  parts list.** The values are in the PDF text layer and come out losslessly
-  (see the corrected assumption above). This is now known-cheap and it is what
-  the agent-correlation pass in the 3D draft assumes it cannot have.
+- ~~**The "pitch arm" needs a part number from Jeff.**~~ **Withdrawn
+  2026-09-01 in review** — it is `215071-001`, already in the pipeline (see the
+  correction under requirement 4). What is still worth asking Jeff is whether
+  the bird-strike configuration's pitch arm is the same part as the one this
+  stack means; the chain that would prove it is not in evidence.
+- **drawing-checker: extract dimension values *and their feature control
+  frames*, not just title block / notes / parts list.** The values are in the
+  PDF text layer and come out losslessly; the GD&T glyphs are **not** on every
+  drawing (`213668-002`: zero), so the extractor has to read the frames as
+  geometry. This is what the agent-correlation pass in the 3D draft assumes it
+  cannot have — and reading only the words is what produced this session's one
+  false absence.

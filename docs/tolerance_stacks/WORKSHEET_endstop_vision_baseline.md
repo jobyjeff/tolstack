@@ -196,7 +196,7 @@ is recalled.
 | 3 | `215735-A.pdf` | **PITCH PLATE, PROPELLER** (piece part, find no 1 of 215177) | 2 | **yes** |
 | 4 | `212966-006-A.pdf` | **PROPELLER HUB, DUAL BEARING GEN 5** (piece part) | 7 | **yes** |
 | 5 | `213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf` | gas-spring mount | 2 | yes |
-| 6 | `546791 B.1 BLADE BONDED ASSEMBLY, INSTRUMENTED, PROPELLER, M1.pdf` | blade; sheet 3 = ROOT DETAILS | 3 | partly |
+| 6 | `546791 B.1 BLADE BONDED ASSEMBLY, INSTRUMENTED, PROPELLER, M1.pdf` | blade; sheet 3 = ROOT DETAILS (sheets 4-5 = AIRFOIL SECTIONS / FINISH DETAILS) | 5 | partly |
 | 7 | `[PRELIM 2026-AUG-27] 555787-001 A.1 DUAL BEARING GEN5 HUB ASSEMBLY, BIRD STRIKE.pdf` | the *only* route to document 4 — see §2c | 2 | no |
 | 8 | `216528-C.pdf` | M1 PROPULSION ASSEMBLY; consulted only to resolve `215175-001` | 9 | no |
 
@@ -260,13 +260,41 @@ the stack names:
 | gas spring piston head UPR / LWR | 91 / 93 | `214698-002` / `214699-002` | **no** |
 | pitch anti-rotation link assembly | 24 | `212956-005` | **no** |
 | variable pitch actuator assembly | 1 | `208510-007` | **no** |
-| "pitch arm" | — | **not resolvable to any part number in any pipeline document** | n/a |
-| ring gear | — | not resolvable | n/a |
+| "pitch arm" | (not balloted on 217755) | `215071-001` — **resolved in review**, see the correction below | **no** |
+| ring gear | (not balloted on 217755) | `215072-001` — **resolved in review**, see the correction below | **no** |
 
-Four of fourteen owners are reachable. Nine are named-but-absent. One — the
-"pitch arm", which owns four stack rows (23, 26, 27, 30) — cannot be resolved to
-a part number at all: the string appears in neither 217755's 103-row parts list,
-nor 215177's, nor 216528's.
+Four of fourteen owners are reachable. **Ten are named-but-absent**, and none
+is unresolvable: every owner this stack names has a part number, and for ten of
+them the piece-part drawing is simply not in the pipeline.
+
+> **Correction, 2026-09-01, `review/endstop_vision_baseline`.** This paragraph
+> and the last two rows of the table above read, as written by the attempt:
+> *"Nine are named-but-absent. One — the 'pitch arm', which owns four stack rows
+> (23, 26, 27, 30) — cannot be resolved to a part number at all"*, with the ring
+> gear likewise `not resolvable`. Both halves are wrong, and the arithmetic was
+> wrong too. **(a)** The table has fourteen rows: four reachable, *eight*
+> named-but-absent, two called unresolvable — `4 + 9 + 1 = 14` only by dropping
+> the ring-gear row. **(b)** Both "unresolvable" owners resolve, in documents
+> that were sitting unopened in the same inbox:
+> `[PRELIM 2026-AUG-31] 555786-001 A.1 HUB AND BLADE ASSEMBLY, PROPELLER, BIRD
+> STRIKE.pdf` sheet 1 parts list, find no 11, prints
+> `215071-001 PITCH ARM, PROPELLER, CLOCKWISE` qty 5 — and that drawing's sheet
+> 4 is titled `PITCH ARM AND LINK INSTALL`; `[PRELIM] 215500-001 A.1.pdf`
+> (RING GEAR ASSY, PROPELLER) find no 1 prints
+> `215072-001 RING GEAR, VARIABLE PITCH MECHANISM`. Neither piece-part drawing
+> is in the pipeline, so rows 23/27/30 remain gaps — but they are class **B**
+> (owner named, drawing absent), not a class of their own, and class **H** does
+> not exist. 555786-001 reaches the pitch arm by the same lateral hop through
+> the bird-strike configuration that §2c uses for the hub, and it also carries
+> `1 555787-001`, so the descent 555786-001 -> 555787-001 -> `212966-006` is a
+> complete two-level chain that was available all along.
+>
+> **The method failure behind it is the one worth carrying forward:** §2a's
+> document set was *chased into*, not *enumerated*. Eight PDFs were opened out
+> of the ~30 in `data/inbox/drawings/`, and 555786-001 — dated 2026-08-31, the
+> day this handoff was staged, and **named in this worksheet's own prediction
+> at §1c** — was never opened. An experiment whose product is "which owners are
+> reachable" has to list the reachable set before it starts chasing.
 
 ### 2c. The balloon chain to the hub is severed, and I only reached it by luck
 
@@ -370,11 +398,27 @@ blade-root seats, all `5X INDIVIDUALLY`)
 | **4** | `⌀ 106.310 0.000/-0.025` + `⌖⌀0.10Ⓛ A B C` **CRITICAL PART**; `⌀ 92.030 0.000/-0.022` + `⌖⌀0.10Ⓛ A B C` + `↗0.05 D-E`; `⌀ 79.985 0.000/-0.025` + `↗0.25 D-E`; `⌀ 102.20 ±0.03` + `↗0.25 D-E`; `57.750 ±0.050`; `2.40 +0.05/-0.25`; `0.90 +0.10/-0.15`; `7.84 MIN` |
 | 5–7 | `⌓0.25`, `⌖⌀0.10Ⓜ A`, `5.50 ±0.10`, `3.30 ±0.05`, `2.51 / 3.70 / 5.30` at `±0.05` / `±0.20` |
 
-**`213668-002` — MOUNT, GAS SPRING** (sheet 2 = PART DETAIL):
-`76.86 ±0.10`, `5X 4.00 ±0.10`, `10X 5.00 ±0.10`, `10.60 ±0.20`,
-`2X 2.79 ±0.03`, `8X R 0.25 ±0.13`, `2X R 0.45 ±0.20`, `6.40 ±0.10`,
-`CF 2X 2.51 ±0.05 THRU`, `5X 47.943 ±0.013`, `2.18 ±0.03`, `2X 4.78 ±0.10`,
-`54.10 ±0.03`, `58.458 ±0.013`, `3.71 ±0.10`, `0.05 A`.
+**`213668-002` — MOUNT, GAS SPRING** (sheet 1 = OVERVIEW, sheet 2 = PART
+DETAIL). **Re-read in full during review** — see the correction below; the
+attempt's list was scoped to sheet 2, put three sheet-1 callouts on sheet 2, and
+missed every feature control frame on the part because this drawing's GD&T
+glyphs are not in its text layer.
+
+| sheet | callouts |
+|---:|---|
+| 1 | `76.86 ±0.10`, `5X 4.00 ±0.10`, `10X 5.00 ±0.10`, `0.25 A B`, `(85.36)`, `(257.00)`; title block `X = ±1.0 / X.X = ±0.25 / X.XX = ±0.10 / X.XXX = ±0.050`, angles `X = ±1° / X.X = ±0.5°` |
+| 2 | `214.78 0.00/-0.152`, `220.37 0.00/-0.08` with **`⌖ ⌀0.2 A B`**, `10.60 ±0.20`, `2X 2.79 ±0.03`, `(0.50)`, `70 ±2`, `4.95 +0.25/0.00`, `8X R 0.25 ±0.13`, `CF 50.77 +0.03/0.00`, `2X R 0.45 ±0.20`, `0.05 A`, `51.99 +0.03/0.00`, `6.40 ±0.10`, `0.03 B`, `CF 2X 2.51 ±0.05 THRU`, `4.75 THRU`, `5X 47.943 ±0.013`, `⌀5.00 0.15 X 100°`, `0.40 A B` (×2), `0.05 B`, `2X R 0.25 ±0.13`, `2.18 ±0.03`, `2X 4.78 ±0.10`, `2X 6.80 +0.06/-0.20`, `54.10 ±0.03`, `58.458 ±0.013`, `3.71 ±0.10` |
+
+> **Correction, 2026-09-01, `review/endstop_vision_baseline`.** Three of the
+> attempt's sixteen listed callouts (`76.86 ±0.10`, `5X 4.00 ±0.10`,
+> `10X 5.00 ±0.10`) are on **sheet 1**, not the sheet 2 the list is scoped to.
+> More seriously, the list holds no feature control frame except a bare
+> `0.05 A`, and the part carries at least six — including a
+> **true-position `⌖ ⌀0.2 A B`** on the `220.37` feature, which is what
+> falsifies row 61's recorded absence (§3, §3c F7). The cause is §2g: this
+> drawing's text layer contains **zero** GD&T glyphs, so a text-layer sweep sees
+> `0.2 A B` as three loose tokens and never sees a position tolerance at all.
+> Verified by crop at 10x.
 
 **`546791` sheet 3 — ROOT DETAILS:** `88.70 ±0.15`,
 `⌀ 6.350 +0.015/0.000 CF CC`, `⌖⌀0.05 A B CC`, `⌖⌀0.08 A B`, `⌭ 0.03`,
@@ -383,20 +427,45 @@ blade-root seats, all `5X INDIVIDUALLY`)
 ### 2g. P8 was wrong, and the reason matters
 
 I predicted at least one callout I could see but not read with confidence. That
-did not happen and **could not** have: these are native vector PDF exports with
-an exact text layer, so every callout extracts as characters, GD&T symbols
-included (`⌖ ⌀ ⏥ ⌓ ⊥ ⌭ ↗ Ⓜ Ⓛ`). Not one value in this attempt was
-resolution-limited or ambiguous *as text*.
+did not happen: these are native vector PDF exports with an exact text layer, so
+no *value* in this attempt was resolution-limited or ambiguous. P8 is wrong on
+legibility.
+
+> **Correction, 2026-09-01, `review/endstop_vision_baseline`.** This paragraph
+> read *"...and **could not** have: ... so every callout extracts as characters,
+> GD&T symbols included (`⌖ ⌀ ⏥ ⌓ ⊥ ⌭ ↗ Ⓜ Ⓛ`)"*. The "could not" is false and
+> the generalisation does not hold across the reachable set. Glyph counts over
+> each whole document's text layer:
+>
+> | document | `⌀` | `⌖` | `⏥` | `⌓` | `⌭` | `↗` | `Ⓜ` | `Ⓛ` |
+> |---|---:|---:|---:|---:|---:|---:|---:|---:|
+> | `215735-A` | 19 | 12 | 1 | 2 | — | — | 8 | — |
+> | `212966-006-A` | 34 | 8 | 3 | 4 | 1 | 7 | 6 | 2 |
+> | `546791` | 3 | 2 | — | 5 | 1 | — | — | — |
+> | `215177-A` | — | — | — | — | — | — | — | — |
+> | **`213668-002`** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** |
+>
+> `213668-002` prints feature control frames — a 10x crop of sheet 2 shows
+> `⌖ ⌀0.2 A B` in a boxed frame — and **not one of its GD&T glyphs is in the
+> text layer**; they are drawn as vector geometry. So on that drawing the text
+> layer returns the *value* and drops the *geometric characteristic*, which is
+> exactly the identity information §2h and §4b say is the bottleneck. A
+> text-only correlation pass over this document set does not read it losslessly;
+> it reads it **plausibly**, which is worse, and that is what produced this
+> attempt's one false absence (row 61).
 
 **Correction to a standing assumption in this repo.** The graft worksheet's
 currency check recorded rows 66/67 as "couldn't-check" because drawing-checker's
 structured JSON stops at title block / notes / parts list and "individual linear
 dimensions exist only as rendered page images/crops, not as extracted values a
 text search can read." The second half of that is true of *drawing-checker's
-extraction* and false of *the PDFs*. Reading the PDF text layer directly returns
-every dimension losslessly. That upgrades two of that worksheet's
-couldn't-checks to demonstrable absences (§3, rows 66/67), and it means the
-bottleneck was never legibility — it is identity.
+extraction* and false of *the PDFs*: reading the PDF text layer directly returns
+every dimension **value** losslessly (the geometric characteristic is a separate
+question — see the correction above). That upgrades two of that worksheet's
+couldn't-checks to demonstrable absences (§3, rows 66/67) — reconfirmed in
+review by grepping `34.7` and `83.1` across **every** PDF in
+`data/inbox/drawings/`, not just `213668-002`'s two sheets; neither appears
+anywhere. And it means the bottleneck was never legibility — it is identity.
 
 ### 2h. The enumeration test (P5/P6) — the answer-key problem
 
@@ -454,10 +523,10 @@ worksheet's.
 | 20 | blade root OD bearing race surf profile (0.10) | **candidate** | `212966-006` sh4 `⌖⌀0.10Ⓛ A B C` is 0.10 — but that is the *same* callout row 17 claims, and again position not profile. `↗0.25 D-E` is the runout on that seat and is 0.25. |
 | 21 | blade root diameter, blade side (0.025) | **candidate** | Blade-side owner is the blade root; `546791` sh3 ROOT DETAILS carries `⌀ 6.350 +0.015/0.000` (0.015) and no 0.025. The hub's 0.025 bands are the *hub* side (row 18). |
 | 22 | blade root to OML (no linear precursor; 0.181 deg estimate) | **gap — correctly identified** | Not a drawing quantity. The workbook itself says "Probably closer to .03deg". Class E. |
-| 23 | pitch arm bore size tolerance (0.04) | **gap — correctly identified** | Owner unidentifiable: "pitch arm" resolves to no part number in 217755 / 215177 / 216528 parts lists. Class H. |
+| 23 | pitch arm bore size tolerance (0.04) | **gap — correctly identified** | Owner is `215071-001 PITCH ARM, PROPELLER, CLOCKWISE` (555786-001 sh1 parts list, find no 11 — *resolved in review*, see §2b); its piece-part drawing is not in the pipeline. Class B. |
 | 26 | pitch arm fastener-to-fastener position (0.03) | **gap — correctly identified** | Not a drawing quantity: match-drilled, and the workbook says "need to correct". Class E; GT finding F2. |
-| 27 | pitch arm clocking hole size tolerance (0.01) | **gap — correctly identified** | Owner unidentifiable (as row 23). Class H. |
-| 30 | pitch arm link hole size tolerance (0.01) | **gap — correctly identified** | Owner unidentifiable (as row 23). Class H. |
+| 27 | pitch arm clocking hole size tolerance (0.01) | **gap — correctly identified** | Owner `215071-001`, drawing absent (as row 23). Class B. |
+| 30 | pitch arm link hole size tolerance (0.01) | **gap — correctly identified** | Owner `215071-001`, drawing absent (as row 23). Class B. |
 | 31 | pitch link length tolerance (0.06) | **gap — correctly identified** | Owner `212956-005 PITCH ANTI ROTATION LINK ASSEMBLY` is balloted (find no 24) but its drawing is absent from the pipeline. Class B. |
 | 32 | pitch plate hole position tolerance (0.20) | **traced** | `215735-A` sh2 zone B9/C4 `⌖⌀0.2 A B C` on `5X ⌀ 7.950 +0.015/0.000`. Identity by count: 5X bores ↔ 5 blades. **Shares its single callout with rows 37 and 48 — see F4.** |
 | 33 | pitch link fastener 1 size (0.01) | **gap — correctly identified** | `NAS1154` named by the workbook, absent from `data/inbox/specs/`. Class F — a document-acquisition gap, not a vision gap. |
@@ -486,7 +555,7 @@ worksheet's.
 | 58 | tan link mount size, hub feature (0.05) | **candidate** | `212966-006` sh2 `⌖⌀0.050Ⓜ A B` is 0.05 — but that is a **position** tolerance and the workbook row is a **size** tolerance. A value-only matcher would take this; it should not. |
 | 59 | tan link mount size, mount feature (0.06) | **gap — correctly identified** | Owner `215175-001` absent. Class B. |
 | 60 | gas spring mount size, tan link mount feature (0.06) | **candidate** | `213668-002` sh2 has three 0.06-width bands (`2X 2.79 ±0.03`, `2.18 ±0.03`, `54.10 ±0.03`). Which — if any — is the interface feature is not establishable. |
-| 61 | gas spring mount position, tan link mount feature (0.20) | **gap — correctly identified** | `213668-002` has no 0.20-width position callout (`10.60 ±0.20` is a 0.40-width linear). Owner of the *mating* feature (`215175-001`) absent. Class B. |
+| 61 | gas spring mount position, tan link mount feature (0.20) | **candidate** | `213668-002` sh2 carries **`⌖ ⌀0.2 A B`** — a true position of exactly 0.20 — on the `220.37 0.00/-0.08` feature. Which feature that frame controls, and whether it is the tan-link-mount interface, is not establishable from the sheet; the mating half's owner (`215175-001`) is absent. See F7. |
 | 62 | gas spring bushing position (0.20) | **gap — correctly identified** | Bushing owner not resolvable to a dimensioned drawing. Class B. |
 | 63 | gas spring bushing clearance (0.18, "based on TB tolerances (catalog p~239)") | **gap — correctly identified** | "TB" unresolved; no catalog in the pile matches. Class F. |
 | 64 | blade root to hub tolerance (0.12) | **gap — correctly identified** | Both owners' drawings are present and were read; **0.12 is on neither**. The one 0.12 in the whole reachable set is `215735-A` sh1 zone B5 — the lower tier of a composite profile frame (`⌓ 0.25 A B` over `⌓ 0.12`) on `2X SR 29.92`, a pitch-plate spherical seat. Unrelated feature, unrelated part. See F6. Class C. |
@@ -498,16 +567,23 @@ worksheet's.
 |---|---:|---|
 | **`traced`** (identity established + value matches) | **4** | 9% |
 | `mismatch` (identity established, value disagrees) | 3 | 7% |
-| `candidate` (value in reach, identity **not** established) | 7 | 16% |
-| **located, total** (`traced` + `mismatch` + `candidate`) | **14** | 33% |
-| `gap` correctly recorded, with the closing document named | **29** | 67% |
+| `candidate` (value in reach, identity **not** established) | 8 | 19% |
+| **located, total** (`traced` + `mismatch` + `candidate`) | **15** | 35% |
+| `gap` correctly recorded, with the closing document named | **28** | 65% |
+
+> **Correction, 2026-09-01, `review/endstop_vision_baseline`.** As written by
+> the attempt this table read `candidate` 7 / 16%, located **14** / 33%, `gap`
+> **29** / 67%. Row 61 moves `gap` -> `candidate` (F7), which is the only row
+> that moves. The `traced` and `mismatch` counts are unchanged, and every
+> §5a prediction still lands inside its stated range (P1 15 of 43 in 6-16;
+> P3 28 of 43 in 27-37).
 
 The 4 traced rows rest on **2 distinct drawing callouts** (`⌖⌀0.2 A B C` on
 215735 sheet 2 serves rows 32/37/48; `⌀ 106.310 0.000/-0.025` on 212966-006
 sheet 4 serves row 18). One of those two was identified using the ground truth
 itself (§2h).
 
-### 3b. Geometry / sensitivity inputs (the 11 of graft-worksheet §1)
+### 3b. Geometry / sensitivity inputs (the 11 non-derived rows of graft-worksheet §1, whose table has 15)
 
 | input | value | derivable from 2D? |
 |---|---:|---|
@@ -580,24 +656,55 @@ correlator matching on value alone takes this every time. Also note the frame
 carries *two* tolerance values in two tiers while a stack row carries one scalar
 — the surface must say which tier a row consumes.
 
+**F7 — an absence claimed against a drawing that was read, and the drawing
+disagrees.** *Added 2026-09-01 in `review/endstop_vision_baseline`.* Row 61 was
+scored "gap — correctly identified" on the reasoning that *"`213668-002` has no
+0.20-width position callout (`10.60 ±0.20` is a 0.40-width linear)"*. It has
+one: `⌖ ⌀0.2 A B`, a boxed true-position frame on sheet 2's `220.37 0.00/-0.08`
+feature, confirmed by a 10x crop. The row is a `candidate`, not a gap.
+
+This is F6's twin and it is the more dangerous of the two. F6 is a false
+*match* — a correlator claiming a trace it has not earned, and the mistake a
+reader is primed to look for. F7 is a false **absence**: the strongest claim a
+provenance audit can make ("the document is in hand, it was read in full, the
+value is not there"), asserted on the evidence of a text-layer sweep that
+structurally could not see the callout, because `213668-002` carries no GD&T
+glyph in its text layer at all (§2g). A false absence reads as diligence, is
+never re-checked, and here it was one row away from being handed to the
+3D-annotation draft as evidence that a released 2D drawing was silent.
+
+**The requirement it generates:** any pipeline that concludes "not on this
+drawing" must state *what it looked at* — text layer, vector geometry, or
+raster — because on this document set those three see different drawings.
+
 ---
 
 ## 4. Breakage taxonomy — actual
 
-Primary class, one per element, so the counts sum to 43. Two categories
-(**G**, **H**) are new: they did not exist in the prediction or in the handoff's
-list, and between them they cover 7 of 43.
+Primary class, one per element, so the counts sum to 43. One category (**G**) is
+new: it did not exist in the prediction or in the handoff's list, and it covers
+4 of 43.
+
+> **Correction, 2026-09-01, `review/endstop_vision_baseline`.** The attempt's
+> table read A **10** / B **10** / G **4** / **H 3** and opened *"Two categories
+> (G, H) are new ... between them they cover 7 of 43"*. Two rows move and one
+> whole category dissolves: row 61 goes B -> A (F7, a position callout the
+> attempt recorded as absent), and rows 23/27/30 go H -> B (the pitch arm
+> resolves to `215071-001`, §2b). **Class H does not exist** — every owner this
+> stack names has a part number. The corrected table is below; it still sums to
+> 43, and the shape of the result is unchanged: identity and acquisition
+> dominate, measurement blocks nothing.
 
 | # | category | what it means | rows | count |
 |---|---|---|---|---:|
-| **A** | **view / semantics interpretation** — a candidate callout exists on the right part; identity, geometric characteristic, or direction cannot be pinned to the row | 17, 19, 20, 21, 40, 43, 44, 51, 58, 60 | **10** |
-| **B** | **balloon chain severed** — the owner is named by a find number, its 2D drawing is absent from the pipeline | 31, 38, 39, 41, 42, 45, 52, 59, 61, 62 | **10** |
+| **A** | **view / semantics interpretation** — a candidate callout exists on the right part; identity, geometric characteristic, or direction cannot be pinned to the row | 17, 19, 20, 21, 40, 43, 44, 51, 58, 60, 61 | **11** |
+| **B** | **balloon chain severed** — the owner is named (by a find number, or by a parts list one lateral hop away), its 2D piece-part drawing is absent from the pipeline | 23, 27, 30, 31, 38, 39, 41, 42, 45, 52, 59, 62 | **12** |
 | **C** | **band demonstrably absent from a 2D drawing that IS present and was read in full** — the drawing delegates to the 3D model | 64 | **1** |
 | **D** | **sensitivity / motion ratio needed** | none of the 43 contributors (all 2 of them are in §3b's geometry inputs) | **0** |
 | **E** | **not a drawing quantity at all** — estimate, self-declared placeholder, or derived rollup | 22, 26, 57, 68 | **4** |
 | **F** | **spec / catalog value, document absent from the pile** | 33, 34, 35, 36, 49, 50, 53, 54, 55, 56, 63 | **11** |
 | **G** | **identity cardinality** — *traced*, but the callout-to-row map is not 1:1 (one callout ↔ three rows; one row ↔ two callouts) | 18, 32, 37, 48 | **4** |
-| **H** | **feature owner unidentifiable** — the component name ("pitch arm") resolves to no part number in any pipeline document | 23, 27, 30 | **3** |
+| ~~**H**~~ | ~~**feature owner unidentifiable**~~ — **withdrawn in review**: the "pitch arm" resolves to `215071-001` and the ring gear to `215072-001`, both in pipeline documents the attempt did not open (§2b) | — | **0** |
 
 ### 4a. How this maps onto the handoff's four categories
 
@@ -614,18 +721,20 @@ nominal absent from 2D (name the part file) / sensitivity or motion ratio needed
    traced rows: **2 levels** (pitch plate) and **1 lateral hop + 1 level** (hub,
    §2c).
 2. **"nominal absent from 2D" splits into three failures with different fixes.**
-   Class **B** (10) is an *acquisition* problem — go get `215175-001`,
-   `215176-002`, `214700-002`, `212956-005`, `216231-001`, `217262-001`. Class
-   **C** (1) is the real 2D ceiling — the drawing is in hand, was read
-   completely, and does not carry the band because it says the model does. Class
-   **F** (11) is also acquisition, of standards rather than drawings. Only class
-   C is evidence *for* a 3D surface; conflating the three would badly overstate
-   the case, and the honest count of "2D was present and still insufficient" is
-   **1 of 43** plus the 10 in class A.
-3. **"view interpretation" (10) is the dominant genuine failure, and it is an
-   identity failure, not a reading failure.** In every one of the ten, the
-   callout was extracted perfectly as text (§2g). What could not be done was
-   decide *which physical feature the workbook row means*.
+   Class **B** (12) is an *acquisition* problem — go get `215071-001`,
+   `215175-001`, `215176-002`, `214700-002`, `212956-005`, `216231-001`,
+   `217262-001`. Class **C** (1) is the real 2D ceiling — the drawing is in
+   hand, was read completely, and does not carry the band because it says the
+   model does. Class **F** (11) is also acquisition, of standards rather than
+   drawings. Only class C is evidence *for* a 3D surface; conflating the three
+   would badly overstate the case, and the honest count of "2D was present and
+   still insufficient" is **1 of 43** plus the 11 in class A.
+3. **"view interpretation" (11) is the dominant genuine failure, and it is an
+   identity failure, not a reading failure.** In ten of the eleven the callout's
+   *value* extracted perfectly as text; in the eleventh (row 61) the value
+   extracted and the **geometric characteristic did not**, because
+   `213668-002` carries no GD&T glyph in its text layer (§2g). Either way what
+   could not be done was decide *which physical feature the workbook row means*.
 4. **"sensitivity / motion ratio needed" scored 0 among the 43 contributors** —
    correctly predicted. It applies to the sensitivity model (§3b), where it is
    absolute: `D10`/`F10` are not on any drawing and never will be.
@@ -635,10 +744,14 @@ nominal absent from 2D (name the part file) / sensitivity or motion ratio needed
 | question | answer |
 |---|---|
 | rows where **measurement** was the blocker | **0 of 43** |
-| rows where **identity** was the blocker | **14 of 43** (all of A and G) |
-| rows where **document acquisition** was the blocker | **21 of 43** (B + F) |
+| rows where **identity** was the blocker | **15 of 43** (all of A and G) |
+| rows where **document acquisition** was the blocker | **23 of 43** (B + F) |
 | rows that no drawing or model can ever supply | **4 of 43** (E) |
 | rows blocked by the 2D sheet's own delegation to the model | **1 of 43** directly (C), plus most of A indirectly |
+
+*(Corrected 2026-09-01 in review from 14 / 21; the four rows sum to 43. The
+attempt's figures were 14 identity + 21 acquisition + 4 + 1 = 40, three short —
+class H's three rows were in no line of this table.)*
 ---
 
 ## 5. Prediction vs. outcome — calibration
@@ -649,9 +762,9 @@ The prediction in §1 was committed at `de99685`, before any sheet was opened.
 
 | prediction | predicted | accepted range | **actual** | verdict |
 |---|---:|---|---:|---|
-| P1 locatable | 11 of 43 | 6–16 | **14 of 43** | **in range** |
+| P1 locatable | 11 of 43 | 6–16 | **15 of 43** | **in range** |
 | P2 SOP-`traced` | 3 of 43 | 1–6 | **4 of 43** | **in range** |
-| P3 gaps correctly recorded | 32 of 43 | 27–37 | **29 of 43** | **in range** |
+| P3 gaps correctly recorded | 32 of 43 | 27–37 | **28 of 43** | **in range** |
 | P4 geometry inputs derivable | 2 of 11 | 0–4 | **0 fully, 1 half** | **in range**, at the pessimistic edge |
 | P5 contributors enumerable from drawings alone | 12–18 | — | **not the same kind of object** — callouts, not contributors; no chain on any sheet | **premise wrong, in the predicted direction** |
 | P6 precision of that enumeration | ~60% | 40–80% | **not measurable** (see P5) | n/a |
@@ -659,18 +772,24 @@ The prediction in §1 was committed at `de99685`, before any sheet was opened.
 All four numeric predictions landed inside their stated ranges. That is a
 well-calibrated attempt at the *magnitude* of failure.
 
+*(P1 and P3 corrected 2026-09-01 in review from 14 and 29 — row 61 moves gap ->
+candidate, §3a F7. Both were in range before and after; the calibration verdict
+does not turn on the correction.)*
+
 ### 5b. Taxonomy
 
 | class | predicted | actual | verdict |
 |---|---:|---:|---|
-| A view interpretation | 5 | **10** | under-predicted 2× |
-| B cross-sheet balloon chase | 6 | **10** | under-predicted, and the category needed redefining (§4a.1) |
+| A view interpretation | 5 | **11** | under-predicted 2× |
+| B cross-sheet balloon chase | 6 | **12** | under-predicted 2×, and the category needed redefining (§4a.1) |
 | C nominal/band absent from 2D | 15 | **1** | **badly wrong** — see below |
 | D sensitivity / motion ratio | 0 | **0** | exact |
 | E not a drawing quantity | 4 | **4** | **exact, and the same four rows** (22, 26, 57, 68) |
 | F spec/catalog | 13 | **11** | close; the 2-row miss was rows 27/30, which are part-feature holes, not catalog parts |
 | G identity cardinality | **not predicted** | 4 | category missed entirely |
-| H feature owner unidentifiable | **not predicted** | 3 | category missed entirely |
+| ~~H feature owner unidentifiable~~ | ~~not predicted~~ | **0** | **withdrawn in review** — the category was an artifact of an un-enumerated document set (§2b) |
+
+*(A, B and H corrected 2026-09-01 in review, from 10 / 10 / 3.)*
 
 **Where the prediction was wrong, and why it matters more than where it was
 right.** I predicted class C (35% of rows) would dominate: "the value lives in a
@@ -678,14 +797,20 @@ part file, no 2D document carries it." Actual C is **1 of 43**. What I had
 lumped into one bucket is really three problems with three different fixes, and
 only one of them argues for a 3D surface:
 
-- most of it was **document acquisition** (B + F = 21 of 43): the drawing or
+- most of it was **document acquisition** (B + F = 23 of 43): the drawing or
   standard exists somewhere in Joby's PLM, it just isn't in this pipeline. No new
   tool fixes that; someone exports six more PDFs.
 - the genuine 2D-insufficiency case is **1 of 43** where the sheet was in hand,
-  read completely, and still silent (row 64) — plus the 10 in class A where the
+  read completely, and still silent (row 64) — plus the 11 in class A where the
   sheet spoke but could not be *interpreted*.
-- and I entirely missed that the callout-to-row map is **not 1:1** (G) and that
-  a component named in the stack may not resolve to a part number at all (H).
+- and I entirely missed that the callout-to-row map is **not 1:1** (G).
+
+> **Correction, 2026-09-01, `review/endstop_vision_baseline`.** The bullet above
+> ended *"and that a component named in the stack may not resolve to a part
+> number at all (H)"*. It does resolve — see §2b. The honest version of that
+> lesson is narrower and less flattering: **a component named in the stack may
+> not resolve to a part number in the documents you happened to open.** The
+> failure was in the attempt's document selection, not in the released data.
 
 **The direction of my error is the useful signal**: I over-predicted the case
 that would have justified the 3D surface most simply ("the number isn't drawn
@@ -701,7 +826,7 @@ supports that scoping decision on evidence rather than on Jeff's lean.
 | prediction | actual |
 |---|---|
 | **P7** — ~40% odds SECTION E-E has drifted sheet/zone in the newest export | **did not drift.** Sheet 3, zone A11, label `SECTION E-E`, in the 2026-08-19 export. Called correctly (60% was the stated majority case). |
-| **P8** — at least one callout visible but not confidently readable | **wrong, and structurally so.** Native vector PDFs with exact text layers; every GD&T symbol extracts as a character. Legibility is a non-issue on these documents. |
+| **P8** — at least one callout visible but not confidently readable | **wrong on legibility, right for a reason I did not predict.** Native vector PDFs; every *value* extracts exactly, so nothing was resolution-limited. But `213668-002` puts **none** of its GD&T glyphs in the text layer (§2g), so a text-only read sees a value it cannot characterise — and that is what produced the attempt's one false absence (F7). Corrected 2026-09-01 in review; as written this cell read *"wrong, and structurally so ... every GD&T symbol extracts as a character"*. |
 | **P9** — no `stack_*.json` will be written | **correct.** 4 of 43 traced would be a stack of 39 `untraced` elements — a stack with no result, which the SOP's one rule forbids. This worksheet is the whole output. |
 
 ### 5d. What the seal was worth
@@ -733,16 +858,39 @@ but §5b sharpens *which* 3D capability the evidence supports.
 `drawing-checker`'s tree is READ-ONLY for this handoff. Snapshot = every entry
 under `data/inbox/drawings/` and `data/runs/` with its size.
 
-| | entries | timestamp (UTC) |
-|---|---:|---|
-| before, taken before any file was opened | 5382 | 2026-09-01T19:45:46Z |
-| after, taken after all reading and rendering | 5382 | 2026-09-01T20:04:51Z |
+| | entries | timestamp (UTC) | taken with |
+|---|---:|---|---|
+| before, taken before any file was opened | 5380 | 2026-09-01T19:45:46Z | ad-hoc `find`, see below |
+| after, taken after all reading and rendering | 5380 | 2026-09-01T20:04:51Z | ad-hoc `find`, see below |
+| **review**, independent, after the branch was read and re-cropped | **5380** | 2026-09-01T20:15:32Z | `scripts/snapshot_drawing_checker.py` |
 
-**Diff: EMPTY** — no entry added, removed, or changed in size.
+**Diff: EMPTY** — no entry added, removed, or changed in size, in either window.
 
 All eight PDFs were opened read-only; every rendered crop and every scratch
 script was written to this session's scratchpad directory, never into
 drawing-checker's tree and never into this repo's working directory.
+
+> **Correction and independent verification, 2026-09-01,
+> `review/endstop_vision_baseline`.** Two things.
+>
+> **(a) The count was 5382 and the tool says 5380.** The attempt evidenced the
+> invariant with an ad-hoc `find | stat` listing rather than
+> `scripts/snapshot_drawing_checker.py`, which is what SOP Steps 0 and 8 name
+> and the only command that computes this figure. The two enumerations cover the
+> *identical* entry set — set-differenced in review, symmetric difference is the
+> two root directories `data/runs` and `data/inbox/drawings`, which `find` lists
+> and the script does not. So the invariant was never in doubt, but the figure
+> in this table did not reproduce with the repo's own command and has been
+> corrected to the one that does. **Use the script**: it writes a JSON the next
+> reviewer can diff, which a `.txt` in a doomed scratchpad cannot be.
+>
+> **(b) Verified independently, across a window that brackets the whole
+> session.** The previous review session (`review/dag_viewer_poc`) left a
+> script-format snapshot at `2026-09-01T19:05:09Z`. Diffing that against a fresh
+> one taken at `2026-09-01T20:15:32Z` — a window that opens 40 minutes before
+> this session's first commit and closes after the review's own re-reads and
+> crops — returns **EMPTY**. That is stronger than the attempt's own evidence
+> and it also covers the review.
 
 ---
 
@@ -758,7 +906,7 @@ section above, so the draft can cite evidence rather than inference.
    SHALL BE USED WITH THE MODEL"). The draft's precedence rule can be quoted from
    source. (§2d)
 2. **Scope the MVP as select+tag, not measure.** Measurement was the blocker on
-   **0 of 43** rows; identity was the blocker on **14**. (§4b)
+   **0 of 43** rows; identity was the blocker on **15**. (§4b)
 3. **Identity keys must be many-to-many, with direction and a composition rule.**
    One `⌖⌀0.2 A B C` callout serves three stack rows resolved into different
    directions; one stack row (17) reconstructs as position + size-bonus from two
@@ -774,20 +922,44 @@ section above, so the draft can cite evidence rather than inference.
    decimal-place block. "2 decimals ⇒ ±0.1" is right on three of those four parts
    and wrong on the fourth. Per-part attribution must include the regime. (§2e)
 6. **Open a *set* of STEPs keyed by BOM position, and be able to say "not in the
-   set".** The successful descent was two levels; the hub was reached only by a
-   lateral hop through a different configuration's assembly; nine of fourteen
-   owners are absent entirely. The surface needs BOM-path attribution and an
-   explicit "owner unavailable" state. (§2b, §2c, §4a.1)
-7. **Support a "component name → no part number" state.** "Pitch arm" owns four
-   stack rows and resolves to nothing in any parts list. The vocabulary tension
-   the draft anticipated is worse than per-part meaning drift: some names have no
-   referent in the released data at all. (§4 class H)
+   set".** The successful descent was two levels; **ten of fourteen** owners
+   have no piece-part drawing in the pipeline. The surface needs BOM-path
+   attribution and an explicit "owner unavailable" state. (§2b, §2c, §4a.1)
+7. **A component's owner may be reachable only *off* the BOM path, and the
+   surface must record which path found it.** The hub was reached by a lateral
+   hop into a different configuration's assembly (`555787-001`, bird strike),
+   and the pitch arm and ring gear resolve **only** through that same
+   configuration (`555786-001`, `215500-001`) — the assembly 217755 actually
+   balloons for the hub-and-blade level (`216231-001`) is not in the pipeline at
+   all. A part number obtained off-path is a hypothesis about part identity, not
+   a fact, and the tag must carry that distinction rather than flattening it
+   into "owner: 215071-001". (§2b, §2c)
+
+   > *Rewritten 2026-09-01 in review.* This requirement read **"Support a
+   > 'component name → no part number' state"**, argued from *"'Pitch arm' owns
+   > four stack rows and resolves to nothing in any parts list"*. That premise
+   > was false — see §2b — so the requirement is restated on what the evidence
+   > actually shows.
 8. **Composite feature control frames carry two tolerances; a stack row carries
    one.** The surface must record which tier a row consumes. (§3c F6)
-9. **Do not invest in vision-for-reading.** These exports are native vector PDFs
-   with exact text layers, GD&T glyphs included. The correlation pass can read
-   every callout losslessly today — which also means drawing-checker growing
-   finer extraction is a cheap, separable win, independent of the 3D work. (§2g)
+9. **Extract from vector geometry, not from the text layer alone — and never
+   claim an absence from a text-layer read.** These exports are native vector
+   PDFs and every dimension *value* comes out of the text layer exactly, so
+   OCR-grade vision buys nothing. But the geometric characteristic does not
+   always come with it: `213668-002` puts **zero** GD&T glyphs in its text layer
+   while printing `⌖ ⌀0.2 A B` on the sheet, and that gap is what let this
+   attempt record a position callout as absent (F7). Since the characteristic is
+   precisely the identity information requirement 2 says is the bottleneck, a
+   text-only correlation pass is not merely incomplete — it is *confidently*
+   incomplete. drawing-checker growing finer extraction is still a cheap,
+   separable win independent of the 3D work; it just has to read the frames, not
+   the words. (§2g, §3c F7)
+
+   > *Rewritten 2026-09-01 in review.* This read **"Do not invest in
+   > vision-for-reading ... The correlation pass can read every callout
+   > losslessly today"**, which is false for one of the five dimensioned
+   > drawings in the reachable set and false in the direction that cost this
+   > attempt a scored row.
 10. **Value-only correlation is actively dangerous, with a worked example.** The
     single 0.12 in the reachable set is a pitch-plate spherical-seat profile
     refinement; two workbook rows carry 0.12 and neither is that feature. Any
