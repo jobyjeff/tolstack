@@ -1,13 +1,48 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: repo conventions
 reporter: agent
 audience: strategy
+resolved_by: docs/sessions/HANDOFF_20260901_claude_md_tracked.md
+resolved_on: 2026-09-01
 ---
 
 # tolstack gitignores `CLAUDE.md` while drawing-checker and forge track theirs — decide which is right
+
+> **RESOLVED 2026-09-01** by handoff `claude_md_tracked`, which executed
+> **option 1** (track it) on Jeff's decision in that day's strategy session,
+> consuming `dispatch/docs/strategy/BRIEF_20260826_tracked_claude_md_across_
+> gitignored_repos.md`. The decision is cross-repo — the same change is being
+> made in the other four repos where `CLAUDE.md` was gitignored — so the
+> "replaced per-session by dispatch" premise this issue asked to establish was
+> not the deciding factor, though it was checked and **does not hold**:
+> `dispatch/dispatch/init.py` writes a repo's `CLAUDE.md` exactly once, at
+> `dispatch init`, from the bundled scaffold template, and explicitly *"never
+> clobbers an edited one"*; a session's seed is composed from
+> `dispatch/dispatch/prompts/` into the repo's gitignored `.dispatch/prompts/`
+> and never touches `CLAUDE.md`. Nothing replaces this file per session — the
+> sentence came from the forge template along with the ignore rule. Option 3's
+> escape hatch was judged not worth a fourth orientation document.
+>
+> What landed, all three load-bearing places this issue named plus the file
+> itself: the `.gitignore` "Agent bootstrap" entry is gone
+> (`git check-ignore -q CLAUDE.md` exits 1); `CLAUDE.md`'s own header blockquote
+> now states tracked status and retires the mirroring rule, keeping the
+> orientation-and-pointers scope; `README.md`'s "Conventions this repo inherits"
+> bullet says tracked; `docs/prompts/REVIEW_AGENT.md`'s checklist item and its
+> two other citations of the rule are rewritten; and `_HISTORICAL_NAMES` in
+> `tests/test_tolerance_stack.py` no longer excludes the file, so the doc-scan
+> guards read it like any other live document (`PROVENANCE.md` row amended).
+>
+> The content pass before the first tracked commit found **two outright wrong
+> facts** in the file (a writer count that had gone stale, and a duration off by
+> a factor of ten) plus **one restated count nothing recounts**, removed rather
+> than corrected — errors that had accumulated in a single day of the file
+> holding real content, with no history and no reviewer, which is the failure
+> mode the tracking decision exists to end. Listed in
+> `docs/sessions/lessons/LESSONS_20260901_claude_md_tracked.md`.
 
 Handoff `dag_topology_format` (2026-08-31) carried a cheap add-on deliverable
 from its locked brief: *"tolstack's `CLAUDE.md` is still the template stub — the

@@ -1717,8 +1717,13 @@ _COUNT_CLAIMS = [(lbl, re.compile(p, re.I | re.S), keys)
 # the same scope call test_every_document_quoting_the_traced_ratio_... makes.
 # PROVENANCE.md is on this list for the same reason: every row in it is a dated
 # "this is what changed and what the counts moved from and to".
+#
+# CLAUDE.md was on this list until 2026-09-01 (handoff `claude_md_tracked`) with
+# the note "gitignored, per-session". It is tracked now, and it is not a dated
+# record -- it states what is true today -- so it is a live document and these
+# scans read it like any other.
 _HISTORICAL_DIRS = ("docs/sessions", "docs/issues", "docs/reference")
-_HISTORICAL_NAMES = {"PROVENANCE.md", "CLAUDE.md"}   # CLAUDE.md: gitignored, per-session
+_HISTORICAL_NAMES = {"PROVENANCE.md"}
 _SKIP_DIR_NAMES = {".git", ".dispatch", ".pytest_cache", "__pycache__",
                    "node_modules", "venv", "venv-win", ".venv", "storage", "vendor"}
 _SKIP_REL_DIRS = {"data/runs", "data/projections"}   # run output, not documents
