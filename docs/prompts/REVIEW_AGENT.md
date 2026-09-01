@@ -815,6 +815,53 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       from drawing-checker's venv), and verify printed zones from the border ticks
       rather than by eye — all nine citations in this stack were exact when checked
       against the callout text's own centre.
+      **Second sighting (`endstop_vision_baseline`, 2026-09-01), and it moves the
+      entry from "a value without its meaning" to "a value without its GD&T
+      glyph":** `213668-002` puts **zero** of `⌀ ⌖ ⏥ ⌓ ⌭ ↗ Ⓜ Ⓛ` in its text
+      layer across both sheets while printing a boxed `⌖ ⌀0.2 A B` on sheet 2 —
+      the frames are drawn as vector geometry there. `215735-A`, `212966-006-A`
+      and `546791` all extract their glyphs fine, so a sweep that works on three
+      drawings silently degrades on the fourth into loose tokens (`0.2 A B`).
+      One command settles it per document: count those eight characters in
+      `page.get_text()`. **A zero means every feature control frame on that
+      drawing is invisible to a text sweep**, which is how this handoff recorded
+      a position callout as absent (worksheet F7).
+- [ ] **A claimed *absence* — "the document is in hand, was read in full, the
+      value is not there".** New 2026-09-01 (`endstop_vision_baseline`). It is
+      the strongest claim a provenance audit makes and the one nobody re-checks,
+      because it reads as diligence; a false *match* at least looks suspicious.
+      Two questions, both cheap: **what did the read actually see** (text layer /
+      vector geometry / raster — on this document set those see different
+      drawings, per the entry above), and **grep the value across every PDF in
+      `data/inbox/drawings/`, not just the document the claim is scoped to**.
+      Two absence claims were checked that way in that review: the "only 0.12 in
+      the reachable set" held (and held repo-wide, which is stronger than
+      claimed), and row 61's "no 0.20-width position callout on 213668-002" was
+      false.
+- [ ] **A document set that was *chased into* rather than *enumerated*.** New
+      2026-09-01 (`endstop_vision_baseline`), and it is the failure that produced
+      a whole fictitious taxonomy class. The attempt opened eight PDFs "in the
+      order the chase forced" out of the ~30 in `data/inbox/drawings/`, then
+      concluded that two owners ("pitch arm", "ring gear") resolve to **no part
+      number in any pipeline document**. Both resolve — `215071-001` and
+      `215072-001` — in two unopened files in the same directory, one of which
+      (`555786-001`, dated the day the handoff was staged) the attempt had
+      **named in its own prediction**. So: whenever a finding is of the form
+      *"absent from the pipeline"* or *"not resolvable"*, `ls` the inbox yourself
+      and diff it against the author's opened-documents list. A negative claim
+      over a corpus is a claim about the whole corpus.
+- [ ] **The drawing-checker snapshot taken with something other than
+      `scripts/snapshot_drawing_checker.py`.** New 2026-09-01
+      (`endstop_vision_baseline`). The attempt evidenced the read-only invariant
+      with an ad-hoc `find | stat` and reported **5382** entries; the script says
+      **5380** for the identical set (its listing omits the two root dirs). The
+      invariant held, but the committed figure did not reproduce with the repo's
+      one computing command and the artifact left behind was a `.txt` in a
+      session scratchpad, which the next reviewer cannot `diff`. Require the
+      script. And note the reviewer's cheap trick: **a prior review session's
+      `dc_after.json` is usually still on disk**, so diffing it against a fresh
+      snapshot brackets the whole tactical session *and* your own review in one
+      command — that is how this invariant was verified independently.
 - [ ] **A sibling handoff landed on `master` while you were reviewing.** The board
       runs handoffs in parallel, and two that are each internally correct can
       merge into a contradiction. `sop_edits_apply` and `spec_library_v0` both
