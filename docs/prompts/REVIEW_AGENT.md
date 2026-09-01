@@ -360,8 +360,9 @@ must be confirmed before the property is looked up.
   Know its blind spots before you treat its green as "the prose was checked":
   it matches the claim *shapes* the repo has already written (`_COUNT_CLAIMS`), so
   new phrasing is invisible; a number inside a blockquote or a `"…"` span is exempt
-  by design; and `docs/sessions/`, `docs/issues/`, `docs/reference/`,
-  `PROVENANCE.md` and `CLAUDE.md` are out of scope as dated history.
+  by design; and `docs/sessions/`, `docs/issues/`, `docs/reference/` and
+  `PROVENANCE.md` are out of scope as dated history. `CLAUDE.md` was on that
+  exempt list until 2026-09-01; now that it is tracked, the scan reads it.
 - **Checks the source does not contain** are marked `workbook_cells: null` and
   `[NOT IN WORKBOOK]` in the label, with a test asserting it.
 - **Scope is stated**, including what was excluded and why.
@@ -644,8 +645,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       block, neither noticed. Both added inline. Same question for
       `apps/viewer/README.md`'s Layout block, and for any durable *operational*
       fact (here: a build can now exit 3 and `--allow-older-tree` overrides it) —
-      a fact that lives only in a script docstring and a lesson dies with the
-      session, per the `CLAUDE.md`-is-gitignored rule below.
+      a fact that lives only in a script docstring and a lesson is one the next
+      session will not find; it belongs where a reader looks, which is
+      `ARCHITECTURE.md` or the orientation in `CLAUDE.md`.
       **Second sighting (`spec_library_projection_provenance`, 2026-08-12), and
       it widens the question**: no file was added, so the "new file?" trigger
       never fired — what changed was a *claim inside an existing row*.
@@ -1660,8 +1662,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       docs disagree, the repo's docs change and the divergence goes in a lesson;
       correcting the import itself means *inserting* a dated note after the
       passage, never rewriting it.
-- [ ] **`CLAUDE.md` is gitignored**, so any durable fact written there must be
-      mirrored into `README.md` or `ARCHITECTURE.md` or it dies with the session.
+- [ ] **`CLAUDE.md` is tracked** (since 2026-09-01, handoff `claude_md_tracked`;
+      it was gitignored before, and this item asked you to check that durable
+      facts had been mirrored out of it — that mirroring rule is retired). Read it
+      in the diff like any other live document. What it is: orientation and
+      pointers, and it may now hold a durable fact on its own. What it is not: a
+      second copy of `README.md` or `ARCHITECTURE.md`, and not a home for a
+      quantity that a test reads from somewhere else — a number restated here is
+      a number nothing recounts.
 
 - [ ] **A study/traversal error that escapes the module's own error base
       class.** New 2026-09-01 (`dag_topology_format`). `topology.py` documents

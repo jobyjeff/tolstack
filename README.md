@@ -147,6 +147,9 @@ Two load-bearing decisions, both explained in the SOP:
 - **Handoff lifecycle**: `docs/sessions/` — root = staged, `active/` = running,
   `completed/` = done; lessons in `docs/sessions/lessons/`, reviews in
   `docs/sessions/reviews/`. A handoff's directory IS its status.
-- **`CLAUDE.md` is gitignored** — ephemeral, replaced per-session by dispatch.
-  Anything durable written there must be mirrored into this README or
-  `ARCHITECTURE.md`, or it is lost on the next session.
+- **`CLAUDE.md` is tracked** (since 2026-09-01) — the agent's orientation sheet:
+  what this repo is, which document to read for which job, and the traps that
+  have cost sessions time. It has history and is reviewed like any other file, so
+  a durable fact may live there; it is not a second copy of this README or
+  `ARCHITECTURE.md`, and a quantity it states belongs to whichever of them a test
+  reads.
