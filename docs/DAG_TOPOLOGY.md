@@ -264,9 +264,11 @@ end-stop workbook has three sensitivity columns over one set of rows. So:
 
 The proof. A reviewed, committed grip stack
 (`docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json`) re-expressed as a
-graph: six interfaces, five clamped members in series, the fastener grip in
-parallel with them, and the residual as a gap edge. Every transform is the
-identity.
+graph: 6 parts, 7 interfaces, 7 edges, 0 branch points, 1 grounded loop and
+1 gap edge. Five clamped members run in series between six of those interfaces;
+the seventh is the end of the bolt's full shank, where the grip edge — the loop's
+other arm — lands, and the derived residual is the gap between the two. Every
+transform is the identity.
 
 `tests/test_topology.py` asserts the study folds to the **identical** numbers
 that stack's own `worst_case_shank_out` check publishes — every field, exactly,
@@ -275,9 +277,11 @@ without that second check the first would be comparing a number against itself.
 
 ### L2 — `topology_pitch_system.json` + four studies
 
-The structure. Twelve parts, twenty interfaces, twenty-three edges, four branch
-points, three grounded loops (pitch links, gas spring, ring gear), one gap edge
-(the end stop), and the linear↔rotary coupling at the pitch arm.
+The structure. 12 parts, 20 interfaces, 23 edges, 4 branch points, 4 grounded
+loops (pitch links, gas spring, ring gear, and the hydraulic-brake alternative to
+the gas spring), 1 gap edge (the end stop), and the linear↔rotary coupling at the
+pitch arm. Those counts are derived from the graph by `tests/test_topology.py`,
+not maintained by hand.
 
 - `study_pitch_system_vertical_hub_to_pitch_arm.json` — the millimetre baseline,
   hub A datum to the pitch-arm link hole. Stops before the coupling on purpose.

@@ -16,7 +16,7 @@
   ],
   "provenance": {
     "authored_by": "handoff dag_topology_format, 2026-08-31",
-    "why_this_study_exists": "The second of the three grounded loops, summed on its own so that the parallel path is a first-class object a human can look at rather than an implication of the graph. Nothing here compares it to the pitch-link path, and nothing decides which of the two binds -- that is the mechanics question the tool does not answer.",
+    "why_this_study_exists": "One of the four grounded loops the pitch-system graph closes, summed on its own so that the parallel path is a first-class object a human can look at rather than an implication of the graph. Nothing here compares it to the pitch-link path, and nothing decides which of the two binds -- that is the mechanics question the tool does not answer.",
     "signs_go_both_ways": "This is the study to read for how orientation becomes sign: the four edges out from the pitch plate to the hub top deck are traversed with their orientation (+1), and the three hub edges are traversed against theirs (-1), because the hub's dimensions are authored A-datum-outward and this chain arrives from the far end. No sign is written in this file."
   },
   "notes": [

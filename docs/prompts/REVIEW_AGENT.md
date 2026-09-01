@@ -1310,6 +1310,41 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       check both halves of a corrected sentence separately, not just the
       clause that names the stale fact.
 
+- [ ] **A structural count restated in prose about a graph, JSON or diagram the
+      reader is not holding.** New 2026-09-01 (`dag_topology_format`), and it is
+      the stale-inventory entry's newest surface: the first topology documents
+      shipped introducing the pitch system as "three grounded loops" when its
+      cycle rank is **4** (the hydraulic-brake path, modelled in the same file
+      and counted in the same sentence's "four branch points", is the fourth),
+      and the L1 topology as "six interfaces" when it has **7**. Everything else
+      in both sentences was right, which is what makes this class survive
+      review: five correct figures buy the sixth. **Recount every figure in an
+      inventory sentence separately** — the arithmetic per figure is one line —
+      and remember the counts are *derivable*, so the fix is a pairing rather
+      than a correction. Mechanised for topologies by
+      `tests/test_topology.py::test_the_doc_states_this_graphs_whole_shape_and_states_it_right`
+      (which also requires the inventory to be **complete**, closing the
+      deleted-number blind spot for that one sentence) and
+      `..._a_topologys_own_notes_count_the_graph_they_describe`. Know that
+      scanner's two holes before you trust its green: it only reads a sentence
+      counting **two or more** different labels (a one-label sentence is treated
+      as a subset claim — "modelled here as two parts" — because reading those
+      produced a false positive on its first run), and a count *about a subset*
+      is therefore entirely yours. The same review found one:
+      `topology_pitch_system.json`'s `hub` note said "three of this topology's
+      four branch points sit on it" and two do. All fixed inline.
+- [ ] **A "which is exactly what the source does" claim, checked row by row
+      against the source.** New 2026-09-01 (`dag_topology_format`).
+      `study_pitch_system_blade_angle_worst.json` said its transform map applied
+      the vertical sensitivity to every non-coupling edge, "which is exactly what
+      the source sheet does column by column". True of the **six** of its nine
+      edges the sheet has a linear row for; three are `assumed` placeholders,
+      and one of those three (`blade_root_clocking_to_oml`) corresponds to a row
+      the sheet states **directly in degrees and multiplies by nothing** — so
+      applying the ratio there is the study's construction, not the sheet's. An
+      equivalence claim over a set is a claim about every member; open the source
+      and walk them. Narrowed inline.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
@@ -1498,6 +1533,51 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       passage, never rewriting it.
 - [ ] **`CLAUDE.md` is gitignored**, so any durable fact written there must be
       mirrored into `README.md` or `ARCHITECTURE.md` or it dies with the session.
+
+- [ ] **A study/traversal error that escapes the module's own error base
+      class.** New 2026-09-01 (`dag_topology_format`). `topology.py` documents
+      `StudyError` and its four subclasses as what a consumer catches and renders
+      — and the viewer handoff is told exactly that — but the three id lookups a
+      study document drives (`selection`, `closes`, the `transforms` map) went
+      through `Topology.edge()`/`transform()`, which raise a bare `KeyError`
+      naming only the topology. So the **likeliest** authoring slip, a typo'd
+      edge id, was the one error arriving unhandled and without the study's name.
+      Fixed inline (`_edge_named_by`, pinned by
+      `test_a_study_naming_an_id_its_topology_lacks_raises_a_study_error`). Ask
+      it of any new module that defines an error hierarchy: **enumerate the ways
+      a document can be wrong and check each one arrives as the documented
+      class**, not just the ones the author wrote a test for.
+- [ ] **A per-row display that re-implements `fold()`'s convention.** New
+      2026-09-01 (`dag_topology_format`). `topology.Contribution.nominal/min/max`
+      restate, for one term, the rule `fold()` applies to the list — positive
+      weight takes `max` to the maximum, negative takes `min` — because a grid
+      row has to show what an edge contributed. That is legitimate (it combines
+      no two element values, so "Where computation may live" is satisfied), but
+      it is a **hand-copy of a convention with nothing pairing it**: change
+      `fold` and every row keeps rendering the old rule while the total beside it
+      moves. Pinned inline by
+      `test_a_contributions_own_numbers_sum_to_the_fold_it_lands_in`. Generalise:
+      wherever a reader-facing row is computed outside `fold()`, require an
+      assertion that the rows **sum to** the fold they are displayed with.
+- [ ] **A citation guard that walks the values and skips the weights.** New
+      2026-09-01 (`dag_topology_format`).
+      `test_every_value_in_a_topology_carries_a_source_ref` walked edges, which
+      is where a length lives — while a `Transform.ratio` multiplies every edge
+      that carries it, so an uncited ratio launders further than an uncited band
+      does. All four in the tree were correctly `untraced` with `PLACEHOLDER`
+      notes; nothing held them there. Guard added inline
+      (`test_every_declared_transform_cites_where_its_ratio_came_from`). Same
+      question for `thermal.py`'s soak factors and for whatever the next
+      archetype's weights are: **the one rule covers coefficients, not just
+      values.**
+- [ ] **Topologies and studies live in `docs/topologies/`** and are named
+      `topology_*.json` / `study_*.json`. That is load-bearing:
+      `tests/test_tolerance_stack.py` and `scripts/build_viewer_projection.py`
+      both glob `stack_*.json` under `docs/tolerance_stacks/` and would apply
+      grip-stack schema hygiene to a topology dropped in beside the stacks.
+      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, so the traced-ratio
+      and hardware-count doc scanners already read it — a stale figure quoted
+      there is caught, but only for the shapes those scanners know.
 
 ## Writing the review
 

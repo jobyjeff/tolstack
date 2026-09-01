@@ -888,7 +888,7 @@ def traverse(topology: Topology, study: Study) -> List[Contribution]:
 
     remaining: Dict[str, Edge] = {}
     for edge_id in study.selection:
-        edge = topology.edge(edge_id)
+        edge = _edge_named_by(topology, study, edge_id, "selection")
         if edge.derived:
             raise StudyError(
                 f"study {study.id!r}: edge {edge_id!r} carries no dimension -- it "
@@ -900,10 +900,17 @@ def traverse(topology: Topology, study: Study) -> List[Contribution]:
             raise StudyError(
                 f"study {study.id!r}: the transforms map overrides edge "
                 f"{edge_id!r}, which is not in the selection")
-        topology.transform(study.transforms[edge_id])
+        transform_id = study.transforms[edge_id]
+        try:
+            topology.transform(transform_id)
+        except KeyError:
+            raise StudyError(
+                f"study {study.id!r}: the transforms map gives edge {edge_id!r} "
+                f"transform {transform_id!r}, which topology "
+                f"{topology.id!r} does not declare.") from None
 
     if study.closes is not None:
-        closing = topology.edge(study.closes)
+        closing = _edge_named_by(topology, study, study.closes, "`closes`")
         if study.closes in remaining:
             raise StudyError(
                 f"study {study.id!r}: `closes` names {study.closes!r}, which is "
@@ -1078,6 +1085,26 @@ def load_study(path: str | Path) -> Study:
 # ---------------------------------------------------------------------------
 # Small shared helpers
 # ---------------------------------------------------------------------------
+
+
+def _edge_named_by(topology: Topology, study: "Study", edge_id: str,
+                   where: str) -> Edge:
+    """``topology.edge(edge_id)``, re-raised as a :class:`StudyError`.
+
+    A typo'd edge id in a study document is the likeliest authoring slip there
+    is, and it used to surface as a bare ``KeyError`` naming only the topology --
+    outside :class:`StudyError`, which is the class every consumer of this module
+    is told to catch and render (the viewer handoff's brief says so in as many
+    words). So the study's own errors are one class, and the message says which
+    field the bad id was written in.
+    """
+    try:
+        return topology.edge(edge_id)
+    except KeyError:
+        raise StudyError(
+            f"study {study.id!r}: {where} names edge {edge_id!r}, which topology "
+            f"{topology.id!r} does not have. Study documents reference a "
+            f"topology's ids; nothing here creates one.") from None
 
 
 def _refuse_a_cycle(study: "Study", selected: Dict[str, Edge]) -> None:
