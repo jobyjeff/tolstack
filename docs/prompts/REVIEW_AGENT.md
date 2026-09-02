@@ -1486,19 +1486,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       and may not combine two element values. Check that any new layer respects
       that line, and that `Term.coefficient` is still `> 0` — direction lives in
       `sign`, and a negative coefficient would give a sign error two places to
-      hide. `workbook_corner()` is the one sanctioned reader of `lmc`/`mmc`; it
-      reproduces a source spreadsheet's coherent corner for comparison and is
-      deliberately not routed through `fold()` — but it *does* combine two
-      element values (`sleeve_od = sleeve_bore + 2 * wall`), which is exactly
-      what the "one place element values get combined" sentence above forbids.
-      `ARCHITECTURE.md` currently asserts both "never combines two element
-      values" (unqualified) and the `workbook_corner` exception, in two
-      different sections, unreconciled
-      (`ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values.md`,
-      `audience: strategy`, filed by `architecture_inventory_quantifiers`).
-      Until that issue is decided, do not "fix" either sentence unilaterally —
-      check whether the design call has landed, and if not, that the issue is
-      still open and still describes the tree accurately.
+      hide. **Since `thermal_exception_declared` (2026-09-01) the invariant is
+      stated conditionally and the exceptions are a list, not prose**: nothing
+      outside `fold()` combines two element values *except* the sites on
+      `DECLARED_COMBINING_EXCEPTIONS` (`tests/test_thermal_exception_list.py`),
+      today `workbook_corner()` alone — the one sanctioned reader of `lmc`/`mmc`,
+      which reproduces a source spreadsheet's coherent corner as a single-valued
+      point a fold cannot express. That resolved
+      `ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values.md`,
+      which sat open for a month because `ARCHITECTURE.md` asserted both the
+      unqualified "never combines" and the exception, in two sections, and
+      nothing was red. So do **not** review either sentence by eye: the walker
+      pairs the list against the sites it finds in `thermal.py` and against
+      every passage that states the rule (ARCHITECTURE.md's section, the module
+      docstring, `ARCHETYPE_thermal_fit.md`). What is left for you is the part a
+      test cannot judge — whether a *newly listed* exception really is a
+      single-valued reading rather than a second combiner someone found it
+      easier to declare than to fold, and whether its docstring makes that
+      argument. Also know the walker's blind spot: taint is per-function, so a
+      module-level helper taking a `StackElement` and returning a combination is
+      caught inside itself, not at its call site.
 - [ ] **A generated check must not be hand-writable, and must be readable.**
       A `thermal_fit` stack file's own `checks` array is empty and
       `load_thermal_fit_stack()` refuses a hand-written entry — a check in the file

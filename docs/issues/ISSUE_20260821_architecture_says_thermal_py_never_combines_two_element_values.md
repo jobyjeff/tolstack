@@ -1,12 +1,19 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: docs
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260826_thermal_never_combines_invariant.md
+resolved_by: docs/sessions/HANDOFF_20260901_thermal_exception_declared.md
 ---
+
+> **RESOLVED 2026-09-01** by handoff `thermal_exception_declared` — option 1:
+> the rule now states its exception, and `DECLARED_COMBINING_EXCEPTIONS` in
+> `tests/test_thermal_exception_list.py` walks `thermal.py` for arithmetic over
+> two element values, failing on any site not on the list and pairing the list
+> against every passage that states the rule.
 
 # `ARCHITECTURE.md` says `thermal.py` "never combines two element values"; `workbook_corner` does
 

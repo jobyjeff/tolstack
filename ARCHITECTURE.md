@@ -226,9 +226,25 @@ Two consequences worth knowing:
   walls are *one turned dimension*, perfectly correlated, and listing it twice
   understates the half-range by 29%.
 
-`thermal.py` computes **weights** — thermal factors, `2k`, `1−k`. It never
-combines two element values. That is the line, and it is the one to hold if a
-third archetype wants its own layer.
+`thermal.py` computes **weights** — thermal factors, `2k`, `1−k`. Nothing
+outside `fold()` combines two element values, **except the sites on the declared
+exception list**, which today holds `workbook_corner()` and nothing else: it
+evaluates one of the workbook's coherent material corners — every feature
+simultaneously at nominal, at LMC, or at MMC — which is a single-valued reading
+of one point rather than a fold over a band, so routing it through `fold()` would
+add the second arithmetic path this design exists to prevent, for a number whose
+only job is to sit beside the folds and let the worksheet quote the difference.
+Its docstring carries that argument in full, including why it is also the one
+function here that reads `lmc`/`mmc`.
+
+The list is not prose. It is `DECLARED_COMBINING_EXCEPTIONS` in
+`tests/test_thermal_exception_list.py`, which walks `thermal.py` for arithmetic
+over two element-derived values and reddens on any site not on it — and pairs
+the list against every passage that states the rule (this section, `thermal.py`'s
+module docstring, `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`) and against
+each exception's own docstring, so the rule, the list and the code cannot drift
+apart one at a time. That is the line,
+and it is the one to hold if a fourth archetype wants its own layer.
 
 ### Material condition is not an extreme
 

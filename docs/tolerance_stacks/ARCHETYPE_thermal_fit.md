@@ -138,12 +138,18 @@ Every one of those weights is a per-term scale. None of them is a new way to
 *combine* two element values. So `Term` gained a positive `coefficient` and the
 whole archetype folds through the existing primitive — see ARCHITECTURE.md,
 "Where computation may live — and the coefficient". `thermal.py` computes weights
-and never combines element values. **That is the line to hold for archetype
-three.**
+and combines element values nowhere, **except the sites on the declared exception
+list** — today `workbook_corner()` and nothing else. **That is the line to hold
+for the next archetype.**
 
-One function in the module reads `lmc`/`mmc`: `workbook_corner()`, which exists
-solely to reproduce a source spreadsheet's coherent-corner method for comparison.
-It is not routed through `fold()`, and `fold()` still never reads them.
+That exception is also the module's one reader of `lmc`/`mmc`: it exists solely
+to reproduce a source spreadsheet's coherent-corner method for comparison, which
+is a single-valued evaluation of one point rather than a fold over a band, so a
+fold cannot express it. It is not routed through `fold()`, and `fold()` still
+never reads them. Since 2026-09-01 the exception is a list a test reads rather
+than a sentence three documents each state their own way
+(`DECLARED_COMBINING_EXCEPTIONS`, `tests/test_thermal_exception_list.py`): a
+second combining site in `thermal.py` reddens the suite, naming the line.
 
 ---
 

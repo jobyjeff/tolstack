@@ -32,8 +32,11 @@ Everything the archetype does reduces to *weights on term entries*:
   ratio ``k``, which enters as ``k`` and ``1 - k`` weights.
 
 So the whole archetype folds through the repo's single :func:`~tolerance_stack.fold`.
-This module computes weights; it never combines two element values. See
-ARCHITECTURE.md, "Where computation may live -- and the coefficient".
+This module computes weights; nothing in it combines two element values except
+:func:`workbook_corner`, which is on the declared exception list and argues its
+case in its own docstring. See ARCHITECTURE.md, "Where computation may live -- and
+the coefficient", for the rule and its exception, and
+``tests/test_thermal_exception_list.py`` for the walker that enforces both.
 
 Sign convention: interference is POSITIVE
 -----------------------------------------
@@ -626,6 +629,14 @@ def workbook_corner(
     It reads ``lmc`` / ``mmc`` for exactly the same reason -- those fields are the
     material conditions the workbook's columns *are*, and this is the one function
     in the repo that needs them. ``fold()`` still never does.
+
+    That makes this function the sole entry on the **declared exception list** to
+    the rule that nothing outside ``fold()`` combines two element values --
+    ``ARCHITECTURE.md``, "Where computation may live", states the rule with its
+    exception, and the list itself is ``DECLARED_COMBINING_EXCEPTIONS`` in
+    ``tests/test_thermal_exception_list.py``, which walks this module for any
+    *other* site and fails naming it. If a second reader ever needs the same
+    licence, the argument above is the one it has to make, in its own docstring.
     """
     spec: ThermalFitSpec = stack.thermal_fit  # type: ignore[attr-defined]
     materials: Dict[str, MaterialEntry] = stack.materials  # type: ignore[attr-defined]
