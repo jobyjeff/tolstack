@@ -116,3 +116,10 @@ or demo on a copy.
   moved it to `active/` in the main checkout, which is not on this branch). Left
   as-is deliberately — the board move belongs to whoever merges/reviews.
 - Nothing else outstanding; suite green at 570 passed, 1 skipped.
+- One unrelated flake seen once in ~5 full runs:
+  `test_dc_snapshot.py::test_a_removed_entry_is_reported_as_removed`, which
+  needs a directory mtime to advance between two snapshots taken in the same
+  test. Passed 8/8 in isolation and on both re-runs of the full suite. Already
+  filed twice today (`ISSUE_20260901_dc_snapshot_removed_entry_test_is_mtime_flaky`
+  and `..._is_flaky_on_directory_mtime`) so nothing new was filed -- but if you
+  see it, it is that, not your change.
