@@ -1,9 +1,11 @@
 ---
 type: bug
 priority: low
-status: open
+status: closed
 area: tests
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260902_dc_snapshot_mtime_flake.md
+resolution: closed as duplicate of ISSUE_20260901_dc_snapshot_removed_entry_test_is_flaky_on_directory_mtime (same test, same directory-mtime granularity race, filed independently the same day); the kept issue carries strictly more evidence (1 of 5 isolated runs, 2 of 3 full-suite runs) and is routed to the handoff above
 ---
 
 # `test_a_removed_entry_is_reported_as_removed` flakes on directory-mtime granularity

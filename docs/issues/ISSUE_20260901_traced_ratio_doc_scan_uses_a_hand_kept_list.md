@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/doc-guards
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260902_doc_coverage_sets_derived.md
 ---
 
 # The traced-ratio doc scan walks a hand-kept list, so three live documents it is believed to cover are unread

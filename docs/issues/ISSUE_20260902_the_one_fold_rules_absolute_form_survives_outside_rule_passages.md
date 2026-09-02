@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: docs
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260902_doc_coverage_sets_derived.md
 ---
 
 # The one-fold rule's absolute form survives in passages `RULE_PASSAGES` does not read
