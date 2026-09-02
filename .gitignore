@@ -36,9 +36,6 @@ temp/
 *.tmp
 *.log
 
-# Agent bootstrap (ephemeral, replaced per-session by dispatch).
-CLAUDE.md
-
 # dispatch runtime dir (per-repo state + generated launch scripts).
 .dispatch/
 

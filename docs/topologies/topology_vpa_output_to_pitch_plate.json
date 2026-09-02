@@ -1,0 +1,186 @@
+{
+  "schema": "joby.tolerance_stack/topology/v0",
+  "id": "vpa_output_to_pitch_plate",
+  "title": "VPA output to pitch plate -- the grip-length joint as a topology (L1 proof)",
+  "units": "mm",
+  "provenance": {
+    "authored_by": "handoff dag_topology_format, 2026-08-31",
+    "design_reference": "dispatch/docs/strategy/HANDOFF_20260831_tolstack_dag_strategy.md (locked brief), level L1",
+    "re_expresses": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+    "values": "NONE are copied. Every edge carries a `dimension_ref` into the stack file above, resolved at load time by tolerance_stack.topology.load_topology, so this document cannot drift away from the numbers that stack publishes. Every value's citation and confidence is whatever that element already carries -- this topology adds no source_ref of its own to any value and closes no gap the stack has open.",
+    "structure": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim. The stack transcribes workbook rows E63-E67 as an ordered clamped stack (bushing, spherical bearing, bushing flange, pitch flange, under-head washer) plus the fastener grip; laying those out head-side-first, as a chain of six clamped-stack faces, is this handoff's own arrangement. Two things make that safe to publish: a chain sum is invariant to the ordering (a signed term list does not care), and tests/test_topology.py pins the study's totals against the stack's own published check. What it is NOT is evidence that these specific faces mate in this order on the real part -- see notes.",
+    "part_identity": "Four of the six parts are named on the stack's own citations (balloons 27, 28, 29 in 217755 sheet 5 DETAIL X, and the VPA assembly 208510-007 for the bearing). Two are not, and say so in their own `note` rather than borrowing a plausible drawing number."
+  },
+  "parts": [
+    {
+      "id": "bolt_nas6404u13d",
+      "name": "NAS6404U13D bolt, .2500-28, .812 grip",
+      "note": "Balloon 27, find 27 qty 1, in 217755 sheet 5 DETAIL X per the referenced stack element's source_ref. A standard part, so its dimensional identity is the NAS6403-NAS6420 Rev 4 sheet the element cites, not a Joby part drawing."
+    },
+    {
+      "id": "washer_ms21299c4k",
+      "name": "MS21299C4K washer, countersunk, 17-4PH",
+      "note": "Balloon 29 in 217755 sheet 5 DETAIL X. The referenced element's nominal is sourced from the parts-list nomenclature; its BAND is not, and the element carries that as confidence `inferred` plus the repo's open gap."
+    },
+    {
+      "id": "pitch_flange_215197",
+      "name": "pitch flange (215197 A.1, feature ambiguous)",
+      "drawing": "215197",
+      "revision": "A.1",
+      "note": "Carried over from the referenced element, ambiguity included: 215197 prints TWO 4.06 +/-0.10 callouts and the element's own source_ref says the tolerance alone cannot decide between them, AND that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than the pitch plate 215177-001, so 215197 may be the wrong part entirely. Named here as a part because the topology needs a lane for this thickness to be a dimension OF; the drawing number is the referenced element's claim, not a new one."
+    },
+    {
+      "id": "flanged_bushing_unidentified",
+      "name": "the part carrying the bushing flange thickness -- NOT IDENTIFIED",
+      "note": "The referenced element `bushing_flange_thickness` cites workbook cell E65 and names no part at all. It is modelled as its own part because the flange is a separate 0.062 in feature from the straight bushing's length, and putting both dimensions on one part would be a structural claim (that they are one flanged bushing) with nothing behind it. Which part this is remains open -- see notes."
+    },
+    {
+      "id": "spherical_bearing_in_vpa",
+      "name": "spherical bearing, internal to 208510-007 VARIABLE PITCH ACTUATOR ASSEMBLY",
+      "note": "No balloon in DETAIL X: the referenced element's source_ref records it as internal to the VPA assembly (balloon 1). Its part number is not established -- the workbook's comment column names MS21299C4K on this row, and that part is the countersunk washer, not a bearing (the referenced stack's `column_I_caveat`)."
+    },
+    {
+      "id": "plain_bushing_214943_002",
+      "name": "BUSHING, PLAIN, ALUMINUM BRONZE, .250 in ID (Joby 214943-002)",
+      "drawing": "214943-002",
+      "note": "Balloon 28 in DETAIL X, per the referenced element's source_ref. That element's modelled length is still `untraced` and still on the gap list: NAS77A4-015, the number the source workbook names, was RULED OUT on the merits in 2026-08-13 and 214943-002's own part drawing is not in the pile."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "head_bearing_face",
+      "name": "bolt-head bearing face against the countersunk washer",
+      "parts": ["bolt_nas6404u13d", "washer_ms21299c4k"],
+      "kind": "mating_surface",
+      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, per the referenced fastener element's source_ref."
+    },
+    {
+      "id": "washer_flange_face",
+      "name": "washer face against the pitch flange",
+      "parts": ["washer_ms21299c4k", "pitch_flange_215197"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "flange_bushing_flange_face",
+      "name": "pitch flange face against the bushing flange",
+      "parts": ["pitch_flange_215197", "flanged_bushing_unidentified"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bushing_flange_bearing_face",
+      "name": "bushing flange face against the spherical bearing",
+      "parts": ["flanged_bushing_unidentified", "spherical_bearing_in_vpa"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bearing_bushing_face",
+      "name": "spherical bearing face against the plain bushing",
+      "parts": ["spherical_bearing_in_vpa", "plain_bushing_214943_002"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bushing_far_face",
+      "name": "plain bushing far face -- the last clamped surface",
+      "parts": ["plain_bushing_214943_002"],
+      "kind": "datum_feature",
+      "note": "A datum_feature and not a mating_surface: what is beyond it is the castellated nut's face, and the nut is deliberately outside this joint's scope (see notes)."
+    },
+    {
+      "id": "shank_full_dia_end",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["bolt_nas6404u13d"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a). Not a mate: it is where the thread run-out begins."
+    }
+  ],
+  "edges": [
+    {
+      "id": "under_head_chamfer_washer",
+      "name": "under head chamfer washer thickness",
+      "kind": "structural",
+      "part": "washer_ms21299c4k",
+      "from": "head_bearing_face",
+      "to": "washer_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "under_head_chamfer_washer"
+      }
+    },
+    {
+      "id": "pitch_flange_thickness",
+      "name": "pitch flange thickness",
+      "kind": "structural",
+      "part": "pitch_flange_215197",
+      "from": "washer_flange_face",
+      "to": "flange_bushing_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "pitch_flange_thickness"
+      }
+    },
+    {
+      "id": "bushing_flange_thickness",
+      "name": "bushing flange thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_unidentified",
+      "from": "flange_bushing_flange_face",
+      "to": "bushing_flange_bearing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "bushing_flange_thickness"
+      }
+    },
+    {
+      "id": "spherical_bearing",
+      "name": "spherical bearing width",
+      "kind": "structural",
+      "part": "spherical_bearing_in_vpa",
+      "from": "bushing_flange_bearing_face",
+      "to": "bearing_bushing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "spherical_bearing"
+      }
+    },
+    {
+      "id": "straight_bushing",
+      "name": "straight bushing length",
+      "kind": "structural",
+      "part": "plain_bushing_214943_002",
+      "from": "bearing_bushing_face",
+      "to": "bushing_far_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "straight_bushing"
+      }
+    },
+    {
+      "id": "fastener_grip",
+      "name": "fastener grip (.812 in)",
+      "kind": "structural",
+      "part": "bolt_nas6404u13d",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+        "element": "fastener_grip"
+      },
+      "note": "The one edge that runs PARALLEL to the clamped stack rather than in series with it. Together with `shank_out` it closes the loop, and that loop closure is what the stack's `worst_case_shank_out` check computes."
+    },
+    {
+      "id": "shank_out",
+      "name": "shank out -- full-diameter shank beyond the clamped stack",
+      "kind": "gap",
+      "from": "bushing_far_face",
+      "to": "shank_full_dia_end",
+      "note": "A DERIVED gap: it carries no dimension because it is the quantity a study computes, not one that is measured. Study `vpa_output_shank_out` names it in `closes`. Negative at the minimum means the thread run-out is pulled inside the joint; positive at the maximum means full-diameter shank protrudes past the nut face -- the referenced stack's own guidance."
+    }
+  ],
+  "notes": [
+    "This document is the L1 proof of the topology format: an existing, reviewed, committed grip stack re-expressed as a graph, with the summation checked to the digit against what that stack already publishes. It adds no value, no citation and no confidence claim of its own. If a number here looks wrong, the stack file is where it is wrong.",
+    "The topology holds 1 grounded loop -- the fastener in parallel with the clamped stack it passes through -- and 0 branch points (no node has three incident edges). That is what makes it L1: the traversal never has to choose. The pitch-system topology is where branching starts.",
+    "The as-drawn joint is retained by a castellated nut (MS9363-10, balloon 25) and a cotter pin (MS24665-229, balloon 26), and the referenced stack states plainly that grip length alone cannot answer this joint: the binding constraint is whether a castellation slot lines up with the cotter hole. Neither the stack nor this topology models that. `bushing_far_face` is therefore a datum_feature rather than a mate -- the nut is not in this graph.",
+    "OPEN, for Jeff: is `bushing_flange_thickness` the flange of the SAME part as `straight_bushing` (one flanged bushing) or a separate part? Modelled here as two parts because the referenced element names no part for the flange, and merging them would be a structural claim with no source. It changes no total either way -- a structural dimension and a gap fold identically -- but it changes the swim-lane rendering and it changes what a 3D-annotation surface would have to resolve.",
+    "OPEN, for Jeff: this topology asserts an axial ORDER for the clamped members (washer, pitch flange, bushing flange, bearing, bushing, head-side first) taken from the source workbook's row order. The sum does not depend on it; a reader looking at the rail diagram will nonetheless read it as physical. Worth one look at DETAIL X to confirm or correct before the viewer renders it."
+  ]
+}

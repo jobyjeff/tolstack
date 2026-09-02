@@ -20,13 +20,22 @@ tolerance_stack/
   thermal.py        the thermal-fit archetype: materials + the check generator.
                     stdlib only. Added 2026-08-05. What arithmetic it may hold is
                     bounded by "Where computation may live", below.
+  topology.py       the tolerance-topology archetype: interfaces as nodes,
+                    dimensions and gaps as edges, human-lassoed studies summed
+                    through fold(). stdlib only. Added 2026-08-31. Explicitly not
+                    a solver -- see docs/DAG_TOPOLOGY.md and the section below.
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
+  build_topology_projection.py the tolerance-topology archetype's projection:
+                               the rail serialisation plus summarize() ->
+                               data/projections/viewer/topologies.json. Added
+                               2026-08-31; stdlib only. The layout lives here,
+                               not in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
-                               2026-08-10; stdlib only. Imported by all three
-                               projection writers (the two above and
+                               2026-08-10; stdlib only. Imported by all four
+                               projection writers (the three above and
                                `tolerance_stack/spec_library.py`, 2026-08-12).
   snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
                                the evidence for "nothing was written there"
@@ -37,7 +46,7 @@ apps/
 
 That listing is paired with the tree by `tests/test_architecture_inventory.py`:
 its row set against the directories it names, `stdlib only` against each module's
-imports, `all three projection writers` against the modules that actually import
+imports, `all four projection writers` against the modules that actually import
 `projection_provenance`. It also **refuses a quantifier it does not read from the
 tree**, which is why no row carries a line count: `stack.py` read *"~330 lines"*
 from founding until 2026-08-19, by which point it was 728
@@ -52,7 +61,7 @@ here that nothing checks is the defect, not the value it happens to have.
 | `StackElement` | one ordered element: `nominal`/`min`/`max` lengths, `lmc`/`mmc` as transcribed, `hardware_ref`, `source_ref` |
 | `Term` | an element, a sign (`+1`/`-1`), and a positive `coefficient` (default `1.0`), all validated |
 | `Interval` | a fold result: nominal, worst-case min/max, RSS center/half |
-| `fold(terms)` | **the only place element values are combined** |
+| `fold(terms)` | **the only place element values are combined**, outside the exceptions declared in "Where computation may live" |
 | `CheckResult` | a check outcome + the `verdict` property |
 | `StackDefinition` | elements + paths + checks; `path()`, `check()`, `all_checks()` |
 | `load_stack(path)` | read + schema-check a stack-definition JSON |
@@ -70,7 +79,7 @@ data convention; a stack does not.
 It writes into `data/`, which exists only in the main checkout and is shared by
 every live worktree, so it takes `--data-root` (name the main checkout's from a
 worktree, or the rebuild lands in a directory that is deleted at cleanup). Like
-the two viewer builders it stamps the tree it built from and **exits 3 rather
+the three viewer builders it stamps the tree it built from and **exits 3 rather
 than overwrite** a projection built from a tree this one does not contain;
 `--allow-older-tree` overrides that, loudly. See `scripts/projection_provenance.py`.
 
@@ -99,6 +108,52 @@ in a data file — at the cost of the term lists not existing in the JSON for a
 reviewer to read. `tests/debug_report_thermal_fit.py --terms` and the worksheet's
 appendix are how that cost is paid back, and it is a compromise rather than a
 solution. Noted as such in the archetype doc's registry-input section.
+
+### The topology archetype (`topology.py`)
+
+The repo's **third** archetype, added 2026-08-31 by `dag_topology_format`. Where
+the first two ask what a joint stacks up to and what a fit does over temperature,
+this one asks where in a mechanism position error comes from — and *which path*
+you meant. Nodes are interfaces, edges are structural dimensions (on one part) or
+gaps (across a clearance), and a **study** is a human-lassoed chain through one
+global topology. Full statement of the model, the formats and the fence in
+`docs/DAG_TOPOLOGY.md`.
+
+| name | what it is |
+|---|---|
+| `Part` / `Node` / `Edge` | the graph. A node lists the parts that meet at it; a structural edge names the part it is a dimension of, and both its nodes must have that part |
+| `Dimension` | the value an edge carries — `StackElement` with `role` freed, reusing `SourceRef` verbatim so the citation vocabulary is shared, not forked |
+| `Transform` | a constant sensitivity: positive `ratio`, `units_in`/`units_out`, and a `properties` bag nothing reads yet |
+| `Topology` | the document; validates every reference and every kind label, and reports `branch_nodes()` without resolving them |
+| `Study` | a `selection` of edge ids, two endpoints, an optional per-study transform override map, an optional `closes` |
+| `traverse(topology, study)` | orders the selection into a chain, deriving each edge's sign from its orientation; refuses a fork, a break, or a ring |
+| `summarize(topology, study)` | the chain plus one `fold()` over it, refusing to sum contributions in unlike units |
+| `load_topology(path)` / `load_study(path)` | read + schema-check; `load_topology` resolves each `dimension_ref` out of the stack file it names |
+
+**Not a solver, by locked decision.** Parallel load paths in a mechanism are
+statically redundant, and which one binds depends on stiffness, preload and
+assembly — a mechanics question. A selection that reaches a node with two
+unconsumed edges raises `BranchAmbiguity` naming both candidates rather than
+picking one. That fence is written into `docs/DAG_TOPOLOGY.md` and pinned by a
+test, because the natural-looking next feature here is exactly the one that must
+not be built.
+
+**No new arithmetic.** A traversal produces a direction and a transform, and
+those are `Term.sign` and `Term.coefficient` — the two fields the thermal
+archetype already established. So this archetype adds no place where element
+values are combined — it declares no exception of its own, and `fold()` remains
+the only one it uses — and it *narrows* the surface for a sign error rather
+than widening it: no sign is authored in any topology or study document, they are
+read off the graph. `Dimension` is fed to `Term` by duck typing, which
+`tests/test_topology.py` makes safe by reading `fold`'s own source for every
+element attribute it touches.
+
+The one thing to know before extending it: an edge's transform defaults to the
+identity and a *study* declares its sensitivities, because a sensitivity is a
+property of the quantity being rolled up rather than of the edge. The single
+exception in the tree is the pitch arm's linear↔rotary coupling, where the
+conversion is the part's geometry; a test holds the exceptions to that one, so a
+second has to re-make the argument.
 
 ### The spec library (`spec_library.py`)
 
@@ -146,7 +201,9 @@ same holds for coefficients, which multiply through.
 ### Where computation may live — and the coefficient
 
 The rule that matters is not "no new code does arithmetic". It is **one place
-where element values get combined**. A second combiner is what makes a sign error
+where element values get combined**, plus a short list of exceptions that is
+declared rather than described — the list, and why there is one at all, are at
+the end of this section. A second combiner is what makes a sign error
 undetectable; a per-term *weight* does not, because it is visible in the JSON next
 to the sign it scales.
 
@@ -172,9 +229,29 @@ Two consequences worth knowing:
   walls are *one turned dimension*, perfectly correlated, and listing it twice
   understates the half-range by 29%.
 
-`thermal.py` computes **weights** — thermal factors, `2k`, `1−k`. It never
-combines two element values. That is the line, and it is the one to hold if a
-third archetype wants its own layer.
+`thermal.py` computes **weights** — thermal factors, `2k`, `1−k`. Nothing
+outside `fold()` combines two element values, **except the sites on the declared
+exception list**, which today holds `workbook_corner()` and nothing else: it
+evaluates one of the workbook's coherent material corners — every feature
+simultaneously at nominal, at LMC, or at MMC — which is a single-valued reading
+of one point rather than a fold over a band, so routing it through `fold()` would
+add the second arithmetic path this design exists to prevent, for a number whose
+only job is to sit beside the folds and let the worksheet quote the difference.
+Its docstring carries that argument in full, including why it is also the one
+function here that reads `lmc`/`mmc`.
+
+The list is not prose. It is `DECLARED_COMBINING_EXCEPTIONS` in
+`tests/test_thermal_exception_list.py`, which walks `thermal.py` for arithmetic
+over two element-derived values and reddens on any site not on it — and pairs
+the list against the passages registered in `RULE_PASSAGES` (this section,
+`thermal.py`'s module docstring, `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`)
+and against
+each exception's own docstring, so the rule, the list and the code cannot drift
+apart one at a time. The pairing reads the passages registered in
+`RULE_PASSAGES` and nothing else, so a document that states this rule belongs in
+that dict rather than in prose of its own — an unregistered passage is
+unguarded, which is how the absolute survived here for a month. That is the
+line, and it is the one to hold if a fourth archetype wants its own layer.
 
 ### Material condition is not an extreme
 
@@ -253,7 +330,7 @@ Nothing lands in `data/runs/` yet: no run-producing pipeline exists here. The
 `data/runs/` skeleton is the standard-layout requirement, held for when a stack
 synthesizer does produce runs for forge to ingest. `data/projections/` is now
 live — it holds the spec library, rebuilt from the committed event log, and
-`data/projections/viewer/`, wiped and rebuilt by the two viewer scripts.
+`data/projections/viewer/`, wiped and rebuilt by the three viewer scripts.
 
 The **events are committed and the projection is not**, which inverts the usual
 `data/` placement. It follows from the same rule as the stack JSONs: the events
@@ -267,7 +344,7 @@ resolve a subject by folding the event log in process. That is why the file's
 staleness is a *reading* hazard rather than a computation one — and why it is
 stamped rather than deleted (`spec_library_projection_provenance`, 2026-08-12;
 the argument is in `docs/spec_library/README.md` and in `spec_library.py`'s
-rebuild section). All three writers into `data/projections/` now stamp the tree
+rebuild section). All four writers into `data/projections/` now stamp the tree
 they built from and refuse to clobber a newer one.
 
 ### The viewer and the one-fold rule (2026-08-05, `stack_viewer_v0`)

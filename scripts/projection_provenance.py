@@ -2,8 +2,8 @@
 
 ``data/projections/viewer/`` is **one directory shared by every live worktree**.
 ``data/`` exists only in the main checkout, so every worktree's build script is
-told to write there by absolute path, and both scripts wipe-and-rebuild their own
-file in it. Whoever runs last wins, and "last" is whichever agent happens to
+told to write there by absolute path, and each of the three scripts that write
+there wipe-and-rebuilds its own file in it. Whoever runs last wins, and "last" is whichever agent happens to
 finish first (``docs/issues/ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection.md``,
 three recorded occurrences). Two things are needed and this module holds both:
 
@@ -33,10 +33,11 @@ What the gate deliberately does **not** do:
   different uncommitted edits both pass; ``dirty`` in the stamp is what tells a
   reader that happened, and there is nothing cheaper that would catch it.
 * Each script gates **its own** file only (``build_viewer_projection.py`` on
-  ``results.json``, ``build_viewer_crops.py`` on ``crops.json``, and since
+  ``results.json``, ``build_viewer_crops.py`` on ``crops.json``, since
   2026-08-12 ``tolerance_stack.spec_library.rebuild()`` on
-  ``data/projections/spec_library/library.json`` -- this module is not
-  viewer-specific and has three callers, not two). Gating on the
+  ``data/projections/spec_library/library.json``, and since 2026-08-31
+  ``build_topology_projection.py`` on ``topologies.json`` -- this module is not
+  viewer-specific and has four callers, not two). Gating on the
   neighbour's file would refuse the perfectly ordinary sequence "rebuild crops
   from the newest tree, then rebuild results from an older one on purpose" --
   and the pair-disagreement it would be trying to catch is a *reader's* problem,

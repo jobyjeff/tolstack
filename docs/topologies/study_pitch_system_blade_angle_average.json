@@ -1,0 +1,41 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "pitch_system_blade_angle_average",
+  "title": "Blade OML angular position, hub A datum to blade OML, at the full-sweep-average sensitivity (degrees)",
+  "topology": "pitch_system",
+  "from": "hub_lower_bearing_flange",
+  "to": "blade_root_oml",
+  "selection": [
+    "hub_lower_to_top_bearing_flange",
+    "hub_top_flange_to_top_deck",
+    "hub_top_deck_to_vpa_mount",
+    "vpa_mount_to_end_stop_feature",
+    "end_stop_clearance",
+    "piston_length",
+    "pitch_plate_flange_to_link_hole",
+    "pitch_link_length",
+    "pitch_arm_link_hole_to_clocking_hole",
+    "blade_root_clocking_to_oml"
+  ],
+  "transforms": {
+    "hub_lower_to_top_bearing_flange": "pitch_arm_linear_to_rotary_average",
+    "hub_top_flange_to_top_deck": "pitch_arm_linear_to_rotary_average",
+    "hub_top_deck_to_vpa_mount": "pitch_arm_linear_to_rotary_average",
+    "vpa_mount_to_end_stop_feature": "pitch_arm_linear_to_rotary_average",
+    "end_stop_clearance": "pitch_arm_linear_to_rotary_average",
+    "piston_length": "pitch_arm_linear_to_rotary_average",
+    "pitch_plate_flange_to_link_hole": "pitch_arm_linear_to_rotary_average",
+    "pitch_link_length": "pitch_arm_linear_to_rotary_average",
+    "pitch_arm_link_hole_to_clocking_hole": "blade_root_tangential_to_rotary_average",
+    "blade_root_clocking_to_oml": "pitch_arm_linear_to_rotary_average"
+  },
+  "provenance": {
+    "authored_by": "handoff dag_topology_format, 2026-08-31",
+    "why_this_file_exists": "Same topology, same selection, same chain order, DIFFERENT transform set -- the second of the source workbook's two parallel result columns. It is the case that made a per-study `transforms` map the right shape rather than putting sensitivities only on edges: two sensitivity sets over one graph is not two graphs, and a schema that forced it to be would double every future edit.",
+    "one_override_the_worst_case_study_does_not_need": "`pitch_arm_link_hole_to_clocking_hole` IS in the map here. Its own default is the worst-case blade-root coupling, so the average-condition study has to override it -- the only edge in the repo where a study overrides a non-identity default, and the reason the override map layers over defaults rather than replacing the field."
+  },
+  "notes": [
+    "The ratios are the source sheet's F10/F11 -- described there as the full-sweep-average motion ratio and explicitly not a literal average over angle. Placeholders, like every ratio in this topology.",
+    "Comparing this study's total with `pitch_system_blade_angle_worst`'s is the whole point of holding both: the ratio of the two is the ratio of the two sensitivity columns, and nothing about the structure changed."
+  ]
+}

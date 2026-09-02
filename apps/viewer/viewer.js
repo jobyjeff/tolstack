@@ -761,14 +761,42 @@
     return line;
   };
 
+  // Which projection the banner is describing. Two pages share views/banner.js
+  // and they read DIFFERENT files: index.html renders `results.json`,
+  // topology.html renders `topologies.json`. The banner's job is identical for
+  // both — when was it built, which tree built it, and what to run when it is
+  // missing — so the wording is a parameter rather than a second banner. The
+  // default is `results`, which is why every existing call site is unchanged.
+  VA.PROJECTION_LABELS = {
+    results: {
+      name: "results",
+      file: "results.json",
+      rebuildKey: "results",
+      missing: "No results projection. The viewer renders it dumbly and computes " +
+        "nothing, so without it there is nothing to show. Build it:",
+    },
+    topologies: {
+      name: "topologies",
+      file: "topologies.json",
+      rebuildKey: "topologies",
+      missing: "No topology projection — the rails, every study chain and every " +
+        "total come out of it, so without it there is nothing to draw. Build it:",
+    },
+  };
+
+  VA.projectionLabels = function (which) {
+    return VA.PROJECTION_LABELS[which] || VA.PROJECTION_LABELS.results;
+  };
+
   // The banner's freshness line. Purely descriptive — the viewer does not try
   // to decide whether a projection is stale, it shows when each was built and
   // lets the reader judge.
-  VA.builtLine = function (results, crops) {
+  VA.builtLine = function (results, crops, which) {
+    var labels = VA.projectionLabels(which);
     var parts = [];
     parts.push(results && results.built_at
-      ? "results built " + results.built_at
-      : "results NOT BUILT");
+      ? labels.name + " built " + results.built_at
+      : labels.name + " NOT BUILT");
     if (crops && crops.built_at) {
       var summary = crops.summary || {};
       var sha = VA.shaCountsText(summary);
@@ -822,17 +850,19 @@
   // preserving the other's file, so the pair genuinely can describe two
   // different trees. That is a fact about the data in front of it, not an
   // inference about the repo.
-  VA.provenanceAlarms = function (results, crops) {
+  VA.provenanceAlarms = function (results, crops, which) {
+    var labels = VA.projectionLabels(which);
     var alarms = [];
     var rp = results && results.provenance;
     var cp = crops && crops.provenance;
 
-    if (results && !rp) alarms.push("results.json carries no provenance stamp");
+    if (results && !rp) alarms.push(labels.file + " carries no provenance stamp");
     if (crops && !cp) alarms.push("crops.json carries no provenance stamp");
 
     if (rp && cp && rp.head_sha && cp.head_sha && rp.head_sha !== cp.head_sha) {
       alarms.push(
-        "results and crops were built from DIFFERENT trees — results from " +
+        labels.name + " and crops were built from DIFFERENT trees — " +
+        labels.name + " from " +
         (rp.branch || "(detached)") + " @ " + VA.shortSha(rp.head_sha) +
         ", crops from " + (cp.branch || "(detached)") + " @ " + VA.shortSha(cp.head_sha) +
         ". They may not describe the same stacks. Two different commits is as far " +
@@ -844,7 +874,7 @@
     // Stamped at build time, so it is a statement about then, not now — which
     // is exactly the honest form: "this was already out of date when it was
     // built" is provable, "it is out of date now" is not, from a static page.
-    [["results", rp], ["crops", cp]].forEach(function (pair) {
+    [[labels.name, rp], ["crops", cp]].forEach(function (pair) {
       var p = pair[1];
       if (p && p.behind_trunk) {
         alarms.push(pair[0] + " was built from a tree " + p.behind_trunk +

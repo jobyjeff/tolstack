@@ -94,9 +94,9 @@ PINNED_CLAIMS = (
      "test_every_row_claiming_stdlib_only_imports_only_the_stdlib"),
     (re.compile(r"needs PyMuPDF"),
      "test_the_block_names_a_dependency_for_exactly_the_modules_that_have_one"),
-    (re.compile(r"all three projection writers"),
+    (re.compile(r"all four projection writers"),
      "test_the_projection_provenance_row_counts_and_names_its_importers"),
-    (re.compile(r"the two above"),
+    (re.compile(r"the three above"),
      "test_the_projection_provenance_row_counts_and_names_its_importers"),
 )
 
@@ -483,12 +483,14 @@ def test_the_block_names_a_dependency_for_exactly_the_modules_that_have_one(rows
 def test_the_projection_provenance_row_counts_and_names_its_importers(rows):
     """*"Imported by all three projection writers (the two above and ...)"*.
 
-    Both quantifiers in one sentence, and this row has already been wrong once:
+    Both quantifiers in one sentence, and this row has already been wrong twice:
     it said **two** until ``spec_library.rebuild`` became the third writer
-    (``spec_library_projection_provenance``, 2026-08-12). *"the two above"* is
-    resolved **positionally** -- the two rows preceding this one -- so inserting
-    a row between them also reddens this test, which is the point: the phrase
-    means something different the moment the block is reordered.
+    (``spec_library_projection_provenance``, 2026-08-12), and **three** until
+    ``build_topology_projection.py`` became the fourth (``dag_viewer_poc``,
+    2026-08-31). *"the three above"* is resolved **positionally** -- the three
+    rows preceding this one -- so inserting a row between them also reddens this
+    test, which is the point: the phrase means something different the moment the
+    block is reordered.
     """
     matches = [row for row in rows if row.name == "projection_provenance.py"]
     assert len(matches) == 1, "expected exactly one projection_provenance.py row"
@@ -581,7 +583,7 @@ def test_the_quantifier_scan_can_fail():
     assert unpinned_quantifiers("about a thousand lines") == ["thousand"]
     # And the pinned phrases, which must not be flagged.
     assert unpinned_quantifiers(
-        "Imported by all three projection writers (the two above and "
+        "Imported by all four projection writers (the three above and "
         "`tolerance_stack/spec_library.py`, 2026-08-12).") == []
     assert unpinned_quantifiers("source_ref -> a crop PNG (needs PyMuPDF)") == []
 

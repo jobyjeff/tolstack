@@ -360,8 +360,9 @@ must be confirmed before the property is looked up.
   Know its blind spots before you treat its green as "the prose was checked":
   it matches the claim *shapes* the repo has already written (`_COUNT_CLAIMS`), so
   new phrasing is invisible; a number inside a blockquote or a `"…"` span is exempt
-  by design; and `docs/sessions/`, `docs/issues/`, `docs/reference/`,
-  `PROVENANCE.md` and `CLAUDE.md` are out of scope as dated history.
+  by design; and `docs/sessions/`, `docs/issues/`, `docs/reference/` and
+  `PROVENANCE.md` are out of scope as dated history. `CLAUDE.md` was on that
+  exempt list until 2026-09-01; now that it is tracked, the scan reads it.
 - **Checks the source does not contain** are marked `workbook_cells: null` and
   `[NOT IN WORKBOOK]` in the label, with a test asserting it.
 - **Scope is stated**, including what was excluded and why.
@@ -644,8 +645,9 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       block, neither noticed. Both added inline. Same question for
       `apps/viewer/README.md`'s Layout block, and for any durable *operational*
       fact (here: a build can now exit 3 and `--allow-older-tree` overrides it) —
-      a fact that lives only in a script docstring and a lesson dies with the
-      session, per the `CLAUDE.md`-is-gitignored rule below.
+      a fact that lives only in a script docstring and a lesson is one the next
+      session will not find; it belongs where a reader looks, which is
+      `ARCHITECTURE.md` or the orientation in `CLAUDE.md`.
       **Second sighting (`spec_library_projection_provenance`, 2026-08-12), and
       it widens the question**: no file was added, so the "new file?" trigger
       never fired — what changed was a *claim inside an existing row*.
@@ -815,6 +817,91 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       from drawing-checker's venv), and verify printed zones from the border ticks
       rather than by eye — all nine citations in this stack were exact when checked
       against the callout text's own centre.
+      **Second sighting (`endstop_vision_baseline`, 2026-09-01), and it moves the
+      entry from "a value without its meaning" to "a value without its GD&T
+      glyph":** `213668-002` puts **zero** of `⌀ ⌖ ⏥ ⌓ ⌭ ↗ Ⓜ Ⓛ` in its text
+      layer across both sheets while printing a boxed `⌖ ⌀0.2 A B` on sheet 2 —
+      the frames are drawn as vector geometry there. `215735-A`, `212966-006-A`
+      and `546791` all extract their glyphs fine, so a sweep that works on three
+      drawings silently degrades on the fourth into loose tokens (`0.2 A B`).
+      One command settles it per document: count those eight characters in
+      `page.get_text()`. **A zero means every feature control frame on that
+      drawing is invisible to a text sweep**, which is how this handoff recorded
+      a position callout as absent (worksheet F7).
+- [ ] **A claimed *absence* — "the document is in hand, was read in full, the
+      value is not there".** New 2026-09-01 (`endstop_vision_baseline`). It is
+      the strongest claim a provenance audit makes and the one nobody re-checks,
+      because it reads as diligence; a false *match* at least looks suspicious.
+      Two questions, both cheap: **what did the read actually see** (text layer /
+      vector geometry / raster — on this document set those see different
+      drawings, per the entry above), and **grep the value across every PDF in
+      `data/inbox/drawings/`, not just the document the claim is scoped to**.
+      Two absence claims were checked that way in that review: the "only 0.12 in
+      the reachable set" held (and held repo-wide, which is stronger than
+      claimed), and row 61's "no 0.20-width position callout on 213668-002" was
+      false.
+- [ ] **A document set that was *chased into* rather than *enumerated*.** New
+      2026-09-01 (`endstop_vision_baseline`), and it is the failure that produced
+      a whole fictitious taxonomy class. The attempt opened eight PDFs "in the
+      order the chase forced" out of the ~30 in `data/inbox/drawings/`, then
+      concluded that two owners ("pitch arm", "ring gear") resolve to **no part
+      number in any pipeline document**. Both resolve — `215071-001` and
+      `215072-001` — in two unopened files in the same directory, one of which
+      (`555786-001`, dated the day the handoff was staged) the attempt had
+      **named in its own prediction**. So: whenever a finding is of the form
+      *"absent from the pipeline"* or *"not resolvable"*, `ls` the inbox yourself
+      and diff it against the author's opened-documents list. A negative claim
+      over a corpus is a claim about the whole corpus.
+      **Second sighting (`thermal_exception_declared`, 2026-09-02), and the
+      corpus is the repo's own prose**, which has no `ls`. The handoff named
+      three passages stating the one-fold rule; the author found two more by
+      **following the pointers in the ones it named** and wrote *"there were
+      five"* into the lesson and *"every passage that states the rule"* into
+      ARCHITECTURE.md, this checklist and the new test's docstring. Searching for
+      the rule's **own words** instead finds four more, all asserting the
+      absolute the change existed to retire — including one *inside the section
+      the new test reads*
+      (`ISSUE_20260902_the_one_fold_rules_absolute_form_survives_outside_rule_passages.md`).
+      So when work under review claims to have found *every* passage/document
+      stating a rule, do not audit the list — **re-run the search**, and run it
+      as: (a) the words the passages share, not the passage names, and expect
+      **more than one phrasing family** (here *"combines two element values"* vs
+      *"the only place element values are combined"*); (b) **whitespace-
+      flattened** over every tracked `.md`/`.py`, because prose wraps and one of
+      the four was split between `place` and `where`, invisible to `grep`; (c)
+      including the file the handoff was told not to touch, which is a finding to
+      *file*, not to fix. Ten lines of Python over `git ls-files`, and it is the
+      only thing that turns "every" from a claim into a measurement.
+- [ ] **The drawing-checker snapshot taken with something other than
+      `scripts/snapshot_drawing_checker.py`.** New 2026-09-01
+      (`endstop_vision_baseline`). The attempt evidenced the read-only invariant
+      with an ad-hoc `find | stat` and reported **5382** entries; the script says
+      **5380** for the identical set (its listing omits the two root dirs). The
+      invariant held, but the committed figure did not reproduce with the repo's
+      one computing command and the artifact left behind was a `.txt` in a
+      session scratchpad, which the next reviewer cannot `diff`. Require the
+      script. And note the reviewer's cheap trick: **a prior review session's
+      `dc_after.json` is usually still on disk**, so diffing it against a fresh
+      snapshot brackets the whole tactical session *and* your own review in one
+      command — that is how this invariant was verified independently.
+- [ ] **Your own inline fix left a residue — grep for the other copies of the
+      figure you just corrected, including in the file you are not editing.**
+      New 2026-09-01 (`endstop_vision_baseline`), and it is the "guarded copy
+      fixed, unguarded copies missed" entry turned on the reviewer. That review
+      filed a finding about a snapshot count being **5382** where the tool says
+      5380, corrected the worksheet's §6 — and left the *lesson's* copy of the
+      same two figures standing; separately it corrected "six more PDFs" to
+      seven in one section and not in another. Caught only by a re-check pass.
+      **A correction is a change, so it has the same residue problem as the
+      change it corrects.** Two habits that cost nothing: after every inline
+      fix, `grep` the whole branch for the superseded literal and confirm the
+      only survivors are inside correction blockquotes; and before you write the
+      verdict, **re-derive the artifact's counts from its own row lists by
+      script** rather than by eye — for a table-heavy worksheet that also proves
+      the cross-table invariants (here: taxonomy class A had to equal the
+      mismatch∪candidate set, G the traced set, the remainder the gaps), which
+      is what makes a later disagreement between two tables impossible rather
+      than merely unobserved.
 - [ ] **A sibling handoff landed on `master` while you were reviewing.** The board
       runs handoffs in parallel, and two that are each internally correct can
       merge into a contradiction. `sop_edits_apply` and `spec_library_v0` both
@@ -1310,6 +1397,105 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       check both halves of a corrected sentence separately, not just the
       clause that names the stale fact.
 
+- [ ] **A structural count restated in prose about a graph, JSON or diagram the
+      reader is not holding.** New 2026-09-01 (`dag_topology_format`), and it is
+      the stale-inventory entry's newest surface: the first topology documents
+      shipped introducing the pitch system as "three grounded loops" when its
+      cycle rank is **4** (the hydraulic-brake path, modelled in the same file
+      and counted in the same sentence's "four branch points", is the fourth),
+      and the L1 topology as "six interfaces" when it has **7**. Everything else
+      in both sentences was right, which is what makes this class survive
+      review: five correct figures buy the sixth. **Recount every figure in an
+      inventory sentence separately** — the arithmetic per figure is one line —
+      and remember the counts are *derivable*, so the fix is a pairing rather
+      than a correction. Mechanised for topologies by
+      `tests/test_topology.py::test_the_doc_states_this_graphs_whole_shape_and_states_it_right`
+      (which also requires the inventory to be **complete**, closing the
+      deleted-number blind spot for that one sentence) and
+      `..._a_topologys_own_notes_count_the_graph_they_describe`. Know that
+      scanner's two holes before you trust its green: it only reads a sentence
+      counting **two or more** different labels (a one-label sentence is treated
+      as a subset claim — "modelled here as two parts" — because reading those
+      produced a false positive on its first run), and a count *about a subset*
+      is therefore entirely yours. The same review found one:
+      `topology_pitch_system.json`'s `hub` note said "three of this topology's
+      four branch points sit on it" and two do. All fixed inline.
+- [ ] **A "which is exactly what the source does" claim, checked row by row
+      against the source.** New 2026-09-01 (`dag_topology_format`).
+      `study_pitch_system_blade_angle_worst.json` said its transform map applied
+      the vertical sensitivity to every non-coupling edge, "which is exactly what
+      the source sheet does column by column". True of the **six** of its nine
+      edges the sheet has a linear row for; three are `assumed` placeholders,
+      and one of those three (`blade_root_clocking_to_oml`) corresponds to a row
+      the sheet states **directly in degrees and multiplies by nothing** — so
+      applying the ratio there is the study's construction, not the sheet's. An
+      equivalence claim over a set is a claim about every member; open the source
+      and walk them. Narrowed inline.
+
+- [ ] **A counterfactual stated as fact — "X is what keeps it N instead of M".**
+      New 2026-09-01 (`dag_viewer_poc`), and it is the stale-count family's
+      hardest member because **there is no source to recount against**: the
+      figure is about a world that does not exist. The rail serialiser frees a
+      column when a branch ends, and three places (the README, the lesson, and
+      the invariant test's own docstring) said reuse "keeps the pitch system
+      nine rails wide instead of twelve". Nine is right; twelve is nothing.
+      Disabling reuse outright leaves the pitch system at **nine** columns and
+      L1 at **two** — reuse never fires on either committed topology, so the
+      mechanism's whole justification was a number no one had produced. The
+      second half is worse than the first: the invariant it justifies
+      (`test_a_column_never_holds_two_rails_at_the_same_row`) was being
+      quantified over data where every column holds exactly one rail, i.e. it
+      could not tell a correct serialiser from one that never reuses. **Run the
+      counterfactual** — a counterfactual is one `monkeypatch` and one re-run —
+      and when it comes back equal, ask what else the sentence was propping up.
+      All three corrected inline and `test_reuse_is_what_this_invariant_guards`
+      added (the smallest graph that does reuse).
+- [ ] **The handoff fixed the one guarded copy of a count and missed every
+      unguarded one.** Third sighting of the "grep the repo for the other copies"
+      entry above (2026-09-01, `dag_viewer_poc`) and the direction is now
+      *reversed*, which is why it is worth its own line.
+      `test_architecture_inventory.py::test_the_projection_provenance_row_counts_and_names_its_importers`
+      derives its answer from `modules_importing("projection_provenance")`, so
+      adding the fourth writer **forced** the ARCHITECTURE.md row to "all four /
+      the three above" — the guard worked. Nine unguarded copies of the same two
+      facts did not move: ARCHITECTURE.md's own prose in three more places
+      (including line ~49, which *quotes the row's phrase* to explain what the
+      test pairs, and so quoted a string the file no longer contains),
+      `projection_provenance.py`'s docstring twice ("both scripts", "three
+      callers, not two" — the exact sentence the 2026-08-12 sighting fixed in
+      the other direction), `spec_library.py`'s rebuild comment, the viewer
+      README and `config.js`. **A guard that forces one edit is a signal that
+      N other copies just went stale**, and the residue scanner does not help:
+      `test_no_unpinned_quantifier_survives_in_the_block` walks the tree-block
+      **rows** only, so ARCHITECTURE.md's surrounding prose is outside every
+      quantifier guard the repo owns. All nine fixed inline.
+- [ ] **An `inList([...])` value-guard row that copies a Python constant nobody
+      pairs it to.** New 2026-09-01 (`dag_viewer_poc`), and it sharpens the
+      `VALUE_GUARDS` "read the rows, judge the form" item below. The topology
+      page's `TOPO_VALUE_GUARDS` had four rows pointing at `VA.*` tables that
+      `tests/test_topology_projection.py` pairs to Python, and three
+      (`nodes[].kind`, `edges[].kind`, `edges[].transform.kind`) spelling out
+      `NODE_KINDS` / `EDGE_KINDS` / `TRANSFORM_KINDS` inline instead. Those
+      three are the **documents'** vocabularies, validated by a dataclass
+      `__post_init__`, so the `inList` copy only speaks once a document in the
+      tree actually uses the new word — while the pairing would have spoken the
+      moment the constant grew. Fixed inline (three `VA.*` arrays in
+      `topology.js`, three rows added to `JS_PAIRINGS`). Ask of every `inList`
+      row: **does a named Python constant exist for this?** If yes, the copy is
+      the finding regardless of whether it agrees today.
+- [ ] **A new JS vocabulary file that did not inherit the old one's guards.**
+      Same handoff. `apps/viewer/topology.js` grew six enumerated tables and got
+      the pairing test, but not
+      `test_no_key_is_attached_to_a_status_table_from_outside_its_literal` —
+      the guard that refuses `VA.TABLE.newkey = {}` outside the literal, which
+      `viewer.js`'s six tables have had since 2026-08-12. Without it the pairing
+      test reads as equal while the page branches on a word Python cannot write,
+      because the extractor only sees the literal. Added inline, with its own
+      can-fail replay. Generalise: **when a second file joins a class the repo
+      already guards, list that class's guards and check the newcomer is in each
+      one** — the pairing is the visible guard and the mutation scan is the one
+      that gets forgotten.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
@@ -1320,19 +1506,48 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       and may not combine two element values. Check that any new layer respects
       that line, and that `Term.coefficient` is still `> 0` — direction lives in
       `sign`, and a negative coefficient would give a sign error two places to
-      hide. `workbook_corner()` is the one sanctioned reader of `lmc`/`mmc`; it
-      reproduces a source spreadsheet's coherent corner for comparison and is
-      deliberately not routed through `fold()` — but it *does* combine two
-      element values (`sleeve_od = sleeve_bore + 2 * wall`), which is exactly
-      what the "one place element values get combined" sentence above forbids.
-      `ARCHITECTURE.md` currently asserts both "never combines two element
-      values" (unqualified) and the `workbook_corner` exception, in two
-      different sections, unreconciled
-      (`ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values.md`,
-      `audience: strategy`, filed by `architecture_inventory_quantifiers`).
-      Until that issue is decided, do not "fix" either sentence unilaterally —
-      check whether the design call has landed, and if not, that the issue is
-      still open and still describes the tree accurately.
+      hide. **Since `thermal_exception_declared` (2026-09-01) the invariant is
+      stated conditionally and the exceptions are a list, not prose**: nothing
+      outside `fold()` combines two element values *except* the sites on
+      `DECLARED_COMBINING_EXCEPTIONS` (`tests/test_thermal_exception_list.py`),
+      today `workbook_corner()` alone — the one sanctioned reader of `lmc`/`mmc`,
+      which reproduces a source spreadsheet's coherent corner as a single-valued
+      point a fold cannot express. That resolved
+      `ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values.md`,
+      which sat open for a month because `ARCHITECTURE.md` asserted both the
+      unqualified "never combines" and the exception, in two sections, and
+      nothing was red. So do **not** review those three sentences by eye: the
+      walker pairs the list against the sites it finds in `thermal.py` and
+      against the passages **registered in `RULE_PASSAGES`** — ARCHITECTURE.md's
+      rule section, the module docstring, `ARCHETYPE_thermal_fit.md` — and
+      against each exception's docstring, with every extraction whitespace-
+      flattened so a reflow cannot unguard it. Watch it fail before you trust
+      it; the cheap replay is `git show 11367fc^:<a registered passage>` over the
+      live file, which reddens that passage's parametrization by `LookupError`.
+      Three things are left for you.
+      - **Whether a *newly listed* exception really is a single-valued reading**
+        rather than a second combiner someone found it easier to declare than to
+        fold, and whether its docstring makes that argument. A test can check
+        that an exception is declared, argued and consistently named; never that
+        it is right.
+      - **`RULE_PASSAGES` is a hand-kept dict of three**, so a passage outside it
+        is not merely unpaired but invisible — and four more live passages stated
+        the *absolute* form when the review searched for the rule's own words
+        rather than following the passages the handoff named
+        (`ISSUE_20260902_the_one_fold_rules_absolute_form_survives_outside_rule_passages.md`).
+        There are two phrasing families and no single phrase: the registered ones
+        say *"combines two element values"*, the others *"the only place element
+        values are combined"*. Search both, **whitespace-flattened**, over every
+        tracked `.md`/`.py` — one of the four was line-wrapped between `place`
+        and `where` and sat *inside* the section the test reads.
+      - **The walker's blind spots, which are the silent direction.** Taint is
+        per-function, so a module-level helper taking a `StackElement` and
+        returning a combination is caught inside itself, not at its call site.
+        Operator-free spellings are recognised **by call name** out of
+        `AGGREGATING_CALLS` (widened in review 2026-09-02: `operator.sub` and
+        `math.prod` were both silent misses until then; `functools.reduce` still
+        is). Probe a new spelling with `combining_sites("<3 lines of source>",
+        FIELDS_FOR_SYNTHETIC)` — it costs one call and the miss is quiet.
 - [ ] **A generated check must not be hand-writable, and must be readable.**
       A `thermal_fit` stack file's own `checks` array is empty and
       `load_thermal_fit_stack()` refuses a hand-written entry — a check in the file
@@ -1496,8 +1711,88 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       docs disagree, the repo's docs change and the divergence goes in a lesson;
       correcting the import itself means *inserting* a dated note after the
       passage, never rewriting it.
-- [ ] **`CLAUDE.md` is gitignored**, so any durable fact written there must be
-      mirrored into `README.md` or `ARCHITECTURE.md` or it dies with the session.
+- [ ] **`CLAUDE.md` is tracked** (since 2026-09-01, handoff `claude_md_tracked`;
+      it was gitignored before, and this item asked you to check that durable
+      facts had been mirrored out of it — that mirroring rule is retired). Read it
+      in the diff like any other live document. What it is: orientation and
+      pointers, and it may now hold a durable fact on its own. What it is not: a
+      second copy of `README.md` or `ARCHITECTURE.md`, and not a home for a
+      quantity that a test reads from somewhere else — a number restated here is
+      a number nothing recounts.
+
+- [ ] **A study/traversal error that escapes the module's own error base
+      class.** New 2026-09-01 (`dag_topology_format`). `topology.py` documents
+      `StudyError` and its four subclasses as what a consumer catches and renders
+      — and the viewer handoff is told exactly that — but the three id lookups a
+      study document drives (`selection`, `closes`, the `transforms` map) went
+      through `Topology.edge()`/`transform()`, which raise a bare `KeyError`
+      naming only the topology. So the **likeliest** authoring slip, a typo'd
+      edge id, was the one error arriving unhandled and without the study's name.
+      Fixed inline (`_edge_named_by`, pinned by
+      `test_a_study_naming_an_id_its_topology_lacks_raises_a_study_error`). Ask
+      it of any new module that defines an error hierarchy: **enumerate the ways
+      a document can be wrong and check each one arrives as the documented
+      class**, not just the ones the author wrote a test for.
+- [ ] **A per-row display that re-implements `fold()`'s convention.** New
+      2026-09-01 (`dag_topology_format`). `topology.Contribution.nominal/min/max`
+      restate, for one term, the rule `fold()` applies to the list — positive
+      weight takes `max` to the maximum, negative takes `min` — because a grid
+      row has to show what an edge contributed. That is legitimate (it combines
+      no two element values, so "Where computation may live" is satisfied), but
+      it is a **hand-copy of a convention with nothing pairing it**: change
+      `fold` and every row keeps rendering the old rule while the total beside it
+      moves. Pinned inline by
+      `test_a_contributions_own_numbers_sum_to_the_fold_it_lands_in`. Generalise:
+      wherever a reader-facing row is computed outside `fold()`, require an
+      assertion that the rows **sum to** the fold they are displayed with.
+- [ ] **A citation guard that walks the values and skips the weights.** New
+      2026-09-01 (`dag_topology_format`).
+      `test_every_value_in_a_topology_carries_a_source_ref` walked edges, which
+      is where a length lives — while a `Transform.ratio` multiplies every edge
+      that carries it, so an uncited ratio launders further than an uncited band
+      does. All four in the tree were correctly `untraced` with `PLACEHOLDER`
+      notes; nothing held them there. Guard added inline
+      (`test_every_declared_transform_cites_where_its_ratio_came_from`). Same
+      question for `thermal.py`'s soak factors and for whatever the next
+      archetype's weights are: **the one rule covers coefficients, not just
+      values.**
+- [ ] **Topologies and studies live in `docs/topologies/`** and are named
+      `topology_*.json` / `study_*.json`. That is load-bearing:
+      `tests/test_tolerance_stack.py` and `scripts/build_viewer_projection.py`
+      both glob `stack_*.json` under `docs/tolerance_stacks/` and would apply
+      grip-stack schema hygiene to a topology dropped in beside the stacks.
+      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, so the hardware-count
+      doc scanner already reads it — but the **traced-ratio** scanner does not
+      walk `live_documents()` at all (corrected during `review/claude_md_tracked`,
+      2026-09-01; see the entry below), so a stale ratio quoted there is *not*
+      caught, and what is caught is only the shapes the scanner that does read it
+      knows.
+
+- [ ] **A projection field derived twice, once by the module and once inline.**
+      New 2026-09-01 (`dag_viewer_poc`), the `Contribution`/`fold()` entry above
+      one level up. `topologies.json` states "this interface is a fork" in two
+      fields — `nodes[].branch` (from `Topology.branch_nodes()`) and
+      `layout.rows[].branch` (from an inline `len(topology.incident(id)) > 2` in
+      `serialize_topology`) — and the page reads a *different one* in each place
+      it says so: the grid row's marker from the layout, the preview pane's
+      BRANCH POINT chip from the node. Two rules for one claim, agreeing today.
+      Routed through `branch_nodes()` inline and pinned over every topology by
+      `test_every_fork_mark_is_one_of_the_topologys_own_branch_nodes`. Ask of
+      any projection: **which two fields state the same fact, and does one
+      compute it?**
+
+- [ ] **Two doc-scan families, two different scopes — check which one you mean.**
+      New 2026-09-01 (`claude_md_tracked`). "The doc guards read it" is not one
+      claim in this repo. `live_documents()` is an `os.walk` (hardware-entry
+      counts, enumerated-state surface lookup); the **traced-ratio** scan
+      `test_every_document_quoting_the_traced_ratio_quotes_the_current_number`
+      builds its own five-entry `live_docs` literal and therefore does **not**
+      read `README.md`, `CLAUDE.md` or `docs/DAG_TOPOLOGY.md`
+      (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Two
+      documents asserted the wrong coverage before anyone injected a figure to
+      check. So when work claims a document is now covered by a scan, **inject
+      the defect and watch the named test go red** — the hardware-count guard
+      firing is not evidence that the traced-ratio guard would.
 
 ## Writing the review
 

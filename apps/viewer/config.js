@@ -7,8 +7,9 @@
 (function (VA) {
   "use strict";
   VA.CONFIG = {
-    // Where the two projection scripts write, relative to the repo root the
-    // folder grant points at.
+    // Where the projection scripts write, relative to the repo root the folder
+    // grant points at. Three of them land here: results.json, crops.json and
+    // topologies.json, one per `rebuild` key below.
     projectionDir: ["data", "projections", "viewer"],
     stacksDir: ["docs", "tolerance_stacks"],
 
@@ -22,6 +23,10 @@
     // app never hard-codes a path in view code.
     rebuild: {
       results: "venv-win\\Scripts\\python.exe scripts\\build_viewer_projection.py",
+      // topology.html's projection — the rails, the study chains and the folds.
+      // Its own file, built by its own script, so either can be re-run alone.
+      topologies:
+        "venv-win\\Scripts\\python.exe scripts\\build_topology_projection.py",
       crops:
         "C:\\workspace\\drawing-checker\\venv-win\\Scripts\\python.exe " +
         "scripts\\build_viewer_crops.py",

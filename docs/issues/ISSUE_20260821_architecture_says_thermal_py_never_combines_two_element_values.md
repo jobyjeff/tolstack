@@ -1,12 +1,22 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: docs
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260826_thermal_never_combines_invariant.md
+resolved_by: docs/sessions/completed/HANDOFF_20260901_thermal_exception_declared.md
 ---
+
+> **RESOLVED 2026-09-01** by handoff `thermal_exception_declared` — option 1:
+> the rule now states its exception, and `DECLARED_COMBINING_EXCEPTIONS` in
+> `tests/test_thermal_exception_list.py` walks `thermal.py` for arithmetic over
+> two element values, failing on any site not on the list and pairing the list
+> against each of the passages it registers. (Four further passages still
+> asserted the absolute in prose the pairing does not read; corrected during
+> `review/thermal_exception_declared`, and the scan gap is
+> `ISSUE_20260902_the_one_fold_rules_absolute_form_survives_outside_rule_passages.md`.)
 
 # `ARCHITECTURE.md` says `thermal.py` "never combines two element values"; `workbook_corner` does
 

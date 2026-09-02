@@ -1,0 +1,734 @@
+{
+  "schema": "joby.tolerance_stack/topology/v0",
+  "id": "pitch_system",
+  "title": "Propeller pitch system -- blade-pitch position topology (L2: branches + the linear-rotary coupling)",
+  "units": "mm",
+  "provenance": {
+    "authored_by": "handoff dag_topology_format, 2026-08-31",
+    "structure_source": "dispatch/docs/strategy/HANDOFF_20260831_tolstack_dag_strategy.md (locked brief), locked decision 1, level L2 -- Jeff's own description of the mechanism: 'VP actuator -> pitch plate connection; branch 1 -> gas spring (or hydraulic brake per design concept); branch 2 -> pitch plate -> pitch links -> pitch arms -> blade roots; from blade roots a further branch -> ring gear (cyclic-only)'. The graph below is that sentence, grounded back to the hub so the parallel paths are actually parallel. Cite the brief for the structure; it is Jeff's description of his own mechanism, not a reading of a drawing.",
+    "values_source": "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md, the structured read of data/inbox/tolerance_stacks/260825_End_Stop_JC.xlsx (handoff endstop_graft_workorder, 2026-08-25). Every band that has a source is a `workbook` citation to a cell of that sheet, `untraced` -- which is the whole sheet's status: that worksheet's count is 0 traced, 0 inferred, 43 untraced of 43 element instances, and this document closes none of those gaps.",
+    "values_are_placeholders": "THE TOPOLOGY IS THE DELIVERABLE; THE VALUES ARE NOT. Bands with no workbook row carry `kind: \"assumed\"` and say so in their note. Even the sourced ones are one author's provisional workbook, two of which (rows 26 and 57) carry the author's own comment that the number needs correcting. Nothing here is fit to size a part.",
+    "variation_only": "EVERY dimension in this document has `nominal: 0.0`. These are not lengths -- they are tolerance bands about an unstated nominal, because that is what the source sheet holds: a column of total tolerance widths, not dimensions (its own row 72 comment: 'note this is total range (divide by 2 for +/-)'). So min/max are -w/2 and +w/2 for a stated total width w, and a study's `nominal` total is 0 by construction while its worst-case and RSS bands are the real result. Mixing a nominal-carrying dimension into this topology would make the nominal column read as a position sum when it is not one; if real nominal lengths arrive, they arrive for ALL of these edges at once, or in a separate topology.",
+    "geometry_not_in_the_bands": "Nominal geometry that IS known -- pitch arm radius 50 mm, blade root radius 32 mm, pitch link length 109.4 mm at a 77 deg link angle, gas-spring bushing separation 34.7 mm -- is carried in `properties` on the edge or transform it belongs to, never in a `dimension`. It is context for a transform, not a term in a variation sum."
+  },
+  "transforms": [
+    {
+      "id": "pitch_arm_linear_to_rotary",
+      "kind": "linear_to_rotary",
+      "ratio": 1.67,
+      "units_in": "mm",
+      "units_out": "deg",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32,
+        "blade_pitch_condition": "-5 deg (worst case) column",
+        "how_the_source_obtained_it": "a constant typed into the source sheet, described there as CAD-sourced; NOT derived from the radii above, which are recorded here because they are the coupling's geometry and because the tangential transform below is derived from them"
+      },
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260825_End_Stop_JC.xlsx",
+        "sheet": "End Stop Tol Stack",
+        "cell": "D10",
+        "confidence": "untraced",
+        "note": "PLACEHOLDER RATIO, and doubly so. (1) The cell is an unsourced CAD-derived constant in a workbook that traces nothing. (2) Its own comment reads 'full sweep average' while it sits in the column headed 'pitch -5deg (worst)', and row 9's comment says 'at 40deg pitch' -- three different operating conditions named around one number. WORKSHEET_end_stop_graft.md flags this as F1 and says to ask Jeff before trusting the D column's precise value at -5 deg. Do not quote this ratio as a result."
+      },
+      "note": "THE one non-trivial transform this level of the model requires: vertical displacement of the pitch plate converted into blade pitch angle at the pitch arm. Applied by a study to every vertical contributor upstream of the pitch arm, which is exactly what the source sheet's D column does."
+    },
+    {
+      "id": "pitch_arm_linear_to_rotary_average",
+      "kind": "linear_to_rotary",
+      "ratio": 1.25,
+      "units_in": "mm",
+      "units_out": "deg",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32,
+        "blade_pitch_condition": "'full sweep average' column"
+      },
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260825_End_Stop_JC.xlsx",
+        "sheet": "End Stop Tol Stack",
+        "cell": "F10",
+        "confidence": "untraced",
+        "note": "PLACEHOLDER RATIO. The source sheet's second sensitivity column, described as the full-sweep-average motion ratio and explicitly not a literal average over angle (WORKSHEET_end_stop_graft.md section 1)."
+      },
+      "note": "The same coupling at the other operating condition. Its reason for existing in the schema is structural: one topology, two transform sets, selected per study -- which is why a study carries a `transforms` map at all."
+    },
+    {
+      "id": "blade_root_tangential_to_rotary",
+      "kind": "linear_to_rotary",
+      "ratio": 2.609375,
+      "units_in": "mm",
+      "units_out": "deg",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32,
+        "lever_ratio": "50 / 32 = 1.5625",
+        "derived_from": "pitch_arm_linear_to_rotary",
+        "blade_pitch_condition": "-5 deg (worst case) column"
+      },
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260825_End_Stop_JC.xlsx",
+        "sheet": "End Stop Tol Stack",
+        "cell": "D11",
+        "confidence": "untraced",
+        "note": "PLACEHOLDER RATIO, inheriting every caveat on D10 because it is D10 x B11. B11 = 50/32 with the sheet's own comment 'uses ratio of pitch arm to blade root radius'; that lever ratio IS the linear-rotary coupling's geometry at the pitch arm, taken at the blade-root radius instead of the pitch-plate one."
+      },
+      "note": "The same pitch-arm coupling, for a contributor that acts tangentially at the blade root rather than vertically at the pitch plate. This is the default transform of edge `pitch_arm_link_hole_to_clocking_hole`, because the source sheet applies exactly this column to that row (its section 2b, Blade Root Tangential Components)."
+    },
+    {
+      "id": "blade_root_tangential_to_rotary_average",
+      "kind": "linear_to_rotary",
+      "ratio": 1.953125,
+      "units_in": "mm",
+      "units_out": "deg",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32,
+        "lever_ratio": "50 / 32 = 1.5625",
+        "derived_from": "pitch_arm_linear_to_rotary_average",
+        "blade_pitch_condition": "'full sweep average' column"
+      },
+      "source_ref": {
+        "kind": "workbook",
+        "document": "260825_End_Stop_JC.xlsx",
+        "sheet": "End Stop Tol Stack",
+        "cell": "F11",
+        "confidence": "untraced",
+        "note": "PLACEHOLDER RATIO. F10 x B11, the average-condition twin of D11."
+      }
+    }
+  ],
+  "parts": [
+    {
+      "id": "hub",
+      "name": "propeller hub -- the ground every load path returns to",
+      "note": "Part identity not established here. It carries the A datum (lower bearing flange), the top bearing flange, the top deck, the blade root seats and the ring-gear seat, which is why two of this topology's four branch points sit on it (the other two are the pitch plate connection and the blade-root clocking interface)."
+    },
+    {
+      "id": "vpa_208510_007",
+      "name": "VARIABLE PITCH ACTUATOR ASSEMBLY 208510-007 (body)",
+      "drawing": "208510-007",
+      "note": "Balloon 1 in 217755 sheet 5 DETAIL X, per the source_ref on `spherical_bearing` in docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json. Modelled as the actuator body: the part the piston travels in and that carries the end-stop feature."
+    },
+    {
+      "id": "vpa_piston",
+      "name": "VPA piston / output rod end",
+      "note": "Part identity not established -- internal to the actuator assembly. Split from the body as its own part because the source sheet tolerances the piston length (row 38) and the piston-end-to-stop-feature distance (row 39) separately, and those two cannot be dimensions of one part if the stop feature is on the body."
+    },
+    {
+      "id": "pitch_plate_215177_001",
+      "name": "PITCH PLATE 215177-001",
+      "drawing": "215177-001",
+      "note": "Named in the source_ref on `pitch_flange_thickness` in docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json, which records that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than this part at that joint. Carried forward as an open question, not resolved here."
+    },
+    {
+      "id": "pitch_link",
+      "name": "pitch link",
+      "note": "Part identity not established. Nominal length 109.4 mm at a 77 deg link angle per the source sheet's K3/K2; carried in `properties` on its edge, not as a dimension."
+    },
+    {
+      "id": "pitch_arm",
+      "name": "pitch arm",
+      "note": "Part identity not established. Radius 50 mm per the source sheet's B7 -- the numerator of the linear-rotary coupling's lever ratio."
+    },
+    {
+      "id": "blade_root",
+      "name": "blade root",
+      "note": "Part identity not established. Clocking-fastener radius 32 mm per the source sheet's B8 -- the denominator of the coupling's lever ratio."
+    },
+    {
+      "id": "ring_gear",
+      "name": "ring gear",
+      "note": "Part identity not established. The cyclic-only branch: per the brief, the ring gear follows along for pure collective and only participates cyclically."
+    },
+    {
+      "id": "gas_spring",
+      "name": "gas spring",
+      "note": "Part identity not established. Bushing vertical separation 34.7 mm and pitch-link radius from the gas-spring axis 83.1 mm per the source sheet's B66/B67; both carried in `properties`."
+    },
+    {
+      "id": "gas_spring_mount_213668_002",
+      "name": "MOUNT, GAS SPRING, PROPELLER 213668-002",
+      "drawing": "213668-002",
+      "revision": "A.1",
+      "note": "The one part in this topology with a confirmed drawing: WORKSHEET_end_stop_graft.md's currency check names 213668-002 A.1 and records that drawing-checker has extractions of it, whose schema holds title block / revision block / notes / parts list but no individual linear dimensions -- so the drawing exists and its dimensions are still couldn't-check."
+    },
+    {
+      "id": "tan_link_mount_215175_002",
+      "name": "TANGENTIAL LINK MOUNT 215175-002",
+      "drawing": "215175-002",
+      "note": "Named in the source_ref on `pitch_flange_thickness` in the VPA-output stack (balloon 72 in DETAIL X). In this topology it is the structure between the hub top deck and the gas-spring mount, per the source sheet's rows 42/45/57."
+    },
+    {
+      "id": "hydraulic_brake",
+      "name": "hydraulic brake (design-concept alternative to the gas spring)",
+      "note": "NO part identity and NO values: the brief names it as an alternative to the gas spring 'per design concept'. It is in the graph so that branch 1 shows as a genuine choice between two designs rather than a single path, and every band on it is `assumed`."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "hub_lower_bearing_flange",
+      "name": "hub lower bearing flange -- the A datum",
+      "parts": ["hub"],
+      "kind": "datum_feature",
+      "note": "Named 'hub lower bearing flange (a-datum)' by the source sheet's row 43. The origin every study in this topology measures from."
+    },
+    {
+      "id": "hub_top_bearing_flange",
+      "name": "hub top bearing flange",
+      "parts": ["hub"],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "hub_top_deck",
+      "name": "hub top deck",
+      "parts": ["hub"],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "hub_vpa_mount",
+      "name": "actuator body mounted to the hub",
+      "parts": ["hub", "vpa_208510_007"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "vpa_end_stop_feature",
+      "name": "end-stop feature on the actuator body",
+      "parts": ["vpa_208510_007"],
+      "kind": "datum_feature",
+      "note": "THE END STOP. The source sheet's row 39 tolerances the distance from the piston end to this feature, and WORKSHEET_end_stop_graft.md calls that 'the row whose name most directly names the end stop itself'."
+    },
+    {
+      "id": "piston_end_stop_face",
+      "name": "piston travel-limiting end face",
+      "parts": ["vpa_piston"],
+      "kind": "datum_feature"
+    },
+    {
+      "id": "piston_rod_end_bore",
+      "name": "piston rod end into the pitch plate -- the pitch plate connection",
+      "parts": ["vpa_piston", "pitch_plate_215177_001"],
+      "kind": "mating_surface",
+      "note": "The brief's 'pitch plate connection', and the branch point where the load path divides. It is also the joint that docs/topologies/topology_vpa_output_to_pitch_plate.json models axially in millimetres -- one interface, two topologies, at two different levels of the same system. Joining them is a later handoff's decision, not assumed here."
+    },
+    {
+      "id": "pitch_plate_link_hole",
+      "name": "pitch plate to pitch link hole",
+      "parts": ["pitch_plate_215177_001", "pitch_link"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "pitch_link_arm_hole",
+      "name": "pitch link to pitch arm hole",
+      "parts": ["pitch_link", "pitch_arm"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "pitch_arm_blade_root_clocking",
+      "name": "pitch arm clocked to the blade root",
+      "parts": ["pitch_arm", "blade_root"],
+      "kind": "mating_surface",
+      "note": "The second branch point, and the one the brief names: from the blade roots a further branch runs to the ring gear (cyclic-only), while the blade's own OML and the blade-root-to-hub seat carry on."
+    },
+    {
+      "id": "blade_root_oml",
+      "name": "blade outer mould line -- the quantity the rollup constrains",
+      "parts": ["blade_root"],
+      "kind": "datum_feature",
+      "note": "The angular-position output. The source sheet's headline result is 'total blade OML angular position tol'."
+    },
+    {
+      "id": "blade_root_hub_seat",
+      "name": "blade root seated in the hub",
+      "parts": ["blade_root", "hub"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "blade_root_ring_gear_mesh",
+      "name": "blade root to ring gear",
+      "parts": ["blade_root", "ring_gear"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "ring_gear_hub_seat",
+      "name": "ring gear seated in the hub",
+      "parts": ["ring_gear", "hub"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "pitch_plate_gas_spring_bushing",
+      "name": "gas-spring bushing in the pitch plate",
+      "parts": ["pitch_plate_215177_001", "gas_spring"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "gas_spring_mount_flange",
+      "name": "gas-spring body mounting flange",
+      "parts": ["gas_spring", "gas_spring_mount_213668_002"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "tan_link_mount_gas_spring_seat",
+      "name": "gas-spring mount seated on the tangential link mount",
+      "parts": ["gas_spring_mount_213668_002", "tan_link_mount_215175_002"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "hub_tan_link_mount_seat",
+      "name": "tangential link mount seated on the hub top deck",
+      "parts": ["tan_link_mount_215175_002", "hub"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "pitch_plate_brake_attachment",
+      "name": "hydraulic brake attached to the pitch plate",
+      "parts": ["pitch_plate_215177_001", "hydraulic_brake"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "brake_hub_mount",
+      "name": "hydraulic brake mounted to the hub",
+      "parts": ["hydraulic_brake", "hub"],
+      "kind": "mating_surface"
+    }
+  ],
+  "edges": [
+    {
+      "id": "hub_lower_to_top_bearing_flange",
+      "name": "hub lower bearing flange (A datum) to top bearing flange",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_lower_bearing_flange",
+      "to": "hub_top_bearing_flange",
+      "dimension": {
+        "id": "hub_lower_to_top_bearing_flange",
+        "name": "hub lower bearing flange to top bearing flange",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B43", "confidence": "untraced",
+          "note": "0.20 mm total tolerance width, read as +/-0.10 about an unstated nominal (see provenance.variation_only)."
+        }
+      }
+    },
+    {
+      "id": "hub_top_flange_to_top_deck",
+      "name": "hub top bearing flange to hub top deck",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_top_bearing_flange",
+      "to": "hub_top_deck",
+      "dimension": {
+        "id": "hub_top_flange_to_top_deck",
+        "name": "hub top bearing flange to hub top deck",
+        "nominal": 0.0, "min": -0.05, "max": 0.05, "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B44", "confidence": "untraced",
+          "note": "0.10 mm total tolerance width."
+        }
+      }
+    },
+    {
+      "id": "hub_top_deck_to_tan_link_mount_seat",
+      "name": "hub top deck to tangential link mount seat",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_top_deck",
+      "to": "hub_tan_link_mount_seat",
+      "dimension": {
+        "id": "hub_top_deck_to_tan_link_mount_seat",
+        "name": "hub top deck to tan link mount",
+        "nominal": 0.0, "min": -0.05, "max": 0.05, "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B45", "confidence": "untraced",
+          "note": "0.10 mm total tolerance width."
+        }
+      }
+    },
+    {
+      "id": "hub_top_deck_to_vpa_mount",
+      "name": "hub top deck to actuator mounting face",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_top_deck",
+      "to": "hub_vpa_mount",
+      "dimension": {
+        "id": "hub_top_deck_to_vpa_mount",
+        "name": "hub top deck to actuator mounting face",
+        "nominal": 0.0, "min": -0.05, "max": 0.05, "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "assumed", "confidence": "untraced",
+          "note": "PLACEHOLDER. The source sheet has no row for the hub-to-actuator mounting face; 0.10 mm total width is the value it uses for the hub's other deck-to-feature dimensions (rows 44, 45), carried across as a stand-in so the actuator branch is not left valueless. The structure is the deliverable; this number is not."
+        }
+      }
+    },
+    {
+      "id": "hub_blade_root_seat_position",
+      "name": "hub A datum to blade root seat position",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_lower_bearing_flange",
+      "to": "blade_root_hub_seat",
+      "dimension": {
+        "id": "hub_blade_root_seat_position",
+        "name": "blade root seats in hub position tol",
+        "nominal": 0.0, "min": -0.06, "max": 0.06, "plus_minus": 0.06,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B17", "confidence": "untraced",
+          "note": "0.12 mm total tolerance width, comment 'diameter MMC'. NOTE what is dropped: the source sheet multiplies this row by a diameter-MMC weighting factor B16/(B16-B15) built from the two blade-root bearing radii, which is a per-term weight this topology does not carry (the transform on a study is the only weight v0 has). A study over this edge therefore does NOT reproduce the sheet's D17. Recorded as an open modelling question, not as an equivalence."
+        }
+      }
+    },
+    {
+      "id": "hub_ring_gear_seat_position",
+      "name": "hub A datum to ring gear seat position",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_lower_bearing_flange",
+      "to": "ring_gear_hub_seat",
+      "dimension": {
+        "id": "hub_ring_gear_seat_position",
+        "name": "ring gear seat position in the hub",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "assumed", "confidence": "untraced",
+          "note": "PLACEHOLDER, and the source says so itself: row 64's comment reads 'blade roots =0.12, ring gear needs positional tolerace [sic]' and row 57's reads 'does not exist yet. Must roll up ring gear seat and tan link mount position'. So this tolerance is not merely untraced, it does not exist as a design intent yet. 0.20 mm is a stand-in."
+        }
+      }
+    },
+    {
+      "id": "vpa_mount_to_end_stop_feature",
+      "name": "actuator mounting face to the end-stop feature",
+      "kind": "structural",
+      "part": "vpa_208510_007",
+      "from": "hub_vpa_mount",
+      "to": "vpa_end_stop_feature",
+      "dimension": {
+        "id": "vpa_mount_to_end_stop_feature",
+        "name": "actuator mounting face to end-stop feature",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "assumed", "confidence": "untraced",
+          "note": "PLACEHOLDER. The source sheet tolerances the piston end to the end-stop feature (row 39) but nothing from the actuator's mounting face to that feature. 0.20 mm total width matches the sheet's other body-height rows (38, 41, 42). The structure -- that the end stop is located on the body relative to where the body mounts -- is the point of this edge."
+        }
+      }
+    },
+    {
+      "id": "end_stop_clearance",
+      "name": "piston end to end-stop feature -- the end stop",
+      "kind": "gap",
+      "from": "vpa_end_stop_feature",
+      "to": "piston_end_stop_face",
+      "properties": {
+        "why_a_gap": "two features on two different parts with a distance between them -- the only such pair in this topology, and the one the whole source workbook exists to bound"
+      },
+      "dimension": {
+        "id": "end_stop_clearance",
+        "name": "piston end to end stop feature",
+        "nominal": 0.0, "min": -0.05, "max": 0.05, "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B39", "confidence": "untraced",
+          "note": "0.10 mm total tolerance width; the sheet's own comment on the row is 'tol +/-0.05'."
+        }
+      },
+      "note": "A gap edge that DOES carry a value, unlike `shank_out` in the VPA-output topology: this clearance is toleranced, not derived. The two together are the pair worth knowing -- a gap is a distance across a clearance, and whether it is a term or an answer depends only on whether anyone has toleranced it."
+    },
+    {
+      "id": "piston_length",
+      "name": "piston length",
+      "kind": "structural",
+      "part": "vpa_piston",
+      "from": "piston_end_stop_face",
+      "to": "piston_rod_end_bore",
+      "dimension": {
+        "id": "piston_length",
+        "name": "piston length tolerance",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B38", "confidence": "untraced",
+          "note": "0.20 mm total tolerance width; the sheet's comment reads '2 decimals => +/-0.1', i.e. the band is a drawing-convention default, not a stated callout."
+        }
+      }
+    },
+    {
+      "id": "pitch_plate_flange_to_link_hole",
+      "name": "pitch plate piston flange (A datum) to pitch link hole position",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "piston_rod_end_bore",
+      "to": "pitch_plate_link_hole",
+      "dimension": {
+        "id": "pitch_plate_flange_to_link_hole",
+        "name": "pitch plate piston flange (A-datum) to pitch link hole position",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B37", "confidence": "untraced",
+          "note": "0.20 mm total tolerance width."
+        }
+      }
+    },
+    {
+      "id": "pitch_plate_flange_to_gas_spring_bushing",
+      "name": "pitch plate piston flange to gas-spring bushing position",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "piston_rod_end_bore",
+      "to": "pitch_plate_gas_spring_bushing",
+      "dimension": {
+        "id": "pitch_plate_flange_to_gas_spring_bushing",
+        "name": "gas spring bushing position",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B62", "confidence": "untraced",
+          "note": "0.20 mm total tolerance width. The sheet places this row in its TANGENTIAL section, so a blade-angle study of this branch needs the tangential sensitivity (its D12 column), NOT the vertical one -- see this topology's notes for why that transform is deliberately not declared here."
+        }
+      }
+    },
+    {
+      "id": "pitch_plate_flange_to_brake_attachment",
+      "name": "pitch plate piston flange to hydraulic brake attachment",
+      "kind": "structural",
+      "part": "pitch_plate_215177_001",
+      "from": "piston_rod_end_bore",
+      "to": "pitch_plate_brake_attachment",
+      "dimension": {
+        "id": "pitch_plate_flange_to_brake_attachment",
+        "name": "hydraulic brake attachment position on the pitch plate",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "assumed", "confidence": "untraced",
+          "note": "PLACEHOLDER. The hydraulic brake is a design-concept alternative to the gas spring per the brief; no source in this repo tolerances anything about it. 0.20 mm total width mirrors the gas-spring bushing position it would replace."
+        }
+      }
+    },
+    {
+      "id": "pitch_link_length",
+      "name": "pitch link length",
+      "kind": "structural",
+      "part": "pitch_link",
+      "from": "pitch_plate_link_hole",
+      "to": "pitch_link_arm_hole",
+      "properties": {
+        "nominal_length_mm": 109.4,
+        "link_angle_deg": 77,
+        "deferred_effect": "pitch-link swing-angle change -- named by the brief as a deferred kinematic effect, assumed negligible now. The source sheet linearises it once at the nominal 77 deg (its K1:N12 finite-difference block) and never re-evaluates at another pitch condition."
+      },
+      "dimension": {
+        "id": "pitch_link_length",
+        "name": "pitch link length tolerance",
+        "nominal": 0.0, "min": -0.03, "max": 0.03, "plus_minus": 0.03,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B31", "confidence": "untraced",
+          "note": "0.06 mm total tolerance width. The 109.4 mm nominal length is in this edge's `properties`, not in the band -- see provenance.variation_only."
+        }
+      }
+    },
+    {
+      "id": "pitch_arm_link_hole_to_clocking_hole",
+      "name": "pitch arm link hole to blade-root clocking holes",
+      "kind": "structural",
+      "part": "pitch_arm",
+      "from": "pitch_link_arm_hole",
+      "to": "pitch_arm_blade_root_clocking",
+      "transform": "blade_root_tangential_to_rotary",
+      "properties": {
+        "pitch_arm_radius_mm": 50,
+        "blade_root_radius_mm": 32
+      },
+      "dimension": {
+        "id": "pitch_arm_link_hole_to_clocking_hole",
+        "name": "pitch arm fastener-to-fastener tolerance position",
+        "nominal": 0.0, "min": -0.015, "max": 0.015, "plus_minus": 0.015,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B26", "confidence": "untraced",
+          "note": "0.03 mm total tolerance width. The row's OWN comment says the value needs correcting -- 'need to correct -- based on undersized hole for match drilling' -- and it never was; WORKSHEET_end_stop_graft.md flags it as F2. Untraced and known-provisional."
+        }
+      },
+      "note": "THE COUPLING EDGE. This is the only edge in the repo that declares a non-identity transform as its default, and it does so because the linear-rotary conversion here is the geometry of the pitch arm itself, not a choice of output quantity: a displacement across this edge IS an angle at the blade. Everything upstream is millimetres and needs a study to say which sensitivity applies; this edge does not. The consequence to know: a millimetre study that crosses this edge raises UnitMismatch, which is correct -- past the pitch arm the quantity has changed."
+    },
+    {
+      "id": "blade_root_clocking_to_oml",
+      "name": "blade-root clocking holes to the blade outer mould line",
+      "kind": "structural",
+      "part": "blade_root",
+      "from": "pitch_arm_blade_root_clocking",
+      "to": "blade_root_oml",
+      "dimension": {
+        "id": "blade_root_clocking_to_oml",
+        "name": "blade root to OML",
+        "nominal": 0.0, "min": -0.05, "max": 0.05, "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "assumed", "confidence": "untraced",
+          "note": "PLACEHOLDER, and a different kind from the others: the source sheet's row 22 has NO linear precursor at all -- it states 0.181 deg directly, with the author's own comment 'Probably closer to .03deg', i.e. a bare estimate he already doubted by a factor of six. A linear band cannot be recovered from that without inverting a placeholder ratio, so 0.10 mm total width is a stand-in chosen to be visible rather than to be right. This is the single value in this document most in need of Jeff."
+        }
+      }
+    },
+    {
+      "id": "blade_root_clocking_to_hub_seat",
+      "name": "blade-root clocking holes to the hub bearing seat",
+      "kind": "structural",
+      "part": "blade_root",
+      "from": "pitch_arm_blade_root_clocking",
+      "to": "blade_root_hub_seat",
+      "dimension": {
+        "id": "blade_root_clocking_to_hub_seat",
+        "name": "blade root ID bearing race surface profile (AB)",
+        "nominal": 0.0, "min": -0.025, "max": 0.025, "plus_minus": 0.025,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B19", "confidence": "untraced",
+          "note": "0.05 mm total tolerance width, comment 'essentially behaves as diameter position'. Same dropped diameter-MMC weighting factor as `hub_blade_root_seat_position` -- see that edge's note."
+        }
+      }
+    },
+    {
+      "id": "blade_root_clocking_to_ring_gear_mesh",
+      "name": "blade-root clocking holes to the ring gear",
+      "kind": "structural",
+      "part": "blade_root",
+      "from": "pitch_arm_blade_root_clocking",
+      "to": "blade_root_ring_gear_mesh",
+      "dimension": {
+        "id": "blade_root_clocking_to_ring_gear_mesh",
+        "name": "blade root to hub tolerance (blade root to ring gear)",
+        "nominal": 0.0, "min": -0.06, "max": 0.06, "plus_minus": 0.06,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B64", "confidence": "untraced",
+          "note": "0.12 mm total tolerance width, comment 'blade roots =0.12, ring gear needs positional tolerace [sic]' -- so the blade-root half is a number and the ring-gear half is an admission."
+        }
+      },
+      "note": "The cyclic-only branch the brief names: for pure collective the ring gear follows along and this path carries nothing. That is a LOAD CASE, and v0 has nowhere to say so -- see this topology's notes."
+    },
+    {
+      "id": "ring_gear_mesh_to_hub_seat",
+      "name": "ring gear pitch line to its hub seat",
+      "kind": "structural",
+      "part": "ring_gear",
+      "from": "blade_root_ring_gear_mesh",
+      "to": "ring_gear_hub_seat",
+      "dimension": {
+        "id": "ring_gear_mesh_to_hub_seat",
+        "name": "ring gear pitch line to hub seat",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "assumed", "confidence": "untraced",
+          "note": "PLACEHOLDER. Row 57's comment is the direct statement that this does not exist: 'does not exist yet. Must roll up ring gear seat and tan link mount position'. 0.20 mm is the value that row nonetheless carries into every downstream sum of the source sheet."
+        }
+      }
+    },
+    {
+      "id": "gas_spring_body_height",
+      "name": "gas-spring bushing to its mounting flange",
+      "kind": "structural",
+      "part": "gas_spring",
+      "from": "pitch_plate_gas_spring_bushing",
+      "to": "gas_spring_mount_flange",
+      "properties": {
+        "bushing_vertical_separation_mm": 34.7,
+        "pitch_link_radius_from_gas_spring_axis_mm": 83.1,
+        "unmodelled_contributor": "gas-spring bushing tipping backlash. The source sheet's row 68 derives it from the bushing clearance and the two lengths above and it is that sheet's LARGEST single angular contributor (0.72 deg), yet it is excluded from the sheet's own headline total -- WORKSHEET_end_stop_graft.md flags this as F3. It is a RADIAL clearance producing an angular tip, not an axial distance, so no edge of this chain carries it. Open modelling question, named rather than approximated."
+      },
+      "dimension": {
+        "id": "gas_spring_body_height",
+        "name": "lower gas spring body height (top to mounting flange)",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B41", "confidence": "untraced",
+          "note": "0.20 mm total tolerance width."
+        }
+      }
+    },
+    {
+      "id": "gas_spring_mount_position",
+      "name": "gas-spring mount flange to its seat on the tangential link mount",
+      "kind": "structural",
+      "part": "gas_spring_mount_213668_002",
+      "from": "gas_spring_mount_flange",
+      "to": "tan_link_mount_gas_spring_seat",
+      "dimension": {
+        "id": "gas_spring_mount_position",
+        "name": "gas spring mount position (tan link mount feature)",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B61", "confidence": "untraced",
+          "note": "0.20 mm total tolerance width. WORKSHEET_end_stop_graft.md's currency check tried to source the gas-spring mount's dimensions from drawing-checker's 213668-002 A.1 extractions and came back couldn't-check: that schema holds title block, revisions, notes and parts list, not individual linear dimensions."
+        }
+      }
+    },
+    {
+      "id": "tan_link_mount_height",
+      "name": "tangential link mount height",
+      "kind": "structural",
+      "part": "tan_link_mount_215175_002",
+      "from": "tan_link_mount_gas_spring_seat",
+      "to": "hub_tan_link_mount_seat",
+      "dimension": {
+        "id": "tan_link_mount_height",
+        "name": "tangential link mount height",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
+          "sheet": "End Stop Tol Stack", "cell": "B42", "confidence": "untraced",
+          "note": "0.20 mm total tolerance width."
+        }
+      }
+    },
+    {
+      "id": "hydraulic_brake_body_height",
+      "name": "hydraulic brake attachment to its hub mount",
+      "kind": "structural",
+      "part": "hydraulic_brake",
+      "from": "pitch_plate_brake_attachment",
+      "to": "brake_hub_mount",
+      "dimension": {
+        "id": "hydraulic_brake_body_height",
+        "name": "hydraulic brake body height",
+        "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
+        "source_ref": {
+          "kind": "assumed", "confidence": "untraced",
+          "note": "PLACEHOLDER. Nothing in this repo describes the hydraulic brake dimensionally. 0.20 mm total width mirrors the gas-spring body height it would replace."
+        }
+      }
+    },
+    {
+      "id": "hub_top_deck_to_brake_mount",
+      "name": "hub top deck to hydraulic brake mounting face",
+      "kind": "structural",
+      "part": "hub",
+      "from": "hub_top_deck",
+      "to": "brake_hub_mount",
+      "dimension": {
+        "id": "hub_top_deck_to_brake_mount",
+        "name": "hub top deck to brake mounting face",
+        "nominal": 0.0, "min": -0.05, "max": 0.05, "plus_minus": 0.05,
+        "source_ref": {
+          "kind": "assumed", "confidence": "untraced",
+          "note": "PLACEHOLDER. Mirrors `hub_top_deck_to_tan_link_mount_seat`, the gas-spring branch's equivalent, so the two design concepts ground to the hub through comparable structure."
+        }
+      }
+    }
+  ],
+  "notes": [
+    "This is the L2 deliverable: the pitch system's STRUCTURE, with 4 branch points, 4 grounded loops (pitch links, gas spring, ring gear, and the hydraulic-brake alternative to the gas spring), 1 gap edge, and the one linear-rotary coupling the brief requires. It is not an analysis and none of its numbers should be quoted. Two thirds of the bands are workbook cells from a sheet that traces nothing; the rest are marked `assumed`.",
+    "The three loops are the whole reason the not-a-solver rule is written down. hub -> actuator -> pitch plate -> pitch links -> pitch arm -> blade root -> hub, hub -> ... -> pitch plate -> gas spring -> gas-spring mount -> tangential link mount -> hub, and blade root -> ring gear -> hub are three statically redundant paths from the same source to the same ground. Which one carries the load is a mechanics question. A study picks one; nothing in the code will pick for you, and `Topology.branch_nodes()` exists to show a study author where the choices are (here: the hub A datum, the hub top deck, the pitch plate connection, and the pitch-arm/blade-root clocking).",
+    "TRANSFORM COVERAGE, deliberately incomplete. The source sheet has THREE sensitivity columns and this document declares two of the three coupling pairs: the vertical one (its D10/F10) and the blade-root tangential one (D11/F11). Its third -- the pitch-plate tangential sensitivity (D12/F12 = D10 x K12) -- is NOT declared, because K12 is a finite-difference linearisation of the pitch link's own geometry evaluated once at the nominal 77 deg link angle, and copying the resulting constant here would present a derivation as a datum. The gas-spring and tangential rows therefore have no honest blade-angle sensitivity in this document, and `study_gas_spring_branch_to_hub` is a millimetre study for that reason. Adding the third pair means either recording the linearisation as a transform `properties` payload with a reader for it, or getting the sensitivity from Jeff.",
+    "LOAD CASES have no home in v0, and the ring-gear branch is where that bites: per the brief it participates cyclically and follows along for pure collective, so a collective study should exclude it and a cyclic study should not. Today that distinction lives in which edges a human puts in `selection`, which works and is unlabelled. If it needs a name, a study-level `configuration` block (the stack schema already has one on checks) is the cheap shape.",
+    "WHAT THIS TOPOLOGY CANNOT REPRODUCE, stated so nobody assumes it can. The source sheet applies a diameter-MMC weighting factor built from the two blade-root bearing radii to three of its rows (17, 19, 20), and derives its largest single contributor (row 68, gas-spring bushing tipping backlash, 0.72 deg) from a radial clearance and two lever arms. Neither is expressible with one ratio per edge. That is a schema finding, not an oversight: it says the next transform kind is a weight computed from `properties`, and it says the brief's 'the pitch-system L2 case should be able to represent that workbook's structure' is true of the structure and not yet true of the arithmetic.",
+    "The full 43-row import of that workbook is deliberately NOT done. The brief calls it 'a sanity check of the schema, not a required import', and it has served as one: the four findings above all came out of trying. What is here is the brief's named structure carrying a representative band per edge."
+  ]
+}

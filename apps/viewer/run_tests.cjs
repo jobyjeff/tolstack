@@ -50,7 +50,13 @@ function makeDocument() {
     set: function (v) { this._className = v || ""; },
   });
   Node.prototype.appendChild = function (c) { this.childNodes.push(c); c.parentNode = this; return c; };
-  Node.prototype.setAttribute = function (k, v) { this.attributes[k] = v; };
+  // `class` is set through setAttribute on SVG nodes (className is read-only
+  // there), so the shim has to keep the two in step or querySelectorAll(".x")
+  // would see an HTML row and miss the rail mark beside it.
+  Node.prototype.setAttribute = function (k, v) {
+    this.attributes[k] = v;
+    if (k === "class") this._className = String(v);
+  };
   Node.prototype.getAttribute = function (k) {
     return Object.prototype.hasOwnProperty.call(this.attributes, k) ? this.attributes[k] : null;
   };
@@ -98,6 +104,11 @@ function makeDocument() {
 
   return {
     createElement: function (tag) { return new Node(tag); },
+    // The shim has no namespaces; an SVG node is a Node with a tag like any
+    // other. What it DOES have to reproduce is the method existing, because
+    // VA.svg falls back to createElement when it does not — and that fallback
+    // is the browser-only bug the fast tier must not paper over.
+    createElementNS: function (_ns, tag) { return new Node(tag); },
     createTextNode: function (t) { var n = new Node(); n.nodeType = 3; n._text = String(t); return n; },
   };
 }
@@ -140,7 +151,9 @@ vm.createContext(sandbox);
 const files = [
   "config.js",
   "viewer.js",
+  "topology.js",
   "fixtures.js",
+  "topology_fixtures.js",
   "vendor/markdown.js",
   "storage/adapter.js",
   "storage/memory.js",
@@ -152,6 +165,7 @@ const files = [
   "views/crop.js",
   "views/worksheet.js",
   "views/detail.js",
+  "views/topology.js",
   "tests.js",
 ];
 for (const f of files) {
