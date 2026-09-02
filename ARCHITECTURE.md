@@ -61,7 +61,7 @@ here that nothing checks is the defect, not the value it happens to have.
 | `StackElement` | one ordered element: `nominal`/`min`/`max` lengths, `lmc`/`mmc` as transcribed, `hardware_ref`, `source_ref` |
 | `Term` | an element, a sign (`+1`/`-1`), and a positive `coefficient` (default `1.0`), all validated |
 | `Interval` | a fold result: nominal, worst-case min/max, RSS center/half |
-| `fold(terms)` | **the only place element values are combined** |
+| `fold(terms)` | **the only place element values are combined**, outside the exceptions declared in "Where computation may live" |
 | `CheckResult` | a check outcome + the `verdict` property |
 | `StackDefinition` | elements + paths + checks; `path()`, `check()`, `all_checks()` |
 | `load_stack(path)` | read + schema-check a stack-definition JSON |
@@ -140,8 +140,9 @@ not be built.
 
 **No new arithmetic.** A traversal produces a direction and a transform, and
 those are `Term.sign` and `Term.coefficient` — the two fields the thermal
-archetype already established. So `fold()` remains the only place element values
-are combined, and this archetype *narrows* the surface for a sign error rather
+archetype already established. So this archetype adds no place where element
+values are combined — it declares no exception of its own, and `fold()` remains
+the only one it uses — and it *narrows* the surface for a sign error rather
 than widening it: no sign is authored in any topology or study document, they are
 read off the graph. `Dimension` is fed to `Term` by duck typing, which
 `tests/test_topology.py` makes safe by reading `fold`'s own source for every
@@ -200,7 +201,9 @@ same holds for coefficients, which multiply through.
 ### Where computation may live — and the coefficient
 
 The rule that matters is not "no new code does arithmetic". It is **one place
-where element values get combined**. A second combiner is what makes a sign error
+where element values get combined**, plus a short list of exceptions that is
+declared rather than described — the list, and why there is one at all, are at
+the end of this section. A second combiner is what makes a sign error
 undetectable; a per-term *weight* does not, because it is visible in the JSON next
 to the sign it scales.
 
@@ -243,8 +246,11 @@ over two element-derived values and reddens on any site not on it — and pairs
 the list against every passage that states the rule (this section, `thermal.py`'s
 module docstring, `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`) and against
 each exception's own docstring, so the rule, the list and the code cannot drift
-apart one at a time. That is the line,
-and it is the one to hold if a fourth archetype wants its own layer.
+apart one at a time. The pairing reads the passages registered in
+`RULE_PASSAGES` and nothing else, so a document that states this rule belongs in
+that dict rather than in prose of its own — an unregistered passage is
+unguarded, which is how the absolute survived here for a month. That is the
+line, and it is the one to hold if a fourth archetype wants its own layer.
 
 ### Material condition is not an extreme
 

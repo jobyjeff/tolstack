@@ -32,9 +32,15 @@ test carries the full write-up):
    itself finds **zero** sites there), and a call carrying a tainted argument, so
    `abs(a.min) - float(b.max)` cannot launder it.
 3. **Find**: arithmetic where *both* operands are tainted. Plus `AugAssign`
-   (`total += e.nominal` is the loop spelling of a fold) and
-   `sum`/`fsum`/`min`/`max` over two tainted arguments or a tainted collection
+   (`total += e.nominal` is the loop spelling of a fold) and any name in
+   `AGGREGATING_CALLS` over two tainted arguments or a tainted collection
    (a fold spelled without an operator). Nothing else needed a special case.
+   *(Widened in review, 2026-09-02: the list held `sum`/`fsum`/`min`/`max`, and
+   the first two shapes probed past its edge — `operator.sub(a.min, b.min)` and
+   `math.prod([a.min, b.min])` — were silent misses. Recognition is by call
+   name, so `functools.reduce` is the shape still not seen, and it is now
+   written into the module docstring's ignore-list rather than left to a
+   reader's inference.)*
 
 On today's tree that reports **six sites, all in `workbook_corner`**, which is
 the honest count: `sleeve_od - k * (sleeve_od - hub_bore)` is two nested sites,
@@ -81,6 +87,29 @@ the anchor phrase in exactly one paragraph and name exactly the declared
 exceptions there. **A new document that states the rule belongs in that dict** —
 that is the whole point of the exception being a list.
 
+> **Corrected in review (2026-09-02): five was still an undercount, and the
+> search is the lesson.** These five were found by following the passages the
+> handoff named. Searching instead for the rule's *own words*, over every
+> tracked `.md` and `.py` with whitespace flattened —
+> `(only|one) place (where )?element values` — finds **four more live passages
+> stating the absolute**, none of them in `RULE_PASSAGES`:
+> `ARCHITECTURE.md`'s `fold(terms)` inventory row; its topology-archetype
+> section (*"`fold()` remains the only place element values are combined"*); the
+> rule section's **own opening sentence**, four paragraphs above the exception it
+> now states; and `docs/DAG_TOPOLOGY.md`'s *"the same and only place element
+> values are combined **anywhere in this repo**"* (2026-08-31, the most clearly
+> false form). A fifth, `fold()`'s own docstring in `stack.py`, is out of this
+> handoff's scope and was left as filed. The first four were corrected in
+> review; nothing pairs any of them, which is
+> `ISSUE_20260902_the_one_fold_rules_absolute_form_survives_outside_rule_passages.md`.
+> Two durable parts. **The enumeration is only as good as the search that
+> produced it** — the cheap search is the words the passages share, not the
+> passages the handoff happened to name. And **flatten whitespace to search,
+> for the same reason this session already learned to flatten it to match**: the
+> rule section's own opening is line-wrapped between `place` and `where`, so a
+> plain `grep` for the phrase misses the one copy sitting inside the section the
+> new test reads.
+
 The **inventory row was left untouched** and is guarded differently: it has
 pointed at "Where computation may live" since `architecture_inventory_quantifiers`
 rather than restating the rule, so the test asserts it still *defers*. Adding
@@ -115,7 +144,10 @@ or demo on a copy.
 - The board: the handoff sits at `docs/sessions/` root on this branch (dispatch
   moved it to `active/` in the main checkout, which is not on this branch). Left
   as-is deliberately — the board move belongs to whoever merges/reviews.
-- Nothing else outstanding; suite green at 570 passed, 1 skipped.
+- Nothing else outstanding; suite green at 570 passed, 1 skipped **in a
+  worktree** (the count is checkout-specific here — one test skips where `data/`
+  is empty; the review re-ran it in the main checkout, see
+  `docs/sessions/reviews/REVIEW_20260902_thermal_exception_declared.md`).
 - One unrelated flake seen once in ~5 full runs:
   `test_dc_snapshot.py::test_a_removed_entry_is_reported_as_removed`, which
   needs a directory mtime to advance between two snapshots taken in the same

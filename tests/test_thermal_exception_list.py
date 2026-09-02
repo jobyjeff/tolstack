@@ -43,9 +43,9 @@ A taint walk, per function (nested and method bodies included), in three parts:
   *weight on one element value* and is what ``thermal.py`` is for;
   ``sleeve_bore + 2 * wall`` is two element values combined and needs to be on
   the list. ``AugAssign`` counts (``total += e.nominal`` is the loop spelling of
-  the same thing), and so does an aggregating call -- ``sum``/``fsum``/
-  ``min``/``max`` -- over two tainted arguments or a tainted collection, which is
-  how a fold could be spelled without a single ``BinOp``.
+  the same thing), and so does an aggregating call -- every name in
+  :data:`AGGREGATING_CALLS` -- over two tainted arguments or a tainted
+  collection, which is how a fold could be spelled without a single ``BinOp``.
 
 What it deliberately ignores
 ----------------------------
@@ -65,6 +65,18 @@ What it deliberately ignores
   arrives.
 * **Comparisons.** ``a.min > b.max`` is a decision, not a value, and the rule is
   about where element values get *combined*.
+* **A combining call this module has never heard of.** The operator-free
+  spellings are recognised by *name*, out of :data:`AGGREGATING_CALLS`, so a
+  combination routed through something not on that list is a silent miss --
+  ``functools.reduce(op, [a.min, b.min])`` is the one shape left after the
+  review of 2026-09-02 widened the list. That direction is the dangerous one
+  (quiet), so widen the list rather than reasoning about likelihood.
+
+A note on the other direction, which is loud rather than quiet: the seeds are
+attribute **names**, so ``interval.min + interval.max`` over two fold results is
+reported as a site even though no ``StackElement`` is in sight. That is a false
+positive by construction and it is the tolerable one -- it arrives as a red test
+naming the line, not as silence.
 """
 
 from __future__ import annotations
@@ -100,8 +112,16 @@ EXCEPTION_ANCHOR = "declared exception list"
 DECLARED_COMBINING_EXCEPTIONS = ("workbook_corner",)
 
 #: Calls that combine several values into one without writing an operator. A
-#: fold spelled ``sum(...)`` is still a fold.
-AGGREGATING_CALLS = ("sum", "fsum", "min", "max")
+#: fold spelled ``sum(...)`` is still a fold, and so is one spelled
+#: ``operator.sub(...)`` or ``math.prod(...)`` -- matched by the call's own name,
+#: so both the bare and the ``module.name`` forms are seen. Widened during
+#: ``review/thermal_exception_declared`` (2026-09-02), where the first three
+#: shapes probed past the list's own edge (``operator.sub``, ``math.prod``) were
+#: all silent misses.
+AGGREGATING_CALLS = (
+    "sum", "fsum", "min", "max", "prod",
+    "add", "sub", "mul", "truediv", "floordiv", "pow",
+)
 
 #: Binary operators that produce a combined value. Comparisons and boolean
 #: operators are excluded on purpose -- see the module docstring.
@@ -306,9 +326,15 @@ def test_the_element_value_fields_are_read_off_the_class_and_are_real(fields):
         f"carried at least the three lengths plus lmc/mmc since founding, so the "
         f"reader has drifted from the class's shape"
     )
+    # Every extracted field that IS a constructor field is filled from the
+    # extracted set rather than a hand-written kwargs list: an optional value
+    # field added to the class tomorrow would otherwise default to None here and
+    # redden this test with a message blaming the reader, which is how a guard
+    # gets deleted for a defect it does not have.
+    filled = {name: 1.0 for name in fields
+              if name in StackElement.__dataclass_fields__}
     element = StackElement(id="e", name="an element", role="washer",
-                           nominal=1.0, min=0.9, max=1.1, lmc=1.2, mmc=0.8,
-                           plus_minus=0.1)
+                           **{"nominal": 1.0, "min": 1.0, "max": 1.0, **filled})
     for field in sorted(fields):
         assert isinstance(getattr(element, field), float), (
             f"StackElement.{field} was extracted as a value field and does not "
@@ -621,6 +647,15 @@ def test_the_walker_can_fail():
     assert _owners(
         "def f(a, b):\n    return sum([a.min, b.min])\n") == ["f"]
     assert _owners("def f(a, b):\n    return min(a.max, b.max)\n") == ["f"]
+
+    # ...including the ones that spell the operator as a function. Added in
+    # review 2026-09-02: both of these were silent misses.
+    assert _owners(
+        "import operator\ndef f(a, b):\n    return operator.sub(a.min, b.min)\n"
+    ) == ["f"]
+    assert _owners(
+        "import math\ndef f(a, b):\n    return math.prod([a.min, b.min])\n"
+    ) == ["f"]
 
     # Laundering through a wrapper does not help.
     assert _owners("def f(a, b):\n    return abs(a.min) - float(b.max)\n") == ["f"]

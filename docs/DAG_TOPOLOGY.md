@@ -87,9 +87,11 @@ millimetres to degrees is the least the code can do about it.
 
 ## One `fold()`
 
-A study's total goes through `tolerance_stack.stack.fold`, the same and only
-place element values are combined anywhere in this repo (ARCHITECTURE.md, "Why
-one `fold()`"). The traversal produces exactly two things and both map onto
+A study's total goes through `tolerance_stack.stack.fold`, the same fold every
+other archetype's totals go through — and, outside the exceptions ARCHITECTURE.md
+declares in "Where computation may live", the only place element values are
+combined (ARCHITECTURE.md, "Why one `fold()`"; this archetype adds no exception
+of its own). The traversal produces exactly two things and both map onto
 `Term`'s existing fields:
 
 | the traversal produces | it becomes | why that is not a second combiner |

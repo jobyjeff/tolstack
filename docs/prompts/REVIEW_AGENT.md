@@ -852,6 +852,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       *"absent from the pipeline"* or *"not resolvable"*, `ls` the inbox yourself
       and diff it against the author's opened-documents list. A negative claim
       over a corpus is a claim about the whole corpus.
+      **Second sighting (`thermal_exception_declared`, 2026-09-02), and the
+      corpus is the repo's own prose**, which has no `ls`. The handoff named
+      three passages stating the one-fold rule; the author found two more by
+      **following the pointers in the ones it named** and wrote *"there were
+      five"* into the lesson and *"every passage that states the rule"* into
+      ARCHITECTURE.md, this checklist and the new test's docstring. Searching for
+      the rule's **own words** instead finds four more, all asserting the
+      absolute the change existed to retire — including one *inside the section
+      the new test reads*
+      (`ISSUE_20260902_the_one_fold_rules_absolute_form_survives_outside_rule_passages.md`).
+      So when work under review claims to have found *every* passage/document
+      stating a rule, do not audit the list — **re-run the search**, and run it
+      as: (a) the words the passages share, not the passage names, and expect
+      **more than one phrasing family** (here *"combines two element values"* vs
+      *"the only place element values are combined"*); (b) **whitespace-
+      flattened** over every tracked `.md`/`.py`, because prose wraps and one of
+      the four was split between `place` and `where`, invisible to `grep`; (c)
+      including the file the handoff was told not to touch, which is a finding to
+      *file*, not to fix. Ten lines of Python over `git ls-files`, and it is the
+      only thing that turns "every" from a claim into a measurement.
 - [ ] **The drawing-checker snapshot taken with something other than
       `scripts/snapshot_drawing_checker.py`.** New 2026-09-01
       (`endstop_vision_baseline`). The attempt evidenced the read-only invariant
@@ -1496,16 +1516,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values.md`,
       which sat open for a month because `ARCHITECTURE.md` asserted both the
       unqualified "never combines" and the exception, in two sections, and
-      nothing was red. So do **not** review either sentence by eye: the walker
-      pairs the list against the sites it finds in `thermal.py` and against
-      every passage that states the rule (ARCHITECTURE.md's section, the module
-      docstring, `ARCHETYPE_thermal_fit.md`). What is left for you is the part a
-      test cannot judge — whether a *newly listed* exception really is a
-      single-valued reading rather than a second combiner someone found it
-      easier to declare than to fold, and whether its docstring makes that
-      argument. Also know the walker's blind spot: taint is per-function, so a
-      module-level helper taking a `StackElement` and returning a combination is
-      caught inside itself, not at its call site.
+      nothing was red. So do **not** review those three sentences by eye: the
+      walker pairs the list against the sites it finds in `thermal.py` and
+      against the passages **registered in `RULE_PASSAGES`** — ARCHITECTURE.md's
+      rule section, the module docstring, `ARCHETYPE_thermal_fit.md` — and
+      against each exception's docstring, with every extraction whitespace-
+      flattened so a reflow cannot unguard it. Watch it fail before you trust
+      it; the cheap replay is `git show 11367fc^:<a registered passage>` over the
+      live file, which reddens that passage's parametrization by `LookupError`.
+      Three things are left for you.
+      - **Whether a *newly listed* exception really is a single-valued reading**
+        rather than a second combiner someone found it easier to declare than to
+        fold, and whether its docstring makes that argument. A test can check
+        that an exception is declared, argued and consistently named; never that
+        it is right.
+      - **`RULE_PASSAGES` is a hand-kept dict of three**, so a passage outside it
+        is not merely unpaired but invisible — and four more live passages stated
+        the *absolute* form when the review searched for the rule's own words
+        rather than following the passages the handoff named
+        (`ISSUE_20260902_the_one_fold_rules_absolute_form_survives_outside_rule_passages.md`).
+        There are two phrasing families and no single phrase: the registered ones
+        say *"combines two element values"*, the others *"the only place element
+        values are combined"*. Search both, **whitespace-flattened**, over every
+        tracked `.md`/`.py` — one of the four was line-wrapped between `place`
+        and `where` and sat *inside* the section the test reads.
+      - **The walker's blind spots, which are the silent direction.** Taint is
+        per-function, so a module-level helper taking a `StackElement` and
+        returning a combination is caught inside itself, not at its call site.
+        Operator-free spellings are recognised **by call name** out of
+        `AGGREGATING_CALLS` (widened in review 2026-09-02: `operator.sub` and
+        `math.prod` were both silent misses until then; `functools.reduce` still
+        is). Probe a new spelling with `combining_sites("<3 lines of source>",
+        FIELDS_FOR_SYNTHETIC)` — it costs one call and the miss is quiet.
 - [ ] **A generated check must not be hand-writable, and must be readable.**
       A `thermal_fit` stack file's own `checks` array is empty and
       `load_thermal_fit_stack()` refuses a hand-written entry — a check in the file
