@@ -243,8 +243,9 @@ function here that reads `lmc`/`mmc`.
 The list is not prose. It is `DECLARED_COMBINING_EXCEPTIONS` in
 `tests/test_thermal_exception_list.py`, which walks `thermal.py` for arithmetic
 over two element-derived values and reddens on any site not on it — and pairs
-the list against every passage that states the rule (this section, `thermal.py`'s
-module docstring, `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`) and against
+the list against the passages registered in `RULE_PASSAGES` (this section,
+`thermal.py`'s module docstring, `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`)
+and against
 each exception's own docstring, so the rule, the list and the code cannot drift
 apart one at a time. The pairing reads the passages registered in
 `RULE_PASSAGES` and nothing else, so a document that states this rule belongs in

@@ -31,6 +31,14 @@ see:
 | `docs/DAG_TOPOLOGY.md`, "One `fold()`" | *"the same and only place element values are combined **anywhere in this repo**"* | corrected in review |
 | `tolerance_stack/stack.py`, `fold()`'s docstring | *"**The only place element values are combined.**"* | **left as-is** — the handoff's scope said do not touch `stack.py`/`fold()`, and a reviewer should not either |
 
+Two more instances were found and deliberately left: `PROVENANCE.md`'s
+`stack.py` row repeats *"`fold()` is still the only place element values are
+combined"* in three of its dated amendments (one of them the 2026-08-05
+amendment that shipped `workbook_corner`, so it was false as written) — but that
+file is dated history and exempt from every doc scan here by convention, and
+rewriting an amendment is not a thing this repo does. Any scan built for this
+issue must exempt it explicitly rather than by accident.
+
 This is the resolved issue's own shape
 (`ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values`)
 one ring out: a document asserting both the absolute and the exception, with

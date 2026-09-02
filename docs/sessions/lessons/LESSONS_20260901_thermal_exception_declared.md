@@ -1,9 +1,9 @@
 # LESSONS 2026-09-01 — thermal_exception_declared
 
-Handoff: `docs/sessions/HANDOFF_20260901_thermal_exception_declared.md` (from
+Handoff: `docs/sessions/completed/HANDOFF_20260901_thermal_exception_declared.md` (from
 `BRIEF_20260826_thermal_never_combines_invariant`, option 1). Delivered: the rule
 in `ARCHITECTURE.md` now states its exception, `tests/test_thermal_exception_list.py`
-walks `thermal.py` and pairs the list against every passage, and
+walks `thermal.py` and pairs the list against the passages it registers, and
 `ISSUE_20260821_...never_combines_two_element_values` is `status: resolved`.
 
 ## The AST shape: taint, not pattern-matching
@@ -46,7 +46,7 @@ On today's tree that reports **six sites, all in `workbook_corner`**, which is
 the honest count: `sleeve_od - k * (sleeve_od - hub_bore)` is two nested sites,
 not one, and the message lists each with its line and unparsed source.
 
-### Deliberately ignored — and one real blind spot
+### Deliberately ignored — and the blind spots
 
 - Comparisons (`a.min > b.max`) — a decision, not a combined value.
 - Element values read without arithmetic (`expanded_terms_table`'s dict).
@@ -57,6 +57,10 @@ not one, and the message lists each with its line and unparsed source.
   not at its call site — fine today (no such helper), and the direction to
   extend if one arrives. It is written into `REVIEW_AGENT.md` so a reviewer
   knows what the guard does not cover.
+- **Second blind spot, found in review:** operator-free combining is recognised
+  by *call name*, so anything outside `AGGREGATING_CALLS` is a silent miss.
+  `functools.reduce` is the one that remains. Both blind spots are now on the
+  reviewer's checklist with the one-call probe that finds a third.
 
 ## Prose invariants must be read whitespace-flattened
 
