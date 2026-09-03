@@ -11,8 +11,9 @@ so that a *diametral thermal fit* could use this same one fold: a diameter is
 twice a wall, an isothermal soak scales a diameter by ``1 + dT * alpha``, and a
 stiffness ratio splits an interference across two members. Those are weights on
 term entries, not a second way to combine element values -- so the fold stayed
-the only place, and every previously authored stack folds to the same numbers
-because the default weight is the ``+-1`` it always was.
+the one place, outside the exceptions ARCHITECTURE.md declares in "Where
+computation may live", and every previously authored stack folds to the same
+numbers because the default weight is the ``+-1`` it always was.
 
 Material condition vs. min/max
 ------------------------------
@@ -432,7 +433,9 @@ class Term:
       ``k`` enters as ``k`` and ``1 - k`` weights.
 
     All three would otherwise need a second place where element values get
-    combined. They do not get one: see ARCHITECTURE.md, "Why one ``fold()``".
+    combined. They do not get one: see ARCHITECTURE.md, "Why one ``fold()``" for
+    the argument and "Where computation may live" for the rule's declared
+    exceptions.
     """
 
     element: StackElement
@@ -495,10 +498,11 @@ class Interval:
 def fold(terms: Iterable[Term]) -> Interval:
     """Worst-case and RSS fold of a signed, optionally weighted term list.
 
-    **The only place element values are combined.** Worst case is the arithmetic
-    extreme: a term entering with a positive weight contributes its ``max`` to
-    the maximum and its ``min`` to the minimum; with a negative weight the roles
-    swap. RSS combines half-ranges in quadrature about the midpoint sum -- the
+    **The one place element values are combined**, outside the exceptions
+    ARCHITECTURE.md declares in "Where computation may live". Worst case is the
+    arithmetic extreme: a term entering with a positive weight contributes its
+    ``max`` to the maximum and its ``min`` to the minimum; with a negative weight
+    the roles swap. RSS combines half-ranges in quadrature about the midpoint sum -- the
     *sign* does not matter to the half-range, only to the center, but the
     *coefficient* magnitude does, because scaling a variate scales its spread.
 

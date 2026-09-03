@@ -872,6 +872,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       including the file the handoff was told not to touch, which is a finding to
       *file*, not to fix. Ten lines of Python over `git ls-files`, and it is the
       only thing that turns "every" from a claim into a measurement.
+      **For this particular rule the ten lines are now a test**
+      (`rule_statements()` in `tests/test_thermal_exception_list.py`, 2026-09-03),
+      so the reviewer's job moved up a level: not "did they find every passage"
+      but *is the scan's corpus, pattern and qualifier set still the right ones* —
+      a derivation that quietly stops matching is the same silence one level up.
 - [ ] **The drawing-checker snapshot taken with something other than
       `scripts/snapshot_drawing_checker.py`.** New 2026-09-01
       (`endstop_vision_baseline`). The attempt evidenced the read-only invariant
@@ -1761,12 +1766,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tests/test_tolerance_stack.py` and `scripts/build_viewer_projection.py`
       both glob `stack_*.json` under `docs/tolerance_stacks/` and would apply
       grip-stack schema hygiene to a topology dropped in beside the stacks.
-      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, so the hardware-count
-      doc scanner already reads it — but the **traced-ratio** scanner does not
-      walk `live_documents()` at all (corrected during `review/claude_md_tracked`,
-      2026-09-01; see the entry below), so a stale ratio quoted there is *not*
-      caught, and what is caught is only the shapes the scanner that does read it
-      knows.
+      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, and since 2026-09-03
+      (`doc_coverage_sets_derived`) the traced-ratio scanner's stale half walks
+      `live_documents()` too, so a retired ratio asserted there is caught now.
+      This clause read *"the **traced-ratio** scanner does not walk
+      `live_documents()` at all … so a stale ratio quoted there is not caught"*
+      until then — correct when it was written on 2026-09-01, and the defect
+      `ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md` filed. What
+      is still scanner-specific is the *shapes* each one knows, not the corpus.
 
 - [ ] **A projection field derived twice, once by the module and once inline.**
       New 2026-09-01 (`dag_viewer_poc`), the `Contribution`/`fold()` entry above
@@ -1782,17 +1789,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       compute it?**
 
 - [ ] **Two doc-scan families, two different scopes — check which one you mean.**
-      New 2026-09-01 (`claude_md_tracked`). "The doc guards read it" is not one
-      claim in this repo. `live_documents()` is an `os.walk` (hardware-entry
-      counts, enumerated-state surface lookup); the **traced-ratio** scan
-      `test_every_document_quoting_the_traced_ratio_quotes_the_current_number`
-      builds its own five-entry `live_docs` literal and therefore does **not**
-      read `README.md`, `CLAUDE.md` or `docs/DAG_TOPOLOGY.md`
+      New 2026-09-01 (`claude_md_tracked`), **resolved 2026-09-03**
+      (`doc_coverage_sets_derived`) and kept here for the check it teaches. "The
+      doc guards read it" was not one claim in this repo: `live_documents()` was
+      an `os.walk` (hardware-entry counts, enumerated-state surface lookup) while
+      the traced-ratio scan built its own five-entry `live_docs` literal and
+      therefore did **not** read `README.md`, `CLAUDE.md` or
+      `docs/DAG_TOPOLOGY.md`
       (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Two
       documents asserted the wrong coverage before anyone injected a figure to
-      check. So when work claims a document is now covered by a scan, **inject
-      the defect and watch the named test go red** — the hardware-count guard
-      firing is not evidence that the traced-ratio guard would.
+      check. The corpus is now one walk for every scan; what is still **not**
+      shared is the traced-ratio guard's *other* half, which reads the curated
+      `traced_ratio_publishers()` because it is a presence check and the evidence
+      it needs is absent from exactly the file it must catch (the argument is
+      written above that function). So when work claims a document is now covered
+      by a scan, **inject the defect and watch the named test go red** — the
+      hardware-count guard firing is not evidence that the traced-ratio guard
+      would, and "it walks `live_documents()`" is not evidence that the half you
+      care about does.
 
 ## Writing the review
 

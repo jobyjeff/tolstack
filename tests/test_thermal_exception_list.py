@@ -17,10 +17,15 @@ second arithmetic path this repo exists to refuse.
 
 An exception written only in prose is an exception that grows. So the rule is now
 conditional -- *except the sites on the declared exception list* -- and the list
-is :data:`DECLARED_COMBINING_EXCEPTIONS` below, with four things paired against
-it: the sites the walker actually finds in ``thermal.py``, the wording of
-``ARCHITECTURE.md``'s rule section, ``thermal.py``'s own module docstring, and
-each exception's docstring. None of them can move alone.
+is :data:`DECLARED_COMBINING_EXCEPTIONS` below, with three things paired against
+it: the sites the walker actually finds in ``thermal.py``, each exception's own
+docstring, and every passage in the repo that **states** the rule. None of them
+can move alone.
+
+That third pairing walked a hand-kept dict of three passages until 2026-09-03
+(``doc_coverage_sets_derived``), which is the same defect one ring out: four more
+live passages asserted the rule's *absolute* form and were invisible rather than
+unpaired. It is a search now -- see section 6.
 
 How "combines two element values" is detected
 ---------------------------------------------
@@ -94,7 +99,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 THERMAL = REPO_ROOT / "tolerance_stack" / "thermal.py"
 STACK = REPO_ROOT / "tolerance_stack" / "stack.py"
 ARCHITECTURE = REPO_ROOT / "ARCHITECTURE.md"
-ARCHETYPE = REPO_ROOT / "docs" / "tolerance_stacks" / "ARCHETYPE_thermal_fit.md"
 
 #: The rule's own section, and the phrase all four passages are anchored on. The
 #: anchor is deliberately a phrase and not a heading: it has to appear in the
@@ -447,26 +451,6 @@ def rule_section() -> str:
     return body
 
 
-def anchor_paragraph(section: str) -> str:
-    """The paragraph stating the rule and its exceptions, whitespace flattened.
-
-    Flattened because the anchor phrase is prose and prose gets rewrapped: an
-    invariant that goes unguarded the moment someone reflows a paragraph is
-    worse than no invariant, because it reads as guarded.
-    """
-    paragraphs = [re.sub(r"\s+", " ", p).strip()
-                  for p in re.split(r"\n\s*\n", section)]
-    paragraphs = [p for p in paragraphs if EXCEPTION_ANCHOR in p]
-    if len(paragraphs) != 1:
-        raise LookupError(
-            f"expected exactly one paragraph containing {EXCEPTION_ANCHOR!r} in "
-            f"the rule section, found {len(paragraphs)}. The rule's exceptions "
-            f"must be stated in one place, or a reader gets whichever one they "
-            f"land on."
-        )
-    return paragraphs[0]
-
-
 def thermal_function_names() -> frozenset[str]:
     """Every top-level function ``thermal.py`` defines, read off the tree."""
     tree = ast.parse(THERMAL.read_text(encoding="utf-8"), filename=str(THERMAL))
@@ -474,65 +458,374 @@ def thermal_function_names() -> frozenset[str]:
                      if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)))
 
 
-def thermal_module_docstring() -> str:
-    """``thermal.py``'s module docstring -- the first passage a reader of the
-    module meets, and the one that stated the same absolute unnoticed."""
-    doc = ast.get_docstring(ast.parse(THERMAL.read_text(encoding="utf-8")))
-    if not doc:
-        raise LookupError(f"{THERMAL.name} has no module docstring")
-    return doc
+# --------------------------------------------------------------------------- #
+# 6. the passages that state the rule -- FOUND, not listed                     #
+# --------------------------------------------------------------------------- #
+#
+# ``RULE_PASSAGES`` used to be a hand-kept dict of three entries here, and it had
+# the defect the whole module exists against, one ring out: a passage that was
+# not in it was not merely unpaired, it was **invisible**. Four more live
+# passages stated the rule's *absolute* form with nothing red -- one of them
+# inside the very section the pairing test reads, four paragraphs above the
+# anchor it selects on
+# (``ISSUE_20260902_the_one_fold_rules_absolute_form_survives_outside_rule_passages``).
+# The absolute is exactly what a reader writes when they have not read the
+# exception, so an unlisted passage was the highest-value thing to catch and the
+# thing a list cannot catch.
+#
+# So the passages are now **derived**: search the corpus for the rule's own
+# words. Three things that search has to get right, each of which cost a
+# previous session:
+#
+# * **Two phrasing families, no single phrase.** The registered passages said
+#   *"combines two element values"*; the four unregistered ones said *"the only
+#   place element values are combined"*. A pattern keyed on either alone finds
+#   only its own family, so :data:`RULE_STATEMENT` matches ``combin*`` on either
+#   side of ``element values``.
+# * **Line wrapping.** One of the four was split between ``place`` and ``where``
+#   and invisible to ``grep``. Every unit below is whitespace-flattened first --
+#   the same lesson the anchor pairing already encoded.
+# * **The negative direction is what needs guarding.** The pairing test asks
+#   "does this passage name the right exceptions?"; the defect is "this passage
+#   never mentions exceptions at all", which reads as a *stronger* claim.
+#
+# False positives are cheap here and silence is not -- the same trade the
+# hardware-count and traced-ratio scanners in ``tests/test_tolerance_stack.py``
+# make -- so the pattern is deliberately wider than the rule.
+
+#: The rule's own words, both phrasing families, over whitespace-flattened text.
+RULE_STATEMENT = re.compile(
+    r"combin\w*[^.\n]{0,40}?element[- ]values"
+    r"|element[- ]values[^.\n]{0,40}?combin\w*", re.I)
+
+#: What makes a statement of the rule *conditional* rather than absolute. Either
+#: the passage acknowledges that exceptions exist -- any inflection of the word,
+#: which covers "except the sites on the declared exception list", "plus a short
+#: list of exceptions", "it declares no exception of its own" and
+#: ``DECLARED_COMBINING_EXCEPTIONS`` itself -- or it defers by name to the
+#: section that states them. Deferring is as good as stating: the module
+#: inventory row has never restated the invariant and that is *why* it has never
+#: been wrong.
+RULE_QUALIFIERS = ("exception", SECTION_HEADING_PREFIX.lstrip("# "))
+
+#: The documents and modules whose prose is believed to state the rule, paired
+#: against what the scan actually finds. A passage deleted rather than corrected
+#: would otherwise take its coverage with it and leave the scan green.
+RULE_PASSAGE_SOURCES = (
+    "ARCHITECTURE.md",
+    "docs/DAG_TOPOLOGY.md",
+    "docs/tolerance_stacks/ARCHETYPE_thermal_fit.md",
+    "tolerance_stack/stack.py",
+    "tolerance_stack/thermal.py",
+    "tolerance_stack/topology.py",
+)
+
+#: Floor for the scan: 15 unquoted passages on 2026-09-03, which is also today's
+#: count. A floor rather than an exact count for the reason
+#: ``assert_coverage_set`` gives -- the corpus is meant to grow without an edit
+#: here -- and set *at* the count deliberately, so the asymmetry is the useful
+#: one: a new passage stating the rule costs nobody a test fix, and a passage
+#: deleted rather than corrected reddens.
+RULE_STATEMENT_FLOOR = 15
+
+#: Passages carrying :data:`EXCEPTION_ANCHOR` and therefore claiming to state the
+#: list itself. Exactly these get paired against
+#: :data:`DECLARED_COMBINING_EXCEPTIONS`, so the count is asserted exactly: a
+#: passage deleted is a pairing silently lost.
+ANCHOR_PASSAGE_COUNT = 3
 
 
-def archetype_document() -> str:
-    """The archetype's own document, which states the rule for its readers."""
-    text = ARCHETYPE.read_text(encoding="utf-8")
-    if EXCEPTION_ANCHOR not in re.sub(r"\s+", " ", text):
-        raise LookupError(
-            f"{ARCHETYPE.name} does not mention the {EXCEPTION_ANCHOR!r} at all. "
-            f"It carried the absolute form of this rule (*\"computes weights and "
-            f"never combines element values\"*) until 2026-09-01; if the passage "
-            f"was deleted rather than corrected, drop it from RULE_PASSAGES."
-        )
-    return text
+@dataclass(frozen=True)
+class Passage:
+    """One flattened block of prose that states the rule, and where it lives."""
+
+    location: str
+    text: str
+    quoted: bool
+
+    @property
+    def conditional(self) -> bool:
+        return any(q.lower() in self.text.lower() for q in RULE_QUALIFIERS)
 
 
-#: **Every live passage that states the rule**, and how to read it. Each must
-#: carry :data:`EXCEPTION_ANCHOR` in exactly one paragraph and name exactly the
-#: declared exceptions there. The rule lived in four passages and contradicted
-#: itself in three of them for a month
-#: (``ISSUE_20260821_architecture_says_thermal_py_never_combines_two_element_values``
-#: found one); the whole point of a list is that there is one list, so a new
-#: passage stating the rule belongs here rather than in prose on its own.
-RULE_PASSAGES = {
-    'ARCHITECTURE.md "Where computation may live"': rule_section,
-    "tolerance_stack/thermal.py module docstring": thermal_module_docstring,
-    "docs/tolerance_stacks/ARCHETYPE_thermal_fit.md": archetype_document,
-}
+def _flattened_units(path: Path) -> list[tuple[int, str, bool]]:
+    """``(first line, flattened text, is a blockquote)`` for each block in a file.
 
-
-@pytest.mark.parametrize("label", sorted(RULE_PASSAGES))
-def test_every_passage_stating_the_rule_names_exactly_the_declared_exceptions(label):
-    """Each passage a reader can land on, paired with the list a test reads.
-
-    This is the defect the issue filed, generalised. A passage stated an absolute
-    its own code contradicted and nothing was red; now each one must state the
-    rule *conditionally* -- carrying the anchor phrase -- and the ``thermal.py``
-    functions it names in that paragraph must be exactly the declared exceptions.
-    An exception added to the list without being written into a passage reddens
-    this, and so does prose naming a site the list does not know.
+    Blank-line separated, which is a paragraph in markdown and in a docstring
+    alike. A markdown **table** is split row by row instead: a table is many
+    independent claims sharing one block, and ``ARCHITECTURE.md``'s ``fold(terms)``
+    row is one of the four passages this scan exists to see -- reading the table
+    whole would let a qualified row two lines away cover an absolute one.
     """
-    paragraph = anchor_paragraph(RULE_PASSAGES[label]())
-    quoted = {token.strip("()") for token in re.findall(r"`([^`]+)`", paragraph)}
-    named = quoted & thermal_function_names()
-    assert named == set(DECLARED_COMBINING_EXCEPTIONS), (
-        f"{label} names {sorted(named)} as the exceptions to the one-fold rule "
-        f"and DECLARED_COMBINING_EXCEPTIONS holds "
-        f"{sorted(DECLARED_COMBINING_EXCEPTIONS)}:\n"
-        f"  on the list, not in the passage: "
-        f"{sorted(set(DECLARED_COMBINING_EXCEPTIONS) - named)}\n"
-        f"  in the passage, not on the list: "
-        f"{sorted(named - set(DECLARED_COMBINING_EXCEPTIONS))}"
+    blocks: list[tuple[int, list[str]]] = []
+    current: list[str] = []
+    start = 1
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            if current:
+                blocks.append((start, current))
+                current = []
+            continue
+        if not current:
+            start = number
+        current.append(line)
+    if current:
+        blocks.append((start, current))
+
+    units = []
+    for start, block in blocks:
+        if all(line.lstrip().startswith("|") for line in block):
+            units += [(start + offset, re.sub(r"\s+", " ", line).strip(), False)
+                      for offset, line in enumerate(block)]
+        else:
+            units.append((start,
+                          re.sub(r"\s+", " ", " ".join(block)).strip(),
+                          all(line.lstrip().startswith(">") for line in block)))
+    return units
+
+
+def rule_scan_sources() -> list[Path]:
+    """The corpus: every live document, plus the package's own modules.
+
+    ``live_documents()`` is the walk the traced-ratio and hardware-count guards
+    share, so this scan inherits its scope decisions rather than making a second
+    set of them -- including the one this issue insisted be **deliberate**:
+    ``PROVENANCE.md`` states the absolute form in three of its dated amendments
+    and is exempt because it is dated history, not because a glob happened to
+    miss it (``_HISTORICAL_NAMES``, and
+    ``test_the_rule_scan_exempts_dated_history_on_purpose`` below).
+
+    ``tests/`` is deliberately **not** in the corpus. Its prose is *about* the
+    detector -- "``sleeve_bore + 2 * wall`` is two element values combined" --
+    and including it means registering five exemptions that describe how the scan
+    works. The rule's readers land on documents and on the package's docstrings.
+    """
+    from tests.test_tolerance_stack import live_documents
+
+    return ([p for p in live_documents(REPO_ROOT) if p.suffix == ".md"]
+            + sorted((REPO_ROOT / "tolerance_stack").glob("*.py")))
+
+
+def passages_in(path: Path, rel: str,
+                skip: set[tuple[str, int]] = frozenset()) -> list[Passage]:
+    """Every unit of ``path`` that states the rule, at most one finding each.
+
+    A quotation is a report of what a document used to say, not a claim about
+    now -- a blockquote line or a double-quoted phrase, the two forms this repo
+    corrects a superseded sentence in, and the same exemption
+    ``tests/test_tolerance_stack.py``'s ``_quoted_spans`` applies to a superseded
+    number. Recomputed here rather than imported because a flattened unit has no
+    line starts left for the blockquote half to match on.
+    """
+    found = []
+    for line, text, blockquote in _flattened_units(path):
+        if (rel, line) in skip:
+            continue
+        spans = [(m.start(), m.end())
+                 for m in re.finditer(r'"[^"\n]{0,300}"', text)]
+        for match in RULE_STATEMENT.finditer(text):
+            quoted = blockquote or any(a <= match.start() < b for a, b in spans)
+            found.append(Passage(f"{rel}:{line}", text, quoted))
+            break                   # one finding per passage, not per sentence
+    return found
+
+
+def rule_statements() -> list[Passage]:
+    """Every passage in the corpus that states the one-fold rule."""
+    skip = _exception_docstring_lines()
+    return [passage
+            for path in rule_scan_sources()
+            for passage in passages_in(
+                path, path.relative_to(REPO_ROOT).as_posix(), skip)]
+
+
+def _exception_docstring_lines() -> set[tuple[str, int]]:
+    """Blocks inside a declared exception's own docstring, keyed as the scan keys.
+
+    ``workbook_corner``'s docstring carries the anchor and says *"this function"*
+    rather than naming itself in backticks, so the pairing below would read it as
+    a passage naming **no** exception. It is not unguarded: it is paired by
+    ``test_every_declared_exception_argues_its_case_in_its_own_docstring``, from
+    the other end, and that test is where a second exception's docstring would be
+    required to argue its case. Derived from the list, so an exception added or
+    removed moves this with it.
+    """
+    tree = ast.parse(THERMAL.read_text(encoding="utf-8"), filename=str(THERMAL))
+    functions = {node.name: node for node in ast.walk(tree)
+                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    rel = THERMAL.relative_to(REPO_ROOT).as_posix()
+    spans = []
+    for name in DECLARED_COMBINING_EXCEPTIONS:
+        node = functions.get(name)
+        body = node.body[0] if node and node.body else None
+        if isinstance(body, ast.Expr) and isinstance(body.value, ast.Constant):
+            spans.append((body.lineno, body.end_lineno))
+    return {(rel, line)
+            for first, last in spans
+            for line, _, _ in _flattened_units(THERMAL)
+            if first <= line <= last}
+
+
+def test_the_rule_statement_scan_is_non_empty_and_reads_every_passage():
+    """The derived set, guarded -- because an empty scan reports green.
+
+    This is the assertion the hand-kept dict never needed and every derivation
+    does: a scan whose corpus glob points somewhere wrong finds no absolute
+    anywhere and passes. Floor plus per-source presence, so a passage deleted
+    rather than corrected reddens here instead of quietly reducing coverage.
+    """
+    from tests.test_tolerance_stack import assert_coverage_set
+
+    statements = [p for p in rule_statements() if not p.quoted]
+    assert_coverage_set("one-fold rule statements", statements,
+                        RULE_STATEMENT_FLOOR)
+
+    seen = {p.location.rsplit(":", 1)[0] for p in statements}
+    unread = [name for name in RULE_PASSAGE_SOURCES if name not in seen]
+    assert unread == [], (
+        f"{unread} are believed to state the one-fold rule and the scan finds no "
+        f"passage in them. Either the passage was deleted rather than corrected "
+        f"-- in which case drop the file from RULE_PASSAGE_SOURCES and say why -- "
+        f"or the corpus stopped reaching it."
     )
+
+
+def test_every_live_passage_stating_the_rule_states_it_conditionally():
+    """The defect, generalised past the list that could not see it.
+
+    A passage stating the rule must either carry its exceptions or defer by name
+    to the section that does. The absolute form is the failure: it is what a
+    reader writes when they have not read the exception, it reads as a *stronger*
+    claim than the truth, and until 2026-09-03 four live passages carried it with
+    nothing red -- including ``stack.py``'s ``fold()`` docstring, the single
+    most-read statement of this rule in the repo.
+    """
+    absolute = [p.location for p in rule_statements()
+                if not p.quoted and not p.conditional]
+    assert absolute == [], (
+        f"these passages state the one-fold rule in its ABSOLUTE form: "
+        f"{absolute}.\nThe rule has been conditional since 2026-09-01: nothing "
+        f"outside fold() combines element values, EXCEPT the sites on the "
+        f"declared exception list. Say so, or defer to ARCHITECTURE.md's "
+        f"{SECTION_HEADING_PREFIX.lstrip('# ')!r} -- a passage that mentions no "
+        f"exception is claiming more than is true. Quoting a superseded sentence "
+        f"is fine: put it in a blockquote or double quotes, the house convention "
+        f"the doc scanners already read."
+    )
+
+
+def test_every_passage_stating_the_rule_names_exactly_the_declared_exceptions():
+    """Each passage that claims to state the list, paired with the list itself.
+
+    Narrower than the test above and older: a passage carrying
+    :data:`EXCEPTION_ANCHOR` is not merely acknowledging exceptions, it is stating
+    *which*, so the ``thermal.py`` functions it names in backticks must be exactly
+    :data:`DECLARED_COMBINING_EXCEPTIONS`. An exception added to the list without
+    being written into a passage reddens this, and so does prose naming a site
+    the list does not know.
+    """
+    anchored = [p for p in rule_statements()
+                if not p.quoted and EXCEPTION_ANCHOR in p.text]
+    assert len(anchored) == ANCHOR_PASSAGE_COUNT, (
+        f"{len(anchored)} passages state the declared exception list, expected "
+        f"{ANCHOR_PASSAGE_COUNT}: {[p.location for p in anchored]}. A passage "
+        f"gained or lost the anchor phrase -- if the rule is now stated in one "
+        f"more place, that place is paired from here on."
+    )
+    thermal_names = thermal_function_names()
+    for passage in anchored:
+        quoted = {token.strip("()")
+                  for token in re.findall(r"`([^`]+)`", passage.text)}
+        named = quoted & thermal_names
+        assert named == set(DECLARED_COMBINING_EXCEPTIONS), (
+            f"{passage.location} names {sorted(named)} as the exceptions to the "
+            f"one-fold rule and DECLARED_COMBINING_EXCEPTIONS holds "
+            f"{sorted(DECLARED_COMBINING_EXCEPTIONS)}:\n"
+            f"  on the list, not in the passage: "
+            f"{sorted(set(DECLARED_COMBINING_EXCEPTIONS) - named)}\n"
+            f"  in the passage, not on the list: "
+            f"{sorted(named - set(DECLARED_COMBINING_EXCEPTIONS))}"
+        )
+
+
+def test_the_rule_scan_exempts_dated_history_on_purpose():
+    """``PROVENANCE.md`` is out of scope by decision, and the decision is checked.
+
+    Three of its dated ``stack.py`` amendments repeat *"`fold()` is still the only
+    place element values are combined"* -- one of them the 2026-08-05 amendment
+    that shipped ``workbook_corner``, so it was false as written. Rewriting a
+    dated amendment is not a thing this repo does, and the issue that filed this
+    scan asked that the exemption be explicit rather than accidental. Both halves
+    are asserted: the file is outside the corpus, **and** it would be caught if it
+    were not -- an exemption nobody can see failing is indistinguishable from a
+    glob that never reached the file.
+    """
+    provenance = REPO_ROOT / "PROVENANCE.md"
+    assert provenance not in rule_scan_sources()
+
+    stated = [text for _, text, blockquote in _flattened_units(provenance)
+              if not blockquote and RULE_STATEMENT.search(text)]
+    assert any("still the only place element values are combined" in text
+               for text in stated), (
+        "PROVENANCE.md no longer carries the 2026-08-05 amendment's "
+        "*'`fold()` is still the only place element values are combined'*, which "
+        "is what the exemption is for -- an amendment that shipped "
+        "`workbook_corner` and was false as written, in a file this repo does not "
+        "rewrite. An exemption nobody can see failing is indistinguishable from a "
+        "glob that never reached the file, so if the sentence really is gone, "
+        "re-argue the exemption rather than deleting this assertion."
+    )
+
+
+def test_the_rule_statement_scan_can_fail(tmp_path):
+    """The scan, watched failing on each shape it exists to catch.
+
+    Both phrasing families, the line wrap that hid one of the four from ``grep``,
+    the table row that a whole-block read would have covered, and the two ways a
+    passage is allowed to state the absolute -- a qualifier, or a quotation.
+    """
+    def scan(text: str) -> list[Passage]:
+        path = tmp_path / "d.md"
+        path.write_text(text, encoding="utf-8")
+        return [p for p in passages_in(path, "d.md")
+                if not p.quoted and not p.conditional]
+
+    # Family one, and family two -- neither pattern alone sees both.
+    assert len(scan("`fold()` never combines two element values.")) == 1
+    assert len(scan("It is the only place element values are combined.")) == 1
+
+    # Wrapped between `place` and `where`, which is how the sharpest of the four
+    # survived a plain grep for a month.
+    assert len(scan("It is one place\nwhere element values get combined.")) == 1
+
+    # A table row is its own unit: the qualified row must not cover the bare one
+    # sitting beside it.
+    rows = scan("| `fold()` | the only place element values are combined |\n"
+                "| `x()` | combines element values, outside the exceptions |\n")
+    assert len(rows) == 1 and rows[0].location == "d.md:1", rows
+
+    # Silent: conditional in either accepted form, and quoted in either of the
+    # two the house convention allows.
+    assert scan("Nothing outside `fold()` combines two element values, "
+                "except the sites on the declared exception list.") == []
+    assert scan('No element values are combined here. See ARCHITECTURE.md, '
+                '"Where computation may live".') == []
+    assert scan("> It is the only place element values are combined.") == []
+    assert scan('It read "the only place element values are combined" '
+                'until 2026-09-01.') == []
+
+
+def test_the_rule_scan_goes_red_on_a_corpus_pointed_nowhere(tmp_path):
+    """The derivation pointed at an empty tree, and watched failing.
+
+    The failure a derived coverage set has and a hand-kept one does not: the scan
+    runs over nothing, finds no absolute, and reports green.
+    """
+    from tests.test_tolerance_stack import assert_coverage_set, live_documents
+
+    assert live_documents(tmp_path) == []
+    with pytest.raises(AssertionError, match="coverage set is EMPTY"):
+        assert_coverage_set("one-fold rule statements", [], RULE_STATEMENT_FLOOR)
 
 
 def test_the_rule_section_points_at_the_list_that_enforces_it():
@@ -598,7 +891,7 @@ def test_the_inventory_row_for_thermal_still_defers_to_the_rule_section():
 
 
 # --------------------------------------------------------------------------- #
-# 6. the walker, shown failing                                                #
+# 7. the walker, shown failing                                                #
 # --------------------------------------------------------------------------- #
 
 FIELDS_FOR_SYNTHETIC = frozenset({"nominal", "min", "max", "lmc", "mmc"})

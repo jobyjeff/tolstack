@@ -243,15 +243,19 @@ function here that reads `lmc`/`mmc`.
 The list is not prose. It is `DECLARED_COMBINING_EXCEPTIONS` in
 `tests/test_thermal_exception_list.py`, which walks `thermal.py` for arithmetic
 over two element-derived values and reddens on any site not on it — and pairs
-the list against the passages registered in `RULE_PASSAGES` (this section,
-`thermal.py`'s module docstring, `docs/tolerance_stacks/ARCHETYPE_thermal_fit.md`)
-and against
-each exception's own docstring, so the rule, the list and the code cannot drift
-apart one at a time. The pairing reads the passages registered in
-`RULE_PASSAGES` and nothing else, so a document that states this rule belongs in
-that dict rather than in prose of its own — an unregistered passage is
-unguarded, which is how the absolute survived here for a month. That is the
-line, and it is the one to hold if a fourth archetype wants its own layer.
+the list against each exception's own docstring and against every passage that
+same module **finds** stating this rule, so the rule, the list and the code
+cannot drift apart one at a time.
+
+The passages are searched for, not registered, since 2026-09-03
+(`doc_coverage_sets_derived`). Until then they were a hand-kept dict of three,
+which read as coverage and was not: a passage outside it was *invisible* rather
+than unpaired, and four live sentences still asserted the absolute — one of them
+four paragraphs above this one, inside the very section the pairing reads. So a
+passage that states this rule must now either carry its exceptions or defer by
+name to this section; a passage that mentions no exception is claiming more than
+is true, and the scan says so naming the file and line. That is the line, and it
+is the one to hold if a fourth archetype wants its own layer.
 
 ### Material condition is not an extreme
 
