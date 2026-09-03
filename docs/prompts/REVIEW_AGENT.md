@@ -1496,6 +1496,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       one** — the pairing is the visible guard and the mutation scan is the one
       that gets forgotten.
 
+- [ ] **N green runs is not evidence a flake is fixed — demand the replay, and
+      do the arithmetic.** New 2026-09-03 (`dc_snapshot_mtime_flake`). The
+      directory-mtime race in `tests/test_dc_snapshot.py` failed ~2.3% of trials
+      unloaded (7/300, reviewer-measured), so **ten green full-suite runs would
+      have happened ~79% of the time with the bug still in**. A "definition of
+      done" that asks for N >= 5 green runs is therefore satisfiable by an
+      unfixed flake. What settles it is a **stress replay**: the test body run
+      against the real functions a few hundred times, old shape and new, with
+      both counts reported. Ask for that table; if it is absent, compute
+      `(1 - rate)^N` on the issue's own reported rate before you accept the runs.
+- [ ] **A flake "fix" that guarantees the assertion by construction is worse
+      than the flake.** Same handoff. The legitimate move stabilises the
+      *precondition* and leaves the assertion still able to fail — here
+      `os.utime` backdates the directory **before** the `before` snapshot, so
+      both snapshots read the old stamp if the platform ever stops moving a
+      parent's mtime on `unlink`. The illegitimate move stabilises the
+      *observation*. One test: **name the tool regression this test still
+      catches, then break the tool in a scratch copy and watch it go red.** A
+      timing fix is a new guard, so the universal "observed failing" check
+      applies to it in full.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
