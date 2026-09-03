@@ -79,9 +79,11 @@ and makes the suite slower for the privilege. `os.utime` has no timing in it.
 
 ## Full-suite runs (deliverable 2)
 
-**N = 9 consecutive sequential full-suite runs, 9 green**, plus 3 further runs
-executed concurrently with each other (the load condition above), also green —
-**12 green, 0 red**, `570 passed, 1 skipped` every time. Command, from the
+**N = 10 consecutive sequential full-suite runs, 10 green**, plus 3 further
+runs executed concurrently with each other (the load condition above), also
+green — **13 green, 0 red**, `570 passed, 1 skipped` every time (one of the
+three concurrent runs also emitted `1 warning`, which is contention noise from
+three interpreters sharing a tmp base, not a test result). Command, from the
 worktree (the venv is main-checkout only):
 
 ```
@@ -89,7 +91,7 @@ PYTHONIOENCODING=utf-8 C:/workspace/tolstack/venv-win/Scripts/python.exe -m pyte
 ```
 
 The 600 new-shape stress trials are the stronger evidence and are why the run
-count is 9 rather than 30: they exercise the same code path ~65x more times per
+count is 10 rather than 30: they exercise the same code path ~65x more times per
 second than a suite run does, and they include the loaded condition that suite
 runs alone cannot isolate.
 
