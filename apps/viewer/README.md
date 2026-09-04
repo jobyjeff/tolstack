@@ -204,6 +204,43 @@ enforce it and neither is a stylesheet:
 row of both real topologies, in both layouts, after scrolling. That is the check
 no DOM shim can make, and it is why the browser tier is not optional here.
 
+### The height contract, and the density toggle
+
+`HANDOFF_20260904_dag_viewer_vertical_budget.md`: the graph pane (`.tv__scroll`)
+sits below chrome that is un-shrinkable and data-dependent — a provenance
+alarm banner, a totals footer with a study's own `notes`, an optional legend —
+and with nothing bounding them, that chrome could squeeze the pane to a
+handful of rows or less. Three fixes, none of them touching the deliberate
+"no `calc(100vh - N)`" flex-column design (`topology.css:51-55`):
+
+* the banner's alarm **list** and the totals footer are capped (`max-height` +
+  `overflow-y: auto`) so neither can be the thing that starves the pane —
+  scoped to `topology.css`, which loads on no other page, so the stack
+  viewer's own banner and `.detail` rule are untouched;
+* `.tv .detail` no longer inherits the stack viewer's `position: sticky;
+  max-height: calc(100vh - 47px)` — that `47px` is the *stack viewer's* own
+  topbar-only offset, and this page has a banner, a picker and a legend below
+  it too, so the inherited value let the pane grow past its own row's box;
+* `.tv__scroll` has a real `min-height` (10 rows, at whatever `--tv-row`
+  density has set) instead of `min-height: 0`. When the capped chrome above it
+  still doesn't leave 10 rows of room, the document scrolls — `html, body`
+  already allow that (`overflow: visible` is the default) — rather than the
+  pane clamping toward 0px.
+
+**Row density** (`VA.ROW_DENSITIES`, `topology.js`) is the other half: a
+"Rows: Comfortable / Compact" toggle next to the layout toggle, at 26px and
+16px respectively — compact turns the pitch system's 43 rows into ~690px, a
+single screen instead of five. Row height is one number that has to move in
+three places at once (documented where it bites, `topology.js`): `VA.
+RAIL_METRICS.rowHeight`, the `--tv-row` CSS variable, and the grid's inline
+row heights. `VA.applyRowDensity` mutates `RAIL_METRICS.rowHeight` **in
+place** rather than replacing the object, so the SVG geometry and the inline
+row heights — both of which hold a reference to that same object — pick up
+the change with nothing to re-wire; `topology_app.js`'s `applyDensity()` is
+the one DOM write left, setting the CSS variable to match. Density is a
+display preference, not a fact about a topology or a study, so switching
+topologies never resets it.
+
 ### Generated checks are generated in Python too
 
 Some archetypes do not author their checks: a `thermal_fit` stack ships an empty

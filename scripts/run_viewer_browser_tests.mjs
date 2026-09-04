@@ -473,6 +473,104 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   }
 }
 
+// --- the height contract: the graph pane must not be squeezed to nothing ---
+//
+// Reproduces the reported symptom directly (HANDOFF_20260904_dag_viewer_
+// vertical_budget.md): a ~700px inner viewport, the legend open, a study
+// selected (so the totals footer is at its real height, not the empty-state
+// paragraph), and a REAL provenance alarm on screen (crops and topologies
+// deliberately stamped from different commits) -- every un-shrinkable block
+// the diagnosis named, at once. `.tv__scroll` must still show at least the
+// stated floor of 10 rows, and switching to compact density must hold that
+// same floor in far fewer pixels without breaking row/rail alignment.
+async function testHeightBudget(browser, url, label) {
+  const page = await browser.newPage({ viewport: { width: 1200, height: 700 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+
+  const alignmentDrift = () => page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll("div.tvrow"));
+    const drift = [];
+    for (const row of rows) {
+      const id = row.getAttribute("data-id");
+      const kind = row.getAttribute("data-row-kind");
+      const mark = document.querySelector(
+        `svg.tv__rails [data-id="${CSS.escape(id)}"][data-row-kind="${kind}"]`);
+      if (!mark) { drift.push(`${kind} ${id}: no rail mark`); continue; }
+      const a = row.getBoundingClientRect();
+      const b = mark.getBoundingClientRect();
+      if (Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)) > 0.5) drift.push(`${kind} ${id}`);
+    }
+    return drift;
+  });
+
+  try {
+    await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("div.tvrow", { timeout: 15000 });
+
+    // Force the strongest provenance alarm the page can raise: the same
+    // fixture, with `topologies`'s own stamp moved to a different commit than
+    // `crops`'s -- the disagreeing-pair case the fixture is deliberately quiet
+    // about by default (topology_fixtures.js's own comment).
+    await page.evaluate(() => {
+      const fixture = window.ViewerApp.demoTopologyFixture();
+      fixture.topologies.provenance = Object.assign({}, fixture.topologies.provenance,
+        { head_sha: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef" });
+      window.ViewerApp.demoTopologyFixture = function () { return fixture; };
+      window.ViewerApp.bootTopology();
+    });
+    await page.waitForSelector("div.tvrow", { timeout: 15000 });
+    push("the provenance alarm is showing",
+      /DIFFERENT trees/.test(await page.locator("#banner").textContent()));
+
+    // Open the legend and select a study, so the totals footer is at its real
+    // (not empty-state) height too -- every un-shrinkable block at once.
+    await page.locator(".tv__legend summary").click();
+    await page.selectOption("#study-select", "demo_base_to_tip");
+    await page.waitForSelector("div.tvrow--on", { timeout: 5000 });
+
+    const MIN_ROWS = 10;
+    const comfortableHeight = await page.locator(".tv__scroll")
+      .evaluate((n) => n.getBoundingClientRect().height);
+    const comfortableRow = await page.evaluate(
+      () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tv-row")));
+    push(`the graph pane keeps its ${MIN_ROWS}-row floor (legend open, study ` +
+      "selected, provenance alarm showing)",
+      comfortableHeight >= MIN_ROWS * comfortableRow - 1);
+
+    // Compact density: the SAME floor in rows, in far fewer pixels, driven by
+    // the SAME number the SVG draws its rails from -- not a second place this
+    // can drift (the trap topology.js's VA.applyRowDensity documents).
+    await page.locator("#density-toggle").click();
+    await page.waitForTimeout(50);
+    const compactRow = await page.evaluate(
+      () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tv-row")));
+    push("compact density actually shrinks the row pitch", compactRow < comfortableRow);
+    const compactHeight = await page.locator(".tv__scroll")
+      .evaluate((n) => n.getBoundingClientRect().height);
+    push(`the ${MIN_ROWS}-row floor holds at compact density too`,
+      compactHeight >= MIN_ROWS * compactRow - 1);
+
+    push("rails stay aligned to rows at compact density",
+      (await alignmentDrift()).length === 0);
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
 (async () => {
   const server = await startServer();
   const { port } = server.address();
@@ -501,6 +599,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       browser, fileBase, "topology file://", topologies, crops));
     results.push(await testTheTopologyPage(
       browser, baseUrl, "topology http", topologies, crops));
+    results.push(await testHeightBudget(browser, fileBase, "topology height budget"));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);

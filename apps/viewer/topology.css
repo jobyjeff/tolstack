@@ -56,6 +56,16 @@
 html, body { height: 100%; }
 body { display: flex; flex-direction: column; }
 
+/* The banner's alarm list is the one un-shrinkable, data-dependent block this
+   page did not write — views/banner.js is shared with the stack viewer — so
+   it is capped here instead of there. The head line ("this projection may not
+   be what you think it is") and the rebuild commands stay outside the cap and
+   always visible; only the (potentially long) list of alarms scrolls, so an
+   alarm can never be silently squeezed off screen, only require a scroll to
+   read in full. Scoped to this page: topology.css loads nowhere else, so the
+   stack viewer's own banner is untouched. */
+#banner .banner__stale-list { max-height: 4.6em; overflow-y: auto; }
+
 .tv {
   display: flex; align-items: stretch; gap: 0;
   flex: 1 1 auto; min-height: 0;
@@ -66,7 +76,14 @@ body { display: flex; flex-direction: column; }
   border-right: 1px solid var(--line);
 }
 .tv__scroll {
-  flex: 1 1 auto; min-height: 0; overflow: auto;
+  flex: 1 1 auto; overflow: auto;
+  /* The floor: never fewer than 10 rows, at whatever `--tv-row` the density
+     toggle (below) has set. Below this the graph pane stops being "most of
+     the DAG at once" and starts being the bug this handoff exists to fix, so
+     it is a hard min-height rather than something flex-shrink is free to eat
+     into — the chrome above yields first, and the document scrolls once it
+     can't yield enough. */
+  min-height: calc(var(--tv-row) * 10);
   /* Rails and rows share ONE scrollport. That is the whole implementation of
      "scrolling keeps them locked together" — there is nothing to synchronise,
      so there is nothing to drift. */
@@ -171,6 +188,12 @@ body { display: flex; flex-direction: column; }
 
 .tvtotals {
   border-top: 1px solid var(--line); padding: 12px 16px; background: var(--panel2);
+  /* Capped and independently scrollable so a study with several `notes`
+     entries can never be the thing that starves the graph pane above it.
+     `flex-shrink: 0` holds that cap rather than letting `.tv__main`'s flex
+     column negotiate it away — the graph pane is always the one that yields
+     first, down to its own floor. */
+  max-height: 260px; overflow-y: auto; flex-shrink: 0;
 }
 .tvtotals__head { display: flex; gap: 10px; align-items: baseline; }
 .tvtotals__chips { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
@@ -210,6 +233,17 @@ body { display: flex; flex-direction: column; }
    the main event. */
 .tv .detail {
   width: 430px; flex: none; overflow: auto; align-self: stretch;
+  /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:
+     calc(100vh - 47px)` (style.css:365-368) assumes the pane starts 47px
+     below the viewport top — true for the STACK VIEWER, whose only chrome
+     above it is the topbar. Here the pane sits below a banner, a picker and
+     an optional legend too, so that max-height overestimates the room
+     available and lets the pane grow past `.tv`'s own box. `align-self:
+     stretch` plus this page's own `overflow: auto` already do the whole job:
+     the pane matches `.tv`'s actual height and scrolls its own content, so
+     sticky positioning has nothing to do here. Never edit the shared rule —
+     the stack viewer's own layout depends on it. */
+  position: static; max-height: none;
 }
 .detail__values { margin: 8px 0; }
 .detail__valrow { display: flex; gap: 10px; font-size: 13px; }

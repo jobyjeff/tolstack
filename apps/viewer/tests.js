@@ -1778,6 +1778,42 @@
       eq(root.querySelector("button.tvpick__mode").disabled, true);
     });
 
+    await test("VA.applyRowDensity moves the one shared row-height metric, " +
+      "and only it", function () {
+        var original = VA.RAIL_METRICS.rowHeight;
+        try {
+          var compact = VA.applyRowDensity("compact");
+          eq(compact.rowHeight, 16);
+          eq(VA.RAIL_METRICS.rowHeight, 16);
+          // Everything else in the metrics object -- gutter, dot radii -- is
+          // untouched: density is a row-height control, not a column one.
+          eq(VA.RAIL_METRICS.gutter, 20);
+
+          var comfortable = VA.applyRowDensity("comfortable");
+          eq(comfortable.rowHeight, 26);
+          eq(VA.RAIL_METRICS.rowHeight, 26);
+
+          // An unrecognised key is not a silent no-op on the metric: it falls
+          // back to the documented default.
+          var fallback = VA.applyRowDensity("cozy");
+          eq(fallback.rowHeight, 26);
+        } finally {
+          VA.RAIL_METRICS.rowHeight = original;
+        }
+      });
+
+    await test("the density toggle is on the picker and names the current " +
+      "density", function () {
+        var root = render(function (r) {
+          VA.renderTopoPicker(r, TOPOFIX,
+            { topologyId: TOPO.id, studyId: null, layoutMode: "topology",
+              rowDensity: "compact" }, {});
+        });
+        var buttons = all(root, "button.tvpick__mode");
+        eq(buttons.length, 2);
+        has(buttons[1].textContent, "Rows: Compact");
+      });
+
     await test("the banner names the TOPOLOGY projection, not the results one",
       function () {
         var root = render(function (r) {

@@ -254,6 +254,30 @@
   //: is then true by construction rather than by two stylesheets agreeing.
   VA.RAIL_METRICS = { rowHeight: 26, gutter: 20, left: 15, dot: 4.5, branchDot: 6.5 };
 
+  // --- row density -----------------------------------------------------
+  //
+  // "See most of the DAG at once" (HANDOFF_20260904_dag_viewer_vertical_budget.md)
+  // needs a density control, and the trap is documented right where it bites:
+  // row height is one number in three places that have to move together —
+  // VA.RAIL_METRICS.rowHeight (here), `--tv-row` (topology.css, the paint) and
+  // the inline row heights (views/topology.js's baseRow, which reads
+  // `M.rowHeight` off this exact object). VA.applyRowDensity mutates
+  // `.rowHeight` in place rather than replacing VA.RAIL_METRICS, so every
+  // existing reference to the object — including views/topology.js's
+  // module-scoped `M` — picks up the change with nothing to re-wire. The
+  // caller (topology_app.js) still has to set the CSS variable itself; that
+  // is the one DOM write this pure file does not make.
+  VA.ROW_DENSITIES = {
+    comfortable: { rowHeight: 26, label: "Comfortable" },
+    compact: { rowHeight: 16, label: "Compact" },
+  };
+
+  VA.applyRowDensity = function (density) {
+    var preset = VA.ROW_DENSITIES[density] || VA.ROW_DENSITIES.comfortable;
+    VA.RAIL_METRICS.rowHeight = preset.rowHeight;
+    return preset;
+  };
+
   VA.railX = function (column, metrics) {
     return metrics.left + column * metrics.gutter;
   };

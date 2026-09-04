@@ -50,6 +50,20 @@
     toggle.disabled = !(state.studyId && studyOk(topoProj, state.studyId));
     toggle.onclick = handlers.onLayoutMode;
     root.appendChild(toggle);
+
+    // Row density: trades reading comfort for seeing more of the DAG at once.
+    // Comfortable is the default 26px pitch; compact is 16px, which turns the
+    // pitch system's 43 rows into ~690px. VA.RAIL_METRICS.rowHeight (and the
+    // SVG geometry that follows it) moves with this — see topology.js.
+    var densityPreset = VA.ROW_DENSITIES[state.rowDensity] || VA.ROW_DENSITIES.comfortable;
+    var density = VA.el("button", "ghost tvpick__mode", "Rows: " + densityPreset.label);
+    density.setAttribute("id", "density-toggle");
+    density.setAttribute("title",
+      "Compact rows fit more of the DAG on screen at once, at the cost of " +
+      "reading comfort. The rails resize with the rows, so alignment holds " +
+      "either way.");
+    density.onclick = handlers.onDensity;
+    root.appendChild(density);
     return root;
   };
 

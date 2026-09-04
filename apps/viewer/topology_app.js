@@ -17,6 +17,10 @@
     // selected study's edges, in the order the sum runs). Both layouts come out
     // of the projection; this only says which one to draw.
     layoutMode: "topology",
+    // "comfortable" (26px rows) or "compact" (16px) — a display preference,
+    // not a fact about a topology or a study, so selectTopology() never resets
+    // it. See VA.ROW_DENSITIES (topology.js).
+    rowDensity: "comfortable",
     // { kind: "node" | "edge", id } — what the preview pane is showing.
     selection: null,
     detailImage: null,
@@ -35,6 +39,7 @@
       totals: document.getElementById("totals"),
       detail: document.getElementById("detail"),
     };
+    applyDensity();
 
     // ?mock=1 gives a UI tour with no folder grant and no disk access at all —
     // the same escape hatch index.html has, over the same MemoryAdapter.
@@ -91,6 +96,15 @@
     loadDetailImage().then(render);
   }
 
+  // The one DOM write row density needs: VA.applyRowDensity (topology.js,
+  // pure) owns VA.RAIL_METRICS.rowHeight, which the inline row heights and
+  // the SVG geometry already read live; this is the other of the "three
+  // places" — the CSS variable the grid's paint (padding, borders) reads.
+  function applyDensity() {
+    var preset = VA.applyRowDensity(state.rowDensity);
+    document.documentElement.style.setProperty("--tv-row", preset.rowHeight + "px");
+  }
+
   function currentTopology() {
     return VA.findTopology(state.topologies, state.topologyId);
   }
@@ -141,6 +155,14 @@
       onLayoutMode: function () {
         state.layoutMode = state.layoutMode === "chain" ? "topology" : "chain";
         rewind();
+      },
+      // Density changes how tall the rows already on screen are, not WHICH
+      // rows are on screen — so a plain render(), not rewind(): see rewind's
+      // own comment for why that distinction matters.
+      onDensity: function () {
+        state.rowDensity = state.rowDensity === "compact" ? "comfortable" : "compact";
+        applyDensity();
+        render();
       },
     });
 
