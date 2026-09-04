@@ -1522,6 +1522,30 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       timing fix is a new guard, so the universal "observed failing" check
       applies to it in full.
 
+- [ ] **A derived doc scan whose *unit* is bigger than the claim it judges.**
+      New 2026-09-03 (`doc_coverage_sets_derived`). `rule_statements()` splits a
+      file on **blank lines**, takes the first match per unit, and then asks
+      whether *the unit* carries a qualifier — so one "exception" at the top of a
+      block covers an absolute at the bottom. The handoff spotted this for
+      markdown **tables** and split them row by row; it did not for `- [ ]`
+      runs, and `docs/prompts/REVIEW_AGENT.md` has a **14 976-character** single
+      unit (lines 1527-1747). Measured: the absolute form inserted there leaves
+      the suite green
+      (`ISSUE_20260903_a_qualifier_anywhere_in_a_15kb_block_covers_an_absolute_rule_statement.md`).
+      Whenever a scan classifies a *block* by a token found anywhere in it, ask
+      **how big can this block get in this repo** and inject the defect at the
+      far end of the biggest one — not next to the token.
+- [ ] **An exemption that rests on "that file is gitignored" — check, don't
+      remember.** New 2026-09-03 (same handoff). `data/inbox/specs/README.md` is
+      carried in two guards behind `# gitignored: present only in the main
+      checkout`; `git check-ignore -v` returns nothing and `git ls-files data/`
+      lists it. The exemption therefore hides a *deleted* curated publisher,
+      which is the one thing that half of the guard exists to catch
+      (`ISSUE_20260903_curated_ratio_publisher_exempted_as_gitignored_is_actually_tracked.md`).
+      CLAUDE.md's "`data/` is gitignored by design" is true of the *contents* and
+      not of every path under it. Run `git check-ignore` on the actual path
+      before accepting any exemption phrased this way.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
