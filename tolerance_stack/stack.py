@@ -502,8 +502,8 @@ def fold(terms: Iterable[Term]) -> Interval:
     ARCHITECTURE.md declares in "Where computation may live". Worst case is the
     arithmetic extreme: a term entering with a positive weight contributes its
     ``max`` to the maximum and its ``min`` to the minimum; with a negative weight
-    the roles swap. RSS combines half-ranges in quadrature about the midpoint sum -- the
-    *sign* does not matter to the half-range, only to the center, but the
+    the roles swap. RSS combines half-ranges in quadrature about the midpoint sum
+    -- the *sign* does not matter to the half-range, only to the center, but the
     *coefficient* magnitude does, because scaling a variate scales its spread.
 
     A ``Term``'s weight is ``sign * coefficient`` and defaults to the ``+-1`` this

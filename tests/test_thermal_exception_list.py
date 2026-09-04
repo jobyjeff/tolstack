@@ -584,8 +584,12 @@ def _flattened_units(path: Path) -> list[tuple[int, str, bool]]:
     return units
 
 
-def rule_scan_sources() -> list[Path]:
+def rule_scan_sources(repo_root: Path = REPO_ROOT) -> list[Path]:
     """The corpus: every live document, plus the package's own modules.
+
+    ``repo_root`` is a parameter so the derivation can be pointed at a tree that
+    is not this repo and watched coming back empty -- see
+    ``test_the_rule_scan_goes_red_on_a_corpus_pointed_nowhere``.
 
     ``live_documents()`` is the walk the traced-ratio and hardware-count guards
     share, so this scan inherits its scope decisions rather than making a second
@@ -602,8 +606,8 @@ def rule_scan_sources() -> list[Path]:
     """
     from tests.test_tolerance_stack import live_documents
 
-    return ([p for p in live_documents(REPO_ROOT) if p.suffix == ".md"]
-            + sorted((REPO_ROOT / "tolerance_stack").glob("*.py")))
+    return ([p for p in live_documents(repo_root) if p.suffix == ".md"]
+            + sorted((repo_root / "tolerance_stack").glob("*.py")))
 
 
 def passages_in(path: Path, rel: str,
@@ -630,13 +634,13 @@ def passages_in(path: Path, rel: str,
     return found
 
 
-def rule_statements() -> list[Passage]:
+def rule_statements(repo_root: Path = REPO_ROOT) -> list[Passage]:
     """Every passage in the corpus that states the one-fold rule."""
     skip = _exception_docstring_lines()
     return [passage
-            for path in rule_scan_sources()
+            for path in rule_scan_sources(repo_root)
             for passage in passages_in(
-                path, path.relative_to(REPO_ROOT).as_posix(), skip)]
+                path, path.relative_to(repo_root).as_posix(), skip)]
 
 
 def _exception_docstring_lines() -> set[tuple[str, int]]:
@@ -821,11 +825,12 @@ def test_the_rule_scan_goes_red_on_a_corpus_pointed_nowhere(tmp_path):
     The failure a derived coverage set has and a hand-kept one does not: the scan
     runs over nothing, finds no absolute, and reports green.
     """
-    from tests.test_tolerance_stack import assert_coverage_set, live_documents
+    from tests.test_tolerance_stack import assert_coverage_set
 
-    assert live_documents(tmp_path) == []
+    assert rule_scan_sources(tmp_path) == []
     with pytest.raises(AssertionError, match="coverage set is EMPTY"):
-        assert_coverage_set("one-fold rule statements", [], RULE_STATEMENT_FLOOR)
+        assert_coverage_set("one-fold rule statements",
+                            rule_statements(tmp_path), RULE_STATEMENT_FLOOR)
 
 
 def test_the_rule_section_points_at_the_list_that_enforces_it():
