@@ -1545,6 +1545,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       CLAUDE.md's "`data/` is gitignored by design" is true of the *contents* and
       not of every path under it. Run `git check-ignore` on the actual path
       before accepting any exemption phrased this way.
+- [ ] **A DoD's qualitative viewport claim ("most of the rows", "fits on one
+      screen") needs its own measurement at the SAME viewport the floor test
+      uses — don't let the floor test passing stand in for it.** New
+      2026-09-04 (`dag_viewer_vertical_budget`). The handoff asked for both "a
+      stated minimum of rows" at a worst-case ~700px viewport (alarm + legend +
+      study) AND, separately, that compact density "shows most of the 43 rows
+      at once" — and the lesson's own measurement at that same 700px viewport
+      was 12 of 43 rows visible (28%), which it reported without noting that
+      28% is not "most." Measuring it myself: the 28% figure is specific to the
+      artificially short 700px reproduction case; at realistic browser heights
+      (900px / 1000px) compact density shows 56% / 72%, which is genuinely
+      "most." Not a defect here — the two DoD clauses read correctly as
+      separate claims about separate viewport sizes once measured — but a
+      future stack/viewer handoff that reports "N rows visible, floor test
+      green" is not thereby evidence a *qualitative* DoD clause ("most",
+      "fits", "comfortably") was met; compute the percentage against the
+      actual row count and check it at the size the claim is actually about,
+      not just the size the floor test forced.
 
 ## Architectural errors to check
 
