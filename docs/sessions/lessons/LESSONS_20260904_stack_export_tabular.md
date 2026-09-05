@@ -21,26 +21,43 @@ literal `.xlsx` (a specific number format, a frozen header row, a second real
 sheet rather than a blank-line-separated block), that is the trigger to revisit
 this, not "Excel would be nicer."
 
-## The one judgment call: what "one row per element" means for sign/coefficient
+## Sign/coefficient per element: got it wrong first, review caught it with a live example
 
 A `StackElement` carries no `sign`/`coefficient` — those live on `Term`, which
 only exists inside a path's or check's term list, and the handoff still asked
 for a `sign`/`coefficient` column on the element row. For a **study** this
 isn't ambiguous: a topology chain (`traverse()`) uses every selected edge's
-dimension exactly once, so its sign and transform ratio are unambiguous. For a
-plain **stack**, I resolved it by scanning checks first (file order), then
-paths, and taking the first sign/coefficient found per element id, recorded in
-a `term_context` column (`"check:<id>"` / `"path:<id>"`) so a reader can see
-where it came from rather than trusting an unexplained number. No seeded stack
-actually has an element enter two checks with different signs, so this
-resolves all of them identically to "the element's one true sign" — but the
-tie-break is there and tested
-(`test_sign_and_coefficient_come_from_a_check_before_a_path`) in case a future
-stack does. **What a future "copy as TSV" viewer button should reuse**: this
-exact function, `element_term_context()` in `export_stack_tabular.py` — it is
-the one place that answers "what sign does this element enter with," and a
-viewer grid re-deriving that itself would be a second place for the same
-question to get a different answer.
+dimension exactly once, so its sign and transform ratio are unambiguous.
+
+For a plain **stack** the first version of this script scanned checks (file
+order), then paths, and took the **first** sign/coefficient found per element
+id — reasoned as "no seeded stack actually has an element enter two checks with
+different signs." That claim was false and disprovable with the repo's own
+data, and review caught it two ways: `stack_pitch_link_to_pitch_plate.json`'s
+`clamped_stack_sourced` path is added (`+1`) in `shank_out__11_sourced_only` and
+subtracted (`-1`) in `cotter_hole_clear_of_sourced_stack` — one stack, no
+archetype tricks needed — and the `thermal_fit` archetype's generated checks
+give the same sleeve-bore element opposite signs at its two stages whenever
+`0 < k < 1`, true of both seeded chains. "First hit wins" silently dropped the
+second occurrence in both cases — exactly the kind of quiet omission this
+repo's one rule exists to catch, in the tool meant to help catch it.
+
+The fix: `element_occurrences()` collects **every** occurrence per element
+(checks first, then paths for anything no check reaches), and
+`group_occurrences()` collapses that to one row per **distinct**
+`(sign, coefficient)` pair rather than one row per element. An element every
+check agrees on still gets exactly one row (unchanged for every ordinary
+grip-stack element); an element checks disagree on gets one row per
+disagreement, each tagged with which check(s) produced it in `term_context`.
+Tested directly against both live examples above
+(`test_element_referenced_by_two_checks_with_opposite_signs_gets_two_rows`,
+`test_thermal_fit_element_with_stage_dependent_sign_gets_multiple_rows`), not
+just against the mechanism in the abstract. **What a future "copy as TSV"
+viewer button should reuse**: `element_occurrences()` and `group_occurrences()`
+in `export_stack_tabular.py` — they are the one place that answers "what
+sign(s) does this element enter with," and a viewer grid re-deriving that
+itself would be a second place for the same question to get a different
+answer (and a second place to make this exact mistake).
 
 ## Why `no_source_ref` was deliberately NOT reused here
 

@@ -11,9 +11,10 @@ done:
 2. **A gap-bearing/failing stack stays visibly not-clean.** The pitch-link
    stack's ``untraced``/``inferred`` confidences and its incomplete,
    ``fail``-verdict check must ride through unchanged.
-3. **The Windows CSV traps are pinned, not just avoided by construction.** A
-   UTF-8 BOM (Excel's codepage cue) and the pitch-link stack's own ``±``/``⌀``
-   characters, byte for byte.
+3. **The Windows CSV traps are pinned, not just avoided by construction.**
+   ``test_written_csv_has_a_utf8_bom`` asserts the leading BOM bytes, and
+   ``test_written_csv_preserves_plus_minus_and_diameter_characters`` asserts
+   the pitch-link stack's own ``±``/``⌀`` characters read back unchanged.
 """
 
 from __future__ import annotations
@@ -29,11 +30,13 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import export_stack_tabular as E  # noqa: E402
 from tolerance_stack.stack import load_stack  # noqa: E402
+from tolerance_stack.thermal import load_thermal_fit_stack  # noqa: E402
 from tolerance_stack.topology import load_study, load_topology, summarize  # noqa: E402
 
 STACKS_DIR = REPO_ROOT / "docs" / "tolerance_stacks"
 TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
 PITCH_LINK = STACKS_DIR / "stack_pitch_link_to_pitch_plate.json"
+THERMAL_M1 = STACKS_DIR / "stack_hub_bearing_thermal_fit_m1.json"
 
 
 # ---------------------------------------------------------------------------
@@ -41,12 +44,53 @@ PITCH_LINK = STACKS_DIR / "stack_pitch_link_to_pitch_plate.json"
 # ---------------------------------------------------------------------------
 
 
-def test_every_element_gets_exactly_one_row_no_drops_no_duplicates():
+def test_every_element_appears_at_least_once_no_drops():
+    """Every element is represented; a repeat is only allowed to be a real
+    sign/coefficient disagreement, never a plain duplicate of the same row."""
     stack = load_stack(PITCH_LINK)
     rows = E.element_rows_for_stack(stack)
-    row_ids = [r["element_id"] for r in rows]
-    assert row_ids == [e.id for e in stack.elements]
-    assert len(set(row_ids)) == len(row_ids)
+    ids_present = {r["element_id"] for r in rows}
+    assert ids_present == {e.id for e in stack.elements}
+    by_id: dict = {}
+    for row in rows:
+        by_id.setdefault(row["element_id"], []).append((row["sign"], row["coefficient"]))
+    for element_id, weights in by_id.items():
+        assert len(weights) == len(set(weights)), (
+            f"{element_id} has a duplicate (sign, coefficient) row: {weights}")
+
+
+def test_element_referenced_by_two_checks_with_opposite_signs_gets_two_rows():
+    """`clamped_stack_sourced`'s elements are added in one check, subtracted in
+    another -- the exact defect a review caught: collapsing to "first check
+    found" silently dropped the opposite-sign occurrence.
+    """
+    stack = load_stack(PITCH_LINK)
+    rows = [r for r in E.element_rows_for_stack(stack) if r["element_id"] == "bushing_214820"]
+    assert len(rows) == 2
+    assert {r["sign"] for r in rows} == {1, -1}
+    plus = next(r for r in rows if r["sign"] == 1)
+    minus = next(r for r in rows if r["sign"] == -1)
+    assert plus["term_context"] == "check:shank_out__11_sourced_only"
+    assert minus["term_context"] == "check:cotter_hole_clear_of_sourced_stack"
+    # Every other column is identical -- only the weight differs.
+    for key in E.ELEMENT_COLUMNS:
+        if key in ("sign", "term_context"):
+            continue
+        assert plus[key] == minus[key], key
+
+
+def test_thermal_fit_element_with_stage_dependent_sign_gets_multiple_rows():
+    """The archetype's own defect, reproduced directly: `sleeve_bore_lower`
+    enters at `+1` in every `hub_to_sleeve` check and `-1` in every
+    `sleeve_to_bearing` check of the lower chain (`stage_terms`, ``0 < k < 1``
+    for both seeded chains) -- both signs must survive the export.
+    """
+    stack = load_thermal_fit_stack(THERMAL_M1)
+    rows = [r for r in E.element_rows_for_stack(stack)
+            if r["element_id"] == "sleeve_bore_lower"]
+    assert len(rows) > 1
+    assert {r["sign"] for r in rows} == {1, -1}
+    assert all(r["term_context"].startswith("check:") for r in rows)
 
 
 def test_element_row_values_are_the_stored_values_not_rederived():
@@ -97,24 +141,26 @@ def test_element_with_no_source_ref_carries_empty_confidence_not_a_guess():
     assert row["source_ref"] == ""
 
 
-def test_sign_and_coefficient_come_from_a_check_before_a_path():
-    """``bolt_grip_11`` is a term of both the check and a path -- check wins.
+def test_sign_and_coefficient_come_from_the_one_check_it_appears_in():
+    """``bolt_grip_11`` is referenced directly by exactly one check.
 
-    Matches the check's own term (``{"element": "bolt_grip_11", "sign": -1}``
-    in ``shank_out__11_sourced_only``), not the path's.
+    Matches that check's own term (``{"element": "bolt_grip_11", "sign": -1}``
+    in ``shank_out__11_sourced_only``) and gets exactly one row, since there is
+    no disagreement to surface.
     """
     stack = load_stack(PITCH_LINK)
-    rows = {r["element_id"]: r for r in E.element_rows_for_stack(stack)}
-    row = rows["bolt_grip_11"]
+    rows = [r for r in E.element_rows_for_stack(stack) if r["element_id"] == "bolt_grip_11"]
+    assert len(rows) == 1
+    row = rows[0]
     assert (row["sign"], row["coefficient"]) == (-1, 1.0)
     assert row["term_context"] == "check:shank_out__11_sourced_only"
 
 
-def test_element_referenced_by_neither_check_nor_path_has_empty_sign():
+def test_element_referenced_by_neither_check_nor_path_is_absent_from_occurrences():
     """A defensive positive control: the lookup falls through to empty, not 0/1."""
     stack = load_stack(PITCH_LINK)
-    context = E.element_term_context(stack)
-    assert "no_such_element" not in context  # sanity: the dict has no stray key
+    occurrences = E.element_occurrences(stack)
+    assert "no_such_element" not in occurrences  # sanity: no stray key
 
 
 # ---------------------------------------------------------------------------
