@@ -2,49 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>tolstack — stack viewer</title>
-  <link rel="stylesheet" href="./style.css" />
+  <title>tolstack — viewer moved</title>
+  <!-- The stack viewer retired into topology.html (handoff viewer_consolidation,
+       2026-09-04): the two pages showed largely the same information, and the
+       topology page absorbed everything the stack viewer had — including every
+       stack no topology re-expresses (VA.looseStacks), rendered exactly as it
+       was. This file is kept only so a desktop shortcut or a bookmark at
+       index.html still lands somewhere; ?mock=1 and every other query string
+       carry through unchanged. -->
+  <meta http-equiv="refresh" content="0; url=./topology.html" />
+  <script>window.location.replace("./topology.html" + window.location.search);</script>
 </head>
 <body>
-  <div class="topbar">
-    <h1>tolstack — stack viewer</h1>
-    <span class="sub">read-only · renders <code>data/projections/viewer/</code> · computes nothing</span>
-    <span class="topbar__spacer"></span>
-    <a href="./topology.html">topology viewer &rarr;</a>
-    <button id="worksheet-toggle" class="ghost">Hide worksheet</button>
-  </div>
-  <div id="banner" class="banner"></div>
-  <main>
-    <nav id="stacklist" class="stacklist"></nav>
-    <div class="center">
-      <section id="stackview" class="stackview"></section>
-      <details id="worksheet-wrap" class="worksheet-below">
-        <summary>Worksheet (the agent's report)</summary>
-        <div id="worksheet" class="worksheet"></div>
-      </details>
-    </div>
-    <aside id="detail" class="detail"></aside>
-  </main>
-  <div id="croppop" class="croppop"></div>
-
-  <!-- Classic scripts (NOT ES modules): the app must run by double-clicking from
-       file://, where Chrome CORS-blocks cross-file `import`. Each file attaches
-       to window.ViewerApp; app.js loads last and boots on DOMContentLoaded. -->
-  <script src="./config.js"></script>
-  <script src="./viewer.js"></script>
-  <script src="./fixtures.js"></script>
-  <script src="./vendor/markdown.js"></script>
-  <script src="./storage/adapter.js"></script>
-  <script src="./storage/memory.js"></script>
-  <script src="./storage/fsa.js"></script>
-  <script src="./views/dom.js"></script>
-  <script src="./views/banner.js"></script>
-  <script src="./views/list.js"></script>
-  <script src="./views/stack.js"></script>
-  <script src="./views/crop.js"></script>
-  <script src="./views/worksheet.js"></script>
-  <script src="./views/detail.js"></script>
-  <script src="./app.js"></script>
+  <p>The stack viewer moved to <a href="./topology.html">topology.html</a>,
+     which now shows every stack too.</p>
 </body>
 </html>

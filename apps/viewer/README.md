@@ -1,10 +1,22 @@
-# tolstack — stack viewer (`apps/viewer/`)
+# tolstack — viewer (`apps/viewer/`)
 
-**Review a stack without opening a `.json`.** Elements, folds, checks with
-verdicts, notes and gaps for every stack in `docs/tolerance_stacks/`, coloured by
-where each value came from. The elements table is a compact grid — one line per
-element — and clicking a row opens its full sourcing (citation, export
-provenance, drawing crop) in the pane on the right.
+**Review a stack or a topology without opening a `.json`.** One page,
+`topology.html`: elements, folds, checks with verdicts, notes and gaps for every
+stack in `docs/tolerance_stacks/`, coloured by where each value came from, plus
+the rail diagram + grid for every system that has a topology in
+`docs/topologies/` — most stacks don't (a topology is extra authoring, not a
+free side effect of having a stack), so the left rail lists them and clicking one
+renders the classic elements table. Either way, clicking a row opens its full
+sourcing (citation, export provenance, drawing crop) in the pane on the right,
+and every crop-bearing row also carries a hover/click thumbnail trigger right
+there in the grid.
+
+> **History:** this used to be two pages — `index.html` (stacks) and
+> `topology.html` (topologies) — until handoff `viewer_consolidation`
+> (2026-09-04) merged them: Jeff's own framing was "the DAG page was meant to be
+> an addition to the existing display, not a separate presentation altogether."
+> `index.html` still exists and redirects to `topology.html`, so an old shortcut
+> or bookmark still lands somewhere.
 
 Static and build-free — plain HTML + classic scripts, no framework, no npm
 build, no daemon, no server (the forge `apps/notes/` and `apps/dashboard/`
@@ -13,13 +25,13 @@ pattern). **Read-only**: the File System Access grant it asks for is
 
 ## Launch (one-click, `file://`)
 
-**Double-click `apps/viewer/index.html`.** Classic scripts exist precisely so
+**Double-click `apps/viewer/topology.html`.** Classic scripts exist precisely so
 this works with no server. For a desktop shortcut, run from the repo root:
 
 ```powershell
 $ws = New-Object -ComObject WScript.Shell
 $sc = $ws.CreateShortcut("$env:USERPROFILE\Desktop\Tolstack Viewer.lnk")
-$sc.TargetPath = "$PWD\apps\viewer\index.html"
+$sc.TargetPath = "$PWD\apps\viewer\topology.html"
 $sc.Save()
 ```
 
@@ -31,9 +43,12 @@ venv-win\Scripts\python.exe scripts\build_viewer_projection.py
 
 # 2. build the drawing crops (needs PyMuPDF -> drawing-checker's venv)
 C:\workspace\drawing-checker\venv-win\Scripts\python.exe scripts\build_viewer_crops.py
+
+# 3. for a system that has one, the topology + study folds (shares the crops above)
+venv-win\Scripts\python.exe scripts\build_topology_projection.py
 ```
 
-3. Open the page, click **Connect folder**, pick the **tolstack repo root**
+4. Open the page, click **Connect folder**, pick the **tolstack repo root**
    (`C:\workspace\tolstack`), grant **read**. The banner turns into a build line:
    *results built … · crops built … (26 resolved — 22 sha256-verified, 4 with no
    sha to check; 22 unresolvable)*, then *crops by rule: source_ref_export 22 ·
@@ -42,11 +57,12 @@ C:\workspace\drawing-checker\venv-win\Scripts\python.exe scripts\build_viewer_cr
    citation names and a crop of a file that happens to share its name — so the
    verification counts sit beside it, out of `crops.json`'s own `summary`.
 
-Both steps are **wipe-and-rebuild** and each owns its own files, so either can
+All three steps are **wipe-and-rebuild** and each owns its own files, so any can
 be re-run alone. Re-run step 1 after editing a stack JSON; re-run step 2 after a
-new drawing export lands. The banner says when each was built **and which tree
-built it** — the viewer never guesses whether a projection is stale, it reports
-what the two stamps say and lets you judge.
+new drawing export lands; re-run step 3 after editing a topology or study. The
+banner says when each was built **and which tree built it** — the viewer never
+guesses whether a projection is stale, it reports what the stamps say and lets
+you judge.
 
 ### If a build refuses (exit 3)
 
@@ -60,8 +76,9 @@ filesystem path and says what to run; the fix is normally *rebuild from that
 tree instead*, or merge it in here first. `--allow-older-tree` overrides it,
 loudly, for the one legitimate case — a deliberate rebuild from an older tree.
 
-No folder grant handy? `index.html?mock=1` renders a seeded demo stack that
-exercises every provenance state. Nothing touches disk.
+No folder grant handy? `topology.html?mock=1` renders a seeded demo — a
+mechanism plus the loose-stack nav's own demo stack — that exercises every
+provenance state. Nothing touches disk.
 
 ## The one rule: the viewer computes nothing
 
@@ -81,18 +98,46 @@ in JavaScript would be a second such line, so there isn't one:
 the authored file, and re-asserts the ground-truth numbers *through* the
 projection.
 
-## The topology page (`topology.html`)
+## The stack nav
+
+The left rail (`#stacklist`, reused unchanged from the retired stack viewer)
+lists **every** stack in `docs/tolerance_stacks/`, each row carrying the same
+sourcing-scoreboard chips it always did; clicking one switches the centre pane
+to the classic elements/paths/checks/gaps view (`views/stack.js`) and the
+picker above to a placeholder — "viewing a stack; pick one to return" — rather
+than showing a topology id that is not what is on screen. Picking a real
+topology from that dropdown switches back.
+
+Most stacks have no topology re-expressing them — a topology is extra
+authoring for a mechanism-shaped question, not a free side effect of having a
+stack, and today only `stack_vpa_output_to_pitch_plate.json` does
+(`topology_vpa_output_to_pitch_plate.json`, the L1 proof). That one still gets
+a row here too, not just a place in the topology dropdown: its own authored
+`checks` block (a worst-case verdict against a criterion) has no field in the
+topology projection at all — DAG_TOPOLOGY.md's L1 proof compares *totals*,
+never a verdict — so hiding it from the nav would have made that check
+unreachable from anywhere on the page. `VA.stacksCoveredByTopology`
+(`topology.js`) computes which stack that is by reading the linkage already on
+hand — an edge that re-expresses a stack element carries
+`crop_key: {stack, element}`, and that IS the "this stack has a topology" fact,
+so nothing new is authored to say so — and `topology_app.js`'s
+`markCoveredStacks` appends one extra chip, **also a topology**, to that row
+after `VA.renderList` builds it, pointing at the richer graph view without
+removing the classic one.
+
+## The topology mode
 
 The third archetype's surface — read `docs/DAG_TOPOLOGY.md` first; this section
-is only about how it is drawn.
+is only about how it is drawn. A topology is what the page's dropdown picker
+switches to; a stack with no topology (most of them — see "Stacks with no
+topology" below) switches to the classic elements table instead. Building it:
 
 ```powershell
 venv-win\Scripts\python.exe scripts\build_topology_projection.py
 ```
 
-Then open `apps/viewer/topology.html` and connect the same repo-root folder.
-(`topology.html?mock=1` runs a demo mechanism with no disk access, exactly like
-the stack viewer's.)
+Then reload the page. (`topology.html?mock=1` runs a demo mechanism with no
+disk access, exactly like the classic view's own demo.)
 
 ### The row model: one row per graph element
 
@@ -107,6 +152,26 @@ resolve — it needs somewhere to be clicked. One row per *node* only puts the
 numbers between rows, and the numbers are what a tolerance reviewer came for.
 Interleaving costs vertical space and buys a page where the grid is an index of
 the whole document.
+
+The grid itself is a real `<table>` (since 2026-09-04, handoff
+`viewer_consolidation`) with real `<th>` headers, not a div-flex grid styled to
+look like one — a rectangular selection of it pastes into Excel as columns, cell
+for cell, which only genuine table markup does. `value  [min … max]` was one
+cell until then; it is `nominal` / `min` / `max` now, three columns, still
+printed exactly as transcribed (`VA.fmt`: no `toFixed`, no band derived from the
+limits — the same rule the classic elements table follows). Column widths live
+on a shared `<colgroup>` (`views/topology.js`'s `COLUMNS`), one array driving both
+the head table and the body table so the two cannot silently disagree about how
+wide a column is.
+
+Every row whose edge carries a `crop_key` — it re-expresses a committed stack
+element — also gets the same hover/click thumbnail trigger the classic elements
+table's rows have always had (`crop-trigger`, `views/crop.js`'s popover, shared).
+An edge with no `crop_key` — authored inline in the topology, or a derived gap —
+gets no trigger at all: showing one would read as "not built yet" when the truth
+is "no document to crop," and the two are different facts (see "The preview pane
+reuses the crop plumbing" below, which draws the same distinction in the pane on
+the right).
 
 ### The rails: a column is a branch, not a part
 
@@ -514,20 +579,22 @@ limitation forge's notes app records.
 ```
 apps/viewer/
   style.css           the SHARED stylesheet — the colour system lives here
-  index.html          the stack viewer's shell
-  topology.html       the topology viewer's shell (three panes + the legend)
+  index.html          retired: redirects to topology.html (was the stack viewer)
+  topology.html       the ONE viewer's shell (nav, picker, three panes, legend)
   topology.css        that page's own rules: rails, the grid, the totals footer
   test.html           browser test page; publishes window.__TEST_RESULTS__
   config.js           paths, the drawing-checker webui base, rebuild commands
   viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
-  topology.js         the same, for the topology page: its vocabularies and the
+  topology.js         the same, for the topology mode: its vocabularies, the
                       rail GEOMETRY (row index -> pixels; the columns are the
-                      projection's)
-  fixtures.js         the ?mock=1 demo projection (every provenance state)
-  topology_fixtures.js  the topology page's ?mock=1 demo, generated by running
-                      the real builder over a demo mechanism
-  app.js              boot + wiring for index.html
-  topology_app.js     boot + wiring for topology.html
+                      projection's), and VA.looseStacks (which stacks have no
+                      topology, read off edges' own crop_key)
+  fixtures.js         the ?mock=1 demo STACK projection (every provenance state)
+  topology_fixtures.js  the ?mock=1 demo MECHANISM, generated by running the
+                      real builder over it; topology_app.js merges the two
+                      fixtures into one mock adapter at boot
+  topology_app.js     boot + wiring for the whole page (formerly app.js's job
+                      too — app.js is deleted; there is one boot file now)
   storage/adapter.js  the read-only adapter contract
   storage/fsa.js      File System Access (mode: read), handle persisted in IndexedDB
   storage/memory.js   in-memory mock (?mock=1, tests)
@@ -537,7 +604,10 @@ apps/viewer/
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```
 
-The stylesheet was inline in `index.html` until 2026-08-31 and is a linked file
-now, because the topology page needs the same colour system, the same chips and
-the same right-hand pane. A `<link>` is safe from `file://`; an ES module import
-is not, which is the constraint this whole app is shaped by.
+The stylesheet was inline in `index.html` until 2026-08-31 and has been a linked
+file since, because the DAG mode needs the same colour system, the same chips
+and the same right-hand pane the classic mode does — and now, since the two
+modes are one page, `style.css` is simply the whole app's stylesheet
+(`topology.css` on top of it for the DAG-specific rules). A `<link>` is safe from
+`file://`; an ES module import is not, which is the constraint this whole app is
+shaped by.

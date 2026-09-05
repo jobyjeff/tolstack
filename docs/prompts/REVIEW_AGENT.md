@@ -1871,6 +1871,43 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       would, and "it walks `live_documents()`" is not evidence that the half you
       care about does.
 
+- [ ] **Converting a div-flex grid to a real `<table>` breaks row height, and
+      not for one reason.** New 2026-09-04 (`viewer_consolidation`, the
+      nominal/min/max column split). A `<tr>`'s inline `height` is a **floor**,
+      not a cap — none of `align-items: stretch` / a flex item's forced
+      cross-size / `overflow: hidden` on the row carry over to table cells, so
+      four independent causes can each push a row past its own pitch: (1) a
+      shared button/chip style sized for the old, taller cell; (2) an *empty*
+      cell still reserving its font's default line-height "strut" unless the
+      row's own `line-height` is set inline (not just `vertical-align:
+      middle`, which centres content but does not cap the strut); (3)
+      `flex-wrap: wrap` on a cell's inner wrapper, which a fixed-height row has
+      nothing to stop; (4) `border-collapse: collapse` (not `separate`)
+      double-applying a `td, th` border-bottom that every *other* table in the
+      app already carries harmlessly, because none of them sets an inline row
+      height for it to fight. The browser alignment tier (`alignmentDrift`,
+      `run_viewer_browser_tests.mjs`) is the only thing that catches this — a
+      fast-tier DOM-shim test has no real layout to measure. If a future handoff
+      converts another div grid to a table, expect to chase more than one of
+      these, and re-run the alignment tier after each individual fix, not just
+      at the end.
+
+- [ ] **Retiring a page: reflexively filtering the merged view to "only what's
+      new" can make an old capability unreachable.** New 2026-09-04
+      (`viewer_consolidation`). The tactical agent's first cut of the stack nav
+      listed only stacks with no topology (`VA.looseStacks`) — the natural
+      reading of "show what the topology page doesn't already cover" — which
+      would have hidden the one stack a topology *does* re-express, and that
+      stack carries its own authored `checks` verdict the topology projection
+      has no field for at all, making it unreachable from anywhere on the
+      consolidated page. Caught by the author, before review, by re-deriving
+      "does this really drop nothing" from the handoff's own escape-valve
+      wording rather than trusting a green test (there was no failing test —
+      nothing asserted the covered stack's check was reachable). When a
+      handoff merges two surfaces, ask *is there a capability of the retiring
+      page whose only path to visibility this filter just removed?* — a green
+      suite is not evidence the answer is no.
+
 ## Writing the review
 
 Standard location: `docs/sessions/reviews/REVIEW_<date>_<handoff>.md`.
