@@ -21,13 +21,15 @@ callouts.
 
 One file, two blocks, never interleaved (the handoff's requirement): a small
 key/value **provenance** header, a blank line, the **ELEMENTS** table (one row
-per element/dimension), a blank line, and the **FOLD RESULTS** table (paths,
-checks or the study total -- whichever the stack/study defines). A gap-bearing
-or failing stack's ``untraced`` confidences and ``excluded_terms`` ride straight
-through into those same two tables; nothing here hides them.
+per element/dimension per *distinct* sign/coefficient it enters a fold with --
+see "a disagreement that must not be collapsed away" below), a blank line, and
+the **FOLD RESULTS** table (paths, checks or the study total -- whichever the
+stack/study defines). A gap-bearing or failing stack's ``untraced`` confidences
+and ``excluded_terms`` ride straight through into those same two tables;
+nothing here hides them.
 
-Column design, and the one judgment call in it
-------------------------------------------------
+Column design, and a disagreement that must not be collapsed away
+-------------------------------------------------------------------
 The handoff asks for a ``sign``/``coefficient`` column on the element row, and a
 raw :class:`~tolerance_stack.stack.StackElement` carries neither -- those live on
 :class:`~tolerance_stack.stack.Term`, which exists only inside a path or a
@@ -35,14 +37,23 @@ check's term list. For a **study**, this is not a judgment call at all: a
 topology chain (:func:`~tolerance_stack.topology.traverse`) uses every selected
 edge's dimension exactly once, so its sign and transform ratio are unambiguous.
 
-For a **stack**, an element can in principle appear in more than one check with
-different signs (none of the seeded stacks do). This script resolves that by
-scanning **checks first, in file order, then paths**, and takes the first
-sign/coefficient pair found for each element id -- recorded in the
-``term_context`` column so a reader can see which check or path it came from.
-An element referenced by neither carries an empty sign/coefficient rather than
-a guessed ``+1``, because inventing a direction nothing in the file states would
-be exactly the thing this repo's one rule forbids.
+For a **stack**, an element can genuinely enter more than one check with a
+*different* sign or weight -- this is not hypothetical, and an earlier version
+of this script got it wrong by taking only the first occurrence found (caught in
+review): ``stack_pitch_link_to_pitch_plate.json``'s `clamped_stack_sourced` path
+is added in one check and subtracted in another, and the `thermal_fit`
+archetype's generated checks give the same sleeve-bore element opposite signs
+at its two stages. :func:`element_occurrences` collects **every** occurrence
+(checks first, in file order -- each expanded exactly as
+:meth:`~tolerance_stack.stack.StackDefinition.check` does -- then paths, for an
+element no check reaches at all), and :func:`group_occurrences` collapses that
+list to one row per **distinct** ``(sign, coefficient)`` pair rather than one
+row per element: an element every check agrees on still gets one row, and an
+element checks disagree on gets one row per disagreement, each one's
+``term_context`` naming which check(s) it came from. An element referenced by
+nothing carries an empty sign/coefficient rather than a guessed ``+1``, because
+inventing a direction nothing in the file states would be exactly the thing
+this repo's one rule forbids.
 
 Usage:
     venv-win\\Scripts\\python.exe scripts\\export_stack_tabular.py \\
@@ -202,25 +213,70 @@ def load_for_export(path: Path) -> StackDefinition:
 # ---------------------------------------------------------------------------
 
 
-def element_term_context(stack: StackDefinition) -> Dict[str, Tuple[int, float, str]]:
-    """``{element_id: (sign, coefficient, "check:<id>" | "path:<id>")}``.
+def element_occurrences(stack: StackDefinition) -> Dict[str, List[Tuple[int, float, str]]]:
+    """``{element_id: [(sign, coefficient, "check:<id>" | "path:<id>"), ...]}``.
 
-    Checks first, in file order, then paths -- the first hit wins. See the
-    module docstring's "the one judgment call" for why.
+    **Every** occurrence, not just the first -- an element can genuinely enter
+    more than one check with a different sign or a different weight, and
+    collapsing to "the first check that mentions it" silently drops that. Two
+    live examples, not a hypothetical:
+
+    * ``stack_pitch_link_to_pitch_plate.json``: `clamped_stack_sourced`'s three
+      elements enter `shank_out__11_sourced_only` at ``sign +1`` (the path's own
+      default) and `cotter_hole_clear_of_sourced_stack` at ``sign -1`` (that
+      check subtracts the same path). One stack, one path, two checks, opposite
+      signs.
+    * the `thermal_fit` archetype: `build_checks()` generates one check per
+      chain x stage x temperature, and `stage_terms()` gives the same sleeve-bore
+      element ``+1`` at stage `hub_to_sleeve` and ``-1`` at stage
+      `sleeve_to_bearing` whenever ``0 < k < 1`` -- true of both seeded chains.
+
+    Checks are scanned first, in file order (each expanded exactly as
+    :func:`~tolerance_stack.stack.StackDefinition.check` does, so a check
+    referencing a path picks up that path's sign multiplied through); a path is
+    only consulted for an element no check reaches at all -- an authored-but-
+    orphaned path, which existed for the elements above too until their
+    checks' own expansion covered them.
     """
-    context: Dict[str, Tuple[int, float, str]] = {}
+    occurrences: Dict[str, List[Tuple[int, float, str]]] = {}
     for check_spec in stack.checks:
         for term in stack._expand(check_spec["terms"]):
-            context.setdefault(
-                term.element.id,
-                (term.sign, term.coefficient, f"check:{check_spec['check_id']}"),
+            occurrences.setdefault(term.element.id, []).append(
+                (term.sign, term.coefficient, f"check:{check_spec['check_id']}")
             )
+    covered = set(occurrences)
     for path_id, path_spec in stack.paths.items():
         for term in stack._expand(path_spec["terms"]):
-            context.setdefault(
-                term.element.id, (term.sign, term.coefficient, f"path:{path_id}")
+            if term.element.id in covered:
+                continue
+            occurrences.setdefault(term.element.id, []).append(
+                (term.sign, term.coefficient, f"path:{path_id}")
             )
-    return context
+    return occurrences
+
+
+def group_occurrences(
+    occurrences: List[Tuple[int, float, str]]
+) -> List[Tuple[int, float, str]]:
+    """Occurrences collapsed to one entry per distinct ``(sign, coefficient)``.
+
+    Preserves first-seen order; every context that shares a group's exact
+    weight is joined into that group's context string with ``"; "``, so an
+    element referenced identically by several checks still gets one row, and
+    an element referenced with genuinely different weights gets one row per
+    distinct weight -- which is what makes a sign or coefficient disagreement
+    visible instead of silently picking one occurrence to report.
+    """
+    groups: Dict[Tuple[int, float], List[str]] = {}
+    order: List[Tuple[int, float]] = []
+    for sign, coefficient, context in occurrences:
+        key = (sign, coefficient)
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(context)
+    return [(sign, coefficient, "; ".join(groups[(sign, coefficient)]))
+            for sign, coefficient in order]
 
 
 def source_ref_json(source_ref: Any) -> str:
@@ -269,13 +325,24 @@ def element_row(
 
 
 def element_rows_for_stack(stack: StackDefinition) -> List[Dict[str, Any]]:
-    context = element_term_context(stack)
+    """One row per element **per distinct weight it enters a fold with**.
+
+    Usually one row per element (every seeded linear-stack element enters
+    exactly one weight); an element referenced by more than one check with
+    disagreeing sign/coefficient gets one row per distinct weight instead of
+    one row silently reporting only the first. See :func:`element_occurrences`.
+    """
+    occurrences = element_occurrences(stack)
     rows = []
     for element in stack.elements:
-        sign, coefficient, term_context = context.get(element.id, (None, None, ""))
-        rows.append(
-            element_row("stack", stack.id, element, sign, coefficient, term_context)
-        )
+        groups = group_occurrences(occurrences.get(element.id, []))
+        if not groups:
+            rows.append(element_row("stack", stack.id, element, None, None, ""))
+            continue
+        for sign, coefficient, term_context in groups:
+            rows.append(
+                element_row("stack", stack.id, element, sign, coefficient, term_context)
+            )
     return rows
 
 
