@@ -3,8 +3,8 @@ type: review
 handoff: stack_export_tabular
 reviewer: agent
 date: 2026-09-04
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE
+blockers: 0
 ---
 
 # Review — stack_export_tabular
@@ -152,9 +152,50 @@ archetypes are exactly where this repo's existing checklist already warns a
 reviewer they must read term-by-term — any future *tool* that summarizes terms
 needs the same warning applied to itself.
 
+## Re-review, 2026-09-04 (fix commit `0aa7d54`)
+
+Both blockers addressed. Verified rather than trusted:
+
+- **Sign/coefficient collapsing.** `element_term_context()` (first-hit-wins) is
+  replaced by `element_occurrences()` (collects every occurrence, checks first
+  in file order then paths for anything no check reaches) +
+  `group_occurrences()` (one row per **distinct** `(sign, coefficient)` pair).
+  Re-ran both live examples by hand after merging the fix in:
+  - `hub_bearing_thermal_fit_m1` — `sleeve_bore_lower` now exports **7 rows**,
+    `sign=+1` for the three `hub_to_sleeve` temperatures and `sign=-1` for the
+    four `sleeve_to_bearing` occurrences (three temperatures plus the `k0`
+    sensitivity check), each with its own coefficient and `term_context`.
+    Nothing is silently merged or dropped; occurrences that share the *same*
+    weight (e.g. the `hot` stage-1 check and the `hot__k1` sensitivity check,
+    which happen to compute an identical coefficient) are correctly joined
+    into one row with both check ids in `term_context`, which is a real fact
+    and not information loss.
+  - `pitch_link_to_pitch_plate` — `bushing_214820`, `pitch_plate_flange` and
+    `washer_nas1149v0332` (the `clamped_stack_sourced` path's members) now each
+    export two rows, `sign=+1`/`check:shank_out__11_sourced_only` and
+    `sign=-1`/`check:cotter_hole_clear_of_sourced_stack`, matching the JSON
+    exactly (`shank_out__11_sourced_only` references the path with the
+    default sign; `cotter_hole_clear_of_sourced_stack` references it with
+    `"sign": -1`).
+  New tests pin both examples directly
+  (`test_element_referenced_by_two_checks_with_opposite_signs_gets_two_rows`,
+  `test_thermal_fit_element_with_stage_dependent_sign_gets_multiple_rows`),
+  not just the grouping mechanism in the abstract, and the CSV-block/no-
+  duplicate-row tests were updated to allow (not require) more than one row
+  per element. The lesson honestly records that the first version's "no
+  seeded stack does this" claim was false and how review caught it.
+- **Suite green.** The docstring now names
+  `test_written_csv_has_a_utf8_bom` and
+  `test_written_csv_preserves_plus_minus_and_diameter_characters` directly
+  instead of asserting an unattributed "byte for byte". Full suite: **597
+  passed, 1 skipped** (worktree; the one skip is the same pre-existing
+  `data/`-dependent test every review in this repo reports skipped here).
+
+No new issues found in the fix itself. The overlay entry added on the first
+pass stands as written — it documents the failure mode, not the (now fixed)
+instance of it.
+
 ## Verdict
 
-**REQUEST CHANGES.** Not merged; `handoff/stack_export_tabular` and this
-review branch left in place for rework. Both blockers are in the export
-script/tests, not in any tolerance stack — no stack data was touched by this
-handoff.
+**APPROVE.** Merging `handoff/stack_export_tabular` into `integration`,
+re-running the suite there, and pushing.
