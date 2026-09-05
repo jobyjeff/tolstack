@@ -563,6 +563,12 @@ worksheet's.
 
 ### 3a. Score
 
+> **Superseded in part, 2026-09-04** (`endstop_retrace_acquired_docs`). This
+> table's 23 `gap` rows scored against document acquisition (§4b) have new
+> dispositions in §8f, once seven drawings and two specs named in §7 arrived.
+> The counts below are the 2026-09-01 figures, kept as-is (insert-only) —
+> §8f is the current score.
+
 | outcome | count | of 43 |
 |---|---:|---|
 | **`traced`** (identity established + value matches) | **4** | 9% |
@@ -752,6 +758,14 @@ nominal absent from 2D (name the part file) / sensitivity or motion ratio needed
 *(Corrected 2026-09-01 in review from 14 / 21; the four rows sum to 43. The
 attempt's figures were 14 identity + 21 acquisition + 4 + 1 = 40, three short —
 class H's three rows were in no line of this table.)*
+
+> **Note, 2026-09-04** (`endstop_retrace_acquired_docs`). The "23 of 43"
+> document-acquisition row above is a snapshot at 2026-09-01 — nine of the
+> documents it was waiting on have since arrived, and §8b re-scores all 23.
+> The class boundaries (measurement 0, identity 15, acquisition 23, never-
+> supplied 4, 2D-delegation 1) are unchanged as a *taxonomy*; what changed is
+> which specific rows sit in the acquisition bucket now that some of it has
+> been read. See §8f for the current located/gap split.
 ---
 
 ## 5. Prediction vs. outcome — calibration
@@ -964,3 +978,232 @@ section above, so the draft can cite evidence rather than inference.
     single 0.12 in the reachable set is a pitch-plate spherical-seat profile
     refinement; two workbook rows carry 0.12 and neither is that feature. Any
     auto-correlator must require an identity argument, not a value match. (§3c F6)
+
+---
+
+## 8. Re-trace of the 23 acquisition-blocked rows against newly acquired documents, 2026-09-04
+
+Handoff `endstop_retrace_acquired_docs`, worked 2026-09-04, branch cut from
+`integration`. Source: this worksheet's own §7 acquisition list (the "seven
+drawings and eleven standards" of the 2026-09-01 lesson). Jeff exported seven
+part drawings from drawing-checker's inbox and dropped two specs into
+`data/inbox/specs/`; this section re-scores every one of the 23 rows §4b
+counted as **document-acquisition-blocked** (class B, 12 rows, + class F, 11
+rows) against them. **No `stack_*.json` is produced here either** — same
+reason as §0: too few of the 23 land on a clean numeric trace to make a stack
+anything but 18 `untraced` elements with a gap list attached.
+
+**Documents newly in hand, with the revision actually read** (per this
+session's handoff: record the revision, not just the part number — an earlier
+citation of these parts by number alone, at an unstated revision, would not
+survive an export). Drawing-checker's tree is unchanged by this reading — see
+the invariant check at the end of this section.
+
+| document | revision read | drawing-checker path |
+|---|---|---|
+| PITCH ARM, PROPELLER | **C** | `215071-C.pdf` |
+| TANGENTIAL LINK MOUNT ASSEMBLY, PROPELLER | A | `215175-A.pdf` |
+| LOWER GAS SPRING BODY ASSEMBLY, PROPELLER | A | `215176-002-A.pdf` |
+| PISTON BODY, GAS SPRING, PROPELLER | A | `214700-002-A.pdf` |
+| PITCH ANTI ROTATION LINK ASSEMBLY, PROPELLER | A | `212956-005-A.pdf` |
+| HUB AND BLADE ASSEMBLY, PROPELLER | **B.1** | `216231 B.1 HUB AND BLADE ASSEMBLY, PROPELLER.pdf` |
+| NUTPLATE CARRIER (217262) | A | `217262-A.pdf` |
+| NAS1151 thru NAS1158 (national aerospace standard) | 2012 | `data/inbox/specs/NAS1151- NAS1158.PDF` |
+| Trelleborg Aerospace catalogue | August 2011 | `data/inbox/specs/trelleborg_aerospace_gb_en.pdf` |
+
+Neither `215071` nor `216231` had been read at **any** revision before this
+session (both were "named but absent" in §2b), so there is no earlier-revision
+value to compare against — nothing to flag as drift, just the two revisions
+recorded per the handoff's instruction.
+
+### 8a. The method that mattered: identify by a mating dimension, not by a matching number
+
+Two of the five new part drawings' most useful identifications did not come
+from a text label (none of these drawings prints "clocking hole", "link hole"
+or "bore" anywhere) and did not come from hunting for a number that happened
+to equal the workbook's — the trap §4a already names three times over (F6,
+F7, this section's own F10 below). They came from a **mating-dimension
+cross-reference**, the same method this repo's NAS6403/MS9363 pairing already
+established as legitimate:
+
+- `212956-005-A.pdf`'s parts list calls out **both** its spherical bearings
+  (`MS14101-3`, `MS14103-3`) as `.1900 BORE ID` — exactly 4.826 mm
+  (0.19 in × 25.4). `215071-C.pdf` sheet 2 carries exactly one hole at that
+  diameter (`⌀4.826 ±0.010`, with a countersink and a composite position
+  frame). A clevis pin through the anti-rotation link's bearing and through
+  this hole is the only physical joint that explains a shared, exact,
+  non-round-number diameter between two independently-drawn parts. That is
+  identity by cross-reference, not by luck of the value matching — the value
+  (0.020 mm band) does **not** match the workbook's 0.01 mm, and is scored a
+  mismatch below precisely because identity and value are separate questions.
+- `215176-002-A.pdf` (LOWER GAS SPRING BODY ASSEMBLY)'s own parts list
+  resolves find no. 1 to `213668-002 MOUNT, GAS SPRING, PROPELLER` — a part
+  already fully read in the 2026-09-01 session, for a different set of rows
+  (60/61/62). Nothing new needed to be opened; the new drawing's only useful
+  content was the identity link telling this session which already-read
+  callout answers row 41.
+
+### 8b. Per-row disposition
+
+Outcome vocabulary extends §3's (`traced` / `mismatch` / `candidate` / `gap`)
+with one label carried over from §1c/§2e: **`convention-traced`** — a real,
+citable derivation off the owner's *own* general-tolerance block, applied to
+an explicitly un-toleranced dimension, but not a specific numeric callout.
+Per the handoff's three requested outcomes (traced / measured absence / still
+blocked), a `mismatch` or `candidate` result below **is** the "traced"
+outcome in the sense that mattered to the handoff — the owning document is in
+hand and a value was read from it — scored precisely rather than rounded up.
+
+| row | element (GT, mm) | old (§3) | **new** | citation / reasoning |
+|---:|---|---|---|---|
+| 23 | pitch arm bore size tol (0.04) | gap, class B | **mismatch** | `215071-C.pdf` sh2 zone F8: `⌀64.030 +0.030/0.000` `⊥⌀0.05 A`. The only central-axis (shaft) bore on the part — identity is not in doubt (a gear has exactly one bore). Band 0.030 mm vs GT 0.04 mm. |
+| 27 | pitch arm clocking hole size tol (0.01) | gap, class B | **candidate** | `215071-C.pdf` sh2 zone G2, View A: `2X ⌀6.35 ±0.01`, position `⌀0.03 Ⓛ A B`. Best remaining candidate by elimination once the link hole is identified (row 30) — no text on the sheet calls anything "clocking", and two holes for one indexing feature is plausible but unconfirmed. Not scored `traced`. |
+| 30 | pitch arm link hole size tol (0.01) | gap, class B | **mismatch** | `215071-C.pdf` sh2 zone E9/E10: `⌀4.826 ±0.010`, countersink `⌀7.74 x100° BACKSIDE`, `⌖⌀0.13 Ⓛ A B C`. Identity via §8a's pin-diameter cross-reference to `212956-005`'s bearings. Band 0.020 mm vs GT 0.01 mm — see F9 below. |
+| 31 | pitch link length tol (0.06) | gap, class B | **still blocked (owner refined)** | `212956-005-A.pdf` (PITCH ANTI ROTATION LINK ASSEMBLY) read in full: its only length figure, `(81.43)`, is parenthesized — a reference dimension, not toleranced (a measured absence against *this* document). The toleranced length is on the link body piece part, **`213863-004`**, one BOM level deeper, not received. |
+| 38 | piston length tol (0.20, "2 decimals=>+/-0.1") | gap, class B | **convention-traced** | `214700-002-A.pdf` sh1 general-tolerance block (`X.XX = ±0.10`) and sh2 zone F6: overall length `113.67`, printed to 2 decimals with no explicit tolerance — inherits the block's ±0.10 (band 0.20 mm), matching GT exactly. Stronger than §2e's prior `convention-traced` cases: the **owning part's own drawing** carries both the block and the dimension, not a sibling part's. |
+| 39 | piston end to end stop feature (0.10, "tol +/-0.05") | gap, class B | **candidate (strong)** | `214700-002-A.pdf` sh2 zone D5: `5.00 ±0.05` (band 0.10 mm) — matches GT's value *and* its comment text verbatim, and is the only ±0.05 callout on the whole part. Located at a small groove near the piston's threaded tip (opposite the mounting flange). Not scored `traced`: nothing on the sheet names it an "end stop" contact face, it could be a thread-relief/retaining-ring groove, and the row may describe an *assembly* clearance (piston vs. a separate stop feature) that a single-part drawing cannot state alone. **The row that names the end stop itself remains the one this session is least willing to overclaim.** |
+| 41 | lower gas spring body height, top to mtg flange (0.20) | gap, class B | **traced** | §8a's identity link resolves the owner to `213668-002`, already read. `213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf` sh1 zone B12, SECTION C-C: `76.86 ±0.10` (band 0.20 mm) = overall height, top rim to mounting-flange plane. Exact match. |
+| 42 | tangential link mount height (0.20) | gap, class B | **still blocked (owner refined)** | `215175-A.pdf` (TANGENTIAL LINK MOUNT ASSEMBLY) read in full: dimensionless like 217755 — its only dims, `(⌀258.00)` and `(79.00)`, are references. Its own parts list resolves the actual housing to **`215198-001`/`215198-002`** (MOUNT, TANGENTIAL LINK, CW/CCW) and the seal bushing to **`214723-002`** (BUSHING, SEALED, TANGENTIAL LINK) — neither received. |
+| 45 | hub top deck to tan link mount (0.10) | gap, class B | **still blocked** | Spans two owners. Hub half: `212966-006`, already available (candidate features only, §3 rows 43/44). Tan-link-mount half: blocked as row 42. No document states the spanning path between the two even once both owners are dimensioned. |
+| 52 | tan link length (0.06) | gap, class B | **still blocked (owner refined)** | As row 31 — `212956-005` is find no. 24 on 217755 and serves both the "pitch link" and "tan link" positions the workbook names (one physical anti-rotation-link part, reused). Same absence, same deeper owner (`213863-004`), still not received. |
+| 59 | tan link mount size, mount feature (0.06) | gap, class B | **still blocked (owner refined)** | As row 42 — `215198-001`/`215198-002` or `214723-002`, neither received. |
+| 62 | gas spring bushing position (0.20) | gap, class B | **still blocked (hypothesis refined)** | `217262-A.pdf` (NUTPLATE CARRIER, 217263-001/-002) arrived but does not map to this row — no bushing or position dimension on it, only rivnut/self-locking-nut hardware. Best identified candidate owner, from `215175`'s own parts list: **`214723-002`** (the sealed bushing at the tan-link-mount joint) — its piece-part drawing is also not received, so this is a hypothesis for the next acquisition pass, not a resolved identity. |
+| 33, 35, 49, 53, 55 | pitch/tan link fastener size (0.01 each) | gap, class F | **mismatch** | `NAS1151- NAS1158.PDF` TABLE I, row NAS1154 (the workbook's own comment names this dash): shank `⌀D = .2495/.2485 in` (band 0.0254 mm) — the functionally correct reading of "fastener size" for a clearance-hole stack. See F10 below for the column-choice reasoning and the rejected alternative. |
+| 34, 36, 50, 54, 56 | pitch/tan link bearing size (0.013 each) | gap, class F | **still blocked** | Not closed by either new document. These are metal self-aligning spherical bearings (`MS14101-3`/`MS14103-3` per `212956-005`'s parts list) — a Military Standard part, not a Trelleborg polymer bearing. The MS14101/MS14103 spec sheets themselves are still absent from the pile. |
+| 63 | gas spring bushing clearance (0.18, "TB catalog p~239") | gap, class F | **identified, not traced** | `trelleborg_aerospace_gb_en.pdf` — "TB" = Trelleborg, confirmed (not merely guessed) by the printed page number: PDF page 241's footer reads "239", an exact match to the workbook's own "catalog p~239" once the file's own +2 footer offset is known. Section: "Table I Turcon® Slydring® Piston and Rod Bearing" — a piston/rod glide-ring bushing product, matching "gas spring bushing" exactly. The section gives a bearing-exposure **calculation method** (Figure 4/5, printed pp.240/242) and part-number tables keyed to AS4716 dash number, not a single quotable clearance figure; reproducing 0.18 mm needs a dash-number/cross-section selection the workbook does not state. A long-standing identification question is closed; the number is not. |
+
+### 8c. New findings against the ground truth (continuing §3c's F1–F7)
+
+**F8 — the pitch arm bore is narrower than the workbook records.** `215071-C`
+sh2 `⌀64.030 +0.030/0.000` (band 0.030 mm) vs the workbook's 0.04 mm (row 23).
+Identity is solid (the gear's one central bore); the disagreement is a
+genuine finding, not an identification miss.
+
+**F9 — the pitch-arm link hole is twice the workbook's band, and the
+identity method is new to this repo's endstop work.** `215071-C` sh2
+`⌀4.826 ±0.010` (band 0.020 mm) vs the workbook's row 30, 0.01 mm. Identity
+established via §8a's pin-diameter cross-reference to `212956-005`'s
+`.1900 BORE ID` spherical bearings (0.19 in = 4.826 mm exactly) — a
+non-arbitrary, non-value-matched argument. The 2:1 ratio between the drawing's
+band and the workbook's figure is the same shape as a `±0.010`-vs-`0.020`-total
+transcription slip; offered as a hypothesis for Jeff, not asserted.
+
+**F10 — NAS1154 has no column that reads 0.01 mm, and the closer number was
+deliberately not adopted.** Two TABLE I columns are candidates for the
+workbook's "fastener 1/2 size" (rows 33/35/49/53/55): shank `⌀D`
+(.2495/.2485 in, band 0.0254 mm) and gage `⌀C` (.4245/.4241 in, band
+0.0102 mm — numerically the closer match to 0.01 mm). The shank diameter is
+adopted because it is the dimension that actually sits in a mating clearance
+hole and drives fit; the gage diameter is a thread pitch-diameter inspection
+gauge, functionally unrelated to an assembly clearance stack. Recorded so the
+close-but-wrong number is visible and was not the deciding factor — the F6/F7
+trap, in reverse (a matching value on the *wrong* feature, rather than a wrong
+value on the right one).
+
+### 8d. Two acquisition-refinement findings (feed the "seven drawings" list, don't replace it)
+
+Three of the seven newly-received drawings turned out to be **assemblies**,
+dimensionless in exactly the way 217755 is (§2a) — a pattern worth naming
+before the next acquisition pass repeats it:
+
+- `215175-A.pdf` (tangential link mount) → the housing is `215198-001`/`-002`
+  and its seal bushing is `214723-002`. Neither piece-part drawing is in the
+  pipeline.
+- `212956-005-A.pdf` (pitch anti-rotation link) → the toleranced link body is
+  `213863-004`, one BOM level deeper. Not in the pipeline.
+- `215176-002-A.pdf` (lower gas spring body) → resolved cleanly, because its
+  one piece part, `213668-002`, happened to already be in hand from the prior
+  session (§8a). This is the one of the three where the extra BOM level cost
+  nothing.
+
+**The acquisition list should now name `215198-001`, `215198-002`,
+`214723-002` and `213863-004` by their own part numbers**, not by the
+assembly drawings that turned out to balloon them — asking for "the
+tangential link mount" or "the anti-rotation link" a second time would very
+likely return the same two assembly sheets already in hand.
+
+`217262-A.pdf` (nutplate carrier) does not map to any of the 23 rows (§8b,
+row 62) — it may still be useful for a row outside this pass, or it may
+simply not have been needed; not claimed as either.
+
+`216231 B.1 HUB AND BLADE ASSEMBLY, PROPELLER.pdf` restores part of the
+severed balloon chain §2c flagged: its parts list balloons `215071-001` and
+`215071-002` (the pitch arm) directly, on the actual (non-bird-strike)
+assembly — removing, for the pitch arm specifically, the "identified only via
+a lateral hop through a different configuration" caveat §2c and requirement 7
+carried. It does **not** balloon `212966-006` (the hub piece part) directly;
+it balloons a sub-assembly (`216135-001` through `-005`), so the hub's own
+"reached only through the bird-strike configuration" caveat stands.
+
+### 8e. The 3D-annotation evidence count (deliverable 4): zero new class-C rows
+
+The handoff asked for an explicit count of *measured absences on a drawing in
+hand and fully read* — the evidence class that argues for a 3D surface rather
+than more 2D acquisition (§4b's class C). This session's answer is **0
+among the 23 re-traced rows**, and the reasoning matters more than the
+number:
+
+Two of the newly-received drawings (`215175-A.pdf`, `212956-005-A.pdf`) were
+read in full and demonstrably do **not** carry a value six of the 23 rows
+need (§8d) — a real "read for, not there" outcome, but against the *assembly*
+sheet, not the correct final owner. Every piece-part drawing actually opened
+this session that IS a plausible final owner (`215071-C`, `214700-002-A`,
+and — via §8a — `213668-002`) **did** carry an explicit, conventionally
+toleranced dimension for every feature this session went looking for on it
+(rows 23/27/30/38/39/41 all resolved to a specific callout, right or wrong).
+None of the six new drawings carries the stronger "UNSPECIFIED FEATURES...
+controlled by 3D DEFINITION" delegation language `215735-A` and `212966-006`
+used (§2d) — only the routine "for complete product definition this drawing
+shall be used with model X" boilerplate that appears on every Joby release in
+this pipeline and is not evidence of a specific missing dimension. So this
+session's acquisitions are, so far, **acquisition** findings (get the next
+BOM level) rather than **3D-surface** findings (the sheet is deliberately
+silent) — consistent with §4a.2's original split, and worth stating plainly
+so the 3D-annotation case is not inflated by a session that did not, in fact,
+add to it.
+
+### 8f. Traced-ratio accounting
+
+This worksheet is **not** a stack (§0's banner), so the SOP's `debug_report_
+tolerance_stacks.py --ratio` headline is unaffected by this session — no
+`stack_*.json` was touched, before or after:
+
+```
+seeded (slice 1, 3 stacks)   5 traced / 3 inferred / 18 untraced, out of 26 element instances
+all stacks                   30 traced / 9 inferred / 20 untraced, out of 59 element instances
+```
+
+This worksheet's own internal count (§3a's analog, over the 43 element
+instances) **does** move:
+
+| outcome | §3a (2026-09-01) | **§8f (2026-09-04)** |
+|---|---:|---:|
+| `traced` | 4 | **5** (+row 41) |
+| `convention-traced` | 0 (folded into gap notes) | **1** (row 38) |
+| `mismatch` | 3 | **10** (+rows 23, 30, 33, 35, 49, 53, 55) |
+| `candidate` | 8 | **10** (+rows 27, 39) |
+| `gap`, correctly recorded | 28 | **17** (−11 moved above; 12 of the 23 stay `gap`, refined) |
+| **total** | 43 | 43 |
+
+**Located** (`traced`+`convention-traced`+`mismatch`+`candidate`) moves from
+15/43 (35%) to **26/43 (60%)** — the headline number this session actually
+changed. `traced` alone (the only outcome that would survive the SOP inside
+an actual stack) moves from 4/43 (9%) to **5/43 (12%)**.
+
+### 8g. Drawing-checker read-only invariant
+
+Snapshot = every entry under `data/inbox/drawings/` and `data/runs/`, with
+size, via `scripts/snapshot_drawing_checker.py` (per §6's correction — the
+tool, not an ad-hoc listing).
+
+| | entries | timestamp (UTC) |
+|---|---:|---|
+| before, taken before any file was opened this session | 5651 | 2026-09-05T01:30:03Z |
+
+Nine PDFs were opened read-only this session (the seven new drawings plus a
+re-read of `213668-002`, already in the pipeline, and a page-count check of
+`216231 B.1...`). Every rendered crop went to this session's scratchpad
+directory, never into drawing-checker's tree and never into this repo's
+working directory. A closing snapshot and diff is taken and recorded in this
+session's lessons file rather than here, per that file's own convention of
+owning the before/after pair.
