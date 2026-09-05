@@ -94,7 +94,7 @@ PINNED_CLAIMS = (
      "test_every_row_claiming_stdlib_only_imports_only_the_stdlib"),
     (re.compile(r"needs PyMuPDF"),
      "test_the_block_names_a_dependency_for_exactly_the_modules_that_have_one"),
-    (re.compile(r"all four projection writers"),
+    (re.compile(r"all five projection writers"),
      "test_the_projection_provenance_row_counts_and_names_its_importers"),
     (re.compile(r"the three above"),
      "test_the_projection_provenance_row_counts_and_names_its_importers"),
@@ -583,7 +583,7 @@ def test_the_quantifier_scan_can_fail():
     assert unpinned_quantifiers("about a thousand lines") == ["thousand"]
     # And the pinned phrases, which must not be flagged.
     assert unpinned_quantifiers(
-        "Imported by all four projection writers (the three above and "
+        "Imported by all five projection writers (the three above and "
         "`tolerance_stack/spec_library.py`, 2026-08-12).") == []
     assert unpinned_quantifiers("source_ref -> a crop PNG (needs PyMuPDF)") == []
 

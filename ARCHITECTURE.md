@@ -34,9 +34,16 @@ scripts/
                                not in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
-                               2026-08-10; stdlib only. Imported by all four
+                               2026-08-10; stdlib only. Imported by all five
                                projection writers (the three above and
-                               `tolerance_stack/spec_library.py`, 2026-08-12).
+                               `tolerance_stack/spec_library.py`, 2026-08-12, and
+                               `scripts/export_stack_tabular.py`, 2026-09-04 --
+                               for its provenance stamp: that script writes no
+                               shared projection and does not call the gate).
+  export_stack_tabular.py      a stack or topology study -> a spreadsheet-shaped
+                               CSV, straight from the stored JSON and fold() /
+                               summarize() -- no second arithmetic path and no
+                               DOM scraping. Added 2026-09-04; stdlib only.
   snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
                                the evidence for "nothing was written there"
   run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code)

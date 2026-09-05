@@ -1871,6 +1871,34 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       would, and "it walks `live_documents()`" is not evidence that the half you
       care about does.
 
+- [ ] **A tool that summarizes "the" sign/coefficient for an element, where the
+      element is referenced by more than one check/path.** New 2026-09-04
+      (`stack_export_tabular`; caught in review, **fixed** by `0aa7d54`).
+      Nothing stops a hand-authored stack from referencing one element from two
+      term lists with different signs, and the `thermal_fit` archetype
+      *routinely* does this by construction: `build_checks()` generates one
+      check per chain x stage x temperature, and `stage_terms()` gives the same
+      sleeve-bore element sign `+1` at stage `hub_to_sleeve` and `-1` at stage
+      `sleeve_to_bearing` whenever `0 < k < 1` (true of both seeded chains in
+      `hub_bearing_thermal_fit_m1`) — and a **plain, non-thermal** stack can hit
+      this too: `pitch_link_to_pitch_plate`'s `clamped_stack_sourced` path is
+      added in one check and subtracted in another. A "one row per element,
+      first-check-wins" export collapsed both to a single, wrong-by-omission
+      sign, and its own docstring/lesson claimed "no seeded stack does this" --
+      falsifiable in one command:
+      `venv-win/Scripts/python.exe tests/debug_report_thermal_fit.py --terms |
+      grep <element_id>`, or just reading a two-check stack's own JSON.
+      Generalise: any tool (export, summary view, report) that claims one value
+      per element for a field that actually lives on `Term` (sign, coefficient,
+      weight) must be checked against a generated-check archetype AND against a
+      plain stack whose element is deliberately reused with an opposite sign --
+      grepping the seeded thermal_fit stack's element ids through
+      `debug_report_thermal_fit.py --terms` is the one-command test for the
+      first; reading a path's own JSON against every check that references it
+      is the check for the second. Fixed by replacing "first occurrence wins"
+      with one row per **distinct** `(sign, coefficient)` an element actually
+      enters with (`element_occurrences()` + `group_occurrences()`) -- an
+      element every check agrees on still gets one row.
 - [ ] **Converting a div-flex grid to a real `<table>` breaks row height, and
       not for one reason.** New 2026-09-04 (`viewer_consolidation`, the
       nominal/min/max column split). A `<tr>`'s inline `height` is a **floor**,
