@@ -51,10 +51,10 @@
   </details>
 
   <main class="tv">
-    <!-- Stacks no topology re-expresses (VA.looseStacks) — most of them: a
-         topology is extra authoring, not a free side effect of having a stack.
-         Retiring the stack viewer means this page also has to be able to show
-         everything it showed, not only what the DAG covers. -->
+    <!-- Every stack (retiring the stack viewer means this page also has to be
+         able to show everything it showed, not only what the DAG covers) —
+         see topology_app.js's renderStackNav for why the one a topology DOES
+         cover still gets a row here too, marked rather than hidden. -->
     <nav id="stacklist" class="stacklist"></nav>
     <div class="tv__main">
       <section id="topopane" class="tv__scroll"></section>

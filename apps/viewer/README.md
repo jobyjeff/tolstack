@@ -98,21 +98,32 @@ in JavaScript would be a second such line, so there isn't one:
 the authored file, and re-asserts the ground-truth numbers *through* the
 projection.
 
-## Stacks with no topology
+## The stack nav
 
-Most stacks in `docs/tolerance_stacks/` have no topology re-expressing them — a
-topology is extra authoring for a mechanism-shaped question, not a free side
-effect of having a stack, and today only `stack_vpa_output_to_pitch_plate.json`
-does (`topology_vpa_output_to_pitch_plate.json`, the L1 proof). `VA.looseStacks`
-(`topology.js`) computes the rest by reading the linkage already on hand — an
-edge that re-expresses a stack element carries `crop_key: {stack, element}`, and
-that IS the "this stack has a topology" fact, so nothing new is authored to say
-so. The left rail (`#stacklist`, reused unchanged from the retired stack viewer)
-lists them, each row carrying the same sourcing-scoreboard chips it always did;
-clicking one switches the centre pane to the classic elements/paths/checks/gaps
-view (`views/stack.js`) and the picker above to a placeholder — "viewing a
-stack; pick one to return" — rather than showing a topology id that is not what
-is on screen. Picking a real topology from that dropdown switches back.
+The left rail (`#stacklist`, reused unchanged from the retired stack viewer)
+lists **every** stack in `docs/tolerance_stacks/`, each row carrying the same
+sourcing-scoreboard chips it always did; clicking one switches the centre pane
+to the classic elements/paths/checks/gaps view (`views/stack.js`) and the
+picker above to a placeholder — "viewing a stack; pick one to return" — rather
+than showing a topology id that is not what is on screen. Picking a real
+topology from that dropdown switches back.
+
+Most stacks have no topology re-expressing them — a topology is extra
+authoring for a mechanism-shaped question, not a free side effect of having a
+stack, and today only `stack_vpa_output_to_pitch_plate.json` does
+(`topology_vpa_output_to_pitch_plate.json`, the L1 proof). That one still gets
+a row here too, not just a place in the topology dropdown: its own authored
+`checks` block (a worst-case verdict against a criterion) has no field in the
+topology projection at all — DAG_TOPOLOGY.md's L1 proof compares *totals*,
+never a verdict — so hiding it from the nav would have made that check
+unreachable from anywhere on the page. `VA.stacksCoveredByTopology`
+(`topology.js`) computes which stack that is by reading the linkage already on
+hand — an edge that re-expresses a stack element carries
+`crop_key: {stack, element}`, and that IS the "this stack has a topology" fact,
+so nothing new is authored to say so — and `topology_app.js`'s
+`markCoveredStacks` appends one extra chip, **also a topology**, to that row
+after `VA.renderList` builds it, pointing at the richer graph view without
+removing the classic one.
 
 ## The topology mode
 

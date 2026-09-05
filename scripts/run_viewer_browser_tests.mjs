@@ -143,7 +143,15 @@ async function testTheApp(browser, url, label) {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector(".stacklist__row", { timeout: 15000 });
 
-    push("the stack list renders a row", await page.locator(".stacklist__row").count() === 1);
+    // Both the stack a topology covers (demo_joint) and the one that stands in
+    // for every stack that has none (demo_joint_standalone) — deliverable 3's
+    // nav lists every stack, not just the loose ones (renderStackNav's own
+    // comment says why: a covered stack's own check verdict lives nowhere else).
+    push("the stack list renders every stack, covered or not",
+      await page.locator(".stacklist__row").count() === 2);
+    push("the one a topology covers carries the pointer to it",
+      await page.locator(".chip--kind", { hasText: "also a topology" }).count() === 1);
+
     // Switch from the default topology mode into stack mode — a real click,
     // which is the one thing this test tier exists to exercise.
     await page.locator(".stacklist__row").first().click();

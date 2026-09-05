@@ -138,12 +138,12 @@
     var s = VA.demoFixture();
     // `t` already re-expresses `demo_joint` (VA.demoTopologyFixture's own
     // comment: its three crop_keys address exactly that stack's entries), so
-    // demo_joint is correctly COVERED and would not appear in the loose-stack
-    // nav — which leaves nothing there to demonstrate the mode this mock exists
-    // to demo. A second copy of the same rich fixture, under an id no
-    // topology's crop_key names, gives the tour (and the browser tier) a real
-    // loose stack to click into — the shape the real repo is in today: one
-    // stack a topology re-expresses, most that no topology does.
+    // demo_joint is correctly COVERED — it stays in the nav (every stack does,
+    // see renderStackNav's own comment for why hiding it was the wrong call),
+    // marked with the "also a topology" chip. A second copy of the same rich
+    // fixture, under an id no topology's crop_key names, gives the tour (and
+    // the browser tier) a real LOOSE stack too — the shape the real repo is in
+    // today: one stack a topology re-expresses, most that no topology does.
     var looseId = "demo_joint_standalone";
     var looseStack = Object.assign({}, s.results.stacks[0], { id: looseId });
     var looseCrops = (s.crops && s.crops.by_stack && s.crops.by_stack.demo_joint) || {};
@@ -152,7 +152,7 @@
     return {
       startState: VA.STATE.READY,
       topologies: t.topologies,
-      results: Object.assign({}, s.results, { stacks: [looseStack] }),
+      results: Object.assign({}, s.results, { stacks: [s.results.stacks[0], looseStack] }),
       crops: {
         by_stack: byStack,
         summary: (s.crops || {}).summary,
@@ -426,10 +426,21 @@
     VA.renderWorksheet(nodes.worksheet, stackProj, state.worksheetText);
   }
 
-  // The nav of stacks NO topology re-expresses (VA.looseStacks) — most of
-  // them. Reuses views/list.js's renderList (the retired stack viewer's own
-  // left rail) completely unchanged: a stack row's confidence chips are the
-  // same "at a glance" scoreboard here as they always were.
+  // The nav of EVERY stack (deliverable 3: full parity, not just the ones no
+  // topology covers). Reuses views/list.js's renderList (the retired stack
+  // viewer's own left rail) completely unchanged: a stack row's confidence
+  // chips are the same "at a glance" scoreboard here as they always were.
+  //
+  // Listing only VA.looseStacks here was the first cut and it was wrong: the
+  // one committed stack a topology DOES cover
+  // (stack_vpa_output_to_pitch_plate.json) carries its own authored `checks`
+  // block (a worst-case verdict against a criterion) that the topology
+  // projection has no field for at all — DAG_TOPOLOGY.md's L1 proof compares
+  // TOTALS, never a verdict. Hiding that stack from the nav would have made
+  // its one check unreachable from anywhere on this page, the exact silent
+  // capability loss this handoff exists to avoid. So every stack is listed;
+  // markCoveredStacks (below) only ADDS a pointer to the richer graph view,
+  // never removes the classic one.
   function renderStackNav() {
     if (state.connection !== VA.STATE.READY) {
       VA.clear(nodes.stacklist);
@@ -440,26 +451,47 @@
       VA.clear(nodes.stacklist);
       nodes.stacklist.className = "stacklist";
       nodes.stacklist.appendChild(VA.el("p", "muted",
-        "No results projection — stacks with no topology have nowhere to show " +
-        "here. Build it: " + VA.CONFIG.rebuild.results));
+        "No results projection — stacks have nowhere to show here. Build it: " +
+        VA.CONFIG.rebuild.results));
       nodes.stacklist.style.display = "";
       return;
     }
-    var loose = VA.looseStacks(state.topologies, state.stacksResults);
-    if (!loose.length) {
+    var stacks = (state.stacksResults.stacks || []);
+    if (!stacks.length) {
       VA.clear(nodes.stacklist);
       nodes.stacklist.style.display = "none";
       return;
     }
     nodes.stacklist.style.display = "";
-    VA.renderList(nodes.stacklist, { stacks: loose }, state.selectedStackId,
+    VA.renderList(nodes.stacklist, state.stacksResults, state.selectedStackId,
       function (id) {
         selectStack(id);
         hideCrop();
         loadWorksheet().then(render);
       });
-    nodes.stacklist.insertBefore(
-      VA.el("div", "muted", "Stacks with no topology:"), nodes.stacklist.firstChild);
+    markCoveredStacks();
+  }
+
+  // A stack a topology ALSO re-expresses (VA.stacksCoveredByTopology, read off
+  // edges' own crop_key — no new field) earns one extra chip pointing at the
+  // richer view, appended after the fact so views/list.js's own row markup
+  // stays exactly what the retired stack viewer shipped.
+  function markCoveredStacks() {
+    var covered = VA.stacksCoveredByTopology(state.topologies);
+    if (!Object.keys(covered).length) return;
+    var rows = nodes.stacklist.querySelectorAll
+      ? nodes.stacklist.querySelectorAll(".stacklist__row") : [];
+    Array.prototype.forEach.call(rows, function (rowNode) {
+      var idNode = rowNode.querySelector && rowNode.querySelector(".stacklist__id");
+      var id = idNode && idNode.textContent;
+      var chips = rowNode.querySelector && rowNode.querySelector(".stacklist__chips");
+      if (id && covered[id] && chips) {
+        chips.appendChild(VA.chip("chip--kind", "also a topology",
+          "a topology in docs/topologies/ re-expresses this stack as a graph " +
+          "— pick it from the dropdown above for the rail view; this classic " +
+          "view (and its checks) stay reachable here either way"));
+      }
+    });
   }
 
   // Re-render with the rows/rows-equivalent scrolled back to the top. Only the
