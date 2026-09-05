@@ -1,0 +1,126 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "20260904-nas1151-nas1158-2012-agentmanual-v0",
+  "seq": 4,
+  "mode": "full",
+  "document": "NAS1151- NAS1158.PDF",
+  "parsed_at": "2026-09-04",
+  "parser": {
+    "name": "agent-manual",
+    "version": "v0",
+    "agent": "handoff endstop_retrace_acquired_docs",
+    "recipe": "The embedded text layer is a low-quality OCR pass over a photocopy scan (garbled: 'l' for '1', ',' for '.', dropped digits -- e.g. TABLE I's own header text extracts as 'Jj iASIC / - PART / NUMBER'). Not used for any value below. Read instead off a PyMuPDF render from drawing-checker's venv-win: get_pixmap(Matrix(3)) on page 1, clip to the drawing+TABLE I region ([0,0,306,270] pt at zoom 3). Every value in this event was confirmed against that render, pixel by pixel, not against the text layer."
+  },
+  "document_meta": {
+    "title": "OFFSET CRUCIFORM RECESS PAN HEAD, MACHINE SCREW",
+    "designation": "NAS1151 thru NAS1158",
+    "issuer": "National Aerospace Standard, Aerospace Industries Association of America",
+    "revision_date": "OCTOBER 31, 2012",
+    "copyright": "2012 AEROSPACE INDUSTRIES ASSOCIATION OF AMERICA, INC.",
+    "fed_supply_class": "5305",
+    "sheets_present_in_the_file": [1, 2, 3, 4, 5, 6, 7],
+    "sheets_read_this_event": [1],
+    "arrived_in_the_pile": "acquired for handoff endstop_retrace_acquired_docs; verified on disk 2026-09-04. Closes the endstop worksheet's long-standing NAS1154 acquisition gap (WORKSHEET_end_stop_graft.md rows 33/35/49/53/55)."
+  },
+  "entries": [
+    {
+      "subject": "NAS1151 thru NAS1158",
+      "subject_kind": "family",
+      "note": "Sheet-1 drawing (head profile, thread callout, TABLE I column definitions) applies to every dash number. Per-dash TABLE I values are on the NAS1154 subject below -- the only dash this repo's endstop worksheet cites.",
+      "values": {
+        "length_tolerance": {
+          "text": "LENGTH ±.015",
+          "at": {"sheet": 1, "pdf_page": 1, "figure": "head/shank profile", "callout": "LENGTH ±.015"},
+          "confidence": "traced"
+        },
+        "grip_tolerance": {
+          "text": "GRIP ±.010 /1/",
+          "at": {"sheet": 1, "pdf_page": 1, "figure": "head/shank profile", "callout": "GRIP ±.010 /1/"},
+          "confidence": "traced",
+          "note": "Note /1/ is on a later sheet of this file, not read this event -- not needed for the endstop rows."
+        },
+        "recess_position_tolerance": {
+          "text": "TOL XⓂ BⓈ C",
+          "at": {"sheet": 1, "pdf_page": 1, "figure": "head/shank profile", "callout": "OFFSET CRUCIFORM RECESS PER NASM14191 OR NASM33781 (SEE CODE) /25/, position tol X at MMC to B(RFS) C"},
+          "confidence": "traced",
+          "note": "Recess position, not a size tolerance -- recorded because it is the only other toleranced callout on sheet 1's drawing view; not consumed by any endstop row."
+        }
+      }
+    },
+    {
+      "subject": "NAS1154",
+      "subject_kind": "part_number",
+      "note": "The .2500-28 dash. TABLE I - DIMENSIONS, row 'NAS1154', all eleven columns read off the render (not the OCR text layer). This is the only NAS1151-1158 dash the endstop worksheet's comments name (rows 33, 35, 49, 53, 55 of WORKSHEET_end_stop_graft.md all read 'NAS1154' verbatim).",
+      "values": {
+        "thread": {
+          "text": ".2500-28 UNJF-3A",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "NOMINAL THREAD SIZE"},
+          "confidence": "traced"
+        },
+        "head_diameter": {
+          "max": 0.507, "min": 0.497, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "(ØA) /2/", "callout": ".507/.497"},
+          "confidence": "traced"
+        },
+        "head_diameter_min": {
+          "min": 0.449, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "ØB MIN", "callout": ".449"},
+          "confidence": "traced"
+        },
+        "gage_diameter": {
+          "max": 0.4245, "min": 0.4241, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "ØC GAGE /2/ /3/", "callout": ".4245/.4241"},
+          "confidence": "traced",
+          "note": "Band width .0004 in = 0.0102 mm -- numerically the closest column in this table to the endstop worksheet's 0.01 mm 'fastener size' rows. NOT adopted as the identification: GAGE is a thread pitch-diameter inspection gauge, not a dimension that participates in an assembly clearance. Recorded so the next reader sees why the close number was not simply taken -- see shank_diameter's note and this session's lesson (F6/F7-style value-only-match trap)."
+        },
+        "shank_diameter": {
+          "max": 0.2495, "min": 0.2485, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "ØD /2/ /9/", "callout": ".2495/.2485"},
+          "confidence": "traced",
+          "note": "The functionally correct reading of 'fastener size' for a clearance-hole stack: the shank diameter, over the thread's unthreaded body, is what actually sits in the mating clearance hole and drives fit/backlash. Band width .0010 in = 0.0254 mm -- disagrees with the endstop worksheet's 0.01 mm (rows 33/35/49/53/55). See gage_diameter's note for the numerically-closer alternative that was considered and rejected on functional grounds."
+        },
+        "washer_face_thickness": {
+          "min": 0.015, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "(F) /2/", "callout": ".015"},
+          "confidence": "traced"
+        },
+        "head_height": {
+          "min": 0.106, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "(H) /2/", "callout": ".106"},
+          "confidence": "traced"
+        },
+        "recess_depth_max": {
+          "max": 0.118, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "J MAX /7/", "callout": ".118"},
+          "confidence": "traced"
+        },
+        "recess_diameter": {
+          "max": 0.0342, "min": 0.0316, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "K /2/ /3/", "callout": ".0342/.0316"},
+          "confidence": "traced"
+        },
+        "grip_length_shoulder": {
+          "min": 0.116, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "M +.010/-.000 /4/", "callout": ".116"},
+          "confidence": "traced",
+          "note": "Column header prints +.010/-.000 -- same 'nominal is the low limit plus the header's printed band' pattern as MS9363/NAS6403's tabulated columns; the .116 cell is the low limit."
+        },
+        "fillet_radius": {
+          "max": 0.02, "min": 0.01, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "R RAD", "callout": ".020/.010"},
+          "confidence": "traced"
+        },
+        "overall_length_reference": {
+          "nominal": 0.316, "units": "in",
+          "at": {"sheet": 1, "pdf_page": 1, "table": "TABLE I - DIMENSIONS", "row": "NAS1154", "column": "(T)", "callout": ".316"},
+          "confidence": "traced",
+          "note": "Parenthesized in the table -- a reference dimension, not a toleranced one (the length itself is toleranced separately at ±.015, see the family entry)."
+        }
+      }
+    }
+  ],
+  "notes": [
+    "This copy's text layer is OCR over a scanned photocopy and is unreliable at the character level (confirmed: 'NAS1154' extracts cleanly but every numeric cell near it does not, e.g. '.4245'/'.4241' extracts as '.0342' -- read the actual pixels, never the text layer, for this document).",
+    "Endstop worksheet identification: WORKSHEET_end_stop_graft.md rows 33/35/49/53/55 all carry the comment 'NAS1154' with a 0.01 mm size band. Neither TABLE I column that could plausibly be called a fastener 'size' (shank ØD, 0.0254 mm; gage ØC, 0.0102 mm) matches 0.01 mm exactly. Recorded as a mismatch against shank_diameter (the functionally correct column) in WORKSHEET_endstop_vision_baseline.md's re-trace, 2026-09-04 -- not as a trace, and not as a silent pick of whichever column happened to be closer."
+  ]
+}

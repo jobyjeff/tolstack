@@ -1,0 +1,72 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "20260904-trelleborg-aerospace-2011-agentmanual-v0",
+  "seq": 5,
+  "mode": "full",
+  "document": "trelleborg_aerospace_gb_en.pdf",
+  "parsed_at": "2026-09-04",
+  "parser": {
+    "name": "agent-manual",
+    "version": "v0",
+    "agent": "handoff endstop_retrace_acquired_docs",
+    "recipe": "344-page born-digital catalog with a clean text layer (unlike NAS1151-1158, no OCR garbling). Located the relevant section with a whole-document text search for 'Piston and Rod Bearing', then read PDF pages 239-242 (the catalog's own printed page numbers 237-240 -- this file's PDF page index runs exactly 2 ahead of its printed footer) with the tool's --pattern and --page options; no rendering needed, the text layer is exact."
+  },
+  "document_meta": {
+    "title": "Trelleborg Sealing Solutions -- Aerospace catalogue",
+    "issuer": "Trelleborg Sealing Solutions",
+    "edition": "August 2011",
+    "sheets_present_in_the_file": 344,
+    "sheets_read_this_event": [239, 240, 241, 242],
+    "arrived_in_the_pile": "acquired for handoff endstop_retrace_acquired_docs; verified on disk 2026-09-04. Closes the endstop worksheet's long-standing 'what is TB' identification question (WORKSHEET_end_stop_graft.md row 63's comment 'based on TB tolerances (catalog p~239)')."
+  },
+  "entries": [
+    {
+      "subject": "Trelleborg Turcon Slydring piston and rod bearing",
+      "subject_kind": "family",
+      "note": "The endstop worksheet row 63 comment (0.18 mm gas-spring bushing clearance, 'based on TB tolerances (catalog p~239)') identifies this catalog and this section. 'TB' = Trelleborg, confirmed by the printed page number: this catalog's own footer reads '239' on the exact page (PDF index 241) whose heading is 'Table I Turcon Slydring Piston and Rod Bearing' -- a piston/rod glide-ring bushing product, which is exactly the kind of part a 'gas spring bushing clearance' row would cite.",
+      "values": {
+        "identification": {
+          "text": "Table I Turcon® Slydring®, Piston and Rod Bearing",
+          "at": {"pdf_page": 239, "note": "printed page 237"},
+          "confidence": "traced",
+          "note": "Section start. Part-number table by AS4716 dash number (bore/rod diameter), not by a single clearance figure."
+        },
+        "printed_page_matches_worksheet_citation": {
+          "text": "This file's printed page 239 is PDF page 241 (footer offset +2). The endstop workbook's own comment names 'catalog p~239' -- an exact match once the +2 footer offset is known.",
+          "at": {"pdf_page": 241, "note": "footer reads 239"},
+          "confidence": "traced"
+        },
+        "bearing_exposure_definition": {
+          "text": "The bearing running clearance, or bearing exposure, is the least understood and the most frequently encountered problem in the design of polymer bearings... they require larger running clearances than those recommended for metal bearings.",
+          "at": {"pdf_page": 242, "note": "printed page 240, section 'Calculating the Proper Bearing Exposure'"},
+          "confidence": "traced"
+        },
+        "bearing_exposure_formula": {
+          "text": "Piston groove depth maximum = piston diameter maximum minus groove diameter minimum. Piston groove depth minimum = piston diameter minimum minus groove diameter maximum. Bearing exposure minimum = bearing wall minimum minus piston groove depth maximum. Bearing exposure maximum = bearing wall maximum minus piston groove depth minimum.",
+          "at": {"pdf_page": 242, "figure": "Figure 4, Bearing Exposure Variables", "note": "printed page 240"},
+          "confidence": "traced",
+          "note": "The calculation method a 'gas spring bushing clearance' figure would come from -- inputs are the piston OD band, the housing groove-diameter band and the bearing (Slydring) wall-thickness band, none of which this catalog states as a single number without choosing a specific AS4716 dash and cross-section (GP0_X/W/Y or GR0_X/W/Y, Table I, p.239 printed)."
+        },
+        "recommended_minimum_bearing_exposure": {
+          "nominal": 0.127,
+          "units": "mm",
+          "text": ".005 inch / 0.127 mm minimum",
+          "at": {"pdf_page": 242, "note": "printed page 240, 'It is recommended that unless side load is extremely low, start with a bearing exposure of .005 inch/0.127 mm minimum.'"},
+          "confidence": "traced",
+          "note": "A generic starting recommendation, not a computed value for any specific Joby part. Recorded because it is the one single numeric figure this section states outright; it is NOT the endstop workbook's 0.18 mm (see the absence below) and should not be substituted for it."
+        }
+      },
+      "absences": [
+        {
+          "name": "gas_spring_bushing_clearance_0_18mm",
+          "why": "This section gives a calculation METHOD (bearing_exposure_formula) and per-dash part-number tables keyed to AS4716 bore/rod size, not a single tabulated clearance number. Reproducing the endstop workbook's row-63 figure (0.18 mm) requires the specific AS4716 dash number and Slydring cross-section (GP0_X/W/Y piston or GR0_X/W/Y rod, Table I p.239 printed) the gas-spring piston actually uses, which is not stated in the workbook and not yet resolved to a part number by any drawing read in this or the prior session (WORKSHEET_endstop_vision_baseline.md row 62, gas-spring bushing owner, is itself still an open acquisition gap).",
+          "closed_by": "The gas-spring piston/bushing dash-number pairing, once row 62's owner document is acquired -- at that point this family's bearing_exposure_formula plus the specific dash's wall-thickness band (Table I) closes row 63 by calculation, cited to both documents."
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "This is a 344-page catalog; only pages 239-242 (printed 237-240, the Piston and Rod Bearing / Slydring section) were read. No claim is made about the rest of the document -- it covers seals, O-rings and other bearing families (Roto Glyd Ring at printed page ~229, Table VIII-XI groove dimensions per AS4716/AS5857 at printed pages ~36-48) not needed for this handoff.",
+    "Do not confuse this family with the pitch/tangential link's spherical plain bearings (MS14101-3, MS14103-3, per 212956-005-A.pdf's parts list): those are metal self-aligning bearings under a Military Standard, not Trelleborg polymer piston/rod bearings. Trelleborg's catalog does not cover them, and WORKSHEET_endstop_vision_baseline.md rows 34/36/50/54/56 (spherical bearing size) remain blocked on the MS14101/MS14103 spec sheets, not on this document."
+  ]
+}

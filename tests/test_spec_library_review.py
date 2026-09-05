@@ -416,6 +416,8 @@ def test_the_documents_the_library_holds_are_exactly_the_ones_it_was_read_from(l
         "NAS6403-NAS6420 Rev 4.pdf",
         "MS9363 Rev C.pdf",
         "JPS00094 Process Specification — Installation of Bolts and Nuts.pdf",
+        "NAS1151- NAS1158.PDF",
+        "trelleborg_aerospace_gb_en.pdf",
     }
 
 

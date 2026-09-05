@@ -39,6 +39,8 @@ ALL_EVENT_FILES = [
     "0001_nas6403_nas6420_rev4_agent_manual_v0.json",
     "0002_ms9363_rev_c_agent_manual_v0.json",
     "0003_jps00094_rev_c_agent_manual_v0.json",
+    "0004_nas1151_nas1158_2012_agent_manual_v0.json",
+    "0005_trelleborg_aerospace_2011_agent_manual_v0.json",
 ]
 
 
@@ -62,6 +64,8 @@ def test_the_library_rebuilds_from_the_event_log(library):
         "20260805-nas6403-nas6420-rev4-agentmanual-v0",
         "20260805-ms9363-revc-agentmanual-v0",
         "20260805-jps00094-revc-agentmanual-v0",
+        "20260904-nas1151-nas1158-2012-agentmanual-v0",
+        "20260904-trelleborg-aerospace-2011-agentmanual-v0",
     ]
     assert set(library.subjects) == {
         "NAS6403 thru NAS6420",
@@ -75,6 +79,9 @@ def test_the_library_rebuilds_from_the_event_log(library):
         "JPS00094 5.5.5",
         "JPS00094 5.9.7",
         "JPS00094 5.7.6.a",
+        "NAS1151 thru NAS1158",
+        "NAS1154",
+        "Trelleborg Turcon Slydring piston and rod bearing",
     }
 
 
@@ -89,6 +96,8 @@ def test_every_event_names_a_document_that_is_in_the_pile():
     assert vouched <= documents  # everything the queue calls entered was read
     assert "MS9363 Rev C.pdf" in documents
     assert "NAS6403-NAS6420 Rev 4.pdf" in documents
+    assert "NAS1151- NAS1158.PDF" in documents
+    assert "trelleborg_aerospace_gb_en.pdf" in documents
 
 
 # ---------------------------------------------------------------------------
@@ -302,6 +311,83 @@ def test_ms9363_invokes_the_same_thread_standard_as_the_bolt(library):
     bolt = library.value("NAS6403 thru NAS6420", "thread_form").value
     assert "MIL-S-8879" in nut.text and "MIL-S-8879" in bolt.text
     assert nut.at.note == "requirement 2"
+
+
+# ---------------------------------------------------------------------------
+# NAS1151-1158 -- intake rank n/a, acquired 2026-09-04 for endstop_retrace
+# ---------------------------------------------------------------------------
+
+
+def test_nas1154_shank_diameter_is_the_functional_fastener_size(library):
+    """TABLE I, row NAS1154, column ØD -- the shank diameter over the
+    unthreaded body, the dimension that actually sits in a mating clearance
+    hole. Read off a render, never the OCR text layer (see the event's
+    parser.recipe -- this document's text layer garbles digits)."""
+    shank = library.value("NAS1154", "shank_diameter").value
+    assert (shank.max, shank.min) == (0.2495, 0.2485)
+    assert shank.at.column == "ØD /2/ /9/"
+    assert shank.confidence == "traced"
+
+
+def test_nas1154_gage_diameter_is_recorded_but_not_the_adopted_reading(library):
+    """The numerically-closer column to the endstop worksheet's 0.01 mm figure
+    (band width .0004 in = 0.0102 mm) is recorded for transparency, with its
+    note explaining why it was NOT adopted -- a thread-gauging diameter is not
+    an assembly-clearance dimension, and picking it only because the number is
+    closer is exactly the value-only-matching trap this repo's baseline
+    lesson already caught once (F6/F7 in WORKSHEET_endstop_vision_baseline.md)."""
+    gage = library.value("NAS1154", "gage_diameter").value
+    assert (gage.max, gage.min) == (0.4245, 0.4241)
+    assert "not adopted" in gage.note.lower() or "not the identification" in gage.note.lower()
+
+
+def test_nas1151_thru_nas1158_family_carries_the_sheet1_drawing_facts(library):
+    length = library.value("NAS1151 thru NAS1158", "length_tolerance").value
+    assert length.text == "LENGTH ±.015"
+    grip = library.value("NAS1151 thru NAS1158", "grip_tolerance").value
+    assert grip.text == "GRIP ±.010 /1/"
+
+
+# ---------------------------------------------------------------------------
+# Trelleborg aerospace catalog -- intake rank n/a, acquired 2026-09-04
+# ---------------------------------------------------------------------------
+
+
+def test_trelleborg_identifies_the_endstop_worksheets_tb_catalog(library):
+    """The endstop worksheet's row 63 comment ('based on TB tolerances
+    (catalog p~239)') named an unresolved catalog for over a month. This is
+    it: the section heading at PDF page 239 (Turcon Slydring, piston and rod
+    bearing) and the printed-page-number match (footer '239' on that exact
+    page) together confirm the identification, not the number alone."""
+    ident = library.value(
+        "Trelleborg Turcon Slydring piston and rod bearing", "identification"
+    ).value
+    assert "Turcon" in ident.text and "Slydring" in ident.text
+    assert ident.at.pdf_page == 239
+    page_match = library.value(
+        "Trelleborg Turcon Slydring piston and rod bearing",
+        "printed_page_matches_worksheet_citation",
+    ).value
+    assert "239" in page_match.text
+
+
+def test_trelleborg_gives_a_formula_not_a_single_clearance_number(library):
+    """Deliberately NOT a trace of the endstop workbook's 0.18 mm: the catalog
+    gives a calculation method keyed to a specific AS4716 dash number and
+    cross-section, and the workbook does not say which one was used. Recorded
+    as an absence, not guessed."""
+    formula = library.value(
+        "Trelleborg Turcon Slydring piston and rod bearing", "bearing_exposure_formula"
+    ).value
+    assert "bearing wall" in formula.text.lower()
+    absence = next(
+        a for a in library.subject("Trelleborg Turcon Slydring piston and rod bearing").absences
+        if a["name"] == "gas_spring_bushing_clearance_0_18mm"
+    )
+    assert "AS4716" in absence["why"]
+    assert "gas_spring_bushing_clearance_0_18mm" not in library.subject(
+        "Trelleborg Turcon Slydring piston and rod bearing"
+    ).values
 
 
 # ---------------------------------------------------------------------------
