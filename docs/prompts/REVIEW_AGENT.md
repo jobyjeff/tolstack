@@ -1873,24 +1873,68 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
 - [ ] **A tool that summarizes "the" sign/coefficient for an element, where the
       element is referenced by more than one check/path.** New 2026-09-04
-      (`stack_export_tabular`, REQUEST CHANGES). Nothing stops a hand-authored
-      stack from referencing one element from two term lists with different
-      signs, and the `thermal_fit` archetype *routinely* does this by
-      construction: `build_checks()` generates one check per chain x stage x
-      temperature, and `stage_terms()` gives the same sleeve-bore element sign
-      `+1` at stage `hub_to_sleeve` and `-1` at stage `sleeve_to_bearing`
-      whenever `0 < k < 1` (true of both seeded chains in
-      `hub_bearing_thermal_fit_m1`). A "one row per element, first-check-wins"
-      export collapsed this to a single, wrong-by-omission sign, and its own
-      docstring/lesson claimed "no seeded stack does this" -- falsifiable in
-      one command: `venv-win/Scripts/python.exe tests/debug_report_thermal_fit.py
-      --terms | grep <element_id>`. Generalise: any tool (export, summary view,
-      report) that claims one value per element for a field that actually lives
-      on `Term` (sign, coefficient, weight) must be checked against a
-      generated-check archetype specifically, because that is where a hand-built
-      stack's usual "one term list per element" convention breaks down --
+      (`stack_export_tabular`; caught in review, **fixed** by `0aa7d54`).
+      Nothing stops a hand-authored stack from referencing one element from two
+      term lists with different signs, and the `thermal_fit` archetype
+      *routinely* does this by construction: `build_checks()` generates one
+      check per chain x stage x temperature, and `stage_terms()` gives the same
+      sleeve-bore element sign `+1` at stage `hub_to_sleeve` and `-1` at stage
+      `sleeve_to_bearing` whenever `0 < k < 1` (true of both seeded chains in
+      `hub_bearing_thermal_fit_m1`) — and a **plain, non-thermal** stack can hit
+      this too: `pitch_link_to_pitch_plate`'s `clamped_stack_sourced` path is
+      added in one check and subtracted in another. A "one row per element,
+      first-check-wins" export collapsed both to a single, wrong-by-omission
+      sign, and its own docstring/lesson claimed "no seeded stack does this" --
+      falsifiable in one command:
+      `venv-win/Scripts/python.exe tests/debug_report_thermal_fit.py --terms |
+      grep <element_id>`, or just reading a two-check stack's own JSON.
+      Generalise: any tool (export, summary view, report) that claims one value
+      per element for a field that actually lives on `Term` (sign, coefficient,
+      weight) must be checked against a generated-check archetype AND against a
+      plain stack whose element is deliberately reused with an opposite sign --
       grepping the seeded thermal_fit stack's element ids through
-      `debug_report_thermal_fit.py --terms` is the one-command test.
+      `debug_report_thermal_fit.py --terms` is the one-command test for the
+      first; reading a path's own JSON against every check that references it
+      is the check for the second. Fixed by replacing "first occurrence wins"
+      with one row per **distinct** `(sign, coefficient)` an element actually
+      enters with (`element_occurrences()` + `group_occurrences()`) -- an
+      element every check agrees on still gets one row.
+- [ ] **Converting a div-flex grid to a real `<table>` breaks row height, and
+      not for one reason.** New 2026-09-04 (`viewer_consolidation`, the
+      nominal/min/max column split). A `<tr>`'s inline `height` is a **floor**,
+      not a cap — none of `align-items: stretch` / a flex item's forced
+      cross-size / `overflow: hidden` on the row carry over to table cells, so
+      four independent causes can each push a row past its own pitch: (1) a
+      shared button/chip style sized for the old, taller cell; (2) an *empty*
+      cell still reserving its font's default line-height "strut" unless the
+      row's own `line-height` is set inline (not just `vertical-align:
+      middle`, which centres content but does not cap the strut); (3)
+      `flex-wrap: wrap` on a cell's inner wrapper, which a fixed-height row has
+      nothing to stop; (4) `border-collapse: collapse` (not `separate`)
+      double-applying a `td, th` border-bottom that every *other* table in the
+      app already carries harmlessly, because none of them sets an inline row
+      height for it to fight. The browser alignment tier (`alignmentDrift`,
+      `run_viewer_browser_tests.mjs`) is the only thing that catches this — a
+      fast-tier DOM-shim test has no real layout to measure. If a future handoff
+      converts another div grid to a table, expect to chase more than one of
+      these, and re-run the alignment tier after each individual fix, not just
+      at the end.
+
+- [ ] **Retiring a page: reflexively filtering the merged view to "only what's
+      new" can make an old capability unreachable.** New 2026-09-04
+      (`viewer_consolidation`). The tactical agent's first cut of the stack nav
+      listed only stacks with no topology (`VA.looseStacks`) — the natural
+      reading of "show what the topology page doesn't already cover" — which
+      would have hidden the one stack a topology *does* re-express, and that
+      stack carries its own authored `checks` verdict the topology projection
+      has no field for at all, making it unreachable from anywhere on the
+      consolidated page. Caught by the author, before review, by re-deriving
+      "does this really drop nothing" from the handoff's own escape-valve
+      wording rather than trusting a green test (there was no failing test —
+      nothing asserted the covered stack's check was reachable). When a
+      handoff merges two surfaces, ask *is there a capability of the retiring
+      page whose only path to visibility this filter just removed?* — a green
+      suite is not evidence the answer is no.
 
 ## Writing the review
 

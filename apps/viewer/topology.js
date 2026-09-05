@@ -370,6 +370,37 @@
       " " + x2 + " " + y2;
   }
 
+  // --- loose stacks: what the topology page absorbs the stack viewer for ---
+  //
+  // Most stacks in docs/tolerance_stacks/ have no topology document at all —
+  // topology is opt-in per system, and re-expressing a stack as a graph is
+  // extra authoring, not a free side effect of having one. So retiring the
+  // stack viewer cannot mean "only render what a topology covers": this page
+  // also has to offer every stack NO topology re-expresses, rendered exactly
+  // as the stack viewer rendered it (views/stack.js, unchanged).
+  //
+  // Which stacks those are is read off the data already on hand, not a new
+  // field: an edge that re-expresses a stack element carries `crop_key`
+  // (`{stack, element}`), and that IS the linkage — the one committed L1 stack
+  // covered by a topology is exactly the one every one of its edges' crop_keys
+  // names. No schema change, no second source of truth.
+  VA.stacksCoveredByTopology = function (topologies) {
+    var covered = {};
+    ((topologies && topologies.topologies) || []).forEach(function (t) {
+      (t.edges || []).forEach(function (e) {
+        if (e.crop_key && e.crop_key.stack) covered[e.crop_key.stack] = true;
+      });
+    });
+    return covered;
+  };
+
+  VA.looseStacks = function (topologies, results) {
+    var covered = VA.stacksCoveredByTopology(topologies);
+    return ((results && results.stacks) || []).filter(function (s) {
+      return !covered[s.id];
+    });
+  };
+
   // --- the banner ----------------------------------------------------------
 
   VA.topologyBuiltLine = function (topologies, crops) {

@@ -18,10 +18,23 @@
     VA.clear(root);
     var topologies = (projection && projection.topologies) || [];
 
+    // Viewing a loose stack (VA.looseStacks) is a THIRD state this select has to
+    // represent honestly: showing a real topology id as "selected" while a
+    // stack's elements table is on screen would be a fact the picker states and
+    // the page contradicts, and a browser does not fire `change` on reselecting
+    // its current value — so returning to the topology last looked at would take
+    // two clicks. A placeholder option, selected only in stack mode, keeps every
+    // topology in the list a genuine change away.
+    var inStackMode = state.mode === "stack";
     root.appendChild(VA.el("label", "tvpick__label", "topology"));
-    root.appendChild(select("topology-select", topologies.map(function (t) {
-      return { value: t.id, label: t.title + "  (" + t.id + ")" };
-    }), state.topologyId, handlers.onTopology));
+    root.appendChild(select("topology-select",
+      (inStackMode
+        ? [{ value: "", label: "— viewing a stack; pick one to return —" }]
+        : []
+      ).concat(topologies.map(function (t) {
+        return { value: t.id, label: t.title + "  (" + t.id + ")" };
+      })),
+      inStackMode ? "" : state.topologyId, handlers.onTopology));
 
     var topoProj = VA.findTopology(projection, state.topologyId);
     var studies = (topoProj && topoProj.studies) || [];
@@ -130,18 +143,53 @@
     return topoProj.layout;
   }
 
+  // The grid is a REAL <table> (deliverable 2): a rectangular selection has to
+  // paste into Excel as columns, which only a genuine table body does — a
+  // div-flex grid copies as one run of text no matter how it looks on screen.
+  // One array drives the header row, the column widths (via <col>, so the head
+  // table and the body table cannot disagree) and the total width both tables
+  // are given inline — a second place these could drift is exactly the "three
+  // places" trap this file already documents once for row height.
+  var COLUMNS = [
+    { cls: "ord", label: "#", width: 38 },
+    { cls: "name", label: "element", width: 220 },
+    { cls: "part", label: "part / interface", width: 170 },
+    { cls: "nominal", label: "nominal", width: 80 },
+    { cls: "min", label: "min", width: 80 },
+    { cls: "max", label: "max", width: 80 },
+    { cls: "contribution", label: "contribution", width: 200 },
+    { cls: "chips", label: "sourcing", width: 220 },
+  ];
+
+  function tableWidth() {
+    return COLUMNS.reduce(function (sum, c) { return sum + c.width; }, 0);
+  }
+
+  function colgroup() {
+    var cg = VA.el("colgroup");
+    COLUMNS.forEach(function (c) {
+      cg.appendChild(VA.el("col", "tvcol tvcol--" + c.cls));
+    });
+    return cg;
+  }
+
   // The column header. Padded left by exactly the SVG's width so a header cell
   // sits over the column it names — the rails are a sibling of the rows, not a
   // cell of them, so the offset has to be applied by hand and read from the same
-  // geometry the SVG was drawn from.
+  // geometry the SVG was drawn from. Real <th> cells (deliverable 2): a screen
+  // reader and a copy-paste both get an actual header, not a styled div.
   function header(railWidth) {
     var head = VA.el("div", "tv__head");
     head.style.paddingLeft = railWidth + "px";
-    [["ord", "#"], ["name", "element"], ["part", "part / interface"],
-     ["value", "value  [min … max]"], ["contribution", "contribution"],
-     ["chips", "sourcing"]].forEach(function (pair) {
-      head.appendChild(VA.el("div", "tvcell tvcell--" + pair[0], pair[1]));
+    var table = VA.el("table", "tvheadtable");
+    table.style.width = tableWidth() + "px";
+    table.appendChild(colgroup());
+    var tr = VA.el("tr");
+    COLUMNS.forEach(function (c) {
+      tr.appendChild(VA.el("th", "tvcell tvcell--" + c.cls, c.label));
     });
+    table.appendChild(VA.el("thead", null, tr));
+    head.appendChild(table);
     return head;
   }
 
@@ -231,25 +279,51 @@
 
   function grid(layout, index, chain, chainNodes, marking, ctx) {
     var box = VA.el("div", "tv__rows");
+    var table = VA.el("table", "tvtable");
+    table.style.width = tableWidth() + "px";
+    table.appendChild(colgroup());
+    var tbody = VA.el("tbody");
     layout.rows.forEach(function (row) {
-      box.appendChild(row.kind === "edge"
+      tbody.appendChild(row.kind === "edge"
         ? edgeRow(row, index, chain, marking, ctx)
         : nodeRow(row, index, chainNodes, marking, ctx));
     });
+    table.appendChild(tbody);
+    box.appendChild(table);
     return box;
   }
 
   // Every row is exactly `rowHeight` tall, set inline from the same constant the
   // SVG's y came from. A stylesheet could say the same thing; only this cannot
-  // drift from it.
+  // drift from it. A real <tr> (deliverable 2), not a styled div: a table row is
+  // what lets a rectangular selection of the grid paste into Excel as columns.
   function baseRow(kind, ctx, id) {
-    var node = VA.el("div", "tvrow tvrow--" + kind);
+    var node = VA.el("tr", "tvrow tvrow--" + kind);
     node.style.height = M.rowHeight + "px";
-    node.style.lineHeight = (M.rowHeight - 2) + "px";
+    // A table's auto row-height algorithm sizes an EMPTY cell to its font's
+    // line-height "strut" regardless of the row's own explicit height — that
+    // height is a floor, not a cap — so a cell with a taller default
+    // line-height than the row's own pitch (compact density's 16px against a
+    // ~16.5px "normal" strut) grows the row past it. Capping line-height here
+    // once, inherited by every cell, is the same fix the old div row made by
+    // setting it directly (this file's own history).
+    node.style.lineHeight = Math.max(1, M.rowHeight - 2) + "px";
     node.setAttribute("data-row-kind", kind);
     node.setAttribute("data-id", id);
     node.onclick = function () { ctx.onSelect(kind, id); };
     return node;
+  }
+
+  // The sourcing cell's chips need their own flex row: setting `display: flex`
+  // directly on a <td> pulls it out of the table's box generation in some
+  // browsers, so the flex container is a plain div one layer inside the cell
+  // instead — the same "wrap the cell's content in a div" shape every other
+  // cell in this repo's tables already uses.
+  function chipsCell(cls) {
+    var cell = VA.el("td", "tvcell tvcell--" + cls);
+    var wrap = VA.el("div", "tvcell__chipswrap");
+    cell.appendChild(wrap);
+    return { cell: cell, wrap: wrap };
   }
 
   function nodeRow(row, index, chainNodes, marking, ctx) {
@@ -259,27 +333,29 @@
     if (marking) el.className += chainNodes[row.id] ? " tvrow--on" : " tvrow--off";
     if (isSelected(ctx, "node", row.id)) el.className += " tvrow--selected";
 
-    el.appendChild(VA.el("div", "tvcell tvcell--ord", row.branch ? "⑂" : ""));
-    el.appendChild(VA.el("div", "tvcell tvcell--name",
+    el.appendChild(VA.el("td", "tvcell tvcell--ord", row.branch ? "⑂" : ""));
+    el.appendChild(VA.el("td", "tvcell tvcell--name",
       node ? node.name : missing(row.id)));
-    el.appendChild(VA.el("div", "tvcell tvcell--part",
+    el.appendChild(VA.el("td", "tvcell tvcell--part",
       node ? node.parts.join(" ⇔ ") : ""));
-    el.appendChild(VA.el("div", "tvcell tvcell--value", ""));
-    el.appendChild(VA.el("div", "tvcell tvcell--contribution", ""));
-    var chips = VA.el("div", "tvcell tvcell--chips");
+    el.appendChild(VA.el("td", "tvcell tvcell--nominal num", ""));
+    el.appendChild(VA.el("td", "tvcell tvcell--min num", ""));
+    el.appendChild(VA.el("td", "tvcell tvcell--max num", ""));
+    el.appendChild(VA.el("td", "tvcell tvcell--contribution", ""));
+    var chips = chipsCell("chips");
     if (node) {
-      chips.appendChild(VA.chip("chip--kind", node.kind,
+      chips.wrap.appendChild(VA.chip("chip--kind", node.kind,
         node.kind === "mating_surface"
           ? "two parts meet here, and `parts` names both"
           : "a located feature on one part that nothing mates to — what lets a " +
             "chain end somewhere that is not a mate"));
       if (row.branch) {
-        chips.appendChild(VA.chip("chip--branch", "BRANCH",
+        chips.wrap.appendChild(VA.chip("chip--branch", "BRANCH",
           "three or more edges meet here, so a study must choose. This tool " +
           "reports the fork and never resolves it."));
       }
     }
-    el.appendChild(chips);
+    el.appendChild(chips.cell);
     return el;
   }
 
@@ -297,15 +373,26 @@
     }
     if (isSelected(ctx, "edge", row.id)) el.className += " tvrow--selected";
 
-    el.appendChild(VA.el("div", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
-    el.appendChild(VA.el("div", "tvcell tvcell--name",
+    el.appendChild(VA.el("td", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
+    el.appendChild(VA.el("td", "tvcell tvcell--name",
       edge ? edge.name : missing(row.id)));
-    el.appendChild(VA.el("div", "tvcell tvcell--part",
+    el.appendChild(VA.el("td", "tvcell tvcell--part",
       edge ? (edge.part || "— across a clearance —") : ""));
-    el.appendChild(VA.el("div", "tvcell tvcell--value num",
-      edge ? VA.dimensionText(edge) : ""));
 
-    var contribution = VA.el("div", "tvcell tvcell--contribution num");
+    // The value cell, decomposed into three (deliverable 2): the old combined
+    // "value  [min … max]" text read fine but pasted as one unsplittable cell.
+    // Each number is still printed AS TRANSCRIBED (VA.fmt: no toFixed, no band
+    // derived from the limits) — splitting the cell changes nothing about what
+    // is printed, only how many columns it occupies.
+    var dimension = edge && edge.dimension;
+    el.appendChild(VA.el("td", "tvcell tvcell--nominal num",
+      dimension ? VA.fmt(dimension.nominal) : ""));
+    el.appendChild(VA.el("td", "tvcell tvcell--min num",
+      dimension ? VA.fmt(dimension.min) : ""));
+    el.appendChild(VA.el("td", "tvcell tvcell--max num",
+      dimension ? VA.fmt(dimension.max) : ""));
+
+    var contribution = VA.el("td", "tvcell tvcell--contribution num");
     if (hit) {
       contribution.appendChild(VA.el("span", "tvrow__weight",
         VA.contributionWeightText(hit.contribution)));
@@ -320,31 +407,58 @@
     }
     el.appendChild(contribution);
 
-    var chips = VA.el("div", "tvcell tvcell--chips");
+    var chips = chipsCell("chips");
     if (edge) {
-      chips.appendChild(VA.chip(VA.confidenceClass(edge.confidence),
+      chips.wrap.appendChild(VA.chip(VA.confidenceClass(edge.confidence),
         edge.confidence === null ? "no value"
           : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence)));
       if (edge.kind === "gap") {
-        chips.appendChild(VA.chip("chip--gap", "gap",
+        chips.wrap.appendChild(VA.chip("chip--gap", "gap",
           "its two interfaces share no part — a real distance across a clearance"));
       }
       if (edge.value_source === "derived") {
-        chips.appendChild(VA.chip("chip--derived", "DERIVED",
+        chips.wrap.appendChild(VA.chip("chip--derived", "DERIVED",
           VA.VALUE_SOURCES.derived.title));
       }
       if (edge.zero_width) {
-        chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
+        chips.wrap.appendChild(VA.chip("chip--zero-width", "zero-width band",
           "min == max: every interval this feeds is a LOWER bound on the real spread."));
       }
       if (edge.transform && edge.transform.kind !== "identity") {
-        chips.appendChild(VA.chip("chip--transform", edge.transform.kind,
+        chips.wrap.appendChild(VA.chip("chip--transform", edge.transform.kind,
           "this edge carries a non-identity DEFAULT transform: " +
           VA.transformText(edge.transform)));
       }
+      // The thumbnail (deliverable 1): only where a crop index actually covers
+      // this edge. An edge authored inline in the topology, or a derived gap,
+      // has no crop index to check — see cropSection in the detail pane below,
+      // which states the reason in full; a "no crop" button here for those
+      // would read as a stale index rather than what it is.
+      var trigger = edgeCropTrigger(edge, ctx);
+      if (trigger) chips.wrap.appendChild(trigger);
     }
-    el.appendChild(chips);
+    el.appendChild(chips.cell);
     return el;
+  }
+
+  // The hover/click thumbnail trigger, the same vocabulary and the same crop
+  // plumbing views/stack.js's cropTrigger uses (VA.cropFor, VA.cropProvenanceLine):
+  // an edge that re-expresses a committed stack element IS that element, crop
+  // and all, so there is one crop-trigger button shape in the repo, not two.
+  function edgeCropTrigger(edge, ctx) {
+    if (!edge.crop_key) return null;
+    var entry = VA.cropFor(ctx.crops, edge.crop_key.stack, edge.crop_key.element);
+    var resolved = entry.status === "resolved";
+    var node = VA.el("button",
+      "crop-trigger crop-trigger--" + entry.status,
+      resolved ? "drawing crop" : "no crop — " + entry.status);
+    node.setAttribute("title", resolved ? VA.cropProvenanceLine(entry) : (entry.reason || ""));
+    node.cropEntry = entry;
+    var show = function () { if (ctx.onCropShow) ctx.onCropShow(entry, node); };
+    node.onclick = show;
+    node.onmouseenter = show;
+    node.onfocus = show;
+    return node;
   }
 
   function isSelected(ctx, kind, id) {

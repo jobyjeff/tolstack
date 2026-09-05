@@ -1319,11 +1319,15 @@
       has(root.textContent, "could not be read");
     });
 
-    // Placement is app.js/index.html wiring, which this file's other tests never
-    // touch (app.js boots on DOMContentLoaded and is not among the files loaded
-    // into the sandbox). Read the shipped source instead of skipping the
-    // deliverable entirely — via VIEWER_SRC, never NODE_FS/`--repo`, so a
-    // worktree run checks THIS branch's HTML, not the main checkout's.
+    // Placement is topology_app.js/topology.html wiring, which this file's
+    // other tests never touch (it boots on DOMContentLoaded and is not among
+    // the files loaded into the sandbox). Read the shipped source instead of
+    // skipping the deliverable entirely — via VIEWER_SRC, never NODE_FS/
+    // `--repo`, so a worktree run checks THIS branch's HTML, not the main
+    // checkout's. Moved here 2026-09-04 (handoff viewer_consolidation) when
+    // the stack viewer (index.html/app.js) retired into this page — the
+    // classic elements table is `#stackview` now, not `#stackview` in a
+    // DIFFERENT file, and index.html is a redirect stub with none of this.
     var viewerSrc = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
     if (!viewerSrc) {
       skip("worksheet sits below the table; the right pane is its own element",
@@ -1331,20 +1335,31 @@
     } else {
       await test("the worksheet sits below the table in a collapsed <details>, " +
         "and the right pane is its own element", function () {
-          var html = viewerSrc.readText("index.html");
-          var appJs = viewerSrc.readText("app.js");
-          ok(html && appJs, "index.html and app.js must be readable");
+          var html = viewerSrc.readText("topology.html");
+          var appJs = viewerSrc.readText("topology_app.js");
+          ok(html && appJs, "topology.html and topology_app.js must be readable");
           var stackviewAt = html.indexOf('id="stackview"');
           var worksheetWrapAt = html.indexOf('id="worksheet-wrap"');
           var detailAt = html.indexOf('id="detail"');
           ok(stackviewAt !== -1 && worksheetWrapAt !== -1 && detailAt !== -1,
-             "expected #stackview, #worksheet-wrap and #detail in index.html");
+             "expected #stackview, #worksheet-wrap and #detail in topology.html");
           ok(stackviewAt < worksheetWrapAt,
              "the worksheet must sit BELOW the elements table, not beside it");
           has(html.slice(Math.max(0, worksheetWrapAt - 60), worksheetWrapAt), "<details",
               "the worksheet must be a native <details> so it collapses on its own");
           has(appJs, "showWorksheet: false",
               "the worksheet must default to collapsed — moved out of the way, not gone");
+        });
+
+      await test("index.html is a redirect stub, not a second copy of the app",
+        function () {
+          var html = viewerSrc.readText("index.html");
+          ok(html, "index.html must be readable");
+          has(html, "topology.html",
+            "the retired page must point at the one that absorbed it");
+          ok(!/app\.js|views\/stack\.js/.test(html),
+            "index.html must load none of the app's own scripts — there is one " +
+            "app now, served from topology.html");
         });
     }
 
@@ -1473,7 +1488,7 @@
     await test("the grid renders one row per graph element, at the rail's height",
       function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var rows = all(root, "div.tvrow");
+        var rows = all(root, "tr.tvrow");
         eq(rows.length, TOPO.layout.rows.length);
         rows.forEach(function (row, i) {
           eq(row.getAttribute("data-id"), TOPO.layout.rows[i].id);
@@ -1482,6 +1497,57 @@
           // the number the SVG's y came from, so it cannot drift from it.
           eq(row.style.height, VA.RAIL_METRICS.rowHeight + "px");
         });
+      });
+
+    await test("the grid is a real <table>, so a rectangular selection can " +
+      "paste into Excel as columns", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        eq(all(root, "table.tvtable").length, 1);
+        eq(all(root, "tr.tvrow").length, TOPO.layout.rows.length);
+        // Real headers (deliverable 2): <th>, not a styled div.
+        eq(all(root, "th.tvcell--nominal").length, 1);
+        has(all(root, "th.tvcell--nominal")[0].textContent, "nominal");
+        eq(all(root, "th.tvcell--min").length, 1);
+        eq(all(root, "th.tvcell--max").length, 1);
+      });
+
+    await test("the value cell is decomposed into nominal / min / max columns, " +
+      "each printed as transcribed", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var row = all(root, "tr.tvrow").filter(function (n) {
+          return n.getAttribute("data-id") === "base_thickness";
+        })[0];
+        ok(row, "base_thickness must have a row");
+        eq(row.querySelector("td.tvcell--nominal").textContent, "4");
+        eq(row.querySelector("td.tvcell--min").textContent, "3.98");
+        eq(row.querySelector("td.tvcell--max").textContent, "4.02");
+        // A node row (no dimension) prints none of the three, not zeros.
+        var nodeRow = all(root, "tr.tvrow--node")[0];
+        eq(nodeRow.querySelector("td.tvcell--nominal").textContent, "");
+      });
+
+    await test("a thumbnail trigger sits on the row for every crop-key'd edge, " +
+      "and on no others", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        function rowFor(id) {
+          return all(root, "tr.tvrow").filter(function (n) {
+            return n.getAttribute("data-id") === id;
+          })[0];
+        }
+        // demo_joint/plate resolves, /washer is unresolvable, /eye predates the
+        // crops fixture (no-entry) — all three still earn a trigger, because a
+        // crop_key is what decides whether one is offered, not its status.
+        has(rowFor("base_thickness").querySelector("button.crop-trigger--resolved")
+          .textContent, "drawing crop");
+        has(rowFor("post_height").querySelector("button.crop-trigger--unresolvable")
+          .textContent, "no crop");
+        ok(rowFor("strut_length").querySelector("button.crop-trigger--no-entry"),
+          "a crops.json older than the stack still gets a trigger, saying so");
+        // No crop_key at all (authored inline, or a derived gap): no trigger —
+        // showing one would read as a stale index rather than what it is.
+        eq(rowFor("arm_pin_to_tip").querySelector("button.crop-trigger"), null);
+        eq(rowFor("post_bushing_offset").querySelector("button.crop-trigger"), null);
+        eq(rowFor("tip_to_strut_end").querySelector("button.crop-trigger"), null);
       });
 
     await test("every node row gets a dot and every edge row gets a bar",
@@ -1509,7 +1575,7 @@
     await test("a derived gap says it carries no value, rather than showing an " +
       "empty one", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var derived = all(root, "div.tvrow--derived");
+        var derived = all(root, "tr.tvrow--derived");
         eq(derived.length, 1);
         has(derived[0].textContent, "DERIVED");
         has(derived[0].textContent, "no value");
@@ -1519,7 +1585,7 @@
 
     await test("a branch point is marked on the row and on the dot", function () {
       var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-      var marked = all(root, "div.tvrow--branch");
+      var marked = all(root, "tr.tvrow--branch");
       eq(marked.length, TOPO.branch_nodes.length);
       has(marked[0].textContent, "BRANCH");
       eq(all(root, "circle.rail__dot--branch").length, TOPO.branch_nodes.length);
@@ -1532,20 +1598,20 @@
           VA.renderTopoPane(r, topoCtx({ study: study }));
         });
         var chain = study.result.chain;
-        var on = all(root, "div.tvrow--on");
-        var off = all(root, "div.tvrow--off");
+        var on = all(root, "tr.tvrow--on");
+        var off = all(root, "tr.tvrow--off");
         ok(on.length >= chain.length, "every chain edge and its interfaces");
         ok(off.length > 0, "the rest of the topology is dimmed, not hidden");
         eq(on.length + off.length, TOPO.layout.rows.length);
         // The ordinal is the order the SUM runs in, which is NOT the row order:
         // the rows are a depth-first walk of the whole graph.
         chain.forEach(function (contribution, i) {
-          var row = all(root, "div.tvrow").filter(function (n) {
+          var row = all(root, "tr.tvrow").filter(function (n) {
             return n.getAttribute("data-id") === contribution.edge &&
               n.getAttribute("data-row-kind") === "edge";
           })[0];
           ok(row, "chain edge " + contribution.edge + " must have a row");
-          has(row.querySelector("div.tvcell--ord").textContent, String(i + 1));
+          has(row.querySelector("td.tvcell--ord").textContent, String(i + 1));
         });
       });
 
@@ -1556,11 +1622,11 @@
           VA.renderTopoPane(r, topoCtx({ study: study }));
         });
         var contribution = study.result.chain[0];
-        var row = all(root, "div.tvrow").filter(function (n) {
+        var row = all(root, "tr.tvrow").filter(function (n) {
           return n.getAttribute("data-id") === contribution.edge &&
             n.getAttribute("data-row-kind") === "edge";
         })[0];
-        var cell = row.querySelector("div.tvcell--contribution").textContent;
+        var cell = row.querySelector("td.tvcell--contribution").textContent;
         // The ratio is 2.5, so the weight is NEVER silent — same rule the stack
         // viewer's weighted-term chip follows.
         has(cell, "2.5 ×");
@@ -1575,7 +1641,7 @@
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ study: study, layoutMode: "chain" }));
         });
-        var rows = all(root, "div.tvrow");
+        var rows = all(root, "tr.tvrow");
         eq(rows.length, study.layout.rows.length);
         eq(rows.length, study.result.chain.length * 2 + 1);
         eq(rows[0].getAttribute("data-id"), study.from);
@@ -1753,6 +1819,39 @@
     await test("nothing selected tells you what clicking does", function () {
       var root = render(function (r) { VA.renderTopoDetail(r, topoCtx()); });
       has(root.textContent, "Click a dot or a row");
+    });
+
+    // --- loose stacks: what "the topology page absorbs the stack viewer" ---
+    //
+    // The demo mechanism's edges name `demo_joint` via crop_key (plate, washer,
+    // eye) — no schema field says "this stack has a topology"; the linkage IS
+    // the crop_key. FIXTURE (fixtures.js's own demo) has no stack called
+    // `demo_joint`, so this is a synthetic results object naming both a stack
+    // the mechanism covers and one it does not, on purpose.
+    var LOOSE_RESULTS = {
+      stacks: [
+        { id: "demo_joint", title: "covered by the demo mechanism" },
+        { id: "stack_rotor_fastener_length", title: "no topology re-expresses this" },
+      ],
+    };
+
+    await test("stacksCoveredByTopology reads the linkage off edges' own " +
+      "crop_key, not a new field", function () {
+        var covered = VA.stacksCoveredByTopology(TOPOFIX);
+        eq(covered.demo_joint, true);
+        ok(!covered.stack_rotor_fastener_length,
+          "a stack no edge's crop_key names must not read as covered");
+      });
+
+    await test("looseStacks is every stack no topology re-expresses", function () {
+      var loose = VA.looseStacks(TOPOFIX, LOOSE_RESULTS);
+      eq(loose.length, 1);
+      eq(loose[0].id, "stack_rotor_fastener_length");
+    });
+
+    await test("looseStacks is every stack when nothing is built yet", function () {
+      eq(VA.looseStacks(null, LOOSE_RESULTS).length, 2);
+      eq(VA.looseStacks(TOPOFIX, null).length, 0);
     });
 
     await test("the picker offers every topology and study, and flags the one " +
@@ -2714,7 +2813,7 @@
                   onSelect: function () {},
                 });
               });
-              var rows = all(root, "div.tvrow");
+              var rows = all(root, "tr.tvrow");
               eq(rows.length,
                  topoProj.nodes.length + topoProj.edges.length, topoProj.id);
               eq(rows.length, topoProj.layout.rows.length, topoProj.id);
@@ -2746,7 +2845,7 @@
             });
           });
           eq(all(root, "circle.rail__dot--branch").length, 4);
-          eq(all(root, "div.tvrow--branch").length, 4);
+          eq(all(root, "tr.tvrow--branch").length, 4);
         });
 
         await test("[real] the ring gear's cyclic-only branch is visibly a branch",
@@ -2818,8 +2917,8 @@
                 layoutMode: "topology", selection: null, onSelect: function () {},
               });
             });
-            var on = all(root, "div.tvrow--on");
-            var off = all(root, "div.tvrow--off");
+            var on = all(root, "tr.tvrow--on");
+            var off = all(root, "tr.tvrow--off");
             ok(off.length > 0, "a 23-edge topology has rows off a 10-edge chain");
             eq(on.length + off.length, livePitch.layout.rows.length);
             eq(all(root, "line.rail__bar--on").length, study.result.chain.length);
