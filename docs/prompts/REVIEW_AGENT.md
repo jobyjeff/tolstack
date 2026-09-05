@@ -828,6 +828,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `page.get_text()`. **A zero means every feature control frame on that
       drawing is invisible to a text sweep**, which is how this handoff recorded
       a position callout as absent (worksheet F7).
+      **Third sighting (`endstop_retrace_acquired_docs`, 2026-09-04), and it is
+      the reviewer's own tool this time, not the author's.** `215071-C.pdf`
+      (and `213668-002`'s zone B12) render each digit of a dimension as its own
+      text span, so `⌀64.030 +0.030/0.000` extracts as `'6 4 . 0 3 0 + 0 . 0 3 0'`
+      — a literal `--pattern "64\.03"` search returns **zero hits** on a
+      citation that is exactly correct, because the regex expects contiguous
+      digits and the PDF gives one character per span with a space joining
+      them. A reviewer trusting that zero would file a false "citation does not
+      resolve" blocker. The fix is cheap and was used to verify every citation
+      in this review: `--pattern "."` (or a single short digit run) dumped per
+      zone, which shows the space-separated text plainly, or crop and read the
+      render directly — never conclude a value is absent from a zero-hit
+      multi-character regex without first dumping that zone's raw text.
 - [ ] **A claimed *absence* — "the document is in hand, was read in full, the
       value is not there".** New 2026-09-01 (`endstop_vision_baseline`). It is
       the strongest claim a provenance audit makes and the one nobody re-checks,
