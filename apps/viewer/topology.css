@@ -136,12 +136,16 @@ body { display: flex; flex-direction: column; }
 .rail__bar--on { stroke-width: 7; }
 .rail__dot--on { stroke: var(--accent); fill: var(--on); }
 
-/* --- the grid ----------------------------------------------------------- */
+/* --- the grid ------------------------------------------------------------
+   A REAL <table> (deliverable 2): a rectangular selection of nominal/min/max
+   has to paste into Excel as columns, which only genuine table markup does.
+   Column widths live on <col class="tvcol--X"> (views/topology.js's colgroup()),
+   shared between the head table and the body table so the two cannot disagree
+   the way two hand-aligned stylesheets could. */
 
-.tvrow {
-  display: flex; align-items: center; cursor: pointer;
-  border-bottom: 1px solid transparent; white-space: nowrap;
-}
+.tvheadtable, .tvtable { table-layout: fixed; border-collapse: collapse; }
+
+.tvrow { cursor: pointer; border-bottom: 1px solid transparent; white-space: nowrap; }
 .tvrow:hover { background: #20242c; }
 .tvrow--node {
   color: var(--muted); font-size: 12px;
@@ -161,20 +165,22 @@ body { display: flex; flex-direction: column; }
 }
 
 .tvcell {
-  padding: 0 8px; overflow: hidden; text-overflow: ellipsis;
+  padding: 0 8px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
 }
+.tvcol--ord { width: 38px; }
 .tvcell--ord {
-  width: 38px; flex: none; text-align: right; color: var(--accent);
+  text-align: right; color: var(--accent);
   font-family: ui-monospace, monospace; font-size: 11px;
 }
-.tvcell--name { flex: 1 1 220px; min-width: 150px; }
-.tvcell--part {
-  width: 170px; flex: none; color: var(--muted); font-size: 11px;
-  font-family: ui-monospace, monospace;
-}
-.tvcell--value { width: 175px; flex: none; font-size: 12px; }
-.tvcell--contribution { width: 215px; flex: none; font-size: 12px; }
-.tvcell--chips { width: 200px; flex: none; display: flex; gap: 4px; }
+.tvcol--name { width: 220px; }
+.tvcol--part { width: 170px; }
+.tvcell--part { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; }
+.tvcol--nominal, .tvcol--min, .tvcol--max { width: 80px; }
+.tvcell--nominal, .tvcell--min, .tvcell--max { font-size: 12px; }
+.tvcol--contribution { width: 200px; }
+.tvcell--contribution { font-size: 12px; }
+.tvcol--chips { width: 220px; }
+.tvcell__chipswrap { display: flex; gap: 4px; flex-wrap: wrap; }
 .tvrow__weight { color: var(--accent); margin-right: 4px; }
 
 .chip--gap { color: var(--zero); border-color: var(--zero); }
