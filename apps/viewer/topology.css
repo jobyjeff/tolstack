@@ -143,9 +143,16 @@ body { display: flex; flex-direction: column; }
    shared between the head table and the body table so the two cannot disagree
    the way two hand-aligned stylesheets could. */
 
-.tvheadtable, .tvtable { table-layout: fixed; border-collapse: collapse; }
+/* `separate`, not `collapse`: collapsed-border table rendering (CSS2.1
+   §17.6.2) is a distinct algorithm that `box-sizing: border-box` does not
+   reach, so a cell's own border-bottom (`.tvcell`, below) added a stray pixel
+   to every row's rendered height under `collapse` regardless of box-sizing —
+   exactly the drift the alignment browser tier exists to catch. `separate`
+   with zero spacing keeps the same visual grid through ordinary box-model
+   rules, where border-box means what it says. */
+.tvheadtable, .tvtable { table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 
-.tvrow { cursor: pointer; border-bottom: 1px solid transparent; white-space: nowrap; }
+.tvrow { cursor: pointer; white-space: nowrap; }
 .tvrow:hover { background: #20242c; }
 .tvrow--node {
   color: var(--muted); font-size: 12px;
@@ -166,6 +173,16 @@ body { display: flex; flex-direction: column; }
 
 .tvcell {
   padding: 0 8px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
+  /* style.css's bare `td`/`th` rule (shared with every OTHER table in the app)
+     gives every cell a visible 1px border-bottom — harmless there, but here it
+     is 1px of row height a table's auto-sizing algorithm adds on top of the
+     row's own explicit height regardless of box-sizing, which is most of why a
+     row rendered one pixel taller than `rowHeight` (the rest was an
+     unconstrained line-height "strut" on empty cells — see baseRow,
+     views/topology.js). None of this repo's other tables set an inline row
+     height for the alignment contract to hold against, so none of them needed
+     this override before. */
+  border-bottom: none;
 }
 .tvcol--ord { width: 38px; }
 .tvcell--ord {
@@ -180,7 +197,30 @@ body { display: flex; flex-direction: column; }
 .tvcol--contribution { width: 200px; }
 .tvcell--contribution { font-size: 12px; }
 .tvcol--chips { width: 220px; }
-.tvcell__chipswrap { display: flex; gap: 4px; flex-wrap: wrap; }
+/* No wrap, on purpose: a wrapped chip would grow past the row's own fixed
+   height, which a real <tr> treats as a floor rather than a cap the way the
+   old div row's `overflow: hidden` effectively capped it. Overflow clips
+   instead, same as every other cell in this row (`.tvcell`), and the same
+   trade the retired stack viewer's row already made. */
+/* Height pinned to the SAME variable the row's own inline height is set from
+   (topology_app.js's applyDensity), with overflow clipped: a real <tr>'s
+   `height` is a floor, not a cap, so nothing stops a chip taller than the
+   row — and `.chip`'s own padding+border (style.css) is sized for a
+   26px comfortable row, not 16px compact. The old div-flex row got this for
+   free from `align-items: stretch` + `overflow: hidden`; a table cell does
+   not, so this wrapper reproduces it by hand. */
+.tvcell__chipswrap {
+  display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
+  height: var(--tv-row); overflow: hidden;
+}
+/* The shared `.crop-trigger` (style.css) is sized for the classic table's
+   taller, block-stacked sourcing cell — `margin-top: 6px` alone is most of
+   why a crop-key'd row was drawn taller than its own `rowHeight`, since a
+   real <tr>'s inline `height` is a floor, not a cap, and nothing here clips
+   it. Shrunk to actually fit this row's fixed pitch, comfortable or compact. */
+.tvcell__chipswrap .crop-trigger {
+  margin-top: 0; padding: 1px 6px; font-size: 10px; line-height: 1.3;
+}
 .tvrow__weight { color: var(--accent); margin-right: 4px; }
 
 .chip--gap { color: var(--zero); border-color: var(--zero); }
@@ -231,6 +271,24 @@ body { display: flex; flex-direction: column; }
 }
 .tverror__message { margin: 6px 0; white-space: pre-wrap; }
 .tverror__advice { margin: 6px 0 0; color: var(--muted); }
+
+/* --- the stack list + the classic stack view ----------------------------
+   Absorbed from the retired stack viewer (deliverable 3): most stacks in
+   docs/tolerance_stacks/ have no topology re-expressing them (VA.looseStacks),
+   so this page still needs somewhere to show them, unchanged. */
+
+/* Same `47px`-assumes-only-a-topbar trap `.tv .detail` already documents below
+   — `.stacklist`'s shared rule (style.css) is sticky under the STACK VIEWER's
+   topbar-only chrome, and this page has a banner, a picker and a legend above
+   it too. `align-self: stretch` matches `.tv`'s own height instead of
+   guessing at one. */
+.tv .stacklist {
+  position: static; max-height: none; align-self: stretch;
+}
+/* A flex ITEM of `.tv__main`'s column now, not `.center`'s — same shape as
+   `.tv__scroll` immediately below: grow to fill, scroll its own overflow,
+   never force the column taller than `.tv` itself. */
+.tv__main > .stackview { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 
 /* --- the preview pane --------------------------------------------------- */
 

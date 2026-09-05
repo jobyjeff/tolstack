@@ -8,17 +8,22 @@
 //
 // What it proves that the DOM shim cannot:
 //   1. test.html is green over BOTH file:// and http. The viewer must run by
-//      double-clicking index.html, which is the whole reason it is classic
-//      scripts; only a real file:// load proves index.html's script tags load in
-//      the right order with no ESM/CORS surprise.
-//   2. index.html?mock=1 really renders: the stack list, the elements table, an
-//      untraced row that is visibly filled, an unestablished export block that is
-//      visibly filled, an INCOMPLETE check, and the gap list — asserted against
-//      the live DOM and CSS, not a shim. "Impossible to miss" is a CSS claim, and
-//      a class-name check would pass straight through a stylesheet typo.
+//      double-clicking topology.html, which is the whole reason it is classic
+//      scripts; only a real file:// load proves its script tags load in the
+//      right order with no ESM/CORS surprise. index.html's own redirect is a
+//      real navigation too, checked the same way.
+//   2. topology.html?mock=1 really renders BOTH modes: the topology mode (see
+//      #4) and, since handoff viewer_consolidation retired the separate stack
+//      viewer into this same page, the classic elements-table mode reached by
+//      clicking a loose stack in the left rail — an untraced row that is
+//      visibly filled, an unestablished export block that is visibly filled, a
+//      budget-scope check, and the gap list — asserted against the live DOM and
+//      CSS, not a shim. "Impossible to miss" is a CSS claim, and a class-name
+//      check would pass straight through a stylesheet typo.
 //   3. The crop popover opens on a REAL click and shows the resolved crop's
-//      links, and shows the *reason* for the unresolvable one. Hover/focus
-//      wiring is exactly what a DOM shim is blind to.
+//      links, and shows the *reason* for the unresolvable one — in both modes,
+//      since the topology grid's own thumbnail trigger (deliverable 1) is the
+//      same popover. Hover/focus wiring is exactly what a DOM shim is blind to.
 //   4. topology.html's rails and grid ACTUALLY line up — measured, box against
 //      box, which is the one claim that page is built on and the one thing no
 //      shim can check. Run against the real projection too, where it also
@@ -121,7 +126,13 @@ async function runSuite(browser, url, label) {
   }
 }
 
-// --- the app itself, in a real browser, on the seeded demo projection ----
+// --- the classic elements table, absorbed into topology.html's stack mode --
+//
+// Reached by clicking a loose stack (VA.looseStacks) in the left rail, not by
+// its own page any more — index.html is a redirect stub (checked separately,
+// testIndexRedirects). Every assertion below is unchanged from the retired
+// stack viewer's own browser test: views/stack.js and views/detail.js did not
+// move, only what boots them did.
 async function testTheApp(browser, url, label) {
   const page = await browser.newPage();
   const errors = [];
@@ -129,10 +140,18 @@ async function testTheApp(browser, url, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   try {
-    await page.goto(url + "/index.html?mock=1", { waitUntil: "load" });
+    await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector(".stacklist__row", { timeout: 15000 });
 
     push("the stack list renders a row", await page.locator(".stacklist__row").count() === 1);
+    // Switch from the default topology mode into stack mode — a real click,
+    // which is the one thing this test tier exists to exercise.
+    await page.locator(".stacklist__row").first().click();
+    await page.waitForSelector("tr.el-row", { timeout: 15000 });
+    push("picking the stack switches the picker to its placeholder",
+      await page.locator("#topology-select").evaluate((n) => n.value) === "" &&
+      /viewing a stack/.test(await page.locator("#topology-select").textContent()));
+
     push("the elements table renders every element",
       await page.locator("tr.el-row").count() === 4);
 
@@ -145,8 +164,10 @@ async function testTheApp(browser, url, label) {
     const selectRow = (n) => page.locator("tr.el-row").nth(n).locator("td").first().click();
 
     // Provenance colour is the deliverable, so assert the COMPUTED style, not a
-    // class name — a stylesheet typo would pass a class-name check.
-    const untraced = page.locator("tr.conf--untraced");
+    // class name — a stylesheet typo would pass a class-name check. Scoped to
+    // #stackview: the topology grid's OWN (hidden) demo mechanism also has an
+    // untraced edge, and a bare selector would count both.
+    const untraced = page.locator("#stackview tr.conf--untraced");
     push("exactly one untraced row", await untraced.count() === 1);
     const chipColor = await untraced.locator(".chip.conf--untraced").first()
       .evaluate((n) => getComputedStyle(n).backgroundColor);
@@ -233,7 +254,10 @@ async function testTheApp(browser, url, label) {
       !(await page.locator("#worksheet-wrap").evaluate((n) => n.open)));
 
     // 3) the popover — a real click, which the DOM shim cannot exercise.
-    await page.locator("button.crop-trigger--resolved").first().click();
+    // Scoped to #stackview: the topology grid's OWN (hidden) rows carry the
+    // same crop-trigger classes for the same crop_key, so a bare selector
+    // would happily click the invisible one and hang.
+    await page.locator("#stackview button.crop-trigger--resolved").first().click();
     await page.waitForSelector(".croppop--resolved", { state: "visible", timeout: 5000 });
     push("the resolved popover is visible", await page.locator(".croppop").isVisible());
     push("the popover shows the source PDF path",
@@ -247,7 +271,7 @@ async function testTheApp(browser, url, label) {
     await page.keyboard.press("Escape");
     push("Escape closes the popover", !(await page.locator(".croppop").isVisible()));
 
-    await page.locator("button.crop-trigger--unresolvable").first().click();
+    await page.locator("#stackview button.crop-trigger--unresolvable").first().click();
     await page.waitForSelector(".croppop--unresolvable", { state: "visible", timeout: 5000 });
     // The fixture's washer citation carries an `unestablished` export, which
     // build_viewer_crops.py short-circuits to unresolvable with the `why`
@@ -262,6 +286,16 @@ async function testTheApp(browser, url, label) {
     await page.locator("#worksheet-toggle").click();
     push("the worksheet pane opens on toggle",
       await page.locator("#worksheet-wrap").evaluate((n) => n.open));
+
+    // 5) picking a real topology from the (still-visible) picker switches back
+    // — the placeholder's whole reason to exist: reselecting the topology this
+    // page booted on would otherwise be a no-op, because a <select> does not
+    // fire `change` when its value does not move.
+    await page.selectOption("#topology-select", { index: 1 });
+    await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+    push("picking a topology switches back to the DAG, and the stack view hides",
+      await page.locator("#stackview").evaluate((n) => getComputedStyle(n).display) === "none" &&
+      await page.locator("tr.tvrow").count() > 0);
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
@@ -304,7 +338,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   // tolerance for subpixel layout; anything that actually drifts misses by a
   // whole row height.
   const alignmentDrift = () => page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll("div.tvrow"));
+    const rows = Array.from(document.querySelectorAll("tr.tvrow"));
     const drift = [];
     for (const row of rows) {
       const id = row.getAttribute("data-id");
@@ -322,7 +356,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
-    await page.waitForSelector("div.tvrow", { timeout: 15000 });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
     push("the rails render as SVG, not as unknown HTML elements",
       await page.locator("svg.tv__rails circle.rail__dot").count() > 0 &&
@@ -355,15 +389,35 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /An interface is a location, not a value/
         .test(await page.locator("#detail").textContent()));
     push("the clicked row is visibly marked",
-      await page.locator("div.tvrow--selected").count() === 1);
+      await page.locator("tr.tvrow--selected").count() === 1);
+
+    // The grid's own thumbnail trigger (deliverable 1) — a real click, which
+    // the DOM shim cannot exercise. `base_thickness` re-expresses demo_joint's
+    // `plate`, whose crop resolves; the same popover the classic view's rows
+    // use (views/crop.js), so this is the one place both modes are proved to
+    // share it in a real browser.
+    await page.locator("tr.tvrow[data-id='base_thickness'] button.crop-trigger")
+      .click();
+    await page.waitForSelector(".croppop--resolved", { state: "visible", timeout: 5000 });
+    push("the topology grid's thumbnail trigger opens the same crop popover",
+      await page.locator(".croppop").isVisible() &&
+      /215197/.test(await page.locator(".croppop__path").textContent()));
+    await page.keyboard.press("Escape");
+    push("Escape closes it here too", !(await page.locator(".croppop").isVisible()));
+    // An edge with no crop_key (authored inline, or a derived gap) gets no
+    // trigger at all — showing one would read as a stale index rather than
+    // what it is.
+    push("an edge with no crop_key gets no trigger",
+      await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] button.crop-trigger")
+        .count() === 0);
 
     // Study selection: the grid marks, the rails thicken, the totals appear.
     await page.selectOption("#study-select", "demo_strut_branch");
-    await page.waitForSelector("div.tvrow--on", { timeout: 5000 });
+    await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
     push("selecting a study marks its chain and dims the rest",
-      await page.locator("div.tvrow--on").count() > 0 &&
-      await page.locator("div.tvrow--off").count() > 0);
-    const dimmed = await page.locator("div.tvrow--off").first()
+      await page.locator("tr.tvrow--on").count() > 0 &&
+      await page.locator("tr.tvrow--off").count() > 0);
+    const dimmed = await page.locator("tr.tvrow--off").first()
       .evaluate((n) => parseFloat(getComputedStyle(n).opacity));
     push("an off-chain row is actually dimmed, not just classed", dimmed < 0.9);
     push("the totals render", await page.locator(".tvtotal").count() === 5);
@@ -409,7 +463,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         };
         window.ViewerApp.bootTopology();
       }, { projection: realProjection, crops: realCrops });
-      await page.waitForSelector("div.tvrow", { timeout: 15000 });
+      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
       const ids = realProjection.topologies.map((t) => t.id);
       push("[real] both MVP topologies are offered",
@@ -417,10 +471,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
       for (const topology of realProjection.topologies) {
         await page.selectOption("#topology-select", topology.id);
-        await page.waitForSelector("div.tvrow", { timeout: 5000 });
+        await page.waitForSelector("tr.tvrow", { timeout: 5000 });
         const expected = topology.nodes.length + topology.edges.length;
         push(`[real] ${topology.id} renders all ${expected} rows`,
-          await page.locator("div.tvrow").count() === expected);
+          await page.locator("tr.tvrow").count() === expected);
         const drift = await alignmentDrift();
         push(`[real] ${topology.id} is aligned row for row`, drift.drift.length === 0);
         if (drift.drift.length) console.log("    drift: " + drift.drift.slice(0, 5).join(" | "));
@@ -445,14 +499,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
             missing.length === 0);
           if (missing.length) console.log(`    missing: ${missing.join(", ")}`);
           push(`[real] ${study.id} numbers every contribution`,
-            await page.locator("div.tvrow--on").count() >= study.result.chain.length);
+            await page.locator("tr.tvrow--on").count() >= study.result.chain.length);
         }
         await page.selectOption("#study-select", "");
       }
 
       // The preview pane over a real citation, with a real crop behind it.
       await page.selectOption("#topology-select", "vpa_output_to_pitch_plate");
-      await page.locator("div.tvrow[data-id='fastener_grip'] .tvcell--name").click();
+      await page.locator("tr.tvrow[data-id='fastener_grip'] .tvcell--name").click();
       const detail = await page.locator("#detail").textContent();
       push("[real] an L1 edge shows the stack element's own citation",
         /NAS6403-NAS6420 Rev 4\.pdf/.test(detail) && /NAS6404U13D/.test(detail));
@@ -491,7 +545,7 @@ async function testHeightBudget(browser, url, label) {
   const push = (name, cond) => checks.push({ name, cond: !!cond });
 
   const alignmentDrift = () => page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll("div.tvrow"));
+    const rows = Array.from(document.querySelectorAll("tr.tvrow"));
     const drift = [];
     for (const row of rows) {
       const id = row.getAttribute("data-id");
@@ -508,7 +562,7 @@ async function testHeightBudget(browser, url, label) {
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
-    await page.waitForSelector("div.tvrow", { timeout: 15000 });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
     // Force the strongest provenance alarm the page can raise: the same
     // fixture, with `topologies`'s own stamp moved to a different commit than
@@ -521,7 +575,7 @@ async function testHeightBudget(browser, url, label) {
       window.ViewerApp.demoTopologyFixture = function () { return fixture; };
       window.ViewerApp.bootTopology();
     });
-    await page.waitForSelector("div.tvrow", { timeout: 15000 });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     push("the provenance alarm is showing",
       /DIFFERENT trees/.test(await page.locator("#banner").textContent()));
 
@@ -529,7 +583,7 @@ async function testHeightBudget(browser, url, label) {
     // (not empty-state) height too -- every un-shrinkable block at once.
     await page.locator(".tv__legend summary").click();
     await page.selectOption("#study-select", "demo_base_to_tip");
-    await page.waitForSelector("div.tvrow--on", { timeout: 5000 });
+    await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
 
     const MIN_ROWS = 10;
     const comfortableHeight = await page.locator(".tv__scroll")
@@ -571,6 +625,36 @@ async function testHeightBudget(browser, url, label) {
   }
 }
 
+// --- index.html: a redirect stub, not a second copy of the app -------------
+//
+// The retired stack viewer's entry point still has to land somewhere — an old
+// desktop shortcut or bookmark did not move — so this is the one thing left to
+// prove about it: a real navigation to index.html ends up on topology.html,
+// with the query string carried through (?mock=1 is how every other check in
+// this file gets its data, and a redirect that drops it would silently break
+// every one of them for a user who bookmarked the old address).
+async function testIndexRedirects(browser, url, label) {
+  const page = await browser.newPage();
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    await page.goto(url + "/index.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector(".stacklist__row, tr.tvrow", { timeout: 15000 });
+    push("index.html redirects to topology.html", page.url().includes("topology.html"));
+    push("the query string survives the redirect", page.url().includes("mock=1"));
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
 (async () => {
   const server = await startServer();
   const { port } = server.address();
@@ -585,6 +669,8 @@ async function testHeightBudget(browser, url, label) {
     const results = [];
     results.push(await runSuite(browser, pathToFileURL(join(APP_DIR, "test.html")).href, "suite file://"));
     results.push(await runSuite(browser, `${baseUrl}/test.html`, "suite http"));
+    results.push(await testIndexRedirects(browser, fileBase, "index redirect file://"));
+    results.push(await testIndexRedirects(browser, baseUrl, "index redirect http"));
     results.push(await testTheApp(browser, fileBase, "app file://"));
     results.push(await testTheApp(browser, baseUrl, "app http"));
 

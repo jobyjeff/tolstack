@@ -37,32 +37,34 @@ powershell -ExecutionPolicy Bypass -File setup.ps1
 venv-win\Scripts\python.exe -m pytest -q
 ```
 
-## Reviewing a stack
+## Reviewing a stack or a topology
 
-Double-click **`apps/viewer/index.html`** — a static, read-only page that renders
-every stack with its folds, checks, verdicts, notes and gaps, coloured by
-provenance, with the drawing region behind each citation one hover away. It needs
-two projections built first (`scripts/build_viewer_projection.py`, then
-`scripts/build_viewer_crops.py` for the crops); see `apps/viewer/README.md`.
+Double-click **`apps/viewer/topology.html`** — one page for both. Most stacks in
+`docs/tolerance_stacks/` have no topology re-expressing them (a topology is extra
+authoring, not a free side effect of having a stack), so the left rail lists them
+and picking one renders the classic view: every element with its folds, checks,
+verdicts, notes and gaps, coloured by provenance, with the drawing region behind
+each citation one hover away. A system that **does** have a topology
+(`docs/topologies/`) picks from the dropdown instead: a vertical git-graph of the
+mechanism (interfaces are dots, dimensions are the rail segments between them),
+the grid of those elements with every row locked to its rail mark and — since
+2026-09-04 — a `#` / element / part / **nominal / min / max** / contribution /
+sourcing table real enough to paste a column selection into Excel, and the
+citation and drawing crop for whatever you click on the right. Pick a study and
+its chain lights up, each row numbered with its place in the sum, with the
+worst-case and RSS totals at the bottom.
 
-The viewer **computes nothing** — every number it shows comes out of a projection
-built by `fold()`, because a second arithmetic path is a second place a sign can
-be wrong.
+It needs `scripts/build_viewer_projection.py` (the stacks), then
+`scripts/build_viewer_crops.py` (the drawing crops both surfaces share), and, for
+a system with a topology, `scripts/build_topology_projection.py`; see
+`apps/viewer/README.md`. `apps/viewer/index.html` still exists and redirects here
+— a shortcut or a bookmark at the old address still lands somewhere.
 
-## Reviewing a topology
-
-Double-click **`apps/viewer/topology.html`** — the same surface, one archetype
-along. A vertical git-graph of the mechanism on the left (interfaces are dots,
-dimensions are the rail segments between them), the grid of those elements in the
-centre with every row locked to its rail mark, and the citation and drawing crop
-for whatever you click on the right. Pick a study and its chain lights up, each
-row numbered with its place in the sum, with the worst-case and RSS totals at the
-bottom. It needs `scripts/build_topology_projection.py` built first (the crops
-are the stack viewer's, shared).
-
-Same rule, one archetype along: **it computes nothing.** Every total comes out of
-`topology.summarize()` → the same `fold()`, and so does the rail layout — which
-column an edge lands on is a claim about the graph, so it is made in Python where
+The viewer **computes nothing** — every number it shows, in either mode, comes out
+of a projection built by `fold()` (`topology.summarize()` calls the same one for a
+topology's totals), because a second arithmetic path is a second place a sign can
+be wrong. The rail layout is the same rule one step further back: which column an
+edge lands on is a claim about the graph, so it is made in Python, where
 `tests/test_topology_projection.py` can pin it.
 
 ## Layout

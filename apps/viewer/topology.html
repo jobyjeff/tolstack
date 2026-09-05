@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>tolstack — topology viewer</title>
+  <title>tolstack — viewer</title>
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./topology.css" />
 </head>
 <body>
   <div class="topbar">
-    <h1>tolstack — topology viewer</h1>
-    <span class="sub">read-only · renders <code>data/projections/viewer/topologies.json</code> · computes nothing</span>
+    <h1>tolstack — viewer</h1>
+    <span class="sub">read-only · renders <code>data/projections/viewer/</code> · computes nothing</span>
     <span class="topbar__spacer"></span>
-    <a href="./index.html">stack viewer →</a>
+    <button id="worksheet-toggle" class="ghost">Show worksheet</button>
   </div>
   <div id="banner" class="banner"></div>
   <div id="picker" class="banner tvpick"></div>
@@ -51,28 +51,46 @@
   </details>
 
   <main class="tv">
+    <!-- Stacks no topology re-expresses (VA.looseStacks) — most of them: a
+         topology is extra authoring, not a free side effect of having a stack.
+         Retiring the stack viewer means this page also has to be able to show
+         everything it showed, not only what the DAG covers. -->
+    <nav id="stacklist" class="stacklist"></nav>
     <div class="tv__main">
       <section id="topopane" class="tv__scroll"></section>
+      <section id="stackview" class="stackview"></section>
       <section id="totals" class="tvtotals"></section>
+      <details id="worksheet-wrap" class="worksheet-below">
+        <summary>Worksheet (the agent's report)</summary>
+        <div id="worksheet" class="worksheet"></div>
+      </details>
     </div>
     <aside id="detail" class="detail"></aside>
   </main>
+  <div id="croppop" class="croppop"></div>
 
   <!-- Classic scripts (NOT ES modules): the page must run by double-clicking
-       from file://, where Chrome CORS-blocks cross-file `import`. Shared with
-       index.html down to views/crop.js; topology.js / views/topology.js /
-       topology_app.js are this page's own. app.js is deliberately NOT here —
-       it boots the stack viewer against elements this page does not have. -->
+       from file://, where Chrome CORS-blocks cross-file `import`. index.html
+       is a redirect stub now — this is the one page, and it loads every view
+       either surface ever needed: the rails/grid (views/topology.js) for a
+       system that has one, the elements table (views/stack.js) for a stack
+       that does not, and the crop popover + worksheet both share. -->
   <script src="./config.js"></script>
   <script src="./viewer.js"></script>
   <script src="./topology.js"></script>
   <script src="./fixtures.js"></script>
   <script src="./topology_fixtures.js"></script>
+  <script src="./vendor/markdown.js"></script>
   <script src="./storage/adapter.js"></script>
   <script src="./storage/memory.js"></script>
   <script src="./storage/fsa.js"></script>
   <script src="./views/dom.js"></script>
   <script src="./views/banner.js"></script>
+  <script src="./views/list.js"></script>
+  <script src="./views/stack.js"></script>
+  <script src="./views/crop.js"></script>
+  <script src="./views/worksheet.js"></script>
+  <script src="./views/detail.js"></script>
   <script src="./views/topology.js"></script>
   <script src="./topology_app.js"></script>
 </body>

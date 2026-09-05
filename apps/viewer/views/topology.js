@@ -18,10 +18,23 @@
     VA.clear(root);
     var topologies = (projection && projection.topologies) || [];
 
+    // Viewing a loose stack (VA.looseStacks) is a THIRD state this select has to
+    // represent honestly: showing a real topology id as "selected" while a
+    // stack's elements table is on screen would be a fact the picker states and
+    // the page contradicts, and a browser does not fire `change` on reselecting
+    // its current value — so returning to the topology last looked at would take
+    // two clicks. A placeholder option, selected only in stack mode, keeps every
+    // topology in the list a genuine change away.
+    var inStackMode = state.mode === "stack";
     root.appendChild(VA.el("label", "tvpick__label", "topology"));
-    root.appendChild(select("topology-select", topologies.map(function (t) {
-      return { value: t.id, label: t.title + "  (" + t.id + ")" };
-    }), state.topologyId, handlers.onTopology));
+    root.appendChild(select("topology-select",
+      (inStackMode
+        ? [{ value: "", label: "— viewing a stack; pick one to return —" }]
+        : []
+      ).concat(topologies.map(function (t) {
+        return { value: t.id, label: t.title + "  (" + t.id + ")" };
+      })),
+      inStackMode ? "" : state.topologyId, handlers.onTopology));
 
     var topoProj = VA.findTopology(projection, state.topologyId);
     var studies = (topoProj && topoProj.studies) || [];
@@ -287,6 +300,14 @@
   function baseRow(kind, ctx, id) {
     var node = VA.el("tr", "tvrow tvrow--" + kind);
     node.style.height = M.rowHeight + "px";
+    // A table's auto row-height algorithm sizes an EMPTY cell to its font's
+    // line-height "strut" regardless of the row's own explicit height — that
+    // height is a floor, not a cap — so a cell with a taller default
+    // line-height than the row's own pitch (compact density's 16px against a
+    // ~16.5px "normal" strut) grows the row past it. Capping line-height here
+    // once, inherited by every cell, is the same fix the old div row made by
+    // setting it directly (this file's own history).
+    node.style.lineHeight = Math.max(1, M.rowHeight - 2) + "px";
     node.setAttribute("data-row-kind", kind);
     node.setAttribute("data-id", id);
     node.onclick = function () { ctx.onSelect(kind, id); };

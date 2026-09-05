@@ -1319,11 +1319,15 @@
       has(root.textContent, "could not be read");
     });
 
-    // Placement is app.js/index.html wiring, which this file's other tests never
-    // touch (app.js boots on DOMContentLoaded and is not among the files loaded
-    // into the sandbox). Read the shipped source instead of skipping the
-    // deliverable entirely — via VIEWER_SRC, never NODE_FS/`--repo`, so a
-    // worktree run checks THIS branch's HTML, not the main checkout's.
+    // Placement is topology_app.js/topology.html wiring, which this file's
+    // other tests never touch (it boots on DOMContentLoaded and is not among
+    // the files loaded into the sandbox). Read the shipped source instead of
+    // skipping the deliverable entirely — via VIEWER_SRC, never NODE_FS/
+    // `--repo`, so a worktree run checks THIS branch's HTML, not the main
+    // checkout's. Moved here 2026-09-04 (handoff viewer_consolidation) when
+    // the stack viewer (index.html/app.js) retired into this page — the
+    // classic elements table is `#stackview` now, not `#stackview` in a
+    // DIFFERENT file, and index.html is a redirect stub with none of this.
     var viewerSrc = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
     if (!viewerSrc) {
       skip("worksheet sits below the table; the right pane is its own element",
@@ -1331,20 +1335,31 @@
     } else {
       await test("the worksheet sits below the table in a collapsed <details>, " +
         "and the right pane is its own element", function () {
-          var html = viewerSrc.readText("index.html");
-          var appJs = viewerSrc.readText("app.js");
-          ok(html && appJs, "index.html and app.js must be readable");
+          var html = viewerSrc.readText("topology.html");
+          var appJs = viewerSrc.readText("topology_app.js");
+          ok(html && appJs, "topology.html and topology_app.js must be readable");
           var stackviewAt = html.indexOf('id="stackview"');
           var worksheetWrapAt = html.indexOf('id="worksheet-wrap"');
           var detailAt = html.indexOf('id="detail"');
           ok(stackviewAt !== -1 && worksheetWrapAt !== -1 && detailAt !== -1,
-             "expected #stackview, #worksheet-wrap and #detail in index.html");
+             "expected #stackview, #worksheet-wrap and #detail in topology.html");
           ok(stackviewAt < worksheetWrapAt,
              "the worksheet must sit BELOW the elements table, not beside it");
           has(html.slice(Math.max(0, worksheetWrapAt - 60), worksheetWrapAt), "<details",
               "the worksheet must be a native <details> so it collapses on its own");
           has(appJs, "showWorksheet: false",
               "the worksheet must default to collapsed — moved out of the way, not gone");
+        });
+
+      await test("index.html is a redirect stub, not a second copy of the app",
+        function () {
+          var html = viewerSrc.readText("index.html");
+          ok(html, "index.html must be readable");
+          has(html, "topology.html",
+            "the retired page must point at the one that absorbed it");
+          ok(!/app\.js|views\/stack\.js/.test(html),
+            "index.html must load none of the app's own scripts — there is one " +
+            "app now, served from topology.html");
         });
     }
 
@@ -1804,6 +1819,39 @@
     await test("nothing selected tells you what clicking does", function () {
       var root = render(function (r) { VA.renderTopoDetail(r, topoCtx()); });
       has(root.textContent, "Click a dot or a row");
+    });
+
+    // --- loose stacks: what "the topology page absorbs the stack viewer" ---
+    //
+    // The demo mechanism's edges name `demo_joint` via crop_key (plate, washer,
+    // eye) — no schema field says "this stack has a topology"; the linkage IS
+    // the crop_key. FIXTURE (fixtures.js's own demo) has no stack called
+    // `demo_joint`, so this is a synthetic results object naming both a stack
+    // the mechanism covers and one it does not, on purpose.
+    var LOOSE_RESULTS = {
+      stacks: [
+        { id: "demo_joint", title: "covered by the demo mechanism" },
+        { id: "stack_rotor_fastener_length", title: "no topology re-expresses this" },
+      ],
+    };
+
+    await test("stacksCoveredByTopology reads the linkage off edges' own " +
+      "crop_key, not a new field", function () {
+        var covered = VA.stacksCoveredByTopology(TOPOFIX);
+        eq(covered.demo_joint, true);
+        ok(!covered.stack_rotor_fastener_length,
+          "a stack no edge's crop_key names must not read as covered");
+      });
+
+    await test("looseStacks is every stack no topology re-expresses", function () {
+      var loose = VA.looseStacks(TOPOFIX, LOOSE_RESULTS);
+      eq(loose.length, 1);
+      eq(loose[0].id, "stack_rotor_fastener_length");
+    });
+
+    await test("looseStacks is every stack when nothing is built yet", function () {
+      eq(VA.looseStacks(null, LOOSE_RESULTS).length, 2);
+      eq(VA.looseStacks(TOPOFIX, null).length, 0);
     });
 
     await test("the picker offers every topology and study, and flags the one " +
