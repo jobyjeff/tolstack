@@ -191,3 +191,29 @@ These print the worksheet tables; paste them back if an element value changes.
 the thermal archetype **generates** its checks, so its term lists exist nowhere in
 the JSON. That output is the only place a reviewer can read every sign and weight
 one at a time, and the worksheet's appendix is a paste of it.
+
+## Exporting to a spreadsheet
+
+`scripts/export_stack_tabular.py` (2026-09-04, handoff `stack_export_tabular`)
+writes a stack or a topology study to a CSV that opens cleanly in Excel: one
+element/dimension per row (nominal/min/max as separate columns, the full
+citation, the confidence word), then the same `fold()`/`summarize()` results
+every other reader sees, as a clearly separated block. Nothing is computed a
+second time and nothing is scraped from `apps/viewer/`'s DOM.
+
+```powershell
+venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+    --stack pitch_link_to_pitch_plate --out pitch_link.csv
+
+venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+    --study pitch_system_blade_angle_worst --topologies-dir docs\topologies `
+    --out blade_angle_worst.csv
+
+venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+    --all --out-dir data\exports\tabular
+```
+
+CSV, not `.xlsx` — this repo already made that call for spreadsheet tooling
+(`tests/debug_dump_tol_stack_xlsx.py`'s header note); see
+`docs/sessions/lessons/LESSONS_20260904_stack_export_tabular.md` for why it
+still holds here and what a future "copy as TSV" viewer button should reuse.
