@@ -1871,6 +1871,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       would, and "it walks `live_documents()`" is not evidence that the half you
       care about does.
 
+- [ ] **A tool that summarizes "the" sign/coefficient for an element, where the
+      element is referenced by more than one check/path.** New 2026-09-04
+      (`stack_export_tabular`, REQUEST CHANGES). Nothing stops a hand-authored
+      stack from referencing one element from two term lists with different
+      signs, and the `thermal_fit` archetype *routinely* does this by
+      construction: `build_checks()` generates one check per chain x stage x
+      temperature, and `stage_terms()` gives the same sleeve-bore element sign
+      `+1` at stage `hub_to_sleeve` and `-1` at stage `sleeve_to_bearing`
+      whenever `0 < k < 1` (true of both seeded chains in
+      `hub_bearing_thermal_fit_m1`). A "one row per element, first-check-wins"
+      export collapsed this to a single, wrong-by-omission sign, and its own
+      docstring/lesson claimed "no seeded stack does this" -- falsifiable in
+      one command: `venv-win/Scripts/python.exe tests/debug_report_thermal_fit.py
+      --terms | grep <element_id>`. Generalise: any tool (export, summary view,
+      report) that claims one value per element for a field that actually lives
+      on `Term` (sign, coefficient, weight) must be checked against a
+      generated-check archetype specifically, because that is where a hand-built
+      stack's usual "one term list per element" convention breaks down --
+      grepping the seeded thermal_fit stack's element ids through
+      `debug_report_thermal_fit.py --terms` is the one-command test.
+
 ## Writing the review
 
 Standard location: `docs/sessions/reviews/REVIEW_<date>_<handoff>.md`.
