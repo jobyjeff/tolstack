@@ -1,0 +1,24 @@
+{
+  "schema": "joby.tolerance_stack/feature-identity/v0",
+  "event_id": "20260906-endstop-clearance-face1",
+  "seq": 2,
+  "created_at": "2026-09-06T20:05:00Z",
+  "recorded_by": "test-fixture",
+  "stack_key": {
+    "kind": "topology_edge",
+    "topology_id": "pitch_system",
+    "edge_id": "end_stop_clearance"
+  },
+  "verdict": "bound",
+  "geometry_key": {
+    "source_step_sha256": "6d5b1321446d54cd713da0739f7821c5266b3d6898ad047465e30003e7f549cf",
+    "face_id": 1,
+    "area_native2": 3.673439,
+    "centroid_native": [112.195321, 3.224143, 135.516032]
+  },
+  "direction": "from",
+  "composition_note": "sums with 20260906-endstop-clearance-face0: this edge's gap is the axial span between the two bound faces, not either alone",
+  "owner_part": "213668-002",
+  "owner_path": {"kind": "direct"},
+  "note": "synthetic fixture -- second face of the same edge, many-to-many per decision 4"
+}

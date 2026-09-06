@@ -1363,7 +1363,7 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
     assert sum(1 for e in elements if e.hardware_ref) == 10
 
 
-# --- what counts as a QUOTATION -- shared by both doc-level scans ------------
+# --- what both doc-level scans share: the QUOTATION rule and the CORPUS ------
 #
 # Two guards in this file read prose for a number that has gone stale: the
 # traced ratio, immediately below, and hardware-entry counts, in the section
@@ -1371,6 +1371,16 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
 # different ones -- this one knew only about blockquotes, which is exactly why
 # the second superseded ratio could not be added to it (see the list below).
 # One definition, two callers.
+#
+# `live_documents()` and `_prose_blocks()` moved up here on 2026-09-03 (handoff
+# `doc_coverage_sets_derived`) for the same reason and by the same move: they
+# were defined below the hardware-count section and above nothing, while the
+# traced-ratio scan two hundred lines *above* them kept a five-entry literal of
+# its own. Three live documents (`README.md`, `CLAUDE.md`, `docs/DAG_TOPOLOGY.md`)
+# were therefore unread by it, two of them added to the live set after the
+# literal was written
+# (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Unchanged
+# apart from position; one corpus, visibly serving both scans.
 
 def _quoted_spans(text: str) -> list[tuple[int, int]]:
     """Where a superseded number is allowed to survive: inside a quotation.
@@ -1384,6 +1394,201 @@ def _quoted_spans(text: str) -> list[tuple[int, int]]:
     spans = [(m.start(), m.end()) for m in re.finditer(r'"[^"\n]{0,300}"', text)]
     spans += [(m.start(), m.end()) for m in re.finditer(r"(?m)^\s*>.*$", text)]
     return spans
+
+
+# Records of what someone believed on a date, not statements of what is true
+# now. Rewriting them would destroy the evidence the corrections rest on --
+# the same scope call test_every_document_quoting_the_traced_ratio_... makes.
+# PROVENANCE.md is on this list for the same reason: every row in it is a dated
+# "this is what changed and what the counts moved from and to".
+#
+# CLAUDE.md was on this list until 2026-09-01 (handoff `claude_md_tracked`) with
+# the note "gitignored, per-session". It is tracked now, and it is not a dated
+# record -- it states what is true today -- so it is a live document and these
+# scans read it like any other.
+_HISTORICAL_DIRS = ("docs/sessions", "docs/issues", "docs/reference")
+_HISTORICAL_NAMES = {"PROVENANCE.md"}
+_SKIP_DIR_NAMES = {".git", ".dispatch", ".pytest_cache", "__pycache__",
+                   "node_modules", "venv", "venv-win", ".venv", "storage", "vendor"}
+_SKIP_REL_DIRS = {"data/runs", "data/projections"}   # run output, not documents
+
+
+def live_documents(repo_root: Path) -> list[Path]:
+    """Every live `.md` in the repo, plus the `.json` under `docs/` -- those hold
+    prose in fields (`description`, `library_ref_note`) and have gone stale there.
+
+    Deliberately a walk rather than a hand-kept list: a count copied into a
+    document nobody thought to enumerate is exactly how this bug recurs.
+    """
+    found = []
+    for dirpath, dirnames, filenames in os.walk(repo_root):
+        here = Path(dirpath)
+        rel_dir = here.relative_to(repo_root).as_posix()
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if d not in _SKIP_DIR_NAMES
+            and f"{rel_dir}/{d}".lstrip("./") not in _SKIP_REL_DIRS)
+        if rel_dir.startswith(_HISTORICAL_DIRS):
+            continue
+        for name in sorted(filenames):
+            if name in _HISTORICAL_NAMES:
+                continue
+            if name.endswith(".md") or (
+                    name.endswith(".json") and rel_dir.split("/")[0] == "docs"):
+                found.append(here / name)
+    return found
+
+
+def _prose_blocks(path: Path, repo_root: Path) -> list[tuple[str, str]]:
+    """``(location, text)`` -- a markdown file is one block; a JSON file is one
+    block per string value, since that is where its prose lives."""
+    rel = path.relative_to(repo_root).as_posix()
+    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".md":
+        return [(rel, text)]
+    blocks: list[tuple[str, str]] = []
+
+    def walk(node, trail):
+        if isinstance(node, str):
+            blocks.append((f"{rel} [{trail}]", node))
+        elif isinstance(node, dict):
+            for k, v in node.items():
+                walk(v, f"{trail}.{k}" if trail else k)
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{trail}[{i}]")
+
+    try:
+        walk(json.loads(text), "")
+    except json.JSONDecodeError:      # not our problem to diagnose here
+        return []
+    return blocks
+
+
+# A coverage set that silently comes back empty is worse than no guard: the scan
+# runs, finds nothing to complain about, and reports green. Every derived set in
+# this file goes through here, so "the walk broke" and "the glob points at a
+# renamed directory" are the same visible failure.
+#
+# **Floor, not an exact count, for a derived set.** `live_documents()` exists so
+# that a document added tomorrow is scanned without anyone editing a list; an
+# `== 44` here would put that list straight back, one indirection along, and the
+# next `docs/strategy/` brief would redden a suite it has nothing to do with. A
+# floor catches the failure that actually happens (the derivation returning
+# nothing, or a fraction of what it should) and lets the corpus grow. A *curated*
+# set is the opposite case and asserts `exact=True`: there, the number is the
+# curation, and it should not move without someone saying so.
+def assert_coverage_set(label: str, items, expected: int, exact: bool = False):
+    assert items, (
+        f"the {label} coverage set is EMPTY. The scan below will pass over "
+        f"nothing and report green -- that is the failure this assertion exists "
+        f"to convert into red. The derivation is pointed somewhere wrong."
+    )
+    if exact:
+        assert len(items) == expected, (
+            f"the {label} coverage set holds {len(items)}, expected exactly "
+            f"{expected}. This set is curated on purpose; if you added or "
+            f"removed a document, move this number with it."
+        )
+    else:
+        assert len(items) >= expected, (
+            f"the {label} coverage set holds {len(items)}, which is below the "
+            f"floor of {expected}. A derived set may grow freely; shrinking means "
+            f"the derivation stopped seeing documents it used to see."
+        )
+
+
+# The documents whose *prose claims* they are read by these scans, paired against
+# the walk that has to actually contain them. `docs/prompts/REVIEW_AGENT.md` and
+# `CLAUDE.md` both stated a coverage they did not have until 2026-09-03, and a
+# wrong coverage claim is what makes the next reviewer skip the check -- so the
+# claim is now pinned to the corpus rather than to a reviewer's memory.
+_DOCUMENTS_THE_DOC_SCANS_COVER = (
+    "README.md",
+    "CLAUDE.md",
+    "ARCHITECTURE.md",
+    "apps/viewer/README.md",
+    "docs/DAG_TOPOLOGY.md",
+    "docs/SOP_TOLERANCE_STACK.md",
+    "docs/prompts/REVIEW_AGENT.md",
+    "docs/tolerance_stacks/ARCHETYPE_thermal_fit.md",
+)
+
+#: Floor for `live_documents()`. Measured at 44 on 2026-09-03 in **both** the
+#: worktree and the main checkout -- the two `data/` documents that differ
+#: between them are `PROVENANCE.md`s, which `_HISTORICAL_NAMES` drops anyway.
+_LIVE_DOCUMENT_FLOOR = 40
+
+# The documents that must **publish** the current traced ratio, as opposed to
+# merely not contradicting it. This one stays curated, and the argument is:
+#
+# * The other half of the guard (`asserted_stale`) asks "does any live document
+#   assert a *retired* figure?", which is a property of the text and derives
+#   perfectly -- every live document, no list.
+# * This half asks "did a document that is supposed to publish the figure stop
+#   publishing it?" That cannot be derived from the documents, because the
+#   evidence is *absent* from exactly the file you need to catch: a scan of
+#   "documents that mention the ratio" stops looking at a document the moment
+#   someone deletes the sentence, which is the deletion this half exists to see
+#   (`ISSUE_20260812_the_doc_scan_guards_cannot_fail_on_a_deleted_section.md`,
+#   shape 1). A presence guard needs an external statement of what should be
+#   present; that statement is this tuple.
+# * Feeding it `live_documents()` instead fails instantly on every file with no
+#   business quoting a ratio -- `CLAUDE.md` most of all, which deliberately
+#   points at the SOP rather than restating the figure.
+#
+# So: curated, but not un-checked. The size is asserted `exact=True`, every named
+# entry must exist, and the worksheets -- the part that *is* derivable, since a
+# worksheet publishes its own stack's ratio by construction -- come from a glob.
+_RATIO_PUBLISHER_NAMES = (
+    "ARCHITECTURE.md",
+    "docs/SOP_TOLERANCE_STACK.md",
+    "docs/prompts/REVIEW_AGENT.md",
+    "data/inbox/specs/README.md",     # gitignored: present only in the main checkout
+)
+_RATIO_PUBLISHER_COUNT = 11           # the four above + seven WORKSHEET_*.md
+
+
+def traced_ratio_publishers(repo_root: Path) -> list[Path]:
+    """The documents required to state the current traced ratio."""
+    return [repo_root / name for name in _RATIO_PUBLISHER_NAMES] + sorted(
+        (repo_root / "docs" / "tolerance_stacks").glob("WORKSHEET_*.md"))
+
+
+def test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete():
+    """The set a guard walks, guarded -- because an empty set reports green.
+
+    Both halves of the traced-ratio scan below, and the two hardware/enumerated
+    -state scans further down, run over a set derived here. Until 2026-09-03 the
+    traced-ratio scan's set was a five-entry literal and the three live documents
+    it did not name were *invisible* rather than unpaired
+    (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Deriving
+    the set fixes that; asserting the derived set is what stops the next failure,
+    where the walk quietly returns nothing.
+    """
+    repo_root = STACKS_DIR.parent.parent
+
+    scanned = live_documents(repo_root)
+    assert_coverage_set("live documents", scanned, _LIVE_DOCUMENT_FLOOR)
+    rel = {p.relative_to(repo_root).as_posix() for p in scanned}
+    unread = [name for name in _DOCUMENTS_THE_DOC_SCANS_COVER if name not in rel]
+    assert unread == [], (
+        f"{unread} are documented as being read by this repo's doc scans and are "
+        f"not in live_documents(). Either the walk stopped seeing them or a "
+        f"document is claiming a coverage the guards do not have -- and the "
+        f"second is how this class of bug stays invisible."
+    )
+
+    publishers = traced_ratio_publishers(repo_root)
+    assert_coverage_set("traced-ratio publishers", publishers,
+                        _RATIO_PUBLISHER_COUNT, exact=True)
+    gone = [str(p.relative_to(repo_root)) for p in publishers
+            if not p.exists() and p.relative_to(repo_root).as_posix()
+            not in ("data/inbox/specs/README.md",)]
+    assert gone == [], (
+        f"{gone} are named as traced-ratio publishers and do not exist. A dead "
+        f"entry in a curated set is a document nobody is checking."
+    )
 
 
 def _retired_ratio_pattern(figure: str) -> re.Pattern:
@@ -1480,16 +1685,19 @@ def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
     Historical records are deliberately out of scope: `docs/sessions/reviews/`
     and `docs/sessions/completed/` are what someone believed on a date, and
     rewriting them would destroy the evidence this correction rests on.
+
+    **The two halves read two different sets, since 2026-09-03** (handoff
+    `doc_coverage_sets_derived`). Rule 2 is a property of any text, so it walks
+    `live_documents()` -- every live document, derived, no list. Rule 1 is a
+    presence check and reads the curated `traced_ratio_publishers()`; the
+    argument for keeping that one curated is written above it. Both sets are
+    asserted by `test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete`.
+    Until then both halves shared one five-entry literal, and `README.md`,
+    `CLAUDE.md` and `docs/DAG_TOPOLOGY.md` were unread by either -- a retired
+    ratio asserted in any of the three was not caught
+    (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`).
     """
     repo_root = STACKS_DIR.parent.parent
-    live_docs = [
-        repo_root / "ARCHITECTURE.md",
-        repo_root / "docs" / "SOP_TOLERANCE_STACK.md",
-        repo_root / "docs" / "prompts" / "REVIEW_AGENT.md",
-        repo_root / "data" / "inbox" / "specs" / "README.md",
-        *sorted((repo_root / "docs" / "tolerance_stacks").glob("WORKSHEET_*.md")),
-    ]
-
     current = _current_traced_ratio()
 
     retired = {figure for figure, _, _ in _RETIRED_TRACED_RATIOS}
@@ -1499,16 +1707,20 @@ def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
         f"one handoff early"
     )
 
-    missing, asserted_stale = [], []
-    for p in live_docs:
+    missing = []
+    for p in traced_ratio_publishers(repo_root):
         if not p.exists():          # data/ is gitignored; absent in a worktree
             continue
-        text = p.read_text(encoding="utf-8")
-        if current not in text:
+        if current not in p.read_text(encoding="utf-8"):
             missing.append(str(p.relative_to(repo_root)))
-        for figure, offset in retired_traced_ratio_claims(text):
-            line = text[:offset].count("\n") + 1
-            asserted_stale.append(f"{p.relative_to(repo_root)}:{line}: {figure}")
+
+    asserted_stale = []
+    for p in live_documents(repo_root):
+        for location, text in _prose_blocks(p, repo_root):
+            for figure, offset in retired_traced_ratio_claims(text):
+                line = text[:offset].count("\n") + 1
+                where = (f"{location}:{line}" if p.suffix == ".md" else location)
+                asserted_stale.append(f"{where}: {figure}")
 
     assert missing == [], (
         f"traced ratio not stated as {current!r} in {missing}. If the ratio just "
@@ -1567,6 +1779,53 @@ def test_the_traced_ratio_guard_can_fail():
         assert retired_traced_ratio_claims(
             f"9 traced / {numerator} inferred / 4 untraced, out of {instances} "
             f"element instances") == [], figure
+
+
+def test_the_stale_half_now_reads_a_document_outside_the_curated_publisher_set(tmp_path):
+    """The defect the hand-kept list hid, replayed on a document nobody curated.
+
+    `CLAUDE.md` was the file the 2026-09-01 review injected `3 of 26` into by
+    hand: the hardware-count guard fired and the traced-ratio guard stayed green,
+    because its list did not name the file. The same injection is done here on a
+    throwaway tree, so the evidence lives with the guard rather than in a review
+    report -- and on a file whose *name* the scan has never heard of, which is
+    the whole point of walking rather than listing.
+    """
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "NOTES_NOBODY_CURATED.md").write_text(
+        "Slice 1 scored 3 of 26 element instances traced.\n", encoding="utf-8")
+    (tmp_path / "docs" / "quiet.md").write_text(
+        "> Slice 1 scored 3 of 26 element instances traced.\n", encoding="utf-8")
+
+    found = [f"{loc}: {figure}"
+             for p in live_documents(tmp_path)
+             for loc, text in _prose_blocks(p, tmp_path)
+             for figure, _ in retired_traced_ratio_claims(text)]
+    assert found == ["NOTES_NOBODY_CURATED.md: 3 of 26"], found
+
+
+def test_the_coverage_set_assertions_go_red_on_a_derivation_pointed_nowhere(tmp_path):
+    """Both derived sets, pointed at an empty tree, and watched failing.
+
+    This is the failure the assertions exist for and the one that reports green
+    without them: a walk over a directory that no longer holds the documents
+    finds no stale figure anywhere and every scan passes. `tmp_path` is a real
+    directory that simply is not this repo -- the same shape as a renamed folder
+    or a `repo_root` computed one level wrong.
+    """
+    assert live_documents(tmp_path) == []
+    with pytest.raises(AssertionError, match="coverage set is EMPTY"):
+        assert_coverage_set("live documents", live_documents(tmp_path),
+                            _LIVE_DOCUMENT_FLOOR)
+
+    # The curated set is never empty -- it is built from names -- so its failure
+    # mode is the other one: the derived half of it, the worksheet glob, coming
+    # back with nothing while the four literals still look fine.
+    thin = traced_ratio_publishers(tmp_path)
+    assert len(thin) == len(_RATIO_PUBLISHER_NAMES) < _RATIO_PUBLISHER_COUNT
+    with pytest.raises(AssertionError, match="is curated on purpose"):
+        assert_coverage_set("traced-ratio publishers", thin,
+                            _RATIO_PUBLISHER_COUNT, exact=True)
 
 
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
@@ -1711,75 +1970,6 @@ _COUNT_CLAIMS = [
 ]
 _COUNT_CLAIMS = [(lbl, re.compile(p, re.I | re.S), keys)
                  for lbl, p, keys in _COUNT_CLAIMS]
-
-# Records of what someone believed on a date, not statements of what is true
-# now. Rewriting them would destroy the evidence the corrections rest on --
-# the same scope call test_every_document_quoting_the_traced_ratio_... makes.
-# PROVENANCE.md is on this list for the same reason: every row in it is a dated
-# "this is what changed and what the counts moved from and to".
-#
-# CLAUDE.md was on this list until 2026-09-01 (handoff `claude_md_tracked`) with
-# the note "gitignored, per-session". It is tracked now, and it is not a dated
-# record -- it states what is true today -- so it is a live document and these
-# scans read it like any other.
-_HISTORICAL_DIRS = ("docs/sessions", "docs/issues", "docs/reference")
-_HISTORICAL_NAMES = {"PROVENANCE.md"}
-_SKIP_DIR_NAMES = {".git", ".dispatch", ".pytest_cache", "__pycache__",
-                   "node_modules", "venv", "venv-win", ".venv", "storage", "vendor"}
-_SKIP_REL_DIRS = {"data/runs", "data/projections"}   # run output, not documents
-
-
-def live_documents(repo_root: Path) -> list[Path]:
-    """Every live `.md` in the repo, plus the `.json` under `docs/` -- those hold
-    prose in fields (`description`, `library_ref_note`) and have gone stale there.
-
-    Deliberately a walk rather than a hand-kept list: a count copied into a
-    document nobody thought to enumerate is exactly how this bug recurs.
-    """
-    found = []
-    for dirpath, dirnames, filenames in os.walk(repo_root):
-        here = Path(dirpath)
-        rel_dir = here.relative_to(repo_root).as_posix()
-        dirnames[:] = sorted(
-            d for d in dirnames
-            if d not in _SKIP_DIR_NAMES
-            and f"{rel_dir}/{d}".lstrip("./") not in _SKIP_REL_DIRS)
-        if rel_dir.startswith(_HISTORICAL_DIRS):
-            continue
-        for name in sorted(filenames):
-            if name in _HISTORICAL_NAMES:
-                continue
-            if name.endswith(".md") or (
-                    name.endswith(".json") and rel_dir.split("/")[0] == "docs"):
-                found.append(here / name)
-    return found
-
-
-def _prose_blocks(path: Path, repo_root: Path) -> list[tuple[str, str]]:
-    """``(location, text)`` -- a markdown file is one block; a JSON file is one
-    block per string value, since that is where its prose lives."""
-    rel = path.relative_to(repo_root).as_posix()
-    text = path.read_text(encoding="utf-8")
-    if path.suffix == ".md":
-        return [(rel, text)]
-    blocks: list[tuple[str, str]] = []
-
-    def walk(node, trail):
-        if isinstance(node, str):
-            blocks.append((f"{rel} [{trail}]", node))
-        elif isinstance(node, dict):
-            for k, v in node.items():
-                walk(v, f"{trail}.{k}" if trail else k)
-        elif isinstance(node, list):
-            for i, v in enumerate(node):
-                walk(v, f"{trail}[{i}]")
-
-    try:
-        walk(json.loads(text), "")
-    except json.JSONDecodeError:      # not our problem to diagnose here
-        return []
-    return blocks
-
 
 def hardware_entry_count_claims(text: str) -> list[tuple[str, str, int, int]]:
     """``(label, count_key, stated, offset)`` for every count claim in ``text``."""

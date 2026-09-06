@@ -161,7 +161,7 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
 | schema | you write it? | what it is |
 |---|---|---|
 | `joby.tolerance_stack/topology/v0` | **yes** — one per system | `parts`, `nodes`, `edges`, named `transforms`, plus `provenance` and `notes` |
-| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes` |
+| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list |
 
 ### A topology, in outline
 
@@ -242,6 +242,29 @@ Three cases, and the difference matters:
 - **`closes` names the derived gap this study computes.** It is the bridge to the
   stack vocabulary: a stack's *check* ("fastener grip minus the clamped stack")
   is topologically the closure of a loop, and the residual is a gap edge.
+- **`checks`, added 2026-09-06 by handoff `endstop_location_stack`, is the same
+  bridge for a target that is not another edge of the study's own graph** — a
+  requirement pulled from Polarion, most concretely. Each entry is the same raw
+  spec shape a stack's `checks` list already uses (`check_id`, `label`,
+  `configuration`, `criterion`, `complete`, `excluded_terms`), plus `limit` —
+  `{"value": ..., "units": ..., "source_ref": {...}}` — the budget the study's
+  own total is checked against. `check_study()` folds exactly two terms through
+  the one `fold()`: the limit (sign `+1`) and the study's own total (sign `-1`)
+  — the L1 grip-check pattern, with a `StudyResult` standing in for the clamped
+  stack. `complete`/`excluded_terms` are **authored**, never scanned for, for
+  the same reason a stack check's are: an excluded term has no element to read
+  a gap off of. See `study_pitch_system_end_stop_minus7.json` and
+  `study_pitch_system_end_stop_plus72.json`, whose one check each cites S461-607
+  (a blade-to-blade pitch-variation limit, `SourceRef.kind: "requirement"`) as
+  the numeric budget and S461-241 (the two nominal stop angles) as the
+  non-arithmetic `context_ref` naming which operating point the study is about.
+  Both checks are `complete: false` — the chain still crosses two `assumed`
+  placeholders and one unresolved-identity edge, and neither study's borrowed
+  sensitivity (the source sheet's "-5 deg worst case" or "full-sweep average"
+  columns) is characterised at the requirement's actual -7/+72 deg operating
+  points — so both checks render as a *budget*, never a hardware verdict,
+  exactly as `CheckResult`'s `complete` flag already requires everywhere else in
+  this repo.
 
 ### Where a sensitivity belongs
 
@@ -277,9 +300,9 @@ that stack's own `worst_case_shank_out` check publishes — every field, exactly
 no tolerance — and separately asserts that the topology copies no value, because
 without that second check the first would be comparing a number against itself.
 
-### L2 — `topology_pitch_system.json` + four studies
+### L2 — `topology_pitch_system.json` + seven studies
 
-The structure. 12 parts, 20 interfaces, 23 edges, 4 branch points, 4 grounded
+The structure. 12 parts, 21 interfaces, 24 edges, 5 branch points, 4 grounded
 loops (pitch links, gas spring, ring gear, and the hydraulic-brake alternative to
 the gas spring), 1 gap edge (the end stop), and the linear↔rotary coupling at the
 pitch arm. Those counts are derived from the graph by `tests/test_topology.py`,
@@ -293,14 +316,44 @@ not maintained by hand.
   the other sensitivity set.
 - `study_pitch_system_gas_spring_branch.json` — the parallel path, summed on its
   own. Nothing compares it to the pitch-link path.
+- `study_pitch_system_end_stop_minus7.json` / `study_pitch_system_end_stop_plus72.json`
+  — added 2026-09-06 by handoff `endstop_location_stack`, one per S461-241's two
+  named stop angles. Each is `study_pitch_system_blade_angle_worst.json` /
+  `_average.json`'s exact selection and transform set, re-titled and given one
+  requirement-cited `checks` entry — separate documents, not edits of the two
+  above, because a study's numbers, once committed, are not touched by a later
+  handoff without a reason of their own. Handoff `mechanical_stroke_stack`
+  (2026-09-06) later **appended** a second `checks` entry to each of these two
+  files (citing S461-617/639, not S461-607) — additive, not an edit of either
+  study's `selection`/`transforms`/first `checks` entry, and the distinction
+  those two handoffs draw is the one this bullet states: a study's *numbers* are
+  fixed once committed; its `checks` list is reusable schema, and growing it is
+  not touching them.
+- `study_pitch_system_gas_spring_mechanical_stroke.json` — added 2026-09-06 by
+  handoff `mechanical_stroke_stack`, over one new node and one new edge
+  (`gas_spring_full_extension_stop`, `gas_spring_mechanical_stroke`) representing
+  the gas spring's own internal mechanical stroke and stops
+  (S461-610/636/516/637/616/617/638/639) — a quantity the pre-existing
+  gas-spring edges (external body height, mounting position) did not represent.
+  The stroke edge's `to` end reuses the existing `gas_spring_mount_flange` node
+  as a stand-in for the piston's own full-retraction stop (see the edge's own
+  `properties` note for why, and for why a second brand-new node was rejected —
+  it would have disconnected the graph, which the viewer's projection builder
+  assumes never happens); a millimetre study, one edge long.
 
-**Its values are placeholders and its structure is the deliverable.** Two thirds
-of the bands are cells of a workbook that traces nothing (0 of 43, per
-`WORKSHEET_end_stop_graft.md`); the rest are `kind: "assumed"` and say
+**Its values are placeholders and its structure is the deliverable.** At
+founding every one of its 23 dimensioned edges was a workbook cell that traces
+nothing (0 of 43, per `WORKSHEET_end_stop_graft.md`); handoff
+`endstop_location_stack` (2026-09-06) re-cited six of those edges against
+drawings instead (`provenance.retrace_update_20260906`), and handoff
+`mechanical_stroke_stack` (same day) added a 24th, `kind: "assumed"` for want of
+any source at all (`provenance.mechanical_stroke_extension_20260906`) — so the
+current split is 9 `workbook` / 6 `drawing` / 9 `kind: "assumed"`, of 24
+dimensioned edges. The `kind: "assumed"` group alone says
 `PLACEHOLDER` in their notes, which a test enforces. Every dimension in it is
 **variation-only** — `nominal: 0.0`, band `±w/2` about an unstated nominal —
 because the source holds tolerance widths, not dimensions. Do not quote a number
-out of it.
+out of it without reading its own `source_ref.confidence` first.
 
 ---
 

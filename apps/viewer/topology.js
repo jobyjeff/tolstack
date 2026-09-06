@@ -254,6 +254,30 @@
   //: is then true by construction rather than by two stylesheets agreeing.
   VA.RAIL_METRICS = { rowHeight: 26, gutter: 20, left: 15, dot: 4.5, branchDot: 6.5 };
 
+  // --- row density -----------------------------------------------------
+  //
+  // "See most of the DAG at once" (HANDOFF_20260904_dag_viewer_vertical_budget.md)
+  // needs a density control, and the trap is documented right where it bites:
+  // row height is one number in three places that have to move together —
+  // VA.RAIL_METRICS.rowHeight (here), `--tv-row` (topology.css, the paint) and
+  // the inline row heights (views/topology.js's baseRow, which reads
+  // `M.rowHeight` off this exact object). VA.applyRowDensity mutates
+  // `.rowHeight` in place rather than replacing VA.RAIL_METRICS, so every
+  // existing reference to the object — including views/topology.js's
+  // module-scoped `M` — picks up the change with nothing to re-wire. The
+  // caller (topology_app.js) still has to set the CSS variable itself; that
+  // is the one DOM write this pure file does not make.
+  VA.ROW_DENSITIES = {
+    comfortable: { rowHeight: 26, label: "Comfortable" },
+    compact: { rowHeight: 16, label: "Compact" },
+  };
+
+  VA.applyRowDensity = function (density) {
+    var preset = VA.ROW_DENSITIES[density] || VA.ROW_DENSITIES.comfortable;
+    VA.RAIL_METRICS.rowHeight = preset.rowHeight;
+    return preset;
+  };
+
   VA.railX = function (column, metrics) {
     return metrics.left + column * metrics.gutter;
   };
@@ -345,6 +369,37 @@
       " " + x2 + " " + (y2 + lift) +
       " " + x2 + " " + y2;
   }
+
+  // --- loose stacks: what the topology page absorbs the stack viewer for ---
+  //
+  // Most stacks in docs/tolerance_stacks/ have no topology document at all —
+  // topology is opt-in per system, and re-expressing a stack as a graph is
+  // extra authoring, not a free side effect of having one. So retiring the
+  // stack viewer cannot mean "only render what a topology covers": this page
+  // also has to offer every stack NO topology re-expresses, rendered exactly
+  // as the stack viewer rendered it (views/stack.js, unchanged).
+  //
+  // Which stacks those are is read off the data already on hand, not a new
+  // field: an edge that re-expresses a stack element carries `crop_key`
+  // (`{stack, element}`), and that IS the linkage — the one committed L1 stack
+  // covered by a topology is exactly the one every one of its edges' crop_keys
+  // names. No schema change, no second source of truth.
+  VA.stacksCoveredByTopology = function (topologies) {
+    var covered = {};
+    ((topologies && topologies.topologies) || []).forEach(function (t) {
+      (t.edges || []).forEach(function (e) {
+        if (e.crop_key && e.crop_key.stack) covered[e.crop_key.stack] = true;
+      });
+    });
+    return covered;
+  };
+
+  VA.looseStacks = function (topologies, results) {
+    var covered = VA.stacksCoveredByTopology(topologies);
+    return ((results && results.stacks) || []).filter(function (s) {
+      return !covered[s.id];
+    });
+  };
 
   // --- the banner ----------------------------------------------------------
 

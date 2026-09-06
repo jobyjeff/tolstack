@@ -68,7 +68,7 @@ There is deliberately **no registry**. A registry wants three archetypes.
 | `WORKSHEET_pitch_link_to_pitch_plate.md` | Same shape minus the re-derivation section (nothing to re-derive), plus the joint-identification argument and a **Refused** table of values not filled from memory. |
 | `WORKSHEET_rotor_fastener_length.md` | Same from-scratch shape as the pitch-link worksheet, plus a per-dash grip-budget table (the nine-way family) and the pending comparison against Jason Ryan's independent Excel stack. |
 | `WORKSHEET_hub_bearing_thermal_fit.md` | Both thermal-fit stacks in one worksheet. Carries the finding that the source's coherent-corner method understates the loosest stage-1 fit by 0.05 mm, and an appendix listing **every generated term, sign and weight** — the reviewability the generated checks cost. |
-| `WORKSHEET_endstop_vision_baseline.md` | **Not a stack — a calibrated capability baseline.** Handoff `endstop_vision_baseline`: an attempt to derive the end-stop stack from the drawings alone, scored against `WORKSHEET_end_stop_graft.md`. Sealed prediction first, then one capped pass. Result: **4 of 43** rows traced, from 2 distinct callouts. Carries the finding that **217755 has no dimensions on any of its eight graphical sheets**, that two piece-part drawings explicitly delegate completeness to their 3D model, and the breakage taxonomy that is the requirements input for the 3D-annotation-surface draft. |
+| `WORKSHEET_endstop_vision_baseline.md` | **Not a stack — a calibrated capability baseline.** Handoff `endstop_vision_baseline`: an attempt to derive the end-stop stack from the drawings alone, scored against `WORKSHEET_end_stop_graft.md`. Sealed prediction first, then one capped pass. Result: **5 of 43** rows traced, from 3 distinct callouts (§8, handoff `endstop_retrace_acquired_docs`, re-scored 9 newly-acquired documents against the 23 rows blocked on document acquisition; 26 of 43 now `located`). Carries the finding that **217755 has no dimensions on any of its eight graphical sheets**, that two piece-part drawings explicitly delegate completeness to their 3D model, and the breakage taxonomy that is the requirements input for the 3D-annotation-surface draft. |
 | `WORKSHEET_end_stop_graft.md` | Structured read of `260825_End_Stop_JC.xlsx`, a **third archetype**: a blade-pitch angular-position-error rollup, not a linear or diametral stack. Traces **0 of 43** element instances — the least traceable source workbook here. Handoff `endstop_graft_workorder`; the slice-and-graft-into-Chao's-sheet deliverable is blocked pending an HITL export and is not in this worksheet yet. |
 
 Source workbooks: `data/inbox/tolerance_stacks/` (gitignored contents, see its
@@ -191,3 +191,29 @@ These print the worksheet tables; paste them back if an element value changes.
 the thermal archetype **generates** its checks, so its term lists exist nowhere in
 the JSON. That output is the only place a reviewer can read every sign and weight
 one at a time, and the worksheet's appendix is a paste of it.
+
+## Exporting to a spreadsheet
+
+`scripts/export_stack_tabular.py` (2026-09-04, handoff `stack_export_tabular`)
+writes a stack or a topology study to a CSV that opens cleanly in Excel: one
+element/dimension per row (nominal/min/max as separate columns, the full
+citation, the confidence word), then the same `fold()`/`summarize()` results
+every other reader sees, as a clearly separated block. Nothing is computed a
+second time and nothing is scraped from `apps/viewer/`'s DOM.
+
+```powershell
+venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+    --stack pitch_link_to_pitch_plate --out pitch_link.csv
+
+venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+    --study pitch_system_blade_angle_worst --topologies-dir docs\topologies `
+    --out blade_angle_worst.csv
+
+venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+    --all --out-dir data\exports\tabular
+```
+
+CSV, not `.xlsx` — this repo already made that call for spreadsheet tooling
+(`tests/debug_dump_tol_stack_xlsx.py`'s header note); see
+`docs/sessions/lessons/LESSONS_20260904_stack_export_tabular.md` for why it
+still holds here and what a future "copy as TSV" viewer button should reuse.

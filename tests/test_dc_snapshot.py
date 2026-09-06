@@ -10,6 +10,7 @@ which writes nothing (see the session lesson).
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -73,14 +74,32 @@ def test_a_new_run_directory_shows_the_directory_its_files_and_its_parent(watche
 
 
 def test_a_removed_entry_is_reported_as_removed(watched):
+    """Two claims: the entry is gone, and the directory it was in reports as
+    ``modified`` on ``mtime_ns`` alone -- a dir entry carries ``size: None`` on
+    both sides, so that is the only field that can ever flag it, and surfacing
+    it is exactly why directories are entries at all.
+
+    The backdate is what makes the second claim testable. Removing a child does
+    move the parent's mtime on this platform, reliably; what is unreliable is
+    that the fixture set that same mtime moments earlier, so the new value can
+    land in the same clock tick as the old one and compare equal. Stamping the
+    directory into the past before the snapshot makes the movement unambiguous.
+    A ``sleep`` would be the other way to get there and is another race -- this
+    one has no timing in it.
+    """
+    run_dir = watched / "20260804_114000_217755_A.1"
+    stamped = run_dir.stat()
+    os.utime(run_dir, ns=(stamped.st_atime_ns, stamped.st_mtime_ns - 10_000_000_000))
+
     before = sds.take_snapshot([watched])
-    victim = watched / "20260804_114000_217755_A.1" / "217755_A_p01.json"
+    victim = run_dir / "217755_A_p01.json"
     victim.unlink()
     result = sds.diff_snapshots(before, sds.take_snapshot([watched]))
 
     assert [e["path"] for e in result["removed"]] == [victim.as_posix()]
     # ...and its parent moved, which is how a re-render shows up.
     assert [e["path"] for e in result["modified"]] == [victim.parent.as_posix()]
+    assert result["modified"][0]["fields"] == ["mtime_ns"]
 
 
 def test_a_rewritten_file_is_modified_with_the_fields_that_moved(watched):

@@ -828,6 +828,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `page.get_text()`. **A zero means every feature control frame on that
       drawing is invisible to a text sweep**, which is how this handoff recorded
       a position callout as absent (worksheet F7).
+      **Third sighting (`endstop_retrace_acquired_docs`, 2026-09-04), and it is
+      the reviewer's own tool this time, not the author's.** `215071-C.pdf`
+      (and `213668-002`'s zone B12) render each digit of a dimension as its own
+      text span, so `⌀64.030 +0.030/0.000` extracts as `'6 4 . 0 3 0 + 0 . 0 3 0'`
+      — a literal `--pattern "64\.03"` search returns **zero hits** on a
+      citation that is exactly correct, because the regex expects contiguous
+      digits and the PDF gives one character per span with a space joining
+      them. A reviewer trusting that zero would file a false "citation does not
+      resolve" blocker. The fix is cheap and was used to verify every citation
+      in this review: `--pattern "."` (or a single short digit run) dumped per
+      zone, which shows the space-separated text plainly, or crop and read the
+      render directly — never conclude a value is absent from a zero-hit
+      multi-character regex without first dumping that zone's raw text.
 - [ ] **A claimed *absence* — "the document is in hand, was read in full, the
       value is not there".** New 2026-09-01 (`endstop_vision_baseline`). It is
       the strongest claim a provenance audit makes and the one nobody re-checks,
@@ -872,6 +885,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       including the file the handoff was told not to touch, which is a finding to
       *file*, not to fix. Ten lines of Python over `git ls-files`, and it is the
       only thing that turns "every" from a claim into a measurement.
+      **For this particular rule the ten lines are now a test**
+      (`rule_statements()` in `tests/test_thermal_exception_list.py`, 2026-09-03),
+      so the reviewer's job moved up a level: not "did they find every passage"
+      but *is the scan's corpus, pattern and qualifier set still the right ones* —
+      a derivation that quietly stops matching is the same silence one level up.
 - [ ] **The drawing-checker snapshot taken with something other than
       `scripts/snapshot_drawing_checker.py`.** New 2026-09-01
       (`endstop_vision_baseline`). The attempt evidenced the read-only invariant
@@ -1496,6 +1514,69 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       one** — the pairing is the visible guard and the mutation scan is the one
       that gets forgotten.
 
+- [ ] **N green runs is not evidence a flake is fixed — demand the replay, and
+      do the arithmetic.** New 2026-09-03 (`dc_snapshot_mtime_flake`). The
+      directory-mtime race in `tests/test_dc_snapshot.py` failed ~2.3% of trials
+      unloaded (7/300, reviewer-measured), so **ten green full-suite runs would
+      have happened ~79% of the time with the bug still in**. A "definition of
+      done" that asks for N >= 5 green runs is therefore satisfiable by an
+      unfixed flake. What settles it is a **stress replay**: the test body run
+      against the real functions a few hundred times, old shape and new, with
+      both counts reported. Ask for that table; if it is absent, compute
+      `(1 - rate)^N` on the issue's own reported rate before you accept the runs.
+- [ ] **A flake "fix" that guarantees the assertion by construction is worse
+      than the flake.** Same handoff. The legitimate move stabilises the
+      *precondition* and leaves the assertion still able to fail — here
+      `os.utime` backdates the directory **before** the `before` snapshot, so
+      both snapshots read the old stamp if the platform ever stops moving a
+      parent's mtime on `unlink`. The illegitimate move stabilises the
+      *observation*. One test: **name the tool regression this test still
+      catches, then break the tool in a scratch copy and watch it go red.** A
+      timing fix is a new guard, so the universal "observed failing" check
+      applies to it in full.
+
+- [ ] **A derived doc scan whose *unit* is bigger than the claim it judges.**
+      New 2026-09-03 (`doc_coverage_sets_derived`). `rule_statements()` splits a
+      file on **blank lines**, takes the first match per unit, and then asks
+      whether *the unit* carries a qualifier — so one "exception" at the top of a
+      block covers an absolute at the bottom. The handoff spotted this for
+      markdown **tables** and split them row by row; it did not for `- [ ]`
+      runs, and `docs/prompts/REVIEW_AGENT.md` has a **14 976-character** single
+      unit (lines 1527-1747). Measured: the absolute form inserted there leaves
+      the suite green
+      (`ISSUE_20260903_a_qualifier_anywhere_in_a_15kb_block_covers_an_absolute_rule_statement.md`).
+      Whenever a scan classifies a *block* by a token found anywhere in it, ask
+      **how big can this block get in this repo** and inject the defect at the
+      far end of the biggest one — not next to the token.
+- [ ] **An exemption that rests on "that file is gitignored" — check, don't
+      remember.** New 2026-09-03 (same handoff). `data/inbox/specs/README.md` is
+      carried in two guards behind `# gitignored: present only in the main
+      checkout`; `git check-ignore -v` returns nothing and `git ls-files data/`
+      lists it. The exemption therefore hides a *deleted* curated publisher,
+      which is the one thing that half of the guard exists to catch
+      (`ISSUE_20260903_curated_ratio_publisher_exempted_as_gitignored_is_actually_tracked.md`).
+      CLAUDE.md's "`data/` is gitignored by design" is true of the *contents* and
+      not of every path under it. Run `git check-ignore` on the actual path
+      before accepting any exemption phrased this way.
+- [ ] **A DoD's qualitative viewport claim ("most of the rows", "fits on one
+      screen") needs its own measurement at the SAME viewport the floor test
+      uses — don't let the floor test passing stand in for it.** New
+      2026-09-04 (`dag_viewer_vertical_budget`). The handoff asked for both "a
+      stated minimum of rows" at a worst-case ~700px viewport (alarm + legend +
+      study) AND, separately, that compact density "shows most of the 43 rows
+      at once" — and the lesson's own measurement at that same 700px viewport
+      was 12 of 43 rows visible (28%), which it reported without noting that
+      28% is not "most." Measuring it myself: the 28% figure is specific to the
+      artificially short 700px reproduction case; at realistic browser heights
+      (900px / 1000px) compact density shows 56% / 72%, which is genuinely
+      "most." Not a defect here — the two DoD clauses read correctly as
+      separate claims about separate viewport sizes once measured — but a
+      future stack/viewer handoff that reports "N rows visible, floor test
+      green" is not thereby evidence a *qualitative* DoD clause ("most",
+      "fits", "comfortably") was met; compute the percentage against the
+      actual row count and check it at the size the claim is actually about,
+      not just the size the floor test forced.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
@@ -1761,12 +1842,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tests/test_tolerance_stack.py` and `scripts/build_viewer_projection.py`
       both glob `stack_*.json` under `docs/tolerance_stacks/` and would apply
       grip-stack schema hygiene to a topology dropped in beside the stacks.
-      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, so the hardware-count
-      doc scanner already reads it — but the **traced-ratio** scanner does not
-      walk `live_documents()` at all (corrected during `review/claude_md_tracked`,
-      2026-09-01; see the entry below), so a stale ratio quoted there is *not*
-      caught, and what is caught is only the shapes the scanner that does read it
-      knows.
+      `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, and since 2026-09-03
+      (`doc_coverage_sets_derived`) the traced-ratio scanner's stale half walks
+      `live_documents()` too, so a retired ratio asserted there is caught now.
+      This clause read *"the **traced-ratio** scanner does not walk
+      `live_documents()` at all … so a stale ratio quoted there is not caught"*
+      until then — correct when it was written on 2026-09-01, and the defect
+      `ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md` filed. What
+      is still scanner-specific is the *shapes* each one knows, not the corpus.
 
 - [ ] **A projection field derived twice, once by the module and once inline.**
       New 2026-09-01 (`dag_viewer_poc`), the `Contribution`/`fold()` entry above
@@ -1782,17 +1865,133 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       compute it?**
 
 - [ ] **Two doc-scan families, two different scopes — check which one you mean.**
-      New 2026-09-01 (`claude_md_tracked`). "The doc guards read it" is not one
-      claim in this repo. `live_documents()` is an `os.walk` (hardware-entry
-      counts, enumerated-state surface lookup); the **traced-ratio** scan
-      `test_every_document_quoting_the_traced_ratio_quotes_the_current_number`
-      builds its own five-entry `live_docs` literal and therefore does **not**
-      read `README.md`, `CLAUDE.md` or `docs/DAG_TOPOLOGY.md`
+      New 2026-09-01 (`claude_md_tracked`), **resolved 2026-09-03**
+      (`doc_coverage_sets_derived`) and kept here for the check it teaches. "The
+      doc guards read it" was not one claim in this repo: `live_documents()` was
+      an `os.walk` (hardware-entry counts, enumerated-state surface lookup) while
+      the traced-ratio scan built its own five-entry `live_docs` literal and
+      therefore did **not** read `README.md`, `CLAUDE.md` or
+      `docs/DAG_TOPOLOGY.md`
       (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Two
       documents asserted the wrong coverage before anyone injected a figure to
-      check. So when work claims a document is now covered by a scan, **inject
-      the defect and watch the named test go red** — the hardware-count guard
-      firing is not evidence that the traced-ratio guard would.
+      check. The corpus is now one walk for every scan; what is still **not**
+      shared is the traced-ratio guard's *other* half, which reads the curated
+      `traced_ratio_publishers()` because it is a presence check and the evidence
+      it needs is absent from exactly the file it must catch (the argument is
+      written above that function). So when work claims a document is now covered
+      by a scan, **inject the defect and watch the named test go red** — the
+      hardware-count guard firing is not evidence that the traced-ratio guard
+      would, and "it walks `live_documents()`" is not evidence that the half you
+      care about does.
+
+- [ ] **A tool that summarizes "the" sign/coefficient for an element, where the
+      element is referenced by more than one check/path.** New 2026-09-04
+      (`stack_export_tabular`; caught in review, **fixed** by `0aa7d54`).
+      Nothing stops a hand-authored stack from referencing one element from two
+      term lists with different signs, and the `thermal_fit` archetype
+      *routinely* does this by construction: `build_checks()` generates one
+      check per chain x stage x temperature, and `stage_terms()` gives the same
+      sleeve-bore element sign `+1` at stage `hub_to_sleeve` and `-1` at stage
+      `sleeve_to_bearing` whenever `0 < k < 1` (true of both seeded chains in
+      `hub_bearing_thermal_fit_m1`) — and a **plain, non-thermal** stack can hit
+      this too: `pitch_link_to_pitch_plate`'s `clamped_stack_sourced` path is
+      added in one check and subtracted in another. A "one row per element,
+      first-check-wins" export collapsed both to a single, wrong-by-omission
+      sign, and its own docstring/lesson claimed "no seeded stack does this" --
+      falsifiable in one command:
+      `venv-win/Scripts/python.exe tests/debug_report_thermal_fit.py --terms |
+      grep <element_id>`, or just reading a two-check stack's own JSON.
+      Generalise: any tool (export, summary view, report) that claims one value
+      per element for a field that actually lives on `Term` (sign, coefficient,
+      weight) must be checked against a generated-check archetype AND against a
+      plain stack whose element is deliberately reused with an opposite sign --
+      grepping the seeded thermal_fit stack's element ids through
+      `debug_report_thermal_fit.py --terms` is the one-command test for the
+      first; reading a path's own JSON against every check that references it
+      is the check for the second. Fixed by replacing "first occurrence wins"
+      with one row per **distinct** `(sign, coefficient)` an element actually
+      enters with (`element_occurrences()` + `group_occurrences()`) -- an
+      element every check agrees on still gets one row.
+- [ ] **Converting a div-flex grid to a real `<table>` breaks row height, and
+      not for one reason.** New 2026-09-04 (`viewer_consolidation`, the
+      nominal/min/max column split). A `<tr>`'s inline `height` is a **floor**,
+      not a cap — none of `align-items: stretch` / a flex item's forced
+      cross-size / `overflow: hidden` on the row carry over to table cells, so
+      four independent causes can each push a row past its own pitch: (1) a
+      shared button/chip style sized for the old, taller cell; (2) an *empty*
+      cell still reserving its font's default line-height "strut" unless the
+      row's own `line-height` is set inline (not just `vertical-align:
+      middle`, which centres content but does not cap the strut); (3)
+      `flex-wrap: wrap` on a cell's inner wrapper, which a fixed-height row has
+      nothing to stop; (4) `border-collapse: collapse` (not `separate`)
+      double-applying a `td, th` border-bottom that every *other* table in the
+      app already carries harmlessly, because none of them sets an inline row
+      height for it to fight. The browser alignment tier (`alignmentDrift`,
+      `run_viewer_browser_tests.mjs`) is the only thing that catches this — a
+      fast-tier DOM-shim test has no real layout to measure. If a future handoff
+      converts another div grid to a table, expect to chase more than one of
+      these, and re-run the alignment tier after each individual fix, not just
+      at the end.
+
+- [ ] **Retiring a page: reflexively filtering the merged view to "only what's
+      new" can make an old capability unreachable.** New 2026-09-04
+      (`viewer_consolidation`). The tactical agent's first cut of the stack nav
+      listed only stacks with no topology (`VA.looseStacks`) — the natural
+      reading of "show what the topology page doesn't already cover" — which
+      would have hidden the one stack a topology *does* re-express, and that
+      stack carries its own authored `checks` verdict the topology projection
+      has no field for at all, making it unreachable from anywhere on the
+      consolidated page. Caught by the author, before review, by re-deriving
+      "does this really drop nothing" from the handoff's own escape-valve
+      wording rather than trusting a green test (there was no failing test —
+      nothing asserted the covered stack's check was reachable). When a
+      handoff merges two surfaces, ask *is there a capability of the retiring
+      page whose only path to visibility this filter just removed?* — a green
+      suite is not evidence the answer is no.
+
+- [ ] **A new projection writer whose INPUT (not just its output) is a
+      gitignored `data/` dir needs `--events-dir`/`--stacks-dir`-style default
+      to follow `--data-root`, not `REPO_ROOT`.** New 2026-09-06
+      (`annotation_surface_mvp`, blocker). Every earlier projection writer's
+      input default is safe to leave `REPO_ROOT`-relative because the input
+      lives under tracked `docs/` (identical between a worktree and the main
+      checkout) — `build_viewer_projection.py --stacks-dir` is the precedent
+      this one was modelled on, and the model doesn't transfer:
+      `build_feature_identity_projection.py`'s events live in gitignored
+      `data/inbox/feature-identity/`, not identical between the two, exactly
+      like its output. So the standard recipe this repo trains every session
+      to type (`--data-root <main-checkout-path>`, from a worktree) silently
+      read the **worktree's own empty** input dir while writing the output
+      into the **main checkout** via `--data-root` — reproduced: `0 stack
+      key(s) from 0 event(s)` against a main checkout that had one real event
+      sitting in it. Stamped, gated, plausible, wrong.
+      `ISSUE_20260906_feature_identity_events_dir_ignores_data_root.md`. The
+      one-command check: run the script's own documented "from a worktree"
+      recipe verbatim, from a worktree, after seeding the main checkout's
+      input dir with one real event and leaving the worktree's own copy of
+      that dir empty (the ordinary state) — if the printed count is zero, the
+      default is wrong. And check for a test that runs `main()`/`rebuild()`
+      itself, not just the pure fold functions — this one had 28 tests and
+      none of them called the CLI at all, which is how the miss shipped.
+
+- [ ] **A new DAG-topology node/edge that is not wired into the rest of the
+      graph breaks a test that asserts connectivity rather than deriving it.**
+      New 2026-09-06 (`mechanical_stroke_stack`). `topology_pitch_system.json`
+      is asserted `components == 1` by
+      `tests/test_topology_projection.py::test_the_number_of_closing_edges_is_the_graphs_cycle_count`
+      (the viewer's layout math assumes a single connected component), and
+      `tests/test_topology.py` itself is glob-based/per-file and does **not**
+      catch a disconnected addition — only the full suite does. The author
+      caught this by running the whole suite, not just the topology module's
+      own tests, after a first design gave a new feature two brand-new,
+      deliberately unconnected nodes. When a handoff adds a node/edge whose
+      other end has no source to tie it to the existing graph, check that it
+      reuses an **existing** node (with the approximation this implies named
+      explicitly, e.g. in the edge's `properties`) rather than floating a new
+      isolated subgraph — and run the full suite, not the archetype's own test
+      module, whenever a topology's own connectivity could change. Expect this
+      to recur for the brake-family stack (staged next, same archetype, today
+      only `kind: "assumed"` external edges — same shape of gap).
 
 ## Writing the review
 

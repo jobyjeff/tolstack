@@ -1,0 +1,14 @@
+{
+  "schema": "joby.tolerance_stack/feature-identity/v0",
+  "event_id": "20260906-tanlink-washer-owner-not-in-set",
+  "seq": 3,
+  "created_at": "2026-09-06T20:10:00Z",
+  "recorded_by": "test-fixture",
+  "stack_key": {
+    "kind": "stack_element",
+    "stack_id": "tan_link_to_pitch_plate",
+    "element_id": "washer_thin"
+  },
+  "verdict": "owner_not_in_set",
+  "note": "synthetic fixture -- the part set this session had open did not include the washer's own drawing"
+}

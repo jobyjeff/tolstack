@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tolstack — annotate</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <h1>tolstack — annotate</h1>
+    <span class="sub" id="transport-sub"></span>
+    <span class="topbar__spacer"></span>
+    <button id="connect-btn">Connect folder</button>
+  </div>
+  <div id="banner" class="banner"></div>
+
+  <main class="an">
+    <aside class="an__rail">
+      <label class="an__label">topology</label>
+      <select id="topology-select"></select>
+      <label class="an__label">study</label>
+      <select id="study-select"></select>
+      <ol id="element-list" class="element-list"></ol>
+    </aside>
+
+    <section class="an__scene">
+      <div id="canvas-host" class="an__canvas-host"></div>
+      <div class="an__parts">
+        <select id="part-select"></select>
+        <button id="open-part-btn">Open part</button>
+        <ul id="open-parts-list" class="an__open-parts"></ul>
+      </div>
+    </section>
+
+    <aside id="detail" class="an__detail">Pick an element on the left, then click a face in the 3D view to bind it.</aside>
+  </main>
+  <div id="test-status" style="display:none"></div>
+
+  <!-- Classic scripts, loaded in order -- window.AnnotateApp (AA) is built up
+       synchronously so it's fully populated before the module script below
+       (deferred by spec) runs. See scene.js's docstring for why this app,
+       unlike apps/viewer, has no file:// constraint and can use ES modules
+       at all. -->
+  <script src="./config.js"></script>
+  <script src="./storage/adapter.js"></script>
+  <script src="./storage/memory.js"></script>
+  <script src="./storage/fsa.js"></script>
+  <script src="./binding_state.js"></script>
+  <script src="./fixtures.js"></script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.min.js"
+    }
+  }
+  </script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

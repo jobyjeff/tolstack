@@ -11,8 +11,9 @@ so that a *diametral thermal fit* could use this same one fold: a diameter is
 twice a wall, an isothermal soak scales a diameter by ``1 + dT * alpha``, and a
 stiffness ratio splits an interference across two members. Those are weights on
 term entries, not a second way to combine element values -- so the fold stayed
-the only place, and every previously authored stack folds to the same numbers
-because the default weight is the ``+-1`` it always was.
+the one place, outside the exceptions ARCHITECTURE.md declares in "Where
+computation may live", and every previously authored stack folds to the same
+numbers because the default weight is the ``+-1`` it always was.
 
 Material condition vs. min/max
 ------------------------------
@@ -274,6 +275,14 @@ CONFIDENCES = ("traced", "inferred", "untraced")
 #: from-scratch stack cited a spec file. ``spec`` = a file in
 #: ``data/inbox/specs/`` (``document`` = the filename, ``sheet`` = the page);
 #: added by handoff ``pitch_link_stack``, the first stack to cite one.
+#: ``requirement`` = an item pulled from Polarion into
+#: ``data/inbox/requirements/`` (``document`` = the pull artifact's filename,
+#: ``cell`` = the requirement id, e.g. ``S461-241``, ``callout`` = its own
+#: ``c_description`` quoted verbatim after stripping the HTML wrapper); added by
+#: handoff ``endstop_location_stack``, the first stack/topology work to cite one.
+#: ``note`` must record ``c_status`` -- a check against a ``draft`` requirement
+#: is not the same claim as one against a ``validated`` one, and the word is
+#: nowhere else on the object to carry it.
 #:
 #: What each word means is in ``docs/SOP_TOLERANCE_STACK.md`` Step 5b, which is
 #: the one place allowed to elaborate -- and its list is paired against this
@@ -281,6 +290,7 @@ CONFIDENCES = ("traced", "inferred", "untraced")
 #: drift away from what the constructor accepts.
 SOURCE_REF_KINDS = (
     "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
+    "requirement",
 )
 
 
@@ -432,7 +442,9 @@ class Term:
       ``k`` enters as ``k`` and ``1 - k`` weights.
 
     All three would otherwise need a second place where element values get
-    combined. They do not get one: see ARCHITECTURE.md, "Why one ``fold()``".
+    combined. They do not get one: see ARCHITECTURE.md, "Why one ``fold()``" for
+    the argument and "Where computation may live" for the rule's declared
+    exceptions.
     """
 
     element: StackElement
@@ -495,11 +507,12 @@ class Interval:
 def fold(terms: Iterable[Term]) -> Interval:
     """Worst-case and RSS fold of a signed, optionally weighted term list.
 
-    **The only place element values are combined.** Worst case is the arithmetic
-    extreme: a term entering with a positive weight contributes its ``max`` to
-    the maximum and its ``min`` to the minimum; with a negative weight the roles
-    swap. RSS combines half-ranges in quadrature about the midpoint sum -- the
-    *sign* does not matter to the half-range, only to the center, but the
+    **The one place element values are combined**, outside the exceptions
+    ARCHITECTURE.md declares in "Where computation may live". Worst case is the
+    arithmetic extreme: a term entering with a positive weight contributes its
+    ``max`` to the maximum and its ``min`` to the minimum; with a negative weight
+    the roles swap. RSS combines half-ranges in quadrature about the midpoint sum
+    -- the *sign* does not matter to the half-range, only to the center, but the
     *coefficient* magnitude does, because scaling a variate scales its spread.
 
     A ``Term``'s weight is ``sign * coefficient`` and defaults to the ``+-1`` this
