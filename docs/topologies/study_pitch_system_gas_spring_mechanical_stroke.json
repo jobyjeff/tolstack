@@ -1,0 +1,57 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "pitch_system_gas_spring_mechanical_stroke",
+  "title": "Gas-spring mechanical stroke, full extension to full retraction (millimetres)",
+  "topology": "pitch_system",
+  "from": "gas_spring_full_extension_stop",
+  "to": "gas_spring_mount_flange",
+  "selection": ["gas_spring_mechanical_stroke"],
+  "checks": [
+    {
+      "check_id": "s461_617_margin_gas_spring_stroke",
+      "label": "Gas-spring mechanical-stroke tolerance margin against the operating/hard-stop design margin",
+      "configuration": {
+        "datum_convention": "S461-610/636: 0mm at full extension, maximum stroke at full retraction"
+      },
+      "criterion": ">= 0",
+      "limit": {
+        "value": 3.289067,
+        "units": "mm",
+        "source_ref": {
+          "kind": "requirement",
+          "document": "S461_equipmentrequirements_20260906.json",
+          "cell": "S461-241, S461-516",
+          "callout": "Derived, not quoted: S461-241 ('The propeller assembly shall provide propeller pitch end stops at -7º and +72º') gives a total mechanical-stop span of 79 deg; S461-516/637 ('The Gas Spring will have a nominal normal operating stroke of 61.67 mm. Note: The operating stroke is equivalent to 75° blade pitch travel.') gives a 75 deg operating range and its own 61.67mm/75deg equivalence. Margin = (79 - 75) deg x (61.67 / 75) mm/deg = 4 deg x 0.822267 mm/deg = 3.289067 mm.",
+          "confidence": "inferred",
+          "note": "c_status: draft (S461-241) / validated (S461-516/637) -- mixed, and named as such rather than rounded up. Pulled 2026-09-06 from Polarion. `inferred` per SOP Step 5b: derived from something traced (two directly-quoted requirement figures), with the derivation written out above -- not a value read directly off any one requirement. NEITHER S461-241 nor S461-516/637 states this margin as its own number; this session computed it because S461-617/639 (the requirement this check actually answers) states no number of its own -- see context_ref."
+        }
+      },
+      "context_ref": {
+        "kind": "requirement",
+        "document": "S461_equipmentrequirements_20260906.json",
+        "cell": "S461-617",
+        "callout": "The mechanical stroke between travel stops shall be defined with sufficient tolerance to ensure that contact with the mechanical stops during normal closed-loop operation is extremely improbable",
+        "confidence": "traced",
+        "note": "c_status: validated. Pulled 2026-09-06. This is the requirement this check exists to answer -- 'sufficient tolerance' is qualitative and states no number, which is why the limit above is derived from S461-241/S461-516 rather than quoted from this cell. Its exact-text duplicate is S461-639 (same title, same c_description, later id/timestamp -- verified in tests/test_topology.py::test_the_near_duplicate_requirement_pairs_are_byte_identical_not_variants; see also this topology's provenance.mechanical_stroke_extension_20260906 and WORKSHEET_endstop_vision_baseline.md §10)."
+      },
+      "complete": false,
+      "excluded_terms": [
+        "the study's only term (edge gas_spring_mechanical_stroke) is a bare `assumed` placeholder -- no source in this repo states a numeric tolerance for the gas spring's own internal stroke length (see the edge's own source_ref note); the 0.20mm total width is a stand-in, not a measurement",
+        "the limit itself is a DERIVED margin, not a published tolerance -- it assumes the full 4 deg of margin between S461-241's stop span and S461-516/637's operating range is available at BOTH ends symmetrically, which neither requirement states; if the true split is uneven (e.g. more margin at one stop than the other), applying the full 4 deg at each end could overstate the margin actually available at the tighter one",
+        "this edge's `to` end reuses `gas_spring_mount_flange` as a stand-in reference for the piston's own full-retraction stop, not a distinct modelled feature (see the edge's own `properties` note) -- it checks the gas spring's own internal stroke tolerance in isolation, not the accumulated position error of the whole chain from hub to gas-spring stop (that quantity is checked separately, via the appended checks entries on study_pitch_system_end_stop_minus7.json/_plus72.json)",
+        "S461-616/638 ('Gas spring shall provide mechanical travel stops') is a qualitative/structural requirement -- not folded into this check, cited as context only in this study's provenance",
+        "the derived limit rests in part on S461-241, which is `c_status: draft` -- nothing in the endstop-location or gas-spring stop family has been validated for its OPERATING POINTS in Polarion yet (only S461-516/637's operating-stroke figure has), so this margin could move if -7/+72 deg move"
+      ]
+    }
+  ],
+  "provenance": {
+    "authored_by": "handoff mechanical_stroke_stack, 2026-09-06",
+    "why_this_study_exists": "S461-516/637 ('Gas Spring Mechanical Stroke') and S461-610/636 ('Gas Spring Stroke Definition') describe the gas spring's own internal piston travel -- 0mm at full extension, 61.67mm (75 deg equivalent) at full retraction -- a quantity this topology did not represent before this handoff added `gas_spring_full_extension_stop`/`gas_spring_mechanical_stroke` (the full-retraction end reuses the existing `gas_spring_mount_flange` node, per that edge's own `properties` note, rather than inventing a second brand-new one). This is a MILLIMETRE study, one edge long: no source in this repo's pile places the piston's own internal stop faces any more precisely than 'near the body's grounded end', so this study sums the one edge alone rather than presenting an invented chain through the rest of the graph as if it were read from somewhere.",
+    "s461_616_617_family": "S461-616/638 ('Gas spring shall provide mechanical travel stops') is the existence claim this new edge structurally represents (a mechanical stop now has a node in the graph). S461-617/639 ('sufficient tolerance... extremely improbable') is the margin claim this study's check answers, using a limit derived from S461-241 and S461-516/637 rather than a number stated in 617/639 itself -- see the check's own `limit.source_ref`.",
+    "s461_618_620_out_of_check_scope": "S461-618/656 ('Gas Spring Mechanical Stop Durability', 100 engagements at 5mm/s) and S461-620/640 ('Gas Spring Mechanical Stops Loads', strength vs. disconnected-VPA/maintenance loads) are cited here as adjacent scope, not folded into any check: durability and load-strength are not tolerance-stack quantities."
+  },
+  "notes": [
+    "The gas spring's OWN mechanical stop, distinct from `vpa_end_stop_feature` (the actuator body's stop in the piston chain, modelled by handoff `endstop_location_stack`). S461-616/617/638/639 name this feature, not that one -- see `docs/DAG_TOPOLOGY.md`'s L2 section and the new edge's own note.",
+    "complete: false is the honest outcome: the one term this study sums is a bare `assumed` placeholder, and the limit it is checked against is a derived margin resting on an unstated assumption (an even split of S461-241/S461-516's 4 deg gap between the two stops) -- named in full in the check's `excluded_terms`, not glossed over by a passing-looking margin."
+  ]
+}

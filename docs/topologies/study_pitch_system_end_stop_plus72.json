@@ -65,6 +65,39 @@
         "gas-spring bushing tipping backlash -- the source workbook's largest single angular contributor (0.72 deg, its row 68) and not represented as a chain edge at all (see this topology's own notes, 'WHAT THIS TOPOLOGY CANNOT REPRODUCE')",
         "S461-805 (Blade Pitch Position Accuracy) states its own threshold as literally 'TBD deg' in Polarion -- draft, no usable numeric criterion, so it supplies no check of its own and is not folded into this one either"
       ]
+    },
+    {
+      "check_id": "s461_617_margin_at_plus72",
+      "label": "Blade-pitch angular position variation margin against the operating/hard-stop design margin (S461-617), at the +72 deg end stop",
+      "configuration": {"stop": "+72 deg (high pitch)", "sensitivity_condition": "full-sweep average (source sheet F10/F11)"},
+      "criterion": ">= 0",
+      "limit": {
+        "value": 4.0,
+        "units": "deg",
+        "source_ref": {
+          "kind": "requirement",
+          "document": "S461_equipmentrequirements_20260906.json",
+          "cell": "S461-241, S461-516",
+          "callout": "Derived, not quoted: S461-241 ('The propeller assembly shall provide propeller pitch end stops at -7º and +72º') gives a total mechanical-stop span of 79 deg; S461-516/637 ('The Gas Spring will have a nominal normal operating stroke of 61.67 mm. Note: The operating stroke is equivalent to 75° blade pitch travel.') gives a 75 deg normal operating range. Margin = 79 - 75 = 4 deg.",
+          "confidence": "inferred",
+          "note": "c_status: draft (S461-241) / validated (S461-516/637) -- mixed, named as such. Pulled 2026-09-06 from Polarion. `inferred` per SOP Step 5b: derived from two directly-quoted requirement figures, with the derivation written out above. Added by handoff `mechanical_stroke_stack`, 2026-09-06, appended to this study's pre-existing `checks` list -- see this study's own `selection`/`transforms`, unchanged from the day this file was authored. Same derivation as the -7 deg study's twin check -- one total margin, applied at both stops (see excluded_terms)."
+        }
+      },
+      "context_ref": {
+        "kind": "requirement",
+        "document": "S461_equipmentrequirements_20260906.json",
+        "cell": "S461-617",
+        "callout": "The mechanical stroke between travel stops shall be defined with sufficient tolerance to ensure that contact with the mechanical stops during normal closed-loop operation is extremely improbable",
+        "confidence": "traced",
+        "note": "c_status: validated. Pulled 2026-09-06. States no number of its own -- the requirement this check exists to answer, using a limit derived from S461-241/S461-516 rather than quoted from this cell. Byte-identical duplicate: S461-639."
+      },
+      "complete": false,
+      "excluded_terms": [
+        "the same model gaps `s461_607_margin_at_plus72` names above (the two `assumed` placeholders, the end stop's own unresolved feature identity, the doubted blade-root-to-OML estimate, and the full-sweep-average sensitivity being the weakest available stand-in for either stop) apply here unchanged -- this check folds the identical study total, only the limit differs",
+        "gas-spring bushing tipping backlash -- unmodelled in this chain (see this topology's own notes, 'WHAT THIS TOPOLOGY CANNOT REPRODUCE')",
+        "the limit assumes S461-241/S461-516's 4 deg margin is available in full at THIS stop specifically; neither requirement states how the margin splits between -7 deg and +72 deg, so an uneven split could leave less than 4 deg here",
+        "the limit rests in part on S461-241, which is `c_status: draft`"
+      ]
     }
   ],
   "provenance": {

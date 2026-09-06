@@ -1382,3 +1382,167 @@ def test_the_end_stop_checks_quote_the_pulled_requirements_artifact_verbatim():
         assert "TBD deg" in _stripped_c_description(by_id["S461-805"])
         joined = " ".join(check["excluded_terms"])
         assert "S461-805" in joined
+
+
+# --------------------------------------------------------------------------- #
+# 10. mechanical-stroke stack: the gas-spring stop and the appended S461-617   #
+#    margin checks                                                            #
+# --------------------------------------------------------------------------- #
+
+#: ``(path, check_id, expected margin nominal/min/max in degrees or mm)``.
+#: Pinned by hand from ``4.0 - {existing study total}`` (the two end-stop
+#: studies) and ``3.289067 - 0.10`` (the new gas-spring-stroke study), the same
+#: reason ``END_STOP_STUDIES`` pins its own numbers literally: a structural
+#: edit that quietly changes a chain should redden this test, not silently
+#: reproduce whatever number falls out.
+MECHANICAL_STROKE_CHECKS = (
+    (TOPOLOGIES_DIR / "study_pitch_system_end_stop_minus7.json",
+     "s461_617_margin_at_minus7", "deg", 4.0, 2.908759375, 5.091240625),
+    (TOPOLOGIES_DIR / "study_pitch_system_end_stop_plus72.json",
+     "s461_617_margin_at_plus72", "deg", 4.0, 3.183203125, 4.816796875),
+    (TOPOLOGIES_DIR / "study_pitch_system_gas_spring_mechanical_stroke.json",
+     "s461_617_margin_gas_spring_stroke", "mm", 3.289067, 3.189067, 3.389067),
+)
+
+
+@pytest.mark.parametrize(
+    "path, check_id, units, nominal, lo, hi", MECHANICAL_STROKE_CHECKS,
+    ids=lambda v: v if isinstance(v, str) else (v.stem if isinstance(v, Path) else str(v)))
+def test_a_mechanical_stroke_check_folds_a_real_margin(
+        path, check_id, units, nominal, lo, hi):
+    """The gas-spring-stroke study's own check, and the two checks handoff
+    `mechanical_stroke_stack` appended to the pre-existing end-stop studies --
+    additive, not an edit of either study's `selection`/`transforms` or its
+    first (S461-607) `checks` entry, which `test_an_end_stop_study_loads_its_
+    check_and_folds_a_real_margin` above still pins unchanged.
+    """
+    topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+    study = load_study(path)
+    ids = [c["check_id"] for c in study.checks]
+    assert check_id in ids, f"{path.name}: no check named {check_id!r} in {ids}"
+
+    result = check_study(topology, study, check_id)
+    assert result.check_id == check_id
+    assert result.units == units
+    assert result.complete is False
+    assert result.verdict_scope == "budget"
+    assert result.excluded_terms
+
+    assert result.interval.nominal == pytest.approx(nominal)
+    assert result.interval.min == pytest.approx(lo)
+    assert result.interval.max == pytest.approx(hi)
+
+
+def test_the_end_stop_studies_first_check_is_unchanged_by_the_appended_second():
+    """`mechanical_stroke_stack` appended a `checks[1]`; `checks[0]` -- the
+    S461-607 margin `endstop_location_stack` authored -- must still be exactly
+    what `END_STOP_STUDIES` pins above, or "appended, not edited" is just a
+    claim in prose.
+    """
+    for path, check_id, expected_half in END_STOP_STUDIES:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        assert len(raw["checks"]) == 2, (
+            f"{path.name}: expected exactly 2 checks (the original S461-607 "
+            f"margin plus the appended S461-617 one), found {len(raw['checks'])}")
+        assert raw["checks"][0]["check_id"] == check_id
+        topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+        study = load_study(path)
+        result = check_study(topology, study, check_id)
+        assert result.interval.min == pytest.approx(0.5 - expected_half)
+        assert result.interval.max == pytest.approx(0.5 + expected_half)
+
+
+def test_the_gas_spring_stroke_edge_reuses_an_existing_node_and_stays_connected():
+    """The design decision this session made instead of a second brand-new
+    node: the topology must stay a single connected component, because the
+    viewer's projection builder (`scripts/build_topology_projection.py`) and
+    `tests/test_topology_projection.py::test_the_number_of_closing_edges_is_
+    the_graphs_cycle_count` both assert `components == 1` rather than deriving
+    it. An isolated 2-node stroke subgraph was the first design tried in this
+    session and it broke that projection test; this asserts the shape that
+    replaced it, so a future edit re-isolating the edge fails here first.
+    """
+    topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+    edge = topology.edge("gas_spring_mechanical_stroke")
+    assert edge.to_node == "gas_spring_mount_flange", (
+        "the stroke edge's `to` end must reuse an existing node -- see its own "
+        "`properties` note for why a second brand-new node was rejected")
+    assert {edge.from_node, edge.to_node} <= {n.id for n in topology.nodes}
+
+    parent = {}
+
+    def find(node):
+        parent.setdefault(node, node)
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = parent[node]
+        return node
+
+    for e in topology.edges:
+        parent[find(e.from_node)] = find(e.to_node)
+    components = len({find(n.id) for n in topology.nodes})
+    assert components == 1, (
+        "the pitch-system topology must stay a single connected component -- "
+        "see test_topology_projection.py's identical assertion")
+
+
+def test_mechanical_stroke_checks_requirement_citations_quote_the_pulled_artifact_verbatim():
+    """Value-level pairing for this session's new citations (S461-241,
+    S461-516, S461-617), the same shape `test_the_end_stop_checks_quote_the_
+    pulled_requirements_artifact_verbatim` uses for S461-241/S461-607/S461-805
+    -- skipped, not failed, where the gitignored pull is absent.
+    """
+    if not REQUIREMENTS_PULL.exists():
+        pytest.skip(f"{REQUIREMENTS_PULL} is gitignored and not present here")
+    items = json.loads(REQUIREMENTS_PULL.read_text(encoding="utf-8"))["items"]
+    by_id = {i["c_id"]: i for i in items}
+    assert {"S461-241", "S461-516", "S461-617"} <= set(by_id)
+
+    assert by_id["S461-241"]["c_status"] == "draft"
+    assert by_id["S461-516"]["c_status"] == "validated"
+    assert by_id["S461-617"]["c_status"] == "validated"
+
+    for path, check_id, *_ in MECHANICAL_STROKE_CHECKS:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        check = next(c for c in raw["checks"] if c["check_id"] == check_id)
+        context_ref = check["context_ref"]
+        assert context_ref["cell"] == "S461-617"
+        assert context_ref["callout"] == _stripped_c_description(by_id["S461-617"]), (
+            f"{path.name}: the quoted text for S461-617 has drifted from the "
+            f"pulled artifact")
+
+    # The two Polarion-quoted fragments the derived `limit` callouts embed --
+    # not the arithmetic, which is this session's own and not the artifact's
+    # to verify, but the source figures the arithmetic starts from.
+    assert "-7" in _stripped_c_description(by_id["S461-241"])
+    assert "72" in _stripped_c_description(by_id["S461-241"])
+    assert "61.67" in _stripped_c_description(by_id["S461-516"])
+    assert "75" in _stripped_c_description(by_id["S461-516"])
+
+
+def test_the_near_duplicate_requirement_pairs_are_byte_identical_not_variants():
+    """The handoff's own instruction: read each near-duplicate pair's
+    `c_description` rather than assume a per-variant split. Pinned against the
+    live pull so a future re-baseline that actually DOES differentiate a pair
+    reddens this test instead of leaving a stale claim in prose
+    (`docs/DAG_TOPOLOGY.md`'s provenance note, this topology's
+    `provenance.mechanical_stroke_extension_20260906`). Verified below by a
+    direct string-equality assert in this file, `tests/test_topology.py` --
+    not a claim resting on this docstring alone.
+    """
+    if not REQUIREMENTS_PULL.exists():
+        pytest.skip(f"{REQUIREMENTS_PULL} is gitignored and not present here")
+    items = json.loads(REQUIREMENTS_PULL.read_text(encoding="utf-8"))["items"]
+    by_id = {i["c_id"]: i for i in items}
+    pairs = (
+        ("S461-610", "S461-636"), ("S461-516", "S461-637"),
+        ("S461-616", "S461-638"), ("S461-617", "S461-639"),
+    )
+    for a, b in pairs:
+        assert by_id[a]["c_title"] == by_id[b]["c_title"], (a, b)
+        assert (_stripped_c_description(by_id[a])
+                == _stripped_c_description(by_id[b])), (
+            f"{a}/{b} used to be a byte-identical duplicate pair and no longer "
+            f"is -- re-read both descriptions before trusting anything cited "
+            f"off either id")
+        assert by_id[a]["c_id"] != by_id[b]["c_id"]
