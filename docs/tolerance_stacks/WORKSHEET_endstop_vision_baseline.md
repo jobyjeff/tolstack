@@ -1257,3 +1257,191 @@ column and calling it equivalent — it is the reason both of their S461-607
 margin checks are `complete: false` regardless of what else closes. No source
 in this repo's pile characterises a sensitivity AT either requirement angle;
 closing this needs Jeff or CAD, not another drawing acquisition.
+
+---
+
+## 10. The gas-spring mechanical-stroke stack, 2026-09-06
+
+Handoff `mechanical_stroke_stack`, sequenced after `endstop_location_stack` on
+the same baseline (`integration` with that handoff merged), extending the same
+`docs/topologies/topology_pitch_system.json`. Requirements input: the same
+`S461_equipmentrequirements_20260906.json` pull, the gas-spring stroke family
+(S461-610/636/516/637/616/617/638/639/618/656/620/640), mostly `c_status:
+validated` — the brake stroke/stop family (S461-735/744/745/748/749/795, all
+`draft`) is explicitly **out of scope**, named here as the next stack on this
+archetype and stopped at.
+
+### 10a. The near-duplicate id pairs are exact-text duplicates, not variants
+
+The handoff's own instruction was to read each `c_description` before assuming
+a per-variant split. Read against the live pull: 610/636, 516/637, 616/638 and
+617/639 are each a **byte-identical duplicate** — same `c_title`, same
+`c_description`, different `c_id` and `c_created` timestamp (the `636`-family
+ids created 2026-05-04, months after their `6xx`-numbered twins). No field in
+this pull artifact distinguishes a configuration, a variant or a superseding
+relationship between them (there is no such field in the schema at all — see
+the endstop-location lesson's shortcoming 3, "no requirement-to-requirement
+grouping"). The most plausible reading is two Polarion baseline exports of the
+same requirement, not a design split this session needs to resolve per-member.
+Pinned against the live artifact by
+`tests/test_topology.py::test_the_near_duplicate_requirement_pairs_are_byte_identical_not_variants`,
+so a future re-baseline that actually differentiates a pair reddens a test
+instead of leaving a stale claim here.
+
+### 10b. A gas-spring-internal mechanical stroke: new structure, not a new topology
+
+Every existing gas-spring edge in this topology (`gas_spring_body_height`,
+`gas_spring_mount_position`) is **external**: the body's own rigid casing
+length, and where the mounted body sits relative to the tangential link mount.
+Nothing represented the gas spring's **own** mechanical stroke or mechanical
+stops (S461-610/636's "0mm at full extension, max stroke at full retraction";
+S461-616/617/638/639's "mechanical travel stops... sufficient tolerance") —
+that is a different, internal quantity (the piston's own travel within the
+body), and this session adds it: one new node, `gas_spring_full_extension_stop`
+(the 0mm datum), and one new edge, `gas_spring_mechanical_stroke`, whose other
+end reuses the **existing** `gas_spring_mount_flange` node as the closest
+available stand-in for the piston's own full-retraction stop face.
+
+**Why reuse an existing node instead of adding a second new one.** The first
+design tried in this session gave the stroke edge two brand-new nodes at both
+ends, deliberately unconnected to the rest of the graph (no source states how
+the piston's internal stops relate to the body's external mounting features,
+so inventing the connection felt like the honest move). That design broke
+`tests/test_topology_projection.py::test_the_number_of_closing_edges_is_the_graphs_cycle_count`,
+which asserts `components == 1` for `topology_pitch_system.json` rather than
+deriving it — precisely so a future disconnected topology reddens there with a
+readable message instead of quietly changing the viewer's layout math. Rather
+than edit the viewer's projection builder (out of this handoff's scope: no
+`apps/`, and the projection code is adjacent to it), this session redesigned
+the edge to reuse `gas_spring_mount_flange`, keeping the topology a single
+connected component at the cost of one new branch point there (5 branch
+points now, up from 4) and an explicitly-named approximation (the reused node
+is NOT claimed to be the piston's actual stop face — see the edge's own
+`properties` note). `tests/test_topology.py::test_the_gas_spring_stroke_edge_reuses_an_existing_node_and_stays_connected`
+pins this shape so a future edit cannot silently re-isolate it.
+
+**No numeric tolerance for the new edge exists anywhere this repo can read.**
+Checked, not merely unconsidered:
+
+- S461-516/637 give only the **nominal** design stroke (61.67mm, equivalent to
+  75° blade pitch travel) — a nominal, not a variation band.
+- S461-613/663 ("Gas Spring Tolerances", validated) cover the maximum
+  resisting **force's** tolerances (temperature variation, fill tolerance,
+  leakage compensation) — a different physical quantity entirely, not a
+  stroke-length band.
+- This worksheet's own row 63 ("gas spring bushing clearance", identified in
+  §8b as Trelleborg catalog p.239) is a **radial** bushing clearance feeding
+  the bushing-tipping-backlash calculation (row 68) — an axial stroke
+  tolerance is a different quantity, and this row does not supply one.
+
+So the new edge is `kind: "assumed"`, `confidence: "untraced"`, 0.20mm total
+width — a stand-in matching this document's other no-source placeholders, not
+a read value. It is **not** added to the unresolved-identity list in §9: that
+list is specifically for the `candidate` outcome (a real callout is in reach
+but its feature identity is not established), and this edge has no callout in
+reach at all — a plain "does not exist" gap, the shape §9 explicitly excludes
+(the last paragraph of §9, "edges whose value is a genuine absence or not a
+drawing quantity at all"). **§9's list gains no new rows this session.**
+
+### 10c. Two derived margin checks, and the assumption both rest on
+
+S461-617/639 ("the mechanical stroke between travel stops shall be defined
+with sufficient tolerance to ensure that contact with the mechanical stops
+during normal closed-loop operation is extremely improbable") states no number
+of its own — the same shape S461-241 was in the endstop-location handoff. This
+session derives a numeric margin from two OTHER validated/quoted figures
+rather than inventing one: S461-241's stop span (-7° to +72° = 79°) minus
+S461-516/637's stated operating range (75°) leaves **4° of margin**, converted
+to millimetres via S461-516/637's own stated equivalence (61.67mm / 75° =
+0.822267 mm/deg) to **3.289067mm** for the gas-spring-stroke study.
+
+Both derived limits carry `SourceRef.confidence: "inferred"` (SOP Step 5b:
+derived from something traced, with the derivation written out), never
+`traced` — neither requirement states this margin as its own number. And both
+carry an explicit `excluded_terms` entry naming the assumption the derivation
+rests on: **the 4° figure is a TOTAL margin, and neither requirement says how
+it splits between the two stops.** Applying the full 4° at both ends is the
+generous reading, not a conservative one — if the true split is uneven (more
+margin at one stop than the other), this could overstate the margin actually
+available at the tighter end. A second, independent caveat: S461-241 is
+`c_status: draft` (unlike S461-516/637, `validated`), so the derived margin
+inherits that draft-ness for its operating-point half.
+
+Two checks reuse this margin:
+
+1. **`s461_617_margin_gas_spring_stroke`**, on the new
+   `study_pitch_system_gas_spring_mechanical_stroke.json` — the gas spring's
+   own internal stroke tolerance (the `assumed` 0.20mm band) against the
+   3.289067mm margin. `complete: false`: the one term is a bare placeholder,
+   and the edge is not wired into the rest of the chain.
+2. **`s461_617_margin_at_minus7`** / **`s461_617_margin_at_plus72`**, a second
+   `checks` entry **appended** to `study_pitch_system_end_stop_minus7.json` and
+   `study_pitch_system_end_stop_plus72.json` — the existing end-stop studies'
+   own accumulated blade-pitch position variation (in degrees, the whole
+   hub-to-blade-OML chain) against the 4° margin directly. This is additive,
+   not an edit of either study's `selection`/`transforms` or its pre-existing
+   S461-607 check — `docs/DAG_TOPOLOGY.md`'s own rule ("a study's numbers,
+   once committed, are not touched") is about the arithmetic, and a `checks`
+   list is reusable schema per the endstop-location lesson's own item 2.
+   `complete: false`, inheriting every gap the S461-607 check already named
+   (two `assumed` placeholders, the end stop's own unresolved identity, the
+   borrowed-sensitivity mismatch, the unmodelled gas-spring tipping backlash)
+   plus the margin-derivation caveats above.
+
+All three margins numerically **pass** (worst-case min stays positive at
+every check) — but `verdict_scope` is `"budget"`, never `"joint"`, because
+`complete` is `false` on all three. Do not read a passing margin here as a
+hardware verdict.
+
+### 10d. Requirements not converted into a check
+
+Per the handoff's own instruction: loads and durability are cited as adjacent
+scope, not folded into any check, because neither is a tolerance-stack
+quantity.
+
+| requirement | c_status | role in this session |
+|---|---|---|
+| S461-610/636 "Gas Spring Stroke Definition" | validated | **datum convention** — 0mm at full extension, max stroke at full retraction; carried in the new study's `configuration`, not folded |
+| S461-516/637 "Gas Spring Mechanical Stroke" | validated | **nominal context** for the new edge's `properties`, and one of the two figures the derived margin's arithmetic starts from |
+| S461-616/638 "Gas Spring Mechanical Stops" | validated | **existence claim** — the new node/edge structurally represents "a mechanical stop exists here"; not itself a numeric check |
+| S461-617/639 "Gas Spring Mechanical Stops" (sufficient tolerance) | validated | **the margin claim** both new checks answer, using a derived limit (§10c) |
+| S461-620/640 "Gas Spring Mechanical Stops Loads" | validated | **not a tolerance-stack quantity** — strength vs. disconnected-VPA/maintenance loads; cited in the new study's provenance only |
+| S461-618/656 "Gas Spring Mechanical Stop Durability" | validated | **not a tolerance-stack quantity** — 100 engagements at 5mm/s; cited in the new study's provenance only |
+
+### 10e. Drawing-checker read-only invariant: no interaction this session
+
+This session opened **no drawing-checker file at any point** — no PDF, no
+rendered crop. Every citation reused already-recorded findings in this
+worksheet (§3, §8b) and `topology_pitch_system.json`'s own prior citations;
+the only new artifact read was the requirements pull, which lives in this
+repo's own `data/inbox/requirements/`, not in drawing-checker's tree. Per SOP
+Step 0's own phrasing ("snapshot drawing-checker, before you read a single
+drawing"), a snapshot brackets an *interaction* — with none, none was taken.
+
+### 10f. What the brake-family stack (staged next, same archetype) will need
+
+- **The same near-duplicate-pair reading applies.** S461-744/745/748/749/795
+  do not appear to have `6xx`/`7xx`-style duplicate twins in this pull as of
+  2026-09-06 — worth re-checking at that session's own start, not assumed
+  stable.
+- **The brake is a design-concept alternative to the gas spring**, already
+  modelled in this topology (`hydraulic_brake` part, `pitch_plate_brake_attachment`/
+  `brake_hub_mount` nodes, `pitch_plate_flange_to_brake_attachment`/
+  `hydraulic_brake_body_height` edges) — all `kind: "assumed"` placeholders
+  with no source at all. The brake stack will likely need the SAME shape of
+  extension this session made for the gas spring (an internal stroke/stop
+  edge the existing external edges do not represent), and the same
+  connectivity constraint applies: reuse an existing node for one end rather
+  than isolating a new subgraph, or fix the projection builder first if a
+  disconnected addition turns out to be unavoidable.
+- **S461-745's stroke convention is inverted relative to S461-610/636's.**
+  The brake's own stroke definition ties 0mm to *retract* (feathered, VPA
+  retracted) and max stroke to *extend* (flatten, VPA extended) — opposite
+  polarity words from the gas spring's "0mm at full extension". Whether the
+  two components' 0mm-points correspond to the SAME blade-pitch extreme or
+  opposite ones is not stated anywhere this session read, and this session
+  deliberately did not guess at it for the gas spring's own two ends either
+  (neither -7° nor +72° is asserted to be "full retraction" in this
+  session's new study or edge) — the brake session will need the same
+  discipline, doubled, since it has two components' conventions to keep
+  straight rather than one.
