@@ -3,9 +3,16 @@ type: review
 handoff: annotation_surface_mvp
 reviewer: agent
 date: 2026-09-06
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE
+blockers: 0
 ---
+
+> **Updated 2026-09-06, same day.** Initial verdict below was REQUEST
+> CHANGES (1 blocker). The tactical agent responded with commit `d0c3565`
+> ("review response: fix --events-dir/--data-root default bug, add JS/Python
+> vocab pairing"); see "Review-response verification" at the end of this
+> file for what was re-checked. Final verdict: **APPROVE**, merged to
+> `integration`.
 
 # Review: annotation_surface_mvp
 
@@ -208,3 +215,50 @@ process; my own review branch (`review/annotation_surface_mvp`) already has
 `handoff/annotation_surface_mvp` merged into it for this review's testing —
 that merge stays (it's disposable review-branch state, not a merge into
 `integration`), and a re-review after rework can reuse or re-cut it.
+
+## Review-response verification (2026-09-06, same day)
+
+The tactical agent responded with `handoff/annotation_surface_mvp` @
+`d0c3565`. Re-verified rather than trusting the commit message:
+
+- **Blocker fix, read line by line.**
+  `tolerance_stack/feature_identity.py::main()` now derives `events_dir` from
+  `args.data_root / "inbox" / "feature-identity"` when `--events-dir` is not
+  explicitly passed, mirroring `out_dir`'s existing `--data-root`-derivation
+  exactly — the same shape I asked for in the filed issue.
+- **Re-ran my own exact repro against the fix**, from the tactical worktree
+  (`d0c3565`) against the real main checkout: copied the same fixture event
+  into `C:\workspace\tolstack\data\inbox\feature-identity\`, ran the
+  documented `--data-root`-alone command. Result: `1 stack key(s) from 1
+  event(s)` (previously `0 stack key(s) from 0 event(s)` against the same
+  input). Cleaned up the probe file and the generated projection afterward.
+- **Replayed the regression, not just the fix.** Checked out the *pre-fix*
+  `tolerance_stack/feature_identity.py` (from `4268218`) on top of the new
+  test file and ran the three new CLI tests:
+  `test_cli_with_only_data_root_reads_that_roots_own_events_dir` goes red
+  against the old code (`assert [] == ['e1']`) and green against the fix —
+  a real can-fail replay, not just a passing assertion. Restored the fixed
+  file afterward.
+- **Should-fix verified the same way.** The new
+  `tests/test_annotate_js_vocabulary.py` pairs all five of
+  `binding_state.js`'s hand-copied vocabularies (the four I named plus
+  `PATH_KINDS`, correctly extended to close the same gap one constant
+  further) against `feature_identity.py`'s tuples, reusing
+  `test_js_python_vocabulary.py::js_array_strings` via a new `prefix`
+  parameter rather than forking a second scanner. Broke
+  `AA.GDT_MODIFIERS` by hand (dropped `"L"`) and confirmed the pairing test
+  fires with a clear, correctly-directioned message; restored the file
+  afterward.
+- **Full suite, re-run myself in the merged tree** (`git merge
+  handoff/annotation_surface_mvp` into this review branch — one conflict,
+  in my own inline docstring fix vs. the tactical agent's updated docstring;
+  resolved in favor of the tactical agent's version, which correctly drops
+  the now-unnecessary explicit `--events-dir` workaround since the default
+  is fixed): `646 passed, 1 skipped` (pytest, up from 636 — the three new
+  CLI tests plus the JS-vocab test module's Python side), `20/20`
+  (`apps/annotate/run_tests.cjs`), `150/150` (`apps/viewer/run_tests.cjs`,
+  unaffected). Matches the tactical agent's reported counts exactly.
+
+Both findings from the original review are resolved, correctly and with
+real regression coverage. **Verdict updated to APPROVE.** Merging to
+`integration`.
