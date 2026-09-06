@@ -77,6 +77,20 @@
       "either way.");
     density.onclick = handlers.onDensity;
     root.appendChild(density);
+
+    // One link, nothing more (annotation_surface_mvp, 2026-09-06): the
+    // topology page never computes or writes anything for the annotate app,
+    // it only points at it. Only rendered once a real study is selected --
+    // "annotate this" means nothing about the whole topology, only about one
+    // human-lassoed chain's elements.
+    if (state.studyId && !inStackMode) {
+      var annotateLink = VA.el("a", "ghost tvpick__mode", "Annotate →");
+      annotateLink.href = "../annotate/index.html?topology=" +
+        encodeURIComponent(state.topologyId) + "&study=" + encodeURIComponent(state.studyId);
+      annotateLink.title = "Open this study in the annotation surface (apps/annotate) to bind its " +
+        "elements to geometry -- select + tag, no measurement.";
+      root.appendChild(annotateLink);
+    }
     return root;
   };
 

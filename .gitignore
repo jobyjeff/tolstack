@@ -59,6 +59,7 @@ data/*
 !data/inbox/
 !data/runs/
 !data/projections/
+!data/meshes/
 
 data/inbox/*
 !data/inbox/.gitkeep
@@ -74,12 +75,22 @@ data/inbox/tolerance_stacks/*
 data/inbox/drawings/*
 !data/inbox/drawings/.gitkeep
 !data/inbox/drawings/PROVENANCE.md
+!data/inbox/feature-identity/
+data/inbox/feature-identity/*
+!data/inbox/feature-identity/README.md
 
 data/runs/*
 !data/runs/.gitkeep
 data/runs.jsonl
 data/projections/*
 !data/projections/.gitkeep
+
+# data/meshes/<source_step_sha256>/ -- rotorkit-tessellated binary mesh assets,
+# keyed by the STEP file's own hash. Regenerated from rotorkit, not committed
+# (positions.f32/indices.u32/face_ids.u32 are large binaries); this repo's
+# README explains the format and how to regenerate it.
+data/meshes/*
+!data/meshes/README.md
 
 # Claude Code machine-local settings (ISSUE_20260812_sibling_repos_ignore_settings_local)
 .claude/settings.local.json

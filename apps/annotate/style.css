@@ -1,0 +1,114 @@
+/* apps/annotate's own stylesheet -- deliberately not shared with
+   apps/viewer/style.css: the two apps have different jobs (this one writes,
+   that one doesn't) and a shared stylesheet would couple their layouts for
+   no reason. Colours are functional, not the viewer's provenance palette --
+   this surface has its own vocabulary (bound/unbound/owner-not-in-set/
+   needs-re-confirmation), not confidence. */
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: #1b1e22;
+  color: #e8e8e8;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #24282e;
+  border-bottom: 1px solid #33383f;
+}
+.topbar h1 { font-size: 16px; margin: 0; }
+.topbar .sub { color: #9aa1ab; font-size: 12px; }
+.topbar__spacer { flex: 1; }
+.topbar button, .an__parts button, .bind-form button, .owner-not-in-set-form button {
+  background: #3a4048;
+  color: #e8e8e8;
+  border: 1px solid #4a515a;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.banner {
+  padding: 6px 16px;
+  font-size: 13px;
+  color: #cfd3d8;
+}
+.banner--ok { color: #7bc47f; }
+.banner--warn { color: #d6b45b; }
+.banner--error { color: #d65b5b; }
+
+.an {
+  display: grid;
+  grid-template-columns: 260px 1fr 320px;
+  height: calc(100vh - 70px);
+}
+
+.an__rail {
+  padding: 10px;
+  overflow-y: auto;
+  border-right: 1px solid #33383f;
+}
+.an__label { display: block; font-size: 11px; color: #9aa1ab; margin-top: 8px; }
+.an__rail select { width: 100%; margin-bottom: 4px; }
+
+.element-list { list-style: none; padding: 0; margin: 10px 0 0; }
+.el-row {
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  background: #24282e;
+}
+.el-row:hover { background: #2c3138; }
+.el-row.selected { outline: 2px solid #5b8dd6; }
+
+.badge { font-size: 11px; padding: 2px 6px; border-radius: 3px; }
+.badge--bound { background: #234d27; color: #7bc47f; }
+.badge--unbound { background: #3a3f46; color: #9aa1ab; }
+.badge--owner_not_in_set { background: #4d3a23; color: #d6a15b; }
+.badge--needs_re_confirmation { background: #4d2323; color: #d65b5b; }
+
+.an__scene { position: relative; }
+.an__canvas-host { position: absolute; inset: 0 0 48px 0; }
+.an__parts {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 48px;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  background: #24282e; border-top: 1px solid #33383f;
+}
+.an__open-parts { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
+.an__open-parts li {
+  background: #3a4048; padding: 2px 8px; border-radius: 4px; font-size: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.an__detail {
+  padding: 12px;
+  overflow-y: auto;
+  border-left: 1px solid #33383f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.an__detail h3 { margin-top: 0; }
+.precedence-note {
+  background: #4d2323;
+  color: #f0b3b3;
+  padding: 8px;
+  border-radius: 4px;
+}
+.read-only-note { color: #d6b45b; }
+
+.bind-form, .owner-not-in-set-form {
+  border-top: 1px solid #33383f;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+.bind-form label, .owner-not-in-set-form label { display: block; font-size: 11px; color: #9aa1ab; margin-top: 6px; }
+.bind-form select, .bind-form input, .owner-not-in-set-form input { width: 100%; margin-bottom: 4px; }
+.bind-form button, .owner-not-in-set-form button { margin-top: 6px; width: 100%; }

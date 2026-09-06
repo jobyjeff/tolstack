@@ -24,6 +24,11 @@ tolerance_stack/
                     dimensions and gaps as edges, human-lassoed studies summed
                     through fold(). stdlib only. Added 2026-08-31. Explicitly not
                     a solver -- see docs/DAG_TOPOLOGY.md and the section below.
+  feature_identity.py the feature-identity event stream: binds a stack element
+                    or topology edge to a mesh face, per-part attribution,
+                    owner-not-in-set, and the staleness re-check. stdlib only.
+                    Added 2026-09-06. Binding is identity, not a value source --
+                    see the section below and docs/DAG_TOPOLOGY.md.
 scripts/
   build_viewer_projection.py   fold() -> data/projections/viewer/results.json
   build_viewer_crops.py        source_ref -> a crop PNG + crops.json (needs PyMuPDF)
@@ -34,21 +39,29 @@ scripts/
                                not in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
-                               2026-08-10; stdlib only. Imported by all five
+                               2026-08-10; stdlib only. Imported by all six
                                projection writers (the three above and
-                               `tolerance_stack/spec_library.py`, 2026-08-12, and
-                               `scripts/export_stack_tabular.py`, 2026-09-04 --
+                               `tolerance_stack/spec_library.py`, 2026-08-12,
+                               `tolerance_stack/feature_identity.py`, 2026-09-06,
+                               and `scripts/export_stack_tabular.py`, 2026-09-04 --
                                for its provenance stamp: that script writes no
                                shared projection and does not call the gate).
   export_stack_tabular.py      a stack or topology study -> a spreadsheet-shaped
                                CSV, straight from the stored JSON and fold() /
                                summarize() -- no second arithmetic path and no
                                DOM scraping. Added 2026-09-04; stdlib only.
+  build_feature_identity_projection.py  thin CLI over
+                               tolerance_stack.feature_identity.rebuild() ->
+                               data/projections/feature-identity/bindings.json.
+                               Added 2026-09-06; stdlib only.
   snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
                                the evidence for "nothing was written there"
   run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code)
 apps/
   viewer/           the static stack/check review surface (see its README)
+  annotate/         the write-capable annotation surface: select a mesh face,
+                    tag it with a stack element's identity (see its README).
+                    Added 2026-09-06.
 ```
 
 That listing is paired with the tree by `tests/test_architecture_inventory.py`:
@@ -191,6 +204,50 @@ the queue does not go looking.
 
 Full detail, including the per-document-vs-per-family schema decision and the
 render recipe for photocopied standards, is in `docs/spec_library/README.md`.
+
+### The feature-identity stream (`feature_identity.py`)
+
+Added 2026-09-06 by handoff `annotation_surface_mvp`, to close a gap the
+endstop baseline measured directly: of 43 ground-truth rows, measurement
+blocked 0 and **identity blocked 15** — a dimension's value extracts
+losslessly from a drawing, but nothing states which physical feature a stack
+element or topology edge *means*. `apps/annotate/` selects a mesh face and
+writes one immutable event per binding.
+
+| name | what it is |
+|---|---|
+| `StackKey` | which stack element or topology edge a binding names — reuses `tolerance_stack.topology`'s and `tolerance_stack.stack`'s own ids, one identity namespace rather than a fork (`docs/DAG_TOPOLOGY.md`) |
+| `GeometryKey` | a mesh face: `(source_step_sha256, face_id)` plus the `area_native2`/`centroid_native` fingerprint copied from `data/meshes/<sha>/manifest.json` at binding time |
+| `FeatureIdentityEvent` | one binding (`verdict: "bound"`, with a `GeometryKey` and a `direction`) or one `owner_not_in_set` finding (no geometry at all) |
+| `OwnerPath` | how a binding's `owner_part` was reached: `direct` or a carried-as-such `hypothesis` |
+| `build_projection(events)` | **the fold**: per stack-side key, every `bound` event (many-to-many, decision 4) plus every `owner_not_in_set` event, plus the full history |
+| `revalidate(event, new_manifest)` / `revalidate_projection(...)` | the staleness re-check: does a stored `face_id` still match its fingerprint in a replacement mesh's manifest? `"needs_re_confirmation"` on a mismatch, never a silent re-bind and never a drop |
+| `rebuild()` | wipe-and-rebuild `<data-root>/projections/feature-identity/bindings.json`, stamped and gated exactly like the spec library's (`scripts/projection_provenance.py`) |
+
+**Binding is identity, not a value source** (the brief's decision 6). Where a
+drawing citation already exists for the same stack-side key, the drawing
+wins — this stream never supplies a dimension, and `apps/annotate/`'s own copy
+says so wherever the two coexist.
+
+**Many-to-many, with direction and composition** (decision 4): one callout
+can feed three stack rows in different directions, and one row can sum two
+callouts — both observed in endstop rows that *succeeded* — so a `bound`
+event's `direction` (`"from"`/`"to"`, `topology.Edge`'s own words) and
+optional `composition_note` are per-binding, not per-key.
+
+**Per-part attribution and path provenance** (decision 3): a binding records
+`owner_part` when known, `owner_path.kind: "hypothesis"` when it was reached
+by a lateral hop through another configuration's assembly rather than the
+part set's own BOM (the baseline's hub case) — a hypothesis about identity is
+carried as one, never printed like a direct hit.
+
+**No new arithmetic, and none is coming.** `fold()` never reads a
+`FeatureIdentityEvent`; `revalidate`'s area/centroid comparison is a fingerprint
+match, not a combination of two element values, so it needs no entry on
+`DECLARED_COMBINING_EXCEPTIONS` ("Where computation may live", below).
+
+Full detail, the schema, and what `apps/annotate/` does and does not do (no
+measurement, no assembly placement) in `docs/ANNOTATION_SURFACE.md`.
 
 ### Why one `fold()`
 
@@ -426,6 +483,11 @@ Read-only, one way:
 - **forge** — the atomic-notes attachment stream is the upstream of the source
   workbook (see `data/inbox/tolerance_stacks/PROVENANCE.md`). Forge attachments
   are immutable; treat copies as read-only.
+- **rotorkit** — `data/meshes/<sha>/` is tessellated from a STEP file by
+  rotorkit's `stepgeom.tessellate` (`scripts/tessellate_parts.py`, run from
+  rotorkit's own checkout and venv — OCP lives there, never here). This repo
+  never patches rotorkit or imports its code; it copies the binary mesh
+  output, unmodified, plus a provenance sidecar (`data/meshes/README.md`).
 
 ## Imported material — what may change, and how it is recorded
 
