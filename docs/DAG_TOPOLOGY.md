@@ -161,7 +161,7 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
 | schema | you write it? | what it is |
 |---|---|---|
 | `joby.tolerance_stack/topology/v0` | **yes** — one per system | `parts`, `nodes`, `edges`, named `transforms`, plus `provenance` and `notes` |
-| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes` |
+| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list |
 
 ### A topology, in outline
 
@@ -242,6 +242,29 @@ Three cases, and the difference matters:
 - **`closes` names the derived gap this study computes.** It is the bridge to the
   stack vocabulary: a stack's *check* ("fastener grip minus the clamped stack")
   is topologically the closure of a loop, and the residual is a gap edge.
+- **`checks`, added 2026-09-06 by handoff `endstop_location_stack`, is the same
+  bridge for a target that is not another edge of the study's own graph** — a
+  requirement pulled from Polarion, most concretely. Each entry is the same raw
+  spec shape a stack's `checks` list already uses (`check_id`, `label`,
+  `configuration`, `criterion`, `complete`, `excluded_terms`), plus `limit` —
+  `{"value": ..., "units": ..., "source_ref": {...}}` — the budget the study's
+  own total is checked against. `check_study()` folds exactly two terms through
+  the one `fold()`: the limit (sign `+1`) and the study's own total (sign `-1`)
+  — the L1 grip-check pattern, with a `StudyResult` standing in for the clamped
+  stack. `complete`/`excluded_terms` are **authored**, never scanned for, for
+  the same reason a stack check's are: an excluded term has no element to read
+  a gap off of. See `study_pitch_system_end_stop_minus7.json` and
+  `study_pitch_system_end_stop_plus72.json`, whose one check each cites S461-607
+  (a blade-to-blade pitch-variation limit, `SourceRef.kind: "requirement"`) as
+  the numeric budget and S461-241 (the two nominal stop angles) as the
+  non-arithmetic `context_ref` naming which operating point the study is about.
+  Both checks are `complete: false` — the chain still crosses two `assumed`
+  placeholders and one unresolved-identity edge, and neither study's borrowed
+  sensitivity (the source sheet's "-5 deg worst case" or "full-sweep average"
+  columns) is characterised at the requirement's actual -7/+72 deg operating
+  points — so both checks render as a *budget*, never a hardware verdict,
+  exactly as `CheckResult`'s `complete` flag already requires everywhere else in
+  this repo.
 
 ### Where a sensitivity belongs
 
@@ -293,6 +316,13 @@ not maintained by hand.
   the other sensitivity set.
 - `study_pitch_system_gas_spring_branch.json` — the parallel path, summed on its
   own. Nothing compares it to the pitch-link path.
+- `study_pitch_system_end_stop_minus7.json` / `study_pitch_system_end_stop_plus72.json`
+  — added 2026-09-06 by handoff `endstop_location_stack`, one per S461-241's two
+  named stop angles. Each is `study_pitch_system_blade_angle_worst.json` /
+  `_average.json`'s exact selection and transform set, re-titled and given one
+  requirement-cited `checks` entry — separate documents, not edits of the two
+  above, because a study's numbers, once committed, are not touched by a later
+  handoff without a reason of their own.
 
 **Its values are placeholders and its structure is the deliverable.** Two thirds
 of the bands are cells of a workbook that traces nothing (0 of 43, per

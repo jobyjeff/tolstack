@@ -65,6 +65,7 @@ from tolerance_stack.topology import (
     TopologyError,
     Transform,
     UnitMismatch,
+    check_study,
     load_study,
     load_topology,
     summarize,
@@ -705,6 +706,22 @@ def test_every_value_in_a_topology_carries_a_source_ref(path):
         assert edge.dimension.source_ref.kind in SOURCE_REF_KINDS
 
 
+#: The edges handoff ``endstop_location_stack`` (2026-09-06) re-cited off real
+#: drawings instead of the founding workbook -- ``{edge id: confidence}``, so a
+#: fifth edge silently claiming better than `untraced` still fails below. Every
+#: one of these is a disposition ``WORKSHEET_endstop_vision_baseline.md``
+#: (§3/§8b) scored `traced` or `convention-traced` -- never a `candidate` or
+#: `mismatch` row, which stay `untraced` on purpose (identity unresolved is not
+#: a licence to claim better than the source workbook, which is exactly the
+#: overclaiming this test used to refuse outright).
+_RETRACED_CONFIDENCES = {
+    "pitch_plate_flange_to_link_hole": "traced",
+    "hub_blade_root_seat_position": "traced",
+    "gas_spring_body_height": "traced",
+    "piston_length": "inferred",
+}
+
+
 def test_every_placeholder_in_the_pitch_system_says_so(pitch_system):
     """The L2 honesty check: an ``assumed`` band names itself a placeholder.
 
@@ -729,14 +746,30 @@ def test_every_placeholder_in_the_pitch_system_says_so(pitch_system):
             f"placeholder and why no source exists. A reader meets the note "
             f"before the kind.")
 
-    # Nothing in this topology may claim to be traced: its one source is a
-    # workbook that traces nothing (WORKSHEET_end_stop_graft.md, 0 of 43).
-    overclaiming = [e.id for e in pitch_system.edges
-                    if not e.derived
-                    and e.dimension.source_ref.confidence != "untraced"]
-    assert overclaiming == [], (
-        f"{overclaiming} claim better than `untraced` in a topology whose only "
-        f"value source is the end-stop workbook, which traces nothing")
+    # Founding claim: this topology's only value source was a workbook that
+    # traces nothing (WORKSHEET_end_stop_graft.md, 0 of 43). That stopped being
+    # true of the whole document on 2026-09-06, when handoff
+    # `endstop_location_stack` re-cited a handful of edges against drawings the
+    # `endstop_vision_baseline`/`endstop_retrace_acquired_docs` sessions had
+    # actually read -- so the overclaiming check is now an ALLOWLIST, named and
+    # pinned, rather than a blanket refusal. Anything claiming better than
+    # `untraced` that is not in `_RETRACED_CONFIDENCES` is still overclaiming.
+    claiming = {e.id: e.dimension.source_ref.confidence
+                for e in pitch_system.edges
+                if not e.derived and e.dimension.source_ref.confidence != "untraced"}
+    assert claiming == _RETRACED_CONFIDENCES, (
+        f"edges claiming better than `untraced`: {claiming}; expected exactly "
+        f"{_RETRACED_CONFIDENCES}. A new entry here must be a real disposition in "
+        f"WORKSHEET_endstop_vision_baseline.md, not an inline upgrade -- and a "
+        f"missing one means a citation this handoff traced quietly regressed.")
+    for edge_id, ref in ((e.id, e.dimension.source_ref) for e in pitch_system.edges
+                         if not e.derived and e.id in _RETRACED_CONFIDENCES):
+        assert ref.kind in ("drawing", "spec"), (
+            f"{edge_id}: claims {ref.confidence!r} but cites kind {ref.kind!r} -- "
+            f"only a real document backs a claim above `untraced`")
+        assert ref.export is not None and ref.export.sha256, (
+            f"{edge_id}: a `drawing` citation above `untraced` must carry an "
+            f"established export (SOP Step 5b)")
 
 @pytest.mark.parametrize("path", topology_files(), ids=lambda p: p.stem)
 def test_every_declared_transform_cites_where_its_ratio_came_from(path):
@@ -1171,3 +1204,156 @@ def test_a_study_naming_an_id_its_topology_lacks_raises_a_study_error():
         assert phrase in message
         # Named, so a build over many studies says which one is wrong.
         assert study.id in message
+
+
+# --------------------------------------------------------------------------- #
+# 9. requirement-cited checks: the -7/+72 end-stop studies                    #
+# --------------------------------------------------------------------------- #
+
+#: ``(path, check_id, expected total worst_case_half in degrees)``. The third
+#: field is pinned literally -- not recomputed and compared against itself --
+#: so a structural edit that quietly changes either study's chain (an added
+#: edge, a swapped transform) reddens this test instead of silently reproducing
+#: whatever the new number happens to be. Recomputed once, by hand, from
+#: `summarize()` and never re-derived: -7 deg borrows the worst-case
+#: sensitivity (larger ratios, wider band); +72 deg the full-sweep-average one.
+END_STOP_STUDIES = (
+    (TOPOLOGIES_DIR / "study_pitch_system_end_stop_minus7.json",
+     "s461_607_margin_at_minus7", 1.091240625),
+    (TOPOLOGIES_DIR / "study_pitch_system_end_stop_plus72.json",
+     "s461_607_margin_at_plus72", 0.816796875),
+)
+
+#: The main checkout's copy of the requirements pull, gitignored (`data/` is
+#: shared and absent in a worktree, per this repo's standing environment
+#: rules) -- absent on another machine or in CI. Read when present, skipped
+#: when not, the same shape `test_tolerance_stack.py`'s traced-ratio-publisher
+#: check uses for the identical reason.
+REQUIREMENTS_PULL = Path(
+    r"C:\workspace\tolstack\data\inbox\requirements"
+    r"\S461_equipmentrequirements_20260906.json")
+
+
+def _stripped_c_description(item: dict) -> str:
+    """``c_description`` with its ``text/html:`` prefix and tags stripped.
+
+    The exact transform the handoff's item 1 requires of every citation of this
+    artifact: ``c_description`` is HTML-ish, so a citation quotes the *text*,
+    never the markup.
+    """
+    text = item["c_description"]
+    if text.startswith("text/html:"):
+        text = text[len("text/html:"):]
+    return re.sub(r"<[^>]+>", "", text).strip()
+
+
+@pytest.mark.parametrize("path, check_id, expected_half", END_STOP_STUDIES,
+                          ids=lambda v: v if isinstance(v, str) else
+                          (v.stem if isinstance(v, Path) else str(v)))
+def test_an_end_stop_study_loads_its_check_and_folds_a_real_margin(
+        path, check_id, expected_half):
+    """``check_study`` computes -- the L1 grip-check pattern, over a real study.
+
+    Not a synthetic fixture: this is the actual committed L2 topology and the
+    actual committed study, so the numbers pinned here are the numbers a reader
+    of the file would get. ``expected_half`` is pinned literally in
+    ``END_STOP_STUDIES``, not recomputed and compared against itself.
+    """
+    topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+    study = load_study(path)
+    assert study.checks and study.checks[0]["check_id"] == check_id
+
+    total = summarize(topology, study).interval
+    assert total.nominal == 0.0
+    assert total.worst_case_half == pytest.approx(expected_half)
+
+    result = check_study(topology, study, check_id)
+    assert result.check_id == check_id
+    assert result.units == "deg"
+    assert result.complete is False
+    assert result.verdict_scope == "budget", (
+        "a check crossing untraced/assumed edges and a borrowed sensitivity "
+        "condition must never render as a hardware verdict -- the standing "
+        "CheckResult rule")
+    assert result.excluded_terms, (
+        "complete: false with no excluded_terms is refused by CheckResult "
+        "itself; this asserts the spec actually named something")
+
+    # The margin really is `limit - study_total`, not a second arithmetic path:
+    # recompute it by hand from summarize()'s own interval and compare exactly.
+    assert result.interval.nominal == pytest.approx(0.5 - total.nominal)
+    assert result.interval.min == pytest.approx(0.5 - total.max)
+    assert result.interval.max == pytest.approx(0.5 - total.min)
+
+
+def test_check_study_refuses_an_unknown_check_id():
+    topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
+    study = load_study(TOPOLOGIES_DIR / "study_pitch_system_end_stop_minus7.json")
+    with pytest.raises(StudyError, match="has no check"):
+        check_study(topology, study, "no_such_check")
+
+
+@pytest.mark.parametrize("path, check_id, _expected_half", END_STOP_STUDIES,
+                          ids=lambda v: v if isinstance(v, str) else
+                          (v.stem if isinstance(v, Path) else str(v)))
+def test_an_end_stop_checks_requirement_citations_are_shaped_correctly(
+        path, check_id, _expected_half):
+    """The shape every citation must have, checkable with no external file:
+    kind, the pull artifact's filename, the requirement id, and `c_status` in
+    the note -- deliverable 2's "id + verbatim text + c_status + the pull
+    artifact's filename", minus the text itself (pinned separately below,
+    against the live artifact, when it is present to pin against).
+    """
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    check = raw["checks"][0]
+    assert check["check_id"] == check_id
+    limit_ref = check["limit"]["source_ref"]
+    context_ref = check["context_ref"]
+    for ref, c_id in ((limit_ref, "S461-607"), (context_ref, "S461-241")):
+        assert ref["kind"] == "requirement"
+        assert ref["kind"] in SOURCE_REF_KINDS
+        assert ref["cell"] == c_id
+        assert ref["document"] == "S461_equipmentrequirements_20260906.json"
+        assert "c_status: draft" in ref["note"]
+    assert limit_ref["confidence"] == "traced"
+    # excluded_terms must name the S461-805 TBD gap and the borrowed-sensitivity
+    # mismatch this study's own provenance argues for -- not just say `complete:
+    # false` and leave a reader to re-derive why.
+    joined = " ".join(check["excluded_terms"])
+    assert "S461-805" in joined and "TBD" in joined
+    assert "end_stop_clearance" in joined, (
+        "the end stop itself -- the row this repo is least willing to "
+        "overclaim -- must be named, not just implied by `complete: false`")
+
+
+def test_the_end_stop_checks_quote_the_pulled_requirements_artifact_verbatim():
+    """Deliverable 2's value-level pairing, against the artifact itself: the
+    quoted text, the status, the id set. Skipped, not failed, where the
+    gitignored pull is absent (another worktree, another machine, CI) -- the
+    same shape `test_tolerance_stack.py`'s traced-ratio-publisher check uses.
+    """
+    if not REQUIREMENTS_PULL.exists():
+        pytest.skip(f"{REQUIREMENTS_PULL} is gitignored and not present here")
+    items = json.loads(REQUIREMENTS_PULL.read_text(encoding="utf-8"))["items"]
+    by_id = {i["c_id"]: i for i in items}
+    assert {"S461-241", "S461-607", "S461-805"} <= set(by_id)
+
+    for path, _check_id, _expected_half in END_STOP_STUDIES:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        check = raw["checks"][0]
+        limit_ref = check["limit"]["source_ref"]
+        context_ref = check["context_ref"]
+        for ref, c_id in ((limit_ref, "S461-607"), (context_ref, "S461-241")):
+            item = by_id[c_id]
+            assert ref["callout"] == _stripped_c_description(item), (
+                f"{path.name}: the quoted text for {c_id} has drifted from the "
+                f"pulled artifact")
+            assert item["c_status"] == "draft", (
+                f"{c_id}'s c_status moved off `draft` in the live pull -- the "
+                f"citation's `c_status: draft` note is now stale")
+
+        # The TBD gap named in excluded_terms is the requirement's own words,
+        # not this session's paraphrase of them.
+        assert "TBD deg" in _stripped_c_description(by_id["S461-805"])
+        joined = " ".join(check["excluded_terms"])
+        assert "S461-805" in joined

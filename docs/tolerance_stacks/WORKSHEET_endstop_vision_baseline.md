@@ -1207,3 +1207,53 @@ directory, never into drawing-checker's tree and never into this repo's
 working directory. A closing snapshot and diff is taken and recorded in this
 session's lessons file rather than here, per that file's own convention of
 owning the before/after pair.
+
+---
+
+## 9. The unresolved-identity list, in the annotation surface's key vocabulary, 2026-09-06
+
+Handoff `endstop_location_stack`, deliverable 3. `docs/topologies/topology_pitch_system.json`
+re-cited six of its edges against this worksheet's §3/§8b dispositions (see that
+topology's own `provenance.retrace_update_20260906`). Every edge whose feature
+identity is still unresolved — this worksheet's `candidate` outcome: a real,
+in-hand callout exists, but which physical feature it controls, or whether it is
+the feature a row means, is not establishable from the sheet — is enumerated
+below as `{topology_id, edge_id}`, the exact key pair `annotation_surface_mvp`'s
+`feature-identity/v0` events are expected to bind (per that handoff's own
+staged brief; this repo does not read those events, so this list is the
+interlock, not a consumer of one).
+
+| topology_id | edge_id | worksheet row(s) | why unresolved |
+|---|---|---:|---|
+| `pitch_system` | `end_stop_clearance` | 39 | §8b: `214700-002-A` sh2 zone D5 carries `5.00 ±0.05`, matching the workbook's value and comment exactly, at a groove near the piston's threaded tip — but nothing on the sheet names it an end-stop contact face, and the row may describe an assembly clearance no single-part drawing can state alone. **The row that names the end stop itself.** |
+| `pitch_system` | `gas_spring_mount_position` | 61 | §3/F7: `213668-002` sh2 carries a real `⌖⌀0.2 A B` true-position frame on `220.37 0.00/-0.08` — but which feature it controls, and whether that is the tan-link-mount interface this row names, is not establishable, and the mating half's owner (`215175-001` → `215198-001`/`-002`) is unacquired. |
+| `pitch_system` | `blade_root_clocking_to_hub_seat` | 19 | §3: two `0.05` mm callouts are in reach on `212966-006-A` sheet 4 (`↗0.05 D-E`, a runout) and `546791` sheet 3 (`⌖⌀0.05 A B CC`, a position) — neither is a profile-to-A-B callout, the geometric characteristic the row names, and picking either on value alone is exactly the F6/F7 trap. |
+| `pitch_system` | `hub_lower_to_top_bearing_flange` | 43 | §3: `212966-006-A` sh2 `103.35 ±0.10` is a real 0.20 mm-wide linear on the hub — but which two flanges it spans is not established from the sheet. |
+| `pitch_system` | `hub_top_flange_to_top_deck` | 44 | §3: `212966-006-A` sh2 `4.81 ±0.05` is a real 0.10 mm-wide linear on the hub — same identity problem as the row above; a different edge because the two rows name different flange pairs, not because a different callout is in play. |
+
+Deliberately **not** on this list: edges whose gap is document acquisition
+(`pitch_link_length`, `tan_link_mount_height`, `hub_top_deck_to_tan_link_mount_seat`,
+`pitch_plate_flange_to_gas_spring_bushing` — the owner part is known, its
+drawing is not in the pipeline, §8d) and edges whose value is a genuine
+absence or not a drawing quantity at all (`blade_root_clocking_to_ring_gear_mesh`,
+`blade_root_clocking_to_oml`, `pitch_arm_link_hole_to_clocking_hole`,
+`hub_ring_gear_seat_position`). Those are gaps of a different shape — *what
+document*, not *which feature* — and the annotation surface's identity-key
+vocabulary is specifically for the second shape (requirement 3 of the
+2026-09-01 lesson: "a many-to-many identity map with direction and a
+composition rule", which is meaningless without a feature to resolve).
+
+**F11 — new, 2026-09-06 — the source sheet's two sensitivity conditions are not
+characterised at either requirement stop angle.** S461-241 requires pitch end
+stops at **-7°** and **+72°**. The only two motion-ratio constants this
+repo holds (`docs/topologies/topology_pitch_system.json`'s `pitch_arm_linear_to_rotary`
+/ `_average` transforms, the source sheet's D10/F10) are documented as "-5 deg
+(worst case)" and "full sweep average" respectively — neither is -7° or +72°,
+and the average column is not characterised at either end of the sweep at all.
+`docs/topologies/study_pitch_system_end_stop_minus7.json` and
+`study_pitch_system_end_stop_plus72.json` each name this explicitly in their own
+`checks[].excluded_terms` rather than silently borrowing the nearer-sounding
+column and calling it equivalent — it is the reason both of their S461-607
+margin checks are `complete: false` regardless of what else closes. No source
+in this repo's pile characterises a sensitivity AT either requirement angle;
+closing this needs Jeff or CAD, not another drawing acquisition.

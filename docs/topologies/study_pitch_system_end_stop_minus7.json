@@ -1,0 +1,78 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "pitch_system_end_stop_minus7",
+  "title": "Blade OML angular position at the -7 deg (low-pitch) end stop, hub A datum to blade OML, worst-case sensitivity (degrees)",
+  "topology": "pitch_system",
+  "from": "hub_lower_bearing_flange",
+  "to": "blade_root_oml",
+  "selection": [
+    "hub_lower_to_top_bearing_flange",
+    "hub_top_flange_to_top_deck",
+    "hub_top_deck_to_vpa_mount",
+    "vpa_mount_to_end_stop_feature",
+    "end_stop_clearance",
+    "piston_length",
+    "pitch_plate_flange_to_link_hole",
+    "pitch_link_length",
+    "pitch_arm_link_hole_to_clocking_hole",
+    "blade_root_clocking_to_oml"
+  ],
+  "transforms": {
+    "hub_lower_to_top_bearing_flange": "pitch_arm_linear_to_rotary",
+    "hub_top_flange_to_top_deck": "pitch_arm_linear_to_rotary",
+    "hub_top_deck_to_vpa_mount": "pitch_arm_linear_to_rotary",
+    "vpa_mount_to_end_stop_feature": "pitch_arm_linear_to_rotary",
+    "end_stop_clearance": "pitch_arm_linear_to_rotary",
+    "piston_length": "pitch_arm_linear_to_rotary",
+    "pitch_plate_flange_to_link_hole": "pitch_arm_linear_to_rotary",
+    "pitch_link_length": "pitch_arm_linear_to_rotary",
+    "blade_root_clocking_to_oml": "pitch_arm_linear_to_rotary"
+  },
+  "checks": [
+    {
+      "check_id": "s461_607_margin_at_minus7",
+      "label": "Blade-pitch angular position variation margin against S461-607, at the -7 deg end stop",
+      "configuration": {"stop": "-7 deg (low pitch)", "sensitivity_condition": "worst-case (source sheet D10/D11, stated at -5 deg)"},
+      "criterion": ">= 0",
+      "limit": {
+        "value": 0.5,
+        "units": "deg",
+        "source_ref": {
+          "kind": "requirement",
+          "document": "S461_equipmentrequirements_20260906.json",
+          "cell": "S461-607",
+          "callout": "The pitch angle of each blade in a propeller assembly shall not exceed +/-0.5 degrees of the mean pitch of the blades",
+          "confidence": "traced",
+          "note": "c_status: draft. Pulled 2026-09-06 from Polarion (Delta mirror, manufacturing.polarion.workitem); severity must_have. This is a blade-to-blade variation limit, not a limit on this chain's own accumulated position error -- adopted here as the closest available numeric acceptance criterion for the accumulated tolerance this study folds, because S461-241 states only the two nominal stop angles and S461-805's own threshold is TBD (see excluded_terms)."
+        }
+      },
+      "context_ref": {
+        "kind": "requirement",
+        "document": "S461_equipmentrequirements_20260906.json",
+        "cell": "S461-241",
+        "callout": "The propeller assembly shall provide propeller pitch end stops at -7º and +72º.",
+        "confidence": "traced",
+        "note": "c_status: draft. Pulled 2026-09-06. Names the nominal operating point this study represents (-7 deg); not itself a numeric criterion, so not folded into the check -- carried as the context a reader needs to know WHY this study exists, per SourceRef.kind 'requirement'."
+      },
+      "complete": false,
+      "excluded_terms": [
+        "hub top deck to actuator mounting face (edge hub_top_deck_to_vpa_mount) -- no source document, `assumed` placeholder",
+        "actuator mounting face to end-stop feature (edge vpa_mount_to_end_stop_feature) -- no source document, `assumed` placeholder",
+        "piston end to end-stop feature (edge end_stop_clearance) -- THE end stop itself; a real drawing candidate exists (214700-002-A sheet 2, `5.00 +/-0.05`) but its feature identity is not established (WORKSHEET_endstop_vision_baseline.md §8b row 39, 'candidate (strong)'), so it stays `untraced`",
+        "blade root to OML (edge blade_root_clocking_to_oml) -- not a drawing quantity at all; the source workbook's own author doubts the number by roughly 6x (row 22, 'Probably closer to .03deg')",
+        "the -5 deg sensitivity this study borrows (transform pitch_arm_linear_to_rotary, source cell D10) is 2 deg off the -7 deg this check is actually about, and the source cell itself names three different operating conditions around one number (WORKSHEET_end_stop_graft.md finding F1) -- no sensitivity constant characterised AT -7 deg exists in any source this repo holds",
+        "gas-spring bushing tipping backlash -- the source workbook's largest single angular contributor (0.72 deg, its row 68) and not represented as a chain edge at all (see this topology's own notes, 'WHAT THIS TOPOLOGY CANNOT REPRODUCE')",
+        "S461-805 (Blade Pitch Position Accuracy) states its own threshold as literally 'TBD deg' in Polarion -- draft, no usable numeric criterion, so it supplies no check of its own and is not folded into this one either"
+      ]
+    }
+  ],
+  "provenance": {
+    "authored_by": "handoff endstop_location_stack, 2026-09-06",
+    "why_this_study_exists": "S461-241 (draft, 'End stop') requires the propeller assembly to provide pitch end stops at -7 deg and +72 deg -- the two nominal operating points the source workbook's own D-column/F-column sensitivity split approximates without ever landing on either exactly. This study is `pitch_system_blade_angle_worst`'s exact selection and transform set, re-titled and re-scoped as the -7 deg stop's study and given a requirement-cited check, per the handoff's item 1 ('one study per stop direction'). It is a SEPARATE document from that study -- not an edit of it -- because the handoff's baseline forbids touching the four existing pitch-system study documents' numbers.",
+    "the_condition_mismatch_named": "The source sheet's D10/D11 sensitivity pair is documented at '-5 deg (worst case)' (D10's own cell comment), not -7 deg. A 2 degree gap between the requirement's operating point and the only sensitivity constant this repo holds is a real, unresolved finding -- not glossed over by reusing the closer of the two available conditions. Recorded in the check's `excluded_terms` (not just here) so it renders on the card, and in the lesson as a new finding."
+  },
+  "notes": [
+    "Selection and transforms are byte-for-byte identical to study_pitch_system_blade_angle_worst.json's; only the id, title, provenance and the added `checks` entry differ. Comparing the two files' totals is therefore a no-op by construction -- the point of this document is the check, not a new number.",
+    "complete: false is the honest outcome the handoff's definition of done asks for: the chain crosses two `assumed` placeholders and one `candidate`-identity edge (the end stop itself), and the requirement this check's numeric limit borrows (S461-607) is not the requirement that names this study's own operating point (S461-241). None of that is a licence to skip publishing the number -- it is why the number renders as a budget, never a hardware verdict."
+  ]
+}

@@ -6,7 +6,8 @@
   "provenance": {
     "authored_by": "handoff dag_topology_format, 2026-08-31",
     "structure_source": "dispatch/docs/strategy/HANDOFF_20260831_tolstack_dag_strategy.md (locked brief), locked decision 1, level L2 -- Jeff's own description of the mechanism: 'VP actuator -> pitch plate connection; branch 1 -> gas spring (or hydraulic brake per design concept); branch 2 -> pitch plate -> pitch links -> pitch arms -> blade roots; from blade roots a further branch -> ring gear (cyclic-only)'. The graph below is that sentence, grounded back to the hub so the parallel paths are actually parallel. Cite the brief for the structure; it is Jeff's description of his own mechanism, not a reading of a drawing.",
-    "values_source": "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md, the structured read of data/inbox/tolerance_stacks/260825_End_Stop_JC.xlsx (handoff endstop_graft_workorder, 2026-08-25). Every band that has a source is a `workbook` citation to a cell of that sheet, `untraced` -- which is the whole sheet's status: that worksheet's count is 0 traced, 0 inferred, 43 untraced of 43 element instances, and this document closes none of those gaps.",
+    "values_source": "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md, the structured read of data/inbox/tolerance_stacks/260825_End_Stop_JC.xlsx (handoff endstop_graft_workorder, 2026-08-25). Every band that has a source was, at founding, a `workbook` citation to a cell of that sheet, `untraced` -- which was the whole sheet's status: 0 traced, 0 inferred, 43 untraced of 43 element instances.",
+    "retrace_update_20260906": "Handoff endstop_location_stack re-cited six of this document's edges against the drawings acquired and read by handoffs endstop_vision_baseline (2026-09-01) and endstop_retrace_acquired_docs (2026-09-04) -- see WORKSHEET_endstop_vision_baseline.md, whose §3/§8b dispositions this document now follows edge by edge: `pitch_plate_flange_to_link_hole`, `gas_spring_body_height` and `hub_blade_root_seat_position` move to `traced` (the last with a corrected band, 0.12mm -> 0.10mm, per finding F1 -- the drawing's modifier is LMC where the workbook's comment says MMC); `piston_length` moves to `inferred` (a documented derivation off its OWN drawing's general-tolerance convention, `convention-traced` in the worksheet's vocabulary); `end_stop_clearance` and `gas_spring_mount_position` gain a real drawing citation but STAY `untraced` because the worksheet scored both `candidate` -- a plausible value exists, but the feature identity is not established, and this document does not overclaim what the worksheet declined to. Four further edges (`pitch_link_length`, `tan_link_mount_height`, `hub_top_deck_to_tan_link_mount_seat`, `pitch_plate_flange_to_gas_spring_bushing`) gained only a refined-owner note, no value or confidence change. Every edge this update did not touch is untouched because the worksheet's own disposition for it did not move.",
     "values_are_placeholders": "THE TOPOLOGY IS THE DELIVERABLE; THE VALUES ARE NOT. Bands with no workbook row carry `kind: \"assumed\"` and say so in their note. Even the sourced ones are one author's provisional workbook, two of which (rows 26 and 57) carry the author's own comment that the number needs correcting. Nothing here is fit to size a part.",
     "variation_only": "EVERY dimension in this document has `nominal: 0.0`. These are not lengths -- they are tolerance bands about an unstated nominal, because that is what the source sheet holds: a column of total tolerance widths, not dimensions (its own row 72 comment: 'note this is total range (divide by 2 for +/-)'). So min/max are -w/2 and +w/2 for a stated total width w, and a study's `nominal` total is 0 by construction while its worst-case and RSS bands are the real result. Mixing a nominal-carrying dimension into this topology would make the nominal column read as a position sum when it is not one; if real nominal lengths arrive, they arrive for ALL of these edges at once, or in a separate topology.",
     "geometry_not_in_the_bands": "Nominal geometry that IS known -- pitch arm radius 50 mm, blade root radius 32 mm, pitch link length 109.4 mm at a 77 deg link angle, gas-spring bushing separation 34.7 mm -- is carried in `properties` on the edge or transform it belongs to, never in a `dimension`. It is context for a transform, not a term in a variation sum."
@@ -346,7 +347,7 @@
         "source_ref": {
           "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
           "sheet": "End Stop Tol Stack", "cell": "B45", "confidence": "untraced",
-          "note": "0.10 mm total tolerance width."
+          "note": "0.10 mm total tolerance width. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 45, 'still blocked'): spans two owners; the hub half is available (see `hub_lower_to_top_bearing_flange`/`hub_top_flange_to_top_deck`, both still `candidate`), but the tan-link-mount half is blocked exactly as `tan_link_mount_height` is, and no document states the spanning path between the two even once both are dimensioned."
         }
       }
     },
@@ -377,11 +378,20 @@
       "dimension": {
         "id": "hub_blade_root_seat_position",
         "name": "blade root seats in hub position tol",
-        "nominal": 0.0, "min": -0.06, "max": 0.06, "plus_minus": 0.06,
+        "nominal": 0.0, "min": -0.05, "max": 0.05, "plus_minus": 0.05,
         "source_ref": {
-          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
-          "sheet": "End Stop Tol Stack", "cell": "B17", "confidence": "untraced",
-          "note": "0.12 mm total tolerance width, comment 'diameter MMC'. NOTE what is dropped: the source sheet multiplies this row by a diameter-MMC weighting factor B16/(B16-B15) built from the two blade-root bearing radii, which is a per-term weight this topology does not carry (the transform on a study is the only weight v0 has). A study over this edge therefore does NOT reproduce the sheet's D17. Recorded as an open modelling question, not as an equivalence."
+          "kind": "drawing", "document": "212966-006-A", "revision": null, "sheet": 4,
+          "zone": null, "view": null,
+          "callout": "5X INDIVIDUALLY \u2316\u00d80.10\u24c1 A B C, on \u00d8106.310 0.000/-0.025 CRITICAL PART",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/212966-006-A.pdf",
+            "sha256": "b0c19da5a8cf992bf3ae31c3b589edb14e1d68347617964f2f847b0c219d0d6b",
+            "runs": [],
+            "note": "Read directly off the PDF text layer/rendered crop during handoff endstop_vision_baseline (2026-09-01); not run through drawing-checker's pipeline this session."
+          },
+          "confidence": "traced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a73 row 17, findings F1/F2): identity established (the hub's one 5X-INDIVIDUALLY blade-root-seat position frame). The band is 0.10 mm total (+/-0.05), NOT the prior workbook's 0.12 mm (+/-0.06) -- the drawing is the value of record, so this edge's stored band now matches it exactly. F1: the drawing's modifier is LMC (\u24c1), where the workbook's own comment says 'diameter MMC' -- this repo's load-bearing design decision 2 (LMC/MMC are material conditions, not extremes; for a subtracted feature the mapping inverts) surfacing in live source data. F2: the workbook's 0.12 mm is reconstructible as this 0.10 mm position PLUS the mating seat's 0.022 mm size band (\u00d892.030 0.000/-0.022) -- a bonus-tolerance hypothesis, not folded in here, since v0 carries no per-term MMC/LMC weight (see this topology's own notes on what it cannot reproduce)."
         }
       }
     },
@@ -433,9 +443,18 @@
         "name": "piston end to end stop feature",
         "nominal": 0.0, "min": -0.05, "max": 0.05, "plus_minus": 0.05,
         "source_ref": {
-          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
-          "sheet": "End Stop Tol Stack", "cell": "B39", "confidence": "untraced",
-          "note": "0.10 mm total tolerance width; the sheet's own comment on the row is 'tol +/-0.05'."
+          "kind": "drawing", "document": "214700-002-A", "revision": null, "sheet": 2,
+          "zone": "D5", "view": null,
+          "callout": "5.00 \u00b10.05",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214700-002-A.pdf",
+            "sha256": "795b557ed1fa29123f3fb785274e19efb3a66ee580361d206bf56e970775d9f2",
+            "runs": [],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78b row 39); not run through drawing-checker's pipeline this session."
+          },
+          "confidence": "untraced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a78b row 39, 'candidate (strong)') -- explicitly NOT scored traced. This callout matches the prior workbook value (0.10 mm total = B39) AND its comment ('tol +/-0.05') exactly, at a small groove near the piston's threaded tip. But nothing on the sheet names it an end-stop contact face -- it could be a thread-relief/retaining-ring groove, and the row may describe an assembly clearance a single-part drawing cannot state alone. THE ROW THAT NAMES THE END STOP ITSELF is the one this repo is least willing to overclaim; confidence stays `untraced` until the identity is nailed down (see this topology's unresolved-identity list)."
         }
       },
       "note": "A gap edge that DOES carry a value, unlike `shank_out` in the VPA-output topology: this clearance is toleranced, not derived. The two together are the pair worth knowing -- a gap is a distance across a clearance, and whether it is a term or an answer depends only on whether anyone has toleranced it."
@@ -452,9 +471,18 @@
         "name": "piston length tolerance",
         "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
         "source_ref": {
-          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
-          "sheet": "End Stop Tol Stack", "cell": "B38", "confidence": "untraced",
-          "note": "0.20 mm total tolerance width; the sheet's comment reads '2 decimals => +/-0.1', i.e. the band is a drawing-convention default, not a stated callout."
+          "kind": "drawing", "document": "214700-002-A", "revision": null, "sheet": 1,
+          "zone": null, "view": null,
+          "callout": "general-tolerance block X.XX = \u00b10.10 (sheet 1), applied to sheet 2 zone F6's un-toleranced overall length 113.67",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/214700-002-A.pdf",
+            "sha256": "795b557ed1fa29123f3fb785274e19efb3a66ee580361d206bf56e970775d9f2",
+            "runs": [],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78b row 38); not run through drawing-checker's pipeline this session."
+          },
+          "confidence": "inferred",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a78b row 38, 'convention-traced'): the OWNER's own drawing (214700-002-A, the piston body itself) carries both the \u00b10.10 general-tolerance block and the un-toleranced 113.67 overall-length dimension it applies to -- a documented derivation off a traced convention on the same sheet, not a specific numeric callout, hence `inferred` (SOP CONFIDENCES: derived from something traced, with the derivation written down) rather than `traced`. Stronger than the prior session's convention-traced cases, which borrowed a sibling part's block; this is the owner's own. Value 0.20 mm total matches the prior workbook cell (B38) exactly, so no numeric change."
         }
       }
     },
@@ -470,9 +498,18 @@
         "name": "pitch plate piston flange (A-datum) to pitch link hole position",
         "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
         "source_ref": {
-          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
-          "sheet": "End Stop Tol Stack", "cell": "B37", "confidence": "untraced",
-          "note": "0.20 mm total tolerance width."
+          "kind": "drawing", "document": "215735-A", "revision": null, "sheet": 2,
+          "zone": "B9/C4", "view": null,
+          "callout": "5X \u00d8 7.950 +0.015/0.000 with \u2316\u00d80.2 A B C",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/215735-A.pdf",
+            "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
+            "runs": [],
+            "note": "Read directly off the PDF text layer during handoff endstop_vision_baseline (2026-09-01); not run through drawing-checker's pipeline this session."
+          },
+          "confidence": "traced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a73/\u00a78b, row 37): identity by count (5X bores <-> 5 blades) plus the row's own name citing this frame's A-datum. Value 0.20 mm total matches the prior workbook cell (B37) exactly, so no numeric change. F4 (same worksheet): this SAME callout also serves the pitch plate's vertical (row 32) and tangential (row 48) position rows, neither of which is a topology edge here -- and rows 32/37 are both vertical and both 0.20, so whether that is a deliberate second contributor or one tolerance counted twice is open, and Jeff's to resolve, not this session's."
         }
       }
     },
@@ -490,7 +527,7 @@
         "source_ref": {
           "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
           "sheet": "End Stop Tol Stack", "cell": "B62", "confidence": "untraced",
-          "note": "0.20 mm total tolerance width. The sheet places this row in its TANGENTIAL section, so a blade-angle study of this branch needs the tangential sensitivity (its D12 column), NOT the vertical one -- see this topology's notes for why that transform is deliberately not declared here."
+          "note": "0.20 mm total tolerance width. The sheet places this row in its TANGENTIAL section, so a blade-angle study of this branch needs the tangential sensitivity (its D12 column), NOT the vertical one -- see this topology's notes for why that transform is deliberately not declared here. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 62, 'still blocked, hypothesis refined'): the best identified candidate owner is 214723-002 (the sealed bushing at the tan-link-mount joint, named by 215175-A's own parts list) -- a hypothesis, not a confirmed identity, and its piece-part drawing is unacquired."
         }
       }
     },
@@ -530,7 +567,7 @@
         "source_ref": {
           "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
           "sheet": "End Stop Tol Stack", "cell": "B31", "confidence": "untraced",
-          "note": "0.06 mm total tolerance width. The 109.4 mm nominal length is in this edge's `properties`, not in the band -- see provenance.variation_only."
+          "note": "0.06 mm total tolerance width. The 109.4 mm nominal length is in this edge's `properties`, not in the band -- see provenance.variation_only. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 31, 'still blocked, owner refined'): 212956-005-A (the pitch anti-rotation link assembly, now in hand) carries only a parenthesized reference length, (81.43) -- the toleranced length lives one BOM level deeper, on 213863-004, still unacquired."
         }
       }
     },
@@ -646,9 +683,18 @@
         "name": "lower gas spring body height (top to mounting flange)",
         "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
         "source_ref": {
-          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
-          "sheet": "End Stop Tol Stack", "cell": "B41", "confidence": "untraced",
-          "note": "0.20 mm total tolerance width."
+          "kind": "drawing", "document": "213668-002", "revision": "A.1", "sheet": 1,
+          "zone": "B12", "view": "SECTION C-C",
+          "callout": "76.86 \u00b10.10",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf",
+            "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
+            "runs": [],
+            "note": "Read directly off the PDF text layer, handoff endstop_retrace_acquired_docs (2026-09-04, \u00a78a/\u00a78b row 41); not run through drawing-checker's pipeline this session."
+          },
+          "confidence": "traced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a78a/\u00a78b row 41): owner resolved via 215176-002-A's own parts list (find no. 1 -> 213668-002), a part already read in full during the 2026-09-01 session for a different set of rows (60/61/62). Value 0.20 mm total matches the prior workbook cell (B41) exactly -- overall height, top rim to mounting-flange plane -- so no numeric change."
         }
       }
     },
@@ -664,9 +710,18 @@
         "name": "gas spring mount position (tan link mount feature)",
         "nominal": 0.0, "min": -0.10, "max": 0.10, "plus_minus": 0.10,
         "source_ref": {
-          "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
-          "sheet": "End Stop Tol Stack", "cell": "B61", "confidence": "untraced",
-          "note": "0.20 mm total tolerance width. WORKSHEET_end_stop_graft.md's currency check tried to source the gas-spring mount's dimensions from drawing-checker's 213668-002 A.1 extractions and came back couldn't-check: that schema holds title block, revisions, notes and parts list, not individual linear dimensions."
+          "kind": "drawing", "document": "213668-002", "revision": "A.1", "sheet": 2,
+          "zone": null, "view": null,
+          "callout": "\u2316 \u00d80.2 A B, on 220.37 0.00/-0.08",
+          "export": {
+            "status": "established",
+            "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/213668-002 A.1 MOUNT, GAS SPRING, PROPELLER.pdf",
+            "sha256": "dea285f5e3a93929f611d6f7e16841f35537cd3f1101bf9776de9d061ce6fc76",
+            "runs": [],
+            "note": "Read directly off a 10x rendered crop, review/endstop_vision_baseline (2026-09-01, F7); not run through drawing-checker's pipeline. This drawing's GD&T frames are vector geometry, absent from its text layer entirely (WORKSHEET \u00a72g)."
+          },
+          "confidence": "untraced",
+          "note": "Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md \u00a73 row 61 / F7, 'candidate') -- explicitly NOT scored traced. A real true-position frame of exactly 0.20 mm total exists on this drawing, but which feature it controls, and whether that feature is the tan-link-mount interface this row names, is not establishable from the sheet; the mating half's owner (215175-001 -> 215198-001/-002 per \u00a78d) is unacquired. F7 is this worksheet's sharpest false-absence lesson: this same drawing's frames are invisible to a text-layer sweep, so an earlier pass wrongly scored this row a gap before a rendered crop found the frame -- corrected here to `untraced`/candidate rather than left as a false absence."
         }
       }
     },
@@ -684,7 +739,7 @@
         "source_ref": {
           "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
           "sheet": "End Stop Tol Stack", "cell": "B42", "confidence": "untraced",
-          "note": "0.20 mm total tolerance width."
+          "note": "0.20 mm total tolerance width. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 42, 'still blocked, owner refined'): the owner is a dimensionless assembly (215175-A, now in hand) -- its own parts list resolves the actual housing to 215198-001/215198-002, neither acquired."
         }
       }
     },

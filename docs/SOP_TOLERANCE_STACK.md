@@ -350,9 +350,14 @@ source's, not yours.
   "confidence": "traced", "note": null }
 ```
 
-- `kind`: `drawing | parts_list | workbook | spec | pipeline_element | assumed`.
+- `kind`: `drawing | parts_list | workbook | spec | pipeline_element | assumed | requirement`.
   Use `spec` for a file in `data/inbox/specs/`, with the filename as `document`
-  and the **page number** as `sheet`. This vocabulary lives in **two** places:
+  and the **page number** as `sheet`. Use `requirement` for an item pulled from
+  Polarion into `data/inbox/requirements/`, with the pull artifact's filename as
+  `document`, the requirement id (e.g. `S461-241`) as `cell`, and its own text
+  quoted verbatim (HTML tags stripped) as `callout`; `note` must record
+  `c_status`, since a check against a `draft` requirement is not the same claim
+  as one against a `validated` one. This vocabulary lives in **two** places:
   this list, and `SOURCE_REF_KINDS` in `tolerance_stack/stack.py`, which is the
   definition — `SourceRef.__post_init__` refuses anything else, so a misspelled
   kind now raises at load instead of riding into the viewer. A new kind must be
