@@ -72,7 +72,7 @@
     "the_condition_mismatch_named": "The source sheet's D10/D11 sensitivity pair is documented at '-5 deg (worst case)' (D10's own cell comment), not -7 deg. A 2 degree gap between the requirement's operating point and the only sensitivity constant this repo holds is a real, unresolved finding -- not glossed over by reusing the closer of the two available conditions. Recorded in the check's `excluded_terms` (not just here) so it renders on the card, and in the lesson as a new finding."
   },
   "notes": [
-    "Selection and transforms are byte-for-byte identical to study_pitch_system_blade_angle_worst.json's; only the id, title, provenance and the added `checks` entry differ. Comparing the two files' totals is therefore a no-op by construction -- the point of this document is the check, not a new number.",
+    "Selection and transforms are byte-for-byte identical to study_pitch_system_blade_angle_worst.json's; only the id, title, provenance and the added `checks` entry differ. Verified by tests/test_topology.py::test_an_end_stop_study_s_selection_and_transforms_equal_its_source_study[minus7-vs-worst]. Comparing the two files' totals is therefore a no-op by construction -- the point of this document is the check, not a new number.",
     "complete: false is the honest outcome the handoff's definition of done asks for: the chain crosses two `assumed` placeholders and one `candidate`-identity edge (the end stop itself), and the requirement this check's numeric limit borrows (S461-607) is not the requirement that names this study's own operating point (S461-241). None of that is a licence to skip publishing the number -- it is why the number renders as a budget, never a hardware verdict."
   ]
 }

@@ -1286,6 +1286,31 @@ def test_an_end_stop_study_loads_its_check_and_folds_a_real_margin(
     assert result.interval.max == pytest.approx(0.5 - total.min)
 
 
+@pytest.mark.parametrize(
+    "new_path, source_path",
+    [
+        (TOPOLOGIES_DIR / "study_pitch_system_end_stop_minus7.json",
+         TOPOLOGIES_DIR / "study_pitch_system_blade_angle_worst.json"),
+        (TOPOLOGIES_DIR / "study_pitch_system_end_stop_plus72.json",
+         TOPOLOGIES_DIR / "study_pitch_system_blade_angle_average.json"),
+    ],
+    ids=("minus7-vs-worst", "plus72-vs-average"),
+)
+def test_an_end_stop_study_s_selection_and_transforms_equal_its_source_study(
+        new_path, source_path):
+    """This test backs each new study's own "byte-for-byte identical" claim
+    (its `notes`) -- the verification `test_provenance.py` requires an asserted
+    byte-identity to name. It checks the two fields the claim is actually
+    about (`selection`, `transforms`) rather than the whole file, since the id,
+    title, provenance and `checks` are exactly what the two documents are
+    meant to differ on.
+    """
+    new_raw = json.loads(new_path.read_text(encoding="utf-8"))
+    source_raw = json.loads(source_path.read_text(encoding="utf-8"))
+    assert new_raw["selection"] == source_raw["selection"]
+    assert new_raw["transforms"] == source_raw["transforms"]
+
+
 def test_check_study_refuses_an_unknown_check_id():
     topology = load_topology(TOPOLOGIES_DIR / "topology_pitch_system.json")
     study = load_study(TOPOLOGIES_DIR / "study_pitch_system_end_stop_minus7.json")

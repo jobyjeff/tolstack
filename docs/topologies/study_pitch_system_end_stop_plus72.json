@@ -73,7 +73,7 @@
     "the_condition_mismatch_named_and_sharper_here": "The -7 deg study at least borrows a sensitivity the source sheet characterises near one end of the sweep (-5 deg, 2 deg off). This study has no such thing to borrow: the only other constant the sheet gives is a full-sweep AVERAGE (F10/F11), which is not characterised at either end, and +72 deg is the far end from where the worst-case column sits. Using it here is the least-bad available choice, not a good one, and it is named as such rather than presented as equivalent in quality to the -7 deg study's approximation."
   },
   "notes": [
-    "Selection and transforms are byte-for-byte identical to study_pitch_system_blade_angle_average.json's; only the id, title, provenance and the added `checks` entry differ. Comparing the two files' totals is therefore a no-op by construction -- the point of this document is the check, not a new number.",
+    "Selection and transforms are byte-for-byte identical to study_pitch_system_blade_angle_average.json's; only the id, title, provenance and the added `checks` entry differ. Verified by tests/test_topology.py::test_an_end_stop_study_s_selection_and_transforms_equal_its_source_study[plus72-vs-average]. Comparing the two files' totals is therefore a no-op by construction -- the point of this document is the check, not a new number.",
     "complete: false, for the same class of reasons as the -7 deg study, plus a sharper one: the full-sweep-average sensitivity is the weakest available stand-in for either end stop, and this end is the one it is furthest from characterising. That does not block publishing the number -- it is why the number renders as a budget, never a hardware verdict."
   ]
 }
