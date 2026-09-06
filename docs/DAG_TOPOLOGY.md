@@ -300,7 +300,7 @@ that stack's own `worst_case_shank_out` check publishes — every field, exactly
 no tolerance — and separately asserts that the topology copies no value, because
 without that second check the first would be comparing a number against itself.
 
-### L2 — `topology_pitch_system.json` + four studies
+### L2 — `topology_pitch_system.json` + six studies
 
 The structure. 12 parts, 20 interfaces, 23 edges, 4 branch points, 4 grounded
 loops (pitch links, gas spring, ring gear, and the hydraulic-brake alternative to
@@ -324,13 +324,16 @@ not maintained by hand.
   above, because a study's numbers, once committed, are not touched by a later
   handoff without a reason of their own.
 
-**Its values are placeholders and its structure is the deliverable.** Two thirds
-of the bands are cells of a workbook that traces nothing (0 of 43, per
-`WORKSHEET_end_stop_graft.md`); the rest are `kind: "assumed"` and say
+**Its values are placeholders and its structure is the deliverable.** At
+founding every one of its 23 dimensioned edges was a workbook cell that traces
+nothing (0 of 43, per `WORKSHEET_end_stop_graft.md`); handoff
+`endstop_location_stack` (2026-09-06) re-cited six of those edges against
+drawings instead (`provenance.retrace_update_20260906`), so the current split
+is 9 `workbook` / 6 `drawing` / 8 `kind: "assumed"` — the last group alone says
 `PLACEHOLDER` in their notes, which a test enforces. Every dimension in it is
 **variation-only** — `nominal: 0.0`, band `±w/2` about an unstated nominal —
 because the source holds tolerance widths, not dimensions. Do not quote a number
-out of it.
+out of it without reading its own `source_ref.confidence` first.
 
 ---
 
