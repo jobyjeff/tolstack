@@ -160,6 +160,19 @@ and this worksheet's own row 63 (a radial bushing clearance, wrong axis).
 §9's five rows from `endstop_location_stack` stand exactly as that session
 left them.
 
+## A green suite before `git add` is not the suite the reviewer gets
+
+`tests/test_provenance.py`'s byte-identity scanner (`claim_inventory()`) reads
+`git ls-files`, which only sees **tracked** files. This session's new study
+JSON was untracked when the full suite first ran green, so its own
+"byte-identical duplicate" phrase was invisible to the scanner — it only
+surfaced as a failure *after* `git add`/`git commit` made the file trackable.
+Re-ran the full suite after staging and after committing, not just after
+writing; a new untracked file's own content can hide a real failure from a
+pre-commit green run. Fixed by rewording the claim in that file's `note`
+(dropping the bare phrase, adding an explicit pointer to the test that
+verifies it) rather than weakening what is actually checked.
+
 ## Verification
 
 - `C:\workspace\tolstack\venv-win\Scripts\python.exe -m pytest -q`: **623

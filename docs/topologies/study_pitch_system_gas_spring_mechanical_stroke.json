@@ -32,7 +32,7 @@
         "cell": "S461-617",
         "callout": "The mechanical stroke between travel stops shall be defined with sufficient tolerance to ensure that contact with the mechanical stops during normal closed-loop operation is extremely improbable",
         "confidence": "traced",
-        "note": "c_status: validated. Pulled 2026-09-06. This is the requirement this check exists to answer -- 'sufficient tolerance' is qualitative and states no number, which is why the limit above is derived from S461-241/S461-516 rather than quoted from this cell. Its byte-identical duplicate is S461-639 (same title, same c_description, later id/timestamp -- see this topology's provenance.mechanical_stroke_extension_20260906 and WORKSHEET_endstop_vision_baseline.md §10)."
+        "note": "c_status: validated. Pulled 2026-09-06. This is the requirement this check exists to answer -- 'sufficient tolerance' is qualitative and states no number, which is why the limit above is derived from S461-241/S461-516 rather than quoted from this cell. Its exact-text duplicate is S461-639 (same title, same c_description, later id/timestamp -- verified in tests/test_topology.py::test_the_near_duplicate_requirement_pairs_are_byte_identical_not_variants; see also this topology's provenance.mechanical_stroke_extension_20260906 and WORKSHEET_endstop_vision_baseline.md §10)."
       },
       "complete": false,
       "excluded_terms": [
