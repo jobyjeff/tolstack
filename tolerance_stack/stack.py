@@ -275,6 +275,14 @@ CONFIDENCES = ("traced", "inferred", "untraced")
 #: from-scratch stack cited a spec file. ``spec`` = a file in
 #: ``data/inbox/specs/`` (``document`` = the filename, ``sheet`` = the page);
 #: added by handoff ``pitch_link_stack``, the first stack to cite one.
+#: ``requirement`` = an item pulled from Polarion into
+#: ``data/inbox/requirements/`` (``document`` = the pull artifact's filename,
+#: ``cell`` = the requirement id, e.g. ``S461-241``, ``callout`` = its own
+#: ``c_description`` quoted verbatim after stripping the HTML wrapper); added by
+#: handoff ``endstop_location_stack``, the first stack/topology work to cite one.
+#: ``note`` must record ``c_status`` -- a check against a ``draft`` requirement
+#: is not the same claim as one against a ``validated`` one, and the word is
+#: nowhere else on the object to carry it.
 #:
 #: What each word means is in ``docs/SOP_TOLERANCE_STACK.md`` Step 5b, which is
 #: the one place allowed to elaborate -- and its list is paired against this
@@ -282,6 +290,7 @@ CONFIDENCES = ("traced", "inferred", "untraced")
 #: drift away from what the constructor accepts.
 SOURCE_REF_KINDS = (
     "drawing", "parts_list", "workbook", "spec", "pipeline_element", "assumed",
+    "requirement",
 )
 
 

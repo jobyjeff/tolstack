@@ -111,6 +111,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from tolerance_stack.stack import (
     ELEMENT_ROLES,
+    CheckResult,
     Interval,
     SourceRef,
     StackElement,
@@ -710,6 +711,23 @@ class Study:
     minus the clamped stack") is topologically the closure of a loop, and the
     residual is a gap edge. Naming it makes the study's total comparable to a
     published check result instead of merely numerically equal to one.
+
+    ``checks`` is the same bridge for a study whose target is not another edge of
+    its own graph but an external limit -- a requirement pulled from Polarion,
+    for instance. Each entry is a raw spec dict, field-for-field the same shape
+    :attr:`~tolerance_stack.stack.StackDefinition.checks` uses (``check_id``,
+    ``label``, ``configuration``, ``criterion``, ``complete``,
+    ``excluded_terms``), plus one field a stack check does not need because its
+    terms are already elements of the same file: ``limit``, ``{"value": ...,
+    "units": ..., "source_ref": {...}}``, the budget this study's own total is
+    checked against. :func:`check_study` folds exactly two terms -- the limit,
+    signed ``+1``, and the study's own total, signed ``-1`` -- through the one
+    :func:`~tolerance_stack.stack.fold`, so a check here is not a second
+    arithmetic path, it is the L1 grip-check pattern (``grip - clamped_stack``)
+    with the study's own :class:`StudyResult` standing in for the clamped stack.
+    ``complete``/``excluded_terms`` are authored, not derived, exactly as a stack
+    check's are -- the author states what is missing because an excluded term by
+    definition has no element to read the gap off of.
     """
 
     id: str
@@ -720,6 +738,7 @@ class Study:
     selection: List[str] = field(default_factory=list)
     transforms: Dict[str, str] = field(default_factory=dict)
     closes: Optional[str] = None
+    checks: List[Dict[str, Any]] = field(default_factory=list)
     provenance: Dict[str, Any] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
 
@@ -1003,6 +1022,59 @@ def summarize(topology: Topology, study: Study) -> StudyResult:
         chain=tuple(chain),
         interval=fold(c.term for c in chain),
         units=units.pop() if units else topology.units,
+    )
+
+
+def check_study(topology: Topology, study: Study, check_id: str) -> CheckResult:
+    """A study's total, checked against one of its authored ``checks`` entries.
+
+    The margin is ``limit - study_total``, folded through the same one
+    :func:`~tolerance_stack.stack.fold` every other check in this repo uses: a
+    synthetic constant :class:`Dimension` for the limit (``min == max == nominal
+    == limit['value']``, citing ``limit['source_ref']``) enters with sign
+    ``+1``, and a synthetic :class:`Dimension` standing in for the study's own
+    :class:`StudyResult` (``nominal``/``min``/``max`` copied from
+    ``result.interval``, citing nothing -- it is a derived total, not an
+    authored value) enters with sign ``-1``. ``CheckResult.verdict`` then reads
+    exactly as an L1 grip check's does: ``pass`` iff the margin's worst case
+    stays ``>= 0``.
+
+    ``complete``/``excluded_terms`` ride through from the spec unchanged, the
+    same way :meth:`~tolerance_stack.stack.StackDefinition.check` does it --
+    authored, not scanned for. A study whose chain still carries `untraced`
+    edges is not detected here; the author says so in the spec, because an
+    excluded term is by definition a gap with no element to read a confidence
+    off of.
+    """
+    spec = next((c for c in study.checks if c.get("check_id") == check_id), None)
+    if spec is None:
+        raise StudyError(f"study {study.id!r} has no check {check_id!r}")
+    result = summarize(topology, study)
+
+    limit = spec["limit"]
+    limit_dim = Dimension(
+        id=f"{check_id}__limit", name=spec.get("label", check_id),
+        nominal=float(limit["value"]), min=float(limit["value"]),
+        max=float(limit["value"]),
+        source_ref=SourceRef.from_dict(limit["source_ref"]),
+    )
+    total_dim = Dimension(
+        id=f"{check_id}__study_total", name=f"{study.id} total",
+        nominal=result.interval.nominal, min=result.interval.min,
+        max=result.interval.max,
+    )
+    margin = fold([Term(limit_dim, sign=1), Term(total_dim, sign=-1)])
+
+    return CheckResult(
+        check_id=spec["check_id"],
+        label=spec.get("label", spec["check_id"]),
+        configuration=spec.get("configuration", {}),
+        interval=margin,
+        criterion=spec.get("criterion", ">= 0"),
+        units=limit.get("units", result.units),
+        guidance=spec.get("guidance"),
+        complete=bool(spec.get("complete", True)),
+        excluded_terms=tuple(spec.get("excluded_terms") or ()),
     )
 
 
