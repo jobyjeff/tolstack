@@ -1974,6 +1974,25 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       itself, not just the pure fold functions — this one had 28 tests and
       none of them called the CLI at all, which is how the miss shipped.
 
+- [ ] **A new DAG-topology node/edge that is not wired into the rest of the
+      graph breaks a test that asserts connectivity rather than deriving it.**
+      New 2026-09-06 (`mechanical_stroke_stack`). `topology_pitch_system.json`
+      is asserted `components == 1` by
+      `tests/test_topology_projection.py::test_the_number_of_closing_edges_is_the_graphs_cycle_count`
+      (the viewer's layout math assumes a single connected component), and
+      `tests/test_topology.py` itself is glob-based/per-file and does **not**
+      catch a disconnected addition — only the full suite does. The author
+      caught this by running the whole suite, not just the topology module's
+      own tests, after a first design gave a new feature two brand-new,
+      deliberately unconnected nodes. When a handoff adds a node/edge whose
+      other end has no source to tie it to the existing graph, check that it
+      reuses an **existing** node (with the approximation this implies named
+      explicitly, e.g. in the edge's `properties`) rather than floating a new
+      isolated subgraph — and run the full suite, not the archetype's own test
+      module, whenever a topology's own connectivity could change. Expect this
+      to recur for the brake-family stack (staged next, same archetype, today
+      only `kind: "assumed"` external edges — same shape of gap).
+
 ## Writing the review
 
 Standard location: `docs/sessions/reviews/REVIEW_<date>_<handoff>.md`.
