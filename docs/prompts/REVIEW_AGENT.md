@@ -1949,6 +1949,31 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       page whose only path to visibility this filter just removed?* — a green
       suite is not evidence the answer is no.
 
+- [ ] **A new projection writer whose INPUT (not just its output) is a
+      gitignored `data/` dir needs `--events-dir`/`--stacks-dir`-style default
+      to follow `--data-root`, not `REPO_ROOT`.** New 2026-09-06
+      (`annotation_surface_mvp`, blocker). Every earlier projection writer's
+      input default is safe to leave `REPO_ROOT`-relative because the input
+      lives under tracked `docs/` (identical between a worktree and the main
+      checkout) — `build_viewer_projection.py --stacks-dir` is the precedent
+      this one was modelled on, and the model doesn't transfer:
+      `build_feature_identity_projection.py`'s events live in gitignored
+      `data/inbox/feature-identity/`, not identical between the two, exactly
+      like its output. So the standard recipe this repo trains every session
+      to type (`--data-root <main-checkout-path>`, from a worktree) silently
+      read the **worktree's own empty** input dir while writing the output
+      into the **main checkout** via `--data-root` — reproduced: `0 stack
+      key(s) from 0 event(s)` against a main checkout that had one real event
+      sitting in it. Stamped, gated, plausible, wrong.
+      `ISSUE_20260906_feature_identity_events_dir_ignores_data_root.md`. The
+      one-command check: run the script's own documented "from a worktree"
+      recipe verbatim, from a worktree, after seeding the main checkout's
+      input dir with one real event and leaving the worktree's own copy of
+      that dir empty (the ordinary state) — if the printed count is zero, the
+      default is wrong. And check for a test that runs `main()`/`rebuild()`
+      itself, not just the pure fold functions — this one had 28 tests and
+      none of them called the CLI at all, which is how the miss shipped.
+
 ## Writing the review
 
 Standard location: `docs/sessions/reviews/REVIEW_<date>_<handoff>.md`.

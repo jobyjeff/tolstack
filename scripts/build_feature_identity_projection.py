@@ -16,10 +16,10 @@ Usage (from the repo's MAIN checkout -- ``data/`` exists only there)::
 
     venv-win\\Scripts\\python.exe scripts\\build_feature_identity_projection.py
 
-From a worktree::
+From a worktree (one line -- PowerShell, not cmd, runs here; ``^`` is cmd's
+continuation and breaks on paste)::
 
-    C:\\workspace\\tolstack\\venv-win\\Scripts\\python.exe ^
-        scripts\\build_feature_identity_projection.py --data-root C:\\workspace\\tolstack\\data
+    C:\\workspace\\tolstack\\venv-win\\Scripts\\python.exe scripts\\build_feature_identity_projection.py --data-root C:\\workspace\\tolstack\\data --events-dir C:\\workspace\\tolstack\\data\\inbox\\feature-identity
 
 Stdlib only.
 """
