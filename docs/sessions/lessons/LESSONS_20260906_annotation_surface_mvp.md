@@ -1,8 +1,57 @@
 # LESSONS 2026-09-06 — annotation_surface_mvp
 
 Select geometry, tag it with a stack element's identity — no measurement.
-Full suite green: `636 passed, 1 skipped` (pytest), `150/150` (`apps/viewer/
-run_tests.cjs`, unaffected), `20/20` (`apps/annotate/run_tests.cjs`, new).
+Full suite green: `646 passed, 1 skipped` (pytest, after the review-round
+fixes below), `150/150` (`apps/viewer/run_tests.cjs`, unaffected), `20/20`
+(`apps/annotate/run_tests.cjs`, new).
+
+## Review round 1 — REQUEST CHANGES, both findings fixed
+
+`docs/sessions/reviews/REVIEW_20260906_annotation_surface_mvp.md` (on
+`review/annotation_surface_mvp`) sent this back with one blocker and one
+should-fix; both are fixed on this branch now.
+
+- **Blocker, fixed:** `scripts/build_feature_identity_projection.py --data-root
+  <path>` alone — the documented, standard-shaped from-a-worktree recipe every
+  other projection builder here supports — silently read **this module's own**
+  `REPO_ROOT`-relative `EVENTS_DIR` instead of `<data-root>/inbox/
+  feature-identity/`, because unlike every other projection's input (tracked
+  `docs/`), this one's input is gitignored `data/` and therefore *not*
+  identical between a worktree and the main checkout, exactly like the
+  output. Reproduced independently by the reviewer against the real main
+  checkout: a stamped, gated, plausible `bindings.json` claiming zero
+  bindings while a real event sat one directory away, no error. Fixed in
+  `tolerance_stack.feature_identity.main()`: `--events-dir`'s default is now
+  derived from `--data-root` (`Path(args.data_root) / "inbox" /
+  "feature-identity"`) rather than the module's own tree, unless explicitly
+  overridden. Three new tests in `tests/test_feature_identity.py` exercise
+  the CLI end to end (`main()` itself, not just `build_projection`): a real
+  event at `--data-root`'s own path is found; an empty `--data-root` reads
+  zero, not a fallback to this tree's own events; an explicit `--events-dir`
+  still overrides. Re-reproduced the reviewer's exact repro against the real
+  main checkout after the fix — now correctly finds the probe event and
+  cleaned the probe up afterward. The script's own docstring is corrected to
+  the true one-line PowerShell recipe (it had a stray cmd-style `^`
+  continuation too, a second sighting of this repo's "a documented command
+  that does not run in this repo's shell" recurring-bugs entry — fixed in the
+  same pass).
+- **Should-fix, fixed:** `apps/annotate/binding_state.js`'s hand-copied
+  vocabulary constants had no structural pairing test against
+  `tolerance_stack/feature_identity.py`, unlike `apps/viewer/viewer.js`'s
+  (`tests/test_js_python_vocabulary.py`). Fixed by generalising that module's
+  `js_array_strings` to take a `prefix` parameter (`"VA"` default, unchanged
+  for every existing call site) rather than forking a second scanner, and
+  adding `tests/test_annotate_js_vocabulary.py`, which pairs all **five**
+  hand-copied arrays (`STACK_KEY_KINDS`, `VERDICTS`, `DIRECTIONS`,
+  `PATH_KINDS`, `GDT_MODIFIERS` — `PATH_KINDS` wasn't named in the review's
+  issue but is the identical hand-copied-vocabulary shape, so it's paired too
+  rather than leaving one word of the same class unclosed).
+
+Everything else the review checked — schema/fold/staleness correctness (28
+of what are now 37 tests in `test_feature_identity.py`), mesh provenance
+(re-hashed independently against the real rotorkit STEP file), scope
+discipline, precedence-guard/write-gating UI copy, `ARCHITECTURE.md`/
+`CLAUDE.md` hygiene — passed clean on the first pass; nothing to redo there.
 
 ## The event schema as shipped
 
@@ -67,15 +116,6 @@ to re-run it.
   that could be revisited if losing an uncommitted binding turns out to cost
   something in practice — the schema doesn't change either way, only where
   the files live.
-- **No JS/Python vocabulary-pairing test** for `apps/annotate/
-  binding_state.js`'s hand-copied constants (`STACK_KEY_KINDS`, `VERDICTS`,
-  `DIRECTIONS`, `GDT_MODIFIERS`), unlike `tests/test_js_python_vocabulary.py`'s
-  pairing for `apps/viewer/viewer.js`. That test module is hand-scoped to one
-  file (`VIEWER_JS`); extending it to a second app's file is a natural
-  follow-up, not built here given the size of everything else in this
-  handoff. `run_tests.cjs` at least asserts the JS constants' literal values
-  match what's written in this lesson and in `feature_identity.py`'s
-  docstring, which catches a value-level drift, just not a structural one.
 - **`apps/annotate` is ES modules; `apps/viewer` is classic scripts.** Not an
   oversight — `scene.js`'s docstring has the full argument: this app already
   cannot run from `file://` (no FSA, no binary `fetch()` there either), so

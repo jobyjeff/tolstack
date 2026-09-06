@@ -575,8 +575,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     ap.add_argument(
         "--events-dir",
-        default=str(EVENTS_DIR),
-        help="override the committed default (mainly for tests)",
+        default=None,
+        help="override the default (--data-root's inbox/feature-identity/). "
+        "Rarely needed outside tests.",
     )
     ap.add_argument(
         "--mesh-replacements",
@@ -595,16 +596,27 @@ def main(argv: Optional[List[str]] = None) -> int:
             for old_sha, manifest_path in mapping.items()
         }
 
-    out_dir = Path(args.data_root) / PROJECTION_SUBDIR
+    # `--events-dir` MUST follow `--data-root` when not explicitly overridden.
+    # This input, unlike every other projection builder's, lives under
+    # gitignored `data/` -- not tracked `docs/` -- so it is NOT identical
+    # between a worktree and the main checkout, exactly like the output. A
+    # bare `REPO_ROOT`-relative default (this module's own tree) would read
+    # the WRONG tree's (usually empty) events directory while writing output
+    # into whatever `--data-root` names, silently producing a stamped, gated,
+    # plausible-looking projection claiming zero bindings
+    # (ISSUE_20260906_feature_identity_events_dir_ignores_data_root.md,
+    # found in review -- reproduced there against the main checkout).
+    data_root = Path(args.data_root)
+    events_dir = Path(args.events_dir) if args.events_dir else data_root / "inbox" / "feature-identity"
+
+    out_dir = data_root / PROJECTION_SUBDIR
     try:
-        out = rebuild(
-            Path(args.events_dir), out_dir, replacements=replacements, allow_older=args.allow_older_tree
-        )
+        out = rebuild(events_dir, out_dir, replacements=replacements, allow_older=args.allow_older_tree)
     except prov.RebuildRefused as refusal:
         print(str(refusal), file=sys.stderr)
         return 3
 
-    events = load_events(Path(args.events_dir))
+    events = load_events(events_dir)
     projection = build_projection(events)
     print(f"wrote {out}")
     print(f"  {len(projection.by_stack_key)} stack key(s) from {len(projection.events)} event(s)")

@@ -120,14 +120,21 @@ is deferred by spec, so `window.AnnotateApp` is fully built by the time
 
 ```powershell
 node apps\annotate\run_tests.cjs
+venv-win\Scripts\python.exe -m pytest tests\test_annotate_js_vocabulary.py -q
 ```
 
-Covers `binding_state.js` (the vocabulary hand-copy against
-`tolerance_stack/feature_identity.py`, stack-key equality, binding-state
+`run_tests.cjs` covers `binding_state.js` (stack-key equality, binding-state
 derivation including the staleness-flip case, event construction and its
 validation) and `storage/memory.js` (a write is captured; a second write to
 the same filename refuses, append-only; `canWrite() === false` refuses a
-write instead of silently no-op'ing).
+write instead of silently no-op'ing). `tests/test_annotate_js_vocabulary.py`
+(pytest, not the node harness) pairs `binding_state.js`'s five hand-copied
+vocabulary arrays (`STACK_KEY_KINDS`, `VERDICTS`, `DIRECTIONS`, `PATH_KINDS`,
+`GDT_MODIFIERS`) against `tolerance_stack/feature_identity.py`'s own
+definitions — the `tests/test_js_python_vocabulary.py` shape, generalised to
+a second app's namespace — so a vocabulary word added to one side with no
+matching literal on the other fails there, structurally, rather than only
+being caught if a value drift happens to reach live data.
 
 `scene.js` (three.js, WebGL, real click raycasting) is **not** exercised by
 `run_tests.cjs` — there is no WebGL in Node, and this repo's own
