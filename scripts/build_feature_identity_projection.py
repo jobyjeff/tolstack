@@ -19,7 +19,16 @@ Usage (from the repo's MAIN checkout -- ``data/`` exists only there)::
 From a worktree (one line -- PowerShell, not cmd, runs here; ``^`` is cmd's
 continuation and breaks on paste)::
 
-    C:\\workspace\\tolstack\\venv-win\\Scripts\\python.exe scripts\\build_feature_identity_projection.py --data-root C:\\workspace\\tolstack\\data --events-dir C:\\workspace\\tolstack\\data\\inbox\\feature-identity
+    C:\\workspace\\tolstack\\venv-win\\Scripts\\python.exe scripts\\build_feature_identity_projection.py --data-root C:\\workspace\\tolstack\\data
+
+``--data-root`` alone is sufficient: unlike every other projection builder
+here, this one's *input* (``data/inbox/feature-identity/``) is also
+gitignored, not tracked ``docs/``, so ``--events-dir`` follows ``--data-root``
+by default rather than this module's own tree
+(``ISSUE_20260906_feature_identity_events_dir_ignores_data_root.md`` --
+found in review; a bare ``REPO_ROOT``-relative default silently read the
+wrong, usually-empty tree while still writing into whatever ``--data-root``
+named).
 
 Stdlib only.
 """

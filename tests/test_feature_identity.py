@@ -29,6 +29,7 @@ from tolerance_stack.feature_identity import (
     build_projection,
     face_matches,
     load_events,
+    main,
     revalidate,
     revalidate_projection,
 )
@@ -325,3 +326,69 @@ def test_revalidate_projection_only_reports_events_with_a_known_replacement(proj
     # the hypothesis-path event is bound to a DIFFERENT sha with no replacement
     # entry here, so it must not appear at all.
     assert "20260906-blade-root-hypothesis" not in results
+
+
+# ---------------------------------------------------------------------------
+# The CLI: --events-dir MUST follow --data-root, not this module's own tree
+# ---------------------------------------------------------------------------
+#
+# ISSUE_20260906_feature_identity_events_dir_ignores_data_root.md (found in
+# review): `--data-root <path>` alone is the documented, standard-shaped
+# from-a-worktree recipe every other projection builder here supports, and it
+# silently read THIS module's own REPO_ROOT-relative events dir instead --
+# usually empty in a worktree -- while still writing the (wrong, empty)
+# output wherever `--data-root` pointed. These tests seed a `--data-root`
+# that is NOT this module's own tree, so a regression back to the
+# REPO_ROOT-relative default shows up as "0 events" against a directory that
+# very much has one.
+
+
+def test_cli_with_only_data_root_reads_that_roots_own_events_dir(tmp_path):
+    data_root = tmp_path / "data"
+    events_dir = data_root / "inbox" / "feature-identity"
+    events_dir.mkdir(parents=True)
+    (events_dir / "0001_x.json").write_text(
+        json.dumps(FeatureIdentityEvent(**_bound_kwargs()).as_dict()), encoding="utf-8"
+    )
+
+    rc = main(["--data-root", str(data_root)])
+    assert rc == 0
+
+    out_path = data_root / "projections" / "feature-identity" / "bindings.json"
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["built_from_events"] == ["e1"]
+    assert len(written["stack_keys"]) == 1
+
+
+def test_cli_with_only_data_root_does_not_read_this_modules_own_tree(tmp_path):
+    """The regression this issue names exactly: an empty --data-root/inbox/
+    feature-identity/ must produce ZERO events, not silently fall back to
+    tolerance_stack/feature_identity.py's own REPO_ROOT-relative EVENTS_DIR
+    (which, in this checkout, is not empty of its README but IS empty of
+    *.json events -- so a fall-back would still show 0, the same wrong
+    number for a different reason; the real guard is the first test above:
+    a real event at --data-root's own path must be found)."""
+    data_root = tmp_path / "data"
+    (data_root / "inbox" / "feature-identity").mkdir(parents=True)
+    # no event files at all
+
+    rc = main(["--data-root", str(data_root)])
+    assert rc == 0
+    out_path = data_root / "projections" / "feature-identity" / "bindings.json"
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["built_from_events"] == []
+
+
+def test_cli_explicit_events_dir_still_overrides_data_root(tmp_path):
+    data_root = tmp_path / "data"
+    other_events_dir = tmp_path / "elsewhere" / "events"
+    other_events_dir.mkdir(parents=True)
+    (other_events_dir / "0001_x.json").write_text(
+        json.dumps(FeatureIdentityEvent(**_bound_kwargs()).as_dict()), encoding="utf-8"
+    )
+
+    rc = main(["--data-root", str(data_root), "--events-dir", str(other_events_dir)])
+    assert rc == 0
+    out_path = data_root / "projections" / "feature-identity" / "bindings.json"
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["built_from_events"] == ["e1"]

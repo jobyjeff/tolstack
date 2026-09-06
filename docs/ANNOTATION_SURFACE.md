@@ -132,7 +132,3 @@ viewer is classic scripts.
   stands, and many-to-many absorbs the cases a 1:1 correction model would
   otherwise need. If a real retraction need arrives, it is a schema
   extension, not a redesign.
-- **A JS/Python vocabulary pairing test** for `apps/annotate`'s hand-copied
-  constants, the way `tests/test_js_python_vocabulary.py` pairs
-  `apps/viewer/viewer.js` against its Python definitions. Noted as a
-  follow-up in the session lesson rather than built here.

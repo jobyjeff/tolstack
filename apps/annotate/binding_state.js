@@ -7,11 +7,11 @@
 // The vocabularies below are a HAND-COPY of tolerance_stack/feature_identity.py's
 // module-level constants (STACK_KEY_KINDS, VERDICTS, DIRECTIONS, PATH_KINDS,
 // GDT_MODIFIERS) -- this repo's most-repeated defect is exactly this kind of
-// drift (ARCHITECTURE.md, "A field vocabulary is a module-level constant"),
-// and apps/viewer/tests/test_js_python_vocabulary.py is the precedent for
-// pairing a JS copy against its Python definition. That pairing is not wired
-// up for this app yet (noted in the session lesson as a follow-up) -- until
-// then, keep this comment and the Python module in sync by hand.
+// drift (ARCHITECTURE.md, "A field vocabulary is a module-level constant").
+// tests/test_annotate_js_vocabulary.py pairs all five against their Python
+// definitions (the apps/viewer/tests/test_js_python_vocabulary.py shape,
+// generalised to a second app's namespace) -- a value added to one side with
+// no matching literal on the other fails there, not silently here.
 (function (AA) {
   "use strict";
 
