@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/doc-guards
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260906_drop_stale_gitignore_publisher_exemption.md
 ---
 
 # `data/inbox/specs/README.md` is tracked, not gitignored — so the one curated publisher the guard exempts is the one it cannot catch

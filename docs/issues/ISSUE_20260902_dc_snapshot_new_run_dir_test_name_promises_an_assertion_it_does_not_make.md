@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
 area: tests/snapshot
 reporter: agent
+resolution: renamed test to test_a_new_run_directory_is_listed_as_an_entry_alongside_its_files (2026-09-06, inline fix, trivial identifier-only change, suite green)
 ---
 
 # `test_a_new_run_directory_shows_the_directory_its_files_and_its_parent` never checks the parent

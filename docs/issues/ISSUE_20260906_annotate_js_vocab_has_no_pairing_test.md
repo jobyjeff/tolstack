@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260906_annotate_vocab_pairing_test.md
 ---
 
 # `apps/annotate/binding_state.js`'s hand-copied vocabulary constants have no structural pairing test against `feature_identity.py`

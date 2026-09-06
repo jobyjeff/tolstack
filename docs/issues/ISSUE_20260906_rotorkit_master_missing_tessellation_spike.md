@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: closed
 area: rotorkit/board
 reporter: agent
+resolution: resolved elsewhere -- 2026-09-06 operator batch-merge (triage session) merged rotorkit's integration into master; master @ db06b0a now contains rotorkit/stepgeom/tessellate.py, scripts/tessellate_parts.py, and 0bcbca0 is reachable from master. Verified with `git branch -a --contains 0bcbca0`. Underlying board-sync drift mechanism this issue names is still real (see the tolstack-side sibling ISSUE_20260904_board_move_commit_unreachable_from_integration.md); this file only tracked rotorkit's specific instance of it, which is now resolved.
 ---
 
 # rotorkit's tessellation code (`stepgeom/tessellate.py`, `scripts/tessellate_parts.py`) is only reachable from `integration`, not `master`

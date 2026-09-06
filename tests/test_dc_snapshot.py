@@ -58,7 +58,7 @@ def test_a_synthetic_added_file_diffs_to_exactly_that_file(watched):
     assert added.as_posix() in sds.format_diff(result)
 
 
-def test_a_new_run_directory_shows_the_directory_its_files_and_its_parent(watched):
+def test_a_new_run_directory_is_listed_as_an_entry_alongside_its_files(watched):
     """The realistic shape of a pipeline write, and the reason directories are
     entries too: a run dir is created first and filled after, so a snapshot that
     listed files only could catch it mid-flight and see nothing."""

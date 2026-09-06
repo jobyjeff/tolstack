@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: tolerance_stack/feature_identity
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260906_feature_identity_events_dir_data_root.md
 ---
 
 # `build_feature_identity_projection.py`'s `--events-dir` default ignores `--data-root`, so the documented worktree recipe silently rebuilds an empty projection
