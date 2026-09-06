@@ -1,0 +1,23 @@
+{
+  "n_vertices": 16,
+  "n_triangles": 14,
+  "n_faces": 2,
+  "faces": [
+    {
+      "face_id": 0,
+      "solid_id": 0,
+      "n_triangles": 14,
+      "n_vertices": 16,
+      "area_native2": 7.586741,
+      "centroid_native": [112.414272, -0.0, 134.944272]
+    },
+    {
+      "face_id": 1,
+      "solid_id": 0,
+      "n_triangles": 9,
+      "n_vertices": 11,
+      "area_native2": 3.673439,
+      "centroid_native": [112.195321, 3.224143, 135.516032]
+    }
+  ]
+}

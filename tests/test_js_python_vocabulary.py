@@ -224,7 +224,7 @@ def js_object_keys(text: str, name: str) -> JsTable:
     return JsTable(name=name, line=line_no, keys=frozenset(keys))
 
 
-def js_array_strings(text: str, name: str) -> JsTable:
+def js_array_strings(text: str, name: str, prefix: str = "VA") -> JsTable:
     """Elements of the ``VA.<name> = [`` array literal in ``text``.
 
     ``js_object_keys``'s sibling, for the one vocabulary the viewer spells as a
@@ -246,12 +246,18 @@ def js_array_strings(text: str, name: str) -> JsTable:
     depth 1 is collected (found in ``review/confidence_vocabulary_single_definition``
     by feeding it the case). A vocabulary array does not nest; if one ever needs to,
     teach this reader the shape rather than letting it shrink the compared set.
+
+    ``prefix`` is the namespace object the array hangs off -- ``VA`` for
+    ``apps/viewer``'s ``window.ViewerApp``, ``AA`` for ``apps/annotate``'s
+    ``window.AnnotateApp`` (``tests/test_annotate_js_vocabulary.py``). Adding a
+    second app's namespace here, rather than forking this scanner, is what
+    keeps a third vocabulary pairable without a third copy of the reader.
     """
     anchors = list(re.finditer(
-        rf"^[ \t]*VA\.{re.escape(name)}\s*=\s*\[", text, re.M))
+        rf"^[ \t]*{re.escape(prefix)}\.{re.escape(name)}\s*=\s*\[", text, re.M))
     if len(anchors) != 1:
         raise LookupError(
-            f"expected exactly one `VA.{name} = [` line in the JS source, found "
+            f"expected exactly one `{prefix}.{name} = [` line in the JS source, found "
             f"{len(anchors)}. If the array moved or was renamed, this test's "
             f"comparison is meaningless until the name here is updated."
         )
@@ -284,7 +290,7 @@ def js_array_strings(text: str, name: str) -> JsTable:
             # at depth 2 and never be collected, which is a dropped vocabulary word
             # wearing the shape of a handled case.
             raise ValueError(
-                f"VA.{name} (line {line_no}) contains {text[i:i + 24]!r}, which is "
+                f"{prefix}.{name} (line {line_no}) contains {text[i:i + 24]!r}, which is "
                 f"not a string literal. This reader takes a FLAT array of plain "
                 f"strings; teach it the shape rather than letting a vocabulary word "
                 f"drop out of the pairing."
@@ -292,11 +298,11 @@ def js_array_strings(text: str, name: str) -> JsTable:
 
     if depth != 0:
         raise ValueError(
-            f"VA.{name}: the array literal opened at line {line_no} never closes -- "
+            f"{prefix}.{name}: the array literal opened at line {line_no} never closes -- "
             f"the scan ran off the end of the file"
         )
     if len(values) != len(set(values)):
-        raise ValueError(f"VA.{name} lists a value twice: {sorted(values)}")
+        raise ValueError(f"{prefix}.{name} lists a value twice: {sorted(values)}")
     return JsTable(name=name, line=line_no, keys=frozenset(values))
 
 

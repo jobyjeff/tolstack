@@ -1,0 +1,29 @@
+{
+  "schema": "joby.tolerance_stack/feature-identity/v0",
+  "event_id": "20260906-blade-root-hypothesis",
+  "seq": 4,
+  "created_at": "2026-09-06T20:15:00Z",
+  "recorded_by": "test-fixture",
+  "stack_key": {
+    "kind": "topology_edge",
+    "topology_id": "pitch_system",
+    "edge_id": "pitch_arm_link_hole_to_clocking_hole"
+  },
+  "verdict": "bound",
+  "geometry_key": {
+    "source_step_sha256": "84c44119a6eb3388502f017613dd11c632a68c70b5d3d7d98499d1143d453ebe",
+    "face_id": 12,
+    "area_native2": 100.0,
+    "centroid_native": [1.0, 2.0, 3.0]
+  },
+  "direction": "from",
+  "owner_part": "blade_root_hub",
+  "owner_path": {
+    "kind": "hypothesis",
+    "via": "the M2 configuration's assembly, not M1's",
+    "note": "reached by a lateral hop through a sibling configuration -- unconfirmed against the M1 BOM"
+  },
+  "gdt_modifier": "L",
+  "general_tol_regime": "ISO-2768-mK",
+  "note": "synthetic fixture -- exercises owner_path=hypothesis, gdt_modifier and general_tol_regime together"
+}

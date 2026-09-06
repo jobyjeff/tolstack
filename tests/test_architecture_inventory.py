@@ -94,7 +94,7 @@ PINNED_CLAIMS = (
      "test_every_row_claiming_stdlib_only_imports_only_the_stdlib"),
     (re.compile(r"needs PyMuPDF"),
      "test_the_block_names_a_dependency_for_exactly_the_modules_that_have_one"),
-    (re.compile(r"all five projection writers"),
+    (re.compile(r"all six projection writers"),
      "test_the_projection_provenance_row_counts_and_names_its_importers"),
     (re.compile(r"the three above"),
      "test_the_projection_provenance_row_counts_and_names_its_importers"),
@@ -487,10 +487,12 @@ def test_the_projection_provenance_row_counts_and_names_its_importers(rows):
     it said **two** until ``spec_library.rebuild`` became the third writer
     (``spec_library_projection_provenance``, 2026-08-12), and **three** until
     ``build_topology_projection.py`` became the fourth (``dag_viewer_poc``,
-    2026-08-31). *"the three above"* is resolved **positionally** -- the three
-    rows preceding this one -- so inserting a row between them also reddens this
-    test, which is the point: the phrase means something different the moment the
-    block is reordered.
+    2026-08-31). ``export_stack_tabular.py`` made it five (2026-09-04) and
+    ``tolerance_stack.feature_identity.rebuild`` makes it **six**
+    (``annotation_surface_mvp``, 2026-09-06). *"the three above"* is resolved
+    **positionally** -- the three rows preceding this one -- so inserting a row
+    between them also reddens this test, which is the point: the phrase means
+    something different the moment the block is reordered.
     """
     matches = [row for row in rows if row.name == "projection_provenance.py"]
     assert len(matches) == 1, "expected exactly one projection_provenance.py row"
@@ -583,7 +585,7 @@ def test_the_quantifier_scan_can_fail():
     assert unpinned_quantifiers("about a thousand lines") == ["thousand"]
     # And the pinned phrases, which must not be flagged.
     assert unpinned_quantifiers(
-        "Imported by all five projection writers (the three above and "
+        "Imported by all six projection writers (the three above and "
         "`tolerance_stack/spec_library.py`, 2026-08-12).") == []
     assert unpinned_quantifiers("source_ref -> a crop PNG (needs PyMuPDF)") == []
 

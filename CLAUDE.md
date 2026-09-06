@@ -50,6 +50,12 @@ traced ratio" — never restate the rule elsewhere).
   dimensions and gaps as edges, a study = a human-lassoed chain. It carries a
   hard fence — **it is not a solver** — and that fence rules out the most
   natural-looking next feature.
+- **A stack element or topology edge whose physical feature is unresolved** →
+  `docs/ANNOTATION_SURFACE.md`. The select-and-tag surface (2026-09-06):
+  `apps/annotate/` binds a stack-side key to a mesh face and writes an
+  immutable `feature-identity/v0` event — **select + tag only, no
+  measurement.** A binding is identity, not a value source; a drawing
+  citation still wins wherever one exists.
 - **Reviewing** → `docs/prompts/REVIEW_AGENT.md`. It is both the checklist and
   the per-repo override dispatch serves to review agents.
 - **How the code is shaped and why** → `ARCHITECTURE.md`. Its module inventory is
