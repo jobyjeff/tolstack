@@ -548,14 +548,34 @@ class Passage:
         return any(q.lower() in self.text.lower() for q in RULE_QUALIFIERS)
 
 
+#: A markdown list item's own marker line, task-list checkbox included --
+#: distinguished from a wrapped continuation line, which never starts with
+#: ``-``. ``_flattened_units`` uses this to tell where one bullet ends and the
+#: next begins.
+BULLET_START = re.compile(r"^\s*-\s+(\[[ xX]\]\s+)?\S")
+
+
 def _flattened_units(path: Path) -> list[tuple[int, str, bool]]:
     """``(first line, flattened text, is a blockquote)`` for each block in a file.
 
     Blank-line separated, which is a paragraph in markdown and in a docstring
-    alike. A markdown **table** is split row by row instead: a table is many
-    independent claims sharing one block, and ``ARCHITECTURE.md``'s ``fold(terms)``
-    row is one of the four passages this scan exists to see -- reading the table
-    whole would let a qualified row two lines away cover an absolute one.
+    alike, then split further so a scan's *unit* never spans more than one
+    independent claim:
+
+    * A markdown **table** is split row by row: a table is many independent
+      claims sharing one block, and ``ARCHITECTURE.md``'s ``fold(terms)`` row
+      is one of the four passages this scan exists to see -- reading the
+      table whole would let a qualified row two lines away cover an absolute
+      one.
+    * A run of ``- ``/``- [ ]`` list items is split item by item, each
+      carrying its own wrapped continuation lines (any line that does not
+      itself open a new item) with it. Without this, one qualifier anywhere
+      in a large bulleted block covered every bare rule statement in it --
+      ``docs/prompts/REVIEW_AGENT.md`` has a 14 976-character single block
+      this way
+      (``ISSUE_20260903_a_qualifier_anywhere_in_a_15kb_block_covers_an_absolute_rule_statement.md``).
+      A block with no bullet marker in it splits into exactly one item -- the
+      whole block, same as before this split existed.
     """
     blocks: list[tuple[int, list[str]]] = []
     current: list[str] = []
@@ -577,10 +597,19 @@ def _flattened_units(path: Path) -> list[tuple[int, str, bool]]:
         if all(line.lstrip().startswith("|") for line in block):
             units += [(start + offset, re.sub(r"\s+", " ", line).strip(), False)
                       for offset, line in enumerate(block)]
-        else:
-            units.append((start,
-                          re.sub(r"\s+", " ", " ".join(block)).strip(),
-                          all(line.lstrip().startswith(">") for line in block)))
+            continue
+        items: list[list[str]] = []
+        for line in block:
+            if not items or BULLET_START.match(line):
+                items.append([line])
+            else:
+                items[-1].append(line)
+        offset = 0
+        for item in items:
+            units.append((start + offset,
+                          re.sub(r"\s+", " ", " ".join(item)).strip(),
+                          all(line.lstrip().startswith(">") for line in item)))
+            offset += len(item)
     return units
 
 
@@ -807,6 +836,30 @@ def test_the_rule_statement_scan_can_fail(tmp_path):
     rows = scan("| `fold()` | the only place element values are combined |\n"
                 "| `x()` | combines element values, outside the exceptions |\n")
     assert len(rows) == 1 and rows[0].location == "d.md:1", rows
+
+    # A bullet item is its own unit too: a qualified item must not cover a bare
+    # one sitting right after it in the same block -- the defect
+    # `rule_scan_bullet_block_masking` exists to fix, measured against
+    # `docs/prompts/REVIEW_AGENT.md`'s 14 976-character checklist block. The
+    # reported line is the bare item's own line, not the block's first line.
+    bullets = scan(
+        "- `fold()` never combines two element values, except the sites on "
+        "the declared exception list.\n"
+        "- `x()` combines element values.\n"
+    )
+    assert len(bullets) == 1 and bullets[0].location == "d.md:2", bullets
+
+    # Same shape with a task-list checkbox and a wrapped continuation line, the
+    # form the real block actually uses -- the continuation stays with its own
+    # item rather than drifting into the next one, and the bare item's reported
+    # line is where *it* starts, not the qualified item's.
+    checklist = scan(
+        "- [ ] `fold()` never combines two element values, except the sites on\n"
+        "      the declared exception list.\n"
+        "- [ ] `x()` combines element values, with a continuation line wrapped\n"
+        "      onto the next line.\n"
+    )
+    assert len(checklist) == 1 and checklist[0].location == "d.md:3", checklist
 
     # Silent: conditional in either accepted form, and quoted in either of the
     # two the house convention allows.
