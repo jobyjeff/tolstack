@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: apps/annotate
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260906_annotate_vocab_pairing_test.md
+resolution: handoff completed 2026-09-06 -- closed automatically by dispatch when handoff `annotate_vocab_pairing_test` moved to completed/; not independently verified.
 ---
 
 # `apps/annotate/binding_state.js`'s hand-copied vocabulary constants have no structural pairing test against `feature_identity.py`
