@@ -56,7 +56,7 @@ correct there. Re-read it end to end to confirm before concluding this.
 ## For whoever triages the issue
 
 `docs/issues/ISSUE_20260906_feature_identity_events_dir_ignores_data_root.md`
-is `status: triaged` and still points at this handoff. I did not change its
+is `status: open` and still points at this handoff. I did not change its
 status — the issue frontmatter contract reserves `resolved`/`closed` for
 triage, not the tactical session acting on it — but the fix it describes is
 already shipped, verified above, so it should resolve cleanly rather than
