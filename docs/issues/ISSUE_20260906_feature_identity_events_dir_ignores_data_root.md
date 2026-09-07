@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: tolerance_stack/feature_identity
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260906_feature_identity_events_dir_data_root.md
+resolution: handoff completed 2026-09-06 -- closed automatically by dispatch when handoff `feature_identity_events_dir_data_root` moved to completed/; not independently verified.
 ---
 
 # `build_feature_identity_projection.py`'s `--events-dir` default ignores `--data-root`, so the documented worktree recipe silently rebuilds an empty projection
