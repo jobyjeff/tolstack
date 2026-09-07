@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/doc-guards
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260906_drop_stale_gitignore_publisher_exemption.md
+resolution: handoff completed 2026-09-06 -- closed automatically by dispatch when handoff `drop_stale_gitignore_publisher_exemption` moved to completed/; not independently verified.
 ---
 
 # `data/inbox/specs/README.md` is tracked, not gitignored — so the one curated publisher the guard exempts is the one it cannot catch
