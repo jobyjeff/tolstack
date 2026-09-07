@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/doc-guards
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260906_rule_scan_bullet_block_masking.md
+resolution: handoff completed 2026-09-06 -- closed automatically by dispatch when handoff `rule_scan_bullet_block_masking` moved to completed/; not independently verified.
 ---
 
 # The one-fold rule scan's unit is a blank-line block, and this repo has 15 KB blocks — a qualifier at the top covers an absolute at the bottom
