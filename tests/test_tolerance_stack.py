@@ -1544,7 +1544,7 @@ _RATIO_PUBLISHER_NAMES = (
     "ARCHITECTURE.md",
     "docs/SOP_TOLERANCE_STACK.md",
     "docs/prompts/REVIEW_AGENT.md",
-    "data/inbox/specs/README.md",     # gitignored: present only in the main checkout
+    "data/inbox/specs/README.md",
 )
 _RATIO_PUBLISHER_COUNT = 11           # the four above + seven WORKSHEET_*.md
 
@@ -1582,9 +1582,7 @@ def test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete():
     publishers = traced_ratio_publishers(repo_root)
     assert_coverage_set("traced-ratio publishers", publishers,
                         _RATIO_PUBLISHER_COUNT, exact=True)
-    gone = [str(p.relative_to(repo_root)) for p in publishers
-            if not p.exists() and p.relative_to(repo_root).as_posix()
-            not in ("data/inbox/specs/README.md",)]
+    gone = [str(p.relative_to(repo_root)) for p in publishers if not p.exists()]
     assert gone == [], (
         f"{gone} are named as traced-ratio publishers and do not exist. A dead "
         f"entry in a curated set is a document nobody is checking."
@@ -1709,9 +1707,7 @@ def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
 
     missing = []
     for p in traced_ratio_publishers(repo_root):
-        if not p.exists():          # data/ is gitignored; absent in a worktree
-            continue
-        if current not in p.read_text(encoding="utf-8"):
+        if not p.exists() or current not in p.read_text(encoding="utf-8"):
             missing.append(str(p.relative_to(repo_root)))
 
     asserted_stale = []
