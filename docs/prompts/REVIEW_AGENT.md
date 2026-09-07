@@ -553,6 +553,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       manifest) and shape 3 (claim-count baseline) were rejected as their own
       staleness surfaces, so **that class stays this checklist item's job**:
       still diff the doc's headings against its previous version yourself.
+- [ ] **A guard's exemption comment states a fact about the repo, not just an
+      intent — re-verify the fact, don't trust the comment.** New 2026-09-06
+      (`drop_stale_gitignore_publisher_exemption`). `traced_ratio_publishers()`
+      exempted `data/inbox/specs/README.md` on both existence-check paths with
+      `# gitignored: present only in the main checkout` — the file is tracked
+      (`git ls-files data/` lists it, `git check-ignore -v` returns nothing) and
+      always present, so the exemption silently absorbed the file's deletion
+      instead of catching it, for over a month, in the guard's own demonstration
+      of "cannot fail on a deleted section." A stale comment like this is
+      invisible to every check in this list above it — it doesn't restate a
+      count, it restates a belief. When a guard carries a named exemption
+      justified by "gitignored" / "generated" / "not tracked" / similar, verify
+      the claim yourself (`git check-ignore -v`, `git ls-files`) rather than
+      reading the comment as still true; if it should still be conditional,
+      gate it by the actual check (e.g. `git check-ignore`) at test time, not
+      a hardcoded belief.
 - [ ] **Surviving `{{REPO_NAME}}` from the template stamp.** forge's
       `conventions._substitute_names` walks only `.md`/`.txt`/`.toml`, so
       placeholders live on in `.ps1`/`.py` stubs. Grep the diff for `{{`.
