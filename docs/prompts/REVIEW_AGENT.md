@@ -450,6 +450,21 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A dedicated handoff's target fix already shipped inside another
+      handoff's review-response commit.** Two sightings on 2026-09-06, same
+      day, same commit: `annotation_surface_mvp` got REQUEST CHANGES, and its
+      review-response commit (`d0c3565`) fixed *both* named should-fixes at
+      once before the two separate handoffs dispatched against those
+      should-fixes' issues (`feature_identity_events_dir_data_root`,
+      `annotate_vocab_pairing_test`) were even cut — each arrived as a
+      single lessons-file commit reporting "no code change needed." Don't
+      take that on faith: `git merge-base --is-ancestor <the response commit>
+      HEAD` plus `git diff <that commit> -- <the in-scope files>` (empty)
+      is what actually proves it, and both sessions did this. When a
+      handoff's own `Source:` line points at an issue filed from a review of
+      an *earlier* handoff, check whether that earlier handoff's own
+      review-response commit already closed it before assuming there is
+      code to write.
 - [ ] **Editing the wrong `REVIEW_AGENT.md`.** The absolute path dispatch tells
       you to `Read` is the *generated* composed prompt in the main checkout's
       gitignored `.dispatch/prompts/` — edits there are discarded at the next
