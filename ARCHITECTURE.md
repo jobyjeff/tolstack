@@ -57,6 +57,14 @@ scripts/
   snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
                                the evidence for "nothing was written there"
   run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code)
+  rebuild_projections.ps1      runs the topology, results and crops builders from
+                               the MAIN checkout in sequence and fails loud,
+                               before building anything, if drawing-checker's
+                               venv is missing -- a rebuild that skips crops
+                               silently is the failure this script exists to
+                               prevent. Prints the rebuilt projections'
+                               provenance stamps side by side so a caller can
+                               see whether they agree. Added 2026-09-08.
 apps/
   viewer/           the static stack/check review surface (see its README)
   annotate/         the write-capable annotation surface: select a mesh face,
