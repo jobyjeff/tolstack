@@ -2041,6 +2041,24 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       to recur for the brake-family stack (staged next, same archetype, today
       only `kind: "assumed"` external edges — same shape of gap).
 
+- [ ] **A schema field added specifically to make something renderable, where
+      the projection that would render it never calls the function that
+      computes it.** New 2026-09-08 (`topology_schema_v1`, should-fix, filed as
+      `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`).
+      `check_study()`'s no-`limit` branch was built precisely so a study's
+      total could carry a verdict "equivalent in power to
+      `StackDefinition.checks`" — but `scripts/build_topology_projection.py`
+      never imports `check_study`, never calls `study.checks`, and
+      `project_study()`'s row has no `"checks"` key at all, in either the
+      pre- or post-handoff tree. Contrast `build_viewer_projection.py`'s
+      `project_stack`, which calls `stack.check(spec["check_id"])` for every
+      entry in `stack.checks` and merges the `CheckResult` into the row. So a
+      capability can pass its own acid test (a direct call to the function in
+      a test) and still be invisible to every consumer of the projection —
+      check, for any handoff that adds a computed/checkable field, whether the
+      **projection** actually calls the function that computes it, not just
+      whether a test does.
+
 ## Writing the review
 
 Standard location: `docs/sessions/reviews/REVIEW_<date>_<handoff>.md`.
