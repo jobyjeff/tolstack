@@ -68,6 +68,11 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import projection_provenance as prov  # noqa: E402
+# The confidence vocabulary and its rank order are `build_viewer_projection`'s
+# ("Every confidence value this projection can write, weakest last") -- reused
+# here rather than re-listed, so a third copy can't drift from the other two the
+# way `docs/prompts/REVIEW_AGENT.md`'s vocabulary-drift log warns about.
+from build_viewer_projection import count_confidence, worst_confidence  # noqa: E402
 from tolerance_stack.topology import (  # noqa: E402
     Contribution,
     Edge,
@@ -76,6 +81,7 @@ from tolerance_stack.topology import (  # noqa: E402
     StudyError,
     Topology,
     TopologyError,
+    check_study,
     load_study,
     load_topology,
     summarize,
@@ -568,6 +574,38 @@ def project_contribution(contribution: Contribution) -> Dict[str, Any]:
     return row
 
 
+def project_study_check(topology: Topology, study: Study,
+                        chain: Sequence[Contribution], spec: Dict[str, Any]
+                        ) -> Dict[str, Any]:
+    """One ``study.checks`` entry, in ``project_stack``'s check shape exactly.
+
+    ``check_study`` is already proven field-for-field equal to a stack's own
+    ``CheckResult`` for the L1 acid test (``tests/test_topology.py::
+    test_the_l1_studys_own_authored_check_matches_the_stacks_check_exactly``);
+    this merges that same ``CheckResult`` into a row the way
+    :func:`project_stack` merges a stack's. The one difference: a study check
+    has no separate ``terms`` list to walk -- ``check_study`` checks the whole
+    chain ``traverse()`` already built -- so the confidence scoreboard is read
+    off the chain's own contributions instead of a term list.
+    """
+    outcome = check_study(topology, study, spec["check_id"])
+    result = outcome.as_dict()
+    result.update(rounded(outcome.interval.as_dict()))
+    counts = count_confidence([c.dimension for c in chain])
+    result.update(
+        {
+            # No topology archetype generates a study's checks (there is no
+            # thermal_fit-style generated-check archetype here) -- every one is
+            # authored, so this is always False.
+            "generated": False,
+            "input_confidence": counts,
+            "worst_confidence": worst_confidence(counts),
+            "workbook_cells": spec.get("workbook_cells"),
+        }
+    )
+    return result
+
+
 def project_study(topology: Topology, study: Study, path: Path,
                   raw: Dict[str, Any]) -> Dict[str, Any]:
     """One study: its fold and its chain layout, or the error it raises.
@@ -597,6 +635,7 @@ def project_study(topology: Topology, study: Study, path: Path,
         "error": None,
         "result": None,
         "layout": None,
+        "checks": None,
     }
     try:
         chain = traverse(topology, study)
@@ -611,6 +650,8 @@ def project_study(topology: Topology, study: Study, path: Path,
     projected.update(rounded(result.interval.as_dict()))
     row["result"] = projected
     row["layout"] = serialize_chain(chain).as_dict()
+    row["checks"] = [project_study_check(topology, study, chain, spec)
+                     for spec in study.checks]
     return row
 
 
@@ -813,10 +854,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         for study in topology["studies"]:
             if study["status"] == "ok":
                 result = study["result"]
+                checks_note = ""
+                if study["checks"]:
+                    checks_note = ", " + ", ".join(
+                        f"{c['check_id']}={c['verdict']}" for c in study["checks"])
                 print(
                     f"    {study['id']:44s} {len(result['chain'])} contributions, "
                     f"±{result['worst_case_half']} {result['units']} worst case, "
-                    f"±{result['rss_half']} RSS"
+                    f"±{result['rss_half']} RSS{checks_note}"
                 )
             else:
                 print(f"    {study['id']:44s} {study['error']['type']}: "
