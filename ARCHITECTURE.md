@@ -35,8 +35,12 @@ scripts/
   build_topology_projection.py the tolerance-topology archetype's projection:
                                the rail serialisation plus summarize() ->
                                data/projections/viewer/topologies.json. Added
-                               2026-08-31; stdlib only. The layout lives here,
-                               not in JS, so pytest can pin it.
+                               2026-08-31; stdlib plus its sibling scripts
+                               (projection_provenance, and since
+                               topology_projection_emits_study_checks also
+                               build_viewer_projection, for its confidence
+                               vocabulary). The layout lives here, not in JS,
+                               so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
                                2026-08-10; stdlib only. Imported by all six

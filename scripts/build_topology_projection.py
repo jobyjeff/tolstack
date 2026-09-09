@@ -48,7 +48,9 @@ which tree it built from and **refuses** to overwrite a projection built from a
 tree this one does not contain -- ``scripts/projection_provenance.py`` holds
 both, and ``--allow-older-tree`` overrides the refusal.
 
-Stdlib only, plus this repo's own ``tolerance_stack`` package.
+Stdlib only, plus this repo's own ``tolerance_stack`` package and its sibling
+scripts (``projection_provenance``, and since ``topology_projection_emits_study_
+checks`` also ``build_viewer_projection``, for its confidence vocabulary).
 """
 
 from __future__ import annotations
