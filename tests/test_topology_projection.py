@@ -455,6 +455,48 @@ def test_a_transcribed_value_is_never_rounded(projection):
                 assert contribution["value_max"] == dimension["max"]
 
 
+def test_the_pitch_system_worksheet_resolves_through_the_declared_field(projection):
+    """Deliverable 3. `provenance.worksheet` names `WORKSHEET_end_stop_graft.md`,
+    which shares no stem with `pitch_system` -- so only the declared-field rule
+    finds it, not the `topology_X.json` -> `WORKSHEET_X.md` by-name fallback.
+    """
+    row = projected(projection, "pitch_system")
+    assert row["worksheet_source"] == "declared"
+    assert row["worksheet_file"] == (
+        "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md")
+    assert (REPO_ROOT / row["worksheet_file"]).exists()
+
+
+def test_a_topology_with_no_declared_or_by_name_worksheet_projects_none(projection):
+    row = projected(projection, "vpa_output_to_pitch_plate")
+    assert row["worksheet_file"] is None
+    assert row["worksheet_source"] is None
+
+
+def test_the_l1_topologys_joint_rides_into_the_projection(projection):
+    """Deliverable 2, through the projection: the joint block a reviewer reads
+    beside the rail diagram is the same one `Topology.joint` carries."""
+    row = projected(projection, "vpa_output_to_pitch_plate")
+    assert row["joint"]["assembly_drawing"] == "217755"
+    assert row["joint"]["scope"] == "grip length only"
+
+    pitch_system_row = projected(projection, "pitch_system")
+    assert pitch_system_row["joint"] == {}
+
+
+def test_a_studys_configuration_rides_into_the_projection(projection):
+    """Deliverable 5, gap 3, through the projection."""
+    row = projected(projection, "pitch_system")
+    branch = next(s for s in row["studies"]
+                  if s["id"] == "pitch_system_gas_spring_branch")
+    assert branch["configuration"]["load_case"].startswith("collective")
+
+    l1_row = projected(projection, "vpa_output_to_pitch_plate")
+    l1_study = next(s for s in l1_row["studies"]
+                     if s["id"] == "vpa_output_shank_out")
+    assert l1_study["configuration"] == {}
+
+
 def test_the_l1_study_totals_the_stacks_published_check(projection):
     """The proof, once more through the projection.
 

@@ -160,8 +160,23 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
 
 | schema | you write it? | what it is |
 |---|---|---|
-| `joby.tolerance_stack/topology/v0` | **yes** — one per system | `parts`, `nodes`, `edges`, named `transforms`, plus `provenance` and `notes` |
-| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list |
+| `joby.tolerance_stack/topology/v0` | **yes** — one per system | `parts`, `nodes`, `edges`, named `transforms`, plus an optional `joint`, `provenance` and `notes` |
+| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list, an optional `configuration` block |
+
+### Versioning: additive fields stay `/v0` (2026-09-08, handoff `topology_schema_v1`)
+
+Every field this handoff added — `Topology.joint`, `Study.configuration`,
+`checks[].limit` becoming optional — is optional, defaults to an empty value,
+and is read by nothing `fold()`/`traverse()`/`summarize()` touches. A topology
+or study authored before any of them exist still loads and folds identically:
+there is nothing for it to be missing. That is the same shape
+`hardware_entry/v0` already used for `values_source` ("`hardware_entry` stays
+`/v0` because the field is additive and no reader breaks on it",
+`docs/SOP_TOLERANCE_STACK.md` Step 4) — additive-and-optional does not need a
+version bump, only a mandatory field with no safe default would. Both existing
+topologies and all eight studies load and fold to the identical numbers before
+and after this handoff; `tests/test_topology.py` pins every one of them, so
+this is a checked claim, not a promise.
 
 ### A topology, in outline
 
@@ -178,6 +193,11 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
       "source_ref": { "kind": "workbook", "cell": "D10",
                       "confidence": "untraced", "note": "PLACEHOLDER ..." } }
   ],
+  "joint": {
+    "assembly_drawing": "217755", "assembly_revision": "A.1",
+    "sheet": 5, "view": "DETAIL X", "zone": "C10",
+    "description": "...", "scope": "grip length only"
+  },
   "parts": [ { "id": "pitch_arm", "name": "pitch arm", "drawing": null } ],
   "nodes": [
     { "id": "pitch_link_arm_hole", "name": "...",
@@ -199,6 +219,18 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
 
 `units` is the unit **every** stored dimension is in; a topology does not mix
 them. What a *study's* output unit is depends on the transforms it crosses.
+
+`joint` is optional and free-form: the same assembly/context block a stack's
+own `joint` carries (`assembly_drawing`, `assembly_revision`, `sheet`, `view`,
+`zone`, `zone_note`, `description`, `scope`), added 2026-09-08 (handoff
+`topology_schema_v1`) for a topology that re-expresses, or documents, one
+physical joint. `topology_vpa_output_to_pitch_plate.json` carries one that
+mirrors its stack's field for field, since both documents describe the same
+joint; `topology_pitch_system.json` carries none, because it is not one joint
+— it is a whole mechanism. Prose, not a toleranced value: nothing here is
+`fold()`'s to read, and there is no `dimension_ref`-style resolution for it —
+if the topology's and the stack's ever disagree, the stack's wins, the same
+rule `provenance.structure`'s reading of element order already follows.
 
 ### Where an edge's value comes from
 
@@ -227,7 +259,8 @@ Three cases, and the difference matters:
   "to": "shank_full_dia_end",
   "closes": "shank_out",
   "selection": ["straight_bushing", "...", "fastener_grip"],
-  "transforms": { "<edge id>": "<transform id>" }
+  "transforms": { "<edge id>": "<transform id>" },
+  "configuration": { "load_case": "..." }
 }
 ```
 
@@ -246,12 +279,28 @@ Three cases, and the difference matters:
   bridge for a target that is not another edge of the study's own graph** — a
   requirement pulled from Polarion, most concretely. Each entry is the same raw
   spec shape a stack's `checks` list already uses (`check_id`, `label`,
-  `configuration`, `criterion`, `complete`, `excluded_terms`), plus `limit` —
-  `{"value": ..., "units": ..., "source_ref": {...}}` — the budget the study's
-  own total is checked against. `check_study()` folds exactly two terms through
-  the one `fold()`: the limit (sign `+1`) and the study's own total (sign `-1`)
-  — the L1 grip-check pattern, with a `StudyResult` standing in for the clamped
-  stack. `complete`/`excluded_terms` are **authored**, never scanned for, for
+  `configuration`, `criterion`, `workbook_cells`, `guidance`, `complete`,
+  `excluded_terms`), plus an *optional* `limit` — `{"value": ..., "units": ...,
+  "source_ref": {...}}` — the budget the study's own total is checked against,
+  when there is one:
+  - **With a `limit`** — `check_study()` folds exactly two terms through the
+    one `fold()`: the limit (sign `+1`) and the study's own total (sign `-1`)
+    — the L1 grip-check pattern, with a `StudyResult` standing in for the
+    clamped stack.
+  - **With no `limit`** (added 2026-09-08, handoff `topology_schema_v1`,
+    deliverable 1's acid test) — the criterion applies directly to the study's
+    own total, which is already the output of the one `fold()` inside
+    `summarize()`. This is the shape for a study whose chain already sums to
+    the exact quantity a check evaluates, as `vpa_output_shank_out`'s does:
+    its `worst_case_shank_out` check has no `limit`, and `check_study()`
+    reproduces `stack_vpa_output_to_pitch_plate.json`'s own published
+    `worst_case_shank_out` — interval, verdict and criterion, exactly — which
+    is the acid test deliverable 1 asked for. **This is what makes `checks`
+    equivalent in power to `StackDefinition.checks`**: a stack's own check is
+    just as often a pure combination of its elements/paths (no external
+    number at all) as it is a budget, and now so is a study's.
+
+  `complete`/`excluded_terms` are **authored**, never scanned for, for
   the same reason a stack check's are: an excluded term has no element to read
   a gap off of. See `study_pitch_system_end_stop_minus7.json` and
   `study_pitch_system_end_stop_plus72.json`, whose one check each cites S461-607
@@ -265,6 +314,35 @@ Three cases, and the difference matters:
   points — so both checks render as a *budget*, never a hardware verdict,
   exactly as `CheckResult`'s `complete` flag already requires everywhere else in
   this repo.
+- **`configuration`, added 2026-09-08, closes "What v0 cannot do" gap 3** (load
+  cases, below). Free-form and descriptive only — nothing in `traverse()` or
+  `summarize()` reads it, the same as a stack check's own `configuration`.
+  Today which load case a study represents (collective vs. cyclic, which
+  branch a parallel path stands for) lives entirely in *which edges a human
+  put in* `selection`, unlabelled; this gives that a place to be written down.
+  See `study_pitch_system_gas_spring_branch.json`.
+
+**A check whose terms combine several *named* term lists — the way a stack's
+own `checks` mix an element with a `{"path": id, "sign": -1}` term
+(`stack_tan_link_to_pitch_plate.json`'s `shank_out__13_thick` folds a `path`
+plus two individually-signed elements) — has no topology equivalent, and
+deliverable 4 fences that rather than building one (investigated, not shipped;
+2026-09-08, handoff `topology_schema_v1`).** A stack's `path` is a name
+resolved by a local dict lookup inside the *same file* (`StackDefinition.
+paths`); a topology's nearest analogue is a `Study`, and by design each study
+is its own document — nothing here indexes studies by id the way a stack
+indexes its own paths. Building that lookup, and then combining two studies'
+totals under independently authored signs, reopens exactly the question
+`traverse()`'s branch/cycle guards exist to refuse: two chains over one
+topology may share edges or nodes, and nothing would then check whether their
+combination is two independent contributions or one physical quantity counted
+twice — a guarantee `fold()` gets for free inside *one* chain (the cycle guard)
+and would not get across two. **Path-referencing check terms stay stack-side.**
+`linear_stack_conversions` should read this verdict before converting
+`tan_link_to_pitch_plate`: a stack whose checks reference named paths this way
+does not carry over to a topology's `checks` unchanged, and needs either a
+flattened per-check term list or to keep its checks on the stack side of a
+`dimension_ref` re-expression.
 
 ### Where a sensitivity belongs
 
@@ -280,6 +358,25 @@ end-stop workbook has three sensitivity columns over one set of rows. So:
   `pitch_arm_link_hole_to_clocking_hole` *is* an angle at the blade. That is the
   only edge in the repo carrying a non-identity default, and a test holds it to
   one so that a second one has to re-make the argument.
+
+### A worksheet home (deliverable 3, 2026-09-08)
+
+A stack locates its worksheet by two rules
+(`scripts/build_viewer_projection.py`'s `worksheet_for()`): a declared
+`provenance.worksheet` wins, else `stack_X.json` matches `WORKSHEET_X.md` by
+name. A topology reuses the **same two rules**, read by
+`scripts/build_topology_projection.py`'s own `worksheet_for()` — declared
+first, then `topology_X.json` -> `WORKSHEET_X.md` by name — because a
+topology's worksheet is usually named for the *source workbook*, not the
+system: `topology_pitch_system.json` declares
+`provenance.worksheet: "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md"`,
+which shares no stem with `pitch_system` at all, so only the declared rule
+finds it. Emitted into the projection as `worksheet_file`/`worksheet_source`,
+the same field names `results.json` already carries for a stack. The worksheet
+lives on the **topology**, not the study: a source workbook documents the
+whole system's rows, and several studies over one topology share one
+worksheet, the same many-studies-one-topology relationship the format already
+has everywhere else.
 
 ---
 
@@ -360,25 +457,50 @@ out of it without reading its own `source_ref.confidence` first.
 ## What v0 cannot do
 
 Found by building L2 against Jeff's own end-stop workbook, and recorded here
-rather than in a lesson because they are schema findings, not session notes:
+rather than in a lesson because they are schema findings, not session notes.
+Swept 2026-09-08 (handoff `topology_schema_v1`, deliverable 5) per that
+handoff's instruction: none may be silently dropped, so each of the four is
+either closed or re-fenced with a dated note below, rather than left as it was
+written on 2026-08-31.
 
 1. **A weight computed from `properties`.** The workbook applies a diameter-MMC
    weighting factor built from two blade-root radii to three of its rows. One
    ratio per edge cannot express it. This is what the next `TRANSFORM_KINDS`
-   word probably is.
+   word probably is. **Still open, re-fenced 2026-09-08**: this schema pass adds
+   no new `TRANSFORM_KINDS` word, because no committed study needs one yet —
+   the three affected rows are still `kind: "assumed"` placeholders, so there is
+   no real weighting formula in the tree to design the fourth word against.
 2. **A contributor that is not a chain edge.** The workbook's *largest* single
    angular contributor is gas-spring bushing tipping backlash — a radial
-   clearance acting over two lever arms. No axial chain carries it.
+   clearance acting over two lever arms. No axial chain carries it. **Still
+   open, re-fenced 2026-09-08**: unchanged for the same reason as gap 1 — no
+   edge/node shape for "a clearance acting over two lever arms, not along an
+   axial chain" was designed this session, because doing so well needs a real
+   sourced value to design against, not the placeholder that is there today.
 3. **Load cases.** The ring-gear branch participates cyclically and follows
    along for pure collective. Today that distinction lives entirely in which
    edges a human puts in a `selection`, unlabelled. If it needs a name, a
    study-level `configuration` block (the stack schema already has one on
-   checks) is the cheap shape.
+   checks) is the cheap shape. **Closed 2026-09-08**: `Study.configuration`, a
+   free-form descriptive block nothing in `traverse()`/`summarize()` reads —
+   see "A study, in outline", above. `study_pitch_system_gas_spring_branch.json`
+   is the worked example, naming its own load case (`"collective"`) and stating
+   in prose that which of it and the pitch-link path binds is still the
+   mechanics question this tool does not answer.
 4. **Position-dependent transforms**, named and deferred by the brief:
    pitch-link swing-angle change, tangential/anti-rotation link effects. The
    `properties` bag is where their inputs will go; nothing reads it yet, which is
    deliberate — the extension point exists so arriving at the real thing is an
-   added reader rather than a schema break.
+   added reader rather than a schema break. **Still open, re-fenced 2026-09-08**:
+   deferred by the brief on the same terms; this schema pass touches
+   `Transform.properties` in no way, and the extension point remains exactly
+   where it was.
 
 Extensibility the brief names and this version does not build: edge
 stiffness/strength/mass. Same bag, same rule.
+
+**A fifth item, found by this schema pass rather than by building L2**: a check
+whose terms combine several named term lists (a stack's `path`-referencing
+checks) has no topology equivalent — see "A study, in outline"'s
+path-referencing-checks paragraph, above, for the finding and why it is fenced
+rather than closed.

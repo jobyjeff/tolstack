@@ -14,6 +14,10 @@
     "hub_top_flange_to_top_deck",
     "hub_lower_to_top_bearing_flange"
   ],
+  "configuration": {
+    "load_case": "collective (this branch's own gas-spring path). Which of it and the pitch-link path actually binds is a stiffness/preload question this tool does not answer -- see provenance.why_this_study_exists.",
+    "note": "Added 2026-09-08 (handoff topology_schema_v1), closing docs/DAG_TOPOLOGY.md's 'What v0 cannot do' gap 3: a study-level `configuration` block, the cheap shape that document names, so which load case a study represents has somewhere to be written down instead of living only in which edges a human put in `selection`."
+  },
   "provenance": {
     "authored_by": "handoff dag_topology_format, 2026-08-31",
     "why_this_study_exists": "One of the four grounded loops the pitch-system graph closes, summed on its own so that the parallel path is a first-class object a human can look at rather than an implication of the graph. Nothing here compares it to the pitch-link path, and nothing decides which of the two binds -- that is the mechanics question the tool does not answer.",
