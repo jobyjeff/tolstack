@@ -1333,22 +1333,28 @@
       skip("worksheet sits below the table; the right pane is its own element",
            "no VIEWER_SRC injected (browser tier has no filesystem)");
     } else {
-      await test("the worksheet sits below the table in a collapsed <details>, " +
-        "and the right pane is its own element", function () {
+      await test("the worksheet and the legend are <dialog>s, not inline " +
+        "layout, and the worksheet defaults to closed", function () {
           var html = viewerSrc.readText("topology.html");
           var appJs = viewerSrc.readText("topology_app.js");
           ok(html && appJs, "topology.html and topology_app.js must be readable");
           var stackviewAt = html.indexOf('id="stackview"');
-          var worksheetWrapAt = html.indexOf('id="worksheet-wrap"');
+          var worksheetDialogAt = html.indexOf('id="worksheet-dialog"');
+          var legendDialogAt = html.indexOf('id="legend-dialog"');
           var detailAt = html.indexOf('id="detail"');
-          ok(stackviewAt !== -1 && worksheetWrapAt !== -1 && detailAt !== -1,
-             "expected #stackview, #worksheet-wrap and #detail in topology.html");
-          ok(stackviewAt < worksheetWrapAt,
-             "the worksheet must sit BELOW the elements table, not beside it");
-          has(html.slice(Math.max(0, worksheetWrapAt - 60), worksheetWrapAt), "<details",
-              "the worksheet must be a native <details> so it collapses on its own");
+          ok(stackviewAt !== -1 && worksheetDialogAt !== -1 &&
+             legendDialogAt !== -1 && detailAt !== -1,
+             "expected #stackview, #worksheet-dialog, #legend-dialog and " +
+             "#detail in topology.html");
+          has(html.slice(Math.max(0, worksheetDialogAt - 60), worksheetDialogAt), "<dialog",
+              "the worksheet must be a native <dialog> — opening it must never " +
+              "be able to shrink the DAG pane, which a <dialog> guarantees by " +
+              "sitting outside the page's flex column entirely");
+          has(html.slice(Math.max(0, legendDialogAt - 60), legendDialogAt), "<dialog",
+              "the legend must be a native <dialog> too — a help affordance, " +
+              "not layout that reserves a line of height even collapsed");
           has(appJs, "showWorksheet: false",
-              "the worksheet must default to collapsed — moved out of the way, not gone");
+              "the worksheet must default to closed — moved out of the way, not gone");
         });
 
       await test("index.html is a redirect stub, not a second copy of the app",
@@ -1423,12 +1429,36 @@
         }, {});
       });
       eq(all(root, ".banner__stale").length, 1);
-      has(root.textContent, "may not be what you think it is");
+      has(root.textContent, "needs a rebuild");
       has(root.textContent, "DIFFERENT trees");
       // An alarm a reader cannot act on is an alarm they learn to ignore.
       has(root.textContent, "build_viewer_projection.py");
       has(root.textContent, "build_viewer_crops.py");
     });
+
+    await test("the alarm badge is one plain-words line, collapsed by " +
+      "default, with the branch/sha detail behind an expand", function () {
+        var crops = JSON.parse(JSON.stringify(CROPS));
+        crops.provenance.head_sha = "fedcba9876543210fedcba9876543210fedcba98";
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: crops,
+          }, {});
+        });
+        var badge = all(root, "details.banner__stale")[0];
+        ok(badge, "expected the alarm as a <details>, collapsed by default");
+        ok(badge.getAttribute("open") === null, "must be collapsed by default");
+        var summary = badge.querySelector("summary");
+        // House UI-copy rules on the ALWAYS-VISIBLE line: no shell command, no
+        // internal file/module name, no multi-sentence paragraph.
+        ok(summary.textContent.indexOf(".py") === -1,
+          "the collapsed line must not name a script");
+        ok(summary.textContent.indexOf("build_viewer_projection") === -1);
+        has(summary.textContent, "needs a rebuild");
+        // The detail — branch/sha specifics and the rebuild commands — still
+        // exists, just not on the collapsed line.
+        has(root.textContent, "build_viewer_projection.py");
+      });
 
     // --- the topology page ---------------------------------------------------
     //
@@ -1854,28 +1884,116 @@
       eq(VA.looseStacks(TOPOFIX, null).length, 0);
     });
 
-    await test("the picker offers every topology and study, and flags the one " +
-      "that does not sum", function () {
+    // --- the single nav tree (viewer_v2_single_nav, 2026-09-08) -------------
+
+    await test("VA.navTree nests a topology's studies and any stack it also " +
+      "covers, and lists every classic-only stack as a leaf", function () {
+        var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
+        eq(tree.topologies.length, TOPOFIX.topologies.length);
+        var demoMechanism = tree.topologies[0];
+        eq(demoMechanism.id, TOPO.id);
+        eq(demoMechanism.studies.length, TOPO.studies.length);
+        eq(demoMechanism.coveredStacks.length, 1);
+        eq(demoMechanism.coveredStacks[0].id, "demo_joint");
+        eq(tree.looseStacks.length, 1);
+        eq(tree.looseStacks[0].id, "stack_rotor_fastener_length");
+      });
+
+    await test("VA.navTree tolerates missing projections", function () {
+      eq(VA.navTree(null, null).topologies.length, 0);
+      eq(VA.navTree(null, null).looseStacks.length, 0);
+      eq(VA.navTree(TOPOFIX, null).topologies[0].studies.length, TOPO.studies.length);
+    });
+
+    await test("the nav tree renders every topology, its studies, its " +
+      "covered stack and every loose stack, and marks the active node",
+      function () {
+        var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
         var root = render(function (r) {
-          VA.renderTopoPicker(r, TOPOFIX,
-            { topologyId: TOPO.id, studyId: null, layoutMode: "topology" }, {});
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPO.id,
+            studyId: "demo_ambiguous", selectedStackId: null }, {});
         });
-        eq(all(root, "option").length,
-           TOPOFIX.topologies.length + TOPO.studies.length + 1);
         has(root.textContent, "⚠ ");
-        has(root.textContent, "none (whole topology)");
-        // Chain mode needs a chain: with no study there is nothing to lay out.
+        has(root.textContent, "no topology re-expresses this");
+        has(root.textContent, "classic view");
+        var active = all(root, ".navtree__row--on");
+        eq(active.length, 1);
+        has(active[0].textContent, "⚠");
+      });
+
+    await test("the topology row is marked active with no study selected, " +
+      "not the whole-topology view AND a study at once", function () {
+        var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
+        var root = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPO.id,
+            studyId: null, selectedStackId: null }, {});
+        });
+        eq(all(root, ".navtree__row--on").length, 1);
+        has(all(root, ".navtree__row--topology")[0].className, "navtree__row--on");
+      });
+
+    await test("clicking a topology row, a study row and a stack row each " +
+      "call their own handler with the right ids", function () {
+        var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
+        var seen = [];
+        var root = render(function (r) {
+          VA.renderNavTree(r, tree,
+            { mode: "topology", topologyId: null, studyId: null, selectedStackId: null },
+            {
+              onTopology: function (id) { seen.push(["topology", id]); },
+              onStudy: function (topologyId, studyId) { seen.push(["study", topologyId, studyId]); },
+              onStack: function (id) { seen.push(["stack", id]); },
+            });
+        });
+        all(root, ".navtree__row--topology")[0].click();
+        all(root, ".navtree__row--study")[0].click();
+        all(root, ".navtree__row--stack")[0].click();
+        eq(seen[0], ["topology", TOPO.id]);
+        eq(seen[1][0], "study");
+        eq(seen[1][1], TOPO.id);
+        eq(seen[2][0], "stack");
+      });
+
+    await test("an empty projection says so rather than rendering nothing",
+      function () {
+        var root = render(function (r) { VA.renderNavTree(r, VA.navTree(null, null), {}, {}); });
+        has(root.textContent, "No topologies or stacks");
+      });
+
+    // --- the toolbar: display preferences, not selection --------------------
+
+    await test("the toolbar's layout-mode toggle is disabled with no study " +
+      "selected", function () {
+        var root = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
+        });
+        has(root.textContent, "Showing: whole topology");
         eq(root.querySelector("button.tvpick__mode").disabled, true);
+        // No study selected: the annotate link has nothing to point at.
+        eq(all(root, "a").length, 0);
       });
 
     await test("chain mode stays disabled for a study that raised", function () {
       var root = render(function (r) {
-        VA.renderTopoPicker(r, TOPOFIX,
-          { topologyId: TOPO.id, studyId: "demo_ambiguous",
-            layoutMode: "topology" }, {});
+        VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_ambiguous",
+          layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
       });
       eq(root.querySelector("button.tvpick__mode").disabled, true);
     });
+
+    await test("chain mode is offered, and the annotate link appears, once a " +
+      "study actually sums", function () {
+        var root = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
+            layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
+        });
+        eq(root.querySelector("button.tvpick__mode").disabled, false);
+        var link = root.querySelector("a");
+        ok(link, "expected an annotate link once a study sums");
+        has(link.href, "topology=" + TOPO.id);
+        has(link.href, "study=demo_base_to_tip");
+      });
 
     await test("VA.applyRowDensity moves the one shared row-height metric, " +
       "and only it", function () {
@@ -1901,12 +2019,11 @@
         }
       });
 
-    await test("the density toggle is on the picker and names the current " +
+    await test("the density toggle is on the toolbar and names the current " +
       "density", function () {
         var root = render(function (r) {
-          VA.renderTopoPicker(r, TOPOFIX,
-            { topologyId: TOPO.id, studyId: null, layoutMode: "topology",
-              rowDensity: "compact" }, {});
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            layoutMode: "topology", rowDensity: "compact" }, TOPO, {});
         });
         var buttons = all(root, "button.tvpick__mode");
         eq(buttons.length, 2);
@@ -1953,7 +2070,7 @@
             results: TOPOFIX, crops: TOPOCROPS, extraAlarms: alarms,
           }, {});
         });
-        has(root.textContent, "may not be what you think it is");
+        has(root.textContent, "needs a rebuild");
         has(root.textContent, "gone");
       });
 

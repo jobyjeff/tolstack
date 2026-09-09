@@ -22,9 +22,8 @@
     crops: null,
 
     // Which of the two ways a system is being shown. Set only by
-    // selectTopology()/selectStack(); nothing else flips it, so the picker
-    // (views/topology.js's renderTopoPicker) can render an honest "you are
-    // looking at a stack" placeholder rather than a real topology id it isn't.
+    // selectTopology()/selectStack(); the nav tree (views/nav.js) reads it to
+    // decide which row, if any, is marked current.
     mode: "topology",
 
     topologyId: null,
@@ -65,34 +64,41 @@
   function boot() {
     nodes = {
       banner: document.getElementById("banner"),
-      picker: document.getElementById("picker"),
-      stacklist: document.getElementById("stacklist"),
+      navtree: document.getElementById("navtree"),
+      toolbar: document.getElementById("toolbar"),
       pane: document.getElementById("topopane"),
       stackview: document.getElementById("stackview"),
       totals: document.getElementById("totals"),
-      worksheetWrap: document.getElementById("worksheet-wrap"),
+      legendToggle: document.getElementById("legend-toggle"),
+      legendDialog: document.getElementById("legend-dialog"),
+      legendClose: document.getElementById("legend-close"),
+      worksheetDialog: document.getElementById("worksheet-dialog"),
       worksheet: document.getElementById("worksheet"),
       worksheetToggle: document.getElementById("worksheet-toggle"),
+      worksheetClose: document.getElementById("worksheet-close"),
       detail: document.getElementById("detail"),
       crop: document.getElementById("croppop"),
     };
     applyDensity();
 
-    // The worksheet lives in a native <details>, collapsed by default, exactly
-    // as it did in the retired stack viewer — clicking the <summary> itself
-    // must keep working, so its open state is set directly on the DOM node
-    // rather than round-tripping through render() every time.
-    nodes.worksheetWrap.open = state.showWorksheet;
-    nodes.worksheetToggle.textContent =
-      (state.showWorksheet ? "Hide" : "Show") + " worksheet";
-    nodes.worksheetWrap.addEventListener("toggle", function () {
-      state.showWorksheet = nodes.worksheetWrap.open;
-      nodes.worksheetToggle.textContent =
-        (state.showWorksheet ? "Hide" : "Show") + " worksheet";
-    });
+    // The legend and the worksheet are both <dialog>s now (deliverable 2):
+    // neither participates in the flex column that the DAG pane lives in, so
+    // opening either can never shrink it. `showModal`/`close` are the whole
+    // wiring; `state.showWorksheet` still tracks open/closed for the button's
+    // own label, kept in step by the dialog's native `close` event so an Esc
+    // or a backdrop click (either closes a <dialog>) does not leave it stale.
+    nodes.legendToggle.onclick = function () { nodes.legendDialog.showModal(); };
+    nodes.legendClose.onclick = function () { nodes.legendDialog.close(); };
+
+    nodes.worksheetToggle.textContent = "Show worksheet";
     nodes.worksheetToggle.onclick = function () {
-      nodes.worksheetWrap.open = !nodes.worksheetWrap.open;
+      state.showWorksheet = true;
+      nodes.worksheetDialog.showModal();
     };
+    nodes.worksheetClose.onclick = function () { nodes.worksheetDialog.close(); };
+    nodes.worksheetDialog.addEventListener("close", function () {
+      state.showWorksheet = false;
+    });
 
     // ?mock=1 gives a UI tour with no folder grant and no disk access at all —
     // the same escape hatch both retired pages had, now over one merged
@@ -138,11 +144,11 @@
     var s = VA.demoFixture();
     // `t` already re-expresses `demo_joint` (VA.demoTopologyFixture's own
     // comment: its three crop_keys address exactly that stack's entries), so
-    // demo_joint is correctly COVERED — it stays in the nav (every stack does,
-    // see renderStackNav's own comment for why hiding it was the wrong call),
-    // marked with the "also a topology" chip. A second copy of the same rich
-    // fixture, under an id no topology's crop_key names, gives the tour (and
-    // the browser tier) a real LOOSE stack too — the shape the real repo is in
+    // demo_joint is correctly COVERED — it appears nested under its topology
+    // in the nav tree (VA.navTree, topology.js), not hidden and not a second
+    // top-level leaf. A second copy of the same rich fixture, under an id no
+    // topology's crop_key names, gives the tour (and the browser tier) a real
+    // LOOSE stack too, as a top-level leaf — the shape the real repo is in
     // today: one stack a topology re-expresses, most that no topology does.
     var looseId = "demo_joint_standalone";
     var looseStack = Object.assign({}, s.results.stacks[0], { id: looseId });
@@ -221,6 +227,36 @@
   function selectStackElement(elementId) {
     state.selectedElementId = elementId;
     loadDetailImage().then(render);
+  }
+
+  // --- the nav tree's three handlers -----------------------------------------
+  //
+  // views/nav.js renders one tree over both projections; these three are the
+  // whole of what a click on it does. onNavStudy takes the topology id
+  // alongside the study id (not just the study, the way the retired <select>
+  // could get away with) because the nav can jump to a study belonging to a
+  // DIFFERENT topology than the one currently open in one click, which two
+  // separate selects never had to handle — they only ever offered studies of
+  // the topology already picked.
+
+  function onNavTopology(topologyId) {
+    selectTopology(topologyId);
+    rewind();
+  }
+
+  function onNavStudy(topologyId, studyId) {
+    if (state.topologyId !== topologyId) selectTopology(topologyId);
+    state.studyId = studyId || null;
+    state.layoutMode = "topology";
+    state.selection = null;
+    state.detailImage = null;
+    rewind();
+  }
+
+  function onNavStack(stackId) {
+    selectStack(stackId);
+    hideCrop();
+    loadWorksheet().then(render);
   }
 
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
@@ -361,47 +397,29 @@
       onReload: function () { load().then(render); },
     });
 
-    VA.renderTopoPicker(nodes.picker, state.topologies, state, {
-      onTopology: function (id) {
-        // The picker's own placeholder ("viewing a stack; pick one to
-        // return") carries value "" and must not itself select anything.
-        if (!id) return;
-        selectTopology(id);
-        rewind();
-      },
-      onStudy: function (id) {
-        state.studyId = id || null;
-        if (!state.studyId) state.layoutMode = "topology";
-        rewind();
-      },
-      onLayoutMode: function () {
-        state.layoutMode = state.layoutMode === "chain" ? "topology" : "chain";
-        rewind();
-      },
-      // Density changes how tall the rows already on screen are, not WHICH
-      // rows are on screen — so a plain render(), not rewind(): see rewind's
-      // own comment for why that distinction matters.
-      onDensity: function () {
-        state.rowDensity = state.rowDensity === "compact" ? "comfortable" : "compact";
-        applyDensity();
-        render();
-      },
-    });
-
-    renderStackNav();
+    renderNav();
 
     var topoProj = currentTopology();
     var study = currentStudy();
     var stackProj = currentStack();
     var showTopology = state.mode === "topology";
 
+    nodes.toolbar.style.display = showTopology ? "" : "none";
     nodes.pane.style.display = showTopology ? "" : "none";
     nodes.totals.style.display = showTopology ? "" : "none";
     nodes.stackview.style.display = showTopology ? "none" : "";
-    // The worksheet is a stack-mode concept only — a topology has no worksheet
-    // of its own to show, so the whole block is out of the way rather than
-    // sitting open and empty while a DAG is on screen.
-    nodes.worksheetWrap.style.display = showTopology ? "none" : "";
+    // The legend ("how to read the rails") is a topology-mode concept and the
+    // worksheet is a stack-mode concept (a stack's own WORKSHEET_*.md) — each
+    // opener is only offered where its dialog has something of THIS mode's to
+    // show, same reasoning the retired inline blocks used. Close whichever
+    // dialog belongs to the mode just left, too: switching modes with one open
+    // is a real path (click a nav row while reading the legend) and a stale
+    // "how to read the rails" dialog sitting open over the elements table
+    // would be confusing about which page it is even talking about.
+    nodes.legendToggle.style.display = showTopology ? "" : "none";
+    nodes.worksheetToggle.style.display = showTopology ? "none" : "";
+    if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
+    if (showTopology && nodes.worksheetDialog.open) nodes.worksheetDialog.close();
 
     if (showTopology) {
       var ctx = {
@@ -410,6 +428,20 @@
         detailImage: state.detailImage,
         onSelect: selectElement, onCropShow: showCrop,
       };
+      VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
+        onLayoutMode: function () {
+          state.layoutMode = state.layoutMode === "chain" ? "topology" : "chain";
+          rewind();
+        },
+        // Density changes how tall the rows already on screen are, not WHICH
+        // rows are on screen — so a plain render(), not rewind(): see
+        // rewind's own comment for why that distinction matters.
+        onDensity: function () {
+          state.rowDensity = state.rowDensity === "compact" ? "comfortable" : "compact";
+          applyDensity();
+          render();
+        },
+      });
       VA.renderTopoPane(nodes.pane, ctx);
       VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
       VA.renderTopoDetail(nodes.detail, ctx);
@@ -426,71 +458,24 @@
     VA.renderWorksheet(nodes.worksheet, stackProj, state.worksheetText);
   }
 
-  // The nav of EVERY stack (deliverable 3: full parity, not just the ones no
-  // topology covers). Reuses views/list.js's renderList (the retired stack
-  // viewer's own left rail) completely unchanged: a stack row's confidence
-  // chips are the same "at a glance" scoreboard here as they always were.
-  //
-  // Listing only VA.looseStacks here was the first cut and it was wrong: the
-  // one committed stack a topology DOES cover
-  // (stack_vpa_output_to_pitch_plate.json) carries its own authored `checks`
-  // block (a worst-case verdict against a criterion) that the topology
-  // projection has no field for at all — DAG_TOPOLOGY.md's L1 proof compares
-  // TOTALS, never a verdict. Hiding that stack from the nav would have made
-  // its one check unreachable from anywhere on this page, the exact silent
-  // capability loss this handoff exists to avoid. So every stack is listed;
-  // markCoveredStacks (below) only ADDS a pointer to the richer graph view,
-  // never removes the classic one.
-  function renderStackNav() {
+  // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its
+  // studies as children (and, nested under it, any stack it also covers —
+  // VA.navTree, topology.js), and every classic-only stack as a leaf of the
+  // same tree. Replaces both the TOPOLOGY/STUDY <select> pickers and the flat
+  // stack rail (the retired views/list.js) at once; views/nav.js does the
+  // rendering, this is only the three clicks it can make.
+  function renderNav() {
     if (state.connection !== VA.STATE.READY) {
-      VA.clear(nodes.stacklist);
-      nodes.stacklist.style.display = "none";
+      VA.clear(nodes.navtree);
+      nodes.navtree.style.display = "none";
       return;
     }
-    if (!state.stacksResults) {
-      VA.clear(nodes.stacklist);
-      nodes.stacklist.className = "stacklist";
-      nodes.stacklist.appendChild(VA.el("p", "muted",
-        "No results projection — stacks have nowhere to show here. Build it: " +
-        VA.CONFIG.rebuild.results));
-      nodes.stacklist.style.display = "";
-      return;
-    }
-    var stacks = (state.stacksResults.stacks || []);
-    if (!stacks.length) {
-      VA.clear(nodes.stacklist);
-      nodes.stacklist.style.display = "none";
-      return;
-    }
-    nodes.stacklist.style.display = "";
-    VA.renderList(nodes.stacklist, state.stacksResults, state.selectedStackId,
-      function (id) {
-        selectStack(id);
-        hideCrop();
-        loadWorksheet().then(render);
-      });
-    markCoveredStacks();
-  }
-
-  // A stack a topology ALSO re-expresses (VA.stacksCoveredByTopology, read off
-  // edges' own crop_key — no new field) earns one extra chip pointing at the
-  // richer view, appended after the fact so views/list.js's own row markup
-  // stays exactly what the retired stack viewer shipped.
-  function markCoveredStacks() {
-    var covered = VA.stacksCoveredByTopology(state.topologies);
-    if (!Object.keys(covered).length) return;
-    var rows = nodes.stacklist.querySelectorAll
-      ? nodes.stacklist.querySelectorAll(".stacklist__row") : [];
-    Array.prototype.forEach.call(rows, function (rowNode) {
-      var idNode = rowNode.querySelector && rowNode.querySelector(".stacklist__id");
-      var id = idNode && idNode.textContent;
-      var chips = rowNode.querySelector && rowNode.querySelector(".stacklist__chips");
-      if (id && covered[id] && chips) {
-        chips.appendChild(VA.chip("chip--kind", "also a topology",
-          "a topology in docs/topologies/ re-expresses this stack as a graph " +
-          "— pick it from the dropdown above for the rail view; this classic " +
-          "view (and its checks) stay reachable here either way"));
-      }
+    nodes.navtree.style.display = "";
+    var tree = VA.navTree(state.topologies, state.stacksResults);
+    VA.renderNavTree(nodes.navtree, tree, state, {
+      onTopology: onNavTopology,
+      onStudy: onNavStudy,
+      onStack: onNavStack,
     });
   }
 
@@ -516,8 +501,8 @@
 
   // The banner is views/banner.js's, unchanged, and it reads `results`. This
   // page's PRIMARY projection is topologies.json (the rails, every study chain
-  // and every total come out of it) — the stacks projection gets its own,
-  // narrower missing-projection note beside the stack nav (renderStackNav)
+  // and every total come out of it) — a missing stacks projection instead
+  // shows up as an empty nav tree (VA.navTree tolerates a null `results`)
   // rather than a second banner branch, because "which tree built what" only
   // ever needs answering for the one projection every page load actually
   // needs.

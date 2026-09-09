@@ -34,19 +34,40 @@
   --rail-dim: #333844;
 }
 
-.tvpick {
-  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-}
-.tvpick__label {
-  color: var(--muted); font-size: 12px; text-transform: uppercase;
-  letter-spacing: .04em;
-}
-.tvpick__select {
-  background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
-  border-radius: 6px; padding: 5px 8px; font: inherit; font-size: 13px;
-  max-width: 340px;
-}
 .tvpick__mode { white-space: nowrap; }
+
+/* --- the single nav tree (viewer_v2_single_nav, 2026-09-08) -------------
+   Replaces the TOPOLOGY/STUDY <select> pickers AND the flat stack rail at
+   once: one topology's studies (and any stack it also covers) as children,
+   every classic-only stack as a leaf of the same tree. views/nav.js. */
+.navtree {
+  width: 300px; flex: none; padding: 8px; border-right: 1px solid var(--line);
+  overflow: auto; align-self: stretch;
+}
+.navtree__list, .navtree__children { list-style: none; margin: 0; padding: 0; }
+.navtree__children { padding-left: 16px; margin-top: 2px; }
+.navtree__item { margin-bottom: 2px; }
+.navtree__row {
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+  padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.navtree__row:hover { background: #20242c; }
+.navtree__row--on { background: #202634; outline: 1px solid var(--accent); }
+.navtree__row--topology { font-weight: 600; }
+.navtree__row--study { font-size: 12px; }
+.navtree__row--warn { color: var(--inferred); }
+.navtree__row--stack { font-size: 12px; }
+.navtree__label { flex: 1 1 auto; min-width: 0; }
+.navtree__id { color: var(--accent); font-size: 11px; }
+.navtree__chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; flex-basis: 100%; }
+
+/* --- the toolbar: layout mode, row density, annotate — display preference,
+   not selection, so it stays a slim strip above the DAG pane rather than
+   growing back into a second picker. Topology mode only. */
+.tv__toolbar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel2);
+}
 
 /* The page is a flex column filling the viewport, so the rows get whatever the
    banner leaves rather than a hard-coded `calc(100vh - N)`. The banner's height
@@ -77,16 +98,16 @@ body { display: flex; flex-direction: column; }
 }
 .tv__scroll {
   flex: 1 1 auto; overflow: auto;
-  /* The floor: never fewer than 10 rows, at whatever `--tv-row` the density
-     toggle (below) has set. Below this the graph pane stops being "most of
-     the DAG at once" and starts being the bug this handoff exists to fix, so
-     it is a hard min-height rather than something flex-shrink is free to eat
-     into — the chrome above yields first, and the document scrolls once it
-     can't yield enough. */
-  min-height: calc(var(--tv-row) * 10);
-  /* Rails and rows share ONE scrollport. That is the whole implementation of
-     "scrolling keeps them locked together" — there is nothing to synchronise,
-     so there is nothing to drift. */
+  /* The 10-row min-height floor (dag_viewer_vertical_budget, 2026-09-04)
+     retired with viewer_v2_single_nav (2026-09-08): the chrome that used to
+     threaten to squeeze this pane to nothing — the picker, the always-open
+     legend, the 260px totals panel — is gone or capped to a slim strip, so
+     the pane now gets the large majority of the viewport by construction
+     rather than by a floor fighting the chrome above it for room (see
+     scripts/run_viewer_browser_tests.mjs's testHeightBudget, which asserts
+     that directly against the real pitch_system instead of counting rows).
+     Rails and rows still share ONE scrollport — that is the whole
+     implementation of "scrolling keeps them locked together". */
 }
 .tv__head {
   display: flex; position: sticky; top: 0; z-index: 2;
@@ -230,31 +251,28 @@ body { display: flex; flex-direction: column; }
 .chip--source { color: var(--muted); }
 .chip--unlabelled { color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700; }
 
-/* --- the totals footer -------------------------------------------------- */
-
+/* --- the totals footer: a slim, always-visible strip --------------------
+   Demoted from a 260px panel (deliverable 2, viewer_v2_single_nav): the
+   folded numbers are chips in one horizontally-scrolling row instead of a
+   wrapping grid of boxes, so this block's height does not grow with a
+   study's own `notes` or with window width. The rule sentence and the notes
+   still exist — behind `.tvtotals__more`'s own <details> — just not always on
+   screen. */
 .tvtotals {
-  border-top: 1px solid var(--line); padding: 12px 16px; background: var(--panel2);
-  /* Capped and independently scrollable so a study with several `notes`
-     entries can never be the thing that starves the graph pane above it.
-     `flex-shrink: 0` holds that cap rather than letting `.tv__main`'s flex
-     column negotiate it away — the graph pane is always the one that yields
-     first, down to its own floor. */
-  max-height: 260px; overflow-y: auto; flex-shrink: 0;
+  border-top: 1px solid var(--line); padding: 4px 16px; background: var(--panel2);
+  flex-shrink: 0;
 }
-.tvtotals__head { display: flex; gap: 10px; align-items: baseline; }
-.tvtotals__chips { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
-.tvtotals__grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
-.tvtotal {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  padding: 6px 12px; min-width: 150px;
+.tvtotals__empty { margin: 6px 0; }
+.tvtotals__strip {
+  display: flex; gap: 6px; align-items: center; flex-wrap: nowrap;
+  overflow-x: auto; padding: 6px 0; white-space: nowrap;
 }
-.tvtotal__label {
-  color: var(--muted); font-size: 11px; text-transform: uppercase;
-  letter-spacing: .04em;
-}
-.tvtotal__value { font-size: 15px; font-variant-numeric: tabular-nums; }
-.tvtotal--worst_case_half, .tvtotal--rss_half { border-color: var(--accent); }
-.tvtotals__rule { margin: 10px 0 0; }
+.tvtotals__title { font-weight: 600; }
+.tvtotals__span { white-space: nowrap; }
+.chip--total { font-family: ui-monospace, monospace; }
+.tvtotals__more { margin: 0 0 4px; }
+.tvtotals__more summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.tvtotals__rule { margin: 6px 0 0; }
 .tvtotals__note {
   margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--line);
   color: var(--ink); font-size: 13px;
@@ -272,20 +290,14 @@ body { display: flex; flex-direction: column; }
 .tverror__message { margin: 6px 0; white-space: pre-wrap; }
 .tverror__advice { margin: 6px 0 0; color: var(--muted); }
 
-/* --- the stack list + the classic stack view ----------------------------
-   Absorbed from the retired stack viewer (deliverable 3): most stacks in
-   docs/tolerance_stacks/ have no topology re-expressing them (VA.looseStacks),
-   so this page still needs somewhere to show them, unchanged. */
+/* --- the classic stack view ----------------------------------------------
+   Absorbed from the retired stack viewer (deliverable 3 of
+   viewer_consolidation): most stacks in docs/tolerance_stacks/ have no
+   topology re-expressing them (VA.looseStacks), so this page still needs
+   somewhere to show them, unchanged. Reached from the nav tree now
+   (.navtree, above), not a separate flat rail. */
 
-/* Same `47px`-assumes-only-a-topbar trap `.tv .detail` already documents below
-   — `.stacklist`'s shared rule (style.css) is sticky under the STACK VIEWER's
-   topbar-only chrome, and this page has a banner, a picker and a legend above
-   it too. `align-self: stretch` matches `.tv`'s own height instead of
-   guessing at one. */
-.tv .stacklist {
-  position: static; max-height: none; align-self: stretch;
-}
-/* A flex ITEM of `.tv__main`'s column now, not `.center`'s — same shape as
+/* A flex ITEM of `.tv__main`'s column, not `.center`'s — same shape as
    `.tv__scroll` immediately below: grow to fill, scroll its own overflow,
    never force the column taller than `.tv` itself. */
 .tv__main > .stackview { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
@@ -300,9 +312,9 @@ body { display: flex; flex-direction: column; }
   /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:
      calc(100vh - 47px)` (style.css:365-368) assumes the pane starts 47px
      below the viewport top — true for the STACK VIEWER, whose only chrome
-     above it is the topbar. Here the pane sits below a banner, a picker and
-     an optional legend too, so that max-height overestimates the room
-     available and lets the pane grow past `.tv`'s own box. `align-self:
+     above it is the topbar. Here the pane sits below a banner too, so that
+     max-height overestimates the room available and lets the pane grow past
+     `.tv`'s own box. `align-self:
      stretch` plus this page's own `overflow: auto` already do the whole job:
      the pane matches `.tv`'s actual height and scrolls its own content, so
      sticky positioning has nothing to do here. Never edit the shared rule —
@@ -326,9 +338,25 @@ body { display: flex; flex-direction: column; }
 .detail__untraced { color: var(--untraced); font-weight: 600; margin-top: 4px; }
 .detail__crop--no-key { opacity: .85; }
 
-/* --- the legend --------------------------------------------------------- */
-
-.tv__legend { padding: 8px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
-.tv__legend summary { cursor: pointer; color: var(--muted); }
-.tv__legend ul { margin: 8px 0 0; padding-left: 20px; }
-.tv__legend li { margin-bottom: 4px; }
+/* --- the legend and worksheet dialogs ------------------------------------
+   Both retired out of the page's flex column into <dialog>s (deliverable 2):
+   "how to read the rails" no longer reserves a line of layout even collapsed,
+   and opening the worksheet can no longer compete with the DAG pane for
+   height — a dialog sits in the browser's top layer, entirely outside
+   `.tv`'s box model. */
+dialog#legend-dialog, dialog#worksheet-dialog {
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 10px; padding: 16px 20px; width: 90vw; max-width: 640px;
+  max-height: 80vh; overflow: auto; font-size: 13px;
+}
+dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
+  background: rgba(0, 0, 0, .55);
+}
+.tv__legend-head, .worksheet-dialog__head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; margin-bottom: 10px;
+}
+.tv__legend-head h2, .worksheet-dialog__head h2 { margin: 0; font-size: 16px; }
+#legend-dialog ul { margin: 0; padding-left: 20px; }
+#legend-dialog li { margin-bottom: 8px; }
+#worksheet-dialog { width: 90vw; max-width: 900px; }

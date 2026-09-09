@@ -85,21 +85,11 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 main { display: flex; align-items: flex-start; gap: 0; }
 .center { flex: 1 1 640px; min-width: 0; display: flex; flex-direction: column; }
 
-/* --- stack list ------------------------------------------------------ */
-.stacklist {
-  width: 290px; flex: none; padding: 10px; border-right: 1px solid var(--line);
-  display: flex; flex-direction: column; gap: 6px;
-  position: sticky; top: 47px; max-height: calc(100vh - 47px); overflow: auto;
-}
-.stacklist__row {
-  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
-  border-radius: 8px; padding: 9px 10px; text-align: left; font-weight: 400;
-  display: block; width: 100%;
-}
-.stacklist__row--on { border-color: var(--accent); background: #202634; }
-.stacklist__id { font-family: ui-monospace, monospace; font-size: 12px; color: var(--accent); }
-.stacklist__title { margin: 3px 0 6px; font-size: 13px; }
-.stacklist__chips, .sv__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+/* The stack rail (.stacklist) retired into the nav tree (topology.css's
+   .navtree, viewer_v2_single_nav 2026-09-08) — its rules moved there under
+   new class names rather than being kept here for one class (.sv__chips)
+   still to reuse. */
+.sv__chips { display: flex; flex-wrap: wrap; gap: 4px; }
 
 /* --- chips ----------------------------------------------------------- */
 .chip {
@@ -332,21 +322,14 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .gap--excluded_from_model { border-left: 3px solid var(--untraced); }
 .gap__text { margin-left: 8px; }
 
-/* --- worksheet: the agent's report, BELOW the table, collapsed by default */
-/* Jeff's complaint was the worksheet living in the side pane, competing with
-   the table for width and pushing the element source detail out entirely
-   (views/detail.js now owns that pane). A native <details> is the same
-   collapse affordance the rest of this page already uses (sv__joint,
-   sv__legend, el-gaps), so nothing new to learn. */
-.worksheet-below {
-  margin: 18px 18px 40px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--panel2);
-}
-.worksheet-below > summary {
-  cursor: pointer; padding: 10px 14px; font-weight: 600; list-style: revert;
-}
-.worksheet-below[open] > summary { border-bottom: 1px solid var(--line); }
-.worksheet { padding: 12px 16px 16px; }
+/* --- worksheet: the agent's report -------------------------------------- */
+/* Jeff's original complaint was the worksheet living in the side pane,
+   competing with the table for width (views/detail.js now owns that pane
+   instead). Since viewer_v2_single_nav (2026-09-08) it opens in its own
+   <dialog> (topology.css's #worksheet-dialog) rather than an inline
+   <details>, so opening it can never shrink the DAG pane; `.worksheet` below
+   is the content padding shared by both eras. */
+.worksheet { padding: 4px 0 16px; }
 .worksheet__path { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; margin-bottom: 8px; }
 .worksheet__note { color: var(--muted); font-size: 11px; margin: -4px 0 8px; }
 .worksheet__body { font-size: 13px; overflow-wrap: anywhere; }

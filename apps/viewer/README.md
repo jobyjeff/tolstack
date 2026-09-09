@@ -1,22 +1,25 @@
 # tolstack — viewer (`apps/viewer/`)
 
 **Review a stack or a topology without opening a `.json`.** One page,
-`topology.html`: elements, folds, checks with verdicts, notes and gaps for every
-stack in `docs/tolerance_stacks/`, coloured by where each value came from, plus
-the rail diagram + grid for every system that has a topology in
-`docs/topologies/` — most stacks don't (a topology is extra authoring, not a
-free side effect of having a stack), so the left rail lists them and clicking one
-renders the classic elements table. Either way, clicking a row opens its full
-sourcing (citation, export provenance, drawing crop) in the pane on the right,
-and every crop-bearing row also carries a hover/click thumbnail trigger right
-there in the grid.
+`topology.html`, one left-rail nav tree: every topology with its studies as
+children, and every stack as a leaf — a classic-only stack (most of them; a
+topology is extra authoring, not a free side effect of having a stack) at the
+top level, the one stack a topology also re-expresses nested under that
+topology instead. Picking a topology or a study draws the rail diagram + grid;
+picking a stack renders the classic elements table — folds, checks with
+verdicts, notes and gaps, coloured by where each value came from. Either way,
+clicking a row opens its full sourcing (citation, export provenance, drawing
+crop) in the pane on the right, and every crop-bearing row also carries a
+hover/click thumbnail trigger right there in the grid.
 
 > **History:** this used to be two pages — `index.html` (stacks) and
 > `topology.html` (topologies) — until handoff `viewer_consolidation`
-> (2026-09-04) merged them: Jeff's own framing was "the DAG page was meant to be
-> an addition to the existing display, not a separate presentation altogether."
-> `index.html` still exists and redirects to `topology.html`, so an old shortcut
-> or bookmark still lands somewhere.
+> (2026-09-04) merged them into one page with two separate `<select>` pickers
+> and a flat stack rail alongside it; handoff `viewer_v2_single_nav`
+> (2026-09-08) then replaced both selectors and the flat rail with the one nav
+> tree above, after Jeff found the two-selector page "a complete mess" to
+> review in. `index.html` still exists and redirects to `topology.html`, so an
+> old shortcut or bookmark still lands somewhere.
 
 Static and build-free — plain HTML + classic scripts, no framework, no npm
 build, no daemon, no server (the forge `apps/notes/` and `apps/dashboard/`
@@ -77,8 +80,8 @@ tree instead*, or merge it in here first. `--allow-older-tree` overrides it,
 loudly, for the one legitimate case — a deliberate rebuild from an older tree.
 
 No folder grant handy? `topology.html?mock=1` renders a seeded demo — a
-mechanism plus the loose-stack nav's own demo stack — that exercises every
-provenance state. Nothing touches disk.
+mechanism plus the nav tree's own demo classic-only stack — that exercises
+every provenance state. Nothing touches disk.
 
 ## The one rule: the viewer computes nothing
 
@@ -98,39 +101,39 @@ in JavaScript would be a second such line, so there isn't one:
 the authored file, and re-asserts the ground-truth numbers *through* the
 projection.
 
-## The stack nav
+## The one nav
 
-The left rail (`#stacklist`, reused unchanged from the retired stack viewer)
-lists **every** stack in `docs/tolerance_stacks/`, each row carrying the same
-sourcing-scoreboard chips it always did; clicking one switches the centre pane
-to the classic elements/paths/checks/gaps view (`views/stack.js`) and the
-picker above to a placeholder — "viewing a stack; pick one to return" — rather
-than showing a topology id that is not what is on screen. Picking a real
-topology from that dropdown switches back.
+The left rail (`#navtree`, `views/nav.js`) is a single tree, not a picker plus
+a separate stack rail: every topology lists its studies as children, and every
+stack is a leaf. Clicking a topology or a study draws the rail diagram + grid
+(topology mode); clicking a stack switches the centre pane to the classic
+elements/paths/checks/gaps view (`views/stack.js`, stack mode) instead. The
+active node is the one thing driving the page — there is no second "which mode
+am I in" state to keep in sync with it.
 
 Most stacks have no topology re-expressing them — a topology is extra
 authoring for a mechanism-shaped question, not a free side effect of having a
 stack, and today only `stack_vpa_output_to_pitch_plate.json` does
-(`topology_vpa_output_to_pitch_plate.json`, the L1 proof). That one still gets
-a row here too, not just a place in the topology dropdown: its own authored
-`checks` block (a worst-case verdict against a criterion) has no field in the
-topology projection at all — DAG_TOPOLOGY.md's L1 proof compares *totals*,
-never a verdict — so hiding it from the nav would have made that check
-unreachable from anywhere on the page. `VA.stacksCoveredByTopology`
-(`topology.js`) computes which stack that is by reading the linkage already on
-hand — an edge that re-expresses a stack element carries
-`crop_key: {stack, element}`, and that IS the "this stack has a topology" fact,
-so nothing new is authored to say so — and `topology_app.js`'s
-`markCoveredStacks` appends one extra chip, **also a topology**, to that row
-after `VA.renderList` builds it, pointing at the richer graph view without
-removing the classic one.
+(`topology_vpa_output_to_pitch_plate.json`, the L1 proof). Those classic-only
+stacks are top-level leaves of the tree; the one stack a topology also
+re-expresses is nested as a child of that topology instead, alongside its
+studies, rather than being a second top-level leaf — but it is still there,
+one click under the topology it also is, and not merged into or hidden by it:
+its own authored `checks` block (a worst-case verdict against a criterion) has
+no field in the topology projection at all — DAG_TOPOLOGY.md's L1 proof
+compares *totals*, never a verdict — so making it unreachable would drop that
+check off the page entirely. `VA.navTree` (`topology.js`) computes which stack
+that is by reading the linkage already on hand — an edge that re-expresses a
+stack element carries `crop_key: {stack, element}`, and that IS the "this
+stack has a topology" fact, so nothing new is authored to say so.
 
 ## The topology mode
 
 The third archetype's surface — read `docs/DAG_TOPOLOGY.md` first; this section
-is only about how it is drawn. A topology is what the page's dropdown picker
-switches to; a stack with no topology (most of them — see "Stacks with no
-topology" below) switches to the classic elements table instead. Building it:
+is only about how it is drawn. A topology or a study, picked from the nav tree
+("The one nav" above), draws this; a stack picked from the same tree (most
+stacks — no topology re-expresses them) switches to the classic elements table
+instead. Building it:
 
 ```powershell
 venv-win\Scripts\python.exe scripts\build_topology_projection.py
@@ -269,34 +272,47 @@ enforce it and neither is a stylesheet:
 row of both real topologies, in both layouts, after scrolling. That is the check
 no DOM shim can make, and it is why the browser tier is not optional here.
 
-### The height contract, and the density toggle
+### The DAG owns the main area
 
-`HANDOFF_20260904_dag_viewer_vertical_budget.md`: the graph pane (`.tv__scroll`)
-sits below chrome that is un-shrinkable and data-dependent — a provenance
-alarm banner, a totals footer with a study's own `notes`, an optional legend —
-and with nothing bounding them, that chrome could squeeze the pane to a
-handful of rows or less. Three fixes, none of them touching the deliberate
-"no `calc(100vh - N)`" flex-column design (`topology.css:51-55`):
+`HANDOFF_20260904_dag_viewer_vertical_budget.md` gave the graph pane
+(`.tv__scroll`) a 10-row `min-height` floor because the chrome above it — a
+provenance alarm banner, two `<select>` pickers, a totals panel that could
+grow to 260px, an always-open legend — could otherwise squeeze it to a
+handful of rows. `HANDOFF_20260908_viewer_v2_single_nav.md` removed the floor
+instead of raising it, by shrinking the chrome it was floored against:
 
-* the banner's alarm **list** and the totals footer are capped (`max-height` +
-  `overflow-y: auto`) so neither can be the thing that starves the pane —
-  scoped to `topology.css`, which loads on no other page, so the stack
-  viewer's own banner and `.detail` rule are untouched;
-* `.tv .detail` no longer inherits the stack viewer's `position: sticky;
-  max-height: calc(100vh - 47px)` — that `47px` is the *stack viewer's* own
-  topbar-only offset, and this page has a banner, a picker and a legend below
-  it too, so the inherited value let the pane grow past its own row's box;
-* `.tv__scroll` has a real `min-height` (10 rows, at whatever `--tv-row`
-  density has set) instead of `min-height: 0`. When the capped chrome above it
-  still doesn't leave 10 rows of room, the document scrolls — `html, body`
-  already allow that (`overflow: visible` is the default) — rather than the
-  pane clamping toward 0px.
+* the two `<select>` pickers and the flat stack rail retired into the one nav
+  tree (`#navtree`, "The one nav" above), which sits *beside* the DAG pane, not
+  above it — it costs the page horizontal width, not vertical height;
+* the provenance alarm (`views/banner.js`) collapsed from an always-expanded
+  block (headline + alarm list + two `<code>` rebuild commands) to a one-line
+  badge — "Data is older than the latest code — needs a rebuild" — with the
+  full detail behind a `<details>` a reader opens on purpose;
+* "How to read the rails" moved into `#legend-dialog`, a `<dialog>` opened from
+  a topbar button, so it no longer reserves a line of layout even collapsed;
+* the totals footer (`.tvtotals`) demoted from a 260px panel to a slim,
+  always-visible strip of chips — the same folded numbers, one line, with the
+  rule sentence and a study's own `notes` behind their own `Details` toggle.
 
-**Row density** (`VA.ROW_DENSITIES`, `topology.js`) is the other half: a
-"Rows: Comfortable / Compact" toggle next to the layout toggle, at 26px and
-16px respectively — compact turns the pitch system's 43 rows into ~690px, a
-single screen instead of five. Row height is one number that has to move in
-three places at once (documented where it bites, `topology.js`): `VA.
+With that chrome capped to roughly a topbar, a one-line banner, a toolbar strip
+and a slim totals strip, the DAG pane gets the large majority of the viewport
+by construction rather than by a floor fighting the chrome above it for room —
+`scripts/run_viewer_browser_tests.mjs`'s `testHeightBudget` asserts that
+directly (900px viewport, the real `pitch_system`, a study selected, a forced
+provenance alarm: the pane's own height is more than half the viewport) instead
+of counting rows against a floor.
+
+**The worksheet** moved into its own `<dialog>` too (`#worksheet-dialog`),
+for the same reason as the legend: opening it can no longer compete with
+anything else for space, because a `<dialog>` sits in the browser's own top
+layer, entirely outside `.tv`'s flex column.
+
+**Row density** (`VA.ROW_DENSITIES`, `topology.js`) is the toggle that is still
+worth having even with the floor gone: "Rows: Comfortable / Compact", on the
+toolbar strip above the DAG pane (`#toolbar`, next to the layout-mode toggle),
+at 26px and 16px respectively — compact turns the pitch system's 43 rows into
+~690px, a single screen instead of five. Row height is one number that has to
+move in three places at once (documented where it bites, `topology.js`): `VA.
 RAIL_METRICS.rowHeight`, the `--tv-row` CSS variable, and the grid's inline
 row heights. `VA.applyRowDensity` mutates `RAIL_METRICS.rowHeight` **in
 place** rather than replacing the object, so the SVG geometry and the inline
@@ -505,13 +521,15 @@ parts-list sheet).
 
 ## Worksheets
 
-The worksheet ("the agent's report") sits **below the elements table**, in a
-collapsed `<details>` — click the heading, or the **Show/Hide worksheet**
-button in the topbar, to open it. It used to live in the right-hand pane; that
+The worksheet ("the agent's report") opens in its own `#worksheet-dialog`,
+from the **Show worksheet** button in the topbar (stack mode only — a topology
+has no worksheet of its own). It used to live in the right-hand pane; that
 pane now shows an element's full sourcing instead (see "Selecting an element"
-above), and the worksheet moved out of the way rather than out of the app —
-collapsed by default so it does not compete with the table for width, but one
-click away, not gone.
+above). It moved again with `viewer_v2_single_nav` (2026-09-08), from an
+inline `<details>` below the elements table into a `<dialog>`: opening it can
+no longer compete with anything else for space — a `<dialog>` sits in the
+browser's own top layer, outside the page's flex column entirely — closed by
+default so it never covers the table uninvited, but one click away, not gone.
 
 `WORKSHEET_*.md` is authored prose, so it is read **live** from
 `docs/tolerance_stacks/` rather than copied into the projection: edit the
@@ -580,15 +598,18 @@ limitation forge's notes app records.
 apps/viewer/
   style.css           the SHARED stylesheet — the colour system lives here
   index.html          retired: redirects to topology.html (was the stack viewer)
-  topology.html       the ONE viewer's shell (nav, picker, three panes, legend)
-  topology.css        that page's own rules: rails, the grid, the totals footer
+  topology.html       the ONE viewer's shell (nav, toolbar, three panes,
+                      legend + worksheet <dialog>s)
+  topology.css        that page's own rules: the nav tree, the toolbar, the
+                      rails, the grid, the slim totals strip, both dialogs
   test.html           browser test page; publishes window.__TEST_RESULTS__
   config.js           paths, the drawing-checker webui base, rebuild commands
   viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
   topology.js         the same, for the topology mode: its vocabularies, the
                       rail GEOMETRY (row index -> pixels; the columns are the
-                      projection's), and VA.looseStacks (which stacks have no
-                      topology, read off edges' own crop_key)
+                      projection's), VA.looseStacks / VA.stacksCoveredByTopology
+                      (which stacks have no topology, read off edges' own
+                      crop_key) and VA.navTree (the nav's data shape)
   fixtures.js         the ?mock=1 demo STACK projection (every provenance state)
   topology_fixtures.js  the ?mock=1 demo MECHANISM, generated by running the
                       real builder over it; topology_app.js merges the two
@@ -599,7 +620,7 @@ apps/viewer/
   storage/fsa.js      File System Access (mode: read), handle persisted in IndexedDB
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
-  views/              dom, banner, list, stack, crop, worksheet, detail, topology
+  views/              dom, banner, nav, stack, crop, worksheet, detail, topology
   vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```

@@ -12,42 +12,16 @@
 
   var M = VA.RAIL_METRICS;
 
-  // --- the selectors in the topbar -----------------------------------------
-
-  VA.renderTopoPicker = function (root, projection, state, handlers) {
+  // --- the toolbar: display preferences, not selection ----------------------
+  //
+  // The TOPOLOGY/STUDY <select> pickers retired into the nav tree
+  // (views/nav.js, viewer_v2_single_nav 2026-09-08) — selecting WHICH node is
+  // on screen is the nav's job now. What is left here is how it is drawn:
+  // whole-topology vs. study-chain layout, row density, and the annotate
+  // link. Topology mode only; topology_app.js hides this strip in stack mode.
+  VA.renderTopoToolbar = function (root, state, topoProj, handlers) {
     VA.clear(root);
-    var topologies = (projection && projection.topologies) || [];
-
-    // Viewing a loose stack (VA.looseStacks) is a THIRD state this select has to
-    // represent honestly: showing a real topology id as "selected" while a
-    // stack's elements table is on screen would be a fact the picker states and
-    // the page contradicts, and a browser does not fire `change` on reselecting
-    // its current value — so returning to the topology last looked at would take
-    // two clicks. A placeholder option, selected only in stack mode, keeps every
-    // topology in the list a genuine change away.
-    var inStackMode = state.mode === "stack";
-    root.appendChild(VA.el("label", "tvpick__label", "topology"));
-    root.appendChild(select("topology-select",
-      (inStackMode
-        ? [{ value: "", label: "— viewing a stack; pick one to return —" }]
-        : []
-      ).concat(topologies.map(function (t) {
-        return { value: t.id, label: t.title + "  (" + t.id + ")" };
-      })),
-      inStackMode ? "" : state.topologyId, handlers.onTopology));
-
-    var topoProj = VA.findTopology(projection, state.topologyId);
-    var studies = (topoProj && topoProj.studies) || [];
-    root.appendChild(VA.el("label", "tvpick__label", "study"));
-    root.appendChild(select("study-select",
-      [{ value: "", label: "— none (whole topology) —" }].concat(
-        studies.map(function (s) {
-          return {
-            value: s.id,
-            label: (s.status === "error" ? "⚠ " : "") + s.title,
-          };
-        })),
-      state.studyId || "", handlers.onStudy));
+    root.className = "tv__toolbar";
 
     // Two layouts over ONE serialiser (build_topology_projection.serialize_*):
     // the whole graph depth-first, or the study's chain in the order the sum
@@ -83,7 +57,7 @@
     // it only points at it. Only rendered once a real study is selected --
     // "annotate this" means nothing about the whole topology, only about one
     // human-lassoed chain's elements.
-    if (state.studyId && !inStackMode) {
+    if (state.studyId) {
       var annotateLink = VA.el("a", "ghost tvpick__mode", "Annotate →");
       annotateLink.href = "../annotate/index.html?topology=" +
         encodeURIComponent(state.topologyId) + "&study=" + encodeURIComponent(state.studyId);
@@ -97,20 +71,6 @@
   function studyOk(topoProj, studyId) {
     var study = VA.findStudy(topoProj, studyId);
     return !!(study && study.status === "ok");
-  }
-
-  function select(id, options, value, onChange) {
-    var node = VA.el("select", "tvpick__select");
-    node.setAttribute("id", id);
-    options.forEach(function (option) {
-      var opt = VA.el("option", null, option.label);
-      opt.setAttribute("value", option.value);
-      if (option.value === value) opt.setAttribute("selected", "selected");
-      node.appendChild(opt);
-    });
-    node.value = value;
-    node.onchange = function () { onChange(node.value); };
-    return node;
   }
 
   // --- rails + grid, in one scrolling box ----------------------------------
@@ -485,59 +445,62 @@
 
   // --- the totals footer ---------------------------------------------------
 
+  // A slim, always-visible footer strip (deliverable 2, viewer_v2_single_nav
+  // 2026-09-08): the same folded numbers the old 260px panel showed, as chips
+  // in one horizontally-scrolling row rather than a wrapping grid of boxes —
+  // the DAG pane above it is what this page is for, and a study's own `notes`
+  // used to be able to push that panel to its full 260px cap. The rule
+  // sentence and any notes still exist, behind a same-line "Details" toggle,
+  // so nothing is dropped — only what is ALWAYS on screen shrinks.
   VA.renderTopoTotals = function (root, topoProj, study, index) {
     VA.clear(root);
     root.className = "tvtotals";
     if (!study) {
-      root.appendChild(VA.el("p", "muted",
+      root.appendChild(VA.el("p", "muted tvtotals__empty",
         "Pick a study to see a path highlighted on the rails and its totals here. " +
         "A study is a HUMAN-lassoed chain: this page reports where the forks are " +
         "and never chooses one."));
       return root;
     }
 
-    var head = VA.el("div", "tvtotals__head");
-    head.appendChild(VA.el("h3", null, study.title));
-    head.appendChild(VA.el("code", "muted", study.id));
-    root.appendChild(head);
-    root.appendChild(VA.el("div", "muted",
-      study.from + "  →  " + study.to +
-      (study.closes ? "   ·   closes the derived gap `" + study.closes + "`" : "")));
+    var strip = VA.el("div", "tvtotals__strip");
+    strip.appendChild(VA.el("span", "tvtotals__title", study.title));
+    strip.appendChild(VA.el("code", "muted", study.id));
+    strip.appendChild(VA.el("span", "muted tvtotals__span",
+      study.from + " → " + study.to +
+      (study.closes ? "  ·  closes `" + study.closes + "`" : "")));
 
     if (study.status !== "ok") {
+      root.appendChild(strip);
       root.appendChild(errorBlock(study));
       return root;
     }
 
     var worst = VA.studyWorstConfidence(study, index);
-    var chips = VA.el("div", "tvtotals__chips");
-    chips.appendChild(VA.chip("chip--kind",
-      study.result.chain.length + " contributions"));
-    chips.appendChild(VA.chip("chip--kind", study.result.units));
+    strip.appendChild(VA.chip("chip--kind", study.result.chain.length + " contributions"));
+    strip.appendChild(VA.chip("chip--kind", study.result.units));
     if (worst) {
-      chips.appendChild(VA.chip(VA.confidenceClass(worst),
+      strip.appendChild(VA.chip(VA.confidenceClass(worst),
         "weakest input: " + (VA.CONFIDENCE_LABEL[worst] || worst),
         "weakest wins: a study fed by nine traced edges and one untraced one is " +
         "an untraced result"));
     }
-    root.appendChild(chips);
-
-    var table = VA.el("div", "tvtotals__grid");
     VA.studyTotals(study).forEach(function (total) {
-      var cell = VA.el("div", "tvtotal tvtotal--" + total.key);
-      cell.appendChild(VA.el("div", "tvtotal__label", total.label));
-      cell.appendChild(VA.el("div", "tvtotal__value num",
-        total.value + " " + total.units));
-      table.appendChild(cell);
+      strip.appendChild(VA.chip("chip--total",
+        total.label + " " + total.value + " " + total.units));
     });
-    root.appendChild(table);
-    root.appendChild(VA.el("p", "muted tvtotals__rule",
+    root.appendChild(strip);
+
+    var more = VA.el("details", "tvtotals__more");
+    more.appendChild(VA.el("summary", null, "Details"));
+    more.appendChild(VA.el("p", "muted tvtotals__rule",
       "Every number above came out of tolerance_stack.topology.summarize() → " +
       "fold(), the repo's single arithmetic path, and was rounded in Python. " +
       "This page adds nothing up."));
     (study.notes || []).forEach(function (note) {
-      root.appendChild(VA.el("p", "tvtotals__note", note));
+      more.appendChild(VA.el("p", "tvtotals__note", note));
     });
+    root.appendChild(more);
     return root;
   };
 
