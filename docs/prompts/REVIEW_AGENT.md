@@ -493,6 +493,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       line is checkout-specific**, and a lesson quoting one without saying which
       checkout produced it is quoting a number the shipping tree does not
       report. When you re-derive a suite count, say where you ran it.
+      **Third sighting (`topology_projection_emits_study_checks`,
+      2026-09-09), a new variant — a transient FALSE positive from a
+      concurrently-running sibling session, not a real defect:** running
+      `pytest -q` in the main checkout mid-review reported
+      `test_viewer_js_suite_is_green` failing on a `topologies[].studies[]:
+      the projection writes [checks]` fixture-drift, even though this
+      handoff's code was not yet on the main checkout's own checked-out
+      branch (`master`) and could not have written that key. Cause: a
+      concurrently-running review session for a *different* handoff
+      (`review/tolstack_viewer_js_suite_drift`, per the shared projection's
+      own `projection_provenance` block naming that worktree and a
+      `built_at` seconds old) was rebuilding the same shared
+      `data/projections/viewer/topologies.json` at the same moment — the
+      read landed mid-write. Re-running the same test immediately after
+      showed it clean. **When a main-checkout-only failure names a field or
+      shape your own diff does not produce, re-run it standalone before
+      treating it as real** — the shared `data/` root is not just
+      environment-different from a worktree, it is a live, mutable resource
+      multiple concurrent agents write to, and a single failing run there is
+      not yet evidence, the way a repeatable one is.
 - [ ] **`data/inbox/*` silently drops per-stream tracked docs.** Git does not
       descend into an excluded directory, so `!data/inbox/<s>/README.md` alone does
       nothing — re-include the directory, exclude its contents, *then* negate the
@@ -2120,6 +2140,28 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       worth knowing before trusting the projection's silence on a check's
       verdict as "there is no check" rather than "the projection cannot show
       one yet."
+      **Closed 2026-09-09 (`topology_projection_emits_study_checks`).**
+      `project_study()` now calls `check_study(topology, study,
+      spec["check_id"])` for every entry in `study.checks` and merges the
+      result in, in `project_stack`'s own check shape (confidence scoreboard
+      counted off the chain's contributions rather than a term list, since a
+      study check has none). Pinned field-for-field against a live
+      `check_study()` call on the L1 acid-test study
+      (`test_the_l1_studys_projected_check_matches_check_study_field_for_field`).
+      Spot-checked against real committed documents (scratch data-root, not
+      the shared one): all 12 checks named above now print their
+      `check_id=verdict` in the rebuild's console summary. The general
+      lesson stands for the *next* schema field this shape applies to — keep
+      the checklist item, just don't keep re-checking this specific instance.
+      **One side effect worth knowing, not a defect**: adding a projection
+      field makes `apps/viewer/topology_fixtures.js`'s hand-maintained
+      pairing test (`tests/test_viewer_js_suite.py`) go red the next time
+      someone rebuilds the shared main-checkout projection with the new
+      code and runs that suite there — exactly the same shape as
+      `topology_schema_v1`'s `joint`/`worksheet_file`/`worksheet_source`/
+      `configuration` fields, closed separately by
+      `tolstack_viewer_js_suite_drift`. Route a `checks`-shaped fixture
+      drift there (or its successor issue) rather than treating it as new.
 
 - [ ] **A linear stack whose `checks` mix a named `path` term with
       individually-signed elements has no topology equivalent — verify the

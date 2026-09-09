@@ -524,6 +524,45 @@ def test_the_l1_study_totals_the_stacks_published_check(projection):
         )
 
 
+def test_the_l1_studys_projected_check_matches_check_study_field_for_field(
+        projection, topologies):
+    """Handoff ``topology_projection_emits_study_checks``: ``project_study()``
+    now calls ``check_study()`` for every entry in ``study.checks`` and merges
+    the result in -- previously the row had no ``checks`` key at all. This pins
+    that merge against a live ``check_study()`` call, field for field, the same
+    way ``test_every_projected_total_is_summarizes_own_number`` pins a study's
+    total against a live ``summarize()`` call.
+    """
+    from tolerance_stack.topology import check_study
+
+    topology = topologies["vpa_output_to_pitch_plate"]
+    study = load_study(REPO_ROOT / "docs" / "topologies"
+                        / "study_vpa_output_shank_out.json")
+    expected = check_study(topology, study, "worst_case_shank_out")
+    expected_row = expected.as_dict()
+    expected_row.update(B.rounded(expected.interval.as_dict()))
+
+    row = projected(projection, "vpa_output_to_pitch_plate")
+    projected_study = next(s for s in row["studies"]
+                            if s["id"] == "vpa_output_shank_out")
+    checks = projected_study["checks"]
+    assert len(checks) == 1
+    check = checks[0]
+
+    for field, value in expected_row.items():
+        assert check[field] == value, (
+            f"{field}: projected {check[field]!r}, check_study() says {value!r}"
+        )
+    # The two fields `CheckResult.as_dict()` cannot carry, because they come
+    # from the study's own chain rather than the check's interval:
+    assert check["workbook_cells"] == "G75/H75"
+    assert check["generated"] is False
+    assert sum(check["input_confidence"].values()) == 6, (
+        "one count per chain contribution -- the L1 chain has six")
+    from build_viewer_projection import PROJECTION_CONFIDENCES
+    assert check["worst_confidence"] in PROJECTION_CONFIDENCES
+
+
 # --------------------------------------------------------------------------- #
 # 4. the states the page has to render                                         #
 # --------------------------------------------------------------------------- #
