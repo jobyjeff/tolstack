@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: scripts/build_topology_projection.py
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260909_topology_projection_emits_study_checks.md
+resolution: handoff completed 2026-09-09 -- closed automatically by dispatch when handoff `topology_projection_emits_study_checks` moved to completed/; not independently verified.
 ---
 
 # A study's authored `checks` — with or without `limit` — never reach the topology projection
