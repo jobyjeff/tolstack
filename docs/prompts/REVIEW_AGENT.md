@@ -1625,6 +1625,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`test_the_script_itself_declares_no_cmdletbinding`) but that only
       catches a re-add on *this* file.
 
+- [ ] **`--allow-older-tree`'s refusal message says "not an ancestor," which
+      covers two different situations — check which one before overriding
+      it.** New 2026-09-08 (`linear_stack_conversions`). The projection gate
+      fired with the shared projection built from `master @ <sha>` while the
+      review branch (cut from `integration`) was neither an ancestor nor a
+      descendant of that sha — a genuine fork, not the ordinary "master is
+      simply older" case the rest of this checklist's projection entries
+      assume. Before reaching for `--allow-older-tree`, diff the two tips
+      (`git diff HEAD <other-sha> --stat`) and confirm the divergence is
+      bookkeeping-only (here: `master` had only `docs/sessions/` board
+      commits tracking staged/active/completed transitions, zero code or
+      schema changes not already present via `integration`) — trunk lags
+      behind `integration` between batch merges by design, so this is the
+      ordinary shape, but "not an ancestor" alone does not prove it; a real
+      code fork would need the opposite response (merge or hold off, not
+      override).
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
@@ -2058,6 +2075,54 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       check, for any handoff that adds a computed/checkable field, whether the
       **projection** actually calls the function that computes it, not just
       whether a test does.
+      **Confirmed still open, wider, 2026-09-08 (`linear_stack_conversions`):**
+      the 12 new authored `checks` this handoff added (2 on
+      `pitch_link_to_pitch_plate`, 9 on `rotor_fastener_length`, 1 on
+      `tan_link_to_pitch_plate_take2`) reproduced by re-running
+      `scripts/build_topology_projection.py` after this review's merge — every
+      study's projected `result` still has no `"checks"` key. Not a new
+      finding (the filed issue already generalises to any study's checks), but
+      worth knowing before trusting the projection's silence on a check's
+      verdict as "there is no check" rather than "the projection cannot show
+      one yet."
+
+- [ ] **A linear stack whose `checks` mix a named `path` term with
+      individually-signed elements has no topology equivalent — verify the
+      conversion left it classic-rendered rather than force-building one.**
+      New 2026-09-08 (`topology_schema_v1` fenced it, `linear_stack_conversions`
+      is the first handoff that had to honour the fence against a real
+      candidate). `stack_tan_link_to_pitch_plate.json`'s six checks each
+      combine `{"path": "..."}` with signed `{"element": ..., "sign": -1}`
+      terms; nothing in `tolerance_stack/topology.py` resolves a named path
+      across study documents (paths are a stack-local dict, studies are
+      deliberately separate files with no cross-study index), and building
+      one would reopen the branch/cycle guard's whole reason to exist —
+      composing two independently-authored studies' totals with no check that
+      the combination isn't double-counting a shared edge. Verify a candidate
+      stack's checks for this shape (a `path` term sitting beside element
+      terms) **before** accepting a topology conversion for it; the correct
+      outcome is "stays classic-rendered," pinned by a test asserting the
+      topology file does *not* exist
+      (`test_tan_link_to_pitch_plate_take_1_has_no_topology`), not a
+      hand-flattened check that inlines the named path's own terms (which
+      would still be arithmetically correct but is no longer authored against
+      a reusable path, and quietly drops the fence's own reasoning from view).
+
+- [ ] **A decision rule restated by hand in a second script, where the two
+      scripts could import one another but don't.** New 2026-09-08
+      (`inline_edge_crops`, should-fix, filed as
+      `ISSUE_20260908_croppable_rule_restated_across_two_scripts.md`).
+      `build_topology_projection.py::_croppable()` hand-copies
+      `build_viewer_crops.py::resolve_pdf`'s rule 1/2 conditions
+      (`source_ref.export` / `kind == "spec"`) rather than importing them,
+      with nothing pairing the two. It looks unavoidable — one script needs
+      PyMuPDF and runs in a different venv — but isn't: `fitz` is imported
+      *lazily* specifically so the rule logic stays importable without it.
+      Verified today's two copies agree (parametrized test plus a real
+      rebuild), but check for this shape whenever a handoff adds a
+      filesystem-free "would this resolve" predicate beside an existing
+      resolver: **could the predictor import the real rule instead of
+      restating it**, given how the resolver's own imports are structured?
 
 - [ ] **The projection DOES emit the field; the viewer just never reads it —
       and a doc still asserts the pre-field state.** New 2026-09-08

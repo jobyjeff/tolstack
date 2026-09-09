@@ -448,3 +448,56 @@ def test_a_sha_mismatch_is_shouted_in_the_printed_report():
         [{"resolved_by": "source_ref_export", "sha256_verified": False}], []))
     assert any("MISMATCHED" in line for line in lines)
     assert any("1  source_ref_export" in line for line in lines)
+
+
+# --- the topology scan: a separate space -----------------------------------
+#
+# Handoff inline_edge_crops (2026-09-08). A topology's inline edges get their
+# own by_topology/unresolved_topology/summary_topology, kept apart from
+# by_stack/unresolved/summary because a topology's own id can equal a stack's
+# (`vpa_output_to_pitch_plate` names both today) -- merging the spaces would
+# let an edge id collide with that stack's own element ids.
+
+
+def test_the_topology_scan_does_not_touch_the_stack_summary():
+    """`build_index` folds the topology census in beside the stack one, never
+    into it -- passing (or not passing) the three topology arguments must
+    leave by_stack/unresolved/summary exactly as the caller built them."""
+    stamp = {"schema": "x", "built_at": "t", "built_by": "b"}
+    by_stack = {"s": {"e": {"status": "resolved"}}}
+    unresolved = [{"stack": "s", "element": "e2", "reason": "nope"}]
+    summary = bvc.resolution_summary(
+        [{"resolved_by": "spec_pile", "sha256_verified": None}], [])
+
+    bare = bvc.build_index(stamp, Path("dc"), True, summary, by_stack, unresolved)
+    with_topology = bvc.build_index(
+        stamp, Path("dc"), True, summary, by_stack, unresolved,
+        by_topology={"t": {"e3": {"status": "resolved"}}},
+        unresolved_topology=[{"topology": "t", "edge": "e4", "reason": "nope"}],
+        summary_topology=bvc.resolution_summary(
+            [{"resolved_by": "source_ref_export", "sha256_verified": True}], []),
+    )
+    for key in ("by_stack", "unresolved", "summary"):
+        assert bare[key] == with_topology[key] == locals()[key]
+    # And a caller that names no topology census gets an empty one back, not
+    # an absent key -- so a reader can iterate `by_topology` unconditionally.
+    assert bare["by_topology"] == {} and bare["unresolved_topology"] == []
+    assert bare["summary_topology"]["citations"] == 0
+    assert with_topology["by_topology"] == {"t": {"e3": {"status": "resolved"}}}
+    assert with_topology["summary_topology"]["citations"] == 1
+
+
+def test_an_empty_raw_still_resolves_rule_1_the_way_a_topology_document_would(tmp_path):
+    """``crop_topology_edge`` always calls :func:`bvc.resolve_pdf` with ``raw={}``,
+    because a topology document carries no ``joint`` block for rule 3 to read.
+    Rule 1 (``source_ref.export``) reads only the citation itself, so an empty
+    ``raw`` must resolve exactly as it would for a stack element."""
+    pdf = tmp_path / "d.pdf"
+    pdf.write_bytes(b"%PDF-1.4\nthe real export\n")
+    export = {"status": "established", "pdf": pdf.as_posix(),
+              "sha256": bvc.sha256_of(pdf), "runs": []}
+    got = bvc.resolve_pdf(
+        {}, {"kind": "drawing", "document": "212966-006-A", "export": export},
+        tmp_path, tmp_path, [tmp_path],
+    )
+    assert got["resolved_by"] == "source_ref_export" and got["sha256_verified"] is True

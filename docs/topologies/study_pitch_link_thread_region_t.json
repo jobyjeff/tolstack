@@ -1,0 +1,22 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "pitch_link_thread_region_t",
+  "title": "Thread region T: bolt overall length against the grip -- a provenance cross-check, not a design quantity",
+  "topology": "pitch_link_to_pitch_plate",
+  "from": "shank_full_dia_end",
+  "to": "bolt_point",
+  "closes": "thread_region",
+  "selection": [
+    "fastener_grip",
+    "bolt_length_11"
+  ],
+  "provenance": {
+    "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+    "equivalent_to": "path `thread_region_T` of docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json (bolt_length_11 minus bolt_grip_11), which that stack's own notes call 'a provenance cross-check, not a design quantity' -- it happens to equal NAS6403's T (Ref).",
+    "pinned_by": "tests/test_topology_conversions.py"
+  },
+  "notes": [
+    "No `checks` entry: the referenced stack has no check over this path either, only the path itself, authored as a cross-check that two independently-read NAS6403 table columns (grip and overall length) agree.",
+    "The chain walks `fastener_grip` AGAINST its authored orientation (shank_full_dia_end -> head_bearing_face, sign -1) then `bolt_length_11` WITH its authored orientation (head_bearing_face -> bolt_point, sign +1), giving `bolt_length_11 - fastener_grip` -- the same term list the referenced path uses (`bolt_length_11` default sign +1, `bolt_grip_11` sign -1)."
+  ]
+}

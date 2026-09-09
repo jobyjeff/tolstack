@@ -44,6 +44,22 @@ between two exports of the same revision), and a citation that names no export
 cannot be crop-resolved at all. Both show up in the report, broken down by which
 rule resolved each crop and whether its sha256 was verified.
 
+A topology's **inline** edges (``docs/topologies/*.json``) get the same
+treatment, added by handoff ``inline_edge_crops`` (2026-09-08): the same
+:func:`resolve_pdf`, the same sha-verification, the same honest-unresolvable
+discipline -- a workbook or ``assumed`` inline dimension is legitimately
+uncroppable and lands in the report with a reason, never as an error, exactly
+like a spreadsheet-sourced stack element does. It is a **separate** index --
+``by_topology``/``unresolved_topology``, keyed by ``{topology, edge}`` rather
+than ``{stack, element}`` -- because a topology's own id can equal a stack's
+(``vpa_output_to_pitch_plate`` names both today), and merging the two spaces
+would let an edge id collide with that stack's own element ids. The existing
+``by_stack``/``unresolved``/``summary`` stay exactly as they were: a
+``dimension_ref`` edge already re-expresses a committed stack element and
+resolves through that space unchanged (``scripts/build_topology_projection.py``'s
+``crop_key``), and nothing about the stack scan below reads from or writes to
+a topology document at all.
+
 Where the crop is taken (in order):
 
 * **the cited zone**, if ``zone`` is set and the sheet's printed border grid is
@@ -105,6 +121,7 @@ BUILT_BY = "scripts/build_viewer_crops.py"
 
 DEFAULT_DC_ROOT = Path(r"C:\workspace\drawing-checker")
 STACKS_DIR = Path("docs") / "tolerance_stacks"
+TOPOLOGIES_DIR = Path("docs") / "topologies"
 PROJECTION_SUBDIR = Path("projections") / "viewer"
 
 # A printed zone label sits within this many points of a page edge. Same
@@ -549,6 +566,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--data-root", default=str(REPO_ROOT / "data"),
                     help="repo data/ dir (MAIN checkout's, if you are in a worktree)")
     ap.add_argument("--stacks-dir", default=str(REPO_ROOT / STACKS_DIR))
+    ap.add_argument("--topologies-dir", default=str(REPO_ROOT / TOPOLOGIES_DIR))
     ap.add_argument("--drawing-checker-root", default=str(DEFAULT_DC_ROOT))
     ap.add_argument("--zoom", type=float, default=3.0, help="render scale for located crops")
     ap.add_argument("--zone-pad", type=float, default=1.0,
@@ -577,6 +595,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 2
 
     stacks_dir = Path(args.stacks_dir)
+    topologies_dir = Path(args.topologies_dir)
     data_root = Path(args.data_root)
     dc_root = Path(args.drawing_checker_root)
     specs_dir = data_root / "inbox" / "specs"
@@ -647,8 +666,48 @@ def main(argv: Optional[List[str]] = None) -> int:
                 })
 
     summary = resolution_summary(resolved, unresolved)
+
+    # The topology scan: a SEPARATE space (see the module docstring). It runs
+    # after `summary` is computed from `resolved`/`unresolved` alone, so it
+    # cannot perturb those three -- pinned by
+    # tests/test_viewer_crops.py::test_the_topology_scan_does_not_touch_the_stack_summary.
+    by_topology: Dict[str, Dict[str, Any]] = {}
+    unresolved_topology: List[Dict[str, str]] = []
+    resolved_topology: List[Dict[str, Any]] = []
+    for path in sorted(topologies_dir.glob("topology_*.json")):
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        topology_id = raw["id"]
+        by_topology[topology_id] = {}
+        for edge in raw.get("edges", []):
+            # Only an INLINE dimension is this scan's business: a
+            # `dimension_ref` edge already resolves through `by_stack`
+            # (`scripts/build_topology_projection.py`'s `crop_key`), and a
+            # derived gap carries no dimension -- and so no citation -- at all.
+            dimension = edge.get("dimension")
+            if not dimension or edge.get("dimension_ref"):
+                continue
+            entry = crop_topology_edge(
+                topology_id, edge["id"], dimension, specs_dir, dc_root,
+                rel_roots, crops_dir, open_docs, args,
+            )
+            by_topology[topology_id][edge["id"]] = entry
+            if entry["status"] == "resolved":
+                resolved_topology.append(
+                    {"topology": topology_id, "edge": edge["id"], **entry})
+            else:
+                unresolved_topology.append({
+                    "topology": topology_id,
+                    "edge": edge["id"],
+                    "kind": ((dimension.get("source_ref") or {}).get("kind")),
+                    "document": ((dimension.get("source_ref") or {}).get("document")),
+                    "reason": entry["reason"],
+                })
+    summary_topology = resolution_summary(resolved_topology, unresolved_topology)
+
     index = build_index(provenance, dc_root, dc_available, summary, by_stack,
-                        unresolved)
+                        unresolved, by_topology=by_topology,
+                        unresolved_topology=unresolved_topology,
+                        summary_topology=summary_topology)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "crops.json").write_text(
         json.dumps(index, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -662,6 +721,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"  {len(unresolved)} citation(s) unresolvable:")
     for row in unresolved:
         print(f"    {row['stack']}:{row['element']:28s} {row['reason']}")
+    print(f"  {summary_topology['resolved']} of {summary_topology['citations']} "
+          f"topology inline citation(s) resolved into {crops_dir}")
+    for line in summary_lines(summary_topology):
+        print("  " + line)
+    print(f"  {len(unresolved_topology)} topology inline citation(s) unresolvable:")
+    for row in unresolved_topology:
+        print(f"    {row['topology']}:{row['edge']:28s} {row['reason']}")
     return 0
 
 
@@ -672,6 +738,9 @@ def build_index(
     summary: Dict[str, Any],
     by_stack: Dict[str, Dict[str, Any]],
     unresolved: Sequence[Dict[str, str]],
+    by_topology: Optional[Dict[str, Dict[str, Any]]] = None,
+    unresolved_topology: Optional[Sequence[Dict[str, str]]] = None,
+    summary_topology: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """``crops.json``'s top level.
 
@@ -680,6 +749,12 @@ def build_index(
     ``ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection``
     -- is testable under this repo's stdlib-only venv. ``main()`` itself is not:
     it needs PyMuPDF and a drawing PDF.
+
+    ``by_topology``/``unresolved_topology``/``summary_topology`` default to
+    empty: :func:`tests.test_projection_provenance.test_the_crop_index_carries_the_four_facts`
+    calls this with the pre-handoff six positional arguments, and the topology
+    scan is additive -- a caller that does not pass it gets the pre-handoff
+    shape back, just with three more (empty) keys.
     """
     return {
         "schema": SCHEMA_CROPS,
@@ -696,6 +771,19 @@ def build_index(
         "summary": summary,
         "by_stack": by_stack,
         "unresolved": list(unresolved),
+        # A topology's inline edges, addressed {topology, edge} -- a SEPARATE
+        # space from by_stack/unresolved/summary above, deliberately: see the
+        # module docstring for why a topology's own id can collide with a
+        # stack's. Not (yet) read by the viewer's `VA.cropFor`, which only
+        # knows `by_stack` -- see this handoff's lesson.
+        "summary_topology": summary_topology or {"citations": 0, "resolved": 0,
+                                                  "unresolvable": 0,
+                                                  "by_resolved_by": {},
+                                                  "sha256_verified": {
+                                                      "true": 0, "false": 0,
+                                                      "unverified": 0}},
+        "by_topology": by_topology or {},
+        "unresolved_topology": list(unresolved_topology or []),
     }
 
 
@@ -739,15 +827,23 @@ def summary_lines(summary: Dict[str, Any]) -> List[str]:
     return lines
 
 
-def crop_element(raw, element, specs_dir, dc_root, rel_roots, crops_dir,
-                 open_docs, args) -> Dict[str, Any]:
-    """One element -> a locator entry (rendering its PNG on the way, if it resolves)."""
+def _crop_from_citation(raw, source_ref, hardware_ref, name_stem, no_ref_reason,
+                        specs_dir, dc_root, rel_roots, crops_dir, open_docs,
+                        args) -> Dict[str, Any]:
+    """One citation -> a locator entry (rendering its PNG on the way, if it resolves).
+
+    Shared by :func:`crop_element` (a stack element) and
+    :func:`crop_topology_edge` (a topology's inline dimension) -- same rules,
+    same rendering, different filename stem and different ``raw``. ``raw`` is
+    what :func:`resolve_pdf` reads ``joint.assembly_export`` off of (rule 3); a
+    topology document has no ``joint`` block at all, so that rule simply never
+    matches an inline edge -- correctly, since it borrows from a STACK's own
+    joint and an inline edge is in no stack to borrow from.
+    """
     import fitz
 
-    source_ref = element.get("source_ref")
     if not source_ref:
-        return {"status": "unresolvable", "reason": "element carries no source_ref",
-                "png": None}
+        return {"status": "unresolvable", "reason": no_ref_reason, "png": None}
     try:
         resolved = resolve_pdf(raw, source_ref, specs_dir, dc_root, rel_roots)
         page_no = page_number(source_ref)
@@ -761,9 +857,8 @@ def crop_element(raw, element, specs_dir, dc_root, rel_roots, crops_dir,
                 f"sheet {page_no}"
             )
         page = doc[page_no - 1]
-        placement = locate(page, source_ref, element.get("hardware_ref"),
-                           args.zone_pad, args.text_pad)
-        name = f"{raw['id']}__{element['id']}.png"
+        placement = locate(page, source_ref, hardware_ref, args.zone_pad, args.text_pad)
+        name = f"{name_stem}.png"
         width, height = render(page, placement["rect"], crops_dir / name,
                                args.zoom, args.max_px)
     except Unresolvable as err:
@@ -786,6 +881,31 @@ def crop_element(raw, element, specs_dir, dc_root, rel_roots, crops_dir,
     entry.update({k: v for k, v in placement.items() if k != "rect"})
     entry["rect_pt"] = [round(v, 2) for v in placement["rect"]]
     return entry
+
+
+def crop_element(raw, element, specs_dir, dc_root, rel_roots, crops_dir,
+                 open_docs, args) -> Dict[str, Any]:
+    """One stack element -> a locator entry."""
+    return _crop_from_citation(
+        raw, element.get("source_ref"), element.get("hardware_ref"),
+        f"{raw['id']}__{element['id']}", "element carries no source_ref",
+        specs_dir, dc_root, rel_roots, crops_dir, open_docs, args,
+    )
+
+
+def crop_topology_edge(topology_id, edge_id, dimension, specs_dir, dc_root,
+                       rel_roots, crops_dir, open_docs, args) -> Dict[str, Any]:
+    """One topology's inline edge -> a locator entry.
+
+    ``raw`` is ``{}``: a topology document carries no ``joint`` block, so the
+    legacy rule 3 never applies to an inline edge -- see
+    :func:`_crop_from_citation`.
+    """
+    return _crop_from_citation(
+        {}, dimension.get("source_ref"), dimension.get("hardware_ref"),
+        f"{topology_id}__{edge_id}", "edge carries no source_ref",
+        specs_dir, dc_root, rel_roots, crops_dir, open_docs, args,
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,40 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "pitch_link_cotter_hole_clearance",
+  "title": "Cotter hole clear of the sourced clamped stack (pitch-link eye and nut geometry excluded)",
+  "topology": "pitch_link_to_pitch_plate",
+  "from": "washer_far_face",
+  "to": "cotter_hole_centerline",
+  "selection": [
+    "washer_nas1149v0332",
+    "pitch_plate_flange",
+    "bushing_214820",
+    "bolt_length_11",
+    "cotter_hole_from_point"
+  ],
+  "checks": [
+    {
+      "check_id": "cotter_hole_clear_of_sourced_stack",
+      "label": "cotter hole clear of the clamped column",
+      "configuration": {
+        "fastener": "NAS6403U11D (.688 in grip, drilled shank)",
+        "nut": "MS9363-09 slotted -- height and castellation geometry unsourced"
+      },
+      "complete": false,
+      "excluded_terms": [
+        "pitch-link eye / spherical bearing width -- no document"
+      ],
+      "criterion": ">= 0",
+      "guidance": "Head-to-cotter-hole minus the sourced clamped column. What is left over must cover the pitch-link eye PLUS the nut's thread-start-to-castellation distance; both are unsourced, so this is a budget, not a verdict on the joint. It passes with 11.1435 mm worst case available. It cannot settle the joint: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the referenced stack's notes."
+    }
+  ],
+  "provenance": {
+    "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+    "equivalent_to": "check `cotter_hole_clear_of_sourced_stack` of docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json (which folds path `head_to_cotter_hole` minus path `clamped_stack_sourced`)",
+    "pinned_by": "tests/test_topology_conversions.py -- every field of the folded interval must equal that check's, exactly."
+  },
+  "notes": [
+    "The selection combines both stack paths this check needs (`head_to_cotter_hole` and `clamped_stack_sourced`) into ONE chain rather than composing two separately-summed StudyResults, because this topology puts every dimension on one connected graph -- there is no cross-study composition here for `docs/DAG_TOPOLOGY.md`'s fenced deliverable-4 concern to apply to.",
+    "The chain walks `cotter_hole_from_point` AGAINST its authored orientation (bolt_point -> cotter_hole_centerline, sign -1, i.e. it enters this study reversed), then `bolt_length_11` WITH its orientation (head_bearing_face -> bolt_point, sign -1 relative to this study's direction... entered from bolt_point going to head_bearing_face, i.e. against its own authored direction, sign -1 contributing +bolt_length_11 when read from this study's from-node), then the three clamped edges WITH their authored orientation (sign +1 each). Read end to end from `washer_far_face`: +washer, +pitch_plate_flange, +bushing_214820 is the wrong order to state signs in prose -- the authoritative signs are whatever `traverse()` derives from the graph, and `tests/test_topology_conversions.py` pins the resulting total against the stack's own published check rather than trusting this paragraph."
+  ]
+}
