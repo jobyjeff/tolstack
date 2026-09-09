@@ -487,6 +487,15 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("its own close button closes it",
       !(await page.locator("#legend-dialog").evaluate((n) => n.open)));
 
+    // The demo mechanism's own joint is `{}` (it spans four parts, no single
+    // physical joint) and it declares no worksheet — the "stays silent" half
+    // of deliverable 4 (viewer_v2_single_nav), on the fixture the rest of
+    // this suite already loaded.
+    push("a topology with no joint block says so rather than fabricating one",
+      /no joint block/.test(await page.locator("#topojoint").textContent()));
+    push("a topology with no worksheet_file hides the worksheet toggle",
+      !(await page.locator("#worksheet-toggle").isVisible()));
+
     // --- the same page, against the REAL projection ------------------------
     if (!realProjection) {
       push("[real] projection present (skipped: not built)", true);
@@ -519,6 +528,40 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         const drift = await alignmentDrift();
         push(`[real] ${topology.id} is aligned row for row`, drift.drift.length === 0);
         if (drift.drift.length) console.log("    drift: " + drift.drift.slice(0, 5).join(" | "));
+
+        // Deliverable 4 (viewer_v2_single_nav): the topology's own joint
+        // block and worksheet toggle, read straight off the fields
+        // topology_schema_v1 added to the projection. `pitch_system`'s own
+        // joint is `{}` (it spans more than one physical joint) and must
+        // stay silent rather than fabricate one; the other four carry a real
+        // `assembly_drawing` and must show it.
+        const jointText = await page.locator("#topojoint").textContent();
+        if (Object.keys(topology.joint || {}).length) {
+          push(`[real] ${topology.id}'s joint block names its assembly drawing`,
+            jointText.includes(String(topology.joint.assembly_drawing)));
+        } else {
+          push(`[real] ${topology.id} with no joint stays silent, not fabricated`,
+            /no joint block/.test(jointText));
+        }
+        push(`[real] ${topology.id}'s worksheet toggle shows exactly when ` +
+          "worksheet_file is set",
+          (await page.locator("#worksheet-toggle").isVisible()) ===
+            !!topology.worksheet_file);
+        if (topology.id === "pitch_system" && topology.worksheet_file) {
+          // The real-projection swap above (`demoTopologyFixture`) wires
+          // `topologies`/`crops`/`images` only, not `texts` — WORKSHEET_*.md's
+          // own content, over this seam, is unreachable without a second
+          // real-file server this tier does not have (apps/viewer/tests.js's
+          // node-fs tier reads it directly instead — see its own "[real]
+          // pitch_system's own worksheet loads and renders"). A real click
+          // opening the real dialog is still worth proving here; its content
+          // is not.
+          await page.locator("#worksheet-toggle").click();
+          await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+          push("[real] pitch_system's worksheet toggle opens a real dialog",
+            await page.locator("#worksheet-dialog").evaluate((n) => n.open));
+          await page.locator("#worksheet-close").click();
+        }
 
         for (const study of topology.studies) {
           await page.locator(navRow("study", study.id)).click();

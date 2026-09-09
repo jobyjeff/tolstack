@@ -66,6 +66,7 @@
       banner: document.getElementById("banner"),
       navtree: document.getElementById("navtree"),
       toolbar: document.getElementById("toolbar"),
+      topojoint: document.getElementById("topojoint"),
       pane: document.getElementById("topopane"),
       stackview: document.getElementById("stackview"),
       totals: document.getElementById("totals"),
@@ -241,7 +242,7 @@
 
   function onNavTopology(topologyId) {
     selectTopology(topologyId);
-    rewind();
+    loadWorksheet().then(rewind);
   }
 
   function onNavStudy(topologyId, studyId) {
@@ -250,7 +251,7 @@
     state.layoutMode = "topology";
     state.selection = null;
     state.detailImage = null;
-    rewind();
+    loadWorksheet().then(rewind);
   }
 
   function onNavStack(stackId) {
@@ -280,8 +281,14 @@
     return VA.findStack(state.stacksResults, state.selectedStackId);
   }
 
+  // A worksheet's own field shape (`worksheet_file`, `worksheet_source`) is
+  // identical on a stack projection and a topology projection (each builder's
+  // own `worksheet_for`, the same two-rule convention) -- so which projection
+  // to read it off is the only thing that depends on mode (deliverable 4,
+  // viewer_v2_single_nav).
   function loadWorksheet() {
-    var segments = VA.worksheetSegments(currentStack());
+    var subject = state.mode === "topology" ? currentTopology() : currentStack();
+    var segments = VA.worksheetSegments(subject);
     if (!segments) {
       state.worksheetText = null;
       return Promise.resolve();
@@ -405,21 +412,27 @@
     var showTopology = state.mode === "topology";
 
     nodes.toolbar.style.display = showTopology ? "" : "none";
+    nodes.topojoint.style.display = showTopology ? "" : "none";
     nodes.pane.style.display = showTopology ? "" : "none";
     nodes.totals.style.display = showTopology ? "" : "none";
     nodes.stackview.style.display = showTopology ? "none" : "";
-    // The legend ("how to read the rails") is a topology-mode concept and the
-    // worksheet is a stack-mode concept (a stack's own WORKSHEET_*.md) — each
-    // opener is only offered where its dialog has something of THIS mode's to
-    // show, same reasoning the retired inline blocks used. Close whichever
-    // dialog belongs to the mode just left, too: switching modes with one open
-    // is a real path (click a nav row while reading the legend) and a stale
-    // "how to read the rails" dialog sitting open over the elements table
-    // would be confusing about which page it is even talking about.
+    // The legend ("how to read the rails") is a topology-mode concept, always
+    // offered there. The worksheet is offered wherever the SELECTED node
+    // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
+    // through the identical field a stack's does, so the same toggle serves
+    // both; a topology with none (most studies' own stacks have one instead)
+    // hides it exactly as a worksheet-less stack always did. Close whichever
+    // dialog no longer has anything to show: switching modes or nodes with one
+    // open is a real path (click a nav row while reading either) and a stale
+    // dialog sitting open would be confusing about which page it is even
+    // talking about.
+    var hasWorksheet = showTopology
+      ? !!(topoProj && topoProj.worksheet_file)
+      : !!(stackProj && stackProj.worksheet_file);
     nodes.legendToggle.style.display = showTopology ? "" : "none";
-    nodes.worksheetToggle.style.display = showTopology ? "none" : "";
+    nodes.worksheetToggle.style.display = hasWorksheet ? "" : "none";
     if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
-    if (showTopology && nodes.worksheetDialog.open) nodes.worksheetDialog.close();
+    if (!hasWorksheet && nodes.worksheetDialog.open) nodes.worksheetDialog.close();
 
     if (showTopology) {
       var ctx = {
@@ -442,6 +455,7 @@
           render();
         },
       });
+      VA.renderTopoJoint(nodes.topojoint, topoProj);
       VA.renderTopoPane(nodes.pane, ctx);
       VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
       VA.renderTopoDetail(nodes.detail, ctx);
@@ -455,7 +469,8 @@
         state.crops, state.detailImage, VA.CONFIG);
     }
 
-    VA.renderWorksheet(nodes.worksheet, stackProj, state.worksheetText);
+    VA.renderWorksheet(nodes.worksheet, showTopology ? topoProj : stackProj,
+      state.worksheetText);
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its

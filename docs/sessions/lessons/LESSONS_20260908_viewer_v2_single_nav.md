@@ -160,12 +160,16 @@ see §2 for how this handoff kept that fixed rather than re-breaking it).
 
 ## 9. Verification
 
-`node apps/viewer/run_tests.cjs` (158/158) and `[--repo C:\workspace\tolstack]`
-(198/199, the one pre-existing failure in §7);
+`node apps/viewer/run_tests.cjs` (162/162) and `[--repo C:\workspace\tolstack]`
+(204/205, the one pre-existing failure in §7);
 `venv-win\Scripts\python.exe -m pytest -q` (681 passed, 1 skipped);
 `node scripts/run_viewer_browser_tests.mjs` (9/9 suites) and
 `[--repo C:\workspace\tolstack]` (9/9 suites, including the real-projection
 pass and the real-`pitch_system` height-budget check).
+
+Counts are post-review-round-2 (§11) — 4 more than the first round shipped,
+one of which is a fix rather than a new capability (§7's own count was wrong
+the first time; see §11).
 
 Before/after screenshots (1400×900, mock fixture, a study selected, the
 disagreeing-tree provenance alarm forced — the same worst-case chrome
@@ -201,3 +205,85 @@ or a `[data-nav-kind="study"]` row depending on which tree is being shot.
   reaching the browser) cannot, and fails with a bare "CSS is not defined" —
   no line number pointing at the real cause since it is a ReferenceError, not
   a Playwright error.
+
+## 11. Round 2 (review `REQUEST CHANGES`, `review/viewer_v2_single_nav`
+`a905a86`): deliverable 4 was not implemented at all, and the review's own
+recount found a second undisclosed test failure
+
+The reviewer's blocker: `topology_schema_v1` already emits a topology's own
+`joint` block and `worksheet_file`/`worksheet_source` (`project_topology()`),
+and three `pitch_system` studies carry authored `checks` — none of it
+rendered anywhere in `apps/viewer/`, and `README.md` still asserted the
+pre-`topology_schema_v1` sentence "a topology has no worksheet of its own" in
+the very paragraph this handoff's first round edited. Fixed this round:
+
+- **`VA.jointBlock`** (`views/stack.js`) is now exported off the stack
+  view's own local function — one renderer, not a second copy — and
+  `views/topology.js`'s new `VA.renderTopoJoint` calls it with
+  `topoProj.joint`. Mounted at `#topojoint` (`topology.html`, between the
+  toolbar and the DAG pane), a collapsed `<details>` so it costs one line even
+  when populated (4 of 5 real topologies carry one) and reads "no joint
+  block" for `pitch_system`, whose own is `{}` (it spans more than one
+  physical joint) — never a fabricated one.
+- **The worksheet toggle is no longer stack-mode-only.** `topology_app.js`'s
+  `loadWorksheet()` now reads off `currentTopology()` or `currentStack()`
+  depending on `state.mode` (both builders emit the identical `worksheet_file`
+  / `worksheet_source` field pair, so `VA.worksheetSegments` and
+  `VA.renderWorksheet` needed no change at all to accept either) — the
+  hard-coded `showTopology ? "none" : ""` visibility became
+  `hasWorksheet ? "" : "none"`, computed from whichever projection is current,
+  and the dialog now auto-closes if the newly-selected node has none open.
+  `pitch_system`'s own `WORKSHEET_end_stop_graft.md` (`provenance.worksheet`
+  declared on the topology file) is the one live case; the other four
+  topologies have none and correctly hide the button.
+- **`views/worksheet.js`'s "declared" note was ALSO a wrong-fact bug**, not
+  just a missing feature: it hard-coded "declared by the stack file", which
+  would have been false the moment a topology's own declared worksheet
+  rendered through it (`pitch_system`'s is). Reworded to "declared by this
+  file itself... one worksheet may cover several stacks or topologies" —
+  the renderer never actually depended on the caller being a stack, only the
+  copy did.
+- **The `checks` third of deliverable 4 is named as a real, cross-referenced
+  gap, not silently dropped**: `project_study()` has no `checks` key at all
+  (a pre-existing projection gap, `ISSUE_20260908_topology_projection_never_
+  emits_a_studys_checks.md`, filed from the `topology_schema_v1` review and
+  out of this handoff's scope — the projection builders are explicitly
+  off-limits). Named in a code comment above `VA.renderTopoTotals`
+  (`views/topology.js`) and in `apps/viewer/README.md`'s Worksheets section,
+  mirroring the covered-stack-checks disclosure's own style (`views/nav.js`).
+- **`README.md`'s false sentence is fixed**, and the surrounding section
+  rewritten to describe the shared toggle, the shared two-rule
+  `provenance.worksheet` convention, and the new joint block — plus the
+  vertical-budget section (§1's own numbers) now names `#topojoint` as new,
+  bounded chrome rather than silently leaving it undocumented.
+- **New tests, both tiers**: `apps/viewer/tests.js` gained fixture-tier tests
+  for `VA.renderTopoJoint` (populated / empty / null) and for
+  `VA.renderWorksheet` accepting a non-stack-shaped object, plus `[real]`
+  node-fs-tier tests reading `vpa_output_to_pitch_plate`'s real joint and
+  `pitch_system`'s real `WORKSHEET_end_stop_graft.md` off disk (mirroring the
+  existing "[real] the pitch-link worksheet loads and renders" pattern).
+  `scripts/run_viewer_browser_tests.mjs` gained a per-topology joint/worksheet
+  visibility check in the real-projection loop and a mock-mode check that the
+  demo mechanism's own empty joint stays silent. The real-projection swap
+  seam that section uses (`window.ViewerApp.demoTopologyFixture = ...`) wires
+  `topologies`/`crops`/`images` only, never `texts` — so a real click opening
+  `pitch_system`'s worksheet dialog is asserted there, but its CONTENT is
+  asserted only in the node-fs tier, which reads the real file directly.
+
+**The should-fix, also confirmed and fixed**: the review recounted
+`run_tests.cjs --repo` at 197/199, not this lesson's original 198/199 claim —
+a second, undisclosed failure, `[real] the topology fixture's shapes still
+match the builder's`, drifted from the builder because `topology_schema_v1`
+added `joint`/`worksheet_file`/`worksheet_source` (topology-level) and
+`configuration` (study-level) to `project_topology()`/`project_study()`
+*after* `topology_fixtures.js` was last generated. Fixed by hand-adding the
+same keys to the fixture (`joint: {}`, `worksheet_file: null`,
+`worksheet_source: null` on the one demo topology; `configuration: {}` on
+each of its three studies) rather than re-running the builder: the demo
+mechanism's own source documents (`docs/topologies/topology_demo_mechanism.
+json` etc., named in the fixture's own `source_file` fields) no longer exist
+on disk to regenerate from, and `{}`/`null` are honest values for a four-part
+demo mechanism with no worksheet either way — a shape fix, not a hand-edited
+number, and the fixture's own header comment says so. Re-running the full
+`--repo` suite after both fixes: 204/205, the one remaining failure being
+§7's pre-existing branch-count race, unchanged and still unrelated.
