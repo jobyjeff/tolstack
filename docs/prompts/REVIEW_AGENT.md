@@ -2158,6 +2158,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       filesystem-free "would this resolve" predicate beside an existing
       resolver: **could the predictor import the real rule instead of
       restating it**, given how the resolver's own imports are structured?
+      **Resolved 2026-09-09** (`croppable_rule_shared_predicate`):
+      `build_viewer_crops.croppable()` is now the one function both
+      `resolve_pdf`'s rule 1/2 and `build_topology_projection.py`'s call site
+      use (imported there as `_croppable`); confirmed the cross-import still
+      does not pull `fitz` into tolstack's stdlib-only venv. Keep this entry —
+      the shape (a same-repo predicate restated instead of imported) is worth
+      catching again in a different pair of scripts.
 
 - [ ] **The projection DOES emit the field; the viewer just never reads it —
       and a doc still asserts the pre-field state.** New 2026-09-08

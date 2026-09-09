@@ -1,11 +1,17 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: scripts/build_topology_projection.py
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260909_croppable_rule_shared_predicate.md
 ---
+
+**Resolved 2026-09-09** by handoff `croppable_rule_shared_predicate`
+(`bb729d5`): `build_viewer_crops.croppable()` is now the one function
+`resolve_pdf`'s rule 1/2 and `build_topology_projection.py`'s `_croppable`
+call site both use. See
+`docs/sessions/lessons/LESSONS_20260909_croppable_rule_shared_predicate.md`.
 
 # `_croppable()`'s two rules are a hand-restatement of `resolve_pdf`'s rule 1/2, with nothing pairing them
 
