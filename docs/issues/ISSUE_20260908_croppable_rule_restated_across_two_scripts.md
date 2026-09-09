@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: scripts/build_topology_projection.py
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260909_croppable_rule_shared_predicate.md
 ---
 
 # `_croppable()`'s two rules are a hand-restatement of `resolve_pdf`'s rule 1/2, with nothing pairing them

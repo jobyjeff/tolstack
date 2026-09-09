@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: docs/DAG_TOPOLOGY.md, data/meshes/
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260909_topology_part_vocabulary_mesh_mapping.md
 ---
 
 # A topology edge's `part` and a mesh's `provenance.json` `part_id` are two unmapped vocabularies, so most deep-link isolates land on the empty state

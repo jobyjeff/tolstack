@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: docs/SOP_TOLERANCE_STACK.md
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260909_sop_full_topology_first_restructure.md
 ---
 
 # `docs/SOP_TOLERANCE_STACK.md` still reads as a linear-stack document with a topology pointer, not a topology-first procedure

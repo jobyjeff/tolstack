@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: scripts/build_topology_projection.py
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260909_topology_projection_emits_study_checks.md
 ---
 
 # A study's authored `checks` — with or without `limit` — never reach the topology projection

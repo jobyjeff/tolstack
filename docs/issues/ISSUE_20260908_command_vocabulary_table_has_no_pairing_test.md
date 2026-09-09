@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260909_annotate_command_vocabulary_pairing_test.md
 ---
 
 # The command layer's documented verb table has no structural pairing against `commands.register(...)`

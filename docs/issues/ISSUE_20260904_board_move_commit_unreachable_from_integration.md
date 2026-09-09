@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: closed
 area: dispatch/board
 reporter: agent
+resolution: already tracked and escalated cross-repo -- dispatch/docs/issues/ISSUE_20260906_board_move_commit_unreachable_from_integration.md names this exact sighting, was resolved via dispatch's HANDOFF_20260906_board_move_reachable_from_integration.md (completed 2026-09-07, not independently verified). Closing here as duplicate/handled upstream rather than re-filing.
 ---
 
 # A handoff's "staged -> active" board commit can land only on `master`, unreachable from the `integration` lineage its own review branch was cut from
