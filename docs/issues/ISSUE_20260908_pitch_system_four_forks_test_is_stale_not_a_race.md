@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer/tests.js
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260909_tolstack_viewer_js_suite_drift.md
+resolution: handoff completed 2026-09-09 -- closed automatically by dispatch when handoff `tolstack_viewer_js_suite_drift` moved to completed/; not independently verified.
 ---
 
 # `[real] the pitch system's four forks are marked` asserts a stale count (4), and every recent review has re-labelled the mismatch a "race" without re-deriving it

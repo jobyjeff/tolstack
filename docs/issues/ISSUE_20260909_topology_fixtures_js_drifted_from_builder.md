@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer/topology_fixtures.js
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260909_tolstack_viewer_js_suite_drift.md
+resolution: handoff completed 2026-09-09 -- closed automatically by dispatch when handoff `tolstack_viewer_js_suite_drift` moved to completed/; not independently verified.
 ---
 
 # `topology_fixtures.js` has drifted from `build_topology_projection.py`'s current output shape
