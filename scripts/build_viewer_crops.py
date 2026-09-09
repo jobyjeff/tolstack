@@ -318,6 +318,50 @@ def pdf_from_export(
             "run_id": runs[0] if runs else None, "sha256_verified": True}
 
 
+def _is_named_export(export: Any) -> bool:
+    """Whether ``export`` names an export at all -- rule 1's applicability,
+    before any file is touched or its status is read.
+
+    ``export`` is either the raw value read off parsed JSON (:func:`resolve_pdf`'s
+    own shape, unvalidated -- a bare string or an empty ``{}`` names nothing, so a
+    dict must additionally be non-empty) or a
+    :class:`tolerance_stack.stack.SourceExport` dataclass instance (already
+    validated by its own constructor, so any non-``None`` instance qualifies).
+    This is the one place rule 1's "does an export exist" test is written --
+    :func:`croppable` and :func:`resolve_pdf` below both call it, so a future
+    sub-condition on rule 1 cannot be added to one and forgotten in the other.
+    """
+    if isinstance(export, dict):
+        return bool(export)
+    return export is not None
+
+
+def croppable(source_ref: Any) -> bool:
+    """Whether either rule 1 (``source_ref_export``) or rule 2 (``spec_pile``)
+    below could ever apply to ``source_ref`` -- never rule 3
+    (``joint.assembly_export``), which borrows from a STACK's own ``joint``
+    block and an edge with no stack (e.g. a topology's inline dimension) has
+    nothing to borrow from. This check touches no filesystem and does not mean
+    "resolves": an ``unestablished`` export is still croppable in this sense
+    (it *names* itself, via ``export``) and lands in ``crops.json`` as
+    unresolvable with its own ``why`` -- exactly like a workbook/assumed
+    citation, just for a different reason. Only :func:`resolve_pdf`, against
+    the real files, decides resolved vs. unresolvable.
+
+    Accepts either shape a caller holds a citation in: the raw dict read off
+    parsed JSON (this module's own callers), or a
+    :class:`tolerance_stack.stack.SourceRef` dataclass instance
+    (``scripts/build_topology_projection.py``'s dataclass graph, which imports
+    this function rather than keeping its own copy of the two conditions).
+    """
+    if not source_ref:
+        return False
+    if isinstance(source_ref, dict):
+        return (_is_named_export(source_ref.get("export"))
+                or source_ref.get("kind") == "spec")
+    return _is_named_export(source_ref.export) or source_ref.kind == "spec"
+
+
 def resolve_pdf(
     raw_stack: Dict[str, Any],
     source_ref: Dict[str, Any],
@@ -338,9 +382,11 @@ def resolve_pdf(
         raise Unresolvable(NO_DOCUMENT_KINDS[kind])
 
     # Rule 1: the citation says which export it read. Strongest, and it wins --
-    # including when it says the export cannot be established.
+    # including when it says the export cannot be established. Whether this
+    # rule applies at all is :func:`_is_named_export`, shared with
+    # :func:`croppable`.
     export = source_ref.get("export")
-    if isinstance(export, dict) and export:
+    if _is_named_export(export):
         return pdf_from_export(export, rel_roots, dc_root)
 
     if kind == "spec":
