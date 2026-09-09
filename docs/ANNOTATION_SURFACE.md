@@ -116,6 +116,20 @@ can neither fetch a mesh binary nor write an event file. See
 (no measurement, no assembly placement), and why it is ES modules where the
 viewer is classic scripts.
 
+Every scene/navigation operation is a named, text-addressable verb behind one
+dispatch point (`commands.js`'s `AA.CommandLayer` — handoff
+`annotate_deep_link_and_part_filter`, 2026-09-08): the UI is a thin shell over
+this command layer, on purpose, because the intended follow-on is a
+vision-agent driver operating the surface the same way (zoom/pan/rotate/
+filter/select as text commands over a screenshot). A deep link
+(`?topology=&edge=&study=&isolate=`) and a parts panel (per-mesh show/hide/
+isolate) are its first two consumers; `apps/viewer/`'s topology-mode detail
+pane emits the deep link on any untraced/uncited edge ("annotate this →"),
+naming the edge's own `part` as `isolate` — a different vocabulary than a
+mesh's `provenance.json` `part_id`, so most links land on the honest
+empty-state ("no installed mesh for X") rather than an isolated part, until a
+mapping between the two namespaces exists or meshes are named to match.
+
 ## What this MVP does not build
 
 - **Measurement from geometry.** Explicitly out of scope by the brief's

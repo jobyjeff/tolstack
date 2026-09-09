@@ -100,6 +100,35 @@
       eq(VA.confidenceClass("banana"), "conf--unknown");
     });
 
+    // --- the deep link out to apps/annotate/ (annotate_deep_link_and_part_filter) ---
+
+    await test("needsAnnotation is true only for the two loud gap confidences",
+      function () {
+        ok(VA.needsAnnotation("untraced"));
+        ok(VA.needsAnnotation("no_source_ref"));
+        eq(VA.needsAnnotation("traced"), false);
+        eq(VA.needsAnnotation("inferred"), false);
+        eq(VA.needsAnnotation(null), false);
+      });
+
+    await test("annotateLink is relative (../annotate/index.html), edge/study/isolate " +
+      "only appended when given", function () {
+        eq(VA.annotateLink({ topologyId: "pitch_system" }),
+          "../annotate/index.html?topology=pitch_system");
+        eq(VA.annotateLink({ topologyId: "pitch_system", edgeId: "end_stop_clearance" }),
+          "../annotate/index.html?topology=pitch_system&edge=end_stop_clearance");
+        eq(VA.annotateLink({
+          topologyId: "pitch_system", edgeId: "end_stop_clearance",
+          studyId: "pitch_system_end_stop_plus72", part: "vpa_208510_007",
+        }), "../annotate/index.html?topology=pitch_system&edge=end_stop_clearance" +
+          "&study=pitch_system_end_stop_plus72&isolate=vpa_208510_007");
+      });
+
+    await test("annotateLink percent-encodes ids that need it", function () {
+      eq(VA.annotateLink({ topologyId: "a b", edgeId: "c&d" }),
+        "../annotate/index.html?topology=a%20b&edge=c%26d");
+    });
+
     // The replacement for the prose search. `is_incomplete` used to look for the
     // literal "INCOMPLETE" in the label/guidance/check_id, so a stack that wrote
     // it in lower case — or "PARTIAL", or "budget only" — rendered as an
@@ -1824,6 +1853,31 @@
         has(root.textContent, "linear_to_rotary");
       });
 
+    await test("an untraced edge's pane offers an annotate-this link, carrying " +
+      "its topology/edge/study/owner part", function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            study: topoStudy("demo_base_to_tip"),
+            selection: { kind: "edge", id: "arm_pin_to_tip" } }));
+        });
+        var link = root.querySelector("a.detail__annotate-link");
+        if (!link) throw new Error("expected an annotate-this link for an untraced edge");
+        var href = link.getAttribute("href");
+        has(href, "topology=" + TOPO.id);
+        has(href, "edge=arm_pin_to_tip");
+        has(href, "study=demo_base_to_tip");
+        has(href, "isolate=arm");
+      });
+
+    await test("a traced edge's pane offers no annotate-this link -- it already " +
+      "has a citation", function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        eq(all(root, "a.detail__annotate-link").length, 0);
+      });
+
     await test("the pane explains a missing crop rather than reporting a stale " +
       "index", function () {
         // Three different facts, and the page must not collapse them: an edge
@@ -3128,6 +3182,30 @@
                                    edge.crop_key.element);
             eq(entry.status, "resolved");
             eq(entry.pdf_name, "NAS6403-NAS6420 Rev 4.pdf");
+          });
+
+        await test("[real] a real untraced pitch_system edge's pane offers a " +
+          "working annotate-this link (annotate_deep_link_and_part_filter)",
+          function () {
+            var edge = VA.topologyIndex(livePitch).edges.hub_lower_to_top_bearing_flange;
+            eq(edge.confidence, "untraced");
+            eq(edge.part, "hub");
+            var study = VA.findStudy(livePitch, "pitch_system_blade_angle_worst");
+            var root = render(function (r) {
+              VA.renderTopoDetail(r, {
+                topoProj: livePitch, study: study, crops: realCrops,
+                layoutMode: "topology",
+                selection: { kind: "edge", id: "hub_lower_to_top_bearing_flange" },
+                detailImage: null, onSelect: function () {},
+              });
+            });
+            var link = root.querySelector("a.detail__annotate-link");
+            if (!link) throw new Error("expected an annotate-this link for a real untraced edge");
+            var href = link.getAttribute("href");
+            has(href, "topology=pitch_system");
+            has(href, "edge=hub_lower_to_top_bearing_flange");
+            has(href, "study=pitch_system_blade_angle_worst");
+            has(href, "isolate=hub");
           });
 
         // --- [real] the topology fixture, against the real shapes -------------

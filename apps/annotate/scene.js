@@ -21,6 +21,16 @@ const PART_MARGIN = 50; // native units (mm) gap between side-by-side parts
 const PALETTE = [0x5b8dd6, 0xd68a5b, 0x7bc47f, 0xc47bc4];
 const HIGHLIGHT = [1.0, 0.55, 0.1];
 
+// CATIA STEP exports are Z-up (handoff annotate_deep_link_and_part_filter,
+// deliverable 5 -- Jeff's live report: horizontal drag sometimes orbits about
+// the vertical axis, sometimes about the axis normal to the screen,
+// depending on view angle -- the classic symptom of a Y-up control on a Z-up
+// mesh). BACK_AXIS is an arbitrary horizontal viewing direction perpendicular
+// to UP_AXIS, used everywhere this file used to assume "+Z is toward the
+// camera".
+const UP_AXIS = new THREE.Vector3(0, 0, 1);
+const BACK_AXIS = new THREE.Vector3(0, -1, 0);
+
 // Faces are appended in face_id order (0..N-1, dense) and each face's
 // triangulation nodes occupy a contiguous run of the flat vertex buffer --
 // see rotorkit/stepgeom/tessellate.py's own docstring for why a cumulative
@@ -54,6 +64,12 @@ export class AnnotateScene {
     this.camera = new THREE.PerspectiveCamera(
       45, hostEl.clientWidth / hostEl.clientHeight, 0.1, 1e6
     );
+    // MUST happen before `new OrbitControls(...)`: OrbitControls captures
+    // object.up into a fixed quaternion at construction time
+    // (vendor/OrbitControls.js, `this._quat = ... setFromUnitVectors(object.up,
+    // ...)`), not on every update -- setting camera.up afterward would leave
+    // the controls permanently orbiting around the old (default Y) axis.
+    this.camera.up.copy(UP_AXIS);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x222233, 1.2));
@@ -131,7 +147,7 @@ export class AnnotateScene {
     };
     this.scene.add(mesh);
     this.parts.set(sha256, mesh);
-    this._frameAll();
+    this.frameParts();
     return mesh;
   }
 
@@ -144,16 +160,54 @@ export class AnnotateScene {
     this.parts.delete(sha256);
   }
 
-  _frameAll() {
-    if (this.parts.size === 0) return;
+  // Part show/hide (handoff annotate_deep_link_and_part_filter, deliverable
+  // 2): three.js already skips an invisible object in both rendering and
+  // raycasting, so "hide" needs nothing beyond the object's own `.visible` --
+  // no removal, no geometry disposal, so a re-`show` is instant.
+  setVisible(sha256, visible) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return false;
+    mesh.visible = !!visible;
+    return true;
+  }
+
+  isVisible(sha256) {
+    const mesh = this.parts.get(sha256);
+    return !!(mesh && mesh.visible);
+  }
+
+  listOpenParts() {
+    return Array.from(this.parts.keys());
+  }
+
+  // A face's manifest record (area_native2/centroid_native), the same shape
+  // `pick()` returns -- the command layer's `select-face` needs this to build
+  // a pick with no raycast involved.
+  faceRecord(sha256, faceId) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return null;
+    return mesh.userData.manifest.faces[faceId] || null;
+  }
+
+  // Frames the given parts (sha256s), or every loaded part when omitted --
+  // the `camera` command's `reset`/`frame` verbs and every `loadPart` call
+  // share this one camera placement, so "camera reset" and "just opened a
+  // part" behave identically.
+  frameParts(shas) {
+    const targets = (shas && shas.length ? shas : Array.from(this.parts.keys()))
+      .map((sha) => this.parts.get(sha))
+      .filter(Boolean);
+    if (!targets.length) return;
     const overall = new THREE.Box3();
-    for (const mesh of this.parts.values()) {
+    for (const mesh of targets) {
       overall.union(mesh.geometry.boundingBox.clone().translate(mesh.position));
     }
     const center = overall.getCenter(new THREE.Vector3());
     const size = overall.getSize(new THREE.Vector3());
     const dist = Math.max(size.x, size.y, size.z) * 1.5 + 50;
-    this.camera.position.set(center.x, center.y + size.y * 0.3, center.z + dist);
+    this.camera.position.copy(center)
+      .addScaledVector(UP_AXIS, size.dot(UP_AXIS) * 0.3)
+      .addScaledVector(BACK_AXIS, dist);
     this.camera.lookAt(center);
     this.controls.target.copy(center);
     this.controls.update();
@@ -207,7 +261,7 @@ export class AnnotateScene {
     const dist = Math.max(size.x, size.y, size.z) * 2.5 + 10;
     const savedPos = this.camera.position.clone();
     const savedQuat = this.camera.quaternion.clone();
-    this.camera.position.copy(center).add(new THREE.Vector3(0, 0, dist));
+    this.camera.position.copy(center).addScaledVector(BACK_AXIS, dist);
     this.camera.lookAt(center);
     this.camera.updateMatrixWorld(true);
     const result = this.pick(0, 0);

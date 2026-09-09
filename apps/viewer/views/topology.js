@@ -59,8 +59,7 @@
     // human-lassoed chain's elements.
     if (state.studyId) {
       var annotateLink = VA.el("a", "ghost tvpick__mode", "Annotate →");
-      annotateLink.href = "../annotate/index.html?topology=" +
-        encodeURIComponent(state.topologyId) + "&study=" + encodeURIComponent(state.studyId);
+      annotateLink.href = VA.annotateLink({ topologyId: state.topologyId, studyId: state.studyId });
       annotateLink.title = "Open this study in the annotation surface (apps/annotate) to bind its " +
         "elements to geometry -- select + tag, no measurement.";
       root.appendChild(annotateLink);
@@ -628,6 +627,30 @@
     root.appendChild(VA.el("div", "detail__where",
       (edge.part ? "a dimension of " + edge.part : "across a clearance") +
       "  ·  " + edge.from + " → " + edge.to));
+
+    // Deep link OUT to apps/annotate/ (deliverable 4): only for the two loud
+    // gap confidences -- a traced/inferred edge already has a citation, and a
+    // binding is identity, never a value source (docs/ANNOTATION_SURFACE.md),
+    // so sending a click there for an already-sourced row would offer nothing.
+    if (VA.needsAnnotation(edge.confidence)) {
+      var annotateBox = VA.el("div", "detail__annotate");
+      var annotateLink = VA.el("a", "detail__annotate-link",
+        "annotate this" + (edge.part ? " (" + edge.part + ")" : "") + " →");
+      annotateLink.setAttribute("href", VA.annotateLink({
+        topologyId: ctx.topoProj.id,
+        edgeId: edge.id,
+        studyId: ctx.study && ctx.study.id,
+        part: edge.part,
+      }));
+      annotateLink.setAttribute("target", "_blank");
+      annotateLink.setAttribute("rel", "noopener");
+      annotateLink.setAttribute("title",
+        "opens apps/annotate/ with this edge selected" +
+        (edge.part ? ", isolating " + edge.part + " if its mesh is installed" : "") +
+        " -- click the correct surface(s) there to resolve which feature this is");
+      annotateBox.appendChild(annotateLink);
+      root.appendChild(annotateBox);
+    }
 
     if (edge.dimension) {
       var values = VA.el("div", "detail__values");

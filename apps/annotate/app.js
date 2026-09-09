@@ -1,7 +1,16 @@
 // Boot + wiring for the annotate page. ES module (see scene.js's docstring
 // for why this app has no file:// constraint to design around); reads the
 // classic-script globals (AA.CONFIG, AA.FsaAdapter, AA.MemoryAdapter,
-// AA.FIXTURES, AA.*) that index.html loads before this file.
+// AA.FIXTURES, AA.CommandLayer, AA.*) that index.html loads before this file.
+//
+// Every scene/navigation operation the UI offers is a command-layer verb
+// (commands.js) -- this file's job is to REGISTER the handlers (they close
+// over `state`/`scene`/`storage`, so they live here, not in the DOM-free
+// commands.js) and make every click, the deep-link boot sequence and the dev
+// console call `exec()` instead of touching state directly. That is the
+// architectural deliverable (handoff annotate_deep_link_and_part_filter,
+// deliverable 1): a future vision-agent driver is a fourth caller of the same
+// verbs, not a fourth code path.
 import { AnnotateScene } from "./scene.js";
 
 const AA = window.AnnotateApp;
@@ -17,10 +26,12 @@ const el = {
   studySelect: document.getElementById("study-select"),
   elementList: document.getElementById("element-list"),
   canvasHost: document.getElementById("canvas-host"),
-  partSelect: document.getElementById("part-select"),
-  openPartBtn: document.getElementById("open-part-btn"),
-  openPartsList: document.getElementById("open-parts-list"),
+  sceneEmpty: document.getElementById("scene-empty"),
+  partsPanel: document.getElementById("parts-panel"),
   detail: document.getElementById("detail"),
+  consoleInput: document.getElementById("console-input"),
+  consoleRun: document.getElementById("console-run"),
+  consoleOutput: document.getElementById("console-output"),
 };
 
 const state = {
@@ -39,12 +50,177 @@ const state = {
   currentStudy: null,
   selectedEdge: null,
   currentPick: null, // { sha256, faceId, record }
+  // Cached listMeshes() result -- the command layer resolves "sha256 or
+  // part_id" against this rather than re-reading storage on every command, so
+  // `camera frame <part>`/`isolate <part>` stay synchronous once the mesh
+  // list is loaded. Refreshed once per connection (loadAll), same lifetime as
+  // the rest of a session's loaded data.
+  meshList: [],
 };
 
 function setBanner(text, kind) {
   el.banner.textContent = text;
   el.banner.className = "banner" + (kind ? " banner--" + kind : "");
 }
+
+// --- the command layer: register handlers, one dispatch point ------------
+//
+// Deliverable 1's suggested verbs, as shipped: open-part/show/hide/isolate
+// (deliverable 2's parts panel), camera (deliverable 5's up-axis fix lives in
+// scene.js; this just exposes reset/frame), select-face (the raycast path's
+// non-mouse equivalent), goto (deliverable 3's deep link), plus
+// select-topology/select-study/select-edge -- goto's own three steps, named
+// separately because a picker changing just the topology or just the study
+// has no edge to name, and a vision-agent driver narrating "open this
+// element" one step at a time needs the same three verbs goto composes.
+
+function resolveMeshOrThrow(identifier) {
+  const mesh = AA.resolveMeshIdentifier(state.meshList, identifier);
+  if (mesh) return mesh;
+  const known = state.meshList.map((m) => m.part_id || m.sha256);
+  throw new Error(
+    "no installed mesh matches \"" + identifier + "\"" +
+    (known.length ? " -- installed: " + known.join(", ") : " -- no meshes installed")
+  );
+}
+
+async function cmdOpenPart(identifier) {
+  const mesh = resolveMeshOrThrow(identifier);
+  await state.scene.loadPart(mesh.sha256);
+  state.scene.setVisible(mesh.sha256, true);
+  renderPartsPanel();
+  return mesh.sha256;
+}
+
+function cmdHide(identifier) {
+  const mesh = resolveMeshOrThrow(identifier);
+  state.scene.setVisible(mesh.sha256, false);
+  renderPartsPanel();
+  return mesh.sha256;
+}
+
+// isolate never blanks the scene on a partial miss: a named part with no
+// installed mesh is reported (banner, and the scene overlay if EVERY named
+// part missed), but any part that DID resolve still opens and shows --
+// deliverable 3's "never a blank scene" is about the case where nothing at
+// all could be shown, not about every miss.
+async function cmdIsolate(...identifiers) {
+  if (!identifiers.length) throw new Error("isolate needs at least one part identifier");
+  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id) }));
+  const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
+  const targets = resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256);
+
+  const plan = AA.planIsolate(state.scene.listOpenParts(), targets);
+  for (const sha of plan.toOpen) await state.scene.loadPart(sha);
+  targets.forEach((sha) => state.scene.setVisible(sha, true));
+  plan.toHide.forEach((sha) => state.scene.setVisible(sha, false));
+  renderPartsPanel();
+
+  if (targets.length) await AA.exec(["camera", "frame", ...targets]);
+  setSceneEmptyState(targets.length === 0 ? missing : null);
+  if (missing.length && targets.length) {
+    setBanner("Isolated " + targets.length + " part(s); no installed mesh for: " +
+      missing.join(", "), "warn");
+  }
+  return { opened: targets, missing };
+}
+
+function cmdCamera(mode, ...rest) {
+  if (mode === "reset") {
+    state.scene.frameParts(state.scene.listOpenParts().filter((sha) => state.scene.isVisible(sha)));
+    return "reset";
+  }
+  if (mode === "frame") {
+    const shas = rest.length
+      ? rest.map((id) => resolveMeshOrThrow(id).sha256)
+      : state.scene.listOpenParts().filter((sha) => state.scene.isVisible(sha));
+    state.scene.frameParts(shas);
+    return shas;
+  }
+  throw new Error("unknown camera mode \"" + mode + "\" -- known: reset, frame");
+}
+
+function cmdSelectFace(identifier, faceIdText) {
+  const mesh = resolveMeshOrThrow(identifier);
+  const faceId = parseInt(faceIdText, 10);
+  const record = state.scene.faceRecord(mesh.sha256, faceId);
+  if (!record) throw new Error("part \"" + identifier + "\" has no face " + faceIdText);
+  state.scene.highlightFace(mesh.sha256, faceId);
+  state.currentPick = { sha256: mesh.sha256, faceId, record };
+  renderDetail();
+  return state.currentPick;
+}
+
+function cmdSelectTopology(topologyId) {
+  if (!state.topologyProjection) throw new Error("no topology projection loaded yet");
+  if (!state.topologyProjection.topologies.some((t) => t.id === topologyId)) {
+    throw new Error("unknown topology \"" + topologyId + "\"");
+  }
+  selectTopology(topologyId);
+  return topologyId;
+}
+
+function cmdSelectStudy(studyId) {
+  if (!state.currentTopology) throw new Error("no topology selected -- run select-topology first");
+  if (!(state.currentTopology.studies || []).some((s) => s.id === studyId)) {
+    throw new Error("unknown study \"" + studyId + "\" in topology \"" + state.currentTopology.id + "\"");
+  }
+  selectStudy(studyId);
+  return studyId;
+}
+
+function cmdSelectEdge(edgeId) {
+  if (!state.currentTopology) throw new Error("no topology selected -- run select-topology first");
+  const edge = state.currentTopology.edges.find((e) => e.id === edgeId);
+  if (!edge) throw new Error("unknown edge \"" + edgeId + "\" in topology \"" + state.currentTopology.id + "\"");
+  selectEdge(edge);
+  return edgeId;
+}
+
+// goto <topology> <edge> [study] -- deliverable 3's deep link, expressed as
+// three calls to the verbs above (never a parallel code path). When `study`
+// is omitted, the first study whose selection carries `edge` is used, so a
+// link needs only the two ids that actually identify "which dimension" --
+// naming the study too is an optional disambiguator when more than one
+// study crosses the same edge.
+async function cmdGoto(topologyId, edgeId, studyId) {
+  cmdSelectTopology(topologyId);
+  const topology = state.currentTopology;
+  let targetStudyId = studyId || null;
+  if (!targetStudyId && edgeId) {
+    const owning = (topology.studies || []).find((s) => (s.selection || []).includes(edgeId));
+    if (owning) targetStudyId = owning.id;
+  }
+  if (targetStudyId) cmdSelectStudy(targetStudyId);
+  if (edgeId) cmdSelectEdge(edgeId);
+  return { topologyId, studyId: targetStudyId, edgeId: edgeId || null };
+}
+
+const commands = new AA.CommandLayer();
+commands.register("open-part", cmdOpenPart);
+commands.register("show", cmdOpenPart); // "show" on a part never opened is "open it and show it"
+commands.register("hide", cmdHide);
+commands.register("isolate", cmdIsolate);
+commands.register("camera", cmdCamera);
+commands.register("select-face", cmdSelectFace);
+commands.register("select-topology", cmdSelectTopology);
+commands.register("select-study", cmdSelectStudy);
+commands.register("select-edge", cmdSelectEdge);
+commands.register("goto", cmdGoto);
+AA.exec = (input) => commands.exec(input);
+
+function setSceneEmptyState(missingParts) {
+  if (!missingParts || !missingParts.length) {
+    el.sceneEmpty.style.display = "none";
+    el.sceneEmpty.textContent = "";
+    return;
+  }
+  el.sceneEmpty.style.display = "flex";
+  el.sceneEmpty.textContent = "No installed mesh for: " + missingParts.join(", ") +
+    " -- tessellate the part first (see data/meshes/README.md), then reload.";
+}
+
+// --- topology/study/element navigation (the state these commands mutate) --
 
 function mergedIdentityProjection() {
   if (state.sessionEvents.length === 0) return state.identityProjection;
@@ -121,7 +297,13 @@ function renderElementList() {
     badge.className = "badge badge--" + bindingState;
     badge.textContent = bindingState;
     li.appendChild(badge);
-    li.onclick = () => selectEdge(edge);
+    li.onclick = () => {
+      try {
+        AA.exec(["select-edge", edge.id]);
+      } catch (err) {
+        setBanner(err.message, "error");
+      }
+    };
     if (state.selectedEdge && state.selectedEdge.id === edge.id) li.classList.add("selected");
     el.elementList.appendChild(li);
   }
@@ -307,30 +489,93 @@ function buildOwnerNotInSetForm(edge) {
   return form;
 }
 
-async function renderPartPicker() {
-  el.partSelect.innerHTML = "";
-  const meshes = await state.storage.listMeshes();
-  for (const mesh of meshes) {
-    const opt = document.createElement("option");
-    opt.value = mesh.sha256; opt.textContent = mesh.label + " (" + mesh.sha256.slice(0, 12) + "…)";
-    el.partSelect.appendChild(opt);
+// --- the parts panel (deliverable 2): every installed mesh, show/hide/isolate,
+// all backed by the command layer -- this function never mutates scene state
+// itself, only reads it (scene.listOpenParts()/isVisible()) to paint the
+// current checkbox states.
+
+function renderPartsPanel() {
+  el.partsPanel.innerHTML = "";
+  for (const mesh of state.meshList) {
+    const li = document.createElement("li");
+    li.className = "part-row";
+
+    const label = document.createElement("span");
+    label.className = "part-row__label";
+    label.textContent = mesh.label + " (" + mesh.sha256.slice(0, 12) + "…)";
+    li.appendChild(label);
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.title = "show/hide in the 3D view";
+    cb.checked = state.scene.isVisible(mesh.sha256);
+    cb.onchange = async () => {
+      try {
+        await AA.exec([cb.checked ? "show" : "hide", mesh.sha256]);
+      } catch (err) {
+        setBanner(err.message, "error");
+        cb.checked = !cb.checked;
+      }
+    };
+    li.appendChild(cb);
+
+    const isoBtn = document.createElement("button");
+    isoBtn.textContent = "Isolate";
+    isoBtn.title = "show only this part, hiding every other open part";
+    isoBtn.onclick = async () => {
+      try {
+        await AA.exec(["isolate", mesh.sha256]);
+      } catch (err) {
+        setBanner(err.message, "error");
+      }
+    };
+    li.appendChild(isoBtn);
+
+    el.partsPanel.appendChild(li);
   }
 }
 
-async function openSelectedPart() {
-  const sha256 = el.partSelect.value;
-  if (!sha256) return;
-  try {
-    await state.scene.loadPart(sha256);
-    const li = document.createElement("li");
-    li.textContent = sha256.slice(0, 12) + "…";
-    const unloadBtn = document.createElement("button");
-    unloadBtn.textContent = "close";
-    unloadBtn.onclick = () => { state.scene.unloadPart(sha256); li.remove(); };
-    li.appendChild(unloadBtn);
-    el.openPartsList.appendChild(li);
-  } catch (err) {
-    setBanner("Could not open part: " + err.message, "error");
+// --- deep link (deliverable 3) ---------------------------------------------
+//
+// Whether there is a pending link is decided once, from the URL, at module
+// load -- the params never change during a session.
+const wantTopology = params.get("topology");
+const wantStudy = params.get("study");
+const wantEdge = params.get("edge");
+const wantIsolate = params.get("isolate");
+
+function hasPendingDeepLink() {
+  return !!(wantTopology || wantIsolate);
+}
+
+// FSA cannot pre-grant a folder from a URL (the handoff's own constraint) --
+// a deep link's boot commands only run AFTER the user clicks Connect, inside
+// loadAll() below, same as this app's params handling always has. Said in
+// plain words on the pre-connect banner so a linked click doesn't look like
+// it silently did nothing.
+function pendingDeepLinkNote() {
+  return hasPendingDeepLink()
+    ? " A linked element is queued -- it opens once you connect."
+    : "";
+}
+
+async function runPendingDeepLink() {
+  if (wantTopology) {
+    try {
+      await AA.exec(["goto", wantTopology, wantEdge || "", wantStudy || ""]);
+    } catch (err) {
+      setBanner("Deep link failed: " + err.message, "error");
+    }
+  }
+  if (wantIsolate) {
+    const parts = wantIsolate.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length) {
+      try {
+        await AA.exec(["isolate", ...parts]);
+      } catch (err) {
+        setBanner("Deep link isolate failed: " + err.message, "error");
+      }
+    }
   }
 }
 
@@ -348,14 +593,10 @@ async function loadAll() {
     "ok"
   );
   renderTopologyPicker();
-  await renderPartPicker();
+  state.meshList = await state.storage.listMeshes();
+  renderPartsPanel();
 
-  const wantTopology = params.get("topology");
-  const wantStudy = params.get("study");
-  if (wantTopology && state.topologyProjection.topologies.some((t) => t.id === wantTopology)) {
-    selectTopology(wantTopology);
-    if (wantStudy) selectStudy(wantStudy);
-  }
+  await runPendingDeepLink();
 
   if (params.get("autotest") === "1") await runAutotest();
 }
@@ -367,13 +608,15 @@ async function loadAll() {
 // (LESSONS_20260904_step_tessellation_spike.md) documents why real click
 // automation is not run on this machine (it hijacks Jeff's live browser
 // session). Publishes into #test-status and window.__autotestResults, same
-// convention.
+// convention. Loads each part through the command layer (open-part) rather
+// than the scene directly -- autotest is the proto-agent-driver this app's
+// command layer is built for, so it should exercise the same path a real
+// driver would.
 async function runAutotest() {
   const results = [];
-  const meshes = await state.storage.listMeshes();
-  for (const mesh of meshes) {
+  for (const mesh of state.meshList) {
     try {
-      await state.scene.loadPart(mesh.sha256);
+      await AA.exec(["open-part", mesh.sha256]);
       const pick = state.scene.autotestPick(mesh.sha256);
       results.push(pick
         ? { sha256: mesh.sha256, hit: true, faceId: pick.faceId }
@@ -388,10 +631,34 @@ async function runAutotest() {
   window.__autotestResults = results;
 }
 
+// --- the dev console: window.AnnotateApp.exec's own UI ---------------------
+//
+// The third consumer of the command layer, alongside the UI's own clicks and
+// the deep link -- and the shape a future vision-agent driver's own tool
+// calls would take (a command string in, a result or an error out).
+async function runConsoleCommand() {
+  const text = el.consoleInput.value.trim();
+  if (!text) return;
+  el.consoleOutput.textContent = "> " + text;
+  try {
+    const result = await AA.exec(text);
+    el.consoleOutput.textContent += "\n" + (result === undefined ? "(ok)" : JSON.stringify(result));
+  } catch (err) {
+    el.consoleOutput.textContent += "\nERROR: " + err.message;
+  }
+}
+
 async function main() {
-  el.topologySelect.onchange = () => selectTopology(el.topologySelect.value);
-  el.studySelect.onchange = () => selectStudy(el.studySelect.value);
-  el.openPartBtn.onclick = openSelectedPart;
+  el.topologySelect.onchange = async () => {
+    try { await AA.exec(["select-topology", el.topologySelect.value]); }
+    catch (err) { setBanner(err.message, "error"); }
+  };
+  el.studySelect.onchange = async () => {
+    try { await AA.exec(["select-study", el.studySelect.value]); }
+    catch (err) { setBanner(err.message, "error"); }
+  };
+  el.consoleRun.onclick = runConsoleCommand;
+  el.consoleInput.onkeydown = (ev) => { if (ev.key === "Enter") runConsoleCommand(); };
 
   state.scene = new AnnotateScene(el.canvasHost, {
     readMeshManifest: (sha) => state.storage.readMeshManifest(sha),
@@ -439,7 +706,8 @@ async function main() {
     el.connectBtn.textContent = "Connected";
     await loadAll();
   } else {
-    setBanner("Click \"Connect folder\" and pick the tolstack repo root, grant read/write.", "warn");
+    setBanner("Click \"Connect folder\" and pick the tolstack repo root, grant read/write." +
+      pendingDeepLinkNote(), "warn");
   }
 }
 

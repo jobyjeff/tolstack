@@ -24,7 +24,7 @@ body {
 .topbar h1 { font-size: 16px; margin: 0; }
 .topbar .sub { color: #9aa1ab; font-size: 12px; }
 .topbar__spacer { flex: 1; }
-.topbar button, .an__parts button, .bind-form button, .owner-not-in-set-form button {
+.topbar button, .an__console button, .parts-panel button, .bind-form button, .owner-not-in-set-form button {
   background: #3a4048;
   color: #e8e8e8;
   border: 1px solid #4a515a;
@@ -76,17 +76,38 @@ body {
 .badge--needs_re_confirmation { background: #4d2323; color: #d65b5b; }
 
 .an__scene { position: relative; }
-.an__canvas-host { position: absolute; inset: 0 0 48px 0; }
-.an__parts {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 48px;
-  display: flex; align-items: center; gap: 8px; padding: 0 10px;
+.an__canvas-host { position: absolute; inset: 0 0 92px 0; }
+
+/* deliverable 3: "never a blank scene" -- an isolate that matched no
+   installed mesh at all shows this over the canvas instead of empty space. */
+.an__scene-empty {
+  position: absolute; inset: 0 0 92px 0;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 24px;
+  color: #d6b45b; background: rgba(27, 30, 34, 0.9);
+  font-size: 13px; line-height: 1.5;
+}
+
+.an__console {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 92px;
+  display: flex; flex-direction: column; gap: 4px; padding: 6px 10px;
   background: #24282e; border-top: 1px solid #33383f;
 }
-.an__open-parts { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
-.an__open-parts li {
-  background: #3a4048; padding: 2px 8px; border-radius: 4px; font-size: 12px;
-  display: flex; align-items: center; gap: 6px;
+.an__console input {
+  background: #1b1e22; color: #e8e8e8; border: 1px solid #4a515a;
+  border-radius: 4px; padding: 4px 8px; font-family: monospace;
 }
+.an__console pre {
+  margin: 0; font-size: 11px; color: #9aa1ab; overflow-y: auto; flex: 1;
+  white-space: pre-wrap;
+}
+
+.parts-panel { list-style: none; padding: 0; margin: 10px 0 0; }
+.part-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 0; font-size: 12px;
+}
+.part-row__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .an__detail {
   padding: 12px;

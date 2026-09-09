@@ -346,6 +346,12 @@ body { display: flex; flex-direction: column; }
 .detail__untraced { color: var(--untraced); font-weight: 600; margin-top: 4px; }
 .detail__crop--no-key { opacity: .85; }
 
+/* deliverable 4 (annotate_deep_link_and_part_filter): the deep link OUT to
+   apps/annotate/, shown only for an untraced/no_source_ref edge. */
+.detail__annotate { margin: 6px 0; }
+.detail__annotate-link { color: var(--accent); font-weight: 600; text-decoration: none; }
+.detail__annotate-link:hover { text-decoration: underline; }
+
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):
    "how to read the rails" no longer reserves a line of layout even collapsed,

@@ -27,6 +27,14 @@ that: open a study, open a part, click a face, write one
   from rotorkit's step_tessellation spike almost unchanged — see `scene.js`).
 - Writes a `feature-identity/v0` event into `data/inbox/feature-identity/`
   for a binding, or for "the owner isn't in the part set I have open."
+- Lists every installed mesh (`data/meshes/`) in a **parts panel** with a
+  show/hide checkbox and an **isolate** action per part (handoff
+  `annotate_deep_link_and_part_filter`) — single-part granularity only;
+  subtree-level filtering ("hide the whole EPU") needs assembly product
+  structure this repo does not have yet.
+- Boots from a **deep link** (`?topology=&edge=&study=&isolate=`) with that
+  study open, the edge selected, and the named part(s) isolated — see "Deep
+  link in" below.
 - **Does NOT measure, sum, or propose a binding.** A binding is identity, not
   a value source (the brief's decision 6): where an element already carries a
   drawing citation, the detail pane says so in plain words and the drawing
@@ -66,6 +74,64 @@ synthetic triangle mesh) — writes are captured in memory, never persisted,
 and the "Connect folder" button is hidden (mock mode has no transport to
 connect).
 
+## The command layer
+
+Every scene/navigation operation the UI offers is a named, text-addressable
+verb dispatched through one registry (`commands.js`'s `AA.CommandLayer`,
+handoff `annotate_deep_link_and_part_filter`) — the architecture is deliberate:
+**the UI is a thin shell over CLI-shaped commands**, because the follow-on arc
+is a vision-agent driver operating this surface with vision + text commands
+(zoom/pan/rotate/filter/select), not a human mouse forever. The deep link
+below and the parts panel are its first two consumers; the dev console
+(bottom of the 3D pane, or `window.AnnotateApp.exec(...)` from a browser
+devtools console) is the third, and the shape a future agent driver's own
+tool calls would take.
+
+| verb | does |
+|---|---|
+| `open-part <mesh-id\|part>` | loads a mesh (sha256 or its `provenance.json` `part_id`) and shows it |
+| `show <part>` | same as `open-part` — a part never opened is opened and shown |
+| `hide <part>` | hides an open part (`.visible = false`; not unloaded, so re-showing is instant) |
+| `isolate <part…>` | shows only the named part(s), hiding every other open part; opens any not yet loaded; frames the camera on them |
+| `camera reset` | frames every currently-visible open part |
+| `camera frame <part…>` | frames the named part(s) (or the visible ones, with no args) |
+| `select-face <part> <face_id>` | picks a face by id — the non-mouse equivalent of clicking it |
+| `select-topology <id>` / `select-study <id>` / `select-edge <id>` | the three steps `goto` composes, addressable one at a time |
+| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge |
+
+`resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and
+isolate state-transition helpers) and the tokenizer/dispatch registry itself
+are DOM-free (`commands.js`) and covered by `run_tests.cjs`; the handlers
+(`app.js`, closing over `state`/`scene`/`storage`) are exercised through
+`?mock=1&autotest=1` and manual use, the same split `binding_state.js` already
+draws between logic and wiring.
+
+## Deep link in
+
+`?topology=<id>&edge=<id>&study=<id>&isolate=<part>[,<part>…]` boots the app
+with that study open, that edge selected, and the named part(s) isolated —
+implemented entirely as `goto`/`isolate` command-layer calls at boot
+(`app.js`'s `runPendingDeepLink`), never a parallel code path. `study` is
+optional: omitted, the first study whose selection carries `edge` is used.
+`isolate` accepts a comma-separated list of mesh sha256s or `part_id`s; a
+named part with no installed mesh is reported in the banner (and, if
+*nothing* named resolved, as a plain-words message over the 3D pane itself —
+never a blank scene) rather than silently doing nothing.
+
+**FSA cannot pre-grant the folder from a URL.** A deep link opened cold has
+no folder access yet — the banner says so ("a linked element is queued"),
+and the boot commands replay only after you click **Connect folder**.
+
+`apps/viewer/`'s topology-mode detail pane emits this link (`annotate this
+→`) on any edge whose confidence is `UNTRACED` or `NO CITATION`, naming its
+`part` field as `isolate` — see `apps/viewer/README.md`'s own section on it.
+That `part` is the topology's own vocabulary (e.g. `gas_spring_mount_213668_
+002`), a different namespace than a mesh's `provenance.json` `part_id` (e.g.
+`machined_213668`); nothing in this repo maps one to the other yet, so most
+links will not find an installed mesh to isolate today — the empty state
+naming what's missing is the intended, honest result, not a bug, until that
+mapping exists (or until meshes are tessellated and named to match).
+
 ## Why `data/inbox/feature-identity/` is gitignored, unlike the spec library
 
 `docs/spec_library/events/` (this repo's other append-only event stream) is
@@ -88,9 +154,13 @@ apps/annotate/
   binding_state.js     PURE logic: stack-side keys, binding-state derivation,
                        event construction -- no DOM, no fetch. The one file a
                        test loads without a browser (run_tests.cjs).
+  commands.js          PURE command layer: tokenizer, the CommandLayer
+                       registry, mesh-identifier resolution, the isolate
+                       state-transition helper -- no DOM, no scene, no fetch.
+                       app.js registers the actual (impure) handlers onto it.
   scene.js             the 3D surface: three.js mesh loading (through the
                        storage adapter, never fetch() directly), raycast,
-                       highlight. ES module (ADR below).
+                       highlight, part show/hide/frame. ES module (ADR below).
   app.js               boot + wiring. ES module.
   fixtures.js          the ?mock=1 demo dataset
   storage/adapter.js   the read/write adapter contract
@@ -99,7 +169,8 @@ apps/annotate/
                        rather than persisting them
   vendor/              three.js r169 + OrbitControls, copied verbatim from
                        rotorkit's spike (see vendor/README.md)
-  run_tests.cjs        fast-tier runner for binding_state.js + storage/memory.js
+  run_tests.cjs        fast-tier runner for binding_state.js + commands.js +
+                       storage/memory.js
 ```
 
 ### Why ES modules here, when apps/viewer is classic scripts
@@ -125,9 +196,13 @@ venv-win\Scripts\python.exe -m pytest tests\test_annotate_js_vocabulary.py -q
 
 `run_tests.cjs` covers `binding_state.js` (stack-key equality, binding-state
 derivation including the staleness-flip case, event construction and its
-validation) and `storage/memory.js` (a write is captured; a second write to
-the same filename refuses, append-only; `canWrite() === false` refuses a
-write instead of silently no-op'ing). `tests/test_annotate_js_vocabulary.py`
+validation), `commands.js` (the tokenizer, `CommandLayer.exec` dispatching a
+string or an already-tokenized array to its handler and throwing a
+known-verbs-naming error for an unknown one, `resolveMeshIdentifier`'s
+sha256/part_id match, and `planIsolate`'s open/show/hide state transition)
+and `storage/memory.js` (a write is captured; a second write to the same
+filename refuses, append-only; `canWrite() === false` refuses a write instead
+of silently no-op'ing). `tests/test_annotate_js_vocabulary.py`
 (pytest, not the node harness) pairs `binding_state.js`'s five hand-copied
 vocabulary arrays (`STACK_KEY_KINDS`, `VERDICTS`, `DIRECTIONS`, `PATH_KINDS`,
 `GDT_MODIFIERS`) against `tolerance_stack/feature_identity.py`'s own
@@ -148,3 +223,18 @@ raycast → face_id path, exercised with no real mouse. **Recommend Jeff open
 the page once himself** for a real visual/interaction confirmation; that
 step was not done in this session (same recommendation the spike's own
 lesson made, for the same reason).
+
+### Orbit up-axis (handoff `annotate_deep_link_and_part_filter`, deliverable 5)
+
+CATIA STEP exports are Z-up; three.js's `OrbitControls` assumes Y-up by
+default and bakes `camera.up` into a fixed quaternion **at construction
+time**, not on every update. `scene.js`'s constructor now sets
+`camera.up.copy(UP_AXIS)` (`(0, 0, 1)`) before constructing `OrbitControls`,
+fixing Jeff's live report that horizontal drag sometimes orbited about the
+vertical axis and sometimes about the axis normal to the screen depending on
+view angle — the classic Y-up-control-on-a-Z-up-mesh symptom. `frameParts`
+and `autotestPick` both offset the camera along `BACK_AXIS` (perpendicular to
+`UP_AXIS`) rather than the old hard-coded `+Z`, so every `camera` command
+stays consistent with the fix. Not exercised by `run_tests.cjs` (no WebGL in
+Node, same as the rest of `scene.js`) — verify by opening the page and
+dragging; recommended alongside the general open-it-once check above.

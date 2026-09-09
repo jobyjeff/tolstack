@@ -21,7 +21,7 @@ const sandbox = { console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 
-const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js", "fixtures.js"];
+const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js", "commands.js", "fixtures.js"];
 for (const f of files) {
   vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), sandbox, { filename: f });
 }
@@ -189,6 +189,78 @@ check("MemoryAdapter.listMeshes reads labels from the fixture provenance", async
   const meshes = await adapter.listMeshes();
   assertEqual(meshes.length, 1);
   assertEqual(meshes[0].sha256, AA.FIXTURES.demoSha);
+});
+
+// --- commands.js: parsing/dispatch and pure state transitions (handoff
+// annotate_deep_link_and_part_filter's command layer) ---
+check("tokenizeCommand splits on whitespace and keeps quoted args whole", () => {
+  assertEqual(AA.tokenizeCommand('isolate machined_213668'), ["isolate", "machined_213668"]);
+  assertEqual(AA.tokenizeCommand('goto pitch_system end_stop_clearance "a study"'),
+    ["goto", "pitch_system", "end_stop_clearance", "a study"]);
+});
+check("tokenizeCommand on an empty string is an empty array", () => {
+  assertEqual(AA.tokenizeCommand(""), []);
+});
+
+check("CommandLayer.exec dispatches a string command to its registered handler", () => {
+  const layer = new AA.CommandLayer();
+  let seen = null;
+  layer.register("open-part", (id) => { seen = id; return "opened:" + id; });
+  const result = layer.exec("open-part abc123");
+  assertEqual(seen, "abc123");
+  assertEqual(result, "opened:abc123");
+});
+check("CommandLayer.exec also takes an already-tokenized array -- the deep-link path's shape", () => {
+  const layer = new AA.CommandLayer();
+  layer.register("goto", (topo, edge) => [topo, edge]);
+  assertEqual(layer.exec(["goto", "pitch_system", "end_stop_clearance"]), ["pitch_system", "end_stop_clearance"]);
+});
+check("CommandLayer.exec on an unknown verb throws, naming the known verbs", () => {
+  const layer = new AA.CommandLayer();
+  layer.register("show", () => {});
+  layer.register("hide", () => {});
+  assertThrows(() => layer.exec("nonsense"), "expected a throw for an unknown verb");
+  try {
+    layer.exec("nonsense");
+  } catch (err) {
+    if (err.message.indexOf("hide") === -1 || err.message.indexOf("show") === -1) {
+      throw new Error("expected the error to name the known verbs, got: " + err.message);
+    }
+  }
+});
+check("CommandLayer.exec on an empty command throws", () => {
+  const layer = new AA.CommandLayer();
+  assertThrows(() => layer.exec(""));
+  assertThrows(() => layer.exec([]));
+});
+
+const MESHES = [
+  { sha256: "aaaa", label: "Part A", part_id: "part_a" },
+  { sha256: "bbbb", label: "Part B", part_id: "part_b" },
+];
+check("resolveMeshIdentifier matches by sha256", () => {
+  assertEqual(AA.resolveMeshIdentifier(MESHES, "bbbb"), MESHES[1]);
+});
+check("resolveMeshIdentifier matches by part_id", () => {
+  assertEqual(AA.resolveMeshIdentifier(MESHES, "part_a"), MESHES[0]);
+});
+check("resolveMeshIdentifier returns null rather than throwing on a miss", () => {
+  if (AA.resolveMeshIdentifier(MESHES, "no_such_part") !== null) {
+    throw new Error("expected null for an unmatched identifier");
+  }
+});
+
+check("planIsolate: nothing open yet -- everything named needs to open", () => {
+  assertEqual(AA.planIsolate([], ["aaaa", "bbbb"]),
+    { toOpen: ["aaaa", "bbbb"], toShow: [], toHide: [] });
+});
+check("planIsolate: some already open -- those just show, the rest open, others hide", () => {
+  assertEqual(AA.planIsolate(["aaaa", "cccc"], ["aaaa", "bbbb"]),
+    { toOpen: ["bbbb"], toShow: ["aaaa"], toHide: ["cccc"] });
+});
+check("planIsolate: isolating everything already open hides nothing and opens nothing", () => {
+  assertEqual(AA.planIsolate(["aaaa", "bbbb"], ["aaaa", "bbbb"]),
+    { toOpen: [], toShow: ["aaaa", "bbbb"], toHide: [] });
 });
 
 (async () => {

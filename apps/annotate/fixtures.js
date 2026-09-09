@@ -42,8 +42,11 @@
           title: "Demo mechanism",
           edges: [
             { id: "demo_edge_traced", name: "Demo traced edge", confidence: "traced", from: "a", to: "b" },
-            { id: "demo_edge_untraced", name: "Demo untraced edge", confidence: "untraced", from: "b", to: "c" },
-            { id: "demo_edge_no_owner", name: "Demo owner-not-in-set edge", confidence: "untraced", from: "c", to: "d" },
+            // `part: "demo_triangle"` matches meshProvenance's part_id below, so
+            // `?mock=1&topology=demo_system&edge=demo_edge_untraced&isolate=demo_triangle`
+            // is a real end-to-end deep-link demo with no folder grant needed.
+            { id: "demo_edge_untraced", name: "Demo untraced edge", confidence: "untraced", from: "b", to: "c", part: "demo_triangle" },
+            { id: "demo_edge_no_owner", name: "Demo owner-not-in-set edge", confidence: "untraced", from: "c", to: "d", part: "no_such_part" },
           ],
           studies: [
             {

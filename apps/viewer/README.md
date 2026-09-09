@@ -375,6 +375,24 @@ Provenance is the only saturated colour on the page; everything else is grey.
 A path or check also shows the **weakest** confidence among its expanded inputs:
 a check fed by four traced elements and one untraced one is an untraced result.
 
+## "Annotate this →" — jumping into the 3D tool from a gap
+
+An edge whose confidence is `UNTRACED` or `NO CITATION` (the two loud gap
+states above) gets an `annotate this →` link in the topology-mode detail
+pane (`views/topology.js`'s `renderEdgeDetail`, `VA.needsAnnotation`) — a
+traced/inferred edge already has a citation, so the link only offers
+something when there is a gap to close. The link (`VA.annotateLink`, the
+same builder the toolbar's own "Annotate →" link uses) is relative
+(`../annotate/index.html`), carrying `topology`/`edge`, plus `study` when one
+is selected and `isolate=<part>` when the edge names an owning part — booting
+`apps/annotate/` with that study open, the edge selected, and the part
+isolated if a mesh for it happens to be installed (handoff
+`annotate_deep_link_and_part_filter`; `apps/annotate/README.md`'s own "Deep
+link in" section is the other end of this). A binding made there is
+identity, never a value source (`docs/ANNOTATION_SURFACE.md`) — this link
+does not change what number this page shows, only helps someone establish
+which physical feature the row means.
+
 ## Selecting an element
 
 The elements table shows only a confidence chip, a kind chip, a short one-line

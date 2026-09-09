@@ -22,14 +22,19 @@
       <label class="an__label">study</label>
       <select id="study-select"></select>
       <ol id="element-list" class="element-list"></ol>
+
+      <label class="an__label">parts (data/meshes/)</label>
+      <ul id="parts-panel" class="parts-panel"></ul>
     </aside>
 
     <section class="an__scene">
       <div id="canvas-host" class="an__canvas-host"></div>
-      <div class="an__parts">
-        <select id="part-select"></select>
-        <button id="open-part-btn">Open part</button>
-        <ul id="open-parts-list" class="an__open-parts"></ul>
+      <div id="scene-empty" class="an__scene-empty" style="display:none"></div>
+      <div class="an__console">
+        <input id="console-input" type="text"
+               placeholder='command, e.g. isolate machined_213668 (window.AnnotateApp.exec)' />
+        <button id="console-run">Run</button>
+        <pre id="console-output"></pre>
       </div>
     </section>
 
@@ -47,6 +52,7 @@
   <script src="./storage/memory.js"></script>
   <script src="./storage/fsa.js"></script>
   <script src="./binding_state.js"></script>
+  <script src="./commands.js"></script>
   <script src="./fixtures.js"></script>
 
   <script type="importmap">
