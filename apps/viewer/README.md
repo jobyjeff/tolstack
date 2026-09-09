@@ -294,9 +294,16 @@ instead of raising it, by shrinking the chrome it was floored against:
   always-visible strip of chips — the same folded numbers, one line, with the
   rule sentence and a study's own `notes` behind their own `Details` toggle.
 
-With that chrome capped to roughly a topbar, a one-line banner, a toolbar strip
-and a slim totals strip, the DAG pane gets the large majority of the viewport
-by construction rather than by a floor fighting the chrome above it for room —
+The topology's own joint block (`#topojoint`, deliverable 4) is new chrome
+above the pane, not removed chrome — but it costs one collapsed `<details>`
+line even for the 4 of 5 topologies that carry a real one, the same as a
+stack's own joint block always has, so it does not reopen the budget the rest
+of this section closes.
+
+With that chrome capped to roughly a topbar, a one-line banner, a toolbar
+strip, a one-line joint block and a slim totals strip, the DAG pane gets the
+large majority of the viewport by construction rather than by a floor
+fighting the chrome above it for room —
 `scripts/run_viewer_browser_tests.mjs`'s `testHeightBudget` asserts that
 directly (900px viewport, the real `pitch_system`, a study selected, a forced
 provenance alarm: the pane's own height is more than half the viewport) instead
@@ -522,27 +529,45 @@ parts-list sheet).
 ## Worksheets
 
 The worksheet ("the agent's report") opens in its own `#worksheet-dialog`,
-from the **Show worksheet** button in the topbar (stack mode only — a topology
-has no worksheet of its own). It used to live in the right-hand pane; that
-pane now shows an element's full sourcing instead (see "Selecting an element"
-above). It moved again with `viewer_v2_single_nav` (2026-09-08), from an
-inline `<details>` below the elements table into a `<dialog>`: opening it can
-no longer compete with anything else for space — a `<dialog>` sits in the
+from the **Show worksheet** button in the topbar — offered in EITHER mode,
+exactly when the selected node's own projection names one
+(`worksheet_file`). A topology can carry one too, since `topology_schema_v1`
+(2026-09-08): `pitch_system`'s own is `WORKSHEET_end_stop_graft.md`,
+`provenance.worksheet`-declared on the topology file the same way a stack's
+is. The button hides for a node with none, in either mode — it used to be
+stack-mode-only, before a topology had a `worksheet_file` field to read. The
+worksheet used to live in the right-hand pane; that pane now shows an
+element's or edge's full sourcing instead (see "Selecting an element" above).
+It moved again with `viewer_v2_single_nav` (2026-09-08), from an inline
+`<details>` below the elements table into a `<dialog>`: opening it can no
+longer compete with anything else for space — a `<dialog>` sits in the
 browser's own top layer, outside the page's flex column entirely — closed by
 default so it never covers the table uninvited, but one click away, not gone.
 
 `WORKSHEET_*.md` is authored prose, so it is read **live** from
-`docs/tolerance_stacks/` rather than copied into the projection: edit the
-markdown, reload, see it. Rendered with the dependency-free markdown renderer
-vendored from forge's notes app (escape-first, no sanitize pass). A stack with no
-worksheet of its own says so instead of borrowing a neighbour's.
+`docs/tolerance_stacks/` or `docs/topologies/` rather than copied into the
+projection: edit the markdown, reload, see it. Rendered with the
+dependency-free markdown renderer vendored from forge's notes app
+(escape-first, no sanitize pass). A stack or topology with no worksheet of
+its own says so instead of borrowing a neighbour's.
 
-Which sheet belongs to a stack is decided by the projection, two rules deep: a
-`provenance.worksheet` in the stack file wins (one worksheet legitimately covers
-several stacks — `WORKSHEET_hub_bearing_thermal_fit.md` covers both thermal
-configurations, which are one analysis), otherwise `stack_X.json` →
-`WORKSHEET_X.md`. The pane says when the sheet was *declared* rather than matched,
-so a name that does not match the stack is explained instead of suspicious.
+Which sheet belongs to a stack or a topology is decided by its own
+projection builder, two rules deep and identical between the two: a
+`provenance.worksheet` in the file wins (one worksheet legitimately covers
+several documents — `WORKSHEET_hub_bearing_thermal_fit.md` covers both
+thermal configurations, which are one analysis), otherwise `X.json` →
+`WORKSHEET_X.md` by name. The pane says when the sheet was *declared* rather
+than matched, so a name that does not match what it covers is explained
+instead of suspicious.
+
+A topology's own `joint` block (the same free-form assembly/context shape a
+stack's is) renders above the DAG pane, collapsed by default — `{}` when a
+topology spans more than one physical joint, as `pitch_system` does, which
+renders as "no joint block" rather than an empty one. A study's own authored
+`checks` (verdict vs. criterion) do NOT render anywhere yet: the projection
+has no field for one (`ISSUE_20260908_topology_projection_never_emits_a_
+studys_checks.md`) — the two-thirds of this deliverable the projection
+already supports (`joint`, `worksheet_file`) are wired; this third is not.
 
 ## Tests
 
@@ -598,8 +623,8 @@ limitation forge's notes app records.
 apps/viewer/
   style.css           the SHARED stylesheet — the colour system lives here
   index.html          retired: redirects to topology.html (was the stack viewer)
-  topology.html       the ONE viewer's shell (nav, toolbar, three panes,
-                      legend + worksheet <dialog>s)
+  topology.html       the ONE viewer's shell (nav, toolbar, the joint block,
+                      three panes, legend + worksheet <dialog>s)
   topology.css        that page's own rules: the nav tree, the toolbar, the
                       rails, the grid, the slim totals strip, both dialogs
   test.html           browser test page; publishes window.__TEST_RESULTS__

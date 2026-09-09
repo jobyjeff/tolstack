@@ -69,6 +69,14 @@
   padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel2);
 }
 
+/* The joint block's mount (deliverable 4): horizontal inset matches the
+   toolbar's own so both feel like one strip of chrome above the DAG pane.
+   Not a flex-grow item -- .sv__joint's own <details>, collapsed by default,
+   is the whole of its height, so this never competes with .tv__scroll for
+   the vertical budget testHeightBudget asserts against. */
+.tv__jointwrap { padding: 0 12px; }
+.tv__jointwrap:empty { display: none; }
+
 /* The page is a flex column filling the viewport, so the rows get whatever the
    banner leaves rather than a hard-coded `calc(100vh - N)`. The banner's height
    is data-dependent — a provenance alarm is four lines and a quiet build is one

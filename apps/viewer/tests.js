@@ -1681,6 +1681,57 @@
         });
       });
 
+    // --- the joint + the worksheet (deliverable 4, viewer_v2_single_nav) -----
+    //
+    // A topology's `joint` and `worksheet_file` are the same shape a stack's
+    // own are (build_topology_projection.py's project_topology,
+    // topology_schema_v1) — the demo mechanism's own joint is `{}` (it spans
+    // four parts, not one physical joint), so a populated case is a variant
+    // of TOPO, not a second fixture file.
+
+    await test("a topology's joint block renders the same fields a stack's " +
+      "does, through the one shared renderer", function () {
+        var joint = {
+          assembly_drawing: "217755", sheet: 4, view: "DETAIL B",
+          zone: "H3", description: "a demo joint block for a topology",
+        };
+        var withJoint = Object.assign({}, TOPO, { joint: joint });
+        var root = render(function (r) { VA.renderTopoJoint(r, withJoint); });
+        eq(all(root, "details.sv__joint").length, 1);
+        Object.keys(joint).forEach(function (key) {
+          has(root.textContent, key);
+          has(root.textContent, String(joint[key]));
+        });
+      });
+
+    await test("a topology with no joint (it spans more than one physical " +
+      "joint) says so rather than fabricating one", function () {
+        eq(TOPO.joint && Object.keys(TOPO.joint).length, 0,
+          "fixture precondition: the demo mechanism's own joint is {}");
+        var root = render(function (r) { VA.renderTopoJoint(r, TOPO); });
+        has(root.textContent, "no joint block");
+      });
+
+    await test("renderTopoJoint is a no-op instead of throwing when there is " +
+      "no topology", function () {
+        var root = render(function (r) { VA.renderTopoJoint(r, null); });
+        eq(all(root, "*").length, 0);
+      });
+
+    await test("the worksheet renderer needs only worksheet_file/" +
+      "worksheet_source, not a stack shape — so a topology can reuse it " +
+      "unmodified", function () {
+        var topoLike = { worksheet_file: "docs/topologies/WORKSHEET_x.md",
+          worksheet_source: "declared" };
+        var root = render(function (r) {
+          VA.renderWorksheet(r, topoLike, "# a topology's own worksheet");
+        });
+        has(root.textContent, "docs/topologies/WORKSHEET_x.md");
+        has(root.textContent, "declared by this file itself");
+        has(root.textContent, "several stacks or topologies");
+        has(root.querySelector("div.worksheet__body").innerHTML, "<h1>");
+      });
+
     await test("the totals are the projection's numbers, printed verbatim",
       function () {
         var study = topoStudy("demo_strut_branch");
@@ -2919,6 +2970,31 @@
           ok(livePitch, "the L2 pitch system must be there");
           eq(realTopologies.orphan_studies, []);
         });
+
+        await test("[real] a topology's own joint block renders its assembly " +
+          "drawing, and pitch_system's empty one stays silent " +
+          "(deliverable 4)", function () {
+            var l1Root = render(function (r) { VA.renderTopoJoint(r, liveL1); });
+            ok(liveL1.joint && liveL1.joint.assembly_drawing,
+              "fixture precondition: vpa_output_to_pitch_plate has a real joint");
+            has(l1Root.textContent, String(liveL1.joint.assembly_drawing));
+            var pitchRoot = render(function (r) { VA.renderTopoJoint(r, livePitch); });
+            eq(livePitch.joint, {},
+              "fixture precondition: pitch_system spans more than one joint");
+            has(pitchRoot.textContent, "no joint block");
+          });
+
+        await test("[real] pitch_system's own worksheet loads and renders " +
+          "through the shared renderer (deliverable 4)", async function () {
+            ok(livePitch.worksheet_file, "pitch_system must declare one");
+            var md = await real.readText(VA.worksheetSegments(livePitch));
+            ok(md, "worksheet must be readable");
+            var root = render(function (r) { VA.renderWorksheet(r, livePitch, md); });
+            var html = root.querySelector("div.worksheet__body").innerHTML;
+            has(html, "<h1>");
+            has(html, "end-stop graft workorder");
+            has(root.textContent, "declared by this file itself");
+          });
 
         await test("[real] every row of both topologies renders, aligned",
           function () {

@@ -73,6 +73,23 @@
     return !!(study && study.status === "ok");
   }
 
+  // --- the joint -------------------------------------------------------------
+  //
+  // Deliverable 4 (viewer_v2_single_nav, 2026-09-08): `topoProj.joint` is the
+  // same free-form assembly/context shape a stack's own joint block is
+  // (build_topology_projection.py's project_topology, topology_schema_v1) --
+  // `{}` when the topology spans more than one physical joint, as
+  // `pitch_system` does. One renderer for both (views/stack.js's
+  // VA.jointBlock), so a field added there is never a second place to teach
+  // this one. A property of the WHOLE topology, not of whichever study is
+  // selected, so it renders whenever a topology is open, study or no study.
+  VA.renderTopoJoint = function (root, topoProj) {
+    VA.clear(root);
+    if (!topoProj) return root;
+    root.appendChild(VA.jointBlock(topoProj.joint));
+    return root;
+  };
+
   // --- rails + grid, in one scrolling box ----------------------------------
   //
   // `root` is the scroll container. Both panes live inside it, which is the
@@ -452,6 +469,15 @@
   // used to be able to push that panel to its full 260px cap. The rule
   // sentence and any notes still exist, behind a same-line "Details" toggle,
   // so nothing is dropped — only what is ALWAYS on screen shrinks.
+  //
+  // NOT here: a study's own authored `checks` (verdict vs. criterion) —
+  // deliverable 4's third piece, and the one this page cannot wire yet.
+  // `topoProj.joint` and `topoProj.worksheet_file` (project_topology,
+  // topology_schema_v1) reach the page above (renderTopoJoint) and through
+  // topology_app.js's worksheet toggle; a study's own `checks` never reaches
+  // the projection at all — `project_study()` has no `checks` key, tracked in
+  // `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`. This
+  // strip prints totals, never a verdict, until that field exists.
   VA.renderTopoTotals = function (root, topoProj, study, index) {
     VA.clear(root);
     root.className = "tvtotals";
