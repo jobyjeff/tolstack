@@ -558,6 +558,17 @@ class Topology:
     does not mix them, and :meth:`Transform.resolved` refuses a transform whose
     ``units_in`` says otherwise. What a study's *output* unit is depends on the
     transforms it crosses, which is the whole point of them.
+
+    ``joint``, added 2026-09-08 by handoff ``topology_schema_v1``, is the same
+    free-form assembly/context block a stack's own ``joint`` carries --
+    ``assembly_drawing``, ``assembly_revision``, ``sheet``, ``view``, ``zone``,
+    ``zone_note``, ``description``, ``scope`` -- for a topology that re-expresses
+    (or documents) a single physical joint, exactly as ``topology_vpa_output_to_
+    pitch_plate.json`` does for the L1 proof. It is optional and unvalidated,
+    like a stack's: a topology spanning a whole mechanism rather than one joint
+    (``topology_pitch_system.json``) carries no ``joint`` at all rather than a
+    misleading one. Carried into the projection verbatim, never read by
+    ``fold``/``traverse``/``summarize``.
     """
 
     id: str
@@ -567,6 +578,7 @@ class Topology:
     nodes: List[Node] = field(default_factory=list)
     edges: List[Edge] = field(default_factory=list)
     transforms: List[Transform] = field(default_factory=list)
+    joint: Dict[str, Any] = field(default_factory=dict)
     provenance: Dict[str, Any] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
 
@@ -712,22 +724,40 @@ class Study:
     residual is a gap edge. Naming it makes the study's total comparable to a
     published check result instead of merely numerically equal to one.
 
-    ``checks`` is the same bridge for a study whose target is not another edge of
-    its own graph but an external limit -- a requirement pulled from Polarion,
-    for instance. Each entry is a raw spec dict, field-for-field the same shape
+    ``checks`` is the same bridge for a study whose target is checked against a
+    criterion rather than merely named. Each entry is a raw spec dict,
+    field-for-field the same shape
     :attr:`~tolerance_stack.stack.StackDefinition.checks` uses (``check_id``,
     ``label``, ``configuration``, ``criterion``, ``complete``,
-    ``excluded_terms``), plus one field a stack check does not need because its
-    terms are already elements of the same file: ``limit``, ``{"value": ...,
-    "units": ..., "source_ref": {...}}``, the budget this study's own total is
-    checked against. :func:`check_study` folds exactly two terms -- the limit,
-    signed ``+1``, and the study's own total, signed ``-1`` -- through the one
+    ``excluded_terms``), plus one *optional* field a stack check does not need
+    because its terms are already elements of the same file: ``limit``,
+    ``{"value": ..., "units": ..., "source_ref": {...}}`` -- an external budget
+    this study's own total is checked against, most concretely a requirement
+    pulled from Polarion. When a spec carries a ``limit``, :func:`check_study`
+    folds exactly two terms -- the limit, signed ``+1``, and the study's own
+    total, signed ``-1`` -- through the one
     :func:`~tolerance_stack.stack.fold`, so a check here is not a second
     arithmetic path, it is the L1 grip-check pattern (``grip - clamped_stack``)
-    with the study's own :class:`StudyResult` standing in for the clamped stack.
-    ``complete``/``excluded_terms`` are authored, not derived, exactly as a stack
-    check's are -- the author states what is missing because an excluded term by
-    definition has no element to read the gap off of.
+    with the study's own :class:`StudyResult` standing in for the clamped
+    stack. **When a spec has no ``limit``** (added 2026-09-08, handoff
+    ``topology_schema_v1``, deliverable 1's acid test), the criterion applies
+    directly to the study's own total -- the shape a study needs when its
+    chain already sums to the exact quantity being checked, the way
+    ``vpa_output_shank_out``'s does against
+    ``stack_vpa_output_to_pitch_plate.json``'s own published
+    ``worst_case_shank_out``. Either way ``complete``/``excluded_terms`` are
+    authored, not derived, exactly as a stack check's are -- the author states
+    what is missing because an excluded term by definition has no element to
+    read the gap off of.
+
+    ``configuration``, added 2026-09-08 (handoff ``topology_schema_v1``, closing
+    ``docs/DAG_TOPOLOGY.md``'s "What v0 cannot do" gap 3, load cases), is the
+    same free-form, descriptive-only block a stack check's own ``configuration``
+    already carries -- nothing here reads it, and it names nothing ``fold``
+    needs. Today which load case a study represents (collective vs cyclic, which
+    branch a parallel path stands for) lives entirely in *which edges a human put
+    in* ``selection``, unlabelled; this gives that choice a place to be written
+    down in prose next to the study rather than only inferred from its edge list.
     """
 
     id: str
@@ -739,6 +769,7 @@ class Study:
     transforms: Dict[str, str] = field(default_factory=dict)
     closes: Optional[str] = None
     checks: List[Dict[str, Any]] = field(default_factory=list)
+    configuration: Dict[str, Any] = field(default_factory=dict)
     provenance: Dict[str, Any] = field(default_factory=dict)
     notes: List[str] = field(default_factory=list)
 
@@ -1028,16 +1059,33 @@ def summarize(topology: Topology, study: Study) -> StudyResult:
 def check_study(topology: Topology, study: Study, check_id: str) -> CheckResult:
     """A study's total, checked against one of its authored ``checks`` entries.
 
-    The margin is ``limit - study_total``, folded through the same one
-    :func:`~tolerance_stack.stack.fold` every other check in this repo uses: a
-    synthetic constant :class:`Dimension` for the limit (``min == max == nominal
-    == limit['value']``, citing ``limit['source_ref']``) enters with sign
-    ``+1``, and a synthetic :class:`Dimension` standing in for the study's own
-    :class:`StudyResult` (``nominal``/``min``/``max`` copied from
-    ``result.interval``, citing nothing -- it is a derived total, not an
-    authored value) enters with sign ``-1``. ``CheckResult.verdict`` then reads
-    exactly as an L1 grip check's does: ``pass`` iff the margin's worst case
-    stays ``>= 0``.
+    Two shapes, chosen by whether the spec has a ``limit`` -- equivalent in
+    power to :meth:`~tolerance_stack.stack.StackDefinition.check`, whose own
+    terms may likewise be an external budget or a pure combination of the
+    stack's own elements/paths:
+
+    * **With a ``limit``** (added 2026-09-06, handoff ``endstop_location_
+      stack``) -- an external budget, most concretely a requirement pulled from
+      Polarion. The margin is ``limit - study_total``, folded through the same
+      one :func:`~tolerance_stack.stack.fold` every other check in this repo
+      uses: a synthetic constant :class:`Dimension` for the limit (``min ==
+      max == nominal == limit['value']``, citing ``limit['source_ref']``)
+      enters with sign ``+1``, and a synthetic :class:`Dimension` standing in
+      for the study's own :class:`StudyResult` (``nominal``/``min``/``max``
+      copied from ``result.interval``, citing nothing -- it is a derived
+      total, not an authored value) enters with sign ``-1``.
+    * **With no ``limit``** (added 2026-09-08, handoff ``topology_schema_v1``
+      -- deliverable 1's acid test) -- the criterion applies directly to the
+      study's own total. This is the shape a study needs when it already sums
+      to the exact quantity a check evaluates, the way ``vpa_output_shank_
+      out``'s chain already sums to ``fastener_grip - clamped_stack``: no
+      second fold is introduced, because ``result.interval`` is already the
+      output of the one ``fold()`` inside :func:`summarize`, and this branch
+      hands it to :class:`CheckResult` unchanged rather than folding a limit of
+      zero against it (which would negate it, not reproduce it).
+
+    ``CheckResult.verdict`` then reads exactly as an L1 grip check's does:
+    ``pass`` iff the interval's worst case stays ``>= 0``.
 
     ``complete``/``excluded_terms`` ride through from the spec unchanged, the
     same way :meth:`~tolerance_stack.stack.StackDefinition.check` does it --
@@ -1051,27 +1099,32 @@ def check_study(topology: Topology, study: Study, check_id: str) -> CheckResult:
         raise StudyError(f"study {study.id!r} has no check {check_id!r}")
     result = summarize(topology, study)
 
-    limit = spec["limit"]
-    limit_dim = Dimension(
-        id=f"{check_id}__limit", name=spec.get("label", check_id),
-        nominal=float(limit["value"]), min=float(limit["value"]),
-        max=float(limit["value"]),
-        source_ref=SourceRef.from_dict(limit["source_ref"]),
-    )
-    total_dim = Dimension(
-        id=f"{check_id}__study_total", name=f"{study.id} total",
-        nominal=result.interval.nominal, min=result.interval.min,
-        max=result.interval.max,
-    )
-    margin = fold([Term(limit_dim, sign=1), Term(total_dim, sign=-1)])
+    limit = spec.get("limit")
+    if limit is None:
+        interval = result.interval
+        units = result.units
+    else:
+        limit_dim = Dimension(
+            id=f"{check_id}__limit", name=spec.get("label", check_id),
+            nominal=float(limit["value"]), min=float(limit["value"]),
+            max=float(limit["value"]),
+            source_ref=SourceRef.from_dict(limit["source_ref"]),
+        )
+        total_dim = Dimension(
+            id=f"{check_id}__study_total", name=f"{study.id} total",
+            nominal=result.interval.nominal, min=result.interval.min,
+            max=result.interval.max,
+        )
+        interval = fold([Term(limit_dim, sign=1), Term(total_dim, sign=-1)])
+        units = limit.get("units", result.units)
 
     return CheckResult(
         check_id=spec["check_id"],
         label=spec.get("label", spec["check_id"]),
         configuration=spec.get("configuration", {}),
-        interval=margin,
+        interval=interval,
         criterion=spec.get("criterion", ">= 0"),
-        units=limit.get("units", result.units),
+        units=units,
         guidance=spec.get("guidance"),
         complete=bool(spec.get("complete", True)),
         excluded_terms=tuple(spec.get("excluded_terms") or ()),
@@ -1140,6 +1193,7 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topo
         nodes=[Node.from_dict(n) for n in data.get("nodes", [])],
         edges=edges,
         transforms=[Transform.from_dict(t) for t in data.get("transforms", [])],
+        joint=data.get("joint", {}),
         provenance=data.get("provenance", {}),
         notes=data.get("notes", []),
     )

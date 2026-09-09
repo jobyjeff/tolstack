@@ -12,13 +12,42 @@
     <h1>tolstack — viewer</h1>
     <span class="sub">read-only · renders <code>data/projections/viewer/</code> · computes nothing</span>
     <span class="topbar__spacer"></span>
+    <button id="legend-toggle" class="ghost">How to read this</button>
     <button id="worksheet-toggle" class="ghost">Show worksheet</button>
   </div>
   <div id="banner" class="banner"></div>
-  <div id="picker" class="banner tvpick"></div>
 
-  <details class="tv__legend">
-    <summary>How to read the rails</summary>
+  <main class="tv">
+    <!-- The one nav (viewer_v2_single_nav, 2026-09-08): every topology, its
+         studies as children, and every classic-only stack as a leaf of the
+         same tree -- see views/nav.js. The TOPOLOGY/STUDY <select> pickers and
+         the separate stack rail both retired into this one element. -->
+    <nav id="navtree" class="navtree"></nav>
+    <div class="tv__main">
+      <div id="toolbar" class="tv__toolbar"></div>
+      <!-- The topology's own joint block (deliverable 4, viewer_v2_single_nav):
+           the same free-form assembly/context prose a stack's carries,
+           collapsed by default so an empty one (most topologies do have one;
+           pitch_system spans more than one physical joint and has none) costs
+           one line, not vertical budget the DAG pane needs. -->
+      <div id="topojoint" class="tv__jointwrap"></div>
+      <section id="topopane" class="tv__scroll"></section>
+      <section id="stackview" class="stackview"></section>
+      <section id="totals" class="tvtotals"></section>
+    </div>
+    <aside id="detail" class="detail"></aside>
+  </main>
+  <div id="croppop" class="croppop"></div>
+
+  <!-- The rails legend, now a help affordance rather than always-on layout
+       (deliverable 2): the content is the same words the old <details class="tv__legend">
+       carried, only the container changed from "always reserves a line of
+       height" to "opens on request". -->
+  <dialog id="legend-dialog" class="tv__legend-dialog">
+    <div class="tv__legend-head">
+      <h2>How to read the rails</h2>
+      <button id="legend-close" class="ghost">Close</button>
+    </div>
     <ul>
       <li><b>One row per graph element</b>, nodes and edges interleaved: a
         <b>dot</b> is an interface, a <b>bar</b> is the dimension between two of
@@ -29,10 +58,10 @@
         ends, which is why a fork fans out sideways and a grounded loop closes
         with a dashed curve back up to the interface it lands on.</li>
       <li><b>A bar's colour is its citation's confidence</b> — the same green /
-        amber / <b>UNTRACED</b> / <b>NO CITATION</b> vocabulary the stack viewer
-        uses. The rails themselves are neutral on purpose: those four colours are
-        reserved for provenance here, so lane identity is carried by position and
-        by the part named on the row.</li>
+        amber / <b>UNTRACED</b> / <b>NO CITATION</b> vocabulary the elements
+        table uses. The rails themselves are neutral on purpose: those four
+        colours are reserved for provenance here, so lane identity is carried by
+        position and by the part named on the row.</li>
       <li><b>A dashed bar is a gap</b> — its two interfaces share no part, so it
         crosses between lanes and has no rail of its own. A <b>DERIVED</b> gap
         carries no value at all: it is the quantity a study computes, and a study
@@ -44,30 +73,25 @@
         solver".</li>
       <li><b>Selecting a study</b> highlights its chain, numbers each row with its
         place in the sum, prints each edge's own signed and scaled contribution,
-        and puts the totals at the bottom. Every one of those numbers came out of
-        <code>tolerance_stack.topology.summarize()</code> → <code>fold()</code>.
-        Nothing on this page is added up in JavaScript.</li>
+        and puts the totals in the footer below. Every one of those numbers came
+        out of <code>tolerance_stack.topology.summarize()</code> →
+        <code>fold()</code>. Nothing on this page is added up in JavaScript.</li>
     </ul>
-  </details>
+  </dialog>
 
-  <main class="tv">
-    <!-- Every stack (retiring the stack viewer means this page also has to be
-         able to show everything it showed, not only what the DAG covers) —
-         see topology_app.js's renderStackNav for why the one a topology DOES
-         cover still gets a row here too, marked rather than hidden. -->
-    <nav id="stacklist" class="stacklist"></nav>
-    <div class="tv__main">
-      <section id="topopane" class="tv__scroll"></section>
-      <section id="stackview" class="stackview"></section>
-      <section id="totals" class="tvtotals"></section>
-      <details id="worksheet-wrap" class="worksheet-below">
-        <summary>Worksheet (the agent's report)</summary>
-        <div id="worksheet" class="worksheet"></div>
-      </details>
+  <!-- The worksheet, moved into a dialog (deliverable 2) so opening it can
+       never compete with the DAG pane for vertical space -- a dialog sits in
+       the top layer, outside the page's flex column entirely. Stack-mode only
+       (topology_app.js hides the topbar button outside stack mode); unchanged
+       otherwise: views/worksheet.js still reads WORKSHEET_*.md live and
+       renders it with the same vendored markdown renderer. -->
+  <dialog id="worksheet-dialog" class="worksheet-dialog">
+    <div class="worksheet-dialog__head">
+      <h2>Worksheet (the agent's report)</h2>
+      <button id="worksheet-close" class="ghost">Close</button>
     </div>
-    <aside id="detail" class="detail"></aside>
-  </main>
-  <div id="croppop" class="croppop"></div>
+    <div id="worksheet" class="worksheet"></div>
+  </dialog>
 
   <!-- Classic scripts (NOT ES modules): the page must run by double-clicking
        from file://, where Chrome CORS-blocks cross-file `import`. index.html
@@ -86,7 +110,7 @@
   <script src="./storage/fsa.js"></script>
   <script src="./views/dom.js"></script>
   <script src="./views/banner.js"></script>
-  <script src="./views/list.js"></script>
+  <script src="./views/nav.js"></script>
   <script src="./views/stack.js"></script>
   <script src="./views/crop.js"></script>
   <script src="./views/worksheet.js"></script>

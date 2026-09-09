@@ -80,6 +80,35 @@
     return "conf--" + (VA.CONFIDENCES.indexOf(confidence) === -1 ? "unknown" : confidence);
   };
 
+  // Deep link OUT to apps/annotate/ (handoff annotate_deep_link_and_part_filter,
+  // deliverable 4). `untraced`/`no_source_ref` are the two loud gap states
+  // (confidenceClass's own comment) -- exactly the rows this repo's "record a
+  // gap" rule is about, and exactly the ones a click into the 3D tool can help
+  // close by resolving WHICH feature the row means.
+  VA.needsAnnotation = function (confidence) {
+    return confidence === "untraced" || confidence === "no_source_ref";
+  };
+
+  // Pure string-building (no URL API -- this file is also loaded into the
+  // node-vm fast tier, which has no browser URL global). Relative, not an
+  // absolute config.js URL: the toolbar's own "Annotate -> " link
+  // (annotation_surface_mvp, 2026-09-06, VA.renderTopoToolbar) already
+  // pointed at `../annotate/index.html` on the assumption both apps are
+  // served as siblings under one static root (apps/viewer is launched by
+  // file:// double-click, per its README, so there is no "the viewer's own
+  // origin" to build an absolute link from anyway) -- this generalises that
+  // one link-building rule to carry edge/isolate too, rather than forking a
+  // second one. `topologyId` is the only always-required param; a toolbar
+  // link (whole study, no edge) and a detail-pane link (one edge, maybe an
+  // owner part) are both this same function.
+  VA.annotateLink = function (params) {
+    var query = ["topology=" + encodeURIComponent(params.topologyId)];
+    if (params.edgeId) query.push("edge=" + encodeURIComponent(params.edgeId));
+    if (params.studyId) query.push("study=" + encodeURIComponent(params.studyId));
+    if (params.part) query.push("isolate=" + encodeURIComponent(params.part));
+    return "../annotate/index.html?" + query.join("&");
+  };
+
   VA.verdictClass = function (verdict) {
     return "verdict--" + (["pass", "marginal", "fail"].indexOf(verdict) === -1
       ? "unknown" : verdict);

@@ -37,10 +37,15 @@ from tests.test_js_python_vocabulary import (  # noqa: E402
     js_object_keys,
     js_table_mutations,
 )
+from tolerance_stack.stack import SourceExport, SourceRef  # noqa: E402
 from tolerance_stack.topology import (  # noqa: E402
     EDGE_KINDS,
     NODE_KINDS,
     TRANSFORM_KINDS,
+    Dimension,
+    Edge,
+    Node,
+    Part,
     Study,
     Topology,
     load_study,
@@ -455,6 +460,48 @@ def test_a_transcribed_value_is_never_rounded(projection):
                 assert contribution["value_max"] == dimension["max"]
 
 
+def test_the_pitch_system_worksheet_resolves_through_the_declared_field(projection):
+    """Deliverable 3. `provenance.worksheet` names `WORKSHEET_end_stop_graft.md`,
+    which shares no stem with `pitch_system` -- so only the declared-field rule
+    finds it, not the `topology_X.json` -> `WORKSHEET_X.md` by-name fallback.
+    """
+    row = projected(projection, "pitch_system")
+    assert row["worksheet_source"] == "declared"
+    assert row["worksheet_file"] == (
+        "docs/tolerance_stacks/WORKSHEET_end_stop_graft.md")
+    assert (REPO_ROOT / row["worksheet_file"]).exists()
+
+
+def test_a_topology_with_no_declared_or_by_name_worksheet_projects_none(projection):
+    row = projected(projection, "vpa_output_to_pitch_plate")
+    assert row["worksheet_file"] is None
+    assert row["worksheet_source"] is None
+
+
+def test_the_l1_topologys_joint_rides_into_the_projection(projection):
+    """Deliverable 2, through the projection: the joint block a reviewer reads
+    beside the rail diagram is the same one `Topology.joint` carries."""
+    row = projected(projection, "vpa_output_to_pitch_plate")
+    assert row["joint"]["assembly_drawing"] == "217755"
+    assert row["joint"]["scope"] == "grip length only"
+
+    pitch_system_row = projected(projection, "pitch_system")
+    assert pitch_system_row["joint"] == {}
+
+
+def test_a_studys_configuration_rides_into_the_projection(projection):
+    """Deliverable 5, gap 3, through the projection."""
+    row = projected(projection, "pitch_system")
+    branch = next(s for s in row["studies"]
+                  if s["id"] == "pitch_system_gas_spring_branch")
+    assert branch["configuration"]["load_case"].startswith("collective")
+
+    l1_row = projected(projection, "vpa_output_to_pitch_plate")
+    l1_study = next(s for s in l1_row["studies"]
+                     if s["id"] == "vpa_output_shank_out")
+    assert l1_study["configuration"] == {}
+
+
 def test_the_l1_study_totals_the_stacks_published_check(projection):
     """The proof, once more through the projection.
 
@@ -536,20 +583,106 @@ def test_a_stack_ref_edge_carries_the_crop_key_the_index_is_keyed_by(projection)
         assert edge["crop_key"]["element"] == edge["dimension"]["id"]
 
 
-def test_an_inline_dimension_has_no_crop_key(projection):
-    """...and that is the documents' state, not a stale index. The pitch system
-    is authored topology-first, so no crop covers any of it.
+def test_an_inline_dimension_with_a_croppable_citation_carries_a_topology_scoped_crop_key(
+    projection,
+):
+    """The pitch system is authored topology-first, so no ``dimension_ref``
+    edge covers it -- but six of its inline edges carry a real drawing
+    citation (handoff ``inline_edge_crops``, 2026-09-08), and those six now
+    get a crop key too, in a space of their own: ``{topology, edge}``, never
+    ``by_stack``'s ``{stack, element}`` -- see :func:`build_topology_projection.crop_key`'s
+    own docstring for why the two spaces must stay apart (a topology's id can
+    equal a stack's).
 
     Its one ``gap`` edge is *toleranced* rather than derived (the end-stop
-    clearance is an ordinary term, not an answer), which is why every edge here
-    is ``inline`` -- the derived state lives in L1 and is asserted there.
+    clearance is an ordinary term, not an answer, and it is one of the six with
+    a real citation) -- which is why every edge here is ``inline`` -- the
+    derived state lives in L1 and is asserted there.
     """
     row = projected(projection, "pitch_system")
-    assert all(e["crop_key"] is None for e in row["edges"])
     assert {e["value_source"] for e in row["edges"]} == {"inline"}
+    keyed = {e["id"]: e["crop_key"] for e in row["edges"] if e["crop_key"]}
+    assert set(keyed) == {
+        "hub_blade_root_seat_position", "end_stop_clearance", "piston_length",
+        "pitch_plate_flange_to_link_hole", "gas_spring_body_height",
+        "gas_spring_mount_position",
+    }
+    for edge_id, key in keyed.items():
+        assert key == {"topology": "pitch_system", "edge": edge_id}
     gaps = [e for e in row["edges"] if e["kind"] == "gap"]
     assert [e["id"] for e in gaps] == ["end_stop_clearance"]
     assert gaps[0]["dimension"] is not None
+
+
+def test_crop_key_across_the_three_value_sources_a_fixture_topology():
+    """The handoff's own fixture: one inline drawing-cited edge, one inline
+    workbook edge, one ``dimension_ref`` edge -- exactly one NEW crop key (the
+    drawing-cited one), the ref edge's key unchanged in shape, the workbook
+    edge still ``None``.
+    """
+    drawing = SourceRef(kind="drawing", document="x", export=SourceExport(
+        status="established", pdf="x.pdf", sha256="a" * 64))
+    workbook = SourceRef(kind="workbook", document="sheet.xlsx", cell="B1")
+    parts = [Part(id="p", name="p")]
+    nodes = [Node(id="n1", name="n1", parts=("p",), kind="datum_feature"),
+             Node(id="n2", name="n2", parts=("p",), kind="datum_feature"),
+             Node(id="n3", name="n3", parts=("p",), kind="datum_feature")]
+    drawing_edge = Edge(
+        id="e_drawing", name="e_drawing", from_node="n1", to_node="n2", part="p",
+        dimension=Dimension(id="e_drawing", name="e_drawing", nominal=0.0,
+                            min=-0.1, max=0.1, source_ref=drawing),
+    )
+    workbook_edge = Edge(
+        id="e_workbook", name="e_workbook", from_node="n2", to_node="n3", part="p",
+        dimension=Dimension(id="e_workbook", name="e_workbook", nominal=0.0,
+                            min=-0.1, max=0.1, source_ref=workbook),
+    )
+    ref_edge = Edge(
+        id="e_ref", name="e_ref", from_node="n1", to_node="n3", part="p",
+        dimension_ref={
+            "stack": "docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json",
+            "element": "spherical_bearing",
+        },
+    )
+    topology = Topology(id="fixture", title="fixture", units="mm", parts=parts,
+                        nodes=nodes, edges=[drawing_edge, workbook_edge, ref_edge])
+
+    assert B.crop_key(topology, drawing_edge) == {"topology": "fixture", "edge": "e_drawing"}
+    assert B.crop_key(topology, workbook_edge) is None
+    assert B.crop_key(topology, ref_edge) == {
+        "stack": "vpa_output_to_pitch_plate", "element": "spherical_bearing"}
+
+
+@pytest.mark.parametrize("source_ref, expected", [
+    (None, False),
+    (SourceRef(kind="workbook", document="x", cell="B1"), False),
+    (SourceRef(kind="assumed"), False),
+    (SourceRef(kind="drawing", document="x"), False),  # named, but no export
+    (SourceRef(kind="drawing", document="x", export=SourceExport(
+        status="established", pdf="x.pdf", sha256="a" * 64)), True),
+    (SourceRef(kind="drawing", document="x", export=SourceExport(
+        status="unestablished", why="no candidate export")), True),
+    (SourceRef(kind="spec", document="MS9363.pdf"), True),
+])
+def test_croppable_is_exactly_rule_1_or_rule_2(source_ref, expected):
+    """The same two rules ``build_viewer_crops.resolve_pdf`` implements as
+    ``source_ref_export`` and ``spec_pile`` -- never rule 3, which an edge's
+    inline dimension has no ``joint`` block to supply. An ``unestablished``
+    export still counts: it *names* itself, and lands in ``crops.json`` as
+    unresolvable with its own ``why`` rather than getting no key at all."""
+    assert B._croppable(source_ref) is expected
+
+
+def test_a_workbook_or_assumed_inline_dimension_still_has_no_crop_key(projection):
+    """Legitimately uncroppable, and that is the documents' state, not a stale
+    index: ``scripts/build_viewer_crops.py`` reports these as unresolvable with
+    a reason (never silently, never as an error) but mints no crop_key for them
+    at all -- there is no document to even attempt a crop from."""
+    row = projected(projection, "pitch_system")
+    uncroppable = [e for e in row["edges"] if e["crop_key"] is None]
+    assert len(uncroppable) == 18
+    assert {e["dimension"]["source_ref"]["kind"] for e in uncroppable} == {
+        "workbook", "assumed"}
 
 
 def test_every_confidence_the_projection_writes_is_a_word_the_viewer_knows(projection):

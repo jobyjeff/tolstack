@@ -384,12 +384,29 @@
   // (`{stack, element}`), and that IS the linkage — the one committed L1 stack
   // covered by a topology is exactly the one every one of its edges' crop_keys
   // names. No schema change, no second source of truth.
+  //
+  // The stack ids ONE topology's own edges re-express, first-seen order, no
+  // duplicates. Shared by VA.stacksCoveredByTopology (a flat "is this stack
+  // covered by ANY topology" map) and VA.navTree (which needs to know covered
+  // BY WHICH topology, to nest the stack under it) so the `crop_key.stack`
+  // extraction lives in exactly one place.
+  VA.topologyCoveredStackIds = function (topology) {
+    var seen = {};
+    var ids = [];
+    ((topology && topology.edges) || []).forEach(function (e) {
+      var stackId = e.crop_key && e.crop_key.stack;
+      if (stackId && !seen[stackId]) {
+        seen[stackId] = true;
+        ids.push(stackId);
+      }
+    });
+    return ids;
+  };
+
   VA.stacksCoveredByTopology = function (topologies) {
     var covered = {};
     ((topologies && topologies.topologies) || []).forEach(function (t) {
-      (t.edges || []).forEach(function (e) {
-        if (e.crop_key && e.crop_key.stack) covered[e.crop_key.stack] = true;
-      });
+      VA.topologyCoveredStackIds(t).forEach(function (id) { covered[id] = true; });
     });
     return covered;
   };
@@ -399,6 +416,29 @@
     return ((results && results.stacks) || []).filter(function (s) {
       return !covered[s.id];
     });
+  };
+
+  // --- the single nav tree: one topology -> its studies (+ any stack it also
+  // covers, nested rather than hidden) -> and every classic-only stack as a
+  // leaf of the same tree (viewer_v2_single_nav, 2026-09-08). views/nav.js
+  // renders this; nothing here touches the DOM.
+  VA.navTree = function (topologies, results) {
+    var stacksById = {};
+    ((results && results.stacks) || []).forEach(function (s) { stacksById[s.id] = s; });
+    var topoNodes = ((topologies && topologies.topologies) || []).map(function (t) {
+      var coveredStacks = VA.topologyCoveredStackIds(t)
+        .map(function (id) { return stacksById[id]; })
+        .filter(Boolean);
+      return {
+        id: t.id,
+        title: t.title,
+        studies: (t.studies || []).map(function (s) {
+          return { id: s.id, title: s.title, status: s.status };
+        }),
+        coveredStacks: coveredStacks,
+      };
+    });
+    return { topologies: topoNodes, looseStacks: VA.looseStacks(topologies, results) };
   };
 
   // --- the banner ----------------------------------------------------------

@@ -160,7 +160,7 @@ const files = [
   "storage/node_fs.js",
   "views/dom.js",
   "views/banner.js",
-  "views/list.js",
+  "views/nav.js",
   "views/stack.js",
   "views/crop.js",
   "views/worksheet.js",

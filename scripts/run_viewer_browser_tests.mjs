@@ -15,11 +15,12 @@
 //   2. topology.html?mock=1 really renders BOTH modes: the topology mode (see
 //      #4) and, since handoff viewer_consolidation retired the separate stack
 //      viewer into this same page, the classic elements-table mode reached by
-//      clicking a loose stack in the left rail — an untraced row that is
-//      visibly filled, an unestablished export block that is visibly filled, a
-//      budget-scope check, and the gap list — asserted against the live DOM and
-//      CSS, not a shim. "Impossible to miss" is a CSS claim, and a class-name
-//      check would pass straight through a stylesheet typo.
+//      clicking a leaf in the ONE nav tree (viewer_v2_single_nav) — an
+//      untraced row that is visibly filled, an unestablished export block that
+//      is visibly filled, a budget-scope check, and the gap list — asserted
+//      against the live DOM and CSS, not a shim. "Impossible to miss" is a CSS
+//      claim, and a class-name check would pass straight through a stylesheet
+//      typo.
 //   3. The crop popover opens on a REAL click and shows the resolved crop's
 //      links, and shows the *reason* for the unresolvable one — in both modes,
 //      since the topology grid's own thumbnail trigger (deliverable 1) is the
@@ -28,6 +29,11 @@
 //      box, which is the one claim that page is built on and the one thing no
 //      shim can check. Run against the real projection too, where it also
 //      asserts every study total on screen equals topologies.json's own number.
+//   5. The nav tree (views/nav.js), the toolbar (views/topology.js's
+//      renderTopoToolbar) and the two <dialog>s (legend, worksheet) are real
+//      clicks on real layout — a <select>'s change event and a <details>'
+//      toggle event are exactly the kind of interaction a shim can fake and a
+//      real browser can catch drifting.
 //
 //   npm install                                   # once: playwright-core, no browser download
 //   node scripts/run_viewer_browser_tests.mjs
@@ -126,13 +132,25 @@ async function runSuite(browser, url, label) {
   }
 }
 
-// --- the classic elements table, absorbed into topology.html's stack mode --
+// A nav row's stable selector — views/nav.js stamps `data-nav-kind` /
+// `data-nav-id` (and, for a study, `data-topology-id`) on every row, so a test
+// never has to match a topology/study TITLE (which carries a "⚠ " prefix for
+// an errored study, and is prose the next handoff is free to reword).
+// Built and run in NODE (unlike the in-page alignmentDrift helpers below,
+// which run inside `page.evaluate` and can use the browser's own `CSS.escape`)
+// — every id this file passes is a plain identifier, so a bare quote-escape is
+// enough without pulling in the DOM's CSS.escape.
+function navRow(kind, id) {
+  return `[data-nav-kind="${kind}"][data-nav-id="${String(id).replace(/"/g, '\\"')}"]`;
+}
+
+// --- the classic elements table, reached through the ONE nav tree ----------
 //
-// Reached by clicking a loose stack (VA.looseStacks) in the left rail, not by
-// its own page any more — index.html is a redirect stub (checked separately,
-// testIndexRedirects). Every assertion below is unchanged from the retired
-// stack viewer's own browser test: views/stack.js and views/detail.js did not
-// move, only what boots them did.
+// Reached by clicking a stack leaf (VA.looseStacks, or a topology's own
+// covered-stack child) in the nav, not by its own page any more — index.html
+// is a redirect stub (checked separately, testIndexRedirects). Every assertion
+// below is unchanged from the retired stack viewer's own browser test:
+// views/stack.js and views/detail.js did not move, only what boots them did.
 async function testTheApp(browser, url, label) {
   const page = await browser.newPage();
   const errors = [];
@@ -141,24 +159,26 @@ async function testTheApp(browser, url, label) {
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
-    await page.waitForSelector(".stacklist__row", { timeout: 15000 });
+    await page.waitForSelector('[data-nav-kind="stack"]', { timeout: 15000 });
 
-    // Both the stack a topology covers (demo_joint) and the one that stands in
-    // for every stack that has none (demo_joint_standalone) — deliverable 3's
-    // nav lists every stack, not just the loose ones (renderStackNav's own
-    // comment says why: a covered stack's own check verdict lives nowhere else).
-    push("the stack list renders every stack, covered or not",
-      await page.locator(".stacklist__row").count() === 2);
+    // Both the stack a topology covers (demo_joint, nested under its topology
+    // in the tree) and the one that stands in for every stack that has none
+    // (demo_joint_standalone, a top-level leaf) — deliverable 1's nav lists
+    // every stack, not just the loose ones (views/nav.js's own comment says
+    // why: a covered stack's own check verdict lives nowhere else).
+    push("the nav lists every stack, covered or not",
+      await page.locator('[data-nav-kind="stack"]').count() === 2);
     push("the one a topology covers carries the pointer to it",
-      await page.locator(".chip--kind", { hasText: "also a topology" }).count() === 1);
+      await page.locator(".chip--kind", { hasText: "classic view" }).count() === 1);
 
     // Switch from the default topology mode into stack mode — a real click,
     // which is the one thing this test tier exists to exercise.
-    await page.locator(".stacklist__row").first().click();
+    await page.locator(navRow("stack", "demo_joint")).click();
     await page.waitForSelector("tr.el-row", { timeout: 15000 });
-    push("picking the stack switches the picker to its placeholder",
-      await page.locator("#topology-select").evaluate((n) => n.value) === "" &&
-      /viewing a stack/.test(await page.locator("#topology-select").textContent()));
+    push("picking the stack marks its nav row and hides the toolbar",
+      await page.locator(navRow("stack", "demo_joint")).evaluate(
+        (n) => n.className.indexOf("navtree__row--on") !== -1) &&
+      await page.locator("#toolbar").evaluate((n) => getComputedStyle(n).display) === "none");
 
     push("the elements table renders every element",
       await page.locator("tr.el-row").count() === 4);
@@ -190,7 +210,7 @@ async function testTheApp(browser, url, label) {
 
     // The loud export/identity chip is the one fact the compact row still
     // carries about the export — everything else moved to the right pane,
-    // reached by clicking the row (deliverables 2 and 3).
+    // reached by clicking the row (deliverables 2 and 3 of viewer_consolidation).
     const exportChipColor = await page.locator(".chip--export-unestablished").first()
       .evaluate((n) => getComputedStyle(n).backgroundColor);
     push("the unestablished-export chip is filled, not transparent, on the row",
@@ -242,10 +262,6 @@ async function testTheApp(browser, url, label) {
       identitySpine && noneSpine && identitySpine !== noneSpine);
     push("the sourcing legend states the rule on the page",
       /append-only/.test(await page.locator("details.sv__legend").textContent()));
-    // `check--incomplete` was the class until 2026-08-13, when
-    // `check_completeness_schema` replaced the prose search with the schema field
-    // and renamed it `check--budget`. This tier does not run under pytest, so the
-    // stale selector sat here red until the next agent ran it.
     push("the budget-scope check is flagged",
       await page.locator("article.check--budget").count() === 1);
     push("both verdicts render",
@@ -253,13 +269,14 @@ async function testTheApp(browser, url, label) {
       await page.locator(".verdict--fail").count() === 1);
     push("the gap list leads with the excluded term",
       /link eye width/.test(await page.locator("li.gap").first().textContent()));
-    // The worksheet is content-rendered whether or not its <details> is open —
-    // moved BELOW the table and collapsed by default, not gone (deliverable 1).
+    // The worksheet is content-rendered whether or not its <dialog> is open —
+    // it lives in its own dialog now (deliverable 2 of viewer_v2_single_nav),
+    // closed by default, not gone.
     push("the worksheet pane rendered markdown",
       await page.locator(".worksheet__body h1").count() === 1 &&
       await page.locator(".worksheet__body table").count() === 1);
-    push("the worksheet sits below the table, collapsed by default",
-      !(await page.locator("#worksheet-wrap").evaluate((n) => n.open)));
+    push("the worksheet dialog is closed by default",
+      !(await page.locator("#worksheet-dialog").evaluate((n) => n.open)));
 
     // 3) the popover — a real click, which the DOM shim cannot exercise.
     // Scoped to #stackview: the topology grid's OWN (hidden) rows carry the
@@ -289,17 +306,17 @@ async function testTheApp(browser, url, label) {
       /is unestablished/.test(await page.locator(".croppop__reason").textContent()) &&
       await page.locator(".croppop img").count() === 0);
 
-    // 4) the worksheet toggle, a real click on real layout. Collapsed by
-    // default now, so the click OPENS it — the inverse of the old aside toggle.
+    // 4) the worksheet toggle opens the dialog — a real click on real layout.
     await page.locator("#worksheet-toggle").click();
-    push("the worksheet pane opens on toggle",
-      await page.locator("#worksheet-wrap").evaluate((n) => n.open));
+    await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+    push("the worksheet dialog opens on toggle",
+      await page.locator("#worksheet-dialog").evaluate((n) => n.open));
+    await page.locator("#worksheet-close").click();
+    push("its own close button closes it",
+      !(await page.locator("#worksheet-dialog").evaluate((n) => n.open)));
 
-    // 5) picking a real topology from the (still-visible) picker switches back
-    // — the placeholder's whole reason to exist: reselecting the topology this
-    // page booted on would otherwise be a no-op, because a <select> does not
-    // fire `change` when its value does not move.
-    await page.selectOption("#topology-select", { index: 1 });
+    // 5) picking the topology from the (still-visible) nav tree switches back.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForSelector("tr.tvrow", { timeout: 5000 });
     push("picking a topology switches back to the DAG, and the stack view hides",
       await page.locator("#stackview").evaluate((n) => getComputedStyle(n).display) === "none" &&
@@ -399,11 +416,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("the clicked row is visibly marked",
       await page.locator("tr.tvrow--selected").count() === 1);
 
-    // The grid's own thumbnail trigger (deliverable 1) — a real click, which
-    // the DOM shim cannot exercise. `base_thickness` re-expresses demo_joint's
-    // `plate`, whose crop resolves; the same popover the classic view's rows
-    // use (views/crop.js), so this is the one place both modes are proved to
-    // share it in a real browser.
+    // The grid's own thumbnail trigger (deliverable 1 of viewer_consolidation) —
+    // a real click, which the DOM shim cannot exercise. `base_thickness`
+    // re-expresses demo_joint's `plate`, whose crop resolves; the same popover
+    // the classic view's rows use (views/crop.js), so this is the one place
+    // both modes are proved to share it in a real browser.
     await page.locator("tr.tvrow[data-id='base_thickness'] button.crop-trigger")
       .click();
     await page.waitForSelector(".croppop--resolved", { state: "visible", timeout: 5000 });
@@ -419,8 +436,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] button.crop-trigger")
         .count() === 0);
 
-    // Study selection: the grid marks, the rails thicken, the totals appear.
-    await page.selectOption("#study-select", "demo_strut_branch");
+    // Study selection, through the nav tree: the grid marks, the rails
+    // thicken, the totals strip appears.
+    await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
     push("selecting a study marks its chain and dims the rest",
       await page.locator("tr.tvrow--on").count() > 0 &&
@@ -428,8 +446,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const dimmed = await page.locator("tr.tvrow--off").first()
       .evaluate((n) => parseFloat(getComputedStyle(n).opacity));
     push("an off-chain row is actually dimmed, not just classed", dimmed < 0.9);
-    push("the totals render", await page.locator(".tvtotal").count() === 5);
-    push("the totals say where the numbers came from",
+    push("the totals render as chips in the slim strip",
+      await page.locator(".chip--total").count() === 5);
+    await page.locator(".tvtotals__more summary").click();
+    push("the totals say where the numbers came from, behind the Details toggle",
       /This page adds nothing up/.test(await page.locator("#totals").textContent()));
 
     // The chain layout: one rail, the sum's own order, still aligned.
@@ -444,15 +464,37 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.locator("#layout-toggle").click();
 
     // A study that refuses to sum shows the refusal, with its next step.
-    await page.selectOption("#study-select", "demo_ambiguous");
+    await page.locator(navRow("study", "demo_ambiguous")).click();
     await page.waitForSelector(".tverror", { timeout: 5000 });
     const refusal = await page.locator("#totals").textContent();
     push("a BranchAmbiguity renders as a result, not as a blank",
       /The selection reaches a fork/.test(refusal) &&
       /still unused/.test(refusal) &&
-      await page.locator(".tvtotal").count() === 0);
+      await page.locator(".chip--total").count() === 0);
     push("chain mode is unavailable for a study that does not sum",
       await page.locator("#layout-toggle").isDisabled());
+
+    // The legend dialog: a help affordance, not layout — closed by default,
+    // opens on a real click, and does not affect the DAG pane's own box.
+    push("the legend dialog is closed by default",
+      !(await page.locator("#legend-dialog").evaluate((n) => n.open)));
+    await page.locator("#legend-toggle").click();
+    await page.waitForSelector("#legend-dialog[open]", { timeout: 5000 });
+    push("the legend opens on a real click and states the rail rule",
+      /A column is a branch, not a part/
+        .test(await page.locator("#legend-dialog").textContent()));
+    await page.locator("#legend-close").click();
+    push("its own close button closes it",
+      !(await page.locator("#legend-dialog").evaluate((n) => n.open)));
+
+    // The demo mechanism's own joint is `{}` (it spans four parts, no single
+    // physical joint) and it declares no worksheet — the "stays silent" half
+    // of deliverable 4 (viewer_v2_single_nav), on the fixture the rest of
+    // this suite already loaded.
+    push("a topology with no joint block says so rather than fabricating one",
+      /no joint block/.test(await page.locator("#topojoint").textContent()));
+    push("a topology with no worksheet_file hides the worksheet toggle",
+      !(await page.locator("#worksheet-toggle").isVisible()));
 
     // --- the same page, against the REAL projection ------------------------
     if (!realProjection) {
@@ -478,7 +520,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         ids.includes("pitch_system") && ids.includes("vpa_output_to_pitch_plate"));
 
       for (const topology of realProjection.topologies) {
-        await page.selectOption("#topology-select", topology.id);
+        await page.locator(navRow("topology", topology.id)).click();
         await page.waitForSelector("tr.tvrow", { timeout: 5000 });
         const expected = topology.nodes.length + topology.edges.length;
         push(`[real] ${topology.id} renders all ${expected} rows`,
@@ -487,8 +529,42 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         push(`[real] ${topology.id} is aligned row for row`, drift.drift.length === 0);
         if (drift.drift.length) console.log("    drift: " + drift.drift.slice(0, 5).join(" | "));
 
+        // Deliverable 4 (viewer_v2_single_nav): the topology's own joint
+        // block and worksheet toggle, read straight off the fields
+        // topology_schema_v1 added to the projection. `pitch_system`'s own
+        // joint is `{}` (it spans more than one physical joint) and must
+        // stay silent rather than fabricate one; the other four carry a real
+        // `assembly_drawing` and must show it.
+        const jointText = await page.locator("#topojoint").textContent();
+        if (Object.keys(topology.joint || {}).length) {
+          push(`[real] ${topology.id}'s joint block names its assembly drawing`,
+            jointText.includes(String(topology.joint.assembly_drawing)));
+        } else {
+          push(`[real] ${topology.id} with no joint stays silent, not fabricated`,
+            /no joint block/.test(jointText));
+        }
+        push(`[real] ${topology.id}'s worksheet toggle shows exactly when ` +
+          "worksheet_file is set",
+          (await page.locator("#worksheet-toggle").isVisible()) ===
+            !!topology.worksheet_file);
+        if (topology.id === "pitch_system" && topology.worksheet_file) {
+          // The real-projection swap above (`demoTopologyFixture`) wires
+          // `topologies`/`crops`/`images` only, not `texts` — WORKSHEET_*.md's
+          // own content, over this seam, is unreachable without a second
+          // real-file server this tier does not have (apps/viewer/tests.js's
+          // node-fs tier reads it directly instead — see its own "[real]
+          // pitch_system's own worksheet loads and renders"). A real click
+          // opening the real dialog is still worth proving here; its content
+          // is not.
+          await page.locator("#worksheet-toggle").click();
+          await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+          push("[real] pitch_system's worksheet toggle opens a real dialog",
+            await page.locator("#worksheet-dialog").evaluate((n) => n.open));
+          await page.locator("#worksheet-close").click();
+        }
+
         for (const study of topology.studies) {
-          await page.selectOption("#study-select", study.id);
+          await page.locator(navRow("study", study.id)).click();
           await page.waitForTimeout(50);
           if (study.status !== "ok") {
             push(`[real] ${study.id} shows its refusal`,
@@ -509,11 +585,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           push(`[real] ${study.id} numbers every contribution`,
             await page.locator("tr.tvrow--on").count() >= study.result.chain.length);
         }
-        await page.selectOption("#study-select", "");
       }
 
       // The preview pane over a real citation, with a real crop behind it.
-      await page.selectOption("#topology-select", "vpa_output_to_pitch_plate");
+      await page.locator(navRow("topology", "vpa_output_to_pitch_plate")).click();
       await page.locator("tr.tvrow[data-id='fastener_grip'] .tvcell--name").click();
       const detail = await page.locator("#detail").textContent();
       push("[real] an L1 edge shows the stack element's own citation",
@@ -535,18 +610,21 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   }
 }
 
-// --- the height contract: the graph pane must not be squeezed to nothing ---
+// --- the height contract: the DAG pane owns the main area -------------------
 //
-// Reproduces the reported symptom directly (HANDOFF_20260904_dag_viewer_
-// vertical_budget.md): a ~700px inner viewport, the legend open, a study
-// selected (so the totals footer is at its real height, not the empty-state
-// paragraph), and a REAL provenance alarm on screen (crops and topologies
-// deliberately stamped from different commits) -- every un-shrinkable block
-// the diagnosis named, at once. `.tv__scroll` must still show at least the
-// stated floor of 10 rows, and switching to compact density must hold that
-// same floor in far fewer pixels without breaking row/rail alignment.
-async function testHeightBudget(browser, url, label) {
-  const page = await browser.newPage({ viewport: { width: 1200, height: 700 } });
+// Replaces the retired 10-row floor's own browser check (HANDOFF_20260904_dag_
+// viewer_vertical_budget.md) with the contract viewer_v2_single_nav's handoff
+// asks for instead: at a 900px viewport, with the real pitch_system loaded and
+// a study selected (so the totals strip is at its real height, not the
+// empty-state paragraph) and a REAL provenance alarm on screen (crops and
+// topologies deliberately stamped from different commits) — every remaining
+// un-shrinkable block at once — the DAG pane (`.tv__scroll`) is the MAJORITY of
+// the viewport. The legend and the worksheet are <dialog>s now and no longer
+// participate in this page's flex column at all, so this test does not open
+// them: doing so can no longer affect the pane's height by construction, which
+// is the point of having moved them.
+async function testHeightBudget(browser, url, label, realProjection, realCrops) {
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   const checks = [];
@@ -568,6 +646,9 @@ async function testHeightBudget(browser, url, label) {
     return drift;
   });
 
+  const paneHeight = () => page.locator(".tv__scroll")
+    .evaluate((n) => n.getBoundingClientRect().height);
+
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -584,39 +665,51 @@ async function testHeightBudget(browser, url, label) {
       window.ViewerApp.bootTopology();
     });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
-    push("the provenance alarm is showing",
-      /DIFFERENT trees/.test(await page.locator("#banner").textContent()));
+    push("the provenance alarm shows as a one-line badge",
+      /needs a rebuild/.test(await page.locator("#banner").textContent()));
 
-    // Open the legend and select a study, so the totals footer is at its real
-    // (not empty-state) height too -- every un-shrinkable block at once.
-    await page.locator(".tv__legend summary").click();
-    await page.selectOption("#study-select", "demo_base_to_tip");
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
 
-    const MIN_ROWS = 10;
-    const comfortableHeight = await page.locator(".tv__scroll")
-      .evaluate((n) => n.getBoundingClientRect().height);
-    const comfortableRow = await page.evaluate(
-      () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tv-row")));
-    push(`the graph pane keeps its ${MIN_ROWS}-row floor (legend open, study ` +
-      "selected, provenance alarm showing)",
-      comfortableHeight >= MIN_ROWS * comfortableRow - 1);
+    const mockHeight = await paneHeight();
+    push("[mock] the DAG pane is the majority of the 900px viewport " +
+      "(alarm badge + toolbar + totals strip all on screen)",
+      mockHeight > 450);
 
-    // Compact density: the SAME floor in rows, in far fewer pixels, driven by
-    // the SAME number the SVG draws its rails from -- not a second place this
-    // can drift (the trap topology.js's VA.applyRowDensity documents).
+    // Compact density: alignment must still hold once row height changes.
     await page.locator("#density-toggle").click();
     await page.waitForTimeout(50);
-    const compactRow = await page.evaluate(
-      () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tv-row")));
-    push("compact density actually shrinks the row pitch", compactRow < comfortableRow);
-    const compactHeight = await page.locator(".tv__scroll")
-      .evaluate((n) => n.getBoundingClientRect().height);
-    push(`the ${MIN_ROWS}-row floor holds at compact density too`,
-      compactHeight >= MIN_ROWS * compactRow - 1);
-
     push("rails stay aligned to rows at compact density",
       (await alignmentDrift()).length === 0);
+    await page.locator("#density-toggle").click();
+
+    if (!realProjection) {
+      push("[real] pitch_system height check (skipped: not built)", true);
+    } else {
+      await page.evaluate(({ projection, crops }) => {
+        window.ViewerApp.demoTopologyFixture = function () {
+          return {
+            startState: window.ViewerApp.STATE.READY,
+            topologies: projection, crops: crops, images: {},
+          };
+        };
+        window.ViewerApp.bootTopology();
+      }, { projection: realProjection, crops: realCrops });
+      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+      const okStudy = pitch && pitch.studies.find((s) => s.status === "ok");
+      if (okStudy) {
+        await page.locator(navRow("study", okStudy.id)).click();
+        await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
+      }
+      const realHeight = await paneHeight();
+      push("[real] the DAG pane's height is the majority of the 900px " +
+        "viewport with the real pitch_system loaded", realHeight > 450);
+      push("[real] rails stay aligned to rows", (await alignmentDrift()).length === 0);
+    }
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
@@ -647,7 +740,7 @@ async function testIndexRedirects(browser, url, label) {
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   try {
     await page.goto(url + "/index.html?mock=1", { waitUntil: "load" });
-    await page.waitForSelector(".stacklist__row, tr.tvrow", { timeout: 15000 });
+    await page.waitForSelector('[data-nav-kind], tr.tvrow', { timeout: 15000 });
     push("index.html redirects to topology.html", page.url().includes("topology.html"));
     push("the query string survives the redirect", page.url().includes("mock=1"));
     const failed = checks.filter((c) => !c.cond);
@@ -693,7 +786,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       browser, fileBase, "topology file://", topologies, crops));
     results.push(await testTheTopologyPage(
       browser, baseUrl, "topology http", topologies, crops));
-    results.push(await testHeightBudget(browser, fileBase, "topology height budget"));
+    results.push(await testHeightBudget(browser, fileBase, "topology height budget", topologies, crops));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);

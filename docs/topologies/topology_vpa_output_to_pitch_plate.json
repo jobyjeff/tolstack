@@ -11,6 +11,16 @@
     "structure": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim. The stack transcribes workbook rows E63-E67 as an ordered clamped stack (bushing, spherical bearing, bushing flange, pitch flange, under-head washer) plus the fastener grip; laying those out head-side-first, as a chain of six clamped-stack faces, is this handoff's own arrangement. Two things make that safe to publish: a chain sum is invariant to the ordering (a signed term list does not care), and tests/test_topology.py pins the study's totals against the stack's own published check. What it is NOT is evidence that these specific faces mate in this order on the real part -- see notes.",
     "part_identity": "Four of the six parts are named on the stack's own citations (balloons 27, 28, 29 in 217755 sheet 5 DETAIL X, and the VPA assembly 208510-007 for the bearing). Two are not, and say so in their own `note` rather than borrowing a plausible drawing number."
   },
+  "joint": {
+    "assembly_drawing": "217755",
+    "assembly_revision": "A.1",
+    "sheet": 5,
+    "view": "DETAIL X",
+    "zone": "C10",
+    "description": "0.250-28 bolt through the VPA output rod end into the mating flange, castellated nut + cotter pin retained, with a countersunk washer under the head.",
+    "scope": "grip length only",
+    "note": "Added 2026-09-08 (handoff topology_schema_v1), deliverable 2: this block MIRRORS docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json's own `joint` field for field -- both documents describe the same physical joint, and this is prose/context, not a toleranced value, so it carries no dimension_ref of its own the way an edge's value does. If the two ever disagree, the stack's is authoritative; this topology's `joint` is a reading of it, same as `provenance.structure` already is for the axial order."
+  },
   "parts": [
     {
       "id": "bolt_nas6404u13d",

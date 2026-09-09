@@ -426,30 +426,64 @@ def value_source(edge: Edge) -> str:
     return "stack_ref" if edge.dimension_ref else "inline"
 
 
-def crop_key(edge: Edge) -> Optional[Dict[str, str]]:
-    """``{stack, element}`` addressing this edge's crop in ``crops.json``.
+def _croppable(source_ref: Any) -> bool:
+    """Whether ``scripts/build_viewer_crops.py`` could ever crop ``source_ref``.
 
-    Only a ``dimension_ref`` edge has one, and that is the honest answer rather
-    than a limitation: ``crops.json`` is keyed by *stack id* and *element id*,
-    and an edge that re-expresses a committed stack element **is** that element
-    -- same id, same citation, same crop, no new plumbing (the topology handoff's
-    lesson, section 6). An edge whose dimension is authored inline in the
-    topology is in no stack, so no crop index covers it; the pane says that
-    rather than reporting a stale index.
+    The same two rules :func:`~build_viewer_crops.resolve_pdf` implements as
+    rule 1 (``source_ref_export``) and rule 2 (``spec_pile``) -- never rule 3
+    (``joint.assembly_export``), which borrows from a STACK's own ``joint``
+    block and an edge's inline dimension is in no stack to borrow from. This
+    check touches no filesystem and does not mean "resolves": an
+    ``unestablished`` export is still croppable in this sense (it *names*
+    itself, via ``export``) and lands in ``crops.json`` as unresolvable with
+    its own ``why`` -- exactly like a workbook/assumed edge, just for a
+    different reason. Only the crops builder, against the real files, decides
+    resolved vs. unresolvable.
+    """
+    return source_ref is not None and (
+        source_ref.export is not None or source_ref.kind == "spec"
+    )
 
-    The stack **id** is taken from the referenced file's own ``id`` field, not
-    from its filename: ``crops.json``'s ``by_stack`` is keyed by ``raw["id"]``
-    (``scripts/build_viewer_crops.py``), and the two agree today only by
-    convention.
+
+def crop_key(topology: Topology, edge: Edge) -> Optional[Dict[str, str]]:
+    """This edge's crop-lookup key in ``crops.json`` -- two disjoint spaces.
+
+    A ``dimension_ref`` edge re-expresses a committed stack element -- same id,
+    same citation, same crop -- so it addresses ``crops.json``'s existing
+    ``by_stack`` space, keyed ``{stack, element}``, exactly as before (the
+    topology handoff's lesson, section 6). The stack **id** is taken from the
+    referenced file's own ``id`` field, not from its filename: ``by_stack`` is
+    keyed by ``raw["id"]`` (``scripts/build_viewer_crops.py``), and the two
+    agree today only by convention.
+
+    An **inline** edge is in no stack, so it cannot use that space at all --
+    not merely "should not": a topology's own id can equal a stack's
+    (``vpa_output_to_pitch_plate`` names both today), and an edge id landing in
+    that same stack's element-keyed bucket would silently collide with one of
+    its elements. So an inline edge whose dimension carries a croppable
+    ``source_ref`` (:func:`_croppable`) addresses a **separate** space instead,
+    keyed ``{topology, edge}`` by this topology's own id and the edge's own id.
+    ``scripts/build_viewer_crops.py`` resolves it into ``crops.json``'s
+    ``by_topology``; the viewer's existing ``VA.cropFor`` reads only
+    ``by_stack`` and does not (yet) look there -- see this handoff's lesson for
+    what ``viewer_v2_single_nav`` needs to add.
+
+    Neither space covers a workbook/assumed inline dimension, or a derived gap
+    (no dimension at all): both are ``None`` here, and legitimately so -- the
+    crops builder reports the workbook/assumed case as unresolvable with a
+    reason, exactly like a spreadsheet-sourced stack element does today.
     """
     ref = edge.dimension_ref
-    if not ref:
+    if ref:
+        stack_path = REPO_ROOT / ref["stack"]
+        if not stack_path.exists():
+            return None
+        raw = json.loads(stack_path.read_text(encoding="utf-8"))
+        return {"stack": raw["id"], "element": ref["element"]}
+    dimension = edge.dimension
+    if dimension is None or not _croppable(dimension.source_ref):
         return None
-    stack_path = REPO_ROOT / ref["stack"]
-    if not stack_path.exists():
-        return None
-    raw = json.loads(stack_path.read_text(encoding="utf-8"))
-    return {"stack": raw["id"], "element": ref["element"]}
+    return {"topology": topology.id, "edge": edge.id}
 
 
 def confidence_of(dimension: Any) -> Optional[str]:
@@ -504,7 +538,7 @@ def project_edge(topology: Topology, edge: Edge) -> Dict[str, Any]:
         # interval it feeds is a LOWER bound on the real spread. Same axis, same
         # word and same colour as the stack viewer's.
         "zero_width": bool(dimension is not None and dimension.min == dimension.max),
-        "crop_key": crop_key(edge),
+        "crop_key": crop_key(topology, edge),
         # The edge's DEFAULT transform, already unit-resolved. A study may
         # override it; the study's own chain rows carry what actually applied.
         "transform": {
@@ -553,6 +587,9 @@ def project_study(topology: Topology, study: Study, path: Path,
         "closes": study.closes,
         "selection": list(study.selection),
         "transforms": dict(study.transforms),
+        # Descriptive only -- never read by traverse()/summarize(). Added
+        # 2026-09-08 closing DAG_TOPOLOGY.md's "What v0 cannot do" gap 3.
+        "configuration": dict(study.configuration),
         "source_file": as_posix_rel(path),
         "notes": list(study.notes),
         "provenance": raw.get("provenance") or {},
@@ -577,6 +614,43 @@ def project_study(topology: Topology, study: Study, path: Path,
     return row
 
 
+def worksheet_for(path: Path, raw: Dict[str, Any]) -> Tuple[Optional[Path], Optional[str]]:
+    """``(worksheet path | None, how)`` for a topology file.
+
+    The identical two-rule convention ``scripts/build_viewer_projection.py``
+    established for a stack (its own ``worksheet_for``), added here 2026-09-08
+    (handoff ``topology_schema_v1``, deliverable 3) rather than shared, because
+    each viewer builder is a self-contained stdlib-only script:
+
+    1. **A declared worksheet wins** -- ``provenance.worksheet`` in the topology
+       file. Expected to be the *common* case here, unlike a stack's: a
+       topology's id rarely shares a stem with the worksheet documenting its
+       source workbook (``topology_pitch_system.json``'s is ``WORKSHEET_end_
+       stop_graft.md``, named for the workbook, not the system).
+    2. **Otherwise match by name**, ``topology_X.json`` -> ``WORKSHEET_X.md``,
+       and report ``None`` when there is none.
+
+    A declared path is resolved against the topology file's own directory and
+    then the repo root, never the process cwd, and a declared worksheet that
+    resolves nowhere **raises** -- the author asserted the file exists.
+    """
+    declared = (raw.get("provenance") or {}).get("worksheet")
+    if declared:
+        tried = ([Path(declared)] if Path(declared).is_absolute()
+                 else [path.parent / declared, REPO_ROOT / declared])
+        for resolved in tried:
+            if resolved.exists():
+                return resolved, "declared"
+        raise FileNotFoundError(
+            f"{path}: provenance.worksheet names {declared!r}, which is at none of "
+            + ", ".join(str(t) for t in tried)
+        )
+    by_name = path.parent / path.name.replace("topology_", "WORKSHEET_", 1).replace(
+        ".json", ".md"
+    )
+    return (by_name, "by_name") if by_name.exists() else (None, None)
+
+
 def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
                      studies: Sequence[Tuple[Path, Dict[str, Any], Study]],
                      ) -> Dict[str, Any]:
@@ -586,6 +660,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         confidence = confidence_of(edge.dimension)
         if confidence is not None:
             counts[confidence] = counts.get(confidence, 0) + 1
+    worksheet, worksheet_source = worksheet_for(path, raw)
     return {
         "id": topology.id,
         "title": topology.title,
@@ -594,6 +669,14 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # The authored document, verbatim, exactly as `results.json` embeds a
         # stack. The derived blocks sit BESIDE it, never on top of it.
         "topology": raw,
+        # Free-form assembly/context prose, mirroring a stack's own `joint` --
+        # added 2026-09-08, deliverable 2. `{}` when the topology spans more
+        # than one physical joint (pitch_system).
+        "joint": dict(topology.joint),
+        "worksheet_file": as_posix_rel(worksheet) if worksheet else None,
+        # `declared` (provenance.worksheet) or `by_name`, the same pairing
+        # `results.json` carries for a stack.
+        "worksheet_source": worksheet_source,
         "parts": [dataclasses.asdict(p) for p in topology.parts],
         "nodes": [project_node(topology, n, branch_nodes) for n in topology.nodes],
         "edges": [project_edge(topology, e) for e in topology.edges],

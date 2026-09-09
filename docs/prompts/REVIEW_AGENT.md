@@ -1000,6 +1000,41 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       in the document is not that. Fixed inline in that review (a blockquote
       under the Checks table). Generalises to every "next to the numbers" /
       "must sit with the results" requirement in this overlay.
+- [ ] **A persistently-red test's explanation is copied forward across
+      reviews without re-derivation — the same failure as the entry above,
+      applied to a "known flaky/pre-existing" label instead of a check
+      verdict.** New 2026-09-08 (`annotate_deep_link_and_part_filter`).
+      `apps/viewer/tests.js`'s `[real] the pitch system's four forks are
+      marked` has failed the same way (`expected 4, got 5`) since at least
+      2026-09-06, and `LESSONS_20260908_viewer_v2_single_nav.md` §7 attributed
+      it to a **rebuild race** (a concurrent handoff touching
+      `docs/topologies/` mid-build). That diagnosis was never re-tested: a
+      rebuild from a tree containing all of `integration` still produces 5,
+      stably, and `docs/DAG_TOPOLOGY.md`'s own L2 section plus
+      `REVIEW_20260906_mechanical_stroke_stack.md`'s independent Python
+      re-derivation (`len(t.branch_nodes())`, not read from prose) both
+      already said 5 was correct **before** the race theory was written down.
+      Three reviews since (including this handoff's own lesson) repeated
+      "pre-existing, unrelated" without checking whether the original
+      explanation was ever right. Filed:
+      `ISSUE_20260908_pitch_system_four_forks_test_is_stale_not_a_race.md`.
+      So: when a report explains away a red test as a race/flake/pre-existing
+      issue, don't just confirm the test *was already failing before this
+      branch* (necessary, not sufficient) — check whether the **stated
+      cause** was ever independently verified, the same way you'd re-locate
+      what a prior PASS claims to have checked.
+- [ ] **A second app now has its own command layer — expect a third.**
+      New 2026-09-08 (`annotate_deep_link_and_part_filter`). `apps/annotate/`'s
+      `commands.js` (a tokenizer + single-dispatch registry, DOM-free, with
+      pure helpers like `resolveMeshIdentifier`/`planIsolate` tested by
+      `run_tests.cjs`) is architecture, not a stack-authoring artifact, so
+      none of the mandatory checks 1–7 apply to it — but it has its own
+      failure mode worth a name: a UI control or the deep-link boot path
+      mutating `state`/`scene` **directly** instead of through `AA.exec(...)`
+      is a parallel code path the whole design exists to prevent. Grep for
+      the pre-command-layer call shapes (direct `state.scene.*` calls outside
+      a `cmd*` handler, a `<select>`'s `onchange` not routed through `exec`)
+      whenever a future handoff touches `apps/annotate/app.js`.
 - [ ] **The projections are stale unless you rebuild them.** Nothing rebuilds
       `data/projections/viewer/` — no hook, no ops verb, no watcher. A stack
       changed on the branch under review will render as the previous build, and
@@ -1607,6 +1642,40 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       "fits", "comfortably") was met; compute the percentage against the
       actual row count and check it at the size the claim is actually about,
       not just the size the floor test forced.
+- [ ] **`[CmdletBinding()]` on a `.ps1` breaks a `$PSScriptRoot`-derived
+      parameter default, on this repo's Windows PowerShell 5.1.** New
+      2026-09-08 (`projections_rebuild_script`). `param([string]$RepoRoot =
+      (Split-Path -Parent $PSScriptRoot))` silently binds `$RepoRoot` to `""`
+      the moment the script also declares `[CmdletBinding()]` — PS 5.1
+      evaluates parameter defaults before `$PSScriptRoot` is populated once
+      the attribute turns the param block into an advanced function. No
+      public doc found for it; reproduced with a two-line throwaway script.
+      Any future `.ps1` here that wants `$PSScriptRoot` in a default and
+      reaches for `[CmdletBinding()]` out of habit (for `-Verbose`/
+      `-WhatIf`/`ShouldProcess`) hits this silently — there is no error at the
+      call site, just an empty path fed downstream. Check: does the script
+      need advanced-function features at all, and if it does, is the
+      script-root default computed in the body instead of the param block?
+      `rebuild_projections.ps1` carries a regression pin
+      (`test_the_script_itself_declares_no_cmdletbinding`) but that only
+      catches a re-add on *this* file.
+
+- [ ] **`--allow-older-tree`'s refusal message says "not an ancestor," which
+      covers two different situations — check which one before overriding
+      it.** New 2026-09-08 (`linear_stack_conversions`). The projection gate
+      fired with the shared projection built from `master @ <sha>` while the
+      review branch (cut from `integration`) was neither an ancestor nor a
+      descendant of that sha — a genuine fork, not the ordinary "master is
+      simply older" case the rest of this checklist's projection entries
+      assume. Before reaching for `--allow-older-tree`, diff the two tips
+      (`git diff HEAD <other-sha> --stat`) and confirm the divergence is
+      bookkeeping-only (here: `master` had only `docs/sessions/` board
+      commits tracking staged/active/completed transitions, zero code or
+      schema changes not already present via `integration`) — trunk lags
+      behind `integration` between batch merges by design, so this is the
+      ordinary shape, but "not an ancestor" alone does not prove it; a real
+      code fork would need the opposite response (merge or hold off, not
+      override).
 
 ## Architectural errors to check
 
@@ -2023,6 +2092,96 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       module, whenever a topology's own connectivity could change. Expect this
       to recur for the brake-family stack (staged next, same archetype, today
       only `kind: "assumed"` external edges — same shape of gap).
+
+- [ ] **A schema field added specifically to make something renderable, where
+      the projection that would render it never calls the function that
+      computes it.** New 2026-09-08 (`topology_schema_v1`, should-fix, filed as
+      `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`).
+      `check_study()`'s no-`limit` branch was built precisely so a study's
+      total could carry a verdict "equivalent in power to
+      `StackDefinition.checks`" — but `scripts/build_topology_projection.py`
+      never imports `check_study`, never calls `study.checks`, and
+      `project_study()`'s row has no `"checks"` key at all, in either the
+      pre- or post-handoff tree. Contrast `build_viewer_projection.py`'s
+      `project_stack`, which calls `stack.check(spec["check_id"])` for every
+      entry in `stack.checks` and merges the `CheckResult` into the row. So a
+      capability can pass its own acid test (a direct call to the function in
+      a test) and still be invisible to every consumer of the projection —
+      check, for any handoff that adds a computed/checkable field, whether the
+      **projection** actually calls the function that computes it, not just
+      whether a test does.
+      **Confirmed still open, wider, 2026-09-08 (`linear_stack_conversions`):**
+      the 12 new authored `checks` this handoff added (2 on
+      `pitch_link_to_pitch_plate`, 9 on `rotor_fastener_length`, 1 on
+      `tan_link_to_pitch_plate_take2`) reproduced by re-running
+      `scripts/build_topology_projection.py` after this review's merge — every
+      study's projected `result` still has no `"checks"` key. Not a new
+      finding (the filed issue already generalises to any study's checks), but
+      worth knowing before trusting the projection's silence on a check's
+      verdict as "there is no check" rather than "the projection cannot show
+      one yet."
+
+- [ ] **A linear stack whose `checks` mix a named `path` term with
+      individually-signed elements has no topology equivalent — verify the
+      conversion left it classic-rendered rather than force-building one.**
+      New 2026-09-08 (`topology_schema_v1` fenced it, `linear_stack_conversions`
+      is the first handoff that had to honour the fence against a real
+      candidate). `stack_tan_link_to_pitch_plate.json`'s six checks each
+      combine `{"path": "..."}` with signed `{"element": ..., "sign": -1}`
+      terms; nothing in `tolerance_stack/topology.py` resolves a named path
+      across study documents (paths are a stack-local dict, studies are
+      deliberately separate files with no cross-study index), and building
+      one would reopen the branch/cycle guard's whole reason to exist —
+      composing two independently-authored studies' totals with no check that
+      the combination isn't double-counting a shared edge. Verify a candidate
+      stack's checks for this shape (a `path` term sitting beside element
+      terms) **before** accepting a topology conversion for it; the correct
+      outcome is "stays classic-rendered," pinned by a test asserting the
+      topology file does *not* exist
+      (`test_tan_link_to_pitch_plate_take_1_has_no_topology`), not a
+      hand-flattened check that inlines the named path's own terms (which
+      would still be arithmetically correct but is no longer authored against
+      a reusable path, and quietly drops the fence's own reasoning from view).
+
+- [ ] **A decision rule restated by hand in a second script, where the two
+      scripts could import one another but don't.** New 2026-09-08
+      (`inline_edge_crops`, should-fix, filed as
+      `ISSUE_20260908_croppable_rule_restated_across_two_scripts.md`).
+      `build_topology_projection.py::_croppable()` hand-copies
+      `build_viewer_crops.py::resolve_pdf`'s rule 1/2 conditions
+      (`source_ref.export` / `kind == "spec"`) rather than importing them,
+      with nothing pairing the two. It looks unavoidable — one script needs
+      PyMuPDF and runs in a different venv — but isn't: `fitz` is imported
+      *lazily* specifically so the rule logic stays importable without it.
+      Verified today's two copies agree (parametrized test plus a real
+      rebuild), but check for this shape whenever a handoff adds a
+      filesystem-free "would this resolve" predicate beside an existing
+      resolver: **could the predictor import the real rule instead of
+      restating it**, given how the resolver's own imports are structured?
+
+- [ ] **The projection DOES emit the field; the viewer just never reads it —
+      and a doc still asserts the pre-field state.** New 2026-09-08
+      (`viewer_v2_single_nav`, blocker), the mirror image of the entry just
+      above. `topology_schema_v1` added `project_topology()`'s `joint` and
+      `worksheet_file` (4 of 5 real topologies carry a non-empty `joint`,
+      `pitch_system` carries a `worksheet_file`) specifically so the viewer
+      handoff could render them — its own baseline note said so in as many
+      words ("the projection then carries authored study checks, joint
+      blocks, worksheet refs — this page renders them"), and its deliverable
+      4 named all three. None of the three render anywhere in topology mode
+      (`jointBlock()` exists in `views/stack.js`, stack-mode only; the
+      worksheet toggle is explicitly hidden in topology mode), and
+      `apps/viewer/README.md` still says *"a topology has no worksheet of
+      its own"* — true before `topology_schema_v1`, false since, and this
+      handoff's own diff edited that exact paragraph without correcting the
+      sentence. Unlike the entry above, this one is **not** blocked by
+      out-of-scope projection code for two of its three fields (`joint`,
+      `worksheet_file` are already in the projection; only `study.checks`
+      genuinely needs the projection-side fix from the entry above) — so
+      check, for any handoff told "the projection now carries X, render it,"
+      whether the render side actually reads the new field, and grep the
+      diff's own doc changes for a sentence describing the field's absence
+      that the same handoff's schema baseline just falsified.
 
 ## Writing the review
 

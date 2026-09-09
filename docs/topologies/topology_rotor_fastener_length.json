@@ -1,0 +1,218 @@
+{
+  "schema": "joby.tolerance_stack/topology/v0",
+  "id": "rotor_fastener_length",
+  "title": "Rotor balance-mass bolt -- grip length as a topology (nine-way grip-selection family)",
+  "units": "mm",
+  "joint": {
+    "assembly_drawing": "217755",
+    "assembly_revision": "A.1",
+    "sheet": 8,
+    "view": "SECTION T-T",
+    "zone": "H3",
+    "description": "The rotor (hub-and-blade) balance-mass retention bolt: a single fastener, selected at assembly from a nine-member NAS6403 grip family, clamping an optional countersunk washer, zero or more stacked balancing masses, and a flat washer against whatever structure carries the tapped hole at this section.",
+    "scope": "Grip length only, along the bolt axis. Deliberately out of scope: which of up to 10 balance-hole locations is used and how the 200 g total balance budget is allocated; torque; the safety-cable capture; diameter and hole fits; thread-engagement depth into the tapped member."
+  },
+  "provenance": {
+    "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+    "design_reference": "docs/sessions/active/HANDOFF_20260908_linear_stack_conversions.md, deliverable 2",
+    "re_expresses": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+    "values": "NONE are copied. Every dimensioned edge carries a `dimension_ref` into the stack file above, resolved at load time, so this document cannot drift away from the numbers that stack publishes. Every value's citation and confidence is whatever that element already carries.",
+    "structure": "A reading of the stack's own element order and roles, not a sourced claim. The stack's own notes give the clamped order from the bolt head: MS21299C3 washer, [balancing mass(es) -- MISSING], NAS1149V0332H washer, [receiving-structure thickness -- MISSING], then whichever of the nine as-drawn NAS6403 grip options is installed. Neither missing member is modelled as a node or edge -- there is no element to hang one on. The nine grip options are modelled as parallel structural edges between shared interfaces (`head_bearing_face`/`shank_full_dia_end`), all naming a single part, `fastener_family` -- see that part's own note for why separate part ids per option were rejected. A study selecting more than one of the nine simultaneously is refused by `BranchAmbiguity` at both of those interfaces, which is the topology's own way of enforcing 'exactly one dash is ever installed', mechanically rather than only in prose.",
+    "part_identity": "MS21299C3 and NAS1149V0332H are named on the stack's own parts-list citations. `fastener_family` names no single as-drawn part number, because none of the nine is more 'the' installed fastener than another -- see its own note."
+  },
+  "parts": [
+    {
+      "id": "washer_ms21299c3",
+      "name": "MS21299C3 washer, countersunk, .063 in, under the bolt head",
+      "note": "Balloon at SECTION T-T, find 60, qty AR (JPS00094 5.5.3.a allows 0-3). The referenced element models the ONE this section draws."
+    },
+    {
+      "id": "washer_nas1149v0332_tt",
+      "name": "NAS1149V0332H washer, flat, 6Al-4V, .032 in, rotor balance-mass bolt",
+      "note": "Same part number the pitch-link and tangential-link joints cite, a different balloon (find 32, zone K4, SECTION T-T) of the same 217755 sheet."
+    },
+    {
+      "id": "fastener_family",
+      "name": "NAS6403 grip-selection family, dash TBD at assembly (note 24: SELECT ONE FASTENER ... AS REQUIRED FOR CORRECT GRIP LENGTH)",
+      "note": "Modelled as ONE part rather than nine, because the nine dash options (U2H through U10H) are mutually-exclusive alternatives of a single designed feature -- 'whichever grip the assembler selects' -- not nine parts that could ever be present at once. Treating them as nine separate parts would force each of `head_bearing_face`/`shank_full_dia_end` to list up to nine part ids, which Node.parts refuses outright (an interface joins at most two parts); it would also misrepresent nine alternatives as nine simultaneous members. This is a repo-first pattern -- topology_vpa_output_to_pitch_plate.json and topology_pitch_link_to_pitch_plate.json each model one fixed as-drawn fastener -- and it exists because this is the repo's first genuine grip-SELECTION joint, exactly as the referenced stack's own joint.identification_note argues."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "head_bearing_face",
+      "name": "bolt-head bearing face against the MS21299C3 countersunk washer",
+      "parts": ["fastener_family", "washer_ms21299c3"],
+      "kind": "mating_surface",
+      "note": "Where grip is measured from, NAS6403-NAS6420 Rev 4 sheet 2 note (a), same as every other 217755 joint in this repo."
+    },
+    {
+      "id": "washer_junction_face",
+      "name": "MS21299C3 washer far face against the NAS1149V0332H washer",
+      "parts": ["washer_ms21299c3", "washer_nas1149v0332_tt"],
+      "kind": "mating_surface",
+      "note": "A reading, not a claim of physical adjacency: the stack's own notes place zero or more stacked balancing masses between these two washers, and that member is UNSOURCED (only weight in grams is printed, no part drawing). This interface reproduces the stack's own arithmetic, which omits the missing mass from the sum -- see both washers' checks' `excluded_terms`."
+    },
+    {
+      "id": "washer_far_face",
+      "name": "NAS1149V0332H washer far face -- the last modelled clamped surface",
+      "parts": ["washer_nas1149v0332_tt"],
+      "kind": "datum_feature",
+      "note": "Beyond it sits the receiving structure's own engagement thickness (216231-002 HUB AND BLADE ASSEMBLY, or a neighbour), also UNSOURCED -- reference-only balloons carry no dimension. Retention here is a blind tapped hole, not a nut: no castellation/cotter-hole caveat applies at this joint."
+    },
+    {
+      "id": "shank_full_dia_end",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["fastener_family"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, defined by NAS6403-NAS6420 Rev 4 sheet 2 note (a), wherever the installed dash number places it."
+    }
+  ],
+  "edges": [
+    {
+      "id": "washer_ms21299c3",
+      "name": "washer thickness, MS21299C3 (.063 in)",
+      "kind": "structural",
+      "part": "washer_ms21299c3",
+      "from": "head_bearing_face",
+      "to": "washer_junction_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "washer_ms21299c3"
+      }
+    },
+    {
+      "id": "washer_nas1149v0332_tt",
+      "name": "washer thickness, NAS1149V0332H (.032 in), rotor balance-mass bolt",
+      "kind": "structural",
+      "part": "washer_nas1149v0332_tt",
+      "from": "washer_junction_face",
+      "to": "washer_far_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "washer_nas1149v0332_tt"
+      }
+    },
+    {
+      "id": "fastener_grip_u2h",
+      "name": "NAS6403U2H grip length (.125 in) -- shortest of nine options",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u2h"
+      }
+    },
+    {
+      "id": "fastener_grip_u3h",
+      "name": "NAS6403U3H grip length (.188 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u3h"
+      }
+    },
+    {
+      "id": "fastener_grip_u4h",
+      "name": "NAS6403U4H grip length (.250 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u4h"
+      }
+    },
+    {
+      "id": "fastener_grip_u5h",
+      "name": "NAS6403U5H grip length (.312 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u5h"
+      }
+    },
+    {
+      "id": "fastener_grip_u6h",
+      "name": "NAS6403U6H grip length (.375 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u6h"
+      }
+    },
+    {
+      "id": "fastener_grip_u7h",
+      "name": "NAS6403U7H grip length (.438 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u7h"
+      }
+    },
+    {
+      "id": "fastener_grip_u8h",
+      "name": "NAS6403U8H grip length (.500 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u8h"
+      }
+    },
+    {
+      "id": "fastener_grip_u9h",
+      "name": "NAS6403U9H grip length (.562 in)",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u9h"
+      }
+    },
+    {
+      "id": "fastener_grip_u10h",
+      "name": "NAS6403U10H grip length (.625 in) -- longest of nine options",
+      "kind": "structural",
+      "part": "fastener_family",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_rotor_fastener_length.json",
+        "element": "fastener_grip_u10h"
+      }
+    },
+    {
+      "id": "shank_out",
+      "name": "shank out -- full-diameter shank beyond the modelled clamped stack",
+      "kind": "gap",
+      "from": "washer_far_face",
+      "to": "shank_full_dia_end",
+      "note": "A DERIVED gap: no dimension, because it is the quantity each of the nine `study_rotor_fastener_grip_uXh.json` studies computes -- one per installed dash, never more than one at a time (selecting two of the nine `fastener_grip_uXh` edges in one study raises BranchAmbiguity at both `head_bearing_face` and `shank_full_dia_end`)."
+    }
+  ],
+  "notes": [
+    "This document adds no value, no citation and no confidence claim of its own. If a number here looks wrong, the stack file docs/tolerance_stacks/stack_rotor_fastener_length.json is where it is wrong.",
+    "The graph: 3 parts, 4 interfaces, 12 edges, 2 branch points, 9 grounded loops (edges minus interfaces plus one connected component; the nine parallel grip options each redundant with their neighbours through the two shared interfaces, not merely one loop per option), 1 gap edge.",
+    "Both the balancing mass(es) and the receiving-structure engagement thickness are the joint's own MISSING members and are not modelled as nodes or edges, exactly as every one of the nine checks records in `excluded_terms`.",
+    "One study per grip option, not one study for all nine: `tolerance_stack.topology.check_study`'s `limit` shape folds an external budget as a ZERO-WIDTH point value (see its own docstring), which would silently drop each fastener's own +/-.010 in band -- the only branch that preserves a check's full nominal/worst-case/RSS fields exactly is the no-`limit` branch, and that branch reads a study's OWN chain, which is fixed per Study. Nine distinct rangeD terms therefore need nine distinct selections. See the lesson for this handoff."
+  ]
+}

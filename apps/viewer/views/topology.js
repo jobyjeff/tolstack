@@ -12,42 +12,16 @@
 
   var M = VA.RAIL_METRICS;
 
-  // --- the selectors in the topbar -----------------------------------------
-
-  VA.renderTopoPicker = function (root, projection, state, handlers) {
+  // --- the toolbar: display preferences, not selection ----------------------
+  //
+  // The TOPOLOGY/STUDY <select> pickers retired into the nav tree
+  // (views/nav.js, viewer_v2_single_nav 2026-09-08) — selecting WHICH node is
+  // on screen is the nav's job now. What is left here is how it is drawn:
+  // whole-topology vs. study-chain layout, row density, and the annotate
+  // link. Topology mode only; topology_app.js hides this strip in stack mode.
+  VA.renderTopoToolbar = function (root, state, topoProj, handlers) {
     VA.clear(root);
-    var topologies = (projection && projection.topologies) || [];
-
-    // Viewing a loose stack (VA.looseStacks) is a THIRD state this select has to
-    // represent honestly: showing a real topology id as "selected" while a
-    // stack's elements table is on screen would be a fact the picker states and
-    // the page contradicts, and a browser does not fire `change` on reselecting
-    // its current value — so returning to the topology last looked at would take
-    // two clicks. A placeholder option, selected only in stack mode, keeps every
-    // topology in the list a genuine change away.
-    var inStackMode = state.mode === "stack";
-    root.appendChild(VA.el("label", "tvpick__label", "topology"));
-    root.appendChild(select("topology-select",
-      (inStackMode
-        ? [{ value: "", label: "— viewing a stack; pick one to return —" }]
-        : []
-      ).concat(topologies.map(function (t) {
-        return { value: t.id, label: t.title + "  (" + t.id + ")" };
-      })),
-      inStackMode ? "" : state.topologyId, handlers.onTopology));
-
-    var topoProj = VA.findTopology(projection, state.topologyId);
-    var studies = (topoProj && topoProj.studies) || [];
-    root.appendChild(VA.el("label", "tvpick__label", "study"));
-    root.appendChild(select("study-select",
-      [{ value: "", label: "— none (whole topology) —" }].concat(
-        studies.map(function (s) {
-          return {
-            value: s.id,
-            label: (s.status === "error" ? "⚠ " : "") + s.title,
-          };
-        })),
-      state.studyId || "", handlers.onStudy));
+    root.className = "tv__toolbar";
 
     // Two layouts over ONE serialiser (build_topology_projection.serialize_*):
     // the whole graph depth-first, or the study's chain in the order the sum
@@ -83,10 +57,9 @@
     // it only points at it. Only rendered once a real study is selected --
     // "annotate this" means nothing about the whole topology, only about one
     // human-lassoed chain's elements.
-    if (state.studyId && !inStackMode) {
+    if (state.studyId) {
       var annotateLink = VA.el("a", "ghost tvpick__mode", "Annotate →");
-      annotateLink.href = "../annotate/index.html?topology=" +
-        encodeURIComponent(state.topologyId) + "&study=" + encodeURIComponent(state.studyId);
+      annotateLink.href = VA.annotateLink({ topologyId: state.topologyId, studyId: state.studyId });
       annotateLink.title = "Open this study in the annotation surface (apps/annotate) to bind its " +
         "elements to geometry -- select + tag, no measurement.";
       root.appendChild(annotateLink);
@@ -99,19 +72,22 @@
     return !!(study && study.status === "ok");
   }
 
-  function select(id, options, value, onChange) {
-    var node = VA.el("select", "tvpick__select");
-    node.setAttribute("id", id);
-    options.forEach(function (option) {
-      var opt = VA.el("option", null, option.label);
-      opt.setAttribute("value", option.value);
-      if (option.value === value) opt.setAttribute("selected", "selected");
-      node.appendChild(opt);
-    });
-    node.value = value;
-    node.onchange = function () { onChange(node.value); };
-    return node;
-  }
+  // --- the joint -------------------------------------------------------------
+  //
+  // Deliverable 4 (viewer_v2_single_nav, 2026-09-08): `topoProj.joint` is the
+  // same free-form assembly/context shape a stack's own joint block is
+  // (build_topology_projection.py's project_topology, topology_schema_v1) --
+  // `{}` when the topology spans more than one physical joint, as
+  // `pitch_system` does. One renderer for both (views/stack.js's
+  // VA.jointBlock), so a field added there is never a second place to teach
+  // this one. A property of the WHOLE topology, not of whichever study is
+  // selected, so it renders whenever a topology is open, study or no study.
+  VA.renderTopoJoint = function (root, topoProj) {
+    VA.clear(root);
+    if (!topoProj) return root;
+    root.appendChild(VA.jointBlock(topoProj.joint));
+    return root;
+  };
 
   // --- rails + grid, in one scrolling box ----------------------------------
   //
@@ -485,59 +461,71 @@
 
   // --- the totals footer ---------------------------------------------------
 
+  // A slim, always-visible footer strip (deliverable 2, viewer_v2_single_nav
+  // 2026-09-08): the same folded numbers the old 260px panel showed, as chips
+  // in one horizontally-scrolling row rather than a wrapping grid of boxes —
+  // the DAG pane above it is what this page is for, and a study's own `notes`
+  // used to be able to push that panel to its full 260px cap. The rule
+  // sentence and any notes still exist, behind a same-line "Details" toggle,
+  // so nothing is dropped — only what is ALWAYS on screen shrinks.
+  //
+  // NOT here: a study's own authored `checks` (verdict vs. criterion) —
+  // deliverable 4's third piece, and the one this page cannot wire yet.
+  // `topoProj.joint` and `topoProj.worksheet_file` (project_topology,
+  // topology_schema_v1) reach the page above (renderTopoJoint) and through
+  // topology_app.js's worksheet toggle; a study's own `checks` never reaches
+  // the projection at all — `project_study()` has no `checks` key, tracked in
+  // `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`. This
+  // strip prints totals, never a verdict, until that field exists.
   VA.renderTopoTotals = function (root, topoProj, study, index) {
     VA.clear(root);
     root.className = "tvtotals";
     if (!study) {
-      root.appendChild(VA.el("p", "muted",
+      root.appendChild(VA.el("p", "muted tvtotals__empty",
         "Pick a study to see a path highlighted on the rails and its totals here. " +
         "A study is a HUMAN-lassoed chain: this page reports where the forks are " +
         "and never chooses one."));
       return root;
     }
 
-    var head = VA.el("div", "tvtotals__head");
-    head.appendChild(VA.el("h3", null, study.title));
-    head.appendChild(VA.el("code", "muted", study.id));
-    root.appendChild(head);
-    root.appendChild(VA.el("div", "muted",
-      study.from + "  →  " + study.to +
-      (study.closes ? "   ·   closes the derived gap `" + study.closes + "`" : "")));
+    var strip = VA.el("div", "tvtotals__strip");
+    strip.appendChild(VA.el("span", "tvtotals__title", study.title));
+    strip.appendChild(VA.el("code", "muted", study.id));
+    strip.appendChild(VA.el("span", "muted tvtotals__span",
+      study.from + " → " + study.to +
+      (study.closes ? "  ·  closes `" + study.closes + "`" : "")));
 
     if (study.status !== "ok") {
+      root.appendChild(strip);
       root.appendChild(errorBlock(study));
       return root;
     }
 
     var worst = VA.studyWorstConfidence(study, index);
-    var chips = VA.el("div", "tvtotals__chips");
-    chips.appendChild(VA.chip("chip--kind",
-      study.result.chain.length + " contributions"));
-    chips.appendChild(VA.chip("chip--kind", study.result.units));
+    strip.appendChild(VA.chip("chip--kind", study.result.chain.length + " contributions"));
+    strip.appendChild(VA.chip("chip--kind", study.result.units));
     if (worst) {
-      chips.appendChild(VA.chip(VA.confidenceClass(worst),
+      strip.appendChild(VA.chip(VA.confidenceClass(worst),
         "weakest input: " + (VA.CONFIDENCE_LABEL[worst] || worst),
         "weakest wins: a study fed by nine traced edges and one untraced one is " +
         "an untraced result"));
     }
-    root.appendChild(chips);
-
-    var table = VA.el("div", "tvtotals__grid");
     VA.studyTotals(study).forEach(function (total) {
-      var cell = VA.el("div", "tvtotal tvtotal--" + total.key);
-      cell.appendChild(VA.el("div", "tvtotal__label", total.label));
-      cell.appendChild(VA.el("div", "tvtotal__value num",
-        total.value + " " + total.units));
-      table.appendChild(cell);
+      strip.appendChild(VA.chip("chip--total",
+        total.label + " " + total.value + " " + total.units));
     });
-    root.appendChild(table);
-    root.appendChild(VA.el("p", "muted tvtotals__rule",
+    root.appendChild(strip);
+
+    var more = VA.el("details", "tvtotals__more");
+    more.appendChild(VA.el("summary", null, "Details"));
+    more.appendChild(VA.el("p", "muted tvtotals__rule",
       "Every number above came out of tolerance_stack.topology.summarize() → " +
       "fold(), the repo's single arithmetic path, and was rounded in Python. " +
       "This page adds nothing up."));
     (study.notes || []).forEach(function (note) {
-      root.appendChild(VA.el("p", "tvtotals__note", note));
+      more.appendChild(VA.el("p", "tvtotals__note", note));
     });
+    root.appendChild(more);
     return root;
   };
 
@@ -639,6 +627,30 @@
     root.appendChild(VA.el("div", "detail__where",
       (edge.part ? "a dimension of " + edge.part : "across a clearance") +
       "  ·  " + edge.from + " → " + edge.to));
+
+    // Deep link OUT to apps/annotate/ (deliverable 4): only for the two loud
+    // gap confidences -- a traced/inferred edge already has a citation, and a
+    // binding is identity, never a value source (docs/ANNOTATION_SURFACE.md),
+    // so sending a click there for an already-sourced row would offer nothing.
+    if (VA.needsAnnotation(edge.confidence)) {
+      var annotateBox = VA.el("div", "detail__annotate");
+      var annotateLink = VA.el("a", "detail__annotate-link",
+        "annotate this" + (edge.part ? " (" + edge.part + ")" : "") + " →");
+      annotateLink.setAttribute("href", VA.annotateLink({
+        topologyId: ctx.topoProj.id,
+        edgeId: edge.id,
+        studyId: ctx.study && ctx.study.id,
+        part: edge.part,
+      }));
+      annotateLink.setAttribute("target", "_blank");
+      annotateLink.setAttribute("rel", "noopener");
+      annotateLink.setAttribute("title",
+        "opens apps/annotate/ with this edge selected" +
+        (edge.part ? ", isolating " + edge.part + " if its mesh is installed" : "") +
+        " -- click the correct surface(s) there to resolve which feature this is");
+      annotateBox.appendChild(annotateLink);
+      root.appendChild(annotateBox);
+    }
 
     if (edge.dimension) {
       var values = VA.el("div", "detail__values");

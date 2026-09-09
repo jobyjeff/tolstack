@@ -54,6 +54,12 @@
 
   // --- the joint -----------------------------------------------------------
 
+  // Shared with topology mode (views/topology.js's renderTopoJoint,
+  // viewer_v2_single_nav 2026-09-08): a topology's own `joint` block
+  // (docs/DAG_TOPOLOGY.md, topology_schema_v1) is the same free-form
+  // assembly/context shape a stack's is, `{}` when a topology spans more than
+  // one physical joint — one renderer, not a second copy that could drift.
+  VA.jointBlock = jointBlock;
   function jointBlock(joint) {
     var box = VA.el("details", "sv__joint");
     box.appendChild(VA.el("summary", null, "The joint"));

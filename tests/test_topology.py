@@ -161,6 +161,29 @@ def test_the_l1_study_folds_to_the_stacks_own_published_check():
     assert "worst_case_shank_out" in study.provenance["equivalent_to"]
 
 
+def test_the_l1_studys_own_authored_check_matches_the_stacks_check_exactly():
+    """Deliverable 1's acid test (handoff ``topology_schema_v1``, 2026-09-08).
+
+    The test above compares a bare ``Interval``; this compares an authored
+    ``checks`` entry evaluated through ``check_study`` -- verdict, criterion and
+    interval, field for field -- against the stack's own ``CheckResult``. The
+    study's `checks` entry carries no `limit`: the chain already sums to
+    exactly what the stack's check publishes, so the criterion applies to
+    `summarize()`'s own interval directly (`check_study`'s no-limit branch).
+    """
+    topology = load_topology(L1_TOPOLOGY)
+    study = load_study(L1_STUDY)
+    stack = load_stack(L1_STACK)
+
+    published = stack.check("worst_case_shank_out")
+    computed = check_study(topology, study, "worst_case_shank_out")
+
+    assert computed.interval.as_dict() == published.interval.as_dict()
+    assert computed.verdict == published.verdict
+    assert computed.criterion == published.criterion
+    assert computed.units == published.units
+
+
 def test_the_l1_chain_is_the_joint_in_physical_order_with_derived_signs():
     """The chain order and every sign, spelled out once.
 
@@ -1546,3 +1569,69 @@ def test_the_near_duplicate_requirement_pairs_are_byte_identical_not_variants():
             f"is -- re-read both descriptions before trusting anything cited "
             f"off either id")
         assert by_id[a]["c_id"] != by_id[b]["c_id"]
+
+
+# --------------------------------------------------------------------------- #
+# 11. schema gaps closed 2026-09-08 (handoff topology_schema_v1):             #
+#     joint, study configuration                                             #
+# --------------------------------------------------------------------------- #
+
+def test_the_l1_topologys_joint_block_mirrors_its_stacks():
+    """Deliverable 2. The L1 topology re-expresses one physical joint, so its
+    `joint` mirrors the stack's field for field -- the same claim `notes`
+    already makes in prose for the axial order.
+    """
+    topology = load_topology(L1_TOPOLOGY)
+    stack = load_stack(L1_STACK)
+    assert topology.joint, "the L1 topology's `joint` is the worked example"
+    for key in ("assembly_drawing", "assembly_revision", "sheet", "view",
+                "zone", "description", "scope"):
+        assert topology.joint.get(key) == stack.joint.get(key), key
+
+
+def test_the_pitch_system_topology_carries_no_joint_block():
+    """The negative case: a topology spanning a whole mechanism, not one
+    physical joint, carries no `joint` rather than a misleading one."""
+    topology = load_topology(L2_TOPOLOGY)
+    assert topology.joint == {}
+
+
+def test_a_studys_configuration_is_free_form_and_defaults_empty():
+    """Deliverable 5, gap 3 (load cases). Descriptive only -- nothing here
+    reads it, which this asserts by construction: `traverse`/`summarize` take
+    no `configuration` argument at all.
+    """
+    topology = load_topology(L1_TOPOLOGY)
+    study = load_study(L1_STUDY)
+    assert study.configuration == {}, "the L1 study declares no load case"
+
+    branch = load_study(
+        TOPOLOGIES_DIR / "study_pitch_system_gas_spring_branch.json")
+    assert branch.configuration.get("load_case", "").startswith("collective")
+
+    pitch_system = load_topology(L2_TOPOLOGY)
+    baseline = summarize(pitch_system, branch).interval
+    reconfigured = summarize(
+        pitch_system, replace(branch, configuration={"load_case": "anything"})
+    ).interval
+    assert reconfigured.as_dict() == baseline.as_dict(), (
+        "configuration must not change what a study folds to")
+
+
+def test_check_study_expresses_a_check_with_no_external_limit():
+    """`check_study`'s no-`limit` branch, isolated from the L1 acid test above:
+    a synthetic study whose own total must equal a hand-picked criterion with
+    nothing folded against it.
+    """
+    topology = load_topology(L1_TOPOLOGY)
+    study = load_study(L1_STUDY)
+    spec = {
+        "check_id": "no_limit_smoke_test",
+        "label": "smoke test",
+        "criterion": ">= 0",
+    }
+    direct = replace(study, checks=list(study.checks) + [spec])
+    result = check_study(topology, direct, "no_limit_smoke_test")
+    expected = summarize(topology, study)
+    assert result.interval.as_dict() == expected.interval.as_dict()
+    assert result.units == expected.units

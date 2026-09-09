@@ -1,0 +1,39 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "rotor_fastener_grip_u5h",
+  "title": "Rotor fastener grip budget, NAS6403U5H (.312 in)",
+  "topology": "rotor_fastener_length",
+  "from": "shank_full_dia_end",
+  "to": "washer_far_face",
+  "closes": "shank_out",
+  "selection": [
+    "fastener_grip_u5h",
+    "washer_ms21299c3",
+    "washer_nas1149v0332_tt"
+  ],
+  "checks": [
+    {
+      "check_id": "grip_budget__u5h",
+      "label": "grip budget, NAS6403U5H (.312 in)",
+      "configuration": {
+        "fastener": "NAS6403U5H (.312 in grip)"
+      },
+      "complete": false,
+      "excluded_terms": [
+        "balancing mass thickness (216579-002..-007) -- no part drawing in this repo, only weight is printed",
+        "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
+      ],
+      "criterion": ">= 0",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 7.9248 - 2.413 = 5.5118 mm; worst case = 8.1788 - 2.413 = 5.7658 mm."
+    }
+  ],
+  "provenance": {
+    "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+    "equivalent_to": "check `grip_budget__u5h` of docs/tolerance_stacks/stack_rotor_fastener_length.json (which folds path `sourced_clamped_stack` minus `fastener_grip_u5h`)",
+    "pinned_by": "tests/test_topology_conversions.py -- every field of the folded interval must equal that check's, exactly."
+  },
+  "notes": [
+    "The chain walks `fastener_grip_u5h` AGAINST its authored orientation (shank_full_dia_end -> head_bearing_face, sign -1) then the two washer edges WITH their authored orientation (sign +1 each), giving `sourced_clamped_stack - fastener_grip_u5h` -- the same term list the referenced check uses (path term default +1, the fastener element sign -1).",
+    "One study per dash, not a shared one: see topology_rotor_fastener_length.json's own notes for why the nine grip options cannot be folded through a single Study's checks list without losing a fastener's own tolerance band."
+  ]
+}

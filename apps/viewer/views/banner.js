@@ -59,21 +59,31 @@
     // the same box as "these two were built from different trees", because they
     // are the same kind of fact — something about the data in front of you that
     // the page cannot fix.
+    // One plain-words line, with the detail (the alarms themselves, which name
+    // branches, shas and files, plus the rebuild commands) behind an expand —
+    // house UI-copy rules (no paragraphs, no internal file/module names, no
+    // shell commands in the always-visible copy) bind on the COLLAPSED line,
+    // which is the one every reader sees whether or not anything is wrong.
+    // "This projection may not be what you think it is" and the bare <code>
+    // rebuild commands retired from it for that reason; the technical detail
+    // still exists, one click away, for a reader actively investigating.
     var alarms = VA.provenanceAlarms(state.results, state.crops, state.projection)
       .concat(state.extraAlarms || []);
     if (alarms.length) {
-      var box = VA.el("div", "banner__stale");
-      box.appendChild(VA.el("div", "banner__stale-head",
-        "This projection may not be what you think it is:"));
+      var box = VA.el("details", "banner__stale");
+      box.appendChild(VA.el("summary", "banner__stale-summary",
+        "⚠ Data is older than the latest code — needs a rebuild"));
+      var detail = VA.el("div", "banner__stale-detail");
       var list = VA.el("ul", "banner__stale-list");
       alarms.forEach(function (text) {
         list.appendChild(VA.el("li", null, text));
       });
-      box.appendChild(list);
-      box.appendChild(VA.el("div", null, "Rebuild both, newest tree first:"));
-      box.appendChild(VA.el("code", "banner__cmd",
+      detail.appendChild(list);
+      detail.appendChild(VA.el("div", null, "Rebuild both, newest tree first:"));
+      detail.appendChild(VA.el("code", "banner__cmd",
         VA.CONFIG.rebuild[labels.rebuildKey]));
-      box.appendChild(VA.el("code", "banner__cmd", VA.CONFIG.rebuild.crops));
+      detail.appendChild(VA.el("code", "banner__cmd", VA.CONFIG.rebuild.crops));
+      box.appendChild(detail);
       root.appendChild(box);
     }
 

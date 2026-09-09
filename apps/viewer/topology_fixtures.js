@@ -21,6 +21,16 @@
 // addresses the demo crops index in fixtures.js. Same licence the stack fixture
 // takes with its `unestablished` export, which no live citation carries either.
 //
+// The topology's own `joint: {}`, `worksheet_file: null`, `worksheet_source:
+// null` and each study's `configuration: {}` are the second thing patched in
+// by hand (viewer_v2_single_nav, 2026-09-08, closing a shape-drift the review
+// caught): `topology_schema_v1` added these fields to project_topology()/
+// project_study() after this fixture was generated, and the demo mechanism's
+// own source documents no longer exist to re-run the builder over. `{}`/`null`
+// are honest values for this fixture either way -- the demo spans four parts,
+// not one physical joint, and declares no worksheet -- so this is a genuine
+// shape fix, not a hand-edited number.
+//
 // The numbers are arbitrary and internally consistent with a fold; nothing here
 // is a claim about any Joby part.
 (function (VA) {
@@ -271,6 +281,9 @@
             "Every number here is invented. Nothing in this document is a claim about any hardware."
           ]
         },
+        "joint": {},
+        "worksheet_file": null,
+        "worksheet_source": null,
         "parts": [
           {
             "id": "base",
@@ -873,6 +886,7 @@
               "base_thickness": "arm_linear_to_rotary",
               "post_height": "arm_linear_to_rotary"
             },
+            "configuration": {},
             "source_file": "docs/topologies/study_demo_base_to_tip.json",
             "notes": [
               "Crosses the arm coupling, so every contributor is converted into degrees before anything is summed. Drop either override and summarize() raises UnitMismatch rather than adding millimetres to degrees."
@@ -1041,6 +1055,7 @@
               "strut_length"
             ],
             "transforms": {},
+            "configuration": {},
             "source_file": "docs/topologies/study_demo_strut_branch.json",
             "notes": [],
             "provenance": {},
@@ -1209,6 +1224,7 @@
               "strut_length"
             ],
             "transforms": {},
+            "configuration": {},
             "source_file": "docs/topologies/study_demo_ambiguous.json",
             "notes": [],
             "provenance": {},
