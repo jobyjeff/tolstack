@@ -1607,6 +1607,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       "fits", "comfortably") was met; compute the percentage against the
       actual row count and check it at the size the claim is actually about,
       not just the size the floor test forced.
+- [ ] **`[CmdletBinding()]` on a `.ps1` breaks a `$PSScriptRoot`-derived
+      parameter default, on this repo's Windows PowerShell 5.1.** New
+      2026-09-08 (`projections_rebuild_script`). `param([string]$RepoRoot =
+      (Split-Path -Parent $PSScriptRoot))` silently binds `$RepoRoot` to `""`
+      the moment the script also declares `[CmdletBinding()]` — PS 5.1
+      evaluates parameter defaults before `$PSScriptRoot` is populated once
+      the attribute turns the param block into an advanced function. No
+      public doc found for it; reproduced with a two-line throwaway script.
+      Any future `.ps1` here that wants `$PSScriptRoot` in a default and
+      reaches for `[CmdletBinding()]` out of habit (for `-Verbose`/
+      `-WhatIf`/`ShouldProcess`) hits this silently — there is no error at the
+      call site, just an empty path fed downstream. Check: does the script
+      need advanced-function features at all, and if it does, is the
+      script-root default computed in the body instead of the param block?
+      `rebuild_projections.ps1` carries a regression pin
+      (`test_the_script_itself_declares_no_cmdletbinding`) but that only
+      catches a re-add on *this* file.
 
 ## Architectural errors to check
 
