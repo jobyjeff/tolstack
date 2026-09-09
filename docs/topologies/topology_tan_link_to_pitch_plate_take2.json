@@ -1,0 +1,184 @@
+{
+  "schema": "joby.tolerance_stack/topology/v0",
+  "id": "tan_link_to_pitch_plate_take2",
+  "title": "Tangential link to pitch plate, take 2 -- the grip-length joint as a topology",
+  "units": "mm",
+  "joint": {
+    "assembly_drawing": "217755",
+    "assembly_revision": "A.1",
+    "sheet": 4,
+    "view": "DETAIL B",
+    "zone": "I6",
+    "description": "Same joint as tan_link_to_pitch_plate (not converted -- its checks reference paths in a way docs/DAG_TOPOLOGY.md fences, see docs/sessions/lessons/LESSONS_20260908_linear_stack_conversions.md). Take 2 is the workbook's second pass: it folds the flanged bushing's flange and barrel into one running sub-total and evaluates only the -13 fastener.",
+    "scope": "grip length only"
+  },
+  "provenance": {
+    "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+    "design_reference": "docs/sessions/active/HANDOFF_20260908_linear_stack_conversions.md, deliverable 4",
+    "re_expresses": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+    "values": "NONE are copied. Every dimensioned edge carries a `dimension_ref` into the stack file above, resolved at load time, so this document cannot drift away from the numbers that stack publishes.",
+    "structure": "A reading of the stack's own element order, not a sourced claim, in the same spirit as topology_vpa_output_to_pitch_plate.json's own structure note. The stack's three `nut_geometry` elements (nut_minor_diameter, nut_cbore_diameter, nut_chamfer_depth) are NOT modelled here: the stack's own notes call them 'UNUSED by any path or check', a diametral castellation-engagement sketch the workbook itself never folded into a check, and they are not part of the axial grip chain this topology models. Leaving them out is documentation of an absence, not a loss -- they remain in the stack's own record for a reader who wants them.",
+    "part_identity": "The straight bushing (214820-002) is named on the stack's own parts-list citation. The flanged bushing carries no established part number (candidate 214936-002, per the stack's own note); the spherical bearing likewise carries none. Neither identity is invented here beyond what the referenced stack already claims."
+  },
+  "parts": [
+    {
+      "id": "bolt_nas6403u13h",
+      "name": "NAS6403U13H bolt, .1900-32, .812 grip",
+      "note": "Per the referenced fastener element's source_ref, NAS6403-NAS6420 Rev 4 sheet 3 dash 13."
+    },
+    {
+      "id": "straight_bushing_214820_002",
+      "name": "214820-002 BUSHING, PLAIN, ALUMINUM BRONZE, .1900 in ID X .1875 in LONG",
+      "drawing": "214820-002",
+      "note": "Per the referenced element's source_ref, balloon find 34 in 217755 sheet 4 DETAIL B."
+    },
+    {
+      "id": "spherical_bearing_tan_link",
+      "name": "spherical bearing, internal to 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY",
+      "note": "No balloon in DETAIL B; the referenced element's source_ref notes it is internal to the tangential-link subassembly (find 24, qty 3), and its width is untraced."
+    },
+    {
+      "id": "flanged_bushing_tan_link",
+      "name": "flanged bushing (flange + barrel) -- part identity NOT ESTABLISHED",
+      "note": "Candidate as-drawn part 214936-002 (BUSHING, PLAIN, COUNTERSUNK, .1900 in ID), balloned on 217755 sheet 5 DETAIL F, per the referenced elements' own source_ref notes -- NOT DETAIL B, so this is a candidate, not an established identity. Both the flange and the barrel dimensions (and the chamfer at the barrel's end) are modelled on this ONE part, since the stack's own elements name them together as one flanged bushing's two features."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "head_bearing_face",
+      "name": "bolt-head bearing face against the straight bushing",
+      "parts": ["bolt_nas6403u13h", "straight_bushing_214820_002"],
+      "kind": "mating_surface",
+      "note": "Where grip is measured from, NAS6403-NAS6420 Rev 4 sheet 2 note (a)."
+    },
+    {
+      "id": "bushing_bearing_face",
+      "name": "straight bushing face against the spherical bearing",
+      "parts": ["straight_bushing_214820_002", "spherical_bearing_tan_link"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "bearing_flanged_bushing_face",
+      "name": "spherical bearing face against the flanged bushing's flange",
+      "parts": ["spherical_bearing_tan_link", "flanged_bushing_tan_link"],
+      "kind": "mating_surface"
+    },
+    {
+      "id": "flanged_bushing_internal_step",
+      "name": "flanged bushing -- internal step between the flange and the barrel",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "Not a mate: an internal reference feature separating the flange and barrel dimensions of the SAME part. A datum_feature because nothing else touches it."
+    },
+    {
+      "id": "flanged_bushing_barrel_end_raw",
+      "name": "flanged bushing barrel end, before the chamfer is subtracted",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "The raw end of the barrel dimension `flange_bushing_L`; `bushing_chamfer` subtracts back from here to the effective clamped face."
+    },
+    {
+      "id": "flanged_bushing_effective_far_face",
+      "name": "flanged bushing effective far face -- the last modelled clamped surface",
+      "parts": ["flanged_bushing_tan_link"],
+      "kind": "datum_feature",
+      "note": "A datum_feature and not a mate: beyond it sits the retention nut, deliberately outside this joint's scope, exactly as the other 217755 joints in this repo."
+    },
+    {
+      "id": "shank_full_dia_end",
+      "name": "end of the bolt's full cylindrical shank",
+      "parts": ["bolt_nas6403u13h"],
+      "kind": "datum_feature",
+      "note": "The grip's far end, NAS6403-NAS6420 Rev 4 sheet 2 note (a)."
+    }
+  ],
+  "edges": [
+    {
+      "id": "straight_bushing",
+      "name": "straight bushing length",
+      "kind": "structural",
+      "part": "straight_bushing_214820_002",
+      "from": "head_bearing_face",
+      "to": "bushing_bearing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "straight_bushing"
+      }
+    },
+    {
+      "id": "spherical_bearing",
+      "name": "spherical bearing width",
+      "kind": "structural",
+      "part": "spherical_bearing_tan_link",
+      "from": "bushing_bearing_face",
+      "to": "bearing_flanged_bushing_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "spherical_bearing"
+      }
+    },
+    {
+      "id": "flange_bushing_flange",
+      "name": "flange bushing flange thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "bearing_flanged_bushing_face",
+      "to": "flanged_bushing_internal_step",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "flange_bushing_flange"
+      }
+    },
+    {
+      "id": "flange_bushing_L",
+      "name": "flange bushing L (barrel) thickness",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "flanged_bushing_internal_step",
+      "to": "flanged_bushing_barrel_end_raw",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "flange_bushing_L"
+      }
+    },
+    {
+      "id": "bushing_chamfer",
+      "name": "bushing chamfer size",
+      "kind": "structural",
+      "part": "flanged_bushing_tan_link",
+      "from": "flanged_bushing_effective_far_face",
+      "to": "flanged_bushing_barrel_end_raw",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "bushing_chamfer"
+      },
+      "note": "The inverting element: a BIGGER chamfer removes MORE material, so it is authored running FROM the effective far face TO the raw barrel end -- a chain walking from the raw end to the effective face crosses it against this orientation, giving it a negative sign, matching the referenced stack's own path (`bushing_chamfer` carries sign -1 in `total`)."
+    },
+    {
+      "id": "fastener_grip_13",
+      "name": "fastener grip, NAS6403U13H (.812 in)",
+      "kind": "structural",
+      "part": "bolt_nas6403u13h",
+      "from": "head_bearing_face",
+      "to": "shank_full_dia_end",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json",
+        "element": "fastener_grip_13"
+      },
+      "note": "Runs PARALLEL to the clamped stack. Together with `protrusion` it closes the loop `study_tan_link_take2_worst_case_protrusion.json` sums."
+    },
+    {
+      "id": "protrusion",
+      "name": "worst-case protrusion -- full-diameter shank beyond the modelled clamped stack",
+      "kind": "gap",
+      "from": "flanged_bushing_effective_far_face",
+      "to": "shank_full_dia_end",
+      "note": "A DERIVED gap: no dimension, because it is the quantity check `worst_case_protrusion` computes. Positive means the shank protrudes past the effective clamped face; the referenced stack's own guidance says this is LESS conservative than take 1's equivalent check, because take 2 dropped the thread-transition allowance entirely."
+    }
+  ],
+  "notes": [
+    "This document adds no value, no citation and no confidence claim of its own. If a number here looks wrong, the stack file docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json is where it is wrong.",
+    "The graph: 4 parts, 7 interfaces, 7 edges, 0 branch points, 1 grounded loop (the clamped-stack/grip loop, closing at the derived `protrusion` gap), 1 gap edge.",
+    "The three `nut_geometry` elements (nut_minor_diameter, nut_cbore_diameter, nut_chamfer_depth) are not modelled as nodes or edges -- they are diametral, unused by any path or check in the referenced stack, and the castellation-engagement analysis they start was never finished there either. See this document's own provenance.structure."
+  ]
+}

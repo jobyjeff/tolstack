@@ -1,0 +1,36 @@
+{
+  "schema": "joby.tolerance_stack/study/v0",
+  "id": "tan_link_take2_worst_case_protrusion",
+  "title": "Worst case protrusion: fastener grip against the effective clamped stack",
+  "topology": "tan_link_to_pitch_plate_take2",
+  "from": "flanged_bushing_effective_far_face",
+  "to": "shank_full_dia_end",
+  "closes": "protrusion",
+  "selection": [
+    "fastener_grip_13",
+    "straight_bushing",
+    "spherical_bearing",
+    "flange_bushing_flange",
+    "flange_bushing_L",
+    "bushing_chamfer"
+  ],
+  "checks": [
+    {
+      "check_id": "worst_case_protrusion",
+      "label": "worst case (+ = protrusion)",
+      "configuration": {
+        "fastener": "NAS6403U13H (.812 grip)"
+      },
+      "criterion": ">= 0",
+      "guidance": "Same quantity as take 1's threads_in_bore__13, but reported as a two-sided range rather than as a pass/fail against the minimum. Take 2 dropped the thread-transition allowance entirely, so this check is LESS conservative than take 1's on the positive side."
+    }
+  ],
+  "provenance": {
+    "authored_by": "handoff linear_stack_conversions, 2026-09-08",
+    "equivalent_to": "check `worst_case_protrusion` of docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json (which folds `fastener_grip_13` minus path `total`)",
+    "pinned_by": "tests/test_topology_conversions.py -- every field of the folded interval must equal that check's, exactly."
+  },
+  "notes": [
+    "The selection is a lasso, not a path: traverse() re-orders it. The chain walks the five clamped edges WITH their authored orientation (sign +1 each, except `bushing_chamfer`, authored running the other way so a forward crossing gives it sign -1) then `fastener_grip_13` AGAINST its authored orientation (sign -1), giving `fastener_grip_13 - total` -- the same term list the referenced check's own term list uses (`fastener_grip_13` default sign +1, path `total` sign -1). No sign is authored anywhere in this file; both come off the graph."
+  ]
+}

@@ -380,7 +380,7 @@ has everywhere else.
 
 ---
 
-## The two committed examples
+## The committed examples
 
 ### L1 — `topology_vpa_output_to_pitch_plate.json` + `study_vpa_output_shank_out.json`
 
@@ -451,6 +451,81 @@ dimensioned edges. The `kind: "assumed"` group alone says
 **variation-only** — `nominal: 0.0`, band `±w/2` about an unstated nominal —
 because the source holds tolerance widths, not dimensions. Do not quote a number
 out of it without reading its own `source_ref.confidence` first.
+
+### `topology_pitch_link_to_pitch_plate.json` + three studies
+
+Handoff `linear_stack_conversions` (2026-09-08), re-expressing the reviewed,
+committed `docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json` (6
+elements, 3 paths, 2 checks) as a graph, the same L1 pattern:
+`dimension_ref`-only edges, no copied numbers. The graph: 4 parts, 7
+interfaces, 8 edges, 3 branch points, 2 grounded loops, 1 gap edge. Unlike L1,
+the bolt's own three fastener dimensions (grip, overall length, cotter-hole
+location) share additional interfaces of their own (the bolt's point, the
+cotter-hole centreline), which is what gives this graph two grounded loops
+rather than L1's one. The pitch-link eye / spherical bearing — the joint's own
+unsourced, missing member — is not modelled as a node or edge, exactly as the
+stack's own checks record it in `excluded_terms`.
+
+- `study_pitch_link_shank_out.json` — reproduces stack path
+  `clamped_stack_sourced` extended with the fastener grip, and carries check
+  `shank_out__11_sourced_only` with no `limit` (the study's own total already
+  is the check's quantity).
+- `study_pitch_link_cotter_hole_clearance.json` — combines path
+  `head_to_cotter_hole` and path `clamped_stack_sourced` into ONE chain over
+  the shared graph rather than composing two separate `StudyResult`s, and
+  carries check `cotter_hole_clear_of_sourced_stack`.
+- `study_pitch_link_thread_region_t.json` — reproduces path `thread_region_T`,
+  the stack's own "provenance cross-check, not a design quantity" (it equals
+  NAS6403's T (Ref)). No `checks` entry: the referenced stack has none over
+  this path either.
+
+### `topology_rotor_fastener_length.json` + nine studies
+
+Handoff `linear_stack_conversions` (2026-09-08), re-expressing
+`docs/tolerance_stacks/stack_rotor_fastener_length.json` (11 elements, 1 path,
+9 checks — the repo's first genuine grip-**selection** joint, not one fixed
+as-drawn dash). The graph: 3 parts, 4 interfaces, 12 edges, 2 branch points, 9
+grounded loops, 1 gap edge. The nine as-drawn NAS6403 grip options are
+parallel edges between shared interfaces, all naming a single part
+(`fastener_family`, see its own note for why); a study selecting more than one
+at once is refused by `BranchAmbiguity` at both of those interfaces, which is
+this topology's own mechanical enforcement of "exactly one dash is ever
+installed."
+
+- `study_rotor_fastener_grip_u2h.json`, `study_rotor_fastener_grip_u3h.json`,
+  `study_rotor_fastener_grip_u4h.json`, `study_rotor_fastener_grip_u5h.json`,
+  `study_rotor_fastener_grip_u6h.json`, `study_rotor_fastener_grip_u7h.json`,
+  `study_rotor_fastener_grip_u8h.json`, `study_rotor_fastener_grip_u9h.json`,
+  `study_rotor_fastener_grip_u10h.json` — one study per grip option (U2H, U3H,
+  U4H, U5H, U6H, U7H, U8H, U9H, U10H), each selecting its own
+  `fastener_grip_uXh` edge plus the two washer edges,
+  and each carrying its own `grip_budget__uXh` check with no `limit`. **Nine
+  studies, not one**, despite the referenced stack's own single `path` — see
+  this topology's own notes and the handoff's lesson: `check_study`'s `limit`
+  shape folds an external budget as a zero-width point value, which would
+  silently drop each fastener's own tolerance band, so only the no-`limit`
+  branch (a study's own chain) reproduces all nine checks exactly, and a
+  study's chain is fixed per selection.
+
+### `topology_tan_link_to_pitch_plate_take2.json` + one study
+
+Handoff `linear_stack_conversions` (2026-09-08), re-expressing
+`docs/tolerance_stacks/stack_tan_link_to_pitch_plate_take2.json` (9 elements,
+1 path, 1 check). The graph: 4 parts, 7 interfaces, 7 edges, 0 branch points,
+1 grounded loop, 1 gap edge. The closest structural cousin to L1: a clamped
+stack in series against a parallel fastener grip, with one genuine inverting
+element (`bushing_chamfer`, authored running the opposite way so a forward
+chain crossing subtracts it, matching the referenced stack's own `total` path
+sign). The stack's own three `nut_geometry` elements (nut minor diameter,
+counterbore diameter, chamfer depth) are diametral, unused by any path or
+check in the referenced stack, and are not modelled here — see this
+topology's own `provenance.structure`. `tan_link_to_pitch_plate` itself (the
+take-1 stack) is NOT converted: its six checks reference paths in a way this
+document's "A study, in outline" section fences — see
+`docs/sessions/lessons/LESSONS_20260908_linear_stack_conversions.md`.
+
+- `study_tan_link_take2_worst_case_protrusion.json` — reproduces check
+  `worst_case_protrusion` with no `limit`.
 
 ---
 
