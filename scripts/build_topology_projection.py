@@ -68,6 +68,12 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import projection_provenance as prov  # noqa: E402
+# The rule 1/2 "would this ever crop" predicate lives in build_viewer_crops.py
+# so the two scripts share one copy of it (`_croppable` below is a thin local
+# name for it) -- see that module's own `croppable` docstring. Importing it
+# does not pull in PyMuPDF: `fitz` is imported lazily, only inside
+# `build_viewer_crops._crop_from_citation`/`render`/`main`.
+from build_viewer_crops import croppable as _croppable  # noqa: E402
 from tolerance_stack.topology import (  # noqa: E402
     Contribution,
     Edge,
@@ -426,25 +432,6 @@ def value_source(edge: Edge) -> str:
     return "stack_ref" if edge.dimension_ref else "inline"
 
 
-def _croppable(source_ref: Any) -> bool:
-    """Whether ``scripts/build_viewer_crops.py`` could ever crop ``source_ref``.
-
-    The same two rules :func:`~build_viewer_crops.resolve_pdf` implements as
-    rule 1 (``source_ref_export``) and rule 2 (``spec_pile``) -- never rule 3
-    (``joint.assembly_export``), which borrows from a STACK's own ``joint``
-    block and an edge's inline dimension is in no stack to borrow from. This
-    check touches no filesystem and does not mean "resolves": an
-    ``unestablished`` export is still croppable in this sense (it *names*
-    itself, via ``export``) and lands in ``crops.json`` as unresolvable with
-    its own ``why`` -- exactly like a workbook/assumed edge, just for a
-    different reason. Only the crops builder, against the real files, decides
-    resolved vs. unresolvable.
-    """
-    return source_ref is not None and (
-        source_ref.export is not None or source_ref.kind == "spec"
-    )
-
-
 def crop_key(topology: Topology, edge: Edge) -> Optional[Dict[str, str]]:
     """This edge's crop-lookup key in ``crops.json`` -- two disjoint spaces.
 
@@ -461,7 +448,8 @@ def crop_key(topology: Topology, edge: Edge) -> Optional[Dict[str, str]]:
     (``vpa_output_to_pitch_plate`` names both today), and an edge id landing in
     that same stack's element-keyed bucket would silently collide with one of
     its elements. So an inline edge whose dimension carries a croppable
-    ``source_ref`` (:func:`_croppable`) addresses a **separate** space instead,
+    ``source_ref`` (:func:`~build_viewer_crops.croppable`, imported here as
+    ``_croppable``) addresses a **separate** space instead,
     keyed ``{topology, edge}`` by this topology's own id and the edge's own id.
     ``scripts/build_viewer_crops.py`` resolves it into ``crops.json``'s
     ``by_topology``; the viewer's existing ``VA.cropFor`` reads only
