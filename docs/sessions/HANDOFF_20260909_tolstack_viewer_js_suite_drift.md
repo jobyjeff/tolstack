@@ -48,26 +48,33 @@ paraphrase.
 
 ## 2. `pitch_system`'s hardcoded "four forks" test expectation disagrees with the live projection
 
-`ISSUE_20260909_pitch_system_branch_count_pin_is_stale.md`.
-`apps/viewer/tests.js:2838`, `[real] the pitch system's four forks are
+`ISSUE_20260908_pitch_system_four_forks_test_is_stale_not_a_race.md` (read
+that file in full — it supersedes the summary below and the now-closed
+duplicate `ISSUE_20260909_pitch_system_branch_count_pin_is_stale.md`).
+`apps/viewer/tests.js` (~line 2838 as of this handoff, ~line 3085 per the
+issue — confirm current line), `[real] the pitch system's four forks are
 marked`, asserts `livePitch.branch_nodes.length === 4`. A fresh, authoritative
 build (`.\scripts\rebuild_projections.ps1` from the main checkout, then check
 the printed provenance stamps show `dirty=False` and `behind_trunk=0`) gives
-**5** branch points for `pitch_system`. Confirmed this is not a projection
-staleness artifact — the rebuild script reports the projection was built
-fresh from the current tree.
+**5** branch points for `pitch_system`, stably — not a rebuild race.
 
-This is NOT a mechanical pin update like forge's repo-list tests
-(`forge/tests/test_repos_to_check.py`) — investigate first: is 5 the correct
-branch-point count for `pitch_system`'s current graph (in which case update
-the assertion to `5` and rename the test, `four` -> `five` forks, plus its
-prose), or does the extra branch point mean an unintended structural change
-landed in `docs/topologies/topology_pitch_system.json` and the graph itself
-is wrong? The issue's best guess is handoff `endstop_location_stack`'s
-2026-09-06 retrace update (see that file's `provenance.retrace_update_20260906`
-note, six edges re-cited) as the point where the count may have moved — check
-that handoff's own review/lesson for whether a branch-point change was
-expected and reviewed, or slipped through unnoticed.
+**This is very likely NOT a "which side is correct" investigation** — the
+issue already did that work: two independent by-hand derivations, from
+before this handoff, both already agree 5 is correct: `docs/DAG_TOPOLOGY.md`'s
+L2 section states "12 parts, 21 interfaces, 24 edges, **5 branch points**, 4
+grounded loops", and `REVIEW_20260906_mechanical_stroke_stack.md` independently
+re-derived the same count in Python (`len(t.branch_nodes())`) directly from
+the loaded topology. Every review since (including
+`LESSONS_20260908_viewer_v2_single_nav.md` §7) has re-labelled this a
+"pre-existing branch-count race" without re-running that derivation — it
+isn't a race, the count is stable. Fix: update the assertion to `5`, AND its
+two DOM assertions (`circle.rail__dot--branch` / `tr.tvrow--branch`, also
+hardcoded at 4) — check which node is the newly-missing branch in the
+rendered rail first, don't just bump the numbers — AND the test's own name
+and any "four forks" prose. Only fall back to correcting
+`docs/DAG_TOPOLOGY.md`/the review's counts instead if you find a concrete
+reason the two independent derivations are both wrong, which the issue
+considers unlikely.
 
 ## Definition of done
 
@@ -77,11 +84,12 @@ expected and reviewed, or slipped through unnoticed.
   test name and any prose referencing "four forks" is updated to match, not
   just the assertion's number.
 - Lesson (`docs/sessions/lessons/LESSONS_20260909_tolstack_viewer_js_suite_drift.md`):
-  record which of the two branch-point explanations was correct (stale pin vs.
-  real structural regression) and why, plus anything learned about how easily
-  a hand-maintained fixture/pin drifts silently until this specific real-data
-  smoke test catches it — this repo's `CLAUDE.md` already names "a quantity
-  written in prose that no test reads from the tree is a defect" as a known
-  anti-pattern; say whether that principle should extend to hardcoded branch
-  counts (e.g., deriving the expected count from a comment/constant near the
-  topology's own provenance instead of a bare literal in the test).
+  record why this specific stale pin survived three-plus review cycles under
+  a "pre-existing unrelated failure" framing despite two independent
+  derivations already contradicting it since 2026-09-06 — that's the durable
+  lesson here, not the branch-count fix itself. Say whether this repo's named
+  anti-pattern ("a quantity written in prose that no test reads from the tree
+  is a defect") should extend to hardcoded counts like this one (e.g.,
+  deriving the expected count from a comment/constant near the topology's own
+  provenance instead of a bare literal in the test), so a future stale pin
+  fails loudly instead of blending into "one pre-existing unrelated failure."

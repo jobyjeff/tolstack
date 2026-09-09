@@ -1,10 +1,10 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: closed
 area: apps/viewer/tests.js
 reporter: agent
-handoff: docs/sessions/HANDOFF_20260909_tolstack_viewer_js_suite_drift.md
+resolution: duplicate of ISSUE_20260908_pitch_system_four_forks_test_is_stale_not_a_race.md, filed a day earlier with the same finding plus two independent by-hand derivations (docs/DAG_TOPOLOGY.md's L2 section, REVIEW_20260906_mechanical_stroke_stack.md) already confirming 5 is correct -- see that issue, now triaged with the same handoff this one pointed to
 ---
 
 # `pitch_system`'s hardcoded "4 forks" test expectation is stale — the real projection has 5
