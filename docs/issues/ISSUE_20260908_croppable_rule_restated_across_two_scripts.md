@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: scripts/build_topology_projection.py
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260909_croppable_rule_shared_predicate.md
+resolution: handoff completed 2026-09-09 -- closed automatically by dispatch when handoff `croppable_rule_shared_predicate` moved to completed/; not independently verified.
 ---
 
 # `_croppable()`'s two rules are a hand-restatement of `resolve_pdf`'s rule 1/2, with nothing pairing them
