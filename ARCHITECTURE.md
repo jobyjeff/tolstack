@@ -144,10 +144,11 @@ global topology. Full statement of the model, the formats and the fence in
 | `Part` / `Node` / `Edge` | the graph. A node lists the parts that meet at it; a structural edge names the part it is a dimension of, and both its nodes must have that part |
 | `Dimension` | the value an edge carries — `StackElement` with `role` freed, reusing `SourceRef` verbatim so the citation vocabulary is shared, not forked |
 | `Transform` | a constant sensitivity: positive `ratio`, `units_in`/`units_out`, and a `properties` bag nothing reads yet |
-| `Topology` | the document; validates every reference and every kind label, and reports `branch_nodes()` without resolving them |
-| `Study` | a `selection` of edge ids, two endpoints, an optional per-study transform override map, an optional `closes` |
+| `Topology` | the document; validates every reference and every kind label, reports `branch_nodes()` without resolving them, and carries an optional free-form `joint` block (2026-09-08) mirroring a stack's own |
+| `Study` | a `selection` of edge ids, two endpoints, an optional per-study transform override map, an optional `closes`, an optional `checks` list, an optional free-form `configuration` block (2026-09-08) |
 | `traverse(topology, study)` | orders the selection into a chain, deriving each edge's sign from its orientation; refuses a fork, a break, or a ring |
 | `summarize(topology, study)` | the chain plus one `fold()` over it, refusing to sum contributions in unlike units |
+| `check_study(topology, study, check_id)` | one of a study's authored `checks` entries, folded against an external `limit` when the spec has one, or (2026-09-08) against the study's own total directly when it does not |
 | `load_topology(path)` / `load_study(path)` | read + schema-check; `load_topology` resolves each `dimension_ref` out of the stack file it names |
 
 **Not a solver, by locked decision.** Parallel load paths in a mechanism are

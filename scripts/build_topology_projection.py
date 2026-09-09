@@ -553,6 +553,9 @@ def project_study(topology: Topology, study: Study, path: Path,
         "closes": study.closes,
         "selection": list(study.selection),
         "transforms": dict(study.transforms),
+        # Descriptive only -- never read by traverse()/summarize(). Added
+        # 2026-09-08 closing DAG_TOPOLOGY.md's "What v0 cannot do" gap 3.
+        "configuration": dict(study.configuration),
         "source_file": as_posix_rel(path),
         "notes": list(study.notes),
         "provenance": raw.get("provenance") or {},
@@ -577,6 +580,43 @@ def project_study(topology: Topology, study: Study, path: Path,
     return row
 
 
+def worksheet_for(path: Path, raw: Dict[str, Any]) -> Tuple[Optional[Path], Optional[str]]:
+    """``(worksheet path | None, how)`` for a topology file.
+
+    The identical two-rule convention ``scripts/build_viewer_projection.py``
+    established for a stack (its own ``worksheet_for``), added here 2026-09-08
+    (handoff ``topology_schema_v1``, deliverable 3) rather than shared, because
+    each viewer builder is a self-contained stdlib-only script:
+
+    1. **A declared worksheet wins** -- ``provenance.worksheet`` in the topology
+       file. Expected to be the *common* case here, unlike a stack's: a
+       topology's id rarely shares a stem with the worksheet documenting its
+       source workbook (``topology_pitch_system.json``'s is ``WORKSHEET_end_
+       stop_graft.md``, named for the workbook, not the system).
+    2. **Otherwise match by name**, ``topology_X.json`` -> ``WORKSHEET_X.md``,
+       and report ``None`` when there is none.
+
+    A declared path is resolved against the topology file's own directory and
+    then the repo root, never the process cwd, and a declared worksheet that
+    resolves nowhere **raises** -- the author asserted the file exists.
+    """
+    declared = (raw.get("provenance") or {}).get("worksheet")
+    if declared:
+        tried = ([Path(declared)] if Path(declared).is_absolute()
+                 else [path.parent / declared, REPO_ROOT / declared])
+        for resolved in tried:
+            if resolved.exists():
+                return resolved, "declared"
+        raise FileNotFoundError(
+            f"{path}: provenance.worksheet names {declared!r}, which is at none of "
+            + ", ".join(str(t) for t in tried)
+        )
+    by_name = path.parent / path.name.replace("topology_", "WORKSHEET_", 1).replace(
+        ".json", ".md"
+    )
+    return (by_name, "by_name") if by_name.exists() else (None, None)
+
+
 def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
                      studies: Sequence[Tuple[Path, Dict[str, Any], Study]],
                      ) -> Dict[str, Any]:
@@ -586,6 +626,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         confidence = confidence_of(edge.dimension)
         if confidence is not None:
             counts[confidence] = counts.get(confidence, 0) + 1
+    worksheet, worksheet_source = worksheet_for(path, raw)
     return {
         "id": topology.id,
         "title": topology.title,
@@ -594,6 +635,14 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # The authored document, verbatim, exactly as `results.json` embeds a
         # stack. The derived blocks sit BESIDE it, never on top of it.
         "topology": raw,
+        # Free-form assembly/context prose, mirroring a stack's own `joint` --
+        # added 2026-09-08, deliverable 2. `{}` when the topology spans more
+        # than one physical joint (pitch_system).
+        "joint": dict(topology.joint),
+        "worksheet_file": as_posix_rel(worksheet) if worksheet else None,
+        # `declared` (provenance.worksheet) or `by_name`, the same pairing
+        # `results.json` carries for a stack.
+        "worksheet_source": worksheet_source,
         "parts": [dataclasses.asdict(p) for p in topology.parts],
         "nodes": [project_node(topology, n, branch_nodes) for n in topology.nodes],
         "edges": [project_edge(topology, e) for e in topology.edges],

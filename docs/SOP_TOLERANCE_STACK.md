@@ -14,6 +14,56 @@ short, and it is what "done" means.
 
 ---
 
+## Topology first: a stack is the linear degenerate case
+
+**Decided 2026-09-08** (workspace decision, handoff `topology_schema_v1`):
+topology is the authoring format for this repo, and a linear grip-length stack
+— the thing this file is a procedure for — is its single-chain special case,
+not a separate document class. Element-level the two already agree:
+`tolerance_stack.topology.Dimension` is `StackElement` with `role` made
+optional, one `fold()` serves both, and `topology_vpa_output_to_pitch_plate.json`
+re-expresses a committed stack as a graph with **zero copied numbers** and
+folds to that stack's own published check, to the digit
+(`docs/DAG_TOPOLOGY.md`, "The two committed examples", L1).
+
+**Which document to start from:**
+
+- **Your question is graph-shaped** — a mechanism with more than one
+  interface, a branch, a parallel load path, or a quantity that is the closure
+  of a loop rather than a straight run from one face to another — start at
+  `docs/DAG_TOPOLOGY.md`. It is the topology/study procedure: nodes, edges,
+  transforms, a study's `selection`, and the "Not a solver" fence that rules
+  out the most natural-looking next feature.
+- **Your question is one straight chain between two faces of one joint** —
+  the archetype this file was written for — keep reading. A linear stack
+  *is* a topology (one part per element, every edge in series, no branch
+  points, one grounded loop when there is a check), and everything below,
+  Steps 0 through 8, is that degenerate case's procedure: how to write the
+  element-equivalent values, cite them, and check them. Nothing below is
+  wasted if you later re-express the same joint as a topology — the L1 proof
+  above is exactly that re-expression, done once, checked to the digit.
+
+**What this means for what you write, concretely:**
+
+- The citation core — **"Every element value cites a `source_ref`. Nothing is
+  invented"**, the traced ratio, `lmc`/`mmc` transcribed and never folded —
+  is the same rule under either document. It is stated once, in this file
+  (below), and a topology's `Dimension` reuses `SourceRef` and `ELEMENT_ROLES`
+  verbatim rather than forking a second vocabulary (`docs/DAG_TOPOLOGY.md`,
+  "The vocabularies") — so read it here regardless of which document you are
+  about to write.
+- Steps 2–6 (writing an element, tracing it, hardware entries, paths and
+  checks, the worksheet) apply to a topology edge's `Dimension` exactly as
+  written for a `StackElement`, one field removed (`role`, optional there).
+  Where a topology-specific shape exists — a study's `checks` and
+  `configuration`, a topology's `joint` and worksheet reference — read
+  `docs/DAG_TOPOLOGY.md`'s own sections for those; this file does not restate
+  them.
+- Step 1 (bounding the joint by count, before touching a number) and Step 7's
+  provenance-marker discipline in tests apply unchanged to either document.
+
+---
+
 ## The one rule
 
 > **Every element value cites a `source_ref`. Nothing is invented.**
@@ -140,6 +190,11 @@ thing they meant in drawing-checker, so moving repos did not rev them.
 | `source_ref` (embedded in an element, no id of its own) | **yes** — one per element, mandatory | where the value came from, and how well: `confidence: traced \| inferred \| untraced` |
 | `joby.tolerance_stack/hardware_entry/v0` | **yes** — `docs/tolerance_stacks/hardware_entries.json`, one entry per standard part | a standard part with inline values, a `values_source` saying where they came from, a `library_ref` filled **if and only if** `values_status` is `"library"`, `assembly_status`, and a mandatory `gaps` list |
 | `joby.tolerance_stack/check_result/v0` | **no** — produced, never stored | the outcome of folding a check: nominal, worst-case min/max, RSS, and a `verdict` |
+
+These four are the linear-stack (degenerate-case) schemas. The graph-shaped
+sibling pair — `joby.tolerance_stack/topology/v0` and `joby.tolerance_stack/
+study/v0` — is defined in `docs/DAG_TOPOLOGY.md`, not here; see "Topology
+first", above, for which one to start from.
 
 How they fit together:
 
