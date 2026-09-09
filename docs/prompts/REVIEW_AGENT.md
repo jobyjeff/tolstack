@@ -2059,6 +2059,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       **projection** actually calls the function that computes it, not just
       whether a test does.
 
+- [ ] **A decision rule restated by hand in a second script, where the two
+      scripts could import one another but don't.** New 2026-09-08
+      (`inline_edge_crops`, should-fix, filed as
+      `ISSUE_20260908_croppable_rule_restated_across_two_scripts.md`).
+      `build_topology_projection.py::_croppable()` hand-copies
+      `build_viewer_crops.py::resolve_pdf`'s rule 1/2 conditions
+      (`source_ref.export` / `kind == "spec"`) rather than importing them,
+      with nothing pairing the two. It looks unavoidable — one script needs
+      PyMuPDF and runs in a different venv — but isn't: `fitz` is imported
+      *lazily* specifically so the rule logic stays importable without it.
+      Verified today's two copies agree (parametrized test plus a real
+      rebuild), but check for this shape whenever a handoff adds a
+      filesystem-free "would this resolve" predicate beside an existing
+      resolver: **could the predictor import the real rule instead of
+      restating it**, given how the resolver's own imports are structured?
+
 ## Writing the review
 
 Standard location: `docs/sessions/reviews/REVIEW_<date>_<handoff>.md`.
