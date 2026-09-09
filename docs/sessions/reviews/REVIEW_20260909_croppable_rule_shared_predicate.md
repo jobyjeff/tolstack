@@ -13,8 +13,13 @@ Handoff: `docs/sessions/active/HANDOFF_20260909_croppable_rule_shared_predicate.
 (now moved to `completed/`). Branch `handoff/croppable_rule_shared_predicate`
 (1 commit, `bb729d5`), cut from `integration` after
 `annotate_command_vocabulary_pairing_test`. Reviewed on
-`review/croppable_rule_shared_predicate`, merged clean (no conflict —
-`integration` had not moved underneath).
+`review/croppable_rule_shared_predicate`; `git merge
+handoff/croppable_rule_shared_predicate` itself was clean (no conflict —
+`integration` had not moved since the handoff branch was cut). `integration`
+did move again underneath *this review branch*, between that merge and my
+own push (`topology_projection_emits_study_checks` landed), which produced
+the one conflict this review resolved — see "Merge-conflict resolution"
+below.
 
 **Scope note up front**: same as the `inline_edge_crops` review this handoff
 follows on from — this is not a tolerance-stack-authoring change. No
@@ -100,6 +105,37 @@ filed by that prior review.
 
 None. No blockers, no should-fixes, no nits.
 
+## Merge-conflict resolution
+
+`integration` moved again while this review was in flight —
+`topology_projection_emits_study_checks` landed between my handoff-branch
+merge and my own push. `git merge integration` into
+`review/croppable_rule_shared_predicate` conflicted in exactly one place,
+`scripts/build_topology_projection.py`'s import block: both sides added a
+new sibling-script import right after `import projection_provenance as prov`
+— this handoff's `from build_viewer_crops import croppable as _croppable`
+against `topology_projection_emits_study_checks`'s
+`from build_viewer_projection import count_confidence, worst_confidence`.
+Genuinely independent, non-overlapping additions; resolution kept **both**
+import lines (with both their explanatory comments), `integration`'s first.
+Everything else in that file's diff (the new `project_study_check` function,
+`checks` field, CLI summary line) applied without conflict.
+
+One line just above the conflict was not itself conflicted but became stale
+by the resolution: the module's own docstring listed its sibling-script
+imports by name (`projection_provenance`, and — added by
+`topology_projection_emits_study_checks` — `build_viewer_projection`), and
+resolving the conflict added a third (`build_viewer_crops`) that sentence
+now needed to also name. Updated it in the same commit — this is the
+resolution's own consequence, not an unrelated fix under the carve-out's
+cover.
+
+Re-ran the full suite and the fitz-free-import check after resolving:
+**751 passed, 1 skipped** (one more than the handoff-only merge's 750, from
+`topology_projection_emits_study_checks`'s own new test), and
+`build_topology_projection` still imports without pulling `fitz` into
+`sys.modules`.
+
 ## What I did on this branch
 
 - Merged `handoff/croppable_rule_shared_predicate` into
@@ -113,9 +149,13 @@ None. No blockers, no should-fixes, no nits.
   check" overlay entry (`docs/prompts/REVIEW_AGENT.md`, "A decision rule
   restated by hand in a second script...") recording that this handoff
   closed it, rather than adding a new entry for the same shape.
+- Merged `integration` into this review branch to pick up
+  `topology_projection_emits_study_checks`, which had landed underneath;
+  resolved the one resulting conflict as described above (`2b1aa1b`).
 
 ## Verdict
 
-**APPROVE.** No blockers. Merged into `integration` (merge commit, no
-conflict), full suite re-verified green post-merge (750 passed, 1 skipped),
-`origin/integration` pushed.
+**APPROVE.** No blockers. `integration` fast-forwarded to this review
+branch's tip (`6bd53fe..2b1aa1b`) after the conflict above was resolved and
+the suite re-verified green (751 passed, 1 skipped); `origin/integration`
+pushed.
