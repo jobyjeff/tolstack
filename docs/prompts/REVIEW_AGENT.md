@@ -1000,6 +1000,41 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       in the document is not that. Fixed inline in that review (a blockquote
       under the Checks table). Generalises to every "next to the numbers" /
       "must sit with the results" requirement in this overlay.
+- [ ] **A persistently-red test's explanation is copied forward across
+      reviews without re-derivation — the same failure as the entry above,
+      applied to a "known flaky/pre-existing" label instead of a check
+      verdict.** New 2026-09-08 (`annotate_deep_link_and_part_filter`).
+      `apps/viewer/tests.js`'s `[real] the pitch system's four forks are
+      marked` has failed the same way (`expected 4, got 5`) since at least
+      2026-09-06, and `LESSONS_20260908_viewer_v2_single_nav.md` §7 attributed
+      it to a **rebuild race** (a concurrent handoff touching
+      `docs/topologies/` mid-build). That diagnosis was never re-tested: a
+      rebuild from a tree containing all of `integration` still produces 5,
+      stably, and `docs/DAG_TOPOLOGY.md`'s own L2 section plus
+      `REVIEW_20260906_mechanical_stroke_stack.md`'s independent Python
+      re-derivation (`len(t.branch_nodes())`, not read from prose) both
+      already said 5 was correct **before** the race theory was written down.
+      Three reviews since (including this handoff's own lesson) repeated
+      "pre-existing, unrelated" without checking whether the original
+      explanation was ever right. Filed:
+      `ISSUE_20260908_pitch_system_four_forks_test_is_stale_not_a_race.md`.
+      So: when a report explains away a red test as a race/flake/pre-existing
+      issue, don't just confirm the test *was already failing before this
+      branch* (necessary, not sufficient) — check whether the **stated
+      cause** was ever independently verified, the same way you'd re-locate
+      what a prior PASS claims to have checked.
+- [ ] **A second app now has its own command layer — expect a third.**
+      New 2026-09-08 (`annotate_deep_link_and_part_filter`). `apps/annotate/`'s
+      `commands.js` (a tokenizer + single-dispatch registry, DOM-free, with
+      pure helpers like `resolveMeshIdentifier`/`planIsolate` tested by
+      `run_tests.cjs`) is architecture, not a stack-authoring artifact, so
+      none of the mandatory checks 1–7 apply to it — but it has its own
+      failure mode worth a name: a UI control or the deep-link boot path
+      mutating `state`/`scene` **directly** instead of through `AA.exec(...)`
+      is a parallel code path the whole design exists to prevent. Grep for
+      the pre-command-layer call shapes (direct `state.scene.*` calls outside
+      a `cmd*` handler, a `<select>`'s `onchange` not routed through `exec`)
+      whenever a future handoff touches `apps/annotate/app.js`.
 - [ ] **The projections are stale unless you rebuild them.** Nothing rebuilds
       `data/projections/viewer/` — no hook, no ops verb, no watcher. A stack
       changed on the branch under review will render as the previous build, and
