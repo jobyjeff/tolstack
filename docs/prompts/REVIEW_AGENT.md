@@ -2059,6 +2059,30 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       **projection** actually calls the function that computes it, not just
       whether a test does.
 
+- [ ] **The projection DOES emit the field; the viewer just never reads it —
+      and a doc still asserts the pre-field state.** New 2026-09-08
+      (`viewer_v2_single_nav`, blocker), the mirror image of the entry just
+      above. `topology_schema_v1` added `project_topology()`'s `joint` and
+      `worksheet_file` (4 of 5 real topologies carry a non-empty `joint`,
+      `pitch_system` carries a `worksheet_file`) specifically so the viewer
+      handoff could render them — its own baseline note said so in as many
+      words ("the projection then carries authored study checks, joint
+      blocks, worksheet refs — this page renders them"), and its deliverable
+      4 named all three. None of the three render anywhere in topology mode
+      (`jointBlock()` exists in `views/stack.js`, stack-mode only; the
+      worksheet toggle is explicitly hidden in topology mode), and
+      `apps/viewer/README.md` still says *"a topology has no worksheet of
+      its own"* — true before `topology_schema_v1`, false since, and this
+      handoff's own diff edited that exact paragraph without correcting the
+      sentence. Unlike the entry above, this one is **not** blocked by
+      out-of-scope projection code for two of its three fields (`joint`,
+      `worksheet_file` are already in the projection; only `study.checks`
+      genuinely needs the projection-side fix from the entry above) — so
+      check, for any handoff told "the projection now carries X, render it,"
+      whether the render side actually reads the new field, and grep the
+      diff's own doc changes for a sentence describing the field's absence
+      that the same handoff's schema baseline just falsified.
+
 ## Writing the review
 
 Standard location: `docs/sessions/reviews/REVIEW_<date>_<handoff>.md`.
