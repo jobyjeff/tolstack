@@ -3082,17 +3082,17 @@
             eq(closing.map(function (r) { return r.id; }), ["fastener_grip"]);
           });
 
-        await test("[real] the pitch system's four forks are marked", function () {
-          ok(livePitch.branch_nodes.length === 4,
-             "expected 4 branch points, got " + livePitch.branch_nodes.length);
+        await test("[real] the pitch system's five forks are marked", function () {
+          ok(livePitch.branch_nodes.length === 5,
+             "expected 5 branch points, got " + livePitch.branch_nodes.length);
           var root = render(function (r) {
             VA.renderTopoPane(r, {
               topoProj: livePitch, study: null, crops: realCrops,
               layoutMode: "topology", selection: null, onSelect: function () {},
             });
           });
-          eq(all(root, "circle.rail__dot--branch").length, 4);
-          eq(all(root, "tr.tvrow--branch").length, 4);
+          eq(all(root, "circle.rail__dot--branch").length, 5);
+          eq(all(root, "tr.tvrow--branch").length, 5);
         });
 
         await test("[real] the ring gear's cyclic-only branch is visibly a branch",

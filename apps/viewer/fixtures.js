@@ -370,6 +370,44 @@
                          "unestablished: three 217755 A.1 exports are in " +
                          "circulation and none hashes to the one this .032\" was " +
                          "read off" }],
+        // The topology inline-edge scan (handoff `inline_edge_crops`,
+        // 2026-09-08): a SEPARATE index from `by_stack`/`unresolved`/`summary`
+        // above, keyed by {topology, edge} rather than {stack, element} --
+        // build_viewer_crops.py's module docstring explains why the two
+        // spaces don't merge. Added to fixtures.js on 2026-09-09 to close the
+        // same drift topology_fixtures.js had: the builder started writing
+        // these three keys and this fixture didn't grow them.
+        by_topology: {
+          demo_mechanism: {
+            arm_pin_to_tip: {
+              status: "resolved", reason: null,
+              png: "crops/demo_mechanism__arm_pin_to_tip.png",
+              width: 800, height: 600, pdf: "C:/workspace/demo/215197.pdf",
+              pdf_name: "215197 A.1.pdf", page: 2,
+              resolved_by: "source_ref_export", run_dir: null, run_id: null,
+              sha256_verified: true, located_by: "sheet_full", needle: null,
+              cited_zone: null, zone_grid: "read", callout_text_in_zone: null,
+              note: "whole sheet -- no zone cited and the callout text " +
+                "matches zero or many places",
+              rect_pt: [0, 0, 100, 100],
+            },
+            post_bushing_offset: {
+              status: "unresolvable", png: null,
+              reason: "edge carries no source_ref",
+            },
+          },
+        },
+        unresolved_topology: [{ topology: "demo_mechanism",
+                                edge: "post_bushing_offset", kind: null,
+                                document: null,
+                                reason: "edge carries no source_ref" }],
+        summary_topology: {
+          citations: 2,
+          resolved: 1,
+          unresolvable: 1,
+          by_resolved_by: { source_ref_export: 1 },
+          sha256_verified: { "true": 1, "false": 0, unverified: 0 },
+        },
       },
       texts: {
         "docs/tolerance_stacks/WORKSHEET_demo_joint.md":

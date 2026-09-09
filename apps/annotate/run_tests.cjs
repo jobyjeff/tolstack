@@ -234,6 +234,124 @@ check("CommandLayer.exec on an empty command throws", () => {
   assertThrows(() => layer.exec([]));
 });
 
+// --- README's verb table <-> app.js's commands.register(...) calls -------
+// (issue command_vocabulary_table_has_no_pairing_test, following the same-shape
+// fix annotate_vocab_pairing_test made for binding_state.js's arrays). The ten
+// verbs are hand-documented in three places -- this README table, the
+// annotate_deep_link_and_part_filter lesson, and the register(...) calls in
+// app.js -- and nothing paired any of them: CommandLayer.prototype.verbs()
+// exists and is called exactly once, inside the "unknown command" error
+// message, never by a test.
+//
+// app.js cannot be booted in this sandbox to call verbs() at runtime -- it is
+// an ES module that queries `document` and imports scene.js's three.js/WebGL
+// at load time, and this runner (see the top-of-file docstring) has no DOM
+// shim at all. So both sides are read STATICALLY, as text, the same choice
+// test_js_python_vocabulary.py and test_sop_vocabulary.py make one repo layer
+// down for their own JS-vs-prose pairings: never execute the source to learn
+// its vocabulary, read the literals themselves.
+
+// Every `commands.register("verb", ...)` call's first argument. A verb
+// registered twice (a copy-paste of the line, not "show" aliasing cmdOpenPart
+// -- that is one register() call, not two) would go undetected by a set
+// comparison, so the anti-vacuity check below also asserts no duplicates.
+function registeredVerbsFromAppJs(text) {
+  const verbs = [...text.matchAll(/commands\.register\(\s*"([^"]+)"/g)].map((m) => m[1]);
+  if (!verbs.length) {
+    throw new Error(
+      "found zero commands.register(...) calls in app.js -- the extractor is " +
+      "reading the wrong file or the pattern moved"
+    );
+  }
+  return verbs;
+}
+
+// The README's table is one row per USAGE, not per verb -- `camera reset` and
+// `camera frame <part...>` are two rows naming the same verb, and the
+// select-* row lists three verbs separated by " / ". So the unit read out of
+// a row is every backtick span in its first column, and a verb is that
+// span's first whitespace-delimited token (`open-part <mesh-id|part>` ->
+// `open-part`).
+function verbsFromReadmeTable(text) {
+  const start = text.indexOf("## The command layer");
+  if (start < 0) {
+    throw new Error("README.md has no '## The command layer' section -- the anchor moved");
+  }
+  const next = text.indexOf("\n## ", start + 1);
+  const section = text.slice(start, next < 0 ? text.length : next);
+  const rows = section.split("\n").map((l) => l.trim()).filter((l) => l.startsWith("| `"));
+  if (!rows.length) {
+    throw new Error(
+      "found zero verb-table rows under '## The command layer' in README.md -- " +
+      "the table moved or its shape changed"
+    );
+  }
+  const verbs = [];
+  for (const row of rows) {
+    // The first column, respecting a `\|` escaped INSIDE a cell
+    // (`<mesh-id\|part>`) -- splitting the row naively on `|` breaks exactly
+    // that cell.
+    const col = row.match(/^\|((?:\\.|[^|\\])*)\|/);
+    if (!col) {
+      throw new Error(`could not read the first column of README table row: ${row}`);
+    }
+    for (const m of col[1].matchAll(/`([^`]+)`/g)) {
+      verbs.push(m[1].trim().split(/\s+/)[0]);
+    }
+  }
+  return verbs;
+}
+
+check("the app.js verb extractor finds every commands.register(...) call, none twice", () => {
+  const appJsText = fs.readFileSync(path.join(here, "app.js"), "utf8");
+  const verbs = registeredVerbsFromAppJs(appJsText);
+  if (verbs.length !== new Set(verbs).size) {
+    throw new Error(`app.js registers a verb twice: ${JSON.stringify(verbs)}`);
+  }
+});
+
+check("the README verb-table extractor finds every row and none of them is empty", () => {
+  const readmeText = fs.readFileSync(path.join(here, "README.md"), "utf8");
+  if (!verbsFromReadmeTable(readmeText).length) {
+    throw new Error("expected at least one verb out of README.md's table");
+  }
+});
+
+check("README.md's verb table names exactly the verbs commands.register(...) wires up in app.js", () => {
+  const appJsText = fs.readFileSync(path.join(here, "app.js"), "utf8");
+  const readmeText = fs.readFileSync(path.join(here, "README.md"), "utf8");
+  const coded = new Set(registeredVerbsFromAppJs(appJsText));
+  const documented = new Set(verbsFromReadmeTable(readmeText));
+  const missing = [...coded].filter((v) => !documented.has(v)).sort();
+  const extra = [...documented].filter((v) => !coded.has(v)).sort();
+  if (missing.length || extra.length) {
+    throw new Error(
+      "apps/annotate/README.md's verb table has drifted from app.js's " +
+      "commands.register(...) calls:\n" +
+      (missing.length ? `  app.js registers, the README doesn't document: ${JSON.stringify(missing)}\n` : "") +
+      (extra.length ? `  the README documents, app.js doesn't register: ${JSON.stringify(extra)}\n` : "")
+    );
+  }
+});
+
+check("the pairing above can fail -- a verb added to app.js with no doc update is caught", () => {
+  const appJsText = fs.readFileSync(path.join(here, "app.js"), "utf8");
+  const readmeText = fs.readFileSync(path.join(here, "README.md"), "utf8");
+  const anchor = 'commands.register("goto", cmdGoto);';
+  const withFakeVerb = appJsText.replace(anchor, `${anchor}\ncommands.register("teleport", cmdGoto);`);
+  if (withFakeVerb === appJsText) {
+    throw new Error(`the anchor line this test mutates is not in app.js: ${anchor}`);
+  }
+  const coded = new Set(registeredVerbsFromAppJs(withFakeVerb));
+  const documented = new Set(verbsFromReadmeTable(readmeText));
+  const missing = [...coded].filter((v) => !documented.has(v));
+  if (missing.length !== 1 || missing[0] !== "teleport") {
+    throw new Error(
+      `expected the pairing to catch exactly the synthetic verb "teleport", got: ${JSON.stringify(missing)}`
+    );
+  }
+});
+
 const MESHES = [
   { sha256: "aaaa", label: "Part A", part_id: "part_a" },
   { sha256: "bbbb", label: "Part B", part_id: "part_b" },
