@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: data/inbox/drawings, data/inbox/specs
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260910_endstop_piece_part_acquisition.md
 ---
 
 # Acquire the remaining end-stop-location piece parts and bearing specs
