@@ -1697,6 +1697,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       code fork would need the opposite response (merge or hold off, not
       override).
 
+- [ ] **A `fetch` reference stored unbound on a JS object throws "Illegal
+      invocation" the instant it's called through the object, and a node-tier
+      test that always injects its own `fetchImpl` cannot see this.** New
+      2026-09-09 (`viewer_http_transport`). `storage/http.js`'s first draft did
+      `this._fetch = opts.fetchImpl || (typeof fetch === "function" ? fetch :
+      null)`; every fast-tier test passed because the node runner always
+      supplies an explicit `fetchImpl`, so the bare-`fetch` branch never ran
+      there. Only the **browser truth tier** — a real Chrome booting the page
+      with no mock and no injected fetch — caught it: native `fetch` brand-
+      checks its receiver, so `this._fetch(url)` (receiver = the adapter
+      instance) throws, and a `.catch(() => null)` written to mean "this
+      candidate doesn't resolve" swallowed the throw too, so the symptom was
+      silent (falls straight to the next candidate / FSA, no error anywhere).
+      Fix is `fetch.bind(window)`, not `fetch` bare. Check any new adapter or
+      transport wrapper that stores a global function (`fetch`, `WebSocket`,
+      etc.) on `this` for **later invocation through the instance** — the
+      node/DOM-shim tier proves nothing here by construction if it always
+      substitutes its own implementation, so this class of bug needs the
+      browser truth tier (or an explicit unbound-call test) to be caught at
+      all; a green fast tier is not evidence for this one.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
