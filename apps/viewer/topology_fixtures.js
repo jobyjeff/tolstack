@@ -31,6 +31,13 @@
 // not one physical joint, and declares no worksheet -- so this is a genuine
 // shape fix, not a hand-edited number.
 //
+// Each study's `checks: []` is the third thing patched in by hand
+// (viewer_error_surface_and_layout, 2026-09-09): `topology_projection_emits_
+// study_checks` (391dc7c) added the field to project_study() after this
+// fixture was generated, same unrerunnable-source situation as above. `[]` is
+// honest -- the demo studies author no checks -- so this is the same kind of
+// shape fix, not a hand-edited number.
+//
 // The numbers are arbitrary and internally consistent with a fold; nothing here
 // is a claim about any Joby part.
 (function (VA) {
@@ -887,6 +894,7 @@
               "post_height": "arm_linear_to_rotary"
             },
             "configuration": {},
+            "checks": [],
             "source_file": "docs/topologies/study_demo_base_to_tip.json",
             "notes": [
               "Crosses the arm coupling, so every contributor is converted into degrees before anything is summed. Drop either override and summarize() raises UnitMismatch rather than adding millimetres to degrees."
@@ -1056,6 +1064,7 @@
             ],
             "transforms": {},
             "configuration": {},
+            "checks": [],
             "source_file": "docs/topologies/study_demo_strut_branch.json",
             "notes": [],
             "provenance": {},
@@ -1225,6 +1234,7 @@
             ],
             "transforms": {},
             "configuration": {},
+            "checks": [],
             "source_file": "docs/topologies/study_demo_ambiguous.json",
             "notes": [],
             "provenance": {},

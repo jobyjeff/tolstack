@@ -102,6 +102,34 @@ force it — the *document's* `scrollHeight` exceeds the viewport, proving
 growth reached the page. The left nav's `position: sticky` +
 `overflow-y: auto` is asserted as the one remaining independent scrollport.
 
+## A second crash, a second recovery: fixture drift the DoD's own new tier caught
+
+This handoff's branch itself crashed mid-flight after the work above landed
+in commit `ab3c238` (working tree was clean, everything committed — nothing
+lost, just an unreported session end). Picking back up, `git status` was
+clean and every deliverable's commit message read complete, so the check was
+to actually run the full matrix with `--repo <main checkout>` rather than
+trust the message.
+
+That surfaced one real failure: `[real] the topology fixture's shapes still
+match the builder's` (added by deliverable 5's new drift-detection test,
+`tests.js`, "the topology fixture's shapes still match the builder's").
+`apps/viewer/topology_fixtures.js`'s three demo studies were missing
+`checks: []` — a field `project_study()` gained in `391dc7c` (topology_
+projection_emits_study_checks, merged into this branch's ancestry via
+`integration` before this handoff even started, so the drift predates this
+session and this handoff's own changes). Nothing had ever run the fixture
+against the live builder's shape before deliverable 5's new real-data tier,
+so nothing had caught it. Patched the same way the header already documents
+for `joint`/`worksheet_file`/`worksheet_source`/`configuration` (the demo
+mechanism's source documents no longer exist to re-run the builder over, so
+hand-adding the honest empty value is the legitimate fix, not a shortcut) —
+added a fourth paragraph to the fixture's header recording it. **Lesson:**
+`git status` clean and a prior commit message claiming "green" is not
+evidence the full matrix (`--repo <main checkout>` specifically) has been run
+since — the fast in-worktree tier alone will not touch this class of drift at
+all, since it never sees the main checkout's live projections.
+
 ## Test-tier note
 
 `node_modules/` (hence `playwright-core`) is gitignored and did not exist in
