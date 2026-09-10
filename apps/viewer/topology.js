@@ -180,6 +180,14 @@
 
   // --- what a row says -----------------------------------------------------
 
+  // The one description an edge shows on hover, wherever it is hidden as a
+  // label: the rail bar's own hit path (views/topology.js's railsSvg) and a
+  // value-only grid row (deliverable 4) both read this, rather than each
+  // inventing its own text -- "one hover surface, not two".
+  VA.edgeHoverTitle = function (edge, id) {
+    return edge ? edge.name : String(id);
+  };
+
   // An edge's stored value, printed AS TRANSCRIBED — String(n), no toFixed, no
   // band derived from the limits. Same rule as the stack viewer's element table.
   VA.dimensionText = function (edge) {

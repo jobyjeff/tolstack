@@ -93,6 +93,24 @@
     });
   }
 
+  // The one error seam (deliverable 1, viewer_error_surface_and_layout):
+  // topology_app.js's render() wraps its real paint in a try/catch and calls
+  // this instead of leaving the page silently unchanged -- the 2026-09-09
+  // incident, where a throw inside render() left the DAG pane empty with a
+  // no-op Reload. Plain words, the exception's own message (a human author's
+  // best clue) and the one hint that has actually fixed this before, so the
+  // reader is not left guessing.
+  VA.renderCrashBanner = function (root, err) {
+    VA.clear(root);
+    root.className = "banner banner--crash";
+    root.appendChild(VA.el("div", "banner__error",
+      "This page failed to render: " + String(err && err.message || err)));
+    root.appendChild(VA.el("div", "banner__crash-hint",
+      "A hard reload (Ctrl+Shift+R) may clear a stale cache -- that has " +
+      "caused this before."));
+    return root;
+  };
+
   function missing(text, command) {
     var box = VA.el("div", "banner__missing");
     box.appendChild(VA.el("div", null, text));

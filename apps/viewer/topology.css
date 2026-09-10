@@ -39,10 +39,19 @@
 /* --- the single nav tree (viewer_v2_single_nav, 2026-09-08) -------------
    Replaces the TOPOLOGY/STUDY <select> pickers AND the flat stack rail at
    once: one topology's studies (and any stack it also covers) as children,
-   every classic-only stack as a leaf of the same tree. views/nav.js. */
+   every classic-only stack as a leaf of the same tree. views/nav.js.
+
+   The one independent scroll region left on the page (full-page-scroll,
+   viewer_error_surface_and_layout, 2026-09-09): everything else now
+   contributes its full height to the document and lets IT scroll (below),
+   so this is the only box still capped to the viewport. `position: sticky`
+   pins it under the topbar (47px, the same offset style.css's shared
+   `.detail` rule assumes) as the page scrolls past the banner; `max-height`
+   is what makes `overflow-y: auto` actually clip rather than grow. */
 .navtree {
   width: 300px; flex: none; padding: 8px; border-right: 1px solid var(--line);
-  overflow: auto; align-self: stretch;
+  position: sticky; top: 47px; max-height: calc(100vh - 47px);
+  overflow-y: auto;
 }
 .navtree__list, .navtree__children { list-style: none; margin: 0; padding: 0; }
 .navtree__children { padding-left: 16px; margin-top: 2px; }
@@ -77,12 +86,14 @@
 .tv__jointwrap { padding: 0 12px; }
 .tv__jointwrap:empty { display: none; }
 
-/* The page is a flex column filling the viewport, so the rows get whatever the
-   banner leaves rather than a hard-coded `calc(100vh - N)`. The banner's height
-   is data-dependent — a provenance alarm is four lines and a quiet build is one
-   — and a fixed subtraction is wrong for one of those two by construction.
-   Scoped to this page: topology.css loads nowhere else. */
-html, body { height: 100%; }
+/* The page is a flex column, topbar/banner/`.tv` stacked in the normal document
+   flow (full-page-scroll, viewer_error_surface_and_layout, 2026-09-09): NOT
+   pinned to the viewport height any more (that was the DAG pane's own inner
+   scrollport, retired below) -- `min-height: 100vh` only keeps a short page
+   from looking clipped, and the document grows past it and scrolls as one
+   page once the DAG's own rows (or anything else) need more room than the
+   viewport gives. Scoped to this page: topology.css loads nowhere else. */
+html, body { min-height: 100vh; }
 body { display: flex; flex-direction: column; }
 
 /* The banner's alarm list is the one un-shrinkable, data-dependent block this
@@ -105,18 +116,37 @@ body { display: flex; flex-direction: column; }
   border-right: 1px solid var(--line);
 }
 .tv__scroll {
-  flex: 1 1 auto; overflow: auto;
-  /* The 10-row min-height floor (dag_viewer_vertical_budget, 2026-09-04)
-     retired with viewer_v2_single_nav (2026-09-08): the chrome that used to
-     threaten to squeeze this pane to nothing — the picker, the always-open
-     legend, the 260px totals panel — is gone or capped to a slim strip, so
-     the pane now gets the large majority of the viewport by construction
-     rather than by a floor fighting the chrome above it for room (see
-     scripts/run_viewer_browser_tests.mjs's testHeightBudget, which asserts
-     that directly against the real pitch_system instead of counting rows).
-     Rails and rows still share ONE scrollport — that is the whole
-     implementation of "scrolling keeps them locked together". */
+  flex: 1 1 auto;
+  /* Full-page scroll (viewer_error_surface_and_layout, 2026-09-09): this pane
+     owned its OWN scrollport until now (`overflow: auto`, clipped to
+     whatever the viewport left after the banner and the toolbar) — the same
+     "squeeze the DAG to fit" shape the retired 10-row floor
+     (dag_viewer_vertical_budget, 2026-09-04) and viewer_v2_single_nav
+     (2026-09-08) both fought from the other side. No `overflow` at all now:
+     every row the layout carries renders, at its full height, and
+     contributes that height to the DOCUMENT — which scrolls, once the DAG
+     (or anything else on the page) is taller than the viewport. The one
+     remaining independent scroll region is the left nav sidebar
+     (`.navtree`, above); scripts/run_viewer_browser_tests.mjs's
+     testHeightBudget pins this contract directly. Rails and rows still share
+     one box, which is still the whole implementation of "the two cannot
+     drift apart while scrolling" — the scrolling is just the page's now,
+     not this box's own. Horizontal overflow is a SEPARATE, pre-existing
+     concern this handoff did not touch — see `.tv__hscroll` below, which
+     still clips/scrolls sideways exactly as `.tv__scroll` itself used to
+     clip both directions. */
 }
+/* The one horizontal scrollport left (full-page-scroll, viewer_error_
+   surface_and_layout, 2026-09-09): the grid's columns (COLUMNS,
+   views/topology.js) sum to well over a typical pane's width, and always
+   have — `.tv__rails`'s own `position: sticky; left: 0` (below) only means
+   anything with a scrolling ancestor to stick within. Wrapping just the
+   header and the body (not all of `.tv__scroll`) keeps this scroll
+   HORIZONTAL only: the element has no height constraint of its own, so the
+   `overflow-x: auto` a browser requires it to also compute `overflow-y` as
+   `auto` for (the "one visible + one not" interaction rule) never actually
+   clips or scrolls vertically in practice. */
+.tv__hscroll { overflow-x: auto; height: max-content; }
 .tv__head {
   display: flex; position: sticky; top: 0; z-index: 2;
   background: var(--panel); border-bottom: 1px solid var(--line);
@@ -145,6 +175,14 @@ body { display: flex; flex-direction: column; }
    wears the citation's confidence, through the same conf-- classes the tables
    use, so there is one vocabulary and one colour decision. */
 .rail__bar { stroke-width: 5; stroke-linecap: butt; cursor: pointer; }
+/* The whole-edge hover/click target (deliverable 3, viewer_error_surface_and_
+   layout, 2026-09-09): solid and wider than the visible bar, so a dashed
+   confidence/gap stroke's own gaps (rail__bar--gap/--derived, both below)
+   never leave a real portion of the edge's length unresponsive. Invisible on
+   purpose -- the visible bar above still carries every provenance colour and
+   dash pattern unchanged; `pointer-events: stroke` is what makes a
+   `stroke: transparent` line still hoverable/clickable. */
+.rail__barhit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
 .rail__bar.conf--traced { stroke: var(--traced); }
 .rail__bar.conf--inferred { stroke: var(--inferred); }
 .rail__bar.conf--untraced { stroke: var(--untraced); }
@@ -305,10 +343,11 @@ body { display: flex; flex-direction: column; }
    somewhere to show them, unchanged. Reached from the nav tree now
    (.navtree, above), not a separate flat rail. */
 
-/* A flex ITEM of `.tv__main`'s column, not `.center`'s — same shape as
-   `.tv__scroll` immediately below: grow to fill, scroll its own overflow,
-   never force the column taller than `.tv` itself. */
-.tv__main > .stackview { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+/* A flex ITEM of `.tv__main`'s column, not `.center`'s — same shape
+   `.tv__scroll` above now is (full-page-scroll, viewer_error_surface_and_
+   layout, 2026-09-09): grow to fill, and let the DOCUMENT scroll rather than
+   clipping to an inner scrollport of its own. */
+.tv__main > .stackview { flex: 1 1 auto; min-height: 0; }
 
 /* --- the preview pane --------------------------------------------------- */
 
@@ -316,17 +355,18 @@ body { display: flex; flex-direction: column; }
    columns and a rail gutter, and the preview is a companion to them rather than
    the main event. */
 .tv .detail {
-  width: 430px; flex: none; overflow: auto; align-self: stretch;
+  width: 430px; flex: none; overflow: visible; align-self: stretch;
   /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:
-     calc(100vh - 47px)` (style.css:365-368) assumes the pane starts 47px
-     below the viewport top — true for the STACK VIEWER, whose only chrome
-     above it is the topbar. Here the pane sits below a banner too, so that
-     max-height overestimates the room available and lets the pane grow past
-     `.tv`'s own box. `align-self:
-     stretch` plus this page's own `overflow: auto` already do the whole job:
-     the pane matches `.tv`'s actual height and scrolls its own content, so
-     sticky positioning has nothing to do here. Never edit the shared rule —
-     the stack viewer's own layout depends on it. */
+     calc(100vh - 47px); overflow: auto` (style.css:365-368) assumes the pane
+     starts 47px below the viewport top and owns its own scrollport — true for
+     the STACK VIEWER, whose only chrome above it is the topbar. Here the pane
+     sits below a banner too, AND (full-page-scroll, viewer_error_surface_and_
+     layout, 2026-09-09) this whole page no longer clips anything but the left
+     nav to the viewport — every pane, this one included, contributes its full
+     height to the document and lets IT scroll. `overflow: visible` is the
+     override that matters now; `position: static; max-height: none` keep the
+     pane from being pinned or capped by the shared rule. Never edit the
+     shared rule — the stack viewer's own layout depends on it. */
   position: static; max-height: none;
 }
 .detail__values { margin: 8px 0; }

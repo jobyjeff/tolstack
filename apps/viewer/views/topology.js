@@ -52,6 +52,25 @@
     density.onclick = handlers.onDensity;
     root.appendChild(density);
 
+    // Experimental (default OFF, deliverable 4 of
+    // viewer_error_surface_and_layout): a spreadsheet lists only the
+    // dimensions BETWEEN interfaces, never the interfaces themselves, which is
+    // why this page's row count runs ~2x a typical Excel stack's — half the
+    // rows (the nodes) carry no values by construction. An edge's own label is
+    // just the concatenation of its two adjacent node labels, so this toggle
+    // drops it and lets the freed width carry values instead; the description
+    // moves to hover (VA.edgeHoverTitle, shared with the rail bar's own
+    // hover -- one hover surface, not two).
+    var edgeMode = VA.el("button", "ghost tvpick__mode",
+      state.edgeValueOnly ? "Rows: values only" : "Rows: labelled");
+    edgeMode.setAttribute("id", "edge-value-toggle");
+    edgeMode.setAttribute("title",
+      "Experimental. Hides an edge row's own label (its two adjacent node " +
+      "labels concatenated) so the row reads as values only; hover an edge " +
+      "row to see its label. Node rows are unchanged.");
+    edgeMode.onclick = handlers.onEdgeValueOnly;
+    root.appendChild(edgeMode);
+
     // One link, nothing more (annotation_surface_mvp, 2026-09-06): the
     // topology page never computes or writes anything for the annotate app,
     // it only points at it. Only rendered once a real study is selected --
@@ -114,12 +133,22 @@
     var chainNodes = VA.chainNodes(study);
     var marking = !!(study && study.status === "ok");
 
-    root.appendChild(header(geometry.width));
-
+    // The header and the body share ONE horizontal scrollport
+    // (`.tv__hscroll`, topology.css) so a wide grid's columns and the rail
+    // that stays pinned at its left edge (`.tv__rails`'s own `position:
+    // sticky; left: 0`) both move together when scrolled sideways — full-
+    // page-scroll (viewer_error_surface_and_layout, 2026-09-09) retired
+    // `.tv__scroll`'s own VERTICAL clipping, not this pane's pre-existing
+    // horizontal one; without a scrolling ancestor of its own, the sticky
+    // rail has nothing to stick within, and a wide row simply bleeds into
+    // whatever sits to the pane's right.
+    var hscroll = VA.el("div", "tv__hscroll");
+    hscroll.appendChild(header(geometry.width));
     var body = VA.el("div", "tv__body");
     body.appendChild(railsSvg(geometry, index, chain, chainNodes, marking, ctx));
     body.appendChild(grid(layout, index, chain, chainNodes, marking, ctx));
-    root.appendChild(body);
+    hscroll.appendChild(body);
+    root.appendChild(hscroll);
     return root;
   };
 
@@ -220,13 +249,26 @@
         if (edge && edge.kind === "gap") classes.push("rail__bar--gap");
         if (edge && edge.value_source === "derived") classes.push("rail__bar--derived");
         if (marking) classes.push(inChain ? "rail__bar--on" : "rail__bar--off");
+        var y1 = mark.y - M.rowHeight / 2 + 1;
+        var y2 = mark.y + M.rowHeight / 2 - 1;
         var bar = VA.svg("line", classes.join(" "), {
-          x1: mark.x, y1: mark.y - M.rowHeight / 2 + 1,
-          x2: mark.x, y2: mark.y + M.rowHeight / 2 - 1,
+          x1: mark.x, y1: y1, x2: mark.x, y2: y2,
         });
-        bar.appendChild(svgTitle(edge ? edge.name : mark.id));
-        wire(bar, ctx, "edge", mark.id);
         svg.appendChild(bar);
+
+        // The hover/click target, over the SAME length but solid and wide
+        // (deliverable 3, viewer_error_surface_and_layout): a gap/derived
+        // bar's own stroke is DASHED (rail__bar--gap/--derived), so its hit
+        // area under `pointer-events: stroke` has real gaps in it -- hovering
+        // a dash's own OFF interval hits nothing. This carries the hover
+        // title and the click handler instead, so the entire drawn length
+        // responds regardless of the visible dash pattern; the visible bar
+        // above is untouched, still thin and still dashed where confidence
+        // or value_source says it should be.
+        var hit = VA.svg("line", "rail__barhit", { x1: mark.x, y1: y1, x2: mark.x, y2: y2 });
+        hit.appendChild(svgTitle(VA.edgeHoverTitle(edge, mark.id)));
+        wire(hit, ctx, "edge", mark.id);
+        svg.appendChild(hit);
         return;
       }
       var node = index.nodes[mark.id];
@@ -363,9 +405,19 @@
     }
     if (isSelected(ctx, "edge", row.id)) el.className += " tvrow--selected";
 
+    // Experimental value-only mode (deliverable 4): an edge's own label is
+    // just its two adjacent node labels concatenated, so hiding it is never a
+    // loss of information -- only of a redundant column. The label moves to
+    // hover instead (the row's native `title`, the same "one hover surface"
+    // the rail bar's own hit path (above) already carries), never dropped
+    // outright. An edge the projection cannot resolve (missing()) still
+    // states its own diagnostic regardless of mode -- that text is never
+    // redundant and must not be hidden.
+    var valueOnly = !!(ctx.edgeValueOnly && edge);
+    if (valueOnly) el.setAttribute("title", VA.edgeHoverTitle(edge, row.id));
     el.appendChild(VA.el("td", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
     el.appendChild(VA.el("td", "tvcell tvcell--name",
-      edge ? edge.name : missing(row.id)));
+      valueOnly ? "" : (edge ? edge.name : missing(row.id))));
     el.appendChild(VA.el("td", "tvcell tvcell--part",
       edge ? (edge.part || "— across a clearance —") : ""));
 

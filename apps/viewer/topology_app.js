@@ -37,6 +37,12 @@
     // not a fact about a topology or a study, so selectTopology() never resets
     // it. See VA.ROW_DENSITIES (topology.js).
     rowDensity: "comfortable",
+    // Experimental (default OFF, deliverable 4 of viewer_error_surface_and_
+    // layout): an edge row's own label is just the concatenation of its two
+    // adjacent node labels, so hiding it frees the row for values only, with
+    // the description moved to hover. A display preference like rowDensity,
+    // not a fact about a topology, so selectTopology() never resets it either.
+    edgeValueOnly: false,
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -397,11 +403,40 @@
 
   // --- render ----------------------------------------------------------------
 
+  // The one error seam (deliverable 1, viewer_error_surface_and_layout): every
+  // path that reaches `render` -- the boot chain, a reload, a gesture, a click
+  // -- now goes through this wrapper instead of the real paint() directly, so
+  // a throw from ANYWHERE inside a render (not just a rejected promise before
+  // it) is caught in exactly one place rather than needing a try/catch in
+  // every view. This is what the 2026-09-09 incident's silently-empty DAG
+  // pane was missing: `onReload`'s `.then(render)` had nothing after it, so a
+  // throw from inside render() itself became an unhandled rejection and the
+  // page just sat there looking unchanged.
   function render() {
+    try {
+      paint();
+    } catch (err) {
+      renderCrash(err);
+    }
+  }
+
+  function renderCrash(err) {
+    VA.renderCrashBanner(nodes.banner, err);
+  }
+
+  function paint() {
     VA.renderBanner(nodes.banner, bannerState(), {
       onConnect: function () { gesture(adapter.connect()); },
       onReconnect: function () { gesture(adapter.reconnect()); },
-      onReload: function () { load().then(render); },
+      // `.catch` before `.then(render)`, the same shape gesture() already has
+      // below: a rejected load() (the adapter losing the folder mid-session,
+      // say) used to be an unhandled rejection with a no-op Reload button --
+      // now it lands in state.error and the banner says so.
+      onReload: function () {
+        load().catch(function (err) {
+          state.error = String(err && err.message || err);
+        }).then(render);
+      },
     });
 
     renderNav();
@@ -438,7 +473,7 @@
       var ctx = {
         topoProj: topoProj, study: study, crops: state.crops,
         layoutMode: state.layoutMode, selection: state.selection,
-        detailImage: state.detailImage,
+        detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         onSelect: selectElement, onCropShow: showCrop,
       };
       VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
@@ -452,6 +487,12 @@
         onDensity: function () {
           state.rowDensity = state.rowDensity === "compact" ? "comfortable" : "compact";
           applyDensity();
+          render();
+        },
+        // Same reasoning as density: which rows are on screen is unchanged,
+        // only how an edge row prints itself.
+        onEdgeValueOnly: function () {
+          state.edgeValueOnly = !state.edgeValueOnly;
           render();
         },
       });

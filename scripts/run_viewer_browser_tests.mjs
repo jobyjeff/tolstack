@@ -436,6 +436,30 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] button.crop-trigger")
         .count() === 0);
 
+    // Whole-edge hover (deliverable 3): a dashed bar's OWN stroke
+    // (rail__bar--gap/--derived) has real gaps in it, and under
+    // `pointer-events: stroke` a gap in the dash pattern used to hit nothing.
+    // `tip_to_strut_end` is the fixture's one gap/derived edge, so its bar is
+    // dashed by construction; sampling several points along its FULL drawn
+    // length (not just its centre, where a dash happens to land) proves the
+    // invisible hit path (views/topology.js's railsSvg) covers the whole
+    // thing, not just the visible dashes.
+    const hoverCoverage = await page.evaluate(() => {
+      const mark = document.querySelector(
+        'svg.tv__rails [data-id="tip_to_strut_end"][data-row-kind="edge"]');
+      if (!mark) return null;
+      const box = mark.getBoundingClientRect();
+      const x = box.left + box.width / 2;
+      return [0.02, 0.25, 0.5, 0.75, 0.98].map((f) => {
+        const y = box.top + box.height * f;
+        const hit = document.elementFromPoint(x, y);
+        return hit && hit.getAttribute ? hit.getAttribute("data-id") : null;
+      });
+    });
+    push("the whole drawn length of a dashed (gap) edge responds to hover, " +
+      "not just its own dashes",
+      hoverCoverage && hoverCoverage.every((id) => id === "tip_to_strut_end"));
+
     // Study selection, through the nav tree: the grid marks, the rails
     // thicken, the totals strip appears.
     await page.locator(navRow("study", "demo_strut_branch")).click();
@@ -613,16 +637,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 // --- the height contract: the DAG pane owns the main area -------------------
 //
 // Replaces the retired 10-row floor's own browser check (HANDOFF_20260904_dag_
-// viewer_vertical_budget.md) with the contract viewer_v2_single_nav's handoff
-// asks for instead: at a 900px viewport, with the real pitch_system loaded and
-// a study selected (so the totals strip is at its real height, not the
-// empty-state paragraph) and a REAL provenance alarm on screen (crops and
-// topologies deliberately stamped from different commits) — every remaining
-// un-shrinkable block at once — the DAG pane (`.tv__scroll`) is the MAJORITY of
-// the viewport. The legend and the worksheet are <dialog>s now and no longer
-// participate in this page's flex column at all, so this test does not open
-// them: doing so can no longer affect the pane's height by construction, which
-// is the point of having moved them.
+// viewer_vertical_budget.md), then the viewer_v2_single_nav "majority of the
+// viewport" contract this same tier used to pin, with the one full-page-scroll
+// (viewer_error_surface_and_layout, 2026-09-09) asks for instead: the DAG pane
+// (`.tv__scroll`) no longer owns a scrollport of its own at all, so it renders
+// every row at full height and contributes that height to the DOCUMENT, which
+// scrolls once the content needs more room than the 900px viewport gives. The
+// left nav (`.navtree`) is the one region still capped to the viewport, via
+// `position: sticky` + `max-height`, and stays independently scrollable. The
+// legend and the worksheet are <dialog>s and never participate in this page's
+// flex column at all, so this test does not open them.
 async function testHeightBudget(browser, url, label, realProjection, realCrops) {
   const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
   const errors = [];
@@ -646,8 +670,27 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     return drift;
   });
 
-  const paneHeight = () => page.locator(".tv__scroll")
-    .evaluate((n) => n.getBoundingClientRect().height);
+  // The pane's own overflow-y, its rendered height, and the MINIMUM height its
+  // own row count demands — a viewport-capped pane would still show
+  // `overflow-y: auto`, or a rendered height short of what its own rows need;
+  // the new contract requires neither.
+  const paneContract = () => page.evaluate(() => {
+    const pane = document.querySelector(".tv__scroll");
+    const head = document.querySelector(".tv__head");
+    const rows = document.querySelectorAll("tr.tvrow").length;
+    const rowHeight = window.ViewerApp.RAIL_METRICS.rowHeight;
+    return {
+      overflowY: getComputedStyle(pane).overflowY,
+      height: pane.getBoundingClientRect().height,
+      minExpected: rows * rowHeight + (head ? head.getBoundingClientRect().height : 0) - 2,
+    };
+  });
+
+  const navContract = () => page.evaluate(() => {
+    const nav = document.querySelector(".navtree");
+    const style = getComputedStyle(nav);
+    return { position: style.position, overflowY: style.overflowY };
+  });
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
@@ -671,10 +714,15 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
 
-    const mockHeight = await paneHeight();
-    push("[mock] the DAG pane is the majority of the 900px viewport " +
-      "(alarm badge + toolbar + totals strip all on screen)",
-      mockHeight > 450);
+    const mockPane = await paneContract();
+    push("[mock] the DAG pane no longer owns a scrollport of its own",
+      mockPane.overflowY !== "auto" && mockPane.overflowY !== "scroll");
+    push("[mock] the DAG pane renders its full row content height, " +
+      "uncapped by the viewport", mockPane.height >= mockPane.minExpected);
+    const mockNav = await navContract();
+    push("[mock] the left nav is the one remaining independent scroll region",
+      mockNav.position === "sticky" &&
+      (mockNav.overflowY === "auto" || mockNav.overflowY === "scroll"));
 
     // Compact density: alignment must still hold once row height changes.
     await page.locator("#density-toggle").click();
@@ -705,10 +753,146 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
         await page.locator(navRow("study", okStudy.id)).click();
         await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
       }
-      const realHeight = await paneHeight();
-      push("[real] the DAG pane's height is the majority of the 900px " +
-        "viewport with the real pitch_system loaded", realHeight > 450);
+      const realPane = await paneContract();
+      push("[real] the DAG pane still owns no scrollport of its own with " +
+        "the real pitch_system loaded",
+        realPane.overflowY !== "auto" && realPane.overflowY !== "scroll");
+      push("[real] the DAG pane renders pitch_system's full row content " +
+        "height, uncapped by the viewport", realPane.height >= realPane.minExpected);
+      // The definitive proof full-page scroll actually happened: pitch_system
+      // carries far more rows than a 900px viewport can show at once, so the
+      // DOCUMENT (not the pane) is what now needs to scroll.
+      const docScrolls = await page.evaluate(
+        () => document.documentElement.scrollHeight > window.innerHeight);
+      push("[real] pitch_system's row count pushes the DOCUMENT past the " +
+        "viewport rather than clipping inside the pane", docScrolls);
       push("[real] rails stay aligned to rows", (await alignmentDrift()).length === 0);
+    }
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
+// --- the one error seam: a render crash shows a banner, not a silent page ---
+//
+// Deliverable 1 (viewer_error_surface_and_layout, 2026-09-09): the incident
+// this handoff answers was a throw from INSIDE render() itself -- not a
+// rejected promise before it -- leaving the DAG pane silently empty with a
+// no-op Reload. The test seam is the same technique every other real-data
+// swap in this file already uses (override an exported VA function, then
+// trigger a render): `VA.renderTopoPane` is made to throw, and a nav click
+// is what triggers the next render.
+async function testRenderCrash(browser, url, label) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+
+    await page.evaluate(() => {
+      window.ViewerApp.renderTopoPane = function () {
+        throw new Error("seeded render failure (test seam)");
+      };
+    });
+    await page.locator(navRow("study", "demo_strut_branch")).click();
+    await page.waitForSelector(".banner--crash", { timeout: 5000 });
+
+    const bannerText = await page.locator("#banner").textContent();
+    push("the banner shows the crash state in plain words",
+      /failed to render/.test(bannerText));
+    push("the crash banner names the exception's own message, value for value",
+      /seeded render failure \(test seam\)/.test(bannerText));
+    push("the crash banner offers the hard-reload hint",
+      /Ctrl\+Shift\+R/.test(bannerText));
+    // The seam is render()'s own try/catch, not the browser's: nothing should
+    // have escaped as an uncaught page error.
+    push("no uncaught page error escaped the seeded render crash", errors.length === 0);
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
+// --- the real-data render path: results.json included, no ?mock=1 ----------
+//
+// Deliverable 5 (viewer_error_surface_and_layout): every other check in this
+// file that claims "[real]" still boots through `?mock=1`'s adapter branch
+// (mockFixture(), topology_app.js) with `demoTopologyFixture` overridden --
+// which supplies the real topologies/crops but never `results.json`, so the
+// REAL boot()+load()+render() pipeline (the one the 2026-09-09 incident's
+// stale-cache TypeError actually broke) stayed untested. This promotes the
+// incident's own debug prototype (untracked tests/debug_topology_real_render.
+// mjs in the main checkout) into a maintained tier: swap `VA.FsaAdapter`
+// itself for a fake serving all THREE real JSONs, then boot for real, with no
+// `?mock=1` in the URL at all.
+async function testRealDataRenderPath(browser, url, label, realProjection, realResults, realCrops) {
+  if (!realProjection || !realResults) {
+    console.log(`[${label}] SKIP: topologies.json/results.json not built under ` +
+      "the target repo (fresh clone) -- build them, or pass --repo <main checkout>");
+    return { label, ok: true };
+  }
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    await page.goto(url + "/topology.html", { waitUntil: "load" });
+    await page.evaluate(() => {
+      window.__REJECTIONS__ = [];
+      window.addEventListener("unhandledrejection", (ev) => {
+        window.__REJECTIONS__.push(String((ev.reason && ev.reason.stack) || ev.reason));
+      });
+    });
+
+    await page.evaluate(({ topologies, results, crops }) => {
+      const VA = window.ViewerApp;
+      const Fake = function () {
+        return new VA.MemoryAdapter({
+          startState: VA.STATE.READY, topologies, results, crops, images: {}, texts: {},
+        });
+      };
+      Fake.isSupported = () => true;
+      VA.FsaAdapter = Fake;
+      VA.bootTopology();
+    }, { topologies: realProjection, results: realResults, crops: realCrops });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+
+    const rejections = await page.evaluate(() => window.__REJECTIONS__);
+    push("no unhandled promise rejection during the real, non-mock boot path",
+      rejections.length === 0);
+
+    for (const topology of realProjection.topologies) {
+      await page.locator(navRow("topology", topology.id)).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const expected = topology.nodes.length + topology.edges.length;
+      const rowCount = await page.locator("tr.tvrow").count();
+      push(`[real, non-mock] ${topology.id} renders all ${expected} rows ` +
+        "through the real load()+render() pipeline", rowCount === expected);
     }
 
     const failed = checks.filter((c) => !c.cond);
@@ -777,6 +961,7 @@ async function testIndexRedirects(browser, url, label) {
 
     const topologies = await readProjection("topologies.json");
     const crops = await readProjection("crops.json");
+    const realResults = await readProjection("results.json");
     if (!topologies) {
       console.log(`
 note: no topologies.json under ${DATA_REPO} — the topology ` +
@@ -787,6 +972,9 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     results.push(await testTheTopologyPage(
       browser, baseUrl, "topology http", topologies, crops));
     results.push(await testHeightBudget(browser, fileBase, "topology height budget", topologies, crops));
+    results.push(await testRenderCrash(browser, fileBase, "render crash shows the banner"));
+    results.push(await testRealDataRenderPath(
+      browser, fileBase, "real render path (non-mock)", topologies, realResults, crops));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);

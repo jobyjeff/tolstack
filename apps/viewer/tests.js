@@ -2130,9 +2130,86 @@
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
             layoutMode: "topology", rowDensity: "compact" }, TOPO, {});
         });
+        // layout-toggle, density-toggle, edge-value-toggle (deliverable 4,
+        // viewer_error_surface_and_layout) -- three now, not two.
         var buttons = all(root, "button.tvpick__mode");
-        eq(buttons.length, 2);
+        eq(buttons.length, 3);
         has(buttons[1].textContent, "Rows: Compact");
+      });
+
+    function edgeValueToggle(root) {
+      return all(root, "button.tvpick__mode").filter(function (n) {
+        return n.getAttribute("id") === "edge-value-toggle";
+      })[0];
+    }
+
+    await test("the edge-value-only toggle is on the toolbar, named for the " +
+      "current mode, and defaults to labelled rows", function () {
+        var root = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            layoutMode: "topology", rowDensity: "comfortable",
+            edgeValueOnly: false }, TOPO, {});
+        });
+        var toggle = edgeValueToggle(root);
+        ok(toggle, "expected #edge-value-toggle on the toolbar");
+        has(toggle.textContent, "Rows: labelled");
+
+        var onRoot = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            layoutMode: "topology", rowDensity: "comfortable",
+            edgeValueOnly: true }, TOPO, {});
+        });
+        has(edgeValueToggle(onRoot).textContent, "Rows: values only");
+      });
+
+    await test("clicking the edge-value-only toggle calls its own handler",
+      function () {
+        var called = 0;
+        var root = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            layoutMode: "topology", rowDensity: "comfortable" }, TOPO,
+            { onEdgeValueOnly: function () { called++; } });
+        });
+        edgeValueToggle(root).onclick();
+        eq(called, 1);
+      });
+
+    await test("edge-value-only mode hides an edge row's own label and moves " +
+      "it to the row's title, leaving node rows untouched", function () {
+        var index = VA.topologyIndex(TOPO);
+        var edge = index.edges.base_thickness;
+        ok(edge, "fixture must declare base_thickness");
+
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ edgeValueOnly: true }));
+        });
+        var edgeRow = all(root, "tr.tvrow").filter(function (n) {
+          return n.getAttribute("data-id") === "base_thickness";
+        })[0];
+        ok(edgeRow, "base_thickness must have a row");
+        eq(edgeRow.querySelector("td.tvcell--name").textContent, "");
+        eq(edgeRow.getAttribute("title"), VA.edgeHoverTitle(edge, "base_thickness"));
+        eq(edgeRow.getAttribute("title"), edge.name);
+
+        // A node row carries no edge, so hiding "an edge row's own label" has
+        // nothing to apply to -- its label is unchanged either way.
+        var labelledRoot = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ edgeValueOnly: false }));
+        });
+        var nodeRow = all(root, "tr.tvrow--node")[0];
+        var labelledNodeRow = all(labelledRoot, "tr.tvrow--node")[0];
+        eq(nodeRow.querySelector("td.tvcell--name").textContent,
+          labelledNodeRow.querySelector("td.tvcell--name").textContent);
+
+        // A row the projection cannot resolve still states its own diagnostic
+        // regardless of mode -- that text is never redundant and must not be
+        // hidden by the toggle.
+        var broken = JSON.parse(JSON.stringify(TOPO));
+        broken.layout.rows[1].id = "not_an_edge";
+        var brokenRoot = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ topoProj: broken, edgeValueOnly: true }));
+        });
+        has(brokenRoot.textContent, "the topology does not declare");
       });
 
     await test("the banner names the TOPOLOGY projection, not the results one",

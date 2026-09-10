@@ -22,6 +22,18 @@
   --fail: #e05252; --marginal: #d98a00; --pass: #43a047;
 }
 * { box-sizing: border-box; }
+/* Themed scrollbars (Jeff, 2026-09-09: "plain/out of style"), set once on the
+   root: `scrollbar-color`/`scrollbar-width` are inherited, so every scrollable
+   box in the app -- the document itself, the left nav sidebar, the banner's
+   own capped alarm list -- picks this up without a per-element rule. The
+   `::-webkit-scrollbar` trio is Chromium's own (unsupported) mechanism and has
+   no inheritance model, so it is written once at the universal selector
+   instead, for the same "everywhere, not per element" reach. */
+html { scrollbar-color: var(--muted) var(--panel2); scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--panel2); }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 14px/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
@@ -53,8 +65,10 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 }
 .banner--disconnected { border-bottom-color: var(--accent); }
 .banner--needs-regrant { border-bottom-color: var(--inferred); }
+.banner--crash { border-bottom-color: var(--untraced); }
 .banner__action { margin-left: auto; }
 .banner__error { flex-basis: 100%; color: var(--untraced); }
+.banner__crash-hint { flex-basis: 100%; color: var(--muted); font-size: 12px; }
 .banner__built { color: var(--muted); font-variant-numeric: tabular-nums; }
 .banner__missing { flex-basis: 100%; border-left: 3px solid var(--inferred); padding: 6px 10px; }
 /* Which tree built each projection. Quiet by default — it is context, not an

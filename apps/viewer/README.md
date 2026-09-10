@@ -301,13 +301,40 @@ stack's own joint block always has, so it does not reopen the budget the rest
 of this section closes.
 
 With that chrome capped to roughly a topbar, a one-line banner, a toolbar
-strip, a one-line joint block and a slim totals strip, the DAG pane gets the
-large majority of the viewport by construction rather than by a floor
-fighting the chrome above it for room —
-`scripts/run_viewer_browser_tests.mjs`'s `testHeightBudget` asserts that
-directly (900px viewport, the real `pitch_system`, a study selected, a forced
-provenance alarm: the pane's own height is more than half the viewport) instead
-of counting rows against a floor.
+strip, a one-line joint block and a slim totals strip, `HANDOFF_20260909_
+viewer_error_surface_and_layout.md` finished the job the floor and its
+removal were both fighting toward: the DAG pane (`.tv__scroll`) no longer
+clips its own rows at all. Every row renders at full height and contributes
+that height to the **document**, which scrolls once the content is taller
+than the viewport — the same "one page" model the rest of the site already
+used. The **left nav is the one region still capped to the viewport**
+(`position: sticky; max-height`) and scrolls independently; everything else,
+this pane included, just gets longer. `scripts/run_viewer_browser_tests.mjs`'s
+`testHeightBudget` pins this directly: `.tv__scroll` carries no `overflow-y`
+of its own, its rendered height is never less than its own row count demands,
+and — with the real `pitch_system` loaded, which has more rows than a 900px
+viewport can show — the *document's* scroll height exceeds the viewport's,
+proving the growth actually reached the page rather than clipping inside the
+pane.
+
+The grid's own columns (`COLUMNS`, `views/topology.js`) sum to well over a
+typical pane's width and always have — that is a **separate, pre-existing**
+axis this handoff did not touch. `.tv__rails`'s own `position: sticky; left:
+0` (so the rail column stays put while the grid scrolls sideways) needs a
+scrolling ancestor to mean anything, so the header and the body still share
+one **horizontal-only** scrollport, `.tv__hscroll` — `height: max-content` is
+what stops that scrollport from being a second place a row count could get
+squeezed: an element with `overflow-x: auto` is a scroll container, and a
+scroll container's automatic content-height contribution to its own flex
+ancestor is zero by spec, not its actual content size, which is exactly the
+"squeeze to fit" shape the rest of this section retires. Scrolling remains
+vertical-at-the-page, horizontal-at-the-grid — two axes, two scrollports, on
+purpose.
+
+Scrollbars are themed to match the page everywhere they still appear
+(`scrollbar-color`/`scrollbar-width` plus the `::-webkit-scrollbar` pseudo
+pair, both set once at `html`/`*` in `style.css` so no scrollable box needs
+its own rule).
 
 **The worksheet** moved into its own `<dialog>` too (`#worksheet-dialog`),
 for the same reason as the legend: opening it can no longer compete with
@@ -328,6 +355,47 @@ the change with nothing to re-wire; `topology_app.js`'s `applyDensity()` is
 the one DOM write left, setting the CSS variable to match. Density is a
 display preference, not a fact about a topology or a study, so switching
 topologies never resets it.
+
+### A render crash cannot leave the page silently unchanged
+
+`HANDOFF_20260909_viewer_error_surface_and_layout.md`: a live incident had a
+stale-cached script throw from *inside* `render()`, and every path that could
+have reported that — the boot chain's `.then(render)`, `onReload`'s
+`load().then(render)` — had nothing after it to catch a throw, so the DAG
+pane just stayed empty with a Reload button that did nothing. `render()` is
+now one seam: it calls the real paint in a `try`/`catch`, and a throw from
+*anywhere* inside it — not just a rejected promise before it runs — renders
+`VA.renderCrashBanner` instead (plain words, the exception's own message, and
+the "hard reload may clear a stale cache" hint, since that is what actually
+fixed it). `onReload` and the boot chain both gained the `.catch(err => state.
+error = …).then(render)` shape `gesture()` already had. One seam, not a
+`try`/`catch` in every view — `scripts/run_viewer_browser_tests.mjs`'s
+"render crash shows the banner" tier proves it by forcing `VA.renderTopoPane`
+to throw and asserting nothing escapes as an uncaught page error.
+
+### Whole-edge hover, and an experimental values-only row mode
+
+Two related pieces from the same handoff. First, a fix: a rail bar's
+*visible* stroke is dashed wherever its citation is a gap or derived
+(`.rail__bar--gap`/`--derived`), and under `pointer-events: stroke` a dash's
+own gap used to hit nothing — only a lucky hover over a solid segment of a
+long edge showed its tooltip. `.rail__barhit` is a second, invisible line per
+edge (`stroke: transparent`, wider, `pointer-events: stroke`) drawn over the
+same coordinates, carrying the hover title and the click handler instead; the
+visible bar is untouched.
+
+Second, an experimental **view setting, default off** (the toolbar's third
+button, "Rows: labelled" / "Rows: values only", `state.edgeValueOnly`): Jeff's
+observation that this page runs about 2× a typical Excel stack's row count,
+because a spreadsheet lists only the dimensions *between* interfaces, never
+the interfaces themselves — half this page's rows (the nodes) carry no values
+by construction. An edge's own label is just its two adjacent node labels
+concatenated, so the toggle hides it and lets the row read as values only,
+with the label moved to the row's own hover (`VA.edgeHoverTitle`, the same
+text `.rail__barhit` already shows — one hover surface, not two). Node rows,
+and a row the projection cannot resolve (`missing()`), are unchanged either
+way: hiding a label is only ever dropping a redundant concatenation, never a
+diagnostic.
 
 ### Generated checks are generated in Python too
 
