@@ -1478,10 +1478,10 @@ documents (§8b's `pitch_link_length`/`tan_link_length` "owner refined" rows
 
 `213863-004-A.pdf` is a two-hole link (the same piece §8a already reasoned
 about via `212956-005-A`'s parts list). Its two bores are `⌀14.288 ±0.006`
-(position `⌖⌀0.1` referenced **solely** to datum C, which this same feature
-also carries — read again: the position frame's third compartment is a
-DIFFERENT box than the datum-feature flag beneath it, confirmed at Matrix(14)
-on the FCF stack, not a self-reference) and `⌀15.876 ±0.006` (perpendicularity
+(position `⌖⌀0.1` referenced **solely** to datum B (the right hole's own
+axis), while this same feature separately carries its own datum-feature flag,
+**C** — two different boxes in the FCF stack, confirmed at Matrix(14), not a
+self-reference) and `⌀15.876 ±0.006` (perpendicularity
 `⊥⌀0.05 A`; this hole is datum feature **B**). The hole-center distance is a
 **boxed (basic) dimension, `61.40` mm**, controlled entirely by the left
 hole's `⌀0.1` true-position callout to datum B (the right hole's own axis) —

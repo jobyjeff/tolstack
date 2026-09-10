@@ -1718,6 +1718,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       browser truth tier (or an explicit unbound-call test) to be caught at
       all; a green fast tier is not evidence for this one.
 
+- [ ] **A worksheet's prose can misstate which datum letter a GD&T frame
+      references, and even contradict itself about it two sentences later.**
+      New 2026-09-10 (`endstop_piece_part_acquisition`, §11a). The first
+      mention of `213863-004-A.pdf`'s left-hole FCF said its position
+      tolerance was "referenced solely to datum C, which this same feature
+      also carries" (i.e. self-referencing); a rendered crop shows the FCF's
+      third compartment actually says **B** (the *other* hole), and the
+      separate datum-feature flag beneath it — a different box — is what
+      says C. Two sentences later, the same paragraph's own conclusion
+      correctly says "the left hole's ⌀0.1 true-position callout to datum B
+      (the right hole's own axis)", silently contradicting its own opening
+      clause. The final numeric conclusion (0.10 mm worst-case band) was
+      unaffected because it relied on the *second*, correct statement — but
+      a reader citing the first sentence alone would carry a wrong datum
+      letter forward. **Render the FCF stack yourself and read the third
+      compartment against the datum-feature-flag box separately** — do not
+      trust a worksheet's own restatement of which datum a position/
+      perpendicularity frame calls out, even when it sounds confident and
+      cites a specific render (`Matrix(14)`).
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
