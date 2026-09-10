@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: data/inbox/drawings, data/inbox/specs
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260910_endstop_piece_part_acquisition.md
+resolution: handoff completed 2026-09-10 -- closed automatically by dispatch when handoff `endstop_piece_part_acquisition` moved to completed/; not independently verified.
 ---
 
 # Acquire the remaining end-stop-location piece parts and bearing specs
