@@ -15,6 +15,7 @@
 const vm = require("vm");
 const fs = require("fs");
 const path = require("path");
+const http = require("http");
 
 const here = __dirname;
 const argv = process.argv.slice(2);
@@ -146,6 +147,66 @@ sandbox.VIEWER_SRC = {
     try { return fs.readFileSync(path.join(here, relPath), "utf8"); } catch (_) { return null; }
   },
 };
+// --- a real local static server, for storage/http.js's node tier -----------
+//
+// The http adapter's whole job is deciding WHICH real URL shape it is served
+// under, so its tests need a real server, not a fetch mock -- a fake that
+// only ever answers what the adapter expects would never catch the adapter
+// asking the wrong question. Fixed routes, not a filesystem tree: these tests
+// are about the TRANSPORT (probing, content-type checking, 404-vs-network-
+// failure), not about any one projection's shape.
+const SAMPLE_TOPOLOGIES = JSON.stringify({ topologies: [{ id: "demo" }] });
+const SAMPLE_RESULTS = JSON.stringify({ stacks: [] });
+const SAMPLE_CROPS = JSON.stringify({ by_stack: {} });
+const SAMPLE_PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+const SAMPLE_WORKSHEET = "# Demo worksheet\n\nHTTP tier fixture.\n";
+
+// Both mount shapes' absolute paths coexist on one server without collision
+// (one is nested under data/projections/viewer/, the other is not), so a
+// single server can prove both candidates at once. The sibling-data-mount
+// paths are under /tolstack/data/ -- ../data relative to a page at
+// /tolstack/viewer/ steps up ONE level, to /tolstack/, not to the server
+// root, exactly matching drawing-checker's own VIEWER_MOUNT/DATA_MOUNT pair
+// (webui/analyses.py::mount_tolstack).
+const DATA_ROUTES = {
+  "/tolstack/data/topologies.json": { contentType: "application/json", body: SAMPLE_TOPOLOGIES },
+  "/tolstack/data/results.json": { contentType: "application/json", body: SAMPLE_RESULTS },
+  "/tolstack/data/crops.json": { contentType: "application/json", body: SAMPLE_CROPS },
+  "/tolstack/data/crops/sample.png": { contentType: "image/png", body: SAMPLE_PNG },
+  "/data/projections/viewer/topologies.json": { contentType: "application/json", body: SAMPLE_TOPOLOGIES },
+  "/data/projections/viewer/results.json": { contentType: "application/json", body: SAMPLE_RESULTS },
+  "/data/projections/viewer/crops.json": { contentType: "application/json", body: SAMPLE_CROPS },
+  "/data/projections/viewer/crops/sample.png": { contentType: "image/png", body: SAMPLE_PNG },
+  "/docs/tolerance_stacks/WORKSHEET_demo.md": { contentType: "text/markdown", body: SAMPLE_WORKSHEET },
+};
+
+function startStaticServer(routes) {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      const route = routes[(req.url || "/").split("?")[0]];
+      if (!route) { res.writeHead(404, { "content-type": "text/plain" }); res.end("not found"); return; }
+      res.writeHead(route.status || 200, { "content-type": route.contentType });
+      if (req.method === "HEAD") { res.end(); return; }
+      res.end(route.body);
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
+// The trap the probe has to survive: a catch-all that answers EVERY path with
+// 200 + HTML (an nginx default page, an SPA fallback) -- drawing-checker's own
+// nginx lesson, cited in the handoff this adapter was built for. A candidate
+// must fail here even though the status is ok.
+function startHtmlCatchAllServer() {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end("<html>not a projection</html>");
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
 vm.createContext(sandbox);
 
 const files = [
@@ -158,6 +219,7 @@ const files = [
   "storage/adapter.js",
   "storage/memory.js",
   "storage/node_fs.js",
+  "storage/http.js",
   "views/dom.js",
   "views/banner.js",
   "views/nav.js",
@@ -173,8 +235,40 @@ for (const f of files) {
 }
 
 (async () => {
+  const dataServer = await startStaticServer(DATA_ROUTES);
+  const htmlServer = await startHtmlCatchAllServer();
+  const emptyServer = await startStaticServer({});
+  let dataServerClosed = false;
+  sandbox.fetch = fetch;
+  sandbox.HTTP_FIXTURE = {
+    dataOrigin: `http://127.0.0.1:${dataServer.address().port}`,
+    htmlOrigin: `http://127.0.0.1:${htmlServer.address().port}`,
+    // A server that 404s everything -- proves neither candidate resolving is
+    // read as DISCONNECTED, not an error.
+    emptyOrigin: `http://127.0.0.1:${emptyServer.address().port}`,
+    // Simulates a mid-session server stop for exactly one test -- forced
+    // through closeAllConnections() first so a kept-alive fetch socket can't
+    // leave this hanging.
+    stopDataServer: () => new Promise((resolve) => {
+      if (dataServerClosed) { resolve(); return; }
+      dataServerClosed = true;
+      dataServer.closeAllConnections();
+      dataServer.close(() => resolve());
+    }),
+  };
+
   console.log(`repo root for the node-fs tier: ${repoRoot}`);
-  const results = await sandbox.ViewerApp.runTests();
+  let results;
+  try {
+    results = await sandbox.ViewerApp.runTests();
+  } finally {
+    if (!dataServerClosed) dataServer.closeAllConnections();
+    dataServer.close();
+    htmlServer.closeAllConnections();
+    htmlServer.close();
+    emptyServer.closeAllConnections();
+    emptyServer.close();
+  }
   let failed = 0;
   for (const r of results) {
     if (r.skipped) {

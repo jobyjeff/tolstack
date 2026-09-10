@@ -62,6 +62,11 @@
   };
 
   var adapter = null;
+  // Which transport `adapter` is -- "mock" | "http" | "fsa" -- for the
+  // banner's own plain-words line (viewer_http_transport, deliverable 2). Not
+  // read anywhere else: views must key off `adapter.capabilities()`, never
+  // off which class an adapter happens to be.
+  var transportKind = null;
   var nodes = {};
   var imageCache = {};      // "crops/x.png" -> {url} | null
   var openTrigger = null;   // whose popover is showing
@@ -111,39 +116,77 @@
     // the same escape hatch both retired pages had, now over one merged
     // fixture (mockFixture, below) so the tour demonstrates both modes.
     var mock = /[?&]mock=1\b/.test(window.location.search);
-    adapter = mock ? new VA.MemoryAdapter(mockFixture())
-      : VA.FsaAdapter.isSupported() ? new VA.FsaAdapter() : null;
 
-    if (!adapter) {
-      state.error = "This browser has no File System Access API. Chrome or Edge " +
-        "is required; ?mock=1 still runs a demo.";
-      render();
-      return;
-    }
+    chooseAdapter(mock).then(function (picked) {
+      adapter = picked.adapter;
+      transportKind = picked.kind;
 
-    // A click outside both the triggers and the popover closes it. Clicks
-    // INSIDE must survive — handing you a link to the full reference is the
-    // point. The 300 ms guard is what stops the very click that opened the
-    // popover from closing it again: a click on a trigger can arrive with
-    // target == body when the popover moved under the pointer mid-gesture.
-    document.addEventListener("click", function (event) {
-      if (!openTrigger || !event || !event.target) return;
-      if (new Date().getTime() - openedAt < 300) return;
-      var target = event.target;
-      if (String(target.className || "").indexOf("crop-trigger") !== -1) return;
-      if (nodes.crop.contains && nodes.crop.contains(target)) return;
-      hideCrop();
-    });
-    document.addEventListener("keydown", function (event) {
-      if (event && event.key === "Escape") hideCrop();
-    });
+      if (!adapter) {
+        state.error = "This page needs either a served projection endpoint or a " +
+          "File System Access-capable browser (Chrome or Edge). ?mock=1 still " +
+          "runs a demo.";
+        return;
+      }
 
-    adapter.init().then(function (connection) {
-      state.connection = connection;
-      return connection === VA.STATE.READY ? load() : null;
+      // A click outside both the triggers and the popover closes it. Clicks
+      // INSIDE must survive — handing you a link to the full reference is the
+      // point. The 300 ms guard is what stops the very click that opened the
+      // popover from closing it again: a click on a trigger can arrive with
+      // target == body when the popover moved under the pointer mid-gesture.
+      document.addEventListener("click", function (event) {
+        if (!openTrigger || !event || !event.target) return;
+        if (new Date().getTime() - openedAt < 300) return;
+        var target = event.target;
+        if (String(target.className || "").indexOf("crop-trigger") !== -1) return;
+        if (nodes.crop.contains && nodes.crop.contains(target)) return;
+        hideCrop();
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event && event.key === "Escape") hideCrop();
+      });
+
+      state.connection = picked.state;
+      return picked.state === VA.STATE.READY ? load() : null;
     }).catch(function (err) {
       state.error = String(err && err.message || err);
     }).then(render);
+  }
+
+  // The load-time transport probe (viewer_http_transport, deliverable 2):
+  // served mode is tried FIRST whenever the page is not on file:// — a served
+  // origin answering either of storage/http.js's candidates needs no folder
+  // grant at all, unlike FSA. FSA remains the fallback: a double-clicked
+  // page, or a served page whose origin answers neither HTTP candidate
+  // (nothing built yet, or a plain server with no matching mount) falls
+  // straight through to it, exactly the behaviour a served page had before
+  // this handoff.
+  function chooseAdapter(mock) {
+    if (mock) {
+      var memory = new VA.MemoryAdapter(mockFixture());
+      return memory.init().then(function (connState) {
+        return { adapter: memory, kind: "mock", state: connState };
+      });
+    }
+    var afterHttp;
+    if (VA.HttpAdapter.isSupported()) {
+      var http = new VA.HttpAdapter();
+      afterHttp = http.init().then(function (connState) {
+        return connState === VA.STATE.READY
+          ? { adapter: http, kind: "http", state: connState } : null;
+      }).catch(function () { return null; });
+    } else {
+      afterHttp = Promise.resolve(null);
+    }
+    return afterHttp.then(function (picked) {
+      if (picked) return picked;
+      if (!VA.FsaAdapter.isSupported()) {
+        return { adapter: null, kind: null, state: null };
+      }
+      var fsa = new VA.FsaAdapter();
+      return fsa.init().then(function (connState) {
+        return { adapter: fsa, kind: "fsa", state: connState };
+      });
+    });
   }
 
   function mockFixture() {
@@ -461,9 +504,17 @@
     // open is a real path (click a nav row while reading either) and a stale
     // dialog sitting open would be confusing about which page it is even
     // talking about.
-    var hasWorksheet = showTopology
+    // Neither mode offers a control it cannot service (viewer_http_transport,
+    // the same "capabilities(), never the adapter's type" rule forge's own
+    // two-transport apps use): the sibling-data-mount served candidate cannot
+    // reach docs/ at all, so a worksheet is unreachable no matter what
+    // worksheet_file says. An adapter with no capabilities() method (FSA,
+    // memory, node-fs) is read as fully capable.
+    var canReadWorksheets = !adapter || typeof adapter.capabilities !== "function" ||
+      adapter.capabilities().worksheets !== false;
+    var hasWorksheet = canReadWorksheets && (showTopology
       ? !!(topoProj && topoProj.worksheet_file)
-      : !!(stackProj && stackProj.worksheet_file);
+      : !!(stackProj && stackProj.worksheet_file));
     nodes.legendToggle.style.display = showTopology ? "" : "none";
     nodes.worksheetToggle.style.display = hasWorksheet ? "" : "none";
     if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
@@ -570,6 +621,11 @@
       crops: state.crops,
       error: state.error,
       extraAlarms: VA.orphanStudyAlarms(state.topologies),
+      // Which transport is live (viewer_http_transport, deliverable 2): the
+      // connect-folder banner already disappears on its own once state is
+      // READY, so this is only the one line served mode adds — FSA mode gets
+      // no new line at all, unchanged from before this handoff.
+      transport: transportKind,
     };
   }
 

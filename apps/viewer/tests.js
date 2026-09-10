@@ -437,6 +437,68 @@
       eq(await adapter.readText(["nope.md"]), null);
     });
 
+    // --- the http adapter: probing a real local server (viewer_http_transport) --
+    //
+    // Runs only under the node runner (run_tests.cjs starts two real local
+    // servers and injects HTTP_FIXTURE + fetch); the browser tier (test.html)
+    // has neither and skips gracefully, same pattern as the node-fs tier below.
+    var httpFixture = typeof HTTP_FIXTURE !== "undefined" ? HTTP_FIXTURE : null;
+    if (!httpFixture) {
+      skip("http adapter tier", "no HTTP_FIXTURE injected (browser tier, or no runner shim)");
+    } else {
+      var httpAdapter = function (pathname, origin) {
+        return new VA.HttpAdapter({
+          pathname: pathname,
+          fetchImpl: function (url, init) { return fetch(origin + url, init); },
+        });
+      };
+
+      await test("sibling-data-mount: probes ../data, reaches the projections " +
+        "and a crop, but NOT a worksheet -- drawing-checker's own mount does " +
+        "not expose docs/ at all", async function () {
+        var adapter = httpAdapter("/tolstack/viewer/topology.html", httpFixture.dataOrigin);
+        eq(await adapter.init(), VA.STATE.READY);
+        eq(adapter.capabilities().worksheets, false);
+        ok((await adapter.readTopologies()).topologies, "topologies.json must parse");
+        eq((await adapter.readResults()).stacks.length, 0);
+        ok(await adapter.readCropImage("crops/sample.png"), "the PNG must resolve");
+        eq(await adapter.readCropImage("crops/missing.png"), null);
+        eq(await adapter.readText(["docs", "tolerance_stacks", "WORKSHEET_demo.md"]), null);
+      });
+
+      await test("repo-root-static: probes ../../data/projections/viewer and " +
+        "reaches a worksheet too", async function () {
+        var adapter = httpAdapter("/apps/viewer/topology.html", httpFixture.dataOrigin);
+        eq(await adapter.init(), VA.STATE.READY);
+        eq(adapter.capabilities().worksheets, true);
+        ok((await adapter.readTopologies()).topologies, "topologies.json must parse");
+        has(await adapter.readText(["docs", "tolerance_stacks", "WORKSHEET_demo.md"]),
+          "HTTP tier fixture");
+      });
+
+      await test("neither candidate resolving is DISCONNECTED, not an error", async function () {
+        var adapter = httpAdapter("/nowhere/page.html", httpFixture.emptyOrigin);
+        eq(await adapter.init(), VA.STATE.DISCONNECTED);
+      });
+
+      await test("a 200 + HTML catch-all does not win the probe -- status alone " +
+        "is never enough (drawing-checker's own nginx lesson)", async function () {
+        var adapter = httpAdapter("/tolstack/viewer/topology.html", httpFixture.htmlOrigin);
+        eq(await adapter.init(), VA.STATE.DISCONNECTED);
+      });
+
+      await test("a mid-session server stop rejects instead of reading as " +
+        "'not built yet' -- a real transport failure must reach the caller",
+        async function () {
+          var adapter = httpAdapter("/tolstack/viewer/topology.html", httpFixture.dataOrigin);
+          eq(await adapter.init(), VA.STATE.READY);
+          await httpFixture.stopDataServer();
+          var threw = false;
+          try { await adapter.readTopologies(); } catch (err) { threw = true; }
+          ok(threw, "a network failure must reject, not resolve null");
+        });
+    }
+
     await test("parseJson treats a half-written projection as absent", function () {
       eq(VA.parseJson('{"a":1}'), { a: 1 });
       eq(VA.parseJson('{"a":'), null);

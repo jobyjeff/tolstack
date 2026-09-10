@@ -21,6 +21,14 @@
         "Chrome needs the folder permission re-granted (one click, once per browser restart)."));
       root.appendChild(button("Re-grant", "banner__action", handlers.onReconnect));
     } else {
+      // The one line served mode adds (viewer_http_transport, deliverable 2):
+      // FSA mode gets none, unchanged from before this handoff — the connect-
+      // folder banner already disappeared on its own once state went READY,
+      // and the picker itself is proof enough of "the granted folder" there.
+      if (state.transport === "http") {
+        root.appendChild(VA.el("div", "banner__source",
+          "Served over HTTP — no folder grant needed. Read-only."));
+      }
       root.appendChild(VA.el("span", "banner__built",
         VA.builtLine(state.results, state.crops, state.projection)));
       root.appendChild(button("Reload", "banner__action", handlers.onReload));

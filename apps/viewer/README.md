@@ -22,9 +22,37 @@ hover/click thumbnail trigger right there in the grid.
 > old shortcut or bookmark still lands somewhere.
 
 Static and build-free — plain HTML + classic scripts, no framework, no npm
-build, no daemon, no server (the forge `apps/notes/` and `apps/dashboard/`
-pattern). **Read-only**: the File System Access grant it asks for is
-`mode: "read"`, and there is no code path that writes.
+build, no daemon of its own (the forge `apps/notes/` and `apps/dashboard/`
+pattern). **Read-only**: neither transport below has a write path.
+
+## Two transports, and the banner says which one is live
+
+A load-time probe (`storage/http.js`, wired in `topology_app.js`'s
+`chooseAdapter`) decides once, before the first paint, which way the page
+reaches `data/projections/viewer/`:
+
+- **served** — the origin that answered the page also answers a projection
+  request. Probed against `topologies.json`, content-type checked (never
+  status alone — a catch-all route can answer 200 + HTML for anything). No
+  folder grant, no picker. Two mount shapes are known and both are tried, in
+  order: drawing-checker's own (`http://127.0.0.1:8000/tolstack/viewer/topology.html`,
+  a sibling `/tolstack/data/` mount), and a plain static server rooted at the
+  repo (`python -m http.server` from `C:\workspace\tolstack`). This is a
+  prerequisite for ever hosting the viewer, not just a local convenience.
+- **FSA** — the original transport, and the only option on `file://`:
+  **Connect folder** grants read access to the tolstack repo root via the
+  File System Access API, exactly as below.
+
+Served mode is tried first whenever the page is not on `file://`; FSA is the
+fallback whenever neither served candidate answers (nothing built yet, or a
+server with no matching mount). The banner says which is live — a served page
+reads *"Served over HTTP — no folder grant needed"*; FSA mode is unchanged,
+the connect/granted flow already says so. Neither transport offers a control
+it cannot service (`adapter.capabilities()`, never the adapter's class): the
+one real capability gap is that drawing-checker's own mount cannot reach
+`docs/` at all (only the viewer app and its projection dir are mounted), so a
+worksheet is unavailable there specifically — a repo-root static server can
+reach it, and FSA always could.
 
 ## Launch (one-click, `file://`)
 
@@ -675,6 +703,14 @@ that file lives only in the main checkout. Without it the topology page's real
 tier reports itself skipped and the demo tier still runs. The app's own files
 always come from this tree either way.
 
+The fast tier also drives `storage/http.js` against two real local servers it
+starts itself (`run_tests.cjs`) — both mount shapes, a catch-all-HTML trap, and
+a mid-session server stop, none of which a DOM shim's `fetch` could stand in
+for. The truth tier adds a THIRD static server, rooted at the repo instead of
+just `apps/viewer/` (`startRepoRootServer`), and boots `topology.html` with no
+`?mock=1` and no folder grant at all — proving the served-mode deliverable
+itself, not a stand-in for it.
+
 The fast tier includes a **node-fs adapter** tier that drives the real
 `data/projections/viewer/` through the same adapter contract the browser uses, so
 "Jeff's actual stacks render" is asserted rather than assumed. It reports itself
@@ -729,6 +765,7 @@ apps/viewer/
                       too — app.js is deleted; there is one boot file now)
   storage/adapter.js  the read-only adapter contract
   storage/fsa.js      File System Access (mode: read), handle persisted in IndexedDB
+  storage/http.js     served transport — no folder grant, probed at load time
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
   views/              dom, banner, nav, stack, crop, worksheet, detail, topology

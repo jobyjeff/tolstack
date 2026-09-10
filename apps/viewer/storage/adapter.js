@@ -39,6 +39,18 @@
 //          WORKSHEET_*.md files, which are read LIVE from docs/tolerance_stacks/
 //          rather than copied into the projection: nothing about a worksheet is
 //          derived, so an edit should show on reload without a rebuild.
+//
+// One method is OPTIONAL, and only storage/http.js implements it:
+//   capabilities(): { worksheets: bool } | undefined
+//        — what this transport can actually reach. A view must never assume
+//          every adapter can service every read; the served mount that
+//          drawing-checker exposes (storage/http.js's "sibling-data-mount"
+//          candidate) genuinely cannot reach docs/, so readText() there always
+//          resolves null and capabilities().worksheets says why before a view
+//          offers a control it cannot service. An adapter with no
+//          capabilities() method (fsa.js, memory.js, node_fs.js) is read as
+//          fully capable — the same "absent means capable" default forge's own
+//          two-transport apps use.
 (function (VA) {
   "use strict";
 

@@ -70,6 +70,7 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 .banner__error { flex-basis: 100%; color: var(--untraced); }
 .banner__crash-hint { flex-basis: 100%; color: var(--muted); font-size: 12px; }
 .banner__built { color: var(--muted); font-variant-numeric: tabular-nums; }
+.banner__source { flex-basis: 100%; color: var(--muted); font-size: 12px; }
 .banner__missing { flex-basis: 100%; border-left: 3px solid var(--inferred); padding: 6px 10px; }
 /* Which tree built each projection. Quiet by default — it is context, not an
    alarm — but the alarm above it is loud, because a projection built from a

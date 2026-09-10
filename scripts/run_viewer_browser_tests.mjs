@@ -98,6 +98,38 @@ function startServer() {
   });
 }
 
+// A plain static server rooted at the REPO, not just apps/viewer — the
+// "repo-root-static" shape storage/http.js's second candidate matches
+// (`python -m http.server` from the repo root), and the one server this
+// script can start that lets ?mock=1-free boot actually exercise the HTTP
+// transport rather than falling back to FSA. `/data/...` is served from
+// DATA_REPO (the worktree escape hatch every other real-data check in this
+// file already uses) so a worktree run still reaches the main checkout's
+// projections; everything else — the app's own files — always comes from
+// THIS tree, same rule as the rest of the file.
+function startRepoRootServer() {
+  return new Promise((resolve) => {
+    const server = createServer(async (req, res) => {
+      try {
+        const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
+        const rel = normalize(urlPath).replace(/^[/\\]+/, "");
+        const root = rel.split(sep)[0] === "data" ? DATA_REPO : REPO;
+        const full = join(root, rel);
+        if (full !== root && !full.startsWith(root + sep)) {
+          res.writeHead(403).end("forbidden");
+          return;
+        }
+        const body = await readFile(full);
+        res.writeHead(200, { "content-type": MIME[extname(full)] || "application/octet-stream" });
+        res.end(body);
+      } catch {
+        res.writeHead(404).end("not found");
+      }
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
 async function launch() {
   const failures = [];
   for (const channel of CHANNELS) {
@@ -910,6 +942,81 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
   }
 }
 
+// --- served mode: the real, non-mock boot with NO folder grant at all ------
+//
+// Deliverable 4 (viewer_http_transport): everywhere else in this file, a
+// "[real]" check still boots through ?mock=1's adapter branch with the real
+// projection swapped in over VA.demoTopologyFixture — a seam the mock branch
+// provides on purpose (there is no way to grant the FSA picker from
+// Playwright). This is the one check that does NOT use that seam: it points
+// the browser at a plain repo-root static server (startRepoRootServer) and
+// loads topology.html with no query string at all, so storage/http.js's own
+// load-time probe is what has to find the data — proving the actual
+// deliverable ("zero manual steps") rather than a stand-in for it.
+async function testServedModeBoot(browser, url, label, realProjection, stopServer) {
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    // The transport probe never runs at all with ?mock=1 present (chooseAdapter
+    // short-circuits to the memory adapter) — proving it still boots under this
+    // NEW server is the one thing worth pinning here; everything else about
+    // ?mock=1 is already covered by testTheTopologyPage.
+    await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    push("?mock=1 still boots under a repo-root static server",
+      await page.locator("tr.tvrow").count() > 0);
+
+    if (!realProjection) {
+      push("[real] served, zero-step boot (skipped: topologies.json not built " +
+        "-- build it, or pass --repo <main checkout>)", true);
+    } else {
+      await page.goto(url + "/apps/viewer/topology.html", { waitUntil: "load" });
+      await page.waitForSelector('tr.tvrow, .banner--disconnected', { timeout: 15000 });
+      push("[real] the connect-folder banner never appears",
+        await page.locator(".banner--disconnected").count() === 0);
+      push("[real] the banner states the data was served, not read from a " +
+        "granted folder",
+        /Served over HTTP/.test(await page.locator("#banner").textContent()));
+      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+      push("[real] the DAG renders with ZERO manual steps",
+        await page.locator("tr.tvrow").count() > 0);
+
+      // Deliverable 3 (viewer_http_transport): a mid-session server stop must
+      // produce the banner error, not a blank page — the render() seam
+      // viewer_error_surface_and_layout built catches a throw from anywhere
+      // inside paint(); this proves the READ that feeds it (storage/http.js's
+      // _readProjection) actually rejects instead of quietly reading a
+      // network failure as "not built yet". Last use of this server, so this
+      // test owns closing it.
+      if (stopServer) {
+        await stopServer();
+        await page.locator(".banner__action").click();
+        await page.waitForSelector(".banner__error", { timeout: 5000 });
+        push("[real] a mid-session server stop surfaces the banner error on Reload",
+          (await page.locator(".banner__error").textContent()).length > 0);
+        push("[real] the DAG pane keeps its last-good rows rather than going blank",
+          await page.locator("tr.tvrow").count() > 0);
+      }
+    }
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
 // --- index.html: a redirect stub, not a second copy of the app -------------
 //
 // The retired stack viewer's entry point still has to land somewhere — an old
@@ -946,6 +1053,16 @@ async function testIndexRedirects(browser, url, label) {
   const baseUrl = `http://127.0.0.1:${port}`;
   const fileBase = pathToFileURL(join(APP_DIR, "x")).href.replace(/\/x$/, "");
 
+  const repoRootServer = await startRepoRootServer();
+  const repoRootBaseUrl = `http://127.0.0.1:${repoRootServer.address().port}`;
+  let repoRootServerClosed = false;
+  const stopRepoRootServer = () => new Promise((resolve) => {
+    if (repoRootServerClosed) { resolve(); return; }
+    repoRootServerClosed = true;
+    repoRootServer.closeAllConnections();
+    repoRootServer.close(() => resolve());
+  });
+
   let browser, channel;
   try {
     ({ browser, channel } = await launch());
@@ -975,6 +1092,9 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     results.push(await testRenderCrash(browser, fileBase, "render crash shows the banner"));
     results.push(await testRealDataRenderPath(
       browser, fileBase, "real render path (non-mock)", topologies, realResults, crops));
+    results.push(await testServedModeBoot(
+      browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
+      stopRepoRootServer));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);
@@ -988,5 +1108,6 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
   } finally {
     if (browser) await browser.close();
     server.close();
+    if (!repoRootServerClosed) repoRootServer.close();
   }
 })();
