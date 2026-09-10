@@ -1,0 +1,180 @@
+{
+  "schema": "joby.tolstack/spec-parse/v0",
+  "event_id": "20260910-rbc-aerospace-plain-bearings-2008-agentmanual-v0",
+  "seq": 6,
+  "mode": "full",
+  "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+  "parsed_at": "2026-09-10",
+  "parser": {
+    "name": "agent-manual",
+    "version": "v0",
+    "agent": "handoff endstop_piece_part_acquisition",
+    "recipe": "115-page born-digital catalog with a clean text layer (no OCR needed, unlike NAS1151-1158). A whole-document search for 'MS1410' located the two MS14101/MS14104 (narrow) and MS14102/MS14103 (wide) spherical-bearing spec pages; the DIMENSIONS -- TOLERANCES tables on pages 21 and 22 were read with --pattern and confirmed against a rendered crop of each table (the per-column tolerance is printed ONCE, in the table header row above the dash-number rows, and applies to every dash number in that column -- easy to miss with a text-only sweep, so both crops were checked visually before recording any tolerance)."
+  },
+  "document_meta": {
+    "title": "Plain Bearings -- Spherical Bearings, Rod End Bearings, Journal Bearings, Links and Assemblies",
+    "issuer": "RBC Bearings Incorporated",
+    "copyright": "©2008 RBC Bearings Incorporated. All rights reserved.",
+    "sheets_present_in_the_file": 115,
+    "sheets_read_this_event": [21, 22],
+    "arrived_in_the_pile": "Already in the pile before this session (verified on disk 2026-09-10); Jeff pointed to it by name for MS14101/MS14103 (handoff endstop_piece_part_acquisition's HITL ask) rather than dropping a new file in -- the two MS numbers are catalog sections inside this existing RBC document, not standalone MS spec sheets. A duplicate, apparently-identical copy also sits in the pile as 'RBC - Plain bearings (NAS77 p92).pdf'; this event cites the more complete '...Web.pdf' copy (its page 22 is present; the other copy's page 22 was not checked page-for-page beyond the MS1410x hits both share on page 9's index)."
+  },
+  "entries": [
+    {
+      "subject": "MS14101",
+      "subject_kind": "family",
+      "note": "MS14104 & MS14101 SELF-LUBRICATED SPHERICAL BEARING, NARROW (chamfered/grooved pair on the same dash-number row; MS14104 is the chamfered variant, MS14101 the grooved variant -- 212956-005-A's parts list calls out the MS14101 dash, so this event's part_number entry below is the grooved column). Per-column tolerances apply to every dash number in the DIMENSIONS -- TOLERANCES table (printed once, in the header, not restated per row).",
+      "values": {
+        "standard": {
+          "text": "AS81820 (formerly MIL-B-81820)",
+          "at": {"pdf_page": 21, "note": "bullet list, top of page"},
+          "confidence": "traced"
+        },
+        "series": {
+          "text": "Narrow series, self-lubricated.",
+          "at": {"pdf_page": 21},
+          "confidence": "traced"
+        },
+        "temperature_range": {
+          "text": "-65°F to +325°F (-53.9°C to +162.8°C).",
+          "at": {"pdf_page": 21},
+          "confidence": "traced"
+        },
+        "material": {
+          "text": "Outer ring: CRES 17-4PH, AMS 5643, HRC 28 min. Inner ring: CRES 440C, AMS 5630, HRC 55 min. Liner: Fibriloid® or “E” Uniflon® qualified to AS81820.",
+          "at": {"pdf_page": 21},
+          "confidence": "traced"
+        },
+        "bore_tolerance_B": {
+          "text": "Column B (bore): +.0000 in / -.0005 in = +.000 mm / -.013 mm, printed once in the table header and applying to every dash number.",
+          "at": {"pdf_page": 21, "table": "DIMENSIONS — TOLERANCES", "column": "B"},
+          "confidence": "traced",
+          "note": "THE FACT THIS EVENT WAS ACQUIRED FOR (WORKSHEET_endstop_vision_baseline.md rows 34/36/50/54/56, 'pitch/tan link bearing size', GT 0.013 mm each). A unilateral band (nominal to -0.013 mm), total width 0.013 mm -- exact match to the workbook figure, confirmed by a rendered crop of the header row (the tolerance is easy to miss reading dash rows alone, since it is not repeated per row). The per-dash numeric value is on the MS14101-3 subject below."
+        },
+        "od_tolerance_D": {
+          "text": "Column D (OD): +.0000 in / -.0005 in = +.000 mm / -.013 mm, same header convention as B.",
+          "at": {"pdf_page": 21, "table": "DIMENSIONS — TOLERANCES", "column": "D"},
+          "confidence": "traced"
+        }
+      }
+    },
+    {
+      "subject": "MS14101-3",
+      "subject_kind": "part_number",
+      "note": "The .1900 in bore dash. 212956-005-A.pdf's parts list calls out this dash as one of its two spherical bearings, identified by its bore ('.1900 BORE ID', WORKSHEET_endstop_vision_baseline.md §8a) -- the piece-part drawing for the bearing's own housing (213863-004, this same handoff) carries the mating bore, not this bearing's own tolerance.",
+      "values": {
+        "bore_B": {
+          "nominal": 4.826, "min": 4.813, "max": 4.826, "units": "mm",
+          "text": ".1900 in / 4.826 mm, -0.013 mm per the family's bore_tolerance_B.",
+          "at": {"pdf_page": 21, "table": "DIMENSIONS — TOLERANCES", "row": "-03 / MS14101 Grooved Dash No. -3", "column": "B"},
+          "confidence": "traced"
+        },
+        "od_D": {
+          "nominal": 14.288, "min": 14.275, "max": 14.288, "units": "mm",
+          "text": ".5625 in / 14.288 mm, -0.013 mm per the family's od_tolerance_D.",
+          "at": {"pdf_page": 21, "table": "DIMENSIONS — TOLERANCES", "row": "-3", "column": "D"},
+          "confidence": "traced",
+          "note": "Coincidentally the same 14.288 mm figure as MS9363-09's nut_height and NAS6403U11D's family -- unrelated parts; not a cross-reference, just a shared basic in./mm conversion (.5625 in)."
+        },
+        "width_H": {
+          "nominal": 7.14, "units": "mm",
+          "text": ".281 in / 7.14 mm. Band ±.005 in / ±.13 mm, per the family table header (not restated per dash).",
+          "at": {"pdf_page": 21, "table": "DIMENSIONS — TOLERANCES", "row": "-3", "column": "H"},
+          "confidence": "traced"
+        },
+        "ball_width_W": {
+          "nominal": 5.54, "units": "mm",
+          "text": ".218 in / 5.54 mm. Band +.000/-.002 in = +.00/-.05 mm, per the family table header.",
+          "at": {"pdf_page": 21, "table": "DIMENSIONS — TOLERANCES", "row": "-3", "column": "W"},
+          "confidence": "traced"
+        },
+        "min_race_A": {
+          "min": 7.44, "units": "mm",
+          "text": ".293 in / 7.44 mm, MIN.",
+          "at": {"pdf_page": 21, "table": "DIMENSIONS — TOLERANCES", "row": "-3", "column": "A"},
+          "confidence": "traced"
+        }
+      }
+    },
+    {
+      "subject": "MS14103",
+      "subject_kind": "family",
+      "note": "MS14102 & MS14103 SELF-LUBRICATED SPHERICAL BEARING, WIDE (chamfered/grooved pair; MS14102 chamfered, MS14103 grooved -- 212956-005-A's parts list calls out the MS14103 dash, so the part_number entry below is the grooved column). Same AS81820 standard, material and temperature range as MS14101; the wide series differs from the narrow series only in width/OD-family geometry, not in the bore-tolerance convention.",
+      "values": {
+        "standard": {
+          "text": "AS81820 (formerly MIL-B-81820)",
+          "at": {"pdf_page": 22},
+          "confidence": "traced"
+        },
+        "series": {
+          "text": "Wide series, self-lubricated.",
+          "at": {"pdf_page": 22},
+          "confidence": "traced"
+        },
+        "temperature_range": {
+          "text": "-65°F to +325°F (-53.9°C to +162.8°C).",
+          "at": {"pdf_page": 22},
+          "confidence": "traced"
+        },
+        "material": {
+          "text": "Outer ring: CRES 17-4PH, AMS 5643, HRC 28 min. Inner ring: CRES 440C, AMS 5630, HRC 55 min. Liner: Fibriloid® or “E” Uniflon® qualified to AS81820.",
+          "at": {"pdf_page": 22},
+          "confidence": "traced"
+        },
+        "bore_tolerance_B": {
+          "text": "Column B (bore): +.0000 in / -.0005 in = +.000 mm / -.013 mm, printed once in the table header and applying to every dash number -- IDENTICAL convention and value to MS14101's bore_tolerance_B, confirmed by an independent crop of this (wide-series) table.",
+          "at": {"pdf_page": 22, "table": "DIMENSIONS — TOLERANCES", "column": "B"},
+          "confidence": "traced",
+          "note": "THE FACT THIS EVENT WAS ACQUIRED FOR (WORKSHEET_endstop_vision_baseline.md rows 34/36/50/54/56, GT 0.013 mm each) -- same match as MS14101's. The per-dash numeric value is on the MS14103-3 subject below."
+        },
+        "od_tolerance_D": {
+          "text": "Column D (OD): +.0000 in / -.0005 in = +.000 mm / -.013 mm.",
+          "at": {"pdf_page": 22, "table": "DIMENSIONS — TOLERANCES", "column": "D"},
+          "confidence": "traced"
+        }
+      }
+    },
+    {
+      "subject": "MS14103-3",
+      "subject_kind": "part_number",
+      "note": "The .1900 in bore dash -- same bore as MS14101-3, wider body. 212956-005-A.pdf's parts list calls out this dash as the SECOND of its two spherical bearings.",
+      "values": {
+        "bore_B": {
+          "nominal": 4.826, "min": 4.813, "max": 4.826, "units": "mm",
+          "text": ".1900 in / 4.826 mm, -0.013 mm per the family's bore_tolerance_B -- identical bore to MS14101-3.",
+          "at": {"pdf_page": 22, "table": "DIMENSIONS — TOLERANCES", "row": "-03 / MS14103 Grooved Dash No. -3", "column": "B"},
+          "confidence": "traced"
+        },
+        "od_D": {
+          "nominal": 15.875, "min": 15.862, "max": 15.875, "units": "mm",
+          "text": ".6250 in / 15.875 mm, -0.013 mm per the family's od_tolerance_D. Wider than MS14101-3's OD (14.288 mm) at the same bore -- the 'wide' series name describes the outer geometry, not the bore.",
+          "at": {"pdf_page": 22, "table": "DIMENSIONS — TOLERANCES", "row": "-3", "column": "D"},
+          "confidence": "traced"
+        },
+        "width_H": {
+          "nominal": 8.31, "units": "mm",
+          "text": ".327 in / 8.31 mm. Band ±.005 in / ±.13 mm, per the family table header.",
+          "at": {"pdf_page": 22, "table": "DIMENSIONS — TOLERANCES", "row": "-3", "column": "H"},
+          "confidence": "traced"
+        },
+        "ball_width_W": {
+          "nominal": 11.10, "units": "mm",
+          "text": ".437 in / 11.10 mm. Band +.000/-.002 in = +.00/-.05 mm, per the family table header.",
+          "at": {"pdf_page": 22, "table": "DIMENSIONS — TOLERANCES", "row": "-3", "column": "W"},
+          "confidence": "traced"
+        },
+        "min_race_A": {
+          "min": 7.62, "units": "mm",
+          "text": ".300 in / 7.62 mm, MIN.",
+          "at": {"pdf_page": 22, "table": "DIMENSIONS — TOLERANCES", "row": "-3", "column": "A"},
+          "confidence": "traced"
+        }
+      }
+    }
+  ],
+  "notes": [
+    "Do not confuse these metal self-aligning spherical bearings (MS14101-3/MS14103-3, AS81820) with the Trelleborg Turcon Slydring polymer piston/rod bearing family (event 0005) -- a prior session's note already flags this, and this event does not change it.",
+    "Only pages 21-22 (the MS14101/MS14104 narrow and MS14102/MS14103 wide spherical-bearing sections) were read. This is a 115-page catalog covering rod-end bearings, journal bearings and links/assemblies as well; no claim is made about the rest of it.",
+    "The catalog's DIMENSIONS — TOLERANCES tables print the per-column tolerance ONCE, in the header row above the first dash-number row, rather than repeating it on every row -- confirmed by rendering both tables as images (a text-only sweep sees the header tolerance and the dash-row values as separate, unlabelled hits and could miss which one applies to which). Every dash row in both tables uses that same header tolerance; nothing dash-specific overrides it for -3."
+  ]
+}
