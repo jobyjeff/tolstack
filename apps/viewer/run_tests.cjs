@@ -207,6 +207,74 @@ function startHtmlCatchAllServer() {
   });
 }
 
+// --- a stub tolstack_mount_rebuild_endpoint, for storage/http.js's rebuild
+// capability probe and its two rebuild methods (viewer_rebuild_affordance) --
+//
+// Not the real drawing-checker endpoint (staged the same day, not owned by
+// this handoff) -- a stand-in that answers the same shape this adapter
+// consumes (`busy`, `state`), so the click path (POST, then poll GET .../status
+// until it stops being busy) is exercised end to end without depending on
+// that other handoff having shipped. Serves the ordinary DATA_ROUTES too, so
+// one server can prove both the data candidate AND the rebuild candidate at
+// once, the same "one server proves both shapes" trick DATA_ROUTES itself uses.
+function startRebuildOrigin() {
+  return new Promise((resolve) => {
+    let busy = false;
+    const server = http.createServer((req, res) => {
+      const u = (req.url || "/").split("?")[0];
+      if (u === "/tolstack/rebuild/status" && req.method === "GET") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ busy, state: busy ? "running" : "done" }));
+        return;
+      }
+      if (u === "/tolstack/rebuild" && req.method === "POST") {
+        busy = true;
+        // Goes idle shortly after -- long enough for a test to observe
+        // `busy: true` on the immediate response, short enough not to slow
+        // the suite down waiting for it.
+        setTimeout(() => { busy = false; }, 20);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ busy: true, state: "running" }));
+        return;
+      }
+      const route = DATA_ROUTES[u];
+      if (!route) { res.writeHead(404, { "content-type": "text/plain" }); res.end("not found"); return; }
+      res.writeHead(route.status || 200, { "content-type": route.contentType });
+      if (req.method === "HEAD") { res.end(); return; }
+      res.end(route.body);
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
+// A mount that DOES answer the status probe (so capability reads true) but
+// whose POST fails -- proves requestRebuild() rejects on a real transport
+// failure instead of resolving as if nothing were wrong, same contract as
+// _readProjection's own non-404 failures.
+function startRebuildFailOrigin() {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      const u = (req.url || "/").split("?")[0];
+      if (u === "/tolstack/rebuild/status" && req.method === "GET") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ busy: false, state: "done" }));
+        return;
+      }
+      if (u === "/tolstack/rebuild" && req.method === "POST") {
+        res.writeHead(500, { "content-type": "text/plain" });
+        res.end("boom");
+        return;
+      }
+      const route = DATA_ROUTES[u];
+      if (!route) { res.writeHead(404, { "content-type": "text/plain" }); res.end("not found"); return; }
+      res.writeHead(route.status || 200, { "content-type": route.contentType });
+      if (req.method === "HEAD") { res.end(); return; }
+      res.end(route.body);
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
 vm.createContext(sandbox);
 
 const files = [
@@ -238,6 +306,8 @@ for (const f of files) {
   const dataServer = await startStaticServer(DATA_ROUTES);
   const htmlServer = await startHtmlCatchAllServer();
   const emptyServer = await startStaticServer({});
+  const rebuildServer = await startRebuildOrigin();
+  const rebuildFailServer = await startRebuildFailOrigin();
   let dataServerClosed = false;
   sandbox.fetch = fetch;
   sandbox.HTTP_FIXTURE = {
@@ -246,6 +316,12 @@ for (const f of files) {
     // A server that 404s everything -- proves neither candidate resolving is
     // read as DISCONNECTED, not an error.
     emptyOrigin: `http://127.0.0.1:${emptyServer.address().port}`,
+    // tolstack_mount_rebuild_endpoint stand-ins (viewer_rebuild_affordance):
+    // rebuildOrigin answers both the data candidate and a live rebuild
+    // endpoint; rebuildFailOrigin's status route says "capable" but its POST
+    // 500s, for the request-rejects-on-failure case.
+    rebuildOrigin: `http://127.0.0.1:${rebuildServer.address().port}`,
+    rebuildFailOrigin: `http://127.0.0.1:${rebuildFailServer.address().port}`,
     // Simulates a mid-session server stop for exactly one test -- forced
     // through closeAllConnections() first so a kept-alive fetch socket can't
     // leave this hanging.
@@ -268,6 +344,10 @@ for (const f of files) {
     htmlServer.close();
     emptyServer.closeAllConnections();
     emptyServer.close();
+    rebuildServer.closeAllConnections();
+    rebuildServer.close();
+    rebuildFailServer.closeAllConnections();
+    rebuildFailServer.close();
   }
   let failed = 0;
   for (const r of results) {

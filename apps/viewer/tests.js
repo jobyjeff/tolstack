@@ -487,6 +487,56 @@
         eq(await adapter.init(), VA.STATE.DISCONNECTED);
       });
 
+      // --- the rebuild capability (viewer_rebuild_affordance) ----------------
+      //
+      // Runs BEFORE the mid-session-stop test below: that test permanently
+      // closes httpFixture's dataOrigin server, and these two still need it
+      // alive to prove the "mount matches, but the capability is absent"
+      // case (as opposed to "the whole origin is gone").
+
+      await test("the rebuild capability is PROBED, not assumed from the " +
+        "candidate matching -- a sibling-data-mount with no rebuild route " +
+        "mounted yet reports the capability absent", async function () {
+          var adapter = httpAdapter("/tolstack/viewer/topology.html", httpFixture.dataOrigin);
+          eq(await adapter.init(), VA.STATE.READY);
+          eq(adapter.capabilities().rebuild, false);
+        });
+
+      await test("repo-root-static never reports a rebuild capability -- " +
+        "nothing serves it there, by construction", async function () {
+          var adapter = httpAdapter("/apps/viewer/topology.html", httpFixture.dataOrigin);
+          eq(await adapter.init(), VA.STATE.READY);
+          eq(adapter.capabilities().rebuild, false);
+        });
+
+      await test("a live rebuild endpoint under the sibling-data-mount is " +
+        "found by the probe", async function () {
+          var adapter = httpAdapter("/tolstack/viewer/topology.html", httpFixture.rebuildOrigin);
+          eq(await adapter.init(), VA.STATE.READY);
+          eq(adapter.capabilities().rebuild, true);
+        });
+
+      await test("requestRebuild/readRebuildStatus round-trip the endpoint's " +
+        "own busy/state shape", async function () {
+          var adapter = httpAdapter("/tolstack/viewer/topology.html", httpFixture.rebuildOrigin);
+          await adapter.init();
+          var started = await adapter.requestRebuild();
+          ok(started.busy, "the immediate POST response should say busy");
+          var status = await adapter.readRebuildStatus();
+          ok("busy" in status, "the status payload must carry busy");
+        });
+
+      await test("a rebuild request that fails to even start rejects, not " +
+        "resolves null -- the same contract as every other real transport " +
+        "failure in this adapter", async function () {
+          var adapter = httpAdapter("/tolstack/viewer/topology.html", httpFixture.rebuildFailOrigin);
+          eq(await adapter.init(), VA.STATE.READY);
+          eq(adapter.capabilities().rebuild, true);
+          var threw = false;
+          try { await adapter.requestRebuild(); } catch (err) { threw = true; }
+          ok(threw, "a non-ok POST must reject");
+        });
+
       await test("a mid-session server stop rejects instead of reading as " +
         "'not built yet' -- a real transport failure must reach the caller",
         async function () {
@@ -1510,30 +1560,44 @@
       eq(all(root, ".banner__stale").length, 0);
     });
 
-    await test("the banner refuses to present a mismatched pair as current", function () {
+    // No path in this file ever names a script or a shell command in banner
+    // copy again (viewer_rebuild_affordance, 2026-09-10) — asserted directly,
+    // rather than by absence of a particular string, so a NEW way of leaking
+    // one in later still fails this.
+    function noCommandsOrPaths(text) {
+      ok(text.indexOf(".py") === -1, "must not name a script: " + text);
+      ok(text.indexOf("venv-win") === -1, "must not name an interpreter: " + text);
+      ok(text.indexOf("\\") === -1, "must not carry a filesystem path: " + text);
+    }
+
+    function mismatchedCrops() {
       var crops = JSON.parse(JSON.stringify(CROPS));
       crops.provenance.head_sha = "fedcba9876543210fedcba9876543210fedcba98";
       crops.provenance.branch = "handoff/somebody_else";
-      var root = render(function (r) {
-        VA.renderBanner(r, {
-          connection: VA.STATE.READY, results: FIXTURE.results, crops: crops,
-        }, {});
-      });
-      eq(all(root, ".banner__stale").length, 1);
-      has(root.textContent, "needs a rebuild");
-      has(root.textContent, "DIFFERENT trees");
-      // An alarm a reader cannot act on is an alarm they learn to ignore.
-      has(root.textContent, "build_viewer_projection.py");
-      has(root.textContent, "build_viewer_crops.py");
-    });
+      return crops;
+    }
 
-    await test("the alarm badge is one plain-words line, collapsed by " +
-      "default, with the branch/sha detail behind an expand", function () {
-        var crops = JSON.parse(JSON.stringify(CROPS));
-        crops.provenance.head_sha = "fedcba9876543210fedcba9876543210fedcba98";
+    await test("the banner refuses to present a mismatched pair as current, " +
+      "and states it in plain words with no capability", function () {
         var root = render(function (r) {
           VA.renderBanner(r, {
-            connection: VA.STATE.READY, results: FIXTURE.results, crops: crops,
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: mismatchedCrops(),
+          }, {});
+        });
+        eq(all(root, ".banner__stale").length, 1);
+        has(root.textContent, "needs a rebuild");
+        has(root.textContent, "DIFFERENT trees");
+        has(root.textContent, "The data is older than the code and needs a rebuild.");
+        eq(all(root, ".banner__rebuild button").length, 0,
+          "no capability means no button, just the sentence");
+        noCommandsOrPaths(root.textContent);
+      });
+
+    await test("the alarm badge is one plain-words line, collapsed by " +
+      "default, with only the branch/sha detail behind an expand", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: mismatchedCrops(),
           }, {});
         });
         var badge = all(root, "details.banner__stale")[0];
@@ -1542,13 +1606,80 @@
         var summary = badge.querySelector("summary");
         // House UI-copy rules on the ALWAYS-VISIBLE line: no shell command, no
         // internal file/module name, no multi-sentence paragraph.
-        ok(summary.textContent.indexOf(".py") === -1,
-          "the collapsed line must not name a script");
-        ok(summary.textContent.indexOf("build_viewer_projection") === -1);
         has(summary.textContent, "needs a rebuild");
-        // The detail — branch/sha specifics and the rebuild commands — still
-        // exists, just not on the collapsed line.
-        has(root.textContent, "build_viewer_projection.py");
+        noCommandsOrPaths(summary.textContent);
+        // And the detail, once expanded, carries none either — unlike before
+        // this handoff, there is no rebuild command left anywhere to expand to.
+        noCommandsOrPaths(root.textContent);
+      });
+
+    await test("a rebuild capability renders a button instead of the sentence", function () {
+      var root = render(function (r) {
+        VA.renderBanner(r, {
+          connection: VA.STATE.READY, results: FIXTURE.results, crops: mismatchedCrops(),
+          capabilities: { rebuild: true }, rebuild: { busy: false, error: null },
+        }, {});
+      });
+      var btn = all(root, ".banner__rebuild")[0].querySelector("button");
+      ok(btn, "expected a Rebuild button");
+      eq(btn.textContent, "Rebuild");
+      ok(!btn.disabled, "must not start disabled");
+      ok(root.textContent.indexOf(
+        "The data is older than the code and needs a rebuild.") === -1,
+        "the button replaces the sentence, not both");
+      noCommandsOrPaths(root.textContent);
+    });
+
+    await test("clicking Rebuild calls the handler", function () {
+      var called = 0;
+      var root = render(function (r) {
+        VA.renderBanner(r, {
+          connection: VA.STATE.READY, results: FIXTURE.results, crops: mismatchedCrops(),
+          capabilities: { rebuild: true }, rebuild: { busy: false, error: null },
+        }, { onRebuild: function () { called++; } });
+      });
+      all(root, ".banner__rebuild")[0].querySelector("button").onclick();
+      eq(called, 1);
+    });
+
+    await test("a busy rebuild disables the button and says so, in plain words", function () {
+      var root = render(function (r) {
+        VA.renderBanner(r, {
+          connection: VA.STATE.READY, results: FIXTURE.results, crops: mismatchedCrops(),
+          capabilities: { rebuild: true }, rebuild: { busy: true, error: null },
+        }, {});
+      });
+      var btn = all(root, ".banner__rebuild")[0].querySelector("button");
+      ok(btn.disabled, "must be disabled while a rebuild is in flight");
+      has(btn.textContent, "Rebuilding");
+    });
+
+    await test("a failed rebuild shows a fixed plain-words error, never the " +
+      "server's own text", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: mismatchedCrops(),
+            capabilities: { rebuild: true },
+            rebuild: { busy: false, error: "The rebuild failed. Try again, or " +
+              "ask whoever runs the server to check its logs." },
+          }, {});
+        });
+        has(all(root, ".banner__rebuild")[0].querySelector(".banner__error").textContent,
+          "rebuild failed");
+        noCommandsOrPaths(root.textContent);
+      });
+
+    await test("a capability with nothing stale renders neither the button " +
+      "nor the sentence", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: CROPS,
+            capabilities: { rebuild: true },
+          }, {});
+        });
+        eq(all(root, ".banner__stale").length, 0);
+        eq(all(root, ".banner__rebuild").length, 0);
+        ok(root.textContent.indexOf("needs a rebuild") === -1);
       });
 
     // --- the topology page ---------------------------------------------------

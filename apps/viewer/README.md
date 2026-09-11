@@ -111,6 +111,22 @@ No folder grant handy? `topology.html?mock=1` renders a seeded demo — a
 mechanism plus the nav tree's own demo classic-only stack — that exercises
 every provenance state. Nothing touches disk.
 
+### The stale-pair alarm never prints a command (`viewer_rebuild_affordance`)
+
+Pasting `venv-win\Scripts\python.exe ...` into PowerShell straight from a web
+page is not acceptable UI design (Jeff, 2026-09-10) — and the pasted text had
+a bug of its own besides: two commands landed on one line with no separator,
+because they were adjacent inline `<code>` elements with nothing between them.
+The alarm box (`views/banner.js`'s `provenance()`) never shows a rebuild
+command again, in either mode:
+
+- **served, with drawing-checker's rebuild endpoint live** (probed —
+  `adapter.capabilities().rebuild`, never assumed from the mount matching) —
+  a **Rebuild** button drives the whole thing: click, POST, poll status,
+  reload on success, a fixed plain-words sentence on failure.
+- **everything else** (`file://`, a plain static server, or the mount without
+  the endpoint) — one sentence, nothing to type.
+
 ## The one rule: the viewer computes nothing
 
 `tolerance_stack.fold()` is the only arithmetic in this repo — *"there is exactly

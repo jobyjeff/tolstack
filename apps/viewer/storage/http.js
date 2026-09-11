@@ -30,12 +30,22 @@
 // `pathname`/`fetchImpl` are constructor overrides for the node test tier
 // only (no real `window.location`/`fetch` there); a browser never passes
 // them, and both default to the real globals.
+//
+// `rebuildDir` (viewer_rebuild_affordance, 2026-09-10): the sibling-data-mount
+// candidate is drawing-checker's own mount, so it alone can also carry a
+// sibling `/tolstack/rebuild` endpoint (`tolstack_mount_rebuild_endpoint`,
+// staged the same day) — a plain repo-root static server never can, since
+// nothing serves it. Presence is PROBED (see _probeRebuild), never assumed
+// from the candidate matching: the endpoint's own handoff may not have
+// shipped yet even where the mount otherwise looks right, and a probe is the
+// only way to tell "not built yet" from "not here at all" without hardcoding
+// either answer.
 (function (VA) {
   "use strict";
 
   var CANDIDATES = [
-    { name: "sibling-data-mount", dataDir: "../data", textDir: null },
-    { name: "repo-root-static", dataDir: "../../data/projections/viewer", textDir: "../.." },
+    { name: "sibling-data-mount", dataDir: "../data", textDir: null, rebuildDir: "../rebuild" },
+    { name: "repo-root-static", dataDir: "../../data/projections/viewer", textDir: "../..", rebuildDir: null },
   ];
 
   // Resolve a `../`-relative path against the PAGE's own directory, exactly
@@ -91,9 +101,14 @@
   // sibling-data-mount candidate — docs/ is not reachable through it at all,
   // which is a fact about the MOUNT, not a missing file, and views must not
   // offer a control this transport cannot service (forge apps/README.md,
-  // "Two transports, and the page says which one it is on").
+  // "Two transports, and the page says which one it is on"). `rebuild` is
+  // set only once `_probeRebuild` has actually reached the endpoint — never
+  // inferred from the candidate alone (see the CANDIDATES comment above).
   HttpAdapter.prototype.capabilities = function () {
-    return { worksheets: !!(this._candidate && this._candidate.textDir !== null) };
+    return {
+      worksheets: !!(this._candidate && this._candidate.textDir !== null),
+      rebuild: !!this._rebuildAvailable,
+    };
   };
 
   HttpAdapter.prototype._url = function (relative) {
@@ -120,12 +135,32 @@
         if (ct.toLowerCase().indexOf("json") !== -1) {
           this._candidate = candidate;
           this._state = VA.STATE.READY;
+          await this._probeRebuild();
           return this._state;
         }
       }
     }
     this._state = VA.STATE.DISCONNECTED;
     return this._state;
+  };
+
+  // Same shape as the data-candidate probe above (ok + JSON content-type,
+  // never status alone): a catch-all route answering 200 for anything would
+  // otherwise read as "the rebuild endpoint is live" when it is really the
+  // sibling-data-mount's own SPA fallback. Absence (no mount, or the mount
+  // exists but tolstack_mount_rebuild_endpoint hasn't shipped yet) is left as
+  // `false`, the same "not here" reading every other absent-capability check
+  // in this adapter uses.
+  HttpAdapter.prototype._probeRebuild = async function () {
+    this._rebuildAvailable = false;
+    if (!this._candidate || !this._candidate.rebuildDir) return;
+    var res = await this._fetchQuiet(this._candidate.rebuildDir + "/status",
+      { cache: "no-store" });
+    if (!res || !res.ok) return;
+    var ct = (res.headers && typeof res.headers.get === "function"
+      && res.headers.get("content-type")) || "";
+    if (ct.toLowerCase().indexOf("json") === -1) return;
+    this._rebuildAvailable = true;
   };
 
   // Neither is ever reachable from the UI (served mode never shows the
@@ -178,6 +213,33 @@
       this._candidate.textDir + "/" + segments.join("/"), { cache: "no-store" });
     if (!res || !res.ok) return null;
     return res.text();
+  };
+
+  // Both rebuild methods require the capability the caller already checked
+  // (`capabilities().rebuild`) — never called speculatively, so an unready
+  // candidate here is a caller bug, not a transport state to swallow quietly.
+  //
+  // POST kicks off tolstack_mount_rebuild_endpoint's single-flight runner;
+  // GET status is the same payload, polled. Both resolve the parsed JSON
+  // status object (whatever shape the endpoint answers — this adapter reads
+  // only `busy`/`state` off it, topology_app.js's own poll loop) and both
+  // THROW on a non-ok response: a rebuild failing to even start is a real
+  // transport failure, not "not built yet", so it must reach the caller as a
+  // rejection the same way _readProjection's non-404 failures do.
+  HttpAdapter.prototype.requestRebuild = async function () {
+    VA.requireReady(this);
+    var res = await this._fetch(this._url(this._candidate.rebuildDir),
+      { method: "POST", cache: "no-store" });
+    if (!res.ok) throw new Error("rebuild request failed: " + res.status);
+    return VA.parseJson(await res.text());
+  };
+
+  HttpAdapter.prototype.readRebuildStatus = async function () {
+    VA.requireReady(this);
+    var res = await this._fetch(this._url(this._candidate.rebuildDir + "/status"),
+      { cache: "no-store" });
+    if (!res.ok) throw new Error("rebuild status failed: " + res.status);
+    return VA.parseJson(await res.text());
   };
 
   VA.HttpAdapter = HttpAdapter;

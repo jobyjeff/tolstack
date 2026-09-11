@@ -130,6 +130,158 @@ function startRepoRootServer() {
   });
 }
 
+// --- a stub tolstack_mount_rebuild_endpoint, sibling-data-mount shape ------
+//
+// Mimics drawing-checker's own mount (webui/analyses.py: VIEWER_MOUNT =
+// "/tolstack/viewer", DATA_MOUNT = "/tolstack/data") plus a sibling
+// /tolstack/rebuild (POST) + /tolstack/rebuild/status (GET) — NOT the real
+// endpoint (tolstack_mount_rebuild_endpoint, staged the same day as this
+// handoff and owned by drawing-checker, not built here), just enough to
+// prove the viewer's OWN click path end to end: probe, button, POST, poll,
+// reload. `matchCrops` controls whether the synthetic topologies.json/
+// crops.json provenance stamps agree (fresh) or not (stale);
+// `rebuildCapable` controls whether the stub answers the rebuild routes at
+// all, the same "absent means not shipped yet" case storage/http.js's own
+// probe has to survive.
+function startSiblingMountServer({ matchCrops, rebuildCapable }) {
+  return new Promise((resolve) => {
+    let busy = false;
+    const topologiesJson = () => JSON.stringify({
+      topologies: [],
+      provenance: { branch: "master", head_sha: "1".repeat(40), behind_trunk: 0, dirty: false },
+    });
+    const cropsJson = () => JSON.stringify({
+      by_stack: {}, summary: {},
+      provenance: {
+        branch: "master",
+        head_sha: matchCrops ? "1".repeat(40) : "2".repeat(40),
+        behind_trunk: 0, dirty: false,
+      },
+    });
+    const server = createServer(async (req, res) => {
+      const u = (req.url || "/").split("?")[0];
+      if (u === "/tolstack/rebuild/status" && req.method === "GET") {
+        if (!rebuildCapable) { res.writeHead(404).end("not found"); return; }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ busy, state: busy ? "running" : "done" }));
+        return;
+      }
+      if (u === "/tolstack/rebuild" && req.method === "POST") {
+        if (!rebuildCapable) { res.writeHead(404).end("not found"); return; }
+        busy = true;
+        setTimeout(() => { busy = false; }, 200);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ busy: true, state: "running" }));
+        return;
+      }
+      if (u === "/tolstack/data/topologies.json") {
+        res.writeHead(200, { "content-type": "application/json" }).end(topologiesJson());
+        return;
+      }
+      if (u === "/tolstack/data/crops.json") {
+        res.writeHead(200, { "content-type": "application/json" }).end(cropsJson());
+        return;
+      }
+      if (u === "/tolstack/data/results.json") {
+        res.writeHead(404).end("not found");
+        return;
+      }
+      if (u.startsWith("/tolstack/viewer/")) {
+        try {
+          const rel = u.slice("/tolstack/viewer/".length) || "topology.html";
+          const full = join(APP_DIR, rel);
+          if (full !== APP_DIR && !full.startsWith(APP_DIR + sep)) {
+            res.writeHead(403).end("forbidden");
+            return;
+          }
+          const body = await readFile(full);
+          res.writeHead(200, { "content-type": MIME[extname(full)] || "application/octet-stream" });
+          res.end(body);
+        } catch {
+          res.writeHead(404).end("not found");
+        }
+        return;
+      }
+      res.writeHead(404).end("not found");
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
+// The banner's whole deliverable (viewer_rebuild_affordance, 2026-09-10): no
+// rebuild command ever renders again, in either mode, and a live endpoint
+// drives a real click through to a reload. Three servers, one scenario each —
+// a fresh stub per scenario keeps the busy/done state machine from leaking
+// across them the way one shared server's mutable `busy` flag would.
+async function testRebuildAffordance(browser) {
+  const label = "rebuild affordance (stub sibling mount)";
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const noCommandsOrPaths = (text) => !/\.py|venv-win|C:\\/.test(text || "");
+
+  async function withServer(opts, fn) {
+    const server = await startSiblingMountServer(opts);
+    const port = server.address().port;
+    const page = await browser.newPage();
+    try {
+      await page.goto(`http://127.0.0.1:${port}/tolstack/viewer/topology.html`,
+        { waitUntil: "load" });
+      await fn(page);
+    } finally {
+      await page.close();
+      server.close();
+    }
+  }
+
+  try {
+    // 1) stale + capability -> a button, and a real click drives the stub
+    //    endpoint through busy -> done.
+    await withServer({ matchCrops: false, rebuildCapable: true }, async (page) => {
+      await page.waitForSelector(".banner__rebuild button", { timeout: 15000 });
+      push("stale+capability renders a Rebuild button, not the sentence",
+        await page.locator(".banner__rebuild button").count() === 1 &&
+        await page.locator(".banner__rebuild-hint").count() === 0);
+      push("no command or path anywhere in the banner (capability case)",
+        noCommandsOrPaths(await page.locator("#banner").textContent()));
+
+      await page.locator(".banner__rebuild button").click();
+      await page.waitForSelector(".banner__rebuild button[disabled]", { timeout: 5000 });
+      push("clicking Rebuild disables the button while the stub reports busy", true);
+      await page.waitForFunction(
+        () => !document.querySelector(".banner__rebuild button")?.disabled,
+        null, { timeout: 5000 });
+      push("the button re-enables once the stub's status reports done", true);
+    });
+
+    // 2) stale + no capability -> one plain sentence, no button, no command.
+    await withServer({ matchCrops: false, rebuildCapable: false }, async (page) => {
+      await page.waitForSelector(".banner__rebuild-hint", { timeout: 15000 });
+      push("stale+no-capability renders the one-sentence state, no button",
+        await page.locator(".banner__rebuild-hint").count() === 1 &&
+        await page.locator(".banner__rebuild button").count() === 0);
+      push("no command or path anywhere in the banner (no-capability case)",
+        noCommandsOrPaths(await page.locator("#banner").textContent()));
+    });
+
+    // 3) fresh (matching) provenance -> no stale banner at all.
+    await withServer({ matchCrops: true, rebuildCapable: true }, async (page) => {
+      await page.waitForSelector("#banner", { timeout: 15000 });
+      await page.waitForTimeout(200);
+      push("fresh (matching) provenance shows no stale banner",
+        await page.locator(".banner__stale").count() === 0);
+    });
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    return { label, ok: false };
+  }
+}
+
 async function launch() {
   const failures = [];
   for (const channel of CHANNELS) {
@@ -1095,6 +1247,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     results.push(await testServedModeBoot(
       browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
       stopRepoRootServer));
+    results.push(await testRebuildAffordance(browser));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);

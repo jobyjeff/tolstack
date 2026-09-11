@@ -59,6 +59,12 @@
     // whichever of loadTopoDetailImage/loadStackDetailImage last ran.
     detailImage: null,
     error: null,
+
+    // Served-mode rebuild-in-progress, driven by onRebuild/pollRebuild below
+    // (viewer_rebuild_affordance). `error` is always a fixed plain sentence —
+    // never the endpoint's own response text, which could name a script or a
+    // path — see rebuildFailed()'s own comment for why.
+    rebuild: { busy: false, error: null },
   };
 
   var adapter = null;
@@ -480,6 +486,7 @@
           state.error = String(err && err.message || err);
         }).then(render);
       },
+      onRebuild: onRebuild,
     });
 
     renderNav();
@@ -596,6 +603,54 @@
     if (nodes.stackview) nodes.stackview.scrollTop = 0;
   }
 
+  // --- rebuild (viewer_rebuild_affordance): the banner's button, end to end -
+  //
+  // Only reachable when the banner offered it at all (capabilities().rebuild),
+  // so a caller passing through here already knows adapter.requestRebuild
+  // exists. Click -> POST -> poll GET .../status until it stops being busy ->
+  // reload the projections on success. `REBUILD_POLL_MS` is a plain interval,
+  // not backoff: tolstack_mount_rebuild_endpoint's own rebuild is a one-shot
+  // script run, seconds long, not a job queue worth backing off against.
+  var REBUILD_POLL_MS = 1500;
+
+  function onRebuild() {
+    if (!adapter || typeof adapter.requestRebuild !== "function" || state.rebuild.busy) return;
+    state.rebuild = { busy: true, error: null };
+    render();
+    adapter.requestRebuild().then(pollRebuild).catch(rebuildFailed);
+  }
+
+  function pollRebuild(status) {
+    if (status && status.busy) {
+      setTimeout(function () {
+        adapter.readRebuildStatus().then(pollRebuild).catch(rebuildFailed);
+      }, REBUILD_POLL_MS);
+      return;
+    }
+    if (!status || status.state === "failed") {
+      rebuildFailed();
+      return;
+    }
+    state.rebuild = { busy: false, error: null };
+    load().catch(function (err) {
+      state.error = String(err && err.message || err);
+    }).then(render);
+  }
+
+  // Deliberately a fixed sentence, never the endpoint's own error/tail text:
+  // that text can name a script or a filesystem path (a Python traceback's
+  // ordinary shape), which is exactly what this handoff exists to keep out of
+  // the banner. The failure is real and worth saying; the diagnostic detail
+  // belongs in the server's own log, not this page.
+  function rebuildFailed() {
+    state.rebuild = {
+      busy: false,
+      error: "The rebuild failed. Try again, or ask whoever runs the server " +
+        "to check its logs.",
+    };
+    render();
+  }
+
   function gesture(promise) {
     promise.then(function (connection) {
       state.connection = connection;
@@ -626,6 +681,15 @@
       // READY, so this is only the one line served mode adds — FSA mode gets
       // no new line at all, unchanged from before this handoff.
       transport: transportKind,
+      // What this adapter can actually do (viewer_rebuild_affordance): an
+      // adapter with no capabilities() method (FSA, memory, node-fs) reads as
+      // null here, same as views/topology_app.js's own worksheet check reads
+      // "no capabilities() means fully capable" — the banner's own
+      // `caps && caps.rebuild` guard treats null/undefined identically to
+      // `{ rebuild: false }`.
+      capabilities: adapter && typeof adapter.capabilities === "function"
+        ? adapter.capabilities() : null,
+      rebuild: state.rebuild,
     };
   }
 
