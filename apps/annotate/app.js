@@ -56,6 +56,11 @@ const state = {
   // list is loaded. Refreshed once per connection (loadAll), same lifetime as
   // the rest of a session's loaded data.
   meshList: [],
+  // The tracked alias table's entries (docs/topologies/part_mesh_aliases.json
+  // -> its `aliases` array), loaded once in loadAll and INJECTED into
+  // resolveMeshIdentifier -- commands.js stays fetch-free. Missing/empty
+  // table is just [] (no aliases resolve), never an error.
+  partMeshAliases: [],
 };
 
 function setBanner(text, kind) {
@@ -75,7 +80,7 @@ function setBanner(text, kind) {
 // element" one step at a time needs the same three verbs goto composes.
 
 function resolveMeshOrThrow(identifier) {
-  const mesh = AA.resolveMeshIdentifier(state.meshList, identifier);
+  const mesh = AA.resolveMeshIdentifier(state.meshList, identifier, state.partMeshAliases);
   if (mesh) return mesh;
   const known = state.meshList.map((m) => m.part_id || m.sha256);
   throw new Error(
@@ -106,7 +111,7 @@ function cmdHide(identifier) {
 // all could be shown, not about every miss.
 async function cmdIsolate(...identifiers) {
   if (!identifiers.length) throw new Error("isolate needs at least one part identifier");
-  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id) }));
+  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
   const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
   const targets = resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256);
 
@@ -594,6 +599,8 @@ async function loadAll() {
   );
   renderTopologyPicker();
   state.meshList = await state.storage.listMeshes();
+  const aliasDoc = await state.storage.readPartMeshAliases();
+  state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
   renderPartsPanel();
 
   await runPendingDeepLink();

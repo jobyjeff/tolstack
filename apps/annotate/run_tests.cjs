@@ -368,6 +368,48 @@ check("resolveMeshIdentifier returns null rather than throwing on a miss", () =>
   }
 });
 
+// --- the alias table (handoff mesh_part_alias_table): resolution precedence.
+// Direct sha256/part_id matches win; the alias table is consulted second;
+// unmapped stays null (the caller's empty state) -- and never a fuzzy match.
+const ALIASES = [
+  // Deliberately maps identifiers that ALSO exist directly, so the precedence
+  // tests below can tell "direct match won" from "alias won": if the alias
+  // pass ran first, "aaaa"/"part_a" would land on Part B.
+  { topology_part: "aaaa", mesh_part_id: "part_b" },
+  { topology_part: "part_a", mesh_part_id: "part_b" },
+  { topology_part: "topology_name_for_part_a", mesh_part_id: "part_a" },
+  { topology_part: "ghost_part", mesh_part_id: "not_installed" },
+];
+check("resolveMeshIdentifier: a direct sha256 match wins over an alias with the same key", () => {
+  assertEqual(AA.resolveMeshIdentifier(MESHES, "aaaa", ALIASES), MESHES[0]);
+});
+check("resolveMeshIdentifier: a direct part_id match wins over an alias with the same key", () => {
+  assertEqual(AA.resolveMeshIdentifier(MESHES, "part_a", ALIASES), MESHES[0]);
+});
+check("resolveMeshIdentifier: an alias resolves a topology part id to its declared mesh", () => {
+  assertEqual(AA.resolveMeshIdentifier(MESHES, "topology_name_for_part_a", ALIASES), MESHES[0]);
+});
+check("resolveMeshIdentifier: an alias to a mesh that is not installed is still null", () => {
+  if (AA.resolveMeshIdentifier(MESHES, "ghost_part", ALIASES) !== null) {
+    throw new Error("expected null when the alias's mesh_part_id has no installed mesh");
+  }
+});
+check("resolveMeshIdentifier: an unmapped identifier stays null with the table present -- the existing empty state", () => {
+  if (AA.resolveMeshIdentifier(MESHES, "still_no_such_part", ALIASES) !== null) {
+    throw new Error("expected null for an identifier no alias declares");
+  }
+});
+check("resolveMeshIdentifier: aliases match exactly, never by substring", () => {
+  // A prefix of a declared key, and a key that is a prefix of the identifier:
+  // both must miss -- the strategy brief rejected fuzzy matching by name.
+  if (AA.resolveMeshIdentifier(MESHES, "topology_name_for", ALIASES) !== null) {
+    throw new Error("a prefix of an alias key matched -- substring leniency crept in");
+  }
+  if (AA.resolveMeshIdentifier(MESHES, "topology_name_for_part_a_extra", ALIASES) !== null) {
+    throw new Error("an identifier extending an alias key matched -- substring leniency crept in");
+  }
+});
+
 check("planIsolate: nothing open yet -- everything named needs to open", () => {
   assertEqual(AA.planIsolate([], ["aaaa", "bbbb"]),
     { toOpen: ["aaaa", "bbbb"], toShow: [], toHide: [] });
@@ -380,6 +422,70 @@ check("planIsolate: isolating everything already open hides nothing and opens no
   assertEqual(AA.planIsolate(["aaaa", "bbbb"], ["aaaa", "bbbb"]),
     { toOpen: [], toShow: ["aaaa", "bbbb"], toHide: [] });
 });
+
+// --- [real] the shipped alias table against the installed meshes ------------
+//
+// The tracked table (docs/topologies/part_mesh_aliases.json -- read from THIS
+// tree, it is tracked) resolved against the real data/meshes/ provenance
+// files, through resolveMeshIdentifier itself -- the exact call the deep
+// link's `isolate=` makes. data/ is gitignored and lives only in the main
+// checkout (repo CLAUDE.md), so from a worktree the repo-relative path is
+// empty by design: fall back to the main checkout absolute path, and skip
+// honestly (the viewer suite's [real]-tier convention) when neither has an
+// installed mesh -- absence of data is not a failure of this code.
+const realMeshesDir = [
+  path.join(here, "..", "..", "data", "meshes"),
+  "C:\\workspace\\tolstack\\data\\meshes",
+].find((dir) => {
+  try {
+    return fs.readdirSync(dir).some((name) => /^[0-9a-f]{64}$/.test(name));
+  } catch (_) {
+    return false;
+  }
+});
+
+function realMeshList() {
+  return fs.readdirSync(realMeshesDir)
+    .filter((name) => /^[0-9a-f]{64}$/.test(name))
+    .map((sha256) => {
+      const provenancePath = path.join(realMeshesDir, sha256, "provenance.json");
+      if (!fs.existsSync(provenancePath)) return { sha256, label: sha256, part_id: null };
+      const p = JSON.parse(fs.readFileSync(provenancePath, "utf8"));
+      return { sha256, label: p.label, part_id: p.part_id };
+    });
+}
+
+function shippedAliases() {
+  const tablePath = path.join(here, "..", "..", "docs", "topologies", "part_mesh_aliases.json");
+  return JSON.parse(fs.readFileSync(tablePath, "utf8")).aliases;
+}
+
+if (!realMeshesDir) {
+  console.log("SKIP  [real] alias-table resolution -- no data/meshes/ with an installed mesh " +
+    "(gitignored, main checkout only; see data/meshes/README.md)");
+} else {
+  check("[real] every shipped alias's topology part resolves to an installed mesh -- the deep link's own call", () => {
+    const meshes = realMeshList();
+    const aliases = shippedAliases();
+    if (!aliases.length) {
+      // An honestly-empty table is a legitimate state (no pair evidenced yet)
+      // -- there is just nothing to resolve.
+      console.log("      (the shipped alias table is empty -- nothing to resolve)");
+      return;
+    }
+    for (const alias of aliases) {
+      const mesh = AA.resolveMeshIdentifier(meshes, alias.topology_part, aliases);
+      if (!mesh) {
+        throw new Error(
+          `alias "${alias.topology_part}" -> "${alias.mesh_part_id}" resolves to no installed mesh -- ` +
+          "the mesh was removed or re-installed under a different part_id; " +
+          "update or remove the alias (docs/topologies/part_mesh_aliases.json)");
+      }
+      assertEqual(mesh.part_id, alias.mesh_part_id,
+        `alias "${alias.topology_part}" resolved to the wrong mesh`);
+    }
+  });
+}
 
 (async () => {
   for (const run of checks) await run();

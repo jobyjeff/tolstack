@@ -7,6 +7,10 @@
   AA.CONFIG = {
     topologiesDir: ["docs", "topologies"],
     meshesDir: ["data", "meshes"],
+    // The tracked topology-part -> mesh part_id alias table (handoff
+    // mesh_part_alias_table) -- the one sanctioned bridge between the
+    // topology `part` vocabulary and mesh provenance `part_id`s.
+    partMeshAliases: ["docs", "topologies", "part_mesh_aliases.json"],
     // The topology PROJECTION, not the raw topology file: it already carries
     // every edge's resolved citation confidence (dimension_ref resolved out
     // of the stack file at build time by scripts/build_topology_projection.py)

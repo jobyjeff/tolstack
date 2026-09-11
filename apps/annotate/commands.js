@@ -59,15 +59,24 @@
   };
   AA.CommandLayer = CommandLayer;
 
-  // Pure: resolve a user-typed identifier (a mesh's sha256, or its
-  // provenance.json `part_id`) against the mesh list `storage.listMeshes()`
-  // returns. Exact match either way, case-sensitive (sha256 is lowercase hex,
-  // part_id is an author's own slug -- guessing a case-insensitive match
-  // would be exactly the kind of invented leniency this repo avoids
-  // elsewhere). Returns null rather than throwing: a boot-time deep link and a
-  // typed command need to report "not found" very differently (an empty-state
-  // overlay vs. a console error), so the decision belongs to the caller.
-  AA.resolveMeshIdentifier = function (meshes, identifier) {
+  // Pure: resolve a user-typed identifier (a mesh's sha256, its
+  // provenance.json `part_id`, or a topology `part` id declared in the alias
+  // table) against the mesh list `storage.listMeshes()` returns. Exact match
+  // only, case-sensitive (sha256 is lowercase hex, part_id is an author's own
+  // slug -- guessing a case-insensitive or substring match would be exactly
+  // the kind of invented leniency this repo avoids elsewhere; the strategy
+  // brief behind the alias table rejected fuzzy matching outright).
+  //
+  // Precedence: direct sha256 match, then direct part_id match, then the
+  // alias table (docs/topologies/part_mesh_aliases.json, injected by the
+  // caller -- this file stays fetch-free). An alias maps a topology-side
+  // `topology_part` to a mesh-side `mesh_part_id`; the mesh side of an alias
+  // needs no pass of its own because a mesh_part_id typed directly IS a
+  // part_id and already resolves in the direct pass. Returns null rather than
+  // throwing: a boot-time deep link and a typed command need to report "not
+  // found" very differently (an empty-state overlay vs. a console error), so
+  // the decision belongs to the caller.
+  AA.resolveMeshIdentifier = function (meshes, identifier, aliases) {
     if (!identifier) return null;
     var list = meshes || [];
     for (var i = 0; i < list.length; i++) {
@@ -75,6 +84,13 @@
     }
     for (var j = 0; j < list.length; j++) {
       if (list[j].part_id === identifier) return list[j];
+    }
+    var table = aliases || [];
+    for (var k = 0; k < table.length; k++) {
+      if (table[k].topology_part !== identifier) continue;
+      for (var m = 0; m < list.length; m++) {
+        if (list[m].part_id === table[k].mesh_part_id) return list[m];
+      }
     }
     return null;
   };
