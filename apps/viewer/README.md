@@ -111,6 +111,102 @@ No folder grant handy? `topology.html?mock=1` renders a seeded demo — a
 mechanism plus the nav tree's own demo classic-only stack — that exercises
 every provenance state. Nothing touches disk.
 
+## Deep links in — the URL contract
+
+**This section is a contract a sibling repo consumes** — drawing-checker's
+analyses panel links into this page with a stack selected
+(`analyses_viewer_deep_link`, staged in that repo, reads exactly what is
+documented here). The params live in one constant (`VA.DEEP_LINK_PARAMS`,
+`viewer.js`) and are pinned by tests in both repos: treat a rename or a
+semantics change as **breaking**, and change this section with it.
+
+`topology.html` answers six selection params, over and above `?mock=1`:
+
+| param | opens |
+|---|---|
+| `topology=<id>` | topology mode, that topology |
+| `study=<id>` | …with that study selected (chain highlighted, totals in the strip). Requires `topology`. |
+| `edge=<id>` | …with that edge selected in the detail pane. Requires `topology`. |
+| `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
+| `stack=<id>` | stack mode — the classic elements table — on that stack |
+| `element=<id>` | …with that element's row selected and its sourcing in the right pane. Requires `stack`. |
+
+The rules a consumer can rely on:
+
+- **Ids are the projections' own ids**: a topology/study/edge/node id as it
+  appears in `topologies.json`, a stack/element id as it appears in
+  `results.json` (the stack's `id` field, not its filename).
+- **Give `topology` or `stack`, not both.** If both arrive, the topology wins
+  and the ignored stack is said in a banner notice.
+- **An id the data does not contain degrades, loudly and safely**: the page
+  opens on its defaults and a plain-words banner line says what the link asked
+  for — never an error page, never a silent guess at a different node.
+- Values are URL-decoded; the first occurrence of a param wins; an empty value
+  reads as absent.
+- `?mock=1` composes with all of the above (it picks the *dataset*; these pick
+  the selection within it) and survives the `index.html` redirect.
+- **Stable under any serving shape**: the contract is query params on the
+  relative page — `/tolstack/viewer/topology.html?…` under the drawing-checker
+  mount, `/apps/viewer/topology.html?…` under a repo-root static server, and a
+  `file://` double-click all read identically. Under `file://` with no prior
+  FSA grant the selection applies after **Connect folder** — the link is
+  remembered until the first successful load, then consumed.
+
+Examples:
+
+```
+topology.html?topology=pitch_system&study=pitch_system_gas_spring_branch
+topology.html?topology=pitch_system&edge=end_stop_clearance
+topology.html?stack=rotor_fastener_length&element=fastener_grip
+topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip
+```
+
+The outbound twin, for building one of these links in code, is
+`VA.viewerLink(params)` — same param names, round-tripped against
+`VA.parseDeepLink` by the fast tier.
+
+## Hover reference cards — the grid's own reference material
+
+(`viewer_hover_cards_and_deep_links`, 2026-09-10; drawing-checker's card
+pattern.) Three hover cards, all rendered into the one positioned popover node
+the crop popover already used, all **hover-only chrome**: the popover is
+`position: fixed`, so an open card cannot disturb the layout contracts —
+full-page scroll, whole-edge hover, leader alignment — and the browser tier
+measures exactly that (the DAG pane's box with a card open, to the pixel).
+
+- **Edge card** — on the edge row's crop trigger (hover, focus or click; the
+  trigger is the inline thumbnail once fetched). The crop of the actual
+  tolerance annotation with its placement provenance and click-throughs (the
+  same `VA.cropBlock` the plain popover shows), plus the citation's where-ref
+  and which crop-index entry the key addresses. The card's crop slot is a
+  **list**: an interface's two half-sides are usually different parts/drawings
+  by definition, so an edge should eventually show BOTH sides' annotations —
+  today crops.json records one crop per citation and an edge carries one
+  citation, so one renders where one exists and nothing is invented where none
+  (second-side crops are a recorded gap, not a rendering choice). An untraced /
+  uncited edge's card deep-links into the annotator (`VA.annotateLink`), under
+  the same gap-only rule the detail pane applies.
+- **Component card** — on the grid's merged component cell. The part's name,
+  drawing and note, plus a thumbnail **derived from what exists**: the resolved
+  crop of one of the part's own rows' annotations, which is a crop of that
+  part's drawing by construction — never matched by filename or prefix. There
+  is no mesh/annotator render yet (the annotator has no snapshot verb), so a
+  part with no crop-bearing row gets **no thumbnail** — absent is absent, no
+  placeholder. Deep-links to the annotator isolating the part.
+- **Citation card** — on the sourcing confidence chip, in **both** modes (the
+  topology grid's chips cell and the classic elements table's sourcing cell).
+  The spec-sheet reference: the where-ref, the callout as printed, the note in
+  full, the export/identity block (`VA.exportBlockNode`, the same builder the
+  right pane uses, run links included) and the crop of the cited sheet where
+  one resolved — for a spec citation that crop *is* the spec sheet.
+
+Outbound deep links from cards: the drawing-checker **run** page wherever a
+crop resolved through a run (`/run/<run_dir>`, `VA.runUrl` — the immutable
+per-version URL; the evergreen `/container/<id>` needs a container id nothing
+in the projections carries yet, a recorded gap), the source PDF as `file://`
+link + copyable path (for a spec-pile crop that path IS the spec pile), and
+the annotator (`../annotate/index.html?…`, the existing relative shape).
+
 ### The stale-pair alarm never prints a command (`viewer_rebuild_affordance`)
 
 Pasting `venv-win\Scripts\python.exe ...` into PowerShell straight from a web
@@ -230,19 +326,25 @@ table follows). Column widths live on a shared `<colgroup>`
 (`views/topology.js`'s `COLUMNS`), one array driving both the head table and the
 body table so the two cannot silently disagree about how wide a column is.
 
-Every row whose edge carries a `crop_key` — it re-expresses a committed stack
-element — gets a **crop** cell at the row's right end: once the PNG is fetched
-(`ensureThumbImages`, topology_app.js) the trigger *is* the thumbnail, the
-actual crop of the tolerance annotation inline on the row; before that, or for
-a crop that cannot resolve, it is the same stateful text button the classic
-elements table has always had (`crop-trigger`, `views/crop.js`'s popover,
-shared — hover/click behaviour unchanged; richer hover cards belong to the
-staged `viewer_hover_cards_and_deep_links` handoff). An edge with no
-`crop_key` — authored inline in the topology, or a derived gap — gets nothing
-at all, never a placeholder image: showing one would read as "not built yet"
-when the truth is "no document to crop," and the two are different facts (see
-"The preview pane reuses the crop plumbing" below, which draws the same
-distinction in the pane on the right).
+Every row whose edge carries a `crop_key` gets a **crop** cell at the row's
+right end — and a key comes in **two shapes**, for two disjoint crop-index
+spaces (`VA.cropForKey`): a `dimension_ref` edge re-expresses a committed
+stack element and carries `{stack, element}` into `crops.json`'s `by_stack`,
+while an **inline** edge whose own citation is croppable carries
+`{topology, edge}` into `by_topology` (an inline edge is in no stack, and a
+topology's id can equal a stack's, so the spaces cannot merge — the real
+`pitch_system`'s six croppable edges are all this second shape). Once the PNG
+is fetched (`ensureThumbImages`, topology_app.js) the trigger *is* the
+thumbnail, the actual crop of the tolerance annotation inline on the row;
+before that, or for a crop that cannot resolve, it is the same stateful text
+button the classic elements table has always had. Hover, focus or click opens
+the **edge hover card** ("Hover reference cards" above) — the crop body plus
+the citation line and the deep links out. An edge with no `crop_key` — a
+workbook/assumed inline dimension, or a derived gap — gets nothing at all,
+never a placeholder image: showing one would read as "not built yet" when the
+truth is "no document to crop," and the two are different facts (see "The
+preview pane reuses the crop plumbing" below, which draws the same distinction
+in the pane on the right).
 
 ### The rails: a column is a branch, not a part
 
@@ -315,16 +417,20 @@ solver").
 ### The preview pane reuses the crop plumbing, and says so when it cannot
 
 An edge that re-expresses a committed stack element **is** that element: same id,
-same citation, same crop. The projection derives a `crop_key` — the `(stack id,
-element id)` pair `crops.json` is keyed by — and the pane runs it through the
-stack viewer's own `VA.cropFor`, so the resolved / unresolvable / not-built /
-stale-index quartet is unchanged.
+same citation, same crop — its derived `crop_key` is the `{stack, element}`
+pair `crops.json`'s `by_stack` is keyed by. An **inline** edge with a croppable
+citation gets a `{topology, edge}` key into the separate `by_topology` space
+instead (see "The row model" above for why the two spaces cannot merge). The
+pane runs either through `VA.cropForKey`, so the resolved / unresolvable /
+not-built / stale-index quartet is unchanged, and `VA.cropKeyText` states which
+claim the key is making — "this edge IS that stack element" vs "the crop is of
+this edge's own citation".
 
 An edge with no key is **not** a stale index and must not read like one. It says
-which of the two it is: a dimension authored in the topology (in no stack, so no
-crop index covers it) or a derived gap (no value to cite). A citation of kind
+which of the two it is: a workbook/assumed dimension (no croppable document
+behind it) or a derived gap (no value to cite). A citation of kind
 `assumed` says outright that there is no document behind it to crop — which is
-most of the pitch system.
+much of the pitch system.
 
 ### Row/leader correspondence is the claim, so it is measured
 
@@ -903,7 +1009,8 @@ apps/viewer/
   storage/http.js     served transport — no folder grant, probed at load time
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
-  views/              dom, banner, nav, stack, crop, worksheet, detail, topology
+  views/              dom, banner, nav, stack, crop, cards, worksheet, detail,
+                      topology
   vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```
