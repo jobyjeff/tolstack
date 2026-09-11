@@ -26,6 +26,25 @@ event stream's geometry-side key actually names
 (`tolerance_stack/feature_identity.py`; `docs/DAG_TOPOLOGY.md`'s companion
 schema is the stack-side key).
 
+## Two part vocabularies, one sanctioned bridge
+
+A mesh's `provenance.json` `part_id` (`machined_213668`, `blade_oml` — the
+tessellation run's own naming) and a topology edge's `part`
+(`gas_spring_mount_213668_002` — `docs/DAG_TOPOLOGY.md`'s vocabulary,
+authored per-edge) are different namespaces. The tracked alias table
+**`docs/topologies/part_mesh_aliases.json` is the one sanctioned bridge
+between them** (handoff `mesh_part_alias_table`, 2026-09-10). Installing a
+mesh: keep the run's own `part_id` — do **not** rename the mesh or
+re-tessellate it to match a topology's part id — and declare an alias entry
+instead, citing the evidence (this directory's `provenance.json`, a drawing
+number) that the two names denote the same physical part. An identity you
+cannot evidence stays unmapped; the annotate app's "no installed mesh" empty
+state is the honest answer, never a guessed match.
+`tests/test_part_mesh_aliases.py` pairs the table against both vocabularies,
+and `apps/annotate/run_tests.cjs`'s `[real]` tier resolves every alias
+against this directory — a mesh removed or re-installed under a different
+`part_id` turns them red rather than silently orphaning its aliases.
+
 ## Regenerate
 
 Run from **rotorkit's** main checkout, its own venv (OCP lives there, never in

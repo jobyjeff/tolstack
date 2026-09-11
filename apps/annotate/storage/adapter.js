@@ -27,6 +27,10 @@
 //   readFeatureIdentityProjection(): Promise<object|null>
 //        -- data/projections/feature-identity/bindings.json. null if absent
 //           (nobody has rebuilt it, or nothing has ever been bound).
+//   readPartMeshAliases(): Promise<object|null>
+//        -- docs/topologies/part_mesh_aliases.json, the tracked topology-part
+//           -> mesh part_id alias table. null if absent (an empty or missing
+//           table just means no aliases resolve -- never an error).
 //   listMeshes(): Promise<Array<{sha256, label, part_id}>>
 //        -- every data/meshes/<sha256>/ subdirectory that has a
 //           provenance.json, read for its human label. This is how the app
