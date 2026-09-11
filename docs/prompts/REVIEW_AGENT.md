@@ -1738,6 +1738,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       perpendicularity frame calls out, even when it sounds confident and
       cites a specific render (`Matrix(14)`).
 
+- [ ] **UI state that lives on a DOM element the renderer re-creates — a
+      `<details>`' `open`, a scroll position, focus — resets on every render,
+      and the DOM-shim tier structurally cannot see it.** New 2026-09-10
+      (`viewer_rebuild_affordance`), third member of the "fast tier proves
+      nothing here by construction" family (CSS geometry 2026-08-25, unbound
+      `fetch` 2026-09-09). The viewer's `render()` is `VA.clear()` + rebuild,
+      so a control placed inside the stale box's `<details>` vanishes the
+      instant its own click re-renders the banner — which is why the Rebuild
+      button is a *sibling* of the box, not a child. Replayed in review: moving
+      it inside leaves the fast tier 185/185 green (the shim has no notion of
+      `<details>` visibility) while the browser tier's `waitForSelector`
+      (default state: visible) times out. When a handoff puts an interactive
+      control near a collapsed/expandable element, check which element's
+      transient state a re-render destroys, and demand the browser tier click
+      it — a fast-tier `.count()`-style assertion cannot fail on this class.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
