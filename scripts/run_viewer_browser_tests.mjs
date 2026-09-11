@@ -630,14 +630,43 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
 //   4. Against the REAL projection: every topology renders, study selection
 //      changes the grid, and every total on screen equals topologies.json's own
 //      number — the claim the page prints in its own footer.
+//
+// Two viewports, and the short one is load-bearing. The suite renders at
+// TOPO_VIEWPORT, where the mock fixture's whole document fits inside the
+// window; the hover-card layout measurement below drops to CARD_LAYOUT_VIEWPORT
+// first, because that contract is only *falsifiable* where an open card reaches
+// past the document's own bottom. Same width in both, so nothing reflows
+// horizontally when it switches.
+const TOPO_VIEWPORT = { width: 1600, height: 1000 };
+const CARD_LAYOUT_VIEWPORT = { width: 1600, height: 700 };
+
 async function testTheTopologyPage(browser, url, label, realProjection, realCrops) {
-  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const page = await browser.newPage({ viewport: TOPO_VIEWPORT });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
 
   const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
+
+  // Everything the hover-card layout contract is measured against, all of it
+  // scroll-invariant: the DOCUMENT's own height (the thing a popover that is
+  // still in flow lengthens), the DAG pane's box in DOCUMENT coordinates
+  // (viewport coordinates would move with any scroll playwright's own hover
+  // does on the way to a trigger), and how far the open card reaches past the
+  // document's bottom -- the witness that the configuration being measured is
+  // one where the defect could show at all.
+  const cardLayout = () => page.evaluate(() => {
+    const pane = document.querySelector("#topopane").getBoundingClientRect();
+    const pop = document.querySelector(".croppop");
+    const open = pop && getComputedStyle(pop).display !== "none";
+    const card = open ? pop.getBoundingClientRect() : null;
+    return {
+      docHeight: document.documentElement.scrollHeight,
+      pane: [pane.x, pane.y + window.scrollY, pane.width, pane.height].join(),
+      cardDocBottom: card ? card.bottom + window.scrollY : null,
+    };
+  });
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
@@ -712,7 +741,20 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // EDGE hover card (views/cards.js) into the same positioned popover node:
     // the crop body plus the citation line and the crop-key claim.
     // `base_thickness` re-expresses demo_joint's `plate`, whose crop resolves.
-    const paneBeforeCard = await page.locator("#topopane").boundingBox();
+    //
+    // WHERE this is measured decides whether it can fail at all
+    // (ISSUE_20260911_card_layout_guard_passes_on_the_absolute_popover): at
+    // this suite's 1000px-tall viewport the mock fixture's document is SHORTER
+    // than the window and the ~528px card opens wholly inside it, so the
+    // original `position: absolute` popover moved nothing measurable either —
+    // both assertions below passed with that defect fully reverted. Squeezing
+    // the viewport to CARD_LAYOUT_VIEWPORT puts the same card on the same
+    // trigger ~889px down a 700px document: in flow it lengthens the document,
+    // out of flow it cannot. Measured 2026-09-11: 700 -> 889 with `.croppop`
+    // back on `position: absolute` and `position()` back on scroll offsets,
+    // 700 -> 700 as shipped.
+    await page.setViewportSize(CARD_LAYOUT_VIEWPORT);
+    const beforeCard = await cardLayout();
     // hover, not click: a click also SELECTS the row (its normal job), and the
     // detail pane repopulating is legitimate layout movement that would drown
     // the measurement below — the card itself is what must move nothing.
@@ -726,18 +768,26 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /from stack `demo_joint`, element `plate`/
         .test(await page.locator(".croppop").textContent()));
     // Cards are hover-only chrome: opening one must not disturb the layout
-    // contracts — the DAG pane's own box and the leader correspondence are
-    // measured with the card OPEN.
-    const paneWithCard = await page.locator("#topopane").boundingBox();
+    // contracts — the document's own height, the DAG pane's box and the leader
+    // correspondence are all measured with the card OPEN.
+    const withCard = await cardLayout();
+    // The measurement's own tripwire, asserted BEFORE what it certifies: if a
+    // later change (a shorter card, a taller fixture, a bigger viewport here)
+    // stops the card reaching past the document bottom, this suite must go red
+    // for being unable to see the defect rather than green for not finding it.
+    push("the open card hangs past the document's own bottom — the one " +
+      "configuration where an in-flow popover would lengthen it",
+      withCard.cardDocBottom !== null &&
+      withCard.cardDocBottom > beforeCard.docHeight + 8);
+    push("an open card leaves the document's own height untouched",
+      withCard.docHeight === beforeCard.docHeight);
     push("an open card moves the DAG pane by nothing at all",
-      paneBeforeCard && paneWithCard &&
-      paneBeforeCard.x === paneWithCard.x && paneBeforeCard.y === paneWithCard.y &&
-      paneBeforeCard.width === paneWithCard.width &&
-      paneBeforeCard.height === paneWithCard.height);
+      beforeCard.pane === withCard.pane);
     push("leaders still land on their dots and seams with a card open",
       (await correspondence()).drift.length === 0);
     await page.keyboard.press("Escape");
     push("Escape closes it here too", !(await page.locator(".croppop").isVisible()));
+    await page.setViewportSize(TOPO_VIEWPORT);
 
     // The citation card, from the row's confidence chip (the same model the
     // stack table's chip opens): the full reference — where-ref, export
