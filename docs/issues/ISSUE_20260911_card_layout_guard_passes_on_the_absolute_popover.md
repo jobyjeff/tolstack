@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260911_hover_card_layout_guard_can_fail.md
+resolution: handoff completed 2026-09-11 -- closed automatically by dispatch when handoff `hover_card_layout_guard_can_fail` moved to completed/; not independently verified.
 ---
 
 # The hover-card layout guard passes on the exact popover state it was written to catch
