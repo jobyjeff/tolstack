@@ -117,7 +117,9 @@
   // the flyout iframe is already booted, a later launch posts these to
   // AA.exec over postMessage instead of reloading -- the identical vocabulary
   // the URL params boot with, never a parallel path. Mirrors annotateLink
-  // param for param; the two are paired by tests so they cannot drift.
+  // param for param -- a HAND-mirror: tests.js pins each side over the same
+  // param shapes, but nothing derives one from the other, so a param added to
+  // annotateLink alone fails no test. Extend both, and both tests, together.
   VA.annotateExecCommands = function (params) {
     if (params.trace) {
       return [["trace", params.topologyId, params.studyId]];

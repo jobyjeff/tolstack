@@ -1768,6 +1768,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       prose to say "among others". All three fixed inline (plus two pins added
       to the existing `[real]` runs-per-part test).
 
+- [ ] **Two hand-mirrored carriers of one command vocabulary, with a comment
+      claiming tests pair them.** New 2026-09-10 (`study_3d_flyout`).
+      `VA.annotateLink` (URL params, the flyout's first boot) and
+      `VA.annotateExecCommands` (postMessage → `AA.exec`, later launches) each
+      carry the same launch params, and the shipped comment said "paired by
+      tests so they cannot drift" — but tests.js pins each side separately
+      over today's param shapes, so a param added to one function alone fails
+      nothing. Reworded inline. When a diff adds a second *carrier* of an
+      existing vocabulary (boot params beside exec commands, a link beside a
+      button), ask what structurally pairs the two, and read a
+      "paired"/"cannot drift" claim the way you read a count: name the test,
+      then check what that test would actually catch.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths

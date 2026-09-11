@@ -236,7 +236,7 @@ check("CommandLayer.exec on an empty command throws", () => {
 
 // --- README's verb table <-> app.js's commands.register(...) calls -------
 // (issue command_vocabulary_table_has_no_pairing_test, following the same-shape
-// fix annotate_vocab_pairing_test made for binding_state.js's arrays). The ten
+// fix annotate_vocab_pairing_test made for binding_state.js's arrays). The
 // verbs are hand-documented in three places -- this README table, the
 // annotate_deep_link_and_part_filter lesson, and the register(...) calls in
 // app.js -- and nothing paired any of them: CommandLayer.prototype.verbs()
