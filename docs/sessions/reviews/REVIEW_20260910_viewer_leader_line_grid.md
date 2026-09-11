@@ -51,8 +51,20 @@ reason rather than skipped silently:
   13/13 check groups, both file:// and http modes, including the new
   `CORRESPONDENCE_IN_PAGE` measurements at both densities, both layout modes,
   after scrolling, over every real topology. `pytest -q` in this worktree:
-  759 passed, 1 skipped (the documented data-dependent skip; the main-checkout
-  run is below, post-merge).
+  759 passed, 1 skipped (the documented data-dependent skip). Main checkout
+  (`master`, post-merge): 750 passed, **1 failed** —
+  `test_viewer_js_suite_is_green` on `crops (top level): the projection writes
+  [by_topology, summary_topology, unresolved_topology]` fixture drift. That is
+  the exact red the handoff's own header predicted ("the JS suite is red on
+  master pins until [the batch-merge] lands"), and I verified the stated cause
+  rather than copying it forward: master's `fixtures.js` lacks `by_topology`,
+  integration's carries it, and the merged tree passes the same test against
+  the same shared data (238/238 above). Master's lag, closed by the operator's
+  due batch-merge; not this handoff's doing (it touches neither `crops.json`
+  nor its builder). One more main-checkout observation for the record: an
+  untracked `tests/debug_topology_real_render.mjs` sits there (another
+  session's inspection scratch by its name; `tests/debug_*` are never run by
+  pytest) — left alone.
 - **The new guards observed failing, both tiers.** (a) Perturbed
   `leaderGeometry`'s grid-end y by 3px: the fixture-tier geometry test and the
   browser tier's correspondence check both went red, the browser tier naming
