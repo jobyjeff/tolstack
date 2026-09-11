@@ -1737,30 +1737,200 @@
           });
       });
 
-    await test("the grid renders one row per graph element, at the rail's height",
+    // The demo mechanism's own grid plan, spelled out once so every test below
+    // reads against the same expectations (viewer_leader_line_grid): the walk's
+    // edge order is base_thickness(base), post_height(post), arm_pin_to_tip(arm),
+    // tip_to_strut_end(gap), strut_length(strut), post_bushing_offset(post) —
+    // six single-edge groups, because every consecutive pair changes part. The
+    // one internal node is base_datum (its only edge is base's), so five of the
+    // six nodes get leaders.
+    var TOPO_EDGE_ORDER = ["base_thickness", "post_height", "arm_pin_to_tip",
+      "tip_to_strut_end", "strut_length", "post_bushing_offset"];
+
+    await test("internal means every adjacent edge carries one part — and a " +
+      "gap counts as a part boundary", function () {
+        var internal = VA.internalNodes(TOPO);
+        eq(internal.base_datum, true);       // one edge, one part
+        eq(internal.base_post_seat, false);  // base vs post
+        eq(internal.post_arm_pin, false);    // post vs arm
+        eq(internal.arm_tip, false);         // arm vs a gap (null IS a value)
+        eq(internal.strut_end, false);       // strut vs a gap
+        eq(internal.post_strut_bushing, false);
+        var parts = VA.nodeAdjacentParts(TOPO);
+        eq(parts.arm_tip, ["arm", null]);
+      });
+
+    await test("gridPlan holds one row per edge in walk order, groups them by " +
+      "component, and gives every non-internal node a boundary", function () {
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        eq(plan.rows.map(function (r) { return r.id; }), TOPO_EDGE_ORDER);
+        plan.rows.forEach(function (r, i) { eq(r.gridRow, i); });
+        eq(plan.groups.length, 6);
+        eq(plan.groups.map(function (g) { return g.label; }),
+          ["base", "post", "arm", VA.GAP_COMPONENT_LABEL, "strut", "post"]);
+        plan.groups.forEach(function (g) { eq(g.count, 1); });
+        // A leader's boundary is the count of edge rows the walk emitted
+        // before its node — the seam between the row above and the row below.
+        eq(plan.leaders.map(function (l) { return l.id + ":" + l.boundary; }),
+          ["base_post_seat:1", "post_arm_pin:2", "arm_tip:3", "strut_end:4",
+           "post_strut_bushing:5"]);
+        eq(plan.leaders.map(function (l) { return l.beforeEdge; }),
+          ["post_height", "arm_pin_to_tip", "tip_to_strut_end", "strut_length",
+           "post_bushing_offset"]);
+        // base_datum is internal, so it is not in the leader list at all.
+        eq(plan.leaders.filter(function (l) { return l.id === "base_datum"; }), []);
+      });
+
+    // A shape the small demo cannot exercise: consecutive same-part edges. Two
+    // tolerances on one feature merge into one component group across their
+    // internal node; a NON-internal node between two same-part edges (possible
+    // at a fork) still breaks the group, so a leader can never point inside one.
+    function miniTopo(midNodeExtraEdge) {
+      var edges = [
+        { id: "e1", name: "size", kind: "structural", part: "p", from: "n0",
+          to: "n1", dimension: null, confidence: null, value_source: "inline",
+          zero_width: false, crop_key: null,
+          transform: { id: "identity", kind: "identity", ratio: 1 } },
+        { id: "e2", name: "flatness", kind: "structural", part: "p", from: "n1",
+          to: "n2", dimension: null, confidence: null, value_source: "inline",
+          zero_width: false, crop_key: null,
+          transform: { id: "identity", kind: "identity", ratio: 1 } },
+      ];
+      if (midNodeExtraEdge) {
+        edges.push({ id: "e3", name: "other part's", kind: "structural",
+          part: "q", from: "n1", to: "n3", dimension: null, confidence: null,
+          value_source: "inline", zero_width: false, crop_key: null,
+          transform: { id: "identity", kind: "identity", ratio: 1 } });
+      }
+      return {
+        id: "mini", parts: [{ id: "p", name: "one part" }, { id: "q", name: "another" }],
+        nodes: [
+          { id: "n0", name: "start", kind: "datum_feature", parts: ["p"], branch: false, degree: 1 },
+          { id: "n1", name: "mid", kind: "mating_surface", parts: ["p"], branch: false, degree: 2 },
+          { id: "n2", name: "end", kind: "datum_feature", parts: ["p"], branch: false, degree: 1 },
+          { id: "n3", name: "aside", kind: "datum_feature", parts: ["q"], branch: false, degree: 1 },
+        ],
+        edges: edges,
+        layout: {
+          columns: 1,
+          rows: [
+            { row: 0, kind: "node", id: "n0", column: 0, branch: false },
+            { row: 1, kind: "edge", id: "e1", column: 0, closes_row: null },
+            { row: 2, kind: "node", id: "n1", column: 0, branch: false },
+            { row: 3, kind: "edge", id: "e2", column: 0, closes_row: null },
+            { row: 4, kind: "node", id: "n2", column: 0, branch: false },
+          ],
+          rails: [{ column: 0, start: 0, end: 4 }],
+          links: [],
+        },
+      };
+    }
+
+    await test("two tolerances on one feature merge into one component group, " +
+      "and their internal node gets no leader — that omission IS the grouping",
       function () {
+        var mini = miniTopo(false);
+        var plan = VA.gridPlan(mini.layout, mini);
+        eq(plan.groups.length, 1);
+        eq(plan.groups[0].label, "p");
+        eq(plan.groups[0].count, 2);
+        eq(plan.leaders, []);   // n0/n1/n2 all sit inside part p
+
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ topoProj: mini }));
+        });
+        var cells = all(root, "td.tvcell--component");
+        eq(cells.length, 1);
+        eq(cells[0].getAttribute("rowspan"), "2");
+        eq(cells[0].textContent, "p");
+        eq(all(root, "path.rail__leader").length, 0);
+      });
+
+    await test("a non-internal node between two same-part edges still breaks " +
+      "the group, so a leader never points inside one", function () {
+        var mini = miniTopo(true);   // n1 now also touches part q's edge (the
+                                     // edge itself is off-layout on purpose:
+                                     // adjacency reads the DOCUMENT, not the
+                                     // serialisation)
+        var plan = VA.gridPlan(mini.layout, mini);
+        eq(plan.groups.map(function (g) { return g.label + ":" + g.count; }),
+          ["p:1", "p:1"]);
+        eq(plan.leaders.map(function (l) { return l.id + ":" + l.boundary; }),
+          ["n1:1"]);
+      });
+
+    await test("leaderGeometry jogs each leader from its node's dot to its " +
+      "grid seam, on monotone lanes that cannot cross", function () {
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var geo = VA.leaderGeometry(TOPO.layout, plan, VA.RAIL_METRICS);
+        eq(geo.leaders.length, 5);
+        var rowsByLayoutRow = {};
+        TOPO.layout.rows.forEach(function (r) { rowsByLayoutRow[r.row] = r; });
+        geo.leaders.forEach(function (leader, i) {
+          var planLeader = plan.leaders[i];
+          eq(leader.id, planLeader.id);
+          // Start y: the node's own dot centre — the same VA.railY the SVG
+          // mark was drawn from.
+          eq(leader.y1, VA.railY(planLeader.layoutRow, VA.RAIL_METRICS), leader.id);
+          // End y: the grid seam — boundary × the same rowHeight the grid's
+          // inline row heights sum to.
+          eq(leader.y2, planLeader.boundary * VA.RAIL_METRICS.rowHeight, leader.id);
+          // The path is exactly the jog: H to the lane, V to the seam, H out.
+          eq(leader.d, "M " + leader.x1 + " " + leader.y1 + " H " + leader.laneX +
+            " V " + leader.y2 + " H " + geo.width);
+          if (i > 0) ok(leader.laneX > geo.leaders[i - 1].laneX,
+            "lanes must be strictly monotone (" + leader.id + ")");
+        });
+        // The zone starts where the rails end, and the SVG's width is the
+        // grid's left edge, so the last H segment hands off with no seam.
+        var railWidth = VA.railGeometry(TOPO.layout, VA.RAIL_METRICS).width;
+        eq(geo.zoneLeft, railWidth);
+        ok(geo.width > railWidth, "the jog zone has real width");
+      });
+
+    await test("the grid renders one row per EDGE in walk order, at the rail " +
+      "pitch, with the leaders drawn and internal nodes omitted", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var rows = all(root, "tr.tvrow");
-        eq(rows.length, TOPO.layout.rows.length);
+        eq(rows.length, TOPO.edges.length);
         rows.forEach(function (row, i) {
-          eq(row.getAttribute("data-id"), TOPO.layout.rows[i].id);
-          eq(row.getAttribute("data-row-kind"), TOPO.layout.rows[i].kind);
+          eq(row.getAttribute("data-id"), TOPO_EDGE_ORDER[i]);
+          eq(row.getAttribute("data-row-kind"), "edge");
           // Set inline from VA.RAIL_METRICS, not from the stylesheet: this is
-          // the number the SVG's y came from, so it cannot drift from it.
+          // the number the leader geometry's seams came from, so it cannot
+          // drift from them.
           eq(row.style.height, VA.RAIL_METRICS.rowHeight + "px");
         });
+        // No node rows at all: an interface is its dot and its leader now.
+        eq(all(root, "tr.tvrow--node").length, 0);
+        var leaders = all(root, "path.rail__leader");
+        var hits = all(root, "path.rail__leaderhit");
+        eq(leaders.length, 5);
+        eq(hits.length, 5);
+        eq(hits.map(function (h) { return h.getAttribute("data-leader-id"); }),
+          ["base_post_seat", "post_arm_pin", "arm_tip", "strut_end",
+           "post_strut_bushing"]);
+        eq(hits[0].getAttribute("data-boundary-edge"), "post_height");
       });
 
     await test("the grid is a real <table>, so a rectangular selection can " +
       "paste into Excel as columns", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         eq(all(root, "table.tvtable").length, 1);
-        eq(all(root, "tr.tvrow").length, TOPO.layout.rows.length);
-        // Real headers (deliverable 2): <th>, not a styled div.
+        eq(all(root, "tr.tvrow").length, TOPO.edges.length);
+        // Real headers (deliverable 2): <th>, not a styled div — and the
+        // merged component column is the leftmost of them.
+        eq(all(root, "th.tvcell--component").length, 1);
+        has(all(root, "th.tvcell--component")[0].textContent, "component");
         eq(all(root, "th.tvcell--nominal").length, 1);
         has(all(root, "th.tvcell--nominal")[0].textContent, "nominal");
         eq(all(root, "th.tvcell--min").length, 1);
         eq(all(root, "th.tvcell--max").length, 1);
+        // One merged cell per group, each spanning its own count.
+        var cells = all(root, "td.tvcell--component");
+        eq(cells.length, 6);
+        eq(cells.map(function (c) { return c.textContent; }),
+          ["base", "post", "arm", VA.GAP_COMPONENT_LABEL, "strut", "post"]);
       });
 
     await test("the value cell is decomposed into nominal / min / max columns, " +
@@ -1773,9 +1943,9 @@
         eq(row.querySelector("td.tvcell--nominal").textContent, "4");
         eq(row.querySelector("td.tvcell--min").textContent, "3.98");
         eq(row.querySelector("td.tvcell--max").textContent, "4.02");
-        // A node row (no dimension) prints none of the three, not zeros.
-        var nodeRow = all(root, "tr.tvrow--node")[0];
-        eq(nodeRow.querySelector("td.tvcell--nominal").textContent, "");
+        // A derived gap (no dimension) prints none of the three, not zeros.
+        var derived = all(root, "tr.tvrow--derived")[0];
+        eq(derived.querySelector("td.tvcell--nominal").textContent, "");
       });
 
     await test("a thumbnail trigger sits on the row for every crop-key'd edge, " +
@@ -1800,6 +1970,88 @@
         eq(rowFor("arm_pin_to_tip").querySelector("button.crop-trigger"), null);
         eq(rowFor("post_bushing_offset").querySelector("button.crop-trigger"), null);
         eq(rowFor("tip_to_strut_end").querySelector("button.crop-trigger"), null);
+      });
+
+    await test("a fetched crop upgrades its trigger to the actual thumbnail " +
+      "image; an unfetched or unresolved one never shows a placeholder",
+      function () {
+        // The resolved demo crop's PNG, pre-fetched the way topology_app.js's
+        // ensureThumbImages caches it (png path -> { url }).
+        var entry = VA.cropFor(TOPOCROPS, "demo_joint", "plate");
+        eq(entry.status, "resolved");
+        var images = {};
+        images[entry.png] = { url: "blob:demo" };
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ cropImages: images }));
+        });
+        function rowFor(id) {
+          return all(root, "tr.tvrow").filter(function (n) {
+            return n.getAttribute("data-id") === id;
+          })[0];
+        }
+        var thumb = rowFor("base_thickness")
+          .querySelector("button.crop-trigger--thumb");
+        ok(thumb, "the resolved+fetched crop renders as a thumbnail trigger");
+        var img = thumb.querySelector("img.tvthumb");
+        ok(img, "and the thumbnail is the actual image");
+        eq(img.getAttribute("src"), "blob:demo");
+        // Unresolvable stays the stateful text button — a thumbnail-shaped
+        // placeholder would read as "not built yet", which is a different fact.
+        var washer = rowFor("post_height").querySelector("button.crop-trigger");
+        eq(washer.querySelector("img"), null);
+        has(washer.textContent, "no crop");
+        // Resolved but NOT fetched (no cache entry): still the text button,
+        // never a broken <img>.
+        var cold = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ cropImages: {} }));
+        });
+        var coldTrigger = all(cold, "tr.tvrow").filter(function (n) {
+          return n.getAttribute("data-id") === "base_thickness";
+        })[0].querySelector("button.crop-trigger--resolved");
+        eq(coldTrigger.querySelector("img"), null);
+        has(coldTrigger.textContent, "drawing crop");
+      });
+
+    await test("selecting a node marks its dot and its leader — the grid has " +
+      "no node row to outline", function () {
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({
+            selection: { kind: "node", id: "base_post_seat" } }));
+        });
+        eq(all(root, "circle.rail__dot--selected").length, 1);
+        eq(all(root, "path.rail__leader--selected").length, 1);
+        eq(all(root, "tr.tvrow--selected").length, 0);
+        // An internal node still selects (its dot is clickable), it just has
+        // no leader to mark.
+        var internalRoot = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({
+            selection: { kind: "node", id: "base_datum" } }));
+        });
+        eq(all(internalRoot, "circle.rail__dot--selected").length, 1);
+        eq(all(internalRoot, "path.rail__leader--selected").length, 0);
+      });
+
+    await test("the preview pane says which side of the leader rule an " +
+      "interface is on", function () {
+        var boundary = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "node", id: "base_post_seat" } }));
+        });
+        has(boundary.textContent, "A component boundary");
+        has(boundary.textContent, "base / post");
+        var internal = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "node", id: "base_datum" } }));
+        });
+        has(internal.textContent, "An internal interface");
+        has(internal.textContent, "no leader line is drawn");
+        // A gap boundary names the clearance in plain words, not `null`.
+        var gapSide = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "node", id: "arm_tip" } }));
+        });
+        has(gapSide.textContent, "a clearance");
+        eq(gapSide.textContent.indexOf("null"), -1);
       });
 
     await test("every node row gets a dot and every edge row gets a bar",
@@ -1835,13 +2087,11 @@
         eq(all(root, "line.rail__bar--derived").length, 1);
       });
 
-    await test("a branch point is marked on the row and on the dot", function () {
-      var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-      var marked = all(root, "tr.tvrow--branch");
-      eq(marked.length, TOPO.branch_nodes.length);
-      has(marked[0].textContent, "BRANCH");
-      eq(all(root, "circle.rail__dot--branch").length, TOPO.branch_nodes.length);
-    });
+    await test("a branch point is marked on the dot — the grid has no node " +
+      "rows to mark any more", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        eq(all(root, "circle.rail__dot--branch").length, TOPO.branch_nodes.length);
+      });
 
     await test("selecting a study numbers its chain and dims everything else",
       function () {
@@ -1852,9 +2102,13 @@
         var chain = study.result.chain;
         var on = all(root, "tr.tvrow--on");
         var off = all(root, "tr.tvrow--off");
-        ok(on.length >= chain.length, "every chain edge and its interfaces");
+        eq(on.length, chain.length, "every chain edge's row is marked");
         ok(off.length > 0, "the rest of the topology is dimmed, not hidden");
-        eq(on.length + off.length, TOPO.layout.rows.length);
+        eq(on.length + off.length, TOPO.edges.length);
+        // The leaders dim with their nodes, so the off-chain part boundaries
+        // recede along with the off-chain rows.
+        ok(all(root, "path.rail__leader--on").length > 0, "on-chain leaders");
+        ok(all(root, "path.rail__leader--off").length > 0, "off-chain leaders");
         // The ordinal is the order the SUM runs in, which is NOT the row order:
         // the rows are a depth-first walk of the whole graph.
         chain.forEach(function (contribution, i) {
@@ -1893,14 +2147,18 @@
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ study: study, layoutMode: "chain" }));
         });
+        // One row per chain EDGE, in the order the sum runs; the endpoints are
+        // the first and last dots on the one rail, not rows.
         var rows = all(root, "tr.tvrow");
-        eq(rows.length, study.layout.rows.length);
-        eq(rows.length, study.result.chain.length * 2 + 1);
-        eq(rows[0].getAttribute("data-id"), study.from);
-        eq(rows[rows.length - 1].getAttribute("data-id"), study.to);
+        eq(rows.length, study.result.chain.length);
         study.result.chain.forEach(function (contribution, i) {
-          eq(rows[2 * i + 1].getAttribute("data-id"), contribution.edge);
+          eq(rows[i].getAttribute("data-id"), contribution.edge);
         });
+        eq(all(root, "circle.rail__dot").length, study.result.chain.length + 1);
+        // The internal-node rule reads the WHOLE graph's adjacency, not the
+        // chain's: base_datum stays leaderless here too, so the chain layout
+        // shows the same three part boundaries the walk layout does.
+        eq(all(root, "path.rail__leader").length, 3);
       });
 
     // --- the joint + the worksheet (deliverable 4, viewer_v2_single_nav) -----
@@ -2368,7 +2626,7 @@
       });
 
     await test("edge-value-only mode hides an edge row's own label and moves " +
-      "it to the row's title, leaving node rows untouched", function () {
+      "it to the row's title, leaving the component column untouched", function () {
         var index = VA.topologyIndex(TOPO);
         var edge = index.edges.base_thickness;
         ok(edge, "fixture must declare base_thickness");
@@ -2383,16 +2641,9 @@
         eq(edgeRow.querySelector("td.tvcell--name").textContent, "");
         eq(edgeRow.getAttribute("title"), VA.edgeHoverTitle(edge, "base_thickness"));
         eq(edgeRow.getAttribute("title"), edge.name);
-
-        // A node row carries no edge, so hiding "an edge row's own label" has
-        // nothing to apply to -- its label is unchanged either way.
-        var labelledRoot = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ edgeValueOnly: false }));
-        });
-        var nodeRow = all(root, "tr.tvrow--node")[0];
-        var labelledNodeRow = all(labelledRoot, "tr.tvrow--node")[0];
-        eq(nodeRow.querySelector("td.tvcell--name").textContent,
-          labelledNodeRow.querySelector("td.tvcell--name").textContent);
+        // The merged component cell is grouping, not an edge label — the
+        // toggle never touches it.
+        eq(edgeRow.querySelector("td.tvcell--component").textContent, "base");
 
         // A row the projection cannot resolve still states its own diagnostic
         // regardless of mode -- that text is never redundant and must not be
@@ -3320,9 +3571,10 @@
             has(root.textContent, "declared by this file itself");
           });
 
-        await test("[real] every row of both topologies renders, aligned",
-          function () {
+        await test("[real] every edge of every topology renders as a row in " +
+          "walk order, with its leaders and merged groups", function () {
             liveTopos.forEach(function (topoProj) {
+              var plan = VA.gridPlan(topoProj.layout, topoProj);
               var root = render(function (r) {
                 VA.renderTopoPane(r, {
                   topoProj: topoProj, study: null, crops: realCrops,
@@ -3331,15 +3583,72 @@
                 });
               });
               var rows = all(root, "tr.tvrow");
-              eq(rows.length,
-                 topoProj.nodes.length + topoProj.edges.length, topoProj.id);
-              eq(rows.length, topoProj.layout.rows.length, topoProj.id);
+              eq(rows.length, topoProj.edges.length, topoProj.id);
+              var edgeOrder = topoProj.layout.rows.filter(function (r) {
+                return r.kind === "edge";
+              }).map(function (r) { return r.id; });
               rows.forEach(function (row, i) {
-                eq(row.getAttribute("data-id"), topoProj.layout.rows[i].id);
+                eq(row.getAttribute("data-id"), edgeOrder[i]);
               });
+              // Every non-internal node has its leader on screen; every group
+              // has its merged cell, spanning exactly its own rows.
+              eq(all(root, "path.rail__leader").length, plan.leaders.length,
+                 topoProj.id);
+              var cells = all(root, "td.tvcell--component");
+              eq(cells.length, plan.groups.length, topoProj.id);
+              var spanned = 0;
+              cells.forEach(function (cell, i) {
+                var span = cell.getAttribute("rowspan");
+                eq(span === null ? 1 : Number(span), plan.groups[i].count);
+                spanned += plan.groups[i].count;
+              });
+              eq(spanned, topoProj.edges.length, topoProj.id);
               // Nothing rendered as "the topology does not declare this id".
               eq(root.textContent.indexOf("does not declare"), -1, topoProj.id);
             });
+          });
+
+        await test("[real] the pitch system's grouping is the leader rule at " +
+          "work: internal interfaces are omitted, boundaries are drawn, and a " +
+          "part revisited on a later branch gets a merged row per visit",
+          function () {
+            var internal = VA.internalNodes(livePitch);
+            // A branch point whose four edges are ALL hub dimensions is inside
+            // the hub, however many edges meet there — no leader.
+            eq(internal.hub_top_deck, true);
+            eq(internal.hub_top_bearing_flange, true);
+            // A mate between two parts is a boundary; so is a part against a
+            // clearance (the end-stop gap's two sides).
+            eq(internal.hub_tan_link_mount_seat, false);
+            eq(internal.piston_end_stop_face, false);
+            eq(internal.vpa_end_stop_feature, false);
+
+            var plan = VA.gridPlan(livePitch.layout, livePitch);
+            eq(plan.leaders.length, 16);
+            eq(plan.groups.length, 18);
+            // The walk's first run: three hub dimensions merged across their
+            // two internal interfaces.
+            eq(plan.groups[0].label, "hub");
+            eq(plan.groups[0].count, 3);
+            // The loop-closing hub edges at the walk's tail merge too — four
+            // consecutive hub rows with no boundary node between them.
+            var last = plan.groups[plan.groups.length - 1];
+            eq(last.label, "hub");
+            eq(last.count, 4);
+            // The DEPTH-FIRST walk revisits parts on later branches, so "one
+            // merged row per part" is per contiguous RUN: hub appears as 2
+            // groups, pitch_plate as 3 — reordering the grid to force one row
+            // per part would cross the leaders and break walk correspondence.
+            var runsPerPart = {};
+            plan.groups.forEach(function (g) {
+              if (g.part) runsPerPart[g.part] = (runsPerPart[g.part] || 0) + 1;
+            });
+            eq(runsPerPart.hub, 2);
+            eq(runsPerPart.pitch_plate_215177_001, 3);
+            // The end-stop clearance is its own group, in gap words.
+            var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
+            eq(gapGroups.length, 1);
+            eq(gapGroups[0].label, VA.GAP_COMPONENT_LABEL);
           });
 
         await test("[real] the L1 grip stack draws as a ring: two rails, one " +
@@ -3362,7 +3671,6 @@
             });
           });
           eq(all(root, "circle.rail__dot--branch").length, 5);
-          eq(all(root, "tr.tvrow--branch").length, 5);
         });
 
         await test("[real] the ring gear's cyclic-only branch is visibly a branch",
@@ -3436,8 +3744,9 @@
             });
             var on = all(root, "tr.tvrow--on");
             var off = all(root, "tr.tvrow--off");
-            ok(off.length > 0, "a 23-edge topology has rows off a 10-edge chain");
-            eq(on.length + off.length, livePitch.layout.rows.length);
+            ok(off.length > 0, "a 24-edge topology has rows off a 10-edge chain");
+            eq(on.length, study.result.chain.length);
+            eq(on.length + off.length, livePitch.edges.length);
             eq(all(root, "line.rail__bar--on").length, study.result.chain.length);
           });
 

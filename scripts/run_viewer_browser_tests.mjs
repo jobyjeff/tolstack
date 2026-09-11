@@ -521,19 +521,81 @@ async function testTheApp(browser, url, label) {
   }
 }
 
+// --- the row/leader correspondence, measured (viewer_leader_line_grid) ------
+//
+// The page's one visual claim changed shape: the grid holds only edge rows
+// (compact, evenly spaced) while the DAG keeps its own layout, and the jogged
+// LEADER LINES are what tie an interface's dot to the seam between the two
+// grid rows it separates. So the measurable contract is now three-legged, and
+// only a real layout engine can check any leg of it:
+//
+//   1. every grid row still has its bar in the SVG (same data-id) — existence,
+//      not shared y: the two are no longer at one height by design;
+//   2. every leader's node-side end sits on its own dot's centre — measured
+//      off the path's real geometry (getBBox), not off the numbers that drew
+//      it, so a CSS transform or a broken viewBox fails here;
+//   3. every leader's grid-side end sits on the boundary row's top edge (the
+//      row its data-boundary-edge names), or on the last row's bottom when it
+//      points below the whole grid.
+//
+// Leaders always rise left-to-right (the DAG is the taller column), so the
+// path's bbox bottom is the node end and its top is the grid end.
+const CORRESPONDENCE_IN_PAGE = () => {
+  const drift = [];
+  const rows = Array.from(document.querySelectorAll("tr.tvrow"));
+  for (const row of rows) {
+    const id = row.getAttribute("data-id");
+    const mark = document.querySelector(
+      `svg.tv__rails [data-id="${CSS.escape(id)}"][data-row-kind="edge"]`);
+    if (!mark) drift.push(`edge ${id}: no rail bar`);
+  }
+  const leaders = Array.from(document.querySelectorAll("path.rail__leaderhit"));
+  for (const hit of leaders) {
+    const id = hit.getAttribute("data-leader-id");
+    const beforeEdge = hit.getAttribute("data-boundary-edge");
+    const svgTop = hit.ownerSVGElement.getBoundingClientRect().top;
+    const bbox = hit.getBBox();
+    const nodeEndY = svgTop + bbox.y + bbox.height;
+    const gridEndY = svgTop + bbox.y;
+    const dot = document.querySelector(
+      `svg.tv__rails circle[data-id="${CSS.escape(id)}"]`);
+    if (!dot) { drift.push(`leader ${id}: no dot`); continue; }
+    const dotBox = dot.getBoundingClientRect();
+    const dotCy = (dotBox.top + dotBox.bottom) / 2;
+    if (Math.abs(nodeEndY - dotCy) > 0.75) {
+      drift.push(`leader ${id}: node end off its dot by ${(nodeEndY - dotCy).toFixed(2)}px`);
+    }
+    let seamY;
+    if (beforeEdge) {
+      const boundaryRow = document.querySelector(
+        `tr.tvrow[data-id="${CSS.escape(beforeEdge)}"]`);
+      if (!boundaryRow) { drift.push(`leader ${id}: boundary row ${beforeEdge} missing`); continue; }
+      seamY = boundaryRow.getBoundingClientRect().top;
+    } else {
+      if (!rows.length) { drift.push(`leader ${id}: no rows at all`); continue; }
+      seamY = rows[rows.length - 1].getBoundingClientRect().bottom;
+    }
+    if (Math.abs(gridEndY - seamY) > 0.75) {
+      drift.push(`leader ${id}: grid end off its seam by ${(gridEndY - seamY).toFixed(2)}px`);
+    }
+  }
+  return { rows: rows.length, leaders: leaders.length, drift };
+};
+
 // --- the topology page, in a real browser ---------------------------------
 //
 // What this proves that the DOM shim cannot, and it is the deliverable:
 //
-//   1. ALIGNMENT IS REAL. The whole page is one claim — a grid row and its rail
-//      mark describe the same graph element, at the same y. The fast tier can
-//      check that both come from row index i; only a real browser can measure
-//      that the two boxes actually line up, which is what a reader believes when
-//      they read a value off a row beside a dot.
+//   1. ROW/LEADER CORRESPONDENCE IS REAL (CORRESPONDENCE_IN_PAGE above): a
+//      leader's two measured ends land on its dot and on its seam, across
+//      scroll, density, layout mode and study selection. The fast tier can
+//      check the numbers that draw it; only a real browser can measure the
+//      boxes a reader actually sees.
 //   2. Clicking an SVG mark selects it. A `<circle>` with an onclick is exactly
 //      the thing a shim reports as working and a stylesheet can break.
-//   3. The rails and the rows scroll together, because they share a scrollport.
-//   4. Against the REAL projection: both topologies render, study selection
+//   3. The rails, leaders and rows scroll together, because they share a
+//      scrollport.
+//   4. Against the REAL projection: every topology renders, study selection
 //      changes the grid, and every total on screen equals topologies.json's own
 //      number — the claim the page prints in its own footer.
 async function testTheTopologyPage(browser, url, label, realProjection, realCrops) {
@@ -543,25 +605,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
 
-  // Every row's box centre against its rail mark's box centre. Half a pixel of
-  // tolerance for subpixel layout; anything that actually drifts misses by a
-  // whole row height.
-  const alignmentDrift = () => page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll("tr.tvrow"));
-    const drift = [];
-    for (const row of rows) {
-      const id = row.getAttribute("data-id");
-      const kind = row.getAttribute("data-row-kind");
-      const mark = document.querySelector(
-        `svg.tv__rails [data-id="${CSS.escape(id)}"][data-row-kind="${kind}"]`);
-      if (!mark) { drift.push(`${kind} ${id}: no rail mark`); continue; }
-      const a = row.getBoundingClientRect();
-      const b = mark.getBoundingClientRect();
-      const delta = Math.abs((a.top + a.height / 2) - (b.top + b.height / 2));
-      if (delta > 0.5) drift.push(`${kind} ${id}: off by ${delta.toFixed(2)}px`);
-    }
-    return { rows: rows.length, drift };
-  });
+  const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
@@ -581,24 +625,55 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       untracedStroke && untracedStroke !== "none" &&
       untracedStroke !== "rgb(0, 0, 0)");
 
-    const first = await alignmentDrift();
-    push("every grid row lines up with its rail mark",
-      first.rows > 0 && first.drift.length === 0);
+    // The merged-row grid and the leaders (viewer_leader_line_grid): the demo
+    // mechanism has six edges in six single-edge component groups (every
+    // consecutive pair changes part), and five of its six interfaces are part
+    // boundaries — base_datum's one edge makes it internal, so it must NOT
+    // have a leader.
+    push("the grid holds one row per edge, in component groups",
+      await page.locator("tr.tvrow").count() === 6 &&
+      await page.locator("td.tvcell--component").count() === 6);
+    push("five leaders for five part boundaries, none for the internal node",
+      await page.locator("path.rail__leader").count() === 5 &&
+      await page.locator('path.rail__leaderhit[data-leader-id="base_datum"]').count() === 0);
+
+    const first = await correspondence();
+    push("every leader lands on its dot and its seam, every row has its bar",
+      first.rows > 0 && first.leaders === 5 && first.drift.length === 0);
     if (first.drift.length) console.log("    drift: " + first.drift.slice(0, 5).join(" | "));
 
-    // 3) scrolled, they stay lined up — the reason both live in one scrollport.
-    await page.locator(".tv__scroll").evaluate((n) => { n.scrollTop = 120; });
-    const scrolled = await alignmentDrift();
-    push("they are still lined up after scrolling", scrolled.drift.length === 0);
-    await page.locator(".tv__scroll").evaluate((n) => { n.scrollTop = 0; });
+    // 3) scrolled, they stay tied together — rails, leaders and rows share one
+    //    scrollport (the page's own, since full-page scroll).
+    await page.evaluate(() => window.scrollTo(0, 120));
+    const scrolled = await correspondence();
+    push("correspondence holds after scrolling", scrolled.drift.length === 0);
+    await page.evaluate(() => window.scrollTo(0, 0));
 
     // 2) a real click on an SVG circle.
     await page.locator("svg.tv__rails circle.rail__dot").first().click();
     push("clicking a rail dot opens that interface in the preview pane",
       /An interface is a location, not a value/
         .test(await page.locator("#detail").textContent()));
-    push("the clicked row is visibly marked",
-      await page.locator("tr.tvrow--selected").count() === 1);
+    push("the clicked dot is visibly marked — the grid has no node rows",
+      await page.locator("circle.rail__dot--selected").count() === 1 &&
+      await page.locator("tr.tvrow--selected").count() === 0);
+
+    // A leader is clickable too, and selecting a boundary node marks it.
+    await page.locator('path.rail__leaderhit[data-leader-id="base_post_seat"]').click();
+    push("clicking a leader selects its interface",
+      /A component boundary/.test(await page.locator("#detail").textContent()) &&
+      await page.locator("path.rail__leader--selected").count() === 1);
+
+    // The thumbnail column (viewer_leader_line_grid): the one resolved demo
+    // crop upgrades its trigger to the actual image once fetched; the
+    // unresolvable one stays a text button with no image, ever.
+    await page.waitForSelector("img.tvthumb", { timeout: 5000 });
+    push("the resolved crop renders as a real inline thumbnail",
+      await page.locator("tr.tvrow[data-id='base_thickness'] img.tvthumb").count() === 1);
+    push("an unresolvable crop stays a text trigger, never a placeholder image",
+      await page.locator("tr.tvrow[data-id='post_height'] img").count() === 0 &&
+      /no crop/.test(await page.locator("tr.tvrow[data-id='post_height'] button.crop-trigger")
+        .textContent()));
 
     // The grid's own thumbnail trigger (deliverable 1 of viewer_consolidation) —
     // a real click, which the DOM shim cannot exercise. `base_thickness`
@@ -660,15 +735,18 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("the totals say where the numbers came from, behind the Details toggle",
       /This page adds nothing up/.test(await page.locator("#totals").textContent()));
 
-    // The chain layout: one rail, the sum's own order, still aligned.
+    // The chain layout: one rail, the sum's own order, still corresponding.
     await page.locator("#layout-toggle").click();
     push("chain mode says so", /Showing: study chain/
       .test(await page.locator("#layout-toggle").textContent()));
-    const chained = await alignmentDrift();
-    push("the chain layout is aligned too", chained.drift.length === 0);
-    push("a chain is one rail",
+    const chained = await correspondence();
+    push("the chain layout corresponds too — including a leader that points " +
+      "below the whole grid", chained.drift.length === 0);
+    if (chained.drift.length) console.log("    drift: " + chained.drift.slice(0, 5).join(" | "));
+    push("a chain is one rail, one row per contribution",
       await page.locator("svg.tv__rails circle.rail__dot").count() ===
-      chained.rows - await page.locator("svg.tv__rails line.rail__bar").count());
+      chained.rows + 1 &&
+      await page.locator("svg.tv__rails line.rail__bar").count() === chained.rows);
     await page.locator("#layout-toggle").click();
 
     // A study that refuses to sum shows the refusal, with its next step.
@@ -730,11 +808,41 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       for (const topology of realProjection.topologies) {
         await page.locator(navRow("topology", topology.id)).click();
         await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-        const expected = topology.nodes.length + topology.edges.length;
-        push(`[real] ${topology.id} renders all ${expected} rows`,
+        const expected = topology.edges.length;
+        push(`[real] ${topology.id} renders all ${expected} edge rows`,
           await page.locator("tr.tvrow").count() === expected);
-        const drift = await alignmentDrift();
-        push(`[real] ${topology.id} is aligned row for row`, drift.drift.length === 0);
+        // The render honours its own plan — group cells and leaders match
+        // VA.gridPlan over the live layout, so a renderer that dropped a
+        // rowspan or an omission would fail here even though the plan itself
+        // is pinned at the fixture tier.
+        const planMatch = await page.evaluate((topologyId) => {
+          const VA = window.ViewerApp;
+          const proj = VA.findTopology(VA.demoTopologyFixture().topologies, topologyId);
+          const plan = VA.gridPlan(proj.layout, proj);
+          const cells = Array.from(document.querySelectorAll("td.tvcell--component"));
+          const leaders = Array.from(document.querySelectorAll("path.rail__leaderhit"));
+          const bad = [];
+          if (cells.length !== plan.groups.length) {
+            bad.push(`groups: ${cells.length} cells vs ${plan.groups.length} planned`);
+          }
+          plan.groups.forEach((g, i) => {
+            const cell = cells[i];
+            if (!cell) return;
+            const span = cell.getAttribute("rowspan");
+            if ((span === null ? 1 : Number(span)) !== g.count) {
+              bad.push(`group ${i} (${g.label}): rowspan ${span} vs count ${g.count}`);
+            }
+          });
+          if (leaders.length !== plan.leaders.length) {
+            bad.push(`leaders: ${leaders.length} drawn vs ${plan.leaders.length} planned`);
+          }
+          return bad;
+        }, topology.id);
+        push(`[real] ${topology.id}'s groups and leaders match its plan`,
+          planMatch.length === 0);
+        if (planMatch.length) console.log("    plan: " + planMatch.slice(0, 5).join(" | "));
+        const drift = await correspondence();
+        push(`[real] ${topology.id} corresponds leader for leader`, drift.drift.length === 0);
         if (drift.drift.length) console.log("    drift: " + drift.drift.slice(0, 5).join(" | "));
 
         // Deliverable 4 (viewer_v2_single_nav): the topology's own joint
@@ -838,21 +946,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
 
-  const alignmentDrift = () => page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll("tr.tvrow"));
-    const drift = [];
-    for (const row of rows) {
-      const id = row.getAttribute("data-id");
-      const kind = row.getAttribute("data-row-kind");
-      const mark = document.querySelector(
-        `svg.tv__rails [data-id="${CSS.escape(id)}"][data-row-kind="${kind}"]`);
-      if (!mark) { drift.push(`${kind} ${id}: no rail mark`); continue; }
-      const a = row.getBoundingClientRect();
-      const b = mark.getBoundingClientRect();
-      if (Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)) > 0.5) drift.push(`${kind} ${id}`);
-    }
-    return drift;
-  });
+  const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
 
   // The pane's own overflow-y, its rendered height, and the MINIMUM height its
   // own row count demands — a viewport-capped pane would still show
@@ -908,11 +1002,12 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       mockNav.position === "sticky" &&
       (mockNav.overflowY === "auto" || mockNav.overflowY === "scroll"));
 
-    // Compact density: alignment must still hold once row height changes.
+    // Compact density: correspondence must still hold once row height changes
+    // — the leaders and the grid rows both re-derive from the same rowHeight.
     await page.locator("#density-toggle").click();
     await page.waitForTimeout(50);
-    push("rails stay aligned to rows at compact density",
-      (await alignmentDrift()).length === 0);
+    push("leaders stay on their dots and seams at compact density",
+      (await correspondence()).drift.length === 0);
     await page.locator("#density-toggle").click();
 
     if (!realProjection) {
@@ -950,7 +1045,8 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
         () => document.documentElement.scrollHeight > window.innerHeight);
       push("[real] pitch_system's row count pushes the DOCUMENT past the " +
         "viewport rather than clipping inside the pane", docScrolls);
-      push("[real] rails stay aligned to rows", (await alignmentDrift()).length === 0);
+      push("[real] leaders stay on their dots and seams",
+        (await correspondence()).drift.length === 0);
     }
 
     const failed = checks.filter((c) => !c.cond);
@@ -1073,9 +1169,9 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
     for (const topology of realProjection.topologies) {
       await page.locator(navRow("topology", topology.id)).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-      const expected = topology.nodes.length + topology.edges.length;
+      const expected = topology.edges.length;
       const rowCount = await page.locator("tr.tvrow").count();
-      push(`[real, non-mock] ${topology.id} renders all ${expected} rows ` +
+      push(`[real, non-mock] ${topology.id} renders all ${expected} edge rows ` +
         "through the real load()+render() pipeline", rowCount === expected);
     }
 

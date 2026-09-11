@@ -430,6 +430,40 @@
     nodes.crop.style.display = "none";
   }
 
+  // --- crops: the grid's inline thumbnails (viewer_leader_line_grid) ---------
+  //
+  // The thumbnail column renders synchronously out of `imageCache`; this is
+  // the asynchronous half — fetch every RESOLVED crop the open topology's
+  // edges address that is not cached yet, then re-render once so the text
+  // triggers upgrade to images. Called from paint()'s topology branch, and
+  // safe there: the second call finds everything cached (or in flight) and
+  // returns without scheduling another render, so it cannot loop. An edge
+  // whose crop does not resolve is never fetched — its trigger stays the
+  // stateful text button, and an edge with no crop_key gets nothing at all.
+  var thumbFetches = {};    // png -> true while a read is in flight
+
+  function ensureThumbImages(topoProj) {
+    if (!topoProj || !adapter) return;
+    var wanted = [];
+    (topoProj.edges || []).forEach(function (edge) {
+      if (!edge.crop_key) return;
+      var entry = VA.cropFor(state.crops, edge.crop_key.stack, edge.crop_key.element);
+      if (entry.status !== "resolved" || !entry.png) return;
+      if (Object.prototype.hasOwnProperty.call(imageCache, entry.png)) return;
+      if (thumbFetches[entry.png]) return;
+      if (wanted.indexOf(entry.png) === -1) wanted.push(entry.png);
+    });
+    if (!wanted.length) return;
+    Promise.all(wanted.map(function (png) {
+      thumbFetches[png] = true;
+      return adapter.readCropImage(png).then(function (image) {
+        imageCache[png] = image;
+      }).catch(function () {
+        imageCache[png] = null;
+      }).then(function () { delete thumbFetches[png]; });
+    })).then(render);
+  }
+
   // Place the popover below the trigger, or above it when there isn't room —
   // a crop of a whole drawing sheet is tall, and one that renders off the bottom
   // of the window is a hover that shows nothing.
@@ -532,6 +566,10 @@
         topoProj: topoProj, study: study, crops: state.crops,
         layoutMode: state.layoutMode, selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
+        // The grid's thumbnail column reads fetched crop PNGs out of this
+        // cache synchronously (views/topology.js's edgeCropCell); the fetch
+        // itself is ensureThumbImages below, fired after this paint.
+        cropImages: imageCache,
         onSelect: selectElement, onCropShow: showCrop,
       };
       VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
@@ -558,6 +596,7 @@
       VA.renderTopoPane(nodes.pane, ctx);
       VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
       VA.renderTopoDetail(nodes.detail, ctx);
+      ensureThumbImages(topoProj);
     } else {
       VA.renderStack(nodes.stackview, stackProj, state.crops, {
         onCropShow: showCrop,

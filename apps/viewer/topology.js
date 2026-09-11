@@ -258,9 +258,14 @@
 
   //: Row height, column pitch and the left margin, in CSS pixels. One object so
   //: the grid and the SVG cannot disagree: the grid's rows are laid out at
-  //: exactly `rowHeight` and the SVG's marks at exactly `y(row)`, and alignment
-  //: is then true by construction rather than by two stylesheets agreeing.
-  VA.RAIL_METRICS = { rowHeight: 26, gutter: 20, left: 15, dot: 4.5, branchDot: 6.5 };
+  //: exactly `rowHeight` and the SVG's marks at exactly `y(row)`, and the
+  //: leader geometry (VA.leaderGeometry) reads the same numbers, so row/leader
+  //: correspondence is true by construction rather than by two stylesheets
+  //: agreeing. `leaderPad`/`leaderLane` size the jog zone between the rails
+  //: and the grid: horizontal spacing, so density (a rowHeight control) never
+  //: moves them.
+  VA.RAIL_METRICS = { rowHeight: 26, gutter: 20, left: 15, dot: 4.5, branchDot: 6.5,
+                      leaderPad: 8, leaderLane: 6 };
 
   // --- row density -----------------------------------------------------
   //
@@ -377,6 +382,194 @@
       " " + x2 + " " + (y2 + lift) +
       " " + x2 + " " + y2;
   }
+
+  // --- leaders + the merged-row grid (viewer_leader_line_grid, 2026-09-10) --
+  //
+  // The grid stopped being one-row-per-graph-element: it is one row per EDGE
+  // (the tolerance contributions — the numbers a reviewer came for), grouped
+  // into components, with a merged leftmost cell per group. Nodes left the
+  // grid entirely; an interface's presence beside the rows is its LEADER — a
+  // jogged, GD&T-ordinate-style line from its dot to the boundary between the
+  // two edge rows it separates. And a leader is only drawn where it separates
+  // two COMPONENTS: a node whose adjacent edges all carry the same `part`
+  // (multiple tolerances on one feature — size + flatness on one distance) is
+  // "internal" and gets none. That omission IS the component grouping (locked
+  // 2026-09-10; it supersedes the earlier boundary-lasso question).
+
+  // { nodeId: [part, ...] } — the DISTINCT part values on each node's adjacent
+  // edges, first-seen order. `null` (a gap edge — no part; a real clearance)
+  // is a value here, deliberately: a node between a structural edge and a gap
+  // sits on a component boundary and must read as one.
+  VA.nodeAdjacentParts = function (topoProj) {
+    var byNode = {};
+    ((topoProj && topoProj.nodes) || []).forEach(function (n) { byNode[n.id] = []; });
+    ((topoProj && topoProj.edges) || []).forEach(function (e) {
+      var part = e.part === undefined ? null : e.part;
+      [e.from, e.to].forEach(function (nodeId) {
+        var parts = byNode[nodeId] || (byNode[nodeId] = []);
+        if (parts.indexOf(part) === -1) parts.push(part);
+      });
+    });
+    return byNode;
+  };
+
+  // { nodeId: true|false } — internal means "all adjacent edges carry one
+  // part", including the trivial degree-1 case (a chain end is inside its own
+  // component, not a boundary between two).
+  VA.internalNodes = function (topoProj) {
+    var parts = VA.nodeAdjacentParts(topoProj);
+    var internal = {};
+    Object.keys(parts).forEach(function (nodeId) {
+      internal[nodeId] = parts[nodeId].length <= 1;
+    });
+    return internal;
+  };
+
+  // The label a component group's merged cell prints. The part id, not the
+  // long prose name — the name rides on the cell's hover title instead
+  // (componentTitle below). A gap has no part and says what it is in the
+  // words the old per-row part cell already used.
+  VA.GAP_COMPONENT_LABEL = "— across a clearance —";
+
+  VA.componentTitle = function (part) {
+    if (!part) return "a gap: its two interfaces share no part";
+    var text = part.name || part.id;
+    if (part.drawing) text += " · drawing " + part.drawing;
+    return text;
+  };
+
+  // The whole plan of the merged-row grid, from one serialisation (a
+  // topology's whole-graph walk or a study's chain — both carry the same row
+  // shape). Everything the grid and the leaders need, keyed by id:
+  //
+  //   rows     [{ id, layoutRow, gridRow }]      one per edge, walk order
+  //   groups   [{ part, label, title, start, count }]   contiguous runs
+  //   leaders  [{ id, layoutRow, boundary, beforeEdge }]  non-internal nodes
+  //   internal { nodeId: bool }
+  //
+  // A group breaks where the part changes between consecutive edge rows OR
+  // where the node row between them is non-internal (a boundary node between
+  // two same-part edges is possible at a fork, and honesty says break there
+  // too — the leader and the group border then coincide). NOTE the converse
+  // is not guaranteed: the depth-first walk can revisit a part on a later
+  // branch (the pitch system's hub does), and each contiguous run gets its
+  // own merged cell — reordering the grid to force one row per part would
+  // cross the leaders and break the walk-order correspondence this page is
+  // built on.
+  //
+  // A leader's `boundary` is a GRID row index: the number of edge rows the
+  // walk emitted before the node, i.e. the seam between the edge above it and
+  // the edge below it (0 = above the first row, rows.length = below the
+  // last). `beforeEdge` is the edge id whose row starts at that seam, or null
+  // at the very bottom — it is what lets a browser test measure the leader's
+  // end against the actual row box rather than re-deriving arithmetic.
+  VA.gridPlan = function (layout, topoProj) {
+    var index = VA.topologyIndex(topoProj);
+    var internal = VA.internalNodes(topoProj);
+    var partsById = index.parts;
+
+    var rows = [];
+    var groups = [];
+    var leaders = [];
+    var prevPart = null;
+    var pendingBoundaryNode = null;   // a non-internal node row since the last edge
+
+    ((layout && layout.rows) || []).forEach(function (row) {
+      if (row.kind === "node") {
+        if (!internal[row.id]) {
+          pendingBoundaryNode = row.id;
+          leaders.push({
+            id: row.id,
+            layoutRow: row.row,
+            boundary: rows.length,
+            beforeEdge: null,        // filled in when the next edge row lands
+          });
+        }
+        return;
+      }
+      if (row.kind !== "edge") return;
+      var edge = index.edges[row.id] || null;
+      var part = edge && edge.part !== undefined ? edge.part : null;
+      var breakHere = rows.length === 0 || part !== prevPart ||
+        pendingBoundaryNode !== null;
+      if (breakHere) {
+        groups.push({
+          part: part,
+          label: part === null ? VA.GAP_COMPONENT_LABEL : String(part),
+          title: VA.componentTitle(part === null ? null : partsById[part] || { id: part }),
+          start: rows.length,
+          count: 0,
+        });
+      }
+      groups[groups.length - 1].count += 1;
+      for (var i = leaders.length - 1; i >= 0; i--) {
+        if (leaders[i].boundary !== rows.length || leaders[i].beforeEdge !== null) break;
+        leaders[i].beforeEdge = row.id;
+      }
+      rows.push({
+        id: row.id,
+        layoutRow: row.row,
+        gridRow: rows.length,
+        closes: row.closes_row !== null && row.closes_row !== undefined,
+      });
+      prevPart = part;
+      pendingBoundaryNode = null;
+    });
+
+    return { rows: rows, groups: groups, leaders: leaders, internal: internal };
+  };
+
+  // The jogged leader lines, as path strings: from just right of the node's
+  // dot, horizontally into the jog zone, vertically down/up the zone's own
+  // lane, then horizontally into the grid at the boundary's y. Orthogonal
+  // segments (GD&T ordinate-dimension style), so the grid's rows stay compact
+  // and evenly spaced however unevenly the graph above is laid out — which is
+  // the point: the DAG's y comes from the layout's row indices today and from
+  // edge-length scaling modes tomorrow, and only these leaders have to know.
+  //
+  // Lanes are strictly monotone in walk order. Leaders never cross under
+  // that rule (both endpoint sequences are monotone in y), and it is cheap to
+  // reason about, so no lane is ever reused — the zone is (leaders × lane
+  // pitch) wide and that is the price of legibility.
+  //
+  // Pure: same layout and metrics in, same geometry out. The node y comes
+  // from VA.railY over the node's LAYOUT row (the same number railGeometry
+  // gives its dot); the boundary y is gridRow × rowHeight (the same number
+  // the grid's inline row heights sum to).
+  VA.leaderGeometry = function (layout, plan, metrics) {
+    metrics = metrics || VA.RAIL_METRICS;
+    var columns = (layout && layout.columns) || 1;
+    var zoneLeft = VA.railX(columns - 1, metrics) + metrics.left;
+    var count = plan.leaders.length;
+    var width = zoneLeft + metrics.leaderPad * 2 +
+      (count ? (count - 1) * metrics.leaderLane : 0);
+
+    var rowsByLayoutRow = {};
+    ((layout && layout.rows) || []).forEach(function (row) {
+      rowsByLayoutRow[row.row] = row;
+    });
+
+    var leaders = plan.leaders.map(function (leader, i) {
+      var row = rowsByLayoutRow[leader.layoutRow] || { column: 0, branch: false };
+      var dotR = row.branch ? metrics.branchDot : metrics.dot;
+      var x1 = VA.railX(row.column, metrics) + dotR + 1.5;
+      var y1 = VA.railY(leader.layoutRow, metrics);
+      var y2 = leader.boundary * metrics.rowHeight;
+      var laneX = zoneLeft + metrics.leaderPad + i * metrics.leaderLane;
+      return {
+        id: leader.id,
+        boundary: leader.boundary,
+        beforeEdge: leader.beforeEdge,
+        x1: x1, y1: y1, y2: y2, laneX: laneX,
+        d: "M " + x1 + " " + y1 +
+           " H " + laneX +
+           " V " + y2 +
+           " H " + width,
+      };
+    });
+
+    return { zoneLeft: zoneLeft, width: width, leaders: leaders };
+  };
 
   // --- loose stacks: what the topology page absorbs the stack viewer for ---
   //

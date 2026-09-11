@@ -1,8 +1,11 @@
 // The three panes of the topology page: the rails (SVG), the grid, and the
-// preview. They are one view file because they are one alignment contract —
-// every row's y is `VA.railY(row.row)` in the SVG and an inline `height` of
-// `VA.RAIL_METRICS.rowHeight` in the grid, and splitting them across files is
-// how those two stop being the same number.
+// preview. They are one view file because they are one correspondence
+// contract (viewer_leader_line_grid, 2026-09-10): the DAG's marks sit at
+// `VA.railY(layout row)`, the grid holds one row per EDGE at an inline height
+// of `VA.RAIL_METRICS.rowHeight`, and the jogged leader lines between them
+// are drawn from the SAME two numbers (VA.leaderGeometry), so a leader's two
+// ends land on its node's dot and its grid seam by construction. Splitting
+// these across files is how that stops being one set of numbers.
 //
 // Nothing here computes a tolerance. The rail columns come out of the
 // projection, the folded numbers come out of the projection, and this file turns
@@ -128,6 +131,12 @@
     var study = ctx.study;
     var layout = layoutFor(topoProj, study, ctx.layoutMode);
     var geometry = VA.railGeometry(layout, M);
+    // The merged-row grid and the leaders come off ONE plan of the same
+    // serialisation the rails were drawn from (viewer_leader_line_grid,
+    // 2026-09-10): the grid holds only the edge rows, grouped into components,
+    // and each non-internal node bridges the two with a jogged leader line.
+    var plan = VA.gridPlan(layout, topoProj);
+    var leaderGeo = VA.leaderGeometry(layout, plan, M);
     var index = VA.topologyIndex(topoProj);
     var chain = VA.chainIndex(study);
     var chainNodes = VA.chainNodes(study);
@@ -143,10 +152,10 @@
     // rail has nothing to stick within, and a wide row simply bleeds into
     // whatever sits to the pane's right.
     var hscroll = VA.el("div", "tv__hscroll");
-    hscroll.appendChild(header(geometry.width));
+    hscroll.appendChild(header(leaderGeo.width));
     var body = VA.el("div", "tv__body");
-    body.appendChild(railsSvg(geometry, index, chain, chainNodes, marking, ctx));
-    body.appendChild(grid(layout, index, chain, chainNodes, marking, ctx));
+    body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx));
+    body.appendChild(grid(plan, index, chain, marking, ctx));
     hscroll.appendChild(body);
     root.appendChild(hscroll);
     return root;
@@ -169,15 +178,25 @@
   // table and the body table cannot disagree) and the total width both tables
   // are given inline — a second place these could drift is exactly the "three
   // places" trap this file already documents once for row height.
+  //
+  // `component` is the merged column (viewer_leader_line_grid): one cell per
+  // contiguous same-part run, spanning its tolerance sub-rows via rowspan. It
+  // replaced the per-row "part / interface" column — the part is said once per
+  // group now, and the interfaces left the grid for the leaders. `crop` is the
+  // thumbnail column: the actual crop image where one is resolved and fetched,
+  // the same trigger button otherwise, and NOTHING where no crop index covers
+  // the edge — an image placeholder would read as "not built yet" when the
+  // truth is "no document to crop".
   var COLUMNS = [
+    { cls: "component", label: "component", width: 150 },
     { cls: "ord", label: "#", width: 38 },
     { cls: "name", label: "element", width: 220 },
-    { cls: "part", label: "part / interface", width: 170 },
     { cls: "nominal", label: "nominal", width: 80 },
     { cls: "min", label: "min", width: 80 },
     { cls: "max", label: "max", width: 80 },
     { cls: "contribution", label: "contribution", width: 200 },
-    { cls: "chips", label: "sourcing", width: 220 },
+    { cls: "chips", label: "sourcing", width: 200 },
+    { cls: "crop", label: "crop", width: 110 },
   ];
 
   function tableWidth() {
@@ -214,13 +233,17 @@
 
   // --- the SVG -------------------------------------------------------------
 
-  function railsSvg(geometry, index, chain, chainNodes, marking, ctx) {
+  function railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx) {
+    // The SVG spans the rails AND the leader jog zone: its right edge is the
+    // grid table's left edge, so a leader's final horizontal segment hands off
+    // to its row's boundary with no seam to keep aligned.
+    var width = leaderGeo.width;
     var svg = VA.svg("svg", "tv__rails", {
-      width: geometry.width,
+      width: width,
       height: geometry.height,
-      viewBox: "0 0 " + geometry.width + " " + geometry.height,
+      viewBox: "0 0 " + width + " " + geometry.height,
     });
-    svg.style.minWidth = geometry.width + "px";
+    svg.style.minWidth = width + "px";
     svg.style.height = geometry.height + "px";
 
     // 1. the rails themselves: continuous, neutral, alternating shade by column
@@ -236,6 +259,31 @@
     geometry.links.forEach(function (link) {
       svg.appendChild(VA.svg("path", "rail__link rail__link--" + link.kind,
         { d: link.d }));
+    });
+
+    // 2b. the leaders (viewer_leader_line_grid): one jogged line per
+    //     NON-internal node, from its dot to the seam between the two grid
+    //     rows it separates. An internal node — every adjacent edge on one
+    //     part — gets none, and that omission is what makes the component
+    //     grouping visible: leaders appear only at part boundaries. The
+    //     visible path is thin; a wider invisible twin (`rail__leaderhit`,
+    //     same shape as the edge bars' own hit path) carries the hover title,
+    //     the click and the addressable data attributes.
+    leaderGeo.leaders.forEach(function (leader) {
+      var node = index.nodes[leader.id];
+      var classes = ["rail__leader"];
+      if (marking) {
+        classes.push(chainNodes[leader.id] ? "rail__leader--on" : "rail__leader--off");
+      }
+      if (isSelected(ctx, "node", leader.id)) classes.push("rail__leader--selected");
+      svg.appendChild(VA.svg("path", classes.join(" "), { d: leader.d }));
+      var hit = VA.svg("path", "rail__leaderhit", { d: leader.d });
+      hit.setAttribute("data-leader-id", leader.id);
+      hit.setAttribute("data-boundary-edge", leader.beforeEdge || "");
+      hit.appendChild(svgTitle(node ? node.name : leader.id));
+      hit.setAttribute("tabindex", "0");
+      hit.onclick = function () { ctx.onSelect("node", leader.id); };
+      svg.appendChild(hit);
     });
 
     // 3. one mark per row: a bar for an edge (the dimension IS the segment), a
@@ -276,6 +324,9 @@
       if (mark.branch) dotClasses.push("rail__dot--branch");
       if (node && node.kind === "datum_feature") dotClasses.push("rail__dot--datum");
       if (marking) dotClasses.push(chainNodes[mark.id] ? "rail__dot--on" : "rail__dot--off");
+      // The grid has no node rows to wear the selection outline any more
+      // (viewer_leader_line_grid), so the dot itself marks a selected node.
+      if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
       var dot = VA.svg("circle", dotClasses.join(" "), {
         cx: mark.x, cy: mark.y, r: mark.branch ? M.branchDot : M.dot,
       });
@@ -309,16 +360,23 @@
 
   // --- the grid ------------------------------------------------------------
 
-  function grid(layout, index, chain, chainNodes, marking, ctx) {
+  // One row per EDGE, walk order, merged into component groups
+  // (viewer_leader_line_grid): the leftmost cell of a group's first row spans
+  // the whole group via rowspan, so a component is said once and its
+  // tolerance sub-rows read as one block. Node rows are gone — an interface
+  // is its dot and (at a part boundary) its leader, both clickable.
+  function grid(plan, index, chain, marking, ctx) {
     var box = VA.el("div", "tv__rows");
     var table = VA.el("table", "tvtable");
     table.style.width = tableWidth() + "px";
     table.appendChild(colgroup());
     var tbody = VA.el("tbody");
-    layout.rows.forEach(function (row) {
-      tbody.appendChild(row.kind === "edge"
-        ? edgeRow(row, index, chain, marking, ctx)
-        : nodeRow(row, index, chainNodes, marking, ctx));
+    plan.groups.forEach(function (group) {
+      for (var i = 0; i < group.count; i++) {
+        var planRow = plan.rows[group.start + i];
+        tbody.appendChild(edgeRow(planRow, i === 0 ? group : null, index, chain,
+          marking, ctx));
+      }
     });
     table.appendChild(tbody);
     box.appendChild(table);
@@ -358,52 +416,34 @@
     return { cell: cell, wrap: wrap };
   }
 
-  function nodeRow(row, index, chainNodes, marking, ctx) {
-    var node = index.nodes[row.id];
-    var el = baseRow("node", ctx, row.id);
-    if (row.branch) el.className += " tvrow--branch";
-    if (marking) el.className += chainNodes[row.id] ? " tvrow--on" : " tvrow--off";
-    if (isSelected(ctx, "node", row.id)) el.className += " tvrow--selected";
-
-    el.appendChild(VA.el("td", "tvcell tvcell--ord", row.branch ? "⑂" : ""));
-    el.appendChild(VA.el("td", "tvcell tvcell--name",
-      node ? node.name : missing(row.id)));
-    el.appendChild(VA.el("td", "tvcell tvcell--part",
-      node ? node.parts.join(" ⇔ ") : ""));
-    el.appendChild(VA.el("td", "tvcell tvcell--nominal num", ""));
-    el.appendChild(VA.el("td", "tvcell tvcell--min num", ""));
-    el.appendChild(VA.el("td", "tvcell tvcell--max num", ""));
-    el.appendChild(VA.el("td", "tvcell tvcell--contribution", ""));
-    var chips = chipsCell("chips");
-    if (node) {
-      chips.wrap.appendChild(VA.chip("chip--kind", node.kind,
-        node.kind === "mating_surface"
-          ? "two parts meet here, and `parts` names both"
-          : "a located feature on one part that nothing mates to — what lets a " +
-            "chain end somewhere that is not a mate"));
-      if (row.branch) {
-        chips.wrap.appendChild(VA.chip("chip--branch", "BRANCH",
-          "three or more edges meet here, so a study must choose. This tool " +
-          "reports the fork and never resolves it."));
-      }
-    }
-    el.appendChild(chips.cell);
-    return el;
+  // The merged component cell: one per group, spanning the group's sub-rows.
+  // The part id as text (the prose name and drawing ride on the hover title —
+  // the later hover-cards handoff owns anything richer), or the gap wording
+  // for a clearance. Clicking it selects nothing: it is a grouping, not a row.
+  function componentCell(group) {
+    var cell = VA.el("td", "tvcell tvcell--component", group.label);
+    if (group.count > 1) cell.setAttribute("rowspan", String(group.count));
+    if (group.title) cell.setAttribute("title", group.title);
+    cell.onclick = function (event) {
+      if (event && event.stopPropagation) event.stopPropagation();
+    };
+    return cell;
   }
 
-  function edgeRow(row, index, chain, marking, ctx) {
-    var edge = index.edges[row.id];
-    var hit = chain[row.id];
-    var el = baseRow("edge", ctx, row.id);
+  function edgeRow(planRow, group, index, chain, marking, ctx) {
+    var edge = index.edges[planRow.id];
+    var hit = chain[planRow.id];
+    var el = baseRow("edge", ctx, planRow.id);
+    if (group) el.className += " tvrow--group-start";
     if (edge) el.className += " " + VA.confidenceClass(edge.confidence);
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
     if (edge && edge.zero_width) el.className += " tvrow--zero-width";
     if (marking) el.className += hit ? " tvrow--on" : " tvrow--off";
-    if (row.closes_row !== null && row.closes_row !== undefined) {
-      el.className += " tvrow--closes";
-    }
-    if (isSelected(ctx, "edge", row.id)) el.className += " tvrow--selected";
+    if (planRow.closes) el.className += " tvrow--closes";
+    if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
+
+    if (group) el.appendChild(componentCell(group));
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a
@@ -414,12 +454,10 @@
     // states its own diagnostic regardless of mode -- that text is never
     // redundant and must not be hidden.
     var valueOnly = !!(ctx.edgeValueOnly && edge);
-    if (valueOnly) el.setAttribute("title", VA.edgeHoverTitle(edge, row.id));
+    if (valueOnly) el.setAttribute("title", VA.edgeHoverTitle(edge, planRow.id));
     el.appendChild(VA.el("td", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
     el.appendChild(VA.el("td", "tvcell tvcell--name",
-      valueOnly ? "" : (edge ? edge.name : missing(row.id))));
-    el.appendChild(VA.el("td", "tvcell tvcell--part",
-      edge ? (edge.part || "— across a clearance —") : ""));
+      valueOnly ? "" : (edge ? edge.name : missing(planRow.id))));
 
     // The value cell, decomposed into three (deliverable 2): the old combined
     // "value  [min … max]" text read fine but pasted as one unsplittable cell.
@@ -471,36 +509,57 @@
           "this edge carries a non-identity DEFAULT transform: " +
           VA.transformText(edge.transform)));
       }
-      // The thumbnail (deliverable 1): only where a crop index actually covers
-      // this edge. An edge authored inline in the topology, or a derived gap,
-      // has no crop index to check — see cropSection in the detail pane below,
-      // which states the reason in full; a "no crop" button here for those
-      // would read as a stale index rather than what it is.
-      var trigger = edgeCropTrigger(edge, ctx);
-      if (trigger) chips.wrap.appendChild(trigger);
     }
     el.appendChild(chips.cell);
+    el.appendChild(edgeCropCell(edge, ctx));
     return el;
   }
 
-  // The hover/click thumbnail trigger, the same vocabulary and the same crop
-  // plumbing views/stack.js's cropTrigger uses (VA.cropFor, VA.cropProvenanceLine):
-  // an edge that re-expresses a committed stack element IS that element, crop
-  // and all, so there is one crop-trigger button shape in the repo, not two.
-  function edgeCropTrigger(edge, ctx) {
-    if (!edge.crop_key) return null;
+  // The thumbnail cell (viewer_leader_line_grid): only where a crop index
+  // actually covers this edge. An edge authored inline in the topology, or a
+  // derived gap, has no crop index to check — see cropSection in the detail
+  // pane below, which states the reason in full; a "no crop" button here for
+  // those would read as a stale index rather than what it is. When the crop is
+  // resolved AND its PNG has been fetched (ctx.cropImages, topology_app.js's
+  // cache), the trigger IS the thumbnail — the actual crop of the tolerance
+  // annotation, inline on the row; until then, or for a crop that cannot
+  // resolve, it stays the same text button, never a placeholder image. Either
+  // way it is the same vocabulary and the same crop plumbing views/stack.js's
+  // cropTrigger uses (VA.cropFor, VA.cropProvenanceLine): an edge that
+  // re-expresses a committed stack element IS that element, crop and all, so
+  // there is one crop-trigger shape in the repo, not two — and the hover/click
+  // popover behaviour is exactly the existing one (rich hover cards belong to
+  // the later viewer_hover_cards_and_deep_links handoff).
+  function edgeCropCell(edge, ctx) {
+    var cell = VA.el("td", "tvcell tvcell--crop");
+    // The same clamp wrapper the chips cell uses, for the same reason: a real
+    // <tr>'s height is a floor, not a cap, and a text trigger one pixel taller
+    // than compact's 16px pitch would grow the row off its leader's seam —
+    // exactly the drift the browser tier's correspondence check measures.
+    var wrap = VA.el("div", "tvcell__cropwrap");
+    cell.appendChild(wrap);
+    if (!edge || !edge.crop_key) return cell;
     var entry = VA.cropFor(ctx.crops, edge.crop_key.stack, edge.crop_key.element);
     var resolved = entry.status === "resolved";
-    var node = VA.el("button",
-      "crop-trigger crop-trigger--" + entry.status,
-      resolved ? "drawing crop" : "no crop — " + entry.status);
+    var image = resolved && ctx.cropImages ? ctx.cropImages[entry.png] : null;
+    var node = VA.el("button", "crop-trigger crop-trigger--" + entry.status +
+      (image && image.url ? " crop-trigger--thumb" : ""));
+    if (image && image.url) {
+      var img = VA.el("img", "tvthumb");
+      img.setAttribute("src", image.url);
+      img.setAttribute("alt", "crop of " + entry.pdf_name + " sheet " + entry.page);
+      node.appendChild(img);
+    } else {
+      node.textContent = resolved ? "drawing crop" : "no crop — " + entry.status;
+    }
     node.setAttribute("title", resolved ? VA.cropProvenanceLine(entry) : (entry.reason || ""));
     node.cropEntry = entry;
     var show = function () { if (ctx.onCropShow) ctx.onCropShow(entry, node); };
     node.onclick = show;
     node.onmouseenter = show;
     node.onfocus = show;
-    return node;
+    wrap.appendChild(node);
+    return cell;
   }
 
   function isSelected(ctx, kind, id) {
@@ -640,6 +699,23 @@
 
     root.appendChild(VA.el("div", "detail__where",
       "on " + node.parts.join(" ⇔ ")));
+
+    // Whether this interface got a leader line, and why (viewer_leader_line_
+    // grid): the omission rule is the component grouping, so the pane says
+    // which side of it this node is on rather than leaving a missing leader
+    // to read as a rendering gap.
+    var adjacentParts = VA.nodeAdjacentParts(ctx.topoProj)[id] || [];
+    var partWords = adjacentParts.map(function (p) {
+      return p === null ? "a clearance" : p;
+    });
+    root.appendChild(VA.el("p", "detail__crop-reason",
+      adjacentParts.length <= 1
+        ? "An internal interface: every dimension meeting here belongs to " +
+          (partWords[0] || "no part") + ", so no leader line is drawn — " +
+          "leaders mark component boundaries only."
+        : "A component boundary: the dimensions meeting here belong to " +
+          partWords.join(" / ") + ", and its leader line marks that seam " +
+          "in the grid."));
     if (node.note) root.appendChild(VA.el("div", "detail__note", node.note));
 
     if (node.source_ref) {

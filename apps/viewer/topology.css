@@ -197,6 +197,27 @@ body { display: flex; flex-direction: column; }
 .rail__dot { fill: var(--panel); stroke: var(--rail-odd); stroke-width: 2; cursor: pointer; }
 .rail__dot--datum { fill: var(--rail-odd); }
 .rail__dot--branch { stroke: var(--accent); stroke-width: 2.5; }
+/* The grid has no node rows to wear a selection outline (viewer_leader_line_
+   grid), so a selected interface is marked on its dot and its leader. */
+.rail__dot--selected { stroke: var(--accent); stroke-width: 3; }
+
+/* --- the leaders (viewer_leader_line_grid, 2026-09-10) --------------------
+   One jogged, GD&T-ordinate-style line per NON-internal node: dot -> jog zone
+   -> the seam between the two grid rows the interface separates. Neutral and
+   thin — a leader is wayfinding, not data, so it must never compete with a
+   bar's provenance colour. The hit path is the same invisible-but-wide trick
+   .rail__barhit uses, so a 1.5px line is still hoverable and clickable. */
+.rail__leader {
+  fill: none; stroke: var(--rail-dim); stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.rail__leaderhit {
+  fill: none; stroke: transparent; stroke-width: 10;
+  pointer-events: stroke; cursor: pointer;
+}
+.rail__leader--off { opacity: .28; }
+.rail__leader--on { stroke: var(--rail-odd); }
+.rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
 
 /* Study highlighting. Binary, so no palette: on the path or off it. */
 .rail__bar--off, .rail__dot--off { opacity: .28; }
@@ -221,12 +242,12 @@ body { display: flex; flex-direction: column; }
 
 .tvrow { cursor: pointer; white-space: nowrap; }
 .tvrow:hover { background: #20242c; }
-.tvrow--node {
-  color: var(--muted); font-size: 12px;
-  background: linear-gradient(to right, rgba(255,255,255,.035), transparent 60%);
-}
 .tvrow--edge { font-size: 13px; }
-.tvrow--branch { color: var(--accent); }
+/* A component group's first row: the seam a leader points at. box-shadow, not
+   border-top — a cell border participates in the table's row-height sizing
+   (this file's own collapsed-border lesson, above) and a shadow never does,
+   so the group line cannot nudge a row off its leader. */
+.tvrow--group-start .tvcell { box-shadow: inset 0 1px 0 var(--line); }
 .tvrow--off { opacity: .35; }
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 /* Same tint the elements table uses: an untraced value has to survive a skim. */
@@ -251,19 +272,46 @@ body { display: flex; flex-direction: column; }
      this override before. */
   border-bottom: none;
 }
+/* The merged component column (viewer_leader_line_grid): one cell per
+   contiguous same-part run, rowspanned over its tolerance sub-rows. Top-
+   aligned so the label sits at the seam its leader points at. */
+.tvcol--component { width: 150px; }
+.tvcell--component {
+  color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace;
+  vertical-align: top; cursor: default;
+}
 .tvcol--ord { width: 38px; }
 .tvcell--ord {
   text-align: right; color: var(--accent);
   font-family: ui-monospace, monospace; font-size: 11px;
 }
 .tvcol--name { width: 220px; }
-.tvcol--part { width: 170px; }
-.tvcell--part { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; }
 .tvcol--nominal, .tvcol--min, .tvcol--max { width: 80px; }
 .tvcell--nominal, .tvcell--min, .tvcell--max { font-size: 12px; }
 .tvcol--contribution { width: 200px; }
 .tvcell--contribution { font-size: 12px; }
-.tvcol--chips { width: 220px; }
+.tvcol--chips { width: 200px; }
+/* The thumbnail column: the crop image itself where one resolved and loaded
+   (never a placeholder — an absent crop renders nothing), the same stateful
+   text trigger otherwise. The image is capped to the row's own pitch so a
+   thumbnail can never grow a row off its leader. */
+.tvcol--crop { width: 110px; }
+.tvcell--crop { padding: 0 4px; }
+/* The same clamp the chips cell's wrapper applies (and for the same reason —
+   a <tr>'s height is a floor): whatever the trigger renders as, text or
+   thumbnail, it can never grow the row off its leader's seam. */
+.tvcell__cropwrap {
+  display: flex; align-items: center;
+  height: var(--tv-row); overflow: hidden;
+}
+.tvcell--crop .crop-trigger--thumb {
+  margin: 0; padding: 0; border: none; background: none; display: block;
+  height: var(--tv-row); overflow: hidden;
+}
+.tvthumb {
+  display: block; height: calc(var(--tv-row) - 2px); max-width: 100%;
+  object-fit: contain; object-position: left center; margin-top: 1px;
+}
 /* No wrap, on purpose: a wrapped chip would grow past the row's own fixed
    height, which a real <tr> treats as a floor rather than a cap the way the
    old div row's `overflow: hidden` effectively capped it. Overflow clips
@@ -284,10 +332,14 @@ body { display: flex; flex-direction: column; }
    taller, block-stacked sourcing cell — `margin-top: 6px` alone is most of
    why a crop-key'd row was drawn taller than its own `rowHeight`, since a
    real <tr>'s inline `height` is a floor, not a cap, and nothing here clips
-   it. Shrunk to actually fit this row's fixed pitch, comfortable or compact. */
-.tvcell__chipswrap .crop-trigger {
+   it. Shrunk to actually fit this row's fixed pitch, comfortable or compact.
+   (The trigger lives in the crop column now — viewer_leader_line_grid — but
+   the sizing constraint is the same one.) */
+.tvcell--crop .crop-trigger {
   margin-top: 0; padding: 1px 6px; font-size: 10px; line-height: 1.3;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.tvcell--crop .crop-trigger.crop-trigger--thumb { padding: 0; }
 .tvrow__weight { color: var(--accent); margin-right: 4px; }
 
 .chip--gap { color: var(--zero); border-color: var(--zero); }

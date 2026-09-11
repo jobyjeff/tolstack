@@ -186,39 +186,61 @@ venv-win\Scripts\python.exe scripts\build_topology_projection.py
 Then reload the page. (`topology.html?mock=1` runs a demo mechanism with no
 disk access, exactly like the classic view's own demo.)
 
-### The row model: one row per graph element
+### The row model: edge rows, merged components, and leader lines
 
-**A dot is an interface; a bar is the dimension between two of them; every id in
-the document has exactly one row, one y and one rail mark.** Nodes and edges
-interleave, so a chain of n edges is 2n+1 rows.
+**A dot is an interface; a bar is the dimension between two of them; a grid row
+is a dimension; a leader line is a part boundary.** Since handoff
+`viewer_leader_line_grid` (2026-09-10) the grid holds **one row per edge** in
+walk order — compact and evenly spaced — while the DAG keeps its own layout
+(one slot per node and edge today; the coming edge-length scaling modes will
+make it deliberately uneven). The two are tied together by **jogged leader
+lines**, GD&T ordinate-dimension style: orthogonal segments from a node's dot,
+across the jog zone, into the seam between the two grid rows that interface
+separates.
 
-That was a decision, and the two alternatives each drop half of what the page is
-for. One row per *edge* only puts the interfaces between rows, and an interface
-is what a chain's endpoints are named by and what a 3D-annotation surface will
-resolve — it needs somewhere to be clicked. One row per *node* only puts the
-numbers between rows, and the numbers are what a tolerance reviewer came for.
-Interleaving costs vertical space and buys a page where the grid is an index of
-the whole document.
+**A leader is drawn only at a part boundary, and that omission IS the
+component grouping** (locked 2026-09-10; it supersedes the earlier
+boundary-lasso question). A node whose adjacent edges all carry one `part` —
+several tolerances on one feature, size + flatness on one distance — is
+*internal* and gets no leader (`VA.internalNodes`, topology.js); a node whose
+edges span two parts, or a part and a clearance, gets one. The grid says the
+same thing in table form: its leftmost **component** column is one merged cell
+per contiguous same-part run (`rowspan` over the run's tolerance sub-rows,
+`VA.gridPlan`), and a group breaks exactly where the part changes or a leader
+lands. One honest consequence: the depth-first walk can revisit a part on a
+later branch, and each contiguous run gets its own merged cell — the real
+pitch system's `hub` appears as two runs and its pitch plate as three.
+Reordering the grid to force literally one row per part would cross the
+leaders and break the walk-order correspondence, so the walk wins.
+
+Nodes have no grid rows any more. An interface is clicked on its dot or its
+leader (both open the preview pane, which also says which side of the leader
+rule the node is on); a chain of n edges is n rows, which is roughly the row
+count of the Excel stack it replaces.
 
 The grid itself is a real `<table>` (since 2026-09-04, handoff
 `viewer_consolidation`) with real `<th>` headers, not a div-flex grid styled to
 look like one — a rectangular selection of it pastes into Excel as columns, cell
-for cell, which only genuine table markup does. `value  [min … max]` was one
-cell until then; it is `nominal` / `min` / `max` now, three columns, still
-printed exactly as transcribed (`VA.fmt`: no `toFixed`, no band derived from the
-limits — the same rule the classic elements table follows). Column widths live
-on a shared `<colgroup>` (`views/topology.js`'s `COLUMNS`), one array driving both
-the head table and the body table so the two cannot silently disagree about how
-wide a column is.
+for cell, which only genuine table markup does. The values are `nominal` /
+`min` / `max`, three columns, printed exactly as transcribed (`VA.fmt`: no
+`toFixed`, no band derived from the limits — the same rule the classic elements
+table follows). Column widths live on a shared `<colgroup>`
+(`views/topology.js`'s `COLUMNS`), one array driving both the head table and the
+body table so the two cannot silently disagree about how wide a column is.
 
 Every row whose edge carries a `crop_key` — it re-expresses a committed stack
-element — also gets the same hover/click thumbnail trigger the classic elements
-table's rows have always had (`crop-trigger`, `views/crop.js`'s popover, shared).
-An edge with no `crop_key` — authored inline in the topology, or a derived gap —
-gets no trigger at all: showing one would read as "not built yet" when the truth
-is "no document to crop," and the two are different facts (see "The preview pane
-reuses the crop plumbing" below, which draws the same distinction in the pane on
-the right).
+element — gets a **crop** cell at the row's right end: once the PNG is fetched
+(`ensureThumbImages`, topology_app.js) the trigger *is* the thumbnail, the
+actual crop of the tolerance annotation inline on the row; before that, or for
+a crop that cannot resolve, it is the same stateful text button the classic
+elements table has always had (`crop-trigger`, `views/crop.js`'s popover,
+shared — hover/click behaviour unchanged; richer hover cards belong to the
+staged `viewer_hover_cards_and_deep_links` handoff). An edge with no
+`crop_key` — authored inline in the topology, or a derived gap — gets nothing
+at all, never a placeholder image: showing one would read as "not built yet"
+when the truth is "no document to crop," and the two are different facts (see
+"The preview pane reuses the crop plumbing" below, which draws the same
+distinction in the pane on the right).
 
 ### The rails: a column is a branch, not a part
 
@@ -302,19 +324,29 @@ crop index covers it) or a derived gap (no value to cite). A citation of kind
 `assumed` says outright that there is no document behind it to crop — which is
 most of the pitch system.
 
-### Alignment is the claim, so it is measured
+### Row/leader correspondence is the claim, so it is measured
 
-A grid row and its rail mark describe the same element at the same y. Two things
-enforce it and neither is a stylesheet:
+A grid row, its rail bar and the leaders around it describe the same graph — but
+since `viewer_leader_line_grid` they are deliberately **not** at one y (the grid
+is compact, the DAG is not), so the measurable contract is the leaders': each
+leader's node-side end sits on its own dot's centre, and its grid-side end sits
+on the seam of the boundary row it names (`data-boundary-edge` on the hit path).
+Three things enforce it and none is a stylesheet:
 
 * the row's `height` is set **inline** from `VA.RAIL_METRICS.rowHeight`, the same
-  constant `VA.railY()` computes the SVG's y from;
-* the rails and the rows live in **one scrollport**, so "scrolling keeps them
-  locked together" has nothing to synchronise.
+  constant `VA.leaderGeometry` computes every seam from (and `VA.railY()` the
+  node ends);
+* every cell's content is clamped to that pitch (the chips and crop wrappers) —
+  a `<tr>`'s height is a floor, not a cap, so one overgrown cell would silently
+  walk every seam below it off its leader;
+* the rails, the leaders and the rows live in **one scrollport**, so "scrolling
+  keeps them locked together" has nothing to synchronise.
 
-`scripts/run_viewer_browser_tests.mjs` then measures it: box against box, every
-row of both real topologies, in both layouts, after scrolling. That is the check
-no DOM shim can make, and it is why the browser tier is not optional here.
+`scripts/run_viewer_browser_tests.mjs` then measures it (`CORRESPONDENCE_IN_
+PAGE`): the leader paths' real geometry (`getBBox`) against the dot boxes and
+row boxes, every topology, in both layouts, after scrolling, at both densities.
+That is the check no DOM shim can make, and it is why the browser tier is not
+optional here.
 
 ### The DAG owns the main area
 
@@ -388,8 +420,9 @@ layer, entirely outside `.tv`'s flex column.
 **Row density** (`VA.ROW_DENSITIES`, `topology.js`) is the toggle that is still
 worth having even with the floor gone: "Rows: Comfortable / Compact", on the
 toolbar strip above the DAG pane (`#toolbar`, next to the layout-mode toggle),
-at 26px and 16px respectively — compact turns the pitch system's 43 rows into
-~690px, a single screen instead of five. Row height is one number that has to
+at 26px and 16px respectively — compact turns the pitch system's 45-slot DAG
+into ~720px, a single screen instead of several (its grid, at one row per edge,
+is shorter still). Row height is one number that has to
 move in three places at once (documented where it bites, `topology.js`): `VA.
 RAIL_METRICS.rowHeight`, the `--tv-row` CSS variable, and the grid's inline
 row heights. `VA.applyRowDensity` mutates `RAIL_METRICS.rowHeight` **in
@@ -430,16 +463,17 @@ visible bar is untouched.
 
 Second, an experimental **view setting, default off** (the toolbar's third
 button, "Rows: labelled" / "Rows: values only", `state.edgeValueOnly`): Jeff's
-observation that this page runs about 2× a typical Excel stack's row count,
-because a spreadsheet lists only the dimensions *between* interfaces, never
-the interfaces themselves — half this page's rows (the nodes) carry no values
-by construction. An edge's own label is just its two adjacent node labels
-concatenated, so the toggle hides it and lets the row read as values only,
-with the label moved to the row's own hover (`VA.edgeHoverTitle`, the same
-text `.rail__barhit` already shows — one hover surface, not two). Node rows,
-and a row the projection cannot resolve (`missing()`), are unchanged either
-way: hiding a label is only ever dropping a redundant concatenation, never a
-diagnostic.
+observation that this page used to run about 2× a typical Excel stack's row
+count, because a spreadsheet lists only the dimensions *between* interfaces,
+never the interfaces themselves. `viewer_leader_line_grid` retired the node
+rows outright (the grid is edge rows only now — the bigger half of the same
+observation), and this toggle remains as the smaller half: an edge's own label
+is just its two adjacent node labels concatenated, so it hides it and lets the
+row read as values only, with the label moved to the row's own hover
+(`VA.edgeHoverTitle`, the same text `.rail__barhit` already shows — one hover
+surface, not two). The merged component cell, and a row the projection cannot
+resolve (`missing()`), are unchanged either way: hiding a label is only ever
+dropping a redundant concatenation, never a grouping and never a diagnostic.
 
 ### Generated checks are generated in Python too
 
@@ -770,7 +804,9 @@ apps/viewer/
   viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
   topology.js         the same, for the topology mode: its vocabularies, the
                       rail GEOMETRY (row index -> pixels; the columns are the
-                      projection's), VA.looseStacks / VA.stacksCoveredByTopology
+                      projection's), the grid PLAN + leader geometry
+                      (VA.gridPlan / VA.internalNodes / VA.leaderGeometry),
+                      VA.looseStacks / VA.stacksCoveredByTopology
                       (which stacks have no topology, read off edges' own
                       crop_key) and VA.navTree (the nav's data shape)
   fixtures.js         the ?mock=1 demo STACK projection (every provenance state)
