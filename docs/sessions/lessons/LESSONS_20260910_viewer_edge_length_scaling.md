@@ -128,4 +128,6 @@ explicitly):
   bars measured against the store and leader correspondence re-measured at
   every mode stop, mock and real pitch_system (all-floored absolute, scaled
   tolerance with real floored + real proportional edges).
-- `venv-win/Scripts/python.exe -m pytest -q`: 759 passed, 1 skipped.
+- `venv-win/Scripts/python.exe -m pytest -q`: 759 passed, 1 skipped (in the
+  worktree; the main checkout sits on lagging `master` and reports its
+  already-recorded fixture-drift red there, unrelated to this handoff).

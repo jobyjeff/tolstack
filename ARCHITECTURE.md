@@ -396,7 +396,9 @@ data/projections/spec_library/library.json   (derived, gitignored, disposable)
                              |  data/projections/viewer/results.json
                              |      |                          |
                              |      +------> apps/viewer/ <----+
-                             v               (renders, combines nothing)
+                             |               (renders; combines nothing into a
+                             |                number — the one JS arithmetic
+                             v                scales bar lengths, pixels only)
                     docs/tolerance_stacks/WORKSHEET_*.md
                              \______________ read live by apps/viewer
 ```

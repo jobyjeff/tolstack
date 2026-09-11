@@ -847,7 +847,11 @@ apps/viewer/
   viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
   topology.js         the same, for the topology mode: its vocabularies, the
                       rail GEOMETRY (row index -> pixels; the columns are the
-                      projection's), the grid PLAN + leader geometry
+                      projection's), the keyed position store + edge-length
+                      modes (VA.rowPositions / VA.edgeLengthValue — the one
+                      declared arithmetic on dimension fields: it feeds bar
+                      LENGTHS only, pixels, never a printed number or a
+                      verdict), the grid PLAN + leader geometry
                       (VA.gridPlan / VA.internalNodes / VA.leaderGeometry),
                       VA.looseStacks / VA.stacksCoveredByTopology
                       (which stacks have no topology, read off edges' own

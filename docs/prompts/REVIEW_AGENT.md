@@ -1859,7 +1859,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `String(n)` on purpose. Grep any viewer diff for arithmetic operators on a
       projection field — a second combiner in JS is one nothing in `tests/`
       executes. Note the false positive: `app.js`'s popover clamp
-      (`Math.max(8, Math.min(...))`) is CSS pixels, not a tolerance.
+      (`Math.max(8, Math.min(...))`) is CSS pixels, not a tolerance. (`app.js`
+      itself is deleted since `viewer_v2_single_nav`; the clamp class lives on
+      in layout code.) **One declared exemption since 2026-09-10
+      (`viewer_edge_length_scaling`):** `VA.edgeLengthValue` +
+      `VA.rowPositions` (`topology.js`) read `dimension.max − min` /
+      `2 × plus_minus` / `nominal` to scale a bar's LENGTH — the handoff
+      mandated it, and it is screen-proportion arithmetic in the popover-clamp
+      class, not a combiner. What keeps it in that class, and what you check
+      if a diff touches it or adds a sibling: the value feeds pixel geometry
+      only — it is **never printed, never rounded into a display string, and
+      never compared to produce a verdict** — and a floored bar is visibly
+      marked so the length cannot be read as a measurement. A new consumer of
+      `edgeLengthValue` (or new arithmetic on a dimension field) that formats,
+      prints or branches a verdict on the result is the second combiner this
+      entry exists to refuse.
 - [ ] **A branch over a value the *data* owns must be a total function, not an
       `else if` chain.** New 2026-08-11 (`viewer_source_ref_export_label`), and it
       is the display-layer twin of the invented-number problem: an `else if` chain
