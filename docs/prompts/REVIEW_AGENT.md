@@ -1796,6 +1796,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       replay: an incoherent half-revert fails as a click-timeout in an
       unrelated suite, not in the named assertion.
       `ISSUE_20260911_card_layout_guard_passes_on_the_absolute_popover.md`.
+      **Closed 2026-09-11 by `hover_card_layout_guard_can_fail`, and its fix
+      shape is the reusable part: a guard that asserts its own stage.** The
+      card block now drops to a named `CARD_LAYOUT_VIEWPORT` (`1600x700`,
+      beside `TOPO_VIEWPORT`) and pushes a **non-vacuity witness** — "the open
+      card hangs past the document's own bottom" — *before* the contract it
+      certifies, so the suite goes red for being **unable to see** the defect
+      rather than green for not finding it. Verified in review three ways:
+      shipped -> 118/118 both modes; reverted popover -> 117/118 both modes on
+      `an open card leaves the document's own height untouched`; reverted
+      popover **plus** the viewport put back to 1000 -> 117/118 on the witness
+      instead. When you review a strengthened geometric guard here, demand
+      that third measurement — it is what proves the guard cannot be returned
+      to a stage where the defect is invisible. Note also what is *not*
+      measurable in this tier: headless Chrome's scrollbar is an overlay, so
+      the pane-box assertion does not move even under the in-flow popover;
+      document height is the only witness that bites.
+- [ ] **A browser-tier wait whose predicate is weaker than the assertion that
+      follows it — it resolves on a boot transient.** New 2026-09-11 (review of
+      `hover_card_layout_guard_can_fail`), two independent instances observed
+      in one run of `scripts/run_viewer_browser_tests.mjs`, both intermittent
+      and neither a regression from the diff under review:
+      `testServedModeBoot` waits on `tr.tvrow, .banner--disconnected` and can
+      resolve on `topology_app.js`'s own initial `DISCONNECTED` paint, then
+      asserts that banner absent
+      (`ISSUE_20260911_served_mode_connect_folder_banner_check_is_flaky.md`);
+      `testAnnotateFlyout` waits for `#banner` to be *visible*, but
+      `apps/annotate/index.html` ships that div empty and `.banner` gives it
+      `padding: 6px 16px`, so it is visible at first paint and `textContent`
+      can sample `""`
+      (`ISSUE_20260911_annotate_flyout_banner_check_samples_a_transient.md`).
+      **Re-run a single browser-tier failure before treating it as real** —
+      these two cost a first run 14/16 on a tree that then ran 16/16 twice.
 
 ## Architectural errors to check
 
