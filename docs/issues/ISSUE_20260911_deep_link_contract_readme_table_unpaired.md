@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260911_viewer_deep_link_contract_pairing.md
 ---
 
 # The README deep-link contract table is a hand-copy of `VA.DEEP_LINK_PARAMS` with nothing pairing them

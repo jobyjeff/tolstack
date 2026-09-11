@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 ---
 
 # The viewer cannot build drawing-checker `/container/<id>` links — no container id reaches its data

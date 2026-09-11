@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: viewer/storage
 reporter: agent
 handoff: viewer_http_transport
+strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 ---
 
 # Served through drawing-checker's mount, the viewer cannot read a worksheet at all

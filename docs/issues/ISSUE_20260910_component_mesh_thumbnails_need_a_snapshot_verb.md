@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260911_viewer_3d_and_card_content_reach.md
 ---
 
 # Component cards: a mesh/annotator-rendered thumbnail needs a snapshot verb the annotator does not have

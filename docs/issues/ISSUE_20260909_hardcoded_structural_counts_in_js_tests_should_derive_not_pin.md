@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: apps/viewer/tests.js
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260911_structural_count_pinning_convention.md
 ---
 
 # A bare literal structural count (`branch_nodes.length === N`) in a JS test can go stale for months under "one pre-existing unrelated failure" cover

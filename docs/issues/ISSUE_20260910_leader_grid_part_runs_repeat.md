@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: viewer
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260911_viewer_3d_and_card_content_reach.md
 ---
 
 # A part revisited by the walk gets one merged row per RUN — decide whether split runs need a visual tie

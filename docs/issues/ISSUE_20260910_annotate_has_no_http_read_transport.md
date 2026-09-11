@@ -1,9 +1,10 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
+strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 ---
 
 # The annotator has no HTTP read transport — every session needs a folder grant even to look

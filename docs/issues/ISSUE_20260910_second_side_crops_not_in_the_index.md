@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260911_viewer_3d_and_card_content_reach.md
 ---
 
 # Second-side crops: the edge hover card renders a LIST, but the crop index only ever holds one side

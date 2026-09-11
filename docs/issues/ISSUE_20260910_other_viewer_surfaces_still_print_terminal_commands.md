@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: apps/viewer, apps/annotate
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 ---
 
 # Other viewer(+annotate) surfaces still print terminal commands into the UI

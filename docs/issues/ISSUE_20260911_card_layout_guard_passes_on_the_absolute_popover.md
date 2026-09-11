@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260911_hover_card_layout_guard_can_fail.md
 ---
 
 # The hover-card layout guard passes on the exact popover state it was written to catch
