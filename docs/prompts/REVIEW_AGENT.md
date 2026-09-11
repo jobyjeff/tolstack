@@ -1797,6 +1797,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       unrelated suite, not in the named assertion.
       `ISSUE_20260911_card_layout_guard_passes_on_the_absolute_popover.md`.
 
+- [ ] **A section-scoped doc scan's "not vacuous" replay written *inside* the
+      section by mistake.** New 2026-09-11 (`viewer_deep_link_contract_pairing`),
+      and it is the section-scoping family's own footgun. A heading-to-next-`## `
+      extractor makes the whole span up to the next heading part of the section,
+      so the natural way to write the negative case — insert the claim
+      "just before the next `## `" — lands *inside* the scope and the replay
+      fails for the right-looking wrong reason. The author hit it and fixed it
+      (the insert has to be computed past the next heading's line end); the
+      module that shipped, `tests/test_viewer_deep_link_contract.py::test_the_
+      section_scoping_is_not_vacuous`, is the correct shape to copy. When a diff
+      adds a section-scoped scan, read its not-vacuous replay's insertion point
+      against the extractor's own boundary rule, not against the prose around
+      it — and confirm the replay is red for the scoping and not for something
+      else, by checking the asserted message names the scoped param.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
