@@ -194,6 +194,13 @@ body { display: flex; flex-direction: column; }
 .rail__bar--gap { stroke-dasharray: 4 3; }
 .rail__bar--derived { stroke: var(--zero); stroke-dasharray: 2 4; stroke-width: 3; }
 
+/* The floor mark (viewer_edge_length_scaling): a drafting-style break — two
+   short panel-coloured slashes cutting the bar — on any bar drawn at the
+   minimum render length instead of its measured proportion under a scaled
+   length mode. pointer-events off so it never shadows the bar's own hit
+   path underneath it. */
+.rail__break { fill: none; stroke: var(--panel); stroke-width: 2; pointer-events: none; }
+
 .rail__dot { fill: var(--panel); stroke: var(--rail-odd); stroke-width: 2; cursor: pointer; }
 .rail__dot--datum { fill: var(--rail-odd); }
 .rail__dot--branch { stroke: var(--accent); stroke-width: 2.5; }

@@ -582,6 +582,38 @@ const CORRESPONDENCE_IN_PAGE = () => {
   return { rows: rows.length, leaders: leaders.length, drift };
 };
 
+// Edge-length scaling (viewer_edge_length_scaling): every bar's MEASURED
+// height against the keyed position store's own slot for it, plus the break
+// marks against the store's floored flags. Runs in-page so it reads the same
+// VA.rowPositions the render did — a renderer that ignored the store, or a
+// store that drifted from the DOM, both fail here; the store's own numbers
+// are pinned at the fixture tier.
+const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
+  const VA = window.ViewerApp;
+  const proj = VA.findTopology(VA.demoTopologyFixture().topologies, topologyId);
+  const pos = VA.rowPositions(proj.layout, proj, mode, VA.RAIL_METRICS);
+  const bad = [];
+  let floored = 0;
+  for (const row of proj.layout.rows) {
+    if (row.kind !== "edge") continue;
+    const slot = pos.edges[row.id];
+    if (slot.floored) floored++;
+    const hit = document.querySelector(
+      `svg.tv__rails line.rail__barhit[data-id="${CSS.escape(row.id)}"]`);
+    if (!hit) { bad.push(`${row.id}: no bar hit line`); continue; }
+    // The bar and its hit line share y1/y2 (slot extent, 1px inset each end),
+    // butt-capped, so the rect's height is exactly the drawn length.
+    const h = hit.getBoundingClientRect().height;
+    if (Math.abs(h - (slot.length - 2)) > 0.75) {
+      bad.push(`${row.id}: drawn ${h.toFixed(2)} vs slot ${(slot.length - 2).toFixed(2)}`);
+    }
+  }
+  const breaks = document.querySelectorAll("svg.tv__rails path.rail__break").length;
+  if (breaks !== floored) bad.push(`break marks: ${breaks} drawn vs ${floored} floored`);
+  const edges = proj.layout.rows.filter((r) => r.kind === "edge").length;
+  return { bad, floored, edges };
+};
+
 // --- the topology page, in a real browser ---------------------------------
 //
 // What this proves that the DOM shim cannot, and it is the deliverable:
@@ -782,6 +814,46 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("a topology with no worksheet_file hides the worksheet toggle",
       !(await page.locator("#worksheet-toggle").isVisible()));
 
+    // Edge-length scaling (viewer_edge_length_scaling): cycle the toolbar's
+    // mode button through all three stops. At each: the bars measure what the
+    // keyed position store says (BARS_MATCH_STORE_IN_PAGE), floored bars wear
+    // their break marks, and — the point of the jogged leaders — every leader
+    // still lands on its dot and its seam even though the DAG stretched and
+    // the grid did not.
+    const barsMatch = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
+      { topologyId: "demo_mechanism", mode });
+    push("the length toggle starts at uniform",
+      /Lengths: uniform/.test(await page.locator("#edge-length-toggle").textContent()));
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+    push("one click: tolerance-width mode, bars measure the store's slots",
+      /Lengths: tolerance width/.test(await page.locator("#edge-length-toggle").textContent()));
+    const tolBars = await barsMatch("tolerance");
+    push("tolerance mode: every bar is its slot, floored bars wear breaks",
+      tolBars.bad.length === 0 && tolBars.floored > 0 &&
+      tolBars.floored < tolBars.edges);
+    if (tolBars.bad.length) console.log("    bars: " + tolBars.bad.slice(0, 5).join(" | "));
+    push("tolerance mode: leaders still land on their dots and seams",
+      (await correspondence()).drift.length === 0);
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+    push("two clicks: feature-size mode",
+      /Lengths: feature size/.test(await page.locator("#edge-length-toggle").textContent()));
+    const absBars = await barsMatch("absolute");
+    // The demo's one dimension-less edge (the derived gap) floors; every
+    // real nominal scales.
+    push("feature-size mode: every bar is its slot, only the derived gap floors",
+      absBars.bad.length === 0 && absBars.floored === 1);
+    if (absBars.bad.length) console.log("    bars: " + absBars.bad.slice(0, 5).join(" | "));
+    push("feature-size mode: leaders still land on their dots and seams",
+      (await correspondence()).drift.length === 0);
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+    const uniBars = await barsMatch("uniform");
+    push("three clicks: back to uniform, nothing floored, no break marks",
+      /Lengths: uniform/.test(await page.locator("#edge-length-toggle").textContent()) &&
+      uniBars.bad.length === 0 && uniBars.floored === 0);
+
     // --- the same page, against the REAL projection ------------------------
     if (!realProjection) {
       push("[real] projection present (skipped: not built)", true);
@@ -902,6 +974,40 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
             await page.locator("tr.tvrow--on").count() >= study.result.chain.length);
         }
       }
+
+      // Edge-length scaling against the real pitch_system (the DoD's own
+      // case): every edge is variation-only (nominal 0.0, a real ± band), so
+      // feature-size mode floors ALL of them — the honest all-marked
+      // rendering, never a fake proportion — while tolerance-width mode
+      // scales the real bands (0.03 … 0.2 at lock time: the widest at full
+      // length, at least one narrow one floored). Leaders re-measured at
+      // every stop: the grid stays evenly spaced while the DAG stretches,
+      // which is what the jogged leaders exist to absorb.
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const realBars = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
+        { topologyId: "pitch_system", mode });
+      await page.locator("#edge-length-toggle").click();
+      await page.waitForTimeout(50);
+      const realTol = await realBars("tolerance");
+      push("[real] pitch_system under tolerance width: bars measure the " +
+        "store, some floored, most scaled",
+        realTol.bad.length === 0 && realTol.floored > 0 &&
+        realTol.floored < realTol.edges);
+      if (realTol.bad.length) console.log("    bars: " + realTol.bad.slice(0, 5).join(" | "));
+      push("[real] pitch_system tolerance-width leaders still correspond",
+        (await correspondence()).drift.length === 0);
+      await page.locator("#edge-length-toggle").click();
+      await page.waitForTimeout(50);
+      const realAbs = await realBars("absolute");
+      push("[real] pitch_system under feature size: every variation-only " +
+        "edge floors, wearing its break mark",
+        realAbs.bad.length === 0 && realAbs.floored === realAbs.edges);
+      if (realAbs.bad.length) console.log("    bars: " + realAbs.bad.slice(0, 5).join(" | "));
+      push("[real] pitch_system feature-size leaders still correspond",
+        (await correspondence()).drift.length === 0);
+      await page.locator("#edge-length-toggle").click();
+      await page.waitForTimeout(50);
 
       // The preview pane over a real citation, with a real crop behind it.
       await page.locator(navRow("topology", "vpa_output_to_pitch_plate")).click();

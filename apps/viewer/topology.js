@@ -291,6 +291,158 @@
     return preset;
   };
 
+  // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) --------
+  //
+  // A display preference like rowDensity: how much vertical extent each EDGE
+  // row of the DAG gets. Uniform is today's rendering and the default; the two
+  // scaled modes make a bar's length proportional to a number the projection
+  // already carries. The GRID does not move in any mode — its rows stay at
+  // rowHeight, evenly spaced, and only the leaders know the DAG stretched
+  // (that is the point of the jogged leaders: viewer_leader_line_grid).
+  //
+  // `next` makes the toolbar's cycle order a fact of this table rather than
+  // arithmetic in the app shell — the same reason ROW_DENSITIES carries its
+  // own labels.
+  VA.EDGE_LENGTH_MODES = {
+    uniform: {
+      label: "uniform",
+      next: "tolerance",
+      title: "Every dimension bar is drawn the same length.",
+    },
+    tolerance: {
+      label: "tolerance width",
+      next: "absolute",
+      title: "A bar's length is proportional to its dimension's tolerance " +
+        "band (max − min). Indicative, never measured.",
+    },
+    absolute: {
+      label: "feature size",
+      next: "uniform",
+      title: "A bar's length is proportional to its dimension's nominal " +
+        "size. Indicative, never measured.",
+    },
+  };
+
+  // The scale's two shape constants, in ROW HEIGHTS so both densities scale
+  // together: the largest value in the serialisation being drawn renders at
+  // `maxRows` rows, and nothing renders shorter than one row — the floor that
+  // keeps a zero/tiny/unstated edge clickable (whole-edge hover is a landed
+  // contract) and keeps every node y at-or-below its uniform position, which
+  // is what lets the leaders keep rising left-to-right in every mode.
+  VA.EDGE_LENGTH_SCALE = { maxRows: 6, floorRows: 1 };
+
+  // The value an edge's rendered length is proportional to under `mode`, or
+  // null where the edge has nothing to scale by (a derived gap carries no
+  // dimension at all; a variation-only edge has no stated nominal). This
+  // subtraction is arithmetic about the SCREEN, not about a tolerance: the
+  // number it produces is a pixel proportion, is never printed, and never
+  // feeds anything but a bar length. min/max are what the projection always
+  // populates when a dimension exists; plus_minus is the fallback the handoff
+  // names for the case where they are absent.
+  VA.edgeLengthValue = function (edge, mode) {
+    var d = edge && edge.dimension;
+    if (!d) return null;
+    if (mode === "tolerance") {
+      if (d.max !== null && d.max !== undefined &&
+          d.min !== null && d.min !== undefined) {
+        return Math.abs(d.max - d.min);
+      }
+      if (d.plus_minus !== null && d.plus_minus !== undefined) {
+        return 2 * Math.abs(d.plus_minus);
+      }
+      return null;
+    }
+    if (mode === "absolute") {
+      if (d.nominal === null || d.nominal === undefined) return null;
+      return Math.abs(d.nominal);
+    }
+    return null;
+  };
+
+  // The KEYED position store (deliverable 3): every layout row's vertical
+  // slot, computed once and addressed by id — node id → y for the dots and
+  // the leaders, edge id → {y1, y2, floored} for the bars — rather than
+  // emitted inline as `row × rowHeight`. This is the seam the future
+  // study-selected animated rearrange needs: railGeometry and leaderGeometry
+  // are pure functions of (layout, metrics, positions), so an animator can
+  // interpolate between two of these stores and redraw per frame without
+  // either geometry function changing.
+  //
+  //   nodes   { nodeId: y }                    dot centres
+  //   edges   { edgeId: {y1, y2, y, floored} } bar extents
+  //   byRow   { layoutRow: {top, height, y, floored} }
+  //   height  the SVG's total height
+  //
+  // Node rows keep rowHeight in every mode — an interface is a point, and the
+  // constant node slot is what keeps the branch fan-out curves' half-row
+  // shape true. An edge row's height under a scaled mode is
+  // (value / vmax) × maxRows × rowHeight, floored at floorRows × rowHeight;
+  // `floored` is true wherever the drawn length is NOT the measured
+  // proportion (clamped up to the floor, or no value to scale by at all), so
+  // a view can mark it and a reader is never handed a fake proportion.
+  VA.rowPositions = function (layout, topoProj, mode, metrics) {
+    metrics = metrics || VA.RAIL_METRICS;
+    var rows = (layout && layout.rows) || [];
+    var scaled = mode === "tolerance" || mode === "absolute";
+    var index = scaled ? VA.topologyIndex(topoProj) : null;
+    var floor = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
+    var maxLen = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;
+
+    // The largest value in THIS serialisation (the whole walk, or a study's
+    // chain) — the yardstick the mode's proportions are relative to.
+    var vmax = 0;
+    if (scaled) {
+      rows.forEach(function (row) {
+        if (row.kind !== "edge") return;
+        var v = VA.edgeLengthValue(index.edges[row.id], mode);
+        if (v !== null && v > vmax) vmax = v;
+      });
+    }
+
+    var out = {
+      mode: scaled ? mode : "uniform",
+      height: 0, byRow: {}, nodes: {}, edges: {},
+    };
+    var y = 0;
+    rows.forEach(function (row) {
+      var h = metrics.rowHeight;
+      var floored = false;
+      if (scaled && row.kind === "edge") {
+        var v = VA.edgeLengthValue(index.edges[row.id], mode);
+        var proportional = v !== null && vmax > 0 ? (v / vmax) * maxLen : 0;
+        if (proportional < floor) {
+          h = floor;
+          floored = true;
+        } else {
+          h = proportional;
+        }
+      }
+      var slot = { top: y, height: h, y: y + h / 2, floored: floored };
+      out.byRow[row.row] = slot;
+      if (row.kind === "node") out.nodes[row.id] = slot.y;
+      if (row.kind === "edge") {
+        // `length` is the slot's own height, stored as computed — y2 − y1
+        // re-derives it through float addition and can differ in the last
+        // bits, so a consumer comparing lengths reads this field.
+        out.edges[row.id] = {
+          y1: slot.top, y2: slot.top + h, y: slot.y,
+          length: h, floored: floored,
+        };
+      }
+      y += h;
+    });
+    out.height = y;
+    return out;
+  };
+
+  // The hover text a FLOORED bar carries instead of the plain edge title: the
+  // floor is a render rule, and a reader mid-hover has no other way to know
+  // this one length is not a proportion.
+  VA.flooredEdgeTitle = function (edge, id) {
+    return VA.edgeHoverTitle(edge, id) +
+      " — drawn at the minimum length, not to scale";
+  };
+
   VA.railX = function (column, metrics) {
     return metrics.left + column * metrics.gutter;
   };
@@ -302,13 +454,24 @@
   // Everything the SVG needs, as plain numbers and path strings. Pure: same
   // layout in, same geometry out, which is what lets tests assert that a grid
   // row and its rail mark share a y without rendering anything.
-  VA.railGeometry = function (layout, metrics) {
+  //
+  // `positions` is the keyed store VA.rowPositions builds; omitted, it is
+  // computed as uniform, so every pre-scaling caller is unchanged. An edge
+  // mark carries its own y1/y2 (its slot's extent, inset 1px) and `floored`,
+  // so the view draws the bar the store says rather than re-deriving
+  // ±rowHeight/2 — the one place that arithmetic used to live.
+  VA.railGeometry = function (layout, metrics, positions) {
     metrics = metrics || VA.RAIL_METRICS;
+    positions = positions || VA.rowPositions(layout, null, "uniform", metrics);
     var rows = (layout && layout.rows) || [];
+    var slotY = function (row) {
+      var slot = positions.byRow[row];
+      return slot ? slot.y : VA.railY(row, metrics);
+    };
     var out = {
       width: VA.railX((layout && layout.columns ? layout.columns - 1 : 0), metrics)
         + metrics.left,
-      height: rows.length * metrics.rowHeight,
+      height: positions.height,
       rails: [],
       marks: [],
       links: [],
@@ -318,27 +481,36 @@
       var startRow = rows[rail.start];
       // A rail allocated at a fork starts at the fork's row but is drawn from
       // half a row below it: the `branch` curve covers that half, and a straight
-      // line there would cross the dot it is supposed to fan out of.
+      // line there would cross the dot it is supposed to fan out of. A fork's
+      // row is a node row, and node slots are rowHeight in every length mode,
+      // so the half-row is a constant.
       var forked = startRow && startRow.column !== rail.column;
       out.rails.push({
         column: rail.column,
         x: VA.railX(rail.column, metrics),
-        y1: VA.railY(rail.start, metrics) + (forked ? metrics.rowHeight * 0.5 : 0),
-        y2: VA.railY(rail.end, metrics),
+        y1: slotY(rail.start) + (forked ? metrics.rowHeight * 0.5 : 0),
+        y2: slotY(rail.end),
         forked: !!forked,
       });
     });
 
     rows.forEach(function (row) {
-      out.marks.push({
+      var slot = positions.byRow[row.row];
+      var mark = {
         row: row.row,
         kind: row.kind,
         id: row.id,
         column: row.column,
         branch: !!row.branch,
         x: VA.railX(row.column, metrics),
-        y: VA.railY(row.row, metrics),
-      });
+        y: slotY(row.row),
+      };
+      if (row.kind === "edge" && slot) {
+        mark.y1 = slot.top + 1;
+        mark.y2 = slot.top + slot.height - 1;
+        mark.floored = !!slot.floored;
+      }
+      out.marks.push(mark);
     });
 
     (layout && layout.links || []).forEach(function (link) {
@@ -347,19 +519,21 @@
         row: link.row,
         toRow: link.to_row,
         d: link.kind === "branch"
-          ? branchPath(link, metrics)
-          : closePath(link, metrics),
+          ? branchPath(link, metrics, slotY)
+          : closePath(link, metrics, slotY),
       });
     });
     return out;
   };
 
   // A fan-out at a fork: out of the node's dot, across to the new column, down
-  // into the rail that starts there. Half a row tall, like git log's.
-  function branchPath(link, metrics) {
+  // into the rail that starts there. Half a row tall, like git log's — and a
+  // fork is a node, whose slot is rowHeight in every length mode, so the
+  // curve's shape constants stay constants.
+  function branchPath(link, metrics, slotY) {
     var x1 = VA.railX(link.from_column, metrics);
     var x2 = VA.railX(link.to_column, metrics);
-    var y1 = VA.railY(link.row, metrics);
+    var y1 = slotY(link.row);
     var y2 = y1 + metrics.rowHeight * 0.5;
     return "M " + x1 + " " + y1 +
       " C " + x1 + " " + (y1 + metrics.rowHeight * 0.35) +
@@ -371,11 +545,11 @@
   // lands on, which the walk emitted earlier and therefore higher. Long on
   // purpose — a grounded loop that spans half the mechanism should look like it
   // does, not be hidden behind a short stub.
-  function closePath(link, metrics) {
+  function closePath(link, metrics, slotY) {
     var x1 = VA.railX(link.from_column, metrics);
     var x2 = VA.railX(link.to_column, metrics);
-    var y1 = VA.railY(link.row, metrics);
-    var y2 = VA.railY(link.to_row, metrics);
+    var y1 = slotY(link.row);
+    var y2 = slotY(link.to_row);
     var lift = Math.min(metrics.rowHeight * 1.5, Math.abs(y1 - y2) / 2);
     return "M " + x1 + " " + y1 +
       " C " + x1 + " " + (y1 - lift) +
@@ -524,20 +698,25 @@
   // lane, then horizontally into the grid at the boundary's y. Orthogonal
   // segments (GD&T ordinate-dimension style), so the grid's rows stay compact
   // and evenly spaced however unevenly the graph above is laid out — which is
-  // the point: the DAG's y comes from the layout's row indices today and from
-  // edge-length scaling modes tomorrow, and only these leaders have to know.
+  // the point: the DAG's y comes from the keyed position store (uniform row
+  // pitch, or an edge-length scaling mode), and only these leaders have to
+  // know.
   //
   // Lanes are strictly monotone in walk order. Leaders never cross under
   // that rule (both endpoint sequences are monotone in y), and it is cheap to
   // reason about, so no lane is ever reused — the zone is (leaders × lane
   // pitch) wide and that is the price of legibility.
   //
-  // Pure: same layout and metrics in, same geometry out. The node y comes
-  // from VA.railY over the node's LAYOUT row (the same number railGeometry
-  // gives its dot); the boundary y is gridRow × rowHeight (the same number
-  // the grid's inline row heights sum to).
-  VA.leaderGeometry = function (layout, plan, metrics) {
+  // Pure: same layout, metrics and positions in, same geometry out. The node
+  // y comes from the keyed position store (the same number railGeometry gives
+  // its dot — under uniform, VA.railY over the node's layout row); the
+  // boundary y is gridRow × rowHeight (the same number the grid's inline row
+  // heights sum to), and it does NOT move with the length mode: the grid
+  // stays evenly spaced however the DAG above it stretched, which is exactly
+  // what these leaders exist to absorb.
+  VA.leaderGeometry = function (layout, plan, metrics, positions) {
     metrics = metrics || VA.RAIL_METRICS;
+    positions = positions || VA.rowPositions(layout, null, "uniform", metrics);
     var columns = (layout && layout.columns) || 1;
     var zoneLeft = VA.railX(columns - 1, metrics) + metrics.left;
     var count = plan.leaders.length;
@@ -553,7 +732,9 @@
       var row = rowsByLayoutRow[leader.layoutRow] || { column: 0, branch: false };
       var dotR = row.branch ? metrics.branchDot : metrics.dot;
       var x1 = VA.railX(row.column, metrics) + dotR + 1.5;
-      var y1 = VA.railY(leader.layoutRow, metrics);
+      var y1 = positions.nodes[leader.id] !== undefined
+        ? positions.nodes[leader.id]
+        : VA.railY(leader.layoutRow, metrics);
       var y2 = leader.boundary * metrics.rowHeight;
       var laneX = zoneLeft + metrics.leaderPad + i * metrics.leaderLane;
       return {

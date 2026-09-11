@@ -1888,6 +1888,197 @@
         ok(geo.width > railWidth, "the jog zone has real width");
       });
 
+    // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) -------
+    //
+    // The demo mechanism exercises every scaling case on purpose: a real
+    // spread of tolerance widths (0.04 … 0.2) and nominals (2 … 10), one
+    // zero-width band (arm_pin_to_tip, min == max), and one derived gap
+    // (tip_to_strut_end, no dimension at all).
+
+    await test("edgeLengthValue reads max − min for tolerance mode, falls " +
+      "back to 2 × plus_minus, and is null with nothing to scale by", function () {
+        var index = VA.topologyIndex(TOPO);
+        eq(VA.edgeLengthValue(index.edges.post_height, "tolerance"),
+           Math.abs(10.1 - 9.9));
+        // min/max absent, plus_minus present: the handoff's fallback.
+        eq(VA.edgeLengthValue({ dimension: { nominal: 5, min: null, max: null,
+          plus_minus: 0.3 } }, "tolerance"), 0.6);
+        // A zero-width band is a real (zero) width, not an absence.
+        eq(VA.edgeLengthValue(index.edges.arm_pin_to_tip, "tolerance"), 0);
+        // A derived gap has no dimension: nothing to scale by.
+        eq(VA.edgeLengthValue(index.edges.tip_to_strut_end, "tolerance"), null);
+        eq(VA.edgeLengthValue(index.edges.tip_to_strut_end, "absolute"), null);
+        eq(VA.edgeLengthValue(index.edges.base_thickness, "absolute"), 4);
+        // An unstated nominal is null, never treated as a stated zero — the
+        // zero itself IS a value (the variation-only case) and scales to the
+        // floor via proportional length 0, not via this null.
+        eq(VA.edgeLengthValue({ dimension: { nominal: null, min: -0.1,
+          max: 0.1, plus_minus: 0.1 } }, "absolute"), null);
+        eq(VA.edgeLengthValue(index.edges.base_thickness, "uniform"), null);
+      });
+
+    await test("rowPositions in uniform mode reproduces the classic row pitch " +
+      "exactly — it is today's rendering, not a near miss", function () {
+        var pos = VA.rowPositions(TOPO.layout, TOPO, "uniform", VA.RAIL_METRICS);
+        eq(pos.mode, "uniform");
+        eq(pos.height, TOPO.layout.rows.length * VA.RAIL_METRICS.rowHeight);
+        TOPO.layout.rows.forEach(function (row) {
+          eq(pos.byRow[row.row].y, VA.railY(row.row, VA.RAIL_METRICS), row.id);
+          eq(pos.byRow[row.row].floored, false, row.id);
+        });
+        // The keyed stores address every node and every edge by id.
+        TOPO.nodes.forEach(function (n) {
+          ok(pos.nodes[n.id] !== undefined, "node " + n.id + " keyed");
+        });
+        TOPO.edges.forEach(function (e) {
+          ok(pos.edges[e.id], "edge " + e.id + " keyed");
+        });
+      });
+
+    await test("rowPositions under a scaled mode stretches edges in " +
+      "proportion, keeps node slots at one row, and floors the rest", function () {
+        var M = VA.RAIL_METRICS;
+        var maxLen = M.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;
+        var floor = M.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
+        var index = VA.topologyIndex(TOPO);
+
+        ["tolerance", "absolute"].forEach(function (mode) {
+          var pos = VA.rowPositions(TOPO.layout, TOPO, mode, M);
+          eq(pos.mode, mode);
+          // Node slots never scale: an interface is a point.
+          TOPO.layout.rows.forEach(function (row) {
+            if (row.kind !== "node") return;
+            eq(pos.byRow[row.row].height, M.rowHeight, mode + " " + row.id);
+          });
+          // The largest value in the serialisation renders at exactly maxLen
+          // (v/v is exactly 1); everything else is its own proportion of it,
+          // floored — the same expression the implementation uses, so float
+          // identity holds.
+          var vmax = 0;
+          TOPO.layout.rows.forEach(function (row) {
+            if (row.kind !== "edge") return;
+            var v = VA.edgeLengthValue(index.edges[row.id], mode);
+            if (v !== null && v > vmax) vmax = v;
+          });
+          ok(vmax > 0, mode + " has a yardstick");
+          TOPO.layout.rows.forEach(function (row) {
+            if (row.kind !== "edge") return;
+            var v = VA.edgeLengthValue(index.edges[row.id], mode);
+            var proportional = v !== null ? (v / vmax) * maxLen : 0;
+            var slot = pos.edges[row.id];
+            if (proportional < floor) {
+              eq(slot.length, floor, mode + " " + row.id + " floored length");
+              eq(slot.floored, true, mode + " " + row.id + " floored flag");
+            } else {
+              eq(slot.length, proportional, mode + " " + row.id);
+              eq(slot.floored, false, mode + " " + row.id);
+            }
+          });
+          // The slots tile: total height is the sum of every slot, no gaps.
+          var sum = 0;
+          TOPO.layout.rows.forEach(function (row) {
+            eq(pos.byRow[row.row].top, sum, mode + " row " + row.row + " top");
+            sum += pos.byRow[row.row].height;
+          });
+          eq(pos.height, sum, mode + " height");
+        });
+
+        // The named cases, pinned: the zero-width band and the derived gap
+        // are floored under tolerance; the derived gap again under absolute;
+        // the widest band (post_height, 0.2) is the tolerance yardstick and
+        // the largest nominal (post_height, 10) the absolute one.
+        var tol = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M);
+        eq(tol.edges.arm_pin_to_tip.floored, true);
+        eq(tol.edges.tip_to_strut_end.floored, true);
+        eq(tol.edges.post_height.floored, false);
+        eq(tol.edges.post_height.length, maxLen);
+        var abs = VA.rowPositions(TOPO.layout, TOPO, "absolute", M);
+        eq(abs.edges.tip_to_strut_end.floored, true);
+        eq(abs.edges.post_height.length, maxLen);
+        eq(abs.edges.arm_pin_to_tip.floored, false,
+           "a real nominal above the floor is a measured proportion");
+      });
+
+    await test("a serialisation with no usable values at all — the " +
+      "variation-only case — floors every edge rather than inventing a scale",
+      function () {
+        // pitch_system's real shape: every nominal 0.0, provenance says the
+        // nominal is unstated. Miniature here; pinned against the live
+        // projection in the [real] tier.
+        var mini = miniTopo(false);
+        mini.edges[0].dimension = { nominal: 0.0, min: -0.1, max: 0.1, plus_minus: 0.1 };
+        mini.edges[1].dimension = { nominal: 0.0, min: -0.05, max: 0.05, plus_minus: 0.05 };
+        var pos = VA.rowPositions(mini.layout, mini, "absolute", VA.RAIL_METRICS);
+        eq(pos.edges.e1.floored, true);
+        eq(pos.edges.e2.floored, true);
+        eq(pos.height, mini.layout.rows.length * VA.RAIL_METRICS.rowHeight,
+           "all-floored absolute mode is uniform-height, honestly marked");
+      });
+
+    await test("railGeometry and leaderGeometry read the keyed position " +
+      "store: bars get their slot's extent, dots and leader starts get the " +
+      "keyed node y, and the grid-side seam does NOT move", function () {
+        var M = VA.RAIL_METRICS;
+        var pos = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M);
+        var geometry = VA.railGeometry(TOPO.layout, M, pos);
+        eq(geometry.height, pos.height);
+        geometry.marks.forEach(function (mark) {
+          var slot = pos.byRow[mark.row];
+          eq(mark.y, slot.y, "mark " + mark.id);
+          if (mark.kind === "edge") {
+            eq(mark.y1, slot.top + 1, mark.id);
+            eq(mark.y2, slot.top + slot.height - 1, mark.id);
+            eq(mark.floored, slot.floored, mark.id);
+          }
+        });
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var geo = VA.leaderGeometry(TOPO.layout, plan, M, pos);
+        geo.leaders.forEach(function (leader, i) {
+          var planLeader = plan.leaders[i];
+          // Node side: the keyed store, which under scaling sits at-or-below
+          // the uniform y (edges only ever stretch), so leaders still rise.
+          eq(leader.y1, pos.nodes[leader.id], leader.id);
+          ok(leader.y1 >= VA.railY(planLeader.layoutRow, M) - 1e-9,
+             leader.id + " never rises above its uniform position");
+          // Grid side: boundary × rowHeight, exactly as under uniform — the
+          // grid's rows stay evenly spaced whatever the DAG did.
+          eq(leader.y2, planLeader.boundary * M.rowHeight, leader.id);
+          ok(leader.y2 <= leader.y1, leader.id + " still rises left-to-right");
+        });
+      });
+
+    await test("a floored bar is rendered marked: the --floored class, the " +
+      "break glyph, and a hover title that says not-to-scale", function () {
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance" }));
+        });
+        // arm_pin_to_tip (zero-width) and tip_to_strut_end (derived) floor.
+        var floored = all(root, "line.rail__bar--floored");
+        eq(floored.length, 2);
+        eq(all(root, "path.rail__break").length, 2);
+        var hits = all(root, "line.rail__barhit").filter(function (h) {
+          return h.getAttribute("data-id") === "arm_pin_to_tip";
+        });
+        has(hits[0].textContent, "not to scale");
+        // A bar at its measured proportion is NOT marked, and its hover title
+        // is the plain edge title.
+        var plain = all(root, "line.rail__barhit").filter(function (h) {
+          return h.getAttribute("data-id") === "post_height";
+        });
+        eq(plain[0].textContent.indexOf("not to scale"), -1);
+        // The grid's rows do not move with the mode: still rowHeight, evenly
+        // spaced — the leaders absorb the whole difference.
+        all(root, "tr.tvrow").forEach(function (row) {
+          eq(row.style.height, VA.RAIL_METRICS.rowHeight + "px");
+        });
+        // Uniform mode marks nothing: it claims no proportion.
+        var uniformRoot = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "uniform" }));
+        });
+        eq(all(uniformRoot, "line.rail__bar--floored").length, 0);
+        eq(all(uniformRoot, "path.rail__break").length, 0);
+      });
+
     await test("the grid renders one row per EDGE in walk order, at the rail " +
       "pitch, with the leaders drawn and internal nodes omitted", function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
@@ -2581,10 +2772,10 @@
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
             layoutMode: "topology", rowDensity: "compact" }, TOPO, {});
         });
-        // layout-toggle, density-toggle, edge-value-toggle (deliverable 4,
-        // viewer_error_surface_and_layout) -- three now, not two.
+        // layout-toggle, density-toggle, edge-value-toggle, edge-length-toggle
+        // (viewer_edge_length_scaling) -- four now, not three.
         var buttons = all(root, "button.tvpick__mode");
-        eq(buttons.length, 3);
+        eq(buttons.length, 4);
         has(buttons[1].textContent, "Rows: Compact");
       });
 
@@ -2623,6 +2814,60 @@
         });
         edgeValueToggle(root).onclick();
         eq(called, 1);
+      });
+
+    function edgeLengthToggle(root) {
+      return all(root, "button.tvpick__mode").filter(function (n) {
+        return n.getAttribute("id") === "edge-length-toggle";
+      })[0];
+    }
+
+    await test("the edge-length toggle is on the toolbar, names the current " +
+      "mode from VA.EDGE_LENGTH_MODES, and defaults to uniform", function () {
+        var root = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            layoutMode: "topology", rowDensity: "comfortable",
+            edgeLengthMode: "uniform" }, TOPO, {});
+        });
+        var toggle = edgeLengthToggle(root);
+        ok(toggle, "expected #edge-length-toggle on the toolbar");
+        has(toggle.textContent, "Lengths: uniform");
+        // Each mode's label comes off the one table, never re-spelled here.
+        ["tolerance", "absolute"].forEach(function (mode) {
+          var r2 = render(function (r) {
+            VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+              layoutMode: "topology", rowDensity: "comfortable",
+              edgeLengthMode: mode }, TOPO, {});
+          });
+          has(edgeLengthToggle(r2).textContent,
+              "Lengths: " + VA.EDGE_LENGTH_MODES[mode].label);
+        });
+        // An unrecognised mode falls back to uniform's label rather than
+        // rendering "Lengths: undefined".
+        var r3 = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            layoutMode: "topology", rowDensity: "comfortable",
+            edgeLengthMode: "cozy" }, TOPO, {});
+        });
+        has(edgeLengthToggle(r3).textContent, "Lengths: uniform");
+      });
+
+    await test("clicking the edge-length toggle calls its own handler, and " +
+      "the mode table's next-pointers cycle through all three and home",
+      function () {
+        var called = 0;
+        var root = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            layoutMode: "topology", rowDensity: "comfortable" }, TOPO,
+            { onEdgeLength: function () { called++; } });
+        });
+        edgeLengthToggle(root).onclick();
+        eq(called, 1);
+        // The cycle order is a fact of the table (topology_app.js follows the
+        // `next` pointers): uniform → tolerance → absolute → uniform.
+        eq(VA.EDGE_LENGTH_MODES.uniform.next, "tolerance");
+        eq(VA.EDGE_LENGTH_MODES.tolerance.next, "absolute");
+        eq(VA.EDGE_LENGTH_MODES.absolute.next, "uniform");
       });
 
     await test("edge-value-only mode hides an edge row's own label and moves " +
@@ -3655,6 +3900,67 @@
             var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
             eq(gapGroups.length, 1);
             eq(gapGroups[0].label, VA.GAP_COMPONENT_LABEL);
+          });
+
+        await test("[real] pitch_system is variation-only, so 'feature size' " +
+          "floors every edge and 'tolerance width' scales the real bands",
+          function () {
+            var M = VA.RAIL_METRICS;
+            var maxLen = M.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;
+            var floor = M.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
+
+            // The projection's real shape, asserted rather than assumed:
+            // every pitch_system edge that carries a dimension carries
+            // nominal 0.0 with a real ± band (the workbook states variation
+            // only; the provenance notes say the nominal is unstated).
+            livePitch.edges.forEach(function (e) {
+              if (!e.dimension) return;
+              eq(e.dimension.nominal, 0.0, e.id);
+              ok(e.dimension.max > e.dimension.min, e.id + " has a real band");
+            });
+
+            // Feature size: nothing to scale by anywhere, so every edge sits
+            // at the floor, floored — the page is uniform-height and every
+            // bar wears the break mark, never a fake proportion.
+            var abs = VA.rowPositions(livePitch.layout, livePitch, "absolute", M);
+            livePitch.layout.rows.forEach(function (row) {
+              if (row.kind !== "edge") return;
+              eq(abs.edges[row.id].floored, true, "absolute " + row.id);
+              eq(abs.edges[row.id].length, floor, "absolute " + row.id);
+            });
+            eq(abs.height, livePitch.layout.rows.length * M.rowHeight);
+
+            // Tolerance width: the bands are real and spread (0.03 … 0.2 at
+            // lock time), so the widest edge renders at maxLen, at least one
+            // narrow edge floors, and at least one scales un-floored between.
+            var tol = VA.rowPositions(livePitch.layout, livePitch, "tolerance", M);
+            var lengths = [];
+            livePitch.layout.rows.forEach(function (row) {
+              if (row.kind !== "edge") return;
+              var slot = tol.edges[row.id];
+              lengths.push({ id: row.id, len: slot.length, floored: slot.floored });
+            });
+            ok(lengths.some(function (l) { return l.len === maxLen && !l.floored; }),
+               "the widest band renders at maxLen");
+            ok(lengths.some(function (l) { return l.floored; }),
+               "a narrow band floors — the DoD's nominal-0 edge under BOTH modes");
+            ok(lengths.some(function (l) { return !l.floored && l.len < maxLen; }),
+               "a middle band scales in true proportion");
+
+            // And the render agrees with the store: floored bars marked, the
+            // grid untouched at one row pitch.
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: null, crops: realCrops,
+                layoutMode: "topology", selection: null,
+                edgeLengthMode: "tolerance", onSelect: function () {},
+              });
+            });
+            eq(all(root, "line.rail__bar--floored").length,
+               lengths.filter(function (l) { return l.floored; }).length);
+            all(root, "tr.tvrow").forEach(function (row) {
+              eq(row.style.height, M.rowHeight + "px");
+            });
           });
 
         await test("[real] the L1 grip stack draws as a ring: two rails, one " +

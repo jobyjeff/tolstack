@@ -74,6 +74,23 @@
     edgeMode.onclick = handlers.onEdgeValueOnly;
     root.appendChild(edgeMode);
 
+    // Edge-length scaling (viewer_edge_length_scaling): how much vertical
+    // extent a dimension bar gets — uniform (the default), or proportional to
+    // its tolerance band or its nominal size. Cycles through
+    // VA.EDGE_LENGTH_MODES in that table's own `next` order. A display
+    // preference like the two above: the grid's rows never move, only the
+    // DAG stretches, and the leaders absorb the difference.
+    var lengthPreset = VA.EDGE_LENGTH_MODES[state.edgeLengthMode] ||
+      VA.EDGE_LENGTH_MODES.uniform;
+    var lengths = VA.el("button", "ghost tvpick__mode",
+      "Lengths: " + lengthPreset.label);
+    lengths.setAttribute("id", "edge-length-toggle");
+    lengths.setAttribute("title", lengthPreset.title +
+      " In the scaled modes every bar keeps a minimum clickable length; one " +
+      "drawn at that floor wears a break mark and is not to scale.");
+    lengths.onclick = handlers.onEdgeLength;
+    root.appendChild(lengths);
+
     // One link, nothing more (annotation_surface_mvp, 2026-09-06): the
     // topology page never computes or writes anything for the annotate app,
     // it only points at it. Only rendered once a real study is selected --
@@ -130,13 +147,20 @@
 
     var study = ctx.study;
     var layout = layoutFor(topoProj, study, ctx.layoutMode);
-    var geometry = VA.railGeometry(layout, M);
+    // The keyed position store (viewer_edge_length_scaling): every dot and
+    // bar's y, computed ONCE per render and addressed by id, under whichever
+    // length mode is on. Both geometry passes below read this same store, so
+    // the dots, the bars and the leaders cannot disagree about where a row
+    // went when the mode stretched it.
+    var positions = VA.rowPositions(layout, topoProj,
+      ctx.edgeLengthMode || "uniform", M);
+    var geometry = VA.railGeometry(layout, M, positions);
     // The merged-row grid and the leaders come off ONE plan of the same
     // serialisation the rails were drawn from (viewer_leader_line_grid,
     // 2026-09-10): the grid holds only the edge rows, grouped into components,
     // and each non-internal node bridges the two with a jogged leader line.
     var plan = VA.gridPlan(layout, topoProj);
-    var leaderGeo = VA.leaderGeometry(layout, plan, M);
+    var leaderGeo = VA.leaderGeometry(layout, plan, M, positions);
     var index = VA.topologyIndex(topoProj);
     var chain = VA.chainIndex(study);
     var chainNodes = VA.chainNodes(study);
@@ -296,13 +320,29 @@
         if (edge) classes.push(VA.confidenceClass(edge.confidence));
         if (edge && edge.kind === "gap") classes.push("rail__bar--gap");
         if (edge && edge.value_source === "derived") classes.push("rail__bar--derived");
+        if (mark.floored) classes.push("rail__bar--floored");
         if (marking) classes.push(inChain ? "rail__bar--on" : "rail__bar--off");
-        var y1 = mark.y - M.rowHeight / 2 + 1;
-        var y2 = mark.y + M.rowHeight / 2 - 1;
+        // The bar's extent comes off the keyed position store (via
+        // railGeometry's mark), not re-derived from rowHeight here — under a
+        // scaled length mode a bar's slot is its own height.
+        var y1 = mark.y1;
+        var y2 = mark.y2;
         var bar = VA.svg("line", classes.join(" "), {
           x1: mark.x, y1: y1, x2: mark.x, y2: y2,
         });
         svg.appendChild(bar);
+
+        // A floored bar (scaled modes only) wears a drafting-style break
+        // across its middle: this length is the minimum render length, not a
+        // measured proportion, and a reader must be able to tell at a glance.
+        if (mark.floored) {
+          svg.appendChild(VA.svg("path", "rail__break", {
+            d: "M " + (mark.x - 5) + " " + (mark.y + 3) +
+               " L " + (mark.x + 5) + " " + (mark.y - 1) +
+               " M " + (mark.x - 5) + " " + (mark.y + 1) +
+               " L " + (mark.x + 5) + " " + (mark.y - 3),
+          }));
+        }
 
         // The hover/click target, over the SAME length but solid and wide
         // (deliverable 3, viewer_error_surface_and_layout): a gap/derived
@@ -314,7 +354,9 @@
         // above is untouched, still thin and still dashed where confidence
         // or value_source says it should be.
         var hit = VA.svg("line", "rail__barhit", { x1: mark.x, y1: y1, x2: mark.x, y2: y2 });
-        hit.appendChild(svgTitle(VA.edgeHoverTitle(edge, mark.id)));
+        hit.appendChild(svgTitle(mark.floored
+          ? VA.flooredEdgeTitle(edge, mark.id)
+          : VA.edgeHoverTitle(edge, mark.id)));
         wire(hit, ctx, "edge", mark.id);
         svg.appendChild(hit);
         return;

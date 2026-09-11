@@ -43,6 +43,11 @@
     // the description moved to hover. A display preference like rowDensity,
     // not a fact about a topology, so selectTopology() never resets it either.
     edgeValueOnly: false,
+    // "uniform" | "tolerance" | "absolute" (VA.EDGE_LENGTH_MODES, topology.js)
+    // — how much vertical extent a dimension bar gets. A display preference
+    // like rowDensity, not a fact about a topology, so selectTopology() never
+    // resets it either.
+    edgeLengthMode: "uniform",
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -566,6 +571,7 @@
         topoProj: topoProj, study: study, crops: state.crops,
         layoutMode: state.layoutMode, selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
+        edgeLengthMode: state.edgeLengthMode,
         // The grid's thumbnail column reads fetched crop PNGs out of this
         // cache synchronously (views/topology.js's edgeCropCell); the fetch
         // itself is ensureThumbImages below, fired after this paint.
@@ -589,6 +595,16 @@
         // only how an edge row prints itself.
         onEdgeValueOnly: function () {
           state.edgeValueOnly = !state.edgeValueOnly;
+          render();
+        },
+        // Edge-length scaling (viewer_edge_length_scaling): cycle through the
+        // three modes in VA.EDGE_LENGTH_MODES' own `next` order. Same
+        // reasoning as density again — WHICH rows are on screen never
+        // changes, only how tall the DAG's slots are — so render(), not
+        // rewind().
+        onEdgeLength: function () {
+          var mode = VA.EDGE_LENGTH_MODES[state.edgeLengthMode];
+          state.edgeLengthMode = mode ? mode.next : "uniform";
           render();
         },
       });

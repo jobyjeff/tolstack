@@ -336,8 +336,9 @@ on the seam of the boundary row it names (`data-boundary-edge` on the hit path).
 Three things enforce it and none is a stylesheet:
 
 * the row's `height` is set **inline** from `VA.RAIL_METRICS.rowHeight`, the same
-  constant `VA.leaderGeometry` computes every seam from (and `VA.railY()` the
-  node ends);
+  constant `VA.leaderGeometry` computes every seam from — and the node ends come
+  off the same keyed position store (`VA.rowPositions`) the dots were drawn from,
+  whatever the edge-length mode did to the DAG above;
 * every cell's content is clamped to that pitch (the chips and crop wrappers) —
   a `<tr>`'s height is a floor, not a cap, so one overgrown cell would silently
   walk every seam below it off its leader;
@@ -476,6 +477,46 @@ row read as values only, with the label moved to the row's own hover
 surface, not two). The merged component cell, and a row the projection cannot
 resolve (`missing()`), are unchanged either way: hiding a label is only ever
 dropping a redundant concatenation, never a grouping and never a diagnostic.
+
+### Edge-length scaling: three modes, one keyed position store
+
+The toolbar's fourth button (`#edge-length-toggle`, `state.edgeLengthMode`,
+`VA.EDGE_LENGTH_MODES` in `topology.js`) cycles how much vertical extent a
+dimension bar gets:
+
+* **uniform** — the default and the classic rendering: every slot is one
+  `rowHeight`.
+* **tolerance width** — a bar's length ∝ its dimension's band (`max − min`,
+  falling back to `2 × plus_minus` where min/max are absent).
+* **feature size** — a bar's length ∝ its dimension's nominal.
+
+The scale is relative to the serialisation on screen: the largest value renders
+at `EDGE_LENGTH_SCALE.maxRows` row heights, everything else in proportion — and
+**nothing renders shorter than one row height** (`floorRows`). The floor keeps
+a zero/tiny/unstated edge clickable (whole-edge hover is a landed contract) and
+keeps every node at-or-below its uniform y, which is what lets the leaders keep
+rising in every mode. A bar sitting at the floor is **not a measured
+proportion** and is never allowed to read like one: it gets
+`.rail__bar--floored`, a drafting-style break mark (`.rail__break`) across its
+middle, and a hover title that says "not to scale" (`VA.flooredEdgeTitle`); the
+legend states outright that lengths are indicative. The variation-only edges
+the real workbooks produce (`nominal: 0.0`, the provenance note saying the
+nominal is unstated) are exactly this case — under feature size the whole real
+`pitch_system` floors, honestly marked, rather than inventing a scale.
+
+The mechanism under all three modes is one **keyed position store**:
+`VA.rowPositions(layout, topoProj, mode, metrics)` computes every slot once —
+node id → y, edge id → `{y1, y2, length, floored}` — and both geometry passes
+(`VA.railGeometry`, `VA.leaderGeometry`) consume the store rather than
+re-deriving `row × rowHeight` inline. The **grid never moves**: its rows stay
+at `rowHeight`, evenly spaced, and the leaders' grid-side seams stay
+`boundary × rowHeight` — only their node-side ends follow the store, which is
+the stretch the jogged leaders were built to absorb. The store is also the
+seam the future study-selected animated rearrange needs: geometry is a pure
+function of `(layout, metrics, positions)`, so an animator can interpolate
+between two stores and redraw per frame with nothing else changing. A display
+preference like density: switching topologies never resets it, and the mode
+button only ever re-renders (no scroll rewind).
 
 ### Generated checks are generated in Python too
 
