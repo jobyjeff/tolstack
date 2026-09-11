@@ -707,19 +707,60 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /no crop/.test(await page.locator("tr.tvrow[data-id='post_height'] button.crop-trigger")
         .textContent()));
 
-    // The grid's own thumbnail trigger (deliverable 1 of viewer_consolidation) —
-    // a real click, which the DOM shim cannot exercise. `base_thickness`
-    // re-expresses demo_joint's `plate`, whose crop resolves; the same popover
-    // the classic view's rows use (views/crop.js), so this is the one place
-    // both modes are proved to share it in a real browser.
+    // The grid's own thumbnail trigger — a real click, which the DOM shim
+    // cannot exercise. Since viewer_hover_cards_and_deep_links it opens the
+    // EDGE hover card (views/cards.js) into the same positioned popover node:
+    // the crop body plus the citation line and the crop-key claim.
+    // `base_thickness` re-expresses demo_joint's `plate`, whose crop resolves.
+    const paneBeforeCard = await page.locator("#topopane").boundingBox();
+    // hover, not click: a click also SELECTS the row (its normal job), and the
+    // detail pane repopulating is legitimate layout movement that would drown
+    // the measurement below — the card itself is what must move nothing.
     await page.locator("tr.tvrow[data-id='base_thickness'] button.crop-trigger")
-      .click();
-    await page.waitForSelector(".croppop--resolved", { state: "visible", timeout: 5000 });
-    push("the topology grid's thumbnail trigger opens the same crop popover",
+      .hover();
+    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+    push("the thumbnail trigger opens the edge hover card with the crop body",
       await page.locator(".croppop").isVisible() &&
-      /215197/.test(await page.locator(".croppop__path").textContent()));
+      /215197/.test(await page.locator(".croppop__path").textContent()) &&
+      /cited at:/.test(await page.locator(".croppop").textContent()) &&
+      /from stack `demo_joint`, element `plate`/
+        .test(await page.locator(".croppop").textContent()));
+    // Cards are hover-only chrome: opening one must not disturb the layout
+    // contracts — the DAG pane's own box and the leader correspondence are
+    // measured with the card OPEN.
+    const paneWithCard = await page.locator("#topopane").boundingBox();
+    push("an open card moves the DAG pane by nothing at all",
+      paneBeforeCard && paneWithCard &&
+      paneBeforeCard.x === paneWithCard.x && paneBeforeCard.y === paneWithCard.y &&
+      paneBeforeCard.width === paneWithCard.width &&
+      paneBeforeCard.height === paneWithCard.height);
+    push("leaders still land on their dots and seams with a card open",
+      (await correspondence()).drift.length === 0);
     await page.keyboard.press("Escape");
     push("Escape closes it here too", !(await page.locator(".croppop").isVisible()));
+
+    // The citation card, from the row's confidence chip (the same model the
+    // stack table's chip opens): the full reference — where-ref, export
+    // block — as hover chrome.
+    await page.locator("tr.tvrow[data-id='base_thickness'] span.cardtrig").hover();
+    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    const citationText = await page.locator(".croppop").textContent();
+    push("the confidence chip opens the citation card with the export block",
+      /215197/.test(citationText) && /export established/.test(citationText));
+    await page.keyboard.press("Escape");
+
+    // The component card, from the merged component cell: part identity plus
+    // the thumbnail derived from its own row's resolved crop.
+    await page.locator("td.tvcell--component.cardtrig").first().hover();
+    await page.waitForSelector(".hovercard--component", { state: "visible", timeout: 5000 });
+    const componentText = await page.locator(".croppop").textContent();
+    push("the component cell opens the component card with the derived crop line",
+      /base plate/.test(componentText) &&
+      /crop of its `base plate thickness` annotation/.test(componentText));
+    push("the component card deep-links into the annotator isolating the part",
+      /isolate=base/.test(await page.locator(".hovercard--component a")
+        .last().getAttribute("href")));
+    await page.keyboard.press("Escape");
     // An edge with no crop_key (authored inline, or a derived gap) gets no
     // trigger at all — showing one would read as a stale index rather than
     // what it is.
@@ -1338,6 +1379,60 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       push("[real] the DAG renders with ZERO manual steps",
         await page.locator("tr.tvrow").count() > 0);
 
+      // --- the DoD demonstrations (viewer_hover_cards_and_deep_links) ------
+      // Served mode is the one place BOTH halves are fully real: the inbound
+      // deep link boots through the real HTTP transport with no test seam,
+      // and a hover card's crop image is the real PNG fetched off disk.
+
+      // A deep link opens the viewer with the named study selected.
+      await page.goto(url + "/apps/viewer/topology.html" +
+        "?topology=pitch_system&study=pitch_system_gas_spring_branch",
+        { waitUntil: "load" });
+      await page.waitForSelector("tr.tvrow--on", { timeout: 15000 });
+      push("[real] a deep link opens the named study selected, over the real " +
+        "served transport",
+        /pitch_system_gas_spring_branch/
+          .test(await page.locator("#totals").textContent()) &&
+        await page.locator(".chip--total").count() === 5);
+
+      // Edge hover on a pitch_system edge with a crop: the edge card, with
+      // the REAL crop PNG rendered. pitch_system's croppable edges live in
+      // crops.json's by_topology space — the space this handoff wired in.
+      await page.waitForSelector("img.tvthumb", { timeout: 15000 });
+      const keyedRow = await page.evaluate(() => {
+        const img = document.querySelector("tr.tvrow img.tvthumb");
+        let row = img;
+        while (row && row.tagName !== "TR") row = row.parentElement;
+        return row ? row.getAttribute("data-id") : null;
+      });
+      push("[real] a pitch_system crop renders as an inline thumbnail at all",
+        !!keyedRow);
+      if (keyedRow) {
+        await page.locator(
+          `tr.tvrow[data-id='${keyedRow}'] button.crop-trigger`).hover();
+        await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 15000 });
+        const cardText = await page.locator(".croppop").textContent();
+        push("[real] hovering the edge shows the crop card with the real image " +
+          "and the topology-space claim",
+          await page.locator(".hovercard--edge img.croppop__img").count() === 1 &&
+          /authored in topology `pitch_system`/.test(cardText));
+        await page.keyboard.press("Escape");
+      }
+
+      // A citation card from a REAL spec citation: the L1 fastener grip's
+      // NAS6403 spec, hover on its row's confidence chip.
+      await page.locator(
+        "[data-nav-kind='topology'][data-nav-id='vpa_output_to_pitch_plate']").click();
+      await page.waitForSelector("tr.tvrow[data-id='fastener_grip']", { timeout: 15000 });
+      await page.locator("tr.tvrow[data-id='fastener_grip'] span.cardtrig").hover();
+      await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 15000 });
+      const specCard = await page.locator(".croppop").textContent();
+      push("[real] a citation card renders from a real spec citation",
+        /NAS6403/.test(specCard));
+      push("[real] the spec-sheet card shows the real crop of the spec page",
+        await page.locator(".hovercard--citation img.croppop__img").count() === 1);
+      await page.keyboard.press("Escape");
+
       // Deliverable 3 (viewer_http_transport): a mid-session server stop must
       // produce the banner error, not a blank page — the render() seam
       // viewer_error_surface_and_layout built catches a throw from anywhere
@@ -1500,6 +1595,79 @@ async function testAnnotateFlyout(browser, fileBase) {
   }
 }
 
+// --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) ----
+//
+// The URL params documented in apps/viewer/README.md, driven through a REAL
+// navigation — the thing the fast tier's resolveDeepLink tests cannot do is
+// prove that boot() actually reads location.search and that the selection
+// lands on screen. Over ?mock=1 so it runs with no data built; the served-mode
+// suite drives the same contract against the real projection with no seam.
+async function testDeepLinks(browser, url, label) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    // A topology + study link: the study is selected — its chain marked, its
+    // totals in the strip — exactly as if the nav row had been clicked.
+    await page.goto(url +
+      "/topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip",
+      { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow--on", { timeout: 15000 });
+    push("a topology+study link opens with the study selected",
+      /demo_base_to_tip/.test(await page.locator("#totals").textContent()) &&
+      await page.locator(".chip--total").count() === 5);
+    push("the nav marks the linked study current",
+      await page.locator(
+        "[data-nav-kind='study'][data-nav-id='demo_base_to_tip'].navtree__row--on")
+        .count() === 1);
+
+    // An edge link: the detail pane opens on that edge.
+    await page.goto(url +
+      "/topology.html?mock=1&topology=demo_mechanism&edge=base_thickness",
+      { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow--selected", { timeout: 15000 });
+    push("an edge link opens with the edge selected in the pane",
+      /base plate thickness/.test(await page.locator("#detail").textContent()) &&
+      await page.locator("tr.tvrow--selected").count() === 1);
+
+    // A stack + element link: the classic table, the element selected — the
+    // exact shape drawing-checker's analyses panel consumes.
+    await page.goto(url +
+      "/topology.html?mock=1&stack=demo_joint_standalone&element=plate",
+      { waitUntil: "load" });
+    await page.waitForSelector("tr.el-row--selected", { timeout: 15000 });
+    push("a stack+element link opens the classic view with the row selected",
+      await page.locator("tr.el-row--selected").count() === 1 &&
+      /plate thickness/.test(await page.locator("#detail").textContent()));
+
+    // An id the data does not contain: the default renders and the banner
+    // says what the link asked for — never a crash, never a silent guess.
+    await page.goto(url + "/topology.html?mock=1&topology=nope",
+      { waitUntil: "load" });
+    await page.waitForSelector(".banner__notice", { timeout: 15000 });
+    push("an unresolvable link id becomes a banner notice over the default view",
+      /topology `nope`/.test(await page.locator(".banner__notice").textContent()) &&
+      await page.locator("tr.tvrow").count() > 0);
+    push("a mistyped link never raises the needs-a-rebuild alarm",
+      await page.locator(".banner__stale").count() === 0);
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
 // --- index.html: a redirect stub, not a second copy of the app -------------
 //
 // The retired stack viewer's entry point still has to land somewhere — an old
@@ -1571,6 +1739,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       browser, fileBase, "topology file://", topologies, crops));
     results.push(await testTheTopologyPage(
       browser, baseUrl, "topology http", topologies, crops));
+    results.push(await testDeepLinks(browser, fileBase, "deep links file://"));
+    results.push(await testDeepLinks(browser, baseUrl, "deep links http"));
     results.push(await testHeightBudget(browser, fileBase, "topology height budget", topologies, crops));
     results.push(await testRenderCrash(browser, fileBase, "render crash shows the banner"));
     results.push(await testRealDataRenderPath(

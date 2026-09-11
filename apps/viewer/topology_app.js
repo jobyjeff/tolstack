@@ -65,6 +65,12 @@
     detailImage: null,
     error: null,
 
+    // What an inbound deep link asked for that this data could not deliver
+    // (viewer_hover_cards_and_deep_links, deliverable 3): plain-words lines
+    // for the banner, one per unresolvable id. Empty on a paramless boot and
+    // on a link every id of which resolved.
+    deepLinkNotices: [],
+
     // Served-mode rebuild-in-progress, driven by onRebuild/pollRebuild below
     // (viewer_rebuild_affordance). `error` is always a fixed plain sentence —
     // never the endpoint's own response text, which could name a script or a
@@ -81,6 +87,12 @@
   };
 
   var adapter = null;
+  // The inbound deep link (viewer_hover_cards_and_deep_links): parsed once at
+  // boot, applied by the FIRST successful load() and then cleared — so it
+  // works identically whether data arrives at boot (served / re-granted FSA /
+  // mock) or only after the user clicks Connect, and a later Reload never
+  // yanks the selection back to what the URL said.
+  var pendingDeepLink = null;
   // Which transport `adapter` is -- "mock" | "http" | "fsa" -- for the
   // banner's own plain-words line (viewer_http_transport, deliverable 2). Not
   // read anywhere else: views must key off `adapter.capabilities()`, never
@@ -155,6 +167,12 @@
     // fixture (mockFixture, below) so the tour demonstrates both modes.
     var mock = /[?&]mock=1\b/.test(window.location.search);
 
+    // The inbound deep-link contract (apps/viewer/README.md documents it for
+    // the sibling repo that consumes it): selection params, parsed once here
+    // and applied by the first load(). Composes with ?mock=1 — mock picks the
+    // dataset, these pick the selection within it.
+    pendingDeepLink = VA.parseDeepLink(window.location.search);
+
     chooseAdapter(mock).then(function (picked) {
       adapter = picked.adapter;
       transportKind = picked.kind;
@@ -176,6 +194,10 @@
         if (new Date().getTime() - openedAt < 300) return;
         var target = event.target;
         if (String(target.className || "").indexOf("crop-trigger") !== -1) return;
+        // The hover-card triggers (chips, component cells) share the same
+        // survival rule as the crop trigger: a click on one opens/re-opens,
+        // never closes.
+        if (String(target.className || "").indexOf("cardtrig") !== -1) return;
         if (nodes.crop.contains && nodes.crop.contains(target)) return;
         hideCrop();
       });
@@ -266,6 +288,24 @@
       state.topologies = all[0];
       state.crops = all[1];
       state.stacksResults = all[2];
+
+      // Apply the inbound deep link against the data just read — ids are
+      // validated by VA.resolveDeepLink, and whatever it could not resolve
+      // becomes a banner notice while the defaults below still apply.
+      if (pendingDeepLink) {
+        var linked = VA.resolveDeepLink(pendingDeepLink, state.topologies,
+          state.stacksResults);
+        pendingDeepLink = null;
+        state.deepLinkNotices = linked.notices;
+        if (linked.mode === "topology") {
+          selectTopology(linked.topologyId);
+          state.studyId = linked.studyId;
+          state.selection = linked.selection;
+        } else if (linked.mode === "stack") {
+          selectStack(linked.stackId);
+          state.selectedElementId = linked.elementId;
+        }
+      }
 
       var stillValid = state.mode === "topology"
         ? VA.findTopology(state.topologies, state.topologyId)
@@ -397,7 +437,7 @@
       if (!selection || selection.kind !== "edge") return Promise.resolve();
       var edge = VA.topologyIndex(currentTopology()).edges[selection.id];
       if (!edge || !edge.crop_key) return Promise.resolve();
-      entry = VA.cropFor(state.crops, edge.crop_key.stack, edge.crop_key.element);
+      entry = VA.cropForKey(state.crops, edge.crop_key);
     } else {
       var stackProj = currentStack();
       if (!stackProj || !state.selectedElementId) return Promise.resolve();
@@ -462,6 +502,61 @@
     nodes.crop.style.display = "none";
   }
 
+  // --- the hover reference cards (viewer_hover_cards_and_deep_links) ---------
+  //
+  // Same popover node, same position/close machinery as showCrop above — a
+  // card IS a popover, only richer — but a card can name SEVERAL images (an
+  // edge card's crop list, a component card's derived thumbnail), so the
+  // fetch half paints once immediately out of the cache and repaints as each
+  // missing PNG lands, rather than awaiting one blob the way showCrop does.
+
+  function cardPngs(card) {
+    var pngs = [];
+    var add = function (entry) {
+      if (entry && entry.status === "resolved" && entry.png &&
+          pngs.indexOf(entry.png) === -1) {
+        pngs.push(entry.png);
+      }
+    };
+    (card.crops || []).forEach(function (crop) { add(crop.entry); });
+    (card.thumbs || []).forEach(function (thumb) { add(thumb.entry); });
+    add(card.entry);
+    return pngs;
+  }
+
+  function showCard(card, trigger) {
+    if (!card) return;
+    openTrigger = trigger;
+    openedAt = new Date().getTime();
+    var paint = function () {
+      if (openTrigger !== trigger) return;   // a later hover won the race
+      VA.renderHoverCard(nodes.crop, card, imageCache, VA.CONFIG, hideCrop);
+      nodes.crop.style.display = "block";
+      position(nodes.crop, trigger);
+      // Re-place once each PNG settles either way — same reasoning as
+      // showCrop's single-image version.
+      var imgs = nodes.crop.querySelectorAll ? nodes.crop.querySelectorAll("img") : [];
+      Array.prototype.forEach.call(imgs, function (img) {
+        img.onload = function () { position(nodes.crop, trigger); };
+        img.onerror = img.onload;
+      });
+    };
+    paint();
+    cardPngs(card).forEach(function (png) {
+      if (Object.prototype.hasOwnProperty.call(imageCache, png)) return;
+      if (thumbFetches[png]) return;
+      thumbFetches[png] = true;
+      adapter.readCropImage(png).then(function (image) {
+        imageCache[png] = image;
+      }).catch(function () {
+        imageCache[png] = null;
+      }).then(function () {
+        delete thumbFetches[png];
+        paint();
+      });
+    });
+  }
+
   // --- crops: the grid's inline thumbnails (viewer_leader_line_grid) ---------
   //
   // The thumbnail column renders synchronously out of `imageCache`; this is
@@ -479,7 +574,7 @@
     var wanted = [];
     (topoProj.edges || []).forEach(function (edge) {
       if (!edge.crop_key) return;
-      var entry = VA.cropFor(state.crops, edge.crop_key.stack, edge.crop_key.element);
+      var entry = VA.cropForKey(state.crops, edge.crop_key);
       if (entry.status !== "resolved" || !entry.png) return;
       if (Object.prototype.hasOwnProperty.call(imageCache, entry.png)) return;
       if (thumbFetches[entry.png]) return;
@@ -499,21 +594,26 @@
   // Place the popover below the trigger, or above it when there isn't room —
   // a crop of a whole drawing sheet is tall, and one that renders off the bottom
   // of the window is a hover that shows nothing.
+  //
+  // VIEWPORT coordinates, no scroll offsets: the popover is position: fixed
+  // (viewer_hover_cards_and_deep_links) — absolute positioning let a card
+  // opened near the bottom lengthen the document, and the scrollbar that
+  // summoned reflowed the panes, which is exactly the layout disturbance
+  // hover-only chrome must not cause.
   function position(pop, trigger) {
     if (!trigger.getBoundingClientRect) return;
     var box = trigger.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(
-      window.scrollX + box.left,
-      window.scrollX + window.innerWidth - pop.offsetWidth - 16)) + "px";
+      box.left, window.innerWidth - pop.offsetWidth - 16)) + "px";
     var height = pop.offsetHeight || 400;
     var roomBelow = window.innerHeight - box.bottom;
     // Above only when it genuinely fits above: a popover nudged back down to
     // stay on screen would land ON the trigger, and the resulting mouseleave
     // would close it the instant it opened.
     var goAbove = roomBelow < height + 16 && box.top >= height + 16;
-    pop.style.top = (goAbove
-      ? window.scrollY + box.top - height - 8
-      : window.scrollY + box.bottom + 8) + "px";
+    pop.style.top = Math.max(8, goAbove
+      ? box.top - height - 8
+      : box.bottom + 8) + "px";
   }
 
   // --- the annotator flyout (study_3d_flyout) --------------------------------
@@ -642,6 +742,10 @@
         // itself is ensureThumbImages below, fired after this paint.
         cropImages: imageCache,
         onSelect: selectElement, onCropShow: showCrop,
+        // The hover reference cards (viewer_hover_cards_and_deep_links): the
+        // crop trigger, the merged component cell and the confidence chip all
+        // open one through this, into the same positioned popover node.
+        onCardShow: showCard,
         // The flyout (study_3d_flyout): the detail pane's "attach to 3D"
         // renders only when the mount probe passed AND a launcher exists.
         annotateMount: state.annotateMount,
@@ -688,6 +792,7 @@
     } else {
       VA.renderStack(nodes.stackview, stackProj, state.crops, {
         onCropShow: showCrop,
+        onCardShow: showCard,
         onElementSelect: selectStackElement,
         selectedElementId: state.selectedElementId,
       });
@@ -803,6 +908,11 @@
       crops: state.crops,
       error: state.error,
       extraAlarms: VA.orphanStudyAlarms(state.topologies),
+      // What an inbound deep link asked for that this data could not deliver
+      // — its own plain-words lines, NOT extraAlarms: those render under the
+      // "needs a rebuild" headline, and a mistyped link is not a stale
+      // projection.
+      notices: state.deepLinkNotices,
       // Which transport is live (viewer_http_transport, deliverable 2): the
       // connect-folder banner already disappears on its own once state is
       // READY, so this is only the one line served mode adds — FSA mode gets

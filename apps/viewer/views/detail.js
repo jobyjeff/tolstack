@@ -79,30 +79,41 @@
     var element = row.element;
     var p = VA.exportProvenance(element.source_ref, row.derived.identity_rule);
     if (!p) return null;
+    return VA.exportBlockNode(p, {
+      config: config,
+      exportBlock: (element.source_ref || {}).export,
+      cropEntry: VA.cropFor(cropsIndex, stackProj.id, element.id),
+    });
+  }
+
+  // The el-export box for one VA.exportProvenance view-model. ONE builder for
+  // the three surfaces that render it — this pane, the topology edge pane
+  // (views/topology.js) and the citation hover card (views/cards.js) — so an
+  // export state cannot read differently on different surfaces. `opts` carries
+  // the runs-line inputs; a caller with no crop entry on hand (the topology
+  // pane's original shape) simply omits them and gets no runs line.
+  VA.exportBlockNode = function (p, opts) {
+    opts = opts || {};
     var box = VA.el("div", "el-export el-export--" + p.state +
       (p.loud ? " el-export--loud" : ""));
     box.appendChild(VA.el("div", "el-export__head", p.headline));
     if (p.why) box.appendChild(VA.el("div", "el-export__why", p.why));
     if (p.detail) box.appendChild(VA.el("div", "el-export__detail", p.detail));
-    var facts = [];
-    if (p.shaText) facts.push(p.shaText);
-    if (facts.length) box.appendChild(VA.el("div", "el-export__facts", facts.join(" · ")));
-    if (p.state === "established") {
-      box.appendChild(runsLine(p, cropsIndex, stackProj, element, config));
+    if (p.shaText) box.appendChild(VA.el("div", "el-export__facts", p.shaText));
+    if (p.state === "established" && opts.config !== undefined) {
+      box.appendChild(VA.exportRunsLine(opts.config, opts.exportBlock, opts.cropEntry));
     }
     if (p.pdf) box.appendChild(VA.el("div", "el-export__path", p.pdf));
     if (p.note) box.appendChild(VA.clampedNote("el-export__note", p.note));
     return box;
-  }
+  };
 
   // The run ids, linked where this page can honestly address the run — see
   // VA.exportRunLinks for why that is only ever the one the element's own crop
   // resolved through.
-  function runsLine(p, cropsIndex, stackProj, element, config) {
+  VA.exportRunsLine = function (config, exportBlock, cropEntry) {
     var line = VA.el("div", "el-export__runs");
-    var links = VA.exportRunLinks(config,
-      (element.source_ref || {}).export,
-      VA.cropFor(cropsIndex, stackProj.id, element.id));
+    var links = VA.exportRunLinks(config, exportBlock, cropEntry);
     if (!links.length) {
       line.appendChild(VA.el("span", "muted",
         "no drawing-checker run has consumed this export — the value was read " +
@@ -129,7 +140,7 @@
       }
     });
     return line;
-  }
+  };
 
   // --- the crop, rendered INLINE (deliverable 3) ------------------------------
   //

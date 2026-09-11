@@ -823,6 +823,179 @@
     return { topologies: topoNodes, looseStacks: VA.looseStacks(topologies, results) };
   };
 
+  // --- hover reference cards (viewer_hover_cards_and_deep_links) ------------
+  //
+  // Pure models for the topology grid's hover cards, so the fast tier can pin
+  // their contents without a DOM. views/cards.js renders them into the same
+  // positioned popover the crop popover uses; topology_app.js's showCard
+  // fetches the images they name. Cards are hover-only chrome: nothing in a
+  // model or its rendering participates in the page's layout.
+
+  // The edge card: every crop the crop index holds for this edge, plus its
+  // citation. `crops` is a LIST on purpose: an interface's two half-sides are
+  // usually different parts/drawings BY DEFINITION, so an edge should
+  // eventually show BOTH sides' tolerance annotations — but crops.json
+  // records one crop per citation and an edge carries one citation today, so
+  // the list holds at most one entry and the second side is a stated gap
+  // (this handoff's lesson), never an invented image.
+  VA.edgeCard = function (topoProj, edge, crops) {
+    if (!edge) return null;
+    var card = {
+      kind: "edge",
+      title: edge.name,
+      id: edge.id,
+      part: edge.part || null,
+      confidence: edge.confidence,
+      citation: (edge.dimension && edge.dimension.source_ref) || null,
+      crops: [],
+      noCropReason: null,
+      annotateParams: null,
+    };
+    if (edge.crop_key) {
+      card.crops.push({
+        key: edge.crop_key,
+        entry: VA.cropForKey(crops, edge.crop_key),
+      });
+    } else {
+      var source = VA.VALUE_SOURCES[edge.value_source];
+      card.noCropReason = (source ? source.title
+        : VA.valueSourceText(edge.value_source)) + " No crop index covers it.";
+    }
+    // The deep link out to the annotator, under the SAME rule the detail pane
+    // applies (VA.needsAnnotation): a traced/inferred edge already has a
+    // citation, and a binding is identity, never a value source, so the link
+    // only offers something when there is a gap to close.
+    if (topoProj && VA.needsAnnotation(edge.confidence)) {
+      card.annotateParams = {
+        topologyId: topoProj.id, edgeId: edge.id, part: edge.part || null,
+      };
+    }
+    return card;
+  };
+
+  // The component card, for the grid's merged component cell: the part's own
+  // identity (name, drawing, note) plus a thumbnail DERIVED from what exists
+  // — the resolved crop of one of its OWN edges' tolerance annotations, which
+  // is a crop of that part's drawing by construction (the edge's dimension is
+  // a dimension OF the part; nothing is matched by filename or prefix). No
+  // mesh render yet: the annotator has no snapshot verb (study_3d_flyout's
+  // lesson), so a part none of whose edges' citations cropped gets NO
+  // thumbnail — absent is absent, nothing invented and no placeholder.
+  VA.componentCard = function (topoProj, partId, crops) {
+    if (!partId) return null;   // the gap "component" is a clearance, not a part
+    var part = VA.topologyIndex(topoProj).parts[partId] || { id: partId };
+    var thumbs = [];
+    ((topoProj && topoProj.edges) || []).forEach(function (edge) {
+      if (edge.part !== partId || !edge.crop_key) return;
+      var entry = VA.cropForKey(crops, edge.crop_key);
+      if (entry.status === "resolved") {
+        thumbs.push({ edgeId: edge.id, edgeName: edge.name, entry: entry });
+      }
+    });
+    return {
+      kind: "component",
+      title: part.name || part.id,
+      id: part.id,
+      drawing: part.drawing || null,
+      revision: part.revision || null,
+      note: part.note || null,
+      thumbs: thumbs,
+      annotateParams: topoProj ? { topologyId: topoProj.id, part: part.id } : null,
+    };
+  };
+
+  // --- the inbound deep link, resolved against the data ----------------------
+  //
+  // (viewer_hover_cards_and_deep_links, deliverable 3.) What a parsed link
+  // (VA.parseDeepLink) actually selects, checked id by id against the two
+  // projections. Pure: topology_app.js applies `mode` and the ids through its
+  // own selection functions and puts `notices` on the banner. Every id is
+  // validated — an id this data does not contain becomes a plain-words notice
+  // and the page falls back to its defaults, never a crash and never a silent
+  // guess at a different node.
+  VA.resolveDeepLink = function (link, topologies, results) {
+    var out = { mode: null, topologyId: null, studyId: null, selection: null,
+                stackId: null, elementId: null, notices: [] };
+    if (!link) return out;
+    var say = function (text) { out.notices.push(text); };
+
+    var topology = link.topology ? VA.findTopology(topologies, link.topology) : null;
+    if (link.topology && !topology) {
+      say("This link asks for topology `" + link.topology + "`, which this " +
+        "data does not contain — showing the default instead.");
+    }
+    var stackProj = link.stack ? VA.findStack(results, link.stack) : null;
+    if (link.stack && !stackProj) {
+      say("This link asks for stack `" + link.stack + "`, which this data " +
+        "does not contain — showing the default instead.");
+    }
+    if (topology && stackProj) {
+      say("This link names both a topology and a stack; the topology won " +
+        "and stack `" + link.stack + "` was ignored.");
+      stackProj = null;
+    }
+
+    if (topology) {
+      out.mode = "topology";
+      out.topologyId = topology.id;
+      if (link.study) {
+        if (VA.findStudy(topology, link.study)) {
+          out.studyId = link.study;
+        } else {
+          say("This link asks for study `" + link.study + "`, which topology `" +
+            topology.id + "` does not carry — showing the whole topology instead.");
+        }
+      }
+      var index = VA.topologyIndex(topology);
+      if (link.edge && link.node) {
+        say("This link names both an edge and a node; the edge won.");
+      }
+      if (link.edge) {
+        if (index.edges[link.edge]) {
+          out.selection = { kind: "edge", id: link.edge };
+        } else {
+          say("This link asks for edge `" + link.edge + "`, which topology `" +
+            topology.id + "` does not carry — nothing was selected.");
+        }
+      } else if (link.node) {
+        if (index.nodes[link.node]) {
+          out.selection = { kind: "node", id: link.node };
+        } else {
+          say("This link asks for interface `" + link.node + "`, which topology `" +
+            topology.id + "` does not carry — nothing was selected.");
+        }
+      }
+    } else if (stackProj) {
+      out.mode = "stack";
+      out.stackId = stackProj.id;
+      if (link.element) {
+        var elements = ((stackProj.stack || {}).elements) || [];
+        var hit = elements.filter(function (e) { return e.id === link.element; });
+        if (hit.length) {
+          out.elementId = link.element;
+        } else {
+          say("This link asks for element `" + link.element + "`, which stack `" +
+            stackProj.id + "` does not carry — nothing was selected.");
+        }
+      }
+      if (link.study || link.edge || link.node) {
+        say("This link carries a study/edge/node without a topology to look " +
+          "it up in; those parts were ignored.");
+      }
+    } else {
+      // No topology and no stack resolved. Any child param is dangling.
+      if ((link.study || link.edge || link.node) && !link.topology) {
+        say("This link names a study/edge/node without a `topology` beside " +
+          "it, so those parts were ignored.");
+      }
+      if (link.element && !link.stack) {
+        say("This link names an element without a `stack` beside it, so it " +
+          "was ignored.");
+      }
+    }
+    return out;
+  };
+
   // --- the banner ----------------------------------------------------------
 
   VA.topologyBuiltLine = function (topologies, crops) {

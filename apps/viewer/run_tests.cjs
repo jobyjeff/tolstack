@@ -293,6 +293,7 @@ const files = [
   "views/nav.js",
   "views/stack.js",
   "views/crop.js",
+  "views/cards.js",
   "views/worksheet.js",
   "views/detail.js",
   "views/topology.js",

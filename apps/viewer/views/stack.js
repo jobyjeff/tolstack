@@ -217,8 +217,26 @@
     var derived = row.derived;
     var cell = VA.el("td", "el-row__source");
     var chips = VA.el("div", "el-row__chips");
-    chips.appendChild(VA.chip(VA.confidenceClass(derived.confidence),
-      VA.CONFIDENCE_LABEL[derived.confidence] || derived.confidence));
+    var confChip = VA.chip(VA.confidenceClass(derived.confidence),
+      VA.CONFIDENCE_LABEL[derived.confidence] || derived.confidence);
+    // The citation hover card (viewer_hover_cards_and_deep_links): the same
+    // trigger the topology grid's confidence chip carries, over the same
+    // model (VA.citationCard) — the full reference on hover, the right pane
+    // still the place it renders persistently on click. Only a row that HAS
+    // a citation gets one.
+    if (element.source_ref && handlers.onCardShow) {
+      confChip.className += " cardtrig";
+      confChip.setAttribute("tabindex", "0");
+      var showCitation = function () {
+        handlers.onCardShow(VA.citationCard(element.source_ref,
+          derived.identity_rule,
+          VA.cropFor(cropsIndex, stackProj.id, element.id)), confChip);
+      };
+      confChip.onmouseenter = showCitation;
+      confChip.onfocus = showCitation;
+      confChip.onclick = showCitation;
+    }
+    chips.appendChild(confChip);
     if (derived.kind) chips.appendChild(VA.chip("chip--kind", derived.kind));
     // The material this feature is cut in, for an archetype that has one. It is
     // a property of the chain, not of the element, so it arrives derived — and

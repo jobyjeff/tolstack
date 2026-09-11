@@ -245,6 +245,125 @@
       eq(VA.citationWhere(null), "no source_ref");
     });
 
+    // --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) --
+    //
+    // These params are a CONTRACT a sibling repo consumes (drawing-checker's
+    // analyses panel, `analyses_viewer_deep_link`), documented in
+    // apps/viewer/README.md. A rename here is a breaking change over there.
+
+    await test("DEEP_LINK_PARAMS is the documented six, and parseDeepLink reads " +
+      "exactly them", function () {
+        eq(VA.DEEP_LINK_PARAMS,
+           ["topology", "study", "edge", "node", "stack", "element"]);
+        eq(VA.parseDeepLink("?topology=pitch_system&study=s1"),
+           { topology: "pitch_system", study: "s1" });
+        eq(VA.parseDeepLink("?stack=demo_joint&element=plate"),
+           { stack: "demo_joint", element: "plate" });
+        // mock picks the DATASET, not a selection — not part of this contract.
+        eq(VA.parseDeepLink("?mock=1"), null);
+        eq(VA.parseDeepLink("?mock=1&topology=t"), { topology: "t" });
+        eq(VA.parseDeepLink(""), null);
+        eq(VA.parseDeepLink("?unrelated=x"), null);
+      });
+
+    await test("parseDeepLink decodes, takes the first occurrence, and reads an " +
+      "empty value as absent", function () {
+        eq(VA.parseDeepLink("?topology=a%20b"), { topology: "a b" });
+        eq(VA.parseDeepLink("?topology=a&topology=b"), { topology: "a" });
+        eq(VA.parseDeepLink("?topology=&study=s"), { study: "s" });
+      });
+
+    await test("viewerLink round-trips through parseDeepLink, and is relative",
+      function () {
+        var params = { topology: "pitch_system", study: "s 1" };
+        var link = VA.viewerLink(params);
+        eq(link.indexOf("topology.html?"), 0);
+        eq(VA.parseDeepLink(link.slice(link.indexOf("?"))), params);
+        eq(VA.viewerLink({ stack: "demo_joint", mock: true }),
+           "topology.html?stack=demo_joint&mock=1");
+        eq(VA.viewerLink({}), "topology.html");
+      });
+
+    await test("resolveDeepLink selects a topology, its study and an edge when " +
+      "every id resolves", function () {
+        var topologies = VA.demoTopologyProjection();
+        var out = VA.resolveDeepLink(
+          { topology: "demo_mechanism", study: "demo_base_to_tip",
+            edge: "base_thickness" },
+          topologies, FIXTURE.results);
+        eq(out.mode, "topology");
+        eq(out.topologyId, "demo_mechanism");
+        eq(out.studyId, "demo_base_to_tip");
+        eq(out.selection, { kind: "edge", id: "base_thickness" });
+        eq(out.notices, []);
+      });
+
+    await test("resolveDeepLink selects a stack and its element", function () {
+      var out = VA.resolveDeepLink({ stack: "demo_joint", element: "plate" },
+        VA.demoTopologyProjection(), FIXTURE.results);
+      eq(out.mode, "stack");
+      eq(out.stackId, "demo_joint");
+      eq(out.elementId, "plate");
+      eq(out.notices, []);
+    });
+
+    await test("resolveDeepLink turns every unresolvable id into a plain-words " +
+      "notice and falls back rather than guessing", function () {
+        var topologies = VA.demoTopologyProjection();
+        var noTopo = VA.resolveDeepLink({ topology: "nope" }, topologies,
+          FIXTURE.results);
+        eq(noTopo.mode, null);
+        eq(noTopo.notices.length, 1);
+        has(noTopo.notices[0], "topology `nope`");
+        has(noTopo.notices[0], "does not contain");
+
+        var badStudy = VA.resolveDeepLink(
+          { topology: "demo_mechanism", study: "nope" }, topologies, FIXTURE.results);
+        eq(badStudy.mode, "topology");
+        eq(badStudy.studyId, null);
+        has(badStudy.notices[0], "study `nope`");
+
+        var badEdge = VA.resolveDeepLink(
+          { topology: "demo_mechanism", edge: "nope" }, topologies, FIXTURE.results);
+        eq(badEdge.selection, null);
+        has(badEdge.notices[0], "edge `nope`");
+
+        var badElement = VA.resolveDeepLink(
+          { stack: "demo_joint", element: "nope" }, topologies, FIXTURE.results);
+        eq(badElement.mode, "stack");
+        eq(badElement.elementId, null);
+        has(badElement.notices[0], "element `nope`");
+      });
+
+    await test("resolveDeepLink: the topology wins over a stack, an edge over a " +
+      "node, and a dangling child param is said, not guessed at", function () {
+        var topologies = VA.demoTopologyProjection();
+        var both = VA.resolveDeepLink(
+          { topology: "demo_mechanism", stack: "demo_joint" }, topologies,
+          FIXTURE.results);
+        eq(both.mode, "topology");
+        eq(both.stackId, null);
+        has(both.notices[0], "the topology won");
+
+        var edgeAndNode = VA.resolveDeepLink(
+          { topology: "demo_mechanism", edge: "base_thickness", node: "base_datum" },
+          topologies, FIXTURE.results);
+        eq(edgeAndNode.selection, { kind: "edge", id: "base_thickness" });
+        has(edgeAndNode.notices[0], "the edge won");
+
+        var node = VA.resolveDeepLink(
+          { topology: "demo_mechanism", node: "base_datum" }, topologies,
+          FIXTURE.results);
+        eq(node.selection, { kind: "node", id: "base_datum" });
+
+        var dangling = VA.resolveDeepLink({ study: "s" }, topologies, FIXTURE.results);
+        eq(dangling.mode, null);
+        has(dangling.notices[0], "without a `topology`");
+        var danglingElement = VA.resolveDeepLink({ element: "plate" }, topologies,
+          FIXTURE.results);
+        has(danglingElement.notices[0], "without a `stack`");
+      });
+
     // --- crops: four distinct answers --------------------------------------
 
     await test("cropFor returns the resolved entry", function () {
@@ -260,6 +379,62 @@
       var entry = VA.cropFor(CROPS, "demo_joint", "eye");
       eq(entry.status, "no-entry");
       has(entry.reason, "older than");
+    });
+
+    // --- cropForKey: crops.json's TWO key spaces (viewer_hover_cards_and_deep_links) --
+    //
+    // A dimension_ref edge's {stack, element} key reads by_stack exactly as
+    // VA.cropFor always has; an inline edge's {topology, edge} key reads
+    // by_topology — the space build_viewer_crops.py started writing on
+    // 2026-09-08 and the viewer read NOT AT ALL until this handoff, so every
+    // real pitch_system crop rendered as "no-entry — the index is stale".
+
+    await test("cropForKey dispatches a {stack, element} key to by_stack, unchanged",
+      function () {
+        eq(VA.cropForKey(CROPS, { stack: "demo_joint", element: "plate" }).status,
+           "resolved");
+        eq(VA.cropForKey(CROPS, { stack: "demo_joint", element: "eye" }).status,
+           "no-entry");
+      });
+
+    await test("cropForKey reads a {topology, edge} key out of by_topology",
+      function () {
+        var entry = VA.cropForKey(CROPS,
+          { topology: "demo_mechanism", edge: "arm_pin_to_tip" });
+        eq(entry.status, "resolved");
+        eq(entry.resolved_by, "source_ref_export");
+        var missing = VA.cropForKey(CROPS,
+          { topology: "demo_mechanism", edge: "post_bushing_offset" });
+        eq(missing.status, "unresolvable");
+      });
+
+    await test("cropForKey keeps the topology space's four answers distinct too",
+      function () {
+        eq(VA.cropForKey(null, { topology: "t", edge: "e" }).status, "not-built");
+        var stale = VA.cropForKey(CROPS, { topology: "demo_mechanism", edge: "new_edge" });
+        eq(stale.status, "no-entry");
+        has(stale.reason, "older than the topology");
+        var noTopo = VA.cropForKey(CROPS, { topology: "never_built", edge: "e" });
+        eq(noTopo.status, "no-entry");
+      });
+
+    await test("cropForKey says a key shape it has no branch for out loud",
+      function () {
+        var odd = VA.cropForKey(CROPS, { banana: "x" });
+        eq(odd.status, "unresolvable");
+        has(odd.reason, "no branch for");
+        // No key at all: callers guard on it, but the function stays total.
+        eq(VA.cropForKey(CROPS, null).status, "no-entry");
+      });
+
+    await test("cropKeyText states which CLAIM each key shape makes", function () {
+      eq(VA.cropKeyText({ stack: "s1", element: "e1" }),
+         "from stack `s1`, element `e1`");
+      has(VA.cropKeyText({ topology: "t1", edge: "e1" }),
+          "authored in topology `t1`");
+      has(VA.cropKeyText({ topology: "t1", edge: "e1" }),
+          "this edge's own citation");
+      eq(VA.cropKeyText(null), "");
     });
 
     await test("runUrl only exists for a crop resolved through a run", function () {
@@ -810,6 +985,30 @@
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
       all(root, "tr.el-row")[0].click();
     });
+
+    await test("the stack table's confidence chip is the citation-card trigger, " +
+      "carrying the element's identity rule and crop entry", function () {
+        var shown = [];
+        var root = render(function (r) {
+          VA.renderStack(r, DEMO, CROPS, {
+            onCardShow: function (card, trigger) { shown.push([card, trigger]); },
+          });
+        });
+        // All four demo elements carry a source_ref (even the assumed one — an
+        // `assumed` citation is still a citation to card), so all four
+        // confidence chips are triggers.
+        var chips = all(root, "span.cardtrig");
+        eq(chips.length, 4);
+        chips[0].onmouseenter();
+        eq(shown.length, 1);
+        eq(shown[0][0].kind, "citation");
+        eq(shown[0][0].provenance.state, "established");
+        eq(shown[0][0].entry.status, "resolved");
+        // Without the handler (every other call site in this file), the chip
+        // is a plain chip and nothing throws.
+        var bare = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+        eq(all(bare, "span.cardtrig").length, 0);
+      });
 
     // --- generated checks: the whole point of the surface --------------------
 
@@ -1593,6 +1792,23 @@
       ok(root.textContent.indexOf("No results projection") === -1);
     });
 
+    await test("a deep-link notice renders as its own plain line, never inside " +
+      "the stale-pair rebuild alarm", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: CROPS,
+            notices: ["This link asks for topology `nope`, which this data " +
+              "does not contain — showing the default instead."],
+          }, {});
+        });
+        var notices = all(root, ".banner__notice");
+        eq(notices.length, 1);
+        has(notices[0].textContent, "topology `nope`");
+        // A mistyped link is a fact about the LINK: it must not raise the
+        // "needs a rebuild" box, whose advice would be wrong.
+        eq(all(root, ".banner__stale").length, 0);
+      });
+
     await test("the banner surfaces the crop rollups, not just the resolved count", function () {
       var root = render(function (r) {
         VA.renderBanner(r, {
@@ -2256,6 +2472,218 @@
         })[0].querySelector("button.crop-trigger--resolved");
         eq(coldTrigger.querySelector("img"), null);
         has(coldTrigger.textContent, "drawing crop");
+      });
+
+    // --- hover reference cards (viewer_hover_cards_and_deep_links) -----------
+    //
+    // The models are pure (VA.edgeCard / VA.componentCard / VA.citationCard);
+    // views/cards.js renders one into the same positioned popover node the
+    // crop popover uses, so a card is hover-only chrome by construction.
+
+    await test("edgeCard: a keyed edge carries its crop entries as a LIST, its " +
+      "citation, and the annotate link only under the gap rule", function () {
+        var edge = VA.topologyIndex(TOPO).edges.base_thickness;
+        var card = VA.edgeCard(TOPO, edge, TOPOCROPS);
+        eq(card.kind, "edge");
+        eq(card.title, edge.name);
+        // A list on purpose: the second half-side's crop is a stated gap, not
+        // an invented image — the card grows to two entries when the index
+        // ever holds both sides, with no shape change.
+        eq(card.crops.length, 1);
+        eq(card.crops[0].entry.status, "resolved");
+        eq(card.noCropReason, null);
+        ok(card.citation, "the citation rides on the card");
+        // base_thickness is traced through its stack element — no annotate
+        // link: a binding is identity, never a value source, so the link only
+        // offers something where there is a gap to close (VA.needsAnnotation).
+        eq(card.annotateParams, null);
+      });
+
+    await test("edgeCard: an untraced edge gets the annotate params, and a " +
+      "keyless edge states which no-crop fact applies", function () {
+        var index = VA.topologyIndex(TOPO);
+        var card = VA.edgeCard(TOPO, index.edges.arm_pin_to_tip, TOPOCROPS);
+        eq(card.crops, []);
+        has(card.noCropReason, "No crop index covers it");
+        eq(card.annotateParams.topologyId, "demo_mechanism");
+        eq(card.annotateParams.edgeId, "arm_pin_to_tip");
+        var derived = VA.edgeCard(TOPO, index.edges.tip_to_strut_end, TOPOCROPS);
+        has(derived.noCropReason, "derived gap");
+      });
+
+    await test("edgeCard reads a {topology, edge} key out of by_topology — the " +
+      "space the real pitch_system's six croppable edges live in", function () {
+        var edge = Object.assign({}, VA.topologyIndex(TOPO).edges.arm_pin_to_tip, {
+          crop_key: { topology: "demo_mechanism", edge: "arm_pin_to_tip" },
+        });
+        var card = VA.edgeCard(TOPO, edge, TOPOCROPS);
+        eq(card.crops.length, 1);
+        eq(card.crops[0].entry.status, "resolved");
+        eq(card.crops[0].entry.png, "crops/demo_mechanism__arm_pin_to_tip.png");
+      });
+
+    await test("componentCard derives its thumbnail from the part's OWN rows' " +
+      "resolved crops, and a clearance gets no card at all", function () {
+        var card = VA.componentCard(TOPO, "base", TOPOCROPS);
+        eq(card.kind, "component");
+        eq(card.id, "base");
+        eq(card.thumbs.length, 1);
+        eq(card.thumbs[0].edgeId, "base_thickness");
+        eq(card.thumbs[0].entry.status, "resolved");
+        // post's one keyed edge (post_height) is unresolvable: no thumb, and
+        // nothing invented in its place.
+        eq(VA.componentCard(TOPO, "post", TOPOCROPS).thumbs, []);
+        // arm's edge has no crop key at all: same answer.
+        eq(VA.componentCard(TOPO, "arm", TOPOCROPS).thumbs, []);
+        eq(VA.componentCard(TOPO, null, TOPOCROPS), null);
+        eq(card.annotateParams, { topologyId: "demo_mechanism", part: "base" });
+      });
+
+    await test("citationCard reassembles what the stack view already renders — " +
+      "where-ref, callout, note, export provenance", function () {
+        var ref = DEMO.stack.elements[0].source_ref;
+        var entry = VA.cropFor(CROPS, "demo_joint", "plate");
+        var card = VA.citationCard(ref, null, entry);
+        eq(card.kind, "citation");
+        eq(card.title, VA.citationWhere(ref));
+        eq(card.callout, ref.callout);
+        eq(card.provenance.state, "established");
+        eq(card.entry, entry);
+        eq(VA.citationCard(null, null, null), null);
+        // The spec-pile identity rule reaches the card the same way it
+        // reaches the right pane: through VA.exportProvenance.
+        var spec = VA.citationCard({ kind: "spec", document: "NAS6403" },
+          "spec_pile_filename", null);
+        eq(spec.provenance.state, "identity_rule");
+      });
+
+    await test("renderHoverCard: an edge card shows the crop block, the " +
+      "citation line and the crop-key claim", function () {
+        var edge = VA.topologyIndex(TOPO).edges.base_thickness;
+        var card = VA.edgeCard(TOPO, edge, TOPOCROPS);
+        var images = {};
+        images[card.crops[0].entry.png] = { url: "blob:demo" };
+        var root = render(function (r) {
+          VA.renderHoverCard(r, card, images, VA.CONFIG, function () {});
+        });
+        has(root.className, "hovercard--edge");
+        eq(all(root, "img").length, 1);
+        has(root.textContent, "cited at:");
+        has(root.textContent, "from stack `demo_joint`, element `plate`");
+        has(root.textContent, "215197 A.1.pdf");
+        // The close button is the popover's own.
+        eq(all(root, "button.croppop__close").length, 1);
+        // Traced edge: no annotate link.
+        eq(all(root, "a").filter(function (a) {
+          return /annotate/.test(a.getAttribute("href") || "");
+        }).length, 0);
+      });
+
+    await test("renderHoverCard: an untraced keyless edge card states the " +
+      "no-crop fact and deep-links to the annotator", function () {
+        var card = VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.arm_pin_to_tip,
+          TOPOCROPS);
+        var root = render(function (r) {
+          VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+        });
+        eq(all(root, "img").length, 0);
+        has(root.textContent, "No crop index covers it");
+        var annotate = all(root, "a").filter(function (a) {
+          return /annotate/.test(a.getAttribute("href") || "");
+        });
+        eq(annotate.length, 1);
+        has(annotate[0].getAttribute("href"),
+          "../annotate/index.html?topology=demo_mechanism&edge=arm_pin_to_tip");
+      });
+
+    await test("renderHoverCard: a component card shows identity, the derived " +
+      "thumbnail, and the isolate link — and nothing for a part with no image",
+      function () {
+        var card = VA.componentCard(TOPO, "base", TOPOCROPS);
+        var images = {};
+        images[card.thumbs[0].entry.png] = { url: "blob:demo" };
+        var root = render(function (r) {
+          VA.renderHoverCard(r, card, images, VA.CONFIG, null);
+        });
+        has(root.className, "hovercard--component");
+        has(root.textContent, "drawing 215197");
+        eq(all(root, "img").length, 1);
+        has(root.textContent, "crop of its `base plate thickness` annotation");
+        var isolate = all(root, "a")[all(root, "a").length - 1];
+        has(isolate.getAttribute("href"), "isolate=base");
+
+        var bare = render(function (r) {
+          VA.renderHoverCard(r, VA.componentCard(TOPO, "arm", TOPOCROPS), {},
+            VA.CONFIG, null);
+        });
+        // Absent is absent: no image, no placeholder, no crop wording at all.
+        eq(all(bare, "img").length, 0);
+        eq(bare.textContent.indexOf("crop"), -1);
+      });
+
+    await test("renderHoverCard: a citation card renders the export block and " +
+      "the cited sheet's crop where one resolved", function () {
+        var ref = DEMO.stack.elements[0].source_ref;
+        var entry = VA.cropFor(CROPS, "demo_joint", "plate");
+        var images = {};
+        images[entry.png] = { url: "blob:demo" };
+        var root = render(function (r) {
+          VA.renderHoverCard(r, VA.citationCard(ref, null, entry), images,
+            VA.CONFIG, null);
+        });
+        has(root.className, "hovercard--citation");
+        has(root.textContent, "215197 · rev A.1 · sheet 2");
+        has(root.textContent, "export established");
+        eq(all(root, ".el-export").length, 1);
+        eq(all(root, "img").length, 1);
+        // The run ids print through the same one runs-line builder the right
+        // pane uses (VA.exportRunsLine) — linked only where the crop resolved
+        // through that run, plain text otherwise.
+        has(root.textContent, "drawing-checker runs:");
+      });
+
+    await test("renderHoverCard says a card kind it has no branch for out loud",
+      function () {
+        var root = render(function (r) {
+          VA.renderHoverCard(r, { kind: "banana" }, {}, VA.CONFIG, null);
+        });
+        has(root.textContent, "no branch for");
+      });
+
+    await test("the grid's triggers: the confidence chip and a part's merged " +
+      "cell open cards; the clearance cell keeps its plain title", function () {
+        var shown = [];
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({
+            onCardShow: function (card, trigger) { shown.push([card, trigger]); },
+          }));
+        });
+        // Every edge with a citation gets a card-trigger confidence chip —
+        // four of the six demo edges have one (post_bushing_offset carries no
+        // source_ref, and the derived gap carries no dimension at all); those
+        // two keep plain chips.
+        var chips = all(root, "span.cardtrig");
+        eq(chips.length, 4);
+        chips[0].onmouseenter();
+        eq(shown.length, 1);
+        eq(shown[0][0].kind, "citation");
+        // A part's merged component cell is a trigger; the gap group's is not.
+        var cells = all(root, "td.tvcell--component");
+        ok(String(cells[0].className).indexOf("cardtrig") !== -1,
+           "a part's cell is a card trigger");
+        cells[0].onmouseenter();
+        eq(shown[1][0].kind, "component");
+        eq(shown[1][0].id, "base");
+        var gapCell = cells.filter(function (c) {
+          return c.textContent === VA.GAP_COMPONENT_LABEL;
+        })[0];
+        eq(String(gapCell.className).indexOf("cardtrig"), -1);
+        ok(gapCell.getAttribute("title"), "the clearance keeps its title");
+        // The crop trigger now opens the EDGE card through the same handler.
+        var trigger = all(root, "button.crop-trigger--resolved")[0];
+        trigger.onmouseenter();
+        eq(shown[2][0].kind, "edge");
+        eq(shown[2][0].id, "base_thickness");
       });
 
     await test("selecting a node marks its dot and its leader — the grid has " +
@@ -4206,6 +4634,55 @@
                                    edge.crop_key.element);
             eq(entry.status, "resolved");
             eq(entry.pdf_name, "NAS6403-NAS6420 Rev 4.pdf");
+          });
+
+        await test("[real] pitch_system's inline croppable edges resolve through " +
+          "the {topology, edge} space (viewer_hover_cards_and_deep_links)",
+          function () {
+            // The wiring this handoff exists to add: every pitch_system crop
+            // lives in by_topology, and before VA.cropForKey the viewer read
+            // only by_stack, so all of them rendered as "no-entry — the index
+            // is stale". At least one must resolve for the DoD's edge-hover
+            // demonstration to mean anything.
+            var keyed = livePitch.edges.filter(function (e) {
+              return e.crop_key && e.crop_key.topology;
+            });
+            ok(keyed.length > 0, "pitch_system has topology-keyed edges");
+            var resolved = keyed.filter(function (e) {
+              return VA.cropForKey(realCrops, e.crop_key).status === "resolved";
+            });
+            ok(resolved.length > 0,
+               "at least one topology-keyed crop resolves out of by_topology");
+            // The edge card carries the same entry the trigger shows.
+            var card = VA.edgeCard(livePitch, resolved[0], realCrops);
+            eq(card.crops.length, 1);
+            eq(card.crops[0].entry.status, "resolved");
+          });
+
+        await test("[real] a pitch_system component card derives a thumbnail " +
+          "from its own rows' crops", function () {
+            // hub's blade-root-seat position callout is cropped (by_topology),
+            // so hub's card carries a real derived thumbnail.
+            var card = VA.componentCard(livePitch, "hub", realCrops);
+            ok(card.thumbs.length > 0, "hub has at least one resolved crop");
+            eq(card.thumbs[0].entry.status, "resolved");
+          });
+
+        await test("[real] a citation card renders from a real spec citation, " +
+          "spec-pile identity and all", function () {
+            var edge = VA.topologyIndex(liveL1).edges.fastener_grip;
+            var ref = edge.dimension.source_ref;
+            eq(ref.kind, "spec");
+            var entry = VA.cropForKey(realCrops, edge.crop_key);
+            var card = VA.citationCard(ref, null, entry);
+            var root = render(function (r) {
+              VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+            });
+            has(root.textContent, "NAS6403");
+            // The four live spec-pile citations carry no export block; three
+            // spec citations do. Whichever this one is, the export/identity
+            // block must be present and honest — never silent.
+            eq(all(root, ".el-export").length, 1);
           });
 
         await test("[real] a real untraced pitch_system edge's pane offers a " +

@@ -51,6 +51,15 @@
       root.appendChild(VA.el("div", "banner__error", state.error));
     }
 
+    // What an inbound deep link asked for that this data could not deliver
+    // (viewer_hover_cards_and_deep_links): one plain-words line each. Its own
+    // surface, not the stale-pair alarm box — a link naming an id the data
+    // does not contain is a fact about the LINK, not about which tree built
+    // the projection, and "needs a rebuild" would be the wrong advice.
+    (state.notices || []).forEach(function (text) {
+      root.appendChild(VA.el("div", "banner__notice", text));
+    });
+
     if (state.connection === VA.STATE.READY && !state.results) {
       root.appendChild(missing(labels.missing,
         VA.CONFIG.rebuild[labels.rebuildKey]));

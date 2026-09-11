@@ -392,8 +392,14 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
   margin-top: 4px; overflow-wrap: anywhere;
 }
 /* --- crop popover ---------------------------------------------------- */
+/* position: FIXED, not absolute (viewer_hover_cards_and_deep_links): hover
+   chrome must not disturb the layout, and an absolutely-positioned popover
+   opened near the bottom lengthens the DOCUMENT — the scrollbar it summons
+   reflows the panes, which the browser tier now measures. Fixed pins it to
+   the viewport instead; the max-height keeps a tall card reachable. */
 .croppop {
-  display: none; position: absolute; z-index: 20; width: 540px;
+  display: none; position: fixed; z-index: 20; width: 540px;
+  max-height: calc(100vh - 24px); overflow-y: auto;
   background: var(--panel); border: 1px solid var(--accent); border-radius: 8px;
   padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
 }
@@ -404,3 +410,32 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .croppop__prov, .croppop__reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
 .croppop__links { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
 .croppop__path { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; margin-top: 4px; overflow-wrap: anywhere; }
+
+/* --- hover reference cards (viewer_hover_cards_and_deep_links) --------- */
+/* Rendered into the SAME positioned #croppop node as the crop popover, so
+   they inherit its absolute positioning and can never disturb the page's
+   layout — these rules only shape the card's own innards. */
+.hovercard { width: 540px; }
+.hovercard--citation, .hovercard--component { width: 460px; }
+.hovercard__head h4 { margin: 0 0 2px; font-size: 14px; }
+.hovercard__head code { font-size: 11px; }
+.hovercard__chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.hovercard__where { font-size: 13px; margin: 2px 0; }
+.hovercard__cited, .hovercard__cropkey { color: var(--muted); font-size: 12px; margin: 4px 0 2px; }
+.hovercard__callout {
+  font-family: ui-monospace, monospace; font-size: 12px; background: #262a32;
+  border-radius: 4px; padding: 4px 6px; margin: 4px 0; overflow-wrap: anywhere;
+}
+.hovercard__notefull { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.hovercard__note { color: var(--muted); font-size: 12px; margin: 4px 0;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hovercard__note--open { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.hovercard__links { margin-top: 6px; font-size: 13px; }
+.hovercard__noresolve { margin: 4px 0; }
+.hovercard .cropblock img.croppop__img { max-height: 260px; object-fit: contain; }
+/* A card trigger reads as one: same affordance cue as the crop trigger. */
+.cardtrig { cursor: help; }
+
+/* An inbound deep link that asked for something this data does not contain:
+   one plain-words line, amber — a fact about the link, not a rebuild alarm. */
+.banner__notice { color: var(--inferred); font-size: 13px; margin-top: 4px; }

@@ -478,16 +478,34 @@
   }
 
   // The merged component cell: one per group, spanning the group's sub-rows.
-  // The part id as text (the prose name and drawing ride on the hover title —
-  // the later hover-cards handoff owns anything richer), or the gap wording
-  // for a clearance. Clicking it selects nothing: it is a grouping, not a row.
-  function componentCell(group) {
+  // The part id as text, or the gap wording for a clearance. Clicking it
+  // selects nothing: it is a grouping, not a row. A PART's cell is a hover
+  // card trigger (viewer_hover_cards_and_deep_links): the card carries the
+  // part's name, drawing, note and a derived thumbnail (VA.componentCard), so
+  // the old title attribute retired — a native tooltip under a card would be
+  // two hover surfaces saying less than one. The gap cell keeps its title:
+  // there is no part to card.
+  function componentCell(group, ctx) {
     var cell = VA.el("td", "tvcell tvcell--component", group.label);
     if (group.count > 1) cell.setAttribute("rowspan", String(group.count));
-    if (group.title) cell.setAttribute("title", group.title);
     cell.onclick = function (event) {
       if (event && event.stopPropagation) event.stopPropagation();
     };
+    if (group.part && ctx.onCardShow) {
+      cell.className += " cardtrig";
+      cell.setAttribute("tabindex", "0");
+      var show = function () {
+        ctx.onCardShow(VA.componentCard(ctx.topoProj, group.part, ctx.crops), cell);
+      };
+      cell.onmouseenter = show;
+      cell.onfocus = show;
+      cell.onclick = function (event) {
+        if (event && event.stopPropagation) event.stopPropagation();
+        show();
+      };
+    } else if (group.title) {
+      cell.setAttribute("title", group.title);
+    }
     return cell;
   }
 
@@ -504,7 +522,7 @@
     if (planRow.closes) el.className += " tvrow--closes";
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
 
-    if (group) el.appendChild(componentCell(group));
+    if (group) el.appendChild(componentCell(group, ctx));
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a
@@ -550,9 +568,28 @@
 
     var chips = chipsCell("chips");
     if (edge) {
-      chips.wrap.appendChild(VA.chip(VA.confidenceClass(edge.confidence),
+      var confChip = VA.chip(VA.confidenceClass(edge.confidence),
         edge.confidence === null ? "no value"
-          : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence)));
+          : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence));
+      // The citation hover card (viewer_hover_cards_and_deep_links): the
+      // confidence chip is the row's statement about its citation, so it is
+      // the trigger for the full reference — where-ref, callout, note, export
+      // block and the cited sheet's crop where one resolved. Only an edge
+      // that HAS a citation gets one; a derived gap's chip stays a plain chip.
+      var sourceRef = edge.dimension && edge.dimension.source_ref;
+      if (sourceRef && ctx.onCardShow) {
+        confChip.className += " cardtrig";
+        confChip.setAttribute("tabindex", "0");
+        var showCitation = function () {
+          ctx.onCardShow(VA.citationCard(sourceRef, null,
+            edge.crop_key ? VA.cropForKey(ctx.crops, edge.crop_key) : null),
+            confChip);
+        };
+        confChip.onmouseenter = showCitation;
+        confChip.onfocus = showCitation;
+        confChip.onclick = showCitation;
+      }
+      chips.wrap.appendChild(confChip);
       if (edge.kind === "gap") {
         chips.wrap.appendChild(VA.chip("chip--gap", "gap",
           "its two interfaces share no part — a real distance across a clearance"));
@@ -586,11 +623,15 @@
   // annotation, inline on the row; until then, or for a crop that cannot
   // resolve, it stays the same text button, never a placeholder image. Either
   // way it is the same vocabulary and the same crop plumbing views/stack.js's
-  // cropTrigger uses (VA.cropFor, VA.cropProvenanceLine): an edge that
-  // re-expresses a committed stack element IS that element, crop and all, so
-  // there is one crop-trigger shape in the repo, not two — and the hover/click
-  // popover behaviour is exactly the existing one (rich hover cards belong to
-  // the later viewer_hover_cards_and_deep_links handoff).
+  // cropTrigger uses (VA.cropForKey — which reads BOTH of crops.json's key
+  // spaces, by_stack for a dimension_ref edge and by_topology for an inline
+  // one — and VA.cropProvenanceLine): an edge that re-expresses a committed
+  // stack element IS that element, crop and all, so there is one crop-trigger
+  // shape in the repo, not two. Since viewer_hover_cards_and_deep_links the
+  // trigger opens the EDGE hover card (VA.edgeCard, views/cards.js) — the
+  // same crop body inside a richer frame, plus the citation line and the
+  // deep links out — with the plain crop popover as the fallback wiring for
+  // a caller with no card handler.
   function edgeCropCell(edge, ctx) {
     var cell = VA.el("td", "tvcell tvcell--crop");
     // The same clamp wrapper the chips cell uses, for the same reason: a real
@@ -600,7 +641,7 @@
     var wrap = VA.el("div", "tvcell__cropwrap");
     cell.appendChild(wrap);
     if (!edge || !edge.crop_key) return cell;
-    var entry = VA.cropFor(ctx.crops, edge.crop_key.stack, edge.crop_key.element);
+    var entry = VA.cropForKey(ctx.crops, edge.crop_key);
     var resolved = entry.status === "resolved";
     var image = resolved && ctx.cropImages ? ctx.cropImages[entry.png] : null;
     var node = VA.el("button", "crop-trigger crop-trigger--" + entry.status +
@@ -615,7 +656,13 @@
     }
     node.setAttribute("title", resolved ? VA.cropProvenanceLine(entry) : (entry.reason || ""));
     node.cropEntry = entry;
-    var show = function () { if (ctx.onCropShow) ctx.onCropShow(entry, node); };
+    var show = function () {
+      if (ctx.onCardShow) {
+        ctx.onCardShow(VA.edgeCard(ctx.topoProj, edge, ctx.crops), node);
+      } else if (ctx.onCropShow) {
+        ctx.onCropShow(entry, node);
+      }
+    };
     node.onclick = show;
     node.onmouseenter = show;
     node.onfocus = show;
@@ -938,24 +985,21 @@
     return box;
   }
 
+  // One builder for the el-export box across every surface that renders it
+  // (VA.exportBlockNode, views/detail.js) — no opts here, so this pane keeps
+  // its original content (no runs line: it has no crop entry on hand).
   function exportBlock(p) {
-    var box = VA.el("div", "el-export el-export--" + p.state +
-      (p.loud ? " el-export--loud" : ""));
-    box.appendChild(VA.el("div", "el-export__head", p.headline));
-    if (p.why) box.appendChild(VA.el("div", "el-export__why", p.why));
-    if (p.detail) box.appendChild(VA.el("div", "el-export__detail", p.detail));
-    if (p.shaText) box.appendChild(VA.el("div", "el-export__facts", p.shaText));
-    if (p.pdf) box.appendChild(VA.el("div", "el-export__path", p.pdf));
-    if (p.note) box.appendChild(VA.clampedNote("el-export__note", p.note));
-    return box;
+    return VA.exportBlockNode(p);
   }
 
   // The preview image. An edge that re-expresses a stack element IS that
-  // element, crop and all — `crop_key` is the (stack, element) pair the crop
-  // index is keyed by, so this reuses the stack viewer's plumbing untouched. An
-  // edge with no key is not a stale index and must not read like one: it is a
-  // dimension authored in the topology, or the derived gap a study computes, and
-  // it says which.
+  // element, crop and all — its `crop_key` is the {stack, element} pair
+  // crops.json's by_stack is keyed by; an INLINE edge with a croppable
+  // citation carries a {topology, edge} key into by_topology instead
+  // (VA.cropForKey reads both spaces, and VA.cropKeyText says which claim the
+  // key is making). An edge with no key is not a stale index and must not
+  // read like one: it is a workbook/assumed dimension, or the derived gap a
+  // study computes, and it says which.
   function cropSection(edge, ctx) {
     var box = VA.el("div", "detail__crop");
     box.appendChild(VA.el("h4", null, "Drawing crop"));
@@ -973,11 +1017,9 @@
       }
       return box;
     }
-    var entry = VA.cropFor(ctx.crops, edge.crop_key.stack, edge.crop_key.element);
+    var entry = VA.cropForKey(ctx.crops, edge.crop_key);
     box.className = "detail__crop detail__crop--" + entry.status;
-    box.appendChild(VA.el("div", "muted",
-      "from stack `" + edge.crop_key.stack + "`, element `" +
-      edge.crop_key.element + "`"));
+    box.appendChild(VA.el("div", "muted", VA.cropKeyText(edge.crop_key)));
     if (entry.status !== "resolved") {
       box.appendChild(VA.el("div", "detail__crop-reason", entry.reason || entry.status));
       return box;

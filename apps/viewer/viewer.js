@@ -632,6 +632,151 @@
     return entry;
   };
 
+  // The crop-lookup dispatcher over crops.json's TWO key spaces
+  // (scripts/build_topology_projection.py's crop_key): a dimension_ref edge
+  // re-expresses a committed stack element and addresses `by_stack` as
+  // {stack, element} — the space VA.cropFor has always read — while an INLINE
+  // edge with a croppable citation addresses `by_topology` as {topology,
+  // edge}, because an inline edge is in no stack and a topology's id can
+  // equal a stack's (vpa_output_to_pitch_plate names both today), so landing
+  // edge ids in the element-keyed bucket would silently collide. Until this
+  // function existed the viewer read only by_stack, so every {topology, edge}
+  // key rendered as "no-entry — the index is stale", which is the exact
+  // misreading the four distinct crop states exist to prevent.
+  //
+  // Total over both shapes plus the unknown one, the same posture as every
+  // enumerated field here: a key shape this viewer has no branch for is said
+  // out loud, never quietly rendered as a stale index.
+  VA.cropForKey = function (cropsIndex, cropKey) {
+    if (!cropKey) {
+      return {
+        status: "no-entry",
+        reason: "this edge carries no crop key — nothing addresses the crop index",
+      };
+    }
+    if (cropKey.stack) {
+      return VA.cropFor(cropsIndex, cropKey.stack, cropKey.element);
+    }
+    if (!cropKey.topology) {
+      return {
+        status: "unresolvable",
+        reason: "crop_key " + JSON.stringify(cropKey) + " is a shape this " +
+          "viewer has no branch for — scripts/build_topology_projection.py's " +
+          "crop_key and VA.cropForKey have drifted",
+      };
+    }
+    if (!cropsIndex) {
+      return {
+        status: "not-built",
+        reason: "the crop projection has not been built",
+      };
+    }
+    var byTopology = cropsIndex.by_topology || {};
+    var entry = (byTopology[cropKey.topology] || {})[cropKey.edge];
+    if (!entry) {
+      return {
+        status: "no-entry",
+        reason: "crops.json has no entry for this edge — it is older than " +
+          "the topology; re-run the crop script",
+      };
+    }
+    return entry;
+  };
+
+  // Which crop-index entry an edge's key addresses, as one line. The two
+  // spaces are different CLAIMS and must read differently: a {stack, element}
+  // key says "this edge IS that stack element — same id, same citation, same
+  // crop"; a {topology, edge} key says "this edge is authored in the topology
+  // itself, and the crop is of its own citation".
+  VA.cropKeyText = function (cropKey) {
+    if (!cropKey) return "";
+    if (cropKey.stack) {
+      return "from stack `" + cropKey.stack + "`, element `" +
+        cropKey.element + "`";
+    }
+    return "authored in topology `" + cropKey.topology +
+      "` — the crop is of this edge's own citation";
+  };
+
+  // --- the viewer's own INBOUND deep-link contract ---------------------------
+  //
+  // (viewer_hover_cards_and_deep_links, deliverable 3.) The URL params
+  // topology.html answers to, over and above `?mock=1` (which picks the
+  // DATASET, not a selection, and is deliberately not in this list). This is
+  // a CONTRACT a sibling repo consumes — drawing-checker's analyses panel
+  // links here (`analyses_viewer_deep_link`, staged there) — documented in
+  // apps/viewer/README.md; change the two together and treat a rename as
+  // breaking. Query params only, never a path segment, so the same link
+  // works under the drawing-checker mount (/tolstack/viewer/topology.html),
+  // any static server, and file:// alike.
+  VA.DEEP_LINK_PARAMS = ["topology", "study", "edge", "node", "stack", "element"];
+
+  // location.search -> { topology, study, edge, node, stack, element }, only
+  // the keys the query actually carries — or null when it carries none of
+  // them, so a paramless boot costs nothing. First occurrence wins; an empty
+  // value reads as absent. Pure string work, no URL API: this file also runs
+  // under the node-vm fast tier, which has no browser URL global (the
+  // annotateLink precedent).
+  VA.parseDeepLink = function (search) {
+    var out = {};
+    var found = false;
+    String(search || "").replace(/^\?/, "").split("&").forEach(function (pair) {
+      if (!pair) return;
+      var cut = pair.indexOf("=");
+      var key = cut === -1 ? pair : pair.slice(0, cut);
+      if (VA.DEEP_LINK_PARAMS.indexOf(key) === -1) return;
+      if (Object.prototype.hasOwnProperty.call(out, key)) return;
+      var raw = cut === -1 ? "" : pair.slice(cut + 1);
+      var value;
+      try { value = decodeURIComponent(raw); } catch (err) { value = raw; }
+      if (!value) return;
+      out[key] = value;
+      found = true;
+    });
+    return found ? out : null;
+  };
+
+  // The outbound twin: the same params, built rather than parsed, so a test
+  // can round-trip the contract and a sibling surface has one shape to copy.
+  // Relative on purpose — it never names an origin or a mount, which is what
+  // keeps it stable under the drawing-checker mount and static serving alike.
+  VA.viewerLink = function (params) {
+    var query = [];
+    VA.DEEP_LINK_PARAMS.forEach(function (key) {
+      if (params && params[key]) {
+        query.push(key + "=" + encodeURIComponent(params[key]));
+      }
+    });
+    if (params && params.mock) query.push("mock=1");
+    return "topology.html" + (query.length ? "?" + query.join("&") : "");
+  };
+
+  // --- the citation card: the spec-sheet reference, hover-sized --------------
+  //
+  // (viewer_hover_cards_and_deep_links, deliverable 1.) What the stack view
+  // already renders for a citation — the where-ref, the callout as printed,
+  // the note in full, and the export/identity block that says which BYTES
+  // back the value — reassembled as one hover card, so a reader gets the full
+  // reference without selecting the row. Citation identity is the citation's
+  // own: for a spec citation that is the spec-pile FILENAME (the append-only
+  // pile is the identity rule, and the spec library projection is keyed by
+  // exactly those filenames); an export block still wins wherever one exists,
+  // the same precedence VA.exportProvenance already applies.
+  VA.citationCard = function (sourceRef, identityRule, cropEntry) {
+    if (!sourceRef) return null;
+    return {
+      kind: "citation",
+      title: VA.citationWhere(sourceRef),
+      citationKind: sourceRef.kind || null,
+      confidence: sourceRef.confidence || null,
+      callout: sourceRef.callout || null,
+      note: sourceRef.note || null,
+      provenance: VA.exportProvenance(sourceRef, identityRule || null),
+      exportBlock: sourceRef.export || null,
+      entry: cropEntry || null,
+    };
+  };
+
   // The drawing-checker run page for a crop resolved through a run. null when
   // the crop came from the spec pile, or from a `source_ref.export` that names
   // no run: there is no run to link to, and inventing a URL would be worse than
