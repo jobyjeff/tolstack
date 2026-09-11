@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tolerance_stack/thermal
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260826_material_values_status_vocabulary.md
+resolution: handoff completed 2026-08-26 -- closed automatically by dispatch when handoff `material_values_status_vocabulary` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # `MaterialEntry.values_status`'s vocabulary is an inline tuple literal inside `__post_init__` — the same defect the comment-defined ones had, invisible to the grep that finds them

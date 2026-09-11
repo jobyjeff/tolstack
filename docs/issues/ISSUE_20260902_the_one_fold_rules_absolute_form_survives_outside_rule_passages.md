@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: docs
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260902_doc_coverage_sets_derived.md
+resolution: handoff completed 2026-09-02 -- closed automatically by dispatch when handoff `doc_coverage_sets_derived` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # The one-fold rule's absolute form survives in passages `RULE_PASSAGES` does not read

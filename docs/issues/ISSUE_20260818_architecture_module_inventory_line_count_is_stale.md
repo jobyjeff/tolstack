@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20260819_architecture_inventory_quantifiers.md
 area: docs
 reporter: agent
+resolution: handoff completed 2026-08-19 -- closed automatically by dispatch when handoff `architecture_inventory_quantifiers` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # `ARCHITECTURE.md`'s module inventory says `stack.py` is "~330 lines"; it is 728

@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: prompts/review
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260826_review_checklist_vocabulary_wording.md
+resolution: handoff completed 2026-08-26 -- closed automatically by dispatch when handoff `review_checklist_vocabulary_wording` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # `docs/prompts/REVIEW_AGENT.md` still tells reviewers a vocabulary lives in three places and to check all three

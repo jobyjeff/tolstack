@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20260819_three_field_vocabularies.md
 area: tolerance_stack
 reporter: agent
+resolution: handoff completed 2026-08-19 -- closed automatically by dispatch when handoff `three_field_vocabularies` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # `SourceRef.kind`, `StackElement.role` and `SpecEntry.subject_kind` are still defined by an end-of-line comment

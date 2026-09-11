@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20260810_viewer_projection_provenance.md
 area: viewer / projections
 reporter: agent
+resolution: handoff completed 2026-08-10 -- closed automatically by dispatch when handoff `viewer_projection_provenance` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # Two concurrent handoffs silently overwrite each other's `data/projections/viewer/`

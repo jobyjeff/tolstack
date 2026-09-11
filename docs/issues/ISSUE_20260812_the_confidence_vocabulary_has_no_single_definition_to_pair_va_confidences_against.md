@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20260817_confidence_vocabulary_single_definition.md
 area: tolerance_stack / apps/viewer
 reporter: agent
+resolution: handoff completed 2026-08-17 -- closed automatically by dispatch when handoff `confidence_vocabulary_single_definition` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # `VA.CONFIDENCES` is a fourth hand-copied vocabulary, and there is no single Python definition to pair it against

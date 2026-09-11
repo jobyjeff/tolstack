@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: docs / provenance accounting
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260812_hardware_counts_doc_guard.md
+resolution: handoff completed 2026-08-12 -- closed automatically by dispatch when handoff `hardware_counts_doc_guard` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # Two live docs still say eight hardware entries transcribe the workbook; it has been five since 2026-08-10

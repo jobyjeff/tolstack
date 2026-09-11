@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 handoff: forge/docs/sessions/HANDOFF_20260810_gitignore_data_deny_all.md
 area: repo-conventions
 reporter: agent
+resolution: handoff completed 2026-08-10 -- closed automatically by dispatch when handoff `gitignore_data_deny_all` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # `.dispatch.toml` sits untracked in the main checkout — decide tracked or ignored

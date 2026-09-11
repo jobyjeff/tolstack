@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/snapshot
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260902_dc_snapshot_mtime_flake.md
+resolution: handoff completed 2026-09-02 -- closed automatically by dispatch when handoff `dc_snapshot_mtime_flake` moved to completed/; not independently verified. (reconciliation sweep 2026-09-10)
 ---
 
 # `test_a_removed_entry_is_reported_as_removed` is flaky: it asserts a directory mtime moved
