@@ -51,8 +51,12 @@ the study selected and its five total chips on screen.
   (strategy).
 - **Component cards — exist, drawing-crop-derived.** Thumbnail = the resolved
   crop of one of the part's OWN edges' annotations (a crop of that part's
-  drawing by construction; never filename/prefix matching). Real data: `hub`
-  and `pitch_plate_215177_001` get real thumbnails this way. Mesh/annotator
+  drawing by construction; never filename/prefix matching). Real data: five
+  parts get real thumbnails this way — `hub`, `vpa_piston`,
+  `pitch_plate_215177_001`, `gas_spring` and `gas_spring_mount_213668_002`,
+  one per resolved pitch_system crop whose edge carries a part (the sixth
+  resolved crop, `end_stop_clearance`, is a clearance and carries none;
+  list corrected in review — it originally named 2 of the 5). Mesh/annotator
   renders are NOT derivable — no snapshot verb exists
   (`study_3d_flyout` lesson) → `ISSUE_20260910_component_mesh_thumbnails_
   need_a_snapshot_verb.md`. A part with neither gets no thumbnail, no

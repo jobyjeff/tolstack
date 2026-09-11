@@ -4679,9 +4679,12 @@
               VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
             });
             has(root.textContent, "NAS6403");
-            // The four live spec-pile citations carry no export block; three
-            // spec citations do. Whichever this one is, the export/identity
-            // block must be present and honest — never silent.
+            // Live spec citations exist in both states — resolved through the
+            // spec pile with no export block, and carrying an established
+            // export. (Counts age; the "three spec citations do" this comment
+            // first shipped with was 12 instances when recounted in review.)
+            // Whichever state this one is in, the export/identity block must
+            // be present and honest — never silent.
             eq(all(root, ".el-export").length, 1);
           });
 

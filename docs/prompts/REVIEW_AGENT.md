@@ -1781,6 +1781,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       "paired"/"cannot drift" claim the way you read a count: name the test,
       then check what that test would actually catch.
 
+- [ ] **A browser-tier layout measurement taken at a configuration where the
+      defect cannot occur.** New 2026-09-11 (`viewer_hover_cards_and_deep_links`),
+      the "guard observed failing" check's geometric member. The new zero-pixel
+      assertion ("an open card moves the DAG pane by nothing at all") passes
+      **16/16 with the full pre-handoff popover reverted** (`position: absolute`
+      + scroll-offset coords + no `max-height`): the measured card, on
+      `base_thickness` at the default viewport, never crosses the fold, so the
+      document never lengthens and the comparison has nothing to see — while
+      the lesson credits this exact measurement with catching that exact state.
+      A layout guard is only evidence at a viewport/scroll/trigger where the
+      defect is geometrically reachable; replay the reverted state (one CSS
+      word + one function) before crediting it, and note the tell from this
+      replay: an incoherent half-revert fails as a click-timeout in an
+      unrelated suite, not in the named assertion.
+      `ISSUE_20260911_card_layout_guard_passes_on_the_absolute_popover.md`.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
