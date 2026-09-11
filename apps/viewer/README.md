@@ -582,6 +582,42 @@ identity, never a value source (`docs/ANNOTATION_SURFACE.md`) — this link
 does not change what number this page shows, only helps someone establish
 which physical feature the row means.
 
+## The 3D flyout — the annotator as a side panel (study_3d_flyout)
+
+Where `../annotate/` is **served beside this page** — drawing-checker's
+mounts (`/tolstack/annotate/` next to `/tolstack/viewer/`), or any repo-root
+static server — the two annotate affordances upgrade in place:
+
+- the toolbar's study affordance becomes **View in 3D →** (`#study-3d`): a
+  side panel flies out tracing the selected study's chain — its parts
+  ghosted, surfaces already bound to its elements opaque (the annotator's
+  `trace` verb over the feature-identity projection). A part with no
+  installed mesh after alias resolution, and an edge with no binding, degrade
+  to the annotator's honest empty/absent states — never a guessed surface;
+- the detail pane's `annotate this →` becomes **attach to 3D →**: the panel
+  flies out with that edge selected and its part isolated, ready to click
+  the surface.
+
+The panel is a non-modal, `position: fixed` `<dialog>` pinned to the
+viewport's right edge (`#annotate-flyout`): opening it structurally cannot
+shrink or reflow the DAG pane — the `viewer_v2_single_nav` dialog precedent,
+non-modal so the page beside it stays clickable. It holds ONE iframe of the
+real annotate app, created on the first launch and kept: the folder grant,
+loaded meshes and camera survive across launches, because a later launch
+drives the open panel over `postMessage` → `AA.exec` (the annotator's own
+command vocabulary — the same verbs the boot URL's params run;
+`VA.annotateExecCommands` mirrors `VA.annotateLink` param for param). While
+open it sits over this page's own detail pane on purpose: the annotator's
+element detail supersedes it for the edge being worked.
+
+**Probed, never assumed** (`VA.probeAnnotateMount`): at boot the page HEADs
+`../annotate/index.html` and requires an ok `text/html` answer — the same
+posture (and the same catch-all-server trap) as `storage/http.js`'s data
+probe. Under `file://`, or any server without the sibling mount, the probe
+fails and everything above stays exactly the pre-flyout links (new tab) —
+a working link, never a broken panel, and no trace of the feature the page
+cannot deliver.
+
 ## Selecting an element
 
 The elements table shows only a confidence chip, a kind chip, a short one-line

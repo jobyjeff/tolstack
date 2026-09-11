@@ -20,6 +20,14 @@ import { OrbitControls } from "./vendor/OrbitControls.js";
 const PART_MARGIN = 50; // native units (mm) gap between side-by-side parts
 const PALETTE = [0x5b8dd6, 0xd68a5b, 0x7bc47f, 0xc47bc4];
 const HIGHLIGHT = [1.0, 0.55, 0.1];
+// Ghosted-part translucency (handoff study_3d_flyout): low enough that the
+// opaque bound-face marks read as THE content, high enough that the part's
+// silhouette still orients the viewer.
+const GHOST_OPACITY = 0.22;
+// Bound-face mark colour -- deliberately NOT the selection HIGHLIGHT orange:
+// a mark says "a binding already attaches here", a highlight says "you just
+// picked this"; the two states coexist on screen.
+const MARK_COLOR = 0x35c26e;
 
 // CATIA STEP exports are Z-up (handoff annotate_deep_link_and_part_filter,
 // deliverable 5 -- Jeff's live report: horizontal drag sometimes orbits about
@@ -49,6 +57,7 @@ export class AnnotateScene {
   constructor(hostEl, storage) {
     this.storage = storage;
     this.parts = new Map(); // source_step_sha256 -> THREE.Mesh
+    this._marks = [];       // {sha256, faceId, mesh} -- opaque bound-face overlays
     this._layoutX = 0;
     this._colorIndex = 0;
     this._lastPick = null;
@@ -154,6 +163,7 @@ export class AnnotateScene {
   unloadPart(sha256) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;
+    this._disposeMarks((m) => m.sha256 === sha256);
     this.scene.remove(mesh);
     mesh.geometry.dispose();
     mesh.material.dispose();
@@ -163,12 +173,91 @@ export class AnnotateScene {
   // Part show/hide (handoff annotate_deep_link_and_part_filter, deliverable
   // 2): three.js already skips an invisible object in both rendering and
   // raycasting, so "hide" needs nothing beyond the object's own `.visible` --
-  // no removal, no geometry disposal, so a re-`show` is instant.
+  // no removal, no geometry disposal, so a re-`show` is instant. A part's
+  // bound-face marks follow its visibility: a mark floating where its hidden
+  // part used to be would read as attached to whatever is behind it.
   setVisible(sha256, visible) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return false;
     mesh.visible = !!visible;
+    for (const m of this._marks) {
+      if (m.sha256 === sha256) m.mesh.visible = mesh.visible;
+    }
     return true;
+  }
+
+  // Ghost rendering (handoff study_3d_flyout): the whole part goes translucent
+  // so the opaque bound-face marks trace the chain over it. depthWrite stays
+  // off while ghosted so the marks (and other parts) show through cleanly.
+  setGhost(sha256, on) {
+    const mesh = this.parts.get(sha256);
+    if (!mesh) return false;
+    mesh.material.transparent = !!on;
+    mesh.material.opacity = on ? GHOST_OPACITY : 1;
+    mesh.material.depthWrite = !on;
+    mesh.material.needsUpdate = true;
+    return true;
+  }
+
+  isGhosted(sha256) {
+    const mesh = this.parts.get(sha256);
+    return !!(mesh && mesh.material.transparent);
+  }
+
+  // An opaque overlay over ONE face -- the `mark-face` verb's whole render.
+  // The geometry is a COPY (AA.faceSubGeometry's own comment says why sharing
+  // the parent's BufferAttributes is unsafe), positioned with the parent so
+  // the side-by-side layout carries over. polygonOffset pulls the overlay a
+  // hair toward the camera so the parent's own coplanar surface never
+  // z-fights it. Not in `this.parts`, so picks pass through to the parent.
+  markFace(sha256, faceId) {
+    const parent = this.parts.get(sha256);
+    if (!parent) return false;
+    for (const m of this._marks) {
+      if (m.sha256 === sha256 && m.faceId === faceId) return true; // already marked
+    }
+    const AA = window.AnnotateApp;
+    const range = parent.userData.faceRanges[faceId];
+    if (!range) return false;
+    const sub = AA.faceSubGeometry(
+      parent.geometry.attributes.position.array,
+      parent.geometry.index.array,
+      parent.userData.faceIdPerTriangle,
+      range, faceId);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(
+      sub.positions instanceof Float32Array ? sub.positions : new Float32Array(sub.positions), 3));
+    geometry.setIndex(sub.indices);
+    geometry.computeVertexNormals();
+    const material = new THREE.MeshStandardMaterial({
+      color: MARK_COLOR, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.05,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.copy(parent.position);
+    mesh.visible = parent.visible;
+    this.scene.add(mesh);
+    this._marks.push({ sha256, faceId, mesh });
+    return true;
+  }
+
+  listMarks() {
+    return this._marks.map((m) => ({ sha256: m.sha256, faceId: m.faceId }));
+  }
+
+  clearMarks() {
+    this._disposeMarks(() => true);
+  }
+
+  _disposeMarks(predicate) {
+    const keep = [];
+    for (const m of this._marks) {
+      if (!predicate(m)) { keep.push(m); continue; }
+      this.scene.remove(m.mesh);
+      m.mesh.geometry.dispose();
+      m.mesh.material.dispose();
+    }
+    this._marks = keep;
   }
 
   isVisible(sha256) {

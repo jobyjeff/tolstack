@@ -423,6 +423,108 @@ check("planIsolate: isolating everything already open hides nothing and opens no
     { toOpen: [], toShow: ["aaaa", "bbbb"], toHide: [] });
 });
 
+// --- faceSubGeometry (handoff study_3d_flyout): the mark-face overlay's
+// geometry extraction, pure over plain arrays. Two faces: face 0 is one
+// triangle over vertices 0..2, face 1 is two triangles over vertices 3..6.
+const SUB_POSITIONS = [
+  0, 0, 0, 1, 0, 0, 0, 1, 0,          // face 0's run (vertices 0..2)
+  0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, // face 1's run (vertices 3..6)
+];
+const SUB_INDICES = [0, 1, 2, 3, 4, 5, 4, 6, 5];
+const SUB_FIDS = [0, 1, 1];
+
+check("faceSubGeometry copies one face's vertex run and remaps its indices to it", () => {
+  const sub = AA.faceSubGeometry(SUB_POSITIONS, SUB_INDICES, SUB_FIDS,
+    { start: 3, count: 4 }, 1);
+  assertEqual(sub.positions, SUB_POSITIONS.slice(9));
+  assertEqual(sub.indices, [0, 1, 2, 1, 3, 2]);
+});
+check("faceSubGeometry on the first face uses only its own run", () => {
+  const sub = AA.faceSubGeometry(SUB_POSITIONS, SUB_INDICES, SUB_FIDS,
+    { start: 0, count: 3 }, 0);
+  assertEqual(sub.positions, SUB_POSITIONS.slice(0, 9));
+  assertEqual(sub.indices, [0, 1, 2]);
+});
+check("faceSubGeometry throws on a triangle outside the face's own vertex run -- " +
+  "the contiguous-run contract, violated, must not draw something wrong", () => {
+  assertThrows(() => AA.faceSubGeometry(SUB_POSITIONS, SUB_INDICES, SUB_FIDS,
+    { start: 0, count: 2 }, 0));
+});
+check("faceSubGeometry throws for a face with no triangles", () => {
+  assertThrows(() => AA.faceSubGeometry(SUB_POSITIONS, SUB_INDICES, SUB_FIDS,
+    { start: 0, count: 3 }, 7));
+});
+
+// --- planStudyTrace (handoff study_3d_flyout): the per-study 3D trace as
+// data. Fixture-shaped plain objects; the identity projection reuses the
+// mock fixture's own (demo_edge_untraced bound to face 0 of the demo mesh).
+const TRACE_TOPO = {
+  id: "demo_system",
+  edges: [
+    { id: "e_solid", part: "part_a" },
+    { id: "e_alias", part: "topology_name_for_part_a" },
+    { id: "e_missing", part: "no_such_part" },
+    { id: "e_gap", part: null },
+    { id: "e_dup", part: "part_a" },
+  ],
+};
+const TRACE_IDENTITY = {
+  stack_keys: [
+    {
+      stack_key: { kind: "topology_edge", topology_id: "demo_system", edge_id: "e_solid" },
+      bindings: [{ event_id: "x1", geometry_key: { source_step_sha256: "bbbb", face_id: 4 } }],
+    },
+    {
+      stack_key: { kind: "topology_edge", topology_id: "demo_system", edge_id: "e_missing" },
+      bindings: [{ event_id: "x2", geometry_key: { source_step_sha256: "f".repeat(64), face_id: 0 } }],
+    },
+  ],
+};
+check("planStudyTrace resolves parts in selection order, once each, through the alias table", () => {
+  const plan = AA.planStudyTrace(TRACE_TOPO,
+    { selection: ["e_solid", "e_alias", "e_missing", "e_gap", "e_dup"] },
+    null, MESHES, ALIASES);
+  assertEqual(plan.parts, [
+    { part: "part_a", sha256: "aaaa" },
+    { part: "topology_name_for_part_a", sha256: "aaaa" },
+    { part: "no_such_part", sha256: null },
+  ]);
+  assertEqual(plan.ghosts, ["aaaa"]);
+  assertEqual(plan.missingParts, ["no_such_part"]);
+});
+check("planStudyTrace with no identity projection reports every edge unbound -- never an error", () => {
+  const plan = AA.planStudyTrace(TRACE_TOPO, { selection: ["e_solid", "e_gap"] },
+    null, MESHES, ALIASES);
+  assertEqual(plan.marks, []);
+  assertEqual(plan.unboundEdges, ["e_solid", "e_gap"]);
+});
+check("planStudyTrace marks a bound face, and pulls its mesh into the ghosts even " +
+  "when the part list missed it", () => {
+  const plan = AA.planStudyTrace(TRACE_TOPO, { selection: ["e_solid"] },
+    TRACE_IDENTITY, MESHES, ALIASES);
+  // e_solid's part resolves to aaaa, but its binding lives on bbbb: both ghost.
+  assertEqual(plan.ghosts, ["aaaa", "bbbb"]);
+  assertEqual(plan.marks, [{ edgeId: "e_solid", sha256: "bbbb", faceId: 4 }]);
+  assertEqual(plan.unboundEdges, []);
+});
+check("planStudyTrace reports a binding to an uninstalled mesh as unresolved, not a mark", () => {
+  const plan = AA.planStudyTrace(TRACE_TOPO, { selection: ["e_missing"] },
+    TRACE_IDENTITY, MESHES, ALIASES);
+  assertEqual(plan.marks, []);
+  assertEqual(plan.unresolvedMarks, [{ edgeId: "e_missing", sha256: "f".repeat(64) }]);
+  assertEqual(plan.missingParts, ["no_such_part"]);
+});
+check("planStudyTrace over the mock fixture's own study matches its data end to end", () => {
+  const topo = AA.FIXTURES.topologyProjection.topologies[0];
+  const meshes = [{ sha256: AA.FIXTURES.demoSha, label: "demo", part_id: "demo_triangle" }];
+  const plan = AA.planStudyTrace(topo, topo.studies[0],
+    AA.FIXTURES.featureIdentityProjection, meshes, []);
+  assertEqual(plan.ghosts, [AA.FIXTURES.demoSha]);
+  assertEqual(plan.marks, [{ edgeId: "demo_edge_untraced", sha256: AA.FIXTURES.demoSha, faceId: 0 }]);
+  assertEqual(plan.missingParts, ["no_such_part"]);
+  assertEqual(plan.unboundEdges, ["demo_edge_traced", "demo_edge_no_owner"]);
+});
+
 // --- [real] the shipped alias table against the installed meshes ------------
 //
 // The tracked table (docs/topologies/part_mesh_aliases.json -- read from THIS
@@ -485,6 +587,65 @@ if (!realMeshesDir) {
         `alias "${alias.topology_part}" resolved to the wrong mesh`);
     }
   });
+
+  // The per-study trace against the real projection (handoff study_3d_flyout):
+  // planStudyTrace over every real study must produce only installed-mesh
+  // ghosts and honest gap lists, and any study naming the aliased gas-spring
+  // part must resolve it -- the same call the flyout's `trace` boot makes.
+  const realProjectionPath = [
+    path.join(here, "..", "..", "data", "projections", "viewer", "topologies.json"),
+    "C:\\workspace\\tolstack\\data\\projections\\viewer\\topologies.json",
+  ].find((p) => fs.existsSync(p));
+  const realBindingsPath = [
+    path.join(here, "..", "..", "data", "projections", "feature-identity", "bindings.json"),
+    "C:\\workspace\\tolstack\\data\\projections\\feature-identity\\bindings.json",
+  ].find((p) => fs.existsSync(p));
+
+  if (!realProjectionPath) {
+    console.log("SKIP  [real] planStudyTrace over the real projection -- no " +
+      "data/projections/viewer/topologies.json (gitignored, main checkout only)");
+  } else {
+    check("[real] planStudyTrace over every real study: ghosts are installed meshes, " +
+      "gaps are honest lists, the aliased part resolves where a study names it", () => {
+      const projection = JSON.parse(fs.readFileSync(realProjectionPath, "utf8"));
+      // bindings.json may legitimately not exist yet (nothing bound) -- that
+      // reads as null, the same absent state the app itself loads.
+      const identity = realBindingsPath
+        ? JSON.parse(fs.readFileSync(realBindingsPath, "utf8"))
+        : null;
+      const meshes = realMeshList();
+      const installed = new Set(meshes.map((m) => m.sha256));
+      const aliases = shippedAliases();
+      let studies = 0;
+      let aliasedResolved = 0;
+      for (const topology of projection.topologies) {
+        for (const study of topology.studies || []) {
+          studies++;
+          const plan = AA.planStudyTrace(topology, study, identity, meshes, aliases);
+          for (const sha of plan.ghosts) {
+            if (!installed.has(sha)) {
+              throw new Error(`study ${study.id}: ghost ${sha} is not an installed mesh`);
+            }
+          }
+          for (const p of plan.parts) {
+            if (p.sha256 === null && plan.missingParts.indexOf(p.part) === -1) {
+              throw new Error(`study ${study.id}: unresolved part ${p.part} not in missingParts`);
+            }
+          }
+          if (plan.parts.some((p) => p.part === "gas_spring_mount_213668_002" && p.sha256)) {
+            aliasedResolved++;
+          }
+        }
+      }
+      if (!studies) throw new Error("the real projection carries no studies at all");
+      // Only meaningful if some study actually names the aliased part; if none
+      // does, say so rather than failing on data this check does not own.
+      if (!aliasedResolved) {
+        console.log("      (no real study names gas_spring_mount_213668_002 -- " +
+          "the alias-resolution leg of this check found nothing to resolve)");
+      }
+    });
+  }
 }
 
 (async () => {

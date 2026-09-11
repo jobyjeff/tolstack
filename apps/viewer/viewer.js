@@ -106,7 +106,49 @@
     if (params.edgeId) query.push("edge=" + encodeURIComponent(params.edgeId));
     if (params.studyId) query.push("study=" + encodeURIComponent(params.studyId));
     if (params.part) query.push("isolate=" + encodeURIComponent(params.part));
+    // The per-study 3D trace (handoff study_3d_flyout): trace=1 makes the
+    // annotator boot its `trace` verb over topology+study instead of the
+    // goto/isolate pair.
+    if (params.trace) query.push("trace=1");
     return "../annotate/index.html?" + query.join("&");
+  };
+
+  // The same launch, as command-layer calls (handoff study_3d_flyout): once
+  // the flyout iframe is already booted, a later launch posts these to
+  // AA.exec over postMessage instead of reloading -- the identical vocabulary
+  // the URL params boot with, never a parallel path. Mirrors annotateLink
+  // param for param; the two are paired by tests so they cannot drift.
+  VA.annotateExecCommands = function (params) {
+    if (params.trace) {
+      return [["trace", params.topologyId, params.studyId]];
+    }
+    var commands = [["goto", params.topologyId, params.edgeId || "", params.studyId || ""]];
+    if (params.part) commands.push(["isolate", params.part]);
+    return commands;
+  };
+
+  // Probe whether ../annotate/ is served beside this page (handoff
+  // study_3d_flyout, feature 3): the flyout is same-origin iframe + postMessage
+  // and only works where the two apps are siblings under one served root --
+  // drawing-checker's mounts, or any repo-root static server. file:// has no
+  // origin to share (and fetch() cannot probe it), so it degrades immediately;
+  // anything else is measured, never assumed, the same posture storage/http.js
+  // takes toward its data mounts. The content-type check is the catch-all trap
+  // that adapter's own probe survives: a server answering 200 to every path
+  // must still say text/html here or the iframe would boot into nonsense.
+  //
+  // `fetchImpl` is injected (bound! -- native fetch brand-checks its receiver,
+  // the viewer_http_transport lesson) so the fast tier can exercise every
+  // branch; a null fetchImpl reads as "cannot probe", not an error.
+  VA.probeAnnotateMount = function (fetchImpl, protocol) {
+    if (protocol === "file:" || typeof fetchImpl !== "function") {
+      return Promise.resolve(false);
+    }
+    return fetchImpl("../annotate/index.html", { method: "HEAD" }).then(function (res) {
+      if (!res || !res.ok) return false;
+      var type = (res.headers && res.headers.get && res.headers.get("content-type")) || "";
+      return type.indexOf("text/html") !== -1;
+    }).catch(function () { return false; });
   };
 
   VA.verdictClass = function (verdict) {

@@ -22,12 +22,18 @@ name = "tolstack"
 [verbs.install]
 cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", "setup.ps1"]
 
-# Run the app locally for dev, foreground; Ctrl-C is the stop. This is
-# apps/annotate/'s entry point (its own README's `Run it` section), on port
-# 8843 per apps/annotate/README.md. There is no fifth `rebuild` verb for the
-# projection rebuild recipe -- STANDARD_VERBS is exactly install|serve|deploy|
-# smoke -- so that stays scripts\rebuild_projections.ps1, run by hand or from
-# the ops console's raw-script affordance if it has one.
+# Run the app locally for dev, foreground; Ctrl-C is the stop. A DEV FALLBACK
+# since 2026-09-10 (consolidation decision, handoff study_3d_flyout): the
+# canonical serving surface for apps/annotate/ is now drawing-checker's mount
+# at /tolstack/annotate/, beside /tolstack/viewer/ and /tolstack/data/ --
+# same-origin siblings, which is what the viewer's flyout embedding stands on.
+# This verb serves the annotator ALONE on 8843 (its README's `Run it`
+# section), useful for hacking on the app with no drawing-checker server up;
+# note a lone-app root has no ../viewer or repo data/ beside it. There is no
+# fifth `rebuild` verb for the projection rebuild recipe -- STANDARD_VERBS is
+# exactly install|serve|deploy|smoke -- so that stays
+# scripts\rebuild_projections.ps1, run by hand or from the ops console's
+# raw-script affordance if it has one.
 [verbs.serve]
 cmd = ["venv-win\\Scripts\\python.exe", "-m", "http.server", "8843", "--directory", "apps\\annotate"]
 long_running = true

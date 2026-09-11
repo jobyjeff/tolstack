@@ -70,6 +70,14 @@
     // never the endpoint's own response text, which could name a script or a
     // path — see rebuildFailed()'s own comment for why.
     rebuild: { busy: false, error: null },
+
+    // Whether ../annotate/ is served beside this page (study_3d_flyout):
+    // probed at boot (VA.probeAnnotateMount), never assumed. true turns the
+    // study/edge annotate affordances into flyout launchers; false leaves
+    // the pre-flyout links exactly as they were — file://, or a server
+    // without the sibling mount, degrades to a working link, not a broken
+    // panel.
+    annotateMount: false,
   };
 
   var adapter = null;
@@ -101,8 +109,27 @@
       worksheetClose: document.getElementById("worksheet-close"),
       detail: document.getElementById("detail"),
       crop: document.getElementById("croppop"),
+      flyout: document.getElementById("annotate-flyout"),
+      flyoutClose: document.getElementById("flyout-close"),
     };
     applyDensity();
+
+    nodes.flyoutClose.onclick = function () { nodes.flyout.close(); };
+
+    // Probe for the sibling annotate mount (study_3d_flyout, feature 3) in
+    // parallel with the transport probe below — measured, never assumed, and
+    // the affordances upgrade in place when it lands after the first paint.
+    // fetch is BOUND (native fetch brand-checks its receiver; the
+    // viewer_http_transport lesson's own bug) and absent fetch reads as
+    // "cannot probe" inside probeAnnotateMount itself.
+    VA.probeAnnotateMount(
+      typeof fetch === "function" ? fetch.bind(window) : null,
+      window.location.protocol
+    ).then(function (mounted) {
+      if (mounted === state.annotateMount) return;
+      state.annotateMount = mounted;
+      render();
+    });
 
     // The legend and the worksheet are both <dialog>s now (deliverable 2):
     // neither participates in the flex column that the DAG pane lives in, so
@@ -489,6 +516,44 @@
       : window.scrollY + box.bottom + 8) + "px";
   }
 
+  // --- the annotator flyout (study_3d_flyout) --------------------------------
+  //
+  // One iframe, created lazily on the first launch and KEPT across launches:
+  // the annotator's folder grant, loaded meshes and camera are session state
+  // worth preserving, so a later launch drives the open panel over
+  // postMessage -> AA.exec (the annotator's own command vocabulary, the same
+  // verbs the boot URL's params run) instead of reloading it. Only reachable
+  // when the boot-time probe found ../annotate/ served beside this page;
+  // everywhere else the views render the pre-flyout links and none of this
+  // runs.
+  var flyoutFrame = null;
+  var flyoutLoaded = false;
+
+  function launchAnnotate(params) {
+    if (!state.annotateMount) return;
+    if (!flyoutFrame) {
+      flyoutFrame = document.createElement("iframe");
+      flyoutFrame.className = "flyout__frame";
+      flyoutFrame.setAttribute("title", "3D annotation panel");
+      flyoutFrame.addEventListener("load", function () { flyoutLoaded = true; });
+      flyoutFrame.src = VA.annotateLink(params);
+      nodes.flyout.appendChild(flyoutFrame);
+    } else if (!flyoutLoaded) {
+      // The iframe exists but its document is still loading, so its message
+      // listener may not be registered yet and a postMessage would be lost --
+      // re-point the boot URL at the new params instead.
+      flyoutFrame.src = VA.annotateLink(params);
+    } else {
+      VA.annotateExecCommands(params).forEach(function (command) {
+        flyoutFrame.contentWindow.postMessage(
+          { type: "annotate:exec", command: command }, window.location.origin);
+      });
+    }
+    // show(), not showModal(): the page beside the panel stays clickable, so
+    // "attach to 3D" on another row re-drives the open panel.
+    if (!nodes.flyout.open) nodes.flyout.show();
+  }
+
   // --- render ----------------------------------------------------------------
 
   // The one error seam (deliverable 1, viewer_error_surface_and_layout): every
@@ -577,6 +642,10 @@
         // itself is ensureThumbImages below, fired after this paint.
         cropImages: imageCache,
         onSelect: selectElement, onCropShow: showCrop,
+        // The flyout (study_3d_flyout): the detail pane's "attach to 3D"
+        // renders only when the mount probe passed AND a launcher exists.
+        annotateMount: state.annotateMount,
+        onAttach3d: launchAnnotate,
       };
       VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
         onLayoutMode: function () {
@@ -607,6 +676,9 @@
           state.edgeLengthMode = mode ? mode.next : "uniform";
           render();
         },
+        // "View in 3D" (study_3d_flyout): the toolbar builds the params
+        // (topology + study + trace), this just launches them.
+        onStudy3d: launchAnnotate,
       });
       VA.renderTopoJoint(nodes.topojoint, topoProj);
       VA.renderTopoPane(nodes.pane, ctx);

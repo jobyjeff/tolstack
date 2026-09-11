@@ -129,6 +129,61 @@
         "../annotate/index.html?topology=a%20b&edge=c%26d");
     });
 
+    // --- the flyout launch (study_3d_flyout): one param shape, two carriers --
+
+    await test("annotateLink appends trace=1 for a study-trace launch", function () {
+      eq(VA.annotateLink({ topologyId: "pitch_system",
+        studyId: "pitch_system_gas_spring_branch", trace: true }),
+        "../annotate/index.html?topology=pitch_system" +
+        "&study=pitch_system_gas_spring_branch&trace=1");
+    });
+
+    await test("annotateExecCommands mirrors annotateLink param for param -- " +
+      "the already-open flyout runs the same vocabulary the boot URL does",
+      function () {
+        eq(VA.annotateExecCommands({ topologyId: "pitch_system",
+          studyId: "s1", trace: true }),
+          [["trace", "pitch_system", "s1"]]);
+        eq(VA.annotateExecCommands({ topologyId: "pitch_system",
+          edgeId: "e1", studyId: "s1", part: "p1" }),
+          [["goto", "pitch_system", "e1", "s1"], ["isolate", "p1"]]);
+        // No part: goto alone, no isolate of nothing. Missing edge/study ride
+        // as "" -- cmdGoto's own deep-link shape.
+        eq(VA.annotateExecCommands({ topologyId: "pitch_system", edgeId: "e1" }),
+          [["goto", "pitch_system", "e1", ""]]);
+        eq(VA.annotateExecCommands({ topologyId: "pitch_system" }),
+          [["goto", "pitch_system", "", ""]]);
+      });
+
+    await test("probeAnnotateMount degrades immediately under file:// and with " +
+      "no fetch at all -- never a probe it cannot make", async function () {
+        var called = 0;
+        var spy = function () { called++; return Promise.resolve({ ok: true }); };
+        eq(await VA.probeAnnotateMount(spy, "file:"), false);
+        eq(called, 0);
+        eq(await VA.probeAnnotateMount(null, "https:"), false);
+      });
+
+    await test("probeAnnotateMount accepts only an ok text/html answer",
+      async function () {
+        function answer(ok, type) {
+          return function () {
+            return Promise.resolve({ ok: ok,
+              headers: { get: function () { return type; } } });
+          };
+        }
+        eq(await VA.probeAnnotateMount(answer(true, "text/html"), "http:"), true);
+        eq(await VA.probeAnnotateMount(answer(true, "text/html; charset=utf-8"), "http:"), true);
+        // The catch-all trap (storage/http.js's own): 200 with the wrong type
+        // would iframe nonsense; a 404 is the plain absent mount.
+        eq(await VA.probeAnnotateMount(answer(true, "application/json"), "http:"), false);
+        eq(await VA.probeAnnotateMount(answer(false, "text/html"), "http:"), false);
+        // A network failure reads as "not served here", never an error.
+        eq(await VA.probeAnnotateMount(function () {
+          return Promise.reject(new Error("refused"));
+        }, "http:"), false);
+      });
+
     // The replacement for the prose search. `is_incomplete` used to look for the
     // literal "INCOMPLETE" in the label/guidance/check_id, so a stack that wrote
     // it in lower case — or "PARTIAL", or "budget only" — rendered as an
@@ -2520,6 +2575,51 @@
         eq(all(root, "a.detail__annotate-link").length, 0);
       });
 
+    await test("with the annotate mount probed, an untraced edge's pane offers " +
+      "the attach-to-3D flyout button instead of the link, carrying the same " +
+      "params", function () {
+        var launched = [];
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            study: topoStudy("demo_base_to_tip"),
+            selection: { kind: "edge", id: "arm_pin_to_tip" },
+            annotateMount: true,
+            onAttach3d: function (params) { launched.push(params); } }));
+        });
+        eq(all(root, "a.detail__annotate-link").length, 0);
+        var btn = root.querySelector("button.detail__annotate-btn");
+        ok(btn, "expected the attach-to-3D button with the mount probed");
+        btn.onclick();
+        eq(launched, [{ topologyId: TOPO.id, edgeId: "arm_pin_to_tip",
+          studyId: "demo_base_to_tip", part: "arm" }]);
+      });
+
+    await test("the attach-to-3D button degrades to the link without the mount " +
+      "or without a launcher, and a traced edge gets neither", function () {
+        var noMount = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "arm_pin_to_tip" },
+            onAttach3d: function () {} }));
+        });
+        eq(all(noMount, "button.detail__annotate-btn").length, 0);
+        ok(noMount.querySelector("a.detail__annotate-link"),
+          "expected the plain link with no probed mount");
+        var noHandler = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "arm_pin_to_tip" },
+            annotateMount: true }));
+        });
+        ok(noHandler.querySelector("a.detail__annotate-link"),
+          "expected the plain link with no onAttach3d");
+        var traced = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "base_thickness" },
+            annotateMount: true, onAttach3d: function () {} }));
+        });
+        eq(all(traced, "button.detail__annotate-btn").length, 0);
+        eq(all(traced, "a.detail__annotate-link").length, 0);
+      });
+
     await test("the pane explains a missing crop rather than reporting a stale " +
       "index", function () {
         // Three different facts, and the page must not collapse them: an edge
@@ -2740,6 +2840,39 @@
         ok(link, "expected an annotate link once a study sums");
         has(link.href, "topology=" + TOPO.id);
         has(link.href, "study=demo_base_to_tip");
+      });
+
+    await test("with the annotate mount probed, the toolbar's study affordance " +
+      "is the View-in-3D flyout button, not the link", function () {
+        var launched = [];
+        var root = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
+            layoutMode: "topology", rowDensity: "comfortable", annotateMount: true },
+            TOPO, { onStudy3d: function (params) { launched.push(params); } });
+        });
+        eq(all(root, "a").length, 0);
+        var btn = all(root, "button.tvpick__mode").filter(function (n) {
+          return n.getAttribute("id") === "study-3d";
+        })[0];
+        ok(btn, "expected #study-3d with the mount probed");
+        btn.onclick();
+        eq(launched, [{ topologyId: TOPO.id, studyId: "demo_base_to_tip", trace: true }]);
+      });
+
+    await test("the mount without a launcher, or a launcher without the mount, " +
+      "still renders the plain link -- degradation is the default", function () {
+        var mountNoHandler = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
+            layoutMode: "topology", rowDensity: "comfortable", annotateMount: true },
+            TOPO, {});
+        });
+        ok(mountNoHandler.querySelector("a"), "expected the link with no onStudy3d");
+        var handlerNoMount = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
+            layoutMode: "topology", rowDensity: "comfortable" },
+            TOPO, { onStudy3d: function () {} });
+        });
+        ok(handlerNoMount.querySelector("a"), "expected the link with no probed mount");
       });
 
     await test("VA.applyRowDensity moves the one shared row-height metric, " +

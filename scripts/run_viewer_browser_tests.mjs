@@ -1371,6 +1371,135 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
   }
 }
 
+// --- the annotator flyout (study_3d_flyout) ---------------------------------
+//
+// What only a real browser can prove about it:
+//   1. The boot-time mount probe really upgrades the affordances: under a
+//      repo-root server (../annotate/ IS served beside the viewer) the study
+//      toolbar shows the View-in-3D button and an untraced edge's pane shows
+//      the attach-to-3D button; under file:// both stay the pre-flyout links.
+//   2. Opening the flyout moves NOTHING: the DAG pane's box is measured before
+//      and after -- the position:fixed <dialog> claim is a layout claim, and
+//      only a layout engine can check it.
+//   3. The iframe really boots the annotate app same-origin (its banner
+//      renders), and the `trace` deep-link boot really executes end to end
+//      over ?mock=1 -- WebGL scene, ghost + mark-face handlers, the published
+//      window.__lastTrace summary (the autotest convention).
+async function testAnnotateFlyout(browser, fileBase) {
+  const label = "annotate flyout (repo-root mount + file:// degradation)";
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    // --- mounted: the sibling annotate app is served beside the viewer ------
+    await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForSelector("#study-3d", { timeout: 15000 });
+    push("the probe upgrades the study affordance to the View-in-3D button",
+      await page.locator("#study-3d").count() === 1 &&
+      await page.locator("#toolbar a").count() === 0);
+
+    const paneBefore = await page.locator("#topopane").boundingBox();
+    await page.locator("#study-3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    push("clicking it opens the flyout dialog non-modally",
+      await page.locator("#annotate-flyout").evaluate((n) => n.open));
+    const frameSrc = await page.locator("#annotate-flyout iframe")
+      .getAttribute("src");
+    push("the flyout iframe boots the annotator with the trace params",
+      /annotate\/index\.html\?/.test(frameSrc || "") &&
+      /trace=1/.test(frameSrc) && /topology=demo_mechanism/.test(frameSrc) &&
+      /study=demo_base_to_tip/.test(frameSrc));
+    const paneAfter = await page.locator("#topopane").boundingBox();
+    push("opening the flyout moves the DAG pane by nothing at all",
+      paneBefore && paneAfter &&
+      paneBefore.x === paneAfter.x && paneBefore.y === paneAfter.y &&
+      paneBefore.width === paneAfter.width && paneBefore.height === paneAfter.height);
+
+    // The iframe is the real annotate app, same-origin, no mock: it boots to
+    // its own pre-connect banner (FSA cannot be granted from Playwright), and
+    // the deep-link queue note proves the trace params were understood.
+    const flyoutBanner = page.frameLocator("#annotate-flyout iframe").locator("#banner");
+    await flyoutBanner.waitFor({ state: "visible", timeout: 15000 });
+    const bannerText = await flyoutBanner.textContent();
+    push("the embedded annotator boots to an honest pre-connect state",
+      /Connect folder|File System Access/.test(bannerText || ""));
+
+    await page.locator("#flyout-close").click();
+    push("the close button closes the flyout",
+      !(await page.locator("#annotate-flyout").evaluate((n) => n.open)));
+
+    // An untraced edge's pane: the attach-to-3D button. The open flyout sits
+    // OVER the detail pane (deliberate -- while open, the annotator's own
+    // element detail supersedes it), so the real gesture is: close, pick the
+    // edge, attach -- and the same panel (same iframe, its grant and meshes
+    // intact) flies back out.
+    await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] .tvcell--name").click();
+    await page.waitForSelector("button.detail__annotate-btn", { timeout: 5000 });
+    push("an untraced edge's pane offers attach-to-3D, not the link",
+      await page.locator("button.detail__annotate-btn").count() === 1 &&
+      await page.locator("a.detail__annotate-link").count() === 0);
+    await page.locator("button.detail__annotate-btn").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    push("attach-to-3D re-drives the one panel -- still one iframe, reopened",
+      await page.locator("#annotate-flyout iframe").count() === 1 &&
+      await page.locator("#annotate-flyout").evaluate((n) => n.open));
+
+    // --- the trace boot itself, end to end over the annotate mock fixture ---
+    await page.goto(url + "/apps/annotate/index.html?mock=1&trace=1" +
+      "&topology=demo_system&study=demo_study", { waitUntil: "load" });
+    await page.waitForFunction(() => window.__lastTrace !== undefined, null,
+      { timeout: 15000 });
+    const trace = await page.evaluate(() => window.__lastTrace);
+    const demoSha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
+    push("trace ghosts the study's one installed part",
+      trace.ghosted.length === 1 && trace.ghosted[0] === demoSha);
+    push("trace marks the bound face, and only it",
+      trace.marks.length === 1 && trace.marks[0].edgeId === "demo_edge_untraced" &&
+      trace.marks[0].faceId === 0);
+    push("trace reports the missing mesh and the unbound edges honestly",
+      trace.missingParts.length === 1 && trace.missingParts[0] === "no_such_part" &&
+      trace.unboundEdges.length === 2);
+    push("the banner narrates the trace in plain words",
+      /Traced .*1 part\(s\) ghosted, 1 bound face\(s\) marked/.test(
+        await page.locator("#banner").textContent()));
+
+    // --- degraded: file:// has no origin to share ----------------------------
+    await page.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForTimeout(300); // the probe resolves false immediately; give render a beat
+    push("under file:// the study affordance stays the pre-flyout link",
+      await page.locator("#study-3d").count() === 0 &&
+      await page.locator("#toolbar a").count() === 1);
+    await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] .tvcell--name").click();
+    await page.waitForSelector("a.detail__annotate-link", { timeout: 5000 });
+    push("under file:// the edge pane keeps the annotate-this link",
+      await page.locator("a.detail__annotate-link").count() === 1 &&
+      await page.locator("button.detail__annotate-btn").count() === 0);
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 // --- index.html: a redirect stub, not a second copy of the app -------------
 //
 // The retired stack viewer's entry point still has to land somewhere — an old
@@ -1450,6 +1579,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
       stopRepoRootServer));
     results.push(await testRebuildAffordance(browser));
+    results.push(await testAnnotateFlyout(browser, fileBase));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);

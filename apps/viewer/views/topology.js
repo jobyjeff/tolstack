@@ -91,17 +91,36 @@
     lengths.onclick = handlers.onEdgeLength;
     root.appendChild(lengths);
 
-    // One link, nothing more (annotation_surface_mvp, 2026-09-06): the
-    // topology page never computes or writes anything for the annotate app,
-    // it only points at it. Only rendered once a real study is selected --
-    // "annotate this" means nothing about the whole topology, only about one
-    // human-lassoed chain's elements.
+    // The study's own 3D affordance, only once a real study is selected --
+    // "trace this in 3D" means nothing about the whole topology, only about
+    // one human-lassoed chain. Two forms of the same capability (handoff
+    // study_3d_flyout, feature 3): where the annotator is served beside this
+    // page (state.annotateMount, probed at boot), a button flies out the 3D
+    // panel with the study's parts ghosted and its bound faces opaque; where
+    // it is not -- file://, or a server without the sibling mount -- the
+    // pre-flyout "Annotate →" link (new tab) stays, unchanged. The viewer
+    // still computes and writes nothing for the annotate app either way; the
+    // flyout launch is the same params the link carries, handed to the same
+    // command vocabulary.
     if (state.studyId) {
-      var annotateLink = VA.el("a", "ghost tvpick__mode", "Annotate →");
-      annotateLink.href = VA.annotateLink({ topologyId: state.topologyId, studyId: state.studyId });
-      annotateLink.title = "Open this study in the annotation surface (apps/annotate) to bind its " +
-        "elements to geometry -- select + tag, no measurement.";
-      root.appendChild(annotateLink);
+      if (state.annotateMount && handlers.onStudy3d) {
+        var view3d = VA.el("button", "ghost tvpick__mode", "View in 3D →");
+        view3d.setAttribute("id", "study-3d");
+        view3d.setAttribute("title",
+          "Open a 3D side panel tracing this study's chain: its parts " +
+          "ghosted, surfaces already bound to its elements opaque. The panel " +
+          "is the annotation surface itself -- select + tag, no measurement.");
+        view3d.onclick = function () {
+          handlers.onStudy3d({ topologyId: state.topologyId, studyId: state.studyId, trace: true });
+        };
+        root.appendChild(view3d);
+      } else {
+        var annotateLink = VA.el("a", "ghost tvpick__mode", "Annotate →");
+        annotateLink.href = VA.annotateLink({ topologyId: state.topologyId, studyId: state.studyId });
+        annotateLink.title = "Open this study in the annotation surface (apps/annotate) to bind its " +
+          "elements to geometry -- select + tag, no measurement.";
+        root.appendChild(annotateLink);
+      }
     }
     return root;
   };
@@ -803,22 +822,37 @@
     // binding is identity, never a value source (docs/ANNOTATION_SURFACE.md),
     // so sending a click there for an already-sourced row would offer nothing.
     if (VA.needsAnnotation(edge.confidence)) {
-      var annotateBox = VA.el("div", "detail__annotate");
-      var annotateLink = VA.el("a", "detail__annotate-link",
-        "annotate this" + (edge.part ? " (" + edge.part + ")" : "") + " →");
-      annotateLink.setAttribute("href", VA.annotateLink({
+      var annotateParams = {
         topologyId: ctx.topoProj.id,
         edgeId: edge.id,
         studyId: ctx.study && ctx.study.id,
         part: edge.part,
-      }));
-      annotateLink.setAttribute("target", "_blank");
-      annotateLink.setAttribute("rel", "noopener");
-      annotateLink.setAttribute("title",
-        "opens apps/annotate/ with this edge selected" +
-        (edge.part ? ", isolating " + edge.part + " if its mesh is installed" : "") +
-        " -- click the correct surface(s) there to resolve which feature this is");
-      annotateBox.appendChild(annotateLink);
+      };
+      var annotateBox = VA.el("div", "detail__annotate");
+      if (ctx.annotateMount && ctx.onAttach3d) {
+        // The flyout form (handoff study_3d_flyout, feature 2): same params
+        // as the link below, but the annotator flies out beside this page
+        // with just this edge's part visible, ready to click the surface.
+        var attachBtn = VA.el("button", "detail__annotate-btn",
+          "attach to 3D" + (edge.part ? " (" + edge.part + ")" : "") + " →");
+        attachBtn.setAttribute("title",
+          "flies out the 3D annotation panel with this edge selected" +
+          (edge.part ? ", isolating " + edge.part + " if its mesh is installed" : "") +
+          " -- click the correct surface(s) there to resolve which feature this is");
+        attachBtn.onclick = function () { ctx.onAttach3d(annotateParams); };
+        annotateBox.appendChild(attachBtn);
+      } else {
+        var annotateLink = VA.el("a", "detail__annotate-link",
+          "annotate this" + (edge.part ? " (" + edge.part + ")" : "") + " →");
+        annotateLink.setAttribute("href", VA.annotateLink(annotateParams));
+        annotateLink.setAttribute("target", "_blank");
+        annotateLink.setAttribute("rel", "noopener");
+        annotateLink.setAttribute("title",
+          "opens apps/annotate/ with this edge selected" +
+          (edge.part ? ", isolating " + edge.part + " if its mesh is installed" : "") +
+          " -- click the correct surface(s) there to resolve which feature this is");
+        annotateBox.appendChild(annotateLink);
+      }
       root.appendChild(annotateBox);
     }
 

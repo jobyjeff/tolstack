@@ -446,10 +446,40 @@ body { display: flex; flex-direction: column; }
 .detail__crop--no-key { opacity: .85; }
 
 /* deliverable 4 (annotate_deep_link_and_part_filter): the deep link OUT to
-   apps/annotate/, shown only for an untraced/no_source_ref edge. */
+   apps/annotate/, shown only for an untraced/no_source_ref edge. Since
+   study_3d_flyout, where the annotator is served beside this page the same
+   affordance is a button that flies the panel out instead of a link. */
 .detail__annotate { margin: 6px 0; }
 .detail__annotate-link { color: var(--accent); font-weight: 600; text-decoration: none; }
 .detail__annotate-link:hover { text-decoration: underline; }
+.detail__annotate-btn {
+  color: var(--accent); font-weight: 600; background: none; border: none;
+  padding: 0; font: inherit; cursor: pointer;
+}
+.detail__annotate-btn:hover { text-decoration: underline; }
+
+/* --- the annotator flyout (study_3d_flyout) --------------------------------
+   The same "structurally cannot steal layout" family as the two dialogs
+   below, with one difference: it opens NON-modally (dialog.show(), no top
+   layer needed) and position: fixed pins it to the viewport's right edge, so
+   the page stays fully clickable beside it -- "attach to 3D" on another row
+   re-drives the open panel. position: fixed takes it out of flow entirely:
+   opening it cannot shrink or reflow the DAG pane by construction. */
+dialog#annotate-flyout {
+  position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0;
+  width: min(760px, 55vw); height: 100vh; max-height: 100vh;
+  background: var(--panel); color: var(--ink);
+  border: none; border-left: 1px solid var(--line);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, .45);
+  z-index: 40; /* over the crop popover's plane, under nothing */
+}
+dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
+.flyout__head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line);
+}
+.flyout__head h2 { margin: 0; font-size: 14px; }
+.flyout__frame { flex: 1; width: 100%; border: none; background: #1b1e22; }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):

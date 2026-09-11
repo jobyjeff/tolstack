@@ -94,6 +94,22 @@
     </ul>
   </dialog>
 
+  <!-- The annotator flyout (study_3d_flyout): a NON-modal <dialog> pinned to
+       the viewport's right edge -- position: fixed, so opening it structurally
+       cannot shrink the DAG pane (the same family as the two dialogs below),
+       while the page beside it stays clickable. Its iframe is created lazily
+       by topology_app.js on the first launch and kept across launches (the
+       annotator's folder grant, loaded meshes and camera survive); it only
+       ever renders where the same-origin probe found ../annotate/ served
+       beside this page -- everywhere else the pre-flyout links remain and
+       this element stays closed and empty. -->
+  <dialog id="annotate-flyout" class="flyout">
+    <div class="flyout__head">
+      <h2>3D — annotate</h2>
+      <button id="flyout-close" class="ghost">Close</button>
+    </div>
+  </dialog>
+
   <!-- The worksheet, moved into a dialog (deliverable 2) so opening it can
        never compete with the DAG pane for vertical space -- a dialog sits in
        the top layer, outside the page's flex column entirely. Stack-mode only
