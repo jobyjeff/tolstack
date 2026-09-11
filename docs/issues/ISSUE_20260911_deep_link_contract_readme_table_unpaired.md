@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260911_viewer_deep_link_contract_pairing.md
+resolution: handoff completed 2026-09-11 -- closed automatically by dispatch when handoff `viewer_deep_link_contract_pairing` moved to completed/; not independently verified.
 ---
 
 # The README deep-link contract table is a hand-copy of `VA.DEEP_LINK_PARAMS` with nothing pairing them
