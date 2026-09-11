@@ -180,6 +180,14 @@
 
   // --- what a row says -----------------------------------------------------
 
+  // The one description an edge shows on hover, wherever it is hidden as a
+  // label: the rail bar's own hit path (views/topology.js's railsSvg) and a
+  // value-only grid row (deliverable 4) both read this, rather than each
+  // inventing its own text -- "one hover surface, not two".
+  VA.edgeHoverTitle = function (edge, id) {
+    return edge ? edge.name : String(id);
+  };
+
   // An edge's stored value, printed AS TRANSCRIBED — String(n), no toFixed, no
   // band derived from the limits. Same rule as the stack viewer's element table.
   VA.dimensionText = function (edge) {
@@ -250,9 +258,14 @@
 
   //: Row height, column pitch and the left margin, in CSS pixels. One object so
   //: the grid and the SVG cannot disagree: the grid's rows are laid out at
-  //: exactly `rowHeight` and the SVG's marks at exactly `y(row)`, and alignment
-  //: is then true by construction rather than by two stylesheets agreeing.
-  VA.RAIL_METRICS = { rowHeight: 26, gutter: 20, left: 15, dot: 4.5, branchDot: 6.5 };
+  //: exactly `rowHeight` and the SVG's marks at exactly `y(row)`, and the
+  //: leader geometry (VA.leaderGeometry) reads the same numbers, so row/leader
+  //: correspondence is true by construction rather than by two stylesheets
+  //: agreeing. `leaderPad`/`leaderLane` size the jog zone between the rails
+  //: and the grid: horizontal spacing, so density (a rowHeight control) never
+  //: moves them.
+  VA.RAIL_METRICS = { rowHeight: 26, gutter: 20, left: 15, dot: 4.5, branchDot: 6.5,
+                      leaderPad: 8, leaderLane: 6 };
 
   // --- row density -----------------------------------------------------
   //
@@ -278,6 +291,158 @@
     return preset;
   };
 
+  // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) --------
+  //
+  // A display preference like rowDensity: how much vertical extent each EDGE
+  // row of the DAG gets. Uniform is today's rendering and the default; the two
+  // scaled modes make a bar's length proportional to a number the projection
+  // already carries. The GRID does not move in any mode — its rows stay at
+  // rowHeight, evenly spaced, and only the leaders know the DAG stretched
+  // (that is the point of the jogged leaders: viewer_leader_line_grid).
+  //
+  // `next` makes the toolbar's cycle order a fact of this table rather than
+  // arithmetic in the app shell — the same reason ROW_DENSITIES carries its
+  // own labels.
+  VA.EDGE_LENGTH_MODES = {
+    uniform: {
+      label: "uniform",
+      next: "tolerance",
+      title: "Every dimension bar is drawn the same length.",
+    },
+    tolerance: {
+      label: "tolerance width",
+      next: "absolute",
+      title: "A bar's length is proportional to its dimension's tolerance " +
+        "band (max − min). Indicative, never measured.",
+    },
+    absolute: {
+      label: "feature size",
+      next: "uniform",
+      title: "A bar's length is proportional to its dimension's nominal " +
+        "size. Indicative, never measured.",
+    },
+  };
+
+  // The scale's two shape constants, in ROW HEIGHTS so both densities scale
+  // together: the largest value in the serialisation being drawn renders at
+  // `maxRows` rows, and nothing renders shorter than one row — the floor that
+  // keeps a zero/tiny/unstated edge clickable (whole-edge hover is a landed
+  // contract) and keeps every node y at-or-below its uniform position, which
+  // is what lets the leaders keep rising left-to-right in every mode.
+  VA.EDGE_LENGTH_SCALE = { maxRows: 6, floorRows: 1 };
+
+  // The value an edge's rendered length is proportional to under `mode`, or
+  // null where the edge has nothing to scale by (a derived gap carries no
+  // dimension at all; a variation-only edge has no stated nominal). This
+  // subtraction is arithmetic about the SCREEN, not about a tolerance: the
+  // number it produces is a pixel proportion, is never printed, and never
+  // feeds anything but a bar length. min/max are what the projection always
+  // populates when a dimension exists; plus_minus is the fallback the handoff
+  // names for the case where they are absent.
+  VA.edgeLengthValue = function (edge, mode) {
+    var d = edge && edge.dimension;
+    if (!d) return null;
+    if (mode === "tolerance") {
+      if (d.max !== null && d.max !== undefined &&
+          d.min !== null && d.min !== undefined) {
+        return Math.abs(d.max - d.min);
+      }
+      if (d.plus_minus !== null && d.plus_minus !== undefined) {
+        return 2 * Math.abs(d.plus_minus);
+      }
+      return null;
+    }
+    if (mode === "absolute") {
+      if (d.nominal === null || d.nominal === undefined) return null;
+      return Math.abs(d.nominal);
+    }
+    return null;
+  };
+
+  // The KEYED position store (deliverable 3): every layout row's vertical
+  // slot, computed once and addressed by id — node id → y for the dots and
+  // the leaders, edge id → {y1, y2, floored} for the bars — rather than
+  // emitted inline as `row × rowHeight`. This is the seam the future
+  // study-selected animated rearrange needs: railGeometry and leaderGeometry
+  // are pure functions of (layout, metrics, positions), so an animator can
+  // interpolate between two of these stores and redraw per frame without
+  // either geometry function changing.
+  //
+  //   nodes   { nodeId: y }                    dot centres
+  //   edges   { edgeId: {y1, y2, y, floored} } bar extents
+  //   byRow   { layoutRow: {top, height, y, floored} }
+  //   height  the SVG's total height
+  //
+  // Node rows keep rowHeight in every mode — an interface is a point, and the
+  // constant node slot is what keeps the branch fan-out curves' half-row
+  // shape true. An edge row's height under a scaled mode is
+  // (value / vmax) × maxRows × rowHeight, floored at floorRows × rowHeight;
+  // `floored` is true wherever the drawn length is NOT the measured
+  // proportion (clamped up to the floor, or no value to scale by at all), so
+  // a view can mark it and a reader is never handed a fake proportion.
+  VA.rowPositions = function (layout, topoProj, mode, metrics) {
+    metrics = metrics || VA.RAIL_METRICS;
+    var rows = (layout && layout.rows) || [];
+    var scaled = mode === "tolerance" || mode === "absolute";
+    var index = scaled ? VA.topologyIndex(topoProj) : null;
+    var floor = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
+    var maxLen = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;
+
+    // The largest value in THIS serialisation (the whole walk, or a study's
+    // chain) — the yardstick the mode's proportions are relative to.
+    var vmax = 0;
+    if (scaled) {
+      rows.forEach(function (row) {
+        if (row.kind !== "edge") return;
+        var v = VA.edgeLengthValue(index.edges[row.id], mode);
+        if (v !== null && v > vmax) vmax = v;
+      });
+    }
+
+    var out = {
+      mode: scaled ? mode : "uniform",
+      height: 0, byRow: {}, nodes: {}, edges: {},
+    };
+    var y = 0;
+    rows.forEach(function (row) {
+      var h = metrics.rowHeight;
+      var floored = false;
+      if (scaled && row.kind === "edge") {
+        var v = VA.edgeLengthValue(index.edges[row.id], mode);
+        var proportional = v !== null && vmax > 0 ? (v / vmax) * maxLen : 0;
+        if (proportional < floor) {
+          h = floor;
+          floored = true;
+        } else {
+          h = proportional;
+        }
+      }
+      var slot = { top: y, height: h, y: y + h / 2, floored: floored };
+      out.byRow[row.row] = slot;
+      if (row.kind === "node") out.nodes[row.id] = slot.y;
+      if (row.kind === "edge") {
+        // `length` is the slot's own height, stored as computed — y2 − y1
+        // re-derives it through float addition and can differ in the last
+        // bits, so a consumer comparing lengths reads this field.
+        out.edges[row.id] = {
+          y1: slot.top, y2: slot.top + h, y: slot.y,
+          length: h, floored: floored,
+        };
+      }
+      y += h;
+    });
+    out.height = y;
+    return out;
+  };
+
+  // The hover text a FLOORED bar carries instead of the plain edge title: the
+  // floor is a render rule, and a reader mid-hover has no other way to know
+  // this one length is not a proportion.
+  VA.flooredEdgeTitle = function (edge, id) {
+    return VA.edgeHoverTitle(edge, id) +
+      " — drawn at the minimum length, not to scale";
+  };
+
   VA.railX = function (column, metrics) {
     return metrics.left + column * metrics.gutter;
   };
@@ -289,13 +454,24 @@
   // Everything the SVG needs, as plain numbers and path strings. Pure: same
   // layout in, same geometry out, which is what lets tests assert that a grid
   // row and its rail mark share a y without rendering anything.
-  VA.railGeometry = function (layout, metrics) {
+  //
+  // `positions` is the keyed store VA.rowPositions builds; omitted, it is
+  // computed as uniform, so every pre-scaling caller is unchanged. An edge
+  // mark carries its own y1/y2 (its slot's extent, inset 1px) and `floored`,
+  // so the view draws the bar the store says rather than re-deriving
+  // ±rowHeight/2 — the one place that arithmetic used to live.
+  VA.railGeometry = function (layout, metrics, positions) {
     metrics = metrics || VA.RAIL_METRICS;
+    positions = positions || VA.rowPositions(layout, null, "uniform", metrics);
     var rows = (layout && layout.rows) || [];
+    var slotY = function (row) {
+      var slot = positions.byRow[row];
+      return slot ? slot.y : VA.railY(row, metrics);
+    };
     var out = {
       width: VA.railX((layout && layout.columns ? layout.columns - 1 : 0), metrics)
         + metrics.left,
-      height: rows.length * metrics.rowHeight,
+      height: positions.height,
       rails: [],
       marks: [],
       links: [],
@@ -305,27 +481,36 @@
       var startRow = rows[rail.start];
       // A rail allocated at a fork starts at the fork's row but is drawn from
       // half a row below it: the `branch` curve covers that half, and a straight
-      // line there would cross the dot it is supposed to fan out of.
+      // line there would cross the dot it is supposed to fan out of. A fork's
+      // row is a node row, and node slots are rowHeight in every length mode,
+      // so the half-row is a constant.
       var forked = startRow && startRow.column !== rail.column;
       out.rails.push({
         column: rail.column,
         x: VA.railX(rail.column, metrics),
-        y1: VA.railY(rail.start, metrics) + (forked ? metrics.rowHeight * 0.5 : 0),
-        y2: VA.railY(rail.end, metrics),
+        y1: slotY(rail.start) + (forked ? metrics.rowHeight * 0.5 : 0),
+        y2: slotY(rail.end),
         forked: !!forked,
       });
     });
 
     rows.forEach(function (row) {
-      out.marks.push({
+      var slot = positions.byRow[row.row];
+      var mark = {
         row: row.row,
         kind: row.kind,
         id: row.id,
         column: row.column,
         branch: !!row.branch,
         x: VA.railX(row.column, metrics),
-        y: VA.railY(row.row, metrics),
-      });
+        y: slotY(row.row),
+      };
+      if (row.kind === "edge" && slot) {
+        mark.y1 = slot.top + 1;
+        mark.y2 = slot.top + slot.height - 1;
+        mark.floored = !!slot.floored;
+      }
+      out.marks.push(mark);
     });
 
     (layout && layout.links || []).forEach(function (link) {
@@ -334,19 +519,21 @@
         row: link.row,
         toRow: link.to_row,
         d: link.kind === "branch"
-          ? branchPath(link, metrics)
-          : closePath(link, metrics),
+          ? branchPath(link, metrics, slotY)
+          : closePath(link, metrics, slotY),
       });
     });
     return out;
   };
 
   // A fan-out at a fork: out of the node's dot, across to the new column, down
-  // into the rail that starts there. Half a row tall, like git log's.
-  function branchPath(link, metrics) {
+  // into the rail that starts there. Half a row tall, like git log's — and a
+  // fork is a node, whose slot is rowHeight in every length mode, so the
+  // curve's shape constants stay constants.
+  function branchPath(link, metrics, slotY) {
     var x1 = VA.railX(link.from_column, metrics);
     var x2 = VA.railX(link.to_column, metrics);
-    var y1 = VA.railY(link.row, metrics);
+    var y1 = slotY(link.row);
     var y2 = y1 + metrics.rowHeight * 0.5;
     return "M " + x1 + " " + y1 +
       " C " + x1 + " " + (y1 + metrics.rowHeight * 0.35) +
@@ -358,17 +545,212 @@
   // lands on, which the walk emitted earlier and therefore higher. Long on
   // purpose — a grounded loop that spans half the mechanism should look like it
   // does, not be hidden behind a short stub.
-  function closePath(link, metrics) {
+  function closePath(link, metrics, slotY) {
     var x1 = VA.railX(link.from_column, metrics);
     var x2 = VA.railX(link.to_column, metrics);
-    var y1 = VA.railY(link.row, metrics);
-    var y2 = VA.railY(link.to_row, metrics);
+    var y1 = slotY(link.row);
+    var y2 = slotY(link.to_row);
     var lift = Math.min(metrics.rowHeight * 1.5, Math.abs(y1 - y2) / 2);
     return "M " + x1 + " " + y1 +
       " C " + x1 + " " + (y1 - lift) +
       " " + x2 + " " + (y2 + lift) +
       " " + x2 + " " + y2;
   }
+
+  // --- leaders + the merged-row grid (viewer_leader_line_grid, 2026-09-10) --
+  //
+  // The grid stopped being one-row-per-graph-element: it is one row per EDGE
+  // (the tolerance contributions — the numbers a reviewer came for), grouped
+  // into components, with a merged leftmost cell per group. Nodes left the
+  // grid entirely; an interface's presence beside the rows is its LEADER — a
+  // jogged, GD&T-ordinate-style line from its dot to the boundary between the
+  // two edge rows it separates. And a leader is only drawn where it separates
+  // two COMPONENTS: a node whose adjacent edges all carry the same `part`
+  // (multiple tolerances on one feature — size + flatness on one distance) is
+  // "internal" and gets none. That omission IS the component grouping (locked
+  // 2026-09-10; it supersedes the earlier boundary-lasso question).
+
+  // { nodeId: [part, ...] } — the DISTINCT part values on each node's adjacent
+  // edges, first-seen order. `null` (a gap edge — no part; a real clearance)
+  // is a value here, deliberately: a node between a structural edge and a gap
+  // sits on a component boundary and must read as one.
+  VA.nodeAdjacentParts = function (topoProj) {
+    var byNode = {};
+    ((topoProj && topoProj.nodes) || []).forEach(function (n) { byNode[n.id] = []; });
+    ((topoProj && topoProj.edges) || []).forEach(function (e) {
+      var part = e.part === undefined ? null : e.part;
+      [e.from, e.to].forEach(function (nodeId) {
+        var parts = byNode[nodeId] || (byNode[nodeId] = []);
+        if (parts.indexOf(part) === -1) parts.push(part);
+      });
+    });
+    return byNode;
+  };
+
+  // { nodeId: true|false } — internal means "all adjacent edges carry one
+  // part", including the trivial degree-1 case (a chain end is inside its own
+  // component, not a boundary between two).
+  VA.internalNodes = function (topoProj) {
+    var parts = VA.nodeAdjacentParts(topoProj);
+    var internal = {};
+    Object.keys(parts).forEach(function (nodeId) {
+      internal[nodeId] = parts[nodeId].length <= 1;
+    });
+    return internal;
+  };
+
+  // The label a component group's merged cell prints. The part id, not the
+  // long prose name — the name rides on the cell's hover title instead
+  // (componentTitle below). A gap has no part and says what it is in the
+  // words the old per-row part cell already used.
+  VA.GAP_COMPONENT_LABEL = "— across a clearance —";
+
+  VA.componentTitle = function (part) {
+    if (!part) return "a gap: its two interfaces share no part";
+    var text = part.name || part.id;
+    if (part.drawing) text += " · drawing " + part.drawing;
+    return text;
+  };
+
+  // The whole plan of the merged-row grid, from one serialisation (a
+  // topology's whole-graph walk or a study's chain — both carry the same row
+  // shape). Everything the grid and the leaders need, keyed by id:
+  //
+  //   rows     [{ id, layoutRow, gridRow }]      one per edge, walk order
+  //   groups   [{ part, label, title, start, count }]   contiguous runs
+  //   leaders  [{ id, layoutRow, boundary, beforeEdge }]  non-internal nodes
+  //   internal { nodeId: bool }
+  //
+  // A group breaks where the part changes between consecutive edge rows OR
+  // where the node row between them is non-internal (a boundary node between
+  // two same-part edges is possible at a fork, and honesty says break there
+  // too — the leader and the group border then coincide). NOTE the converse
+  // is not guaranteed: the depth-first walk can revisit a part on a later
+  // branch (the pitch system's hub does), and each contiguous run gets its
+  // own merged cell — reordering the grid to force one row per part would
+  // cross the leaders and break the walk-order correspondence this page is
+  // built on.
+  //
+  // A leader's `boundary` is a GRID row index: the number of edge rows the
+  // walk emitted before the node, i.e. the seam between the edge above it and
+  // the edge below it (0 = above the first row, rows.length = below the
+  // last). `beforeEdge` is the edge id whose row starts at that seam, or null
+  // at the very bottom — it is what lets a browser test measure the leader's
+  // end against the actual row box rather than re-deriving arithmetic.
+  VA.gridPlan = function (layout, topoProj) {
+    var index = VA.topologyIndex(topoProj);
+    var internal = VA.internalNodes(topoProj);
+    var partsById = index.parts;
+
+    var rows = [];
+    var groups = [];
+    var leaders = [];
+    var prevPart = null;
+    var pendingBoundaryNode = null;   // a non-internal node row since the last edge
+
+    ((layout && layout.rows) || []).forEach(function (row) {
+      if (row.kind === "node") {
+        if (!internal[row.id]) {
+          pendingBoundaryNode = row.id;
+          leaders.push({
+            id: row.id,
+            layoutRow: row.row,
+            boundary: rows.length,
+            beforeEdge: null,        // filled in when the next edge row lands
+          });
+        }
+        return;
+      }
+      if (row.kind !== "edge") return;
+      var edge = index.edges[row.id] || null;
+      var part = edge && edge.part !== undefined ? edge.part : null;
+      var breakHere = rows.length === 0 || part !== prevPart ||
+        pendingBoundaryNode !== null;
+      if (breakHere) {
+        groups.push({
+          part: part,
+          label: part === null ? VA.GAP_COMPONENT_LABEL : String(part),
+          title: VA.componentTitle(part === null ? null : partsById[part] || { id: part }),
+          start: rows.length,
+          count: 0,
+        });
+      }
+      groups[groups.length - 1].count += 1;
+      for (var i = leaders.length - 1; i >= 0; i--) {
+        if (leaders[i].boundary !== rows.length || leaders[i].beforeEdge !== null) break;
+        leaders[i].beforeEdge = row.id;
+      }
+      rows.push({
+        id: row.id,
+        layoutRow: row.row,
+        gridRow: rows.length,
+        closes: row.closes_row !== null && row.closes_row !== undefined,
+      });
+      prevPart = part;
+      pendingBoundaryNode = null;
+    });
+
+    return { rows: rows, groups: groups, leaders: leaders, internal: internal };
+  };
+
+  // The jogged leader lines, as path strings: from just right of the node's
+  // dot, horizontally into the jog zone, vertically down/up the zone's own
+  // lane, then horizontally into the grid at the boundary's y. Orthogonal
+  // segments (GD&T ordinate-dimension style), so the grid's rows stay compact
+  // and evenly spaced however unevenly the graph above is laid out — which is
+  // the point: the DAG's y comes from the keyed position store (uniform row
+  // pitch, or an edge-length scaling mode), and only these leaders have to
+  // know.
+  //
+  // Lanes are strictly monotone in walk order. Leaders never cross under
+  // that rule (both endpoint sequences are monotone in y), and it is cheap to
+  // reason about, so no lane is ever reused — the zone is (leaders × lane
+  // pitch) wide and that is the price of legibility.
+  //
+  // Pure: same layout, metrics and positions in, same geometry out. The node
+  // y comes from the keyed position store (the same number railGeometry gives
+  // its dot — under uniform, VA.railY over the node's layout row); the
+  // boundary y is gridRow × rowHeight (the same number the grid's inline row
+  // heights sum to), and it does NOT move with the length mode: the grid
+  // stays evenly spaced however the DAG above it stretched, which is exactly
+  // what these leaders exist to absorb.
+  VA.leaderGeometry = function (layout, plan, metrics, positions) {
+    metrics = metrics || VA.RAIL_METRICS;
+    positions = positions || VA.rowPositions(layout, null, "uniform", metrics);
+    var columns = (layout && layout.columns) || 1;
+    var zoneLeft = VA.railX(columns - 1, metrics) + metrics.left;
+    var count = plan.leaders.length;
+    var width = zoneLeft + metrics.leaderPad * 2 +
+      (count ? (count - 1) * metrics.leaderLane : 0);
+
+    var rowsByLayoutRow = {};
+    ((layout && layout.rows) || []).forEach(function (row) {
+      rowsByLayoutRow[row.row] = row;
+    });
+
+    var leaders = plan.leaders.map(function (leader, i) {
+      var row = rowsByLayoutRow[leader.layoutRow] || { column: 0, branch: false };
+      var dotR = row.branch ? metrics.branchDot : metrics.dot;
+      var x1 = VA.railX(row.column, metrics) + dotR + 1.5;
+      var y1 = positions.nodes[leader.id] !== undefined
+        ? positions.nodes[leader.id]
+        : VA.railY(leader.layoutRow, metrics);
+      var y2 = leader.boundary * metrics.rowHeight;
+      var laneX = zoneLeft + metrics.leaderPad + i * metrics.leaderLane;
+      return {
+        id: leader.id,
+        boundary: leader.boundary,
+        beforeEdge: leader.beforeEdge,
+        x1: x1, y1: y1, y2: y2, laneX: laneX,
+        d: "M " + x1 + " " + y1 +
+           " H " + laneX +
+           " V " + y2 +
+           " H " + width,
+      };
+    });
+
+    return { zoneLeft: zoneLeft, width: width, leaders: leaders };
+  };
 
   // --- loose stacks: what the topology page absorbs the stack viewer for ---
   //
@@ -439,6 +821,179 @@
       };
     });
     return { topologies: topoNodes, looseStacks: VA.looseStacks(topologies, results) };
+  };
+
+  // --- hover reference cards (viewer_hover_cards_and_deep_links) ------------
+  //
+  // Pure models for the topology grid's hover cards, so the fast tier can pin
+  // their contents without a DOM. views/cards.js renders them into the same
+  // positioned popover the crop popover uses; topology_app.js's showCard
+  // fetches the images they name. Cards are hover-only chrome: nothing in a
+  // model or its rendering participates in the page's layout.
+
+  // The edge card: every crop the crop index holds for this edge, plus its
+  // citation. `crops` is a LIST on purpose: an interface's two half-sides are
+  // usually different parts/drawings BY DEFINITION, so an edge should
+  // eventually show BOTH sides' tolerance annotations — but crops.json
+  // records one crop per citation and an edge carries one citation today, so
+  // the list holds at most one entry and the second side is a stated gap
+  // (this handoff's lesson), never an invented image.
+  VA.edgeCard = function (topoProj, edge, crops) {
+    if (!edge) return null;
+    var card = {
+      kind: "edge",
+      title: edge.name,
+      id: edge.id,
+      part: edge.part || null,
+      confidence: edge.confidence,
+      citation: (edge.dimension && edge.dimension.source_ref) || null,
+      crops: [],
+      noCropReason: null,
+      annotateParams: null,
+    };
+    if (edge.crop_key) {
+      card.crops.push({
+        key: edge.crop_key,
+        entry: VA.cropForKey(crops, edge.crop_key),
+      });
+    } else {
+      var source = VA.VALUE_SOURCES[edge.value_source];
+      card.noCropReason = (source ? source.title
+        : VA.valueSourceText(edge.value_source)) + " No crop index covers it.";
+    }
+    // The deep link out to the annotator, under the SAME rule the detail pane
+    // applies (VA.needsAnnotation): a traced/inferred edge already has a
+    // citation, and a binding is identity, never a value source, so the link
+    // only offers something when there is a gap to close.
+    if (topoProj && VA.needsAnnotation(edge.confidence)) {
+      card.annotateParams = {
+        topologyId: topoProj.id, edgeId: edge.id, part: edge.part || null,
+      };
+    }
+    return card;
+  };
+
+  // The component card, for the grid's merged component cell: the part's own
+  // identity (name, drawing, note) plus a thumbnail DERIVED from what exists
+  // — the resolved crop of one of its OWN edges' tolerance annotations, which
+  // is a crop of that part's drawing by construction (the edge's dimension is
+  // a dimension OF the part; nothing is matched by filename or prefix). No
+  // mesh render yet: the annotator has no snapshot verb (study_3d_flyout's
+  // lesson), so a part none of whose edges' citations cropped gets NO
+  // thumbnail — absent is absent, nothing invented and no placeholder.
+  VA.componentCard = function (topoProj, partId, crops) {
+    if (!partId) return null;   // the gap "component" is a clearance, not a part
+    var part = VA.topologyIndex(topoProj).parts[partId] || { id: partId };
+    var thumbs = [];
+    ((topoProj && topoProj.edges) || []).forEach(function (edge) {
+      if (edge.part !== partId || !edge.crop_key) return;
+      var entry = VA.cropForKey(crops, edge.crop_key);
+      if (entry.status === "resolved") {
+        thumbs.push({ edgeId: edge.id, edgeName: edge.name, entry: entry });
+      }
+    });
+    return {
+      kind: "component",
+      title: part.name || part.id,
+      id: part.id,
+      drawing: part.drawing || null,
+      revision: part.revision || null,
+      note: part.note || null,
+      thumbs: thumbs,
+      annotateParams: topoProj ? { topologyId: topoProj.id, part: part.id } : null,
+    };
+  };
+
+  // --- the inbound deep link, resolved against the data ----------------------
+  //
+  // (viewer_hover_cards_and_deep_links, deliverable 3.) What a parsed link
+  // (VA.parseDeepLink) actually selects, checked id by id against the two
+  // projections. Pure: topology_app.js applies `mode` and the ids through its
+  // own selection functions and puts `notices` on the banner. Every id is
+  // validated — an id this data does not contain becomes a plain-words notice
+  // and the page falls back to its defaults, never a crash and never a silent
+  // guess at a different node.
+  VA.resolveDeepLink = function (link, topologies, results) {
+    var out = { mode: null, topologyId: null, studyId: null, selection: null,
+                stackId: null, elementId: null, notices: [] };
+    if (!link) return out;
+    var say = function (text) { out.notices.push(text); };
+
+    var topology = link.topology ? VA.findTopology(topologies, link.topology) : null;
+    if (link.topology && !topology) {
+      say("This link asks for topology `" + link.topology + "`, which this " +
+        "data does not contain — showing the default instead.");
+    }
+    var stackProj = link.stack ? VA.findStack(results, link.stack) : null;
+    if (link.stack && !stackProj) {
+      say("This link asks for stack `" + link.stack + "`, which this data " +
+        "does not contain — showing the default instead.");
+    }
+    if (topology && stackProj) {
+      say("This link names both a topology and a stack; the topology won " +
+        "and stack `" + link.stack + "` was ignored.");
+      stackProj = null;
+    }
+
+    if (topology) {
+      out.mode = "topology";
+      out.topologyId = topology.id;
+      if (link.study) {
+        if (VA.findStudy(topology, link.study)) {
+          out.studyId = link.study;
+        } else {
+          say("This link asks for study `" + link.study + "`, which topology `" +
+            topology.id + "` does not carry — showing the whole topology instead.");
+        }
+      }
+      var index = VA.topologyIndex(topology);
+      if (link.edge && link.node) {
+        say("This link names both an edge and a node; the edge won.");
+      }
+      if (link.edge) {
+        if (index.edges[link.edge]) {
+          out.selection = { kind: "edge", id: link.edge };
+        } else {
+          say("This link asks for edge `" + link.edge + "`, which topology `" +
+            topology.id + "` does not carry — nothing was selected.");
+        }
+      } else if (link.node) {
+        if (index.nodes[link.node]) {
+          out.selection = { kind: "node", id: link.node };
+        } else {
+          say("This link asks for interface `" + link.node + "`, which topology `" +
+            topology.id + "` does not carry — nothing was selected.");
+        }
+      }
+    } else if (stackProj) {
+      out.mode = "stack";
+      out.stackId = stackProj.id;
+      if (link.element) {
+        var elements = ((stackProj.stack || {}).elements) || [];
+        var hit = elements.filter(function (e) { return e.id === link.element; });
+        if (hit.length) {
+          out.elementId = link.element;
+        } else {
+          say("This link asks for element `" + link.element + "`, which stack `" +
+            stackProj.id + "` does not carry — nothing was selected.");
+        }
+      }
+      if (link.study || link.edge || link.node) {
+        say("This link carries a study/edge/node without a topology to look " +
+          "it up in; those parts were ignored.");
+      }
+    } else {
+      // No topology and no stack resolved. Any child param is dangling.
+      if ((link.study || link.edge || link.node) && !link.topology) {
+        say("This link names a study/edge/node without a `topology` beside " +
+          "it, so those parts were ignored.");
+      }
+      if (link.element && !link.stack) {
+        say("This link names an element without a `stack` beside it, so it " +
+          "was ignored.");
+      }
+    }
+    return out;
   };
 
   // --- the banner ----------------------------------------------------------

@@ -1,0 +1,17 @@
+{
+  "schema": "joby.tolerance_stack/part_mesh_aliases/v0",
+  "title": "Part-mesh alias table: topology `part` id -> mesh provenance `part_id`",
+  "notes": [
+    "A topology edge's `part` (docs/DAG_TOPOLOGY.md's vocabulary, authored per-edge) and an installed mesh's provenance.json `part_id` (the tessellation run's own naming, data/meshes/README.md) are two namespaces with zero exact matches at 2026-09-10. This table is the one sanctioned bridge between them (strategy brief BRIEF_20260909_topology_part_vocabulary_mesh_mapping, option b: declared configuration, never fuzzy matching, never renaming installed meshes).",
+    "Every entry asserts 'these two strings name the same physical part' and carries the evidence for that identity -- the mesh's own provenance.json, data/meshes/README.md, or a drawing number. A pair whose identity cannot be evidenced stays out of this table: the annotate app's 'no installed mesh' empty state is the honest answer, never a guessed match.",
+    "Values map to a mesh's `part_id`, not its sha256, so a re-tessellated mesh installed under the same part identity keeps its aliases.",
+    "Consumed by apps/annotate/commands.js `resolveMeshIdentifier` (exact match, consulted only after a direct sha256/part_id match misses). Paired against both live vocabularies by tests/test_part_mesh_aliases.py and apps/annotate/run_tests.cjs's [real] tier."
+  ],
+  "aliases": [
+    {
+      "topology_part": "gas_spring_mount_213668_002",
+      "mesh_part_id": "machined_213668",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_system.json's part carries drawing 213668-002 rev A.1, name 'MOUNT, GAS SPRING, PROPELLER 213668-002'; the mesh's own provenance.json (data/meshes/6d5b1321446d54cd713da0739f7821c5266b3d6898ad047465e30003e7f549cf/provenance.json) records source STEP '213668-002_2026-07-23_Released.stp' with label '213668-002 MOUNT, GAS SPRING (single solid)'. Both name drawing 213668-002's gas-spring mount."
+    }
+  ]
+}

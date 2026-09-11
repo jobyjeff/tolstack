@@ -48,7 +48,12 @@ which tree it built from and **refuses** to overwrite a projection built from a
 tree this one does not contain -- ``scripts/projection_provenance.py`` holds
 both, and ``--allow-older-tree`` overrides the refusal.
 
-Stdlib only, plus this repo's own ``tolerance_stack`` package.
+Stdlib only, plus this repo's own ``tolerance_stack`` package and its sibling
+scripts (``projection_provenance``; since ``topology_projection_emits_study_
+checks`` also ``build_viewer_projection``, for its confidence vocabulary; and
+since ``croppable_rule_shared_predicate`` also ``build_viewer_crops``, for its
+rule-1/rule-2 croppable predicate -- importing it does not pull in PyMuPDF,
+which stays a lazy import inside ``build_viewer_crops`` itself).
 """
 
 from __future__ import annotations
@@ -68,6 +73,17 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import projection_provenance as prov  # noqa: E402
+# The confidence vocabulary and its rank order are `build_viewer_projection`'s
+# ("Every confidence value this projection can write, weakest last") -- reused
+# here rather than re-listed, so a third copy can't drift from the other two the
+# way `docs/prompts/REVIEW_AGENT.md`'s vocabulary-drift log warns about.
+from build_viewer_projection import count_confidence, worst_confidence  # noqa: E402
+# The rule 1/2 "would this ever crop" predicate lives in build_viewer_crops.py
+# so the two scripts share one copy of it (`_croppable` below is a thin local
+# name for it) -- see that module's own `croppable` docstring. Importing it
+# does not pull in PyMuPDF: `fitz` is imported lazily, only inside
+# `build_viewer_crops._crop_from_citation`/`render`/`main`.
+from build_viewer_crops import croppable as _croppable  # noqa: E402
 from tolerance_stack.topology import (  # noqa: E402
     Contribution,
     Edge,
@@ -76,6 +92,7 @@ from tolerance_stack.topology import (  # noqa: E402
     StudyError,
     Topology,
     TopologyError,
+    check_study,
     load_study,
     load_topology,
     summarize,
@@ -426,25 +443,6 @@ def value_source(edge: Edge) -> str:
     return "stack_ref" if edge.dimension_ref else "inline"
 
 
-def _croppable(source_ref: Any) -> bool:
-    """Whether ``scripts/build_viewer_crops.py`` could ever crop ``source_ref``.
-
-    The same two rules :func:`~build_viewer_crops.resolve_pdf` implements as
-    rule 1 (``source_ref_export``) and rule 2 (``spec_pile``) -- never rule 3
-    (``joint.assembly_export``), which borrows from a STACK's own ``joint``
-    block and an edge's inline dimension is in no stack to borrow from. This
-    check touches no filesystem and does not mean "resolves": an
-    ``unestablished`` export is still croppable in this sense (it *names*
-    itself, via ``export``) and lands in ``crops.json`` as unresolvable with
-    its own ``why`` -- exactly like a workbook/assumed edge, just for a
-    different reason. Only the crops builder, against the real files, decides
-    resolved vs. unresolvable.
-    """
-    return source_ref is not None and (
-        source_ref.export is not None or source_ref.kind == "spec"
-    )
-
-
 def crop_key(topology: Topology, edge: Edge) -> Optional[Dict[str, str]]:
     """This edge's crop-lookup key in ``crops.json`` -- two disjoint spaces.
 
@@ -461,7 +459,8 @@ def crop_key(topology: Topology, edge: Edge) -> Optional[Dict[str, str]]:
     (``vpa_output_to_pitch_plate`` names both today), and an edge id landing in
     that same stack's element-keyed bucket would silently collide with one of
     its elements. So an inline edge whose dimension carries a croppable
-    ``source_ref`` (:func:`_croppable`) addresses a **separate** space instead,
+    ``source_ref`` (:func:`~build_viewer_crops.croppable`, imported here as
+    ``_croppable``) addresses a **separate** space instead,
     keyed ``{topology, edge}`` by this topology's own id and the edge's own id.
     ``scripts/build_viewer_crops.py`` resolves it into ``crops.json``'s
     ``by_topology``; the viewer's existing ``VA.cropFor`` reads only
@@ -568,6 +567,38 @@ def project_contribution(contribution: Contribution) -> Dict[str, Any]:
     return row
 
 
+def project_study_check(topology: Topology, study: Study,
+                        chain: Sequence[Contribution], spec: Dict[str, Any]
+                        ) -> Dict[str, Any]:
+    """One ``study.checks`` entry, in ``project_stack``'s check shape exactly.
+
+    ``check_study`` is already proven field-for-field equal to a stack's own
+    ``CheckResult`` for the L1 acid test (``tests/test_topology.py::
+    test_the_l1_studys_own_authored_check_matches_the_stacks_check_exactly``);
+    this merges that same ``CheckResult`` into a row the way
+    :func:`project_stack` merges a stack's. The one difference: a study check
+    has no separate ``terms`` list to walk -- ``check_study`` checks the whole
+    chain ``traverse()`` already built -- so the confidence scoreboard is read
+    off the chain's own contributions instead of a term list.
+    """
+    outcome = check_study(topology, study, spec["check_id"])
+    result = outcome.as_dict()
+    result.update(rounded(outcome.interval.as_dict()))
+    counts = count_confidence([c.dimension for c in chain])
+    result.update(
+        {
+            # No topology archetype generates a study's checks (there is no
+            # thermal_fit-style generated-check archetype here) -- every one is
+            # authored, so this is always False.
+            "generated": False,
+            "input_confidence": counts,
+            "worst_confidence": worst_confidence(counts),
+            "workbook_cells": spec.get("workbook_cells"),
+        }
+    )
+    return result
+
+
 def project_study(topology: Topology, study: Study, path: Path,
                   raw: Dict[str, Any]) -> Dict[str, Any]:
     """One study: its fold and its chain layout, or the error it raises.
@@ -597,6 +628,7 @@ def project_study(topology: Topology, study: Study, path: Path,
         "error": None,
         "result": None,
         "layout": None,
+        "checks": None,
     }
     try:
         chain = traverse(topology, study)
@@ -611,6 +643,8 @@ def project_study(topology: Topology, study: Study, path: Path,
     projected.update(rounded(result.interval.as_dict()))
     row["result"] = projected
     row["layout"] = serialize_chain(chain).as_dict()
+    row["checks"] = [project_study_check(topology, study, chain, spec)
+                     for spec in study.checks]
     return row
 
 
@@ -813,10 +847,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         for study in topology["studies"]:
             if study["status"] == "ok":
                 result = study["result"]
+                checks_note = ""
+                if study["checks"]:
+                    checks_note = ", " + ", ".join(
+                        f"{c['check_id']}={c['verdict']}" for c in study["checks"])
                 print(
                     f"    {study['id']:44s} {len(result['chain'])} contributions, "
                     f"±{result['worst_case_half']} {result['units']} worst case, "
-                    f"±{result['rss_half']} RSS"
+                    f"±{result['rss_half']} RSS{checks_note}"
                 )
             else:
                 print(f"    {study['id']:44s} {study['error']['type']}: "

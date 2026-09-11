@@ -41,6 +41,7 @@ ALL_EVENT_FILES = [
     "0003_jps00094_rev_c_agent_manual_v0.json",
     "0004_nas1151_nas1158_2012_agent_manual_v0.json",
     "0005_trelleborg_aerospace_2011_agent_manual_v0.json",
+    "0006_rbc_aerospace_plain_bearings_2008_agent_manual_v0.json",
 ]
 
 
@@ -66,6 +67,7 @@ def test_the_library_rebuilds_from_the_event_log(library):
         "20260805-jps00094-revc-agentmanual-v0",
         "20260904-nas1151-nas1158-2012-agentmanual-v0",
         "20260904-trelleborg-aerospace-2011-agentmanual-v0",
+        "20260910-rbc-aerospace-plain-bearings-2008-agentmanual-v0",
     ]
     assert set(library.subjects) == {
         "NAS6403 thru NAS6420",
@@ -82,6 +84,10 @@ def test_the_library_rebuilds_from_the_event_log(library):
         "NAS1151 thru NAS1158",
         "NAS1154",
         "Trelleborg Turcon Slydring piston and rod bearing",
+        "MS14101",
+        "MS14101-3",
+        "MS14103",
+        "MS14103-3",
     }
 
 
@@ -98,6 +104,7 @@ def test_every_event_names_a_document_that_is_in_the_pile():
     assert "NAS6403-NAS6420 Rev 4.pdf" in documents
     assert "NAS1151- NAS1158.PDF" in documents
     assert "trelleborg_aerospace_gb_en.pdf" in documents
+    assert "RBC_Aerospace_Plain_Bearings_Web.pdf" in documents
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +395,44 @@ def test_trelleborg_gives_a_formula_not_a_single_clearance_number(library):
     assert "gas_spring_bushing_clearance_0_18mm" not in library.subject(
         "Trelleborg Turcon Slydring piston and rod bearing"
     ).values
+
+
+# ---------------------------------------------------------------------------
+# MS14101-3 / MS14103-3 spherical bearings -- intake rank n/a, acquired
+# 2026-09-10 for endstop_piece_part_acquisition
+# ---------------------------------------------------------------------------
+
+
+def test_ms14101_3_bore_matches_the_endstop_worksheets_bearing_size_rows(library):
+    """WORKSHEET_endstop_vision_baseline.md rows 34/36/50/54/56 ('pitch/tan
+    link bearing size', GT 0.013 mm each) -- the catalog's bore tolerance is
+    unilateral (nominal to -0.013 mm), an exact band-width match."""
+    bore = library.value("MS14101-3", "bore_B").value
+    assert bore.nominal == 4.826
+    assert (bore.max, bore.min) == (4.826, 4.813)
+    assert bore.max - bore.min == pytest.approx(0.013)
+    assert bore.at.pdf_page == 21
+    assert bore.confidence == "traced"
+
+
+def test_ms14103_3_bore_is_identical_to_ms14101_3_despite_the_wider_body(library):
+    """MS14101 (narrow) and MS14103 (wide) share the same .1900 in bore --
+    only the OD/width geometry differs between the two series."""
+    bore_101 = library.value("MS14101-3", "bore_B").value
+    bore_103 = library.value("MS14103-3", "bore_B").value
+    assert (bore_103.nominal, bore_103.max, bore_103.min) == (bore_101.nominal, bore_101.max, bore_101.min)
+    od_101 = library.value("MS14101-3", "od_D").value
+    od_103 = library.value("MS14103-3", "od_D").value
+    assert od_103.nominal > od_101.nominal
+
+
+def test_ms14101_family_bore_tolerance_is_a_header_convention_not_per_dash(library):
+    """The catalog prints the per-column tolerance once, in the table header,
+    not on every dash row -- the family subject carries that fact in prose,
+    since SpecValue has no numeric field for a header-level convention."""
+    tol = library.value("MS14101", "bore_tolerance_B").value
+    assert "-.013" in tol.text or "-0.013" in tol.text.replace(" mm", "mm")
+    assert tol.at.column == "B"
 
 
 # ---------------------------------------------------------------------------

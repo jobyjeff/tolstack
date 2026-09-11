@@ -22,6 +22,18 @@
   --fail: #e05252; --marginal: #d98a00; --pass: #43a047;
 }
 * { box-sizing: border-box; }
+/* Themed scrollbars (Jeff, 2026-09-09: "plain/out of style"), set once on the
+   root: `scrollbar-color`/`scrollbar-width` are inherited, so every scrollable
+   box in the app -- the document itself, the left nav sidebar, the banner's
+   own capped alarm list -- picks this up without a per-element rule. The
+   `::-webkit-scrollbar` trio is Chromium's own (unsupported) mechanism and has
+   no inheritance model, so it is written once at the universal selector
+   instead, for the same "everywhere, not per element" reach. */
+html { scrollbar-color: var(--muted) var(--panel2); scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--panel2); }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
   font: 14px/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
@@ -53,9 +65,12 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 }
 .banner--disconnected { border-bottom-color: var(--accent); }
 .banner--needs-regrant { border-bottom-color: var(--inferred); }
+.banner--crash { border-bottom-color: var(--untraced); }
 .banner__action { margin-left: auto; }
 .banner__error { flex-basis: 100%; color: var(--untraced); }
+.banner__crash-hint { flex-basis: 100%; color: var(--muted); font-size: 12px; }
 .banner__built { color: var(--muted); font-variant-numeric: tabular-nums; }
+.banner__source { flex-basis: 100%; color: var(--muted); font-size: 12px; }
 .banner__missing { flex-basis: 100%; border-left: 3px solid var(--inferred); padding: 6px 10px; }
 /* Which tree built each projection. Quiet by default — it is context, not an
    alarm — but the alarm above it is loud, because a projection built from a
@@ -81,6 +96,10 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
   display: inline-block; margin-top: 5px; background: var(--bg);
   padding: 3px 7px; border-radius: 4px; font-size: 12px; color: var(--ink);
 }
+.banner__rebuild {
+  margin-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.banner__rebuild-hint { margin-top: 6px; color: var(--muted); }
 
 main { display: flex; align-items: flex-start; gap: 0; }
 .center { flex: 1 1 640px; min-width: 0; display: flex; flex-direction: column; }
@@ -373,8 +392,14 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
   margin-top: 4px; overflow-wrap: anywhere;
 }
 /* --- crop popover ---------------------------------------------------- */
+/* position: FIXED, not absolute (viewer_hover_cards_and_deep_links): hover
+   chrome must not disturb the layout, and an absolutely-positioned popover
+   opened near the bottom lengthens the DOCUMENT — the scrollbar it summons
+   reflows the panes, which the browser tier now measures. Fixed pins it to
+   the viewport instead; the max-height keeps a tall card reachable. */
 .croppop {
-  display: none; position: absolute; z-index: 20; width: 540px;
+  display: none; position: fixed; z-index: 20; width: 540px;
+  max-height: calc(100vh - 24px); overflow-y: auto;
   background: var(--panel); border: 1px solid var(--accent); border-radius: 8px;
   padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
 }
@@ -385,3 +410,32 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .croppop__prov, .croppop__reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
 .croppop__links { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
 .croppop__path { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; margin-top: 4px; overflow-wrap: anywhere; }
+
+/* --- hover reference cards (viewer_hover_cards_and_deep_links) --------- */
+/* Rendered into the SAME positioned #croppop node as the crop popover, so
+   they inherit its absolute positioning and can never disturb the page's
+   layout — these rules only shape the card's own innards. */
+.hovercard { width: 540px; }
+.hovercard--citation, .hovercard--component { width: 460px; }
+.hovercard__head h4 { margin: 0 0 2px; font-size: 14px; }
+.hovercard__head code { font-size: 11px; }
+.hovercard__chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.hovercard__where { font-size: 13px; margin: 2px 0; }
+.hovercard__cited, .hovercard__cropkey { color: var(--muted); font-size: 12px; margin: 4px 0 2px; }
+.hovercard__callout {
+  font-family: ui-monospace, monospace; font-size: 12px; background: #262a32;
+  border-radius: 4px; padding: 4px 6px; margin: 4px 0; overflow-wrap: anywhere;
+}
+.hovercard__notefull { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.hovercard__note { color: var(--muted); font-size: 12px; margin: 4px 0;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hovercard__note--open { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.hovercard__links { margin-top: 6px; font-size: 13px; }
+.hovercard__noresolve { margin: 4px 0; }
+.hovercard .cropblock img.croppop__img { max-height: 260px; object-fit: contain; }
+/* A card trigger reads as one: same affordance cue as the crop trigger. */
+.cardtrig { cursor: help; }
+
+/* An inbound deep link that asked for something this data does not contain:
+   one plain-words line, amber — a fact about the link, not a rebuild alarm. */
+.banner__notice { color: var(--inferred); font-size: 13px; margin-top: 4px; }

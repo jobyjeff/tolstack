@@ -98,6 +98,190 @@ function startServer() {
   });
 }
 
+// A plain static server rooted at the REPO, not just apps/viewer — the
+// "repo-root-static" shape storage/http.js's second candidate matches
+// (`python -m http.server` from the repo root), and the one server this
+// script can start that lets ?mock=1-free boot actually exercise the HTTP
+// transport rather than falling back to FSA. `/data/...` is served from
+// DATA_REPO (the worktree escape hatch every other real-data check in this
+// file already uses) so a worktree run still reaches the main checkout's
+// projections; everything else — the app's own files — always comes from
+// THIS tree, same rule as the rest of the file.
+function startRepoRootServer() {
+  return new Promise((resolve) => {
+    const server = createServer(async (req, res) => {
+      try {
+        const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
+        const rel = normalize(urlPath).replace(/^[/\\]+/, "");
+        const root = rel.split(sep)[0] === "data" ? DATA_REPO : REPO;
+        const full = join(root, rel);
+        if (full !== root && !full.startsWith(root + sep)) {
+          res.writeHead(403).end("forbidden");
+          return;
+        }
+        const body = await readFile(full);
+        res.writeHead(200, { "content-type": MIME[extname(full)] || "application/octet-stream" });
+        res.end(body);
+      } catch {
+        res.writeHead(404).end("not found");
+      }
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
+// --- a stub tolstack_mount_rebuild_endpoint, sibling-data-mount shape ------
+//
+// Mimics drawing-checker's own mount (webui/analyses.py: VIEWER_MOUNT =
+// "/tolstack/viewer", DATA_MOUNT = "/tolstack/data") plus a sibling
+// /tolstack/rebuild (POST) + /tolstack/rebuild/status (GET) — NOT the real
+// endpoint (tolstack_mount_rebuild_endpoint, staged the same day as this
+// handoff and owned by drawing-checker, not built here), just enough to
+// prove the viewer's OWN click path end to end: probe, button, POST, poll,
+// reload. `matchCrops` controls whether the synthetic topologies.json/
+// crops.json provenance stamps agree (fresh) or not (stale);
+// `rebuildCapable` controls whether the stub answers the rebuild routes at
+// all, the same "absent means not shipped yet" case storage/http.js's own
+// probe has to survive.
+function startSiblingMountServer({ matchCrops, rebuildCapable }) {
+  return new Promise((resolve) => {
+    let busy = false;
+    const topologiesJson = () => JSON.stringify({
+      topologies: [],
+      provenance: { branch: "master", head_sha: "1".repeat(40), behind_trunk: 0, dirty: false },
+    });
+    const cropsJson = () => JSON.stringify({
+      by_stack: {}, summary: {},
+      provenance: {
+        branch: "master",
+        head_sha: matchCrops ? "1".repeat(40) : "2".repeat(40),
+        behind_trunk: 0, dirty: false,
+      },
+    });
+    const server = createServer(async (req, res) => {
+      const u = (req.url || "/").split("?")[0];
+      if (u === "/tolstack/rebuild/status" && req.method === "GET") {
+        if (!rebuildCapable) { res.writeHead(404).end("not found"); return; }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ busy, state: busy ? "running" : "done" }));
+        return;
+      }
+      if (u === "/tolstack/rebuild" && req.method === "POST") {
+        if (!rebuildCapable) { res.writeHead(404).end("not found"); return; }
+        busy = true;
+        setTimeout(() => { busy = false; }, 200);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ busy: true, state: "running" }));
+        return;
+      }
+      if (u === "/tolstack/data/topologies.json") {
+        res.writeHead(200, { "content-type": "application/json" }).end(topologiesJson());
+        return;
+      }
+      if (u === "/tolstack/data/crops.json") {
+        res.writeHead(200, { "content-type": "application/json" }).end(cropsJson());
+        return;
+      }
+      if (u === "/tolstack/data/results.json") {
+        res.writeHead(404).end("not found");
+        return;
+      }
+      if (u.startsWith("/tolstack/viewer/")) {
+        try {
+          const rel = u.slice("/tolstack/viewer/".length) || "topology.html";
+          const full = join(APP_DIR, rel);
+          if (full !== APP_DIR && !full.startsWith(APP_DIR + sep)) {
+            res.writeHead(403).end("forbidden");
+            return;
+          }
+          const body = await readFile(full);
+          res.writeHead(200, { "content-type": MIME[extname(full)] || "application/octet-stream" });
+          res.end(body);
+        } catch {
+          res.writeHead(404).end("not found");
+        }
+        return;
+      }
+      res.writeHead(404).end("not found");
+    });
+    server.listen(0, "127.0.0.1", () => resolve(server));
+  });
+}
+
+// The banner's whole deliverable (viewer_rebuild_affordance, 2026-09-10): no
+// rebuild command ever renders again, in either mode, and a live endpoint
+// drives a real click through to a reload. Three servers, one scenario each —
+// a fresh stub per scenario keeps the busy/done state machine from leaking
+// across them the way one shared server's mutable `busy` flag would.
+async function testRebuildAffordance(browser) {
+  const label = "rebuild affordance (stub sibling mount)";
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const noCommandsOrPaths = (text) => !/\.py|venv-win|C:\\/.test(text || "");
+
+  async function withServer(opts, fn) {
+    const server = await startSiblingMountServer(opts);
+    const port = server.address().port;
+    const page = await browser.newPage();
+    try {
+      await page.goto(`http://127.0.0.1:${port}/tolstack/viewer/topology.html`,
+        { waitUntil: "load" });
+      await fn(page);
+    } finally {
+      await page.close();
+      server.close();
+    }
+  }
+
+  try {
+    // 1) stale + capability -> a button, and a real click drives the stub
+    //    endpoint through busy -> done.
+    await withServer({ matchCrops: false, rebuildCapable: true }, async (page) => {
+      await page.waitForSelector(".banner__rebuild button", { timeout: 15000 });
+      push("stale+capability renders a Rebuild button, not the sentence",
+        await page.locator(".banner__rebuild button").count() === 1 &&
+        await page.locator(".banner__rebuild-hint").count() === 0);
+      push("no command or path anywhere in the banner (capability case)",
+        noCommandsOrPaths(await page.locator("#banner").textContent()));
+
+      await page.locator(".banner__rebuild button").click();
+      await page.waitForSelector(".banner__rebuild button[disabled]", { timeout: 5000 });
+      push("clicking Rebuild disables the button while the stub reports busy", true);
+      await page.waitForFunction(
+        () => !document.querySelector(".banner__rebuild button")?.disabled,
+        null, { timeout: 5000 });
+      push("the button re-enables once the stub's status reports done", true);
+    });
+
+    // 2) stale + no capability -> one plain sentence, no button, no command.
+    await withServer({ matchCrops: false, rebuildCapable: false }, async (page) => {
+      await page.waitForSelector(".banner__rebuild-hint", { timeout: 15000 });
+      push("stale+no-capability renders the one-sentence state, no button",
+        await page.locator(".banner__rebuild-hint").count() === 1 &&
+        await page.locator(".banner__rebuild button").count() === 0);
+      push("no command or path anywhere in the banner (no-capability case)",
+        noCommandsOrPaths(await page.locator("#banner").textContent()));
+    });
+
+    // 3) fresh (matching) provenance -> no stale banner at all.
+    await withServer({ matchCrops: true, rebuildCapable: true }, async (page) => {
+      await page.waitForSelector("#banner", { timeout: 15000 });
+      await page.waitForTimeout(200);
+      push("fresh (matching) provenance shows no stale banner",
+        await page.locator(".banner__stale").count() === 0);
+    });
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    return { label, ok: false };
+  }
+}
+
 async function launch() {
   const failures = [];
   for (const channel of CHANNELS) {
@@ -337,19 +521,113 @@ async function testTheApp(browser, url, label) {
   }
 }
 
+// --- the row/leader correspondence, measured (viewer_leader_line_grid) ------
+//
+// The page's one visual claim changed shape: the grid holds only edge rows
+// (compact, evenly spaced) while the DAG keeps its own layout, and the jogged
+// LEADER LINES are what tie an interface's dot to the seam between the two
+// grid rows it separates. So the measurable contract is now three-legged, and
+// only a real layout engine can check any leg of it:
+//
+//   1. every grid row still has its bar in the SVG (same data-id) — existence,
+//      not shared y: the two are no longer at one height by design;
+//   2. every leader's node-side end sits on its own dot's centre — measured
+//      off the path's real geometry (getBBox), not off the numbers that drew
+//      it, so a CSS transform or a broken viewBox fails here;
+//   3. every leader's grid-side end sits on the boundary row's top edge (the
+//      row its data-boundary-edge names), or on the last row's bottom when it
+//      points below the whole grid.
+//
+// Leaders always rise left-to-right (the DAG is the taller column), so the
+// path's bbox bottom is the node end and its top is the grid end.
+const CORRESPONDENCE_IN_PAGE = () => {
+  const drift = [];
+  const rows = Array.from(document.querySelectorAll("tr.tvrow"));
+  for (const row of rows) {
+    const id = row.getAttribute("data-id");
+    const mark = document.querySelector(
+      `svg.tv__rails [data-id="${CSS.escape(id)}"][data-row-kind="edge"]`);
+    if (!mark) drift.push(`edge ${id}: no rail bar`);
+  }
+  const leaders = Array.from(document.querySelectorAll("path.rail__leaderhit"));
+  for (const hit of leaders) {
+    const id = hit.getAttribute("data-leader-id");
+    const beforeEdge = hit.getAttribute("data-boundary-edge");
+    const svgTop = hit.ownerSVGElement.getBoundingClientRect().top;
+    const bbox = hit.getBBox();
+    const nodeEndY = svgTop + bbox.y + bbox.height;
+    const gridEndY = svgTop + bbox.y;
+    const dot = document.querySelector(
+      `svg.tv__rails circle[data-id="${CSS.escape(id)}"]`);
+    if (!dot) { drift.push(`leader ${id}: no dot`); continue; }
+    const dotBox = dot.getBoundingClientRect();
+    const dotCy = (dotBox.top + dotBox.bottom) / 2;
+    if (Math.abs(nodeEndY - dotCy) > 0.75) {
+      drift.push(`leader ${id}: node end off its dot by ${(nodeEndY - dotCy).toFixed(2)}px`);
+    }
+    let seamY;
+    if (beforeEdge) {
+      const boundaryRow = document.querySelector(
+        `tr.tvrow[data-id="${CSS.escape(beforeEdge)}"]`);
+      if (!boundaryRow) { drift.push(`leader ${id}: boundary row ${beforeEdge} missing`); continue; }
+      seamY = boundaryRow.getBoundingClientRect().top;
+    } else {
+      if (!rows.length) { drift.push(`leader ${id}: no rows at all`); continue; }
+      seamY = rows[rows.length - 1].getBoundingClientRect().bottom;
+    }
+    if (Math.abs(gridEndY - seamY) > 0.75) {
+      drift.push(`leader ${id}: grid end off its seam by ${(gridEndY - seamY).toFixed(2)}px`);
+    }
+  }
+  return { rows: rows.length, leaders: leaders.length, drift };
+};
+
+// Edge-length scaling (viewer_edge_length_scaling): every bar's MEASURED
+// height against the keyed position store's own slot for it, plus the break
+// marks against the store's floored flags. Runs in-page so it reads the same
+// VA.rowPositions the render did — a renderer that ignored the store, or a
+// store that drifted from the DOM, both fail here; the store's own numbers
+// are pinned at the fixture tier.
+const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
+  const VA = window.ViewerApp;
+  const proj = VA.findTopology(VA.demoTopologyFixture().topologies, topologyId);
+  const pos = VA.rowPositions(proj.layout, proj, mode, VA.RAIL_METRICS);
+  const bad = [];
+  let floored = 0;
+  for (const row of proj.layout.rows) {
+    if (row.kind !== "edge") continue;
+    const slot = pos.edges[row.id];
+    if (slot.floored) floored++;
+    const hit = document.querySelector(
+      `svg.tv__rails line.rail__barhit[data-id="${CSS.escape(row.id)}"]`);
+    if (!hit) { bad.push(`${row.id}: no bar hit line`); continue; }
+    // The bar and its hit line share y1/y2 (slot extent, 1px inset each end),
+    // butt-capped, so the rect's height is exactly the drawn length.
+    const h = hit.getBoundingClientRect().height;
+    if (Math.abs(h - (slot.length - 2)) > 0.75) {
+      bad.push(`${row.id}: drawn ${h.toFixed(2)} vs slot ${(slot.length - 2).toFixed(2)}`);
+    }
+  }
+  const breaks = document.querySelectorAll("svg.tv__rails path.rail__break").length;
+  if (breaks !== floored) bad.push(`break marks: ${breaks} drawn vs ${floored} floored`);
+  const edges = proj.layout.rows.filter((r) => r.kind === "edge").length;
+  return { bad, floored, edges };
+};
+
 // --- the topology page, in a real browser ---------------------------------
 //
 // What this proves that the DOM shim cannot, and it is the deliverable:
 //
-//   1. ALIGNMENT IS REAL. The whole page is one claim — a grid row and its rail
-//      mark describe the same graph element, at the same y. The fast tier can
-//      check that both come from row index i; only a real browser can measure
-//      that the two boxes actually line up, which is what a reader believes when
-//      they read a value off a row beside a dot.
+//   1. ROW/LEADER CORRESPONDENCE IS REAL (CORRESPONDENCE_IN_PAGE above): a
+//      leader's two measured ends land on its dot and on its seam, across
+//      scroll, density, layout mode and study selection. The fast tier can
+//      check the numbers that draw it; only a real browser can measure the
+//      boxes a reader actually sees.
 //   2. Clicking an SVG mark selects it. A `<circle>` with an onclick is exactly
 //      the thing a shim reports as working and a stylesheet can break.
-//   3. The rails and the rows scroll together, because they share a scrollport.
-//   4. Against the REAL projection: both topologies render, study selection
+//   3. The rails, leaders and rows scroll together, because they share a
+//      scrollport.
+//   4. Against the REAL projection: every topology renders, study selection
 //      changes the grid, and every total on screen equals topologies.json's own
 //      number — the claim the page prints in its own footer.
 async function testTheTopologyPage(browser, url, label, realProjection, realCrops) {
@@ -359,25 +637,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
 
-  // Every row's box centre against its rail mark's box centre. Half a pixel of
-  // tolerance for subpixel layout; anything that actually drifts misses by a
-  // whole row height.
-  const alignmentDrift = () => page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll("tr.tvrow"));
-    const drift = [];
-    for (const row of rows) {
-      const id = row.getAttribute("data-id");
-      const kind = row.getAttribute("data-row-kind");
-      const mark = document.querySelector(
-        `svg.tv__rails [data-id="${CSS.escape(id)}"][data-row-kind="${kind}"]`);
-      if (!mark) { drift.push(`${kind} ${id}: no rail mark`); continue; }
-      const a = row.getBoundingClientRect();
-      const b = mark.getBoundingClientRect();
-      const delta = Math.abs((a.top + a.height / 2) - (b.top + b.height / 2));
-      if (delta > 0.5) drift.push(`${kind} ${id}: off by ${delta.toFixed(2)}px`);
-    }
-    return { rows: rows.length, drift };
-  });
+  const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
@@ -397,44 +657,140 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       untracedStroke && untracedStroke !== "none" &&
       untracedStroke !== "rgb(0, 0, 0)");
 
-    const first = await alignmentDrift();
-    push("every grid row lines up with its rail mark",
-      first.rows > 0 && first.drift.length === 0);
+    // The merged-row grid and the leaders (viewer_leader_line_grid): the demo
+    // mechanism has six edges in six single-edge component groups (every
+    // consecutive pair changes part), and five of its six interfaces are part
+    // boundaries — base_datum's one edge makes it internal, so it must NOT
+    // have a leader.
+    push("the grid holds one row per edge, in component groups",
+      await page.locator("tr.tvrow").count() === 6 &&
+      await page.locator("td.tvcell--component").count() === 6);
+    push("five leaders for five part boundaries, none for the internal node",
+      await page.locator("path.rail__leader").count() === 5 &&
+      await page.locator('path.rail__leaderhit[data-leader-id="base_datum"]').count() === 0);
+
+    const first = await correspondence();
+    push("every leader lands on its dot and its seam, every row has its bar",
+      first.rows > 0 && first.leaders === 5 && first.drift.length === 0);
     if (first.drift.length) console.log("    drift: " + first.drift.slice(0, 5).join(" | "));
 
-    // 3) scrolled, they stay lined up — the reason both live in one scrollport.
-    await page.locator(".tv__scroll").evaluate((n) => { n.scrollTop = 120; });
-    const scrolled = await alignmentDrift();
-    push("they are still lined up after scrolling", scrolled.drift.length === 0);
-    await page.locator(".tv__scroll").evaluate((n) => { n.scrollTop = 0; });
+    // 3) scrolled, they stay tied together — rails, leaders and rows share one
+    //    scrollport (the page's own, since full-page scroll).
+    await page.evaluate(() => window.scrollTo(0, 120));
+    const scrolled = await correspondence();
+    push("correspondence holds after scrolling", scrolled.drift.length === 0);
+    await page.evaluate(() => window.scrollTo(0, 0));
 
     // 2) a real click on an SVG circle.
     await page.locator("svg.tv__rails circle.rail__dot").first().click();
     push("clicking a rail dot opens that interface in the preview pane",
       /An interface is a location, not a value/
         .test(await page.locator("#detail").textContent()));
-    push("the clicked row is visibly marked",
-      await page.locator("tr.tvrow--selected").count() === 1);
+    push("the clicked dot is visibly marked — the grid has no node rows",
+      await page.locator("circle.rail__dot--selected").count() === 1 &&
+      await page.locator("tr.tvrow--selected").count() === 0);
 
-    // The grid's own thumbnail trigger (deliverable 1 of viewer_consolidation) —
-    // a real click, which the DOM shim cannot exercise. `base_thickness`
-    // re-expresses demo_joint's `plate`, whose crop resolves; the same popover
-    // the classic view's rows use (views/crop.js), so this is the one place
-    // both modes are proved to share it in a real browser.
+    // A leader is clickable too, and selecting a boundary node marks it.
+    await page.locator('path.rail__leaderhit[data-leader-id="base_post_seat"]').click();
+    push("clicking a leader selects its interface",
+      /A component boundary/.test(await page.locator("#detail").textContent()) &&
+      await page.locator("path.rail__leader--selected").count() === 1);
+
+    // The thumbnail column (viewer_leader_line_grid): the one resolved demo
+    // crop upgrades its trigger to the actual image once fetched; the
+    // unresolvable one stays a text button with no image, ever.
+    await page.waitForSelector("img.tvthumb", { timeout: 5000 });
+    push("the resolved crop renders as a real inline thumbnail",
+      await page.locator("tr.tvrow[data-id='base_thickness'] img.tvthumb").count() === 1);
+    push("an unresolvable crop stays a text trigger, never a placeholder image",
+      await page.locator("tr.tvrow[data-id='post_height'] img").count() === 0 &&
+      /no crop/.test(await page.locator("tr.tvrow[data-id='post_height'] button.crop-trigger")
+        .textContent()));
+
+    // The grid's own thumbnail trigger — a real click, which the DOM shim
+    // cannot exercise. Since viewer_hover_cards_and_deep_links it opens the
+    // EDGE hover card (views/cards.js) into the same positioned popover node:
+    // the crop body plus the citation line and the crop-key claim.
+    // `base_thickness` re-expresses demo_joint's `plate`, whose crop resolves.
+    const paneBeforeCard = await page.locator("#topopane").boundingBox();
+    // hover, not click: a click also SELECTS the row (its normal job), and the
+    // detail pane repopulating is legitimate layout movement that would drown
+    // the measurement below — the card itself is what must move nothing.
     await page.locator("tr.tvrow[data-id='base_thickness'] button.crop-trigger")
-      .click();
-    await page.waitForSelector(".croppop--resolved", { state: "visible", timeout: 5000 });
-    push("the topology grid's thumbnail trigger opens the same crop popover",
+      .hover();
+    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+    push("the thumbnail trigger opens the edge hover card with the crop body",
       await page.locator(".croppop").isVisible() &&
-      /215197/.test(await page.locator(".croppop__path").textContent()));
+      /215197/.test(await page.locator(".croppop__path").textContent()) &&
+      /cited at:/.test(await page.locator(".croppop").textContent()) &&
+      /from stack `demo_joint`, element `plate`/
+        .test(await page.locator(".croppop").textContent()));
+    // Cards are hover-only chrome: opening one must not disturb the layout
+    // contracts — the DAG pane's own box and the leader correspondence are
+    // measured with the card OPEN.
+    const paneWithCard = await page.locator("#topopane").boundingBox();
+    push("an open card moves the DAG pane by nothing at all",
+      paneBeforeCard && paneWithCard &&
+      paneBeforeCard.x === paneWithCard.x && paneBeforeCard.y === paneWithCard.y &&
+      paneBeforeCard.width === paneWithCard.width &&
+      paneBeforeCard.height === paneWithCard.height);
+    push("leaders still land on their dots and seams with a card open",
+      (await correspondence()).drift.length === 0);
     await page.keyboard.press("Escape");
     push("Escape closes it here too", !(await page.locator(".croppop").isVisible()));
+
+    // The citation card, from the row's confidence chip (the same model the
+    // stack table's chip opens): the full reference — where-ref, export
+    // block — as hover chrome.
+    await page.locator("tr.tvrow[data-id='base_thickness'] span.cardtrig").hover();
+    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    const citationText = await page.locator(".croppop").textContent();
+    push("the confidence chip opens the citation card with the export block",
+      /215197/.test(citationText) && /export established/.test(citationText));
+    await page.keyboard.press("Escape");
+
+    // The component card, from the merged component cell: part identity plus
+    // the thumbnail derived from its own row's resolved crop.
+    await page.locator("td.tvcell--component.cardtrig").first().hover();
+    await page.waitForSelector(".hovercard--component", { state: "visible", timeout: 5000 });
+    const componentText = await page.locator(".croppop").textContent();
+    push("the component cell opens the component card with the derived crop line",
+      /base plate/.test(componentText) &&
+      /crop of its `base plate thickness` annotation/.test(componentText));
+    push("the component card deep-links into the annotator isolating the part",
+      /isolate=base/.test(await page.locator(".hovercard--component a")
+        .last().getAttribute("href")));
+    await page.keyboard.press("Escape");
     // An edge with no crop_key (authored inline, or a derived gap) gets no
     // trigger at all — showing one would read as a stale index rather than
     // what it is.
     push("an edge with no crop_key gets no trigger",
       await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] button.crop-trigger")
         .count() === 0);
+
+    // Whole-edge hover (deliverable 3): a dashed bar's OWN stroke
+    // (rail__bar--gap/--derived) has real gaps in it, and under
+    // `pointer-events: stroke` a gap in the dash pattern used to hit nothing.
+    // `tip_to_strut_end` is the fixture's one gap/derived edge, so its bar is
+    // dashed by construction; sampling several points along its FULL drawn
+    // length (not just its centre, where a dash happens to land) proves the
+    // invisible hit path (views/topology.js's railsSvg) covers the whole
+    // thing, not just the visible dashes.
+    const hoverCoverage = await page.evaluate(() => {
+      const mark = document.querySelector(
+        'svg.tv__rails [data-id="tip_to_strut_end"][data-row-kind="edge"]');
+      if (!mark) return null;
+      const box = mark.getBoundingClientRect();
+      const x = box.left + box.width / 2;
+      return [0.02, 0.25, 0.5, 0.75, 0.98].map((f) => {
+        const y = box.top + box.height * f;
+        const hit = document.elementFromPoint(x, y);
+        return hit && hit.getAttribute ? hit.getAttribute("data-id") : null;
+      });
+    });
+    push("the whole drawn length of a dashed (gap) edge responds to hover, " +
+      "not just its own dashes",
+      hoverCoverage && hoverCoverage.every((id) => id === "tip_to_strut_end"));
 
     // Study selection, through the nav tree: the grid marks, the rails
     // thicken, the totals strip appears.
@@ -452,15 +808,18 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("the totals say where the numbers came from, behind the Details toggle",
       /This page adds nothing up/.test(await page.locator("#totals").textContent()));
 
-    // The chain layout: one rail, the sum's own order, still aligned.
+    // The chain layout: one rail, the sum's own order, still corresponding.
     await page.locator("#layout-toggle").click();
     push("chain mode says so", /Showing: study chain/
       .test(await page.locator("#layout-toggle").textContent()));
-    const chained = await alignmentDrift();
-    push("the chain layout is aligned too", chained.drift.length === 0);
-    push("a chain is one rail",
+    const chained = await correspondence();
+    push("the chain layout corresponds too — including a leader that points " +
+      "below the whole grid", chained.drift.length === 0);
+    if (chained.drift.length) console.log("    drift: " + chained.drift.slice(0, 5).join(" | "));
+    push("a chain is one rail, one row per contribution",
       await page.locator("svg.tv__rails circle.rail__dot").count() ===
-      chained.rows - await page.locator("svg.tv__rails line.rail__bar").count());
+      chained.rows + 1 &&
+      await page.locator("svg.tv__rails line.rail__bar").count() === chained.rows);
     await page.locator("#layout-toggle").click();
 
     // A study that refuses to sum shows the refusal, with its next step.
@@ -496,6 +855,46 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("a topology with no worksheet_file hides the worksheet toggle",
       !(await page.locator("#worksheet-toggle").isVisible()));
 
+    // Edge-length scaling (viewer_edge_length_scaling): cycle the toolbar's
+    // mode button through all three stops. At each: the bars measure what the
+    // keyed position store says (BARS_MATCH_STORE_IN_PAGE), floored bars wear
+    // their break marks, and — the point of the jogged leaders — every leader
+    // still lands on its dot and its seam even though the DAG stretched and
+    // the grid did not.
+    const barsMatch = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
+      { topologyId: "demo_mechanism", mode });
+    push("the length toggle starts at uniform",
+      /Lengths: uniform/.test(await page.locator("#edge-length-toggle").textContent()));
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+    push("one click: tolerance-width mode, bars measure the store's slots",
+      /Lengths: tolerance width/.test(await page.locator("#edge-length-toggle").textContent()));
+    const tolBars = await barsMatch("tolerance");
+    push("tolerance mode: every bar is its slot, floored bars wear breaks",
+      tolBars.bad.length === 0 && tolBars.floored > 0 &&
+      tolBars.floored < tolBars.edges);
+    if (tolBars.bad.length) console.log("    bars: " + tolBars.bad.slice(0, 5).join(" | "));
+    push("tolerance mode: leaders still land on their dots and seams",
+      (await correspondence()).drift.length === 0);
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+    push("two clicks: feature-size mode",
+      /Lengths: feature size/.test(await page.locator("#edge-length-toggle").textContent()));
+    const absBars = await barsMatch("absolute");
+    // The demo's one dimension-less edge (the derived gap) floors; every
+    // real nominal scales.
+    push("feature-size mode: every bar is its slot, only the derived gap floors",
+      absBars.bad.length === 0 && absBars.floored === 1);
+    if (absBars.bad.length) console.log("    bars: " + absBars.bad.slice(0, 5).join(" | "));
+    push("feature-size mode: leaders still land on their dots and seams",
+      (await correspondence()).drift.length === 0);
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+    const uniBars = await barsMatch("uniform");
+    push("three clicks: back to uniform, nothing floored, no break marks",
+      /Lengths: uniform/.test(await page.locator("#edge-length-toggle").textContent()) &&
+      uniBars.bad.length === 0 && uniBars.floored === 0);
+
     // --- the same page, against the REAL projection ------------------------
     if (!realProjection) {
       push("[real] projection present (skipped: not built)", true);
@@ -522,11 +921,41 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       for (const topology of realProjection.topologies) {
         await page.locator(navRow("topology", topology.id)).click();
         await page.waitForSelector("tr.tvrow", { timeout: 5000 });
-        const expected = topology.nodes.length + topology.edges.length;
-        push(`[real] ${topology.id} renders all ${expected} rows`,
+        const expected = topology.edges.length;
+        push(`[real] ${topology.id} renders all ${expected} edge rows`,
           await page.locator("tr.tvrow").count() === expected);
-        const drift = await alignmentDrift();
-        push(`[real] ${topology.id} is aligned row for row`, drift.drift.length === 0);
+        // The render honours its own plan — group cells and leaders match
+        // VA.gridPlan over the live layout, so a renderer that dropped a
+        // rowspan or an omission would fail here even though the plan itself
+        // is pinned at the fixture tier.
+        const planMatch = await page.evaluate((topologyId) => {
+          const VA = window.ViewerApp;
+          const proj = VA.findTopology(VA.demoTopologyFixture().topologies, topologyId);
+          const plan = VA.gridPlan(proj.layout, proj);
+          const cells = Array.from(document.querySelectorAll("td.tvcell--component"));
+          const leaders = Array.from(document.querySelectorAll("path.rail__leaderhit"));
+          const bad = [];
+          if (cells.length !== plan.groups.length) {
+            bad.push(`groups: ${cells.length} cells vs ${plan.groups.length} planned`);
+          }
+          plan.groups.forEach((g, i) => {
+            const cell = cells[i];
+            if (!cell) return;
+            const span = cell.getAttribute("rowspan");
+            if ((span === null ? 1 : Number(span)) !== g.count) {
+              bad.push(`group ${i} (${g.label}): rowspan ${span} vs count ${g.count}`);
+            }
+          });
+          if (leaders.length !== plan.leaders.length) {
+            bad.push(`leaders: ${leaders.length} drawn vs ${plan.leaders.length} planned`);
+          }
+          return bad;
+        }, topology.id);
+        push(`[real] ${topology.id}'s groups and leaders match its plan`,
+          planMatch.length === 0);
+        if (planMatch.length) console.log("    plan: " + planMatch.slice(0, 5).join(" | "));
+        const drift = await correspondence();
+        push(`[real] ${topology.id} corresponds leader for leader`, drift.drift.length === 0);
         if (drift.drift.length) console.log("    drift: " + drift.drift.slice(0, 5).join(" | "));
 
         // Deliverable 4 (viewer_v2_single_nav): the topology's own joint
@@ -587,6 +1016,40 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         }
       }
 
+      // Edge-length scaling against the real pitch_system (the DoD's own
+      // case): every edge is variation-only (nominal 0.0, a real ± band), so
+      // feature-size mode floors ALL of them — the honest all-marked
+      // rendering, never a fake proportion — while tolerance-width mode
+      // scales the real bands (0.03 … 0.2 at lock time: the widest at full
+      // length, at least one narrow one floored). Leaders re-measured at
+      // every stop: the grid stays evenly spaced while the DAG stretches,
+      // which is what the jogged leaders exist to absorb.
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const realBars = (mode) => page.evaluate(BARS_MATCH_STORE_IN_PAGE,
+        { topologyId: "pitch_system", mode });
+      await page.locator("#edge-length-toggle").click();
+      await page.waitForTimeout(50);
+      const realTol = await realBars("tolerance");
+      push("[real] pitch_system under tolerance width: bars measure the " +
+        "store, some floored, most scaled",
+        realTol.bad.length === 0 && realTol.floored > 0 &&
+        realTol.floored < realTol.edges);
+      if (realTol.bad.length) console.log("    bars: " + realTol.bad.slice(0, 5).join(" | "));
+      push("[real] pitch_system tolerance-width leaders still correspond",
+        (await correspondence()).drift.length === 0);
+      await page.locator("#edge-length-toggle").click();
+      await page.waitForTimeout(50);
+      const realAbs = await realBars("absolute");
+      push("[real] pitch_system under feature size: every variation-only " +
+        "edge floors, wearing its break mark",
+        realAbs.bad.length === 0 && realAbs.floored === realAbs.edges);
+      if (realAbs.bad.length) console.log("    bars: " + realAbs.bad.slice(0, 5).join(" | "));
+      push("[real] pitch_system feature-size leaders still correspond",
+        (await correspondence()).drift.length === 0);
+      await page.locator("#edge-length-toggle").click();
+      await page.waitForTimeout(50);
+
       // The preview pane over a real citation, with a real crop behind it.
       await page.locator(navRow("topology", "vpa_output_to_pitch_plate")).click();
       await page.locator("tr.tvrow[data-id='fastener_grip'] .tvcell--name").click();
@@ -613,16 +1076,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 // --- the height contract: the DAG pane owns the main area -------------------
 //
 // Replaces the retired 10-row floor's own browser check (HANDOFF_20260904_dag_
-// viewer_vertical_budget.md) with the contract viewer_v2_single_nav's handoff
-// asks for instead: at a 900px viewport, with the real pitch_system loaded and
-// a study selected (so the totals strip is at its real height, not the
-// empty-state paragraph) and a REAL provenance alarm on screen (crops and
-// topologies deliberately stamped from different commits) — every remaining
-// un-shrinkable block at once — the DAG pane (`.tv__scroll`) is the MAJORITY of
-// the viewport. The legend and the worksheet are <dialog>s now and no longer
-// participate in this page's flex column at all, so this test does not open
-// them: doing so can no longer affect the pane's height by construction, which
-// is the point of having moved them.
+// viewer_vertical_budget.md), then the viewer_v2_single_nav "majority of the
+// viewport" contract this same tier used to pin, with the one full-page-scroll
+// (viewer_error_surface_and_layout, 2026-09-09) asks for instead: the DAG pane
+// (`.tv__scroll`) no longer owns a scrollport of its own at all, so it renders
+// every row at full height and contributes that height to the DOCUMENT, which
+// scrolls once the content needs more room than the 900px viewport gives. The
+// left nav (`.navtree`) is the one region still capped to the viewport, via
+// `position: sticky` + `max-height`, and stays independently scrollable. The
+// legend and the worksheet are <dialog>s and never participate in this page's
+// flex column at all, so this test does not open them.
 async function testHeightBudget(browser, url, label, realProjection, realCrops) {
   const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
   const errors = [];
@@ -630,24 +1093,29 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
 
-  const alignmentDrift = () => page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll("tr.tvrow"));
-    const drift = [];
-    for (const row of rows) {
-      const id = row.getAttribute("data-id");
-      const kind = row.getAttribute("data-row-kind");
-      const mark = document.querySelector(
-        `svg.tv__rails [data-id="${CSS.escape(id)}"][data-row-kind="${kind}"]`);
-      if (!mark) { drift.push(`${kind} ${id}: no rail mark`); continue; }
-      const a = row.getBoundingClientRect();
-      const b = mark.getBoundingClientRect();
-      if (Math.abs((a.top + a.height / 2) - (b.top + b.height / 2)) > 0.5) drift.push(`${kind} ${id}`);
-    }
-    return drift;
+  const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
+
+  // The pane's own overflow-y, its rendered height, and the MINIMUM height its
+  // own row count demands — a viewport-capped pane would still show
+  // `overflow-y: auto`, or a rendered height short of what its own rows need;
+  // the new contract requires neither.
+  const paneContract = () => page.evaluate(() => {
+    const pane = document.querySelector(".tv__scroll");
+    const head = document.querySelector(".tv__head");
+    const rows = document.querySelectorAll("tr.tvrow").length;
+    const rowHeight = window.ViewerApp.RAIL_METRICS.rowHeight;
+    return {
+      overflowY: getComputedStyle(pane).overflowY,
+      height: pane.getBoundingClientRect().height,
+      minExpected: rows * rowHeight + (head ? head.getBoundingClientRect().height : 0) - 2,
+    };
   });
 
-  const paneHeight = () => page.locator(".tv__scroll")
-    .evaluate((n) => n.getBoundingClientRect().height);
+  const navContract = () => page.evaluate(() => {
+    const nav = document.querySelector(".navtree");
+    const style = getComputedStyle(nav);
+    return { position: style.position, overflowY: style.overflowY };
+  });
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
@@ -671,16 +1139,22 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
 
-    const mockHeight = await paneHeight();
-    push("[mock] the DAG pane is the majority of the 900px viewport " +
-      "(alarm badge + toolbar + totals strip all on screen)",
-      mockHeight > 450);
+    const mockPane = await paneContract();
+    push("[mock] the DAG pane no longer owns a scrollport of its own",
+      mockPane.overflowY !== "auto" && mockPane.overflowY !== "scroll");
+    push("[mock] the DAG pane renders its full row content height, " +
+      "uncapped by the viewport", mockPane.height >= mockPane.minExpected);
+    const mockNav = await navContract();
+    push("[mock] the left nav is the one remaining independent scroll region",
+      mockNav.position === "sticky" &&
+      (mockNav.overflowY === "auto" || mockNav.overflowY === "scroll"));
 
-    // Compact density: alignment must still hold once row height changes.
+    // Compact density: correspondence must still hold once row height changes
+    // — the leaders and the grid rows both re-derive from the same rowHeight.
     await page.locator("#density-toggle").click();
     await page.waitForTimeout(50);
-    push("rails stay aligned to rows at compact density",
-      (await alignmentDrift()).length === 0);
+    push("leaders stay on their dots and seams at compact density",
+      (await correspondence()).drift.length === 0);
     await page.locator("#density-toggle").click();
 
     if (!realProjection) {
@@ -705,11 +1179,479 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
         await page.locator(navRow("study", okStudy.id)).click();
         await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
       }
-      const realHeight = await paneHeight();
-      push("[real] the DAG pane's height is the majority of the 900px " +
-        "viewport with the real pitch_system loaded", realHeight > 450);
-      push("[real] rails stay aligned to rows", (await alignmentDrift()).length === 0);
+      const realPane = await paneContract();
+      push("[real] the DAG pane still owns no scrollport of its own with " +
+        "the real pitch_system loaded",
+        realPane.overflowY !== "auto" && realPane.overflowY !== "scroll");
+      push("[real] the DAG pane renders pitch_system's full row content " +
+        "height, uncapped by the viewport", realPane.height >= realPane.minExpected);
+      // The definitive proof full-page scroll actually happened: pitch_system
+      // carries far more rows than a 900px viewport can show at once, so the
+      // DOCUMENT (not the pane) is what now needs to scroll.
+      const docScrolls = await page.evaluate(
+        () => document.documentElement.scrollHeight > window.innerHeight);
+      push("[real] pitch_system's row count pushes the DOCUMENT past the " +
+        "viewport rather than clipping inside the pane", docScrolls);
+      push("[real] leaders stay on their dots and seams",
+        (await correspondence()).drift.length === 0);
     }
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
+// --- the one error seam: a render crash shows a banner, not a silent page ---
+//
+// Deliverable 1 (viewer_error_surface_and_layout, 2026-09-09): the incident
+// this handoff answers was a throw from INSIDE render() itself -- not a
+// rejected promise before it -- leaving the DAG pane silently empty with a
+// no-op Reload. The test seam is the same technique every other real-data
+// swap in this file already uses (override an exported VA function, then
+// trigger a render): `VA.renderTopoPane` is made to throw, and a nav click
+// is what triggers the next render.
+async function testRenderCrash(browser, url, label) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+
+    await page.evaluate(() => {
+      window.ViewerApp.renderTopoPane = function () {
+        throw new Error("seeded render failure (test seam)");
+      };
+    });
+    await page.locator(navRow("study", "demo_strut_branch")).click();
+    await page.waitForSelector(".banner--crash", { timeout: 5000 });
+
+    const bannerText = await page.locator("#banner").textContent();
+    push("the banner shows the crash state in plain words",
+      /failed to render/.test(bannerText));
+    push("the crash banner names the exception's own message, value for value",
+      /seeded render failure \(test seam\)/.test(bannerText));
+    push("the crash banner offers the hard-reload hint",
+      /Ctrl\+Shift\+R/.test(bannerText));
+    // The seam is render()'s own try/catch, not the browser's: nothing should
+    // have escaped as an uncaught page error.
+    push("no uncaught page error escaped the seeded render crash", errors.length === 0);
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
+// --- the real-data render path: results.json included, no ?mock=1 ----------
+//
+// Deliverable 5 (viewer_error_surface_and_layout): every other check in this
+// file that claims "[real]" still boots through `?mock=1`'s adapter branch
+// (mockFixture(), topology_app.js) with `demoTopologyFixture` overridden --
+// which supplies the real topologies/crops but never `results.json`, so the
+// REAL boot()+load()+render() pipeline (the one the 2026-09-09 incident's
+// stale-cache TypeError actually broke) stayed untested. This promotes the
+// incident's own debug prototype (untracked tests/debug_topology_real_render.
+// mjs in the main checkout) into a maintained tier: swap `VA.FsaAdapter`
+// itself for a fake serving all THREE real JSONs, then boot for real, with no
+// `?mock=1` in the URL at all.
+async function testRealDataRenderPath(browser, url, label, realProjection, realResults, realCrops) {
+  if (!realProjection || !realResults) {
+    console.log(`[${label}] SKIP: topologies.json/results.json not built under ` +
+      "the target repo (fresh clone) -- build them, or pass --repo <main checkout>");
+    return { label, ok: true };
+  }
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    await page.goto(url + "/topology.html", { waitUntil: "load" });
+    await page.evaluate(() => {
+      window.__REJECTIONS__ = [];
+      window.addEventListener("unhandledrejection", (ev) => {
+        window.__REJECTIONS__.push(String((ev.reason && ev.reason.stack) || ev.reason));
+      });
+    });
+
+    await page.evaluate(({ topologies, results, crops }) => {
+      const VA = window.ViewerApp;
+      const Fake = function () {
+        return new VA.MemoryAdapter({
+          startState: VA.STATE.READY, topologies, results, crops, images: {}, texts: {},
+        });
+      };
+      Fake.isSupported = () => true;
+      VA.FsaAdapter = Fake;
+      VA.bootTopology();
+    }, { topologies: realProjection, results: realResults, crops: realCrops });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+
+    const rejections = await page.evaluate(() => window.__REJECTIONS__);
+    push("no unhandled promise rejection during the real, non-mock boot path",
+      rejections.length === 0);
+
+    for (const topology of realProjection.topologies) {
+      await page.locator(navRow("topology", topology.id)).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const expected = topology.edges.length;
+      const rowCount = await page.locator("tr.tvrow").count();
+      push(`[real, non-mock] ${topology.id} renders all ${expected} edge rows ` +
+        "through the real load()+render() pipeline", rowCount === expected);
+    }
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
+// --- served mode: the real, non-mock boot with NO folder grant at all ------
+//
+// Deliverable 4 (viewer_http_transport): everywhere else in this file, a
+// "[real]" check still boots through ?mock=1's adapter branch with the real
+// projection swapped in over VA.demoTopologyFixture — a seam the mock branch
+// provides on purpose (there is no way to grant the FSA picker from
+// Playwright). This is the one check that does NOT use that seam: it points
+// the browser at a plain repo-root static server (startRepoRootServer) and
+// loads topology.html with no query string at all, so storage/http.js's own
+// load-time probe is what has to find the data — proving the actual
+// deliverable ("zero manual steps") rather than a stand-in for it.
+async function testServedModeBoot(browser, url, label, realProjection, stopServer) {
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    // The transport probe never runs at all with ?mock=1 present (chooseAdapter
+    // short-circuits to the memory adapter) — proving it still boots under this
+    // NEW server is the one thing worth pinning here; everything else about
+    // ?mock=1 is already covered by testTheTopologyPage.
+    await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    push("?mock=1 still boots under a repo-root static server",
+      await page.locator("tr.tvrow").count() > 0);
+
+    if (!realProjection) {
+      push("[real] served, zero-step boot (skipped: topologies.json not built " +
+        "-- build it, or pass --repo <main checkout>)", true);
+    } else {
+      await page.goto(url + "/apps/viewer/topology.html", { waitUntil: "load" });
+      await page.waitForSelector('tr.tvrow, .banner--disconnected', { timeout: 15000 });
+      push("[real] the connect-folder banner never appears",
+        await page.locator(".banner--disconnected").count() === 0);
+      push("[real] the banner states the data was served, not read from a " +
+        "granted folder",
+        /Served over HTTP/.test(await page.locator("#banner").textContent()));
+      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+      push("[real] the DAG renders with ZERO manual steps",
+        await page.locator("tr.tvrow").count() > 0);
+
+      // --- the DoD demonstrations (viewer_hover_cards_and_deep_links) ------
+      // Served mode is the one place BOTH halves are fully real: the inbound
+      // deep link boots through the real HTTP transport with no test seam,
+      // and a hover card's crop image is the real PNG fetched off disk.
+
+      // A deep link opens the viewer with the named study selected.
+      await page.goto(url + "/apps/viewer/topology.html" +
+        "?topology=pitch_system&study=pitch_system_gas_spring_branch",
+        { waitUntil: "load" });
+      await page.waitForSelector("tr.tvrow--on", { timeout: 15000 });
+      push("[real] a deep link opens the named study selected, over the real " +
+        "served transport",
+        /pitch_system_gas_spring_branch/
+          .test(await page.locator("#totals").textContent()) &&
+        await page.locator(".chip--total").count() === 5);
+
+      // Edge hover on a pitch_system edge with a crop: the edge card, with
+      // the REAL crop PNG rendered. pitch_system's croppable edges live in
+      // crops.json's by_topology space — the space this handoff wired in.
+      await page.waitForSelector("img.tvthumb", { timeout: 15000 });
+      const keyedRow = await page.evaluate(() => {
+        const img = document.querySelector("tr.tvrow img.tvthumb");
+        let row = img;
+        while (row && row.tagName !== "TR") row = row.parentElement;
+        return row ? row.getAttribute("data-id") : null;
+      });
+      push("[real] a pitch_system crop renders as an inline thumbnail at all",
+        !!keyedRow);
+      if (keyedRow) {
+        await page.locator(
+          `tr.tvrow[data-id='${keyedRow}'] button.crop-trigger`).hover();
+        await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 15000 });
+        const cardText = await page.locator(".croppop").textContent();
+        push("[real] hovering the edge shows the crop card with the real image " +
+          "and the topology-space claim",
+          await page.locator(".hovercard--edge img.croppop__img").count() === 1 &&
+          /authored in topology `pitch_system`/.test(cardText));
+        await page.keyboard.press("Escape");
+      }
+
+      // A citation card from a REAL spec citation: the L1 fastener grip's
+      // NAS6403 spec, hover on its row's confidence chip.
+      await page.locator(
+        "[data-nav-kind='topology'][data-nav-id='vpa_output_to_pitch_plate']").click();
+      await page.waitForSelector("tr.tvrow[data-id='fastener_grip']", { timeout: 15000 });
+      await page.locator("tr.tvrow[data-id='fastener_grip'] span.cardtrig").hover();
+      await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 15000 });
+      const specCard = await page.locator(".croppop").textContent();
+      push("[real] a citation card renders from a real spec citation",
+        /NAS6403/.test(specCard));
+      push("[real] the spec-sheet card shows the real crop of the spec page",
+        await page.locator(".hovercard--citation img.croppop__img").count() === 1);
+      await page.keyboard.press("Escape");
+
+      // Deliverable 3 (viewer_http_transport): a mid-session server stop must
+      // produce the banner error, not a blank page — the render() seam
+      // viewer_error_surface_and_layout built catches a throw from anywhere
+      // inside paint(); this proves the READ that feeds it (storage/http.js's
+      // _readProjection) actually rejects instead of quietly reading a
+      // network failure as "not built yet". Last use of this server, so this
+      // test owns closing it.
+      if (stopServer) {
+        await stopServer();
+        await page.locator(".banner__action").click();
+        await page.waitForSelector(".banner__error", { timeout: 5000 });
+        push("[real] a mid-session server stop surfaces the banner error on Reload",
+          (await page.locator(".banner__error").textContent()).length > 0);
+        push("[real] the DAG pane keeps its last-good rows rather than going blank",
+          await page.locator("tr.tvrow").count() > 0);
+      }
+    }
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
+// --- the annotator flyout (study_3d_flyout) ---------------------------------
+//
+// What only a real browser can prove about it:
+//   1. The boot-time mount probe really upgrades the affordances: under a
+//      repo-root server (../annotate/ IS served beside the viewer) the study
+//      toolbar shows the View-in-3D button and an untraced edge's pane shows
+//      the attach-to-3D button; under file:// both stay the pre-flyout links.
+//   2. Opening the flyout moves NOTHING: the DAG pane's box is measured before
+//      and after -- the position:fixed <dialog> claim is a layout claim, and
+//      only a layout engine can check it.
+//   3. The iframe really boots the annotate app same-origin (its banner
+//      renders), and the `trace` deep-link boot really executes end to end
+//      over ?mock=1 -- WebGL scene, ghost + mark-face handlers, the published
+//      window.__lastTrace summary (the autotest convention).
+async function testAnnotateFlyout(browser, fileBase) {
+  const label = "annotate flyout (repo-root mount + file:// degradation)";
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    // --- mounted: the sibling annotate app is served beside the viewer ------
+    await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForSelector("#study-3d", { timeout: 15000 });
+    push("the probe upgrades the study affordance to the View-in-3D button",
+      await page.locator("#study-3d").count() === 1 &&
+      await page.locator("#toolbar a").count() === 0);
+
+    const paneBefore = await page.locator("#topopane").boundingBox();
+    await page.locator("#study-3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    push("clicking it opens the flyout dialog non-modally",
+      await page.locator("#annotate-flyout").evaluate((n) => n.open));
+    const frameSrc = await page.locator("#annotate-flyout iframe")
+      .getAttribute("src");
+    push("the flyout iframe boots the annotator with the trace params",
+      /annotate\/index\.html\?/.test(frameSrc || "") &&
+      /trace=1/.test(frameSrc) && /topology=demo_mechanism/.test(frameSrc) &&
+      /study=demo_base_to_tip/.test(frameSrc));
+    const paneAfter = await page.locator("#topopane").boundingBox();
+    push("opening the flyout moves the DAG pane by nothing at all",
+      paneBefore && paneAfter &&
+      paneBefore.x === paneAfter.x && paneBefore.y === paneAfter.y &&
+      paneBefore.width === paneAfter.width && paneBefore.height === paneAfter.height);
+
+    // The iframe is the real annotate app, same-origin, no mock: it boots to
+    // its own pre-connect banner (FSA cannot be granted from Playwright), and
+    // the deep-link queue note proves the trace params were understood.
+    const flyoutBanner = page.frameLocator("#annotate-flyout iframe").locator("#banner");
+    await flyoutBanner.waitFor({ state: "visible", timeout: 15000 });
+    const bannerText = await flyoutBanner.textContent();
+    push("the embedded annotator boots to an honest pre-connect state",
+      /Connect folder|File System Access/.test(bannerText || ""));
+
+    await page.locator("#flyout-close").click();
+    push("the close button closes the flyout",
+      !(await page.locator("#annotate-flyout").evaluate((n) => n.open)));
+
+    // An untraced edge's pane: the attach-to-3D button. The open flyout sits
+    // OVER the detail pane (deliberate -- while open, the annotator's own
+    // element detail supersedes it), so the real gesture is: close, pick the
+    // edge, attach -- and the same panel (same iframe, its grant and meshes
+    // intact) flies back out.
+    await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] .tvcell--name").click();
+    await page.waitForSelector("button.detail__annotate-btn", { timeout: 5000 });
+    push("an untraced edge's pane offers attach-to-3D, not the link",
+      await page.locator("button.detail__annotate-btn").count() === 1 &&
+      await page.locator("a.detail__annotate-link").count() === 0);
+    await page.locator("button.detail__annotate-btn").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    push("attach-to-3D re-drives the one panel -- still one iframe, reopened",
+      await page.locator("#annotate-flyout iframe").count() === 1 &&
+      await page.locator("#annotate-flyout").evaluate((n) => n.open));
+
+    // --- the trace boot itself, end to end over the annotate mock fixture ---
+    await page.goto(url + "/apps/annotate/index.html?mock=1&trace=1" +
+      "&topology=demo_system&study=demo_study", { waitUntil: "load" });
+    await page.waitForFunction(() => window.__lastTrace !== undefined, null,
+      { timeout: 15000 });
+    const trace = await page.evaluate(() => window.__lastTrace);
+    const demoSha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
+    push("trace ghosts the study's one installed part",
+      trace.ghosted.length === 1 && trace.ghosted[0] === demoSha);
+    push("trace marks the bound face, and only it",
+      trace.marks.length === 1 && trace.marks[0].edgeId === "demo_edge_untraced" &&
+      trace.marks[0].faceId === 0);
+    push("trace reports the missing mesh and the unbound edges honestly",
+      trace.missingParts.length === 1 && trace.missingParts[0] === "no_such_part" &&
+      trace.unboundEdges.length === 2);
+    push("the banner narrates the trace in plain words",
+      /Traced .*1 part\(s\) ghosted, 1 bound face\(s\) marked/.test(
+        await page.locator("#banner").textContent()));
+
+    // --- degraded: file:// has no origin to share ----------------------------
+    await page.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForTimeout(300); // the probe resolves false immediately; give render a beat
+    push("under file:// the study affordance stays the pre-flyout link",
+      await page.locator("#study-3d").count() === 0 &&
+      await page.locator("#toolbar a").count() === 1);
+    await page.locator("tr.tvrow[data-id='arm_pin_to_tip'] .tvcell--name").click();
+    await page.waitForSelector("a.detail__annotate-link", { timeout: 5000 });
+    push("under file:// the edge pane keeps the annotate-this link",
+      await page.locator("a.detail__annotate-link").count() === 1 &&
+      await page.locator("button.detail__annotate-btn").count() === 0);
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+// --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) ----
+//
+// The URL params documented in apps/viewer/README.md, driven through a REAL
+// navigation — the thing the fast tier's resolveDeepLink tests cannot do is
+// prove that boot() actually reads location.search and that the selection
+// lands on screen. Over ?mock=1 so it runs with no data built; the served-mode
+// suite drives the same contract against the real projection with no seam.
+async function testDeepLinks(browser, url, label) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    // A topology + study link: the study is selected — its chain marked, its
+    // totals in the strip — exactly as if the nav row had been clicked.
+    await page.goto(url +
+      "/topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip",
+      { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow--on", { timeout: 15000 });
+    push("a topology+study link opens with the study selected",
+      /demo_base_to_tip/.test(await page.locator("#totals").textContent()) &&
+      await page.locator(".chip--total").count() === 5);
+    push("the nav marks the linked study current",
+      await page.locator(
+        "[data-nav-kind='study'][data-nav-id='demo_base_to_tip'].navtree__row--on")
+        .count() === 1);
+
+    // An edge link: the detail pane opens on that edge.
+    await page.goto(url +
+      "/topology.html?mock=1&topology=demo_mechanism&edge=base_thickness",
+      { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow--selected", { timeout: 15000 });
+    push("an edge link opens with the edge selected in the pane",
+      /base plate thickness/.test(await page.locator("#detail").textContent()) &&
+      await page.locator("tr.tvrow--selected").count() === 1);
+
+    // A stack + element link: the classic table, the element selected — the
+    // exact shape drawing-checker's analyses panel consumes.
+    await page.goto(url +
+      "/topology.html?mock=1&stack=demo_joint_standalone&element=plate",
+      { waitUntil: "load" });
+    await page.waitForSelector("tr.el-row--selected", { timeout: 15000 });
+    push("a stack+element link opens the classic view with the row selected",
+      await page.locator("tr.el-row--selected").count() === 1 &&
+      /plate thickness/.test(await page.locator("#detail").textContent()));
+
+    // An id the data does not contain: the default renders and the banner
+    // says what the link asked for — never a crash, never a silent guess.
+    await page.goto(url + "/topology.html?mock=1&topology=nope",
+      { waitUntil: "load" });
+    await page.waitForSelector(".banner__notice", { timeout: 15000 });
+    push("an unresolvable link id becomes a banner notice over the default view",
+      /topology `nope`/.test(await page.locator(".banner__notice").textContent()) &&
+      await page.locator("tr.tvrow").count() > 0);
+    push("a mistyped link never raises the needs-a-rebuild alarm",
+      await page.locator(".banner__stale").count() === 0);
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
@@ -762,6 +1704,16 @@ async function testIndexRedirects(browser, url, label) {
   const baseUrl = `http://127.0.0.1:${port}`;
   const fileBase = pathToFileURL(join(APP_DIR, "x")).href.replace(/\/x$/, "");
 
+  const repoRootServer = await startRepoRootServer();
+  const repoRootBaseUrl = `http://127.0.0.1:${repoRootServer.address().port}`;
+  let repoRootServerClosed = false;
+  const stopRepoRootServer = () => new Promise((resolve) => {
+    if (repoRootServerClosed) { resolve(); return; }
+    repoRootServerClosed = true;
+    repoRootServer.closeAllConnections();
+    repoRootServer.close(() => resolve());
+  });
+
   let browser, channel;
   try {
     ({ browser, channel } = await launch());
@@ -777,6 +1729,7 @@ async function testIndexRedirects(browser, url, label) {
 
     const topologies = await readProjection("topologies.json");
     const crops = await readProjection("crops.json");
+    const realResults = await readProjection("results.json");
     if (!topologies) {
       console.log(`
 note: no topologies.json under ${DATA_REPO} — the topology ` +
@@ -786,7 +1739,17 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       browser, fileBase, "topology file://", topologies, crops));
     results.push(await testTheTopologyPage(
       browser, baseUrl, "topology http", topologies, crops));
+    results.push(await testDeepLinks(browser, fileBase, "deep links file://"));
+    results.push(await testDeepLinks(browser, baseUrl, "deep links http"));
     results.push(await testHeightBudget(browser, fileBase, "topology height budget", topologies, crops));
+    results.push(await testRenderCrash(browser, fileBase, "render crash shows the banner"));
+    results.push(await testRealDataRenderPath(
+      browser, fileBase, "real render path (non-mock)", topologies, realResults, crops));
+    results.push(await testServedModeBoot(
+      browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
+      stopRepoRootServer));
+    results.push(await testRebuildAffordance(browser));
+    results.push(await testAnnotateFlyout(browser, fileBase));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);
@@ -800,5 +1763,6 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
   } finally {
     if (browser) await browser.close();
     server.close();
+    if (!repoRootServerClosed) repoRootServer.close();
   }
 })();

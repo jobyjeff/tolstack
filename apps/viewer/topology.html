@@ -49,10 +49,16 @@
       <button id="legend-close" class="ghost">Close</button>
     </div>
     <ul>
-      <li><b>One row per graph element</b>, nodes and edges interleaved: a
-        <b>dot</b> is an interface, a <b>bar</b> is the dimension between two of
-        them. Every id in the document has exactly one row and one mark, and the
-        two share a y by construction.</li>
+      <li><b>A dot is an interface, a bar is the dimension between two of
+        them.</b> The grid beside the diagram holds one row per <b>dimension</b>,
+        in the same walk order, grouped into components: the merged left cell
+        spans each part's own rows.</li>
+      <li><b>A leader line is a part boundary.</b> Each jogged line runs from an
+        interface's dot to the seam between the two grid rows it separates — and
+        it is only drawn where the dimensions meeting at that interface belong
+        to different parts (or a clearance). An interface inside one part
+        (several tolerances on one feature) gets no leader, which is what makes
+        component membership visible at a glance.</li>
       <li><b>A column is a branch, not a part.</b> The walk is depth-first from
         the document's first node; a branch keeps its column until it rejoins or
         ends, which is why a fork fans out sideways and a grounded loop closes
@@ -66,7 +72,16 @@
         crosses between lanes and has no rail of its own. A <b>DERIVED</b> gap
         carries no value at all: it is the quantity a study computes, and a study
         that puts it in its selection is refused.</li>
-      <li><b>⑂ marks a branch point.</b> A study reaching one with two unconsumed
+      <li><b>Bar lengths are indicative, never measured.</b> The toolbar's
+        length setting draws every bar the same (uniform, the default), or
+        stretches each in proportion to its tolerance band or its nominal size.
+        In the scaled modes every bar keeps a minimum clickable length, and one
+        drawn at that floor wears a small break mark across it: read the break
+        as "too small — or unstated — to show to scale", never as a measured
+        proportion. The grid's rows never move; only the diagram stretches, and
+        the leader lines absorb the difference.</li>
+      <li><b>An accent-ringed dot marks a branch point.</b> A study reaching one
+        with two unconsumed
         selected edges raises <code>BranchAmbiguity</code> and names both. Which
         parallel path binds is a mechanics question this tool does not answer and
         must not learn to — see <code>docs/DAG_TOPOLOGY.md</code>, "Not a
@@ -77,6 +92,22 @@
         out of <code>tolerance_stack.topology.summarize()</code> →
         <code>fold()</code>. Nothing on this page is added up in JavaScript.</li>
     </ul>
+  </dialog>
+
+  <!-- The annotator flyout (study_3d_flyout): a NON-modal <dialog> pinned to
+       the viewport's right edge -- position: fixed, so opening it structurally
+       cannot shrink the DAG pane (the same family as the two dialogs below),
+       while the page beside it stays clickable. Its iframe is created lazily
+       by topology_app.js on the first launch and kept across launches (the
+       annotator's folder grant, loaded meshes and camera survive); it only
+       ever renders where the same-origin probe found ../annotate/ served
+       beside this page -- everywhere else the pre-flyout links remain and
+       this element stays closed and empty. -->
+  <dialog id="annotate-flyout" class="flyout">
+    <div class="flyout__head">
+      <h2>3D — annotate</h2>
+      <button id="flyout-close" class="ghost">Close</button>
+    </div>
   </dialog>
 
   <!-- The worksheet, moved into a dialog (deliverable 2) so opening it can
@@ -108,11 +139,13 @@
   <script src="./storage/adapter.js"></script>
   <script src="./storage/memory.js"></script>
   <script src="./storage/fsa.js"></script>
+  <script src="./storage/http.js"></script>
   <script src="./views/dom.js"></script>
   <script src="./views/banner.js"></script>
   <script src="./views/nav.js"></script>
   <script src="./views/stack.js"></script>
   <script src="./views/crop.js"></script>
+  <script src="./views/cards.js"></script>
   <script src="./views/worksheet.js"></script>
   <script src="./views/detail.js"></script>
   <script src="./views/topology.js"></script>

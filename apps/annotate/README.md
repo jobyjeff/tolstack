@@ -93,6 +93,9 @@ tool calls would take.
 | `show <part>` | same as `open-part` — a part never opened is opened and shown |
 | `hide <part>` | hides an open part (`.visible = false`; not unloaded, so re-showing is instant) |
 | `isolate <part…>` | shows only the named part(s), hiding every other open part; opens any not yet loaded; frames the camera on them |
+| `ghost <part…>` | `isolate`'s translucent twin (handoff `study_3d_flyout`): shows only the named part(s), rendered ghosted, so opaque `mark-face` overlays trace a chain over them |
+| `mark-face <part> <face_id>` | renders one face as an opaque overlay — additive (a trace marks several), and unlike `select-face` it never touches the pick state |
+| `trace <topology> <study>` | the per-study 3D view: selects both, ghosts the study's parts (those with installed meshes after alias resolution), and marks every feature-identity-bound face opaque. Missing meshes and unbound edges degrade to the honest absent states, reported in the banner |
 | `camera reset` | frames every currently-visible open part |
 | `camera frame <part…>` | frames the named part(s) (or the visible ones, with no args) |
 | `select-face <part> <face_id>` | picks a face by id — the non-mouse equivalent of clicking it |
@@ -118,19 +121,46 @@ named part with no installed mesh is reported in the banner (and, if
 *nothing* named resolved, as a plain-words message over the 3D pane itself —
 never a blank scene) rather than silently doing nothing.
 
+`?trace=1&topology=<id>&study=<id>` boots the **per-study 3D trace** instead
+(the `trace` verb, handoff `study_3d_flyout`): the study's parts ghosted,
+its bound faces opaque. `trace` owns the whole scene state, so the
+`edge`/`isolate` params are not also applied on top of it.
+
 **FSA cannot pre-grant the folder from a URL.** A deep link opened cold has
 no folder access yet — the banner says so ("a linked element is queued"),
 and the boot commands replay only after you click **Connect folder**.
+
+## Flyout embedding (`apps/viewer/`'s side panel)
+
+Since handoff `study_3d_flyout`, the stack viewer embeds this app as a
+**same-origin iframe flyout** — the canonical serving surface is
+drawing-checker's mounts (`/tolstack/annotate/` beside `/tolstack/viewer/`),
+where the two apps are siblings and the viewer's relative links resolve. The
+first open boots through the deep-link params above; every later launch posts
+`{type: "annotate:exec", id?, command}` (a command string or token array for
+`AA.exec`) instead of reloading, so the folder grant, loaded meshes and
+camera survive across launches. Replies are
+`{type: "annotate:result", id, ok, result|error}`; messages from any other
+origin are ignored, and commands arriving before the storage connects queue
+behind it — the deep link's own "queued until you connect" semantics. The
+viewer probes for this mount and degrades to its plain "Annotate →" links
+(new tab) where the probe fails; nothing on this app's side changes
+off-origin.
 
 `apps/viewer/`'s topology-mode detail pane emits this link (`annotate this
 →`) on any edge whose confidence is `UNTRACED` or `NO CITATION`, naming its
 `part` field as `isolate` — see `apps/viewer/README.md`'s own section on it.
 That `part` is the topology's own vocabulary (e.g. `gas_spring_mount_213668_
 002`), a different namespace than a mesh's `provenance.json` `part_id` (e.g.
-`machined_213668`); nothing in this repo maps one to the other yet, so most
-links will not find an installed mesh to isolate today — the empty state
-naming what's missing is the intended, honest result, not a bug, until that
-mapping exists (or until meshes are tessellated and named to match).
+`machined_213668`). The tracked alias table
+`docs/topologies/part_mesh_aliases.json` is the one sanctioned bridge between
+the two (handoff `mesh_part_alias_table`; `data/meshes/README.md` carries the
+install-time rule — alias, never rename): `resolveMeshIdentifier` consults it
+after a direct sha256/`part_id` match misses, exact-match only, never fuzzy.
+Every entry declares its evidence — a pair whose identity cannot be evidenced
+stays unmapped, so a link naming an unmapped or uninstalled part still lands
+on the empty state naming what's missing: the intended, honest result, not a
+bug.
 
 ## Why `data/inbox/feature-identity/` is gitignored, unlike the spec library
 
@@ -199,10 +229,17 @@ derivation including the staleness-flip case, event construction and its
 validation), `commands.js` (the tokenizer, `CommandLayer.exec` dispatching a
 string or an already-tokenized array to its handler and throwing a
 known-verbs-naming error for an unknown one, `resolveMeshIdentifier`'s
-sha256/part_id match, and `planIsolate`'s open/show/hide state transition)
-and `storage/memory.js` (a write is captured; a second write to the same
-filename refuses, append-only; `canWrite() === false` refuses a write instead
-of silently no-op'ing). `tests/test_annotate_js_vocabulary.py`
+sha256/part_id/alias resolution precedence — direct match wins, the alias
+table is consulted second, exact-match only — and `planIsolate`'s
+open/show/hide state transition) and `storage/memory.js` (a write is
+captured; a second write to the same filename refuses, append-only;
+`canWrite() === false` refuses a write instead of silently no-op'ing). It
+also carries a `[real]` tier that resolves every shipped alias in
+`docs/topologies/part_mesh_aliases.json` against the main checkout's
+installed meshes through `resolveMeshIdentifier` itself, skipping honestly
+where `data/meshes/` is absent; `tests/test_part_mesh_aliases.py` owns the
+table's own shape and its two vocabulary pairings.
+`tests/test_annotate_js_vocabulary.py`
 (pytest, not the node harness) pairs `binding_state.js`'s five hand-copied
 vocabulary arrays (`STACK_KEY_KINDS`, `VERDICTS`, `DIRECTIONS`, `PATH_KINDS`,
 `GDT_MODIFIERS`) against `tolerance_stack/feature_identity.py`'s own

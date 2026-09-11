@@ -8,6 +8,12 @@ handoff: docs/sessions/HANDOFF_20260909_croppable_rule_shared_predicate.md
 resolution: handoff completed 2026-09-09 -- closed automatically by dispatch when handoff `croppable_rule_shared_predicate` moved to completed/; not independently verified.
 ---
 
+**Resolved 2026-09-09** by handoff `croppable_rule_shared_predicate`
+(`bb729d5`): `build_viewer_crops.croppable()` is now the one function
+`resolve_pdf`'s rule 1/2 and `build_topology_projection.py`'s `_croppable`
+call site both use. See
+`docs/sessions/lessons/LESSONS_20260909_croppable_rule_shared_predicate.md`.
+
 # `_croppable()`'s two rules are a hand-restatement of `resolve_pdf`'s rule 1/2, with nothing pairing them
 
 Handoff `inline_edge_crops` (2026-09-08) added

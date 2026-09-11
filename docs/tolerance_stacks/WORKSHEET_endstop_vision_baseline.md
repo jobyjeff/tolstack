@@ -1445,3 +1445,222 @@ drawing"), a snapshot brackets an *interaction* — with none, none was taken.
   session's new study or edge) — the brake session will need the same
   discipline, doubled, since it has two components' conventions to keep
   straight rather than one.
+
+---
+
+## 11. Re-trace against the four remaining piece-part drawings + two bearing spec sheets, 2026-09-10
+
+Handoff `endstop_piece_part_acquisition`, branch cut from `integration`. Source:
+`docs/issues/ISSUE_20260906_endstop_piece_part_acquisition.md`, carrying forward
+§8d's acquisition list. Jeff dropped four drawings into drawing-checker's
+`data/inbox/drawings/` (`213863-004-A.pdf`, `214723-002-A.pdf`, and a
+two-sheet `215198-A.pdf` covering both `-001`/`-002` as a mirrored pair on one
+drawing number — noted by Jeff when asked, and confirmed on sheet 1's own
+note 5: "FOR COMPLETE PRODUCT DEFINITION THIS DRAWING SHALL BE USED WITH MODEL
+215198-001 AND (MIRROR COMPONENT) 215198-002"). The two MS14101/MS14103 spec
+sheets did **not** arrive as standalone files — per Jeff, they are catalog
+sections inside an RBC aerospace plain-bearings catalog already in the pile
+(`RBC_Aerospace_Plain_Bearings_Web.pdf`), not separate MS spec sheets. This
+section re-scores the ten worksheet rows the handoff named across those
+documents (§8b's `pitch_link_length`/`tan_link_length` "owner refined" rows
+31/52/42/45/59/62, and the untouched spherical-bearing rows 34/36/50/54/56).
+
+**Documents newly read, with the revision actually seen:**
+
+| document | revision | path |
+|---|---|---|
+| PITCH ANTI ROTATION LINK, PROPELLER (piece part) | A | `213863-004-A.pdf` |
+| BUSHING, SEALED, TANGENTIAL LINK | A | `214723-002-A.pdf` |
+| MOUNT, TANGENTIAL LINK, PROPELLER (`-001` CW / `-002` CCW, mirrored) | A | `215198-A.pdf` (2 sheets) |
+| RBC Aerospace Plain Bearings catalog, MS14101/MS14104 (narrow) + MS14102/MS14103 (wide) sections | ©2008 | `data/inbox/specs/RBC_Aerospace_Plain_Bearings_Web.pdf` pp.21-22 |
+
+### 11a. `pitch_link_length` / `tan_link_length` (rows 31, 52) — mismatch, and the topology's own nominal disagrees with the drawing
+
+`213863-004-A.pdf` is a two-hole link (the same piece §8a already reasoned
+about via `212956-005-A`'s parts list). Its two bores are `⌀14.288 ±0.006`
+(position `⌖⌀0.1` referenced **solely** to datum B (the right hole's own
+axis), while this same feature separately carries its own datum-feature flag,
+**C** — two different boxes in the FCF stack, confirmed at Matrix(14), not a
+self-reference) and `⌀15.876 ±0.006` (perpendicularity
+`⊥⌀0.05 A`; this hole is datum feature **B**). The hole-center distance is a
+**boxed (basic) dimension, `61.40` mm**, controlled entirely by the left
+hole's `⌀0.1` true-position callout to datum B (the right hole's own axis) —
+there is no printed ± on `61.40` itself, and none is needed: a single-datum
+cylindrical position tolerance of diameter 0.1 mm bounds the worst-case linear
+deviation from the basic distance, in any one direction, to its radius
+(±0.05 mm), giving a worst-case **total band of 0.10 mm** — numerically equal
+to the stated position diameter, which is not a coincidence (see the reasoning
+above: the diametral tolerance zone's radius IS the per-direction bound).
+0.10 mm vs the workbook's 0.06 mm for both rows 31 and 52 (§8b already scored
+both rows against the same owner) is a genuine **mismatch**, not a reading
+error — identity is solid: `213863-004`'s SECTION A-A carries a `(81.43)`
+parenthesized reference length, the **exact** figure `212956-005-A`'s own
+assembly view carries as its one reference dimension (§8's F-series
+identification method: an exact, non-round shared number between two
+independently-drawn documents, one BOM level apart, is not a coincidence).
+
+**F12 — new — the topology's own recorded nominal for `pitch_link_length`
+(109.4 mm, `docs/topologies/topology_pitch_system.json`'s `properties.
+nominal_length_mm`) does not match this drawing's actual hole-center basic
+dimension (61.40 mm).** Both numbers cannot describe the same physical
+distance. Two readings are possible and this session does not pick between
+them: either the topology's 109.4 mm nominal is a workbook figure that this
+drawing (the correct owner, per the `(81.43)` identity link) now supersedes
+as a finding — the same shape as F8/F9's size disagreements, just on a
+nominal instead of a band — or `pitch_link_length` and `tan_link_length` name
+two different physical links in the real mechanism and only one of them is
+`213863-004`, in which case §8b's "one physical anti-rotation-link part,
+reused" reading (2026-09-04 lesson) needs revisiting. **Jeff question**, not
+resolved by fiat, in the same discipline as F4/F5/F10.
+
+**Disposition: rows 31 and 52 move from "still blocked (owner refined)" to
+`mismatch`** — the owning document is in hand, a value was read from it (via
+a position-tolerance-to-linear-band conversion, spelled out above rather than
+asserted), and it disagrees with the workbook.
+
+### 11b. `tan_link_mount_height` (row 42) — traced
+
+`215198-A.pdf` sheet 1's side view (SECTION A-A's parent view) carries a
+linear dimension **`79.00 ±0.10`** spanning the full axial height of the
+ring-shaped mount, top face to bottom face — a plain, no-basic-box, directly
+toleranced overall height, not a derived one. Band 0.20 mm = **exact match**
+to the workbook's GT for row 42, and the nominal is an **exact match** to
+`215175-A`'s own parenthesized `(79.00)` reference (§8b row 42) — the same
+number the assembly sheet could only state as a non-toleranced reference now
+appears, toleranced, on the actual piece-part owner. Scored `traced`, not
+merely `candidate`: unlike the position-tolerance-derived band in §11a, this
+is a single directly-printed ± dimension on the correct owner, with both its
+value and its nominal independently confirmed. The one assumption this
+reading carries and states plainly: the drawing does not label either end
+face "gas spring seat" or "hub seat" by name, and this session read the
+dimension as spanning the two mounting planes visible in the section (top and
+bottom of a two-seat machined ring, with no third face candidate on the
+sheet) — the same class of feature-identification judgment §8a's mating-pin
+method already established as legitimate for this repo, applied here to a
+single-part envelope rather than a cross-part pin.
+
+### 11c. `hub_top_deck_to_tan_link_mount_seat` (row 45) — still blocked, but the blocker moved
+
+`topology_pitch_system.json`'s own `hub_top_deck_to_tan_link_mount_seat` edge
+runs `hub_top_deck` → `hub_tan_link_mount_seat` — both endpoints are on the
+**hub**, not on the tangential-link-mount part at all. §8b's "spans two
+owners" framing described the workbook's conceptual chain, not this edge's
+actual two nodes. Acquiring `215198` does not touch this edge's blocker:
+what was always missing is a hub-side dimension from the top deck specifically
+to the seat where the mount sits, and the hub's own candidate features for
+that seat (rows 43/44, `212966-006-A`) are still `candidate` — a real callout
+in reach, feature identity not established (§3/§9) — exactly as before this
+session. **Disposition unchanged (`still blocked`), reasoning refined**: the
+acquisition half of this row's gap is closed (the mount's own height is now
+`traced`, §11b), but the row was never actually blocked on the mount's
+acquisition — it is blocked on the hub-side identity question §9 already
+lists, which this session's documents do not bear on.
+
+### 11d. `tan_link_mount_size, mount feature` (row 59) — candidate
+
+`215198-A.pdf` sheet 2 carries **`DETAIL B: TANGENTIAL LINK MOUNT FEATURES,
+3 PLACES`** — a real, in-hand, plausibly-matching feature (the name is a
+near-verbatim match to the row's own description) with several candidate
+SIZE dimensions at that detail: `⌀12.290 ±0.010` (band 0.020 mm, position
+`⌀0.2 A B` individually), `⌀13.1 ±0.1` (band 0.2 mm, a chamfer/counterbore),
+`⌀9.000 +0.015/0.000` (band 0.015 mm, position `⌀0.2 A B` individually),
+`6.37 ±0.08` and `9.88 ±0.08` (band 0.16 mm each, envelope widths). None
+equals the workbook's 0.06 mm band, and nothing on the sheet labels which of
+these is "the" mount-feature size a stack row would cite — the same shape of
+ambiguity §3 already scored `candidate` for row 58 (the mating hub-side
+feature), mirrored here on the mount side. Scored `candidate`, not `mismatch`:
+a mismatch needs one identified feature to disagree with, and this detail
+offers several plausible ones with no way to choose among them from the sheet
+alone.
+
+### 11e. `pitch_plate_flange_to_gas_spring_bushing` (row 62) — still blocked; the 2026-09-04 hypothesis gains counter-evidence
+
+`214723-002-A.pdf` (BUSHING, SEALED, TANGENTIAL LINK) was read in full. Its
+own features are all tightly toleranced relative to itself (`⌀12.320 ±0.015`,
+`⌀12.25 ±0.02`, `⌀9.50 ±0.02`, `⌀4.830 ±0.015`, with `⌖⌀0.03 A B` /
+`⌖⌀0.03Ⓜ A B` position frames) — nothing near the workbook's 0.20 mm band for
+a "position" quantity, and nothing that reads as a dimension **from** a
+gas-spring-side feature (the bushing's own datums are all local to itself).
+More significantly: this bushing's outer bore, `⌀12.320 ±0.015`, sits within
+0.03 mm of `215198`'s own DETAIL B housing bore, `⌀12.290 ±0.010` (§11d) — a
+plausible press-fit pair, exactly the size relationship a "sealed bushing"
+pressed into its housing's clevis feature would have. That points this
+bushing at the **tangential-link attachment lug** (where the anti-rotation
+link's own pin passes through the mount, §11d), not at any gas-spring
+interface — **counter-evidence** to the 2026-09-04 hypothesis that named
+`214723-002` as row 62's owner (that session flagged it as a hypothesis, not
+a confirmed identity, precisely so a later session could revisit it). Not
+asserted as a refutation either — the housing-bore proximity is circumstantial,
+not a cross-referenced exact match the way §8a's `.1900 BORE ID` pairing was —
+but it is new information that weakens rather than strengthens the existing
+guess, and the honest move is to record that rather than silently keep scoring
+the row against a hypothesis this session's own reading undercuts.
+**Disposition: still `still blocked`**, hypothesis now flagged as
+under-supported rather than merely unconfirmed.
+
+### 11f. Rows 34, 36, 50, 54, 56 (spherical bearing size) — traced
+
+`RBC_Aerospace_Plain_Bearings_Web.pdf` pp.21-22 (a clean, born-digital
+catalog — no OCR ambiguity, unlike `NAS1151-1158`) carries the DIMENSIONS —
+TOLERANCES tables for MS14101/MS14104 (narrow) and MS14102/MS14103 (wide).
+Both tables' bore column (`B`) tolerance is printed **once**, in the header
+row above the dash-number rows, and applies to every dash: **`+.0000 in /
+-.0005 in` = `+.000 mm / -.013 mm`**. Dash `-3` of each (per `212956-005-A`'s
+own parts list, §8a) reads `.1900 in / 4.826 mm` bore on both tables. A
+unilateral band, total width **0.013 mm — an exact match** to the workbook's
+GT for all five rows. `spec-parse/v0` event 0006 records this (family entries
+for the header-level convention, `MS14101-3`/`MS14103-3` part-number entries
+for the dash-specific bore, OD, width and race-min values). Because both
+dash numbers share an identical bore tolerance, which of the five named rows
+("bearing 1"/"bearing 2", pitch-link vs. tan-link) maps to which specific dash
+does not change the outcome — all five score the same 0.013 mm band, so this
+session did not need to resolve that mapping to close the rows. **Disposition:
+all five rows move from "still blocked" to `traced`.**
+
+### 11g. Traced-ratio accounting
+
+Not a stack (§0's banner, unchanged): `debug_report_tolerance_stacks.py
+--ratio`, run fresh this session, is **identical before and after**
+(no `stack_*.json` touched) — 5/26 seeded, 30/59 all stacks, same as §8f
+recorded 2026-09-04:
+
+```
+seeded (slice 1, 3 stacks)   5 traced / 3 inferred / 18 untraced, out of 26 element instances
+all stacks                   30 traced / 9 inferred / 20 untraced, out of 59 element instances
+```
+
+This worksheet's own internal count moves:
+
+| outcome | §8f (2026-09-04) | **§11g (2026-09-10)** |
+|---|---:|---:|
+| `traced` | 5 | **11** (+42, +34, +36, +50, +54, +56) |
+| `convention-traced` | 1 | 1 |
+| `mismatch` | 10 | **12** (+31, +52) |
+| `candidate` | 10 | **11** (+59) |
+| `gap`, correctly recorded | 17 | **8** (−9 moved above; 45 and 62 stay, refined) |
+| **total** | 43 | 43 |
+
+**Located** (`traced`+`convention-traced`+`mismatch`+`candidate`) moves from
+26/43 (60%) to **35/43 (81%)**. `traced` alone moves from 5/43 (12%) to
+**11/43 (26%)**, from **6 distinct callouts** (the prior 3, plus `215198`'s
+`79.00 ±0.10`, plus `MS14101-3`'s and `MS14103-3`'s bore tables).
+
+### 11h. Drawing-checker read-only invariant
+
+`scripts/snapshot_drawing_checker.py`, taken before this session opened
+anything and again after every render in this section:
+
+| | entries | timestamp (UTC) |
+|---|---:|---|
+| before | 5910 | 2026-09-10T22:23:10Z |
+
+Every file this session opened (`213863-004-A.pdf`, `214723-002-A.pdf`,
+`215198-A.pdf`, plus the two RBC catalog pages under this repo's own
+`data/inbox/specs/`) was already present in drawing-checker's `data/inbox/
+drawings/` before this session's own `before` snapshot was taken (Jeff dropped
+them in immediately after being asked, ahead of this session reading anything)
+— so this snapshot pair brackets this session's *reading*, not the files'
+arrival, per the same invariant §8g/§10e apply. Every rendered crop went to
+this session's own scratchpad directory, never into drawing-checker's tree.
+The closing snapshot and diff are recorded in this session's lesson file,
+per that file's own convention of owning the before/after pair.

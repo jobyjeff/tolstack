@@ -493,6 +493,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       line is checkout-specific**, and a lesson quoting one without saying which
       checkout produced it is quoting a number the shipping tree does not
       report. When you re-derive a suite count, say where you ran it.
+      **Third sighting (`topology_projection_emits_study_checks`,
+      2026-09-09), a new variant — a transient FALSE positive from a
+      concurrently-running sibling session, not a real defect:** running
+      `pytest -q` in the main checkout mid-review reported
+      `test_viewer_js_suite_is_green` failing on a `topologies[].studies[]:
+      the projection writes [checks]` fixture-drift, even though this
+      handoff's code was not yet on the main checkout's own checked-out
+      branch (`master`) and could not have written that key. Cause: a
+      concurrently-running review session for a *different* handoff
+      (`review/tolstack_viewer_js_suite_drift`, per the shared projection's
+      own `projection_provenance` block naming that worktree and a
+      `built_at` seconds old) was rebuilding the same shared
+      `data/projections/viewer/topologies.json` at the same moment — the
+      read landed mid-write. Re-running the same test immediately after
+      showed it clean. **When a main-checkout-only failure names a field or
+      shape your own diff does not produce, re-run it standalone before
+      treating it as real** — the shared `data/` root is not just
+      environment-different from a worktree, it is a live, mutable resource
+      multiple concurrent agents write to, and a single failing run there is
+      not yet evidence, the way a repeatable one is.
 - [ ] **`data/inbox/*` silently drops per-stream tracked docs.** Git does not
       descend into an excluded directory, so `!data/inbox/<s>/README.md` alone does
       nothing — re-include the directory, exclude its contents, *then* negate the
@@ -1677,6 +1697,106 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       code fork would need the opposite response (merge or hold off, not
       override).
 
+- [ ] **A `fetch` reference stored unbound on a JS object throws "Illegal
+      invocation" the instant it's called through the object, and a node-tier
+      test that always injects its own `fetchImpl` cannot see this.** New
+      2026-09-09 (`viewer_http_transport`). `storage/http.js`'s first draft did
+      `this._fetch = opts.fetchImpl || (typeof fetch === "function" ? fetch :
+      null)`; every fast-tier test passed because the node runner always
+      supplies an explicit `fetchImpl`, so the bare-`fetch` branch never ran
+      there. Only the **browser truth tier** — a real Chrome booting the page
+      with no mock and no injected fetch — caught it: native `fetch` brand-
+      checks its receiver, so `this._fetch(url)` (receiver = the adapter
+      instance) throws, and a `.catch(() => null)` written to mean "this
+      candidate doesn't resolve" swallowed the throw too, so the symptom was
+      silent (falls straight to the next candidate / FSA, no error anywhere).
+      Fix is `fetch.bind(window)`, not `fetch` bare. Check any new adapter or
+      transport wrapper that stores a global function (`fetch`, `WebSocket`,
+      etc.) on `this` for **later invocation through the instance** — the
+      node/DOM-shim tier proves nothing here by construction if it always
+      substitutes its own implementation, so this class of bug needs the
+      browser truth tier (or an explicit unbound-call test) to be caught at
+      all; a green fast tier is not evidence for this one.
+
+- [ ] **A worksheet's prose can misstate which datum letter a GD&T frame
+      references, and even contradict itself about it two sentences later.**
+      New 2026-09-10 (`endstop_piece_part_acquisition`, §11a). The first
+      mention of `213863-004-A.pdf`'s left-hole FCF said its position
+      tolerance was "referenced solely to datum C, which this same feature
+      also carries" (i.e. self-referencing); a rendered crop shows the FCF's
+      third compartment actually says **B** (the *other* hole), and the
+      separate datum-feature flag beneath it — a different box — is what
+      says C. Two sentences later, the same paragraph's own conclusion
+      correctly says "the left hole's ⌀0.1 true-position callout to datum B
+      (the right hole's own axis)", silently contradicting its own opening
+      clause. The final numeric conclusion (0.10 mm worst-case band) was
+      unaffected because it relied on the *second*, correct statement — but
+      a reader citing the first sentence alone would carry a wrong datum
+      letter forward. **Render the FCF stack yourself and read the third
+      compartment against the datum-feature-flag box separately** — do not
+      trust a worksheet's own restatement of which datum a position/
+      perpendicularity frame calls out, even when it sounds confident and
+      cites a specific render (`Matrix(14)`).
+
+- [ ] **UI state that lives on a DOM element the renderer re-creates — a
+      `<details>`' `open`, a scroll position, focus — resets on every render,
+      and the DOM-shim tier structurally cannot see it.** New 2026-09-10
+      (`viewer_rebuild_affordance`), third member of the "fast tier proves
+      nothing here by construction" family (CSS geometry 2026-08-25, unbound
+      `fetch` 2026-09-09). The viewer's `render()` is `VA.clear()` + rebuild,
+      so a control placed inside the stale box's `<details>` vanishes the
+      instant its own click re-renders the banner — which is why the Rebuild
+      button is a *sibling* of the box, not a child. Replayed in review: moving
+      it inside leaves the fast tier 185/185 green (the shim has no notion of
+      `<details>` visibility) while the browser tier's `waitForSelector`
+      (default state: visible) times out. When a handoff puts an interactive
+      control near a collapsed/expandable element, check which element's
+      transient state a re-render destroys, and demand the browser tier click
+      it — a fast-tier `.count()`-style assertion cannot fail on this class.
+
+- [ ] **An example list explaining a numeric excess reads as exhaustive — do
+      the residual arithmetic.** New 2026-09-10 (`viewer_leader_line_grid`).
+      Lesson, issue and README all explained "12 parts but 18 contiguous runs"
+      with "(hub as 2, pitch_plate as 3)" — every quoted figure individually
+      correct, and the list still wrong: 12 + 1 + 2 accounts for 15 of the 17
+      part-runs, because `gas_spring` and `blade_root` split too (2 each), and
+      the understated split count sat in the very issue asking Jeff to decide
+      whether split runs need a visual tie. The stale-count entries above ask
+      whether each figure reproduces; this asks whether the *list* closes:
+      when prose explains why total N exceeds base M by naming members, sum
+      the named members against N − M and require the residual be zero or the
+      prose to say "among others". All three fixed inline (plus two pins added
+      to the existing `[real]` runs-per-part test).
+
+- [ ] **Two hand-mirrored carriers of one command vocabulary, with a comment
+      claiming tests pair them.** New 2026-09-10 (`study_3d_flyout`).
+      `VA.annotateLink` (URL params, the flyout's first boot) and
+      `VA.annotateExecCommands` (postMessage → `AA.exec`, later launches) each
+      carry the same launch params, and the shipped comment said "paired by
+      tests so they cannot drift" — but tests.js pins each side separately
+      over today's param shapes, so a param added to one function alone fails
+      nothing. Reworded inline. When a diff adds a second *carrier* of an
+      existing vocabulary (boot params beside exec commands, a link beside a
+      button), ask what structurally pairs the two, and read a
+      "paired"/"cannot drift" claim the way you read a count: name the test,
+      then check what that test would actually catch.
+
+- [ ] **A browser-tier layout measurement taken at a configuration where the
+      defect cannot occur.** New 2026-09-11 (`viewer_hover_cards_and_deep_links`),
+      the "guard observed failing" check's geometric member. The new zero-pixel
+      assertion ("an open card moves the DAG pane by nothing at all") passes
+      **16/16 with the full pre-handoff popover reverted** (`position: absolute`
+      + scroll-offset coords + no `max-height`): the measured card, on
+      `base_thickness` at the default viewport, never crosses the fold, so the
+      document never lengthens and the comparison has nothing to see — while
+      the lesson credits this exact measurement with catching that exact state.
+      A layout guard is only evidence at a viewport/scroll/trigger where the
+      defect is geometrically reachable; replay the reverted state (one CSS
+      word + one function) before crediting it, and note the tell from this
+      replay: an incoherent half-revert fails as a click-timeout in an
+      unrelated suite, not in the named assertion.
+      `ISSUE_20260911_card_layout_guard_passes_on_the_absolute_popover.md`.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
@@ -1768,7 +1888,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `String(n)` on purpose. Grep any viewer diff for arithmetic operators on a
       projection field — a second combiner in JS is one nothing in `tests/`
       executes. Note the false positive: `app.js`'s popover clamp
-      (`Math.max(8, Math.min(...))`) is CSS pixels, not a tolerance.
+      (`Math.max(8, Math.min(...))`) is CSS pixels, not a tolerance. (`app.js`
+      itself is deleted since `viewer_v2_single_nav`; the clamp class lives on
+      in layout code.) **One declared exemption since 2026-09-10
+      (`viewer_edge_length_scaling`):** `VA.edgeLengthValue` +
+      `VA.rowPositions` (`topology.js`) read `dimension.max − min` /
+      `2 × plus_minus` / `nominal` to scale a bar's LENGTH — the handoff
+      mandated it, and it is screen-proportion arithmetic in the popover-clamp
+      class, not a combiner. What keeps it in that class, and what you check
+      if a diff touches it or adds a sibling: the value feeds pixel geometry
+      only — it is **never printed, never rounded into a display string, and
+      never compared to produce a verdict** — and a floored bar is visibly
+      marked so the length cannot be read as a measurement. A new consumer of
+      `edgeLengthValue` (or new arithmetic on a dimension field) that formats,
+      prints or branches a verdict on the result is the second combiner this
+      entry exists to refuse.
 - [ ] **A branch over a value the *data* owns must be a total function, not an
       `else if` chain.** New 2026-08-11 (`viewer_source_ref_export_label`), and it
       is the display-layer twin of the invented-number problem: an `else if` chain
@@ -2120,6 +2254,28 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       worth knowing before trusting the projection's silence on a check's
       verdict as "there is no check" rather than "the projection cannot show
       one yet."
+      **Closed 2026-09-09 (`topology_projection_emits_study_checks`).**
+      `project_study()` now calls `check_study(topology, study,
+      spec["check_id"])` for every entry in `study.checks` and merges the
+      result in, in `project_stack`'s own check shape (confidence scoreboard
+      counted off the chain's contributions rather than a term list, since a
+      study check has none). Pinned field-for-field against a live
+      `check_study()` call on the L1 acid-test study
+      (`test_the_l1_studys_projected_check_matches_check_study_field_for_field`).
+      Spot-checked against real committed documents (scratch data-root, not
+      the shared one): all 12 checks named above now print their
+      `check_id=verdict` in the rebuild's console summary. The general
+      lesson stands for the *next* schema field this shape applies to — keep
+      the checklist item, just don't keep re-checking this specific instance.
+      **One side effect worth knowing, not a defect**: adding a projection
+      field makes `apps/viewer/topology_fixtures.js`'s hand-maintained
+      pairing test (`tests/test_viewer_js_suite.py`) go red the next time
+      someone rebuilds the shared main-checkout projection with the new
+      code and runs that suite there — exactly the same shape as
+      `topology_schema_v1`'s `joint`/`worksheet_file`/`worksheet_source`/
+      `configuration` fields, closed separately by
+      `tolstack_viewer_js_suite_drift`. Route a `checks`-shaped fixture
+      drift there (or its successor issue) rather than treating it as new.
 
 - [ ] **A linear stack whose `checks` mix a named `path` term with
       individually-signed elements has no topology equivalent — verify the
@@ -2158,6 +2314,13 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       filesystem-free "would this resolve" predicate beside an existing
       resolver: **could the predictor import the real rule instead of
       restating it**, given how the resolver's own imports are structured?
+      **Resolved 2026-09-09** (`croppable_rule_shared_predicate`):
+      `build_viewer_crops.croppable()` is now the one function both
+      `resolve_pdf`'s rule 1/2 and `build_topology_projection.py`'s call site
+      use (imported there as `_croppable`); confirmed the cross-import still
+      does not pull `fitz` into tolstack's stdlib-only venv. Keep this entry —
+      the shape (a same-repo predicate restated instead of imported) is worth
+      catching again in a different pair of scripts.
 
 - [ ] **The projection DOES emit the field; the viewer just never reads it —
       and a doc still asserts the pre-field state.** New 2026-09-08

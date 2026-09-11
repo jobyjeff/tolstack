@@ -32,6 +32,9 @@
   MemoryAdapter.prototype.readFeatureIdentityProjection = async function () {
     return this._fixtures.featureIdentityProjection || null;
   };
+  MemoryAdapter.prototype.readPartMeshAliases = async function () {
+    return this._fixtures.partMeshAliases || null;
+  };
   MemoryAdapter.prototype.listMeshes = async function () {
     var manifests = this._fixtures.meshManifests || {};
     var provenance = this._fixtures.meshProvenance || {};

@@ -22,9 +22,37 @@ hover/click thumbnail trigger right there in the grid.
 > old shortcut or bookmark still lands somewhere.
 
 Static and build-free — plain HTML + classic scripts, no framework, no npm
-build, no daemon, no server (the forge `apps/notes/` and `apps/dashboard/`
-pattern). **Read-only**: the File System Access grant it asks for is
-`mode: "read"`, and there is no code path that writes.
+build, no daemon of its own (the forge `apps/notes/` and `apps/dashboard/`
+pattern). **Read-only**: neither transport below has a write path.
+
+## Two transports, and the banner says which one is live
+
+A load-time probe (`storage/http.js`, wired in `topology_app.js`'s
+`chooseAdapter`) decides once, before the first paint, which way the page
+reaches `data/projections/viewer/`:
+
+- **served** — the origin that answered the page also answers a projection
+  request. Probed against `topologies.json`, content-type checked (never
+  status alone — a catch-all route can answer 200 + HTML for anything). No
+  folder grant, no picker. Two mount shapes are known and both are tried, in
+  order: drawing-checker's own (`http://127.0.0.1:8000/tolstack/viewer/topology.html`,
+  a sibling `/tolstack/data/` mount), and a plain static server rooted at the
+  repo (`python -m http.server` from `C:\workspace\tolstack`). This is a
+  prerequisite for ever hosting the viewer, not just a local convenience.
+- **FSA** — the original transport, and the only option on `file://`:
+  **Connect folder** grants read access to the tolstack repo root via the
+  File System Access API, exactly as below.
+
+Served mode is tried first whenever the page is not on `file://`; FSA is the
+fallback whenever neither served candidate answers (nothing built yet, or a
+server with no matching mount). The banner says which is live — a served page
+reads *"Served over HTTP — no folder grant needed"*; FSA mode is unchanged,
+the connect/granted flow already says so. Neither transport offers a control
+it cannot service (`adapter.capabilities()`, never the adapter's class): the
+one real capability gap is that drawing-checker's own mount cannot reach
+`docs/` at all (only the viewer app and its projection dir are mounted), so a
+worksheet is unavailable there specifically — a repo-root static server can
+reach it, and FSA always could.
 
 ## Launch (one-click, `file://`)
 
@@ -82,6 +110,118 @@ loudly, for the one legitimate case — a deliberate rebuild from an older tree.
 No folder grant handy? `topology.html?mock=1` renders a seeded demo — a
 mechanism plus the nav tree's own demo classic-only stack — that exercises
 every provenance state. Nothing touches disk.
+
+## Deep links in — the URL contract
+
+**This section is a contract a sibling repo consumes** — drawing-checker's
+analyses panel links into this page with a stack selected
+(`analyses_viewer_deep_link`, staged in that repo, reads exactly what is
+documented here). The params live in one constant (`VA.DEEP_LINK_PARAMS`,
+`viewer.js`) and are pinned by tests in both repos: treat a rename or a
+semantics change as **breaking**, and change this section with it.
+
+`topology.html` answers six selection params, over and above `?mock=1`:
+
+| param | opens |
+|---|---|
+| `topology=<id>` | topology mode, that topology |
+| `study=<id>` | …with that study selected (chain highlighted, totals in the strip). Requires `topology`. |
+| `edge=<id>` | …with that edge selected in the detail pane. Requires `topology`. |
+| `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
+| `stack=<id>` | stack mode — the classic elements table — on that stack |
+| `element=<id>` | …with that element's row selected and its sourcing in the right pane. Requires `stack`. |
+
+The rules a consumer can rely on:
+
+- **Ids are the projections' own ids**: a topology/study/edge/node id as it
+  appears in `topologies.json`, a stack/element id as it appears in
+  `results.json` (the stack's `id` field, not its filename).
+- **Give `topology` or `stack`, not both.** If both arrive, the topology wins
+  and the ignored stack is said in a banner notice.
+- **An id the data does not contain degrades, loudly and safely**: the page
+  opens on its defaults and a plain-words banner line says what the link asked
+  for — never an error page, never a silent guess at a different node.
+- Values are URL-decoded; the first occurrence of a param wins; an empty value
+  reads as absent.
+- `?mock=1` composes with all of the above (it picks the *dataset*; these pick
+  the selection within it) and survives the `index.html` redirect.
+- **Stable under any serving shape**: the contract is query params on the
+  relative page — `/tolstack/viewer/topology.html?…` under the drawing-checker
+  mount, `/apps/viewer/topology.html?…` under a repo-root static server, and a
+  `file://` double-click all read identically. Under `file://` with no prior
+  FSA grant the selection applies after **Connect folder** — the link is
+  remembered until the first successful load, then consumed.
+
+Examples:
+
+```
+topology.html?topology=pitch_system&study=pitch_system_gas_spring_branch
+topology.html?topology=pitch_system&edge=end_stop_clearance
+topology.html?stack=rotor_fastener_length&element=fastener_grip
+topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip
+```
+
+The outbound twin, for building one of these links in code, is
+`VA.viewerLink(params)` — same param names, round-tripped against
+`VA.parseDeepLink` by the fast tier.
+
+## Hover reference cards — the grid's own reference material
+
+(`viewer_hover_cards_and_deep_links`, 2026-09-10; drawing-checker's card
+pattern.) Three hover cards, all rendered into the one positioned popover node
+the crop popover already used, all **hover-only chrome**: the popover is
+`position: fixed`, so an open card cannot disturb the layout contracts —
+full-page scroll, whole-edge hover, leader alignment — and the browser tier
+measures exactly that (the DAG pane's box with a card open, to the pixel).
+
+- **Edge card** — on the edge row's crop trigger (hover, focus or click; the
+  trigger is the inline thumbnail once fetched). The crop of the actual
+  tolerance annotation with its placement provenance and click-throughs (the
+  same `VA.cropBlock` the plain popover shows), plus the citation's where-ref
+  and which crop-index entry the key addresses. The card's crop slot is a
+  **list**: an interface's two half-sides are usually different parts/drawings
+  by definition, so an edge should eventually show BOTH sides' annotations —
+  today crops.json records one crop per citation and an edge carries one
+  citation, so one renders where one exists and nothing is invented where none
+  (second-side crops are a recorded gap, not a rendering choice). An untraced /
+  uncited edge's card deep-links into the annotator (`VA.annotateLink`), under
+  the same gap-only rule the detail pane applies.
+- **Component card** — on the grid's merged component cell. The part's name,
+  drawing and note, plus a thumbnail **derived from what exists**: the resolved
+  crop of one of the part's own rows' annotations, which is a crop of that
+  part's drawing by construction — never matched by filename or prefix. There
+  is no mesh/annotator render yet (the annotator has no snapshot verb), so a
+  part with no crop-bearing row gets **no thumbnail** — absent is absent, no
+  placeholder. Deep-links to the annotator isolating the part.
+- **Citation card** — on the sourcing confidence chip, in **both** modes (the
+  topology grid's chips cell and the classic elements table's sourcing cell).
+  The spec-sheet reference: the where-ref, the callout as printed, the note in
+  full, the export/identity block (`VA.exportBlockNode`, the same builder the
+  right pane uses, run links included) and the crop of the cited sheet where
+  one resolved — for a spec citation that crop *is* the spec sheet.
+
+Outbound deep links from cards: the drawing-checker **run** page wherever a
+crop resolved through a run (`/run/<run_dir>`, `VA.runUrl` — the immutable
+per-version URL; the evergreen `/container/<id>` needs a container id nothing
+in the projections carries yet, a recorded gap), the source PDF as `file://`
+link + copyable path (for a spec-pile crop that path IS the spec pile), and
+the annotator (`../annotate/index.html?…`, the existing relative shape).
+
+### The stale-pair alarm never prints a command (`viewer_rebuild_affordance`)
+
+Pasting `venv-win\Scripts\python.exe ...` into PowerShell straight from a web
+page is not acceptable UI design (Jeff, 2026-09-10) — and the pasted text had
+a bug of its own besides: two commands landed on one line with no separator,
+because they were adjacent inline `<code>` elements with nothing between them.
+The alarm box (`views/banner.js`'s `provenance()`) never shows a rebuild
+command again, in either mode:
+
+- **served, with drawing-checker's rebuild endpoint live** (probed —
+  `adapter.capabilities().rebuild`, never assumed from the mount matching) —
+  a **Rebuild** button drives the whole thing: click, POST, poll status,
+  reload on success, a fixed plain-words sentence on failure.
+- **everything else** (`file://`, a plain static server, or the mount without
+  the endpoint) — one sentence, nothing to type.
 
 ## The one rule: the viewer computes nothing
 
@@ -142,39 +282,69 @@ venv-win\Scripts\python.exe scripts\build_topology_projection.py
 Then reload the page. (`topology.html?mock=1` runs a demo mechanism with no
 disk access, exactly like the classic view's own demo.)
 
-### The row model: one row per graph element
+### The row model: edge rows, merged components, and leader lines
 
-**A dot is an interface; a bar is the dimension between two of them; every id in
-the document has exactly one row, one y and one rail mark.** Nodes and edges
-interleave, so a chain of n edges is 2n+1 rows.
+**A dot is an interface; a bar is the dimension between two of them; a grid row
+is a dimension; a leader line is a part boundary.** Since handoff
+`viewer_leader_line_grid` (2026-09-10) the grid holds **one row per edge** in
+walk order — compact and evenly spaced — while the DAG keeps its own layout
+(one slot per node and edge today; the coming edge-length scaling modes will
+make it deliberately uneven). The two are tied together by **jogged leader
+lines**, GD&T ordinate-dimension style: orthogonal segments from a node's dot,
+across the jog zone, into the seam between the two grid rows that interface
+separates.
 
-That was a decision, and the two alternatives each drop half of what the page is
-for. One row per *edge* only puts the interfaces between rows, and an interface
-is what a chain's endpoints are named by and what a 3D-annotation surface will
-resolve — it needs somewhere to be clicked. One row per *node* only puts the
-numbers between rows, and the numbers are what a tolerance reviewer came for.
-Interleaving costs vertical space and buys a page where the grid is an index of
-the whole document.
+**A leader is drawn only at a part boundary, and that omission IS the
+component grouping** (locked 2026-09-10; it supersedes the earlier
+boundary-lasso question). A node whose adjacent edges all carry one `part` —
+several tolerances on one feature, size + flatness on one distance — is
+*internal* and gets no leader (`VA.internalNodes`, topology.js); a node whose
+edges span two parts, or a part and a clearance, gets one. The grid says the
+same thing in table form: its leftmost **component** column is one merged cell
+per contiguous same-part run (`rowspan` over the run's tolerance sub-rows,
+`VA.gridPlan`), and a group breaks exactly where the part changes or a leader
+lands. One honest consequence: the depth-first walk can revisit a part on a
+later branch, and each contiguous run gets its own merged cell — the real
+pitch system's 12 parts render as 18 runs: `hub` as two, its pitch plate as
+three, `gas_spring` and `blade_root` as two each (all four splits pinned by
+the `[real]` fixture tier).
+Reordering the grid to force literally one row per part would cross the
+leaders and break the walk-order correspondence, so the walk wins.
+
+Nodes have no grid rows any more. An interface is clicked on its dot or its
+leader (both open the preview pane, which also says which side of the leader
+rule the node is on); a chain of n edges is n rows, which is roughly the row
+count of the Excel stack it replaces.
 
 The grid itself is a real `<table>` (since 2026-09-04, handoff
 `viewer_consolidation`) with real `<th>` headers, not a div-flex grid styled to
 look like one — a rectangular selection of it pastes into Excel as columns, cell
-for cell, which only genuine table markup does. `value  [min … max]` was one
-cell until then; it is `nominal` / `min` / `max` now, three columns, still
-printed exactly as transcribed (`VA.fmt`: no `toFixed`, no band derived from the
-limits — the same rule the classic elements table follows). Column widths live
-on a shared `<colgroup>` (`views/topology.js`'s `COLUMNS`), one array driving both
-the head table and the body table so the two cannot silently disagree about how
-wide a column is.
+for cell, which only genuine table markup does. The values are `nominal` /
+`min` / `max`, three columns, printed exactly as transcribed (`VA.fmt`: no
+`toFixed`, no band derived from the limits — the same rule the classic elements
+table follows). Column widths live on a shared `<colgroup>`
+(`views/topology.js`'s `COLUMNS`), one array driving both the head table and the
+body table so the two cannot silently disagree about how wide a column is.
 
-Every row whose edge carries a `crop_key` — it re-expresses a committed stack
-element — also gets the same hover/click thumbnail trigger the classic elements
-table's rows have always had (`crop-trigger`, `views/crop.js`'s popover, shared).
-An edge with no `crop_key` — authored inline in the topology, or a derived gap —
-gets no trigger at all: showing one would read as "not built yet" when the truth
-is "no document to crop," and the two are different facts (see "The preview pane
-reuses the crop plumbing" below, which draws the same distinction in the pane on
-the right).
+Every row whose edge carries a `crop_key` gets a **crop** cell at the row's
+right end — and a key comes in **two shapes**, for two disjoint crop-index
+spaces (`VA.cropForKey`): a `dimension_ref` edge re-expresses a committed
+stack element and carries `{stack, element}` into `crops.json`'s `by_stack`,
+while an **inline** edge whose own citation is croppable carries
+`{topology, edge}` into `by_topology` (an inline edge is in no stack, and a
+topology's id can equal a stack's, so the spaces cannot merge — the real
+`pitch_system`'s six croppable edges are all this second shape). Once the PNG
+is fetched (`ensureThumbImages`, topology_app.js) the trigger *is* the
+thumbnail, the actual crop of the tolerance annotation inline on the row;
+before that, or for a crop that cannot resolve, it is the same stateful text
+button the classic elements table has always had. Hover, focus or click opens
+the **edge hover card** ("Hover reference cards" above) — the crop body plus
+the citation line and the deep links out. An edge with no `crop_key` — a
+workbook/assumed inline dimension, or a derived gap — gets nothing at all,
+never a placeholder image: showing one would read as "not built yet" when the
+truth is "no document to crop," and the two are different facts (see "The
+preview pane reuses the crop plumbing" below, which draws the same distinction
+in the pane on the right).
 
 ### The rails: a column is a branch, not a part
 
@@ -247,30 +417,45 @@ solver").
 ### The preview pane reuses the crop plumbing, and says so when it cannot
 
 An edge that re-expresses a committed stack element **is** that element: same id,
-same citation, same crop. The projection derives a `crop_key` — the `(stack id,
-element id)` pair `crops.json` is keyed by — and the pane runs it through the
-stack viewer's own `VA.cropFor`, so the resolved / unresolvable / not-built /
-stale-index quartet is unchanged.
+same citation, same crop — its derived `crop_key` is the `{stack, element}`
+pair `crops.json`'s `by_stack` is keyed by. An **inline** edge with a croppable
+citation gets a `{topology, edge}` key into the separate `by_topology` space
+instead (see "The row model" above for why the two spaces cannot merge). The
+pane runs either through `VA.cropForKey`, so the resolved / unresolvable /
+not-built / stale-index quartet is unchanged, and `VA.cropKeyText` states which
+claim the key is making — "this edge IS that stack element" vs "the crop is of
+this edge's own citation".
 
 An edge with no key is **not** a stale index and must not read like one. It says
-which of the two it is: a dimension authored in the topology (in no stack, so no
-crop index covers it) or a derived gap (no value to cite). A citation of kind
+which of the two it is: a workbook/assumed dimension (no croppable document
+behind it) or a derived gap (no value to cite). A citation of kind
 `assumed` says outright that there is no document behind it to crop — which is
-most of the pitch system.
+much of the pitch system.
 
-### Alignment is the claim, so it is measured
+### Row/leader correspondence is the claim, so it is measured
 
-A grid row and its rail mark describe the same element at the same y. Two things
-enforce it and neither is a stylesheet:
+A grid row, its rail bar and the leaders around it describe the same graph — but
+since `viewer_leader_line_grid` they are deliberately **not** at one y (the grid
+is compact, the DAG is not), so the measurable contract is the leaders': each
+leader's node-side end sits on its own dot's centre, and its grid-side end sits
+on the seam of the boundary row it names (`data-boundary-edge` on the hit path).
+Three things enforce it and none is a stylesheet:
 
 * the row's `height` is set **inline** from `VA.RAIL_METRICS.rowHeight`, the same
-  constant `VA.railY()` computes the SVG's y from;
-* the rails and the rows live in **one scrollport**, so "scrolling keeps them
-  locked together" has nothing to synchronise.
+  constant `VA.leaderGeometry` computes every seam from — and the node ends come
+  off the same keyed position store (`VA.rowPositions`) the dots were drawn from,
+  whatever the edge-length mode did to the DAG above;
+* every cell's content is clamped to that pitch (the chips and crop wrappers) —
+  a `<tr>`'s height is a floor, not a cap, so one overgrown cell would silently
+  walk every seam below it off its leader;
+* the rails, the leaders and the rows live in **one scrollport**, so "scrolling
+  keeps them locked together" has nothing to synchronise.
 
-`scripts/run_viewer_browser_tests.mjs` then measures it: box against box, every
-row of both real topologies, in both layouts, after scrolling. That is the check
-no DOM shim can make, and it is why the browser tier is not optional here.
+`scripts/run_viewer_browser_tests.mjs` then measures it (`CORRESPONDENCE_IN_
+PAGE`): the leader paths' real geometry (`getBBox`) against the dot boxes and
+row boxes, every topology, in both layouts, after scrolling, at both densities.
+That is the check no DOM shim can make, and it is why the browser tier is not
+optional here.
 
 ### The DAG owns the main area
 
@@ -301,13 +486,40 @@ stack's own joint block always has, so it does not reopen the budget the rest
 of this section closes.
 
 With that chrome capped to roughly a topbar, a one-line banner, a toolbar
-strip, a one-line joint block and a slim totals strip, the DAG pane gets the
-large majority of the viewport by construction rather than by a floor
-fighting the chrome above it for room —
-`scripts/run_viewer_browser_tests.mjs`'s `testHeightBudget` asserts that
-directly (900px viewport, the real `pitch_system`, a study selected, a forced
-provenance alarm: the pane's own height is more than half the viewport) instead
-of counting rows against a floor.
+strip, a one-line joint block and a slim totals strip, `HANDOFF_20260909_
+viewer_error_surface_and_layout.md` finished the job the floor and its
+removal were both fighting toward: the DAG pane (`.tv__scroll`) no longer
+clips its own rows at all. Every row renders at full height and contributes
+that height to the **document**, which scrolls once the content is taller
+than the viewport — the same "one page" model the rest of the site already
+used. The **left nav is the one region still capped to the viewport**
+(`position: sticky; max-height`) and scrolls independently; everything else,
+this pane included, just gets longer. `scripts/run_viewer_browser_tests.mjs`'s
+`testHeightBudget` pins this directly: `.tv__scroll` carries no `overflow-y`
+of its own, its rendered height is never less than its own row count demands,
+and — with the real `pitch_system` loaded, which has more rows than a 900px
+viewport can show — the *document's* scroll height exceeds the viewport's,
+proving the growth actually reached the page rather than clipping inside the
+pane.
+
+The grid's own columns (`COLUMNS`, `views/topology.js`) sum to well over a
+typical pane's width and always have — that is a **separate, pre-existing**
+axis this handoff did not touch. `.tv__rails`'s own `position: sticky; left:
+0` (so the rail column stays put while the grid scrolls sideways) needs a
+scrolling ancestor to mean anything, so the header and the body still share
+one **horizontal-only** scrollport, `.tv__hscroll` — `height: max-content` is
+what stops that scrollport from being a second place a row count could get
+squeezed: an element with `overflow-x: auto` is a scroll container, and a
+scroll container's automatic content-height contribution to its own flex
+ancestor is zero by spec, not its actual content size, which is exactly the
+"squeeze to fit" shape the rest of this section retires. Scrolling remains
+vertical-at-the-page, horizontal-at-the-grid — two axes, two scrollports, on
+purpose.
+
+Scrollbars are themed to match the page everywhere they still appear
+(`scrollbar-color`/`scrollbar-width` plus the `::-webkit-scrollbar` pseudo
+pair, both set once at `html`/`*` in `style.css` so no scrollable box needs
+its own rule).
 
 **The worksheet** moved into its own `<dialog>` too (`#worksheet-dialog`),
 for the same reason as the legend: opening it can no longer compete with
@@ -317,8 +529,9 @@ layer, entirely outside `.tv`'s flex column.
 **Row density** (`VA.ROW_DENSITIES`, `topology.js`) is the toggle that is still
 worth having even with the floor gone: "Rows: Comfortable / Compact", on the
 toolbar strip above the DAG pane (`#toolbar`, next to the layout-mode toggle),
-at 26px and 16px respectively — compact turns the pitch system's 43 rows into
-~690px, a single screen instead of five. Row height is one number that has to
+at 26px and 16px respectively — compact turns the pitch system's 45-slot DAG
+into ~720px, a single screen instead of several (its grid, at one row per edge,
+is shorter still). Row height is one number that has to
 move in three places at once (documented where it bites, `topology.js`): `VA.
 RAIL_METRICS.rowHeight`, the `--tv-row` CSS variable, and the grid's inline
 row heights. `VA.applyRowDensity` mutates `RAIL_METRICS.rowHeight` **in
@@ -328,6 +541,88 @@ the change with nothing to re-wire; `topology_app.js`'s `applyDensity()` is
 the one DOM write left, setting the CSS variable to match. Density is a
 display preference, not a fact about a topology or a study, so switching
 topologies never resets it.
+
+### A render crash cannot leave the page silently unchanged
+
+`HANDOFF_20260909_viewer_error_surface_and_layout.md`: a live incident had a
+stale-cached script throw from *inside* `render()`, and every path that could
+have reported that — the boot chain's `.then(render)`, `onReload`'s
+`load().then(render)` — had nothing after it to catch a throw, so the DAG
+pane just stayed empty with a Reload button that did nothing. `render()` is
+now one seam: it calls the real paint in a `try`/`catch`, and a throw from
+*anywhere* inside it — not just a rejected promise before it runs — renders
+`VA.renderCrashBanner` instead (plain words, the exception's own message, and
+the "hard reload may clear a stale cache" hint, since that is what actually
+fixed it). `onReload` and the boot chain both gained the `.catch(err => state.
+error = …).then(render)` shape `gesture()` already had. One seam, not a
+`try`/`catch` in every view — `scripts/run_viewer_browser_tests.mjs`'s
+"render crash shows the banner" tier proves it by forcing `VA.renderTopoPane`
+to throw and asserting nothing escapes as an uncaught page error.
+
+### Whole-edge hover, and an experimental values-only row mode
+
+Two related pieces from the same handoff. First, a fix: a rail bar's
+*visible* stroke is dashed wherever its citation is a gap or derived
+(`.rail__bar--gap`/`--derived`), and under `pointer-events: stroke` a dash's
+own gap used to hit nothing — only a lucky hover over a solid segment of a
+long edge showed its tooltip. `.rail__barhit` is a second, invisible line per
+edge (`stroke: transparent`, wider, `pointer-events: stroke`) drawn over the
+same coordinates, carrying the hover title and the click handler instead; the
+visible bar is untouched.
+
+Second, an experimental **view setting, default off** (the toolbar's third
+button, "Rows: labelled" / "Rows: values only", `state.edgeValueOnly`): Jeff's
+observation that this page used to run about 2× a typical Excel stack's row
+count, because a spreadsheet lists only the dimensions *between* interfaces,
+never the interfaces themselves. `viewer_leader_line_grid` retired the node
+rows outright (the grid is edge rows only now — the bigger half of the same
+observation), and this toggle remains as the smaller half: an edge's own label
+is just its two adjacent node labels concatenated, so it hides it and lets the
+row read as values only, with the label moved to the row's own hover
+(`VA.edgeHoverTitle`, the same text `.rail__barhit` already shows — one hover
+surface, not two). The merged component cell, and a row the projection cannot
+resolve (`missing()`), are unchanged either way: hiding a label is only ever
+dropping a redundant concatenation, never a grouping and never a diagnostic.
+
+### Edge-length scaling: three modes, one keyed position store
+
+The toolbar's fourth button (`#edge-length-toggle`, `state.edgeLengthMode`,
+`VA.EDGE_LENGTH_MODES` in `topology.js`) cycles how much vertical extent a
+dimension bar gets:
+
+* **uniform** — the default and the classic rendering: every slot is one
+  `rowHeight`.
+* **tolerance width** — a bar's length ∝ its dimension's band (`max − min`,
+  falling back to `2 × plus_minus` where min/max are absent).
+* **feature size** — a bar's length ∝ its dimension's nominal.
+
+The scale is relative to the serialisation on screen: the largest value renders
+at `EDGE_LENGTH_SCALE.maxRows` row heights, everything else in proportion — and
+**nothing renders shorter than one row height** (`floorRows`). The floor keeps
+a zero/tiny/unstated edge clickable (whole-edge hover is a landed contract) and
+keeps every node at-or-below its uniform y, which is what lets the leaders keep
+rising in every mode. A bar sitting at the floor is **not a measured
+proportion** and is never allowed to read like one: it gets
+`.rail__bar--floored`, a drafting-style break mark (`.rail__break`) across its
+middle, and a hover title that says "not to scale" (`VA.flooredEdgeTitle`); the
+legend states outright that lengths are indicative. The variation-only edges
+the real workbooks produce (`nominal: 0.0`, the provenance note saying the
+nominal is unstated) are exactly this case — under feature size the whole real
+`pitch_system` floors, honestly marked, rather than inventing a scale.
+
+The mechanism under all three modes is one **keyed position store**:
+`VA.rowPositions(layout, topoProj, mode, metrics)` computes every slot once —
+node id → y, edge id → `{y1, y2, length, floored}` — and both geometry passes
+(`VA.railGeometry`, `VA.leaderGeometry`) consume the store rather than
+re-deriving `row × rowHeight` inline. The **grid never moves**: its rows stay
+at `rowHeight`, evenly spaced, and the leaders' grid-side seams stay
+`boundary × rowHeight` — only their node-side ends follow the store, which is
+the stretch the jogged leaders were built to absorb. The store is also the
+seam the future study-selected animated rearrange needs: geometry is a pure
+function of `(layout, metrics, positions)`, so an animator can interpolate
+between two stores and redraw per frame with nothing else changing. A display
+preference like density: switching topologies never resets it, and the mode
+button only ever re-renders (no scroll rewind).
 
 ### Generated checks are generated in Python too
 
@@ -392,6 +687,42 @@ link in" section is the other end of this). A binding made there is
 identity, never a value source (`docs/ANNOTATION_SURFACE.md`) — this link
 does not change what number this page shows, only helps someone establish
 which physical feature the row means.
+
+## The 3D flyout — the annotator as a side panel (study_3d_flyout)
+
+Where `../annotate/` is **served beside this page** — drawing-checker's
+mounts (`/tolstack/annotate/` next to `/tolstack/viewer/`), or any repo-root
+static server — the two annotate affordances upgrade in place:
+
+- the toolbar's study affordance becomes **View in 3D →** (`#study-3d`): a
+  side panel flies out tracing the selected study's chain — its parts
+  ghosted, surfaces already bound to its elements opaque (the annotator's
+  `trace` verb over the feature-identity projection). A part with no
+  installed mesh after alias resolution, and an edge with no binding, degrade
+  to the annotator's honest empty/absent states — never a guessed surface;
+- the detail pane's `annotate this →` becomes **attach to 3D →**: the panel
+  flies out with that edge selected and its part isolated, ready to click
+  the surface.
+
+The panel is a non-modal, `position: fixed` `<dialog>` pinned to the
+viewport's right edge (`#annotate-flyout`): opening it structurally cannot
+shrink or reflow the DAG pane — the `viewer_v2_single_nav` dialog precedent,
+non-modal so the page beside it stays clickable. It holds ONE iframe of the
+real annotate app, created on the first launch and kept: the folder grant,
+loaded meshes and camera survive across launches, because a later launch
+drives the open panel over `postMessage` → `AA.exec` (the annotator's own
+command vocabulary — the same verbs the boot URL's params run;
+`VA.annotateExecCommands` mirrors `VA.annotateLink` param for param). While
+open it sits over this page's own detail pane on purpose: the annotator's
+element detail supersedes it for the edge being worked.
+
+**Probed, never assumed** (`VA.probeAnnotateMount`): at boot the page HEADs
+`../annotate/index.html` and requires an ok `text/html` answer — the same
+posture (and the same catch-all-server trap) as `storage/http.js`'s data
+probe. Under `file://`, or any server without the sibling mount, the probe
+fails and everything above stays exactly the pre-flyout links (new tab) —
+a working link, never a broken panel, and no trace of the feature the page
+cannot deliver.
 
 ## Selecting an element
 
@@ -607,6 +938,14 @@ that file lives only in the main checkout. Without it the topology page's real
 tier reports itself skipped and the demo tier still runs. The app's own files
 always come from this tree either way.
 
+The fast tier also drives `storage/http.js` against two real local servers it
+starts itself (`run_tests.cjs`) — both mount shapes, a catch-all-HTML trap, and
+a mid-session server stop, none of which a DOM shim's `fetch` could stand in
+for. The truth tier adds a THIRD static server, rooted at the repo instead of
+just `apps/viewer/` (`startRepoRootServer`), and boots `topology.html` with no
+`?mock=1` and no folder grant at all — proving the served-mode deliverable
+itself, not a stand-in for it.
+
 The fast tier includes a **node-fs adapter** tier that drives the real
 `data/projections/viewer/` through the same adapter contract the browser uses, so
 "Jeff's actual stacks render" is asserted rather than assumed. It reports itself
@@ -650,7 +989,13 @@ apps/viewer/
   viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
   topology.js         the same, for the topology mode: its vocabularies, the
                       rail GEOMETRY (row index -> pixels; the columns are the
-                      projection's), VA.looseStacks / VA.stacksCoveredByTopology
+                      projection's), the keyed position store + edge-length
+                      modes (VA.rowPositions / VA.edgeLengthValue — the one
+                      declared arithmetic on dimension fields: it feeds bar
+                      LENGTHS only, pixels, never a printed number or a
+                      verdict), the grid PLAN + leader geometry
+                      (VA.gridPlan / VA.internalNodes / VA.leaderGeometry),
+                      VA.looseStacks / VA.stacksCoveredByTopology
                       (which stacks have no topology, read off edges' own
                       crop_key) and VA.navTree (the nav's data shape)
   fixtures.js         the ?mock=1 demo STACK projection (every provenance state)
@@ -661,9 +1006,11 @@ apps/viewer/
                       too — app.js is deleted; there is one boot file now)
   storage/adapter.js  the read-only adapter contract
   storage/fsa.js      File System Access (mode: read), handle persisted in IndexedDB
+  storage/http.js     served transport — no folder grant, probed at load time
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
-  views/              dom, banner, nav, stack, crop, worksheet, detail, topology
+  views/              dom, banner, nav, stack, crop, cards, worksheet, detail,
+                      topology
   vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```

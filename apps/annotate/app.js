@@ -56,6 +56,11 @@ const state = {
   // list is loaded. Refreshed once per connection (loadAll), same lifetime as
   // the rest of a session's loaded data.
   meshList: [],
+  // The tracked alias table's entries (docs/topologies/part_mesh_aliases.json
+  // -> its `aliases` array), loaded once in loadAll and INJECTED into
+  // resolveMeshIdentifier -- commands.js stays fetch-free. Missing/empty
+  // table is just [] (no aliases resolve), never an error.
+  partMeshAliases: [],
 };
 
 function setBanner(text, kind) {
@@ -75,7 +80,7 @@ function setBanner(text, kind) {
 // element" one step at a time needs the same three verbs goto composes.
 
 function resolveMeshOrThrow(identifier) {
-  const mesh = AA.resolveMeshIdentifier(state.meshList, identifier);
+  const mesh = AA.resolveMeshIdentifier(state.meshList, identifier, state.partMeshAliases);
   if (mesh) return mesh;
   const known = state.meshList.map((m) => m.part_id || m.sha256);
   throw new Error(
@@ -88,6 +93,9 @@ async function cmdOpenPart(identifier) {
   const mesh = resolveMeshOrThrow(identifier);
   await state.scene.loadPart(mesh.sha256);
   state.scene.setVisible(mesh.sha256, true);
+  // Opening/showing a part means "the solid part": a leftover ghost state
+  // from an earlier `trace`/`ghost` would silently render it translucent.
+  state.scene.setGhost(mesh.sha256, false);
   renderPartsPanel();
   return mesh.sha256;
 }
@@ -106,13 +114,16 @@ function cmdHide(identifier) {
 // all could be shown, not about every miss.
 async function cmdIsolate(...identifiers) {
   if (!identifiers.length) throw new Error("isolate needs at least one part identifier");
-  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id) }));
+  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
   const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
   const targets = resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256);
 
   const plan = AA.planIsolate(state.scene.listOpenParts(), targets);
   for (const sha of plan.toOpen) await state.scene.loadPart(sha);
-  targets.forEach((sha) => state.scene.setVisible(sha, true));
+  targets.forEach((sha) => {
+    state.scene.setVisible(sha, true);
+    state.scene.setGhost(sha, false); // isolate means "the solid part", same as open-part
+  });
   plan.toHide.forEach((sha) => state.scene.setVisible(sha, false));
   renderPartsPanel();
 
@@ -123,6 +134,95 @@ async function cmdIsolate(...identifiers) {
       missing.join(", "), "warn");
   }
   return { opened: targets, missing };
+}
+
+// ghost <part…> -- isolate's translucent twin (handoff study_3d_flyout): show
+// ONLY the named parts, rendered translucent, so opaque `mark-face` overlays
+// trace a chain over them. Same resolution, same planIsolate transition, same
+// partial-miss honesty as isolate -- the one difference is setGhost(true).
+async function cmdGhost(...identifiers) {
+  if (!identifiers.length) throw new Error("ghost needs at least one part identifier");
+  const resolved = identifiers.map((id) => ({ id, mesh: AA.resolveMeshIdentifier(state.meshList, id, state.partMeshAliases) }));
+  const missing = resolved.filter((r) => !r.mesh).map((r) => r.id);
+  const targets = resolved.filter((r) => r.mesh).map((r) => r.mesh.sha256);
+
+  const plan = AA.planIsolate(state.scene.listOpenParts(), targets);
+  for (const sha of plan.toOpen) await state.scene.loadPart(sha);
+  targets.forEach((sha) => {
+    state.scene.setVisible(sha, true);
+    state.scene.setGhost(sha, true);
+  });
+  plan.toHide.forEach((sha) => state.scene.setVisible(sha, false));
+  renderPartsPanel();
+
+  if (targets.length) await AA.exec(["camera", "frame", ...targets]);
+  setSceneEmptyState(targets.length === 0 ? missing : null);
+  if (missing.length && targets.length) {
+    setBanner("Ghosted " + targets.length + " part(s); no installed mesh for: " +
+      missing.join(", "), "warn");
+  }
+  return { opened: targets, missing };
+}
+
+// mark-face <part> <face_id> -- an opaque overlay on one face, additive (a
+// trace marks several). Unlike select-face it never touches the pick state:
+// a mark says "a binding attaches here", not "you just picked this".
+function cmdMarkFace(identifier, faceIdText) {
+  const mesh = resolveMeshOrThrow(identifier);
+  const faceId = parseInt(faceIdText, 10);
+  if (!state.scene.faceRecord(mesh.sha256, faceId)) {
+    throw new Error("part \"" + identifier + "\" has no face " + faceIdText);
+  }
+  state.scene.markFace(mesh.sha256, faceId);
+  return { sha256: mesh.sha256, faceId };
+}
+
+// trace <topology> <study> -- the per-study 3D view (handoff study_3d_flyout,
+// feature 1), composed from the verbs above the way goto composes the three
+// select verbs: select the topology and study, ghost the study's parts (those
+// with installed meshes after alias resolution), and mark every feature-
+// identity-bound face opaque. Parts with no mesh and edges with no binding
+// degrade to the existing honest absent states -- never a guessed surface.
+async function cmdTrace(topologyId, studyId) {
+  if (!topologyId || !studyId) throw new Error("trace needs <topology> <study>");
+  cmdSelectTopology(topologyId);
+  cmdSelectStudy(studyId);
+  const plan = AA.planStudyTrace(state.currentTopology, state.currentStudy,
+    mergedIdentityProjection(), state.meshList, state.partMeshAliases);
+
+  state.scene.clearMarks();
+  if (plan.ghosts.length) {
+    await AA.exec(["ghost", ...plan.ghosts]);
+  } else {
+    state.scene.listOpenParts().forEach((sha) => state.scene.setVisible(sha, false));
+    renderPartsPanel();
+    setSceneEmptyState(plan.missingParts.length ? plan.missingParts : null,
+      plan.missingParts.length ? null
+        : "This study's selection names no parts -- nothing to show in 3D.");
+  }
+  for (const mark of plan.marks) {
+    await AA.exec(["mark-face", mark.sha256, String(mark.faceId)]);
+  }
+
+  const notes = [];
+  if (plan.missingParts.length) notes.push("no mesh: " + plan.missingParts.join(", "));
+  if (plan.unresolvedMarks.length) {
+    notes.push(plan.unresolvedMarks.length + " binding(s) point at meshes not installed");
+  }
+  if (plan.unboundEdges.length) notes.push(plan.unboundEdges.length + " edge(s) unbound");
+  setBanner("Traced " + (state.currentStudy.title || studyId) + ": " +
+    plan.ghosts.length + " part(s) ghosted, " + plan.marks.length +
+    " bound face(s) marked" + (notes.length ? " -- " + notes.join("; ") : ""),
+    plan.ghosts.length ? "ok" : "warn");
+  const summary = {
+    topologyId, studyId,
+    ghosted: plan.ghosts, marks: plan.marks,
+    missingParts: plan.missingParts,
+    unresolvedMarks: plan.unresolvedMarks,
+    unboundEdges: plan.unboundEdges,
+  };
+  window.__lastTrace = summary; // the autotest convention: machine-readable result
+  return summary;
 }
 
 function cmdCamera(mode, ...rest) {
@@ -202,22 +302,26 @@ commands.register("show", cmdOpenPart); // "show" on a part never opened is "ope
 commands.register("hide", cmdHide);
 commands.register("isolate", cmdIsolate);
 commands.register("camera", cmdCamera);
+commands.register("ghost", cmdGhost);
+commands.register("mark-face", cmdMarkFace);
 commands.register("select-face", cmdSelectFace);
 commands.register("select-topology", cmdSelectTopology);
 commands.register("select-study", cmdSelectStudy);
 commands.register("select-edge", cmdSelectEdge);
 commands.register("goto", cmdGoto);
+commands.register("trace", cmdTrace);
 AA.exec = (input) => commands.exec(input);
 
-function setSceneEmptyState(missingParts) {
-  if (!missingParts || !missingParts.length) {
+function setSceneEmptyState(missingParts, message) {
+  if ((!missingParts || !missingParts.length) && !message) {
     el.sceneEmpty.style.display = "none";
     el.sceneEmpty.textContent = "";
     return;
   }
   el.sceneEmpty.style.display = "flex";
-  el.sceneEmpty.textContent = "No installed mesh for: " + missingParts.join(", ") +
-    " -- tessellate the part first (see data/meshes/README.md), then reload.";
+  el.sceneEmpty.textContent = message ||
+    ("No installed mesh for: " + missingParts.join(", ") +
+    " -- tessellate the part first (see data/meshes/README.md), then reload.");
 }
 
 // --- topology/study/element navigation (the state these commands mutate) --
@@ -543,6 +647,9 @@ const wantTopology = params.get("topology");
 const wantStudy = params.get("study");
 const wantEdge = params.get("edge");
 const wantIsolate = params.get("isolate");
+// ?trace=1&topology=<id>&study=<id> boots the per-study 3D trace (the `trace`
+// verb) instead of the goto/isolate pair -- the flyout's own boot shape.
+const wantTrace = params.get("trace") === "1";
 
 function hasPendingDeepLink() {
   return !!(wantTopology || wantIsolate);
@@ -560,6 +667,16 @@ function pendingDeepLinkNote() {
 }
 
 async function runPendingDeepLink() {
+  if (wantTrace && wantTopology && wantStudy) {
+    // trace owns the whole scene state (which parts show, what is marked), so
+    // the goto/isolate params are not also applied on top of it.
+    try {
+      await AA.exec(["trace", wantTopology, wantStudy]);
+    } catch (err) {
+      setBanner("Deep link trace failed: " + err.message, "error");
+    }
+    return;
+  }
   if (wantTopology) {
     try {
       await AA.exec(["goto", wantTopology, wantEdge || "", wantStudy || ""]);
@@ -579,11 +696,52 @@ async function runPendingDeepLink() {
   }
 }
 
+// --- flyout embedding: postMessage -> AA.exec (handoff study_3d_flyout) ----
+//
+// The stack viewer embeds this app as a same-origin iframe flyout. The first
+// open boots via the URL params above; every later launch posts
+// {type: "annotate:exec", id?, command} instead of reloading, so the folder
+// grant, loaded meshes and camera survive across launches. Same-origin only:
+// a message from any other origin is ignored, and off-origin embedding is the
+// viewer's own degraded-link case, not this listener's. Commands queue behind
+// the first loadAll() (the same "queued until you connect" semantics the deep
+// link has), run in arrival order, and reply {type: "annotate:result", id,
+// ok, result|error}; a failure also lands in this app's own banner, exactly
+// as the same command typed into the dev console would.
+let markLoaded;
+const whenLoaded = new Promise((resolve) => { markLoaded = resolve; });
+let execChain = Promise.resolve();
+
+window.addEventListener("message", (ev) => {
+  if (ev.origin !== window.location.origin) return;
+  const msg = ev.data;
+  if (!msg || msg.type !== "annotate:exec" || !msg.command) return;
+  const source = ev.source;
+  const origin = ev.origin;
+  execChain = execChain.then(async () => {
+    let reply;
+    try {
+      await whenLoaded;
+      const result = await AA.exec(msg.command);
+      reply = { type: "annotate:result", id: msg.id == null ? null : msg.id,
+        ok: true, result: result === undefined ? null : result };
+    } catch (err) {
+      setBanner(err.message, "error");
+      reply = { type: "annotate:result", id: msg.id == null ? null : msg.id,
+        ok: false, error: err.message };
+    }
+    try { if (source) source.postMessage(reply, origin); } catch (_) { /* embedder gone */ }
+  });
+});
+
 async function loadAll() {
   state.topologyProjection = await state.storage.readTopologyProjection();
   state.identityProjection = await state.storage.readFeatureIdentityProjection();
   if (!state.topologyProjection) {
     setBanner("No topology projection found. Build it: " + AA.CONFIG.rebuild.topologies, "warn");
+    // Loaded-but-empty: queued commands should fail loudly ("no topology
+    // projection loaded yet"), not hang forever behind this gate.
+    markLoaded();
     return;
   }
   setBanner(
@@ -594,9 +752,12 @@ async function loadAll() {
   );
   renderTopologyPicker();
   state.meshList = await state.storage.listMeshes();
+  const aliasDoc = await state.storage.readPartMeshAliases();
+  state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
   renderPartsPanel();
 
   await runPendingDeepLink();
+  markLoaded();
 
   if (params.get("autotest") === "1") await runAutotest();
 }

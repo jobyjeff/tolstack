@@ -39,6 +39,34 @@
 //          WORKSHEET_*.md files, which are read LIVE from docs/tolerance_stacks/
 //          rather than copied into the projection: nothing about a worksheet is
 //          derived, so an edit should show on reload without a rebuild.
+//
+// One method is OPTIONAL, and only storage/http.js implements it:
+//   capabilities(): { worksheets: bool, rebuild: bool } | undefined
+//        — what this transport can actually reach. A view must never assume
+//          every adapter can service every read; the served mount that
+//          drawing-checker exposes (storage/http.js's "sibling-data-mount"
+//          candidate) genuinely cannot reach docs/, so readText() there always
+//          resolves null and capabilities().worksheets says why before a view
+//          offers a control it cannot service. An adapter with no
+//          capabilities() method (fsa.js, memory.js, node_fs.js) is read as
+//          fully capable — the same "absent means capable" default forge's own
+//          two-transport apps use. `rebuild` (viewer_rebuild_affordance,
+//          2026-09-10) is the same kind of fact, PROBED rather than assumed:
+//          true only once storage/http.js has actually reached
+//          tolstack_mount_rebuild_endpoint's status route.
+//
+// Two more methods exist ONLY when capabilities().rebuild is true (today,
+// only storage/http.js can ever report it, and only over its sibling-data-
+// mount candidate) — a caller must check the capability first, never call
+// these speculatively:
+//   requestRebuild(): Promise<object>   — POST the rebuild endpoint; resolves
+//        the status payload it answers immediately (queued/running).
+//   readRebuildStatus(): Promise<object>
+//        — GET the same status the endpoint polls toward done/failed. Both
+//          methods throw on a transport failure (a non-ok response) the same
+//          way readResults()'s underlying read does for anything other than
+//          "not built yet" — a rebuild that fails to even start is a real
+//          failure, not an absence.
 (function (VA) {
   "use strict";
 
