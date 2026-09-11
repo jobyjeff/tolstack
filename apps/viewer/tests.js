@@ -3645,6 +3645,12 @@
             });
             eq(runsPerPart.hub, 2);
             eq(runsPerPart.pitch_plate_215177_001, 3);
+            // The other two splits (README quotes all four): gas_spring is
+            // revisited on a later branch; blade_root's two runs are
+            // CONSECUTIVE — a boundary node between two same-part edges, the
+            // mini fixture's fork case occurring live.
+            eq(runsPerPart.gas_spring, 2);
+            eq(runsPerPart.blade_root, 2);
             // The end-stop clearance is its own group, in gap words.
             var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
             eq(gapGroups.length, 1);

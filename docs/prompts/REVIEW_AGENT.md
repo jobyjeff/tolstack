@@ -1754,6 +1754,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       transient state a re-render destroys, and demand the browser tier click
       it — a fast-tier `.count()`-style assertion cannot fail on this class.
 
+- [ ] **An example list explaining a numeric excess reads as exhaustive — do
+      the residual arithmetic.** New 2026-09-10 (`viewer_leader_line_grid`).
+      Lesson, issue and README all explained "12 parts but 18 contiguous runs"
+      with "(hub as 2, pitch_plate as 3)" — every quoted figure individually
+      correct, and the list still wrong: 12 + 1 + 2 accounts for 15 of the 17
+      part-runs, because `gas_spring` and `blade_root` split too (2 each), and
+      the understated split count sat in the very issue asking Jeff to decide
+      whether split runs need a visual tie. The stale-count entries above ask
+      whether each figure reproduces; this asks whether the *list* closes:
+      when prose explains why total N exceeds base M by naming members, sum
+      the named members against N − M and require the residual be zero or the
+      prose to say "among others". All three fixed inline (plus two pins added
+      to the existing `[real]` runs-per-part test).
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths

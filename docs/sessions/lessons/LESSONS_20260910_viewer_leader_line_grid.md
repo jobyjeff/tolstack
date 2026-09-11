@@ -55,9 +55,12 @@ were decisions, not transcription:
 
 The DoD says "one merged row per part"; the depth-first walk makes that
 unattainable without reordering: **the real pitch system has 12 parts but 18
-contiguous runs** (hub appears as 2 runs — the spine's first three dimensions
-and the four loop-closing edges at the tail — and `pitch_plate_215177_001` as
-3, one per branch that leaves it). `VA.gridPlan` breaks a group where the part
+contiguous runs**, four parts splitting — hub as 2 runs (the spine's first
+three dimensions and the four loop-closing edges at the tail),
+`pitch_plate_215177_001` as 3 (one per branch that leaves it), and
+`gas_spring` and `blade_root` as 2 each (blade_root's two runs are
+*consecutive*: a boundary node between two same-part edges, the miniTopo(true)
+case, live). `VA.gridPlan` breaks a group where the part
 changes between consecutive edge rows **or** where the node row between them
 is non-internal (so a leader can never point inside a merged cell), and each
 run gets its own merged cell. Reordering the grid to force one row per part

@@ -12,8 +12,11 @@ audience: strategy
 `viewer_leader_line_grid` (2026-09-10) shipped the merged-row grid with one
 component cell per **contiguous same-part run** of the depth-first walk, not
 literally one per part: the walk revisits a part on later branches, so the
-real `pitch_system` renders 18 groups over 12 parts (`hub` as 2 runs,
-`pitch_plate_215177_001` as 3). The handoff's DoD wording was "one merged row
+real `pitch_system` renders 18 groups over 12 parts — four parts split, not
+two: `hub` as 2 runs, `pitch_plate_215177_001` as 3, and `gas_spring` and
+`blade_root` as 2 each (corrected in review 2026-09-10; the original filing
+named only hub and pitch_plate, which understates the gap this issue asks
+about). The handoff's DoD wording was "one merged row
 per part"; forcing that literally would reorder the grid, crossing the leader
 lines and breaking the walk-order row↔DAG correspondence that is the page's
 contract — so the walk won, per that handoff's own instruction to file a

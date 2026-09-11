@@ -209,7 +209,9 @@ per contiguous same-part run (`rowspan` over the run's tolerance sub-rows,
 `VA.gridPlan`), and a group breaks exactly where the part changes or a leader
 lands. One honest consequence: the depth-first walk can revisit a part on a
 later branch, and each contiguous run gets its own merged cell — the real
-pitch system's `hub` appears as two runs and its pitch plate as three.
+pitch system's 12 parts render as 18 runs: `hub` as two, its pitch plate as
+three, `gas_spring` and `blade_root` as two each (all four splits pinned by
+the `[real]` fixture tier).
 Reordering the grid to force literally one row per part would cross the
 leaders and break the walk-order correspondence, so the walk wins.
 
