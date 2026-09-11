@@ -1,5 +1,16 @@
 # STRATEGY BRIEF 2026-09-09 — topology_part_vocabulary_mesh_mapping: map a topology edge's `part` to a mesh's `provenance.json` `part_id`
 
+> **CONSUMED 2026-09-10 — decided: option (b), a declared alias table
+> (tracked config, exact-match only), per the locked
+> `dispatch/docs/strategy/HANDOFF_20260910_tolstack_viewer_arcs_strategy.md`
+> (which folded this brief into the viewer arc and steered "declared alias
+> table, tracked config not code-guessing"). Expanded by the 2026-09-10
+> orchestrator session → `docs/sessions/HANDOFF_20260910_mesh_part_alias_table.md`
+> (staged). Option (a) rejected (re-tessellating/renaming installed meshes,
+> and a rename-wins ambiguity); option (c) stays rejected per the filer.
+> Aliases are declared from evidence only; unmappable parts stay unmapped
+> (the honest empty state stands).**
+
 > **Routing note.** `docs/issues/ISSUE_20260908_topology_part_vocabulary_has_no_mesh_mapping.md`
 > is `type: feature`, `priority: low`, `audience: strategy` — the filer named
 > this a design question, not an obvious mechanical fix.
