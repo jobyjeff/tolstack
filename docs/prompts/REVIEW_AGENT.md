@@ -450,6 +450,16 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A finding the handoff named but did not fix, recorded only in a
+      `LESSONS_*` file.** APPROVE ends the handoff's ownership, and no triage
+      sweep reads lessons — a lesson schedules nobody. Every "named, not fixed
+      here" item in a lesson, a DoD sweep, or a "considered and left" list must
+      have a `docs/issues/ISSUE_*.md` with frontmatter before the review closes,
+      or **you** file it. Check the lesson's own leftovers against
+      `docs/issues/` before approving. Promoted by the 2026-09-11 triage sweep:
+      this shape appeared in four 2026-09-10/11 reports across dispatch,
+      drawing-checker, tolstack and atp-post in a single window, and that sweep
+      had to file the strays itself.
 - [ ] **A dedicated handoff's target fix already shipped inside another
       handoff's review-response commit.** Two sightings on 2026-09-06, same
       day, same commit: `annotation_surface_mvp` got REQUEST CHANGES, and its

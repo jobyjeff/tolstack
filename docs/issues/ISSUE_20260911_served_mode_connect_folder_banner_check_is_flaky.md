@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tests/browser-tier
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260911_viewer_browser_tier_wait_predicates.md
 ---
 
 # Browser tier: "[real] the connect-folder banner never appears" races the boot's own transient banner

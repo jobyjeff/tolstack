@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: resolved
 area: apps/viewer
 reporter: agent
+resolution: fixed inline at the 2026-09-11 triage sweep -- apps/viewer/README.md now reads "shipped in that repo -- webui/analyses.py, pinned by tests/test_analyses_panel.py". Verified before editing: drawing-checker carries docs/sessions/completed/HANDOFF_20260910_analyses_viewer_deep_link.md and the live link-building code in webui/analyses.py.
 ---
 
 # The deep-link contract section calls drawing-checker's consumer "staged" — it shipped

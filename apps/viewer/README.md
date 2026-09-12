@@ -115,8 +115,9 @@ every provenance state. Nothing touches disk.
 
 **This section is a contract a sibling repo consumes** — drawing-checker's
 analyses panel links into this page with a stack selected
-(`analyses_viewer_deep_link`, staged in that repo, reads exactly what is
-documented here). The params live in one constant (`VA.DEEP_LINK_PARAMS`,
+(`analyses_viewer_deep_link`, shipped in that repo -- `webui/analyses.py`,
+pinned by `tests/test_analyses_panel.py` -- reads exactly what is documented
+here). The params live in one constant (`VA.DEEP_LINK_PARAMS`,
 `viewer.js`) and are pinned by tests in both repos: treat a rename or a
 semantics change as **breaking**, and change this section with it.
 

@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tests/browser-tier
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260911_viewer_browser_tier_wait_predicates.md
 ---
 
 # Browser tier: "the embedded annotator boots to an honest pre-connect state" waits on an empty banner and reads it before the boot writes to it

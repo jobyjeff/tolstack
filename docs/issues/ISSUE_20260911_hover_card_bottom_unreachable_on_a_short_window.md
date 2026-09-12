@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260911_viewer_popover_clamp_and_rebuild_terminal_state.md
 ---
 
 # A hover card taller than the room below its trigger hangs off the window bottom, and its own scrollbar cannot reach it
