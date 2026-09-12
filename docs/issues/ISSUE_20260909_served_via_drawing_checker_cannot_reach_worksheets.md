@@ -4,7 +4,7 @@ priority: low
 status: triaged
 area: viewer/storage
 reporter: agent
-handoff: viewer_http_transport
+handoff: docs/sessions/completed/HANDOFF_20260909_viewer_http_transport.md
 strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
 ---
 
