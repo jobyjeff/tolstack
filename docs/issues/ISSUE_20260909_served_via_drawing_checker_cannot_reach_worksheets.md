@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: resolved
 area: viewer/storage
 reporter: agent
 handoff: docs/sessions/completed/HANDOFF_20260909_viewer_http_transport.md
 strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
+resolution: handoff completed 2026-09-09 -- closed automatically by dispatch when handoff `viewer_http_transport` moved to completed/; not independently verified. (reconciliation sweep 2026-09-11)
 ---
 
 # Served through drawing-checker's mount, the viewer cannot read a worksheet at all
