@@ -1,12 +1,11 @@
 ---
 type: feature
 priority: low
-status: resolved
+status: triaged
 area: viewer/storage
 reporter: agent
-handoff: docs/sessions/completed/HANDOFF_20260909_viewer_http_transport.md
 strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
-resolution: handoff completed 2026-09-09 -- closed automatically by dispatch when handoff `viewer_http_transport` moved to completed/; not independently verified. (reconciliation sweep 2026-09-11)
+resolution: NOT resolved -- reverted by the 2026-09-11 triage sweep. The reconciliation sweep advanced this to `resolved` because the `handoff:` back-link named a completed handoff; but `viewer_http_transport` is the handoff that FILED this issue ("Filed rather than fixed: a drawing-checker mount change is out of scope for a tolstack-only handoff"), not one that fixed it. The real disposition is the `strategy:` brief below, still pending. The misleading `handoff:` field has been removed so a later sweep does not re-close it; the provenance is in the body.
 ---
 
 # Served through drawing-checker's mount, the viewer cannot read a worksheet at all
