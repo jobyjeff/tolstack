@@ -230,7 +230,7 @@
   //
   // 0 where there is nothing to measure against (the DOM shim the fast tier
   // renders into), which is the same "no viewport" case a pure call is:
-  // VA.rowPositions falls back to EDGE_LENGTH_SCALE.fallbackRows and nothing
+  // VA.rowPositions falls back to EDGE_LENGTH_SCALE.maxRows alone and nothing
   // is normalized.
   function paneBudget(root, metrics) {
     if (!root || typeof root.getBoundingClientRect !== "function") return 0;
