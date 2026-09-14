@@ -165,21 +165,35 @@
     }
 
     var study = ctx.study;
-    var layout = layoutFor(topoProj, study, ctx.layoutMode);
-    // The keyed position store (viewer_edge_length_scaling): every dot and
-    // bar's y, computed ONCE per render and addressed by id, under whichever
-    // length mode is on. Both geometry passes below read this same store, so
-    // the dots, the bars and the leaders cannot disagree about where a row
-    // went when the mode stretched it.
-    var positions = VA.rowPositions(layout, topoProj,
-      ctx.edgeLengthMode || "uniform", M);
-    var geometry = VA.railGeometry(layout, M, positions);
+    // Right-justified (viewer_dag_spine_layout): the walk's mainline on the
+    // rightmost rail, hard against the jog zone, branches extending left.
+    var layout = VA.spineRight(layoutFor(topoProj, study, ctx.layoutMode));
     // The merged-row grid and the leaders come off ONE plan of the same
     // serialisation the rails were drawn from (viewer_leader_line_grid,
     // 2026-09-10): the grid holds only the edge rows, grouped into components,
     // and each non-internal node bridges the two with a jogged leader line.
+    // It is built BEFORE the positions because its row count is half of what
+    // the fit below needs: the two blocks are centred against each other.
     var plan = VA.gridPlan(layout, topoProj);
+    // The keyed position store (viewer_edge_length_scaling): every dot and
+    // bar's y, computed ONCE per render and addressed by id, under whichever
+    // length mode is on. Both geometry passes below read this same store, so
+    // the dots, the bars and the leaders cannot disagree about where a row
+    // went when the mode stretched it. `fit` is the viewport it normalizes
+    // into (viewer_dag_spine_layout) — measured here because this is the one
+    // place that holds both the pane and the plan.
+    var fit = { budget: paneBudget(root, M), plan: plan };
+    var positions = VA.rowPositions(layout, topoProj,
+      ctx.edgeLengthMode || "uniform", M, fit);
+    var geometry = VA.railGeometry(layout, M, positions);
     var leaderGeo = VA.leaderGeometry(layout, plan, M, positions);
+    // The store this paint actually drew from, kept for the one render after
+    // it: the browser tier re-derives the drawn geometry from the same budget
+    // the render measured rather than guessing at a viewport, and the staged
+    // study-respine animation needs a store that outlives a single paint to
+    // tween between two of them.
+    VA.lastTopoRender = { topologyId: topoProj.id, mode: positions.mode,
+                          fit: fit, positions: positions };
     var index = VA.topologyIndex(topoProj);
     var chain = VA.chainIndex(study);
     var chainNodes = VA.chainNodes(study);
@@ -198,11 +212,33 @@
     hscroll.appendChild(header(leaderGeo.width));
     var body = VA.el("div", "tv__body");
     body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx));
-    body.appendChild(grid(plan, index, chain, marking, ctx));
+    body.appendChild(grid(plan, index, chain, marking, ctx, positions.gridOffset));
     hscroll.appendChild(body);
     root.appendChild(hscroll);
     return root;
   };
+
+  // How much vertical room the DAG has to normalize itself into
+  // (viewer_dag_spine_layout): the window's height, less everything the page
+  // puts above this pane and the pane's own sticky column header.
+  //
+  // Read in DOCUMENT coordinates — the pane's top does not move with the
+  // page's own scroll, so the budget is a property of the page's chrome and
+  // not of how far the reader happened to have scrolled when the mode
+  // changed. Measured once per paint, on the emptied pane, before anything is
+  // appended to it.
+  //
+  // 0 where there is nothing to measure against (the DOM shim the fast tier
+  // renders into), which is the same "no viewport" case a pure call is:
+  // VA.rowPositions falls back to EDGE_LENGTH_SCALE.fallbackRows and nothing
+  // is normalized.
+  function paneBudget(root, metrics) {
+    if (!root || typeof root.getBoundingClientRect !== "function") return 0;
+    if (typeof window === "undefined" || !window.innerHeight) return 0;
+    var rect = root.getBoundingClientRect();
+    return VA.dagHeightBudget(rect.top + (window.scrollY || 0),
+      window.innerHeight, metrics);
+  }
 
   // Which serialisation the page is showing. Both come out of the projection;
   // neither is computed here. A study that raised falls back to the whole
@@ -426,8 +462,14 @@
   // the whole group via rowspan, so a component is said once and its
   // tolerance sub-rows read as one block. Node rows are gone — an interface
   // is its dot and (at a part boundary) its leader, both clickable.
-  function grid(plan, index, chain, marking, ctx) {
+  function grid(plan, index, chain, marking, ctx, offset) {
     var box = VA.el("div", "tv__rows");
+    // Centred against the DAG beside it (viewer_dag_spine_layout): whichever
+    // block is shorter is pushed down by half the difference, which is what
+    // drops the vertical distance the leaders have to jog. A block offset, not
+    // a row-pitch change — every row is still exactly `rowHeight` tall, and
+    // the leaders' grid-side seams carry the same offset (VA.leaderGeometry).
+    if (offset) box.style.marginTop = offset + "px";
     var table = VA.el("table", "tvtable");
     table.style.width = tableWidth() + "px";
     table.appendChild(colgroup());

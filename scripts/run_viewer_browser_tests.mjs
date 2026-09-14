@@ -559,10 +559,17 @@ const CORRESPONDENCE_IN_PAGE = () => {
   for (const hit of leaders) {
     const id = hit.getAttribute("data-leader-id");
     const beforeEdge = hit.getAttribute("data-boundary-edge");
+    // The two ends, measured off the path the browser actually rendered
+    // (getPointAtLength, not the numbers that drew it) rather than read off
+    // its bounding box. The bbox shortcut assumed a leader always RISES —
+    // bottom of the box = node end, top = grid end — which stopped being true
+    // when viewer_dag_spine_layout centred the grid against the DAG: a leader
+    // above the centre now descends into its seam. Path length 0 is the
+    // node end and the total length is the grid end, in either direction,
+    // because VA.leaderGeometry writes the path node-end first.
     const svgTop = hit.ownerSVGElement.getBoundingClientRect().top;
-    const bbox = hit.getBBox();
-    const nodeEndY = svgTop + bbox.y + bbox.height;
-    const gridEndY = svgTop + bbox.y;
+    const nodeEndY = svgTop + hit.getPointAtLength(0).y;
+    const gridEndY = svgTop + hit.getPointAtLength(hit.getTotalLength()).y;
     const dot = document.querySelector(
       `svg.tv__rails circle[data-id="${CSS.escape(id)}"]`);
     if (!dot) { drift.push(`leader ${id}: no dot`); continue; }
@@ -597,10 +604,21 @@ const CORRESPONDENCE_IN_PAGE = () => {
 const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
   const VA = window.ViewerApp;
   const proj = VA.findTopology(VA.demoTopologyFixture().topologies, topologyId);
-  const pos = VA.rowPositions(proj.layout, proj, mode, VA.RAIL_METRICS);
+  // Re-derived from the projection, not read out of the render — that is the
+  // whole point of this check. The two things it does take from the render
+  // are the things only a rendered page can know: the layout it drew
+  // (right-justified, viewer_dag_spine_layout) and the viewport budget it
+  // measured, without which the store would be scaled to a different fit than
+  // the DOM beside it.
+  const last = VA.lastTopoRender;
+  const layout = VA.spineRight(proj.layout);
+  const plan = VA.gridPlan(layout, proj);
+  const pos = VA.rowPositions(layout, proj, mode, VA.RAIL_METRICS,
+    { budget: last.fit.budget, plan: plan });
   const bad = [];
+  if (last.mode !== mode) bad.push(`render is in ${last.mode}, not ${mode}`);
   let floored = 0;
-  for (const row of proj.layout.rows) {
+  for (const row of layout.rows) {
     if (row.kind !== "edge") continue;
     const slot = pos.edges[row.id];
     if (slot.floored) floored++;
@@ -616,8 +634,34 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
   }
   const breaks = document.querySelectorAll("svg.tv__rails path.rail__break").length;
   if (breaks !== floored) bad.push(`break marks: ${breaks} drawn vs ${floored} floored`);
-  const edges = proj.layout.rows.filter((r) => r.kind === "edge").length;
-  return { bad, floored, edges };
+  const edges = layout.rows.filter((r) => r.kind === "edge").length;
+  return { bad, floored, edges, budget: last.fit.budget,
+           dagHeight: pos.dagHeight };
+};
+
+// The viewport fit and the centring (viewer_dag_spine_layout), measured in
+// the page: how tall the DAG actually came out against the budget the render
+// measured and against the height its own edge count alone demands (the floor
+// × edges + nodes minimum, which no mode may go under and which is therefore
+// the one honest way to overflow), and whether the grid block really sits
+// where the store says it does — the DOM offset against `gridOffset`.
+const FIT_IN_PAGE = () => {
+  const VA = window.ViewerApp;
+  const last = VA.lastTopoRender;
+  const rowHeight = VA.RAIL_METRICS.rowHeight;
+  const svg = document.querySelector("svg.tv__rails").getBoundingClientRect();
+  const rows = document.querySelector(".tv__rows").getBoundingClientRect();
+  const floorMin = rowHeight *
+    (Object.keys(last.positions.nodes).length +
+     Object.keys(last.positions.edges).length * VA.EDGE_LENGTH_SCALE.floorRows);
+  return {
+    mode: last.mode,
+    budget: last.fit.budget,
+    dagHeight: last.positions.dagHeight,
+    floorMin: floorMin,
+    gridOffset: last.positions.gridOffset,
+    measuredGridOffset: rows.top - svg.top,
+  };
 };
 
 // --- the topology page, in a real browser ---------------------------------
@@ -726,7 +770,22 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("tr.tvrow--selected").count() === 0);
 
     // A leader is clickable too, and selecting a boundary node marks it.
-    await page.locator('path.rail__leaderhit[data-leader-id="base_post_seat"]').click();
+    // Clicked at a point ON the path rather than at its box's centre: a
+    // jogged leader is an L, so whether its box centre happens to fall within
+    // the 10px hit stroke is luck about that one leader's proportions — and
+    // the luck ran out when viewer_dag_spine_layout moved the spine right
+    // (the node end moved 20px closer to the lane, and the centre fell off
+    // the stroke into the SVG behind it). Half the path's own length is on
+    // the path by construction.
+    const leaderHit = page.locator('path.rail__leaderhit[data-leader-id="base_post_seat"]');
+    const leaderMid = await leaderHit.evaluate((el) => {
+      const svg = el.ownerSVGElement.getBoundingClientRect();
+      const mid = el.getPointAtLength(el.getTotalLength() / 2);
+      return { x: svg.left + mid.x, y: svg.top + mid.y };
+    });
+    const leaderBox = await leaderHit.boundingBox();
+    await leaderHit.click({ position: { x: leaderMid.x - leaderBox.x,
+                                        y: leaderMid.y - leaderBox.y } });
     push("clicking a leader selects its interface",
       /A component boundary/.test(await page.locator("#detail").textContent()) &&
       await page.locator("path.rail__leader--selected").count() === 1);
@@ -1087,10 +1146,18 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
       const realTol = await realBars("tolerance");
+      // Every bar is its slot, and the slots are what the VIEWPORT allows:
+      // pitch_system's 24 edges cannot be drawn in proportion inside a 1000px
+      // window without going under the one-row floor, so under the fit
+      // (viewer_dag_spine_layout) they all sit ON it, every one marked
+      // not-to-scale. That is the honest overflow the fit is allowed to
+      // produce — and the DAG is no taller than its own floor demands, where
+      // the retired 6-row cap drew it 3325px tall.
       push("[real] pitch_system under tolerance width: bars measure the " +
-        "store, some floored, most scaled",
-        realTol.bad.length === 0 && realTol.floored > 0 &&
-        realTol.floored < realTol.edges);
+        "store, and the viewport fit floors every one of them rather than " +
+        "drawing a DAG the page cannot hold",
+        realTol.bad.length === 0 && realTol.floored === realTol.edges &&
+        realTol.dagHeight <= Math.max(realTol.budget, 26 * 45) + 0.5);
       if (realTol.bad.length) console.log("    bars: " + realTol.bad.slice(0, 5).join(" | "));
       push("[real] pitch_system tolerance-width leaders still correspond",
         (await correspondence()).drift.length === 0);
@@ -1167,6 +1234,20 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     };
   });
 
+  // Every edge-length mode in turn, reporting the fit and the centring the
+  // render actually produced at each stop (viewer_dag_spine_layout). The
+  // toolbar's own cycle order is VA.EDGE_LENGTH_MODES', so three clicks come
+  // back to where they started and the suite after this one is undisturbed.
+  const fitAcrossModes = async () => {
+    const seen = [];
+    for (let i = 0; i < 3; i++) {
+      seen.push(await page.evaluate(FIT_IN_PAGE));
+      await page.locator("#edge-length-toggle").click();
+      await page.waitForTimeout(50);
+    }
+    return seen;
+  };
+
   const navContract = () => page.evaluate(() => {
     const nav = document.querySelector(".navtree");
     const style = getComputedStyle(nav);
@@ -1204,6 +1285,44 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     push("[mock] the left nav is the one remaining independent scroll region",
       mockNav.position === "sticky" &&
       (mockNav.overflowY === "auto" || mockNav.overflowY === "scroll"));
+
+    // The viewport fit and the centring, in every length mode
+    // (viewer_dag_spine_layout). Two contracts: the DAG is never taller than
+    // the window allows unless its own one-row floor demands it (the honest
+    // overflow), and the grid block really sits where the position store says
+    // — the DOM offset measured against `gridOffset`, which is what the
+    // leaders' grid-side seams were computed from.
+    const mockFit = await fitAcrossModes();
+    push("[mock] every length mode fits the DAG into the viewport, or into " +
+      "its own floor where that is taller",
+      mockFit.length === 3 && mockFit.every((f) =>
+        f.budget > 0 && f.dagHeight <= Math.max(f.budget, f.floorMin) + 0.5));
+    push("[mock] the grid block sits exactly where the store centres it, in " +
+      "every length mode",
+      mockFit.every((f) => Math.abs(f.measuredGridOffset - f.gridOffset) < 0.75));
+    push("[mock] the demo DAG is short enough that the fit is real room, " +
+      "not the floor", mockFit.every((f) => f.budget > f.floorMin));
+
+    // A window that changes size after a paint leaves the DAG fitted to a
+    // viewport that is gone, so the app re-paints on resize. Measured here in
+    // tolerance width, where the fit has real room to give up.
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+    const roomy = await page.evaluate(FIT_IN_PAGE);
+    await page.setViewportSize({ width: 1400, height: 520 });
+    await page.waitForTimeout(400);
+    const shrunk = await page.evaluate(FIT_IN_PAGE);
+    push("[mock] shrinking the window re-fits the DAG into it",
+      roomy.mode === "tolerance" && shrunk.mode === "tolerance" &&
+      shrunk.budget < roomy.budget && shrunk.dagHeight < roomy.dagHeight &&
+      shrunk.dagHeight <= Math.max(shrunk.budget, shrunk.floorMin) + 0.5);
+    push("[mock] leaders still land on their dots and seams after the re-fit",
+      (await correspondence()).drift.length === 0);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.waitForTimeout(400);
+    await page.locator("#edge-length-toggle").click();
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
 
     // Compact density: correspondence must still hold once row height changes
     // — the leaders and the grid rows both re-derive from the same rowHeight.
@@ -1249,6 +1368,23 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       push("[real] pitch_system's row count pushes the DOCUMENT past the " +
         "viewport rather than clipping inside the pane", docScrolls);
       push("[real] leaders stay on their dots and seams",
+        (await correspondence()).drift.length === 0);
+
+      // pitch_system is the case the fit was written for: 45 rows at one row
+      // each is already past a 900px window, so no mode may draw it SHORTER
+      // (the floor is never given up) and none may draw it taller either —
+      // where the retired 6-row cap drew its tolerance-width walk 3325px tall.
+      const realFit = await fitAcrossModes();
+      push("[real] no length mode draws pitch_system taller than its own " +
+        "floor demands — the 6-row cap's 3325px walk is gone",
+        realFit.length === 3 &&
+        realFit.every((f) => f.dagHeight <= Math.max(f.budget, f.floorMin) + 0.5));
+      push("[real] pitch_system overflows honestly: its own floor is past " +
+        "the budget, so it scrolls rather than shrinking below one row",
+        realFit.every((f) => f.floorMin > f.budget && f.dagHeight === f.floorMin));
+      push("[real] the grid block sits where the store centres it here too",
+        realFit.every((f) => Math.abs(f.measuredGridOffset - f.gridOffset) < 0.75));
+      push("[real] leaders still correspond after the mode cycle",
         (await correspondence()).drift.length === 0);
     }
 
