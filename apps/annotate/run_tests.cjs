@@ -21,7 +21,7 @@ const sandbox = { console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 
-const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js", "commands.js", "fixtures.js"];
+const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js", "commands.js", "exec_queue.js", "fixtures.js"];
 for (const f of files) {
   vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), sandbox, { filename: f });
 }
@@ -57,6 +57,17 @@ function assertThrows(fn, msg) {
     return;
   }
   throw new Error(msg || "expected a throw");
+}
+
+// A hang is awkward to assert directly -- race the promise under test against
+// a short timeout so a regression back to "never settles" fails loudly here
+// instead of wedging the whole runner.
+function withTimeout(promise, ms, msg) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(msg || `timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 // --- vocabulary sanity (hand-copy against tolerance_stack/feature_identity.py) ---
@@ -232,6 +243,46 @@ check("CommandLayer.exec on an empty command throws", () => {
   const layer = new AA.CommandLayer();
   assertThrows(() => layer.exec(""));
   assertThrows(() => layer.exec([]));
+});
+
+// --- exec_queue.js: the flyout's "queue behind loadAll()" gate (handoff
+// annotate_load_gate_settles_on_failure) -- a load failure must settle the
+// gate with that error, not leave a queued command awaiting a promise that
+// never resolves. ---
+check("ExecQueue: a command queued before markLoaded() runs once the gate opens", async () => {
+  const queue = new AA.ExecQueue();
+  const pending = queue.enqueue(() => "ran");
+  queue.markLoaded();
+  const outcome = await withTimeout(pending, 500, "queued command hung after markLoaded()");
+  assertEqual(outcome, { ok: true, result: "ran" });
+});
+check("ExecQueue: markLoadFailed() settles the gate -- a queued command fails loudly " +
+  "instead of hanging forever (the bug this handoff fixes)", async () => {
+  const queue = new AA.ExecQueue();
+  const pending = queue.enqueue(() => "should never run");
+  queue.markLoadFailed(new Error("load failed: boom"));
+  const outcome = await withTimeout(pending, 500,
+    "queued command hung on the gate after a load failure instead of failing loudly");
+  assertEqual(outcome.ok, false);
+  assertEqual(outcome.error.message, "load failed: boom");
+});
+check("ExecQueue: a command queued AFTER markLoadFailed() also fails loudly, never hangs", async () => {
+  const queue = new AA.ExecQueue();
+  queue.markLoadFailed(new Error("load failed: boom"));
+  const pending = queue.enqueue(() => "should never run");
+  const outcome = await withTimeout(pending, 500, "late-queued command hung on a failed gate");
+  assertEqual(outcome.ok, false);
+  assertEqual(outcome.error.message, "load failed: boom");
+});
+check("ExecQueue: commands still run in arrival order behind a successful gate", async () => {
+  const queue = new AA.ExecQueue();
+  const seen = [];
+  const first = queue.enqueue(async () => { seen.push("first"); return 1; });
+  const second = queue.enqueue(async () => { seen.push("second"); return 2; });
+  queue.markLoaded();
+  const outcomes = await withTimeout(Promise.all([first, second]), 500, "queue hung");
+  assertEqual(seen, ["first", "second"]);
+  assertEqual(outcomes, [{ ok: true, result: 1 }, { ok: true, result: 2 }]);
 });
 
 // --- README's verb table <-> app.js's commands.register(...) calls -------

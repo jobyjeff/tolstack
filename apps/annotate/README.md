@@ -188,6 +188,11 @@ apps/annotate/
                        registry, mesh-identifier resolution, the isolate
                        state-transition helper -- no DOM, no scene, no fetch.
                        app.js registers the actual (impure) handlers onto it.
+  exec_queue.js        PURE flyout-embedding queue: the "queue commands
+                       behind loadAll()" gate, settled on success (markLoaded)
+                       or failure (markLoadFailed, naming the load error) --
+                       no DOM. app.js owns the two call sites and the
+                       postMessage reply shape.
   scene.js             the 3D surface: three.js mesh loading (through the
                        storage adapter, never fetch() directly), raycast,
                        highlight, part show/hide/frame. ES module (ADR below).
@@ -231,7 +236,12 @@ string or an already-tokenized array to its handler and throwing a
 known-verbs-naming error for an unknown one, `resolveMeshIdentifier`'s
 sha256/part_id/alias resolution precedence — direct match wins, the alias
 table is consulted second, exact-match only — and `planIsolate`'s
-open/show/hide state transition) and `storage/memory.js` (a write is
+open/show/hide state transition), `exec_queue.js` (a command queued before
+`markLoaded()` runs once the gate opens; `markLoadFailed()` settles the gate
+so a queued command — whether already waiting or arriving after — fails
+loudly naming the load error instead of hanging forever, each assertion
+raced against a bounded timeout since a hang has no other observable
+failure) and `storage/memory.js` (a write is
 captured; a second write to the same filename refuses, append-only;
 `canWrite() === false` refuses a write instead of silently no-op'ing). It
 also carries a `[real]` tier that resolves every shipped alias in
