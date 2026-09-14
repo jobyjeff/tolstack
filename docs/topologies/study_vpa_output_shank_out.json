@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "vpa_output_shank_out",
-  "title": "Shank out: fastener grip against the clamped stack it passes through",
+  "title": "Shank out",
+  "description": "Fastener grip against the clamped stack it passes through.",
   "topology": "vpa_output_to_pitch_plate",
   "from": "bushing_far_face",
   "to": "shank_full_dia_end",

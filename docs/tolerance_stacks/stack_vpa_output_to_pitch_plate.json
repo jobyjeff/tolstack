@@ -1,7 +1,7 @@
 {
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "vpa_output_to_pitch_plate",
-  "title": "VPA output to pitch plate -- grip length",
+  "title": "VPA output to pitch plate grip length",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",

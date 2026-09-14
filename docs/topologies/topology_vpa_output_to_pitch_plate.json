@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "vpa_output_to_pitch_plate",
-  "title": "VPA output to pitch plate -- the grip-length joint as a topology (L1 proof)",
+  "title": "VPA output to pitch plate grip length",
+  "description": "The L1 proof of the topology format: a reviewed, committed grip stack re-expressed as a graph, its summation checked to the digit against what that stack already publishes.",
   "units": "mm",
   "provenance": {
     "authored_by": "handoff dag_topology_format, 2026-08-31",

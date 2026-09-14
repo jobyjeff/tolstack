@@ -595,6 +595,9 @@ def project_stack(
     return {
         "id": stack.id,
         "title": stack.title,
+        # The title's demotion target: the qualification a short noun-phrase
+        # title sheds, rendered as the nav's hover tooltip. Descriptive only.
+        "description": stack.description,
         "units": stack.units,
         "archetype": raw.get("archetype"),
         # Where these checks came from, at value level: `generated` means the

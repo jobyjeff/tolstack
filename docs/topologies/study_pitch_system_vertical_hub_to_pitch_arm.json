@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_system_vertical_hub_to_pitch_arm",
-  "title": "Vertical position of the pitch-arm link hole relative to the hub A datum (millimetres)",
+  "title": "Pitch-arm link hole vertical position",
+  "description": "Vertical position of the pitch-arm link hole relative to the hub A datum, in millimetres -- the topology's millimetre baseline, stopping at the interface just before the linear-rotary coupling.",
   "topology": "pitch_system",
   "from": "hub_lower_bearing_flange",
   "to": "pitch_link_arm_hole",

@@ -305,6 +305,15 @@ must be confirmed before the property is looked up.
 
 ## Also verify
 
+- **The `title` is a short noun phrase.** The rule and its worked cuts are
+  `docs/SOP_TOLERANCE_STACK.md`, "Titling an artifact" — read it there rather
+  than from this line. Stacks, topologies and studies are all in scope, because
+  the viewer's nav rail lists all three together and a title is the only field
+  it renders. Reject a genre statement ("… as a topology"), a history or
+  negation clause, a unit in parentheses, and endpoints `from`/`to` already
+  state. What the title sheds is **demoted into `description`, not deleted** —
+  an author who cut real information and wrote no description has lost it.
+  Check the `id` did not move with the title: ids are deep links.
 - **Tests.** `venv-win/Scripts/python.exe -m pytest -q` green, and re-run it
   yourself rather than trusting the report. New source-derived numbers carry the
   source cell reference in a comment (`# JEFF E18`), which is what makes the suite

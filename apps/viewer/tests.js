@@ -3235,6 +3235,71 @@
         has(root.textContent, "No topologies or stacks");
       });
 
+    // --- descriptions as hover tooltips (stack_title_style_pass, 2026-09-14) -
+    //
+    // Titles are short noun phrases now; the qualification they shed lives in
+    // the artifact's authored `description` and surfaces here and nowhere
+    // else. These pin the three cases that matter: shown when authored, absent
+    // when not, and never at the cost of the topology row's own click hint.
+
+    var DESCRIBED_TREE = {
+      topologies: [{
+        id: "t1", title: "Short topology name",
+        description: "The long qualification the title shed.",
+        studies: [
+          { id: "s1", title: "Described study", status: "ok",
+            description: "Hub A datum to blade OML, in degrees." },
+          { id: "s2", title: "Bare study", status: "ok", description: null },
+        ],
+        coveredStacks: [
+          { id: "k1", title: "Described stack", description: "Built with no source workbook." },
+        ],
+      }],
+      looseStacks: [
+        { id: "k2", title: "Described loose stack", description: "A loose stack's own one-liner." },
+        { id: "k3", title: "Bare loose stack" },
+      ],
+    };
+
+    await test("a description authored on a topology, a study or a stack is " +
+      "the row's hover tooltip, and a row without one has none", function () {
+        var root = render(function (r) {
+          VA.renderNavTree(r, DESCRIBED_TREE, { mode: "topology" }, {});
+        });
+        var byId = {};
+        all(root, ".navtree__row").forEach(function (row) {
+          byId[row.getAttribute("data-nav-id")] = row.getAttribute("title");
+        });
+        has(byId.t1, "The long qualification the title shed.");
+        eq(byId.s1, "Hub A datum to blade OML, in degrees.");
+        eq(byId.s2, null);
+        eq(byId.k1, "Built with no source workbook.");
+        eq(byId.k2, "A loose stack's own one-liner.");
+        eq(byId.k3, null);
+      });
+
+    await test("the topology row's description does not displace the click " +
+      "hint — that hint is the only statement of what clicking it does",
+      function () {
+        var root = render(function (r) {
+          VA.renderNavTree(r, DESCRIBED_TREE, { mode: "topology" }, {});
+        });
+        var tip = all(root, ".navtree__row--topology")[0].getAttribute("title");
+        has(tip, "The long qualification the title shed.");
+        has(tip, "the whole topology, depth-first, with nothing highlighted");
+      });
+
+    await test("navTree carries each artifact's description through to the " +
+      "renderer, and normalises a missing one to null", function () {
+        var tree = VA.navTree(
+          { topologies: [{ id: "t", title: "T", description: "topo one-liner",
+                           edges: [],
+                           studies: [{ id: "s", title: "S", status: "ok" }] }] },
+          { stacks: [] });
+        eq(tree.topologies[0].description, "topo one-liner");
+        eq(tree.topologies[0].studies[0].description, null);
+      });
+
     // --- the toolbar: display preferences, not selection --------------------
 
     await test("the toolbar's layout-mode toggle is disabled with no study " +

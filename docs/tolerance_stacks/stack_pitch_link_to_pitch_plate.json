@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "pitch_link_to_pitch_plate",
-  "title": "Pitch link to pitch plate -- grip length (built from scratch, no source workbook)",
+  "title": "Pitch link to pitch plate grip length",
+  "description": "Built from scratch with no source workbook behind it: every element is cited to a drawing or a specification directly.",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",

@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_system_end_stop_minus7",
-  "title": "Blade OML angular position at the -7 deg (low-pitch) end stop, hub A datum to blade OML, worst-case sensitivity (degrees)",
+  "title": "Low-pitch end stop",
+  "description": "Blade OML angular position at the -7 deg end stop, hub A datum to blade OML, in degrees, at the worst-case sensitivity.",
   "topology": "pitch_system",
   "from": "hub_lower_bearing_flange",
   "to": "blade_root_oml",

@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_link_cotter_hole_clearance",
-  "title": "Cotter hole clear of the sourced clamped stack (pitch-link eye and nut geometry excluded)",
+  "title": "Cotter hole clearance",
+  "description": "Cotter hole clear of the sourced clamped stack. The pitch-link eye and the nut geometry are excluded terms.",
   "topology": "pitch_link_to_pitch_plate",
   "from": "washer_far_face",
   "to": "cotter_hole_centerline",
