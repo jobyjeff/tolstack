@@ -188,10 +188,10 @@
     var geometry = VA.railGeometry(layout, M, positions);
     var leaderGeo = VA.leaderGeometry(layout, plan, M, positions);
     // The store this paint actually drew from, kept for the one render after
-    // it: the browser tier re-derives the drawn geometry from the same
-    // (budget, gridRows) the render measured rather than guessing at a
-    // viewport, and the staged study-respine animation needs a store that
-    // outlives a single paint to tween between two of them.
+    // it: the browser tier re-derives the drawn geometry from the same budget
+    // the render measured rather than guessing at a viewport, and the staged
+    // study-respine animation needs a store that outlives a single paint to
+    // tween between two of them.
     VA.lastTopoRender = { topologyId: topoProj.id, mode: positions.mode,
                           fit: fit, positions: positions };
     var index = VA.topologyIndex(topoProj);

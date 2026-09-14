@@ -507,7 +507,7 @@
   // `fit` is the viewport (viewer_dag_spine_layout, 2026-09-14), and it is
   // what the page passes and a pure caller does not:
   //
-  //   { budget: px, gridRows: n }
+  //   { budget: px, plan: <VA.gridPlan's output> }
   //
   //   - `budget` is the room the DAG has (VA.dagHeightBudget). With one, the
   //     largest edge's length is SOLVED so the whole DAG lands on it, and the
