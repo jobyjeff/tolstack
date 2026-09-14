@@ -2474,6 +2474,62 @@
         has(coldTrigger.textContent, "drawing crop");
       });
 
+    // --- is there a 3D model of this part? (annotate_affordances_flyout_and_
+    // mesh_gating) -----------------------------------------------------------
+    //
+    // The fact is the BUILDER's (scripts/build_topology_projection.py resolves
+    // the part through the alias table against the installed meshes, because
+    // the page can reach neither docs/ nor data/meshes/); these pin how the
+    // viewer reads it. The fixture's four parts hold the four cases: `base`
+    // resolved directly, `arm` through an alias, `post`/`strut` not at all.
+
+    await test("partMeshFact reads the projection's per-part block, direct and " +
+      "alias-resolved alike, and an unknown part is simply meshless", function () {
+        eq(VA.partMeshFact(TOPO, "base"), { installed: true, part_id: "base" });
+        // An alias: the mesh is installed under a DIFFERENT part_id, which is
+        // the whole reason the builder has to resolve this and not the page.
+        eq(VA.partMeshFact(TOPO, "arm"),
+          { installed: true, part_id: "demo_arm_machined" });
+        eq(VA.partMeshFact(TOPO, "post"), { installed: false, part_id: null });
+        eq(VA.partHasMesh(TOPO, "base"), true);
+        eq(VA.partHasMesh(TOPO, "arm"), true);
+        eq(VA.partHasMesh(TOPO, "post"), false);
+        eq(VA.partHasMesh(TOPO, "strut"), false);
+        // A clearance edge names no part at all, and a part the topology does
+        // not declare is not a crash: both read as "no mesh", which is the
+        // safe direction — the affordance disappears rather than dead-ending.
+        eq(VA.partHasMesh(TOPO, null), false);
+        eq(VA.partHasMesh(TOPO, "not_a_part"), false);
+      });
+
+    await test("a part carrying no mesh block at all (a projection built before " +
+      "the field existed) reads as meshless, never as unknown", function () {
+        var stale = Object.assign({}, TOPO, {
+          parts: TOPO.parts.map(function (p) {
+            var copy = Object.assign({}, p);
+            delete copy.mesh;
+            return copy;
+          }),
+        });
+        eq(VA.partMeshFact(stale, "base"), VA.MESH_FACT_ABSENT);
+        eq(VA.partHasMesh(stale, "base"), false);
+      });
+
+    await test("studyHasMesh asks whether the CHAIN has anything to show in 3D",
+      function () {
+        // demo_base_to_tip lassoes arm_pin_to_tip (part arm, meshed).
+        eq(VA.studyHasMesh(TOPO, topoStudy("demo_base_to_tip")), true);
+        eq(VA.studyHasMesh(TOPO, null), false);
+        // The same study over a projection where nothing resolved: one flag
+        // flipped in the data turns the whole affordance off, no code change.
+        var meshless = Object.assign({}, TOPO, {
+          parts: TOPO.parts.map(function (p) {
+            return Object.assign({}, p, { mesh: { installed: false, part_id: null } });
+          }),
+        });
+        eq(VA.studyHasMesh(meshless, VA.findStudy(meshless, "demo_base_to_tip")), false);
+      });
+
     // --- hover reference cards (viewer_hover_cards_and_deep_links) -----------
     //
     // The models are pure (VA.edgeCard / VA.componentCard / VA.citationCard);
@@ -2537,6 +2593,80 @@
         eq(VA.componentCard(TOPO, "arm", TOPOCROPS).thumbs, []);
         eq(VA.componentCard(TOPO, null, TOPOCROPS), null);
         eq(card.annotateParams, { topologyId: "demo_mechanism", part: "base" });
+      });
+
+    await test("a card offers 3D only where the part has a mesh — the untraced " +
+      "edge and the component cell both", function () {
+        var index = VA.topologyIndex(TOPO);
+        // post_bushing_offset is a NO CITATION row (the loud gap state that
+        // used to always get the link) on a part with no installed mesh: an
+        // annotator with no geometry for `post` cannot bind a face, so there
+        // is no gap-closing gesture behind the click. The row stays on the gap
+        // list; what goes away is the dead link.
+        var meshless = VA.edgeCard(TOPO, index.edges.post_bushing_offset, TOPOCROPS);
+        eq(meshless.confidence, "no_source_ref");
+        eq(meshless.annotateParams, null);
+        // Everything else the card says is unchanged.
+        has(meshless.noCropReason, "No crop index covers it");
+        // Same rule on the component cell, both ways round.
+        eq(VA.componentCard(TOPO, "post", TOPOCROPS).annotateParams, null);
+        eq(VA.componentCard(TOPO, "strut", TOPOCROPS).annotateParams, null);
+        ok(VA.componentCard(TOPO, "arm", TOPOCROPS).annotateParams,
+          "arm resolves through the alias table, so its card keeps the affordance");
+      });
+
+    await test("renderHoverCard: a card with no 3D affordance renders NOTHING " +
+      "about 3D — no disabled control, no explanation", function () {
+        var root = render(function (r) {
+          VA.renderHoverCard(r, VA.componentCard(TOPO, "post", TOPOCROPS), {},
+            VA.CONFIG, null);
+        });
+        eq(all(root, ".hovercard__links").length, 0);
+        eq(/3D/.test(root.textContent), false);
+      });
+
+    await test("renderHoverCard: with the annotate mount probed, a card's 3D " +
+      "affordance drives the ONE flyout instead of opening a second tab",
+      function () {
+        var launched = [];
+        var card = VA.componentCard(TOPO, "base", TOPOCROPS);
+        var root = render(function (r) {
+          VA.renderHoverCard(r, card, {}, VA.CONFIG, null, {
+            mount: true, onAnnotate: function (params) { launched.push(params); },
+          });
+        });
+        eq(all(root, "a.hovercard__3d").length, 0);
+        var btn = root.querySelector("button.hovercard__3d");
+        ok(btn, "expected the flyout button with the mount probed");
+        btn.onclick();
+        eq(launched, [{ topologyId: "demo_mechanism", part: "base" }]);
+        // An edge card routes the same way, carrying its own params.
+        var edge = VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.arm_pin_to_tip,
+          TOPOCROPS);
+        var edgeRoot = render(function (r) {
+          VA.renderHoverCard(r, edge, {}, VA.CONFIG, null, {
+            mount: true, onAnnotate: function (params) { launched.push(params); },
+          });
+        });
+        edgeRoot.querySelector("button.hovercard__3d").onclick();
+        eq(launched[1], { topologyId: "demo_mechanism", edgeId: "arm_pin_to_tip",
+          part: "arm" });
+      });
+
+    await test("without the mount, or without a launcher, a card's 3D " +
+      "affordance stays the plain new-tab link it has always been", function () {
+        var card = VA.componentCard(TOPO, "base", TOPOCROPS);
+        [undefined, { mount: false, onAnnotate: function () {} }, { mount: true }]
+          .forEach(function (annotate, i) {
+            var root = render(function (r) {
+              VA.renderHoverCard(r, card, {}, VA.CONFIG, null, annotate);
+            });
+            var a = root.querySelector("a.hovercard__3d");
+            ok(a, "expected the plain link, case " + i);
+            has(a.getAttribute("href"), "isolate=base");
+            eq(a.getAttribute("target"), "_blank");
+            eq(all(root, "button.hovercard__3d").length, 0);
+          });
       });
 
     await test("citationCard reassembles what the stack view already renders — " +
@@ -3048,6 +3178,26 @@
         eq(all(traced, "a.detail__annotate-link").length, 0);
       });
 
+    await test("an untraced edge whose part has NO mesh gets no 3D affordance " +
+      "at all -- neither the link nor the flyout button", function () {
+        // post_bushing_offset is NO CITATION on `post`, which no installed
+        // mesh resolves to (annotate_affordances_flyout_and_mesh_gating): the
+        // annotator would open on an empty state, so nothing is offered. The
+        // standing rule is that an absent feature shows NOTHING -- no greyed
+        // control, no sentence about a 3D model the reader cannot open.
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "post_bushing_offset" },
+            annotateMount: true, onAttach3d: function () {} }));
+        });
+        eq(all(root, "a.detail__annotate-link").length, 0);
+        eq(all(root, "button.detail__annotate-btn").length, 0);
+        eq(all(root, "div.detail__annotate").length, 0);
+        eq(/3D/.test(root.textContent), false);
+        // The gap itself is still stated -- only the dead link went away.
+        has(root.textContent, "This dimension carries no source_ref at all");
+      });
+
     await test("the pane explains a missing crop rather than reporting a stale " +
       "index", function () {
         // Three different facts, and the page must not collapse them: an edge
@@ -3285,6 +3435,34 @@
         ok(btn, "expected #study-3d with the mount probed");
         btn.onclick();
         eq(launched, [{ topologyId: TOPO.id, studyId: "demo_base_to_tip", trace: true }]);
+      });
+
+    await test("a study none of whose parts has a mesh offers no 3D affordance " +
+      "-- it would fly out an empty scene", function () {
+        // One flag flipped in the projection, no code change: the same study
+        // that offers the button above offers nothing here.
+        var meshless = Object.assign({}, TOPO, {
+          parts: TOPO.parts.map(function (p) {
+            return Object.assign({}, p, { mesh: { installed: false, part_id: null } });
+          }),
+        });
+        [{ annotateMount: true, handlers: { onStudy3d: function () {} } },
+         { annotateMount: false, handlers: {} }].forEach(function (mode, i) {
+          var root = render(function (r) {
+            VA.renderTopoToolbar(r, { topologyId: meshless.id,
+              studyId: "demo_base_to_tip", layoutMode: "topology",
+              rowDensity: "comfortable", annotateMount: mode.annotateMount },
+              meshless, mode.handlers);
+          });
+          eq(all(root, "a").length, 0, "case " + i);
+          eq(all(root, "button").filter(function (n) {
+            return n.getAttribute("id") === "study-3d";
+          }).length, 0, "case " + i);
+          eq(/3D/.test(root.textContent), false, "case " + i);
+          // The display toggles are untouched -- this gates one affordance,
+          // not the toolbar.
+          ok(root.querySelector("button.tvpick__mode"), "case " + i);
+        });
       });
 
     await test("the mount without a launcher, or a launcher without the mount, " +
@@ -4688,28 +4866,86 @@
             eq(all(root, ".el-export").length, 1);
           });
 
-        await test("[real] a real untraced pitch_system edge's pane offers a " +
-          "working annotate-this link (annotate_deep_link_and_part_filter)",
+        // --- 3D affordances against the REAL mesh set --------------------
+        //
+        // (handoff annotate_affordances_flyout_and_mesh_gating.) Two installed
+        // meshes and one alias entry at 2026-09-14, against 29 topology parts:
+        // the affordance that used to render on every untraced edge dead-ended
+        // in the annotator's empty state for all but one of them. These tests
+        // are written COUNT-FREE on purpose -- a sibling repo is growing the
+        // mesh set, and the rule ("offer it exactly where a mesh resolves") has
+        // to hold at any mesh count without a test edit.
+
+        function detailFor(topoProj, edgeId, studyId) {
+          return render(function (r) {
+            VA.renderTopoDetail(r, {
+              topoProj: topoProj, study: VA.findStudy(topoProj, studyId),
+              crops: realCrops, layoutMode: "topology",
+              selection: { kind: "edge", id: edgeId },
+              detailImage: null, onSelect: function () {},
+            });
+          });
+        }
+
+        await test("[real] an untraced pitch_system edge whose part HAS a mesh " +
+          "offers a working annotate-this link", function () {
+            var edge = VA.topologyIndex(livePitch).edges.gas_spring_mount_position;
+            eq(edge.confidence, "untraced");
+            eq(edge.part, "gas_spring_mount_213668_002");
+            // The alias table did the resolving: the mesh is installed under a
+            // different part_id entirely (docs/topologies/part_mesh_aliases.json).
+            ok(VA.partHasMesh(livePitch, edge.part), "the gas spring mount has a mesh");
+            eq(VA.partMeshFact(livePitch, edge.part).part_id, "machined_213668");
+            var root = detailFor(livePitch, "gas_spring_mount_position",
+              "pitch_system_gas_spring_branch");
+            var link = root.querySelector("a.detail__annotate-link");
+            if (!link) throw new Error("expected an annotate-this link for a meshed untraced edge");
+            var href = link.getAttribute("href");
+            has(href, "topology=pitch_system");
+            has(href, "edge=gas_spring_mount_position");
+            has(href, "study=pitch_system_gas_spring_branch");
+            has(href, "isolate=gas_spring_mount_213668_002");
+          });
+
+        await test("[real] an untraced edge whose part has NO mesh offers " +
+          "nothing at all -- not a disabled control, not an explanation",
           function () {
             var edge = VA.topologyIndex(livePitch).edges.hub_lower_to_top_bearing_flange;
             eq(edge.confidence, "untraced");
             eq(edge.part, "hub");
-            var study = VA.findStudy(livePitch, "pitch_system_blade_angle_worst");
-            var root = render(function (r) {
-              VA.renderTopoDetail(r, {
-                topoProj: livePitch, study: study, crops: realCrops,
-                layoutMode: "topology",
-                selection: { kind: "edge", id: "hub_lower_to_top_bearing_flange" },
-                detailImage: null, onSelect: function () {},
+            eq(VA.partHasMesh(livePitch, "hub"), false);
+            var root = detailFor(livePitch, "hub_lower_to_top_bearing_flange",
+              "pitch_system_blade_angle_worst");
+            eq(all(root, "a.detail__annotate-link").length, 0);
+            eq(all(root, "button.detail__annotate-btn").length, 0);
+            // The row is still on the gap list, and the pane still says so --
+            // what went away is the dead link, not the honesty about the gap.
+            has(root.textContent, "No document backs this number");
+            // And nothing on the pane mentions a 3D model the reader cannot open.
+            eq(/3D/.test(root.textContent), false);
+          });
+
+        await test("[real] across every live topology, a part's 3D affordance " +
+          "is offered exactly where a mesh resolves", function () {
+            var offered = [], withheld = [];
+            realTopologies.topologies.forEach(function (topoProj) {
+              (topoProj.parts || []).forEach(function (part) {
+                var card = VA.componentCard(topoProj, part.id, realCrops);
+                var has3d = !!card.annotateParams;
+                eq(has3d, part.mesh.installed,
+                  topoProj.id + "/" + part.id + ": mesh.installed=" +
+                  part.mesh.installed + " but the component card " +
+                  (has3d ? "offers" : "withholds") + " a 3D affordance");
+                (has3d ? offered : withheld).push(part.id);
               });
             });
-            var link = root.querySelector("a.detail__annotate-link");
-            if (!link) throw new Error("expected an annotate-this link for a real untraced edge");
-            var href = link.getAttribute("href");
-            has(href, "topology=pitch_system");
-            has(href, "edge=hub_lower_to_top_bearing_flange");
-            has(href, "study=pitch_system_blade_angle_worst");
-            has(href, "isolate=hub");
+            // Both states have to be exercised for the pairing above to mean
+            // anything -- a projection where every part resolved (or none did)
+            // would pass it vacuously.
+            ok(offered.length > 0, "no live part has an installed mesh -- rebuild " +
+              "the topology projection against the main checkout's data/meshes");
+            ok(withheld.length > 0, "every live part has a mesh, so the " +
+              "withholding half of this pairing went unexercised");
           });
 
         // --- [real] the topology fixture, against the real shapes -------------

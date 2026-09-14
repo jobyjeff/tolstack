@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Sequence
 
 import pytest
 
@@ -764,6 +765,7 @@ JS_PAIRINGS = (
     ("NODE_KINDS", js_array_strings, NODE_KINDS),
     ("EDGE_KINDS", js_array_strings, EDGE_KINDS),
     ("TRANSFORM_KINDS", js_array_strings, TRANSFORM_KINDS),
+    ("MESH_FACT_FIELDS", js_array_strings, B.MESH_FACT_FIELDS),
 )
 
 
@@ -863,3 +865,132 @@ def test_the_study_error_table_covers_every_exception_the_module_raises():
         f"  raised, no branch here: {sorted(raised - table.keys)}\n"
         f"  branched on, never raised: {sorted(table.keys - raised)}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Mesh availability: the fact the viewer gates its 3D affordances on
+# ---------------------------------------------------------------------------
+#
+# Handoff ``annotate_affordances_flyout_and_mesh_gating`` (2026-09-14). The
+# viewer offered "open this part in 3D" on every part; two meshes were installed
+# against 29 topology parts, so nearly every one of those links dead-ended in the
+# annotator's empty state. The page cannot work out which is which -- under the
+# served data mount ``docs/`` is absent (so the alias table is unreachable) and
+# ``data/meshes/`` is in no projection it reads -- so the builder stamps it.
+
+
+def _mesh_tree(root: Path, part_ids: Sequence[str]) -> Path:
+    """An installed-meshes tree: one ``<sha>/provenance.json`` per part id."""
+    root.mkdir(parents=True, exist_ok=True)
+    for i, part_id in enumerate(part_ids):
+        sha = f"{i:064x}"
+        (root / sha).mkdir()
+        (root / sha / B.MESH_PROVENANCE_NAME).write_text(json.dumps({
+            "schema": "joby.tolerance_stack/mesh_provenance/v0",
+            "source_step_sha256": sha,
+            "part_id": part_id,
+            "label": f"fixture mesh for {part_id}",
+        }), encoding="utf-8")
+    return root
+
+
+MESHES = [{"sha256": "a" * 64, "part_id": "machined_213668"},
+          {"sha256": "b" * 64, "part_id": "blade_oml"}]
+ALIASES = [{"topology_part": "gas_spring_mount_213668_002",
+            "mesh_part_id": "machined_213668"}]
+
+
+@pytest.mark.parametrize("identifier, expected", [
+    ("a" * 64, "machined_213668"),               # direct sha256, first pass
+    ("blade_oml", "blade_oml"),                  # direct part_id, second pass
+    ("gas_spring_mount_213668_002", "machined_213668"),   # the alias table
+    ("hub", None),                               # mapped by nothing
+    ("machined", None),                          # NEVER a prefix/substring
+    ("machined_213668_002", None),
+    (None, None),
+])
+def test_resolve_mesh_is_the_annotators_own_resolution_order(identifier, expected):
+    """``apps/annotate/commands.js``'s ``resolveMeshIdentifier``, mirrored.
+
+    Direct sha256, then direct ``part_id``, then the declared alias table, then
+    nothing -- and **never** fuzzy. A part whose identity is not evidenced has no
+    mesh; the fix is an evidenced entry in
+    ``docs/topologies/part_mesh_aliases.json``, not a prefix match, because a
+    wrong 3D model is a wrong claim about which physical feature a row means.
+    """
+    mesh = B.resolve_mesh(MESHES, identifier, ALIASES)
+    assert (mesh["part_id"] if mesh else None) == expected
+
+
+def test_an_alias_pointing_at_a_mesh_nobody_installed_is_not_a_mesh():
+    """The table is a declaration, not an installation: an entry whose
+    ``mesh_part_id`` matches nothing installed leaves the part meshless."""
+    assert B.resolve_mesh([MESHES[1]], "gas_spring_mount_213668_002", ALIASES) is None
+
+
+def test_every_projected_part_carries_the_block_and_absent_is_stated(projection):
+    """**Always present, never omitted.** An absent key would have to mean
+    something, and there is no honest something for it to mean: the viewer would
+    have to choose between offering a dead link and hiding a live one."""
+    parts = [p for row in projection["topologies"] for p in row["parts"]]
+    assert parts, "no parts projected -- the fixture drifted"
+    for part in parts:
+        assert set(part["mesh"]) == set(B.MESH_FACT_FIELDS), part["id"]
+        # The module-scoped `projection` is built with no meshes dir at all,
+        # which is the "nothing is installed" state and says so per part.
+        assert part["mesh"] == {"installed": False, "part_id": None}
+
+
+def test_installing_a_mesh_flips_exactly_that_parts_fact(tmp_path):
+    """The deliverable's own acceptance, as a test: a mesh appears under
+    ``data/meshes/`` and the affordance the viewer gates on that fact turns on
+    for **one** part -- no code change, no viewer change, one rebuild.
+
+    Both resolution paths, over the REAL topology documents and the REAL alias
+    table: ``hub`` is a direct ``part_id`` match, ``gas_spring_mount_213668_002``
+    resolves only through the shipped alias entry and records the MESH's id
+    (``machined_213668``), which is the bridge existing at all.
+    """
+    def meshed(meshes_dir):
+        projection = B.build(TOPOLOGIES_DIR, _FAKE_PROVENANCE, meshes_dir)
+        return {p["id"]: p["mesh"] for row in projection["topologies"]
+                for p in row["parts"] if p["mesh"]["installed"]}
+
+    assert meshed(_mesh_tree(tmp_path / "none", [])) == {}
+    assert meshed(_mesh_tree(tmp_path / "direct", ["hub"])) == {
+        "hub": {"installed": True, "part_id": "hub"}}
+    assert meshed(_mesh_tree(tmp_path / "aliased", ["machined_213668"])) == {
+        "gas_spring_mount_213668_002": {"installed": True,
+                                        "part_id": "machined_213668"}}
+
+
+def test_a_mesh_directory_with_no_readable_sidecar_is_skipped_not_guessed_at(
+        tmp_path):
+    """A mesh whose ``provenance.json`` is missing, unparseable or nameless
+    cannot be claimed as any part -- and is never resolved by directory name
+    alone, which would make the sha the identity of a part it never named."""
+    root = _mesh_tree(tmp_path / "meshes", ["machined_213668"])
+    (root / ("c" * 64)).mkdir()                                  # no sidecar
+    broken = root / ("d" * 64)
+    broken.mkdir()
+    (broken / B.MESH_PROVENANCE_NAME).write_text("{not json", encoding="utf-8")
+    nameless = root / ("e" * 64)
+    nameless.mkdir()
+    (nameless / B.MESH_PROVENANCE_NAME).write_text('{"part_id": ""}',
+                                                   encoding="utf-8")
+    assert B.installed_meshes(root) == [
+        {"sha256": "0" * 64, "part_id": "machined_213668"}]
+    assert B.installed_meshes(tmp_path / "does-not-exist") == []
+    assert B.installed_meshes(None) == []
+
+
+def test_the_shipped_alias_table_is_what_the_builder_reads():
+    """No second copy of the table, and no second reader of it: the builder
+    loads ``docs/topologies/part_mesh_aliases.json`` from the topologies dir it
+    was handed, so a fixture tree carries its own the same way it carries its
+    own topologies."""
+    aliases = B.load_mesh_aliases(TOPOLOGIES_DIR)
+    shipped = json.loads(
+        (TOPOLOGIES_DIR / B.MESH_ALIASES_NAME).read_text(encoding="utf-8"))
+    assert aliases == shipped["aliases"]
+    assert B.load_mesh_aliases(REPO_ROOT / "docs") == []
