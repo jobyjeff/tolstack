@@ -31,6 +31,16 @@
 // not one physical joint, and declares no worksheet -- so this is a genuine
 // shape fix, not a hand-edited number.
 //
+// Each part's `mesh` block is the fourth thing patched in by hand (handoff
+// annotate_affordances_flyout_and_mesh_gating, 2026-09-14): the builder derives
+// it from the installed meshes under `data/`, which this demo mechanism has
+// none of, so the four parts state the four cases the viewer must render
+// differently -- `base` resolved DIRECTLY (mesh part_id == the part's own id),
+// `arm` resolved through the ALIAS table (a different mesh part_id), and `post`
+// and `strut` with no mesh at all, the state that must show NO 3D affordance.
+// Same licence the fixture already takes with its `unestablished` export: a
+// shape and a set of states, not a hand-edited number.
+//
 // Each study's `checks: []` is the third thing patched in by hand
 // (viewer_error_surface_and_layout, 2026-09-09): `topology_projection_emits_
 // study_checks` (391dc7c) added the field to project_study() after this
@@ -297,28 +307,32 @@
             "name": "base plate",
             "drawing": "215197",
             "revision": null,
-            "note": null
+            "note": null,
+            "mesh": { "installed": true, "part_id": "base" }
           },
           {
             "id": "post",
             "name": "post",
             "drawing": null,
             "revision": null,
-            "note": null
+            "note": null,
+            "mesh": { "installed": false, "part_id": null }
           },
           {
             "id": "arm",
             "name": "arm",
             "drawing": null,
             "revision": null,
-            "note": null
+            "note": null,
+            "mesh": { "installed": true, "part_id": "demo_arm_machined" }
           },
           {
             "id": "strut",
             "name": "parallel strut",
             "drawing": null,
             "revision": null,
-            "note": "identity not established"
+            "note": "identity not established",
+            "mesh": { "installed": false, "part_id": null }
           }
         ],
         "nodes": [

@@ -102,7 +102,13 @@
     // still computes and writes nothing for the annotate app either way; the
     // flyout launch is the same params the link carries, handed to the same
     // command vocabulary.
-    if (state.studyId) {
+    // ...and only where the chain HAS something to show in 3D (handoff
+    // annotate_affordances_flyout_and_mesh_gating): a study none of whose
+    // parts has an installed mesh traces to an empty scene, which is the same
+    // dead end an "open this part in 3D" link on a meshless part was. One
+    // meshed part is enough -- the annotator's trace names the missing ones
+    // itself rather than pretending the chain is whole.
+    if (state.studyId && VA.studyHasMesh(topoProj, VA.findStudy(topoProj, state.studyId))) {
       if (state.annotateMount && handlers.onStudy3d) {
         var view3d = VA.el("button", "ghost tvpick__mode", "View in 3D →");
         view3d.setAttribute("id", "study-3d");
@@ -868,7 +874,15 @@
     // gap confidences -- a traced/inferred edge already has a citation, and a
     // binding is identity, never a value source (docs/ANNOTATION_SURFACE.md),
     // so sending a click there for an already-sourced row would offer nothing.
-    if (VA.needsAnnotation(edge.confidence)) {
+    //
+    // And only where the owning part HAS a 3D model to click on (handoff
+    // annotate_affordances_flyout_and_mesh_gating): this affordance exists to
+    // CREATE a binding, and an annotator with no mesh for the part cannot bind
+    // a face -- the click would land on its empty state. Nothing is shown in
+    // that case, not a disabled control: the honest fix is installing the
+    // mesh, and the row stays on the gap list either way.
+    if (VA.needsAnnotation(edge.confidence) &&
+        VA.partHasMesh(ctx.topoProj, edge.part)) {
       var annotateParams = {
         topologyId: ctx.topoProj.id,
         edgeId: edge.id,
@@ -884,7 +898,7 @@
           "attach to 3D" + (edge.part ? " (" + edge.part + ")" : "") + " →");
         attachBtn.setAttribute("title",
           "flies out the 3D annotation panel with this edge selected" +
-          (edge.part ? ", isolating " + edge.part + " if its mesh is installed" : "") +
+          (edge.part ? ", isolating " + edge.part : "") +
           " -- click the correct surface(s) there to resolve which feature this is");
         attachBtn.onclick = function () { ctx.onAttach3d(annotateParams); };
         annotateBox.appendChild(attachBtn);
@@ -895,8 +909,8 @@
         annotateLink.setAttribute("target", "_blank");
         annotateLink.setAttribute("rel", "noopener");
         annotateLink.setAttribute("title",
-          "opens apps/annotate/ with this edge selected" +
-          (edge.part ? ", isolating " + edge.part + " if its mesh is installed" : "") +
+          "opens the 3D annotation surface with this edge selected" +
+          (edge.part ? ", isolating " + edge.part : "") +
           " -- click the correct surface(s) there to resolve which feature this is");
         annotateBox.appendChild(annotateLink);
       }

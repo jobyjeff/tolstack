@@ -25,6 +25,11 @@
   VA.TOPO_ROW_KINDS = ["node", "edge"];
   VA.TOPO_LINK_KINDS = ["branch", "close"];
   VA.STUDY_STATUSES = ["ok", "error"];
+  // What a projected part's `mesh` block says (handoff
+  // annotate_affordances_flyout_and_mesh_gating). Every part carries the block,
+  // so a missing one is a stale projection, not "no mesh" — VA.partMeshFact
+  // below is where that distinction is made.
+  VA.MESH_FACT_FIELDS = ["installed", "part_id"];
 
   // These three are the DOCUMENTS' vocabularies rather than the projection's --
   // tolerance_stack.topology's NODE_KINDS, EDGE_KINDS and TRANSFORM_KINDS, which
@@ -138,6 +143,48 @@
     (topoProj.edges || []).forEach(function (e) { index.edges[e.id] = e; });
     (topoProj.parts || []).forEach(function (p) { index.parts[p.id] = p; });
     return index;
+  };
+
+  // --- is there a 3D model of this part? ------------------------------------
+  //
+  // (handoff annotate_affordances_flyout_and_mesh_gating.) The page CANNOT work
+  // this out for itself: the alias table lives under docs/, which the served
+  // data mount does not carry, and data/meshes/ is in no projection the viewer
+  // reads. So the builder resolves it (the annotator's own resolution order,
+  // aliases included) and stamps `mesh: {installed, part_id}` on every part;
+  // this is the only place the page reads it.
+  //
+  // The whole point is NEGATIVE: an "open this part in 3D" affordance that
+  // lands on the annotator's empty state is a dead link, and the standing UI
+  // rule is that a feature the user cannot have shows NOTHING — no greyed
+  // button, no explanation of a 3D model that does not exist.
+  VA.MESH_FACT_ABSENT = { installed: false, part_id: null };
+
+  VA.partMeshFact = function (topoProj, partId) {
+    if (!partId) return VA.MESH_FACT_ABSENT;
+    var part = VA.topologyIndex(topoProj).parts[partId];
+    // A part with no block at all is a projection built before the field
+    // existed. Read as "no mesh": the affordance disappears until a rebuild,
+    // which is the safe direction — a dead link is the failure being fixed.
+    return (part && part.mesh) || VA.MESH_FACT_ABSENT;
+  };
+
+  VA.partHasMesh = function (topoProj, partId) {
+    return VA.partMeshFact(topoProj, partId).installed === true;
+  };
+
+  // Does this study's chain touch any part with an installed mesh? The study's
+  // 3D affordance traces its selection, so a study whose every part is
+  // meshless flies out an empty scene — the same dead end as a part link, one
+  // level up. One part is enough: the annotator's trace is honest about the
+  // rest (it names the missing parts in its own banner).
+  VA.studyHasMesh = function (topoProj, study) {
+    if (!study) return false;
+    var index = VA.topologyIndex(topoProj);
+    return (study.selection || []).some(function (edgeId) {
+      var edge = index.edges[edgeId];
+      return !!(edge && VA.partHasMesh(topoProj, edge.part));
+    });
   };
 
   // The element a serialised row points at — a node or an edge, per row.kind.
@@ -861,11 +908,16 @@
       card.noCropReason = (source ? source.title
         : VA.valueSourceText(edge.value_source)) + " No crop index covers it.";
     }
-    // The deep link out to the annotator, under the SAME rule the detail pane
-    // applies (VA.needsAnnotation): a traced/inferred edge already has a
+    // The deep link out to the annotator, under the SAME two rules the detail
+    // pane applies: VA.needsAnnotation (a traced/inferred edge already has a
     // citation, and a binding is identity, never a value source, so the link
-    // only offers something when there is a gap to close.
-    if (topoProj && VA.needsAnnotation(edge.confidence)) {
+    // only offers something when there is a gap to close) AND an installed
+    // mesh for the owning part (VA.partHasMesh) — an annotator without the
+    // part's geometry cannot bind a face, so the gap-closing gesture the link
+    // promises is not available. The gap stays on the gap list either way; the
+    // honest fix is installing the mesh.
+    if (topoProj && VA.needsAnnotation(edge.confidence) &&
+        VA.partHasMesh(topoProj, edge.part)) {
       card.annotateParams = {
         topologyId: topoProj.id, edgeId: edge.id, part: edge.part || null,
       };
@@ -900,7 +952,11 @@
       revision: part.revision || null,
       note: part.note || null,
       thumbs: thumbs,
-      annotateParams: topoProj ? { topologyId: topoProj.id, part: part.id } : null,
+      // "view this part in 3D" only where there IS a 3D model of it: with two
+      // installed meshes against ~29 topology parts, this link dead-ended in
+      // the annotator's empty state for all but one of them.
+      annotateParams: (topoProj && VA.partHasMesh(topoProj, part.id))
+        ? { topologyId: topoProj.id, part: part.id } : null,
     };
   };
 
