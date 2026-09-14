@@ -54,12 +54,25 @@ schemas; do NOT touch the rail/bar hover surfaces (owned by the parallel
    README §"Row/leader correspondence"), so widening must not let a cell
    grow a row taller; wrapping stays clamped, width is the relief valve.
 
+5. **ELEMENT cell drops the redundant component prefix.** Jeff (2026-09-14):
+   "nearly every row in the 'element' column starts with the same phrase as
+   the 'component' column to the left, which then robs a bunch of the
+   limited space, and then the meaningful content gets truncated" — e.g.
+   under component `blade_root`, three rows all render "blade-root clocking
+   holes to th…". When an element label's leading words repeat its own
+   merged-component cell's name (case/hyphen-insensitive match on the
+   normalized prefix), drop the prefix from the DISPLAY (full label stays on
+   the row hover/tooltip and in the detail pane — display-only, never a data
+   change). A label that does not start with its component name renders
+   unchanged.
+
 ## Definition of done
 
 - Real `pitch_system`: bands readable across the jog zone, jog zone dragged
   wider spreads the verticals, angled mode toggles live and both styles pass
   the leader-endpoint correspondence checks, ELEMENT column drag reveals
-  full descriptions without changing any row height.
+  full descriptions without changing any row height, and the blade_root
+  rows' ELEMENT cells no longer open with "blade-root".
 - Fast + truth tiers green, correspondence matrix extended with (angled ×
   jogged) and a resized-jog-zone case; a value-level test pins that row-band
   parity matches leader-band parity on a committed topology.
