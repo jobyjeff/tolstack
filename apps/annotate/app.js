@@ -708,9 +708,7 @@ async function runPendingDeepLink() {
 // link has), run in arrival order, and reply {type: "annotate:result", id,
 // ok, result|error}; a failure also lands in this app's own banner, exactly
 // as the same command typed into the dev console would.
-let markLoaded;
-const whenLoaded = new Promise((resolve) => { markLoaded = resolve; });
-let execChain = Promise.resolve();
+const execQueue = new AA.ExecQueue();
 
 window.addEventListener("message", (ev) => {
   if (ev.origin !== window.location.origin) return;
@@ -718,48 +716,56 @@ window.addEventListener("message", (ev) => {
   if (!msg || msg.type !== "annotate:exec" || !msg.command) return;
   const source = ev.source;
   const origin = ev.origin;
-  execChain = execChain.then(async () => {
+  execQueue.enqueue(() => AA.exec(msg.command)).then((outcome) => {
     let reply;
-    try {
-      await whenLoaded;
-      const result = await AA.exec(msg.command);
+    if (outcome.ok) {
       reply = { type: "annotate:result", id: msg.id == null ? null : msg.id,
-        ok: true, result: result === undefined ? null : result };
-    } catch (err) {
-      setBanner(err.message, "error");
+        ok: true, result: outcome.result === undefined ? null : outcome.result };
+    } else {
+      setBanner(outcome.error.message, "error");
       reply = { type: "annotate:result", id: msg.id == null ? null : msg.id,
-        ok: false, error: err.message };
+        ok: false, error: outcome.error.message };
     }
     try { if (source) source.postMessage(reply, origin); } catch (_) { /* embedder gone */ }
   });
 });
 
 async function loadAll() {
-  state.topologyProjection = await state.storage.readTopologyProjection();
-  state.identityProjection = await state.storage.readFeatureIdentityProjection();
-  if (!state.topologyProjection) {
-    setBanner("No topology projection found. Build it: " + AA.CONFIG.rebuild.topologies, "warn");
-    // Loaded-but-empty: queued commands should fail loudly ("no topology
-    // projection loaded yet"), not hang forever behind this gate.
-    markLoaded();
-    return;
+  try {
+    state.topologyProjection = await state.storage.readTopologyProjection();
+    state.identityProjection = await state.storage.readFeatureIdentityProjection();
+    if (!state.topologyProjection) {
+      setBanner("No topology projection found. Build it: " + AA.CONFIG.rebuild.topologies, "warn");
+      // Loaded-but-empty: queued commands should fail loudly ("no topology
+      // projection loaded yet"), not hang forever behind this gate.
+      execQueue.markLoaded();
+      return;
+    }
+    setBanner(
+      "loaded " + state.topologyProjection.topologies.length + " topolog" +
+      (state.topologyProjection.topologies.length === 1 ? "y" : "ies") +
+      (state.identityProjection ? "" : " -- no feature-identity projection yet (nothing bound, or not rebuilt)"),
+      "ok"
+    );
+    renderTopologyPicker();
+    state.meshList = await state.storage.listMeshes();
+    const aliasDoc = await state.storage.readPartMeshAliases();
+    state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
+    renderPartsPanel();
+
+    await runPendingDeepLink();
+    execQueue.markLoaded();
+
+    if (params.get("autotest") === "1") await runAutotest();
+  } catch (err) {
+    // Settle the gate WITH the load error so every already-queued command
+    // fails loudly naming the *load* failure (an AA.exec error would be
+    // misleading here), instead of hanging on `await` forever -- the same
+    // deliberate behavior the loaded-but-empty branch above already has for
+    // its own case.
+    execQueue.markLoadFailed(new Error("load failed: " + err.message));
+    throw err;
   }
-  setBanner(
-    "loaded " + state.topologyProjection.topologies.length + " topolog" +
-    (state.topologyProjection.topologies.length === 1 ? "y" : "ies") +
-    (state.identityProjection ? "" : " -- no feature-identity projection yet (nothing bound, or not rebuilt)"),
-    "ok"
-  );
-  renderTopologyPicker();
-  state.meshList = await state.storage.listMeshes();
-  const aliasDoc = await state.storage.readPartMeshAliases();
-  state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
-  renderPartsPanel();
-
-  await runPendingDeepLink();
-  markLoaded();
-
-  if (params.get("autotest") === "1") await runAutotest();
 }
 
 // The spike's own verification technique (step_tessellation's viewer.js):
