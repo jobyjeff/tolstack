@@ -186,17 +186,33 @@ before/after and require it to shrink, which also retires the sleep).
    `~919–1205, ~1621` are pre-edit. All are prefixed `~` and all resolve; worth
    knowing only if a reader tries to use them as exact addresses.
 
+## A sibling landed on `integration` mid-review — re-verified on the merged tree
+
+`annotate_load_gate_settles_on_failure` was APPROVEd and merged to
+`integration` (`d6dc949` + `c41cd2c`) while this review was running, so the
+first `git fetch . review/<slug>:integration` was rejected non-fast-forward. It
+touches `apps/annotate/app.js` and `index.html` — the very boot D2's check
+drives — so this is not a bookkeeping collision. Handled per the checklist:
+merged `integration` into the review branch (auto-merged, including
+`docs/prompts/REVIEW_AGENT.md`, which both reviews appended to; the ort merge
+kept both additions, which is the right resolution for an append-only
+checklist) and re-ran everything on the combined tree:
+
+- `pytest -q` → **768 passed, 1 skipped**
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` →
+  **16/16**, `annotate flyout` still **14/14**
+- `node apps/annotate/run_tests.cjs` → **57/57**
+
+The sibling reorders *when* the annotate boot writes its banner but not the
+text, so D2's `waitForFunction` — which resolves on the **first non-empty**
+banner text — is unaffected in fact as well as in theory.
+
 ## Note for the next reviewer
 
-`handoff/annotate_load_gate_settles_on_failure` is in flight against
-`apps/annotate/app.js` and `index.html`. It reorders when the annotate boot
-writes its banner but not the text (`/Connect folder|File System Access/` still
-matches), so D2's `waitForFunction` — which resolves on the **first non-empty**
-banner text — should be unaffected. Its reviewer merges after this one and will
-re-run the browser tier on the combined tree; if that sub-check moves, this is
-where to look. That handoff's own review will also edit
-`docs/prompts/REVIEW_AGENT.md`, so expect a textual conflict in the overlay's
-recurring-bugs list and merge it additively.
+If the `annotate flyout` sub-check ever moves again, the coupling to look at is
+that D2 samples the first non-empty `#banner` text in the iframe: any future
+annotate change that writes an *interim* banner before the pre-connect message
+turns that check red without anything being wrong with the app.
 
 ## Verdict
 
