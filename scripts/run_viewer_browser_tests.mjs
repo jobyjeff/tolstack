@@ -1234,6 +1234,20 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     };
   });
 
+  // Every edge-length mode in turn, reporting the fit and the centring the
+  // render actually produced at each stop (viewer_dag_spine_layout). The
+  // toolbar's own cycle order is VA.EDGE_LENGTH_MODES', so three clicks come
+  // back to where they started and the suite after this one is undisturbed.
+  const fitAcrossModes = async () => {
+    const seen = [];
+    for (let i = 0; i < 3; i++) {
+      seen.push(await page.evaluate(FIT_IN_PAGE));
+      await page.locator("#edge-length-toggle").click();
+      await page.waitForTimeout(50);
+    }
+    return seen;
+  };
+
   const navContract = () => page.evaluate(() => {
     const nav = document.querySelector(".navtree");
     const style = getComputedStyle(nav);
@@ -1271,6 +1285,23 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     push("[mock] the left nav is the one remaining independent scroll region",
       mockNav.position === "sticky" &&
       (mockNav.overflowY === "auto" || mockNav.overflowY === "scroll"));
+
+    // The viewport fit and the centring, in every length mode
+    // (viewer_dag_spine_layout). Two contracts: the DAG is never taller than
+    // the window allows unless its own one-row floor demands it (the honest
+    // overflow), and the grid block really sits where the position store says
+    // — the DOM offset measured against `gridOffset`, which is what the
+    // leaders' grid-side seams were computed from.
+    const mockFit = await fitAcrossModes();
+    push("[mock] every length mode fits the DAG into the viewport, or into " +
+      "its own floor where that is taller",
+      mockFit.length === 3 && mockFit.every((f) =>
+        f.budget > 0 && f.dagHeight <= Math.max(f.budget, f.floorMin) + 0.5));
+    push("[mock] the grid block sits exactly where the store centres it, in " +
+      "every length mode",
+      mockFit.every((f) => Math.abs(f.measuredGridOffset - f.gridOffset) < 0.75));
+    push("[mock] the demo DAG is short enough that the fit is real room, " +
+      "not the floor", mockFit.every((f) => f.budget > f.floorMin));
 
     // Compact density: correspondence must still hold once row height changes
     // — the leaders and the grid rows both re-derive from the same rowHeight.
@@ -1316,6 +1347,23 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       push("[real] pitch_system's row count pushes the DOCUMENT past the " +
         "viewport rather than clipping inside the pane", docScrolls);
       push("[real] leaders stay on their dots and seams",
+        (await correspondence()).drift.length === 0);
+
+      // pitch_system is the case the fit was written for: 45 rows at one row
+      // each is already past a 900px window, so no mode may draw it SHORTER
+      // (the floor is never given up) and none may draw it taller either —
+      // where the retired 6-row cap drew its tolerance-width walk 3325px tall.
+      const realFit = await fitAcrossModes();
+      push("[real] no length mode draws pitch_system taller than its own " +
+        "floor demands — the 6-row cap's 3325px walk is gone",
+        realFit.length === 3 &&
+        realFit.every((f) => f.dagHeight <= Math.max(f.budget, f.floorMin) + 0.5));
+      push("[real] pitch_system overflows honestly: its own floor is past " +
+        "the budget, so it scrolls rather than shrinking below one row",
+        realFit.every((f) => f.floorMin > f.budget && f.dagHeight === f.floorMin));
+      push("[real] the grid block sits where the store centres it here too",
+        realFit.every((f) => Math.abs(f.measuredGridOffset - f.gridOffset) < 0.75));
+      push("[real] leaders still correspond after the mode cycle",
         (await correspondence()).drift.length === 0);
     }
 
