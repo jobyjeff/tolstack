@@ -1827,15 +1827,32 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `hover_card_layout_guard_can_fail`), two independent instances observed
       in one run of `scripts/run_viewer_browser_tests.mjs`, both intermittent
       and neither a regression from the diff under review:
-      `testServedModeBoot` waits on `tr.tvrow, .banner--disconnected` and can
-      resolve on `topology_app.js`'s own initial `DISCONNECTED` paint, then
-      asserts that banner absent
+      `testServedModeBoot` waited on `tr.tvrow, .banner--disconnected` and
+      could resolve on the `DISCONNECTED` paint that `topology_app.js`'s
+      annotate-mount probe renders while the transport probe is still in
+      flight, then asserted that banner absent
       (`ISSUE_20260911_served_mode_connect_folder_banner_check_is_flaky.md`);
-      `testAnnotateFlyout` waits for `#banner` to be *visible*, but
+      `testAnnotateFlyout` waited for `#banner` to be *visible*, but
       `apps/annotate/index.html` ships that div empty and `.banner` gives it
       `padding: 6px 16px`, so it is visible at first paint and `textContent`
-      can sample `""`
+      could sample `""`
       (`ISSUE_20260911_annotate_flyout_banner_check_samples_a_transient.md`).
+      Both fixed by `viewer_browser_tier_wait_predicates` (2026-09-14), which
+      swept the rest of that file and found a third: `testRebuildAffordance`
+      waited on `#banner` plus a 200 ms sleep to guard an absence check — the
+      same trap pointed the other way, since it could only ever pass wrongly.
+      **The rule that separates a sound wait from those three:** a selector is
+      worth waiting on only if the render that satisfies the assertion is what
+      puts it in the DOM. `tr.tvrow`, `.banner__built`, `.hovercard--edge`,
+      `.croppop--resolved` are render products — one synchronous renderer
+      clears the node, sets the class and fills it, so the class cannot exist
+      on an empty node — whereas `#banner` is *static markup* in both
+      `topology.html` and `apps/annotate/index.html`, so waiting on it waits
+      for nothing at all (and CSS padding means even an empty one is
+      `visible`). Where the assertion is about text, make the wait and the
+      sample the same read — a `waitForFunction` that returns the text — so no
+      paint can slip between them, and keep the timeout bounded so a boot that
+      never settles fails as a timeout rather than as wrong content.
       **Re-run a single browser-tier failure before treating it as real** —
       these two cost a first run 14/16 on a tree that then ran 16/16 twice.
 

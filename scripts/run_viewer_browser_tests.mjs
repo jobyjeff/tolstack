@@ -265,8 +265,14 @@ async function testRebuildAffordance(browser) {
 
     // 3) fresh (matching) provenance -> no stale banner at all.
     await withServer({ matchCrops: true, rebuildCapable: true }, async (page) => {
-      await page.waitForSelector("#banner", { timeout: 15000 });
-      await page.waitForTimeout(200);
+      // The same trap as the annotate flyout's banner wait, in the other
+      // direction: topology.html ships `<div id="banner">` empty too, so
+      // waiting on `#banner` resolves on the static element before any render
+      // and would let this absence check PASS on a boot that never banner'd at
+      // all -- the 200ms sleep was the only thing standing behind it.
+      // `.banner__built` exists only in a connected banner's own paint, which
+      // is the same paint provenance() would have put `.banner__stale` in.
+      await page.waitForSelector(".banner__built", { timeout: 15000 });
       push("fresh (matching) provenance shows no stale banner",
         await page.locator(".banner__stale").count() === 0);
     });
@@ -1419,13 +1425,28 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
         "-- build it, or pass --repo <main checkout>)", true);
     } else {
       await page.goto(url + "/apps/viewer/topology.html", { waitUntil: "load" });
-      await page.waitForSelector('tr.tvrow, .banner--disconnected', { timeout: 15000 });
+      // The wait has to be strictly STRONGER than the assertion under it.
+      // topology_app.js starts at STATE.DISCONNECTED, and the sibling
+      // annotate-mount probe resolves independently of the transport probe and
+      // calls render() when it lands (topology_app.js, probeAnnotateMount's
+      // .then) -- so the connect-folder banner is a legitimate EARLY paint
+      // while chooseAdapter's HTTP probe is still in flight. A
+      // `tr.tvrow, .banner--disconnected` disjunction could resolve on that
+      // transient and sample it: the 1-in-4 false negative in
+      // ISSUE_20260911_served_mode_connect_folder_banner_check_is_flaky. The
+      // contract here is the SETTLED state, so wait for the settled render
+      // alone -- a row exists only after a READY connection loaded the
+      // projection, and renderBanner rebuilds #banner from state.connection in
+      // that same paint, so `tr.tvrow` present means the banner below is the
+      // settled one. A boot that stays disconnected now fails as a
+      // waitForSelector TIMEOUT naming `tr.tvrow`, which is the honest
+      // failure, instead of passing through as a banner sighting.
+      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
       push("[real] the connect-folder banner never appears",
         await page.locator(".banner--disconnected").count() === 0);
       push("[real] the banner states the data was served, not read from a " +
         "granted folder",
         /Served over HTTP/.test(await page.locator("#banner").textContent()));
-      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
       push("[real] the DAG renders with ZERO manual steps",
         await page.locator("tr.tvrow").count() > 0);
 
@@ -1569,11 +1590,25 @@ async function testAnnotateFlyout(browser, fileBase) {
     // The iframe is the real annotate app, same-origin, no mock: it boots to
     // its own pre-connect banner (FSA cannot be granted from Playwright), and
     // the deep-link queue note proves the trace params were understood.
-    const flyoutBanner = page.frameLocator("#annotate-flyout iframe").locator("#banner");
-    await flyoutBanner.waitFor({ state: "visible", timeout: 15000 });
-    const bannerText = await flyoutBanner.textContent();
+    // NOT waitFor({state:"visible"}) on #banner: apps/annotate/index.html ships
+    // `<div id="banner" class="banner"></div>` present and EMPTY, and
+    // style.css's `.banner` padding gives even an empty one a non-zero box, so
+    // Playwright calls it visible from first paint -- before any setBanner()
+    // has run, which is how this check sampled "" and failed on correct code
+    // (ISSUE_20260911_annotate_flyout_banner_check_samples_a_transient). Anchor
+    // the wait on the effect being asserted -- text -- and let the SAME read
+    // return it, so no paint can slip between waiting and sampling. The iframe
+    // is same-origin (what the check above it proves), so contentDocument is
+    // readable from the host page; a boot that never writes a banner fails as a
+    // waitForFunction TIMEOUT rather than as a wrong-text sighting.
+    const bannerText = await page.waitForFunction(() => {
+      const doc = document.querySelector("#annotate-flyout iframe")?.contentDocument;
+      const el = doc && doc.querySelector("#banner");
+      const text = el ? el.textContent.trim() : "";
+      return text.length > 0 ? text : null;
+    }, null, { timeout: 15000 }).then((handle) => handle.jsonValue());
     push("the embedded annotator boots to an honest pre-connect state",
-      /Connect folder|File System Access/.test(bannerText || ""));
+      /Connect folder|File System Access/.test(bannerText));
 
     await page.locator("#flyout-close").click();
     push("the close button closes the flyout",
