@@ -559,10 +559,17 @@ const CORRESPONDENCE_IN_PAGE = () => {
   for (const hit of leaders) {
     const id = hit.getAttribute("data-leader-id");
     const beforeEdge = hit.getAttribute("data-boundary-edge");
+    // The two ends, measured off the path the browser actually rendered
+    // (getPointAtLength, not the numbers that drew it) rather than read off
+    // its bounding box. The bbox shortcut assumed a leader always RISES —
+    // bottom of the box = node end, top = grid end — which stopped being true
+    // when viewer_dag_spine_layout centred the grid against the DAG: a leader
+    // above the centre now descends into its seam. Path length 0 is the
+    // node end and the total length is the grid end, in either direction,
+    // because VA.leaderGeometry writes the path node-end first.
     const svgTop = hit.ownerSVGElement.getBoundingClientRect().top;
-    const bbox = hit.getBBox();
-    const nodeEndY = svgTop + bbox.y + bbox.height;
-    const gridEndY = svgTop + bbox.y;
+    const nodeEndY = svgTop + hit.getPointAtLength(0).y;
+    const gridEndY = svgTop + hit.getPointAtLength(hit.getTotalLength()).y;
     const dot = document.querySelector(
       `svg.tv__rails circle[data-id="${CSS.escape(id)}"]`);
     if (!dot) { drift.push(`leader ${id}: no dot`); continue; }
@@ -597,10 +604,21 @@ const CORRESPONDENCE_IN_PAGE = () => {
 const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
   const VA = window.ViewerApp;
   const proj = VA.findTopology(VA.demoTopologyFixture().topologies, topologyId);
-  const pos = VA.rowPositions(proj.layout, proj, mode, VA.RAIL_METRICS);
+  // Re-derived from the projection, not read out of the render — that is the
+  // whole point of this check. The two things it does take from the render
+  // are the things only a rendered page can know: the layout it drew
+  // (right-justified, viewer_dag_spine_layout) and the viewport budget it
+  // measured, without which the store would be scaled to a different fit than
+  // the DOM beside it.
+  const last = VA.lastTopoRender;
+  const layout = VA.spineRight(proj.layout);
+  const plan = VA.gridPlan(layout, proj);
+  const pos = VA.rowPositions(layout, proj, mode, VA.RAIL_METRICS,
+    { budget: last.fit.budget, plan: plan });
   const bad = [];
+  if (last.mode !== mode) bad.push(`render is in ${last.mode}, not ${mode}`);
   let floored = 0;
-  for (const row of proj.layout.rows) {
+  for (const row of layout.rows) {
     if (row.kind !== "edge") continue;
     const slot = pos.edges[row.id];
     if (slot.floored) floored++;
@@ -616,8 +634,34 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
   }
   const breaks = document.querySelectorAll("svg.tv__rails path.rail__break").length;
   if (breaks !== floored) bad.push(`break marks: ${breaks} drawn vs ${floored} floored`);
-  const edges = proj.layout.rows.filter((r) => r.kind === "edge").length;
-  return { bad, floored, edges };
+  const edges = layout.rows.filter((r) => r.kind === "edge").length;
+  return { bad, floored, edges, budget: last.fit.budget,
+           dagHeight: pos.dagHeight };
+};
+
+// The viewport fit and the centring (viewer_dag_spine_layout), measured in
+// the page: how tall the DAG actually came out against the budget the render
+// measured and against the height its own edge count alone demands (the floor
+// × edges + nodes minimum, which no mode may go under and which is therefore
+// the one honest way to overflow), and whether the grid block really sits
+// where the store says it does — the DOM offset against `gridOffset`.
+const FIT_IN_PAGE = () => {
+  const VA = window.ViewerApp;
+  const last = VA.lastTopoRender;
+  const rowHeight = VA.RAIL_METRICS.rowHeight;
+  const svg = document.querySelector("svg.tv__rails").getBoundingClientRect();
+  const rows = document.querySelector(".tv__rows").getBoundingClientRect();
+  const floorMin = rowHeight *
+    (Object.keys(last.positions.nodes).length +
+     Object.keys(last.positions.edges).length * VA.EDGE_LENGTH_SCALE.floorRows);
+  return {
+    mode: last.mode,
+    budget: last.fit.budget,
+    dagHeight: last.positions.dagHeight,
+    floorMin: floorMin,
+    gridOffset: last.positions.gridOffset,
+    measuredGridOffset: rows.top - svg.top,
+  };
 };
 
 // --- the topology page, in a real browser ---------------------------------
@@ -726,7 +770,22 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("tr.tvrow--selected").count() === 0);
 
     // A leader is clickable too, and selecting a boundary node marks it.
-    await page.locator('path.rail__leaderhit[data-leader-id="base_post_seat"]').click();
+    // Clicked at a point ON the path rather than at its box's centre: a
+    // jogged leader is an L, so whether its box centre happens to fall within
+    // the 10px hit stroke is luck about that one leader's proportions — and
+    // the luck ran out when viewer_dag_spine_layout moved the spine right
+    // (the node end moved 20px closer to the lane, and the centre fell off
+    // the stroke into the SVG behind it). Half the path's own length is on
+    // the path by construction.
+    const leaderHit = page.locator('path.rail__leaderhit[data-leader-id="base_post_seat"]');
+    const leaderMid = await leaderHit.evaluate((el) => {
+      const svg = el.ownerSVGElement.getBoundingClientRect();
+      const mid = el.getPointAtLength(el.getTotalLength() / 2);
+      return { x: svg.left + mid.x, y: svg.top + mid.y };
+    });
+    const leaderBox = await leaderHit.boundingBox();
+    await leaderHit.click({ position: { x: leaderMid.x - leaderBox.x,
+                                        y: leaderMid.y - leaderBox.y } });
     push("clicking a leader selects its interface",
       /A component boundary/.test(await page.locator("#detail").textContent()) &&
       await page.locator("path.rail__leader--selected").count() === 1);
@@ -1087,10 +1146,18 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
       const realTol = await realBars("tolerance");
+      // Every bar is its slot, and the slots are what the VIEWPORT allows:
+      // pitch_system's 24 edges cannot be drawn in proportion inside a 1000px
+      // window without going under the one-row floor, so under the fit
+      // (viewer_dag_spine_layout) they all sit ON it, every one marked
+      // not-to-scale. That is the honest overflow the fit is allowed to
+      // produce — and the DAG is no taller than its own floor demands, where
+      // the retired 6-row cap drew it 3325px tall.
       push("[real] pitch_system under tolerance width: bars measure the " +
-        "store, some floored, most scaled",
-        realTol.bad.length === 0 && realTol.floored > 0 &&
-        realTol.floored < realTol.edges);
+        "store, and the viewport fit floors every one of them rather than " +
+        "drawing a DAG the page cannot hold",
+        realTol.bad.length === 0 && realTol.floored === realTol.edges &&
+        realTol.dagHeight <= Math.max(realTol.budget, 26 * 45) + 0.5);
       if (realTol.bad.length) console.log("    bars: " + realTol.bad.slice(0, 5).join(" | "));
       push("[real] pitch_system tolerance-width leaders still correspond",
         (await correspondence()).drift.length === 0);
