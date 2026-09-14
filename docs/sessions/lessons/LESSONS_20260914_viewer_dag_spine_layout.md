@@ -34,6 +34,14 @@ floor minimum, which is past the budget — honest overflow, the page scrolls);
 uniform and feature size unchanged at 1170px, because both were already
 sitting on the floor.
 
+**At compact density the same topology fits, in all three modes**, which is
+worth knowing before anyone reads the comfortable-density overflow as a
+failure: 45 rows × 16px = 720px against the same 782px budget, so uniform and
+feature size come in at 720 and tolerance width lands **exactly on 782** with
+13 of its 24 edges drawn in true proportion and 11 on the floor. The scaled
+mode says something real there; at comfortable density it cannot. That is the
+subject of `ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md`.
+
 **Crossings on `pitch_system` barely move, and that is structural, not a
 half-finished job.** A mirror is a bijection on column indices: per leader it
 swaps "rails to my right" for "rails to my left", so the total cannot drop —

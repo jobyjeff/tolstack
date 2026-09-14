@@ -31,8 +31,10 @@ called "impossible to make sense of", so this is not a regression so much as
 the other end of the same trade.
 
 **Compact density is the escape hatch that already exists**: at 16px rows the
-floor minimum is 720px, which fits, and the proportions come back. Nothing on
-the page says so.
+floor minimum is 720px against the same 782px budget, so the whole DAG fits in
+one window and `tolerance width` lands exactly on the budget with 13 of its 24
+edges drawn in true proportion (11 still on the floor). The proportions come
+back. Nothing on the page says so.
 
 ## Options, none of them obviously right
 
