@@ -1065,6 +1065,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the pre-command-layer call shapes (direct `state.scene.*` calls outside
       a `cmd*` handler, a `<select>`'s `onchange` not routed through `exec`)
       whenever a future handoff touches `apps/annotate/app.js`.
+- [ ] **A `new Promise((resolve) => {...})` gate with no reject path hangs
+      forever on its unhappy path.** New 2026-09-14
+      (`annotate_load_gate_settles_on_failure`). `apps/annotate/app.js`'s
+      flyout-command gate (`whenLoaded`, now `exec_queue.js`'s `ExecQueue`)
+      only ever called `resolve()`, from two of `loadAll()`'s call sites; every
+      `await` in between them could reject and leave every queued command
+      hung on `await whenLoaded`, inside its own `try` — never reaching the
+      `catch`, the banner, or the reply the caller was waiting on. The fix
+      pattern: capture **both** `resolve` and `reject`, settle with the
+      reject path in a `catch`/`finally` around whatever can fail, and make
+      the queue itself never reject (resolve to `{ok, result|error}`) so
+      downstream `.then()`s don't need their own try/catch per item. The
+      session's own lesson-mandated grep (`new Promise(` across
+      `apps/annotate/`) found no second instance this time — but grep for
+      this exact shape (`new Promise((resolve)` — one-arg, no `reject` in
+      scope) whenever a future handoff adds or touches a promise gate in
+      either app, since one sighting rarely stays the last.
 - [ ] **The projections are stale unless you rebuild them.** Nothing rebuilds
       `data/projections/viewer/` — no hook, no ops verb, no watcher. A stack
       changed on the branch under review will render as the previous build, and
