@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: apps/annotate
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260911_annotate_load_gate_settles_on_failure.md
+resolution: handoff completed 2026-09-14 -- closed automatically by dispatch when handoff `annotate_load_gate_settles_on_failure` moved to completed/; not independently verified.
 ---
 
 # If `loadAll()` throws after a successful connect, queued annotate commands wait forever
