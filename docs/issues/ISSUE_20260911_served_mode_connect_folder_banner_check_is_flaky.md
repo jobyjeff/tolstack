@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: tests/browser-tier
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260911_viewer_browser_tier_wait_predicates.md
+resolution: handoff completed 2026-09-14 -- closed automatically by dispatch when handoff `viewer_browser_tier_wait_predicates` moved to completed/; not independently verified.
 ---
 
 # Browser tier: "[real] the connect-folder banner never appears" races the boot's own transient banner
