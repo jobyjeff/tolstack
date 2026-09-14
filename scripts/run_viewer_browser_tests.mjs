@@ -1303,6 +1303,27 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     push("[mock] the demo DAG is short enough that the fit is real room, " +
       "not the floor", mockFit.every((f) => f.budget > f.floorMin));
 
+    // A window that changes size after a paint leaves the DAG fitted to a
+    // viewport that is gone, so the app re-paints on resize. Measured here in
+    // tolerance width, where the fit has real room to give up.
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+    const roomy = await page.evaluate(FIT_IN_PAGE);
+    await page.setViewportSize({ width: 1400, height: 520 });
+    await page.waitForTimeout(400);
+    const shrunk = await page.evaluate(FIT_IN_PAGE);
+    push("[mock] shrinking the window re-fits the DAG into it",
+      roomy.mode === "tolerance" && shrunk.mode === "tolerance" &&
+      shrunk.budget < roomy.budget && shrunk.dagHeight < roomy.dagHeight &&
+      shrunk.dagHeight <= Math.max(shrunk.budget, shrunk.floorMin) + 0.5);
+    push("[mock] leaders still land on their dots and seams after the re-fit",
+      (await correspondence()).drift.length === 0);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.waitForTimeout(400);
+    await page.locator("#edge-length-toggle").click();
+    await page.locator("#edge-length-toggle").click();
+    await page.waitForTimeout(50);
+
     // Compact density: correspondence must still hold once row height changes
     // — the leaders and the grid rows both re-derive from the same rowHeight.
     await page.locator("#density-toggle").click();
