@@ -1598,8 +1598,11 @@ async function testAnnotateFlyout(browser, fileBase) {
     // (ISSUE_20260911_annotate_flyout_banner_check_samples_a_transient). Anchor
     // the wait on the effect being asserted -- text -- and let the SAME read
     // return it, so no paint can slip between waiting and sampling. The iframe
-    // is same-origin (what the check above it proves), so contentDocument is
-    // readable from the host page; a boot that never writes a banner fails as a
+    // is same-origin because startRepoRootServer serves BOTH apps/viewer and
+    // apps/annotate off this one origin (the src check above reads an
+    // attribute on the host document's own element, which says nothing about
+    // origin), so contentDocument is readable from the host page; a boot that
+    // never writes a banner fails as a
     // waitForFunction TIMEOUT rather than as a wrong-text sighting.
     const bannerText = await page.waitForFunction(() => {
       const doc = document.querySelector("#annotate-flyout iframe")?.contentDocument;

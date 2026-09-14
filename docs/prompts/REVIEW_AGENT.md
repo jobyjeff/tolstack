@@ -1855,6 +1855,32 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       never settles fails as a timeout rather than as wrong content.
       **Re-run a single browser-tier failure before treating it as real** —
       these two cost a first run 14/16 on a tree that then ran 16/16 twice.
+      **Reviewing a wait-predicate fix: a green run is worth nothing, and the
+      replay is cheap — do BOTH directions.** Throwaway harness, ~60 lines,
+      same repo-root static server the runner already has: (a) *delay* the
+      resource whose arrival the settled render waits on (`await sleep(ms)`
+      on `/data/projections/viewer/*`) and confirm the OLD predicate resolves
+      on the transient and the sub-check goes red on correct code; (b) *kill*
+      it (404, or `page.route("**/apps/<app>/*.js", r => r.abort())` for a
+      boot that never writes) and confirm the NEW predicate fails **as a
+      timeout** and that the OLD one passed vacuously. Measured this way in
+      review 2026-09-14 for all three of the fixes above — the served-mode
+      one at 106 ms/FAIL vs 3473 ms/PASS, the `.banner__built` one passing
+      vacuously at 286 ms on a boot with no connected banner at all. Two
+      Windows traps in the harness itself: `normalize()` your repo roots
+      before the `startsWith(root + sep)` guard or every request 403s
+      silently, and put the harness **inside the worktree** or node cannot
+      resolve `playwright-core`.
+      **And re-derive the sweep, don't read its list.** The same review's
+      behaviour-first enumeration (`grep -n "waitFor` over the runner)
+      reproduced the handoff's own two shapes exactly, and found its
+      volunteered third claim — "all nine `waitForTimeout` sleeps carry a
+      positive anchor" — true of eight
+      (`ISSUE_20260914_compact_density_correspondence_check_has_no_positive_anchor.md`):
+      a sleep followed by an assertion that measures a **live-DOM invariant**
+      (`correspondence()`) rather than the click's effect passes in the state
+      the click was supposed to leave *and* in the one it started from. Ask of
+      every sleep: *what does this assertion read that the click changed?*
 
 - [ ] **A section-scoped doc scan's "not vacuous" replay written *inside* the
       section by mistake.** New 2026-09-11 (`viewer_deep_link_contract_pairing`),

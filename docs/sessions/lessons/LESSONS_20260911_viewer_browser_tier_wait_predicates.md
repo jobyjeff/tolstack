@@ -108,12 +108,23 @@ Grepped both shapes across all 1818 lines. Findings:
 3. **Checked, sound — `testIndexRedirects`' `'[data-nav-kind], tr.tvrow'`
    disjunction.** It is a disjunction, but both branches are settled renders and
    the assertions are about `page.url()`, not about either branch being absent.
-4. **Checked, benign — the nine `waitForTimeout(50)`/`(300)` sleeps**
+4. **Checked, benign — eight of the nine `waitForTimeout(50)`/`(300)` sleeps**
    (lines ~919–1205, ~1621). Each follows a click or a nav selection whose
    handler re-renders *synchronously*, and each assertion carries a positive
    anchor (e.g. `#toolbar a` count === 1 beside `#study-3d` count === 0), so
    none can pass vacuously. Not filed as an issue: examined, not deferred. If
    one ever does flake, the fix is the same — wait for the effect.
+
+   > **Correction, review 2026-09-14.** The ninth is the exception, and the
+   > "positive anchor" clause is what does not hold for it: the `#density-toggle`
+   > sleep (`scripts/run_viewer_browser_tests.mjs`, the compact-density block in
+   > `testHeightBudget`) is followed by
+   > `(await correspondence()).drift.length === 0`, and `correspondence()`
+   > re-derives leader/row geometry from the live DOM, so it holds at
+   > *comfortable* density too. A density toggle that silently stopped working
+   > would leave that sub-check green — it asserts an invariant, not the effect
+   > of the click. Filed as
+   > `ISSUE_20260914_compact_density_correspondence_check_has_no_positive_anchor.md`.
 
 ## Running the browser tier from a worktree
 
