@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: viewer/topology
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260915_respine_tween_fidelity.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `respine_tween_fidelity` moved to completed/; not independently verified.
 ---
 
 # Deselecting a study slides the DAG in from off the pane's left edge
