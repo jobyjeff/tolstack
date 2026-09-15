@@ -384,11 +384,25 @@ async function testRebuildAffordance(browser) {
   }
 }
 
+// A HOSTED hostname that resolves to this script's own loopback servers.
+//
+// Needed because the posture under test (surfaces_that_state_something_false)
+// turns on `window.location.hostname`, and every server this file can start
+// listens on 127.0.0.1 -- which is the LOCAL case, the opposite of what the
+// hosted check has to reproduce. Chrome's own `--host-resolver-rules` maps one
+// name at the resolver, so the page really is on a non-loopback origin as far
+// as the app (and the URL bar) is concerned, with no DNS and no real host.
+// `.test` is the reserved TLD for exactly this (RFC 6761), so the name can
+// never become someone's real site. Inert for every other check in this file:
+// nothing else uses the name.
+const HOSTED_TEST_HOST = "hosted.tolstack.test";
+
 async function launch() {
   const failures = [];
+  const args = [`--host-resolver-rules=MAP ${HOSTED_TEST_HOST} 127.0.0.1`];
   for (const channel of CHANNELS) {
     try {
-      return { browser: await chromium.launch({ channel, headless: true }), channel };
+      return { browser: await chromium.launch({ channel, headless: true, args }), channel };
     } catch (err) {
       failures.push(`${channel}: ${String((err && err.message) || err)}`);
     }
@@ -2673,6 +2687,80 @@ async function testAnnotateFlyout(browser, fileBase) {
   }
 }
 
+// The annotator's hosted posture, in a real browser (handoff
+// surfaces_that_state_something_false).
+//
+// ONE server, TWO hostnames, and that is the whole design of this check: the
+// same files, the same port, the same page, reached once as a hosted visitor
+// (HOSTED_TEST_HOST) and once from the machine itself (127.0.0.1). Only a real
+// browser decides this, because the decision reads `window.location.hostname`
+// off a live page -- and only running BOTH halves proves the rule discriminates
+// rather than just being strict: a build that removed the picker everywhere
+// would pass the hosted half and fail the local one, which is the regression
+// that would quietly kill Jeff's own annotation workflow.
+async function testAnnotateHostedPosture(browser) {
+  const label = "annotate hosted posture (no folder grant off-machine)";
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const { port } = server.address();
+  const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  try {
+    // --- hosted: a visitor with no tolstack repo to grant -------------------
+    await page.goto(`http://${HOSTED_TEST_HOST}:${port}/apps/annotate/index.html`,
+      { waitUntil: "load" });
+    const hostedBanner = await page.waitForFunction(() => {
+      const text = document.querySelector("#banner")?.textContent.trim() || "";
+      return text.length > 0 ? text : null;
+    }, null, { timeout: 15000 }).then((h) => h.jsonValue());
+    push("the page really is on a non-loopback origin",
+      await page.evaluate(() => window.location.hostname) === HOSTED_TEST_HOST);
+    push("the banner states that annotating is not available on this site",
+      /not available on this site/.test(hostedBanner));
+    push("Connect folder is not offered at all",
+      !/Connect folder/.test(hostedBanner) &&
+      await page.locator("#connect-btn").evaluate((n) => n.style.display) === "none");
+    push("nor is the read/write transport line, which would be false here",
+      (await page.locator("#transport-sub").textContent()).trim() === "");
+    push("no path, script or command leaks into the sentence",
+      !/\.py|venv-win|C:\\|http/.test(hostedBanner));
+    push("the honest notice is not an error thrown on the way to it",
+      errors.length === 0);
+
+    // --- local: the same URL from the machine holding the repo --------------
+    // Unchanged by this handoff and it must stay that way: drawing-checker
+    // serves this app from 127.0.0.1:8000 in dev, and the folder grant is the
+    // only way in (there is no HTTP read transport, and no file:// story).
+    await page.goto(`http://127.0.0.1:${port}/apps/annotate/index.html`,
+      { waitUntil: "load" });
+    const localBanner = await page.waitForFunction(() => {
+      const text = document.querySelector("#banner")?.textContent.trim() || "";
+      return text.length > 0 ? text : null;
+    }, null, { timeout: 15000 }).then((h) => h.jsonValue());
+    push("a loopback page still asks for the folder, or says this browser cannot",
+      /Connect folder|File System Access/.test(localBanner));
+    push("and it does NOT show the hosted notice",
+      !/not available on this site/.test(localBanner));
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 // --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) ----
 //
 // The URL params documented in apps/viewer/README.md, driven through a REAL
@@ -3226,6 +3314,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     results.push(await testHostedUnpublished(browser, topologies));
     results.push(await testRebuildAffordance(browser));
     results.push(await testAnnotateFlyout(browser, fileBase));
+    results.push(await testAnnotateHostedPosture(browser));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);
