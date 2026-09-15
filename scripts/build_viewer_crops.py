@@ -68,11 +68,21 @@ Where the crop is taken (in order):
   callout's own text was found *inside* that cell -- corroboration, not a
   requirement (a parts-list nomenclature is cited at the balloon, and lives on
   the parts-list sheet).
-* **the callout text**, if no zone is cited and a needle derived from the
+* **a declared crop region**, when the resolved PDF lives in
+  ``data/inbox/specs/`` and ``docs/spec_library/crop_regions.json`` declares a
+  region for the cited sheet that this citation matches. A pile citation names a
+  document and a sheet and nothing finer, so before this rule existed a fastener
+  card showed a whole photocopy of a sixty-four-row table; the registry is where
+  a human says which rect the row is. Declared configuration, never a search:
+  ``tolerance_stack/spec_crop_regions.py`` owns the matching rules, and the rule
+  applies whichever rule above named the document, because the region is a fact
+  about the *bytes in the pile* rather than about how the citation reached them.
+* **the callout text**, if none of the above and a needle derived from the
   callout matches exactly once on the page.
 * **the whole sheet** otherwise, with the reason recorded (a scanned standard
   with no text layer, which is what ``NAS6403-NAS6420 Rev 4.pdf`` is, lands
-  here).
+  here -- and for a pile document the reason also says why no declared region
+  applied, because "record one" is the action that fixes it).
 
 Output (wipe-and-rebuild; owns only its own files, ``results.json`` is
 ``build_viewer_projection.py``'s)::
@@ -110,11 +120,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-# This script's own directory, so `projection_provenance` imports whether we were
-# started as a script (sys.path[0] is scripts/ already) or imported by a test.
+# The repo root, so `tolerance_stack` imports the same way it does from
+# `build_topology_projection.py`; then this script's own directory, so
+# `projection_provenance` imports whether we were started as a script
+# (sys.path[0] is scripts/ already) or imported by a test.
+sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import projection_provenance as prov  # noqa: E402
+from tolerance_stack import spec_crop_regions as scr  # noqa: E402
 
 SCHEMA_CROPS = "joby.tolerance_stack/viewer_crops/v0"
 BUILT_BY = "scripts/build_viewer_crops.py"
@@ -535,12 +549,32 @@ def center_in(rect: Sequence[float], hit: Sequence[float]) -> bool:
 
 
 def locate(page, source_ref: Dict[str, Any], hardware_ref: Optional[str],
-           zone_pad: float, text_pad: float) -> Dict[str, Any]:
-    """Decide the crop rect on ``page``. Never raises -- worst case is the sheet."""
+           zone_pad: float, text_pad: float,
+           region: Optional["scr.RegionResolution"] = None) -> Dict[str, Any]:
+    """Decide the crop rect on ``page``. Never raises -- worst case is the sheet.
+
+    ``region`` is the declared-region answer for this citation
+    (:func:`tolerance_stack.spec_crop_regions.resolve`), or ``None`` when the
+    document is not a pile document and no region could apply. It is consulted
+    **after** a cited zone and **before** the callout-text search: a zone is
+    something this citation said about itself, while a region is declared per
+    document, so the more specific statement wins -- but a declared rect
+    somebody looked at beats a needle that happened to match once.
+    """
     cols, rows = page_native_grid(page)
     needles = callout_needles(source_ref, hardware_ref)
     cited_zone = source_ref.get("zone")
     grid_read = bool(cols and rows)
+    placement = {
+        "cited_zone": cited_zone,
+        "zone_grid": "read" if grid_read else "unreadable",
+        "callout_text_in_zone": None,
+        # Present on every placement, not only a declared_region one, so a crop
+        # entry has one shape and a consumer never has to tell "no region" from
+        # "this builder is older than regions".
+        "region_label": None,
+        "region_match": None,
+    }
 
     cell = zone_cell(cols, rows, str(cited_zone)) if (cited_zone and grid_read) else None
     if cell:
@@ -551,25 +585,35 @@ def locate(page, source_ref: Dict[str, Any], hardware_ref: Optional[str],
                 found, matched = True, needle
                 break
         return {
+            **placement,
             "rect": pad_rect(cell, width * zone_pad, height * zone_pad),
             "located_by": "zone_cell",
             "needle": matched,
-            "cited_zone": cited_zone,
             "zone_grid": "read",
             "callout_text_in_zone": found,
             "note": f"printed zone {cited_zone} padded by {zone_pad:g} cell(s)",
+        }
+
+    if region is not None and region.region is not None:
+        return {
+            **placement,
+            "rect": tuple(region.region.rect),
+            "located_by": "declared_region",
+            "needle": None,
+            "region_label": region.region.label,
+            "region_match": region.matched,
+            "note": (f"declared crop region {region.region.label!r} -- "
+                     f"{region.why}"),
         }
 
     for needle in needles:
         hits = page.search_for(needle)
         if len(hits) == 1:
             return {
+                **placement,
                 "rect": pad_rect(tuple(hits[0]), text_pad, text_pad),
                 "located_by": "callout_text",
                 "needle": needle,
-                "cited_zone": cited_zone,
-                "zone_grid": "read" if grid_read else "unreadable",
-                "callout_text_in_zone": None,
                 "note": f"located by the unique match for {needle!r}",
             }
 
@@ -579,13 +623,16 @@ def locate(page, source_ref: Dict[str, Any], hardware_ref: Optional[str],
         why = f"zone {cited_zone} cited but this sheet's printed border grid is not legible"
     else:
         why = "no zone cited and the callout text matches zero or many places"
+    if region is not None:
+        # A pile document with no region that applied. Say so in the note: the
+        # fix is to record one (scripts/record_spec_crop_region.py), and a whole
+        # sheet whose reason stops at "no text layer" never tells anyone that.
+        why += f"; {region.why}"
     return {
+        **placement,
         "rect": tuple(page.rect),
         "located_by": "sheet_full",
         "needle": None,
-        "cited_zone": cited_zone,
-        "zone_grid": "read" if grid_read else "unreadable",
-        "callout_text_in_zone": None,
         "note": "whole sheet -- " + why,
     }
 
@@ -614,6 +661,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--stacks-dir", default=str(REPO_ROOT / STACKS_DIR))
     ap.add_argument("--topologies-dir", default=str(REPO_ROOT / TOPOLOGIES_DIR))
     ap.add_argument("--drawing-checker-root", default=str(DEFAULT_DC_ROOT))
+    ap.add_argument("--crop-regions", default=str(REPO_ROOT / scr.REGISTRY_RELPATH),
+                    help="declared crop regions for spec-pile documents "
+                         "(scripts/record_spec_crop_region.py records them)")
     ap.add_argument("--zoom", type=float, default=3.0, help="render scale for located crops")
     ap.add_argument("--zone-pad", type=float, default=1.0,
                     help="cells of context around a cited zone")
@@ -667,6 +717,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     for line in prov.note_lines(provenance):
         print(line, file=sys.stderr)
 
+    # The registry is tracked, so it is in this worktree; a missing file is a
+    # legitimate state (no region recorded anywhere yet) and is SAID rather than
+    # assumed, because "no regions" and "the registry did not load" produce the
+    # same whole-sheet crops and are very different facts.
+    regions_path = Path(args.crop_regions)
+    if regions_path.exists():
+        registry = scr.load(regions_path)
+        print(f"crop regions: {len(registry.regions)} declared in {regions_path}",
+              file=sys.stderr)
+    else:
+        registry = scr.CropRegionRegistry()
+        print(f"no crop-region registry at {regions_path} -- spec-pile citations "
+              f"will crop the whole sheet", file=sys.stderr)
+
     dc_available = (dc_root / "data").is_dir()
     if not dc_available:
         print(
@@ -697,7 +761,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         for element in raw.get("elements", []):
             entry = crop_element(
                 raw, element, specs_dir, dc_root, rel_roots,
-                crops_dir, open_docs, args,
+                crops_dir, open_docs, args, registry,
             )
             by_stack[stack_id][element["id"]] = entry
             if entry["status"] == "resolved":
@@ -734,7 +798,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 continue
             entry = crop_topology_edge(
                 topology_id, edge["id"], dimension, specs_dir, dc_root,
-                rel_roots, crops_dir, open_docs, args,
+                rel_roots, crops_dir, open_docs, args, registry,
             )
             by_topology[topology_id][edge["id"]] = entry
             if entry["status"] == "resolved":
@@ -873,9 +937,32 @@ def summary_lines(summary: Dict[str, Any]) -> List[str]:
     return lines
 
 
+def region_for(registry, pdf: Path, specs_dir: Path, page_no: int,
+               source_ref: Dict[str, Any], hardware_ref: Optional[str]):
+    """The declared-region answer for this citation, or ``None``.
+
+    ``None`` means *no region could apply*: the resolved PDF is not a spec-pile
+    document (a drawing export has zones and a text layer, which is what the two
+    other placement rules are for). A pile document always gets a resolution
+    object, even when it names no region, because "read for, not declared" is a
+    fact worth putting in the crop's note -- the same three-outcomes discipline
+    the spec library runs on.
+    """
+    if registry is None:
+        return None
+    try:
+        in_pile = pdf.resolve().parent == specs_dir.resolve()
+    except OSError:  # pragma: no cover -- a path that cannot be resolved is not the pile
+        return None
+    if not in_pile:
+        return None
+    return scr.resolve(registry, pdf.name, page_no,
+                       scr.where_ref_text(source_ref, hardware_ref))
+
+
 def _crop_from_citation(raw, source_ref, hardware_ref, name_stem, no_ref_reason,
                         specs_dir, dc_root, rel_roots, crops_dir, open_docs,
-                        args) -> Dict[str, Any]:
+                        args, registry) -> Dict[str, Any]:
     """One citation -> a locator entry (rendering its PNG on the way, if it resolves).
 
     Shared by :func:`crop_element` (a stack element) and
@@ -903,7 +990,9 @@ def _crop_from_citation(raw, source_ref, hardware_ref, name_stem, no_ref_reason,
                 f"sheet {page_no}"
             )
         page = doc[page_no - 1]
-        placement = locate(page, source_ref, hardware_ref, args.zone_pad, args.text_pad)
+        region = region_for(registry, pdf, specs_dir, page_no, source_ref, hardware_ref)
+        placement = locate(page, source_ref, hardware_ref, args.zone_pad,
+                           args.text_pad, region)
         name = f"{name_stem}.png"
         width, height = render(page, placement["rect"], crops_dir / name,
                                args.zoom, args.max_px)
@@ -930,17 +1019,17 @@ def _crop_from_citation(raw, source_ref, hardware_ref, name_stem, no_ref_reason,
 
 
 def crop_element(raw, element, specs_dir, dc_root, rel_roots, crops_dir,
-                 open_docs, args) -> Dict[str, Any]:
+                 open_docs, args, registry) -> Dict[str, Any]:
     """One stack element -> a locator entry."""
     return _crop_from_citation(
         raw, element.get("source_ref"), element.get("hardware_ref"),
         f"{raw['id']}__{element['id']}", "element carries no source_ref",
-        specs_dir, dc_root, rel_roots, crops_dir, open_docs, args,
+        specs_dir, dc_root, rel_roots, crops_dir, open_docs, args, registry,
     )
 
 
 def crop_topology_edge(topology_id, edge_id, dimension, specs_dir, dc_root,
-                       rel_roots, crops_dir, open_docs, args) -> Dict[str, Any]:
+                       rel_roots, crops_dir, open_docs, args, registry) -> Dict[str, Any]:
     """One topology's inline edge -> a locator entry.
 
     ``raw`` is ``{}``: a topology document carries no ``joint`` block, so the
@@ -950,7 +1039,7 @@ def crop_topology_edge(topology_id, edge_id, dimension, specs_dir, dc_root,
     return _crop_from_citation(
         {}, dimension.get("source_ref"), dimension.get("hardware_ref"),
         f"{topology_id}__{edge_id}", "edge carries no source_ref",
-        specs_dir, dc_root, rel_roots, crops_dir, open_docs, args,
+        specs_dir, dc_root, rel_roots, crops_dir, open_docs, args, registry,
     )
 
 

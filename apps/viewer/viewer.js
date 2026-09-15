@@ -854,6 +854,56 @@
     },
   };
 
+  // WHERE on the sheet a crop was taken — one entry per `located_by` value
+  // `locate()` in scripts/build_viewer_crops.py can write. A table for exactly
+  // the reason VA.CROP_RULES is one: this was a chain of three `if`s with no
+  // else, so the fourth value (`declared_region`, added 2026-09-14 by the
+  // crop-region registry) would have dropped the whole "where on the sheet"
+  // clause without a mark — the same silence that let a stale `resolved_by` go
+  // unexplained for four days. Paired against the crop script's literals by
+  // tests/test_js_python_vocabulary.py.
+  VA.CROP_PLACEMENTS = {
+    zone_cell: {
+      text: function (e) {
+        // Name the string that corroborated, never just "found". The needle is
+        // whichever candidate matched FIRST, and the candidates include bare
+        // tokens: the pitch-plate flange's zone D10 corroborates on "±0.10",
+        // which occurs five times on that sheet, while the discriminating
+        // "4.06 ±0.10" occurs once and is never tried (callout_needles splits on
+        // whitespace). An unqualified "callout text found there" reads as much
+        // stronger evidence than a generic token is, which is the one thing a
+        // provenance surface must not do.
+        return "showing the cited zone " + e.cited_zone +
+          (e.callout_text_in_zone === true
+            ? " (callout text " + JSON.stringify(e.needle || "") + " found there)"
+            : e.callout_text_in_zone === false
+              ? " (callout text NOT found there — the crop is the citation, not a match)"
+              : "");
+      },
+    },
+    declared_region: {
+      text: function (e) {
+        // A declared region is somebody's recorded reading of the page, not a
+        // search hit, so the line says who it answers to: the region's own name
+        // and, when it matched rather than being the sheet's only region, the
+        // citation text that picked it.
+        return "showing the declared region " +
+          JSON.stringify(e.region_label || "(unnamed)") +
+          (e.region_match
+            ? ", matched on " + JSON.stringify(e.region_match)
+            : ", the only region declared for this sheet");
+      },
+    },
+    callout_text: {
+      text: function (e) {
+        return "located by the unique match for " + JSON.stringify(e.needle);
+      },
+    },
+    sheet_full: {
+      text: function (e) { return e.note || "whole sheet"; },
+    },
+  };
+
   // What a crop resolved by a rule this viewer has never heard of must say. It
   // names the value rather than describing it, because the reader's next step is
   // to grep the crop script for it.
@@ -861,6 +911,16 @@
     return "resolved by " + JSON.stringify(resolvedBy === undefined ? null : resolvedBy) +
       ", a rule this viewer has no label for — how much to trust this " +
       "placement is NOT shown here; read the entry in crops.json";
+  };
+
+  // The same, for a crop placed by a rule this viewer has no branch for. Loud
+  // for the same reason: a hover that quietly says nothing about where on the
+  // sheet a crop was taken reads as "the whole sheet", which is a different
+  // claim from "this viewer cannot tell you".
+  VA.unlabelledPlacementText = function (locatedBy) {
+    return "placed by " + JSON.stringify(locatedBy === undefined ? null : locatedBy) +
+      ", a rule this viewer has no label for — WHERE on the sheet this crop " +
+      "was taken is NOT shown here; read the entry in crops.json";
   };
 
   // The `resolved_by` values in a crops index that VA.CROP_RULES cannot explain.
@@ -895,26 +955,10 @@
     bits.push(rule
       ? rule.text(cropEntry)
       : VA.unlabelledRuleText(cropEntry.resolved_by));
-    if (cropEntry.located_by === "zone_cell") {
-      // Name the string that corroborated, never just "found". The needle is
-      // whichever candidate matched FIRST, and the candidates include bare
-      // tokens: the pitch-plate flange's zone D10 corroborates on "±0.10",
-      // which occurs five times on that sheet, while the discriminating
-      // "4.06 ±0.10" occurs once and is never tried (callout_needles splits on
-      // whitespace). An unqualified "callout text found there" reads as much
-      // stronger evidence than a generic token is, which is the one thing a
-      // provenance surface must not do.
-      bits.push("showing the cited zone " + cropEntry.cited_zone +
-        (cropEntry.callout_text_in_zone === true
-          ? " (callout text " + JSON.stringify(cropEntry.needle || "") + " found there)"
-          : cropEntry.callout_text_in_zone === false
-            ? " (callout text NOT found there — the crop is the citation, not a match)"
-            : ""));
-    } else if (cropEntry.located_by === "callout_text") {
-      bits.push("located by the unique match for " + JSON.stringify(cropEntry.needle));
-    } else if (cropEntry.located_by === "sheet_full") {
-      bits.push(cropEntry.note || "whole sheet");
-    }
+    var placement = VA.CROP_PLACEMENTS[cropEntry.located_by];
+    bits.push(placement
+      ? placement.text(cropEntry)
+      : VA.unlabelledPlacementText(cropEntry.located_by));
     return bits.join(" · ");
   };
 

@@ -8,6 +8,8 @@ was read from. Built by handoff `spec_library_v0` (2026-08-05) from
 docs/spec_library/
   events/*.json        spec-parse/v0 -- COMMITTED, immutable, append-only
   intake_queue.json    spec_intake/v0 -- which document closes which gap
+  crop_regions.json    spec_crop_regions/v0 -- where on a sheet a citation is,
+                       so a reviewer sees the row and not the photocopy
 data/projections/spec_library/library.json
                        the fold. Derived, gitignored, disposable -- and SHARED:
                        data/ exists only in the main checkout.
@@ -96,6 +98,28 @@ Automated vision extraction is **parser v1** and is not built. When it is, its
 events land against the same documents, side by side with v0's — which is the
 whole reason events are keyed by (document, parser-version) rather than by
 document alone.
+
+## Where on the sheet you read it
+
+**When you read a value off a pile document, record the region you read it
+from — or reuse one already recorded.** A pile citation names a document and a
+sheet and nothing finer (the filename is the identity, so there is no zone to
+pin), and a fastener standard's sheet is a table of dozens of rows: without a
+region, the crop a reviewer sees is the whole photocopy.
+
+```
+scripts\record_spec_crop_region.py --document "<file>.pdf" --page N --rect X0 Y0 X1 Y1 --label "<what to call it>" --shows "<what is in the rect>" --recorded YYYY-MM-DD --recorded-by "<you>" --preview <where>.png
+```
+
+Run it from drawing-checker's venv (it needs PyMuPDF, like the crop builder) and
+pass `--preview` first: the point of the entry is that somebody *looked* at the
+rect. `--help` has the rest; the schema, the matching rules and what happens when
+nothing matches are in `tolerance_stack/spec_crop_regions.py`, and the entries
+live in `crop_regions.json` beside this file.
+
+A region is placement, not identity: it does not make a value traced, does not
+change which bytes the citation was read from, and a citation that matches no
+region keeps the whole-sheet crop it already had.
 
 ## Every extracted value is reviewed like a stack
 

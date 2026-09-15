@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import json
 import sys
+import types
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
@@ -25,6 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import build_viewer_crops as bvc  # noqa: E402
+
+from tolerance_stack import spec_crop_regions as scr  # noqa: E402
 
 STACKS_DIR = REPO_ROOT / "docs" / "tolerance_stacks"
 
@@ -501,3 +505,313 @@ def test_an_empty_raw_still_resolves_rule_1_the_way_a_topology_document_would(tm
         tmp_path, tmp_path, [tmp_path],
     )
     assert got["resolved_by"] == "source_ref_export" and got["sha256_verified"] is True
+
+
+# --- declared crop regions (handoff spec_crop_region_registry, 2026-09-14) ---
+#
+# The placement half of the same discipline: a spec-pile citation names a
+# document and a sheet and nothing finer, so its crop was the whole photocopy.
+# The registry says which rect the cited row is -- and a citation with no region
+# must keep the whole sheet it would have had anyway, because a rect nobody
+# recorded is a rect nobody looked at. The matching rules themselves live in
+# tests/test_spec_crop_regions.py; these are the crop script's use of them.
+
+
+class FakeRect(NamedTuple):
+    """``page.rect``: read by name in the zone-grid scan and by position when the
+    whole sheet becomes the crop, so it has to be both."""
+
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
+class FakePage:
+    """The little of a ``fitz.Page`` that :func:`bvc.locate` touches.
+
+    Rendering needs PyMuPDF; deciding *where* the crop goes does not, and that is
+    where a wrong rect would be -- the same split the rest of this module runs on.
+    """
+
+    def __init__(self, text="", words=(), hits=None):
+        self.rect = FakeRect(0.0, 0.0, 610.56, 842.4)
+        self._text = text
+        self._words = list(words)
+        self._hits = hits or {}
+
+    def get_text(self, kind):
+        return self._words if kind == "words" else self._text
+
+    def search_for(self, needle):
+        return self._hits.get(needle, [])
+
+    def get_pixmap(self, matrix=None, clip=None):
+        # The renderer's own scaling, applied to the clip it was handed -- so a
+        # crop entry's width/height say which rect was rendered.
+        zoom = (matrix or (1.0, 1.0))[0]
+        return FakePixmap(int(clip.width * zoom), int(clip.height * zoom))
+
+
+def a_region(label="Grip Dash No. 13 row", match=("Grip Dash No. 13",)):
+    return scr.CropRegion(
+        document="NAS6403-NAS6420 Rev 4.pdf", page=3, label=label,
+        rect=(84.5, 196.25, 191.6, 204.25), match=match,
+        shows="the dash-13 row of sheet 3's grip/length table",
+        recorded="2026-09-14", recorded_by="a test",
+    )
+
+
+def test_a_declared_region_is_where_the_crop_goes():
+    registry = scr.CropRegionRegistry(regions=(a_region(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3,
+                         "row 'Grip Dash No. 13'")
+    placement = bvc.locate(FakePage(), {"zone": None}, "NAS6403U13H", 1.0, 200.0,
+                           answer)
+    assert placement["located_by"] == "declared_region"
+    assert placement["rect"] == (84.5, 196.25, 191.6, 204.25)
+    assert placement["region_label"] == "Grip Dash No. 13 row"
+    assert placement["region_match"] == "Grip Dash No. 13"
+
+
+def test_a_citation_with_no_region_keeps_the_whole_sheet_and_says_why():
+    answer = scr.resolve(scr.CropRegionRegistry(), "NAS6403-NAS6420 Rev 4.pdf", 3, "")
+    placement = bvc.locate(FakePage(), {"zone": None}, None, 1.0, 200.0, answer)
+    assert placement["located_by"] == "sheet_full"
+    assert placement["rect"] == (0.0, 0.0, 610.56, 842.4)
+    # The note carries the region's own reason too: "no text layer" alone never
+    # tells a reader that recording a region is the thing that fixes this.
+    assert "no crop region is declared" in placement["note"]
+
+
+def test_a_cited_zone_still_beats_a_declared_region():
+    """A zone is what this citation said about itself; a region is declared for
+    the document. The more specific statement wins, and no existing zone crop
+    may move because a region was recorded on that document's sheet."""
+    words = [(x, 5.0, x + 6.0, 12.0, str(n), 0, 0, 0)
+             for n, x in ((1, 100.0), (2, 200.0), (3, 300.0))]
+    words += [(5.0, y, 12.0, y + 6.0, letter, 0, 0, 0)
+              for letter, y in (("A", 100.0), ("B", 200.0), ("C", 300.0))]
+    page = FakePage(text="a sheet with a grid", words=words)
+    registry = scr.CropRegionRegistry(regions=(a_region(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3,
+                         "row 'Grip Dash No. 13'")
+    placement = bvc.locate(page, {"zone": "B2"}, None, 0.0, 200.0, answer)
+    assert placement["located_by"] == "zone_cell"
+    assert placement["region_label"] is None
+
+
+def test_a_declared_region_beats_a_unique_callout_match():
+    """A rect somebody looked at beats a needle that happened to match once."""
+    page = FakePage(text="a sheet with a text layer",
+                    hits={"NAS6403U13H": [(10.0, 10.0, 60.0, 20.0)]})
+    registry = scr.CropRegionRegistry(regions=(a_region(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3,
+                         "row 'Grip Dash No. 13'")
+    placement = bvc.locate(page, {"zone": None}, "NAS6403U13H", 1.0, 200.0, answer)
+    assert placement["located_by"] == "declared_region"
+
+
+def test_every_placement_carries_the_region_keys():
+    """One shape per crop entry: "no region" and "built before regions existed"
+    must not look the same to a consumer."""
+    page = FakePage(text="a sheet", hits={"NAS6403U13H": [(1.0, 1.0, 2.0, 2.0)]})
+    for placement in (
+        bvc.locate(page, {"zone": None}, "NAS6403U13H", 1.0, 200.0, None),
+        bvc.locate(FakePage(), {"zone": None}, None, 1.0, 200.0, None),
+    ):
+        assert placement["region_label"] is None
+        assert placement["region_match"] is None
+
+
+# --- which citations the registry may touch --------------------------------
+
+
+def test_only_a_document_in_the_pile_gets_a_region(tmp_path):
+    """The registry is a fact about the BYTES in data/inbox/specs/, so it applies
+    whichever rule named them -- but never to a drawing export, which has zones
+    and a text layer and its own two placement rules."""
+    specs = tmp_path / "inbox" / "specs"
+    specs.mkdir(parents=True)
+    pile_doc = specs / "NAS6403-NAS6420 Rev 4.pdf"
+    pile_doc.write_bytes(b"%PDF")
+    drawing = tmp_path / "inbox" / "drawings" / "217755.pdf"
+    drawing.parent.mkdir(parents=True)
+    drawing.write_bytes(b"%PDF")
+    registry = scr.CropRegionRegistry(regions=(a_region(),))
+    ref = {"cell": "row 'Grip Dash No. 13'"}
+
+    answer = bvc.region_for(registry, pile_doc, specs, 3, ref, None)
+    assert answer is not None and answer.region is not None
+    # A drawing gets None -- not a resolution that found nothing, which is the
+    # state that would have put "no region declared" in every drawing's note.
+    assert bvc.region_for(registry, drawing, specs, 3, ref, None) is None
+
+
+def test_no_registry_at_all_means_no_region_anywhere(tmp_path):
+    specs = tmp_path / "inbox" / "specs"
+    specs.mkdir(parents=True)
+    pile_doc = specs / "NAS6403-NAS6420 Rev 4.pdf"
+    pile_doc.write_bytes(b"%PDF")
+    assert bvc.region_for(None, pile_doc, specs, 3, {}, None) is None
+
+
+# --- the WIRING: does the builder actually consult the registry? ------------
+#
+# Everything above enters at `bvc.locate` or `bvc.region_for`, which leaves the
+# join between them untested: `region = None` in `_crop_from_citation` reverts
+# the whole deliverable -- spec-pile citations back to whole photocopied sheets
+# -- with every tier green. `registry` is threaded by hand as a trailing
+# positional through main() -> crop_element/crop_topology_edge ->
+# _crop_from_citation -> region_for -> locate, and a refactor that drops the
+# thread, or transposes region_for's `pdf`/`specs_dir` (which fails the pile
+# check and returns None, silently), would say nothing. Found in
+# review/spec_crop_region_registry, B1. These two tests are the seam that goes
+# red for all of it.
+#
+# `fitz` is imported lazily and at function scope (the module docstring says
+# why), so a stand-in in sys.modules drives the real entry points -- rendering
+# and all -- under this repo's own stdlib-only venv.
+
+
+class FakePixmap:
+    def __init__(self, width, height):
+        self.width, self.height = width, height
+
+    def save(self, path):
+        Path(path).write_bytes(b"not a PNG, and nothing here reads one")
+
+
+class FakeClip:
+    """What ``fitz.Rect(*rect) & page.rect`` returns: only width/height are read."""
+
+    def __init__(self, *values):
+        self.values = tuple(float(v) for v in values)
+
+    def __and__(self, _other):
+        return self
+
+    @property
+    def width(self):
+        return self.values[2] - self.values[0]
+
+    @property
+    def height(self):
+        return self.values[3] - self.values[1]
+
+
+class FakeDoc:
+    def __init__(self, page, page_count=4):
+        self._page = page
+        self.page_count = page_count
+
+    def __getitem__(self, index):
+        return self._page
+
+
+@pytest.fixture()
+def fake_fitz(monkeypatch):
+    """Install a ``fitz`` stand-in and hand back the page every open() returns."""
+    page = FakePage(text="a photocopy with no text layer")
+    module = types.SimpleNamespace(
+        open=lambda _path: FakeDoc(page),
+        Rect=FakeClip,
+        Matrix=lambda zx, zy: (zx, zy),
+    )
+    monkeypatch.setitem(sys.modules, "fitz", module)
+    return page
+
+
+def crop_args():
+    return types.SimpleNamespace(zone_pad=1.0, text_pad=200.0, zoom=3.0, max_px=2400)
+
+
+@pytest.fixture()
+def pile(tmp_path):
+    """A spec pile holding the document the shipped registry declares regions on."""
+    specs = tmp_path / "inbox" / "specs"
+    specs.mkdir(parents=True)
+    (specs / "NAS6403-NAS6420 Rev 4.pdf").write_bytes(b"%PDF-1.4 a photocopy")
+    return specs
+
+
+PILE_CITATION = {
+    "kind": "spec",
+    "document": "NAS6403-NAS6420 Rev 4.pdf",
+    "sheet": 3,
+    "zone": None,
+    "cell": "row 'Grip Dash No. 13', column 'NAS6403 .1900-32'",
+}
+
+
+def test_crop_element_crops_a_pile_citation_to_its_declared_region(
+        tmp_path, pile, fake_fitz):
+    entry = bvc.crop_element(
+        {"id": "a_stack"},
+        {"id": "fastener_grip_13", "hardware_ref": "NAS6403U13H",
+         "source_ref": dict(PILE_CITATION)},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(regions=(a_region(),)),
+    )
+    assert entry["status"] == "resolved"
+    assert entry["resolved_by"] == "spec_pile", "the document rule is unchanged"
+    assert entry["located_by"] == "declared_region"
+    assert entry["region_label"] == "Grip Dash No. 13 row"
+    assert entry["region_match"] == "Grip Dash No. 13"
+    assert entry["rect_pt"] == [84.5, 196.25, 191.6, 204.25]
+    # And the PNG is the region, not the sheet: a whole-sheet crop of this
+    # document is 610 x 842 points.
+    assert (entry["width"], entry["height"]) == (321, 24)
+
+
+def test_the_same_citation_without_a_registry_gets_the_whole_sheet(
+        tmp_path, pile, fake_fitz):
+    """The before picture, through the same entry point -- so the test above is
+    measuring the registry and not something the builder did anyway."""
+    entry = bvc.crop_element(
+        {"id": "a_stack"},
+        {"id": "fastener_grip_13", "hardware_ref": "NAS6403U13H",
+         "source_ref": dict(PILE_CITATION)},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(),
+    )
+    assert entry["located_by"] == "sheet_full"
+    assert entry["region_label"] is None
+    assert entry["rect_pt"] == [0.0, 0.0, 610.56, 842.4]
+
+
+def test_crop_topology_edge_consults_the_registry_too(tmp_path, pile, fake_fitz):
+    """The second thread through the same join: an inline topology edge citing a
+    pile document is the same citation shape and gets the same region."""
+    entry = bvc.crop_topology_edge(
+        "a_topology", "an_edge",
+        {"hardware_ref": "NAS6403U13H", "source_ref": dict(PILE_CITATION)},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(regions=(a_region(),)),
+    )
+    assert entry["located_by"] == "declared_region"
+    assert entry["region_label"] == "Grip Dash No. 13 row"
+
+
+def test_a_drawing_citation_is_untouched_by_the_registry(tmp_path, pile, fake_fitz):
+    """A region is a fact about bytes in the pile. An export-resolved drawing
+    living anywhere else keeps the placement rules it always had -- including
+    when the registry happens to declare a region on the sheet it cites."""
+    drawing = tmp_path / "inbox" / "drawings" / "217755.pdf"
+    drawing.parent.mkdir(parents=True)
+    drawing.write_bytes(b"%PDF-1.4 a drawing export")
+    entry = bvc.crop_element(
+        {"id": "a_stack"},
+        {"id": "a_flange", "hardware_ref": None,
+         "source_ref": {
+             "kind": "drawing", "document": "217755", "sheet": 3, "zone": None,
+             "cell": "row 'Grip Dash No. 13'",
+             "export": {"status": "established", "pdf": drawing.as_posix(),
+                        "sha256": bvc.sha256_of(drawing), "runs": []},
+         }},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(regions=(a_region(),)),
+    )
+    assert entry["status"] == "resolved"
+    assert entry["located_by"] == "sheet_full"
+    assert entry["region_label"] is None

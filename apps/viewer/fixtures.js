@@ -349,6 +349,10 @@
               resolved_by: "source_ref_export", run_dir: null, run_id: null,
               sha256_verified: true, located_by: "zone_cell", needle: "4.06",
               cited_zone: "D10", zone_grid: "read", callout_text_in_zone: true,
+              // Null on every placement that is not `declared_region`, because
+              // the builder writes both keys on every entry: "no region" and
+              // "built before regions existed" must not look the same.
+              region_label: null, region_match: null,
               note: "printed zone D10 padded by 1 cell(s)",
               rect_pt: [0, 0, 100, 100],
             },
@@ -389,6 +393,7 @@
               resolved_by: "source_ref_export", run_dir: null, run_id: null,
               sha256_verified: true, located_by: "sheet_full", needle: null,
               cited_zone: null, zone_grid: "read", callout_text_in_zone: null,
+              region_label: null, region_match: null,
               note: "whole sheet -- no zone cited and the callout text " +
                 "matches zero or many places",
               rect_pt: [0, 0, 100, 100],

@@ -517,6 +517,53 @@
       eq(VA.unlabelledCropRules(crops), ["some_new_rule"]);
     });
 
+    // The crop-region registry (docs/spec_library/crop_regions.json, handoff
+    // spec_crop_region_registry 2026-09-14). A spec-pile citation names a
+    // document and a sheet and nothing finer, so its crop was the whole
+    // photocopied sheet; a declared region says which rect the cited row is.
+    // The hover has to say that the placement is DECLARED rather than searched
+    // for — a reader who cannot tell the two apart cannot judge either.
+    await test("a declared_region crop names the region and what matched it",
+      function () {
+        var line = VA.cropProvenanceLine({
+          status: "resolved", resolved_by: "spec_pile",
+          pdf_name: "NAS6403-NAS6420 Rev 4.pdf", sha256_verified: null,
+          located_by: "declared_region", region_label: "Grip Dash No. 13 row",
+          region_match: "Grip Dash No. 13",
+          note: "declared crop region 'Grip Dash No. 13 row' -- ...",
+        });
+        has(line, "declared region");
+        has(line, "\"Grip Dash No. 13 row\"");
+        has(line, "matched on \"Grip Dash No. 13\"");
+        // The sole-region fallback is a WEAKER claim than a match and must not
+        // read like one: nothing in this citation named the region, the sheet
+        // simply has only one.
+        var sole = VA.cropProvenanceLine({
+          status: "resolved", resolved_by: "spec_pile",
+          pdf_name: "NAS6403-NAS6420 Rev 4.pdf", sha256_verified: null,
+          located_by: "declared_region",
+          region_label: "NAS6403 row of the sheet-1 dimension table",
+          region_match: null,
+        });
+        has(sole, "the only region declared for this sheet");
+        ok(sole.indexOf("matched on") === -1, "no match may be claimed");
+      });
+
+    // Same guard as the resolved_by one above, one field over: the located_by
+    // chain used to fall through to silence, and silence reads as "the whole
+    // sheet" rather than as "this viewer cannot tell you".
+    await test("a located_by the viewer has no label for is loud, not silent",
+      function () {
+        var line = VA.cropProvenanceLine({
+          status: "resolved", resolved_by: "spec_pile", pdf_name: "x.pdf",
+          sha256_verified: null, located_by: "some_new_placement",
+        });
+        has(line, "\"some_new_placement\"");
+        has(line, "no label for");
+        has(VA.cropProvenanceLine({ status: "resolved", resolved_by: "spec_pile",
+                                    pdf_name: "x.pdf" }), "no label for");
+      });
+
     await test("cropProvenanceLine warns when the callout was NOT found in the zone", function () {
       has(VA.cropProvenanceLine({
         status: "resolved", resolved_by: "joint_export_run", sha256_verified: true,
@@ -4672,10 +4719,15 @@
           values: function (r, c) {
             return resolvedCrops(c).map(function (e) { return e.resolved_by; });
           } },
+        // Was a pinned live vocabulary until 2026-09-14
+        // (spec_crop_region_registry), because the branch was a chain of `if`s
+        // in VA.cropProvenanceLine with nothing to ask. It is now the STRONG
+        // form: the chain became VA.CROP_PLACEMENTS, so teaching the viewer a
+        // placement teaches this guard, and an unknown one is loud on screen
+        // rather than dropping the whole "where on the sheet" clause.
         { field: "crop entry located_by",
-          branch: "the located_by chain in VA.cropProvenanceLine (viewer.js) — an " +
-            "unknown one drops the whole 'where on the sheet' clause silently",
-          known: inList(["zone_cell", "callout_text", "sheet_full"]),
+          branch: "VA.CROP_PLACEMENTS, through VA.cropProvenanceLine",
+          known: function (v) { return !!VA.CROP_PLACEMENTS[v]; },
           values: function (r, c) {
             return resolvedCrops(c).map(function (e) { return e.located_by; });
           } },
