@@ -66,9 +66,9 @@ const DATA_REPO = repoFlag === -1 ? REPO : normalize(process.argv[repoFlag + 1])
 // `--only <substring>` runs just the suites whose printed label contains it.
 // Added for the mutation-witness tier (scripts/run_mutation_witness_tests.mjs),
 // which runs this file once per declared mutation and only ever cares about the
-// one suite that owns the guard — eighteen suites per mutation would have made
-// that tier too slow to be run. A filtered run says so in a banner above its
-// first suite AND on its own summary line: a partial pass must never be
+// one suite that owns the guard — a full run of every suite per mutation would
+// have made that tier too slow to be run. A filtered run says so in a banner
+// above its first suite AND on its own summary line: a partial pass must never be
 // mistaken for a full one.
 const onlyFlag = process.argv.indexOf("--only");
 const ONLY = onlyFlag === -1 ? null : process.argv[onlyFlag + 1];

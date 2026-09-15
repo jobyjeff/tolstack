@@ -503,6 +503,32 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       copied off the nearest one, which is deliberately cheaper than filing an
       issue about it. Conversely: a guard added by a handoff, with no entry and
       no hand mutation recorded anywhere, is a guard nobody has watched fail.
+- [ ] **A guard that couples to the tree by TWO strings, with only one of them
+      paired.** New 2026-09-15, reviewing the tier above. A
+      `mutation_witnesses.json` entry names both where the mutation lands
+      (`find`, in the app) and the sub-check that must print (`expect_red`, in
+      the test file); `tests/test_mutation_witnesses.py` pairs only the first,
+      so rewording a check name leaves an entry that can never be witnessed and
+      a green pytest run —
+      `ISSUE_20260915_expect_red_is_the_half_of_a_mutation_entry_nothing_cheap_checks.md`.
+      Generalise it: when you accept a new declaration-plus-runner pair, list
+      every string in the declaration that points at real code and ask which of
+      them goes red on a rename. The one nobody checked is the one that rots.
+- [ ] **The anchor check fires at MERGE time, and you are the one holding it.**
+      `tests/test_mutation_witnesses.py` is the cheap half of the tier above and
+      it reddens on a `find` that no longer resolves — which is most likely to
+      happen when a handoff cut from an older `integration` meets app code that
+      moved underneath it. Measured on its very first outing (this review,
+      2026-09-15): `afbed4e` on `integration` replaced
+      `opts.protocol !== FILE_PROTOCOL` with
+      `!VA.isLocalPage(opts.protocol, opts.hostname)` in
+      `apps/viewer/storage/adapter.js`, and the merge went green everywhere
+      except that one assertion. **This is the guard working, not a defect in
+      the work under review** — the tactical worktree could not see it. Re-point
+      the `find` under the conflict carve-out, record the before/after line and
+      the commit that moved it in the entry's `note`, and re-run
+      `pytest -q tests/test_mutation_witnesses.py` plus the one entry
+      (`--only <id>`) before you believe it.
 - [ ] **A finding the handoff named but did not fix, recorded only in a
       `LESSONS_*` file.** APPROVE ends the handoff's ownership, and no triage
       sweep reads lessons — a lesson schedules nobody. Every "named, not fixed
