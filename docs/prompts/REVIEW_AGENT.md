@@ -2120,6 +2120,43 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       size. A version asserting only `located_by == "declared_region"` would
       have passed it. Ask of any placement/render seam: *would this test still
       pass if the rect were wrong?*
+- [ ] **A new surface for a fact the app already renders somewhere else --
+      measure the two against live data, because the existing carriers may
+      already disagree with each other.** New 2026-09-14
+      (`viewer_dag_hover_cards`). The node card derives a dot's sides from
+      `VA.nodeAdjacentParts`; `nodeDetail`'s `detail__where` line still prints
+      the authored `node.parts`, one function away in the same file, and the
+      *same pane*'s leader paragraph already used the derived list. **10 of 46
+      live nodes disagree** (a part against a derived clearance the declared
+      list omits), so hovering a dot names two sides and clicking it names
+      one. Both tiers green either way. The check is five lines of node over
+      `data/projections/viewer/topologies.json`, not a read of the code:
+      enumerate every live instance and diff the two carriers.
+      `ISSUE_20260914_node_preview_pane_prints_declared_parts_where_the_dot_card_prints_derived.md`.
+- [ ] **A `[real]` browser-tier block gated on a projection-derived subject,
+      with no witness that the subject was found.** Same handoff. The
+      served-mode node-card block was `if (boundary) { push(...); push(...); }`
+      where `boundary` is computed from the live projection -- so a projection
+      that stopped emitting a multi-part boundary drops two sub-checks and the
+      suite still prints `PASS` at a smaller denominator (the runner reports
+      `n/n`, never an expected count). The idiom eight lines above it is the
+      fix: `push("[real] ... at all", !!keyedRow)` *before* the `if`. Fixed
+      inline in this review; observed failing by starving the finder (12/13
+      FAIL, was 12/12 PASS). Grep every `if (<derived>) {` in
+      `scripts/run_viewer_browser_tests.mjs` for a bare gate.
+- [ ] **Mutate the plumbing lines too, not just the deliverable's own
+      functions.** Same handoff, the "one line from being silently reverted"
+      entry's quieter member: five mutations of the card wiring and the node
+      model each reddened the fast tier, and deleting the new
+      `(card.sides || []).forEach(... add(side.thumb.entry))` prefetch in
+      `topology_app.js`'s `cardPngs` left **all three tiers 100% green** --
+      because `ensureThumbImages` already fetches every resolved crop of every
+      edge in the open topology, a superset, on every paint. A green mutation
+      is not automatically a coverage gap: ask whether the line is *load-bearing
+      and untested* or *redundant*, and make the diff say which. Same session's
+      sibling shape: a helper pasted into four suite functions with three of
+      the copies never called
+      (`ISSUE_20260914_three_dead_copies_of_dismisscard_in_the_browser_runner.md`).
 
 ## Architectural errors to check
 

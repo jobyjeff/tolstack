@@ -1952,6 +1952,12 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
                          score: sides[n].filter((x) => cropped[x]).length }))
           .sort((a, b) => b.score - a.score)[0] || null;
       })();
+      // The same witness the keyedRow block above carries: without it a
+      // projection that stopped emitting a multi-part boundary in
+      // pitch_system would silently drop the two sub-checks below and still
+      // report PASS (review, 2026-09-14).
+      push("[real] pitch_system has a multi-part boundary dot to hover at all",
+        !!boundary);
       if (boundary) {
         await page.locator(
           `svg.tv__rails circle.rail__dot[data-id="${boundary.id}"]`).hover();
