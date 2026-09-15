@@ -117,6 +117,23 @@ costing a full failed sweep to discover:
   read `data/meshes/` as well as `data/projections/`, through `run_tests.cjs`'s
   node-fs shim, which repoints wholesale. Point `--repo` at a tree that has both.
 
+> **Correction, review/mutation_witness_tier_repair 2026-09-15.** The mechanism
+> in that second bullet is wrong, and the tier it names is the wrong one. The
+> fast tier does not read `data/meshes/` at all — the only path it resolves
+> through the `--repo` seam is `data/projections/viewer/*` (plus tracked paths
+> like `docs/tolerance_stacks/WORKSHEET_*.md`, which is what "repoints
+> wholesale" really costs). Mesh *facts* are baked into the topology projection
+> at build time as `part.mesh.installed`, so what the `[real]` mesh checks need
+> is a projection **built against** a tree that had meshes, not a run-time
+> `data/meshes/`. Measured here: `node apps/viewer/run_tests.cjs` with
+> `data/meshes/` moved entirely out of the tree is **360/360**, both
+> annotate-link entries included; and a scratch `--repo` root holding only
+> `data/projections` fails exactly three `[real]` checks, all of them worksheet
+> reads under `docs/tolerance_stacks/`, none of them mesh ones. `data/meshes/`
+> *is* needed — by the **browser** tier's `annotate flyout` suite, which serves
+> `/data/...` from `DATA_REPO`. So the advice ("point `--repo` at a tree that
+> has both") stands; the reason given for it does not.
+
 `LESSONS_20260915_guard_mutation_witness_tier.md` §1's "where it hangs off" claim
 (`npm run test:mutations`) is now true as written. It was repaired by making the
 command work, not by editing the lesson — a lesson is a record of what a session
@@ -186,6 +203,18 @@ equality check the issue proposed would compare a string to itself. The one copy
 that **cannot** be single-sourced away is `mutation_witnesses.json`'s `suite`,
 because it lives in another file — which is precisely what the pytest pairing
 above covers.
+
+> **Correction, review/mutation_witness_tier_repair 2026-09-15.** "Would compare
+> a string to itself" holds only while the pass-through is intact, and that is
+> the whole of the deliverable now. Measured: change the run loop's
+> `runSuiteFn(label)` to `runSuiteFn()` — one word — and every suite prints
+> `[undefined]`, returns `label: undefined`, and the tree stays green
+> everywhere: `--only "index redirect"` reports `2/2 browser checks passed`,
+> exit 0, and `pytest -q tests/test_mutation_witnesses.py` is `10 passed`. So
+> `result.label !== key` would *not* be comparing a string to itself; it is the
+> one cheap check that pairs what a suite actually returned against the key
+> `--only` and `mutation_witnesses.json` dispatch on. Filed as
+> `docs/issues/ISSUE_20260915_the_suites_label_pass_through_is_one_word_from_a_silent_revert.md`.
 
 ### Both demonstrated falsifiable, then reverted
 

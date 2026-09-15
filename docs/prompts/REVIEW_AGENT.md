@@ -2455,6 +2455,41 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       needing re-derivation, not just the one the author happened to flag --
       the flag tells you where the author already knew to look, not where
       the remaining risk is.
+- [ ] **Single-sourcing replaced N hand copies with ONE argument -- now mutate
+      the argument.** New 2026-09-15 (`mutation_witness_tier_repair`). The
+      right fix for a registry that restates its own keys is to hand the key
+      to the callee, and this repo has now done it: `SUITES` rows in
+      `scripts/run_viewer_browser_tests.mjs` are `[label, (label) => fn(...,
+      label)]`. But the whole deliverable then rests on one word in the run
+      loop -- changing `runSuiteFn(label)` to `runSuiteFn()` leaves every
+      tier green, exit 0, pytest included, with every suite printing
+      `[undefined]` (measured). Ask, of any single-sourcing fix: *what fires
+      if the hand-off of the single source is dropped?* The cheap answer is a
+      returned-value pairing (`result.label !== key`), which is NOT "comparing
+      a string to itself" once the copies are gone --
+      `ISSUE_20260915_the_suites_label_pass_through_is_one_word_from_a_silent_revert.md`.
+- [ ] **A lesson's claim about which files a `--repo` / `NODE_FS` seam reaches
+      is checked by DELETING the directory, not by reading the prose.** New
+      2026-09-15, same handoff: the lesson stated the fast tier's `[real]`
+      mesh checks "read `data/meshes/` as well as `data/projections/`". They
+      do not -- `run_tests.cjs`'s only `--repo`-seam read is
+      `data/projections/viewer/*` (plus tracked paths like
+      `docs/tolerance_stacks/WORKSHEET_*.md`), and mesh facts are baked into
+      the projection as `part.mesh.installed` at build time. `mv data/meshes`
+      aside and the fast tier is still 360/360; the directory is needed by the
+      **browser** tier instead. One `mv` settles a seam claim, and the scratch
+      `--repo` root entry below is the general harness for it.
+- [ ] **A suite that is green in a full run is not green -- the mutation tier
+      runs suites ALONE.** New 2026-09-15, same review:
+      `--only "annotate flyout"` aborts on a strict-mode violation (two
+      `tr.tvrow[data-id='arm_pin_to_tip']` in the mock page) in five runs of
+      six, while the full nineteen-suite run passes it 18/18, on `integration`
+      as well as on the branch --
+      `ISSUE_20260915_annotate_flyout_suite_is_red_alone_and_green_in_a_full_run.md`.
+      Because `mutation_witnesses.json` dispatches one suite per mutation, such
+      a suite can carry no declared witness at all (the clean run comes back
+      RED and the entry is reported `SKIPPED`). When a review's evidence is a
+      full run, spot-check the one suite the work touched with `--only` too.
 
 ## Architectural errors to check
 
