@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_respine_tween_fidelity.md
+handoff: docs/sessions/HANDOFF_20260915_respine_tween_fidelity_round2.md
 ---
 
 # The respine is unwitnessed with `.tv__hscroll` scrolled sideways

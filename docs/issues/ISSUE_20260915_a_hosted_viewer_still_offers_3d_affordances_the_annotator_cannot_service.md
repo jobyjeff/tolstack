@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
+strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
 ---
 
 # A hosted viewer still offers three 3D affordances the annotator can no longer service

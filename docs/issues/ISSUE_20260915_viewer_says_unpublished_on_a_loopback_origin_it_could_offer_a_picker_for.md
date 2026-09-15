@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
+strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
 ---
 
 # The viewer says "not published on this site" on a loopback origin, where a folder grant would in fact work

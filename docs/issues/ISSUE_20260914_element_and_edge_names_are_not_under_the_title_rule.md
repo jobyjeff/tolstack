@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: docs/authoring
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260915_prose_field_rules_names_and_derivable_counts.md
 ---
 
 # Element, node and edge `name`s carry the same bloat the title rule just removed

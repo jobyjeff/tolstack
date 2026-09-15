@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_respine_tween_fidelity.md
+handoff: docs/sessions/HANDOFF_20260915_respine_tween_fidelity_round2.md
 ---
 
 # A rail or fan-out a respine ADDS on a column that survives has no fade, and would pop

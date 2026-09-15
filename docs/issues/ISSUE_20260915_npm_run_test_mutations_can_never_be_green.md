@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
+handoff: docs/sessions/HANDOFF_20260915_mutation_witness_tier_repair.md
 ---
 
 # `npm run test:mutations` can never be green, from anywhere — and the note explaining why says the wrong thing

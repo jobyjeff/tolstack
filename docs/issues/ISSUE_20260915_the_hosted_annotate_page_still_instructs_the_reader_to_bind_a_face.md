@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
+handoff: docs/sessions/HANDOFF_20260915_annotate_hosted_page_posture.md
 ---
 
 # The hosted annotate page says annotating is unavailable, then tells the reader to click a face in the 3D view

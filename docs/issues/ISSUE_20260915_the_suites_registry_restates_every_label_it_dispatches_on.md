@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tests/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
+handoff: docs/sessions/HANDOFF_20260915_mutation_witness_tier_repair.md
 ---
 
 # The `SUITES` registry hand-restates every label it dispatches on, and nothing pairs the copy to the original

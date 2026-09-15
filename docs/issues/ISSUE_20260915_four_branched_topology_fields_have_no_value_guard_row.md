@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_projection_field_guard_rows.md
+handoff: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
 ---
 
 # The topology page branches on four projection fields `TOPO_VALUE_GUARDS` does not list

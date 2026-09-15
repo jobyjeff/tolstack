@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
+handoff: docs/sessions/HANDOFF_20260915_annotate_hosted_page_posture.md
 ---
 
 # The annotator's "no projection" banner renders a terminal command for the user to copy

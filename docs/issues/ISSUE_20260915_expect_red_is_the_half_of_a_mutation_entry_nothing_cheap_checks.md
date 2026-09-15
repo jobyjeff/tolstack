@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
+handoff: docs/sessions/HANDOFF_20260915_mutation_witness_tier_repair.md
 ---
 
 # `expect_red` is the half of a mutation entry that nothing cheap checks
