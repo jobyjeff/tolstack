@@ -420,6 +420,10 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    layout — these rules only shape the card's own innards. */
 .hovercard { width: 540px; }
 .hovercard--citation, .hovercard--component { width: 460px; }
+.hovercard--node { width: 460px; }
+/* The not-to-scale line a floored bar's card carries in place of the native
+   title the card absorbed (viewer_dag_hover_cards). */
+.hovercard__rendernote { font-size: 12px; margin: 4px 0 0; }
 .hovercard__head h4 { margin: 0 0 2px; font-size: 14px; }
 .hovercard__head code { font-size: 11px; }
 .hovercard__chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }

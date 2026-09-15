@@ -3373,6 +3373,196 @@
         eq(shown[2][0].id, "base_thickness");
       });
 
+    // --- the DAG's own hover cards (viewer_dag_hover_cards) ------------------
+    //
+    // The same cards, on the graph's own hover surfaces: the rail bar opens
+    // the edge card the grid's crop trigger opens, and a dot opens the node
+    // card (a node is an interface, so what it shows is which parts meet
+    // there). One hover surface, not two -- a card ABSORBS the native title
+    // the mark used to carry rather than stacking under it.
+
+    await test("nodeCard: a boundary dot names both parts, and thumbnails only " +
+      "the side whose own rows cropped", function () {
+        var card = VA.nodeCard(TOPO, "base_post_seat", TOPOCROPS);
+        eq(card.kind, "node");
+        eq(card.title, "base / post seat");
+        eq(card.nodeKind, "mating_surface");
+        eq(card.degree, 3);
+        eq(card.branch, true);
+        eq(card.internal, false);
+        // Two facts, not one: what the author DECLARED meets here, and what
+        // the incident edges actually say -- the second is what the picture
+        // (and the leader rule) is drawn from, so it is what the card shows.
+        eq(card.declaredParts, ["base", "post"]);
+        eq(card.sides.map(function (s) { return s.part; }), ["base", "post"]);
+        eq(card.sides[0].label, "base plate");
+        eq(card.sides[0].drawing, "215197");
+        // Each side's thumbnail IS that part's component-card thumbnail, so
+        // the dot and the merged cell cannot disagree about a part's picture.
+        eq(card.sides[0].thumb.edgeName,
+          VA.componentCard(TOPO, "base", TOPOCROPS).thumbs[0].edgeName);
+        eq(card.sides[0].thumb.entry.status, "resolved");
+        // post's one keyed edge is unresolvable: named side, no thumbnail,
+        // nothing invented in its place.
+        eq(card.sides[1].thumb, null);
+        eq(VA.nodeCard(TOPO, "not_a_node", TOPOCROPS), null);
+      });
+
+    await test("nodeCard: an internal dot says internal, and a clearance side " +
+      "is named rather than skipped", function () {
+        var internal = VA.nodeCard(TOPO, "base_datum", TOPOCROPS);
+        eq(internal.internal, true);
+        eq(internal.sides.length, 1);
+        eq(internal.sides[0].part, "base");
+        // arm_tip's two edges are the arm's own dimension and the derived gap,
+        // which carries no part at all -- a clearance is a real side of the
+        // interface, so it is named in the grid's own words.
+        var clearance = VA.nodeCard(TOPO, "arm_tip", TOPOCROPS);
+        eq(clearance.internal, false);
+        eq(clearance.sides.length, 2);
+        eq(clearance.sides[1].part, null);
+        eq(clearance.sides[1].label, VA.CLEARANCE_SIDE_LABEL);
+        eq(clearance.sides[1].thumb, null);
+      });
+
+    await test("renderHoverCard: a node card names its sides and renders an " +
+      "image only where a side's crop resolves", function () {
+        var images = {};
+        images[TOPOCROPS.by_stack.demo_joint.plate.png] =
+          { url: "blob:plate", width: 400, height: 300 };
+        var root = render(function (r) {
+          VA.renderHoverCard(r, VA.nodeCard(TOPO, "base_post_seat", TOPOCROPS),
+            images, VA.CONFIG, null);
+        });
+        eq(root.className, "croppop hovercard hovercard--node");
+        has(root.textContent, "base / post seat");
+        has(root.textContent, "mating_surface");
+        has(root.textContent, "3 edge(s)");
+        has(root.textContent, "BRANCH POINT");
+        // Both sides are said; only one carries an image.
+        has(root.textContent, "base plate ⇔ post");
+        has(root.textContent, "crop of its `base plate thickness` annotation");
+        eq(all(root, ".cropblock").length, 1);
+        eq(all(root, ".hovercard__noresolve").length, 0);
+        has(root.textContent, "An interface is a location, not a value");
+
+        // A dot neither of whose sides cropped gets NO image slot at all --
+        // absent is absent, the same rule the component card follows.
+        var bare = render(function (r) {
+          VA.renderHoverCard(r, VA.nodeCard(TOPO, "arm_tip", TOPOCROPS), {},
+            VA.CONFIG, null);
+        });
+        eq(all(bare, ".cropblock").length, 0);
+        eq(all(bare, "img").length, 0);
+        has(bare.textContent, VA.CLEARANCE_SIDE_LABEL);
+
+        // An internal dot says which part it is internal to, and why there is
+        // no boundary there.
+        var inside = render(function (r) {
+          VA.renderHoverCard(r, VA.nodeCard(TOPO, "base_datum", TOPOCROPS), {},
+            VA.CONFIG, null);
+        });
+        has(inside.textContent, "internal to base plate");
+        has(inside.textContent, "belongs to one part");
+      });
+
+    await test("the DAG's bars and dots open the SAME cards the grid opens, " +
+      "and the native titles they used to carry are absorbed", function () {
+        var shown = [];
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({
+            onCardShow: function (card, trigger) { shown.push([card, trigger]); },
+          }));
+        });
+        // Not one native tooltip left on a mark that now cards: two hover
+        // surfaces saying less than one is the defect this replaces.
+        all(root, "line.rail__barhit").forEach(function (hit) {
+          eq(hit.textContent, "", hit.getAttribute("data-id") + " keeps a title");
+        });
+        all(root, "circle.rail__dot").forEach(function (dot) {
+          eq(dot.textContent, "", dot.getAttribute("data-id") + " keeps a title");
+        });
+        var bar = all(root, "line.rail__barhit").filter(function (h) {
+          return h.getAttribute("data-id") === "base_thickness";
+        })[0];
+        bar.onmouseenter();
+        eq(shown[0][0].kind, "edge");
+        eq(shown[0][0].id, "base_thickness");
+        ok(shown[0][1] === bar,
+          "the bar itself is the trigger the popover places against");
+        // The value-level pin: the bar's card and the grid trigger's card for
+        // the same edge are the same card, field for field. Two triggers, one
+        // model -- if they ever diverge, a reader gets two answers about one
+        // dimension.
+        all(root, "button.crop-trigger")[0].onmouseenter();
+        eq(shown[1][0], shown[0][0]);
+        // A dot opens the node card for its own interface.
+        var dot = all(root, "circle.rail__dot")[0];
+        dot.onmouseenter();
+        eq(shown[2][0].kind, "node");
+        eq(shown[2][0].id, dot.getAttribute("data-id"));
+        // Focus opens them too -- the marks are tabbable, and a keyboard
+        // reader gets the same card.
+        dot.onfocus();
+        eq(shown[3][0].kind, "node");
+        // Click is still SELECTION and ONLY selection, which is a rail mark's
+        // primary job: the card is the hover's, and the preview pane the
+        // click fills is the surface that persists.
+        var selected = [];
+        var clickRoot = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({
+            onCardShow: function () { throw new Error("click must not card"); },
+            onSelect: function (kind, id) { selected.push([kind, id]); },
+          }));
+        });
+        all(clickRoot, "circle.rail__dot")[0].onclick();
+        eq(selected[0][0], "node");
+        all(clickRoot, "line.rail__barhit")[0].onclick();
+        eq(selected[1][0], "edge");
+      });
+
+    await test("a caller with no card handler keeps the plain hover titles — " +
+      "and a floored bar's not-to-scale fact moves into the card", function () {
+        // The fallback wiring, the same shape the crop trigger's onCropShow
+        // fallback has: no handler, no card, so the native title stays.
+        var bare = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var titled = all(bare, "line.rail__barhit").filter(function (h) {
+          return h.getAttribute("data-id") === "base_thickness";
+        })[0];
+        has(titled.textContent, "base plate thickness");
+        ok(all(bare, "circle.rail__dot")[0].textContent, "a dot keeps its title");
+
+        // Under a scaled mode a floored bar used to say "not to scale" in that
+        // title. The card absorbed the title, so it says it here or nowhere --
+        // one set of words, in VA.FLOORED_RENDER_NOTE.
+        has(VA.flooredEdgeTitle(VA.topologyIndex(TOPO).edges.arm_pin_to_tip,
+          "arm_pin_to_tip"), VA.FLOORED_RENDER_NOTE);
+        var shown = [];
+        var scaled = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({
+            edgeLengthMode: "tolerance",
+            onCardShow: function (card) { shown.push(card); },
+          }));
+        });
+        var byId = function (id) {
+          return all(scaled, "line.rail__barhit").filter(function (h) {
+            return h.getAttribute("data-id") === id;
+          })[0];
+        };
+        byId("arm_pin_to_tip").onmouseenter();
+        eq(shown[0].renderNote, VA.FLOORED_RENDER_NOTE);
+        var card = render(function (r) {
+          VA.renderHoverCard(r, shown[0], {}, VA.CONFIG, null);
+        });
+        has(card.textContent, "not to scale");
+        // A bar drawn at its measured proportion claims nothing about the
+        // render, so its card says nothing about it either.
+        byId("post_height").onmouseenter();
+        eq(shown[1].renderNote, null);
+        eq(VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.post_height,
+          TOPOCROPS).renderNote, null);
+      });
+
     await test("selecting a node marks its dot and its leader — the grid has " +
       "no node row to outline", function () {
         var root = render(function (r) {
@@ -5745,6 +5935,78 @@
               "the topology projection against the main checkout's data/meshes");
             ok(withheld.length > 0, "every live part has a mesh, so the " +
               "withholding half of this pairing went unexercised");
+          });
+
+        // --- [real] the DAG's hover cards, on the real graphs ----------------
+
+        await test("[real] every dot of every live topology cards, and says " +
+          "boundary-or-internal from the projection alone", function () {
+            var boundary = 0, internal = 0, thumbed = 0, clearances = 0;
+            realTopologies.topologies.forEach(function (topoProj) {
+              (topoProj.nodes || []).forEach(function (node) {
+                var card = VA.nodeCard(topoProj, node.id, realCrops);
+                ok(card, topoProj.id + "/" + node.id + ": no card");
+                ok(card.sides.length >= 1,
+                  topoProj.id + "/" + node.id + ": a node with no side at all — " +
+                  "every node is incident on at least one edge");
+                // Internal is exactly one side, by the same predicate the
+                // leaders use. The card cannot claim a boundary it has no
+                // second side for, nor hide one it does.
+                eq(card.internal, card.sides.length <= 1,
+                  topoProj.id + "/" + node.id);
+                card.sides.forEach(function (side) {
+                  if (side.part === null) {
+                    eq(side.label, VA.CLEARANCE_SIDE_LABEL);
+                    clearances += 1;
+                  } else {
+                    ok(side.label, topoProj.id + "/" + side.part + ": unlabelled side");
+                    // A thumbnail is never invented: where one exists it IS
+                    // that part's own component-card thumbnail.
+                    var own = VA.componentCard(topoProj, side.part, realCrops);
+                    eq(side.thumb, own.thumbs.length ? own.thumbs[0] : null,
+                      topoProj.id + "/" + side.part + ": the dot and the merged " +
+                      "cell disagree about this part's picture");
+                    if (side.thumb) thumbed += 1;
+                  }
+                });
+                if (card.internal) internal += 1; else boundary += 1;
+              });
+            });
+            // All three states have to be live for the walk above to mean
+            // anything — an all-boundary or all-thumbless projection would
+            // pass it vacuously.
+            ok(boundary > 0, "no live node is a part boundary");
+            ok(internal > 0, "no live node is internal to one part");
+            ok(thumbed > 0, "no live node side resolves a thumbnail — rebuild " +
+              "crops.json against the main checkout's data/");
+            ok(clearances > 0, "no live node sits against a clearance, so the " +
+              "clearance-side wording went unexercised");
+          });
+
+        await test("[real] a live bar's card is the same card its grid trigger " +
+          "opens, and a croppable edge's card carries the crop", function () {
+            var croppable = 0;
+            realTopologies.topologies.forEach(function (topoProj) {
+              (topoProj.edges || []).forEach(function (edge) {
+                // One model, two triggers: the DAG bar passes a render note
+                // only where the bar is FLOORED, and nothing else may differ.
+                var plain = VA.edgeCard(topoProj, edge, realCrops);
+                eq(VA.edgeCard(topoProj, edge, realCrops, null), plain,
+                  topoProj.id + "/" + edge.id);
+                eq(VA.edgeCard(topoProj, edge, realCrops,
+                  { renderNote: VA.FLOORED_RENDER_NOTE }).renderNote,
+                  VA.FLOORED_RENDER_NOTE, topoProj.id + "/" + edge.id);
+                if (!edge.crop_key) {
+                  ok(plain.noCropReason, topoProj.id + "/" + edge.id +
+                    ": a keyless edge says nothing about why");
+                  return;
+                }
+                eq(plain.crops.length, 1, topoProj.id + "/" + edge.id);
+                if (plain.crops[0].entry.status === "resolved") croppable += 1;
+              });
+            });
+            ok(croppable > 0, "no live edge resolves a crop, so the thumbnail " +
+              "half of the bar card went unexercised");
           });
 
         // --- [real] the topology fixture, against the real shapes -------------

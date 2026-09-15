@@ -536,6 +536,12 @@
     };
     (card.crops || []).forEach(function (crop) { add(crop.entry); });
     (card.thumbs || []).forEach(function (thumb) { add(thumb.entry); });
+    // A node card names one thumbnail per side (viewer_dag_hover_cards) --
+    // the adjacent parts' own component thumbnails, so a boundary dot fetches
+    // two PNGs and an internal one fetches at most one.
+    (card.sides || []).forEach(function (side) {
+      if (side.thumb) add(side.thumb.entry);
+    });
     add(card.entry);
     return pngs;
   }

@@ -1,13 +1,14 @@
 // The hover reference cards (viewer_hover_cards_and_deep_links): edge,
-// component and citation cards, rendered into the same absolutely-positioned
-// popover node the crop popover uses (#croppop, positioned by
+// component, node and citation cards, rendered into the same absolutely-
+// positioned popover node the crop popover uses (#croppop, positioned by
 // topology_app.js). Cards are hover-only chrome: they live outside the page's
 // layout entirely, so opening one structurally cannot disturb the layout
 // contracts (full-page scroll, whole-edge hover, leader alignment) — the
 // browser tier measures exactly that claim.
 //
-// The models are pure (VA.edgeCard / VA.componentCard in topology.js,
-// VA.citationCard in viewer.js); this file only turns one into DOM. The crop
+// The models are pure (VA.edgeCard / VA.componentCard / VA.nodeCard in
+// topology.js, VA.citationCard in viewer.js); this file only turns one into
+// DOM. The crop
 // body inside a card is VA.cropBlock (views/crop.js) — the same markup the
 // plain crop popover renders, not a second copy of it — and the export block
 // is VA.exportBlockNode (views/detail.js), for the same reason.
@@ -37,6 +38,7 @@
 
     if (card.kind === "edge") edgeCard(root, card, images, config, annotate);
     else if (card.kind === "component") componentCard(root, card, images, config, annotate);
+    else if (card.kind === "node") nodeCard(root, card, images, config);
     else if (card.kind === "citation") citationCard(root, card, images, config);
     else {
       // A card kind this renderer has no branch for is said out loud, the
@@ -84,6 +86,13 @@
       root.appendChild(VA.el("p", "croppop__reason", card.noCropReason));
     }
 
+    // A fact about the picture, not about the edge (VA.edgeCard's `opts`): the
+    // DAG's own bar opens this card INSTEAD of its native title, so a floored
+    // bar's not-to-scale warning arrives here or not at all.
+    if (card.renderNote) {
+      root.appendChild(VA.el("div", "hovercard__rendernote muted", card.renderNote));
+    }
+
     if (card.annotateParams) {
       root.appendChild(annotateLine(card.annotateParams, annotate,
         "annotate this in 3D →",
@@ -127,6 +136,57 @@
         "view this part in 3D →",
         "opens the 3D annotation surface with " + card.id + " isolated"));
     }
+  }
+
+  // --- the node card: the interface, and the parts that meet at it -----------
+  //
+  // (viewer_dag_hover_cards.) A node has no dimension and no crop of its own --
+  // it is a location -- so the card says which parts meet there and shows
+  // THEIR pictures, each one the part's own component-card thumbnail. An
+  // internal node says it is internal rather than leaving a one-sided list to
+  // read as a missing side, and a clearance side is named (VA.CLEARANCE_SIDE_
+  // LABEL) rather than skipped. A side with no resolvable crop renders no
+  // image slot at all.
+  function nodeCard(root, card, images, config) {
+    var head = VA.el("div", "hovercard__head");
+    head.appendChild(VA.el("h4", null, card.title));
+    head.appendChild(VA.el("code", "muted", card.id));
+    root.appendChild(head);
+
+    var chips = VA.el("div", "hovercard__chips");
+    chips.appendChild(VA.chip("chip--kind", card.nodeKind));
+    chips.appendChild(VA.chip("chip--kind", card.degree + " edge(s)"));
+    if (card.branch) chips.appendChild(VA.chip("chip--branch", "BRANCH POINT"));
+    root.appendChild(chips);
+
+    var labels = card.sides.map(function (side) { return side.label; });
+    root.appendChild(VA.el("div", "hovercard__where",
+      card.internal
+        ? "internal to " + (labels[0] || "no part")
+        : labels.join(" ⇔ ")));
+
+    if (card.citation) {
+      root.appendChild(VA.el("div", "hovercard__cited",
+        "cited at: " + VA.citationWhere(card.citation)));
+    }
+    if (card.note) root.appendChild(VA.clampedNote("hovercard__note", card.note));
+
+    var thumbed = card.sides.filter(function (side) { return !!side.thumb; });
+    root.appendChild(VA.el("p", "croppop__reason", card.internal
+      ? "An interface is a location, not a value: every dimension meeting " +
+        "here belongs to one part, so there is no boundary and no leader line."
+      : "An interface is a location, not a value — there is no dimension " +
+        "and no crop behind it. The dimensions are the edges either side."));
+
+    thumbed.forEach(function (side) {
+      root.appendChild(VA.el("div", "hovercard__cropkey muted",
+        side.label + (side.drawing
+          ? " · drawing " + side.drawing +
+            (side.revision ? " rev " + side.revision : "")
+          : "") +
+        " — crop of its `" + side.thumb.edgeName + "` annotation"));
+      root.appendChild(cropOrReason(side.thumb.entry, images, config));
+    });
   }
 
   // --- the citation card: the spec-sheet reference ---------------------------

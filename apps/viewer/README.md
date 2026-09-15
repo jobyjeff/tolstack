@@ -186,14 +186,29 @@ The outbound twin, for building one of these links in code, is
 ## Hover reference cards — the grid's own reference material
 
 (`viewer_hover_cards_and_deep_links`, 2026-09-10; drawing-checker's card
-pattern.) Three hover cards, all rendered into the one positioned popover node
+pattern. Extended to the DAG's own hover surfaces by `viewer_dag_hover_cards`,
+2026-09-14.) Four hover cards, all rendered into the one positioned popover node
 the crop popover already used, all **hover-only chrome**: the popover is
 `position: fixed`, so an open card cannot disturb the layout contracts —
 full-page scroll, whole-edge hover, leader alignment — and the browser tier
-measures exactly that (the DAG pane's box with a card open, to the pixel).
+measures exactly that (the DAG pane's box with a card open, to the pixel, from
+a grid-side trigger AND from a trigger inside the DAG).
+
+**One hover surface, not two.** A mark that opens a card no longer carries the
+native `<title>` it used to: the rail bars and the dots hand their tooltip text
+to the card's own head rather than stacking a browser tooltip under it. The
+`<title>` is still what a caller with no card handler gets — that fallback is
+what the fast tier renders — and the one thing a *title* said that a card
+otherwise could not is the floored bar's "not to scale", which rides in as the
+edge card's `renderNote` (`VA.FLOORED_RENDER_NOTE`, one set of words for both
+carriers).
 
 - **Edge card** — on the edge row's crop trigger (hover, focus or click; the
-  trigger is the inline thumbnail once fetched). The crop of the actual
+  trigger is the inline thumbnail once fetched) **and on the DAG's own bar**
+  (`.rail__barhit`, hover or focus; the click stays selection). Same model,
+  same card: the browser tier pins the two triggers' rendered cards equal
+  character for character, because two answers about one dimension is the
+  defect that pairing exists to prevent. The crop of the actual
   tolerance annotation with its placement provenance and click-throughs (the
   same `VA.cropBlock` the plain popover shows), plus the citation's where-ref
   and which crop-index entry the key addresses. The card's crop slot is a
@@ -213,6 +228,19 @@ measures exactly that (the DAG pane's box with a card open, to the pixel).
   part with no crop-bearing row gets **no thumbnail** — absent is absent, no
   placeholder. Offers the annotator isolating the part, where a mesh for it is
   installed and not otherwise ("No dead 3D links" below).
+- **Node card** — on the DAG's own dot (hover or focus). A node is an
+  *interface*, so the card says **which parts meet there**: the sides derived
+  from the edges actually incident on it (`VA.nodeAdjacentParts` — the same
+  adjacency the leader/internal rule reads, not the node's authored `parts`
+  list, which the card also carries), each one carrying that part's **own
+  component-card thumbnail** so the dot and the merged cell cannot disagree
+  about a part's picture. An internal node says it is internal to its one
+  part rather than leaving a one-sided list to read as a missing side; an
+  adjacent edge with no part is a **clearance**, named
+  (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped. A side whose part has no
+  crop-bearing row gets no thumbnail and no slot — the component card's rule,
+  unchanged. There is never a crop *of the interface itself*: an interface is
+  a location, not a value, and the card says so.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the classic elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
@@ -604,8 +632,12 @@ Two related pieces from the same handoff. First, a fix: a rail bar's
 own gap used to hit nothing — only a lucky hover over a solid segment of a
 long edge showed its tooltip. `.rail__barhit` is a second, invisible line per
 edge (`stroke: transparent`, wider, `pointer-events: stroke`) drawn over the
-same coordinates, carrying the hover title and the click handler instead; the
-visible bar is untouched.
+same coordinates, carrying the hover surface and the click handler instead; the
+visible bar is untouched. Since `viewer_dag_hover_cards` that hover surface is
+the **edge card**, not a title. (A zero-width `<line>` has a zero-area bounding
+box, which playwright calls "not visible" and refuses `locator.hover()` on — the
+browser tier drives the pointer to the bar's own coordinates instead. See
+`hoverBar` in `scripts/run_viewer_browser_tests.mjs`.)
 
 Second, an experimental **view setting, default off** (the toolbar's third
 button, "Rows: labelled" / "Rows: values only", `state.edgeValueOnly`): Jeff's
@@ -616,8 +648,8 @@ rows outright (the grid is edge rows only now — the bigger half of the same
 observation), and this toggle remains as the smaller half: an edge's own label
 is just its two adjacent node labels concatenated, so it hides it and lets the
 row read as values only, with the label moved to the row's own hover
-(`VA.edgeHoverTitle`, the same text `.rail__barhit` already shows — one hover
-surface, not two). The merged component cell, and a row the projection cannot
+(`VA.edgeHoverTitle` — the same text the bar's card now heads itself with, one
+statement of an edge's name and not three). The merged component cell, and a row the projection cannot
 resolve (`missing()`), are unchanged either way: hiding a label is only ever
 dropping a redundant concatenation, never a grouping and never a diagnostic.
 
@@ -643,8 +675,10 @@ stretches the DAG — it is the centring below, not any length mode, that lets a
 leader point downhill. A bar sitting at the floor is **not a measured
 proportion** and is never allowed to read like one: it gets
 `.rail__bar--floored`, a drafting-style break mark (`.rail__break`) across its
-middle, and a hover title that says "not to scale" (`VA.flooredEdgeTitle`); the
-legend states outright that lengths are indicative. The variation-only edges
+middle, and a hover that says "not to scale" — the edge card's `renderNote`
+where the bar cards, `VA.flooredEdgeTitle` where it falls back to a title, both
+reading `VA.FLOORED_RENDER_NOTE`; the legend states outright that lengths are
+indicative. The variation-only edges
 the real workbooks produce (`nominal: 0.0`, the provenance note saying the
 nominal is unstated) are exactly this case — under feature size the whole real
 `pitch_system` floors, honestly marked, rather than inventing a scale.
