@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
 handoff: docs/sessions/HANDOFF_20260915_mutation_witness_tier_repair.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `mutation_witness_tier_repair` moved to completed/; not independently verified.
 ---
 
 # `npm run test:mutations` can never be green, from anywhere — and the note explaining why says the wrong thing
