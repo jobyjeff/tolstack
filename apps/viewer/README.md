@@ -240,7 +240,11 @@ carriers).
   (`VA.CLEARANCE_SIDE_LABEL`) rather than skipped. A side whose part has no
   crop-bearing row gets no thumbnail and no slot — the component card's rule,
   unchanged. There is never a crop *of the interface itself*: an interface is
-  a location, not a value, and the card says so.
+  a location, not a value, and the card says so. **The preview pane the same
+  dot's click fills names the same derived sides** (`VA.nodeSideIds`, the id
+  form of the one adjacency) — it printed the authored `parts` list until
+  handoff `surfaces_that_state_something_false`, which is 10 of the 46 live
+  nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the classic elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
