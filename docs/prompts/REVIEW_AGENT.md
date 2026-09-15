@@ -2226,6 +2226,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       counting, and what does the sentence say it counts** — and where the
       issue is `audience: strategy`, the answer changes the design options it
       is asking someone to choose between.
+- [ ] **A textually clean merge can still kill a geometric witness — re-run the
+      browser tier AFTER you merge a moved `integration`, not just after you
+      merge the handoff.** New 2026-09-14 (`viewer_dag_hover_cards`). Its
+      DAG-side card-layout block copied the grid-side non-vacuity witness
+      ("the card hangs past the document's own bottom"); mid-review,
+      `viewer_popover_clamp_and_rebuild_terminal_state` landed the room cap,
+      which keeps every open card wholly inside the window, and its own review
+      re-expressed the grid-side witness as "the cap bit" — deleting
+      `cardDocBottom` from `cardLayout()`. Git merged both sides with no
+      conflict (different blocks), the fast tiers and pytest stayed green, and
+      the browser tier went 15/17 on the orphaned copy reading a field that no
+      longer exists. Resolved in review by re-expressing it the same way
+      against the bar's own box (`cardLayout` now takes the trigger selector);
+      observed failing at `TOPO_VIEWPORT`. Two transferable points: when two
+      viewer handoffs are in flight against one surface, **the second copy of
+      a measurement idiom is the one nobody updates**, and a
+      `page.evaluate(fn, CONST)` tail is easy to leave behind when the wrapper
+      grows a parameter — the symptom is a witness reading *some other*
+      trigger's box and passing or failing for the wrong reason (it reported
+      the grid trigger's 418.5–444.5 for a rail bar until the tail was fixed).
 
 ## Architectural errors to check
 

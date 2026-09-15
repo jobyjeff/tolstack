@@ -1001,7 +1001,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
   // playwright's own hover does on the way to a trigger -- plus the open
   // card's and the trigger's own boxes, which are read in VIEWPORT coordinates
   // because that is the frame the card is placed in.
-  const cardLayout = () => page.evaluate((triggerSel) => {
+  // `triggerSel` defaults to the grid trigger and is passed explicitly for the
+  // DAG-side block below, whose trigger is a rail bar: the room cap's frame is
+  // measured against whichever trigger opened the card, so the witness that
+  // the cap BIT has to read that trigger's own box and not another one's.
+  const cardLayout = (triggerSel = CARD_TRIGGER) => page.evaluate((triggerSel) => {
     const pane = document.querySelector("#topopane").getBoundingClientRect();
     const pop = document.querySelector(".croppop");
     const open = pop && getComputedStyle(pop).display !== "none";
@@ -1027,7 +1031,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       triggerBottom: trigger ? trigger.bottom : null,
       innerHeight: window.innerHeight,
     };
-  }, CARD_TRIGGER);
+  }, triggerSel);
 
   // Dismiss an open hover card deterministically: move the pointer OFF the
   // trigger FIRST, then Escape. Since viewer_dag_hover_cards the rail marks
@@ -1260,6 +1264,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const dotFor = (id) =>
       page.locator(`svg.tv__rails circle.rail__dot[data-id="${id}"]`);
     // A dot takes .hover(); a bar cannot -- hoverRailBar above says why.
+    const BAR_TRIGGER =
+      'svg.tv__rails line.rail__barhit[data-id="base_thickness"]';
     const hoverBar = (id) => hoverRailBar(page, id);
 
     await hoverBar("base_thickness");
@@ -1325,19 +1331,38 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // And the layout contract again, measured on the DAG's own trigger this
     // time: a card opened from inside the DAG pane is still hover-only chrome,
     // so the pane it is opened from cannot move and the document cannot grow.
-    // Same short viewport and the same non-vacuity witness as the grid-side
-    // block above, for the same reason (ISSUE_20260911_card_layout_guard_
-    // passes_on_the_absolute_popover): at TOPO_VIEWPORT the card fits inside
-    // the document and the measurement could not fail.
+    // Same short viewport and the same kind of non-vacuity witness as the
+    // grid-side block above, for the same reason (ISSUE_20260911_card_layout_
+    // guard_passes_on_the_absolute_popover): at TOPO_VIEWPORT the card fits
+    // inside the document and the measurement could not fail.
+    //
+    // The witness is the CAP BITING, not "the card hangs past the document
+    // bottom" -- which is what this said when viewer_dag_hover_cards was
+    // written, against an integration that did not yet have
+    // viewer_popover_clamp_and_rebuild_terminal_state's room cap. The cap
+    // keeps every open card wholly inside the window, so nothing reaches past
+    // the document any more and the old witness cannot be true (the sibling
+    // handoff measured exactly this and filed
+    // ISSUE_20260914_card_layout_guard_cannot_see_the_absolute_popover_again).
+    // Re-expressed here the way the grid-side block was: the card WANTS more
+    // height than either side of its trigger can give it, so its box is
+    // exactly the roomier side's room and its content still overflows that
+    // box. Measured at 1600x700 on ?mock=1 for base_thickness' rail bar:
+    // trigger 354.5-378.5, room above 338.5 / below 305.5, card capped to
+    // 338.5 at top 8, scrolling inside itself.
     await page.setViewportSize(CARD_LAYOUT_VIEWPORT);
-    const beforeBarCard = await cardLayout();
+    const beforeBarCard = await cardLayout(BAR_TRIGGER);
     await hoverBar("base_thickness");
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
-    const withBarCard = await cardLayout();
-    push("the DAG-side card hangs past the document's own bottom — the one " +
-      "configuration where an in-flow popover would lengthen it",
-      withBarCard.cardDocBottom !== null &&
-      withBarCard.cardDocBottom > beforeBarCard.docHeight + 8);
+    const withBarCard = await cardLayout(BAR_TRIGGER);
+    const barRoomBelow = withBarCard.innerHeight - withBarCard.triggerBottom - 16;
+    const barRoomAbove = withBarCard.triggerTop - 16;
+    push("the DAG-side card wants more height than there is room for on " +
+      "either side of its own rail bar — the configuration the card-layout " +
+      "contracts below are only falsifiable in",
+      withBarCard.cardBottom !== null && withBarCard.cardScrolls === true &&
+      Math.abs(withBarCard.cardHeight -
+        Math.max(barRoomAbove, barRoomBelow)) <= 1);
     push("a card opened from inside the DAG moves the DAG pane by nothing at all",
       beforeBarCard.pane === withBarCard.pane &&
       withBarCard.docHeight === beforeBarCard.docHeight);

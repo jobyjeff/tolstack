@@ -9,15 +9,19 @@ blockers: 0
 
 # Review — viewer_dag_hover_cards
 
-One commit (`c624f80`), merged into `integration` cleanly (no conflicts) and
-merged forward here on top of `3c0af96`, which already carries
-`spec_crop_region_registry` — so the two fast-tier reds the handoff's lesson
-reports as "pre-existing, not mine" are gone on the merged tree, and the lesson's
-diagnosis is confirmed by their disappearance rather than taken on faith.
+One commit (`c624f80`), merged here cleanly (no conflicts) on top of `3c0af96`,
+which already carries `spec_crop_region_registry` — so the two fast-tier reds
+the handoff's lesson reports as "pre-existing, not mine" are gone, and the
+lesson's diagnosis is confirmed by their disappearance rather than taken on
+faith. `integration` then moved again mid-review and brought both sibling viewer
+handoffs with it; that second merge produced the one semantic conflict of this
+review and is written up in its own section below, with the final numbers.
 
 ## What I verified
 
-**Suites on the merged tree** (all four, all green):
+**Suites on the merged tree** — handoff + `integration@3c0af96`, the state
+everything below was measured against (the post-sibling-merge re-run is in "The
+integration merge" section):
 
 | tier | result |
 | --- | --- |
@@ -146,14 +150,66 @@ sub-check, where the shipped state was 12/12 PASS. Served mode is 15/15 with it.
    `part.title` inside a hover handler. The `[real]` walk would catch it the day
    such data appeared, so this is robustness, not a hole.
 
+## The integration merge — and the one semantic conflict it produced
+
+`integration` moved twice while this review ran: first to `3c0af96` (already in
+the numbers above), then to `127fc75`, picking up **both** sibling viewer
+handoffs — `viewer_popover_clamp_and_rebuild_terminal_state` and
+`viewer_leader_grid_legibility`. Merged forward into this review branch; git
+reported **no conflict at all**, and the fast tiers and pytest stayed green
+(279/279, 338/338, 869+1 skip). The browser tier did not: **15/17**, on this
+handoff's own DAG-side non-vacuity witness.
+
+**Both sides.** This handoff's DAG-side card-layout block copied the grid-side
+witness verbatim in form — "the card hangs past the document's own bottom" via
+`cardLayout().cardDocBottom`. `viewer_popover_clamp_and_rebuild_terminal_state`
+landed the room cap, which keeps every open card **wholly inside the window**,
+so nothing reaches past the document any more; its own review measured exactly
+that, re-expressed the grid-side witness as *the cap bit* (the card's box is
+exactly the roomier side's room and its content still overflows it), deleted
+`cardDocBottom` from `cardLayout()`, and filed
+`ISSUE_20260914_card_layout_guard_cannot_see_the_absolute_popover_again.md`.
+The two edits sit in different blocks of the same file, so git took both: the
+rewritten helper, and a block reading a field it no longer returns.
+
+**The resolution, and why.** `integration`'s side owns the *form* the witness
+must take (the cap is the app's behaviour now, and it is more correct); the work
+under review owns the *claim* (there is a DAG-side layout measurement, with a
+witness that asserts its own stage). So the witness was re-expressed in the
+cap-bit form against the **rail bar's own box** rather than retired or left
+red — `cardLayout` now takes a trigger selector, defaulting to the grid trigger
+so the grid-side block is untouched, and the DAG-side block passes
+`BAR_TRIGGER`. Measured at 1600x700 on `?mock=1`: bar 418.5–444.5, room above
+402.5 / below 239.5, card capped to 402.5 and scrolling inside itself.
+
+Two things worth recording about doing it:
+
+- The first attempt was wrong in a way that survives review-by-reading: the
+  wrapper grew the parameter but the `page.evaluate(fn, CARD_TRIGGER)` **tail**
+  still passed the constant, so the "bar" witness was reading the grid
+  trigger's box (418.5–444.5 either way) and failed for the wrong reason.
+  Printing the numbers, not re-reading the code, is what found it.
+- Observed failing after the fix: returning that block to `TOPO_VIEWPORT` takes
+  it to 156/157 on the witness itself — which is what proves it cannot be put
+  back at a stage where the contracts under it are invisible.
+
+**Re-verified on the fully merged tree:** fast 279/279, fast-`--repo`
+**338/338**, pytest 869 passed / 1 skipped, browser **17/17** (topology 157/157
+both modes, served 15/15). The three sub-checks the sibling's issue says are no
+longer falsifiable are left exactly as that issue found them — retiring or
+re-siting them is its call, not this review's.
+
 ## Note for the next reviewer
 
-The overlay gained three entries from this review (end of "Recurring bugs to
+The overlay gained four entries from this review (end of "Recurring bugs to
 check"): measure a new surface against the existing carriers of the same fact on
 live data rather than reading the code; a `[real]` browser-tier block gated on a
-projection-derived subject needs a witness that the subject was found; and mutate
+projection-derived subject needs a witness that the subject was found; mutate
 the *plumbing* lines too, with the discipline of asking whether a green mutation
-means untested or redundant.
+means untested or redundant; and the merge lesson above — re-run the browser
+tier after merging a *moved* `integration`, because a textually clean merge can
+orphan a geometric witness, and the second copy of a measurement idiom is the
+one nobody updates.
 
 The handoff's own lesson is unusually good on the browser-tier traps — the four
 `hoverRailBar`/`dismissCard` findings are each encoded in a helper with its
