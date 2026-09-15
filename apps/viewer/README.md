@@ -407,6 +407,10 @@ has twelve parts, which is past any categorical palette's cap regardless. So:
 
 * rails are neutral, alternating two greys by column parity so two crossing rails
   can still be told apart;
+* the **alternating leader bands** are the same idea one level up
+  (`viewer_leader_grid_legibility`, below): two neutral tints, alternating, and
+  they are pure white at low alpha precisely so they have no hue to confuse
+  with the four above;
 * **an edge's bar wears its citation's confidence**, which makes the rail diagram
   itself a provenance map — a column of red bars is a mechanism nobody has
   traced, visible before a single row is read;
@@ -417,6 +421,62 @@ has twelve parts, which is past any categorical palette's cap regardless. So:
   palette.
 
 Part identity is carried as text, on the row and in the preview pane.
+
+### Reading the leaders: bands, two styles, and two widths you can drag
+
+Jeff, reviewing the shipped arcs: *"The jogged leader lines between the dag and
+the grid view rows are near impossible to follow because the vertical sections
+are so bunched up."* Four answers, all of them **display preferences** — they
+survive a topology switch like density does, none of them touches a value, and
+none moves either end of a leader, so the correspondence contract below is
+measured in every combination of them.
+
+* **Alternating bands.** The region between two adjacent leaders, and the grid
+  rows that region feeds, wear one of two neutral tints; the next band down
+  wears the other. One more band than there are leaders (everything above the
+  first and everything below the last are bands too), and one function decides
+  both halves (`VA.rowBandParity`), so a row and the band feeding it cannot be
+  given two different answers. On a row that also carries a provenance tint the
+  two **layer** — the band is the row's background colour, the provenance tint
+  a background image over it — because most of `pitch_system`'s rows are
+  untraced and a band that lost to provenance would be invisible on the very
+  document this was built for.
+* **The band boundaries are a running maximum of the leaders, not the leaders
+  themselves.** They differ only where leaders cross each other, which they do:
+  a leader's vertical run passes through a later leader's horizontal run
+  whenever its grid-side seam sits at or below that later interface's dot,
+  which the grid-against-DAG centring made possible when it stopped leaders
+  always rising. Drawn literally, such a band folds over itself and doubles its
+  own tint. Clamped, the bands tile the pane exactly. The crossings themselves
+  are a layout-policy question and are filed rather than fixed:
+  `docs/issues/ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md`.
+* **Jogged or angled**, from the toolbar. Jogged is the default and is what
+  shipped: out from the dot, down a lane of the leader's own, into the grid.
+  Angled is one straight segment between the same two ends — Jeff asked for
+  both so he could try them against a real mechanism, and since only the path
+  between the ends changes, the endpoint checks pass in either.
+* **Two draggable widths**, each a grip in the sticky column header. The jog
+  zone's sits on the seam between the SVG and the grid and spreads the lanes
+  proportionally across whatever width it is dragged to — held as a *multiple*
+  of the zone's natural width, because the preference outlives the topology it
+  was set on and a stored pixel width would crush a sparse diagram's lanes
+  together while leaving a dense one's barely moved. The ELEMENT column's sits on that header
+  cell's right edge and writes into the one `COLUMNS` array both tables take
+  their `<col>` widths from (the stylesheet declares no column width at all —
+  a second source would come apart on the first drag). Widening is the only
+  relief valve on offer: cell content still clips rather than wrapping, because
+  a `<tr>`'s height is a floor and not a cap.
+* **The element label drops its own component's name** where it repeats it —
+  under component `blade_root`, rows that all read "blade-root clocking holes
+  to th…" now read "clocking holes to the …". Display only: the full label is
+  the cell's hover text and is what the preview pane prints. A label that does
+  not open with its component's name, or that *is* its component's name, renders
+  unchanged.
+
+Neither resize persists across a reload, which is the same answer density and
+the length modes give — the page is opened from `file://` as often as it is
+served, and one preference that outlived a reload while four others did not
+would be the surprise.
 
 ### Studies
 

@@ -646,6 +646,114 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
            dagHeight: pos.dagHeight };
 };
 
+// The alternating bands and the two draggable widths
+// (viewer_leader_grid_legibility), measured in the page.
+//
+// The band claim is a CORRESPONDENCE like the leaders': the band between two
+// adjacent leaders and the grid rows that band feeds wear one tint. So it is
+// measured the way the leaders' is -- off what the browser actually painted.
+// `fill` is the computed colour of each band polygon and `rowBg` the computed
+// background of each row, both as the browser resolved them, and the mapping
+// from a row to its band is re-derived from the projection rather than read
+// back out of the render.
+const BANDS_IN_PAGE = () => {
+  const VA = window.ViewerApp;
+  const last = VA.lastTopoRender;
+  const proj = VA.findTopology(VA.demoTopologyFixture().topologies, last.topologyId);
+  const layout = VA.spineRight(proj.layout);
+  const plan = VA.gridPlan(layout, proj);
+  const bands = VA.leaderBands(plan);
+  const parity = VA.rowBandParity(plan);
+  const drawn = Array.from(document.querySelectorAll("svg.tv__rails path.rail__band"));
+  const rows = Array.from(document.querySelectorAll("tr.tvrow"));
+  const bad = [];
+  if (drawn.length !== bands.length) {
+    bad.push(`${drawn.length} band polygons drawn for ${bands.length} bands`);
+  }
+  // A band polygon's own fill, keyed by parity: two tints, and they must
+  // differ or the alternation is not on screen at all.
+  const fills = {};
+  drawn.forEach((path, i) => {
+    const band = bands[i];
+    if (!band) return;
+    const fill = getComputedStyle(path).fill;
+    if (fills[band.parity] === undefined) fills[band.parity] = fill;
+    else if (fills[band.parity] !== fill) bad.push(`band ${i} fill drifted`);
+    if (getComputedStyle(path).pointerEvents !== "none") {
+      bad.push(`band ${i} is hit-testable -- it would swallow a bar's click`);
+    }
+  });
+  if (fills[0] === fills[1]) bad.push("both band tints resolve to one colour");
+  // Every row's own background COLOUR, against the band its rows belong to.
+  // Every row, provenance or not: the band tint is the colour and a
+  // provenance tint is a background IMAGE layered over it, precisely so that
+  // an untraced row shows both. Measuring the colour therefore sees the band
+  // on all 24 of pitch_system's rows, 20 of which are untraced -- and if the
+  // two rules ever go back to competing for one `background`, 20 of them lose
+  // their band and this goes red.
+  const byParity = { 0: new Set(), 1: new Set() };
+  let tinted = 0;
+  let provenanceLayers = 0;
+  for (const row of rows) {
+    const id = row.getAttribute("data-id");
+    const p = parity[id];
+    if (p === undefined) { bad.push(`row ${id} is in no band`); continue; }
+    byParity[p].add(getComputedStyle(row).backgroundColor);
+    tinted++;
+    const provenance = /conf--untraced|conf--no_source_ref/
+      .test(row.getAttribute("class") || "");
+    const image = getComputedStyle(row).backgroundImage;
+    if (provenance && (!image || image === "none")) {
+      bad.push(`untraced row ${id} lost its provenance tint to the band`);
+    }
+    if (provenance) provenanceLayers++;
+  }
+  for (const p of [0, 1]) {
+    if (byParity[p].size > 1) {
+      bad.push(`parity ${p} rows painted ${byParity[p].size} different backgrounds`);
+    }
+  }
+  const zero = Array.from(byParity[0])[0];
+  const one = Array.from(byParity[1])[0];
+  if (zero !== undefined && one !== undefined && zero === one) {
+    bad.push("both row tints resolve to one colour");
+  }
+  return {
+    bad, tinted, provenanceLayers, bands: bands.length, drawn: drawn.length,
+    svgWidth: document.querySelector("svg.tv__rails").getBoundingClientRect().width,
+    rowHeights: rows.map((r) => Math.round(r.getBoundingClientRect().height * 100) / 100),
+    nameWidth: Math.round(document.querySelector("td.tvcell--name")
+      .getBoundingClientRect().width * 100) / 100,
+    // Every leader's own path shape, so a style change is measured in the DOM
+    // rather than in the toolbar's own label.
+    leaderPaths: Array.from(document.querySelectorAll("path.rail__leaderhit"))
+      .map((p) => p.getAttribute("d")),
+  };
+};
+
+// How far open the jog zone currently is, as the MULTIPLE of its own natural
+// width that the preference is held as (viewer_leader_grid_legibility). The
+// natural width is re-derived for whatever topology is on screen, so this is
+// comparable across a topology switch -- which is the point: five leaders and
+// sixteen leaders have very different natural widths, and a preference stored
+// in pixels would be nonsense on the other one.
+const ZONE_IN_PAGE = () => {
+  const VA = window.ViewerApp;
+  const id = VA.lastTopoRender.topologyId;
+  const proj = VA.findTopology(VA.demoTopologyFixture().topologies, id);
+  const layout = VA.spineRight(proj.layout);
+  const natural = VA.leaderGeometry(layout, VA.gridPlan(layout, proj),
+    VA.RAIL_METRICS);
+  const svg = document.querySelector("svg.tv__rails").getBoundingClientRect().width;
+  return {
+    topologyId: id,
+    natural: natural.naturalZone,
+    leaders: natural.leaders.length,
+    svg: svg,
+    scale: (svg - natural.zoneLeft) / natural.naturalZone,
+  };
+};
+
 // The viewport fit and the centring (viewer_dag_spine_layout), measured in
 // the page: how tall the DAG actually came out against the budget the render
 // measured and against the height its own edge count alone demands (the floor
@@ -1017,6 +1125,122 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /Lengths: uniform/.test(await page.locator("#edge-length-toggle").textContent()) &&
       uniBars.bad.length === 0 && uniBars.floored === 0);
 
+    // --- leader legibility (viewer_leader_grid_legibility) -----------------
+    //
+    // Three display preferences, and the one thing all three must leave alone
+    // is the correspondence the rest of this suite exists for: a leader's two
+    // ends on its dot and its seam. So each is toggled and correspondence
+    // re-measured, which is the matrix the handoff asks for -- jogged ×
+    // angled, and the jog zone at two widths.
+    const bands = () => page.evaluate(BANDS_IN_PAGE);
+
+    const joggedBands = await bands();
+    push("the bands are drawn, tinted by parity, and hit-test nothing",
+      joggedBands.bad.length === 0 && joggedBands.drawn === joggedBands.bands &&
+      joggedBands.tinted > 0);
+    if (joggedBands.bad.length) console.log("    bands: " + joggedBands.bad.slice(0, 5).join(" | "));
+    push("every leader is still a right-angle jog by default",
+      joggedBands.leaderPaths.length === 5 &&
+      joggedBands.leaderPaths.every((d) => / H .* V .* H /.test(d)));
+
+    push("the leader-style toggle starts at jogged",
+      /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
+    await page.locator("#leader-style-toggle").click();
+    await page.waitForTimeout(50);
+    const angledBands = await bands();
+    push("one click: angled leaders, drawn as one straight segment each",
+      /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
+      angledBands.leaderPaths.length === 5 &&
+      angledBands.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
+    // The deliverable's own condition: the endpoint checks pass in BOTH
+    // styles, because only the path between the two ends changed.
+    const angledDrift = await correspondence();
+    push("angled leaders land on exactly the same dots and seams",
+      angledDrift.drift.length === 0 && angledDrift.leaders === 5);
+    if (angledDrift.drift.length) console.log("    drift: " + angledDrift.drift.slice(0, 5).join(" | "));
+    push("the bands follow the angled leaders and still tint by parity",
+      angledBands.bad.length === 0);
+    if (angledBands.bad.length) console.log("    bands: " + angledBands.bad.slice(0, 5).join(" | "));
+
+    // Dragging the jog zone open, with a real pointer on the real grip --
+    // the whole affordance, not the pure scale arithmetic the fast tier pins.
+    const jogGrip = page.locator(".tvgrip--jog");
+    push("the jog zone carries a drag grip on the seam", await jogGrip.count() === 1);
+    const jogBox = await jogGrip.boundingBox();
+    await page.mouse.move(jogBox.x + jogBox.width / 2, jogBox.y + jogBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(jogBox.x + jogBox.width / 2 + 180,
+                          jogBox.y + jogBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+    const widened = await bands();
+    push("dragging the grip really widens the jog zone",
+      widened.svgWidth > angledBands.svgWidth + 100);
+    push("a widened jog zone leaves every leader on its dot and its seam",
+      (await correspondence()).drift.length === 0);
+    push("the bands widen with the zone rather than staying behind",
+      widened.bad.length === 0);
+    if (widened.bad.length) console.log("    bands: " + widened.bad.slice(0, 5).join(" | "));
+    // ...and the same, back in jogged style: the resized zone × both styles
+    // is the matrix, not two separate one-offs.
+    await page.locator("#leader-style-toggle").click();
+    await page.waitForTimeout(50);
+    const widenedJog = await bands();
+    push("jogged leaders in a widened zone correspond too, and their lanes " +
+      "really did spread",
+      (await correspondence()).drift.length === 0 &&
+      widenedJog.leaderPaths.every((d) => / H .* V .* H /.test(d)) &&
+      widenedJog.svgWidth > angledBands.svgWidth + 100);
+
+    // The ELEMENT column: widening it must reveal more text and change NO
+    // row's height -- a <tr>'s height is a floor, not a cap, so a cell that
+    // wrapped instead of clipping would walk every seam below it off its
+    // leader. That is the one thing only a real browser can measure.
+    const colGrip = page.locator(".tvgrip--col");
+    push("the ELEMENT header carries a drag grip", await colGrip.count() === 1);
+    const colBox = await colGrip.boundingBox();
+    const beforeCol = await bands();
+    const longest = await page.evaluate(() => {
+      const cells = Array.from(document.querySelectorAll("td.tvcell--name"));
+      const worst = cells.reduce((a, b) => (b.scrollWidth > a.scrollWidth ? b : a));
+      return { id: worst.closest("tr").getAttribute("data-id"),
+               clipped: worst.scrollWidth - worst.clientWidth };
+    });
+    push("some element label really is clipped at the default width",
+      longest.clipped > 0);
+    await page.mouse.move(colBox.x + colBox.width / 2, colBox.y + colBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(colBox.x + colBox.width / 2 + 220,
+                          colBox.y + colBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+    const afterCol = await bands();
+    push("dragging the ELEMENT grip widens that column",
+      afterCol.nameWidth > beforeCol.nameWidth + 150);
+    push("and no row grew a pixel taller for it",
+      afterCol.rowHeights.length === beforeCol.rowHeights.length &&
+      afterCol.rowHeights.every((h, i) => Math.abs(h - beforeCol.rowHeights[i]) < 0.5));
+    push("the widened column reveals the label that was clipped",
+      (await page.evaluate((id) => {
+        const cell = document.querySelector(`tr.tvrow[data-id="${id}"] td.tvcell--name`);
+        return cell.scrollWidth - cell.clientWidth;
+      }, longest.id)) === 0);
+    push("leaders still land on their dots and seams beside a wider column",
+      (await correspondence()).drift.length === 0);
+
+    // Both preferences survive a topology switch, like density does -- they
+    // are how the page is drawn, not a fact about what is on it.
+    await page.locator("#density-toggle").click();
+    await page.waitForTimeout(50);
+    const afterDensity = await bands();
+    push("the resized widths survive a re-render at the other density",
+      Math.abs(afterDensity.nameWidth - afterCol.nameWidth) < 0.5 &&
+      Math.abs(afterDensity.svgWidth - afterCol.svgWidth) < 0.5);
+    push("and correspondence holds at compact density with both widths dragged",
+      (await correspondence()).drift.length === 0);
+    await page.locator("#density-toggle").click();
+    await page.waitForTimeout(50);
+
     // --- the same page, against the REAL projection ------------------------
     if (!realProjection) {
       push("[real] projection present (skipped: not built)", true);
@@ -1179,6 +1403,71 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         (await correspondence()).drift.length === 0);
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
+
+      // The bands and both leader styles on the REAL pitch_system -- the
+      // document Jeff was reading when he said the leaders were near
+      // impossible to follow, and the one where the leaders genuinely cross
+      // each other (16 times: ISSUE_20260914_leaders_cross_each_other_since_
+      // the_grid_was_centred.md). 43 rows and 16 leaders is also the only
+      // case with enough bands for "ride a band across the jog zone" to mean
+      // anything.
+      const realBands = await page.evaluate(BANDS_IN_PAGE);
+      push("[real] pitch_system's rows and bands are tinted from one parity, " +
+        "and its untraced rows keep their provenance tint as well",
+        realBands.bad.length === 0 && realBands.bands === 17 &&
+        realBands.drawn === 17 &&
+        realBands.tinted === realBands.rowHeights.length &&
+        realBands.provenanceLayers > realBands.tinted / 2);
+      if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
+      const realAngled = await page.evaluate(BANDS_IN_PAGE);
+      push("[real] pitch_system's angled leaders still land on every dot and seam",
+        (await correspondence()).drift.length === 0 &&
+        realAngled.bad.length === 0 &&
+        realAngled.leaderPaths.length === 16 &&
+        realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
+      if (realAngled.bad.length) console.log("    bands: " + realAngled.bad.slice(0, 5).join(" | "));
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
+      push("[real] and back in jogged style",
+        (await correspondence()).drift.length === 0 &&
+        /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
+
+      // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
+      // reset them -- the rule density and the length modes already follow.
+      const zone = () => page.evaluate(ZONE_IN_PAGE);
+      const before = await zone();
+      // Not asserted to be 1: the mock block above dragged it, and the app's
+      // state module survives the fixture swap and re-boot this tier does --
+      // which is itself the preference behaving. What is asserted is that the
+      // scale is re-derived against THIS topology's own 16 leaders.
+      push("[real] the jog zone is measured against pitch_system's own 16 leaders",
+        before.leaders === 16 && before.scale >= 1);
+      const realGrip = await page.locator(".tvgrip--jog").boundingBox();
+      await page.mouse.move(realGrip.x + realGrip.width / 2,
+                            realGrip.y + realGrip.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(realGrip.x + realGrip.width / 2 + 200,
+                            realGrip.y + realGrip.height / 2, { steps: 8 });
+      await page.mouse.up();
+      await page.waitForTimeout(80);
+      const dragged = await zone();
+      push("[real] pitch_system's jog zone drags open, leaders still on their " +
+        "dots and seams",
+        dragged.scale > 1.5 && dragged.svg > before.svg + 100 &&
+        (await correspondence()).drift.length === 0);
+
+      await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const switched = await zone();
+      push("[real] switching topology keeps the SCALE, not the pixel width",
+        switched.topologyId === "pitch_link_to_pitch_plate" &&
+        switched.natural !== dragged.natural &&
+        Math.abs(switched.scale - dragged.scale) < 0.01 &&
+        (await correspondence()).drift.length === 0);
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // The preview pane over a real citation, with a real crop behind it.
       await page.locator(navRow("topology", "vpa_output_to_pitch_plate")).click();

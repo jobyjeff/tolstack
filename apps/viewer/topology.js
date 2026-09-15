@@ -1109,10 +1109,22 @@
   // pitch, or an edge-length scaling mode), and only these leaders have to
   // know.
   //
-  // Lanes are strictly monotone in walk order. Leaders never cross under
-  // that rule (both endpoint sequences are monotone in y), and it is cheap to
-  // reason about, so no lane is ever reused — the zone is (leaders × lane
-  // pitch) wide and that is the price of legibility.
+  // Lanes are strictly monotone in walk order, and no lane is ever reused —
+  // the zone is (leaders × lane pitch) wide and that is the price of
+  // legibility.
+  //
+  // This rule used to come with a proof that leaders CANNOT cross, and that
+  // proof is no longer sound: it rested on leaders always rising
+  // (structurally `y2 < y1`, the viewer_leader_line_grid lesson's own words),
+  // which stopped being true the day viewer_dag_spine_layout centred the grid
+  // against the DAG and let a leader above the centre descend. Two leaders
+  // cross exactly when `y2[i] >= y1[i+1]`, and on the real pitch_system every
+  // one of its leaders is in at least one crossing pair (the issue below
+  // carries the count and the repro that prints it). Fixing it is a
+  // layout-policy change and therefore not this function's to make unasked:
+  // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md,
+  // with a test in both tiers asserting the crossings are still there so the
+  // day they go away is a loud one.
   //
   // Pure: same layout, metrics and positions in, same geometry out. The node
   // y comes from the keyed position store (the same number railGeometry gives

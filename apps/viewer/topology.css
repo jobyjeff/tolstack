@@ -324,14 +324,23 @@ body { display: flex; flex-direction: column; }
 .tvrow { cursor: pointer; white-space: nowrap; }
 /* The alternating band a row belongs to (viewer_leader_grid_legibility): the
    SAME two tints the jog zone's bands are filled with, and the same parity
-   (VA.rowBandParity feeds both). Written FIRST and at the lowest specificity
-   any row rule on this page has, on purpose -- the provenance tints below
-   (.tvrow--edge.conf--untraced / .conf--no_source_ref) and the hover tint are
-   both more specific and both still win, because provenance outranks
-   wayfinding here and a reader hovering a row must see the hover. */
-.tvrow--band-a { background: var(--tv-band-a); }
-.tvrow--band-b { background: var(--tv-band-b); }
-.tvrow:hover { background: #20242c; }
+   (VA.rowBandParity feeds both).
+
+   The band tint is the row's background COLOUR and a provenance tint is a
+   background IMAGE, so the two compose instead of one winning -- and that is
+   load-bearing rather than clever. The first attempt gave both to
+   `background` and let the more specific provenance rule win, which reads
+   fine on the demo fixture and is nearly inert on the document this handoff
+   exists for: most of `pitch_system`'s rows are untraced, and every one of
+   them would have shown no band at all. Layered, an untraced row is still
+   unmistakably untraced AND still says which band it belongs to. The browser
+   tier measures both layers on every real row.
+
+   Hover is `background-color` for the same reason: as a shorthand it wiped
+   the provenance layer off whichever row the reader was pointing at. */
+.tvrow--band-a { background-color: var(--tv-band-a); }
+.tvrow--band-b { background-color: var(--tv-band-b); }
+.tvrow:hover { background-color: #20242c; }
 .tvrow--edge { font-size: 13px; }
 /* A component group's first row: the seam a leader points at. box-shadow, not
    border-top — a cell border participates in the table's row-height sizing
@@ -340,9 +349,17 @@ body { display: flex; flex-direction: column; }
 .tvrow--group-start .tvcell { box-shadow: inset 0 1px 0 var(--line); }
 .tvrow--off { opacity: .35; }
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
-/* Same tint the elements table uses: an untraced value has to survive a skim. */
-.tvrow--edge.conf--untraced { background: rgba(224, 82, 82, .1); }
-.tvrow--edge.conf--no_source_ref { background: rgba(195, 85, 195, .12); }
+/* Same tint the elements table uses: an untraced value has to survive a skim.
+   As a background IMAGE (a flat two-stop gradient is the only way CSS spells
+   "an image of one colour"), so it layers over the alternating band colour
+   above rather than replacing it -- see that rule for why both have to be
+   visible at once on this page's real documents. */
+.tvrow--edge.conf--untraced {
+  background-image: linear-gradient(rgba(224, 82, 82, .1), rgba(224, 82, 82, .1));
+}
+.tvrow--edge.conf--no_source_ref {
+  background-image: linear-gradient(rgba(195, 85, 195, .12), rgba(195, 85, 195, .12));
+}
 .tvrow--derived { font-style: italic; }
 .tvrow--closes .tvcell--name::after {
   content: " ↰ closes back to an interface above";
