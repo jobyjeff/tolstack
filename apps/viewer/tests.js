@@ -7274,6 +7274,39 @@
             chainColumns.forEach(function (c) {
               eq(c, Number(columns[2]), "README's chain column count");
             });
+
+            // "3 over 3 for `pitch_link_to_pitch_plate`, 10 over 10 for
+            // `pitch_system`, ..." -- the column-reuse bullet's own claim that
+            // reuse fires nowhere, re-derived per topology so a sixth
+            // committed topology, or a reuse case finally showing up, is a
+            // stale-prose defect the fast tier catches rather than one that
+            // waits for a human re-measurement (viewer_hygiene_pass, 2026-09-15).
+            var reuseClaims = {};
+            var reuseRe = /(\d+)\s+over\s+(\d+)\s+for\s+`([A-Za-z0-9_]+)`/g;
+            var reuseMatch;
+            while ((reuseMatch = reuseRe.exec(readme))) {
+              reuseClaims[reuseMatch[3]] =
+                { allocations: Number(reuseMatch[1]), columns: Number(reuseMatch[2]) };
+            }
+            ok(Object.keys(reuseClaims).length,
+              "expected the README's column-reuse sentence to name at least one topology");
+            var liveIds = liveTopos.map(function (t) { return t.id; });
+            liveIds.forEach(function (id) {
+              ok(reuseClaims[id], "README's column-reuse bullet does not name " +
+                id + " -- a committed topology the prose has not caught up to");
+            });
+            Object.keys(reuseClaims).forEach(function (id) {
+              ok(liveIds.indexOf(id) !== -1, "README's column-reuse bullet names " +
+                id + ", which is not a live committed topology");
+            });
+            liveTopos.forEach(function (topoProj) {
+              var claim = reuseClaims[topoProj.id];
+              if (!claim) return;                          // reported above
+              eq(claim.columns, topoProj.layout.columns,
+                topoProj.id + "'s README column count");
+              eq(claim.allocations, topoProj.layout.rails.length,
+                topoProj.id + "'s README rail-allocation count");
+            });
           });
 
         await test("[real] right-justifying pitch_system takes its spine " +

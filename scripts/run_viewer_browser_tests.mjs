@@ -468,16 +468,6 @@ async function testTheApp(browser, url, label) {
   page.on("pageerror", (e) => errors.push(String(e)));
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
-  // Dismiss an open hover card deterministically: move the pointer OFF the
-  // trigger FIRST, then Escape. Since viewer_dag_hover_cards the rail marks
-  // card too, and a mark's click re-renders the pane -- a fresh element
-  // landing under a stationary pointer fires `mouseenter` again, so an Escape
-  // sent while the pointer still sits on the mark can be undone by the very
-  // next paint. (4, 4) is the topbar: no trigger of any kind lives there.
-  const dismissCard = async () => {
-    await page.mouse.move(4, 4);
-    await page.keyboard.press("Escape");
-  };
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
@@ -977,6 +967,17 @@ const CARD_TRIGGER = "tr.tvrow[data-id='base_thickness'] button.crop-trigger";
 //     steps off and tries again -- and says what it saw if it runs out of
 //     tries, rather than leaving a bare waitForSelector to time out later with
 //     no explanation.
+// Dismiss an open hover card deterministically: move the pointer OFF the
+// trigger FIRST, then Escape. Since viewer_dag_hover_cards the rail marks
+// card too, and a mark's click re-renders the pane -- a fresh element
+// landing under a stationary pointer fires `mouseenter` again, so an Escape
+// sent while the pointer still sits on the mark can be undone by the very
+// next paint. (4, 4) is the topbar: no trigger of any kind lives there.
+async function dismissCard(page) {
+  await page.mouse.move(4, 4);
+  await page.keyboard.press("Escape");
+}
+
 async function hoverRailBar(page, id) {
   const sel = `svg.tv__rails line.rail__barhit[data-id="${id}"]`;
   let seen = "never found a point on the bar to aim at";
@@ -1067,17 +1068,6 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     };
   }, triggerSel);
 
-  // Dismiss an open hover card deterministically: move the pointer OFF the
-  // trigger FIRST, then Escape. Since viewer_dag_hover_cards the rail marks
-  // card too, and a mark's click re-renders the pane -- a fresh element
-  // landing under a stationary pointer fires `mouseenter` again, so an Escape
-  // sent while the pointer still sits on the mark can be undone by the very
-  // next paint. (4, 4) is the topbar: no trigger of any kind lives there.
-  const dismissCard = async () => {
-    await page.mouse.move(4, 4);
-    await page.keyboard.press("Escape");
-  };
-
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -1137,7 +1127,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // the DAG it sits OVER the diagram, so the leader below is genuinely
     // behind it until then -- filed as
     // ISSUE_20260914_dag_hover_card_occludes_the_marks_beneath_it.
-    await dismissCard();
+    await dismissCard(page);
 
     // A leader is clickable too, and selecting a boundary node marks it.
     // Clicked at a point ON the path rather than at its box's centre: a
@@ -1286,7 +1276,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // away from the trigger it belongs to. Measured at CARD_SCROLL_VIEWPORT,
     // 2026-09-15: 8px off the trigger as shipped, 148px off it with
     // `.croppop` on `absolute`.
-    await dismissCard();
+    await dismissCard(page);
     await page.setViewportSize(CARD_SCROLL_VIEWPORT);
     await page.waitForTimeout(450);
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -1310,7 +1300,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("an open card is placed in the WINDOW's frame, not the document's — " +
       "it still sits against its trigger with the page scrolled",
       Math.abs(gapBelow - 8) < 1.5 || Math.abs(gapAbove - 8) < 1.5);
-    await dismissCard();
+    await dismissCard(page);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.setViewportSize(TOPO_VIEWPORT);
 
@@ -1358,7 +1348,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /base plate thickness/.test(barCardText) && /215197/.test(barCardText) &&
       /cited at:/.test(barCardText) &&
       await page.locator(".hovercard--edge img.croppop__img").count() === 1);
-    await dismissCard();
+    await dismissCard(page);
 
     // The value-level pin: one edge, two triggers, ONE card. If the bar and
     // the grid ever rendered different content for the same dimension, a
@@ -1369,7 +1359,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const gridCardText = await page.locator(".croppop").textContent();
     push("the bar's card and the same edge's grid-trigger card are the same " +
       "card, character for character", barCardText === gridCardText);
-    await dismissCard();
+    await dismissCard(page);
 
     // One hover surface, not two: the marks' native <title> tooltips are
     // ABSORBED into the cards, never stacked under them.
@@ -1390,7 +1380,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       "resolves, and no slot where none does",
       /crop of its `base plate thickness` annotation/.test(nodeCardText) &&
       await page.locator(".hovercard--node img.croppop__img").count() === 1);
-    await dismissCard();
+    await dismissCard(page);
 
     // An internal dot says it is internal rather than leaving a one-sided
     // list to read as a missing side. `base_datum` is the fixture's one.
@@ -1398,7 +1388,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.waitForSelector(".hovercard--node", { state: "visible", timeout: 5000 });
     push("an internal dot says which part it is internal to",
       /internal to base plate/.test(await page.locator(".croppop").textContent()));
-    await dismissCard();
+    await dismissCard(page);
 
     // A dot neither of whose sides cropped gets no image slot at all --
     // absent is absent. `arm_tip` is the arm's own dimension against a
@@ -1409,7 +1399,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("a dot with no croppable side names the clearance and shows no image",
       /a clearance/.test(clearanceText) &&
       await page.locator(".hovercard--node img").count() === 0);
-    await dismissCard();
+    await dismissCard(page);
 
     // And the layout contract again, measured on the DAG's own trigger this
     // time: a card opened from inside the DAG pane is still hover-only chrome,
@@ -1451,7 +1441,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       withBarCard.docHeight === beforeBarCard.docHeight);
     push("leaders still land on their dots and seams with a DAG-side card open",
       (await correspondence()).drift.length === 0);
-    await dismissCard();
+    await dismissCard(page);
     await page.setViewportSize(TOPO_VIEWPORT);
     // An edge with no crop_key (authored inline, or a derived gap) gets no
     // trigger at all — showing one would read as a stale index rather than
@@ -1845,7 +1835,18 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         }
 
         for (const study of topology.studies) {
-          await page.locator(navRow("study", study.id)).click();
+          // Observed once (ISSUE_20260914_topology_file_url_real_study_loop_
+          // hung_once.md): this click's own actionability wait never saw the
+          // row go stable and the raw playwright timeout gave no hint which
+          // iteration it was on. Bounded at the same 30s playwright already
+          // defaults to -- the fix here is naming the study, not widening or
+          // narrowing the wait.
+          try {
+            await page.locator(navRow("study", study.id)).click({ timeout: 30000 });
+          } catch (e) {
+            throw new Error(`[real] nav click for study "${study.id}" never ` +
+              `went visible/enabled/stable -- ${e.message}`);
+          }
           // A study click is a transition now (viewer_study_respine_
           // animation), and mid-flight the pane holds a ghost of the
           // outgoing frame as well as the incoming one -- so every count
@@ -2126,17 +2127,6 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
     return { position: style.position, overflowY: style.overflowY };
   });
 
-  // Dismiss an open hover card deterministically: move the pointer OFF the
-  // trigger FIRST, then Escape. Since viewer_dag_hover_cards the rail marks
-  // card too, and a mark's click re-renders the pane -- a fresh element
-  // landing under a stationary pointer fires `mouseenter` again, so an Escape
-  // sent while the pointer still sits on the mark can be undone by the very
-  // next paint. (4, 4) is the topbar: no trigger of any kind lives there.
-  const dismissCard = async () => {
-    await page.mouse.move(4, 4);
-    await page.keyboard.press("Escape");
-  };
-
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -2346,16 +2336,6 @@ async function testRenderCrash(browser, url, label) {
   page.on("pageerror", (e) => errors.push(String(e)));
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
-  // Dismiss an open hover card deterministically: move the pointer OFF the
-  // trigger FIRST, then Escape. Since viewer_dag_hover_cards the rail marks
-  // card too, and a mark's click re-renders the pane -- a fresh element
-  // landing under a stationary pointer fires `mouseenter` again, so an Escape
-  // sent while the pointer still sits on the mark can be undone by the very
-  // next paint. (4, 4) is the topbar: no trigger of any kind lives there.
-  const dismissCard = async () => {
-    await page.mouse.move(4, 4);
-    await page.keyboard.press("Escape");
-  };
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });

@@ -434,11 +434,18 @@ Three shapes come out of it, and all three are in the projection:
   which `tests/test_topology_projection.py` checks;
 * **column reuse** — a column is freed when its branch ends and the next
   allocation may take it, so a column holds a *list* of disjoint rail spans
-  rather than one extent. Measured in `review/dag_viewer_poc`: on the two
-  committed topologies reuse does not currently fire at all — nine allocations
-  over nine columns for the pitch system, two over two for L1, and disabling
-  reuse entirely leaves both numbers unchanged. It is the mechanism the
-  disjointness invariant guards, not an explanation of today's widths.
+  rather than one extent. Measured live, 2026-09-15 (`viewer_hygiene_pass`,
+  re-measuring `review/dag_viewer_poc`'s two-topology reading now that five
+  are committed): reuse still does not fire at all — every one of the five
+  allocates exactly one rail per column: 3 over 3 for
+  `pitch_link_to_pitch_plate`, 10 over 10 for `pitch_system`, 10 over 10 for
+  `rotor_fastener_length`, 2 over 2 for `tan_link_to_pitch_plate_take2`, and 2
+  over 2 for `vpa_output_to_pitch_plate`. Since none of them exercises it,
+  disabling reuse entirely would leave every one of those numbers unchanged.
+  It is the mechanism the disjointness invariant guards, not an explanation of
+  today's widths. Guarded the way the walk/chain column counts just above are:
+  `apps/viewer/tests.js`'s doc-pairing test re-derives every number here from
+  the live projection.
 
 The L1 grip stack draws as **two rails that rejoin**, not one, and that is the
 truth about it: every interface has exactly two edges — the five clamped members
