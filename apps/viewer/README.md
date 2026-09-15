@@ -1211,7 +1211,7 @@ already supports (`joint`, `worksheet_file`) are wired; this third is not.
 
 ## Tests
 
-Two tiers (forge `CONVENTIONS.md` §7):
+Two tiers (forge `CONVENTIONS.md` §7), plus a third that tests the tests:
 
 ```powershell
 node apps\viewer\run_tests.cjs                          # fast tier (node + DOM shim)
@@ -1221,7 +1221,43 @@ venv-win\Scripts\python.exe -m pytest -q                # runs the fast tier too
 npm install                                             # once: playwright-core, no browser download
 node scripts\run_viewer_browser_tests.mjs               # truth tier (installed Chrome, file:// + http)
 node scripts\run_viewer_browser_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
+node scripts\run_viewer_browser_tests.mjs --only "topology height budget"  # one suite
+
+node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack   # mutation-witness tier
 ```
+
+### The mutation-witness tier
+
+The two tiers above ask *does the app still behave?*. The third asks the
+question a green suite cannot answer about itself — *would this guard notice if
+it didn't?* — and it exists because the answer turned out to be **no** in five
+guards filed by five different review sessions between 2026-09-11 and
+2026-09-15. Always the same shape: a guard's witness is coupled to an
+incidental property of the app (a viewport where the document happened to be
+short, a preference that happened to be at its default, a measurement that
+re-derives whatever is on screen); the app changes *correctly*; the coupling
+breaks; the guard goes on passing and witnessing nothing, with nothing red to
+announce that the coverage left.
+
+`scripts/mutation_witnesses.json` declares, per guard, the exact edit it must
+redden on, the tier that owns it, and the name of the check that must fail.
+`scripts/run_mutation_witness_tests.mjs` copies `apps/` and `scripts/` to a
+shadow tree under `tmp/`, patches the copy, runs the owning tier — clean first,
+which must be green, or nothing the mutation does proves anything — and fails
+unless the **declared** check goes red. It takes `--repo` for the same reason
+the other two do: three of the declared witnesses are `[real]` checks. This
+tree is never written to.
+
+Adding an entry is meant to be cheaper than filing an issue: copy the nearest
+one and change five strings. If you find a guard that shrugs off a hand
+mutation, that is exactly what the table is for.
+
+Its cheap half runs on every `pytest -q`: `tests/test_mutation_witnesses.py`
+requires every declared `find` to still resolve to exactly one place in the
+file it names. An anchor that rots — a rename in `topology_app.js` can rot
+several at once — is an entry that quietly stopped being checked, which is the
+tier's own failure mode one level up, so it goes red in a second rather than
+waiting for someone to make time for a browser run.
 
 The truth tier takes `--repo` for the same reason the fast tier does: it drives
 `topology.html` against the **real** `topologies.json` as well as the demo, and

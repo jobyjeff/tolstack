@@ -1988,6 +1988,49 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator(navRow("topology", "pitch_system")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
+      // ...and the three OLDER display preferences, whose precedent both docs
+      // invoke when they say the leader style survives a switch "like density
+      // does". Measured 2026-09-15, chasing the same question the leader-style
+      // issue raises at its end: adding `state.rowDensity = "comfortable";`,
+      // `state.edgeLengthMode = "uniform";` or `state.edgeValueOnly = false;`
+      // to selectTopology() reddened NOTHING in any tier. Same hole, same
+      // cause — the suite only ever switched topology with the toolbar at its
+      // defaults, where a reset and a non-reset are the same state — so the
+      // fix is the same: take all three off their defaults, switch, and read
+      // the toolbar back. Done as its own round trip rather than folded into
+      // the jog-zone block above, so nothing here perturbs that measurement.
+      await page.locator("#density-toggle").click();
+      await page.locator("#edge-length-toggle").click();
+      await page.locator("#edge-value-toggle").click();
+      await page.waitForTimeout(80);
+      const offDefaults = async () => ({
+        density: await page.locator("#density-toggle").textContent(),
+        length: await page.locator("#edge-length-toggle").textContent(),
+        valueOnly: await page.locator("#edge-value-toggle").textContent(),
+      });
+      const beforeSwitch = await offDefaults();
+      push("[real] the anchor: density, length mode and value-only rows are " +
+        "all off their defaults before the switch",
+        /Rows: Compact/.test(beforeSwitch.density) &&
+        /Lengths: tolerance/.test(beforeSwitch.length) &&
+        /Rows: values only/.test(beforeSwitch.valueOnly));
+      await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const afterSwitch = await offDefaults();
+      push("[real] switching topology keeps the density, the length mode and " +
+        "the value-only rows as well",
+        afterSwitch.density === beforeSwitch.density &&
+        afterSwitch.length === beforeSwitch.length &&
+        afterSwitch.valueOnly === beforeSwitch.valueOnly);
+      // Back to the defaults, and back to pitch_system, for the checks below.
+      await page.locator("#density-toggle").click();
+      await page.locator("#edge-length-toggle").click();
+      await page.locator("#edge-length-toggle").click();
+      await page.locator("#edge-value-toggle").click();
+      await page.waitForTimeout(80);
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+
       // The preview pane over a real citation, with a real crop behind it.
       await page.locator(navRow("topology", "vpa_output_to_pitch_plate")).click();
       await page.locator("tr.tvrow[data-id='fastener_grip'] .tvcell--name").click();

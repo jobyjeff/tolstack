@@ -31,7 +31,15 @@
     "mutation costs one suite rather than all eighteen.",
     "",
     "The mutations are DECLARED, never applied to this tree: the runner copies",
-    "apps/ and scripts/ into tmp/mutation-witness/ and patches the copy."
+    "apps/ and scripts/ into tmp/mutation-witness/ and patches the copy.",
+    "",
+    "ONE THING AN ENTRY CANNOT DECLARE: a mutation that breaks the page itself",
+    "rather than one behaviour -- removing the popover's room cap, say -- stops",
+    "a later hover or wait from ever completing and takes its whole suite down",
+    "as an ERROR. That red is real, and louder than a failed assertion, but it",
+    "carries no check name for the runner to attribute, so it is reported as a",
+    "miss. Narrow the mutation until it fails an assertion, or leave that guard",
+    "to the hand check it already survives."
   ],
   "mutations": [
     {
@@ -93,6 +101,42 @@
       "tier": "browser",
       "suite": "topology file://",
       "expect_red": "[real] switching topology keeps the leader STYLE too"
+    },
+    {
+      "id": "row-density-survives-a-topology-switch",
+      "contract": "state.rowDensity is a display preference, so selectTopology() never resets it -- the precedent the other three preferences' comments all invoke.",
+      "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
+      "note": "Found chasing that issue's closing question -- whether the OLDER preferences had the same hole. They did: this reddened nothing in any tier on 2026-09-15, for the same reason leaderStyle did not, and is entered beside the two below it as one contract in three parts.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.layoutMode = \"topology\";\n    state.selection = null;",
+      "replace": "    state.layoutMode = \"topology\";\n    state.rowDensity = \"comfortable\";\n    state.selection = null;",
+      "tier": "browser",
+      "suite": "topology file://",
+      "expect_red": "[real] switching topology keeps the density, the length mode and the value-only rows as well"
+    },
+    {
+      "id": "edge-length-mode-survives-a-topology-switch",
+      "contract": "state.edgeLengthMode is a display preference, so selectTopology() never resets it.",
+      "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
+      "note": "The sibling of the entry above; see its note.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.layoutMode = \"topology\";\n    state.selection = null;\n    state.detailImage = null;",
+      "replace": "    state.layoutMode = \"topology\";\n    state.edgeLengthMode = \"uniform\";\n    state.selection = null;\n    state.detailImage = null;",
+      "tier": "browser",
+      "suite": "topology file://",
+      "expect_red": "[real] switching topology keeps the density, the length mode and the value-only rows as well"
+    },
+    {
+      "id": "edge-value-only-survives-a-topology-switch",
+      "contract": "state.edgeValueOnly is a display preference, so selectTopology() never resets it.",
+      "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
+      "note": "The sibling of the two entries above; see the first one's note.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    state.studyId = null;\n    state.layoutMode = \"topology\";",
+      "replace": "    state.studyId = null;\n    state.edgeValueOnly = false;\n    state.layoutMode = \"topology\";",
+      "tier": "browser",
+      "suite": "topology file://",
+      "expect_red": "[real] switching topology keeps the density, the length mode and the value-only rows as well"
     },
     {
       "id": "hosted-page-never-falls-back-to-the-picker",

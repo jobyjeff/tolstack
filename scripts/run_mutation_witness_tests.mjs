@@ -244,8 +244,20 @@ function anchorHits(mutation) {
       console.log(`  actually failed:` +
         (result.failures.length
           ? result.failures.map((f) => "\n    " + f).join("")
-          : " nothing named (the tier errored -- output below)"));
-      if (!result.failures.length) console.log(indent(result.out));
+          : " nothing named — the suite ABORTED rather than failing a check."));
+      if (!result.failures.length) {
+        // Worth saying out loud, because it is a real result wearing a
+        // failure's clothes: a mutation that breaks the page badly enough to
+        // stop a later hover or wait from ever completing takes its whole suite
+        // down as an ERROR, and there is no check name for this tier to
+        // attribute it to. The guard IS witnessing -- loudly -- but not in the
+        // form an entry can declare. Narrow the mutation until it fails an
+        // assertion instead of the harness.
+        console.log("  (a mutation that breaks the page itself, rather than one " +
+          "behaviour, aborts its suite; this tier can only attribute a NAMED " +
+          "failure, so declare a narrower mutation.)");
+        console.log(indent(result.out));
+      }
     }
   }
 

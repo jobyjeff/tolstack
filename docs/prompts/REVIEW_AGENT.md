@@ -475,6 +475,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md`, which
       exists to make the class structurally visible rather than fixing five
       guards.
+      **What that handoff left behind (2026-09-15), and what it asks of you:**
+      the mutation is now a **declared** thing, not a thing a reviewer happened
+      to try. `scripts/mutation_witnesses.json` holds, per guard, the exact edit
+      it must redden on and the name of the check that must fail;
+      `scripts/run_mutation_witness_tests.mjs` patches a shadow tree and fails
+      unless that check goes red (`apps/viewer/README.md`, "The mutation-witness
+      tier"). So the standing ask is no longer "mutate the line and watch it go
+      red" and stop there — **when a mutation you tried by hand belongs to a
+      guard that should keep catching it, add the entry**. It is five strings
+      copied off the nearest one, which is deliberately cheaper than filing an
+      issue about it. Conversely: a guard added by a handoff, with no entry and
+      no hand mutation recorded anywhere, is a guard nobody has watched fail.
 - [ ] **A finding the handoff named but did not fix, recorded only in a
       `LESSONS_*` file.** APPROVE ends the handoff's ownership, and no triage
       sweep reads lessons — a lesson schedules nobody. Every "named, not fixed
