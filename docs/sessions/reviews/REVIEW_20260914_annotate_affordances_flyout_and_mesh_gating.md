@@ -324,3 +324,40 @@ hiding inside a reformat. `data/inbox/specs/` and `docs/reference/` untouched.
   structural equivalent (both apps served as siblings off one static root, the
   probe passing, the flyout driving one panel) is what the browser tier's
   `startRepoRootServer` case measures, and it is green.
+
+## Post-merge re-verification (integration moved again mid-review)
+
+`integration` advanced from `4d74adb` to `b4ce7df` while this report was being
+written — `stack_title_style_pass` was reviewed and merged (`164a07b`,
+`4855171`, `1322a97`). Merged it into the review branch a second time. One
+conflict, in `docs/prompts/REVIEW_AGENT.md`: both reviews appended entries to the
+end of **Recurring bugs to check**, and git could not order two additions at the
+same insertion point. **Resolved additively — both sides kept**, integration's two
+entries (`stack_title_style_pass`'s optional-prose-field-outside-a-guarded-key-set
+and its scanner-replay entry) first, then this review's two, blank-line separated.
+Neither side's text was altered; there is no side to pick because no claim
+disagreed.
+
+Numbers re-derived on the shipping tree (this worktree, after that merge):
+
+- `pytest -q` → **815 passed, 1 skipped** (was 781/1 before the merge; the
+  standing worktree skip is the same one).
+- `node apps/viewer/run_tests.cjs` → **246/246**.
+- `node apps/annotate/run_tests.cjs` → **57/57**.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` →
+  **16/16**, flyout suite **18/18**, fast suite 236/236 in both modes, topology
+  118/118 in both modes.
+- Rebuilt `topologies.json` from the merged tree (the earlier merge invalidated
+  it: `stack_title_style_pass` adds `description` to `Topology`/`Study`, so the
+  pre-merge build no longer matched `topology_fixtures.js`). Gate reported the
+  prior build as contained and overwrote; 1/29 parts and the same single
+  `3D: gas_spring_mount_213668_002 (alias -> machined_213668)` line.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` → **295/297**.
+  The `description` failure cleared as expected. The **two** remaining failures
+  are both `crops.json`-sourced and belong to `handoff/spec_crop_region_registry`,
+  still active in its own worktree: `region_label`/`region_match` missing from
+  `fixtures.js`, and `located_by = "declared_region"` having no branch in
+  `VA.cropProvenanceLine`. All 15 mesh/3D tests pass, including the three
+  `[real]` ones. I did not rebuild `crops.json` — the gate would refuse
+  (that tree is not an ancestor of this one) and clobbering a live agent's
+  verification buys nothing here.
