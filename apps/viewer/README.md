@@ -831,15 +831,42 @@ things are worth knowing about it:
   from row 3 of the other — so every slot in the store carries its own
   `id`/`kind` and the tween matches on those. Paired by index, a row would fly
   in from a slot it never occupied and still look plausible;
-* **only y is interpolated, and x cannot be.** Which column a row lands on is a
-  claim about the graph, the two serialisations disagree about how many columns
-  there are (`pitch_system`'s walk needs **10 columns**, while every one of its
-  study chains is linear and needs **1**), and a rail is not a keyed row — interpolating each mark's x while
-  its rail stayed on the target's column would draw dots floating beside the
-  lines they sit on. Both serialisations are right-justified against the jog
-  zone, so the whole drawn block slides instead (`VA.respineShift`, a CSS
-  transform): the first frame puts the incoming grid's left edge exactly where
-  the outgoing one had it, and the slide settles at zero;
+* **the store's key set is the target's, at every `e`.** Not a union with the
+  outgoing side's: settled, it *is* the target store, and mid-flight it is the
+  target's keys at interpolated values. It used to carry over every node and
+  edge the outgoing store had, which no geometry pass ever read (both iterate
+  the layout and look positions up by id) but which compounded across an
+  interrupted respine, since `VA.lastTopoRender`'s store is this one and the
+  animator reads it back as `from`;
+* **x cannot go through the store either, so the drawn LAYOUT is what is
+  interpolated.** Which column a row lands on is a claim about the graph, the
+  two serialisations disagree about how many columns there are (`pitch_system`'s
+  walk needs **10 columns**, while every one of its study chains is linear and
+  needs **1**), and a rail belongs to a *column* rather than to an element, so
+  there is nothing to pair the two frames' rails on. What the two frames do
+  agree about is **depth from the spine** — both are right-justified, so the
+  mainline is the last column of either — so `VA.respineX` interpolates the
+  **column count** and the **pane width**, and both geometry passes draw the
+  frame from those. A surviving rail starts exactly where the outgoing frame
+  drew it; a column the respine *adds* unfolds out of the spine rather than
+  arriving from a place it never was. The SVG is drawn at the interpolated
+  width, which is the grid's own left edge, so the table beside it and the
+  header padded to sit over it follow without either learning that a
+  transition exists — **nothing is slid as a block.**
+
+  The first cut *was* a whole-block CSS translate, right-anchored on the
+  outgoing frame's grid seam, and it is worth knowing why that cannot work:
+  the pane's left edge is fixed, each frame is right-justified against its own
+  grid, and the two grids are hundreds of pixels apart — so anchoring the
+  **wider** incoming block on the narrower outgoing one's right edge
+  necessarily puts its left part outside the pane, where `.tv__hscroll`'s
+  `overflow-x` clips it. Deselecting a study on the real `pitch_system` drew
+  all 45 of the walk's marks left of x = 0 and the DAG appeared to unfold from
+  behind the pane's edge. A pane width is also the wrong *origin*: it is rails
+  **plus** the jog zone, and the zone's width is a function of the leader
+  count, which the two serialisations also disagree about, so the 234px slide
+  over-shot the rails' true 180px travel and drew even the spine left of where
+  it had just been;
 * **the rows a chain drops cannot be drawn from the target layout**, because
   they are not in it. So the outgoing paint is kept — the real nodes, moved
   into an inert overlay — and faded out while the incoming one moves into
@@ -852,7 +879,9 @@ things are worth knowing about it:
 **The animation is presentation and nothing else.** Its last frame is a plain
 render with no tween and no ghost, so the settled page is the page a render
 that never animated produces — bar for bar, dot for dot, leader for leader, in
-every length mode and both directions. The browser tier proves that by
+every length mode and both directions. That holds of the *store* as well as of
+the DOM: `VA.tweenPositions(from, to, 1)` is `to`, key set included, which is
+the guard that stopped the carry-over above coming back. The browser tier proves that by
 reaching the same selection twice, once through the transition and once with
 `prefers-reduced-motion: reduce` emulated, and pairing the two DOMs.
 `prefers-reduced-motion` is also the honest answer to the preference itself:

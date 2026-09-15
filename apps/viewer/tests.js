@@ -3845,6 +3845,64 @@
         ok(inPane.querySelector(".tv__hscroll"), "it holds the real outgoing DOM");
       });
 
+    await test("a respine interrupting a respine continues from the picture " +
+      "on screen, not from the serialisation behind it", function () {
+        // VA.lastTopoRender records what a frame DREW, which mid-transition
+        // is an interpolated column count and an interpolated pane width --
+        // fractional, and deliberately so. The animator reads that record
+        // back as its own `from`, so recording the target serialisation's
+        // own numbers instead would make a reader who clicks twice see the
+        // DAG jump sideways at the second click.
+        var chainCtx = function (over) {
+          var ctx = { study: topoStudy("demo_strut_branch"),
+                      layoutMode: "chain" };
+          Object.keys(over || {}).forEach(function (k) { ctx[k] = over[k]; });
+          return topoCtx(ctx);
+        };
+        var spineAndWidth = function (root) {
+          var rails = all(root, "line.rail").map(function (n) {
+            return parseFloat(n.getAttribute("x1"));
+          });
+          return [Math.max.apply(null, rails),
+                  parseFloat(root.querySelector("svg.tv__rails")
+                    .getAttribute("width"))];
+        };
+
+        // A plain walk, then one frame of a respine toward the chain.
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var walk = VA.lastTopoRender;
+        VA.renderTopoPane(root, chainCtx({
+          tween: { positions: walk.positions, columns: walk.columns,
+                   width: walk.width, e: 0.5 },
+        }));
+        var caught = VA.lastTopoRender;
+        var midway = spineAndWidth(root);
+        ok(caught.columns > Math.min(walk.columns, 1) &&
+           caught.columns < walk.columns,
+           "the frame records the count it drew with: " + caught.columns);
+
+        // The interrupt: a new transition, back the other way, off that
+        // record. Its FIRST frame has to draw the same picture.
+        VA.renderTopoPane(root, topoCtx({
+          tween: { positions: caught.positions, columns: caught.columns,
+                   width: caught.width, e: 0 },
+        }));
+        eq(spineAndWidth(root), midway,
+           "the interrupting frame must continue from the drawn picture");
+
+        // Non-vacuity: the two serialisations' own spines are far apart, so
+        // continuing from either of them instead would be visible.
+        var freshWalk = spineAndWidth(render(function (r) {
+          VA.renderTopoPane(r, topoCtx());
+        }));
+        var freshChain = spineAndWidth(render(function (r) {
+          VA.renderTopoPane(r, chainCtx());
+        }));
+        ok(midway[0] !== freshWalk[0] && midway[0] !== freshChain[0],
+           "midway is its own picture: " + midway + " between " +
+           freshChain + " and " + freshWalk);
+      });
+
     await test("the settled frame carries none of the animation: no ghost, " +
       "no slide, no inline opacity, and the numbers a fresh render draws",
       function () {

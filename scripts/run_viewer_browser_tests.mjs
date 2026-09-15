@@ -2896,6 +2896,13 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
   });
   const clean = (g) => g.ghosts === 0 && g.transforms === "," && g.faded === 0;
 
+  // What the SVG's width should be `t` of the way from `from`'s settled
+  // geometry to `to`'s -- the one place this test re-states VA.respineX's
+  // interpolation, so an in-flight frame can be paired against two settled
+  // measurements rather than against the store the render used.
+  const lerpWidth = (to, from, t) => Number(to.svgWidth) +
+    (1 - t) * (Number(from.svgWidth) - Number(to.svgWidth));
+
   // One frame of a transition in flight, or null if none was ever there.
   //
   // Raced against a 260ms animation on purpose: it is the only way to observe
@@ -3006,13 +3013,25 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
       // The horizontal tween, measured in the page. It is in the GEOMETRY --
       // the frame is drawn at an interpolated pane width and an interpolated
       // column spread (VA.respineX) -- so the witness is the SVG's own width
-      // strictly between the two serialisations', with no transform anywhere.
-      push("[real] the pane is drawn at a width between the two " +
-        "serialisations', so the grid beside it and the header over it move " +
-        "with the DAG",
-        inFlight.svgWidth > Number(chainSettled.svgWidth) &&
-        inFlight.svgWidth < Number(walk.svgWidth) &&
-        Math.abs(inFlight.headPad - inFlight.svgWidth) < 0.6);
+      // against the two settled ones, at the fraction the frame itself
+      // reports, with no transform anywhere.
+      //
+      // Paired at `t` rather than asserted to be strictly between them: the
+      // probe keeps the FIRST frame it catches, and at t = 0 the width is the
+      // outgoing serialisation's exactly -- which is the continuity claim, not
+      // a failure. A build that does not tween the width fails this at every
+      // t including 0, where it would draw the target's.
+      push("[real] the pane is drawn at the interpolated width, so the grid " +
+        "beside it and the header over it move with the DAG",
+        Math.abs(inFlight.svgWidth - lerpWidth(chainSettled, walk, inFlight.t))
+          < 1 && Math.abs(inFlight.headPad - inFlight.svgWidth) < 0.6);
+      if (Math.abs(inFlight.svgWidth -
+                   lerpWidth(chainSettled, walk, inFlight.t)) >= 1) {
+        console.log("    at t = " + inFlight.t + " the SVG is " +
+          inFlight.svgWidth + ", should be " +
+          lerpWidth(chainSettled, walk, inFlight.t) + " (settled: " +
+          chainSettled.svgWidth + " / " + walk.svgWidth + ")");
+      }
       push("[real] and nothing is slid as a block — a whole-block translate " +
         "is what drew the incoming serialisation off the pane",
         inFlight.bodyShift === "" && inFlight.headShift === "");
@@ -3121,8 +3140,8 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
     const deselectFrame = await catchFrame();
     push("[real] deselecting a study animates too, rather than repainting " +
       "the walk back in", !!deselectFrame &&
-      deselectFrame.svgWidth > Number(chainSettled.svgWidth) &&
-      deselectFrame.svgWidth < Number(walk.svgWidth));
+      Math.abs(deselectFrame.svgWidth -
+               lerpWidth(walk, chainSettled, deselectFrame.t)) < 1);
     // The grow direction is the one the off-pane defect was reported in --
     // the incoming walk is the WIDER serialisation, so it is the block slide
     // that had nowhere to put its left-hand columns.
