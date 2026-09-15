@@ -679,12 +679,16 @@
     return out;
   };
 
-  // The hover text a FLOORED bar carries instead of the plain edge title: the
-  // floor is a render rule, and a reader mid-hover has no other way to know
-  // this one length is not a proportion.
+  // What a FLOORED bar says about itself, in one place: the floor is a render
+  // rule, and a reader mid-hover has no other way to know this one length is
+  // not a proportion. Two carriers read the same words -- the plain hover
+  // title (a caller with no card handler) and the edge card's own render note
+  // (viewer_dag_hover_cards), which is what the bar shows once cards reach
+  // the DAG.
+  VA.FLOORED_RENDER_NOTE = "drawn at the minimum length, not to scale";
+
   VA.flooredEdgeTitle = function (edge, id) {
-    return VA.edgeHoverTitle(edge, id) +
-      " — drawn at the minimum length, not to scale";
+    return VA.edgeHoverTitle(edge, id) + " — " + VA.FLOORED_RENDER_NOTE;
   };
 
   // --- the spine on the right (viewer_dag_spine_layout, 2026-09-14) -------
@@ -1149,7 +1153,13 @@
   // records one crop per citation and an edge carries one citation today, so
   // the list holds at most one entry and the second side is a stated gap
   // (this handoff's lesson), never an invented image.
-  VA.edgeCard = function (topoProj, edge, crops) {
+  // `opts.renderNote` is the one thing a card can say that is a fact about the
+  // PICTURE rather than about the edge (viewer_dag_hover_cards): a floored bar
+  // used to carry that fact in its native title, and a card that absorbs the
+  // title has to carry it instead or the not-to-scale warning is lost. Nothing
+  // else is allowed in here -- a value belongs to the edge, not to the
+  // trigger that opened its card.
+  VA.edgeCard = function (topoProj, edge, crops, opts) {
     if (!edge) return null;
     var card = {
       kind: "edge",
@@ -1161,6 +1171,7 @@
       crops: [],
       noCropReason: null,
       annotateParams: null,
+      renderNote: (opts && opts.renderNote) || null,
     };
     if (edge.crop_key) {
       card.crops.push({
@@ -1221,6 +1232,65 @@
       // the annotator's empty state for all but one of them.
       annotateParams: (topoProj && VA.partHasMesh(topoProj, part.id))
         ? { topologyId: topoProj.id, part: part.id } : null,
+    };
+  };
+
+  // The word an adjacent edge with NO part gets wherever a node's sides are
+  // listed. A clearance is a real side of an interface, not a missing one, so
+  // it is named rather than skipped -- and named in the grid's own words.
+  VA.CLEARANCE_SIDE_LABEL = "a clearance";
+
+  // The node card (viewer_dag_hover_cards), for the DAG's own dots: a node is
+  // an INTERFACE, so what a reader wants on hover is which parts meet there --
+  // exactly what the preview pane already says, card-form, plus each adjacent
+  // part's own thumbnail.
+  //
+  // Two facts, and they are not the same fact:
+  //
+  //   `declaredParts` is the document's own `parts` list on the node -- what
+  //   the author said meets here.
+  //   `sides` is DERIVED from the edges actually incident on the node
+  //   (VA.nodeAdjacentParts), which is what the leader/internal rule reads and
+  //   therefore what the picture is drawn from.
+  //
+  // The card shows the derived sides, because those are the ones whose
+  // thumbnails it can honestly source: a side's thumbnail is that part's OWN
+  // component-card thumbnail (VA.componentCard), so the two surfaces cannot
+  // disagree about what a part's picture is. A part none of whose rows cropped
+  // gets `thumb: null` and renders nothing -- absent is absent, the same rule
+  // the component card follows.
+  VA.nodeCard = function (topoProj, nodeId, crops) {
+    var node = VA.topologyIndex(topoProj).nodes[nodeId];
+    if (!node) return null;
+    var adjacent = VA.nodeAdjacentParts(topoProj)[nodeId] || [];
+    return {
+      kind: "node",
+      title: node.name,
+      id: node.id,
+      nodeKind: node.kind,
+      degree: node.degree,
+      branch: !!node.branch,
+      note: node.note || null,
+      citation: node.source_ref || null,
+      confidence: node.confidence || null,
+      declaredParts: (node.parts || []).slice(),
+      // One predicate, shared with the leaders: internal means every adjacent
+      // edge carries one part, the degree-1 chain end included.
+      internal: !!VA.internalNodes(topoProj)[nodeId],
+      sides: adjacent.map(function (partId) {
+        if (partId === null) {
+          return { part: null, label: VA.CLEARANCE_SIDE_LABEL, drawing: null,
+                   revision: null, thumb: null };
+        }
+        var part = VA.componentCard(topoProj, partId, crops);
+        return {
+          part: partId,
+          label: part.title,
+          drawing: part.drawing,
+          revision: part.revision,
+          thumb: part.thumbs.length ? part.thumbs[0] : null,
+        };
+      }),
     };
   };
 

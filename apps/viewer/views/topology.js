@@ -415,9 +415,24 @@
         // above is untouched, still thin and still dashed where confidence
         // or value_source says it should be.
         var hit = VA.svg("line", "rail__barhit", { x1: mark.x, y1: y1, x2: mark.x, y2: y2 });
-        hit.appendChild(svgTitle(mark.floored
-          ? VA.flooredEdgeTitle(edge, mark.id)
-          : VA.edgeHoverTitle(edge, mark.id)));
+        // One hover surface, not two (viewer_dag_hover_cards): where a card
+        // handler exists the bar opens the SAME edge card the grid's crop
+        // trigger opens -- the crop thumbnail, the citation line, the deep
+        // links -- and the native title it used to carry is absorbed into the
+        // card's own head, never stacked under it. A floored bar's
+        // not-to-scale fact rides in as the card's render note, since the
+        // title that used to say it is gone. A caller with no card handler
+        // (the fast tier's bare ctx) keeps the plain title.
+        if (ctx.onCardShow) {
+          cardOnHover(hit, function () {
+            return VA.edgeCard(ctx.topoProj, edge, ctx.crops, mark.floored
+              ? { renderNote: VA.FLOORED_RENDER_NOTE } : null);
+          }, ctx);
+        } else {
+          hit.appendChild(svgTitle(mark.floored
+            ? VA.flooredEdgeTitle(edge, mark.id)
+            : VA.edgeHoverTitle(edge, mark.id)));
+        }
         wire(hit, ctx, "edge", mark.id);
         svg.appendChild(hit);
         return;
@@ -433,7 +448,17 @@
       var dot = VA.svg("circle", dotClasses.join(" "), {
         cx: mark.x, cy: mark.y, r: mark.branch ? M.branchDot : M.dot,
       });
-      dot.appendChild(svgTitle(node ? node.name : mark.id));
+      // The dot's own card (viewer_dag_hover_cards): a node IS an interface,
+      // so the hover says which parts meet there and shows their thumbnails,
+      // which is strictly more than the name the title carried. Same
+      // absorb-not-stack rule as the bar above.
+      if (ctx.onCardShow) {
+        cardOnHover(dot, function () {
+          return VA.nodeCard(ctx.topoProj, mark.id, ctx.crops);
+        }, ctx);
+      } else {
+        dot.appendChild(svgTitle(node ? node.name : mark.id));
+      }
       wire(dot, ctx, "node", mark.id);
       svg.appendChild(dot);
     });
@@ -446,6 +471,21 @@
   function svgTitle(text) {
     var node = VA.svg("title");
     node.textContent = String(text);
+    return node;
+  }
+
+  // Open a card on hover and on keyboard focus, never on click: a rail mark's
+  // click is already SELECTION (wire() below), which is the mark's primary
+  // job, and the grid-side triggers only take the click because they select
+  // nothing. The model is built lazily per hover so a card always reads the
+  // crop cache as it stands when the pointer arrives.
+  function cardOnHover(node, build, ctx) {
+    var show = function () {
+      var card = build();
+      if (card) ctx.onCardShow(card, node);
+    };
+    node.onmouseenter = show;
+    node.onfocus = show;
     return node;
   }
 
