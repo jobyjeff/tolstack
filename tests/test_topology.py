@@ -1079,7 +1079,8 @@ def own_prose(raw: dict) -> str:
 
 def prose_candidates(raw: dict) -> dict:
     """Every **top-level** field of a topology document that is prose rather than
-    structure: a string, or a flat object of strings the way ``provenance`` is.
+    structure: a string, a flat list of strings the way ``notes`` is, or a flat
+    object of strings the way ``provenance`` is.
 
     This is deliberately independent of ``PROSE_FIELDS`` -- it is what the
     completeness arm of the pairing test measures that tuple *against*, so it
@@ -1087,15 +1088,48 @@ def prose_candidates(raw: dict) -> dict:
     out of scope on purpose: the guard this serves was written for the
     document's own header, and widening it is a decision with its own false
     positives, not a tidy-up.
+
+    **The list arm is load-bearing and was missing until review.** ``notes`` is
+    a ``list[str]``, and it is the field carrying the primary hand-copied
+    inventory this whole guard exists for -- so a version of this function that
+    knew only ``str`` and ``dict`` could not see the one key that matters, and
+    the completeness arm below silently could not fire for it. (``own_prose``
+    was never affected: it dumps the raw value, so the *guard proper* has always
+    scanned ``notes``. What was overstated was the completeness arm's claim.)
+    ``test_every_prose_field_the_count_pairing_claims_is_really_scanned``'s
+    reachability arm now measures exactly that, per field, so a fourth JSON
+    shape cannot arrive unnoticed the way the second did.
     """
     prose = {}
     for key, value in raw.items():
         if isinstance(value, str):
             prose[key] = value
-        elif isinstance(value, dict) and value and all(
-                isinstance(v, str) for v in value.values()):
+        elif isinstance(value, (dict, list)) and value and all(
+                isinstance(v, str) for v in
+                (value.values() if isinstance(value, dict) else value)):
             prose[key] = json.dumps(value)
     return prose
+
+
+def unlisted_inventory_fields(fields: tuple) -> list[str]:
+    """``<file>:<key>`` for every top-level prose field of a committed topology
+    that states an inventory of the graph and is **not** in ``fields``.
+
+    ``fields`` is an argument rather than a read of ``PROSE_FIELDS``, and that
+    is the whole design: it is what lets the test below replay this scan against
+    a tuple with one key removed and require the removal to be *reported*. A
+    scan that reads the constant it is measuring cannot notice a key leaving it
+    -- the defect this function answers, which this repo has now shipped twice
+    in the same fortnight, once in the guard and once in the guard's own
+    falsifiability check.
+    """
+    unlisted = []
+    for path in topology_files():
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        for key, text in prose_candidates(raw).items():
+            if inventory_sentences(text) and key not in fields:
+                unlisted.append(f"{path.name}:{key}")
+    return unlisted
 
 
 def doc_section_for(topology_file: Path) -> str:
@@ -1217,13 +1251,32 @@ def test_every_prose_field_the_count_pairing_claims_is_really_scanned():
     three other fields
     (``ISSUE_20260914_topology_description_sits_outside_the_structural_count_guard``).
 
-    Two arms, and the second is the load-bearing one. Planting a wrong inventory
-    in each ``PROSE_FIELDS`` entry in turn proves every listed field is really
-    reached -- but a loop over that tuple cannot notice a key **leaving** it, it
-    just goes quiet, which is the same vacuity one level up (measured: dropping
-    ``description`` from the tuple left this test green until the second arm was
-    added). So the second arm measures the tuple against the corpus instead, via
-    ``prose_candidates``, which does not read it.
+    Four arms, and the same lesson learned twice getting to them.
+
+    1. **Parser + per-field reach.** A wrong inventory planted in each
+       ``PROSE_FIELDS`` entry in turn comes back wrong through ``own_prose``.
+    2. **The filter filters** -- a key outside the tuple is not scanned, which
+       is what makes arm 1 a claim about scope rather than about strings.
+    3. **Reachability.** Every listed field is one ``prose_candidates`` returns
+       for some committed topology.
+    4. **Completeness, and its own replay.** Nothing in the corpus states an
+       inventory in a field the tuple omits -- and dropping any key that has
+       something to report *is* reported.
+
+    Arms 1 and 2 alone were vacuous, and measurably so: a loop over
+    ``PROSE_FIELDS`` cannot notice a key **leaving** it, it just does one fewer
+    iteration (measured: dropping ``description`` left this test green, which is
+    the same vacuity one level up from the defect it was written for). So arm 4
+    measures the tuple against the corpus via ``prose_candidates``, which does
+    not read it.
+
+    Arm 3 is there because arm 4 then failed the same way one field over, and
+    review caught it rather than a tier: ``notes`` is a ``list[str]``, a shape
+    the first ``prose_candidates`` did not know, so dropping ``notes`` -- the key
+    carrying the primary hand-copy this entire guard exists for -- also left the
+    whole module green. Reachability is the question that separates "this field
+    states no inventory today" from "this field is invisible to the scanner",
+    and only the first of those is a safe silence.
     """
     topology = load_topology(L1_TOPOLOGY)
     expected = {stem: how(topology) for stem, how in _COUNTABLES.items()}
@@ -1247,27 +1300,57 @@ def test_every_prose_field_the_count_pairing_claims_is_really_scanned():
     # which is what makes the loop above a claim about scope at all.
     assert inventory_sentences(own_prose({"id": planted})) == []
 
-    # The completeness arm: every top-level prose field of every committed
-    # topology that states an inventory must be one PROSE_FIELDS lists. This is
-    # what reddens when a key is dropped, and what would have reddened on
-    # 2026-09-14 the moment `description` arrived carrying these counts.
-    inventoried = []
+    # REACHABILITY. Every field PROSE_FIELDS lists is one `prose_candidates`
+    # can actually see in the corpus -- which is NOT the same question as
+    # whether it happens to state an inventory today, and it is the question
+    # that was missed: `notes` is a `list[str]`, so a `prose_candidates` that
+    # knew only `str` and `dict` returned it for no document, and the
+    # completeness arm below could not fire for the very field the guard exists
+    # for. A field listed here but invisible there has an UNMEASURED reach, not
+    # a clean one.
+    reachable = set()
     for path in topology_files():
         raw = json.loads(path.read_text(encoding="utf-8"))
-        for key, text in prose_candidates(raw).items():
-            if not inventory_sentences(text):
-                continue
-            inventoried.append(f"{path.name}:{key}")
-            assert key in PROSE_FIELDS, (
-                f"{path.name}'s `{key}` states an inventory of the graph and "
-                f"PROSE_FIELDS does not list it, so nothing pairs that copy to "
-                f"the graph it describes. Add the key to PROSE_FIELDS -- never "
-                f"retype the counts.")
-    assert inventoried, (
-        "no committed topology states an inventory in its own header prose at "
-        "all, so this arm measured nothing. If the counts really are gone, "
-        "check they did not move somewhere prose_candidates does not look "
-        "(a nested note, a study) before believing it.")
+        reachable |= set(prose_candidates(raw))
+    assert set(PROSE_FIELDS) <= reachable, (
+        f"PROSE_FIELDS lists {sorted(set(PROSE_FIELDS) - reachable)}, which "
+        f"`prose_candidates` returns for no committed topology -- so the "
+        f"completeness arm below cannot see those fields and would stay green "
+        f"if they left the tuple. Either teach prose_candidates that field's "
+        f"JSON shape (it knows str, list[str] and flat dict[str]), or drop the "
+        f"key until a document carries it.")
+
+    # COMPLETENESS. Every top-level prose field of every committed topology
+    # that states an inventory is one PROSE_FIELDS lists.
+    assert unlisted_inventory_fields(PROSE_FIELDS) == [], (
+        f"{unlisted_inventory_fields(PROSE_FIELDS)} state an inventory of the "
+        f"graph and PROSE_FIELDS does not list them, so nothing pairs those "
+        f"copies to the graph they describe. Add the key -- never retype the "
+        f"counts.")
+
+    # ...and that arm REPLAYED, per member: dropping a key from the tuple has
+    # to be reported, for every key the corpus gives it something to report.
+    # The first version of this test only looped over PROSE_FIELDS, which
+    # cannot see a key leave; this one runs the scan against a reduced tuple
+    # and requires the reduction to name the field it removed.
+    replayed = set()
+    for field in PROSE_FIELDS:
+        without = tuple(f for f in PROSE_FIELDS if f != field)
+        named = unlisted_inventory_fields(without)
+        if not named:
+            continue    # nothing in the corpus states an inventory there
+        replayed.add(field)
+        assert all(n.endswith(f":{field}") for n in named), (
+            f"dropping {field!r} from PROSE_FIELDS reported {named}, which "
+            f"names some other field -- the scan is not attributing what it "
+            f"finds to the key that went missing.")
+    assert replayed == {"description", "notes"}, (
+        f"dropping a key reddens for {sorted(replayed)}; the corpus states an "
+        f"inventory in `description` and in `notes`, so those are the two that "
+        f"must. A field missing from this set is either a "
+        f"corpus change -- check the counts moved somewhere still guarded -- or "
+        f"prose_candidates having gone blind to that field's JSON shape again, "
+        f"which is what the reachability arm above is for.")
 
 
 # --------------------------------------------------------------------------- #

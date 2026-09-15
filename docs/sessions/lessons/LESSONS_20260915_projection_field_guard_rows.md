@@ -122,9 +122,12 @@ does not fit. It fits exactly one item.
   can_fail` — and item 2's work was to make it replay the guard's **scope** as
   well as its parser.
 
-## 4. The scope replay was vacuous on the first try — measured, not reasoned
+## 4. The scope replay was vacuous **twice**, and the second one needed a reviewer
 
-The shape I wrote first, and the one that looks obviously right:
+Read §4 as one lesson in two rounds, because the interesting part is that the
+same mistake survived the fix for it.
+
+### Round 1 — the shape I wrote first
 
 ```python
 for field in PROSE_FIELDS:
@@ -134,23 +137,72 @@ for field in PROSE_FIELDS:
 **Measured: dropping `description` back out of `PROSE_FIELDS` left that test
 green.** A loop over the tuple cannot notice a key *leaving* it — it just does
 one fewer iteration. That is the same vacuity the whole handoff is about, one
-level up, and it is worth being caught by: I only found it because I ran the
-demonstration the handoff asked for instead of trusting the shape.
+level up, and I only found it because I ran the demonstration the handoff asked
+for instead of trusting the shape.
 
-The repair is a second arm that measures the tuple against the corpus and does
+The repair was a second arm that measures the tuple against the corpus and does
 **not** read it: `prose_candidates(raw)` returns every top-level field of a
-topology document that is prose rather than structure (a string, or a flat
-object of strings the way `provenance` is), and the test requires every one
-whose text states an inventory to be in `PROSE_FIELDS`. With `description`
-dropped, that arm now names the file and the key.
+topology document that is prose rather than structure, and the test requires
+every one whose text states an inventory to be in `PROSE_FIELDS`.
 
-Generalisable: **a test that iterates a constant cannot guard that constant's
-completeness.** It needs a second source of truth, and the corpus is usually
-sitting right there.
+### Round 2 — and `prose_candidates` could not see `notes`
 
-`prose_candidates` deliberately does not descend into `nodes`/`edges`/`studies`.
-A count inside an edge's note is still a hand-copy, but widening the scan there
-is a decision with its own false positives, not a tidy-up.
+The review's blocker, and it was right. `prose_candidates` recognised a `str`
+or a flat `dict[str]` "the way `provenance` is". **`notes` is a `list[str]`** —
+the field carrying the *primary* hand-copied inventory this guard exists for,
+in all five committed topologies. So:
+
+**Measured: dropping `notes` from `PROSE_FIELDS` left the whole module green
+(120 passed).** The new arm, whose own docstring said "this is what reddens when
+a key is dropped", was true for `description` and false for `notes`, and no tier
+could tell.
+
+The guard *proper* was never affected — `own_prose` dumps the raw value, so a
+`list[str]` is scanned, and planting `11 edges` in `notes` reddens today exactly
+as it always has. What was wrong was the **falsifiability check's** claim about
+itself. That is a worse failure than a narrow guard: a guard that admits its
+reach gets widened, a guard that overstates it gets trusted.
+
+### What the fix has to be, and the transferable rule
+
+Widening `prose_candidates` to `list[str]` fixes today. It does not fix the
+class — a fourth JSON shape would land the same way. So the arm that answers
+the class is a **reachability** arm, which is the thing neither round had:
+
+```python
+assert set(PROSE_FIELDS) <= reachable   # reachable = every key prose_candidates returns
+```
+
+That separates two silences the first two rounds conflated:
+
+- *"no committed document's `title` states an inventory"* — safe, expected, and
+  why dropping `title` reddens nothing.
+- *"`notes` is invisible to the scanner"* — the defect, and indistinguishable
+  from the above by every assertion I had written.
+
+**The rule: a completeness check needs a second source of truth, and then it
+needs to prove it can SEE that source.** Corpus-vs-constant is the right shape
+and it is not sufficient on its own; the scanner standing between them is a
+third thing that can be wrong, and it fails silently in precisely the direction
+that looks like good news.
+
+The completeness arm is also now genuinely replayed rather than described:
+`unlisted_inventory_fields(fields)` takes the tuple as an **argument**, and the
+test runs it against `PROSE_FIELDS` minus each key in turn, requiring the
+removal to be *named*. In round 1 that replay existed only as a sentence in this
+lesson, which is exactly the "nothing schedules anyone to read it" failure the
+tactical prompt warns about — and it is why the reviewer, not a tier, found
+round 2.
+
+### The four arms, and what each one bites on (all measured)
+
+| arm | mutation | result |
+| --- | --- | --- |
+| 1 parser + per-field reach | — | passes; proves `own_prose` reads each listed field |
+| 2 the filter filters | — | a key outside the tuple is not scanned |
+| 3 reachability | `prose_candidates` re-narrowed to `str`+`dict` (the reviewed defect, restored) | **red**: `PROSE_FIELDS lists ['notes'], which prose_candidates returns for no committed topology` |
+| 4 completeness + per-member replay | drop `notes` | **red**, naming all five files |
+| 4 | drop `description` | **red**, naming both files |
 
 ## 5. Same defect shape as atp-post's `census_live_test_pins_a_growing_count`
 
@@ -188,9 +240,27 @@ Each demonstration the handoff asked for, and what it printed.
 **The count guard bites on `description`.** Planting `9 edges` in
 `topology_pitch_link_to_pitch_plate.json`'s description (the graph has 8):
 `AssertionError: topology_pitch_link_to_pitch_plate.json states [9] edge(s);
-the graph has 8. In: '4 parts, 7 interfaces, 9 edges.'` — and the scope arm
-bites on a dropped key, as §4 describes. Both counts left exactly as shipped
-(4/7/8 and 4/7/7); the defect was the pairing.
+the graph has 8. In: '4 parts, 7 interfaces, 9 edges.'` — and the scope arms
+bite per §4's table. Both counts left exactly as shipped (4/7/8 and 4/7/7); the
+defect was the pairing.
+
+**And it still bites on `notes`, which is what round 2 had to confirm.** Planting
+`11 edges` in the same file's `notes` → `states [11] edge(s); the graph has 8.
+In: '4 parts, 7 interfaces, 11 edges, 3 branch points, 2 grounded loops …'`.
+`own_prose` dumps the raw value, so a `list[str]` was always scanned — the
+`prose_candidates` blind spot was in the *falsifiability check*, never in the
+guard.
+
+**Round-2 review fixes, verified.** The `aliased` non-vacuity witness now uses
+`(part.mesh || {})`: on a scratch root with the 28 meshless parts' `mesh` blocks
+**removed** and the one meshed part's kept, both rewritten tests pass and the
+value-guard row prints the rebuild diagnosis in the same run. The only throw
+left on that root is the untouched third test, which is the pre-existing shape
+noted above. The `[real]` mesh block's header comment no longer states a count
+(it named "two installed meshes … against 29 topology parts" — dated, and
+`data/meshes/` holds 24 today, of which 1 resolves to a topology part; the
+sentence now gives the reason and points at `tests/test_part_mesh_aliases.py`,
+which owns the alias table).
 
 **The mesh tests hold at any mesh count.** Three scratch projections:
 

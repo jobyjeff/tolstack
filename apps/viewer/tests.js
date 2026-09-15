@@ -7482,10 +7482,13 @@
 
         // --- 3D affordances against the REAL mesh set --------------------
         //
-        // (handoff annotate_affordances_flyout_and_mesh_gating.) Two installed
-        // meshes and one alias entry at 2026-09-14, against 29 topology parts:
-        // the affordance that used to render on every untraced edge dead-ended
-        // in the annotator's empty state for all but one of them.
+        // (handoff annotate_affordances_flyout_and_mesh_gating.) The viewer
+        // offered "open this part in 3D" on every untraced edge, and for all
+        // but a handful of parts that link dead-ended in the annotator's empty
+        // state: far fewer meshes are installed than there are topology parts,
+        // and the alias table resolves some of the ones that are. No count
+        // lives in this comment on purpose -- the numbers move, and
+        // tests/test_part_mesh_aliases.py owns the shipped alias table.
         //
         // ALL THREE are written COUNT-FREE and NAME-FREE, and that is the whole
         // discipline of this block: a sibling repo is actively growing the mesh
@@ -7563,7 +7566,12 @@
             // any mesh count (the shipped table itself is pinned by
             // tests/test_part_mesh_aliases.py and apps/annotate/'s [real] tier).
             var aliased = topoParts(realTopologies).filter(function (part) {
-              return part.mesh.installed && part.mesh.part_id !== part.id;
+              // Guarded: on a projection older than the `mesh` field this
+              // witness REPORTS rather than throwing, and the value-guard row
+              // for parts[].mesh.installed prints the rebuild diagnosis in the
+              // same run.
+              var mesh = part.mesh || {};
+              return mesh.installed && mesh.part_id !== part.id;
             });
             ok(aliased.length > 0, "no live part's mesh is installed under an " +
               "id other than its own, so nothing here exercises the alias " +
