@@ -55,9 +55,10 @@
     // How far the jog zone has been dragged open, as a multiple of its own
     // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
     // a pixel width precisely BECAUSE it outlives the topology it was set on:
-    // five leaders and forty-three leaders have very different natural
-    // widths, and "twice as spread out" survives the switch where a stored
-    // pixel width would collapse one and explode the other.
+    // two topologies' natural zones differ by as many times as their leader
+    // counts do, so "twice as spread out" survives the switch where a stored
+    // pixel width would crush one diagram's lanes together and leave the
+    // other's barely moved.
     //
     // In-session only, like every other display preference on this page.
     // localStorage was considered and left alone: the page is opened from
@@ -715,9 +716,9 @@
   // reading them back per move compounds every frame into a runaway.
   var resizeFrame = null;
 
-  // One paint per animation frame, not one per raw pointermove: the pitch
-  // system's grid is 43 rows and a browser fires moves far faster than it can
-  // rebuild them.
+  // One paint per animation frame, not one per raw pointermove: a real
+  // topology's pane is a full SVG plus a row per edge, and a browser fires
+  // moves far faster than it can rebuild that.
   function scheduleResizePaint() {
     if (resizeFrame !== null) return;
     var raf = (typeof window !== "undefined" && window.requestAnimationFrame)

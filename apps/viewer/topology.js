@@ -406,9 +406,10 @@
   // How far the jog zone may be dragged open, as a MULTIPLE of its natural
   // width (leaderPad/leaderLane over the leader count). A multiple rather
   // than a pixel width because the preference outlives the topology it was
-  // set on — five leaders and forty-three leaders have very different natural
-  // widths, and "twice as spread out as it would be" survives the switch
-  // where "340px" would collapse one and explode the other.
+  // set on, and two topologies' natural zones differ by as many times as
+  // their leader counts do: "twice as spread out as it would be" survives the
+  // switch where a stored pixel width would crush one diagram's lanes
+  // together and leave the other's barely moved.
   VA.JOG_ZONE_SCALE = { min: 1, max: 12 };
 
   VA.clampJogZoneScale = function (scale) {
@@ -1209,16 +1210,16 @@
   // leader lines (these same colors can be the alternating row background
   // colors)." So the region BETWEEN two adjacent leaders and the grid rows
   // that region feeds wear one tint, and an eye can ride a band across the
-  // jog zone into its own rows instead of tracking one 1.5px line through
-  // forty-two others.
+  // jog zone into its own rows instead of tracking one 1.5px line among all
+  // the others.
   //
   // The tints are NEUTRAL and there are exactly two of them (topology.css's
   // --tv-band-a / --tv-band-b, the same two-greys-by-parity precedent the
   // rails already use). That is the page's hardest constraint, not a style
   // choice: green, amber, red and magenta are provenance here and nothing
   // else may wear them (README, "The colours"), and a categorical band
-  // palette would both collide with that and run out of hues long before the
-  // pitch system's forty-three rows.
+  // palette would both collide with that and run out of hues long before a
+  // real mechanism runs out of bands.
   //
   // A band is indexed by how many leaders sit above it: band 0 is everything
   // above the first leader, band i is between leaders i-1 and i, and band
