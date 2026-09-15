@@ -12,6 +12,8 @@ would have shipped:
 
 * a ``--document`` that is not in ``data/inbox/specs/`` (the pile is the MAIN
   checkout's: from a worktree, pass ``--data-root C:\\workspace\\tolstack\\data``);
+* a ``--registry`` path that does not exist, or a registry file that does not
+  parse -- you cannot append to a registry you cannot read;
 * a ``--page`` the document does not have;
 * a ``--rect`` that is empty, inverted, or hangs off the page;
 * a label already recorded for that document and page, or a ``--match`` string
@@ -33,6 +35,7 @@ absent from this repo's ``requirements.txt``, exactly like
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence, Tuple
@@ -129,6 +132,18 @@ def main(argv: Optional[List[str]] = None,
     pdf = specs_dir / args.document
 
     try:
+        # Named before it is opened. A missing file raises FileNotFoundError,
+        # which is not one of the two this block catches, so it used to escape as
+        # a traceback -- the one rough edge in a verb whose whole selling point
+        # is that it refuses cleanly, and on the flag (`--registry`) a worktree
+        # session is most likely to re-spell by hand.
+        # ISSUE_20260914_record_spec_crop_region_tracebacks_on_a_missing_registry.
+        if not registry_path.exists():
+            raise Refused(
+                f"no crop-region registry at {registry_path} -- the tracked one "
+                f"is at {scr.REGISTRY_RELPATH.as_posix()}, relative to the repo "
+                f"root; check --registry"
+            )
         registry = scr.load(registry_path)
         if not pdf.exists():
             raise Refused(
@@ -163,7 +178,7 @@ def main(argv: Optional[List[str]] = None,
         # or a colliding match string is refused here rather than discovered by
         # a crop that quietly stopped resolving.
         grown = scr.append(registry, region)
-    except (scr.RegistryError, Refused) as refusal:
+    except (scr.RegistryError, Refused, json.JSONDecodeError) as refusal:
         print(f"refused: {refusal}", file=sys.stderr)
         return 2
 

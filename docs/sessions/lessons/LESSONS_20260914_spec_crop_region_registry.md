@@ -152,3 +152,69 @@ over from the main-checkout build instead of rebuilding them locally.
 skipped before; the skip was `test_viewer_js_suite`'s node-fs tier, which now
 has a worktree projection to read). `node apps/viewer/run_tests.cjs`:
 **285/285**, `[real]` tier included.
+
+## Rework after REQUEST CHANGES (review/spec_crop_region_registry)
+
+The review confirmed the rects by re-rendering all 13 and reading them against
+two independent transcriptions, and raised **one blocker**: every test entered
+at a *pure* function, so replacing
+
+```python
+region = region_for(registry, pdf, specs_dir, page_no, source_ref, hardware_ref)
+```
+
+with `region = None` reverted the entire deliverable with all three tiers 100%
+green. That is right, and it is the sharper version of a thing worth
+remembering: `registry` is threaded by hand as a trailing positional through
+five call sites, and *testing both ends of a thread is not testing the thread*.
+`test_every_live_pile_citation_resolves_to_the_row_it_cites` proves the registry
+answers correctly; `tests/test_viewer_crops.py`'s `locate`/`region_for` tests
+prove each end behaves; nothing asked whether the builder still calls one from
+the other.
+
+**What closed it.** Four tests entering at `crop_element` /
+`crop_topology_edge` — the builder's real entry points, rendering included —
+with a `fitz` stand-in in `sys.modules`. That works because the crop builder
+imports `fitz` *lazily and at function scope*, which the module docstring says
+is so the resolution rules stay testable under this repo's stdlib-only venv; the
+same seam turns out to make the whole render path testable, which is more than
+the docstring claims. The fake is four small classes (`FakeDoc`, `FakePixmap`,
+`FakeClip`, and `get_pixmap` on the `FakePage` that was already there) and the
+width/height it reports are derived from the clip, so a crop entry's pixel size
+says *which rect was rendered* — that is what makes
+`(321, 24)` a meaningful assertion rather than a magic number.
+
+Verified by running the mutations, not by reading the tests:
+
+| mutation | result |
+|---|---|
+| `region = None` in `_crop_from_citation` | 2 failed |
+| `region_for(registry, specs_dir, pdf, …)` — the two paths transposed, which fails the pile check and returns `None` silently | 2 failed |
+| `crop_element` passes `None` instead of threading `registry` | 1 failed |
+
+All three were reverted and `git diff` confirmed clean before committing.
+
+**The nits, all three taken.** The verb now refuses a `--registry` path that
+does not exist (and a file that does not parse) with the same
+`refused: <report>` / exit 2 every other misuse gets, instead of a
+`FileNotFoundError` traceback — that is the reviewer's
+`ISSUE_20260914_record_spec_crop_region_tracebacks_on_a_missing_registry.md`,
+fixed here with two tests; it is still marked `open` because the file lives on
+the review branch. The `docs/spec_library/README.md` command sketch now carries
+every required flag, so it runs as printed. And `live_pile_citations`'s
+docstring says out loud that it keys on `source_ref.document` while production
+keys on the resolved `pdf.name` — a proxy that holds for every live citation and
+would be silent if the two ever diverged, which the new end-to-end tests now
+cover from the other side.
+
+The live `crops.json` was **not** rebuilt for this rework: nothing in the
+resolution path changed (tests, a CLI refusal, docs), so a rebuild would write
+identical crops and re-open the cross-worktree overwrite question for nothing.
+
+### One trap that cost ten minutes, for anyone scripting an edit here
+
+A `\` inside a quoted heredoc passed to `python -` through this harness does
+**not** survive as a literal backslash: `'scripts\record_...'` reached Python as
+`scripts` + CR + `ecord_...`, so a string replacement against a Windows path in
+a doc failed with no visible reason (the needle printed back identically). Build
+the backslash as `chr(92)` — or edit the file with a tool instead of a heredoc.

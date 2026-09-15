@@ -145,3 +145,23 @@ def test_a_missing_pymupdf_names_the_interpreter_to_use(bench, capsys):
 
     assert record(bench, entry(), geometry_fn=no_fitz) == 2
     assert "drawing-checker" in capsys.readouterr().err
+
+
+def test_a_registry_path_that_does_not_exist_is_refused_not_a_traceback(bench, capsys):
+    # The one rough edge review/spec_crop_region_registry found: `scr.load` raises
+    # FileNotFoundError, which is not one of the two the verb catches, so it used
+    # to escape as a stack trace -- on the flag a worktree session is most likely
+    # to re-spell by hand.
+    # ISSUE_20260914_record_spec_crop_region_tracebacks_on_a_missing_registry.
+    bench["registry"].unlink()
+    assert record(bench, entry()) == 2
+    err = capsys.readouterr().err
+    assert err.startswith("refused:")
+    # Name the default, so the reader's next step is not "grep for the path".
+    assert "docs/spec_library/crop_regions.json" in err
+
+
+def test_a_registry_file_that_does_not_parse_is_refused_the_same_way(bench, capsys):
+    bench["registry"].write_text("{not json", encoding="utf-8")
+    assert record(bench, entry()) == 2
+    assert capsys.readouterr().err.startswith("refused:")
