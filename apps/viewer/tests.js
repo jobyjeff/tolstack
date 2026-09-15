@@ -6685,6 +6685,23 @@
             eq(Number(floor[2]), M.rowHeight, "README's row height");
             eq(Number(floor[3]), livePitch.layout.rows.length * M.rowHeight,
                "README's floor minimum");
+
+            // "`pitch_system`'s walk needs **10 columns**, while every one of
+            // its study chains is linear and needs **1**" — the respine
+            // section's reason for sliding the block instead of interpolating
+            // x (viewer_study_respine_animation).
+            var columns = /walk needs \*\*(\d+) columns\*\*,\s+while\s+every\s+one\s+of\s+its\s+study\s+chains\s+is\s+linear\s+and\s+needs\s+\*\*(\d+)\*\*/
+              .exec(readme);
+            ok(columns, "expected the README's column-count sentence");
+            eq(Number(columns[1]), livePitch.layout.columns,
+               "README's walk column count");
+            var chainColumns = (livePitch.studies || []).filter(function (s) {
+              return s.status === "ok" && s.layout;
+            }).map(function (s) { return s.layout.columns; });
+            ok(chainColumns.length, "pitch_system must have summing studies");
+            chainColumns.forEach(function (c) {
+              eq(c, Number(columns[2]), "README's chain column count");
+            });
           });
 
         await test("[real] right-justifying pitch_system takes its spine " +

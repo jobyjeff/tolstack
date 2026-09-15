@@ -2671,8 +2671,8 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
       push("[real] the whole block slides, header and body by the same offset",
         /translateX\(/.test(inFlight.bodyShift) &&
         inFlight.headShift === inFlight.bodyShift);
-      push("[real] and by a real distance — pitch_system's walk is nine " +
-        "columns wider than any of its chains",
+      push("[real] and by a real distance — the walk and the chain are " +
+        "justified against jog zones far apart",
         Math.abs(parseFloat(/translateX\(([-\d.]+)px\)/
           .exec(inFlight.bodyShift)[1])) > 20);
     }

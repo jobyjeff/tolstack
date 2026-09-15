@@ -497,11 +497,16 @@ would be the surprise.
 
 ### Studies
 
-Picking a study highlights its chain, numbers each row with **its place in the
-sum** — which is generally not the row order, because the rows are a walk of the
-whole graph — prints each edge's own signed and scaled contribution, and puts the
-totals at the bottom. "Showing: study chain" re-lays the rows as
-`StudyResult.chain`: one rail, the sum's own order.
+Picking a study **re-spines the page onto that study's chain**: the rows become
+`StudyResult.chain` — one rail, right-justified, in the order the sum runs —
+each numbered with its place in that sum, with its own signed and scaled
+contribution printed and the totals at the bottom. "Showing: whole topology"
+puts the walk back, with the chain highlighted on it and everything else
+dimmed; a study that refuses to sum has no chain to lay out and stays on the
+walk, which is the same condition that button disables itself for.
+
+The re-spine is **animated** — see "Selecting a study re-spines the DAG"
+below.
 
 **A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,
 `BrokenChain`, `CycleDetected` and `UnitMismatch` each render as a block carrying
@@ -766,11 +771,66 @@ moves**: its rows stay at `rowHeight`, evenly spaced, and a leader's grid-side
 seam stays `gridOffset + boundary × rowHeight` — the block moves, the pitch
 does not, and the node-side ends follow the store, which is the stretch the
 jogged leaders were built to absorb. The store is also the
-seam the future study-selected animated rearrange needs: geometry is a pure
-function of `(layout, metrics, positions)`, so an animator can interpolate
-between two stores and redraw per frame with nothing else changing. A display
-preference like density: switching topologies never resets it, and the mode
-button only ever re-renders (no scroll rewind).
+seam the study re-spine animation runs on (below): geometry is a pure function
+of `(layout, metrics, positions)`, so the animator interpolates between two
+stores and redraws per frame with nothing else changing. A display preference
+like density: switching topologies never resets it, and the mode button only
+ever re-renders (no scroll rewind).
+
+### Selecting a study re-spines the DAG, and that is a movement
+
+Jeff, on the shipped arcs: *"I asked for this before (including smooth
+animation when the dag rearranges itself)."* So the three controls that change
+**which serialisation** is on screen — picking a study in the nav, dropping it
+again, and the toolbar's own layout toggle — render the pane as a transition
+rather than a repaint. Nothing else does: density, length mode, leader style
+and the two drag widths all change how the *same* rows are drawn, and have
+always been a plain render.
+
+`VA.tweenPositions(from, to, e)` interpolates one position store into another
+and hands the result to the two geometry passes unchanged, which is why there
+is no second layout path and no geometry function moved to get this. Three
+things are worth knowing about it:
+
+* **the pairing is by element, not by row key.** A layout row *index* is not
+  comparable between the walk and a chain — row 3 of one is a different edge
+  from row 3 of the other — so every slot in the store carries its own
+  `id`/`kind` and the tween matches on those. Paired by index, a row would fly
+  in from a slot it never occupied and still look plausible;
+* **only y is interpolated, and x cannot be.** Which column a row lands on is a
+  claim about the graph, the two serialisations disagree about how many columns
+  there are (`pitch_system`'s walk needs **10 columns**, while every one of its
+  study chains is linear and needs **1**), and a rail is not a keyed row — interpolating each mark's x while
+  its rail stayed on the target's column would draw dots floating beside the
+  lines they sit on. Both serialisations are right-justified against the jog
+  zone, so the whole drawn block slides instead (`VA.respineShift`, a CSS
+  transform): the first frame puts the incoming grid's left edge exactly where
+  the outgoing one had it, and the slide settles at zero;
+* **the rows a chain drops cannot be drawn from the target layout**, because
+  they are not in it. So the outgoing paint is kept — the real nodes, moved
+  into an inert overlay — and faded out while the incoming one moves into
+  place. The grid cross-fades with it rather than moving, because two tables in
+  different orders and of different lengths cannot be lined up; the DAG beside
+  it does not, because its surviving marks start exactly where they were.
+  Rows and interfaces the transition *adds* fade in at their own settled
+  position.
+
+**The animation is presentation and nothing else.** Its last frame is a plain
+render with no tween and no ghost, so the settled page is the page a render
+that never animated produces — bar for bar, dot for dot, leader for leader, in
+every length mode and both directions. The browser tier proves that by
+reaching the same selection twice, once through the transition and once with
+`prefers-reduced-motion: reduce` emulated, and pairing the two DOMs.
+`prefers-reduced-motion` is also the honest answer to the preference itself:
+reduce means jump to the end state, not animate faster.
+
+Two failure modes get explicit answers. A frame runs off an animation callback,
+outside the one try/catch every other render on this page goes through, so a
+throw in one is handed to the same crash banner instead of escaping as an
+unhandled error. And any paint that is **not** one of the transition's own
+frames cancels it first — otherwise the next frame would repaint from the
+context the transition started with and silently undo a preference the reader
+had just changed.
 
 ### Generated checks are generated in Python too
 
