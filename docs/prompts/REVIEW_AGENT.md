@@ -459,6 +459,22 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **One sentence made honest, with the chrome around it still instructing
+      the reader to do the thing.** New 2026-09-15
+      (`surfaces_that_state_something_false`). The banner now says the feature
+      is unavailable on this origin and the control is correctly *removed* --
+      and two inches below, the detail hint still reads "click a face in the 3D
+      view to bind it", the selects and the dev console are still live, and the
+      3D pane the hint names is now genuinely absent because the fix skips
+      constructing the scene. The honest sentence makes the surrounding
+      instructions *contradicted* rather than merely unreachable, so a fix of
+      this shape can leave the page stating something falser than before.
+      **Load the page and read the WHOLE viewport, not the element the test
+      asserts on** -- a screenshot in the configuration under test settles it
+      in one look, and the fast tier cannot (`app.js` boots nowhere but a
+      browser). Ask: what else on this page claims a capability the branch just
+      withdrew? (`ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_
+      reader_to_bind_a_face`.)
 - [ ] **A guard that no longer witnesses what it claims, and says nothing about
       it.** The witness is coupled to an incidental property of the app; the app
       then changes *correctly* and the guard silently stops biting. Nothing goes

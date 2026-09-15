@@ -940,7 +940,7 @@
           eq(VA.isLocalPage("https:", host.toUpperCase()), true, host);
         });
         // A hosted visitor, in the shapes a real origin produces -- including
-        // a hostname that merely CONTAINS a local one, which an lax match
+        // a hostname that merely CONTAINS a local one, which a lax match
         // would wave through.
         ["tolstack.joby.aero", "kibot", "localhost.attacker.example",
          "notlocalhost", ""].forEach(function (host) {
