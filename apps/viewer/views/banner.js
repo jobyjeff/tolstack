@@ -3,6 +3,11 @@
 // missing projection is the app's most likely first-run condition and it should
 // never look like a bug.
 //
+// Above all three sits one state that is not about a connection at all: a
+// served page whose origin has nothing published (viewer_transport_honest_
+// hosted, 2026-09-14). It short-circuits the whole function — see the first
+// branch below.
+//
 // The one exception is the STALE-pair alarm below (provenance()): it never
 // shows a command, in either mode. Jeff hit this exact box on 2026-09-10
 // pasted straight into PowerShell and found two commands concatenated onto
@@ -16,6 +21,27 @@
 
   VA.renderBanner = function (root, state, handlers) {
     VA.clear(root);
+
+    // A served page whose origin publishes no data (VA.TRANSPORT.UNPUBLISHED,
+    // storage/adapter.js's chooseTransport): one plain sentence, and nothing
+    // else on the bar. NOT the disconnected banner below it — **Connect
+    // folder** cannot work for a hosted visitor, who has no tolstack repo to
+    // grant, and a control that cannot work is not softened by being present:
+    // it reads as a page asking for access to their files and then failing.
+    // A feature that is absent shows nothing, not a dead button.
+    //
+    // Nothing is latched here, deliberately: the state is recomputed from a
+    // fresh probe on every load, so once the origin starts serving the
+    // projections a plain reload enters served mode with no user action.
+    if (state.transport === VA.TRANSPORT.UNPUBLISHED) {
+      root.className = "banner banner--unpublished";
+      root.appendChild(VA.el("span", null,
+        "The tolerance-stack data is not published on this site yet — " +
+        "there is nothing to show."));
+      if (state.error) root.appendChild(VA.el("div", "banner__error", state.error));
+      return root;
+    }
+
     root.className = "banner banner--" + state.connection;
     // Which projection sits in `state.results` — see VA.PROJECTION_LABELS. The
     // topology page passes `topologies`; everything else defaults to `results`.
@@ -34,7 +60,7 @@
       // FSA mode gets none, unchanged from before this handoff — the connect-
       // folder banner already disappeared on its own once state went READY,
       // and the picker itself is proof enough of "the granted folder" there.
-      if (state.transport === "http") {
+      if (state.transport === VA.TRANSPORT.HTTP) {
         root.appendChild(VA.el("div", "banner__source",
           "Served over HTTP — no folder grant needed. Read-only."));
       }
