@@ -36,9 +36,18 @@ is fixed.
 
 ## How you would notice it is still broken
 
-From any tree, `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack`
-fails the two fixture-shape guards (`[real] every fixture shape still matches
-the builder's` and its topology twin) with fields the reading branch has never
-heard of. That is the symptom of a mixed-tree projection set, not of a defect
-in the branch running the suite — which is itself worth knowing, because it
-reads exactly like one.
+Read the three `provenance.branch` / `head_sha` stamps in
+`data/projections/viewer/{crops,results,topologies}.json`. At the time of the
+review merge they were three *different* branches
+(`handoff/spec_crop_region_registry`, `handoff/stack_title_style_pass`,
+`review/annotate_affordances_flyout_and_mesh_gating`), which is the fact.
+
+**Do not use the JS suite as the detector** (corrected 2026-09-14 in review):
+from a tree that does not contain the sibling branches,
+`node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack` fails the two
+fixture-shape guards (`[real] every fixture shape still matches the builder's`
+and its topology twin) with fields the reading branch has never heard of -- but
+from a tree that *does* contain them (this review branch, cut from
+`integration`) the same command is 299/299 green while the projections are
+still from three trees. The suite reports whether the reading tree knows the
+fields, not whether the projections share a tree; only the stamps answer that.

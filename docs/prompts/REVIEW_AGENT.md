@@ -1998,6 +1998,53 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `--repo` there. No shared-`data/` write, so it does not fight the other
       live agents, and it exercises both of a non-vacuity witness's directions.
 
+- [ ] **A declared-rect registry is a provenance artifact -- open the document
+      and look at every rect, not just the shape tests.** New 2026-09-14
+      (`spec_crop_region_registry`, `docs/spec_library/crop_regions.json`). The
+      entries are `{document, page, rect, label, match, shows}` and every test
+      over them is necessarily *internal*: ordering, uniqueness, that the live
+      citations resolve to the label they name. **Nothing in the suite can see
+      whether the rect is over the right ink** -- a rect two bands low still
+      loads, still resolves, still renders, and shows the neighbouring row's
+      digits under the cited row's name. That is this repo's one rule at the
+      placement layer, so re-render it: clip each entry's rect out of the pile
+      PDF at ~8x and read the crop against the entry's own `shows` string *and*
+      against the citing element's `callout`. Both sides are transcribed, so a
+      wrong rect disagrees with one of them. (Done for all 13 shipped entries in
+      `REVIEW_20260914_spec_crop_region_registry.md`; the printed values matched
+      every citation, which is also a free corroboration of the numbers.)
+- [ ] **A substring `match` rule needs the longest-match tie-break AND the
+      unrecorded-neighbour case checked.** Same handoff. `"Grip Dash No. 1"` is a
+      substring of every dash-1x citation's where-ref text, so a registry that is
+      correct today silently breaks three crops the day somebody records the
+      short row. `resolve()` has longest-match-wins and a loud ambiguous case --
+      check any *new* declared string against the strings already in the file,
+      in both directions, not just against the live citations that exist now.
+- [ ] **A sole-region fallback is a weaker claim than a match and must read as
+      one.** Same handoff: a pile sheet carrying exactly one declared region
+      gives that region to **every** citation naming the sheet, whatever it is
+      about. That is designed (the handoff asked for it) and the viewer says
+      *"the only region declared for this sheet"* rather than *"matched on"* --
+      but it means the second region recorded on a sheet silently changes what
+      the first citation gets. When a handoff adds a region, check what the
+      page's existing citations resolved to before and after.
+- [ ] **A live-data guard that keys on a different field than production does.**
+      Same handoff, and it passes today by coincidence worth knowing about:
+      `tests/test_spec_crop_regions.py` scans `source_ref["document"]` while
+      `build_viewer_crops.region_for` keys on the resolved `pdf.name`. They agree
+      because every live export block points at the pile file under its own
+      name. Ask of any `[real]`-ish guard: *is this reading the same key the
+      producer writes?* -- a proxy that happens to agree is silent exactly when
+      the two diverge.
+- [ ] **A CLI whose refusals are all clean except one.** Same handoff:
+      `record_spec_crop_region.py` reports `refused: <why>` for every bad input
+      and tracebacks on a missing `--registry`, because `scr.load`'s
+      `FileNotFoundError` is neither of the two exceptions its `try` catches
+      (`ISSUE_20260914_record_spec_crop_region_tracebacks_on_a_missing_registry.md`).
+      When a verb's whole selling point is "everything it refuses is something a
+      hand-edit would have shipped," run it once with each *path* flag pointed at
+      nothing.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
