@@ -3,8 +3,8 @@ type: review
 handoff: HANDOFF_20260914_spec_crop_region_registry.md
 reviewer: review agent (dispatch), branch review/spec_crop_region_registry
 date: 2026-09-14
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (round 2; round 1 was REQUEST CHANGES, 1 blocker)
+blockers: 0 (1 raised in round 1, answered)
 ---
 
 # Review — spec_crop_region_registry
@@ -18,9 +18,77 @@ present and the domain work is, on the evidence below, **correct**: the registry
 pile citations now crop the row they cite instead of a photocopy of a
 sixty-four-row table, which is exactly what Jeff asked for.
 
-One blocker, and it is not about what the code decides — it is that **the entire
-deliverable can be reverted by deleting one line, with all three test tiers
-staying 100% green.** Detail below. Everything else is nits.
+Round 1 raised **one blocker** — not about what the code decides, but that the
+entire deliverable could be reverted by deleting one line with all three test
+tiers staying 100% green — plus three nits. The tactical agent answered all
+four in `0046ff5`. **Round 2: APPROVE, merged to `integration`.**
+
+This report is written in order: the round-1 findings stand as written, with a
+round-2 section recording what I re-verified myself rather than took on report.
+
+---
+
+## Round 2 — what I verified after the rework
+
+`build_viewer_crops.py` is **not** in the rework diff, so the resolution path is
+byte-identical to what I reviewed in round 1 and the committed `crops.json`
+remains what HEAD produces. The rework is four tests, a CLI refusal branch, two
+docstrings and a lesson section. That is the right shape for answering B1.
+
+**The blocker is closed.** Four tests now enter at `crop_element` /
+`crop_topology_edge` — the builder's real entry points, rendering included —
+with a `fitz` stand-in in `sys.modules`. The `FakePixmap` size is derived from
+the clip, so a crop entry's `width`/`height` says *which rect was rendered*;
+that is what makes the `(321, 24)` assertion load-bearing rather than a magic
+number (the rect is 107.1 × 8.0 pt at zoom 3, against 610 × 842 for the sheet).
+
+I re-ran the three mutations the author reported rather than believing them,
+**and added two of my own**. All five, each reverted with `git status` clean
+after:
+
+| mutation | caught by |
+|---|---|
+| `region = None` in `_crop_from_citation` | 2 failed |
+| `region_for(registry, specs_dir, pdf, …)` transposed — the silent-`None` case | 2 failed |
+| `crop_element` passes `None` instead of threading `registry` | 1 failed |
+| **mine:** keep `located_by: "declared_region"` but crop `page.rect` — the "right label, wrong crop" case this whole handoff exists to prevent | 2 failed, on `rect_pt` and on the pixel size |
+| **mine:** drop `region_for`'s pile check so drawings get regions too | 1 failed |
+
+The fourth is the one I most wanted to see, because a seam that only proves
+`located_by` was set would have been satisfied by a crop of the wrong rect.
+It isn't; the size assertion bites.
+
+**The three nits are all genuinely fixed**, each checked by running it:
+
+1. `record_spec_crop_region.py --registry C:\nonexistent\cr.json` now prints
+   `refused: no crop-region registry at … -- the tracked one is at
+   docs/spec_library/crop_regions.json … check --registry` and **exits 2**,
+   matching every other refusal. An unparseable registry file is caught too
+   (`json.JSONDecodeError` added to the `except`). Two tests.
+2. The `docs/spec_library/README.md` command now carries every required flag —
+   I ran it as printed against the real pile with `--dry-run`: exit 0,
+   `dry run: nothing written`, tree clean.
+3. `live_pile_citations`'s docstring now states the `source_ref.document` vs
+   `pdf.name` proxy out loud and points at the new end-to-end tests as what
+   covers the divergence from the other side.
+
+**Suites, re-run by me on the merged branch:** `pytest -q` → **869 passed, 1
+skipped**; `node apps/viewer/run_tests.cjs` → **257/257**;
+`… --repo C:\workspace\tolstack` → **311/311**, `[real]` tier included. (The
+author's lower counts — 823 and 285/285 — are their unsynced branch, as they
+said.)
+
+**One thing I fixed on my own branch:** the issue I filed in round 1,
+`ISSUE_20260914_record_spec_crop_region_tracebacks_on_a_missing_registry.md`,
+was still `status: open` — correctly, since the file lives here and the author
+rightly declined to create a conflicting same-path copy. The fix shipped with
+the branch the issue was filed against, so `open` would have sent a triage sweep
+after a bug that no longer exists. Marked `resolved` with the verified refusal
+text and a note saying why; `closed` remains triage's to set.
+
+Nothing else changed in round 2, and no new findings.
+
+---
 
 ## The check that mattered: are the rects over the right ink?
 
@@ -91,7 +159,7 @@ after:
 
 These are good, and they are why the blocker below is the *only* one.
 
-## Blocker
+## Round 1 blocker — ANSWERED in `0046ff5`, kept here as written
 
 ### B1 — deleting the one line that wires the registry into the crop builder leaves every tier green
 
@@ -194,7 +262,7 @@ row, same table, same sheet, no difference a reader could see.
 
 Both deviations are argued in the lesson. This is the good version of deviating.
 
-## Nits — fix or don't, your call; the first is already filed
+## Round 1 nits — all three taken in the rework, kept here as written
 
 1. **`record_spec_crop_region.py` tracebacks on a missing `--registry` path.**
    `scr.load()` sits inside the `try` that catches `(RegistryError, Refused)`,
@@ -239,8 +307,8 @@ in *both* directions, not just against today's citations; and the sole-region
 fallback is the live trap — the second region recorded on a sheet silently
 changes what the first citation there gets.
 
-**Branch state:** `review/spec_crop_region_registry` has
-`handoff/spec_crop_region_registry` merged (clean fast-forward) plus a later
-`integration` sync (clean, no conflicts) and this report. Nothing has been
-pushed to `integration` — on REQUEST CHANGES the gate stays shut. Worktrees and
-branches left in place for the rework.
+**Branch state:** `review/spec_crop_region_registry` carries
+`handoff/spec_crop_region_registry` (round 1, clean fast-forward), an
+`integration` sync, the rework merge (`0046ff5`), and this report. On round 2
+APPROVE it was merged into `integration` and pushed. Round 1 left `integration`
+untouched, as REQUEST CHANGES requires.

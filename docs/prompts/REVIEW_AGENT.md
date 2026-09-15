@@ -2076,6 +2076,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       hand-edit would have shipped," run it once with each *path* flag pointed at
       nothing.
 
+- [ ] **A wiring test that asserts only the enum value is satisfied by the wrong
+      crop -- make the fake's size say which rect rendered.** New 2026-09-14
+      (`spec_crop_region_registry` round 2). The rework answered "does the
+      builder consult the registry?" by driving `crop_element` with a `fitz`
+      stand-in in `sys.modules` -- which works because `build_viewer_crops`
+      imports `fitz` lazily at function scope, so the whole render path is
+      testable under this repo's stdlib-only venv. The part worth copying: the
+      `FakePixmap`'s width/height are derived from the clip, so a crop entry's
+      pixel size reports *which rect was rendered*. I mutated the builder to
+      keep `located_by: "declared_region"` while cropping `page.rect` -- the
+      "right label, wrong crop" case -- and it failed on both `rect_pt` and the
+      size. A version asserting only `located_by == "declared_region"` would
+      have passed it. Ask of any placement/render seam: *would this test still
+      pass if the rect were wrong?*
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
