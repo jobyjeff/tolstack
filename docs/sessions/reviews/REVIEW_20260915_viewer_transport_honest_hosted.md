@@ -116,6 +116,18 @@ rather than accepting "pre-existing":
 This is `ISSUE_20260914_two_active_handoffs_each_turn_the_others_real_tier_red`,
 already open.
 
+**On "re-run the suite in BOTH checkouts" — the honest answer.** The main
+checkout is sitting on `master`, not `integration`, so a `pytest -q` there does
+not exercise the merged tree; it exercises `master`. I ran it anyway and it is
+**1 failed, 768 passed** — `test_viewer_js_suite_is_green`, wrapping exactly the
+four `[real]` failures above, on a tree that does not contain this merge and did
+not contain it before either. Switching that checkout's branch is not mine to
+do (other agents are live in it). What *does* cover the merged tree against real
+`data/` is the `--repo C:/workspace/tolstack` column: the JS runner resolves
+projections through `--repo` and app source from its own directory, so those
+312/314 and 17/17 runs are the merged app source against the main checkout's
+data, which is the thing this checklist item is protecting against.
+
 ### drawing-checker read-only invariant
 
 Snapshotted at review time with `scripts/snapshot_drawing_checker.py` (5994
