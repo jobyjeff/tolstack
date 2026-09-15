@@ -178,9 +178,16 @@
       transportKind = picked.kind;
 
       if (!adapter) {
-        state.error = "This page needs either a served projection endpoint or a " +
-          "File System Access-capable browser (Chrome or Edge). ?mock=1 still " +
-          "runs a demo.";
+        // Two very different no-adapter states, and only one of them is an
+        // error. UNPUBLISHED is a served page whose origin publishes no data:
+        // nothing is broken and there is nothing the reader can do, so the
+        // banner states it in one sentence (views/banner.js) and this adds
+        // no alarm on top. The other — file:// in a browser with no File
+        // System Access API — genuinely is a dead end, and says so.
+        if (transportKind !== VA.TRANSPORT.UNPUBLISHED) {
+          state.error = "This browser cannot open a local folder — the viewer " +
+            "needs Chrome or Edge. ?mock=1 still runs a demo.";
+        }
         return;
       }
 
@@ -215,37 +222,24 @@
   // The load-time transport probe (viewer_http_transport, deliverable 2):
   // served mode is tried FIRST whenever the page is not on file:// — a served
   // origin answering either of storage/http.js's candidates needs no folder
-  // grant at all, unlike FSA. FSA remains the fallback: a double-clicked
-  // page, or a served page whose origin answers neither HTTP candidate
-  // (nothing built yet, or a plain server with no matching mount) falls
-  // straight through to it, exactly the behaviour a served page had before
-  // this handoff.
+  // grant at all, unlike FSA.
+  //
+  // The decision itself is VA.chooseTransport (storage/adapter.js), not
+  // inlined here: what happens when the served probe FAILS depends on the
+  // page's origin, not on this page, and it is the half worth testing without
+  // a browser. All this function adds is ?mock=1 — which short-circuits both
+  // transports, because the tour reads a fixture and touches no disk at all.
   function chooseAdapter(mock) {
     if (mock) {
       var memory = new VA.MemoryAdapter(mockFixture());
       return memory.init().then(function (connState) {
-        return { adapter: memory, kind: "mock", state: connState };
+        return { adapter: memory, kind: VA.TRANSPORT.MOCK, state: connState };
       });
     }
-    var afterHttp;
-    if (VA.HttpAdapter.isSupported()) {
-      var http = new VA.HttpAdapter();
-      afterHttp = http.init().then(function (connState) {
-        return connState === VA.STATE.READY
-          ? { adapter: http, kind: "http", state: connState } : null;
-      }).catch(function () { return null; });
-    } else {
-      afterHttp = Promise.resolve(null);
-    }
-    return afterHttp.then(function (picked) {
-      if (picked) return picked;
-      if (!VA.FsaAdapter.isSupported()) {
-        return { adapter: null, kind: null, state: null };
-      }
-      var fsa = new VA.FsaAdapter();
-      return fsa.init().then(function (connState) {
-        return { adapter: fsa, kind: "fsa", state: connState };
-      });
+    return VA.chooseTransport({
+      protocol: window.location.protocol,
+      http: VA.HttpAdapter.isSupported() ? new VA.HttpAdapter() : null,
+      fsa: VA.FsaAdapter.isSupported() ? new VA.FsaAdapter() : null,
     });
   }
 
@@ -690,8 +684,11 @@
 
   function paint() {
     VA.renderBanner(nodes.banner, bannerState(), {
-      onConnect: function () { gesture(adapter.connect()); },
-      onReconnect: function () { gesture(adapter.reconnect()); },
+      // Guarded: the banner only ever offers these when an FSA adapter exists,
+      // but a no-adapter boot still renders a banner, and a button whose
+      // handler throws is worse than one that is absent.
+      onConnect: function () { if (adapter) gesture(adapter.connect()); },
+      onReconnect: function () { if (adapter) gesture(adapter.reconnect()); },
       // `.catch` before `.then(render)`, the same shape gesture() already has
       // below: a rejected load() (the adapter losing the folder mid-session,
       // say) used to be an unhandled rejection with a no-op Reload button --

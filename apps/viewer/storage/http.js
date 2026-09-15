@@ -1,8 +1,10 @@
 // HTTP adapter — reads the three projection JSONs (+ crops + worksheets) over
 // a static/served origin, with NO folder grant. The load-time probe
-// (topology_app.js's chooseAdapter) tries this FIRST whenever the page is not
-// on file://; FSA remains the fallback for a double-clicked page or a served
-// page whose origin answers neither candidate below.
+// (VA.chooseTransport, storage/adapter.js) tries this FIRST whenever the page
+// is not on file://. FSA is the fallback for a double-clicked page ONLY: on an
+// http(s) page where neither candidate below answers, there is no fallback at
+// all — a hosted visitor has no repo to grant — and the page says the data is
+// not published here instead. See chooseTransport for the whole rule.
 //
 // Two mount shapes are known to exist, and BOTH are probed, in this order
 // (measured 2026-09-09, HANDOFF_20260909_viewer_http_transport):
@@ -122,8 +124,9 @@
   // Try each candidate in order; the first whose `topologies.json` answers
   // `ok` AND a JSON content-type wins. Neither candidate answering (a served
   // origin with nothing built yet, or a plain file server with no mount at
-  // all) is DISCONNECTED, not an error — chooseAdapter reads that as "fall
-  // back to FSA", the same fallback a double-clicked page always had.
+  // all) is DISCONNECTED, not an error — this adapter states what it found and
+  // VA.chooseTransport decides what that means for the page, which depends on
+  // the page's protocol and is none of this file's business.
   HttpAdapter.prototype.init = async function () {
     for (var i = 0; i < CANDIDATES.length; i++) {
       var candidate = CANDIDATES[i];

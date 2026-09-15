@@ -66,6 +66,9 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 .banner--disconnected { border-bottom-color: var(--accent); }
 .banner--needs-regrant { border-bottom-color: var(--inferred); }
 .banner--crash { border-bottom-color: var(--untraced); }
+/* A served page with nothing published: a plain statement of fact, not an
+   alarm and not a call to action, so it keeps the quiet default rule. */
+.banner--unpublished { border-bottom-color: var(--line); }
 .banner__action { margin-left: auto; }
 .banner__error { flex-basis: 100%; color: var(--untraced); }
 .banner__crash-hint { flex-basis: 100%; color: var(--muted); font-size: 12px; }

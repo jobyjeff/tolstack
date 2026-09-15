@@ -39,20 +39,37 @@ reaches `data/projections/viewer/`:
   a sibling `/tolstack/data/` mount), and a plain static server rooted at the
   repo (`python -m http.server` from `C:\workspace\tolstack`). This is a
   prerequisite for ever hosting the viewer, not just a local convenience.
-- **FSA** — the original transport, and the only option on `file://`:
-  **Connect folder** grants read access to the tolstack repo root via the
-  File System Access API, exactly as below.
+- **FSA** — **`file://` only**: **Connect folder** grants read access to the
+  tolstack repo root via the File System Access API, exactly as below.
 
-Served mode is tried first whenever the page is not on `file://`; FSA is the
-fallback whenever neither served candidate answers (nothing built yet, or a
-server with no matching mount). The banner says which is live — a served page
-reads *"Served over HTTP — no folder grant needed"*; FSA mode is unchanged,
-the connect/granted flow already says so. Neither transport offers a control
-it cannot service (`adapter.capabilities()`, never the adapter's class): the
-one real capability gap is that drawing-checker's own mount cannot reach
-`docs/` at all (only the viewer app and its projection dir are mounted), so a
-worksheet is unavailable there specifically — a repo-root static server can
-reach it, and FSA always could.
+Served mode is tried first whenever the page is not on `file://`. What happens
+when it *fails* turns on the page's own protocol, and the decision lives in one
+place (`VA.chooseTransport`, `storage/adapter.js`):
+
+- on `file://`, FSA is the fallback — it is the only transport that can exist
+  there, and the reader is by definition sitting at the machine holding the
+  repo, so the picker is a grant they can actually give.
+- on `http(s)`, **there is no fallback**. A hosted visitor has no tolstack repo
+  to grant, so **Connect folder** is a control that cannot work for them no
+  matter what they click. The banner states the fact in one sentence — *"The
+  tolerance-stack data is not published on this site yet — there is nothing to
+  show."* — and offers nothing else. (Measured 2026-09-14 on the hosted origin:
+  every `/tolstack/...` URL answered 200 + the site index HTML, the catch-all
+  shape the probe's content-type check exists to reject. It rejected it
+  correctly; the bug was the picker that appeared afterwards.)
+
+Nothing about that state is remembered — no flag, no storage. Once the origin
+starts serving the projections, a plain reload enters served mode with no user
+action.
+
+The banner says which transport is live — a served page reads *"Served over
+HTTP — no folder grant needed"*; FSA mode is unchanged, the connect/granted
+flow already says so. Neither transport offers a control it cannot service
+(`adapter.capabilities()`, never the adapter's class): the one real capability
+gap is that drawing-checker's own mount cannot reach `docs/` at all (only the
+viewer app and its projection dir are mounted), so a worksheet is unavailable
+there specifically — a repo-root static server can reach it, and FSA always
+could.
 
 ## Launch (one-click, `file://`)
 
@@ -978,13 +995,19 @@ that file lives only in the main checkout. Without it the topology page's real
 tier reports itself skipped and the demo tier still runs. The app's own files
 always come from this tree either way.
 
-The fast tier also drives `storage/http.js` against two real local servers it
-starts itself (`run_tests.cjs`) — both mount shapes, a catch-all-HTML trap, and
-a mid-session server stop, none of which a DOM shim's `fetch` could stand in
-for. The truth tier adds a THIRD static server, rooted at the repo instead of
-just `apps/viewer/` (`startRepoRootServer`), and boots `topology.html` with no
-`?mock=1` and no folder grant at all — proving the served-mode deliverable
-itself, not a stand-in for it.
+The fast tier also drives `storage/http.js` and `VA.chooseTransport` against
+real local servers it starts itself (`run_tests.cjs`) — both mount shapes, a
+catch-all-HTML trap, a mid-session server stop, and one that starts dataless
+and is *given* the projection mid-session, none of which a DOM shim's `fetch`
+could stand in for. The truth tier adds two more: a static server rooted at the
+repo instead of just `apps/viewer/` (`startRepoRootServer`), which boots
+`topology.html` with no `?mock=1` and no folder grant at all — proving the
+served-mode deliverable itself, not a stand-in for it — and the hosted origin
+reproduced (`startHostedCatchAllServer`): the app reachable, every other path
+answering 200 + site-index HTML. That one proves the posture only a real
+browser can decide, because only a real `window.location.protocol` decides it:
+**Connect folder** never appears, and a plain reload once the data lands enters
+served mode with no user action.
 
 The fast tier includes a **node-fs adapter** tier that drives the real
 `data/projections/viewer/` through the same adapter contract the browser uses, so
@@ -1044,7 +1067,10 @@ apps/viewer/
                       fixtures into one mock adapter at boot
   topology_app.js     boot + wiring for the whole page (formerly app.js's job
                       too — app.js is deleted; there is one boot file now)
-  storage/adapter.js  the read-only adapter contract
+  storage/adapter.js  the read-only adapter contract, plus the one decision
+                      above it: VA.chooseTransport / VA.TRANSPORT — which
+                      adapter a page gets, and what a served page with
+                      nothing published is told instead
   storage/fsa.js      File System Access (mode: read), handle persisted in IndexedDB
   storage/http.js     served transport — no folder grant, probed at load time
   storage/memory.js   in-memory mock (?mock=1, tests)

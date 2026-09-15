@@ -7,6 +7,12 @@
 // and derived projections; it writes nothing, so the FSA adapter asks for
 // `mode: "read"` and there is no write path to get wrong.
 //
+// This file also owns the ONE decision above the contract: `chooseTransport`
+// (and the `TRANSPORT` vocabulary the banner reads off it) -- which adapter a
+// page gets, and what a page is told when none of them can serve it. It lives
+// beside the contract rather than in a page's boot because the answer is a
+// property of the PAGE'S ORIGIN, not of any one page.
+//
 // Connection states:
 //   "disconnected"  — no directory handle; user must connect() (picker).
 //   "needs-regrant" — a persisted handle exists but permission is "prompt";
@@ -81,6 +87,75 @@
     e.name = "NotReadyError";
     e.state = state;
     return e;
+  };
+
+  // Which transport the page actually got. A module-level vocabulary, never
+  // inline literals: this word is spelled in three places (chooseTransport
+  // below, topology_app.js's boot, views/banner.js), and a vocabulary
+  // drifting between the files that read it is this repo's most-repeated
+  // defect.
+  VA.TRANSPORT = Object.freeze({
+    MOCK: "mock",
+    HTTP: "http",
+    FSA: "fsa",
+    // Not a transport at all -- the honest name for "this page came off a
+    // server, and that server publishes no data". See chooseTransport.
+    UNPUBLISHED: "unpublished",
+  });
+
+  // The one page a folder grant can legitimately be asked for.
+  var FILE_PROTOCOL = "file:";
+
+  // Which adapter a page boots on, decided in ONE place.
+  //
+  // Served is tried first wherever it is possible at all. The rule that
+  // matters is what happens when it FAILS, and it turns on the page's own
+  // protocol:
+  //
+  //   file://  -- FSA is the only transport that can exist, and the picker is
+  //               legitimate: the reader is sitting at the machine holding the
+  //               repo, which is the only way they opened this file at all.
+  //   http(s) -- there is NO fallback. A hosted visitor has no tolstack repo
+  //               to grant, so **Connect folder** is a control that cannot
+  //               work for them no matter what they click -- and it reads as
+  //               "this page wants access to my files", which is worse than
+  //               useless. The honest answer is UNPUBLISHED: the banner says
+  //               the data is not published here, and offers nothing.
+  //
+  // (Verified at the wire 2026-09-14: every `/tolstack/...` URL on the hosted
+  // origin answered 200 + the site index HTML -- the catch-all shape the
+  // probe's content-type check exists to reject. It rejected it correctly;
+  // what was wrong was the page falling through to a picker afterwards.)
+  //
+  // NOTHING about UNPUBLISHED is remembered -- no flag, no storage, no state
+  // beyond the value returned here. A reload re-probes from scratch, so the
+  // moment the origin starts serving the projections the same URL enters
+  // served mode with no user action at all.
+  //
+  // `http`/`fsa` are the already-constructed candidates (null where the
+  // context cannot support one) and `protocol` is the page's own, so the
+  // whole decision is testable without a browser -- the node tier drives it
+  // against real local servers.
+  VA.chooseTransport = async function (opts) {
+    opts = opts || {};
+    if (opts.http) {
+      var served = await opts.http.init().catch(function () { return null; });
+      if (served === VA.STATE.READY) {
+        return { adapter: opts.http, kind: VA.TRANSPORT.HTTP, state: served };
+      }
+    }
+    if (opts.protocol !== FILE_PROTOCOL) {
+      return {
+        adapter: null,
+        kind: VA.TRANSPORT.UNPUBLISHED,
+        state: VA.STATE.DISCONNECTED,
+      };
+    }
+    // file:// in a browser with no File System Access API: nothing can read
+    // the repo, which is a real dead end and says so as an error.
+    if (!opts.fsa) return { adapter: null, kind: null, state: null };
+    var granted = await opts.fsa.init();
+    return { adapter: opts.fsa, kind: VA.TRANSPORT.FSA, state: granted };
   };
 
   // Guard used by adapters before a read.

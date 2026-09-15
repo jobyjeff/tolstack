@@ -207,6 +207,29 @@ function startHtmlCatchAllServer() {
   });
 }
 
+// A server that starts DATALESS and is given the projection mid-session --
+// the mid-session-stop fixture below, inverted. This is what proves an
+// unpublished origin latches NOTHING (viewer_transport_honest_hosted,
+// deliverable 3): probe it before publishing and the page is UNPUBLISHED;
+// publish, re-probe exactly the way a browser reload does, and the same URL
+// is in served mode with no user action in between.
+function startPublishableServer() {
+  return new Promise((resolve) => {
+    let published = false;
+    const server = http.createServer((req, res) => {
+      const route = published ? DATA_ROUTES[(req.url || "/").split("?")[0]] : null;
+      if (!route) { res.writeHead(404, { "content-type": "text/plain" }); res.end("not found"); return; }
+      res.writeHead(route.status || 200, { "content-type": route.contentType });
+      if (req.method === "HEAD") { res.end(); return; }
+      res.end(route.body);
+    });
+    server.listen(0, "127.0.0.1", () => resolve({
+      server,
+      publish: () => { published = true; },
+    }));
+  });
+}
+
 // --- a stub tolstack_mount_rebuild_endpoint, for storage/http.js's rebuild
 // capability probe and its two rebuild methods (viewer_rebuild_affordance) --
 //
@@ -307,6 +330,7 @@ for (const f of files) {
   const dataServer = await startStaticServer(DATA_ROUTES);
   const htmlServer = await startHtmlCatchAllServer();
   const emptyServer = await startStaticServer({});
+  const publishable = await startPublishableServer();
   const rebuildServer = await startRebuildOrigin();
   const rebuildFailServer = await startRebuildFailOrigin();
   let dataServerClosed = false;
@@ -317,6 +341,10 @@ for (const f of files) {
     // A server that 404s everything -- proves neither candidate resolving is
     // read as DISCONNECTED, not an error.
     emptyOrigin: `http://127.0.0.1:${emptyServer.address().port}`,
+    // Starts dataless, gains the projection when publishData() is called --
+    // the reload-recovers proof (viewer_transport_honest_hosted).
+    publishableOrigin: `http://127.0.0.1:${publishable.server.address().port}`,
+    publishData: () => publishable.publish(),
     // tolstack_mount_rebuild_endpoint stand-ins (viewer_rebuild_affordance):
     // rebuildOrigin answers both the data candidate and a live rebuild
     // endpoint; rebuildFailOrigin's status route says "capable" but its POST
@@ -345,6 +373,8 @@ for (const f of files) {
     htmlServer.close();
     emptyServer.closeAllConnections();
     emptyServer.close();
+    publishable.server.closeAllConnections();
+    publishable.server.close();
     rebuildServer.closeAllConnections();
     rebuildServer.close();
     rebuildFailServer.closeAllConnections();
