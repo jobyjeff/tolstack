@@ -3,11 +3,16 @@ type: review
 handoff: viewer_dag_spine_layout
 reviewer: review agent (dispatch)
 date: 2026-09-14
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE (round 2; round 1 was REQUEST CHANGES)
+blockers: 0
 ---
 
 # Review — viewer_dag_spine_layout
+
+> **Round 1 (below) returned REQUEST CHANGES on two blockers. Round 2
+> (`0fb76ef`) answered all five findings; I re-verified by mutation and
+> merged. The round-2 section is at the end — the round-1 findings are kept
+> verbatim as the record of what was wrong, not as open items.**
 
 Display-only work in `apps/viewer/` (plus the browser-tier runner). Not a
 tolerance stack: no `source_ref`, no `lmc`/`mmc`, no `fold()` term list, no
@@ -223,3 +228,101 @@ Three things this review leaned on that are worth repeating:
 3. The browser tier needs `node_modules` and a worktree has none — junction
    `C:\workspace\tolstack\node_modules` rather than `npm install`ing a second
    copy. It is gitignored, so it leaves `git status` clean.
+
+---
+
+# Round 2 — `0fb76ef`, all five findings answered: APPROVE
+
+The tactical agent returned one commit answering both blockers and all three
+should-fixes. I merged it, merged today's `integration` on top of it, re-ran
+every tier, and **re-ran the exact mutations that produced the blockers** — the
+point of a guard being that it fails, not that it exists.
+
+## Each new guard, observed failing
+
+| finding | mutation | result |
+|---|---|---|
+| B1 | `renderTopoPane` stops calling `VA.spineRight` (one line) | **FAIL** — `the RENDER draws the spine on the rightmost rail — the page mirrors, not just the layout helper`, 254/255 |
+| B2 | `VA.centreOffsets`: `if (plan.leaders.length)` → `if (false)` | **FAIL** — `centring across the leaders beats centring the two blocks' heights`, 254/255 |
+| S2 | `apps/viewer/README.md`: `92 → 43` edited to `93 → 43` | **FAIL** — `[real] every number apps/viewer/README.md states … is re-derivable from the live projection`, 306/309 |
+
+Each names the right test and nothing else. That is what round 1 was missing.
+
+The two blocker fixes are better than what I suggested, and worth recording:
+
+- **B1** does not just assert the mainline x — it also requires a rail to the
+  **left** of the spine, so the check cannot pass forever on a one-column
+  diagram. That is the non-vacuity witness discipline applied to a check I only
+  asked to exist.
+- **B2** pins the *property* rather than the offset: leader-span centring is
+  the min-max optimum, so nudging the grid one row either way must make the
+  worst jog worse — plus a purpose-built `lopsidedTopo()` fixture (all the
+  drawn length below all the leaders, the real documents' shape) where the two
+  rules differ by more than 2×. Pinning the property means a future re-derivation
+  of the same rule stays green while a reversion to the handoff's literal
+  reading goes red, which a pinned number would not have managed.
+
+**S1** now computes `floorMin` from the layout inside
+`BARS_MATCH_STORE_IN_PAGE`, beside where `FIT_IN_PAGE` already did — the
+`26 * 45` is gone. **S3** pushes `gridOffset > 1` witnesses before both
+centring contracts, `[mock]` and `[real]`. The disclosed inline fix was taken
+onto the branch verbatim.
+
+## Suites, on the merged tree (round 2 + today's `integration`)
+
+- `pytest -q` — **815 passed, 1 skipped**.
+- `node apps/viewer/run_tests.cjs` — **255/255**.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` — **307/309**.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` —
+  **16/16 suites**; fast suite 245/245 in-browser, topology 118/118 both
+  transports, height budget **20/20** (up from 18 — the two new witnesses).
+
+**The two real-tier reds are `integration`'s own, not this branch's**, and the
+set changed twice during the review because `data/` is shared. Baselined by
+extracting today's `integration` to a scratch tree and running the same
+command there: **295/297, the identical two tests** — `[real] the fixture's
+crop shapes still match the builder's` (`crops.json` gained `region_label` /
+`region_match`) and `[real] no live value is one the viewer has no branch for`
+(`located_by = "declared_region"`). Both come from the in-flight
+`handoff/spec_crop_region_registry`, which rebuilt the shared `crops.json` at
+00:09 UTC and has not landed. The `description` / `mesh` drift I reported in
+round 1 is **gone** — `stack_title_style_pass` and
+`annotate_affordances_flyout_and_mesh_gating` merged their regenerated fixtures
+into `integration` in the meantime.
+
+## The merge, and its one conflict
+
+`git merge integration` into the review branch conflicted in exactly one file,
+`docs/prompts/REVIEW_AGENT.md` — a **pure append-collision at the same
+anchor**: the two entries I appended in round 1 against four appended by the
+`stack_title_style_pass` and `annotate_affordances_flyout_and_mesh_gating`
+reviewers, all at the end of `## Recurring bugs to check`. Neither side edits
+the other's text. **Resolution: keep all six**, `integration`'s four first
+(they already landed there) then this review's two, so the section reads as
+accumulating. Nothing was dropped and nothing was reworded. 116 `- [ ]` entries
+after, against 110 + 2 + 4 before.
+
+## Findings, round 2
+
+**Blockers: none. Should-fix: none. Nits: none worth carrying.**
+
+The one round-1 nit with no fix — `VA.lastTopoRender` is render state a test
+can read *instead of* the DOM — is correctly handled as a fence rather than a
+change: the lesson now states it explicitly and the overlay carries the general
+rule. It exists for two real reasons and removing it would cost more than it
+saves.
+
+## Note for the next reviewer
+
+- **The README-pairing test parses prose with regexes** (`crossings went
+  \*\*(\d+) → (\d+)\*\*, (\w+) of the\s+five to zero`, and three more). That is
+  the right shape — it asserts the match before asserting the number, so a
+  re-wrap goes red rather than silently vacuous — but it means **re-wrapping
+  those README paragraphs is now a test-touching edit**. Expect it, don't
+  "fix" it by loosening the regex.
+- **`pitch_system` still does not fit one viewport at comfortable density.**
+  Unchanged by round 2, correct by design, and the decision sits in
+  `ISSUE_20260914_scaled_length_modes_collapse_on_a_tall_dag.md`. See the
+  round-1 section above — that is the one thing to raise with Jeff.
+- Mutating the wiring in a scratch tree found both blockers in five minutes and
+  confirmed both fixes in two. Two overlay entries now record the habit.
