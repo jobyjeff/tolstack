@@ -2059,6 +2059,43 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       distinguishes a pattern from a comment), and when the fast tier already
       owns a helper for the same rule, ask why the browser tier is re-spelling
       it instead of asserting the same thing about the same text.
+- [ ] **A fix that makes the app *more* correct can make the guards already in
+      that block vacuous — audit the OLD sub-checks, not just the new ones.**
+      New 2026-09-15 (`viewer_popover_clamp_and_rebuild_terminal_state`). The
+      `CARD_LAYOUT_VIEWPORT` block's whole reason for existing was
+      `hover_card_layout_guard_can_fail`'s witness, "the open card hangs past
+      the document's own bottom" — the one configuration where an in-flow
+      popover lengthens the document. This handoff capped an oversized card to
+      the room beside its trigger, so the card is now **always inside the
+      window**, therefore always inside the document, and the three
+      `position: fixed`-vs-`absolute` sub-checks under that witness can no
+      longer fail. Confirmed by replay in review: flip `.croppop` back to
+      `position: absolute` and `[topology]` still reports 122/122 both modes.
+      The tactical agent found this itself and filed
+      `ISSUE_20260914_card_layout_guard_cannot_see_the_absolute_popover_again.md`,
+      which is the behaviour to expect. Two things for the reviewer: **run the
+      old block's own revert-replay, not just the new assertions'** — a
+      strengthened block can gain a falsifiable check and lose one in the same
+      diff; and note the tell this replay adds to the entry above — the
+      `absolute` flip is not wholly invisible, it surfaces as `[app] ERROR:
+      locator.click: Timeout` in an unrelated suite, which is a symptom with no
+      name attached, not a guard.
+- [ ] **A client constant hand-copied from ANOTHER repo's source, with nothing
+      in this suite pairing the two.** New 2026-09-15
+      (`viewer_popover_clamp_and_rebuild_terminal_state`), the cross-repo member
+      of the restated-vocabulary family. `topology_app.js`'s
+      `REBUILD_DONE = "done"` is drawing-checker's
+      `webui/tolstack_rebuild.py: DONE`, and the browser stub carries a third
+      copy of the same word — so the test and the client agree with each other
+      whether or not either agrees with the server. The in-repo pairing tests
+      (`test_js_python_vocabulary.py`) structurally cannot see it, because the
+      definition is not in this repo. Ask the universal question anyway — *if
+      the source changes tomorrow, what breaks loudly?* — and when the honest
+      answer is "nothing here", say which way it fails: this one fails
+      **closed** (every rebuild reports failure), which is the tolerable
+      direction and why it was filed `low` rather than sent back
+      (`ISSUE_20260915_rebuild_done_constant_is_unpaired_with_drawing_checkers_states.md`).
+      A cross-repo copy that fails *open* is not the same finding.
 - [ ] **A declared-rect registry is a provenance artifact -- open the document
       and look at every rect, not just the shape tests.** New 2026-09-14
       (`spec_crop_region_registry`, `docs/spec_library/crop_regions.json`). The
@@ -2157,6 +2194,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       sibling shape: a helper pasted into four suite functions with three of
       the copies never called
       (`ISSUE_20260914_three_dead_copies_of_dismisscard_in_the_browser_runner.md`).
+
+- [ ] **A persistence guard that returns the toggle to its default BEFORE the
+      only switch it could observe.** New 2026-09-15
+      (`viewer_leader_grid_legibility`), the "one line from being silently
+      reverted" entry's cheapest variant and the reason mutating each field
+      separately is not optional. Two new display preferences claim, in a code
+      comment and in README, that `selectTopology()` never resets them.
+      Mutating BOTH resets in reddens the browser tier (`[real] switching
+      topology keeps the SCALE…`); mutating **only `state.leaderStyle`**
+      leaves fast 274/274, `--repo` 331/331 and browser 17/17. Cause: the
+      suite toggles the style to angled, measures it, toggles it **back to
+      jogged**, and only then clicks the other topology — so the switch
+      happens at the default, where a reset and a non-reset are the same
+      state. `ISSUE_20260915_leader_style_persistence_across_topology_switch_
+      is_unpinned.md`. Two moves: never mutate a group of fields together
+      when the claim is made of each one, and for any "switching X keeps Y"
+      check, read the lines ABOVE it to confirm Y was still off its default
+      when X changed.
+- [ ] **An issue's repro prints a number; the sentence beside it is about a
+      different population.** New 2026-09-15 (`viewer_leader_grid_legibility`,
+      fixed inline), and the "one number, two nouns" entry's doc-side twin. A
+      filed issue's repro printed **16** leader-crossing *pairs* on
+      `pitch_system`; the sentence under it, and the `topology.js` comment
+      quoting it, both read "every one of its 16 leaders is in at least one
+      crossing pair". It is **eight** — exactly the leaders that descend; the
+      seven that rise are in none. The repro's bounds are inclusive too, so a
+      strict segment intersection over the same geometry gives 12 pairs across
+      seven leaders. Running the repro reproduces the digit and certifies
+      nothing about the claim. So: run it, then ask **what is this number
+      counting, and what does the sentence say it counts** — and where the
+      issue is `audience: strategy`, the answer changes the design options it
+      is asking someone to choose between.
 
 ## Architectural errors to check
 

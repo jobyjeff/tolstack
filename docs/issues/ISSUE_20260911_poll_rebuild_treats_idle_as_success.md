@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: viewer/rebuild
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260911_viewer_popover_clamp_and_rebuild_terminal_state.md
+resolution: handoff completed 2026-09-14 -- closed automatically by dispatch when handoff `viewer_popover_clamp_and_rebuild_terminal_state` moved to completed/; not independently verified.
 ---
 
 # `pollRebuild()` treats a terminal `idle` status as a successful rebuild and reloads

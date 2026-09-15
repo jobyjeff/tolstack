@@ -200,8 +200,12 @@ function startHostedCatchAllServer() {
 // crops.json provenance stamps agree (fresh) or not (stale);
 // `rebuildCapable` controls whether the stub answers the rebuild routes at
 // all, the same "absent means not shipped yet" case storage/http.js's own
-// probe has to survive.
-function startSiblingMountServer({ matchCrops, rebuildCapable }) {
+// probe has to survive. `terminalState` is which of the endpoint's terminal
+// states the status route settles on -- "done" is a finished rebuild, and
+// "idle" is what a server RESTARTED mid-run answers, having no memory of it
+// (drawing-checker webui/tolstack_rebuild.py: idle | queued | running | done |
+// failed).
+function startSiblingMountServer({ matchCrops, rebuildCapable, terminalState }) {
   return new Promise((resolve) => {
     let busy = false;
     const topologiesJson = () => JSON.stringify({
@@ -221,7 +225,8 @@ function startSiblingMountServer({ matchCrops, rebuildCapable }) {
       if (u === "/tolstack/rebuild/status" && req.method === "GET") {
         if (!rebuildCapable) { res.writeHead(404).end("not found"); return; }
         res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ busy, state: busy ? "running" : "done" }));
+        res.end(JSON.stringify({
+          busy, state: busy ? "running" : (terminalState || "done") }));
         return;
       }
       if (u === "/tolstack/rebuild" && req.method === "POST") {
@@ -268,8 +273,10 @@ function startSiblingMountServer({ matchCrops, rebuildCapable }) {
 
 // The banner's whole deliverable (viewer_rebuild_affordance, 2026-09-10): no
 // rebuild command ever renders again, in either mode, and a live endpoint
-// drives a real click through to a reload. Three servers, one scenario each —
-// a fresh stub per scenario keeps the busy/done state machine from leaking
+// drives a real click through to a reload -- and, since
+// viewer_popover_clamp_and_rebuild_terminal_state, that only the endpoint's
+// own completion state counts as one. Four servers, one scenario each — a
+// fresh stub per scenario keeps the busy/terminal state machine from leaking
 // across them the way one shared server's mutable `busy` flag would.
 async function testRebuildAffordance(browser) {
   const label = "rebuild affordance (stub sibling mount)";
@@ -321,7 +328,38 @@ async function testRebuildAffordance(browser) {
         noCommandsOrPaths(await page.locator("#banner").textContent()));
     });
 
-    // 3) fresh (matching) provenance -> no stale banner at all.
+    // 3) the server restarts mid-poll: the new process has no memory of the
+    //    run and answers a TERMINAL `idle`
+    //    (viewer_popover_clamp_and_rebuild_terminal_state). `idle` is not a
+    //    finished rebuild, and reading it as one -- which the poll did, by
+    //    treating everything that was not "failed" as success -- reloads a
+    //    projection that was never rebuilt and presents it as a fresh one,
+    //    the same shape as the 2026-09-06/08 stale-projection incident except
+    //    with the page asserting freshness. The reader must be told instead.
+    await withServer({ matchCrops: false, rebuildCapable: true,
+                       terminalState: "idle" }, async (page) => {
+      await page.waitForSelector(".banner__rebuild button", { timeout: 15000 });
+      await page.locator(".banner__rebuild button").click();
+      // Bounded, and swallowed on purpose: a poll that reads `idle` as
+      // success never renders this node at all, and that must arrive as a
+      // named sub-check failure rather than as the whole scenario aborting.
+      await page.waitForSelector(".banner__rebuild .banner__error",
+        { timeout: 5000 }).catch(() => {});
+      const text = await page.locator(".banner__rebuild .banner__error")
+        .count() === 1
+        ? await page.locator(".banner__rebuild .banner__error").textContent()
+        : "";
+      push("a terminal `idle` from a restarted server is not read as a " +
+        "finished rebuild", /rebuild failed/i.test(text));
+      // `text` is "" when the error never rendered, which must not read as
+      // "no command in it" -- the absence check needs something to check.
+      push("...said in plain words, with no command or path in it",
+        text.length > 0 && noCommandsOrPaths(text));
+      push("...and the button comes back, so it can be asked for again",
+        !(await page.locator(".banner__rebuild button").isDisabled()));
+    });
+
+    // 4) fresh (matching) provenance -> no stale banner at all.
     await withServer({ matchCrops: true, rebuildCapable: true }, async (page) => {
       // The same trap as the annotate flyout's banner wait, in the other
       // direction: topology.html ships `<div id="banner">` empty too, so
@@ -715,6 +753,114 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
            dagHeight: pos.dagHeight };
 };
 
+// The alternating bands and the two draggable widths
+// (viewer_leader_grid_legibility), measured in the page.
+//
+// The band claim is a CORRESPONDENCE like the leaders': the band between two
+// adjacent leaders and the grid rows that band feeds wear one tint. So it is
+// measured the way the leaders' is -- off what the browser actually painted.
+// `fill` is the computed colour of each band polygon and `rowBg` the computed
+// background of each row, both as the browser resolved them, and the mapping
+// from a row to its band is re-derived from the projection rather than read
+// back out of the render.
+const BANDS_IN_PAGE = () => {
+  const VA = window.ViewerApp;
+  const last = VA.lastTopoRender;
+  const proj = VA.findTopology(VA.demoTopologyFixture().topologies, last.topologyId);
+  const layout = VA.spineRight(proj.layout);
+  const plan = VA.gridPlan(layout, proj);
+  const bands = VA.leaderBands(plan);
+  const parity = VA.rowBandParity(plan);
+  const drawn = Array.from(document.querySelectorAll("svg.tv__rails path.rail__band"));
+  const rows = Array.from(document.querySelectorAll("tr.tvrow"));
+  const bad = [];
+  if (drawn.length !== bands.length) {
+    bad.push(`${drawn.length} band polygons drawn for ${bands.length} bands`);
+  }
+  // A band polygon's own fill, keyed by parity: two tints, and they must
+  // differ or the alternation is not on screen at all.
+  const fills = {};
+  drawn.forEach((path, i) => {
+    const band = bands[i];
+    if (!band) return;
+    const fill = getComputedStyle(path).fill;
+    if (fills[band.parity] === undefined) fills[band.parity] = fill;
+    else if (fills[band.parity] !== fill) bad.push(`band ${i} fill drifted`);
+    if (getComputedStyle(path).pointerEvents !== "none") {
+      bad.push(`band ${i} is hit-testable -- it would swallow a bar's click`);
+    }
+  });
+  if (fills[0] === fills[1]) bad.push("both band tints resolve to one colour");
+  // Every row's own background COLOUR, against the band its rows belong to.
+  // Every row, provenance or not: the band tint is the colour and a
+  // provenance tint is a background IMAGE layered over it, precisely so that
+  // an untraced row shows both. Measuring the colour therefore sees the band
+  // on all 24 of pitch_system's rows, 20 of which are untraced -- and if the
+  // two rules ever go back to competing for one `background`, 20 of them lose
+  // their band and this goes red.
+  const byParity = { 0: new Set(), 1: new Set() };
+  let tinted = 0;
+  let provenanceLayers = 0;
+  for (const row of rows) {
+    const id = row.getAttribute("data-id");
+    const p = parity[id];
+    if (p === undefined) { bad.push(`row ${id} is in no band`); continue; }
+    byParity[p].add(getComputedStyle(row).backgroundColor);
+    tinted++;
+    const provenance = /conf--untraced|conf--no_source_ref/
+      .test(row.getAttribute("class") || "");
+    const image = getComputedStyle(row).backgroundImage;
+    if (provenance && (!image || image === "none")) {
+      bad.push(`untraced row ${id} lost its provenance tint to the band`);
+    }
+    if (provenance) provenanceLayers++;
+  }
+  for (const p of [0, 1]) {
+    if (byParity[p].size > 1) {
+      bad.push(`parity ${p} rows painted ${byParity[p].size} different backgrounds`);
+    }
+  }
+  const zero = Array.from(byParity[0])[0];
+  const one = Array.from(byParity[1])[0];
+  if (zero !== undefined && one !== undefined && zero === one) {
+    bad.push("both row tints resolve to one colour");
+  }
+  return {
+    bad, tinted, provenanceLayers, bands: bands.length, drawn: drawn.length,
+    svgWidth: document.querySelector("svg.tv__rails").getBoundingClientRect().width,
+    rowHeights: rows.map((r) => Math.round(r.getBoundingClientRect().height * 100) / 100),
+    nameWidth: Math.round(document.querySelector("td.tvcell--name")
+      .getBoundingClientRect().width * 100) / 100,
+    // Every leader's own path shape, so a style change is measured in the DOM
+    // rather than in the toolbar's own label.
+    leaderPaths: Array.from(document.querySelectorAll("path.rail__leaderhit"))
+      .map((p) => p.getAttribute("d")),
+  };
+};
+
+// How far open the jog zone currently is, as the MULTIPLE of its own natural
+// width that the preference is held as (viewer_leader_grid_legibility). The
+// natural width is re-derived for whatever topology is on screen, so this is
+// comparable across a topology switch -- which is the point: five leaders and
+// sixteen leaders have very different natural widths, and a preference stored
+// in pixels would be nonsense on the other one.
+const ZONE_IN_PAGE = () => {
+  const VA = window.ViewerApp;
+  const id = VA.lastTopoRender.topologyId;
+  const proj = VA.findTopology(VA.demoTopologyFixture().topologies, id);
+  const layout = VA.spineRight(proj.layout);
+  const natural = VA.leaderGeometry(layout, VA.gridPlan(layout, proj),
+    VA.RAIL_METRICS);
+  const svg = document.querySelector("svg.tv__rails").getBoundingClientRect().width;
+  return {
+    topologyId: id,
+    natural: natural.naturalZone,
+    leaders: natural.leaders.length,
+    svg: svg,
+    scale: (svg - natural.zoneLeft) / natural.naturalZone,
+  };
+};
+
 // The viewport fit and the centring (viewer_dag_spine_layout), measured in
 // the page: how tall the DAG actually came out against the budget the render
 // measured and against the height its own edge count alone demands (the floor
@@ -765,6 +911,9 @@ const FIT_IN_PAGE = () => {
 // horizontally when it switches.
 const TOPO_VIEWPORT = { width: 1600, height: 1000 };
 const CARD_LAYOUT_VIEWPORT = { width: 1600, height: 700 };
+// The one trigger every card-layout contract below is measured on: the demo
+// mechanism's one resolved crop, whose edge card is the tall one.
+const CARD_TRIGGER = "tr.tvrow[data-id='base_thickness'] button.crop-trigger";
 
 // A rail BAR is a vertical <line>: its bounding box is zero pixels WIDE, and
 // playwright calls a zero-area element "not visible" and refuses
@@ -845,24 +994,40 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
   const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
 
-  // Everything the hover-card layout contract is measured against, all of it
-  // scroll-invariant: the DOCUMENT's own height (the thing a popover that is
-  // still in flow lengthens), the DAG pane's box in DOCUMENT coordinates
-  // (viewport coordinates would move with any scroll playwright's own hover
-  // does on the way to a trigger), and how far the open card reaches past the
-  // document's bottom -- the witness that the configuration being measured is
-  // one where the defect could show at all.
-  const cardLayout = () => page.evaluate(() => {
+  // Everything the hover-card layout contracts are measured against: the
+  // DOCUMENT's own height (the thing a popover that is still in flow
+  // lengthens) and the DAG pane's box in DOCUMENT coordinates -- both
+  // scroll-invariant, since viewport coordinates would move with any scroll
+  // playwright's own hover does on the way to a trigger -- plus the open
+  // card's and the trigger's own boxes, which are read in VIEWPORT coordinates
+  // because that is the frame the card is placed in.
+  const cardLayout = () => page.evaluate((triggerSel) => {
     const pane = document.querySelector("#topopane").getBoundingClientRect();
     const pop = document.querySelector(".croppop");
     const open = pop && getComputedStyle(pop).display !== "none";
     const card = open ? pop.getBoundingClientRect() : null;
+    const trig = document.querySelector(triggerSel);
+    const trigger = trig ? trig.getBoundingClientRect() : null;
     return {
       docHeight: document.documentElement.scrollHeight,
       pane: [pane.x, pane.y + window.scrollY, pane.width, pane.height].join(),
-      cardDocBottom: card ? card.bottom + window.scrollY : null,
+      // ...and the room cap's own frame, in VIEWPORT coordinates, which is
+      // the frame `position: fixed` places the card in: where the card sits
+      // relative to the window and to the trigger it was opened from
+      // (viewer_popover_clamp_and_rebuild_terminal_state).
+      cardTop: card ? card.top : null,
+      cardBottom: card ? card.bottom : null,
+      cardHeight: card ? card.height : null,
+      // Its own scrollport: a card capped to the room beside its trigger is
+      // only honest if the part that did not fit is still reachable.
+      cardScrolls: card ? pop.scrollHeight > pop.clientHeight + 1 : null,
+      cardMid: card ? [card.left + card.width / 2, card.top + card.height / 2]
+                    : null,
+      triggerTop: trigger ? trigger.top : null,
+      triggerBottom: trigger ? trigger.bottom : null,
+      innerHeight: window.innerHeight,
     };
-  });
+  }, CARD_TRIGGER);
 
   // Dismiss an open hover card deterministically: move the pointer OFF the
   // trigger FIRST, then Escape. Since viewer_dag_hover_cards the rail marks
@@ -990,8 +1155,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // hover, not click: a click also SELECTS the row (its normal job), and the
     // detail pane repopulating is legitimate layout movement that would drown
     // the measurement below — the card itself is what must move nothing.
-    await page.locator("tr.tvrow[data-id='base_thickness'] button.crop-trigger")
-      .hover();
+    await page.locator(CARD_TRIGGER).hover();
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
     push("the thumbnail trigger opens the edge hover card with the crop body",
       await page.locator(".croppop").isVisible() &&
@@ -1005,18 +1169,60 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const withCard = await cardLayout();
     // The measurement's own tripwire, asserted BEFORE what it certifies: if a
     // later change (a shorter card, a taller fixture, a bigger viewport here)
-    // stops the card reaching past the document bottom, this suite must go red
-    // for being unable to see the defect rather than green for not finding it.
-    push("the open card hangs past the document's own bottom — the one " +
-      "configuration where an in-flow popover would lengthen it",
-      withCard.cardDocBottom !== null &&
-      withCard.cardDocBottom > beforeCard.docHeight + 8);
+    // stops the card needing to be placed past the bottom, this suite must go
+    // red for being unable to see the defect rather than green for not
+    // finding it.
+    //
+    // Measured as "the cap bit" rather than as "the card hangs past the
+    // document bottom", which is what this said before
+    // viewer_popover_clamp_and_rebuild_terminal_state: the shipped card is now
+    // capped to the room on the side it is placed, so it never reaches past
+    // anything and the old witness can no longer be true. What still
+    // distinguishes this configuration is that the card WANTS more height than
+    // either side of its trigger can give it — its box is exactly the
+    // roomier side's room, and its content still overflows that box.
+    const roomBelow = withCard.innerHeight - withCard.triggerBottom - 16;
+    const roomAbove = withCard.triggerTop - 16;
+    push("the card wants more height than there is room for on either side " +
+      "of its trigger — the configuration the card-layout contracts " +
+      "below are only falsifiable in",
+      withCard.cardBottom !== null && withCard.cardScrolls === true &&
+      Math.abs(withCard.cardHeight - Math.max(roomAbove, roomBelow)) <= 1);
     push("an open card leaves the document's own height untouched",
       withCard.docHeight === beforeCard.docHeight);
     push("an open card moves the DAG pane by nothing at all",
       beforeCard.pane === withCard.pane);
     push("leaders still land on their dots and seams with a card open",
       (await correspondence()).drift.length === 0);
+
+    // The room cap (viewer_popover_clamp_and_rebuild_terminal_state): this
+    // card fits neither below its trigger nor above it, and before the cap it
+    // rendered below anyway with a strip of itself — the citation line and
+    // the crop-key claim — past the window bottom, where a
+    // `position: fixed` element can never be scrolled to and where its own
+    // `overflow-y` does not reach either (the card is shorter than
+    // `max-height: calc(100vh - 24px)`, so nothing scrolls inside it).
+    // Three things have to hold at once, and the last two are why the fix is a
+    // cap and not a move: a card nudged up over its own trigger becomes
+    // undismissable, because hiding it hands the pointer back to the trigger,
+    // whose mouseenter re-opens it.
+    push("the open card's bottom edge is inside the window",
+      withCard.cardBottom !== null &&
+      withCard.cardBottom <= withCard.innerHeight);
+    push("the capped card keeps the overrun reachable in its own scrollport",
+      withCard.cardScrolls === true);
+    push("the card still sits clear of the trigger it was opened from",
+      withCard.cardBottom <= withCard.triggerTop ||
+      withCard.cardTop >= withCard.triggerBottom);
+    // Nothing in this app closes a popover on mouseleave, by design
+    // (views/stack.js's crop trigger says why): the pointer has to leave the
+    // trigger to reach the links inside the card. A REAL pointer move onto the
+    // card proves it — a card that opens and shuts again is worse than one
+    // with an unreachable footer.
+    await page.mouse.move(withCard.cardMid[0], withCard.cardMid[1]);
+    push("and it stays open with the pointer moved off the trigger onto it",
+      await page.locator(".croppop").isVisible());
+
     await page.keyboard.press("Escape");
     push("Escape closes it here too", !(await page.locator(".croppop").isVisible()));
     await page.setViewportSize(TOPO_VIEWPORT);
@@ -1273,6 +1479,122 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /Lengths: uniform/.test(await page.locator("#edge-length-toggle").textContent()) &&
       uniBars.bad.length === 0 && uniBars.floored === 0);
 
+    // --- leader legibility (viewer_leader_grid_legibility) -----------------
+    //
+    // Three display preferences, and the one thing all three must leave alone
+    // is the correspondence the rest of this suite exists for: a leader's two
+    // ends on its dot and its seam. So each is toggled and correspondence
+    // re-measured, which is the matrix the handoff asks for -- jogged ×
+    // angled, and the jog zone at two widths.
+    const bands = () => page.evaluate(BANDS_IN_PAGE);
+
+    const joggedBands = await bands();
+    push("the bands are drawn, tinted by parity, and hit-test nothing",
+      joggedBands.bad.length === 0 && joggedBands.drawn === joggedBands.bands &&
+      joggedBands.tinted > 0);
+    if (joggedBands.bad.length) console.log("    bands: " + joggedBands.bad.slice(0, 5).join(" | "));
+    push("every leader is still a right-angle jog by default",
+      joggedBands.leaderPaths.length === 5 &&
+      joggedBands.leaderPaths.every((d) => / H .* V .* H /.test(d)));
+
+    push("the leader-style toggle starts at jogged",
+      /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
+    await page.locator("#leader-style-toggle").click();
+    await page.waitForTimeout(50);
+    const angledBands = await bands();
+    push("one click: angled leaders, drawn as one straight segment each",
+      /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
+      angledBands.leaderPaths.length === 5 &&
+      angledBands.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
+    // The deliverable's own condition: the endpoint checks pass in BOTH
+    // styles, because only the path between the two ends changed.
+    const angledDrift = await correspondence();
+    push("angled leaders land on exactly the same dots and seams",
+      angledDrift.drift.length === 0 && angledDrift.leaders === 5);
+    if (angledDrift.drift.length) console.log("    drift: " + angledDrift.drift.slice(0, 5).join(" | "));
+    push("the bands follow the angled leaders and still tint by parity",
+      angledBands.bad.length === 0);
+    if (angledBands.bad.length) console.log("    bands: " + angledBands.bad.slice(0, 5).join(" | "));
+
+    // Dragging the jog zone open, with a real pointer on the real grip --
+    // the whole affordance, not the pure scale arithmetic the fast tier pins.
+    const jogGrip = page.locator(".tvgrip--jog");
+    push("the jog zone carries a drag grip on the seam", await jogGrip.count() === 1);
+    const jogBox = await jogGrip.boundingBox();
+    await page.mouse.move(jogBox.x + jogBox.width / 2, jogBox.y + jogBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(jogBox.x + jogBox.width / 2 + 180,
+                          jogBox.y + jogBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+    const widened = await bands();
+    push("dragging the grip really widens the jog zone",
+      widened.svgWidth > angledBands.svgWidth + 100);
+    push("a widened jog zone leaves every leader on its dot and its seam",
+      (await correspondence()).drift.length === 0);
+    push("the bands widen with the zone rather than staying behind",
+      widened.bad.length === 0);
+    if (widened.bad.length) console.log("    bands: " + widened.bad.slice(0, 5).join(" | "));
+    // ...and the same, back in jogged style: the resized zone × both styles
+    // is the matrix, not two separate one-offs.
+    await page.locator("#leader-style-toggle").click();
+    await page.waitForTimeout(50);
+    const widenedJog = await bands();
+    push("jogged leaders in a widened zone correspond too, and their lanes " +
+      "really did spread",
+      (await correspondence()).drift.length === 0 &&
+      widenedJog.leaderPaths.every((d) => / H .* V .* H /.test(d)) &&
+      widenedJog.svgWidth > angledBands.svgWidth + 100);
+
+    // The ELEMENT column: widening it must reveal more text and change NO
+    // row's height -- a <tr>'s height is a floor, not a cap, so a cell that
+    // wrapped instead of clipping would walk every seam below it off its
+    // leader. That is the one thing only a real browser can measure.
+    const colGrip = page.locator(".tvgrip--col");
+    push("the ELEMENT header carries a drag grip", await colGrip.count() === 1);
+    const colBox = await colGrip.boundingBox();
+    const beforeCol = await bands();
+    const longest = await page.evaluate(() => {
+      const cells = Array.from(document.querySelectorAll("td.tvcell--name"));
+      const worst = cells.reduce((a, b) => (b.scrollWidth > a.scrollWidth ? b : a));
+      return { id: worst.closest("tr").getAttribute("data-id"),
+               clipped: worst.scrollWidth - worst.clientWidth };
+    });
+    push("some element label really is clipped at the default width",
+      longest.clipped > 0);
+    await page.mouse.move(colBox.x + colBox.width / 2, colBox.y + colBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(colBox.x + colBox.width / 2 + 220,
+                          colBox.y + colBox.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(80);
+    const afterCol = await bands();
+    push("dragging the ELEMENT grip widens that column",
+      afterCol.nameWidth > beforeCol.nameWidth + 150);
+    push("and no row grew a pixel taller for it",
+      afterCol.rowHeights.length === beforeCol.rowHeights.length &&
+      afterCol.rowHeights.every((h, i) => Math.abs(h - beforeCol.rowHeights[i]) < 0.5));
+    push("the widened column reveals the label that was clipped",
+      (await page.evaluate((id) => {
+        const cell = document.querySelector(`tr.tvrow[data-id="${id}"] td.tvcell--name`);
+        return cell.scrollWidth - cell.clientWidth;
+      }, longest.id)) === 0);
+    push("leaders still land on their dots and seams beside a wider column",
+      (await correspondence()).drift.length === 0);
+
+    // Both preferences survive a topology switch, like density does -- they
+    // are how the page is drawn, not a fact about what is on it.
+    await page.locator("#density-toggle").click();
+    await page.waitForTimeout(50);
+    const afterDensity = await bands();
+    push("the resized widths survive a re-render at the other density",
+      Math.abs(afterDensity.nameWidth - afterCol.nameWidth) < 0.5 &&
+      Math.abs(afterDensity.svgWidth - afterCol.svgWidth) < 0.5);
+    push("and correspondence holds at compact density with both widths dragged",
+      (await correspondence()).drift.length === 0);
+    await page.locator("#density-toggle").click();
+    await page.waitForTimeout(50);
+
     // --- the same page, against the REAL projection ------------------------
     if (!realProjection) {
       push("[real] projection present (skipped: not built)", true);
@@ -1435,6 +1757,71 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         (await correspondence()).drift.length === 0);
       await page.locator("#edge-length-toggle").click();
       await page.waitForTimeout(50);
+
+      // The bands and both leader styles on the REAL pitch_system -- the
+      // document Jeff was reading when he said the leaders were near
+      // impossible to follow, and the one where the leaders genuinely cross
+      // each other (16 times: ISSUE_20260914_leaders_cross_each_other_since_
+      // the_grid_was_centred.md). 43 rows and 16 leaders is also the only
+      // case with enough bands for "ride a band across the jog zone" to mean
+      // anything.
+      const realBands = await page.evaluate(BANDS_IN_PAGE);
+      push("[real] pitch_system's rows and bands are tinted from one parity, " +
+        "and its untraced rows keep their provenance tint as well",
+        realBands.bad.length === 0 && realBands.bands === 17 &&
+        realBands.drawn === 17 &&
+        realBands.tinted === realBands.rowHeights.length &&
+        realBands.provenanceLayers > realBands.tinted / 2);
+      if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
+      const realAngled = await page.evaluate(BANDS_IN_PAGE);
+      push("[real] pitch_system's angled leaders still land on every dot and seam",
+        (await correspondence()).drift.length === 0 &&
+        realAngled.bad.length === 0 &&
+        realAngled.leaderPaths.length === 16 &&
+        realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
+      if (realAngled.bad.length) console.log("    bands: " + realAngled.bad.slice(0, 5).join(" | "));
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
+      push("[real] and back in jogged style",
+        (await correspondence()).drift.length === 0 &&
+        /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
+
+      // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
+      // reset them -- the rule density and the length modes already follow.
+      const zone = () => page.evaluate(ZONE_IN_PAGE);
+      const before = await zone();
+      // Not asserted to be 1: the mock block above dragged it, and the app's
+      // state module survives the fixture swap and re-boot this tier does --
+      // which is itself the preference behaving. What is asserted is that the
+      // scale is re-derived against THIS topology's own 16 leaders.
+      push("[real] the jog zone is measured against pitch_system's own 16 leaders",
+        before.leaders === 16 && before.scale >= 1);
+      const realGrip = await page.locator(".tvgrip--jog").boundingBox();
+      await page.mouse.move(realGrip.x + realGrip.width / 2,
+                            realGrip.y + realGrip.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(realGrip.x + realGrip.width / 2 + 200,
+                            realGrip.y + realGrip.height / 2, { steps: 8 });
+      await page.mouse.up();
+      await page.waitForTimeout(80);
+      const dragged = await zone();
+      push("[real] pitch_system's jog zone drags open, leaders still on their " +
+        "dots and seams",
+        dragged.scale > 1.5 && dragged.svg > before.svg + 100 &&
+        (await correspondence()).drift.length === 0);
+
+      await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const switched = await zone();
+      push("[real] switching topology keeps the SCALE, not the pixel width",
+        switched.topologyId === "pitch_link_to_pitch_plate" &&
+        switched.natural !== dragged.natural &&
+        Math.abs(switched.scale - dragged.scale) < 0.01 &&
+        (await correspondence()).drift.length === 0);
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
       // The preview pane over a real citation, with a real crop behind it.
       await page.locator(navRow("topology", "vpa_output_to_pitch_plate")).click();

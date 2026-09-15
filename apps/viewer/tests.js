@@ -55,6 +55,18 @@
       return Array.prototype.slice.call(root.querySelectorAll(selector));
     }
 
+    // Class membership that reads the same in the DOM shim and in a real
+    // browser -- this suite runs in both (test.html). An HTML node's classes
+    // come back through `className` (the shim never syncs that to the
+    // attribute); an SVG node's only through getAttribute("class"), because
+    // `className` there is a read-only SVGAnimatedString.
+    function hasClass(node, cls) {
+      var raw = node.getAttribute("class");
+      if (raw === null || raw === undefined) raw = node.className;
+      if (raw && typeof raw === "object") raw = raw.baseVal;
+      return (" " + String(raw || "") + " ").indexOf(" " + cls + " ") !== -1;
+    }
+
     // --- formatting: the no-second-arithmetic rule -------------------------
 
     await test("fmt prints a projection number verbatim, with no rounding", function () {
@@ -2367,6 +2379,244 @@
         ok(geo.width > railWidth, "the jog zone has real width");
       });
 
+    // --- leader legibility (viewer_leader_grid_legibility, 2026-09-14) -----
+    //
+    // Three display preferences and one label rule, all of which have to leave
+    // the page's landed correspondence contract exactly where it was: a
+    // leader's node-side end on its own dot, its grid-side end on its boundary
+    // row's seam. Every test below that touches geometry re-checks both ends.
+
+    // A tiny evaluator for a band boundary (a polyline, non-decreasing in x,
+    // vertical jumps allowed) so the tiling claim can be sampled rather than
+    // asserted at the breakpoints the code chose.
+    function profileY(profile, x) {
+      var y = profile[0][1];
+      for (var i = 1; i < profile.length; i++) {
+        var a = profile[i - 1], b = profile[i];
+        if (b[0] < x) { y = b[1]; continue; }
+        if (a[0] > x) break;
+        y = b[0] === a[0] ? b[1]
+          : a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]);
+        break;
+      }
+      return y;
+    }
+
+    await test("leaderBands cuts the grid into one band per leader plus one, " +
+      "alternating, covering every row exactly once", function () {
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var bands = VA.leaderBands(plan);
+        eq(bands.length, plan.leaders.length + 1);
+        var at = 0;
+        bands.forEach(function (band, i) {
+          eq(band.index, i);
+          eq(band.parity, i % 2, "bands alternate");
+          eq(band.startRow, at, "band " + i + " starts where the last ended");
+          ok(band.endRow >= band.startRow, "a band never runs backwards");
+          at = band.endRow;
+        });
+        eq(at, plan.rows.length, "the last band reaches the bottom of the grid");
+        // A band's lower edge IS the leader that bounds it, named by id, and
+        // its rows are the ones that leader points above.
+        bands.forEach(function (band, i) {
+          eq(band.below, i === plan.leaders.length ? null : plan.leaders[i].id);
+          eq(band.above, i === 0 ? null : plan.leaders[i - 1].id);
+          if (band.below !== null) {
+            eq(band.endRow, plan.leaders[i].boundary,
+               "band " + i + " ends at its own leader's seam");
+          }
+        });
+
+        // Every row gets exactly one parity, and it is its band's.
+        var parity = VA.rowBandParity(plan);
+        eq(Object.keys(parity).length, plan.rows.length);
+        bands.forEach(function (band) {
+          for (var r = band.startRow; r < band.endRow; r++) {
+            eq(parity[plan.rows[r].id], band.parity, plan.rows[r].id);
+          }
+        });
+      });
+
+    await test("the bands TILE the pane even where the leaders cross: " +
+      "adjacent bands share one edge and no band folds over itself",
+      function () {
+        // The property the running-max clamp exists for, and the ONE
+        // configuration that can see it. Leaders cross each other whenever a
+        // leader's grid-side seam sits at or below the NEXT interface's dot,
+        // which became possible when viewer_dag_spine_layout centred the grid
+        // against the DAG and leaders stopped always rising. Drawn literally,
+        // "the region between two leaders" then folds over itself and doubles
+        // its own tint -- a checkerboard exactly where the page is meant to be
+        // getting more legible. (The crossings themselves are a layout
+        // question, not this one: ISSUE_20260914_leaders_cross_each_other_
+        // since_the_grid_was_centred.md.)
+        //
+        // The demo mechanism only crosses once the grid is centred against it,
+        // so the centred store is the fixture and the crossing is asserted
+        // first: without that witness this test passes forever on a straight
+        // ladder of leaders and says nothing.
+        var M = VA.RAIL_METRICS;
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var centred = VA.rowPositions(TOPO.layout, TOPO, "uniform", M,
+          { budget: 200, plan: plan });
+        ok(centred.gridOffset > 1, "the grid really is pushed down");
+        // The demo mechanism's own centring only makes the first two leaders
+        // TOUCH, so the store is pushed one step further to model the real
+        // pitch_system, whose grid sits ~300px down a 1170px DAG and whose
+        // leaders cross 16 times. Only `gridOffset` moves -- the same knob
+        // VA.centreOffsets turns -- and leaderGeometry reads nothing else off
+        // a store but that, the node y's and the total height. The [real]
+        // tier below checks the shipped projection rather than this model.
+        var crossed = { nodes: centred.nodes, height: centred.height,
+                        gridOffset: centred.gridOffset + 60 };
+
+        [null, crossed].forEach(function (positions) {
+          ["jogged", "angled"].forEach(function (style) {
+            var label = (positions ? "centred " : "top-aligned ") + style;
+            var geo = VA.leaderGeometry(TOPO.layout, plan, M, positions,
+              { style: style });
+            eq(geo.bands.length, plan.leaders.length + 1, label);
+            geo.bands.forEach(function (band, i) {
+              // One shared edge, not two that happen to agree.
+              if (i + 1 < geo.bands.length) {
+                ok(band.bottom === geo.bands[i + 1].top,
+                   label + ": bands " + i + " and " + (i + 1) + " share an edge");
+              }
+              for (var x = 0; x <= geo.width; x += 2) {
+                var top = profileY(band.top, x);
+                var bottom = profileY(band.bottom, x);
+                ok(bottom >= top - 1e-9,
+                   label + ": band " + i + " is inside out at x=" + x +
+                   " (" + top + " > " + bottom + ")");
+              }
+            });
+            // And the stack covers the whole SVG, top to bottom.
+            eq(geo.bands[0].top[0][1], 0, label);
+            eq(profileY(geo.bands[geo.bands.length - 1].bottom, geo.width),
+               (positions || VA.rowPositions(TOPO.layout, null, "uniform", M)).height,
+               label);
+          });
+
+          // The witness: with the grid centred, at least one leader's own
+          // vertical really does run through a later leader's horizontal.
+          var jog = VA.leaderGeometry(TOPO.layout, plan, M, positions);
+          var crossings = 0;
+          jog.leaders.forEach(function (a, i) {
+            jog.leaders.slice(i + 1).forEach(function (b) {
+              var lo = Math.min(a.y1, a.y2), hi = Math.max(a.y1, a.y2);
+              if (a.laneX >= b.x1 && a.laneX <= b.laneX &&
+                  b.y1 >= lo && b.y1 <= hi) crossings++;
+            });
+          });
+          if (positions) {
+            ok(crossings > 0,
+               "the centred fixture must actually contain a crossing, or the " +
+               "clamp above is never exercised");
+          } else {
+            eq(crossings, 0, "top-aligned, the leaders still cannot cross");
+          }
+        });
+      });
+
+    await test("angled leaders are one straight segment between the SAME two " +
+      "ends the jogged ones have", function () {
+        var M = VA.RAIL_METRICS;
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var jogged = VA.leaderGeometry(TOPO.layout, plan, M);
+        var angled = VA.leaderGeometry(TOPO.layout, plan, M, null, { style: "angled" });
+        eq(jogged.style, "jogged");
+        eq(angled.style, "angled");
+        eq(angled.width, jogged.width, "the zone is the same width in both");
+        angled.leaders.forEach(function (leader, i) {
+          var twin = jogged.leaders[i];
+          eq(leader.id, twin.id);
+          // The contract: both ends, unmoved. This is what lets the browser
+          // tier's CORRESPONDENCE_IN_PAGE pass in either style without being
+          // taught that styles exist.
+          eq(leader.x1, twin.x1, leader.id);
+          eq(leader.y1, twin.y1, leader.id);
+          eq(leader.y2, twin.y2, leader.id);
+          eq(leader.boundary, twin.boundary, leader.id);
+          eq(leader.beforeEdge, twin.beforeEdge, leader.id);
+          eq(leader.d, "M " + leader.x1 + " " + leader.y1 +
+             " L " + angled.width + " " + leader.y2);
+          eq(leader.points.length, 2, "one segment, not three");
+          ok(twin.points.length === 4, "the jogged one still jogs");
+        });
+      });
+
+    await test("dragging the jog zone spreads the lanes across the new width " +
+      "and moves neither end of any leader", function () {
+        var M = VA.RAIL_METRICS;
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var one = VA.leaderGeometry(TOPO.layout, plan, M);
+        var three = VA.leaderGeometry(TOPO.layout, plan, M, null, { zoneScale: 3 });
+        eq(one.zoneScale, 1);
+        eq(three.zoneScale, 3);
+        eq(three.naturalZone, one.naturalZone);
+        eq(one.width - one.zoneLeft, one.naturalZone);
+        eq(three.width - three.zoneLeft, one.naturalZone * 3,
+           "the zone is three times as wide, the rails beside it unmoved");
+        eq(three.zoneLeft, one.zoneLeft);
+        // Evenly spread: the gap between consecutive lanes is the lane pitch
+        // times the scale, everywhere.
+        three.leaders.forEach(function (leader, i) {
+          eq(leader.y1, one.leaders[i].y1, leader.id);
+          eq(leader.y2, one.leaders[i].y2, leader.id);
+          eq(leader.x1, one.leaders[i].x1, leader.id);
+          if (i > 0) {
+            eq(leader.laneX - three.leaders[i - 1].laneX, M.leaderLane * 3,
+               "lanes stay evenly spread (" + leader.id + ")");
+          }
+        });
+      });
+
+    await test("the jog-zone scale is a multiple of the zone's natural width, " +
+      "clamped, and a drag never compounds", function () {
+        // A multiple rather than a pixel width because the preference
+        // outlives the topology it was set on.
+        eq(VA.jogZoneScaleAfterDrag(1, 40, 40), 2);
+        eq(VA.jogZoneScaleAfterDrag(2, 40, 40), 3);
+        eq(VA.jogZoneScaleAfterDrag(2, -40, 40), 1);
+        // Dragging LEFT past the natural width is refused, not inverted: the
+        // lanes have to stay far enough apart to be separate lines.
+        eq(VA.jogZoneScaleAfterDrag(1, -400, 40), VA.JOG_ZONE_SCALE.min);
+        eq(VA.jogZoneScaleAfterDrag(1, 40000, 40), VA.JOG_ZONE_SCALE.max);
+        eq(VA.clampJogZoneScale(0), VA.JOG_ZONE_SCALE.min);
+        eq(VA.clampJogZoneScale("x"), VA.JOG_ZONE_SCALE.min);
+        eq(VA.clampJogZoneScale(1e9), VA.JOG_ZONE_SCALE.max);
+        // A zone with no leaders in it has no natural width to scale.
+        eq(VA.jogZoneScaleAfterDrag(1, 40, 0), 1);
+        // And the clamp is what the geometry applies, not the caller.
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        eq(VA.leaderGeometry(TOPO.layout, plan, VA.RAIL_METRICS, null,
+           { zoneScale: 99 }).zoneScale, VA.JOG_ZONE_SCALE.max);
+      });
+
+    await test("elementDisplayLabel drops only a leading repeat of the " +
+      "component's own name, and never blanks a cell", function () {
+        // Jeff's case, verbatim: under component `blade_root`, three rows all
+        // opened with "blade-root".
+        eq(VA.elementDisplayLabel("blade-root clocking holes to the hub", "blade_root"),
+           "clocking holes to the hub");
+        // Case- and separator-insensitive on BOTH sides.
+        eq(VA.elementDisplayLabel("Blade Root seat", "blade_root"), "seat");
+        eq(VA.elementDisplayLabel("blade_root_seat", "blade-root"), "seat");
+        // A word that merely starts the same way is not the component's name.
+        eq(VA.elementDisplayLabel("blade_rooting torque", "blade_root"),
+           "blade_rooting torque");
+        // No repeat at all: unchanged, character for character.
+        eq(VA.elementDisplayLabel("hub bore to the pin", "blade_root"),
+           "hub bore to the pin");
+        // A label that is ONLY its component's name keeps it -- an empty
+        // element cell would be a worse lie than a repetitive one.
+        eq(VA.elementDisplayLabel("blade-root", "blade_root"), "blade-root");
+        // A gap group has no part, so there is nothing to match against.
+        eq(VA.elementDisplayLabel("shank out", null), "shank out");
+        eq(VA.elementDisplayLabel("shank out", ""), "shank out");
+        eq(VA.elementDisplayLabel(null, "hub"), "");
+      });
+
     // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) -------
     //
     // The demo mechanism exercises every scaling case on purpose: a real
@@ -2651,6 +2901,252 @@
                hit.getAttribute("data-leader-id") + " leaves past a rail at " + railX);
           });
         });
+      });
+
+    // --- the leader-legibility WIRING (viewer_leader_grid_legibility) -----
+    //
+    // Every test in this block measures the PAGE, not the pure function beside
+    // it. The lesson from viewer_dag_spine_layout's review is the reason:
+    // a deliverable that is a call site rather than a computation ships green
+    // when the call site is deleted, because nine tests of the pure function
+    // cannot see it. Each of these dies under a one-line revert of its own
+    // wiring.
+
+    await test("the RENDER tints the bands and the grid rows from ONE parity",
+      function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var plan = VA.gridPlan(VA.spineRight(TOPO.layout), TOPO);
+        var bands = VA.leaderBands(plan);
+
+        // The SVG's own band polygons, in order, wearing the parity class.
+        var drawn = all(root, "path.rail__band");
+        eq(drawn.length, bands.length, "one polygon per band");
+        drawn.forEach(function (path, i) {
+          eq(path.getAttribute("data-band"), String(i));
+          ok(path.getAttribute("d"), "a band with no geometry is not a band");
+          eq(hasClass(path, "rail__band--b"), bands[i].parity === 1,
+             "band " + i + " wears its own parity");
+          eq(hasClass(path, "rail__band--a"), bands[i].parity === 0,
+             "band " + i + " wears its own parity");
+        });
+
+        // And the grid rows carry the SAME parity, which is the whole claim:
+        // the band between two leaders and the rows it feeds are one tint.
+        var parity = VA.rowBandParity(plan);
+        var rows = all(root, "tr.tvrow");
+        eq(rows.length, plan.rows.length);
+        rows.forEach(function (row) {
+          var id = row.getAttribute("data-id");
+          var wantsB = parity[id] === 1;
+          eq(hasClass(row, "tvrow--band-b"), wantsB, id);
+          eq(hasClass(row, "tvrow--band-a"), !wantsB, id);
+        });
+
+        // Non-vacuity: both tints are actually on screen, in both places.
+        ok(all(root, "path.rail__band--a").length > 0 &&
+           all(root, "path.rail__band--b").length > 0, "both band tints drawn");
+        ok(all(root, "tr.tvrow--band-a").length > 0 &&
+           all(root, "tr.tvrow--band-b").length > 0, "both row tints drawn");
+      });
+
+    await test("the RENDER draws the leaders in the style the state asks for, " +
+      "with both ends where they always were", function () {
+        var ends = function (root) {
+          return all(root, "path.rail__leaderhit").map(function (hit) {
+            var d = hit.getAttribute("d");
+            var head = /^M ([-\d.]+) ([-\d.]+)/.exec(d);
+            var tail = /([-\d.]+) ([-\d.]+)$/.exec(d.replace(/ H ([-\d.]+)$/, function (_, x) {
+              return " " + x + " " + /V ([-\d.]+)/.exec(d)[1];
+            }));
+            return { id: hit.getAttribute("data-leader-id"), d: d,
+                     x1: Number(head[1]), y1: Number(head[2]),
+                     x2: Number(tail[1]), y2: Number(tail[2]) };
+          });
+        };
+        var jogged = ends(render(function (r) { VA.renderTopoPane(r, topoCtx()); }));
+        var angled = ends(render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ leaderStyle: "angled" }));
+        }));
+        ok(jogged.length > 0, "the demo mechanism has leaders");
+        eq(angled.length, jogged.length);
+        angled.forEach(function (leader, i) {
+          eq(leader.id, jogged[i].id);
+          // The style really changed in the DOM: three orthogonal segments
+          // against one straight one.
+          ok(/ H .* V .* H /.test(jogged[i].d), "jogged still jogs: " + jogged[i].d);
+          ok(/^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(leader.d),
+             "angled is one segment: " + leader.d);
+          // ...and BOTH ends are untouched, which is what keeps the browser
+          // tier's endpoint correspondence true in either style.
+          eq(leader.x1, jogged[i].x1, leader.id);
+          eq(leader.y1, jogged[i].y1, leader.id);
+          eq(leader.x2, jogged[i].x2, leader.id);
+          eq(leader.y2, jogged[i].y2, leader.id);
+        });
+        // The visible twin is drawn from the same path as the hit path.
+        var visible = all(render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ leaderStyle: "angled" }));
+        }), "path.rail__leader");
+        eq(visible.length, angled.length);
+        visible.forEach(function (path, i) { eq(path.getAttribute("d"), angled[i].d); });
+      });
+
+    await test("the RENDER widens the jog zone when the preference says so, " +
+      "and the SVG, the header offset and the leaders all move together",
+      function () {
+        var M = VA.RAIL_METRICS;
+        var layout = VA.spineRight(TOPO.layout);
+        var plan = VA.gridPlan(layout, TOPO);
+        var want = VA.leaderGeometry(layout, plan, M, null, { zoneScale: 3 }).width;
+        var narrow = VA.leaderGeometry(layout, plan, M).width;
+        ok(want > narrow, "scale 3 is wider than scale 1");
+
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ jogZoneScale: 3 }));
+        });
+        var svg = root.querySelector("svg.tv__rails");
+        eq(Number(svg.getAttribute("width")), want, "the SVG spans the wider zone");
+        // The header is padded by exactly the SVG's width, or every column
+        // label stops sitting over its own column.
+        eq(root.querySelector("div.tv__head").style.paddingLeft, want + "px");
+        // Every leader hands off at the new right edge -- the grid's left one.
+        all(root, "path.rail__leaderhit").forEach(function (hit) {
+          var d = hit.getAttribute("d");
+          eq(Number(/ H ([-\d.]+)$/.exec(d)[1]), want,
+             hit.getAttribute("data-leader-id"));
+        });
+        // And the bands widen with it rather than staying at the old width.
+        ok(all(root, "path.rail__band").length > 0);
+        all(root, "path.rail__band").forEach(function (band) {
+          ok(band.getAttribute("d").indexOf(String(want)) !== -1,
+             "band " + band.getAttribute("data-band") + " reaches the new edge");
+        });
+      });
+
+    await test("the header carries a grip for the jog zone and one for the " +
+      "ELEMENT column, and both drive the app's own handlers", function () {
+        var started = [], nudged = [];
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({
+            onResizeStart: function (spec) { started.push(spec); },
+            onResizeNudge: function (spec, dx) { nudged.push([spec, dx]); },
+          }));
+        });
+        var grips = all(root, "div.tvgrip");
+        eq(grips.length, 2, "one grip per resizable boundary");
+        var byKey = {};
+        grips.forEach(function (g) { byKey[g.getAttribute("data-resize")] = g; });
+        ok(byKey["jog"], "the jog zone's grip");
+        ok(byKey["column:name"], "the ELEMENT column's grip");
+        // Reachable without a pointer: focusable, and named for a reader.
+        grips.forEach(function (g) {
+          eq(g.getAttribute("tabindex"), "0");
+          ok(g.getAttribute("title"), "a grip says what dragging it does");
+          eq(g.getAttribute("role"), "separator");
+        });
+
+        // The jog grip hands the app the zone's NATURAL width, which is what
+        // turns a pixel drag into a scale -- without it the drag has nothing
+        // to divide by.
+        byKey.jog.onpointerdown({ preventDefault: function () {}, clientX: 10 });
+        eq(started.length, 1);
+        eq(started[0].kind, "jog");
+        eq(started[0].naturalZone,
+           VA.leaderGeometry(VA.spineRight(TOPO.layout),
+             VA.gridPlan(VA.spineRight(TOPO.layout), TOPO), VA.RAIL_METRICS).naturalZone);
+
+        byKey["column:name"].onpointerdown({ preventDefault: function () {}, clientX: 10 });
+        eq(started.length, 2);
+        eq(started[1].kind, "column");
+        eq(started[1].cls, "name");
+
+        // Arrow keys nudge; anything else is not ours to swallow.
+        var key = function (grip, k, shift) {
+          grip.onkeydown({ key: k, shiftKey: !!shift, preventDefault: function () {} });
+        };
+        key(byKey.jog, "ArrowRight");
+        key(byKey.jog, "ArrowLeft");
+        key(byKey["column:name"], "ArrowRight", true);
+        key(byKey.jog, "Enter");
+        eq(nudged.length, 3);
+        eq(nudged[0][1], 8);
+        eq(nudged[1][1], -8);
+        eq(nudged[2][1], 40, "shift is the coarse step");
+        eq(nudged[2][0].cls, "name");
+      });
+
+    await test("column widths come off the ONE array -- both tables' <col>s " +
+      "and their inline totals move together, and the stylesheet declares none",
+      function () {
+        var was = VA.topoColumn("name").width;
+        try {
+          var widths = function (root, sel) {
+            return all(root, sel).map(function (table) {
+              return all(table, "col").map(function (col) { return col.style.width; });
+            });
+          };
+          var check = function (expected) {
+            var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+            var tables = all(root, "table");
+            eq(tables.length, 2, "a head table and a body table");
+            var cols = widths(root, "table");
+            eq(cols[0], cols[1], "the two tables' <col> widths cannot disagree");
+            eq(cols[0], VA.TOPO_COLUMNS.map(function (c) { return c.width + "px"; }));
+            eq(cols[0][2], expected + "px", "the ELEMENT column");
+            var total = VA.TOPO_COLUMNS.reduce(function (s, c) { return s + c.width; }, 0);
+            tables.forEach(function (t) { eq(t.style.width, total + "px"); });
+          };
+          check(was);
+          eq(VA.setTopoColumnWidth("name", 420), 420);
+          check(420);
+          // Clamped at both ends: a column dragged to nothing cannot be
+          // dragged back, and one dragged past the page is a scrollbar with
+          // no content.
+          eq(VA.setTopoColumnWidth("name", 1), VA.TOPO_COLUMN_WIDTH.min);
+          eq(VA.setTopoColumnWidth("name", 99999), VA.TOPO_COLUMN_WIDTH.max);
+          eq(VA.setTopoColumnWidth("nope", 200), null);
+          check(VA.TOPO_COLUMN_WIDTH.max);
+        } finally {
+          VA.setTopoColumnWidth("name", was);
+        }
+
+        // The second width source this removed. A `.tvcol--X { width }` rule
+        // reappearing in the stylesheet is the drift the shared colgroup
+        // exists to prevent, and it would silently win or lose against a
+        // dragged width depending on the browser.
+        var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+        if (!src) return;
+        var css = src.readText("topology.css");
+        ok(css, "topology.css must be readable");
+        ok(!/\.tvcol--[a-z]+[^{]*\{[^}]*\bwidth\s*:/.test(css),
+           "topology.css must declare no column width -- COLUMNS is the source");
+      });
+
+    await test("the element cell drops its own component's name and keeps the " +
+      "full label one hover away", function () {
+        // A group whose rows all open with the component's name, which is
+        // Jeff's blade_root case in miniature.
+        var mini = miniTopo(false);
+        mini.edges.forEach(function (edge) { edge.part = "blade_root"; });
+        mini.parts = [{ id: "blade_root", name: "blade root" }];
+        mini.edges[0].name = "blade-root clocking holes to the hub";
+        var ctx = { topoProj: mini, study: null, crops: null,
+                    layoutMode: "topology", selection: null, detailImage: null,
+                    onSelect: function () {} };
+        var root = render(function (r) { VA.renderTopoPane(r, ctx); });
+        var cells = all(root, "td.tvcell--name");
+        ok(cells.length > 0, "the mini topology has rows");
+        var first = cells[0];
+        eq(first.textContent, "clocking holes to the hub");
+        eq(first.getAttribute("title"), "blade-root clocking holes to the hub",
+           "the words are one hover away, never dropped");
+        // A label that does not repeat its component renders unchanged AND
+        // carries no title -- a tooltip repeating the cell is noise.
+        var plain = cells.filter(function (c) {
+          return c.textContent.indexOf("clocking") === -1;
+        })[0];
+        ok(plain, "a row whose label does not open with its component");
+        eq(plain.getAttribute("title"), null);
       });
 
     await test("fitEdgeLength lands the DAG on its budget, and gives up the " +
@@ -4324,9 +4820,10 @@
             layoutMode: "topology", rowDensity: "compact" }, TOPO, {});
         });
         // layout-toggle, density-toggle, edge-value-toggle, edge-length-toggle
-        // (viewer_edge_length_scaling) -- four now, not three.
+        // (viewer_edge_length_scaling), leader-style-toggle
+        // (viewer_leader_grid_legibility) -- five now, not four.
         var buttons = all(root, "button.tvpick__mode");
-        eq(buttons.length, 4);
+        eq(buttons.length, 5);
         has(buttons[1].textContent, "Rows: Compact");
       });
 
@@ -5456,6 +5953,158 @@
             var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
             eq(gapGroups.length, 1);
             eq(gapGroups[0].label, VA.GAP_COMPONENT_LABEL);
+          });
+
+        await test("[real] on pitch_system, a rendered row's band tint is its " +
+          "own leader band's, value for value", function () {
+            // The deliverable's own claim, on the document it was asked for:
+            // "the band BETWEEN two adjacent leaders and the grid rows that
+            // band feeds share one alternating tint". Measured as the two
+            // things a reader actually sees -- the parity class on each <tr>
+            // and the parity class on each band polygon -- against the bands
+            // computed from the plan, row by row and band by band.
+            var layout = VA.spineRight(livePitch.layout);
+            var plan = VA.gridPlan(layout, livePitch);
+            var bands = VA.leaderBands(plan);
+            eq(bands.length, 17, "16 leaders cut the grid into 17 bands");
+            // The real pitch_system's own band boundaries, as grid row
+            // indices. 24 edge rows, and two bands carry more than one row
+            // (the walk's opening three hub dimensions and its closing four).
+            eq(bands.map(function (b) { return b.startRow + "-" + b.endRow; }).join(" "),
+               "0-3 3-4 4-5 5-6 6-7 7-8 8-9 9-10 10-11 11-12 12-13 13-15 " +
+               "15-16 16-17 17-18 18-19 19-24");
+            eq(bands[0].endRow, plan.groups[0].count,
+               "the first band is the first merged component group");
+
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: null, crops: realCrops,
+                layoutMode: "topology", selection: null,
+                onSelect: function () {},
+              });
+            });
+            var drawn = all(root, "path.rail__band");
+            eq(drawn.length, bands.length);
+            var rows = all(root, "tr.tvrow");
+            eq(rows.length, plan.rows.length);
+
+            // Row i's tint IS the tint of the band whose row range contains
+            // it -- read off the DOM on both sides, so a renderer that tinted
+            // the rows from anything else (row index parity, group index)
+            // fails here.
+            var bandClass = function (node) {
+              return hasClass(node, "rail__band--b") ||
+                     hasClass(node, "tvrow--band-b") ? 1 : 0;
+            };
+            bands.forEach(function (band, i) {
+              eq(bandClass(drawn[i]), band.parity, "band " + i);
+              for (var r = band.startRow; r < band.endRow; r++) {
+                eq(bandClass(rows[r]), band.parity,
+                   "row " + r + " (" + rows[r].getAttribute("data-id") + ")");
+              }
+            });
+            // Non-vacuous: a run of rows in one band, and neighbours that
+            // differ -- a page that tinted every row the same would pass a
+            // parity check written any less carefully.
+            eq(bandClass(rows[0]), bandClass(rows[1]));
+            eq(bandClass(rows[0]), bandClass(rows[2]));
+            ok(bandClass(rows[2]) !== bandClass(rows[3]),
+               "the band changes where the first leader points");
+          });
+
+        await test("[real] pitch_system's leaders really do cross, and the " +
+          "bands still tile the pane in both styles", function () {
+            // The configuration the band clamp exists for, on the real
+            // document rather than on the mock's stand-in: the shipped
+            // pitch_system, fitted and centred the way the page fits and
+            // centres it. Filed as a defect in its own right
+            // (ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_
+            // centred.md) -- it is a layout-policy question, not a band one.
+            var M = VA.RAIL_METRICS;
+            var layout = VA.spineRight(livePitch.layout);
+            var plan = VA.gridPlan(layout, livePitch);
+            var positions = VA.rowPositions(layout, livePitch, "uniform", M,
+              { budget: 782, plan: plan });
+            ok(positions.gridOffset > 100, "the grid sits well down the DAG");
+
+            var jog = VA.leaderGeometry(layout, plan, M, positions);
+            var crossings = 0;
+            jog.leaders.forEach(function (a, i) {
+              jog.leaders.slice(i + 1).forEach(function (b) {
+                var lo = Math.min(a.y1, a.y2), hi = Math.max(a.y1, a.y2);
+                if (a.laneX >= b.x1 && a.laneX <= b.laneX &&
+                    b.y1 >= lo && b.y1 <= hi) crossings++;
+              });
+            });
+            ok(crossings > 0,
+               "pitch_system's leaders cross; if this ever reaches 0 the " +
+               "issue above was fixed and this test should say so");
+
+            ["jogged", "angled"].forEach(function (style) {
+              var geo = VA.leaderGeometry(layout, plan, M, positions,
+                { style: style });
+              geo.bands.forEach(function (band, i) {
+                if (i + 1 < geo.bands.length) {
+                  ok(band.bottom === geo.bands[i + 1].top, style + " band " + i);
+                }
+                for (var x = 0; x <= geo.width; x += 2) {
+                  var top = profileY(band.top, x);
+                  var bottom = profileY(band.bottom, x);
+                  ok(bottom >= top - 1e-9,
+                     style + ": band " + i + " is inside out at x=" + x);
+                }
+              });
+            });
+          });
+
+        await test("[real] the blade_root rows no longer open with " +
+          "'blade-root', and their full labels are one hover away", function () {
+            // Jeff's own example, on the document he was reading: "under
+            // component `blade_root`, three rows all render 'blade-root
+            // clocking holes to th...'".
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: null, crops: realCrops,
+                layoutMode: "topology", selection: null,
+                onSelect: function () {},
+              });
+            });
+            var plan = VA.gridPlan(VA.spineRight(livePitch.layout), livePitch);
+            var index = VA.topologyIndex(livePitch);
+            var cells = all(root, "td.tvcell--name");
+            eq(cells.length, plan.rows.length);
+
+            var bladeRoot = [];
+            plan.groups.forEach(function (group) {
+              if (group.part !== "blade_root") return;
+              for (var i = 0; i < group.count; i++) {
+                bladeRoot.push(cells[group.start + i]);
+              }
+            });
+            eq(bladeRoot.length, 3, "blade_root carries three rows");
+            bladeRoot.forEach(function (cell, i) {
+              ok(cell.textContent.toLowerCase().indexOf("blade") !== 0,
+                 "blade_root row " + i + " still opens with its component: " +
+                 cell.textContent);
+              ok(cell.textContent.length > 0, "and it is not blank");
+              // Nothing is lost: the title is the edge's own name, whole.
+              var id = plan.rows[0] && cell.getAttribute("title");
+              ok(id === null || id.toLowerCase().indexOf("blade") === 0,
+                 "the full label is the hover text");
+            });
+            // The cells opening with "clocking holes" are the ones Jeff saw
+            // truncated, now saying the thing that distinguishes them.
+            eq(bladeRoot.filter(function (c) {
+              return c.textContent.indexOf("clocking holes") === 0;
+            }).length, 3);
+            // And a row whose label does NOT repeat its component is
+            // untouched, so this is a trim and not a rewrite.
+            var pistonLength = cells.filter(function (c) {
+              return c.textContent === "piston length";
+            });
+            eq(pistonLength.length, 1);
+            eq(pistonLength[0].getAttribute("title"), null);
+            ok(index.edges, "the index is built");
           });
 
         await test("[real] pitch_system is variation-only, so 'feature size' " +

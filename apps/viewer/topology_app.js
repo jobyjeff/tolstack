@@ -48,6 +48,25 @@
     // like rowDensity, not a fact about a topology, so selectTopology() never
     // resets it either.
     edgeLengthMode: "uniform",
+    // "jogged" (right-angle jogs, the default and what shipped) or "angled"
+    // (one straight segment). VA.LEADER_STYLES, topology.js. A display
+    // preference like the three above -- selectTopology() never resets it.
+    leaderStyle: "jogged",
+    // How far the jog zone has been dragged open, as a multiple of its own
+    // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
+    // a pixel width precisely BECAUSE it outlives the topology it was set on:
+    // two topologies' natural zones differ by as many times as their leader
+    // counts do, so "twice as spread out" survives the switch where a stored
+    // pixel width would crush one diagram's lanes together and leave the
+    // other's barely moved.
+    //
+    // In-session only, like every other display preference on this page.
+    // localStorage was considered and left alone: the page is opened from
+    // file:// as often as it is served, where a storage write is at best
+    // per-file-path and at worst a throw, and nothing else here persists
+    // either -- one inconsistent preference would be the surprise, not the
+    // feature.
+    jogZoneScale: 1,
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -638,12 +657,53 @@
     var box = trigger.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(
       box.left, window.innerWidth - pop.offsetWidth - 16)) + "px";
+    // Measure at the card's NATURAL height: clear the cap the previous
+    // placement may have left on the shared popover node first, or a card
+    // opened once in a tight spot stays squeezed everywhere after.
+    pop.style.maxHeight = "";
     var height = pop.offsetHeight || 400;
-    var roomBelow = window.innerHeight - box.bottom;
-    // Above only when it genuinely fits above: a popover nudged back down to
-    // stay on screen would land ON the trigger, and the resulting mouseleave
-    // would close it the instant it opened.
-    var goAbove = roomBelow < height + 16 && box.top >= height + 16;
+    // The room on each side, already net of the 8px gap to the trigger and the
+    // 8px margin to the window edge, so `height <= room` means "fits".
+    var roomBelow = window.innerHeight - box.bottom - 16;
+    var roomAbove = box.top - 16;
+    // Below by default; above when the card does not fit below and above is
+    // the roomier side. That subsumes the original rule (above only when it
+    // genuinely fits there) and additionally picks the better side when it
+    // fits neither.
+    var goAbove = height > roomBelow && roomAbove > roomBelow;
+    // The 80px floor is for the degenerate case only -- a trigger hard against
+    // an edge, or scrolled out of the window entirely, where the roomier side
+    // still measures near zero or negative. A stub of a card that scrolls
+    // beats a cap the browser rejects as invalid and a card at full height.
+    var room = Math.max(80, goAbove ? roomAbove : roomBelow);
+    // A card that fits neither below nor above is CAPPED to the room on its
+    // side, not nudged back up into the trigger
+    // (viewer_popover_clamp_and_rebuild_terminal_state, 2026-09-14). Before
+    // the cap it rendered below anyway and its footer -- on the edge card, the
+    // citation line and the crop-key claim -- sat past the window bottom,
+    // unreachable: a `position: fixed` element cannot be scrolled into view,
+    // and `max-height: calc(100vh - 24px)` did not bite because the card was
+    // already shorter than the WINDOW; it was the room beside its TRIGGER it
+    // overran. Measured at 1600x700 on ?mock=1, the base_thickness edge card:
+    // trigger 418.5-444.5, card 527.5 tall placed at top 452.5, bottom at 980
+    // on a 700px window -- 280px of it off the bottom, with nothing scrolling
+    // inside it. Capped to the room (402.5, the side above being the roomier
+    // one) it opens at top 8 and ends at 410.5, and `.croppop`'s existing
+    // `overflow-y: auto` is what makes the rest of it reachable.
+    //
+    // Moving the card instead -- the obvious clamp, top = min(top, innerHeight
+    // - height - 8) -- is the wrong fix, and measurably so: a below-placed
+    // card is already only 8px under its trigger, so ANY upward move puts the
+    // card over the trigger, and then hiding the card (Escape, the close box)
+    // hands the pointer straight back to the trigger underneath, whose
+    // mouseenter re-opens it. Undismissable, which is worse than an
+    // unreachable footer. Measured 2026-09-14 in the browser tier: with that
+    // clamp, the topology suite could not dismiss the citation card and every
+    // later hover timed out behind it.
+    if (height > room) {
+      pop.style.maxHeight = room + "px";
+      height = pop.offsetHeight || height;
+    }
     pop.style.top = Math.max(8, goAbove
       ? box.top - height - 8
       : box.bottom + 8) + "px";
@@ -685,6 +745,90 @@
     // show(), not showModal(): the page beside the panel stays clickable, so
     // "attach to 3D" on another row re-drives the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
+  }
+
+  // --- the two resize drags (viewer_leader_grid_legibility) ----------------
+  //
+  // The pane renders the grips (views/topology.js's resizeGrip); the drag
+  // itself has to live out here, because the listeners belong on the DOCUMENT
+  // rather than on the grip. Every pointermove re-renders the pane, which
+  // destroys the node the pointer went down on -- a pointer capture on the
+  // grip would end the drag on its own first frame.
+  //
+  // What the drag measures FROM is snapshotted at pointerdown (resizeFrom
+  // below) and the delta is applied to that, never to the live value: a
+  // re-render mid-drag rebuilds the grip carrying the new numbers, and
+  // reading them back per move compounds every frame into a runaway.
+  var resizeFrame = null;
+
+  // One paint per animation frame, not one per raw pointermove: a real
+  // topology's pane is a full SVG plus a row per edge, and a browser fires
+  // moves far faster than it can rebuild that.
+  function scheduleResizePaint() {
+    if (resizeFrame !== null) return;
+    var raf = (typeof window !== "undefined" && window.requestAnimationFrame)
+      ? window.requestAnimationFrame.bind(window)
+      : function (fn) { return setTimeout(fn, 16); };
+    resizeFrame = raf(function () { resizeFrame = null; render(); });
+  }
+
+  function resizeFrom(spec) {
+    if (spec && spec.kind === "column") {
+      var column = VA.topoColumn(spec.cls);
+      return { kind: "column", cls: spec.cls, width: column ? column.width : 0 };
+    }
+    return { kind: "jog", naturalZone: spec && spec.naturalZone,
+             scale: state.jogZoneScale };
+  }
+
+  // The arithmetic is the pure layer's (VA.jogZoneScaleAfterDrag,
+  // VA.setTopoColumnWidth): this shell holds no resize maths of its own, and
+  // the column width is written into the ONE COLUMNS array the head table and
+  // the body table both take their <col> widths from.
+  function applyResize(from, dx) {
+    if (from.kind === "jog") {
+      state.jogZoneScale = VA.jogZoneScaleAfterDrag(from.scale, dx, from.naturalZone);
+    } else if (from.kind === "column") {
+      VA.setTopoColumnWidth(from.cls, from.width + dx);
+    }
+  }
+
+  function onResizeStart(spec, event) {
+    var from = resizeFrom(spec);
+    var startX = event && typeof event.clientX === "number" ? event.clientX : 0;
+    var move = function (ev) {
+      applyResize(from, ev.clientX - startX);
+      scheduleResizePaint();
+    };
+    var end = function () {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", end);
+      document.removeEventListener("pointercancel", end);
+      document.body.classList.remove("tv-resizing");
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", end);
+    document.addEventListener("pointercancel", end);
+    // A drag across a grid is otherwise a text selection, and the cursor
+    // reverts to whatever it is over the moment it leaves the 7px grip.
+    document.body.classList.add("tv-resizing");
+  }
+
+  // The keyboard path: the grip is focusable and the arrow keys nudge it (with
+  // shift for a coarse step), so neither resize needs a pointer at all.
+  //
+  // The re-focus is not a nicety. render() rebuilds the header, which destroys
+  // the very node the keydown came from, so focus falls back to <body> and the
+  // SECOND arrow press goes nowhere -- one nudge per tab-to-the-grip, which
+  // reads as the control being broken. The grips carry `data-resize` for
+  // exactly this (and for a test to find them by what they resize rather than
+  // by their position in the header).
+  function onResizeNudge(spec, dx) {
+    applyResize(resizeFrom(spec), dx);
+    render();
+    var key = spec.kind + (spec.cls ? ":" + spec.cls : "");
+    var grip = document.querySelector('[data-resize="' + key + '"]');
+    if (grip && grip.focus) grip.focus();
   }
 
   // --- render ----------------------------------------------------------------
@@ -773,6 +917,14 @@
         layoutMode: state.layoutMode, selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: state.edgeLengthMode,
+        // The two leader-legibility preferences (viewer_leader_grid_
+        // legibility): which style a leader is drawn in, and how far the jog
+        // zone has been dragged open. The grips the pane renders for the
+        // second one call back through onResizeStart/onResizeNudge below.
+        leaderStyle: state.leaderStyle,
+        jogZoneScale: state.jogZoneScale,
+        onResizeStart: onResizeStart,
+        onResizeNudge: onResizeNudge,
         // The grid's thumbnail column reads fetched crop PNGs out of this
         // cache synchronously (views/topology.js's edgeCropCell); the fetch
         // itself is ensureThumbImages below, fired after this paint.
@@ -814,6 +966,14 @@
         onEdgeLength: function () {
           var mode = VA.EDGE_LENGTH_MODES[state.edgeLengthMode];
           state.edgeLengthMode = mode ? mode.next : "uniform";
+          render();
+        },
+        // Leader style (viewer_leader_grid_legibility): same reasoning again
+        // -- only the path between a leader's two unchanged ends is redrawn,
+        // so render(), not rewind().
+        onLeaderStyle: function () {
+          var style = VA.LEADER_STYLES[state.leaderStyle];
+          state.leaderStyle = style ? style.next : "jogged";
           render();
         },
         // "View in 3D" (study_3d_flyout): the toolbar builds the params
@@ -881,6 +1041,18 @@
   // script run, seconds long, not a job queue worth backing off against.
   var REBUILD_POLL_MS = 1500;
 
+  // The endpoint's own state vocabulary, read from the server that answers it
+  // rather than guessed: drawing-checker's `webui/tolstack_rebuild.py` STATES
+  // = idle | queued | running | done | failed, with the status dict's `busy`
+  // true for exactly queued and running. `done` is the ONLY state that means a
+  // rebuild finished, which is why pollRebuild tests for it instead of
+  // accepting the complement of `failed`
+  // (viewer_popover_clamp_and_rebuild_terminal_state, 2026-09-14): a server
+  // restarted mid-poll has no memory of the run and answers a terminal `idle`,
+  // and reading that as success reloads a projection that was never rebuilt
+  // and presents it as a fresh one.
+  var REBUILD_DONE = "done";
+
   function onRebuild() {
     if (!adapter || typeof adapter.requestRebuild !== "function" || state.rebuild.busy) return;
     state.rebuild = { busy: true, error: null };
@@ -895,7 +1067,12 @@
       }, REBUILD_POLL_MS);
       return;
     }
-    if (!status || status.state === "failed") {
+    // Only the server's own completion state is success. Anything else that
+    // has stopped being busy -- a terminal `idle` from a restarted server, or
+    // a state this client has never heard of -- is not evidence that the
+    // rebuild finished, so it takes the failure exit: no reload, and the
+    // reader is told to try again. An unknown status is not a success.
+    if (!status || status.state !== REBUILD_DONE) {
       rebuildFailed();
       return;
     }
