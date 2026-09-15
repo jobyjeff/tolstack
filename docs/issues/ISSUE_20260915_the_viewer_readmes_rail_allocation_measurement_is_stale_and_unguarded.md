@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: viewer/docs
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260915_viewer_hygiene_pass.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `viewer_hygiene_pass` moved to completed/; not independently verified.
 ---
 
 # The viewer README's rail-allocation measurement is stale, and now contradicts a guarded count in the same file

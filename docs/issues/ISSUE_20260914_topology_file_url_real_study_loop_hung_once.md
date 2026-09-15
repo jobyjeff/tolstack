@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: tests/browser-tier
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260915_viewer_hygiene_pass.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `viewer_hygiene_pass` moved to completed/; not independently verified.
 ---
 
 # `topology file://`'s real-data study loop hung once on a nav click that never went "stable"
