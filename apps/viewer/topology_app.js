@@ -162,6 +162,24 @@
       state.showWorksheet = false;
     });
 
+    // The DAG normalizes itself into the window's height
+    // (viewer_dag_spine_layout), which it measures at paint time -- so a
+    // window that changes size after a paint leaves the picture fitted to a
+    // viewport that no longer exists. Re-paint on resize, once things have
+    // settled: WHICH rows are on screen never changes, only how tall their
+    // slots are, so this is a render() like the density and length-mode
+    // toggles are, never a rewind().
+    if (window.addEventListener) {
+      var resizeTimer = null;
+      window.addEventListener("resize", function () {
+        if (resizeTimer) window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(function () {
+          resizeTimer = null;
+          render();
+        }, 150);
+      });
+    }
+
     // ?mock=1 gives a UI tour with no folder grant and no disk access at all —
     // the same escape hatch both retired pages had, now over one merged
     // fixture (mockFixture, below) so the tour demonstrates both modes.

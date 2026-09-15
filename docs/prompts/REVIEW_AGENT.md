@@ -1997,6 +1997,37 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `cp data/projections/viewer/*` to a scratch dir, edit one field, and point
       `--repo` there. No shared-`data/` write, so it does not fight the other
       live agents, and it exercises both of a non-vacuity witness's directions.
+- [ ] **The whole deliverable is one line from being silently reverted — mutate
+      the wiring, not just the pure function.** New 2026-09-14
+      (`viewer_dag_spine_layout`, two blockers, both of this shape). The
+      handoff's headline was "the spine draws on the RIGHT"; `VA.spineRight`
+      got nine value-level tests including a `[real]` one over every committed
+      topology — and deleting the **call** to it in `renderTopoPane`
+      (`apps/viewer/views/topology.js`, one line) leaves the fast tier, the
+      `--repo` tier and all 16 browser suites 100% green, because a column
+      mirror moves only x and every check in the tree measures y or measures
+      the store against itself. Same run, same shape: forcing `VA.centreOffsets`
+      onto its height-centring fallback (`if (plan.leaders.length)` ->
+      `if (false)`) is also green everywhere. The habit that finds this in five
+      minutes: for each deliverable, **write down the single edit that undoes
+      it and make that edit in a scratch copy** (`git archive HEAD | tar -x -C
+      <scratch>`, mutate, re-run all three tiers). A pure function tested
+      purely proves the function, never that the page calls it — the overlay's
+      "`[real]` test that asks the view-model instead of the page" entry above,
+      one seam further out.
+- [ ] **A measured deviation from the handoff, shipped with nothing pinning the
+      rule that replaced it.** Same handoff, and the reason the `centreOffsets`
+      mutation above is not just a coverage nit. Good tactical agents here
+      deviate *with measurements* (this one: the fit scales DOWN only, because
+      inflating a short DAG took `pitch_link_to_pitch_plate`'s max jog 132px ->
+      274px; and centring across the LEADERS' span rather than the two block
+      heights, because height-centring is worse on every real document). The
+      measurement then lives only in a lesson and a README paragraph, so the
+      "simplification" back to the handoff's literal reading is invisible to
+      every tier — and the handoff's literal reading is exactly what the next
+      reader will reach for. When a lesson says "I did not do what the handoff
+      said, here is why", ask **which test goes red if someone puts the
+      handoff's version back**, and mutate to find out rather than assuming.
 
 - [ ] **A declared-rect registry is a provenance artifact -- open the document
       and look at every rect, not just the shape tests.** New 2026-09-14

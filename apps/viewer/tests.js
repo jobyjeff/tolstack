@@ -2144,6 +2144,57 @@
       };
     }
 
+    // A shape the demo does not have and the real documents do: every leader
+    // in the top of the diagram, and all the drawn LENGTH below them. Under a
+    // scaled mode edge `e3` is the yardstick and dwarfs the two above it, so
+    // the DAG's midpoint sits far below the leaders' own midpoint — which is
+    // the whole difference between the two centring rules.
+    function lopsidedTopo() {
+      var edge = function (id, part, from, to, band) {
+        return { id: id, name: id, kind: "structural", part: part, from: from,
+          to: to, confidence: "traced", value_source: "inline",
+          zero_width: false, crop_key: null,
+          dimension: { nominal: 1, min: -band, max: band, plus_minus: band },
+          transform: { id: "identity", kind: "identity", ratio: 1 } };
+      };
+      var node = function (id) {
+        return { id: id, name: id, kind: "mating_surface", parts: [], branch: false,
+                 degree: 2 };
+      };
+      return {
+        id: "lopsided", parts: [{ id: "a" }, { id: "b" }, { id: "c" }],
+        nodes: [node("n0"), node("n1"), node("n2"), node("n3")],
+        edges: [edge("e1", "a", "n0", "n1", 0.01),
+                edge("e2", "b", "n1", "n2", 0.01),
+                edge("e3", "c", "n2", "n3", 1.0)],
+        layout: {
+          columns: 1,
+          rows: [
+            { row: 0, kind: "node", id: "n0", column: 0, branch: false },
+            { row: 1, kind: "edge", id: "e1", column: 0, closes_row: null },
+            { row: 2, kind: "node", id: "n1", column: 0, branch: false },
+            { row: 3, kind: "edge", id: "e2", column: 0, closes_row: null },
+            { row: 4, kind: "node", id: "n2", column: 0, branch: false },
+            { row: 5, kind: "edge", id: "e3", column: 0, closes_row: null },
+            { row: 6, kind: "node", id: "n3", column: 0, branch: false },
+          ],
+          rails: [{ column: 0, start: 0, end: 6 }],
+          links: [],
+        },
+      };
+    }
+
+    // The same max-jog measurement over an arbitrary plan (the one inside the
+    // centring test closes over the demo's).
+    function maxJogAt2(positions, plan, gridOffset, metrics) {
+      var worst = 0;
+      plan.leaders.forEach(function (leader) {
+        var y2 = gridOffset + leader.boundary * metrics.rowHeight;
+        worst = Math.max(worst, Math.abs(positions.nodes[leader.id] - y2));
+      });
+      return worst;
+    }
+
     await test("two tolerances on one feature merge into one component group, " +
       "and their internal node gets no leader — that omission IS the grouping",
       function () {
@@ -2363,6 +2414,355 @@
           eq(leader.y2, planLeader.boundary * M.rowHeight, leader.id);
           ok(leader.y2 <= leader.y1, leader.id + " still rises left-to-right");
         });
+      });
+
+    // --- right-justified spine, the viewport fit, and centring -----------
+    //     (viewer_dag_spine_layout, 2026-09-14)
+
+    await test("spineRight mirrors every column claim in a layout and leaves " +
+      "the walk itself alone", function () {
+        var mirrored = VA.spineRight(TOPO.layout);
+        eq(mirrored.columns, TOPO.layout.columns);
+        var last = TOPO.layout.columns - 1;
+        // Rows: same rows, same order, same ids, mirrored columns. The walk is
+        // the author's steering wheel and this must not touch it.
+        eq(mirrored.rows.map(function (r) { return r.id; }),
+           TOPO.layout.rows.map(function (r) { return r.id; }));
+        mirrored.rows.forEach(function (row, i) {
+          eq(row.column, last - TOPO.layout.rows[i].column, row.id);
+          eq(row.kind, TOPO.layout.rows[i].kind, row.id);
+        });
+        // The walk's own mainline is column 0 in the projection, so it is the
+        // RIGHTMOST column after the mirror — which is the whole deliverable.
+        var mainline = mirrored.rows.filter(function (row, i) {
+          return TOPO.layout.rows[i].column === 0;
+        });
+        ok(mainline.length > 1, "the demo mechanism has a mainline");
+        mainline.forEach(function (row) { eq(row.column, last, row.id); });
+        // Rails and links carry column claims too, and a rail drawn at the old
+        // x beside a dot drawn at the new one is the whole failure mode.
+        mirrored.rails.forEach(function (rail, i) {
+          eq(rail.column, last - TOPO.layout.rails[i].column);
+          eq(rail.start, TOPO.layout.rails[i].start);
+          eq(rail.end, TOPO.layout.rails[i].end);
+        });
+        mirrored.links.forEach(function (link, i) {
+          eq(link.from_column, last - TOPO.layout.links[i].from_column);
+          eq(link.to_column, last - TOPO.layout.links[i].to_column);
+          eq(link.row, TOPO.layout.links[i].row);
+        });
+        // Pure: the projection object the app holds across every render is
+        // never written to.
+        eq(TOPO.layout.rows[0].column, 0, "the projection's own layout is untouched");
+        // A single-column layout mirrors onto itself.
+        var mini = miniTopo(false);
+        eq(VA.spineRight(mini.layout).rows.map(function (r) { return r.column; }),
+           [0, 0, 0, 0, 0]);
+      });
+
+    await test("a leader leaves a right-justified spine with no rail standing " +
+      "between it and the grid", function () {
+        // The observable the mirror exists for: a leader's horizontal run from
+        // its dot to its lane crosses every rail standing in the gap, and the
+        // spine's leaders used to cross all of them.
+        var M = VA.RAIL_METRICS;
+        var crossings = function (layout) {
+          var plan = VA.gridPlan(layout, TOPO);
+          var geo = VA.railGeometry(layout, M);
+          var leaderGeo = VA.leaderGeometry(layout, plan, M);
+          var n = 0;
+          leaderGeo.leaders.forEach(function (leader) {
+            geo.rails.forEach(function (rail) {
+              if (rail.x > leader.x1 && rail.x < leader.laneX &&
+                  rail.y1 <= leader.y1 && leader.y1 <= rail.y2) n++;
+            });
+          });
+          return n;
+        };
+        var before = crossings(TOPO.layout);
+        var after = crossings(VA.spineRight(TOPO.layout));
+        ok(before > 0, "the demo mechanism's leaders cross its branch rail");
+        eq(after, 0, "right-justified, nothing stands between them and the grid");
+      });
+
+    await test("the RENDER draws the spine on the rightmost rail — the page " +
+      "mirrors, not just the layout helper", function () {
+        // The wiring, not the pure function: VA.spineRight is pinned above,
+        // and renderTopoPane calling it is a separate claim that nothing else
+        // in this tree can see. A column mirror moves only x, and every other
+        // check here measures y or compares the store against itself, so
+        // dropping the call renders a left-justified DAG with all three tiers
+        // green. Read the x's the page actually drew.
+        var M = VA.RAIL_METRICS;
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var spineX = VA.railX(TOPO.layout.columns - 1, M);
+        var onMainline = {};
+        TOPO.layout.rows.forEach(function (row) {
+          if (row.column === 0) onMainline[row.id] = true;
+        });
+        var x = function (node, attr) { return Number(node.getAttribute(attr)); };
+
+        // Every dot and bar the projection put on the WALK'S OWN MAINLINE is
+        // drawn in the rightmost column, hard against the jog zone.
+        var mainlineDots = all(root, "circle.rail__dot").filter(function (dot) {
+          return onMainline[dot.getAttribute("data-id")];
+        });
+        ok(mainlineDots.length > 1, "the demo mechanism has a mainline");
+        mainlineDots.forEach(function (dot) {
+          eq(x(dot, "cx"), spineX, dot.getAttribute("data-id"));
+        });
+        all(root, "line.rail__bar").forEach(function (bar) {
+          if (!onMainline[bar.getAttribute("data-id")]) return;
+          eq(x(bar, "x1"), spineX, bar.getAttribute("data-id"));
+        });
+
+        // Nothing is drawn to the right of it, and something is drawn to its
+        // left — otherwise this passes on a one-column diagram forever.
+        var railXs = all(root, "line.rail").map(function (rail) {
+          return x(rail, "x1");
+        });
+        ok(railXs.length > 1, "the demo mechanism has a branch rail");
+        railXs.forEach(function (railX) {
+          ok(railX <= spineX, "a rail at " + railX + " is right of the spine");
+        });
+        ok(railXs.some(function (railX) { return railX < spineX; }),
+           "the branches extend LEFT of the spine");
+
+        // And the observable that buys: a leader off a mainline dot starts
+        // clear of every rail, so it runs straight into its seam.
+        var leaders = all(root, "path.rail__leaderhit").filter(function (hit) {
+          return onMainline[hit.getAttribute("data-leader-id")];
+        });
+        ok(leaders.length > 0, "a mainline interface is a part boundary");
+        leaders.forEach(function (hit) {
+          var startX = Number(/^M ([\d.]+) /.exec(hit.getAttribute("d"))[1]);
+          railXs.forEach(function (railX) {
+            ok(railX < startX,
+               hit.getAttribute("data-leader-id") + " leaves past a rail at " + railX);
+          });
+        });
+      });
+
+    await test("fitEdgeLength lands the DAG on its budget, and gives up the " +
+      "proportion before it gives up the floor", function () {
+        var floor = 26;
+        // Three edges and 104px of node rows: 182px is the shortest this DAG
+        // can be drawn. A budget at or under that cannot be met — the floor
+        // wins, the page scrolls, and no bar is ever unclickable.
+        eq(VA.fitEdgeLength([1, 0.5, 0.25], 104, floor, 182), floor);
+        eq(VA.fitEdgeLength([1, 0.5, 0.25], 104, floor, 100), floor);
+        // Room for everything: the three lengths are L, L/2 and L/4, and they
+        // add up with the nodes to exactly the budget.
+        var big = VA.fitEdgeLength([1, 0.5, 0.25], 104, floor, 504);
+        eq(104 + big + big / 2 + big / 4, 504);
+        ok(big / 4 >= floor, "nothing needed the floor at this budget");
+        // The mixed case the solver exists for: the narrow edge cannot have
+        // its proportion without going under the floor, so it sits ON the
+        // floor and the other two share what is left — still exactly the
+        // budget, which a single global scale factor would not manage.
+        var mid = VA.fitEdgeLength([1, 0.5, 0.05], 104, floor, 400);
+        ok(mid * 0.05 < floor, "the narrow edge is floored");
+        eq(104 + mid + mid / 2 + floor, 400);
+        // Nothing to scale by at all (every ratio 0) is not a scale of zero:
+        // it is the floor.
+        eq(VA.fitEdgeLength([0, 0, 0], 104, floor, 900), floor);
+        eq(VA.fitEdgeLength([], 104, floor, 900), floor);
+      });
+
+    await test("with a viewport the DAG is fitted into it, and a DAG whose " +
+      "own floor overruns the budget overruns it honestly", function () {
+        var M = VA.RAIL_METRICS;
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var floor = M.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
+        var rows = TOPO.layout.rows;
+        var edges = rows.filter(function (r) { return r.kind === "edge"; }).length;
+        var floorMin = rows.length * M.rowHeight;   // nodes + edges, one row each
+
+        // Roomy: the DAG fits, and the cap still applies — the fit only ever
+        // scales DOWN. A short topology is not inflated to fill a window;
+        // measured on the real documents, inflating one makes the leaders' jog
+        // worse rather than better.
+        var roomy = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M,
+          { budget: 5000, plan: plan });
+        eq(roomy.edges.post_height.length,
+           M.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows);
+
+        // Tight: the DAG lands on the budget rather than over it.
+        var tight = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M,
+          { budget: 400, plan: plan });
+        ok(tight.dagHeight <= 400 + 1e-9,
+           "fitted to " + tight.dagHeight + ", budget 400");
+        ok(tight.dagHeight > floorMin, "and it used the room it had");
+
+        // Impossible: floor times edges alone is past the budget. Every bar
+        // sits on the floor, every bar says so, and the DAG is exactly as tall
+        // as its own row count demands — the page scrolls.
+        var over = VA.rowPositions(TOPO.layout, TOPO, "tolerance", M,
+          { budget: 100, plan: plan });
+        eq(over.dagHeight, floorMin);
+        var flooredCount = 0;
+        rows.forEach(function (row) {
+          if (row.kind !== "edge") return;
+          eq(over.edges[row.id].length, floor, row.id);
+          eq(over.edges[row.id].floored, true,
+             row.id + " must say it is not to scale");
+          flooredCount++;
+        });
+        eq(flooredCount, edges);
+
+        // Uniform mode is the floor everywhere by construction, so a budget
+        // changes nothing about it — there is no proportion to give up, and it
+        // claims none.
+        var uniform = VA.rowPositions(TOPO.layout, TOPO, "uniform", M,
+          { budget: 100, plan: plan });
+        eq(uniform.dagHeight, floorMin);
+        rows.forEach(function (row) {
+          eq(uniform.byRow[row.row].floored, false, row.id);
+        });
+      });
+
+    await test("the grid is centred against the DAG across the leaders' own " +
+      "span, which is what makes the largest jog smaller", function () {
+        var M = VA.RAIL_METRICS;
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var maxJog = function (positions) {
+          var geo = VA.leaderGeometry(TOPO.layout, plan, M, positions);
+          var worst = 0;
+          geo.leaders.forEach(function (leader) {
+            worst = Math.max(worst, Math.abs(leader.y1 - leader.y2));
+          });
+          return worst;
+        };
+        ["uniform", "tolerance", "absolute"].forEach(function (mode) {
+          var flat = VA.rowPositions(TOPO.layout, TOPO, mode, M);
+          var centred = VA.rowPositions(TOPO.layout, TOPO, mode, M,
+            { budget: 0, plan: plan });
+          eq(flat.gridOffset, 0, mode + ": no grid to centre against, no offset");
+          ok(centred.gridOffset > 0, mode + ": the grid moved down");
+          ok(maxJog(centred) < maxJog(flat),
+             mode + ": max jog " + maxJog(centred) + " vs " + maxJog(flat));
+          // The grid's own pitch never changes — it is offset as a BLOCK, so
+          // every seam stays exactly one row from the one above it.
+          var geo = VA.leaderGeometry(TOPO.layout, plan, M, centred);
+          geo.leaders.forEach(function (leader, i) {
+            eq(leader.y2,
+               centred.gridOffset + plan.leaders[i].boundary * M.rowHeight,
+               leader.id);
+          });
+          // Whichever block sits higher stays put: only one side ever moves.
+          ok(centred.offset === 0 || centred.gridOffset === 0,
+             mode + ": both blocks cannot move");
+        });
+        // With no leaders there is nothing to centre across, so the two
+        // blocks' own heights are it — and that is the only case where a
+        // taller GRID moves the DAG.
+        var mini = miniTopo(false);
+        var miniPlan = VA.gridPlan(mini.layout, mini);
+        eq(miniPlan.leaders, []);
+        var pos = VA.rowPositions(mini.layout, mini, "uniform", M,
+          { budget: 0, plan: miniPlan });
+        eq(pos.dagHeight, 5 * M.rowHeight);
+        eq(pos.gridHeight, 2 * M.rowHeight);
+        eq(pos.gridOffset, (5 - 2) * M.rowHeight / 2);
+        eq(pos.offset, 0);
+      });
+
+    await test("centring across the leaders beats centring the two blocks' " +
+      "heights — the measured reason this is not the obvious rule", function () {
+        // The deliverable said "centre the shorter block against the taller".
+        // Shipped instead: centre the LEADERS' own span, because a scaled DAG
+        // puts its length where the big dimensions are and not where the
+        // leaders are, so height-centring can push every leader further than
+        // it started. Without this test the obvious rule passes in place of
+        // the measured one — VA.centreOffsets' fallback IS height-centring,
+        // so forcing it is a one-line edit.
+        var M = VA.RAIL_METRICS;
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var maxJogAt = function (positions, gridOffset) {
+          var worst = 0;
+          plan.leaders.forEach(function (leader) {
+            var y1 = positions.nodes[leader.id];
+            var y2 = gridOffset + leader.boundary * M.rowHeight;
+            worst = Math.max(worst, Math.abs(y1 - y2));
+          });
+          return worst;
+        };
+        ["uniform", "tolerance", "absolute"].forEach(function (mode) {
+          var pos = VA.rowPositions(TOPO.layout, TOPO, mode, M,
+            { budget: 0, plan: plan });
+          // The rule that shipped, and the one the handoff's words describe.
+          var shipped = maxJogAt(pos, pos.gridOffset);
+          var byHeight = maxJogAt(pos, (pos.dagHeight - pos.gridHeight) / 2);
+          ok(shipped <= byHeight,
+             mode + ": leader-span " + shipped + " vs height-centred " + byHeight);
+          // And it is the best any single block offset can do: shifting the
+          // grid either way from where it sits makes the worst leader worse.
+          ok(maxJogAt(pos, pos.gridOffset + M.rowHeight) > shipped,
+             mode + ": nudging the grid down makes the worst jog worse");
+          ok(maxJogAt(pos, pos.gridOffset - M.rowHeight) > shipped,
+             mode + ": nudging the grid up makes the worst jog worse");
+        });
+        // The case that makes the two rules actually disagree, which is the
+        // real documents' shape: the leaders sit in the top third of a DAG
+        // whose length is all below them (pitch_link_to_pitch_plate under
+        // tolerance width is exactly this — 132px → 228px WORSE if the
+        // heights are centred). A mini fixture reproduces it: one long edge
+        // at the bottom, past every leader.
+        var lopsided = lopsidedTopo();
+        var lopsidedPlan = VA.gridPlan(lopsided.layout, lopsided);
+        var pos = VA.rowPositions(lopsided.layout, lopsided, "tolerance", M,
+          { budget: 0, plan: lopsidedPlan });
+        var shipped = maxJogAt2(pos, lopsidedPlan, pos.gridOffset, M);
+        var byHeight = maxJogAt2(pos, lopsidedPlan,
+          (pos.dagHeight - pos.gridHeight) / 2, M);
+        ok(byHeight > shipped * 2,
+           "height-centring is far worse here: " + byHeight + " vs " + shipped);
+      });
+
+    await test("the render offsets the grid TABLE by the store's own " +
+      "gridOffset — the centring is one number, not two", function () {
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ edgeLengthMode: "tolerance" }));
+        });
+        var positions = VA.lastTopoRender.positions;
+        ok(positions.gridOffset > 0, "the demo grid is the shorter block");
+        // Read back as a NUMBER: a real browser re-serialises an inline
+        // length ("226.19999999999982px" comes back "226.2px") while the fast
+        // tier's DOM shim hands back the string it was given, and this suite
+        // runs in both.
+        var px = function (value) { return parseFloat(value); };
+        ok(Math.abs(px(root.querySelector("div.tv__rows").style.marginTop) -
+                    positions.gridOffset) < 0.05,
+           "the grid table carries the store's own gridOffset");
+        // And the SVG is drawn tall enough to hold whichever block is longer,
+        // so a leader's seam end is never outside the viewBox.
+        ok(Math.abs(px(root.querySelector("svg.tv__rails").style.height) -
+                    positions.height) < 0.05,
+           "the SVG is the taller of the two blocks");
+        ok(positions.height >= positions.gridOffset + positions.gridHeight);
+        ok(positions.height >= positions.offset + positions.dagHeight);
+      });
+
+    await test("the DAG's height budget is the window less the chrome above " +
+      "it, and the header it hands back is the stylesheet's own", function () {
+        var M = VA.RAIL_METRICS;
+        eq(VA.dagHeightBudget(200, 1000, M),
+           1000 - 200 - VA.DAG_FIT.headHeight - VA.DAG_FIT.slack);
+        // A page whose chrome has eaten the whole window still gets a usable
+        // DAG (and scrolls) rather than a budget of zero.
+        eq(VA.dagHeightBudget(980, 1000, M), M.rowHeight * VA.DAG_FIT.minRows);
+        var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+        if (!src) return;
+        // `.tv__head` sits INSIDE the pane and is not DAG, so the budget has
+        // to hand its height back — and that height lives in the stylesheet.
+        // One number in two files is this repo's most-repeated defect: pair
+        // them rather than hope.
+        var css = src.readText("topology.css");
+        ok(css, "topology.css must be readable");
+        var head = /\.tv__head\s*\{[^}]*[;{\s]height:\s*(\d+)px/.exec(css);
+        ok(head, "expected an explicit height on .tv__head in topology.css");
+        eq(Number(head[1]), VA.DAG_FIT.headHeight,
+           "VA.DAG_FIT.headHeight must be .tv__head's own CSS height");
       });
 
     await test("a floored bar is rendered marked: the --floored class, the " +
@@ -4817,6 +5217,173 @@
             all(root, "tr.tvrow").forEach(function (row) {
               eq(row.style.height, M.rowHeight + "px");
             });
+          });
+
+        await test("[real] every committed topology draws its spine on the " +
+          "rightmost rail, with its branches extending left", function () {
+            liveTopos.forEach(function (topoProj) {
+              var layout = topoProj.layout;
+              var mirrored = VA.spineRight(layout);
+              var last = layout.columns - 1;
+              // Value level: every column claim in the layout, mirrored.
+              eq(mirrored.rows.map(function (r) { return r.column; }),
+                 layout.rows.map(function (r) { return last - r.column; }),
+                 topoProj.id + " rows");
+              eq(mirrored.rails.map(function (r) { return r.column; }),
+                 layout.rails.map(function (r) { return last - r.column; }),
+                 topoProj.id + " rails");
+              eq(mirrored.links.map(function (l) { return l.from_column + ">" + l.to_column; }),
+                 layout.links.map(function (l) {
+                   return (last - l.from_column) + ">" + (last - l.to_column);
+                 }), topoProj.id + " links");
+              // A loop-closing edge carries a column claim of its own, and a
+              // dashed curve drawn to an un-mirrored one lands on empty space.
+              layout.rows.forEach(function (row, i) {
+                if (row.closes_column === null || row.closes_column === undefined) {
+                  eq(mirrored.rows[i].closes_column, row.closes_column, row.id);
+                } else {
+                  eq(mirrored.rows[i].closes_column, last - row.closes_column, row.id);
+                }
+              });
+              // The walk's own mainline — everything the projection put in
+              // column 0 — ends up hard against the jog zone.
+              var mainline = layout.rows.filter(function (r) { return r.column === 0; });
+              ok(mainline.length > 0, topoProj.id + " has a mainline");
+              mainline.forEach(function (row, i) {
+                eq(mirrored.rows[layout.rows.indexOf(row)].column, last,
+                   topoProj.id + " " + row.id);
+              });
+            });
+          });
+
+        await test("[real] every number apps/viewer/README.md states about the " +
+          "spine, the fit and the centring is re-derivable from the live " +
+          "projection", function () {
+            // The README is a live document, and these are quantities in
+            // prose — this repo's standing rule is that one no test reads
+            // from the tree is a defect whether or not it happens to be right
+            // today. The crossings test above deliberately pins only the
+            // SPINE half so a future layout policy is free to move the rest;
+            // this pairs the published totals instead, so moving them means
+            // editing both.
+            var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+            ok(src, "VIEWER_SRC must be injected for the doc pairing");
+            var readme = src.readText("README.md");
+            ok(readme, "apps/viewer/README.md must be readable");
+            var M = VA.RAIL_METRICS;
+
+            // How many rails stand between a leader's dot and its lane,
+            // summed over one serialisation.
+            var crossings = function (topoProj, layout) {
+              var plan = VA.gridPlan(layout, topoProj);
+              var geo = VA.railGeometry(layout, M);
+              var leaderGeo = VA.leaderGeometry(layout, plan, M);
+              var n = 0;
+              leaderGeo.leaders.forEach(function (leader) {
+                geo.rails.forEach(function (rail) {
+                  if (rail.x > leader.x1 && rail.x < leader.laneX &&
+                      rail.y1 <= leader.y1 && leader.y1 <= rail.y2) n++;
+                });
+              });
+              return n;
+            };
+
+            var before = 0, after = 0, zeroed = 0;
+            liveTopos.forEach(function (topoProj) {
+              before += crossings(topoProj, topoProj.layout);
+              var mirrored = crossings(topoProj, VA.spineRight(topoProj.layout));
+              after += mirrored;
+              if (mirrored === 0) zeroed++;
+            });
+
+            // "leader-vs-rail crossings went **92 → 43**, four of the five to
+            // zero"
+            var totals = /crossings went \*\*(\d+) → (\d+)\*\*, (\w+) of the\s+five to zero/
+              .exec(readme);
+            ok(totals, "expected the README's crossings sentence");
+            eq(Number(totals[1]), before, "README's before-total");
+            eq(Number(totals[2]), after, "README's after-total");
+            eq(totals[3], ["zero", "one", "two", "three", "four", "five"][zeroed],
+               "README's count of topologies taken to zero");
+
+            // "that one topology's total only moves 47 → 43"
+            var pitchTotals = /topology's total only moves (\d+) → (\d+)/.exec(readme);
+            ok(pitchTotals, "expected the README's pitch_system crossings sentence");
+            eq(Number(pitchTotals[1]), crossings(livePitch, livePitch.layout));
+            eq(Number(pitchTotals[2]),
+               crossings(livePitch, VA.spineRight(livePitch.layout)));
+
+            // "`pitch_system`'s max jog 507px → 208px". Uniform mode: no
+            // length scaling, so this number is a property of the layout and
+            // the centring alone, exactly as the sentence around it claims.
+            var mirrored = VA.spineRight(livePitch.layout);
+            var plan = VA.gridPlan(mirrored, livePitch);
+            var maxJog = function (positions) {
+              var worst = 0;
+              VA.leaderGeometry(mirrored, plan, M, positions).leaders
+                .forEach(function (leader) {
+                  worst = Math.max(worst, Math.abs(leader.y1 - leader.y2));
+                });
+              return worst;
+            };
+            var jogs = /max jog (\d+)px → (\d+)px/.exec(readme);
+            ok(jogs, "expected the README's max-jog sentence");
+            eq(Number(jogs[1]),
+               maxJog(VA.rowPositions(mirrored, livePitch, "uniform", M)),
+               "README's top-aligned max jog");
+            eq(Number(jogs[2]),
+               maxJog(VA.rowPositions(mirrored, livePitch, "uniform", M,
+                 { budget: 0, plan: plan })),
+               "README's centred max jog");
+
+            // "45 rows × 26px = 1170px" — the floor minimum that makes the
+            // honest overflow honest.
+            var floor = /(\d+)\s+rows × (\d+)px = (\d+)px/.exec(readme);
+            ok(floor, "expected the README's floor-minimum sentence");
+            eq(Number(floor[1]), livePitch.layout.rows.length, "README's row count");
+            eq(Number(floor[2]), M.rowHeight, "README's row height");
+            eq(Number(floor[3]), livePitch.layout.rows.length * M.rowHeight,
+               "README's floor minimum");
+          });
+
+        await test("[real] right-justifying pitch_system takes its spine " +
+          "leaders off every branch rail they used to cross", function () {
+            // The measured observable the mirror exists for, on the DoD's own
+            // document. A leader's horizontal run from its dot to its lane
+            // crosses every rail standing in that gap; pitch_system's spine
+            // carries eight of its sixteen leaders, and they used to cross
+            // four to seven rails each on the way out.
+            var M = VA.RAIL_METRICS;
+            var crossings = function (layout) {
+              var plan = VA.gridPlan(layout, livePitch);
+              var geo = VA.railGeometry(layout, M);
+              var leaderGeo = VA.leaderGeometry(layout, plan, M);
+              var rowsBy = {};
+              layout.rows.forEach(function (r) { rowsBy[r.row] = r; });
+              var total = 0;
+              var spine = 0;
+              leaderGeo.leaders.forEach(function (leader, i) {
+                var row = rowsBy[plan.leaders[i].layoutRow];
+                var n = 0;
+                geo.rails.forEach(function (rail) {
+                  if (rail.x > leader.x1 && rail.x < leader.laneX &&
+                      rail.y1 <= leader.y1 && leader.y1 <= rail.y2) n++;
+                });
+                total += n;
+                // The spine is the mainline's column: 0 as projected, the
+                // last column once mirrored.
+                if (row.column === (layout === livePitch.layout ? 0 : layout.columns - 1)) {
+                  spine += n;
+                }
+              });
+              return { total: total, spine: spine };
+            };
+            var before = crossings(livePitch.layout);
+            var after = crossings(VA.spineRight(livePitch.layout));
+            eq(before.spine, 43, "spine leaders crossed 43 rails as projected");
+            eq(after.spine, 0, "right-justified, they cross none");
+            ok(after.total < before.total,
+               "total crossings " + after.total + " vs " + before.total);
           });
 
         await test("[real] the L1 grip stack draws as a ring: two rails, one " +

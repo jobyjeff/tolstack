@@ -373,12 +373,80 @@
   };
 
   // The scale's two shape constants, in ROW HEIGHTS so both densities scale
-  // together: the largest value in the serialisation being drawn renders at
-  // `maxRows` rows, and nothing renders shorter than one row — the floor that
-  // keeps a zero/tiny/unstated edge clickable (whole-edge hover is a landed
-  // contract) and keeps every node y at-or-below its uniform position, which
-  // is what lets the leaders keep rising left-to-right in every mode.
+  // together. Nothing renders shorter than one row — the floor that keeps a
+  // zero/tiny/unstated edge clickable (whole-edge hover is a landed contract)
+  // and keeps every node y at-or-below its uniform position, which is what
+  // lets the leaders keep rising left-to-right in every mode.
+  //
+  // `maxRows` is what the largest value in the serialisation renders at when
+  // nothing else constrains it. It stopped being the ONLY constraint in
+  // viewer_dag_spine_layout (2026-09-14): 6 row heights over pitch_system's
+  // 24 edges drew a DAG 3325px tall, "multiple times the page height hence
+  // impossible to make sense of" (Jeff), so the page now also fits the whole
+  // DAG into the viewport (VA.fitEdgeLength) and draws the SHORTER of the two.
+  //
+  // Downward only, and that is a measured decision rather than a reading of
+  // the handoff: fitting a small topology UP to the viewport as well (a
+  // 5-edge chain stretched over 780px) makes the leaders' jog worse, not
+  // better — pitch_link_to_pitch_plate's own max jog went 132px → 274px when
+  // it was tried. The complaint the fit answers is a DAG taller than the
+  // page; nothing asked for a short one to be inflated.
   VA.EDGE_LENGTH_SCALE = { maxRows: 6, floorRows: 1 };
+
+  // --- the viewport fit (viewer_dag_spine_layout, 2026-09-14) --------------
+  //
+  //: The fit's own shape constants. `headHeight` is `.tv__head`'s own CSS
+  //: height (topology.css) — the column header sits INSIDE the pane and is
+  //: not part of the DAG, so the budget has to give it back; a test pairs the
+  //: two so the stylesheet cannot drift from this number. `slack` keeps the
+  //: longest bar off the window's own bottom edge. `minRows` floors the
+  //: budget itself: a page whose chrome has eaten the whole viewport still
+  //: gets a usable DAG (and scrolls) rather than a budget of zero.
+  VA.DAG_FIT = { headHeight: 26, slack: 12, minRows: 8 };
+
+  // How much vertical room the DAG has, from the pane's own top in DOCUMENT
+  // coordinates and the window's height. Pure, so the browser tier can
+  // re-derive the same number the render used from the same two measurements.
+  VA.dagHeightBudget = function (paneTop, viewportHeight, metrics) {
+    metrics = metrics || VA.RAIL_METRICS;
+    var budget = viewportHeight - paneTop - VA.DAG_FIT.headHeight - VA.DAG_FIT.slack;
+    return Math.max(budget, metrics.rowHeight * VA.DAG_FIT.minRows);
+  };
+
+  // The length the LARGEST edge is drawn at so the whole DAG lands on
+  // `budget` — the fit that replaced the absolute cap.
+  //
+  // `ratios` is every edge row's value as a fraction of the serialisation's
+  // largest (0 where there is nothing to scale by), `fixedHeight` is the node
+  // rows' total (a node is a point; its slot never scales), `floor` is the
+  // one-row minimum. Total height is
+  //     fixedHeight + Σ max(floor, ratio × length)
+  // which is non-decreasing in `length` and bottoms out at the UNIFORM height
+  // (every ratio ≤ 1, so at length = floor every edge is at the floor). So:
+  //
+  //   - a budget at or below that bottom cannot be met — the floor wins, every
+  //     edge floors, and the page scrolls. Honest overflow, never an
+  //     unclickable bar;
+  //   - otherwise the answer is exact, not searched: sort the ratios, and for
+  //     each k assume the top k are above the floor and the rest sit on it.
+  //     That fixes a linear equation in `length`; the consistent k (its own
+  //     ratio at-or-above the floor, the next one at-or-below) is the answer.
+  VA.fitEdgeLength = function (ratios, fixedHeight, floor, budget) {
+    var n = ratios.length;
+    if (!n) return floor;
+    if (!(budget > fixedHeight + n * floor)) return floor;
+    var sorted = ratios.slice().sort(function (a, b) { return b - a; });
+    var sum = 0;
+    var length = floor;
+    for (var k = 0; k < n; k++) {
+      if (!(sorted[k] > 0)) break;
+      sum += sorted[k];
+      length = (budget - fixedHeight - (n - 1 - k) * floor) / sum;
+      var next = k + 1 < n ? sorted[k + 1] : 0;
+      if (sorted[k] * length >= floor && next * length <= floor) return length;
+    }
+    return length;
+  };
 
   // The value an edge's rendered length is proportional to under `mode`, or
   // null where the edge has nothing to scale by (a derived gap carries no
@@ -408,34 +476,109 @@
     return null;
   };
 
-  // The KEYED position store (deliverable 3): every layout row's vertical
-  // slot, computed once and addressed by id — node id → y for the dots and
-  // the leaders, edge id → {y1, y2, floored} for the bars — rather than
-  // emitted inline as `row × rowHeight`. This is the seam the future
-  // study-selected animated rearrange needs: railGeometry and leaderGeometry
-  // are pure functions of (layout, metrics, positions), so an animator can
-  // interpolate between two of these stores and redraw per frame without
-  // either geometry function changing.
+  // How far each of the two blocks — the DAG and the grid — is pushed down so
+  // that they sit centred against each other instead of both top-aligned
+  // (viewer_dag_spine_layout deliverable 3). Jeff: "Center the dag and the
+  // grid view vertically with each other, this reduces the max amount of jog
+  // required." Both offsets are ≥ 0: whichever block wants to sit higher
+  // stays where it is and the other one moves.
   //
-  //   nodes   { nodeId: y }                    dot centres
-  //   edges   { edgeId: {y1, y2, y, floored} } bar extents
-  //   byRow   { layoutRow: {top, height, y, floored} }
-  //   height  the SVG's total height
+  // Centred across WHAT, though, is the whole of it, and the answer is the
+  // LEADERS, not the two heights — measured, because centring the heights is
+  // the obvious reading and it makes the page worse on real documents. A
+  // scaled DAG puts its length wherever the big dimensions are: on the real
+  // pitch_link_to_pitch_plate under tolerance width, all five leaders live in
+  // the top 236px of a 691px DAG (the stretch is all below them), so
+  // centring the BLOCKS drops the grid 241px and every leader that used to
+  // jog ≤ 132px now jogs up to 228px the other way — the opposite of what
+  // the change is for. Centring the leaders' own span (the offset midway
+  // between the smallest and the largest leader jog) is what provably
+  // minimises the largest jog on the page, which is the thing Jeff asked to
+  // be smaller; on pitch_system it takes the max jog 507px → 208px, where
+  // centring the blocks would have managed 234px.
+  //
+  // With no leaders at all there is nothing to centre across and nothing that
+  // could be misaligned either, so the two blocks' own heights are the
+  // fallback — that is also the only case where a taller GRID moves the DAG.
+  VA.centreOffsets = function (rows, heights, plan, metrics) {
+    if (!plan) return { dag: 0, grid: 0 };
+    var gridHeight = plan.rows.length * metrics.rowHeight;
+    var shift;
+    if (plan.leaders.length) {
+      // Each leader's own jog if the grid were left at the top: its node's y
+      // in the DAG, less its seam's y in the grid.
+      var top = 0;
+      var nodeY = {};
+      rows.forEach(function (row, i) {
+        if (row.kind === "node") nodeY[row.row] = top + heights[i] / 2;
+        top += heights[i];
+      });
+      var lo = null, hi = null;
+      plan.leaders.forEach(function (leader) {
+        var jog = nodeY[leader.layoutRow] - leader.boundary * metrics.rowHeight;
+        if (lo === null || jog < lo) lo = jog;
+        if (hi === null || jog > hi) hi = jog;
+      });
+      shift = (lo + hi) / 2;
+    } else {
+      var dagHeight = heights.reduce(function (a, b) { return a + b; }, 0);
+      shift = (dagHeight - gridHeight) / 2;
+    }
+    return { dag: shift < 0 ? -shift : 0, grid: shift > 0 ? shift : 0 };
+  };
+
+  // The KEYED position store (viewer_edge_length_scaling, deliverable 3):
+  // every layout row's vertical slot, computed once and addressed by id —
+  // node id → y for the dots and the leaders, edge id → {y1, y2, floored} for
+  // the bars — rather than emitted inline as `row × rowHeight`. This is the
+  // seam the future study-selected animated rearrange needs: railGeometry and
+  // leaderGeometry are pure functions of (layout, metrics, positions), so an
+  // animator can interpolate between two of these stores and redraw per frame
+  // without either geometry function changing.
+  //
+  //   nodes      { nodeId: y }                    dot centres
+  //   edges      { edgeId: {y1, y2, y, floored} } bar extents
+  //   byRow      { layoutRow: {top, height, y, floored} }
+  //   dagHeight  the DAG's own extent
+  //   gridHeight the grid block's extent (rows × rowHeight), 0 without a fit
+  //   offset     how far the DAG is pushed down to centre it (deliverable 3)
+  //   gridOffset how far the GRID is pushed down to centre it
+  //   height     the SVG's total height — the taller of the two blocks
   //
   // Node rows keep rowHeight in every mode — an interface is a point, and the
   // constant node slot is what keeps the branch fan-out curves' half-row
   // shape true. An edge row's height under a scaled mode is
-  // (value / vmax) × maxRows × rowHeight, floored at floorRows × rowHeight;
-  // `floored` is true wherever the drawn length is NOT the measured
-  // proportion (clamped up to the floor, or no value to scale by at all), so
-  // a view can mark it and a reader is never handed a fake proportion.
-  VA.rowPositions = function (layout, topoProj, mode, metrics) {
+  // (value / vmax) × maxLen, floored at floorRows × rowHeight; `floored` is
+  // true wherever the drawn length is NOT the measured proportion (clamped up
+  // to the floor, or no value to scale by at all), so a view can mark it and
+  // a reader is never handed a fake proportion.
+  //
+  // `fit` is the viewport (viewer_dag_spine_layout, 2026-09-14), and it is
+  // what the page passes and a pure caller does not:
+  //
+  //   { budget: px, plan: <VA.gridPlan's output> }
+  //
+  //   - `budget` is the room the DAG has (VA.dagHeightBudget). With one, the
+  //     largest edge's length is SOLVED so the whole DAG lands on it, and the
+  //     shorter of that and EDGE_LENGTH_SCALE.maxRows is drawn; without one
+  //     the cap alone applies, which is what every pure caller and test still
+  //     sees. The floor is never given up, so a DAG whose own edge count
+  //     already overruns the budget overruns it honestly and the page
+  //     scrolls.
+  //   - `plan` is the grid beside it (VA.gridPlan), and it is the whole of
+  //     deliverable 3: the two blocks are CENTRED against each other rather
+  //     than both top-aligned, which is what drops the jog the leaders have to
+  //     absorb. The grid's own row pitch never moves — it is offset as a
+  //     block, by `gridOffset`, and the view applies that offset to the table
+  //     it renders. See VA.centreOffsets for what "centred" means here and
+  //     why it is measured across the leaders rather than across the two
+  //     blocks' heights.
+  VA.rowPositions = function (layout, topoProj, mode, metrics, fit) {
     metrics = metrics || VA.RAIL_METRICS;
     var rows = (layout && layout.rows) || [];
     var scaled = mode === "tolerance" || mode === "absolute";
     var index = scaled ? VA.topologyIndex(topoProj) : null;
     var floor = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
-    var maxLen = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;
 
     // The largest value in THIS serialisation (the whole walk, or a study's
     // chain) — the yardstick the mode's proportions are relative to.
@@ -448,25 +591,78 @@
       });
     }
 
-    var out = {
-      mode: scaled ? mode : "uniform",
-      height: 0, byRow: {}, nodes: {}, edges: {},
-    };
-    var y = 0;
+    // Every edge row's share of that yardstick, in row order, and the node
+    // rows' fixed total — the two inputs the fit is solved from.
+    var ratios = [];
+    var fixedHeight = 0;
+    rows.forEach(function (row) {
+      if (row.kind !== "edge") { fixedHeight += metrics.rowHeight; return; }
+      if (!scaled) { ratios.push(0); return; }
+      var v = VA.edgeLengthValue(index.edges[row.id], mode);
+      ratios.push(v !== null && vmax > 0 ? v / vmax : 0);
+    });
+
+    var budget = (fit && fit.budget) || 0;
+    var maxLen = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.maxRows;
+    if (budget > 0) {
+      maxLen = Math.min(maxLen,
+        VA.fitEdgeLength(ratios, fixedHeight, floor, budget));
+    }
+    // The fit collapsed onto the floor: this serialisation's own edge count
+    // fills the viewport before any proportion can be drawn at all, so every
+    // bar comes out one row tall whatever its value. The widest edges land on
+    // the floor by arithmetic rather than by clamping, and marking only the
+    // OTHERS not-to-scale would hand a reader 24 identical bars of which 13
+    // claim to be a measured proportion. Nothing on such a page is to scale,
+    // and all of it says so. (pitch_system under tolerance width in a 1000px
+    // window is exactly this, 13 edges tied at the widest band.)
+    var collapsed = maxLen <= floor;
+
+    // Pass one: every slot's height, and therefore the DAG's own extent.
+    var heights = [];
+    var flooredAt = [];
+    var dagHeight = 0;
+    var ei = 0;
     rows.forEach(function (row) {
       var h = metrics.rowHeight;
       var floored = false;
-      if (scaled && row.kind === "edge") {
-        var v = VA.edgeLengthValue(index.edges[row.id], mode);
-        var proportional = v !== null && vmax > 0 ? (v / vmax) * maxLen : 0;
-        if (proportional < floor) {
-          h = floor;
-          floored = true;
-        } else {
-          h = proportional;
+      if (row.kind === "edge") {
+        if (scaled) {
+          var proportional = ratios[ei] * maxLen;
+          if (proportional < floor || collapsed) {
+            h = floor;
+            floored = true;
+          } else {
+            h = proportional;
+          }
         }
+        ei++;
       }
-      var slot = { top: y, height: h, y: y + h / 2, floored: floored };
+      heights.push(h);
+      flooredAt.push(floored);
+      dagHeight += h;
+    });
+
+    // Pass two: centre the two blocks against each other and lay the slots
+    // out from there. Without a fit there is no grid to centre against, both
+    // offsets are 0, and this is exactly the pre-fit store.
+    var plan = fit && fit.plan;
+    var gridHeight = (plan ? plan.rows.length : 0) * metrics.rowHeight;
+    var centre = VA.centreOffsets(rows, heights, plan, metrics);
+
+    var out = {
+      mode: scaled ? mode : "uniform",
+      height: Math.max(centre.dag + dagHeight, centre.grid + gridHeight),
+      dagHeight: dagHeight,
+      gridHeight: gridHeight,
+      offset: centre.dag,
+      gridOffset: centre.grid,
+      byRow: {}, nodes: {}, edges: {},
+    };
+    var y = centre.dag;
+    rows.forEach(function (row, i) {
+      var h = heights[i];
+      var slot = { top: y, height: h, y: y + h / 2, floored: flooredAt[i] };
       out.byRow[row.row] = slot;
       if (row.kind === "node") out.nodes[row.id] = slot.y;
       if (row.kind === "edge") {
@@ -475,12 +671,11 @@
         // bits, so a consumer comparing lengths reads this field.
         out.edges[row.id] = {
           y1: slot.top, y2: slot.top + h, y: slot.y,
-          length: h, floored: floored,
+          length: h, floored: flooredAt[i],
         };
       }
       y += h;
     });
-    out.height = y;
     return out;
   };
 
@@ -491,6 +686,64 @@
     return VA.edgeHoverTitle(edge, id) +
       " — drawn at the minimum length, not to scale";
   };
+
+  // --- the spine on the right (viewer_dag_spine_layout, 2026-09-14) -------
+  //
+  // The projection allocates column 0 to the walk's own mainline and every
+  // fork a fresh column to its RIGHT, which is git-log's convention and was
+  // the wrong one here: it puts the spine — the rail almost every leader
+  // leaves from — as far from the grid as the diagram gets, so each of those
+  // leaders has to cross every branch rail on its way out. Jeff, reviewing
+  // the real pitch_system: "the DAG should start out as a right-justified
+  // linear chain with legs/branches extending to the left".
+  //
+  // So: MIRROR the x-allocation at render time, column c → (columns − 1 − c).
+  // The mainline lands in the rightmost column, directly beside the jog zone,
+  // and branches extend left. This is a reflection, not a layout engine —
+  // the walk order, rail continuity, column reuse and the one-dashed-curve-
+  // per-cycle invariant are all properties of WHICH column a row is on
+  // relative to the others, and a bijection on column indices preserves every
+  // one of them. It stays out of the projection on purpose: which column an
+  // edge lands on is a claim about the graph (and a pytest pins it), while
+  // which SIDE the picture is justified to is a display preference about a
+  // page that happens to have a grid on its right.
+  //
+  // Pure: the projection's own layout object is never mutated (the app holds
+  // one parsed projection across every render), so this returns copies of the
+  // three column-bearing collections and shares everything else.
+  VA.spineRight = function (layout) {
+    if (!layout || !layout.columns) return layout;
+    var last = layout.columns - 1;
+    var flip = function (c) {
+      return typeof c === "number" ? last - c : c;
+    };
+    var mirrored = {};
+    Object.keys(layout).forEach(function (key) { mirrored[key] = layout[key]; });
+    mirrored.rows = (layout.rows || []).map(function (row) {
+      return assign(row, { column: flip(row.column),
+                           closes_column: flip(row.closes_column) });
+    });
+    mirrored.rails = (layout.rails || []).map(function (rail) {
+      return assign(rail, { column: flip(rail.column) });
+    });
+    mirrored.links = (layout.links || []).map(function (link) {
+      return assign(link, { from_column: flip(link.from_column),
+                            to_column: flip(link.to_column) });
+    });
+    return mirrored;
+  };
+
+  // A shallow copy of `base` with `over`'s own keys written over it. ES5 by
+  // house style (this page loads as a classic script, no build step), and
+  // Object.assign is what it would be otherwise.
+  function assign(base, over) {
+    var out = {};
+    Object.keys(base).forEach(function (key) { out[key] = base[key]; });
+    Object.keys(over).forEach(function (key) {
+      if (over[key] !== undefined) out[key] = over[key];
+    });
+    return out;
+  }
 
   VA.railX = function (column, metrics) {
     return metrics.left + column * metrics.gutter;
@@ -784,7 +1037,11 @@
       var y1 = positions.nodes[leader.id] !== undefined
         ? positions.nodes[leader.id]
         : VA.railY(leader.layoutRow, metrics);
-      var y2 = leader.boundary * metrics.rowHeight;
+      // The grid-side seam: the grid's own row pitch, plus however far the
+      // grid block was pushed down to centre it against the DAG (the offset
+      // the view applies to the table itself). The pitch never moves with the
+      // length mode — the grid stays evenly spaced whatever the DAG did.
+      var y2 = (positions.gridOffset || 0) + leader.boundary * metrics.rowHeight;
       var laneX = zoneLeft + metrics.leaderPad + i * metrics.leaderLane;
       return {
         id: leader.id,

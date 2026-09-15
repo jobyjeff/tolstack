@@ -358,6 +358,23 @@ reordering an `edges` array is how you steer the picture without touching a
 value. There is deliberately no cleverness to fight: a heuristic root would move
 the whole diagram when an unrelated edge is added.
 
+**The spine draws on the RIGHT**, hard against the jog zone, with branches
+extending left (`viewer_dag_spine_layout`, 2026-09-14). The projection still
+allocates the mainline column 0 and each fork a fresh column to its right —
+git-log's convention, and a claim about the graph that a pytest pins — and the
+page mirrors that allocation at render time, column `c` → `columns − 1 − c`
+(`VA.spineRight`, called once in `renderTopoPane`). Which column an edge lands
+on is the graph's business; which side the picture is justified to is a
+display preference about a page that happens to have a grid on its right, and
+the mirror is a bijection, so rail continuity, column reuse and the
+one-dashed-curve-per-cycle invariant all survive it untouched. What it buys is
+the leaders: the spine carries most of them, and every rail that used to stand
+between a spine node and its row is now on the far side of it. Over the five
+committed topologies, leader-vs-rail crossings went **92 → 43**, four of the
+five to zero; on `pitch_system` its eight spine leaders went 43 → 0 (the
+mechanism's own branch leaders pick some up in exchange, which is why that one
+topology's total only moves 47 → 43).
+
 Three shapes come out of it, and all three are in the projection:
 
 * **a fan-out** at a fork — a short curve into a freshly allocated column, which
@@ -600,11 +617,13 @@ dimension bar gets:
 * **feature size** — a bar's length ∝ its dimension's nominal.
 
 The scale is relative to the serialisation on screen: the largest value renders
-at `EDGE_LENGTH_SCALE.maxRows` row heights, everything else in proportion — and
-**nothing renders shorter than one row height** (`floorRows`). The floor keeps
+at `EDGE_LENGTH_SCALE.maxRows` row heights **or at whatever the viewport allows,
+whichever is shorter**, everything else in proportion — and **nothing renders
+shorter than one row height** (`floorRows`). The floor keeps
 a zero/tiny/unstated edge clickable (whole-edge hover is a landed contract) and
-keeps every node at-or-below its uniform y, which is what lets the leaders keep
-rising in every mode. A bar sitting at the floor is **not a measured
+keeps every node at-or-below its uniform y, so a scaled mode only ever
+stretches the DAG — it is the centring below, not any length mode, that lets a
+leader point downhill. A bar sitting at the floor is **not a measured
 proportion** and is never allowed to read like one: it gets
 `.rail__bar--floored`, a drafting-style break mark (`.rail__break`) across its
 middle, and a hover title that says "not to scale" (`VA.flooredEdgeTitle`); the
@@ -613,14 +632,63 @@ the real workbooks produce (`nominal: 0.0`, the provenance note saying the
 nominal is unstated) are exactly this case — under feature size the whole real
 `pitch_system` floors, honestly marked, rather than inventing a scale.
 
-The mechanism under all three modes is one **keyed position store**:
-`VA.rowPositions(layout, topoProj, mode, metrics)` computes every slot once —
-node id → y, edge id → `{y1, y2, length, floored}` — and both geometry passes
+### The whole DAG fits the window, or overflows honestly
+
+`EDGE_LENGTH_SCALE.maxRows` used to be the only constraint on how tall a
+scaled DAG got, and 6 row heights over `pitch_system`'s 24 edges came out
+3325px — "multiple times the page height hence impossible to make sense of"
+(Jeff, reviewing the real thing). So the page also **fits**
+(`viewer_dag_spine_layout`): `VA.dagHeightBudget` measures what the window
+leaves below the page's chrome, `VA.fitEdgeLength` solves the largest edge's
+length so the whole DAG lands on that budget, and the shorter of the two
+answers is drawn. Downward only — a short topology is never inflated to fill a
+window, which was measured to make the leaders' jog worse rather than better.
+
+The **floor is never given up**, so the fit has an honest failure: where one
+row per edge is already past the budget, every bar sits on the floor wearing
+its break mark, the DAG is exactly as tall as its own row count demands and
+the page scrolls. (`pitch_system` at comfortable density is exactly this: 45
+rows × 26px = 1170px, past any ordinary window. Compact density is the control
+that actually makes it fit; under the fit its tolerance-width and uniform
+renderings are the same height, and every bar says it is not to scale.) A
+collapsed scale marks **every** bar, including the widest ones that landed on
+the floor by arithmetic rather than by clamping — 24 identical bars of which
+13 claimed to be a measured proportion would be a lie by omission.
+
+The budget is re-measured on every paint, and the page re-paints (debounced)
+on window resize, so the fit is never stale against the window it is in.
+
+### The DAG and the grid are centred against each other
+
+They are two blocks of different heights sharing one scrollport, and
+top-aligning both put the whole difference into the leaders. `VA.centreOffsets`
+pushes the shorter one down — and centres them across the **leaders' own span**
+rather than across the two heights, which is not a subtlety: a scaled DAG puts
+its length wherever the big dimensions are, so on
+`pitch_link_to_pitch_plate` under tolerance width all five leaders live in the
+top 236px of a 691px DAG and centring the heights would make every one of them
+jog *further*. Centring the leader span is what minimises the largest jog,
+which is the thing the change is for: `pitch_system`'s max jog 507px → 208px,
+and every topology × mode pair on the shelf improves.
+
+A leader can therefore now **descend** left-to-right, where before it always
+rose. Nothing about the no-crossing guarantee changes (both endpoint sequences
+are still monotone in walk order), but anything measuring a leader's ends has
+to stop reading them off its bounding box — the browser tier's
+`CORRESPONDENCE_IN_PAGE` measures with `getPointAtLength` now.
+
+The mechanism under all of it is one **keyed position store**:
+`VA.rowPositions(layout, topoProj, mode, metrics, fit)` computes every slot
+once — node id → y, edge id → `{y1, y2, length, floored}`, plus `dagHeight`,
+`gridOffset` and the total `height` — and both geometry passes
 (`VA.railGeometry`, `VA.leaderGeometry`) consume the store rather than
-re-deriving `row × rowHeight` inline. The **grid never moves**: its rows stay
-at `rowHeight`, evenly spaced, and the leaders' grid-side seams stay
-`boundary × rowHeight` — only their node-side ends follow the store, which is
-the stretch the jogged leaders were built to absorb. The store is also the
+re-deriving `row × rowHeight` inline. `fit` is `{ budget, plan }`: the measured
+viewport and the grid beside it, supplied by the render and by nothing else, so
+a pure call still gets exactly the pre-fit store. The **grid's own pitch never
+moves**: its rows stay at `rowHeight`, evenly spaced, and a leader's grid-side
+seam stays `gridOffset + boundary × rowHeight` — the block moves, the pitch
+does not, and the node-side ends follow the store, which is the stretch the
+jogged leaders were built to absorb. The store is also the
 seam the future study-selected animated rearrange needs: geometry is a pure
 function of `(layout, metrics, positions)`, so an animator can interpolate
 between two stores and redraw per frame with nothing else changing. A display
@@ -1041,11 +1109,14 @@ apps/viewer/
   viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
   topology.js         the same, for the topology mode: its vocabularies, the
                       rail GEOMETRY (row index -> pixels; the columns are the
-                      projection's), the keyed position store + edge-length
-                      modes (VA.rowPositions / VA.edgeLengthValue — the one
-                      declared arithmetic on dimension fields: it feeds bar
-                      LENGTHS only, pixels, never a printed number or a
-                      verdict), the grid PLAN + leader geometry
+                      projection's, mirrored right-justified by VA.spineRight),
+                      the keyed position store + edge-length modes + the
+                      viewport fit and the DAG/grid centring (VA.rowPositions /
+                      VA.edgeLengthValue / VA.fitEdgeLength / VA.centreOffsets /
+                      VA.dagHeightBudget — the one declared arithmetic on
+                      dimension fields: it feeds bar LENGTHS only, pixels,
+                      never a printed number or a verdict), the grid PLAN +
+                      leader geometry
                       (VA.gridPlan / VA.internalNodes / VA.leaderGeometry),
                       VA.looseStacks / VA.stacksCoveredByTopology
                       (which stacks have no topology, read off edges' own
