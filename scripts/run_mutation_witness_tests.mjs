@@ -13,16 +13,28 @@
 // witnessing nothing. Nothing is red, so nothing announces that the coverage
 // left.
 //
-//   node scripts/run_mutation_witness_tests.mjs
-//   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack
+//   node scripts/run_mutation_witness_tests.mjs                     # npm run test:mutations
+//   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack  # ...from a worktree
 //   node scripts/run_mutation_witness_tests.mjs --only card-layout   # one entry
 //   node scripts/run_mutation_witness_tests.mjs --verbose            # show the red
 //   node scripts/run_mutation_witness_tests.mjs --list
 //
 // `--repo` is the worktree escape hatch, same as the two tiers below it:
-// data/projections/viewer/ lives only in the MAIN checkout, and three of the
-// declared witnesses are `[real]` checks that skip without it. It is passed
-// straight through to whichever tier a mutation names.
+// data/projections/viewer/ lives only in the MAIN checkout, and the `[real]`
+// witnesses are skipped -- and so reported as misses -- without it. It is
+// passed straight through to whichever tier a mutation names.
+//
+// IT DEFAULTS TO THIS TREE, AND THAT DEFAULT IS LOAD-BEARING. Each tier
+// resolves its own data root from the directory the tier's script lives in,
+// which here is the SHADOW (below) -- and the shadow, by construction, never
+// holds a data/. So without an explicit `--repo` a spawned tier would look for
+// the projection inside the shadow and find nothing, no matter which tree the
+// run started from: the `[real]` witnesses would be unreachable from the main
+// checkout exactly as they are from a worktree. Passing REPO (the tree the
+// shadow was copied FROM) is what makes a bare `npm run test:mutations` able to
+// witness every entry when it is run where the projection actually is. When the
+// projection is not under whatever `--repo` resolves to, the run says so on its
+// first line rather than after several minutes of browser.
 //
 // WHAT IT DOES, per entry in scripts/mutation_witnesses.json:
 //
@@ -48,7 +60,7 @@
 // directory, so a shadow under the system temp dir would find no node_modules
 // at all. Each run restores the file it patched, so the shadow is left clean.
 import { spawn } from "node:child_process";
-import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, normalize } from "node:path";
 
@@ -67,7 +79,11 @@ const argFlag = (name) => {
   return i === -1 ? null : process.argv[i + 1];
 };
 const repoArg = argFlag("--repo");
-const DATA_REPO = repoArg === null ? null : normalize(repoArg);
+// Defaults to REPO, never to the shadow -- see the note at the top of the file.
+const DATA_REPO = repoArg === null ? REPO : normalize(repoArg);
+// The one file whose absence makes every `[real]` witness unreachable: both
+// tiers gate their real-data checks on the topology projection resolving.
+const PROJECTION = join(DATA_REPO, "data", "projections", "viewer", "topologies.json");
 const ONLY = argFlag("--only");
 // `--verbose` prints the mutated run's whole output even when the entry passes.
 // A miss prints it either way -- this is for reading the red a witness actually
@@ -104,7 +120,9 @@ const FAST_FAIL = /^FAIL {2}(.+)$/;
 const BROWSER_FAIL = /^ {4}FAIL sub-check: (.+)$/;
 
 function tierCommand(mutation) {
-  const repoArgs = DATA_REPO === null ? [] : ["--repo", DATA_REPO];
+  // Always passed: a tier spawned inside the shadow would otherwise resolve its
+  // data root to the shadow, which holds no data/ by design.
+  const repoArgs = ["--repo", DATA_REPO];
   if (mutation.tier === "fast") {
     return [join(SHADOW, "apps", "viewer", "run_tests.cjs"), ...repoArgs];
   }
@@ -175,10 +193,17 @@ function anchorHits(mutation) {
     process.exitCode = 1;
     return;
   }
-  if (DATA_REPO === null) {
-    console.log("note: no --repo given, so every `[real]` witness will be " +
-      "skipped by the tier it runs in and reported as a MISS. From a worktree, " +
-      "pass --repo <main checkout>.\n");
+  // Not "was --repo given?" but "is the projection actually there?" -- the only
+  // question that decides whether a `[real]` witness can run. A default --repo
+  // that happens to point at a worktree is the same situation as a mistyped one.
+  if (!existsSync(PROJECTION)) {
+    console.log(`note: no topology projection under ${DATA_REPO} (looked for ` +
+      "data/projections/viewer/topologies.json), so every `[real]` witness will " +
+      "be skipped by the tier it runs in and reported as a MISS. " +
+      (repoArg === null
+        ? "That path is this tree; data/projections/viewer/ lives only in the " +
+          "MAIN checkout, so pass --repo <main checkout> (or build the projection)."
+        : "That path is the one --repo named.") + "\n");
   }
 
   console.log(`building the shadow tree at ${SHADOW}`);

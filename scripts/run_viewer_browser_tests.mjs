@@ -289,8 +289,7 @@ function startSiblingMountServer({ matchCrops, rebuildCapable, terminalState }) 
 // own completion state counts as one. Four servers, one scenario each — a
 // fresh stub per scenario keeps the busy/terminal state machine from leaking
 // across them the way one shared server's mutable `busy` flag would.
-async function testRebuildAffordance(browser) {
-  const label = "rebuild affordance (stub sibling mount)";
+async function testRebuildAffordance(browser, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const noCommandsOrPaths = (text) => !/\.py|venv-win|C:\\/.test(text || "");
@@ -2694,8 +2693,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
 //      renders), and the `trace` deep-link boot really executes end to end
 //      over ?mock=1 -- WebGL scene, ghost + mark-face handlers, the published
 //      window.__lastTrace summary (the autotest convention).
-async function testAnnotateFlyout(browser, fileBase) {
-  const label = "annotate flyout (repo-root mount + file:// degradation)";
+async function testAnnotateFlyout(browser, fileBase, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const server = await startRepoRootServer();
@@ -2870,8 +2868,7 @@ async function testAnnotateFlyout(browser, fileBase) {
 // rather than just being strict: a build that removed the picker everywhere
 // would pass the hosted half and fail the local one, which is the regression
 // that would quietly kill Jeff's own annotation workflow.
-async function testAnnotateHostedPosture(browser) {
-  const label = "annotate hosted posture (no folder grant off-machine)";
+async function testAnnotateHostedPosture(browser, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const server = await startRepoRootServer();
@@ -3040,8 +3037,7 @@ async function testIndexRedirects(browser, url, label) {
 // the whole point of viewer_transport_honest_hosted, and the one thing only a
 // real browser can prove, because it is the FSA fallback that must not happen
 // and only a real `window.location.protocol` decides that.
-async function testHostedUnpublished(browser, realProjection) {
-  const label = "hosted origin with nothing published";
+async function testHostedUnpublished(browser, realProjection, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const { server, publish } = await startHostedCatchAllServer();
@@ -3130,8 +3126,10 @@ async function testHostedUnpublished(browser, realProjection) {
 // the build's own no-animation path. Both are real pages, measured off the
 // DOM, which is what makes it a drift check rather than a re-reading of the
 // store the render used.
-async function testRespine(browser, url, label, realProjection, realCrops) {
-  const suite = `${label} respine`;
+// `suite` is the label SUITES passes in and this suite prints verbatim — it is
+// not derived from the page's label, because a derived label is a second copy
+// of the registry key wearing a template string.
+async function testRespine(browser, url, suite, realProjection, realCrops) {
   if (!realProjection) {
     console.log(`[${suite}] skipped: no topologies.json under ${DATA_REPO}`);
     return { label: suite, ok: true };
@@ -3558,39 +3556,49 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
 
     // Every suite, keyed by the label it PRINTS — which is what `--only`
     // matches on, so a filter can be copied straight off a failing line.
-    // `testRespine` prints `${label} respine`, hence the key spelled out here
-    // rather than the argument it is passed.
+    //
+    // The key IS the label: it is handed to the suite function as `label`
+    // rather than restated inside it, so there is one copy of each of these
+    // strings in the tree and no way for a key and a printed label to drift
+    // apart. (They used to be two copies — for most suites the same string
+    // twice on one line, and for four of them a `const label = "..."` hundreds
+    // of lines away in the function body. All nineteen agreed; nothing made
+    // them. `scripts/mutation_witnesses.json`'s `suite` fields are a third
+    // copy, and the one that cannot be single-sourced away because it lives in
+    // another file — `tests/test_mutation_witnesses.py` pairs those against
+    // this table on every pytest run.)
     const SUITES = [
-      ["suite file://", () =>
-        runSuite(browser, pathToFileURL(join(APP_DIR, "test.html")).href, "suite file://")],
-      ["suite http", () => runSuite(browser, `${baseUrl}/test.html`, "suite http")],
-      ["index redirect file://", () => testIndexRedirects(browser, fileBase, "index redirect file://")],
-      ["index redirect http", () => testIndexRedirects(browser, baseUrl, "index redirect http")],
-      ["app file://", () => testTheApp(browser, fileBase, "app file://")],
-      ["app http", () => testTheApp(browser, baseUrl, "app http")],
-      ["topology file://", () =>
-        testTheTopologyPage(browser, fileBase, "topology file://", topologies, crops)],
-      ["topology http", () =>
-        testTheTopologyPage(browser, baseUrl, "topology http", topologies, crops)],
-      ["deep links file://", () => testDeepLinks(browser, fileBase, "deep links file://")],
-      ["deep links http", () => testDeepLinks(browser, baseUrl, "deep links http")],
-      ["topology height budget", () =>
-        testHeightBudget(browser, fileBase, "topology height budget", topologies, crops)],
-      ["topology file:// respine", () =>
-        testRespine(browser, fileBase, "topology file://", topologies, crops)],
-      ["render crash shows the banner", () =>
-        testRenderCrash(browser, fileBase, "render crash shows the banner")],
-      ["real render path (non-mock)", () => testRealDataRenderPath(
-        browser, fileBase, "real render path (non-mock)", topologies, realResults, crops)],
-      ["served mode (repo-root static server)", () => testServedModeBoot(
-        browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
-        stopRepoRootServer)],
-      ["hosted origin with nothing published", () => testHostedUnpublished(browser, topologies)],
-      ["rebuild affordance (stub sibling mount)", () => testRebuildAffordance(browser)],
-      ["annotate flyout (repo-root mount + file:// degradation)", () =>
-        testAnnotateFlyout(browser, fileBase)],
-      ["annotate hosted posture (no folder grant off-machine)", () =>
-        testAnnotateHostedPosture(browser)],
+      ["suite file://", (label) =>
+        runSuite(browser, pathToFileURL(join(APP_DIR, "test.html")).href, label)],
+      ["suite http", (label) => runSuite(browser, `${baseUrl}/test.html`, label)],
+      ["index redirect file://", (label) => testIndexRedirects(browser, fileBase, label)],
+      ["index redirect http", (label) => testIndexRedirects(browser, baseUrl, label)],
+      ["app file://", (label) => testTheApp(browser, fileBase, label)],
+      ["app http", (label) => testTheApp(browser, baseUrl, label)],
+      ["topology file://", (label) =>
+        testTheTopologyPage(browser, fileBase, label, topologies, crops)],
+      ["topology http", (label) =>
+        testTheTopologyPage(browser, baseUrl, label, topologies, crops)],
+      ["deep links file://", (label) => testDeepLinks(browser, fileBase, label)],
+      ["deep links http", (label) => testDeepLinks(browser, baseUrl, label)],
+      ["topology height budget", (label) =>
+        testHeightBudget(browser, fileBase, label, topologies, crops)],
+      ["topology file:// respine", (label) =>
+        testRespine(browser, fileBase, label, topologies, crops)],
+      ["render crash shows the banner", (label) =>
+        testRenderCrash(browser, fileBase, label)],
+      ["real render path (non-mock)", (label) => testRealDataRenderPath(
+        browser, fileBase, label, topologies, realResults, crops)],
+      ["served mode (repo-root static server)", (label) => testServedModeBoot(
+        browser, repoRootBaseUrl, label, topologies, stopRepoRootServer)],
+      ["hosted origin with nothing published", (label) =>
+        testHostedUnpublished(browser, topologies, label)],
+      ["rebuild affordance (stub sibling mount)", (label) =>
+        testRebuildAffordance(browser, label)],
+      ["annotate flyout (repo-root mount + file:// degradation)", (label) =>
+        testAnnotateFlyout(browser, fileBase, label)],
+      ["annotate hosted posture (no folder grant off-machine)", (label) =>
+        testAnnotateHostedPosture(browser, label)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
@@ -3606,7 +3614,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     }
 
     const results = [];
-    for (const [, runSuiteFn] of chosen) results.push(await runSuiteFn());
+    for (const [label, runSuiteFn] of chosen) results.push(await runSuiteFn(label));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser ` +

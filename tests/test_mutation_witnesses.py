@@ -17,6 +17,17 @@ rename in ``apps/viewer/topology_app.js`` can rot four anchors at once, and
 nothing about it looks like a test change; without this module the first symptom
 would be a browser run somebody makes time for weeks later.
 
+**An entry couples to the tree with more than its ``find``.** ``expect_red`` names
+the sub-check the owning tier must print, and (for a browser entry) ``suite`` names
+the registry key that tier's ``--only`` dispatches on. Rewording a sub-check name
+or a suite label is a normal, correct edit -- exactly the "the app changed
+correctly" change this whole tier was built around -- and it rots those two
+strings the same way a rename rots an anchor, with the same silence. Measured
+2026-09-15: an ``expect_red`` replaced with ``"a check name nobody prints"`` left
+this module at six passed in 0.03s, and the only symptom was a ``NOT WITNESSED``
+from a seven-minute browser sweep. So all three strings are paired here, and the
+reason is one reason.
+
 What this module does **not** do: it never asserts that a mutation actually
 reddens anything. That claim can only be earned by running the tier, and pytest
 is not where a 3-minute browser sweep belongs. So a green pytest run means *every
@@ -31,6 +42,7 @@ multi-line anchor authored as LF matches nothing on disk.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -48,6 +60,31 @@ REQUIRED_KEYS = frozenset(
 )
 TIERS = frozenset({"fast", "browser"})
 
+#: Where each tier's sub-check NAMES are written -- which ``expect_red`` copies
+#: verbatim. Note what the fast tier's entry is *not*: the tier is invoked as
+#: ``apps/viewer/run_tests.cjs``, but that file is only the harness; the names
+#: live in the suite it loads. A vocabulary like this is a module-level constant
+#: and never an inline literal (``CLAUDE.md``, and ``docs/prompts/REVIEW_AGENT.md``
+#: on documented vocabularies drifting from the data they describe).
+CHECK_SOURCE = {
+    "fast": "apps/viewer/tests.js",
+    "browser": "scripts/run_viewer_browser_tests.mjs",
+}
+
+#: The file holding the ``SUITES`` registry a browser entry's ``suite`` filters
+#: on. Its keys are the labels the suites print; ``--only`` matches a substring
+#: of one, and ``mutation_witnesses.json`` holds whole ones.
+SUITE_REGISTRY = "scripts/run_viewer_browser_tests.mjs"
+
+#: A sub-check name too long for one source line is written as adjacent string
+#: literals -- ``"the bar carries that one sentence " +\n  "and nothing else"`` --
+#: so a naive substring search for the joined name finds nothing. Closing the
+#: seam before searching is what makes this scan work at all.
+CONCATENATION_SEAM = re.compile(r'"\s*\+\s*"')
+
+#: One ``["<label>", (label) => ...]`` row of the ``SUITES`` registry.
+SUITE_ROW = re.compile(r'^\s*\["((?:[^"\\]|\\.)*)",', re.MULTILINE)
+
 
 @pytest.fixture(scope="module")
 def mutations() -> tuple[dict, ...]:
@@ -62,6 +99,27 @@ def mutations() -> tuple[dict, ...]:
 
 def source_of(relative: str) -> str:
     return (REPO_ROOT / relative).read_text(encoding="utf-8").replace("\r\n", "\n")
+
+
+def joined_source(relative: str) -> str:
+    """``source_of`` with every ``" + "`` seam between string literals closed.
+
+    Only for searching for a *name*, never for anchors: it deliberately
+    misrepresents the file's text, joining literals that the JS engine joins too.
+    """
+    return CONCATENATION_SEAM.sub("", source_of(relative))
+
+
+def suite_registry_keys() -> tuple[str, ...]:
+    """The labels ``SUITES`` in the browser runner dispatches on.
+
+    Read out of the source rather than restated here: a copy in this file would
+    be the very duplication the registry was single-sourced to remove.
+    """
+    source = source_of(SUITE_REGISTRY)
+    start = source.index("const SUITES = [")
+    end = source.index("\n    ];", start)
+    return tuple(SUITE_ROW.findall(source[start:end]))
 
 
 def test_every_entry_carries_the_whole_shape(mutations):
@@ -108,6 +166,61 @@ def test_every_anchor_resolves_to_exactly_one_place(mutations):
         )
 
 
+def test_the_check_source_map_covers_the_tier_vocabulary():
+    """A tier with no entry here would silently skip the ``expect_red`` pairing."""
+    assert set(CHECK_SOURCE) == set(TIERS), (
+        f"CHECK_SOURCE covers {sorted(CHECK_SOURCE)}, TIERS is {sorted(TIERS)}"
+    )
+    for tier, relative in CHECK_SOURCE.items():
+        assert (REPO_ROOT / relative).is_file(), (
+            f"CHECK_SOURCE[{tier!r}] names {relative}, which is not in the tree"
+        )
+
+
+def test_every_expect_red_resolves_to_exactly_one_place(mutations):
+    """``find``'s other half: the sub-check name the tier must PRINT.
+
+    Zero matches means the entry can never be witnessed -- the runner will find
+    the tier red on some other check and report a miss, but only after a browser
+    sweep. Two means the runner cannot attribute the red either, which is the
+    same defect one step along, so uniqueness is asserted in the SOURCE and not
+    per entry: three of the preference siblings deliberately share one sub-check.
+    """
+    for entry in mutations:
+        relative = CHECK_SOURCE[entry["tier"]]
+        hits = joined_source(relative).count(entry["expect_red"])
+        assert hits == 1, (
+            f"{entry['id']}: its `expect_red` matches {hits} places in {relative} "
+            f"(expected exactly 1). A reworded sub-check name leaves the entry "
+            f"declaring a red nothing can produce -- re-copy the name verbatim off "
+            f"the tier's output, or retire the entry. Declared:\n"
+            f"{entry['expect_red']}"
+        )
+
+
+def test_every_browser_entry_names_a_suite_the_registry_dispatches_on(mutations):
+    """``suite`` is passed straight to the browser runner's ``--only``.
+
+    The registry keys are the labels the suites print, and they are what ``--only``
+    matches a substring of. A reworded label leaves this table holding the old one,
+    and the runner answers ``--only "<stale key>"`` with *matches no suite* -- an
+    honest red, several minutes in, on a run somebody had to make time for.
+    """
+    keys = suite_registry_keys()
+    assert keys, f"no SUITES rows found in {SUITE_REGISTRY} -- the reader has rotted"
+    assert len(set(keys)) == len(keys), (
+        f"duplicate SUITES keys in {SUITE_REGISTRY}: {sorted(keys)}"
+    )
+    for entry in mutations:
+        if entry["tier"] != "browser":
+            continue
+        assert entry["suite"] in keys, (
+            f"{entry['id']}: names suite {entry['suite']!r}, which no longer matches "
+            f"a SUITES key in {SUITE_REGISTRY}. The keys are:\n  "
+            + "\n  ".join(keys)
+        )
+
+
 def test_no_mutation_is_a_no_op(mutations):
     """``find == replace`` would patch a file into itself and witness nothing."""
     for entry in mutations:
@@ -134,3 +247,27 @@ def test_the_anchor_reader_can_fail():
     """The scanner itself, proven falsifiable on a string nothing contains."""
     assert source_of("scripts/mutation_witnesses.json").count(
         "this text is in no file in this repo, by construction") == 0
+    for relative in CHECK_SOURCE.values():
+        assert joined_source(relative).count(
+            "this text is in no file in this repo, by construction") == 0
+
+
+def test_closing_the_concatenation_seam_is_load_bearing(mutations):
+    """At least one declared name only resolves once the ``" + "`` seams are closed.
+
+    Without this, a ``CONCATENATION_SEAM`` that had stopped matching anything
+    would leave the pairing above green purely because every name in the table
+    happened to fit on one line -- and the next long one would be unpaired with
+    nothing to say so.
+    """
+    joined_only = [
+        entry["id"] for entry in mutations
+        if source_of(CHECK_SOURCE[entry["tier"]]).count(entry["expect_red"]) == 0
+        and joined_source(CHECK_SOURCE[entry["tier"]]).count(entry["expect_red"]) == 1
+    ]
+    assert joined_only, (
+        "no declared `expect_red` needs the seams closed to resolve, so this "
+        "module cannot tell a working CONCATENATION_SEAM from a dead one. Either "
+        "the sub-check names are all short now -- in which case say so and drop "
+        "the joining -- or the regex has stopped matching."
+    )
