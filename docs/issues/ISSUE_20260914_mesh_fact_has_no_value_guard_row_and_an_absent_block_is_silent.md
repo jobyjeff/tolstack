@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/projections
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260914_projection_field_guard_rows.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `projection_field_guard_rows` moved to completed/; not independently verified.
 ---
 
 # `parts[].mesh` has no `TOPO_VALUE_GUARDS` row, and an absent block is silent

@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260914_projection_field_guard_rows.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `projection_field_guard_rows` moved to completed/; not independently verified.
 ---
 
 # Two of the three new `[real]` mesh tests redden when the mesh set grows
