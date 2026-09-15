@@ -3371,6 +3371,465 @@
            "VA.DAG_FIT.headHeight must be .tv__head's own CSS height");
       });
 
+    // --- the respine animation (viewer_study_respine_animation) -------------
+    //
+    // Selecting a study re-serialises the page (the walk's spine gives way to
+    // the study's chain) and the change is a MOVEMENT, not a repaint. Every
+    // test below is about the same contract from a different side: the
+    // animation is presentation, so the settled frame has to be the render
+    // the page would have produced without one.
+    //
+    // demo_strut_branch is the fixture the pairing tests need, and not by
+    // luck: its chain visits `post_bushing_offset` at chain row 3, where the
+    // WALK has `post_height` -- so a tween that paired the two stores by row
+    // index instead of by element would fly the bushing offset in from the
+    // post height's slot and still look plausible.
+
+    function respineStores(mode) {
+      var M = VA.RAIL_METRICS;
+      var walk = VA.spineRight(TOPO.layout);
+      var chainLayout = VA.spineRight(topoStudy("demo_strut_branch").layout);
+      var walkPlan = VA.gridPlan(walk, TOPO);
+      var chainPlan = VA.gridPlan(chainLayout, TOPO);
+      return {
+        M: M, walk: walk, chainLayout: chainLayout,
+        walkPlan: walkPlan, chainPlan: chainPlan,
+        // budget 0 is what the fast tier's DOM shim measures (no viewport),
+        // so these are the same two stores renderTopoPane builds below.
+        from: VA.rowPositions(walk, TOPO, mode || "uniform", M,
+          { budget: 0, plan: walkPlan }),
+        to: VA.rowPositions(chainLayout, TOPO, mode || "uniform", M,
+          { budget: 0, plan: chainPlan }),
+      };
+    }
+
+    await test("respineEase pins both ends, clamps outside them, and rises",
+      function () {
+        eq(VA.respineEase(0), 0);
+        eq(VA.respineEase(1), 1);
+        eq(VA.respineEase(-5), 0);
+        eq(VA.respineEase(9), 1);
+        var last = -1;
+        [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].forEach(function (t) {
+          var e = VA.respineEase(t);
+          ok(e > last, "ease must rise at " + t + ": " + e + " after " + last);
+          last = e;
+        });
+      });
+
+    await test("the respine tween pairs the two stores by ELEMENT, not by row " +
+      "index — which is the whole reason the store is keyed", function () {
+        var s = respineStores();
+        // The trap: chain row 3 and walk row 3 are different edges.
+        eq(s.chainLayout.rows[3].id, "post_bushing_offset");
+        eq(s.walk.rows[3].id, "post_height");
+        var fromY = s.from.edges.post_bushing_offset.y;
+        var toY = s.to.edges.post_bushing_offset.y;
+        ok(Math.abs(fromY - toY) > 100,
+           "the fixture must actually move this edge: " + fromY + " -> " + toY);
+
+        var half = VA.tweenPositions(s.from, s.to, 0.5);
+        ok(Math.abs(half.edges.post_bushing_offset.y - (fromY + toY) / 2) < 1e-9,
+           "midway between its OWN two y's");
+        // Same claim through byRow, which is what railGeometry reads.
+        var slot = half.byRow[3];
+        eq(slot.id, "post_bushing_offset");
+        eq(slot.kind, "edge");
+        ok(Math.abs(slot.y - (fromY + toY) / 2) < 1e-9);
+        // Paired by index it would have come from the post height's slot.
+        ok(Math.abs(slot.y - (s.from.byRow[3].y + s.to.byRow[3].y) / 2) > 50,
+           "an index pairing would put it somewhere else entirely");
+      });
+
+    await test("a respine at e = 1 is the target store exactly — the " +
+      "animation adds no geometry drift", function () {
+        ["uniform", "tolerance", "absolute"].forEach(function (mode) {
+          var s = respineStores(mode);
+          var settled = VA.tweenPositions(s.from, s.to, 1);
+          eq(Object.keys(settled.byRow).sort(), Object.keys(s.to.byRow).sort(),
+             mode + ": byRow is the target's rows and only those");
+          Object.keys(s.to.byRow).forEach(function (key) {
+            var a = settled.byRow[key], b = s.to.byRow[key];
+            eq([a.id, a.kind], [b.id, b.kind], mode + " row " + key);
+            ["top", "height", "y"].forEach(function (f) {
+              ok(Math.abs(a[f] - b[f]) < 1e-9,
+                 mode + " row " + key + "." + f + ": " + a[f] + " !== " + b[f]);
+            });
+          });
+          Object.keys(s.to.edges).forEach(function (id) {
+            ["y1", "y2", "y", "length"].forEach(function (f) {
+              ok(Math.abs(settled.edges[id][f] - s.to.edges[id][f]) < 1e-9,
+                 mode + " " + id + "." + f);
+            });
+          });
+          Object.keys(s.to.nodes).forEach(function (id) {
+            ok(Math.abs(settled.nodes[id] - s.to.nodes[id]) < 1e-9, mode + " " + id);
+          });
+          ["height", "dagHeight", "gridHeight", "offset", "gridOffset"].forEach(
+            function (f) {
+              ok(Math.abs(settled[f] - s.to[f]) < 1e-9, mode + " " + f);
+            });
+          eq(settled.mode, s.to.mode, mode + ": the length mode is the target's");
+        });
+      });
+
+    await test("an element on one side only fades at its own settled " +
+      "position, and everything shared stays opaque", function () {
+        var s = respineStores();
+        var mid = VA.tweenPositions(s.from, s.to, 0.25);
+        // The three edges the chain drops. They are not in the target layout
+        // at all, so the ghost is what draws them -- the alpha is the number
+        // it fades on.
+        ["post_height", "arm_pin_to_tip", "tip_to_strut_end"].forEach(
+          function (id) {
+            ok(Math.abs(VA.tweenAlpha(mid, "edge", id) - 0.75) < 1e-9,
+               id + " must be leaving: " + VA.tweenAlpha(mid, "edge", id));
+          });
+        // Shared rows are drawn at full strength and MOVE, which is the read
+        // the whole animation exists for.
+        eq(VA.tweenAlpha(mid, "edge", "post_bushing_offset"), 1);
+        eq(VA.tweenAlpha(mid, "node", "base_datum"), 1);
+        // Run the other way and the same three ARRIVE -- at their own target
+        // position, not slid in from a slot they never occupied.
+        var back = VA.tweenPositions(s.to, s.from, 0.25);
+        ok(Math.abs(VA.tweenAlpha(back, "edge", "post_height") - 0.25) < 1e-9);
+        var row = s.walk.rows.filter(function (r) { return r.id === "post_height"; })[0];
+        eq(back.byRow[row.row].y, s.from.byRow[row.row].y);
+        // A store with no animation behind it answers 1 for everything.
+        eq(VA.tweenAlpha(s.to, "edge", "post_height"), 1);
+        eq(VA.tweenAlpha(null, "edge", "post_height"), 1);
+      });
+
+    await test("a bar floored on EITHER side wears the not-to-scale mark for " +
+      "the whole transition, and the target's own flag once it settles",
+      function () {
+        // Hand-built stores, because no shared edge of the fixture floors on
+        // one side only: the two that floor (arm_pin_to_tip, tip_to_strut_end)
+        // are exactly the two the chain drops. The rule still has to hold, so
+        // it is tested where it can be seen.
+        var store = function (y, floored) {
+          var slot = { top: y, height: 26, y: y + 13, floored: floored,
+                       id: "e1", kind: "edge" };
+          return {
+            mode: "tolerance", height: 52, dagHeight: 52, gridHeight: 26,
+            offset: 0, gridOffset: 0, byRow: { 0: slot }, nodes: {},
+            edges: { e1: { y1: y, y2: y + 26, y: y + 13, length: 26,
+                           floored: floored } },
+          };
+        };
+        var wasFloored = VA.tweenPositions(store(0, true), store(100, false), 0.5);
+        ok(wasFloored.byRow[0].floored, "still marked while it is moving");
+        ok(wasFloored.edges.e1.floored);
+        var becomesFloored = VA.tweenPositions(store(0, false), store(100, true), 0.5);
+        ok(becomesFloored.byRow[0].floored, "marked on the way in too");
+        // Settled, the target's flag is the only one left -- which is what
+        // keeps a tween at e = 1 identical to a fresh store, break marks
+        // included (BARS_MATCH_STORE_IN_PAGE counts them against it).
+        var settled = VA.tweenPositions(store(0, true), store(100, false), 1);
+        eq(settled.byRow[0].floored, false);
+        eq(settled.edges.e1.floored, false);
+        // And on the fixture: the walk's two floored edges are the chain's
+        // two dropped ones, so the chain claims no floor of its own.
+        var s = respineStores("tolerance");
+        ok(s.from.edges.arm_pin_to_tip.floored, "floored in the walk");
+        eq(Object.keys(s.to.edges).filter(function (id) {
+          return s.to.edges[id].floored;
+        }), [], "nothing floors in this chain");
+      });
+
+    await test("an element the transition ADDS fades in at its own settled " +
+      "position, and the rows around it do not", function () {
+        // The deselect direction: the chain gives the spine back to the walk,
+        // so three edge rows and two interfaces ARRIVE.
+        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
+                                 layoutMode: "chain" });
+        var root = render(function (r) { VA.renderTopoPane(r, chainCtx); });
+        var from = VA.lastTopoRender;
+        var ghost = VA.el("div", "tv__ghost");
+        ghost.appendChild(root.querySelector(".tv__hscroll"));
+        VA.renderTopoPane(root, topoCtx({
+          study: topoStudy("demo_strut_branch"), layoutMode: "topology",
+          tween: { positions: from.positions, width: from.width, e: 0.25,
+                   ghost: ghost },
+        }));
+        var opacityOf = function (selector, id) {
+          var hit = all(root, selector).filter(function (n) {
+            return n.getAttribute("data-id") === id;
+          })[0];
+          ok(hit, "expected " + selector + " for " + id);
+          return hit.style.opacity;
+        };
+        ["post_height", "arm_pin_to_tip", "tip_to_strut_end"].forEach(
+          function (id) {
+            ok(Math.abs(parseFloat(opacityOf("tr.tvrow", id)) - 0.25) < 0.05,
+               id + "'s row arrives faded: " + opacityOf("tr.tvrow", id));
+            // The hit twin, because that is the one carrying `data-id` --
+            // the visible bar beside it is faded by the same call.
+            ok(Math.abs(parseFloat(opacityOf("line.rail__barhit", id)) - 0.25) < 0.05,
+               id + "'s bar arrives faded");
+          });
+        ["post_arm_pin", "arm_tip"].forEach(function (id) {
+          ok(Math.abs(parseFloat(opacityOf("circle.rail__dot", id)) - 0.25) < 0.05,
+             id + "'s dot arrives faded");
+        });
+        // Everything the two serialisations share is drawn at full strength
+        // and MOVES -- which is the read the animation exists for, and the
+        // thing a blanket fade would have thrown away.
+        ["base_thickness", "post_bushing_offset", "strut_length"].forEach(
+          function (id) {
+            eq(opacityOf("tr.tvrow", id) || "", "", id + " is not faded");
+            eq(opacityOf("line.rail__barhit", id) || "", "", id + "'s bar is not faded");
+          });
+        eq(opacityOf("circle.rail__dot", "base_datum") || "", "");
+      });
+
+    await test("respineShift right-anchors the first frame on the outgoing " +
+      "frame's grid seam, and settles at zero", function () {
+        eq(VA.respineShift(316, 82, 0), 234);
+        eq(VA.respineShift(316, 82, 1), 0);
+        eq(VA.respineShift(316, 82, 0.5), 117);
+        // Backwards is the mirror image, not a special case: deselecting a
+        // study slides the block the other way by the same amount.
+        eq(VA.respineShift(82, 316, 0), -234);
+        eq(VA.respineShift(82, 316, 1), 0);
+        // No width to anchor on (a pane that never rendered) means no slide.
+        eq(VA.respineShift(0, 82, 0), 0);
+        eq(VA.respineShift(316, 0, 0), 0);
+      });
+
+    await test("a tweened render draws the DAG from the interpolated store, " +
+      "slides the whole block, cross-fades the grid and keeps the outgoing " +
+      "frame as an inert ghost", function () {
+        var s = respineStores();
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = VA.lastTopoRender;
+        eq(from.tweening, false, "a plain render is not a transition");
+        ok(from.width > 0, "the render records the SVG width it drew");
+
+        var ghost = VA.el("div", "tv__ghost");
+        ghost.appendChild(root.querySelector(".tv__hscroll"));
+        VA.renderTopoPane(root, topoCtx({
+          study: topoStudy("demo_strut_branch"), layoutMode: "chain",
+          tween: { positions: from.positions, width: from.width, e: 0.5,
+                   ghost: ghost },
+        }));
+        eq(VA.lastTopoRender.tweening, true);
+
+        // The bar is at the midpoint of its own two slots -- read off the
+        // attribute the browser drew from, not off the store.
+        var bar = all(root, "line.rail__barhit").filter(function (n) {
+          return n.getAttribute("data-id") === "post_bushing_offset";
+        })[0];
+        ok(bar, "the moving edge must be drawn");
+        var want = (s.from.edges.post_bushing_offset.y1 +
+                    s.to.edges.post_bushing_offset.y1) / 2 + 1;
+        ok(Math.abs(parseFloat(bar.getAttribute("y1")) - want) < 0.05,
+           "drawn y1 " + bar.getAttribute("y1") + " should be " + want);
+
+        // The block slide, on both halves of the pane -- the header sits over
+        // the columns it names, so it cannot be left behind.
+        var shift = VA.respineShift(from.width, VA.lastTopoRender.width, 0.5);
+        ok(Math.abs(shift) > 1, "this fixture really does slide: " + shift);
+        [".tv__head", ".tv__body"].forEach(function (sel) {
+          var tf = root.querySelector(sel).style.transform;
+          var px = /translateX\(([-\d.]+)px\)/.exec(tf || "");
+          ok(px, sel + " must carry the slide, got " + JSON.stringify(tf));
+          ok(Math.abs(parseFloat(px[1]) - shift) < 0.05, sel + ": " + px[1]);
+        });
+
+        // The grid cross-fades; the ghost is the other half of it.
+        ok(Math.abs(parseFloat(root.querySelector("div.tv__rows").style.opacity)
+                    - 0.5) < 0.05, "the incoming grid is at its share");
+        var inPane = root.querySelector("div.tv__ghost");
+        ok(inPane, "the outgoing frame is re-appended to the pane every frame");
+        ok(Math.abs(parseFloat(inPane.style.opacity) - 0.5) < 0.05);
+        ok(inPane.querySelector(".tv__hscroll"), "it holds the real outgoing DOM");
+      });
+
+    await test("the settled frame carries none of the animation: no ghost, " +
+      "no slide, no inline opacity, and the numbers a fresh render draws",
+      function () {
+        var chainCtx = function () {
+          return topoCtx({ study: topoStudy("demo_strut_branch"),
+                           layoutMode: "chain" });
+        };
+        var fresh = render(function (r) { VA.renderTopoPane(r, chainCtx()); });
+        var freshBars = all(fresh, "line.rail__barhit").map(function (n) {
+          return [n.getAttribute("data-id"), n.getAttribute("y1"), n.getAttribute("y2")];
+        });
+
+        // The same selection, reached through a whole transition.
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = VA.lastTopoRender;
+        var clock = 0;
+        var queue = [];
+        VA.animateTopoPane(root, chainCtx(), from, {
+          now: function () { return clock; },
+          raf: function (fn) { queue.push(fn); },
+          duration: 100, reduced: false,
+        });
+        while (queue.length) {
+          clock += 50;
+          queue.shift()();
+        }
+        eq(VA.lastTopoRender.tweening, false, "it lands on a plain render");
+        eq(all(root, "div.tv__ghost").length, 0, "the ghost is gone");
+        eq(root.querySelector(".tv__head").style.transform || "", "");
+        eq(root.querySelector(".tv__body").style.transform || "", "");
+        eq(root.querySelector("div.tv__rows").style.opacity || "", "");
+        all(root, "line.rail__bar").forEach(function (n) {
+          eq(n.style.opacity || "", "", "no faded bar survives the transition");
+        });
+        all(root, "circle.rail__dot").forEach(function (n) {
+          eq(n.style.opacity || "", "", "no faded dot survives the transition");
+        });
+        all(root, "tr.tvrow").forEach(function (n) {
+          eq(n.style.opacity || "", "", "no faded row survives the transition");
+        });
+        eq(all(root, "line.rail__barhit").map(function (n) {
+          return [n.getAttribute("data-id"), n.getAttribute("y1"), n.getAttribute("y2")];
+        }), freshBars, "the settled geometry is the fresh render's, bar for bar");
+      });
+
+    await test("VA.animateTopoPane runs a whole transition off an injected " +
+      "clock: the outgoing pane becomes the ghost, every frame is a render, " +
+      "and a cancel stops it dead", function () {
+        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
+                                 layoutMode: "chain" });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var outgoing = root.querySelector(".tv__hscroll");
+        var from = VA.lastTopoRender;
+        var clock = 0;
+        var queue = [];
+        var opts = { now: function () { return clock; },
+                     raf: function (fn) { queue.push(fn); },
+                     duration: 100, reduced: false };
+        var handle = VA.animateTopoPane(root, chainCtx, from, opts);
+        ok(handle, "an animated transition hands back a handle");
+        // The first frame is drawn synchronously, at e = 0, and it is the
+        // outgoing picture: the ghost is opaque and the incoming grid is not
+        // yet there. So a click never flashes an intermediate state.
+        eq(VA.lastTopoRender.tweening, true);
+        eq(VA.lastTopoRender.positions.t, 0);
+        var ghost = root.querySelector("div.tv__ghost");
+        ok(ghost && ghost.querySelector(".tv__hscroll") === outgoing,
+           "the ghost holds the very nodes the previous paint rendered");
+        eq(ghost.getAttribute("aria-hidden"), "true",
+           "it is a picture of a state the reader has left, not content");
+        eq(ghost.querySelector(".tv__head").style.display, "none",
+           "the column header is the same header in both — no double image");
+        eq(parseFloat(ghost.style.opacity), 1);
+        eq(parseFloat(root.querySelector("div.tv__rows").style.opacity), 0);
+        eq(queue.length, 1, "and it asks for the next frame");
+
+        clock = 50;
+        queue.shift()();
+        ok(VA.lastTopoRender.positions.t > 0.3 &&
+           VA.lastTopoRender.positions.t < 0.7,
+           "halfway through, halfway eased: " + VA.lastTopoRender.positions.t);
+        eq(queue.length, 1);
+
+        // Cancelled mid-flight, nothing more is drawn -- which is what lets a
+        // resize or a second selection land on top of a running transition.
+        handle.cancel();
+        var before = VA.lastTopoRender;
+        clock = 90;
+        queue.shift()();
+        ok(VA.lastTopoRender === before, "a cancelled frame renders nothing");
+        eq(queue.length, 0);
+
+        // With no previous store there is nothing to animate between, and the
+        // pane just renders -- the boot path, and a topology switch.
+        var boot = render(function (r) {
+          eq(VA.animateTopoPane(r, topoCtx(), null, opts), null);
+        });
+        ok(boot.querySelector("svg.tv__rails"), "it still painted");
+        eq(all(boot, "div.tv__ghost").length, 0);
+      });
+
+    await test("a frame that throws stops the transition and lands on the " +
+      "page's one crash seam, not on an unhandled error", function () {
+        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
+                                 layoutMode: "chain" });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = VA.lastTopoRender;
+        var real = VA.renderTopoPane;
+        var caught = [];
+        var clock = 0;
+        var queue = [];
+        var frames = 0;
+        try {
+          VA.renderTopoPane = function (r, c) {
+            frames++;
+            // The first frame paints; the second one — running off the
+            // animation callback, outside every try/catch this page has —
+            // blows up.
+            if (frames > 1) throw new Error("seeded frame failure");
+            return real(r, c);
+          };
+          VA.animateTopoPane(root, chainCtx, from, {
+            now: function () { return clock; },
+            raf: function (fn) { queue.push(fn); },
+            duration: 100, reduced: false,
+            onError: function (err) { caught.push(String(err.message)); },
+          });
+          eq(queue.length, 1);
+          clock = 50;
+          queue.shift()();
+        } finally {
+          VA.renderTopoPane = real;
+        }
+        eq(caught, ["seeded frame failure"]);
+        eq(queue.length, 0, "and it stops asking for frames");
+      });
+
+    await test("prefers-reduced-motion jumps to the end state: one render, " +
+      "no ghost, no tween", function () {
+        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
+                                 layoutMode: "chain" });
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = VA.lastTopoRender;
+        var asked = 0;
+        var handle = VA.animateTopoPane(root, chainCtx, from, {
+          reduced: true,
+          raf: function () { asked++; },
+          now: function () { return 0; },
+        });
+        eq(handle, null, "nothing is animating, so there is nothing to cancel");
+        eq(asked, 0, "and no frame was ever asked for");
+        eq(VA.lastTopoRender.tweening, false);
+        eq(all(root, "div.tv__ghost").length, 0);
+        eq(root.querySelector("div.tv__rows").style.opacity || "", "");
+        var fresh = render(function (r) { VA.renderTopoPane(r, chainCtx); });
+        eq(all(root, "line.rail__barhit").map(function (n) {
+          return n.getAttribute("y1");
+        }), all(fresh, "line.rail__barhit").map(function (n) {
+          return n.getAttribute("y1");
+        }), "the reduced-motion page is the settled page, immediately");
+      });
+
+    await test("VA.prefersReducedMotion asks the media query, and no query " +
+      "reads as no preference", function () {
+        var had = Object.prototype.hasOwnProperty.call(window, "matchMedia");
+        var saved = window.matchMedia;
+        try {
+          var asked = [];
+          window.matchMedia = function (q) { asked.push(q); return { matches: true }; };
+          eq(VA.prefersReducedMotion(), true);
+          eq(asked, ["(prefers-reduced-motion: reduce)"]);
+          window.matchMedia = function () { return { matches: false }; };
+          eq(VA.prefersReducedMotion(), false);
+          // A query that throws (an old engine) is not a crash and not a
+          // preference either.
+          window.matchMedia = function () { throw new Error("nope"); };
+          eq(VA.prefersReducedMotion(), false);
+          window.matchMedia = undefined;
+          eq(VA.prefersReducedMotion(), false);
+        } finally {
+          if (had) window.matchMedia = saved; else delete window.matchMedia;
+        }
+      });
+
     await test("a floored bar is rendered marked: the --floored class, the " +
       "break glyph, and a hover title that says not-to-scale", function () {
         var root = render(function (r) {
@@ -5677,6 +6136,129 @@
             has(html, "<h1>");
             has(html, "end-stop graft workorder");
             has(root.textContent, "declared by this file itself");
+          });
+
+        await test("[real] a respine of every summing study of every topology " +
+          "settles on the fresh render's own geometry, bar for bar, in every " +
+          "length mode — the animation is presentation and nothing else",
+          function () {
+            // The zero-drift claim, on the documents rather than on the
+            // fixture: run a whole select/deselect cycle through the animator
+            // off an injected clock and pair the settled DOM against a render
+            // of the same selection that never animated. Anything an
+            // interpolated store rounded, clamped or re-derived shows up here
+            // as a bar in the wrong place.
+            var geometryOf = function (root) {
+              return all(root, "line.rail__barhit").map(function (n) {
+                return [n.getAttribute("data-id"), n.getAttribute("y1"),
+                        n.getAttribute("y2")];
+              }).concat(all(root, "circle.rail__dot").map(function (n) {
+                return [n.getAttribute("data-id"), n.getAttribute("cy")];
+              })).concat(all(root, "path.rail__leaderhit").map(function (n) {
+                return [n.getAttribute("data-leader-id"), n.getAttribute("d")];
+              }));
+            };
+            var ctxFor = function (topoProj, study, layoutMode, mode) {
+              return { topoProj: topoProj, study: study, crops: realCrops,
+                       layoutMode: layoutMode, selection: null,
+                       edgeLengthMode: mode, onSelect: function () {} };
+            };
+            var runTo = function (root, ctx) {
+              var from = VA.lastTopoRender;
+              var clock = 0;
+              var queue = [];
+              VA.animateTopoPane(root, ctx, from, {
+                now: function () { return clock; },
+                raf: function (fn) { queue.push(fn); },
+                duration: 100, reduced: false,
+              });
+              var guard = 0;
+              while (queue.length) {
+                ok(guard++ < 50, "the transition must terminate");
+                clock += 17;
+                queue.shift()();
+              }
+              eq(VA.lastTopoRender.tweening, false);
+              eq(all(root, "div.tv__ghost").length, 0);
+            };
+            var cycles = 0;
+            liveTopos.forEach(function (topoProj) {
+              var study = (topoProj.studies || []).filter(function (s) {
+                return s.status === "ok" && s.layout;
+              })[0];
+              if (!study) return;
+              ["uniform", "tolerance", "absolute"].forEach(function (mode) {
+                var walkCtx = ctxFor(topoProj, null, "topology", mode);
+                var chainCtx = ctxFor(topoProj, study, "chain", mode);
+                var freshChain = geometryOf(render(function (r) {
+                  VA.renderTopoPane(r, chainCtx);
+                }));
+                var freshWalk = geometryOf(render(function (r) {
+                  VA.renderTopoPane(r, walkCtx);
+                }));
+
+                var root = render(function (r) { VA.renderTopoPane(r, walkCtx); });
+                runTo(root, chainCtx);
+                eq(geometryOf(root), freshChain,
+                   topoProj.id + "/" + study.id + "/" + mode + ": selecting");
+                runTo(root, walkCtx);
+                eq(geometryOf(root), freshWalk,
+                   topoProj.id + "/" + study.id + "/" + mode + ": deselecting");
+                cycles++;
+              });
+            });
+            ok(cycles >= 12,
+               "every committed topology with a summing study, in three " +
+               "modes, must actually have been cycled: " + cycles);
+          });
+
+        await test("[real] pitch_system's respine really does move the whole " +
+          "page — the contract above would pass on a diagram that never " +
+          "changed", function () {
+            // A non-vacuity witness, because "settled == fresh" is trivially
+            // true if the two serialisations happen to draw the same picture.
+            var M = VA.RAIL_METRICS;
+            var study = livePitch.studies.filter(function (s) {
+              return s.status === "ok" && s.layout;
+            })[0];
+            var walk = VA.spineRight(livePitch.layout);
+            var chain = VA.spineRight(study.layout);
+            var walkPlan = VA.gridPlan(walk, livePitch);
+            var chainPlan = VA.gridPlan(chain, livePitch);
+            var from = VA.rowPositions(walk, livePitch, "uniform", M,
+              { budget: 782, plan: walkPlan });
+            var to = VA.rowPositions(chain, livePitch, "uniform", M,
+              { budget: 782, plan: chainPlan });
+            ok(from.dagHeight - to.dagHeight > 300,
+               "the chain is far shorter than the walk: " +
+               from.dagHeight + " -> " + to.dagHeight);
+            ok(walk.columns - chain.columns >= 5,
+               "and far wider: " + walk.columns + " -> " + chain.columns);
+
+            // Every interface the chain keeps MOVES, and by a lot -- so the
+            // interpolation is doing real work on the document Jeff asked
+            // about, not tweening a diagram between two identical states.
+            var shared = Object.keys(to.nodes).filter(function (id) {
+              return from.nodes[id] !== undefined;
+            });
+            ok(shared.length >= 8, "the chain shares most of its interfaces " +
+               "with the walk: " + shared.length);
+            var travel = shared.map(function (id) {
+              return Math.abs(from.nodes[id] - to.nodes[id]);
+            });
+            var moved = travel.filter(function (d) { return d > 20; });
+            ok(moved.length * 2 > shared.length,
+               "most shared interfaces move a visible distance: " +
+               moved.length + " of " + shared.length);
+            ok(Math.max.apply(null, travel) > 200,
+               "and the furthest travels " + Math.max.apply(null, travel) + "px");
+            // And the block slide is worth doing: the two jog zones are
+            // hundreds of pixels apart.
+            var fromWidth = VA.leaderGeometry(walk, walkPlan, M, from).width;
+            var toWidth = VA.leaderGeometry(chain, chainPlan, M, to).width;
+            ok(VA.respineShift(fromWidth, toWidth, 0) > 100,
+               "the first frame slides by " +
+               VA.respineShift(fromWidth, toWidth, 0) + "px");
           });
 
         await test("[real] every edge of every topology renders as a row in " +

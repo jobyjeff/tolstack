@@ -404,16 +404,36 @@
 
   function onNavTopology(topologyId) {
     selectTopology(topologyId);
-    loadWorksheet().then(rewind);
+    // Deselecting a study is the respine run backwards -- the chain gives the
+    // spine back to the whole walk (viewer_study_respine_animation). Same
+    // topology, so there is a previous store to animate from; a click that
+    // switches to a DIFFERENT topology is a different graph, and respine()
+    // falls through to a plain paint for it.
+    loadWorksheet().then(respine);
   }
 
   function onNavStudy(topologyId, studyId) {
     if (state.topologyId !== topologyId) selectTopology(topologyId);
     state.studyId = studyId || null;
-    state.layoutMode = "topology";
+    // Selecting a study RE-SPINES (viewer_study_respine_animation, from the
+    // viewer-arcs brief's decision 5): the study's chain becomes the
+    // right-justified linear run and the grid re-orders to the order the sum
+    // runs in -- the layout the toolbar's toggle has always offered, now the
+    // default for a study that sums. A study that REFUSED has no chain to lay
+    // out (the error is the result), so it stays on the whole-topology walk,
+    // which is the same condition the toggle disables itself for.
+    state.layoutMode = chainable(studyId) ? "chain" : "topology";
     state.selection = null;
     state.detailImage = null;
-    loadWorksheet().then(rewind);
+    loadWorksheet().then(respine);
+  }
+
+  // Whether a study has a chain to lay out at all -- the one condition the
+  // chain layout has ever had (views/topology.js's layoutFor, and the
+  // toolbar's own disabled test).
+  function chainable(studyId) {
+    var study = studyId ? VA.findStudy(currentTopology(), studyId) : null;
+    return !!(study && study.status === "ok" && study.layout);
   }
 
   function onNavStack(stackId) {
@@ -849,6 +869,16 @@
   }
 
   function paint() {
+    // A transition in flight renders the pane from the ctx it started with,
+    // so any paint that is not one of its own frames has to stop it first: a
+    // resize, a selection or a reload landing mid-respine would otherwise be
+    // painted over by the next frame of a state the page has already left.
+    // Claimed rather than read, so a respine that never reaches the pane (a
+    // paint in stack mode) does not leave one armed for a later one.
+    if (respineHandle) { respineHandle.cancel(); respineHandle = null; }
+    var respineStart = respineFrom;
+    respineFrom = null;
+
     VA.renderBanner(nodes.banner, bannerState(), {
       // Guarded: the banner only ever offers these when an FSA adapter exists,
       // but a no-adapter boot still renders a banner, and a button whose
@@ -934,9 +964,12 @@
         onAttach3d: launchAnnotate,
       };
       VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
+        // The same re-serialisation the nav's study click makes, asked for
+        // by hand -- so it animates the same way (viewer_study_respine_
+        // animation). rewind()'s scroll reset rides along inside respine().
         onLayoutMode: function () {
           state.layoutMode = state.layoutMode === "chain" ? "topology" : "chain";
-          rewind();
+          respine();
         },
         // Density changes how tall the rows already on screen are, not WHICH
         // rows are on screen — so a plain render(), not rewind(): see
@@ -975,7 +1008,16 @@
         onStudy3d: launchAnnotate,
       });
       VA.renderTopoJoint(nodes.topojoint, topoProj);
-      VA.renderTopoPane(nodes.pane, ctx);
+      if (respineStart && respineStart.topologyId === topoProj.id) {
+        // `onError` puts an animation frame's throw on the SAME seam every
+        // other render on this page uses: a frame runs off a rAF callback,
+        // outside render()'s try/catch, so without this it would be an
+        // unhandled error with the pane frozen mid-transition.
+        respineHandle = VA.animateTopoPane(nodes.pane, ctx, respineStart,
+          { onError: renderCrash });
+      } else {
+        VA.renderTopoPane(nodes.pane, ctx);
+      }
       VA.renderTopoTotals(nodes.totals, topoProj, study, VA.topologyIndex(topoProj));
       VA.renderTopoDetail(nodes.detail, ctx);
       ensureThumbImages(topoProj);
@@ -992,6 +1034,11 @@
 
     VA.renderWorksheet(nodes.worksheet, showTopology ? topoProj : stackProj,
       state.worksheetText);
+
+    // What this paint put on screen, for the no-op guard in respine() above.
+    // A transition's own frames do not come through paint(), so this stays
+    // the target's throughout one.
+    paintedSerialisation = serialisation();
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its
@@ -1019,6 +1066,42 @@
   // controls that change WHICH rows or WHICH stack are on screen do this;
   // clicking a row also re-renders, and yanking the reader back to the top for
   // that would be its own bug (rewind's original comment, topology.js).
+  // --- the respine (viewer_study_respine_animation) -------------------------
+  //
+  // A rewind() whose pane paint is a TRANSITION rather than a repaint: the
+  // store the outgoing paint drew from is captured here, before anything is
+  // re-rendered, and paint() hands it to VA.animateTopoPane. Only the two
+  // controls that change WHICH serialisation is on screen come through here
+  // (picking or dropping a study in the nav, and the toolbar's layout
+  // toggle); everything else -- density, length mode, leader style, a resize
+  // drag -- changes how the SAME rows are drawn and has always been a plain
+  // render.
+  //
+  // VA.lastTopoRender is the store the LAST pane paint drew from, which
+  // during a transition is that transition's own last frame: interrupting a
+  // respine with another one therefore picks up where the first one had got
+  // to instead of snapping back to where it began.
+  var respineFrom = null;
+  var respineHandle = null;
+  var paintedSerialisation = null;
+
+  // Which serialisation is on screen: the topology, the study and which of
+  // the two layouts. A respine is only a TRANSITION when one of those three
+  // actually changed -- clicking the nav row of the topology already open is
+  // a no-op, and animating a no-op would lay a fading ghost of the page over
+  // the identical page for a quarter of a second.
+  function serialisation() {
+    return [state.mode, state.topologyId, state.studyId,
+            state.layoutMode].join(" / ");
+  }
+
+  function respine() {
+    respineFrom = serialisation() === paintedSerialisation
+      ? null
+      : (VA.lastTopoRender || null);
+    rewind();
+  }
+
   function rewind() {
     render();
     if (nodes.pane) nodes.pane.scrollTop = 0;

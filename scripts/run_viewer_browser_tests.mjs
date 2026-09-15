@@ -1178,26 +1178,15 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       "not just its own dashes",
       hoverCoverage && hoverCoverage.every((id) => id === "tip_to_strut_end"));
 
-    // Study selection, through the nav tree: the grid marks, the rails
-    // thicken, the totals strip appears.
+    // Study selection, through the nav tree. Since viewer_study_respine_
+    // animation this RE-SPINES: the study's chain becomes the layout, so the
+    // page lands in chain mode rather than on the walk with a highlight.
     await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
-    push("selecting a study marks its chain and dims the rest",
-      await page.locator("tr.tvrow--on").count() > 0 &&
-      await page.locator("tr.tvrow--off").count() > 0);
-    const dimmed = await page.locator("tr.tvrow--off").first()
-      .evaluate((n) => parseFloat(getComputedStyle(n).opacity));
-    push("an off-chain row is actually dimmed, not just classed", dimmed < 0.9);
-    push("the totals render as chips in the slim strip",
-      await page.locator(".chip--total").count() === 5);
-    await page.locator(".tvtotals__more summary").click();
-    push("the totals say where the numbers came from, behind the Details toggle",
-      /This page adds nothing up/.test(await page.locator("#totals").textContent()));
-
-    // The chain layout: one rail, the sum's own order, still corresponding.
-    await page.locator("#layout-toggle").click();
-    push("chain mode says so", /Showing: study chain/
-      .test(await page.locator("#layout-toggle").textContent()));
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    push("selecting a study re-spines the page onto its chain",
+      /Showing: study chain/.test(await page.locator("#layout-toggle").textContent()));
     const chained = await correspondence();
     push("the chain layout corresponds too — including a leader that points " +
       "below the whole grid", chained.drift.length === 0);
@@ -1206,7 +1195,27 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator("svg.tv__rails circle.rail__dot").count() ===
       chained.rows + 1 &&
       await page.locator("svg.tv__rails line.rail__bar").count() === chained.rows);
+    push("the totals render as chips in the slim strip",
+      await page.locator(".chip--total").count() === 5);
+    await page.locator(".tvtotals__more summary").click();
+    push("the totals say where the numbers came from, behind the Details toggle",
+      /This page adds nothing up/.test(await page.locator("#totals").textContent()));
+
+    // And the whole walk, with the chain marked on it, is one click away --
+    // the layout the study click used to land on.
     await page.locator("#layout-toggle").click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    push("whole-topology mode says so", /Showing: whole topology/
+      .test(await page.locator("#layout-toggle").textContent()));
+    push("it marks the study's chain and dims the rest",
+      await page.locator("tr.tvrow--on").count() > 0 &&
+      await page.locator("tr.tvrow--off").count() > 0);
+    const dimmed = await page.locator("tr.tvrow--off").first()
+      .evaluate((n) => parseFloat(getComputedStyle(n).opacity));
+    push("an off-chain row is actually dimmed, not just classed", dimmed < 0.9);
+    push("the whole walk corresponds with a study selected too",
+      (await correspondence()).drift.length === 0);
 
     // A study that refuses to sum shows the refusal, with its next step.
     await page.locator(navRow("study", "demo_ambiguous")).click();
@@ -1423,6 +1432,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       for (const topology of realProjection.topologies) {
         await page.locator(navRow("topology", topology.id)).click();
         await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+        await page.waitForFunction(
+          () => !window.ViewerApp.lastTopoRender.tweening, null,
+          { timeout: 5000 });
         const expected = topology.edges.length;
         push(`[real] ${topology.id} renders all ${expected} edge rows`,
           await page.locator("tr.tvrow").count() === expected);
@@ -1496,7 +1508,13 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
         for (const study of topology.studies) {
           await page.locator(navRow("study", study.id)).click();
-          await page.waitForTimeout(50);
+          // A study click is a transition now (viewer_study_respine_
+          // animation), and mid-flight the pane holds a ghost of the
+          // outgoing frame as well as the incoming one -- so every count
+          // below has to be taken on a settled page, not after a fixed wait.
+          await page.waitForFunction(
+            () => !window.ViewerApp.lastTopoRender.tweening, null,
+            { timeout: 5000 });
           if (study.status !== "ok") {
             push(`[real] ${study.id} shows its refusal`,
               /does not sum|reaches a fork|not one chain|closes a ring|unlike things/
@@ -1727,6 +1745,14 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
 
     await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
+    // Back onto the whole walk: selecting a study re-spines onto its chain
+    // now (viewer_study_respine_animation), and every contract in this
+    // function is about the height the WHOLE serialisation demands of the
+    // page -- a 7-row chain would fit a viewport that its 12-row walk does
+    // not, which is the case being tested.
+    await page.locator("#layout-toggle").click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
 
     const mockPane = await paneContract();
     push("[mock] the DAG pane no longer owns a scrollport of its own",
@@ -1807,6 +1833,12 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       if (okStudy) {
         await page.locator(navRow("study", okStudy.id)).click();
         await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
+        // Back onto the walk, same reason as the mock block above: the
+        // height contracts are about pitch_system's 45 slots, and a study
+        // re-spine shows a 21-slot chain instead.
+        await page.locator("#layout-toggle").click();
+        await page.waitForFunction(
+          () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
       }
       const realPane = await paneContract();
       push("[real] the DAG pane still owns no scrollport of its own with " +
@@ -1896,6 +1928,33 @@ async function testRenderCrash(browser, url, label) {
     // The seam is render()'s own try/catch, not the browser's: nothing should
     // have escaped as an uncaught page error.
     push("no uncaught page error escaped the seeded render crash", errors.length === 0);
+
+    // The same seam for a frame of a RESPINE (viewer_study_respine_animation).
+    // A transition's frames run off an animation callback, outside render()'s
+    // try/catch entirely, so a throw in one had no owner until the animator
+    // was given an error sink -- and it would have looked exactly like the
+    // 2026-09-09 incident this whole seam exists for: a pane frozen halfway
+    // through a transition, saying nothing. Seeded on the SECOND render, so
+    // the first (synchronous) frame paints and only a callback frame blows up.
+    await page.reload({ waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    errors.length = 0;
+    await page.evaluate(() => {
+      const real = window.ViewerApp.renderTopoPane;
+      let calls = 0;
+      window.ViewerApp.renderTopoPane = function (root, ctx) {
+        calls++;
+        if (calls > 1) throw new Error("seeded respine frame failure");
+        return real(root, ctx);
+      };
+    });
+    await page.locator(navRow("study", "demo_strut_branch")).click();
+    await page.waitForSelector(".banner--crash", { timeout: 5000 });
+    push("a throw inside a respine FRAME reaches the same crash banner",
+      /seeded respine frame failure/.test(
+        await page.locator("#banner").textContent()));
+    push("and nothing escaped it as an uncaught page error either",
+      errors.length === 0);
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
@@ -2468,6 +2527,345 @@ async function testHostedUnpublished(browser, realProjection) {
   }
 }
 
+// The respine, measured in the page (viewer_study_respine_animation).
+//
+// Against the REAL projection, because the animation's whole point is the
+// document Jeff complained about: pitch_system's 45-slot walk giving way to a
+// study's linear chain. Three separate claims, and they need three different
+// kinds of check:
+//
+//   1. the app shell really re-spines on a study click -- the CALL SITE, not
+//      the computation. The fast tier can prove VA.animateTopoPane works and
+//      still miss topology_app.js never calling it, which is exactly the
+//      mutation that shipped green in viewer_dag_spine_layout's round 1;
+//   2. a transition is actually in flight mid-click -- a ghost of the
+//      outgoing frame over a slid block -- so "it animates" is measured
+//      rather than assumed;
+//   3. the SETTLED page is the page a render with no animation in it
+//      produces, bar for bar, in every length mode and both directions.
+//
+// (3) reaches the same state twice by two different routes: once through the
+// transition, once with `prefers-reduced-motion: reduce` emulated, which is
+// the build's own no-animation path. Both are real pages, measured off the
+// DOM, which is what makes it a drift check rather than a re-reading of the
+// store the render used.
+async function testRespine(browser, url, label, realProjection, realCrops) {
+  const suite = `${label} respine`;
+  if (!realProjection) {
+    console.log(`[${suite}] skipped: no topologies.json under ${DATA_REPO}`);
+    return { label: suite, ok: true };
+  }
+  const page = await browser.newPage({ viewport: TOPO_VIEWPORT });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
+  const settled = () => page.waitForFunction(
+    () => window.ViewerApp && window.ViewerApp.lastTopoRender &&
+          !window.ViewerApp.lastTopoRender.tweening,
+    null, { timeout: 10000 });
+
+  // What a paint actually drew, as the DOM carries it -- never as the store
+  // says it should be. Every geometry claim below is this.
+  const geometry = () => page.evaluate(() => {
+    const at = (sel, attrs) => Array.from(document.querySelectorAll(sel))
+      .map((n) => attrs.map((a) => n.getAttribute(a)).join("|"));
+    return {
+      bars: at("svg.tv__rails line.rail__barhit", ["data-id", "y1", "y2"]),
+      dots: at("svg.tv__rails circle.rail__dot", ["data-id", "cx", "cy"]),
+      leaders: at("svg.tv__rails path.rail__leaderhit", ["data-leader-id", "d"]),
+      rows: at("tr.tvrow", ["data-id"]),
+      breaks: document.querySelectorAll("svg.tv__rails path.rail__break").length,
+      gridOffset: document.querySelector("div.tv__rows").style.marginTop || "",
+      svgWidth: document.querySelector("svg.tv__rails").getAttribute("width"),
+      // The three things a settled frame must carry nothing of.
+      ghosts: document.querySelectorAll("div.tv__ghost").length,
+      transforms: [".tv__head", ".tv__body"]
+        .map((s) => document.querySelector(s).style.transform || "").join(","),
+      faded: Array.from(document.querySelectorAll(
+        "svg.tv__rails *, tr.tvrow, div.tv__rows"))
+        .filter((n) => n.style && n.style.opacity !== "").length,
+    };
+  });
+  const clean = (g) => g.ghosts === 0 && g.transforms === "," && g.faded === 0;
+
+  // One frame of a transition in flight, or null if none was ever there.
+  //
+  // Raced against a 260ms animation on purpose: it is the only way to observe
+  // one from outside the page, so it samples every animation frame for as
+  // long as a respine can possibly last and keeps the first frame it caught.
+  // A build that does not animate finds nothing to keep, which is the whole
+  // point -- a settled-state check passes just as well on a repaint.
+  const catchFrame = () => page.evaluate(async () => {
+    const VA = window.ViewerApp;
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline) {
+      const last = VA.lastTopoRender;
+      const ghost = document.querySelector("div.tv__ghost");
+      if (last && last.tweening && ghost) {
+        const body = document.querySelector(".tv__body");
+        const head = document.querySelector(".tv__head");
+        return {
+          t: last.positions.t,
+          ghostOpacity: parseFloat(ghost.style.opacity),
+          ghostInert: getComputedStyle(ghost).pointerEvents === "none",
+          ghostHidden: ghost.getAttribute("aria-hidden"),
+          ghostRows: ghost.querySelectorAll("tr.tvrow").length,
+          ghostHeadHidden: ghost.querySelector(".tv__head").style.display,
+          gridOpacity: parseFloat(
+            document.querySelector("div.tv__rows").style.opacity),
+          bodyShift: body.style.transform,
+          headShift: head.style.transform,
+        };
+      }
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    return null;
+  });
+
+  try {
+    await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.evaluate(({ projection, crops }) => {
+      window.ViewerApp.demoTopologyFixture = function () {
+        return {
+          startState: window.ViewerApp.STATE.READY,
+          topologies: projection, crops: crops, images: {},
+        };
+      };
+      window.ViewerApp.bootTopology();
+    }, { projection: realProjection, crops: realCrops });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("topology", "pitch_system")).click();
+    await settled();
+
+    const pitch = realProjection.topologies.find((t) => t.id === "pitch_system");
+    const study = pitch.studies.find((s) => s.status === "ok" && s.layout);
+    const walk = await geometry();
+    push("[real] the walk is the default layout and it settled clean",
+      clean(walk) && walk.rows.length === pitch.edges.length);
+
+    // (1) + (2). The mid-flight probe is raced against a 260ms transition on
+    // purpose -- it is the only way to observe one from outside the page -- so
+    // it samples every frame for as long as a respine can possibly last and
+    // keeps the first one it caught. A build that never animates finds
+    // nothing to keep, which is the failure this check exists for.
+    await page.locator(navRow("study", study.id)).click();
+    const inFlight = await catchFrame();
+    push("[real] a study click puts a real transition in flight — the app " +
+      "shell animates the respine rather than repainting it", !!inFlight);
+    if (!inFlight) {
+      console.log("    no in-flight frame was ever observed");
+    } else {
+      push("[real] the outgoing frame is held as an inert ghost, hidden from " +
+        "the a11y tree, still carrying the walk's own rows",
+        inFlight.ghostInert && inFlight.ghostHidden === "true" &&
+        inFlight.ghostRows === pitch.edges.length &&
+        inFlight.ghostOpacity > 0 && inFlight.ghostOpacity <= 1);
+      push("[real] its column header is suppressed — the same header in both " +
+        "serialisations, so a fading copy would be pure double image",
+        inFlight.ghostHeadHidden === "none");
+      push("[real] the grid cross-fades rather than snapping to the new order",
+        inFlight.gridOpacity >= 0 && inFlight.gridOpacity < 1);
+      push("[real] the whole block slides, header and body by the same offset",
+        /translateX\(/.test(inFlight.bodyShift) &&
+        inFlight.headShift === inFlight.bodyShift);
+      push("[real] and by a real distance — pitch_system's walk is nine " +
+        "columns wider than any of its chains",
+        Math.abs(parseFloat(/translateX\(([-\d.]+)px\)/
+          .exec(inFlight.bodyShift)[1])) > 20);
+    }
+
+    await settled();
+    const chained = await correspondence();
+    push("[real] the re-spun chain corresponds: every leader on its own dot " +
+      "and its own seam", chained.drift.length === 0);
+    if (chained.drift.length) {
+      console.log("    drift: " + chained.drift.slice(0, 5).join(" | "));
+    }
+    push("[real] and the page IS in chain mode — which is what re-spining is",
+      /Showing: study chain/
+        .test(await page.locator("#layout-toggle").textContent()) &&
+      chained.rows === study.result.chain.length);
+
+    // (3). Both directions, in every length mode. `edgeLengthMode` is
+    // in-session state and survives a selection, so the modes are cycled
+    // once around the outside of the pair of routes.
+    const modes = ["uniform", "tolerance", "absolute"];
+    const walkRow = navRow("topology", "pitch_system");
+    const studyRow = navRow("study", study.id);
+    let chainUniform = null;
+    for (let i = 0; i < modes.length; i++) {
+      // Route A: through the transition, there and back.
+      await page.locator(walkRow).click();
+      await settled();
+      const walkViaRespine = await geometry();
+      await page.locator(studyRow).click();
+      await settled();
+      const chainViaRespine = await geometry();
+      if (i === 0) chainUniform = chainViaRespine;
+      const corr = await correspondence();
+
+      // Route B: the same two clicks with the build's own no-animation path
+      // turned on. Nothing else differs -- same page, same state, same
+      // renderer.
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.locator(walkRow).click();
+      await settled();
+      const walkFresh = await geometry();
+      await page.locator(studyRow).click();
+      await settled();
+      const chainFresh = await geometry();
+      await page.emulateMedia({ reducedMotion: null });
+
+      const drifted = [];
+      Object.keys(chainViaRespine).forEach((key) => {
+        if (JSON.stringify(chainViaRespine[key]) !== JSON.stringify(chainFresh[key])) {
+          drifted.push("chain." + key);
+        }
+        if (JSON.stringify(walkViaRespine[key]) !== JSON.stringify(walkFresh[key])) {
+          drifted.push("walk." + key);
+        }
+      });
+      push(`[real] ${modes[i]}: the settled page carries nothing of the ` +
+        `transition, either way`, clean(chainViaRespine) && clean(walkViaRespine));
+      push(`[real] ${modes[i]}: settled geometry equals a no-animation ` +
+        `render of the same selection — bar, dot, leader, break and offset`,
+        drifted.length === 0);
+      if (drifted.length) console.log("    drifted: " + drifted.join(", "));
+      push(`[real] ${modes[i]}: and the settled chain passes the ` +
+        `correspondence matrix`, corr.drift.length === 0);
+      // A witness that the two layouts are not the same picture, or every
+      // check above would hold on a page that never moved.
+      push(`[real] ${modes[i]}: the respine really does change the page`,
+        chainViaRespine.rows.length < walkViaRespine.rows.length &&
+        chainViaRespine.svgWidth !== walkViaRespine.svgWidth);
+      await page.locator("#edge-length-toggle").click();
+      await settled();
+    }
+
+    // Deselecting is the same transition backwards, and it has to land on the
+    // very geometry the page started from -- captured before any of this ran,
+    // and in uniform mode, where the three cycles above left it.
+    await page.locator(studyRow).click();
+    await settled();
+    await page.locator(walkRow).click();
+    await settled();
+    push("[real] deselecting animates back to the walk spine and settles on " +
+      "exactly the geometry it started from",
+      JSON.stringify(await geometry()) === JSON.stringify(walk));
+
+    // Deselecting and the toolbar's own toggle are the other two controls
+    // that change WHICH serialisation is on screen, and both have to animate
+    // for the same reason the study click does -- a settled-state check
+    // passes on a repaint, so each one is caught in flight.
+    await page.locator(studyRow).click();
+    await settled();
+    await page.locator(walkRow).click();
+    const deselectFrame = await catchFrame();
+    push("[real] deselecting a study animates too, rather than repainting " +
+      "the walk back in", !!deselectFrame &&
+      /translateX\(/.test(deselectFrame.bodyShift));
+    await settled();
+
+    await page.locator(studyRow).click();
+    await settled();
+    await page.locator("#layout-toggle").click();
+    const toggleFrame = await catchFrame();
+    push("[real] and so does the toolbar's own layout toggle — the same " +
+      "re-serialisation asked for by hand", !!toggleFrame);
+    await settled();
+    push("[real] the toggle landed on the whole walk", /Showing: whole topology/
+      .test(await page.locator("#layout-toggle").textContent()));
+
+    // A paint that is not one of the transition's own frames has to STOP it:
+    // a transition renders from the ctx it started with, so a frame landing
+    // after an unrelated paint silently undoes whatever that paint did. The
+    // length mode is the cheapest one to see -- it is carried on the ctx
+    // rather than on a shared mutable metrics object, so a stale frame draws
+    // the old one while the toolbar says the new one.
+    await page.locator(walkRow).click();
+    await settled();
+    // Both clicks in one page call, with the second held until a frame is
+    // demonstrably in flight: a study click reaches respine() through a
+    // promise, so two Playwright clicks in a row can land the toolbar's paint
+    // BEFORE the transition even starts, and then there is nothing to
+    // interrupt and nothing being tested.
+    const caughtMidFlight = await page.evaluate(async ({ selector }) => {
+      const VA = window.ViewerApp;
+      document.querySelector(selector).click();
+      const deadline = Date.now() + 3000;
+      while (Date.now() < deadline) {
+        if (VA.lastTopoRender.tweening &&
+            document.querySelector("div.tv__ghost")) {
+          document.querySelector("#edge-length-toggle").click();
+          return true;
+        }
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      return false;
+    }, { selector: studyRow });
+    push("[real] the interruption below really did land mid-transition",
+      caughtMidFlight);
+    await page.waitForTimeout(700);
+    const interrupted = await page.evaluate(() => ({
+      ghosts: document.querySelectorAll("div.tv__ghost").length,
+      tweening: window.ViewerApp.lastTopoRender.tweening,
+      drawnMode: window.ViewerApp.lastTopoRender.mode,
+      toolbar: document.querySelector("#edge-length-toggle").textContent,
+    }));
+    push("[real] a paint landing mid-transition wins: the length mode the " +
+      "reader asked for is the one drawn, and no ghost is left behind",
+      interrupted.ghosts === 0 && interrupted.tweening === false &&
+      interrupted.drawnMode === "tolerance" &&
+      /tolerance/.test(interrupted.toolbar));
+    // Back to uniform for the block below.
+    await page.locator("#edge-length-toggle").click();
+    await settled();
+    await page.locator("#edge-length-toggle").click();
+    await settled();
+
+    // prefers-reduced-motion means JUMP TO THE END: no ghost is ever put in
+    // the pane at all, not one that fades quickly. Watched with a mutation
+    // observer rather than sampled, so a single frame of one would be caught.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.evaluate(() => {
+      window.__sawGhost = 0;
+      const mo = new MutationObserver(() => {
+        if (document.querySelector("div.tv__ghost")) window.__sawGhost++;
+      });
+      mo.observe(document.querySelector("#topopane"),
+        { childList: true, subtree: true });
+    });
+    await page.locator(studyRow).click();
+    await settled();
+    const reduced = await geometry();
+    push("[real] prefers-reduced-motion never puts a ghost in the pane at all",
+      await page.evaluate(() => window.__sawGhost) === 0);
+    push("[real] and the page it jumps to is the page the animation would " +
+      "have travelled to, settled and clean",
+      clean(reduced) && JSON.stringify(reduced) === JSON.stringify(chainUniform));
+    push("[real] reduced motion corresponds too",
+      (await correspondence()).drift.length === 0);
+    await page.emulateMedia({ reducedMotion: null });
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${suite}] ${checks.length - failed.length}/${checks.length} ` +
+      `sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label: suite, ok };
+  } catch (err) {
+    console.log(`[${suite}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label: suite, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
 (async () => {
   const server = await startServer();
   const { port } = server.address();
@@ -2512,6 +2910,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     results.push(await testDeepLinks(browser, fileBase, "deep links file://"));
     results.push(await testDeepLinks(browser, baseUrl, "deep links http"));
     results.push(await testHeightBudget(browser, fileBase, "topology height budget", topologies, crops));
+    results.push(await testRespine(browser, fileBase, "topology file://", topologies, crops));
     results.push(await testRenderCrash(browser, fileBase, "render crash shows the banner"));
     results.push(await testRealDataRenderPath(
       browser, fileBase, "real render path (non-mock)", topologies, realResults, crops));
