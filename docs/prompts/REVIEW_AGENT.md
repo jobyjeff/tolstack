@@ -3053,6 +3053,40 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       whether the render side actually reads the new field, and grep the
       diff's own doc changes for a sentence describing the field's absence
       that the same handoff's schema baseline just falsified.
+- [ ] **A mechanism fact corrected in one doc and left standing in its
+      near-verbatim mirror — the fact-rather-than-count variant of "the
+      handoff fixed the one guarded copy."** New 2026-09-15
+      (`extracted_mesh_alias_rows`). The handoff's own scope line named three
+      files, and inside them the author correctly rewrote
+      `data/meshes/README.md`'s opening sentence: meshes are no longer only
+      `stepgeom.tessellate` output hand-copied from a per-part STEP (22 of the
+      24 installed are `stepgeom.assembly` extractions written into this repo
+      directly, and have no per-part STEP upstream at all). `ARCHITECTURE.md`'s
+      rotorkit bullet carries that same sentence almost word for word and did
+      not move; `docs/ANNOTATION_SURFACE.md`'s mesh-format paragraph carries the
+      weaker form. No guard forces either — `ARCHITECTURE.md`'s guarded surface
+      is its *module inventory*, and surrounding prose is outside every
+      quantifier guard here. So when a diff rewrites a **definitional sentence**
+      (not a number), grep the tree for its distinctive nouns — here
+      `stepgeom.tessellate`, "copies the binary mesh output", "source STEP" —
+      rather than only for the digits.
+      `ISSUE_20260915_architecture_md_still_says_every_mesh_is_a_tessellated_per_part_step_copy.md`.
+- [ ] **Two handoffs from one triage sweep file the same issue, because a
+      branch point predates the other's merge.** New 2026-09-15. A repo-wide
+      condition — most often *the suite is already red on `integration`* — is
+      discovered by whichever handoff runs the full suite first, and every later
+      worktree cut from an **older** `integration` sees an issues directory that
+      does not contain it yet. Sighted exactly: this handoff filed
+      `ISSUE_20260915_byte_identity_guard_reds_the_suite_on_a_triage_authored_brief.md`
+      at a branch point of `3141e51` (15:01) for the same brief line as
+      `ISSUE_20260915_byte_for_byte_claim_in_a_strategy_brief_reddens_pytest_on_integration.md`,
+      which reached `integration` at 15:22. Not a finding against either author
+      — neither could see the other. It lands on **you**, because the merge is
+      where the duplicate first exists: before approving an issue about a
+      condition that is not specific to this handoff's own diff,
+      `git log integration -- docs/issues/` (or just `ls` the merged tree) for a
+      sibling filing, and either cross-reference or say in the report which one
+      triage should close.
 
 ## Writing the review
 

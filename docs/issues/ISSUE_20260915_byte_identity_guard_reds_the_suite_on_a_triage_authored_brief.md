@@ -71,3 +71,15 @@ A brief is live prose, so the doc guards read it. Worth checking whether the
 triage sweep's *other* new brief and the five handoff files clear the same
 scan — this one only surfaced because a handoff happened to run the full suite
 before touching anything.
+
+## Duplicate — added in review, 2026-09-15
+
+`ISSUE_20260915_byte_for_byte_claim_in_a_strategy_brief_reddens_pytest_on_integration.md`
+(handoff `mutation_witness_tier_repair`) reports the same failure, the same
+line of the same brief. Neither author could see the other: that issue reached
+`integration` at 15:22, and this handoff's branch point (`3141e51`) is 15:01.
+Both are kept because each carries its own measurement — that one has the
+branch-point run, this one has the observation that the guard reads **test
+docstrings** too (it caught a byte-identity claim in a draft of
+`test_installed_mesh_part_ids_are_unique`). **Triage: close one, fold the two
+measurements into the survivor.**
