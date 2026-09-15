@@ -48,6 +48,25 @@
     // like rowDensity, not a fact about a topology, so selectTopology() never
     // resets it either.
     edgeLengthMode: "uniform",
+    // "jogged" (right-angle jogs, the default and what shipped) or "angled"
+    // (one straight segment). VA.LEADER_STYLES, topology.js. A display
+    // preference like the three above -- selectTopology() never resets it.
+    leaderStyle: "jogged",
+    // How far the jog zone has been dragged open, as a multiple of its own
+    // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
+    // a pixel width precisely BECAUSE it outlives the topology it was set on:
+    // two topologies' natural zones differ by as many times as their leader
+    // counts do, so "twice as spread out" survives the switch where a stored
+    // pixel width would crush one diagram's lanes together and leave the
+    // other's barely moved.
+    //
+    // In-session only, like every other display preference on this page.
+    // localStorage was considered and left alone: the page is opened from
+    // file:// as often as it is served, where a storage write is at best
+    // per-file-path and at worst a throw, and nothing else here persists
+    // either -- one inconsistent preference would be the surprise, not the
+    // feature.
+    jogZoneScale: 1,
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -681,6 +700,90 @@
     if (!nodes.flyout.open) nodes.flyout.show();
   }
 
+  // --- the two resize drags (viewer_leader_grid_legibility) ----------------
+  //
+  // The pane renders the grips (views/topology.js's resizeGrip); the drag
+  // itself has to live out here, because the listeners belong on the DOCUMENT
+  // rather than on the grip. Every pointermove re-renders the pane, which
+  // destroys the node the pointer went down on -- a pointer capture on the
+  // grip would end the drag on its own first frame.
+  //
+  // What the drag measures FROM is snapshotted at pointerdown (resizeFrom
+  // below) and the delta is applied to that, never to the live value: a
+  // re-render mid-drag rebuilds the grip carrying the new numbers, and
+  // reading them back per move compounds every frame into a runaway.
+  var resizeFrame = null;
+
+  // One paint per animation frame, not one per raw pointermove: a real
+  // topology's pane is a full SVG plus a row per edge, and a browser fires
+  // moves far faster than it can rebuild that.
+  function scheduleResizePaint() {
+    if (resizeFrame !== null) return;
+    var raf = (typeof window !== "undefined" && window.requestAnimationFrame)
+      ? window.requestAnimationFrame.bind(window)
+      : function (fn) { return setTimeout(fn, 16); };
+    resizeFrame = raf(function () { resizeFrame = null; render(); });
+  }
+
+  function resizeFrom(spec) {
+    if (spec && spec.kind === "column") {
+      var column = VA.topoColumn(spec.cls);
+      return { kind: "column", cls: spec.cls, width: column ? column.width : 0 };
+    }
+    return { kind: "jog", naturalZone: spec && spec.naturalZone,
+             scale: state.jogZoneScale };
+  }
+
+  // The arithmetic is the pure layer's (VA.jogZoneScaleAfterDrag,
+  // VA.setTopoColumnWidth): this shell holds no resize maths of its own, and
+  // the column width is written into the ONE COLUMNS array the head table and
+  // the body table both take their <col> widths from.
+  function applyResize(from, dx) {
+    if (from.kind === "jog") {
+      state.jogZoneScale = VA.jogZoneScaleAfterDrag(from.scale, dx, from.naturalZone);
+    } else if (from.kind === "column") {
+      VA.setTopoColumnWidth(from.cls, from.width + dx);
+    }
+  }
+
+  function onResizeStart(spec, event) {
+    var from = resizeFrom(spec);
+    var startX = event && typeof event.clientX === "number" ? event.clientX : 0;
+    var move = function (ev) {
+      applyResize(from, ev.clientX - startX);
+      scheduleResizePaint();
+    };
+    var end = function () {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", end);
+      document.removeEventListener("pointercancel", end);
+      document.body.classList.remove("tv-resizing");
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", end);
+    document.addEventListener("pointercancel", end);
+    // A drag across a grid is otherwise a text selection, and the cursor
+    // reverts to whatever it is over the moment it leaves the 7px grip.
+    document.body.classList.add("tv-resizing");
+  }
+
+  // The keyboard path: the grip is focusable and the arrow keys nudge it (with
+  // shift for a coarse step), so neither resize needs a pointer at all.
+  //
+  // The re-focus is not a nicety. render() rebuilds the header, which destroys
+  // the very node the keydown came from, so focus falls back to <body> and the
+  // SECOND arrow press goes nowhere -- one nudge per tab-to-the-grip, which
+  // reads as the control being broken. The grips carry `data-resize` for
+  // exactly this (and for a test to find them by what they resize rather than
+  // by their position in the header).
+  function onResizeNudge(spec, dx) {
+    applyResize(resizeFrom(spec), dx);
+    render();
+    var key = spec.kind + (spec.cls ? ":" + spec.cls : "");
+    var grip = document.querySelector('[data-resize="' + key + '"]');
+    if (grip && grip.focus) grip.focus();
+  }
+
   // --- render ----------------------------------------------------------------
 
   // The one error seam (deliverable 1, viewer_error_surface_and_layout): every
@@ -767,6 +870,14 @@
         layoutMode: state.layoutMode, selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: state.edgeLengthMode,
+        // The two leader-legibility preferences (viewer_leader_grid_
+        // legibility): which style a leader is drawn in, and how far the jog
+        // zone has been dragged open. The grips the pane renders for the
+        // second one call back through onResizeStart/onResizeNudge below.
+        leaderStyle: state.leaderStyle,
+        jogZoneScale: state.jogZoneScale,
+        onResizeStart: onResizeStart,
+        onResizeNudge: onResizeNudge,
         // The grid's thumbnail column reads fetched crop PNGs out of this
         // cache synchronously (views/topology.js's edgeCropCell); the fetch
         // itself is ensureThumbImages below, fired after this paint.
@@ -808,6 +919,14 @@
         onEdgeLength: function () {
           var mode = VA.EDGE_LENGTH_MODES[state.edgeLengthMode];
           state.edgeLengthMode = mode ? mode.next : "uniform";
+          render();
+        },
+        // Leader style (viewer_leader_grid_legibility): same reasoning again
+        // -- only the path between a leader's two unchanged ends is redrawn,
+        // so render(), not rewind().
+        onLeaderStyle: function () {
+          var style = VA.LEADER_STYLES[state.leaderStyle];
+          state.leaderStyle = style ? style.next : "jogged";
           render();
         },
         // "View in 3D" (study_3d_flyout): the toolbar builds the params

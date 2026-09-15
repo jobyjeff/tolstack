@@ -372,6 +372,61 @@
     },
   };
 
+  // --- how a leader is DRAWN (viewer_leader_grid_legibility, 2026-09-14) --
+  //
+  // A display preference exactly like VA.EDGE_LENGTH_MODES above, and for the
+  // same reason it is a table rather than a boolean: the toolbar's cycle
+  // order and the button's own words are facts of this object, not arithmetic
+  // in the app shell. Jeff, reviewing the shipped arcs: "Have an option to
+  // use angled leader lines (rather than right angle jogs) this will likely
+  // make it easier to follow the lines (but make it a view option so I can
+  // try both)."
+  //
+  // The two styles differ in the PATH ONLY. Both ends are the page's landed
+  // correspondence contract — node-side end on its own dot, grid-side end on
+  // its boundary row's seam — so an angled leader is the same two points with
+  // one segment between them instead of three, and the browser tier's
+  // CORRESPONDENCE_IN_PAGE passes in either style without being taught about
+  // styles at all.
+  VA.LEADER_STYLES = {
+    jogged: {
+      label: "jogged",
+      next: "angled",
+      title: "Leader lines run in right angles (GD&T ordinate style): out " +
+        "from the interface, down a lane of their own, then into the grid.",
+    },
+    angled: {
+      label: "angled",
+      next: "jogged",
+      title: "Leader lines run as one straight segment from the interface to " +
+        "its seam in the grid. Same two ends, fewer corners to lose.",
+    },
+  };
+
+  // How far the jog zone may be dragged open, as a MULTIPLE of its natural
+  // width (leaderPad/leaderLane over the leader count). A multiple rather
+  // than a pixel width because the preference outlives the topology it was
+  // set on, and two topologies' natural zones differ by as many times as
+  // their leader counts do: "twice as spread out as it would be" survives the
+  // switch where a stored pixel width would crush one diagram's lanes
+  // together and leave the other's barely moved.
+  VA.JOG_ZONE_SCALE = { min: 1, max: 12 };
+
+  VA.clampJogZoneScale = function (scale) {
+    var n = Number(scale);
+    if (!isFinite(n)) return VA.JOG_ZONE_SCALE.min;
+    return Math.min(VA.JOG_ZONE_SCALE.max, Math.max(VA.JOG_ZONE_SCALE.min, n));
+  };
+
+  // The scale a drag lands on: the zone's natural width times the scale it
+  // started at, plus however many pixels the grip moved, back over the
+  // natural width. Pure so the app shell holds no resize arithmetic of its
+  // own, and so a test can check the drag without a pointer.
+  VA.jogZoneScaleAfterDrag = function (startScale, dx, naturalWidth) {
+    if (!naturalWidth) return VA.clampJogZoneScale(startScale);
+    return VA.clampJogZoneScale((naturalWidth * startScale + dx) / naturalWidth);
+  };
+
   // The scale's two shape constants, in ROW HEIGHTS so both densities scale
   // together. Nothing renders shorter than one row — the floor that keeps a
   // zero/tiny/unstated edge clickable (whole-edge hover is a landed contract)
@@ -914,6 +969,57 @@
     return text;
   };
 
+  // --- the element cell drops its own component's name ---------------------
+  //
+  // Jeff, 2026-09-14: "nearly every row in the 'element' column starts with
+  // the same phrase as the 'component' column to the left, which then robs a
+  // bunch of the limited space, and then the meaningful content gets
+  // truncated" -- under component `blade_root`, three rows all rendered
+  // "blade-root clocking holes to th...". The prefix is saying, in the
+  // narrowest column on the page, exactly what the merged cell immediately
+  // left of it already says once for the whole group.
+  //
+  // DISPLAY ONLY. This never touches the document, the projection or any
+  // value: the full label still rides on the cell's own hover title and is
+  // what the detail pane prints, so nothing a reader can cite has been
+  // shortened. A label that does not open with its component's name comes
+  // back unchanged, and a label that is ONLY its component's name comes back
+  // unchanged too -- an empty element cell would be a worse lie than a
+  // repetitive one.
+  //
+  // The match is on WORDS, case- and separator-insensitive, so `blade_root`
+  // (what the merged cell prints) catches "blade-root clocking holes" and
+  // "Blade Root seat" alike, and never catches a word that merely starts the
+  // same way ("blade_root" must not eat "blade_rooting_torque"). It is made
+  // against the component cell's own text -- the part id -- because that is
+  // the repetition being removed; a part's prose `name` lives on the cell's
+  // hover card and was never in the element column to begin with.
+  function labelWords(text) {
+    return String(text === null || text === undefined ? "" : text)
+      .toLowerCase().split(/[\s\-_]+/).filter(Boolean);
+  }
+
+  VA.elementDisplayLabel = function (label, componentLabel) {
+    var text = String(label === null || label === undefined ? "" : label);
+    var component = labelWords(componentLabel);
+    if (!component.length) return text;
+    var words = labelWords(text);
+    if (words.length <= component.length) return text;
+    for (var i = 0; i < component.length; i++) {
+      if (words[i] !== component[i]) return text;
+    }
+    // Consume exactly that many words off the ORIGINAL string, so whatever
+    // separators and capitalisation the rest of the label uses survive.
+    var rest = text;
+    for (var j = 0; j < component.length; j++) {
+      var m = /^[\s\-_]*[^\s\-_]+/.exec(rest);
+      if (!m) return text;
+      rest = rest.slice(m[0].length);
+    }
+    rest = rest.replace(/^[\s\-_]+/, "");
+    return rest || text;
+  };
+
   // The whole plan of the merged-row grid, from one serialisation (a
   // topology's whole-graph walk or a study's chain — both carry the same row
   // shape). Everything the grid and the leaders need, keyed by id:
@@ -1004,10 +1110,22 @@
   // pitch, or an edge-length scaling mode), and only these leaders have to
   // know.
   //
-  // Lanes are strictly monotone in walk order. Leaders never cross under
-  // that rule (both endpoint sequences are monotone in y), and it is cheap to
-  // reason about, so no lane is ever reused — the zone is (leaders × lane
-  // pitch) wide and that is the price of legibility.
+  // Lanes are strictly monotone in walk order, and no lane is ever reused —
+  // the zone is (leaders × lane pitch) wide and that is the price of
+  // legibility.
+  //
+  // This rule used to come with a proof that leaders CANNOT cross, and that
+  // proof is no longer sound: it rested on leaders always rising
+  // (structurally `y2 < y1`, the viewer_leader_line_grid lesson's own words),
+  // which stopped being true the day viewer_dag_spine_layout centred the grid
+  // against the DAG and let a leader above the centre descend. Two leaders
+  // cross exactly when `y2[i] >= y1[i+1]`, and on the real pitch_system every
+  // one of its leaders is in at least one crossing pair (the issue below
+  // carries the count and the repro that prints it). Fixing it is a
+  // layout-policy change and therefore not this function's to make unasked:
+  // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md,
+  // with a test in both tiers asserting the crossings are still there so the
+  // day they go away is a loud one.
   //
   // Pure: same layout, metrics and positions in, same geometry out. The node
   // y comes from the keyed position store (the same number railGeometry gives
@@ -1016,14 +1134,25 @@
   // heights sum to), and it does NOT move with the length mode: the grid
   // stays evenly spaced however the DAG above it stretched, which is exactly
   // what these leaders exist to absorb.
-  VA.leaderGeometry = function (layout, plan, metrics, positions) {
+  VA.leaderGeometry = function (layout, plan, metrics, positions, options) {
     metrics = metrics || VA.RAIL_METRICS;
     positions = positions || VA.rowPositions(layout, null, "uniform", metrics);
+    options = options || {};
+    var angled = options.style === "angled";
     var columns = (layout && layout.columns) || 1;
     var zoneLeft = VA.railX(columns - 1, metrics) + metrics.left;
     var count = plan.leaders.length;
-    var width = zoneLeft + metrics.leaderPad * 2 +
+    // The zone at its natural width, and then however far the reader has
+    // dragged it open (viewer_leader_grid_legibility): the pad and the lane
+    // pitch scale together, so the lanes stay evenly spread across whatever
+    // width the zone now has. Jeff: "Make the width of the area/column with
+    // the jogged leader lines resizable so that they can be spread out more."
+    var naturalZone = metrics.leaderPad * 2 +
       (count ? (count - 1) * metrics.leaderLane : 0);
+    var scale = VA.clampJogZoneScale(options.zoneScale === undefined ? 1 : options.zoneScale);
+    var pad = metrics.leaderPad * scale;
+    var lane = metrics.leaderLane * scale;
+    var width = zoneLeft + naturalZone * scale;
 
     var rowsByLayoutRow = {};
     ((layout && layout.rows) || []).forEach(function (row) {
@@ -1042,21 +1171,236 @@
       // the view applies to the table itself). The pitch never moves with the
       // length mode — the grid stays evenly spaced whatever the DAG did.
       var y2 = (positions.gridOffset || 0) + leader.boundary * metrics.rowHeight;
-      var laneX = zoneLeft + metrics.leaderPad + i * metrics.leaderLane;
+      var laneX = zoneLeft + pad + i * lane;
+      // The polyline, node end first, grid end last -- the order the browser
+      // tier reads the two contract points off (getPointAtLength 0 and total).
+      // `points` is what the bands below are built from, so the two styles
+      // need no second description of where a leader goes.
+      var points = angled
+        ? [[x1, y1], [width, y2]]
+        : [[x1, y1], [laneX, y1], [laneX, y2], [width, y2]];
       return {
         id: leader.id,
         boundary: leader.boundary,
         beforeEdge: leader.beforeEdge,
         x1: x1, y1: y1, y2: y2, laneX: laneX,
-        d: "M " + x1 + " " + y1 +
-           " H " + laneX +
-           " V " + y2 +
-           " H " + width,
+        points: points,
+        d: angled
+          ? "M " + x1 + " " + y1 + " L " + width + " " + y2
+          : "M " + x1 + " " + y1 +
+            " H " + laneX +
+            " V " + y2 +
+            " H " + width,
       };
     });
 
-    return { zoneLeft: zoneLeft, width: width, leaders: leaders };
+    return {
+      zoneLeft: zoneLeft, width: width, naturalZone: naturalZone,
+      zoneScale: scale, style: angled ? "angled" : "jogged",
+      leaders: leaders,
+      bands: bandGeometry(leaders, plan, width, positions.height || 0),
+    };
   };
+
+  // --- the alternating bands (viewer_leader_grid_legibility, 2026-09-14) ---
+  //
+  // Jeff, reviewing the shipped arcs: "The jogged leader lines between the dag
+  // and the grid view rows are near impossible to follow because the vertical
+  // sections are so bunched up ... use alternating fill colors between the
+  // leader lines (these same colors can be the alternating row background
+  // colors)." So the region BETWEEN two adjacent leaders and the grid rows
+  // that region feeds wear one tint, and an eye can ride a band across the
+  // jog zone into its own rows instead of tracking one 1.5px line among all
+  // the others.
+  //
+  // The tints are NEUTRAL and there are exactly two of them (topology.css's
+  // --tv-band-a / --tv-band-b, the same two-greys-by-parity precedent the
+  // rails already use). That is the page's hardest constraint, not a style
+  // choice: green, amber, red and magenta are provenance here and nothing
+  // else may wear them (README, "The colours"), and a categorical band
+  // palette would both collide with that and run out of hues long before a
+  // real mechanism runs out of bands.
+  //
+  // A band is indexed by how many leaders sit above it: band 0 is everything
+  // above the first leader, band i is between leaders i-1 and i, and band
+  // `leaders.length` is everything below the last. Its parity is its index's,
+  // which is what makes the grid's row tint and the zone's band tint the same
+  // decision made once. `startRow`/`endRow` are GRID row indices, half-open --
+  // a leader's `boundary` is the seam above the row of that index, so the
+  // band bounded below by leader i ends exactly where leader i points.
+  VA.leaderBands = function (plan) {
+    var leaders = (plan && plan.leaders) || [];
+    var rows = (plan && plan.rows) || [];
+    var bands = [];
+    for (var i = 0; i <= leaders.length; i++) {
+      bands.push({
+        index: i,
+        parity: i % 2,
+        above: i === 0 ? null : leaders[i - 1].id,
+        below: i === leaders.length ? null : leaders[i].id,
+        startRow: i === 0 ? 0 : leaders[i - 1].boundary,
+        endRow: i === leaders.length ? rows.length : leaders[i].boundary,
+      });
+    }
+    return bands;
+  };
+
+  // { edgeId: 0 | 1 } -- which of the two tints each grid row wears, off the
+  // same bands. One function, so "the row's tint" and "the band's tint" can
+  // never be two answers: the view reads this for the <tr> and the band path
+  // carries the same parity into the SVG.
+  VA.rowBandParity = function (plan) {
+    var out = {};
+    var rows = (plan && plan.rows) || [];
+    VA.leaderBands(plan).forEach(function (band) {
+      for (var r = band.startRow; r < band.endRow; r++) {
+        if (rows[r]) out[rows[r].id] = band.parity;
+      }
+    });
+    return out;
+  };
+
+  // One filled polygon per band, bounded above and below by two adjacent
+  // leaders and closed on the SVG's own left and right edges -- so the tint
+  // runs from the rails, through the jog zone, right up to the grid's first
+  // column, in either leader style. Drawn behind everything else and
+  // hit-tested by nothing (topology.css), so nothing a reader can click or
+  // read moves.
+  //
+  // The boundaries are a RUNNING MAXIMUM of the leaders, not the leaders
+  // themselves, and that is the whole subtlety of this function.
+  //
+  // "The region between leader k-1 and leader k" is only a simple region
+  // while the leaders do not cross -- and on the real pitch_system they cross
+  // 16 times. That is not this handoff's doing and not a bug in the bands: a
+  // leader's vertical run in its own lane crosses a LATER leader's horizontal
+  // run whenever its grid-side seam sits at or below that later interface's
+  // dot, which is exactly what the grid-against-DAG centring
+  // (viewer_dag_spine_layout) made possible when it stopped leaders always
+  // rising. Drawn literally, such a band folds over itself and its tint
+  // doubles where it overlaps its neighbour -- a visible checkerboard right
+  // where the page is meant to be getting MORE legible.
+  // (ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md
+  // tracks the crossings themselves; they are a layout-policy question, which
+  // is the other handoff's fence, not this one's.)
+  //
+  // So each boundary is clamped to sit at or below the one above it:
+  // boundary_k = max(leader_k, boundary_k-1), pointwise in x. The bands then
+  // TILE the pane exactly -- no overlap, no gap, no fold -- and every
+  // boundary still IS its own leader everywhere the leaders behave, which is
+  // everywhere except the crossing regions.
+  function bandGeometry(leaders, plan, width, height) {
+    var boundary = null;
+    var boundaries = leaders.map(function (leader) {
+      boundary = boundary
+        ? maxProfile(leaderProfile(leader, width), boundary)
+        : leaderProfile(leader, width);
+      return boundary;
+    });
+    return VA.leaderBands(plan).map(function (band, i) {
+      // `top`/`bottom` are the polygon's own two boundaries, kept because
+      // they are what the tiling claim is ABOUT: band k's bottom is band
+      // k+1's top, the same array, so adjacent bands cannot be given two
+      // different edges and a test can say so without parsing a path string.
+      var top = i === 0 ? [[0, 0], [width, 0]] : boundaries[i - 1];
+      var bottom = i === leaders.length
+        ? [[0, height], [width, height]] : boundaries[i];
+      return {
+        index: band.index,
+        parity: band.parity,
+        startRow: band.startRow,
+        endRow: band.endRow,
+        top: top,
+        bottom: bottom,
+        d: bandPath(top, bottom),
+      };
+    });
+  }
+
+  // A leader as a curve over the WHOLE width: its own polyline, extended
+  // leftwards at the interface's own y to the SVG's left edge. x is
+  // non-decreasing; a jogged leader's lane is a vertical jump (two points at
+  // one x), which every routine below is written to tolerate.
+  function leaderProfile(leader, width) {
+    var points = [[0, leader.y1]];
+    leader.points.forEach(function (pt) {
+      if (pt[0] > 0) points.push([pt[0], pt[1]]);
+    });
+    points.push([width, leader.y2]);
+    return dedupe(points);
+  }
+
+  function dedupe(points) {
+    return points.filter(function (pt, i) {
+      return i === 0 || pt[0] !== points[i - 1][0] || pt[1] !== points[i - 1][1];
+    });
+  }
+
+  // The non-degenerate linear pieces of a profile -- the vertical jumps drop
+  // out, because a jump is the gap BETWEEN two pieces rather than a piece.
+  function profilePieces(profile) {
+    var pieces = [];
+    for (var i = 1; i < profile.length; i++) {
+      if (profile[i][0] > profile[i - 1][0]) {
+        pieces.push({ x0: profile[i - 1][0], y0: profile[i - 1][1],
+                      x1: profile[i][0], y1: profile[i][1] });
+      }
+    }
+    return pieces;
+  }
+
+  function pieceAt(pieces, xa, xb) {
+    for (var i = 0; i < pieces.length; i++) {
+      if (pieces[i].x0 <= xa && xb <= pieces[i].x1) return pieces[i];
+    }
+    return pieces.length ? pieces[pieces.length - 1] : null;
+  }
+
+  function interp(piece, x) {
+    if (!piece || piece.x1 === piece.x0) return piece ? piece.y1 : 0;
+    return piece.y0 + (piece.y1 - piece.y0) * (x - piece.x0) / (piece.x1 - piece.x0);
+  }
+
+  // Pointwise max of two profiles. Exact: every x where either profile bends
+  // or jumps is a sample, so each interval holds one straight piece of each,
+  // and the one place two straight pieces can swap order inside an interval
+  // (they cross at most once) gets that crossing inserted as its own point.
+  function maxProfile(a, b) {
+    var pa = profilePieces(a);
+    var pb = profilePieces(b);
+    var xs = [];
+    a.concat(b).forEach(function (pt) {
+      if (xs.indexOf(pt[0]) === -1) xs.push(pt[0]);
+    });
+    xs.sort(function (p, q) { return p - q; });
+    var out = [];
+    for (var k = 0; k + 1 < xs.length; k++) {
+      var xa = xs[k], xb = xs[k + 1];
+      var sa = pieceAt(pa, xa, xb), sb = pieceAt(pb, xa, xb);
+      var ay0 = interp(sa, xa), ay1 = interp(sa, xb);
+      var by0 = interp(sb, xa), by1 = interp(sb, xb);
+      out.push([xa, Math.max(ay0, by0)]);
+      var d0 = ay0 - by0, d1 = ay1 - by1;
+      if ((d0 < 0 && d1 > 0) || (d0 > 0 && d1 < 0)) {
+        var t = d0 / (d0 - d1);
+        out.push([xa + t * (xb - xa), ay0 + t * (ay1 - ay0)]);
+      }
+      out.push([xb, Math.max(ay1, by1)]);
+    }
+    return dedupe(out);
+  }
+
+  // The closed polygon between two boundaries: along the top left to right,
+  // down the SVG's right edge, back along the bottom, up its left edge.
+  function bandPath(top, bottom) {
+    var seg = ["M " + top[0][0] + " " + top[0][1]];
+    top.slice(1).forEach(function (pt) { seg.push("L " + pt[0] + " " + pt[1]); });
+    for (var i = bottom.length - 1; i >= 0; i--) {
+      seg.push("L " + bottom[i][0] + " " + bottom[i][1]);
+    }
+    seg.push("Z");
+    return seg.join(" ");
+  }
 
   // --- loose stacks: what the topology page absorbs the stack viewer for ---
   //

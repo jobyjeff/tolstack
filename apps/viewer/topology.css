@@ -32,7 +32,37 @@
   --rail-even: #59606f;
   --rail-odd: #7b8494;
   --rail-dim: #333844;
+  /* The two alternating band tints (viewer_leader_grid_legibility,
+     2026-09-14). Jeff: "use alternating fill colors between the leader lines
+     (these same colors can be the alternating row background colors)" -- so
+     the band between two adjacent leaders and the grid rows that band feeds
+     wear the same one of these two, and an eye can ride a band across the jog
+     zone instead of tracking one 1.5px line among all the others.
+
+     Both are pure WHITE at a low alpha: R = G = B, so neither has a hue at
+     all and neither can be read as -- or even sit near -- the four saturated
+     provenance colours this page reserves (traced green, inferred amber,
+     untraced red, uncited magenta). That is the same reason the rails
+     alternate two greys by column parity rather than carrying a categorical
+     palette, and it is a constraint rather than a preference: see the header
+     comment above and README's "The colours". A white overlay also composites
+     identically over the page background, a provenance row tint and a hover
+     tint, which a pair of opaque greys would not.
+
+     The alpha is deliberately near the floor of visible. A band has to be
+     findable while the eye is tracking it and invisible while the eye is
+     reading a value beside it; anything stronger turns a 43-row grid into a
+     barcode and starts competing with the untraced row tint (which is itself
+     only .1). */
+  --tv-band-a: rgba(255, 255, 255, .017);
+  --tv-band-b: rgba(255, 255, 255, .055);
 }
+
+/* Everything the drag of a grip should suppress while it is running
+   (topology_app.js adds this to <body> for the duration of a pointer drag):
+   the cursor must not revert the instant the pointer leaves the 7px grip, and
+   a drag across a table is otherwise a text selection. */
+body.tv-resizing { cursor: col-resize; user-select: none; }
 
 .tvpick__mode { white-space: nowrap; }
 
@@ -226,6 +256,44 @@ body { display: flex; flex-direction: column; }
 .rail__leader--on { stroke: var(--rail-odd); }
 .rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
 
+/* --- the alternating bands (viewer_leader_grid_legibility, 2026-09-14) ----
+   One filled polygon per band, bounded above and below by two adjacent
+   leaders' own polylines (VA.leaderGeometry's `bands`), in whichever leader
+   style is on. Drawn before everything else in the SVG so rails, bars, dots
+   and leaders all sit on top of it, and hit-tested by nothing -- a band is
+   wayfinding, never a target, and a band that swallowed a bar's click would
+   break the whole-edge hover contract underneath it. */
+.rail__band { stroke: none; pointer-events: none; }
+.rail__band--a { fill: var(--tv-band-a); }
+.rail__band--b { fill: var(--tv-band-b); }
+
+/* --- the resize grips (viewer_leader_grid_legibility) --------------------
+   Two of them, both in the sticky column header: the jog zone's sits on the
+   seam between the SVG and the grid (positioned inline from the geometry the
+   SVG was drawn at), the ELEMENT column's on that header cell's right edge.
+   Absolutely positioned in both cases, so neither adds a pixel of layout
+   width -- a grip that took space between a leader's last segment and the
+   grid's first column would be the one seam this page has nothing to align
+   against. Visible as a hairline at rest, brighter on hover/focus: enough to
+   find, not enough to read as a column border. */
+.tvgrip {
+  position: absolute; top: 0; width: 7px; height: 100%;
+  cursor: col-resize; z-index: 3; background: none; border: none; padding: 0;
+}
+.tvgrip::before {
+  content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px;
+  width: 1px; background: var(--line);
+}
+.tvgrip:hover::before, .tvgrip:focus::before {
+  background: var(--accent); top: 0; bottom: 0;
+}
+.tvgrip:focus { outline: none; }
+/* The column grip hangs on the right edge of its own <th>, which needs to be
+   a containing block for it. `.tvcell`'s `overflow: hidden` is why it sits
+   fully inside rather than straddling the boundary. */
+.tvheadtable th { position: relative; }
+.tvgrip--col { right: 0; }
+
 /* Study highlighting. Binary, so no palette: on the path or off it. */
 .rail__bar--off, .rail__dot--off { opacity: .28; }
 .rail__bar--on { stroke-width: 7; }
@@ -236,7 +304,13 @@ body { display: flex; flex-direction: column; }
    has to paste into Excel as columns, which only genuine table markup does.
    Column widths live on <col class="tvcol--X"> (views/topology.js's colgroup()),
    shared between the head table and the body table so the two cannot disagree
-   the way two hand-aligned stylesheets could. */
+   the way two hand-aligned stylesheets could -- and since
+   viewer_leader_grid_legibility they are written there INLINE, off the one
+   COLUMNS array, so this stylesheet declares no column width at all. It used
+   to declare all nine beside that array's copies of the same numbers: two
+   sources that happened to agree, which a resizable column would have pulled
+   apart on its first drag. A `.tvcol--X { width }` rule reappearing here is
+   that defect returning, and a test in apps/viewer/tests.js scans for it. */
 
 /* `separate`, not `collapse`: collapsed-border table rendering (CSS2.1
    §17.6.2) is a distinct algorithm that `box-sizing: border-box` does not
@@ -248,7 +322,25 @@ body { display: flex; flex-direction: column; }
 .tvheadtable, .tvtable { table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 
 .tvrow { cursor: pointer; white-space: nowrap; }
-.tvrow:hover { background: #20242c; }
+/* The alternating band a row belongs to (viewer_leader_grid_legibility): the
+   SAME two tints the jog zone's bands are filled with, and the same parity
+   (VA.rowBandParity feeds both).
+
+   The band tint is the row's background COLOUR and a provenance tint is a
+   background IMAGE, so the two compose instead of one winning -- and that is
+   load-bearing rather than clever. The first attempt gave both to
+   `background` and let the more specific provenance rule win, which reads
+   fine on the demo fixture and is nearly inert on the document this handoff
+   exists for: most of `pitch_system`'s rows are untraced, and every one of
+   them would have shown no band at all. Layered, an untraced row is still
+   unmistakably untraced AND still says which band it belongs to. The browser
+   tier measures both layers on every real row.
+
+   Hover is `background-color` for the same reason: as a shorthand it wiped
+   the provenance layer off whichever row the reader was pointing at. */
+.tvrow--band-a { background-color: var(--tv-band-a); }
+.tvrow--band-b { background-color: var(--tv-band-b); }
+.tvrow:hover { background-color: #20242c; }
 .tvrow--edge { font-size: 13px; }
 /* A component group's first row: the seam a leader points at. box-shadow, not
    border-top — a cell border participates in the table's row-height sizing
@@ -257,9 +349,17 @@ body { display: flex; flex-direction: column; }
 .tvrow--group-start .tvcell { box-shadow: inset 0 1px 0 var(--line); }
 .tvrow--off { opacity: .35; }
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
-/* Same tint the elements table uses: an untraced value has to survive a skim. */
-.tvrow--edge.conf--untraced { background: rgba(224, 82, 82, .1); }
-.tvrow--edge.conf--no_source_ref { background: rgba(195, 85, 195, .12); }
+/* Same tint the elements table uses: an untraced value has to survive a skim.
+   As a background IMAGE (a flat two-stop gradient is the only way CSS spells
+   "an image of one colour"), so it layers over the alternating band colour
+   above rather than replacing it -- see that rule for why both have to be
+   visible at once on this page's real documents. */
+.tvrow--edge.conf--untraced {
+  background-image: linear-gradient(rgba(224, 82, 82, .1), rgba(224, 82, 82, .1));
+}
+.tvrow--edge.conf--no_source_ref {
+  background-image: linear-gradient(rgba(195, 85, 195, .12), rgba(195, 85, 195, .12));
+}
 .tvrow--derived { font-style: italic; }
 .tvrow--closes .tvcell--name::after {
   content: " ↰ closes back to an interface above";
@@ -282,27 +382,30 @@ body { display: flex; flex-direction: column; }
 /* The merged component column (viewer_leader_line_grid): one cell per
    contiguous same-part run, rowspanned over its tolerance sub-rows. Top-
    aligned so the label sits at the seam its leader points at. */
-.tvcol--component { width: 150px; }
 .tvcell--component {
   color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace;
   vertical-align: top; cursor: default;
 }
-.tvcol--ord { width: 38px; }
 .tvcell--ord {
   text-align: right; color: var(--accent);
   font-family: ui-monospace, monospace; font-size: 11px;
 }
-.tvcol--name { width: 220px; }
-.tvcol--nominal, .tvcol--min, .tvcol--max { width: 80px; }
 .tvcell--nominal, .tvcell--min, .tvcell--max { font-size: 12px; }
-.tvcol--contribution { width: 200px; }
 .tvcell--contribution { font-size: 12px; }
-.tvcol--chips { width: 200px; }
+/* The ELEMENT column is the resizable one (viewer_leader_grid_legibility).
+   Jeff: "the descriptions get truncated and there's no way to see the entire
+   text without clicking and expanding the preview." Widening is the ONLY
+   relief valve offered: `.tvrow`'s `white-space: nowrap` and `.tvcell`'s
+   `overflow: hidden` above stay exactly as they are, so a longer label still
+   clips rather than wrapping -- a wrapped cell would grow the row past its
+   own inline height (a <tr>'s height is a floor, not a cap: this file's
+   most-repeated lesson) and walk every seam below it off its leader.
+   Room for the grip so a long header label never runs under it. */
+.tvcell--resizable { padding-right: 10px; }
 /* The thumbnail column: the crop image itself where one resolved and loaded
    (never a placeholder — an absent crop renders nothing), the same stateful
    text trigger otherwise. The image is capped to the row's own pitch so a
    thumbnail can never grow a row off its leader. */
-.tvcol--crop { width: 110px; }
 .tvcell--crop { padding: 0 4px; }
 /* The same clamp the chips cell's wrapper applies (and for the same reason —
    a <tr>'s height is a floor): whatever the trigger renders as, text or

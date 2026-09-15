@@ -91,6 +91,21 @@
     lengths.onclick = handlers.onEdgeLength;
     root.appendChild(lengths);
 
+    // How a leader is DRAWN (viewer_leader_grid_legibility): right-angle jogs
+    // (the default, and what shipped) or one straight angled segment. Jeff
+    // asked for both so he can try them against a real mechanism -- the same
+    // shape as the labelled/values-only toggle above, cycling through
+    // VA.LEADER_STYLES' own `next`. Both ends of a leader are unchanged in
+    // either style, so the page's correspondence contract does not know this
+    // control exists.
+    var leaderPreset = VA.LEADER_STYLES[state.leaderStyle] || VA.LEADER_STYLES.jogged;
+    var leaderStyle = VA.el("button", "ghost tvpick__mode",
+      "Leaders: " + leaderPreset.label);
+    leaderStyle.setAttribute("id", "leader-style-toggle");
+    leaderStyle.setAttribute("title", leaderPreset.title);
+    leaderStyle.onclick = handlers.onLeaderStyle;
+    root.appendChild(leaderStyle);
+
     // The study's own 3D affordance, only once a real study is selected --
     // "trace this in 3D" means nothing about the whole topology, only about
     // one human-lassoed chain. Two forms of the same capability (handoff
@@ -192,7 +207,15 @@
     var positions = VA.rowPositions(layout, topoProj,
       ctx.edgeLengthMode || "uniform", M, fit);
     var geometry = VA.railGeometry(layout, M, positions);
-    var leaderGeo = VA.leaderGeometry(layout, plan, M, positions);
+    // The two display preferences this pane owns beyond the store
+    // (viewer_leader_grid_legibility): which style the leaders are drawn in,
+    // and how far the reader has dragged the jog zone open. Neither moves a
+    // leader's two ENDS -- the page's correspondence contract is untouched by
+    // both -- so they ride in as options rather than as new geometry.
+    var leaderGeo = VA.leaderGeometry(layout, plan, M, positions, {
+      style: ctx.leaderStyle,
+      zoneScale: ctx.jogZoneScale,
+    });
     // The store this paint actually drew from, kept for the one render after
     // it: the browser tier re-derives the drawn geometry from the same budget
     // the render measured rather than guessing at a viewport, and the staged
@@ -215,7 +238,7 @@
     // rail has nothing to stick within, and a wide row simply bleeds into
     // whatever sits to the pane's right.
     var hscroll = VA.el("div", "tv__hscroll");
-    hscroll.appendChild(header(leaderGeo.width));
+    hscroll.appendChild(header(leaderGeo, ctx));
     var body = VA.el("div", "tv__body");
     body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx));
     body.appendChild(grid(plan, index, chain, marking, ctx, positions.gridOffset));
@@ -275,7 +298,7 @@
   var COLUMNS = [
     { cls: "component", label: "component", width: 150 },
     { cls: "ord", label: "#", width: 38 },
-    { cls: "name", label: "element", width: 220 },
+    { cls: "name", label: "element", width: 220, resizable: true },
     { cls: "nominal", label: "nominal", width: 80 },
     { cls: "min", label: "min", width: 80 },
     { cls: "max", label: "max", width: 80 },
@@ -284,6 +307,42 @@
     { cls: "crop", label: "crop", width: 110 },
   ];
 
+  // The array IS the width, and since viewer_leader_grid_legibility it is the
+  // only one: each <col> carries its width INLINE from here, and topology.css
+  // declares no `.tvcol--*` width at all. It used to declare all nine, with
+  // this array restating the same numbers for the inline table total -- two
+  // sources that happened to agree, which is exactly the drift the shared
+  // colgroup exists to prevent and which a resizable column would have made
+  // real within one drag.
+  //
+  // `resizable` marks the columns whose header carries a drag grip. Only
+  // ELEMENT does today (Jeff: "the descriptions get truncated and there's no
+  // way to see the entire text without clicking and expanding the preview"),
+  // and the mutator below is deliberately general anyway: a second resizable
+  // column is a flag, not a mechanism.
+  VA.TOPO_COLUMNS = COLUMNS;
+  VA.TOPO_COLUMN_WIDTH = { min: 80, max: 900 };
+
+  VA.topoColumn = function (cls) {
+    for (var i = 0; i < COLUMNS.length; i++) {
+      if (COLUMNS[i].cls === cls) return COLUMNS[i];
+    }
+    return null;
+  };
+
+  // Mutates the entry IN PLACE, the same way VA.applyRowDensity mutates
+  // VA.RAIL_METRICS rather than replacing it: every reference already holds
+  // this array, so there is nothing to re-wire and no second copy to forget.
+  VA.setTopoColumnWidth = function (cls, px) {
+    var column = VA.topoColumn(cls);
+    if (!column) return null;
+    var n = Number(px);
+    if (!isFinite(n)) return column.width;
+    column.width = Math.min(VA.TOPO_COLUMN_WIDTH.max,
+      Math.max(VA.TOPO_COLUMN_WIDTH.min, Math.round(n)));
+    return column.width;
+  };
+
   function tableWidth() {
     return COLUMNS.reduce(function (sum, c) { return sum + c.width; }, 0);
   }
@@ -291,7 +350,9 @@
   function colgroup() {
     var cg = VA.el("colgroup");
     COLUMNS.forEach(function (c) {
-      cg.appendChild(VA.el("col", "tvcol tvcol--" + c.cls));
+      var col = VA.el("col", "tvcol tvcol--" + c.cls);
+      col.style.width = c.width + "px";
+      cg.appendChild(col);
     });
     return cg;
   }
@@ -301,7 +362,8 @@
   // cell of them, so the offset has to be applied by hand and read from the same
   // geometry the SVG was drawn from. Real <th> cells (deliverable 2): a screen
   // reader and a copy-paste both get an actual header, not a styled div.
-  function header(railWidth) {
+  function header(leaderGeo, ctx) {
+    var railWidth = leaderGeo.width;
     var head = VA.el("div", "tv__head");
     head.style.paddingLeft = railWidth + "px";
     var table = VA.el("table", "tvheadtable");
@@ -309,11 +371,65 @@
     table.appendChild(colgroup());
     var tr = VA.el("tr");
     COLUMNS.forEach(function (c) {
-      tr.appendChild(VA.el("th", "tvcell tvcell--" + c.cls, c.label));
+      var th = VA.el("th", "tvcell tvcell--" + c.cls, c.label);
+      if (c.resizable) {
+        th.className += " tvcell--resizable";
+        th.appendChild(resizeGrip("col", "Drag to widen this column.", ctx,
+          { kind: "column", cls: c.cls }));
+      }
+      tr.appendChild(th);
     });
     table.appendChild(VA.el("thead", null, tr));
     head.appendChild(table);
+    // The jog zone's own grip, on the seam between the SVG and the grid --
+    // the boundary a reader would grab anyway. Absolutely positioned so it
+    // adds no width of its own: a grip that took layout space would push
+    // itself in between a leader's last segment and the grid's first column,
+    // and that hand-off is the one place on this page with no seam to align.
+    //
+    // `naturalZone` rides along because the drag is measured in pixels and
+    // the preference is held as a multiple of it -- without it the app shell
+    // would have nothing to divide by.
+    var jogGrip = resizeGrip("jog",
+      "Drag to spread the leader lines out.", ctx,
+      { kind: "jog", naturalZone: leaderGeo.naturalZone });
+    jogGrip.style.left = (railWidth - 3) + "px";
+    head.appendChild(jogGrip);
     return head;
+  }
+
+  // --- the two drag affordances (viewer_leader_grid_legibility) ------------
+  //
+  // Both live in the column header, which is where a reader already looks to
+  // resize a column, and both are the same thin grip: the jog zone's on the
+  // seam between the SVG and the grid, the ELEMENT column's on that header
+  // cell's right edge. That is the whole of the UI -- no number to type, no
+  // panel to open.
+  //
+  // The pointer drag itself belongs to the app shell (topology_app.js),
+  // because a re-render replaces this node mid-drag: the move/up listeners
+  // have to be on the document, not on the grip. Arrow keys nudge the same
+  // preference without a pointer at all, which is both the keyboard path and
+  // the one a DOM-shim test can drive.
+  function resizeGrip(cls, title, ctx, spec) {
+    var grip = VA.el("div", "tvgrip tvgrip--" + cls);
+    grip.setAttribute("title", title);
+    grip.setAttribute("role", "separator");
+    grip.setAttribute("aria-orientation", "vertical");
+    grip.setAttribute("tabindex", "0");
+    grip.setAttribute("data-resize", spec.kind + (spec.cls ? ":" + spec.cls : ""));
+    grip.onpointerdown = function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      if (ctx && ctx.onResizeStart) ctx.onResizeStart(spec, event);
+    };
+    grip.onkeydown = function (event) {
+      var key = event && event.key;
+      if (key !== "ArrowLeft" && key !== "ArrowRight") return;
+      if (event.preventDefault) event.preventDefault();
+      var step = (event.shiftKey ? 40 : 8) * (key === "ArrowRight" ? 1 : -1);
+      if (ctx && ctx.onResizeNudge) ctx.onResizeNudge(spec, step);
+    };
+    return grip;
   }
 
   // --- the SVG -------------------------------------------------------------
@@ -330,6 +446,19 @@
     });
     svg.style.minWidth = width + "px";
     svg.style.height = geometry.height + "px";
+
+    // 0. the alternating bands (viewer_leader_grid_legibility): the region
+    //    between two adjacent leaders, tinted in one of two neutral shades by
+    //    parity, and the grid rows that region feeds wear the SAME parity
+    //    (VA.rowBandParity, read by grid() below off the same plan). Drawn
+    //    first so everything else sits on top of it, and hit-tested by
+    //    nothing -- a band is wayfinding, not a target.
+    leaderGeo.bands.forEach(function (band) {
+      var path = VA.svg("path", "rail__band rail__band--" + (band.parity ? "b" : "a"),
+        { d: band.d });
+      path.setAttribute("data-band", String(band.index));
+      svg.appendChild(path);
+    });
 
     // 1. the rails themselves: continuous, neutral, alternating shade by column
     //    parity so two rails crossing can still be told apart. NOT a categorical
@@ -480,11 +609,15 @@
     table.style.width = tableWidth() + "px";
     table.appendChild(colgroup());
     var tbody = VA.el("tbody");
+    // Which of the two neutral tints each row wears -- off the SAME bands the
+    // SVG's own band polygons came from (VA.rowBandParity), so a row and the
+    // band feeding it cannot be given two different answers.
+    var bandParity = VA.rowBandParity(plan);
     plan.groups.forEach(function (group) {
       for (var i = 0; i < group.count; i++) {
         var planRow = plan.rows[group.start + i];
-        tbody.appendChild(edgeRow(planRow, i === 0 ? group : null, index, chain,
-          marking, ctx));
+        tbody.appendChild(edgeRow(planRow, group, i === 0, index, chain,
+          marking, ctx, bandParity[planRow.id]));
       }
     });
     table.appendChild(tbody);
@@ -557,11 +690,17 @@
     return cell;
   }
 
-  function edgeRow(planRow, group, index, chain, marking, ctx) {
+  function edgeRow(planRow, group, first, index, chain, marking, ctx, bandParity) {
     var edge = index.edges[planRow.id];
     var hit = chain[planRow.id];
     var el = baseRow("edge", ctx, planRow.id);
-    if (group) el.className += " tvrow--group-start";
+    // The alternating band this row belongs to (viewer_leader_grid_legibility).
+    // A neutral tint and deliberately the WEAKEST background rule on the row:
+    // an untraced or uncited row's provenance tint (.tvrow--edge.conf--*,
+    // topology.css) is more specific and still wins, because provenance
+    // outranks wayfinding on this page.
+    el.className += " tvrow--band-" + (bandParity ? "b" : "a");
+    if (first) el.className += " tvrow--group-start";
     if (edge) el.className += " " + VA.confidenceClass(edge.confidence);
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
@@ -570,7 +709,7 @@
     if (planRow.closes) el.className += " tvrow--closes";
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
 
-    if (group) el.appendChild(componentCell(group, ctx));
+    if (first) el.appendChild(componentCell(group, ctx));
 
     // Experimental value-only mode (deliverable 4): an edge's own label is
     // just its two adjacent node labels concatenated, so hiding it is never a
@@ -583,8 +722,19 @@
     var valueOnly = !!(ctx.edgeValueOnly && edge);
     if (valueOnly) el.setAttribute("title", VA.edgeHoverTitle(edge, planRow.id));
     el.appendChild(VA.el("td", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
-    el.appendChild(VA.el("td", "tvcell tvcell--name",
-      valueOnly ? "" : (edge ? edge.name : missing(planRow.id))));
+
+    // The element label, with its own component's name dropped off the front
+    // where it repeats the merged cell to its left (VA.elementDisplayLabel,
+    // topology.js -- display only, nothing about the edge changes). Where
+    // anything was dropped the cell carries the FULL label as its hover
+    // title, so the words are one hover away and the detail pane prints them
+    // in full regardless.
+    var fullName = edge ? edge.name : missing(planRow.id);
+    var shownName = edge && group
+      ? VA.elementDisplayLabel(fullName, group.part) : fullName;
+    var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : shownName);
+    if (!valueOnly && shownName !== fullName) nameCell.setAttribute("title", fullName);
+    el.appendChild(nameCell);
 
     // The value cell, decomposed into three (deliverable 2): the old combined
     // "value  [min … max]" text read fine but pasted as one unsplittable cell.
