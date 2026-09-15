@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_system_gas_spring_mechanical_stroke",
-  "title": "Gas-spring mechanical stroke, full extension to full retraction (millimetres)",
+  "title": "Gas-spring mechanical stroke",
+  "description": "Full extension to full retraction, in millimetres. The gas spring's own mechanical stop, distinct from the actuator body's end-stop feature in the piston chain.",
   "topology": "pitch_system",
   "from": "gas_spring_full_extension_stop",
   "to": "gas_spring_mount_flange",

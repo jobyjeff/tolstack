@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "tan_link_to_pitch_plate_take2",
-  "title": "Tangential link to pitch plate, take 2 -- the grip-length joint as a topology",
+  "title": "Tangential link to pitch plate grip length, take 2",
+  "description": "The take-2 grip-length joint as a graph: 4 parts, 7 interfaces, 7 edges, closing at the derived protrusion gap.",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",

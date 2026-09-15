@@ -53,7 +53,8 @@
         provenance: VA.demoProvenance("scripts/build_viewer_projection.py"),
         stacks: [{
           id: "demo_joint",
-          title: "Demo joint — every provenance state in one stack",
+          title: "Demo joint",
+          description: "Every provenance state in one stack.",
           units: "mm",
           source_file: "docs/tolerance_stacks/stack_demo_joint.json",
           worksheet_file: "docs/tolerance_stacks/WORKSHEET_demo_joint.md",
@@ -67,7 +68,8 @@
           stack: {
             schema: "joby.tolerance_stack/stack_definition/v0",
             id: "demo_joint",
-            title: "Demo joint — every provenance state in one stack",
+            title: "Demo joint",
+            description: "Every provenance state in one stack.",
             units: "mm",
             joint: {
               assembly_drawing: "217755",
@@ -444,7 +446,8 @@
         built_at: "2026-08-06T00:00:00+00:00",
         stacks: [{
           id: "demo_fit",
-          title: "Demo shrink fit — generated checks, weighted terms",
+          title: "Demo shrink fit",
+          description: "Generated checks and weighted terms.",
           units: "mm",
           archetype: "demo_thermal_fit",
           checks_source: "generated",
@@ -455,7 +458,8 @@
           stack: {
             schema: "joby.tolerance_stack/stack_definition/v0",
             id: "demo_fit",
-            title: "Demo shrink fit — generated checks, weighted terms",
+            title: "Demo shrink fit",
+            description: "Generated checks and weighted terms.",
             units: "mm",
             archetype: "demo_thermal_fit",
             // No archetype INPUT block here (a real `demo_thermal_fit` stack

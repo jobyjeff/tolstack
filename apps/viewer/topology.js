@@ -863,8 +863,13 @@
       return {
         id: t.id,
         title: t.title,
+        // The authored one-liner a short title demotes its qualification into
+        // (stack_title_style_pass, 2026-09-14). views/nav.js shows it on hover
+        // and nothing else reads it; absent on artifacts that need none.
+        description: t.description || null,
         studies: (t.studies || []).map(function (s) {
-          return { id: s.id, title: s.title, status: s.status };
+          return { id: s.id, title: s.title, status: s.status,
+                   description: s.description || null };
         }),
         coveredStacks: coveredStacks,
       };

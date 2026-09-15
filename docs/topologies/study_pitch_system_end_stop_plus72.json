@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_system_end_stop_plus72",
-  "title": "Blade OML angular position at the +72 deg (high-pitch) end stop, hub A datum to blade OML, full-sweep-average sensitivity (degrees)",
+  "title": "High-pitch end stop",
+  "description": "Blade OML angular position at the +72 deg end stop, hub A datum to blade OML, in degrees, at the full-sweep-average sensitivity.",
   "topology": "pitch_system",
   "from": "hub_lower_bearing_flange",
   "to": "blade_root_oml",

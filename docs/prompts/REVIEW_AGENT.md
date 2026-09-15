@@ -305,6 +305,15 @@ must be confirmed before the property is looked up.
 
 ## Also verify
 
+- **The `title` is a short noun phrase.** The rule and its worked cuts are
+  `docs/SOP_TOLERANCE_STACK.md`, "Titling an artifact" — read it there rather
+  than from this line. Stacks, topologies and studies are all in scope, because
+  the viewer's nav rail lists all three together and a title is the only field
+  it renders. Reject a genre statement ("… as a topology"), a history or
+  negation clause, a unit in parentheses, and endpoints `from`/`to` already
+  state. What the title sheds is **demoted into `description`, not deleted** —
+  an author who cut real information and wrote no description has lost it.
+  Check the `id` did not move with the title: ids are deep links.
 - **Tests.** `venv-win/Scripts/python.exe -m pytest -q` green, and re-run it
   yourself rather than trusting the report. New source-derived numbers carry the
   source cell reference in a comment (`# JEFF E18`), which is what makes the suite
@@ -1925,6 +1934,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       against the extractor's own boundary rule, not against the prose around
       it — and confirm the replay is red for the scoping and not for something
       else, by checking the asserted message names the scoped param.
+
+- [ ] **A new optional prose field lands outside the key tuple an existing
+      doc-scan guard reads.** New 2026-09-14 (`stack_title_style_pass`). The
+      handoff added a top-level `description` to `Topology`/`Study`/
+      `StackDefinition` and demoted shed title text into it — including, on two
+      topologies, a structural inventory ("4 parts, 7 interfaces, 8 edges").
+      `tests/test_topology.py::test_a_topologys_own_notes_count_the_graph_they_
+      describe` scans `{"title", "notes", "provenance"}` and nothing else, so
+      the guarded copy now lives in `notes` and the copy **the viewer actually
+      renders** lives unguarded in `description`
+      (`ISSUE_20260914_topology_description_sits_outside_the_structural_count_
+      guard.md`). Generalise beyond counts: **whenever a diff adds a field that
+      can hold prose, grep every doc-scan guard for a hard-coded key set and ask
+      whether the new field belongs in it** — the guard cannot tell you, because
+      a key set that lost a key is silent, not red. Ask the same of the fixture
+      key-set guards, which *do* go red (`apps/viewer/fixtures.js`,
+      `topology_fixtures.js`) and are therefore the cheap half of this check.
+
+- [ ] **A new scanner's pattern list with no replay of its own motivating
+      instances.** Second sighting of the false-positive entry above, 2026-09-14
+      (`stack_title_style_pass`). `tests/test_title_style.py`'s `BANNED_SHAPES`
+      carries a third column naming the exact authored title that motivated each
+      pattern, and nothing asserts the pattern still matches that string — a
+      pattern that stopped biting would pass silently, since the parametrised
+      scan only proves that no *live* title trips it. The same list's unit
+      matcher alternates on the bare English word `in` (`(?:deg|mm|in|...)`
+      inside a parenthetical), so `"(M1 as-built, in service)"` is rejected as
+      "a unit in parentheses" — the right verdict for the wrong reason, which is
+      what makes the message unfixable by the author who reads it. Two moves,
+      both one-liners: loop the list and assert each pattern matches its own
+      third column, and enumerate what a parenthetical may contain rather than
+      wildcarding around one word.
 
 - [ ] **A guard written to hold "at any count" that names today's live data in
       two of its three tests — and a comment claiming the whole block is

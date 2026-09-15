@@ -186,7 +186,7 @@ thing they meant in drawing-checker, so moving repos did not rev them.
 
 | schema id | you write it? | what it is |
 |---|---|---|
-| `joby.tolerance_stack/stack_definition/v0` | **yes** — one JSON file per stack | ordered `elements`, named `paths`, `checks` over them, plus `joint`, `provenance`, `notes` |
+| `joby.tolerance_stack/stack_definition/v0` | **yes** — one JSON file per stack | ordered `elements`, named `paths`, `checks` over them, plus `joint`, `provenance`, `notes` and an optional one-line `description` (see "Titling an artifact") |
 | `source_ref` (embedded in an element, no id of its own) | **yes** — one per element, mandatory | where the value came from, and how well: `confidence: traced \| inferred \| untraced` |
 | `joby.tolerance_stack/hardware_entry/v0` | **yes** — `docs/tolerance_stacks/hardware_entries.json`, one entry per standard part | a standard part with inline values, a `values_source` saying where they came from, a `library_ref` filled **if and only if** `values_status` is `"library"`, `assembly_status`, and a mandatory `gaps` list |
 | `joby.tolerance_stack/check_result/v0` | **no** — produced, never stored | the outcome of folding a check: nominal, worst-case min/max, RSS, and a `verdict` |
@@ -305,6 +305,41 @@ Then write down, and put in the stack's `joint` block:
 
 Then state the **question**. "Does the -14 bolt's grip work in this joint" is a
 question. "Analyse the joint" is not, and will not produce a check you can write.
+
+### Titling an artifact
+
+This rule is for the `title` of a **stack, a topology or a study alike** — the
+one place all three schemas share, and the only field the viewer's nav rail
+renders. Jeff set it on 2026-09-14 reading a rail that had become a wall of
+text; it is the standing web-copy guideline (short, self-explanatory,
+progressive disclosure) applied to authored names.
+
+> **A title is a short noun phrase naming the thing.** Everything else goes in
+> `description` — one sentence, authored beside the title, shown on hover.
+
+Concretely, a title does not carry:
+
+- **a genre statement** — "… as a topology", "… topology (L1 proof)". Every
+  joint here is also a topology; saying so in the name distinguishes nothing.
+- **history or negation** — what the artifact used to be, what it is not, what
+  workbook does not stand behind it.
+- **units in parentheses** — "(degrees)", "(millimetres)", "(.125 in)". Units
+  belong on the values, and the study's output unit is already on the result.
+- **a sensitivity, load case or mode clause**, *unless it is the only thing
+  separating this artifact from a sibling* — `blade_angle_worst` and
+  `blade_angle_average` differ in nothing else, so the sensitivity stays; the
+  nine `rotor_fastener_grip_*` studies are already separated by their dash
+  number, so the grip length goes to the description.
+- **the endpoints**, when `from`/`to` (or the `joint` block) already state them.
+- **a ` -- ` or `:` clause at all.** A noun phrase does not need one; if you are
+  reaching for a dash to bolt on a qualification, that qualification is the
+  description.
+
+Nothing informative is deleted — it is **demoted**. If the words you are cutting
+say something real, the same sentence goes into `description`, which is
+optional, free-form, read by nothing that folds, and additive (so the schemas
+stay `/v0`, per `docs/DAG_TOPOLOGY.md`'s "Versioning: additive fields"). The
+**id** is not a title and never changes with one: ids are deep links.
 
 ## Step 2 — write the elements
 

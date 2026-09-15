@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "rotor_fastener_grip_u9h",
-  "title": "Rotor fastener grip budget, NAS6403U9H (.562 in)",
+  "title": "Grip budget, NAS6403U9H",
+  "description": "Rotor fastener grip budget for the .562 in grip option.",
   "topology": "rotor_fastener_length",
   "from": "shank_full_dia_end",
   "to": "washer_far_face",

@@ -569,11 +569,18 @@ class Topology:
     (``topology_pitch_system.json``) carries no ``joint`` at all rather than a
     misleading one. Carried into the projection verbatim, never read by
     ``fold``/``traverse``/``summarize``.
+
+    ``description``, added 2026-09-14 by handoff ``stack_title_style_pass``, is
+    the one-sentence demotion target for what the ``title`` no longer says --
+    see ``docs/SOP_TOLERANCE_STACK.md``'s "Titling an artifact", which
+    ``docs/DAG_TOPOLOGY.md`` points at rather than restating. Additive,
+    optional, read by nothing that folds, so the schema stays ``/v0``.
     """
 
     id: str
     title: str
     units: str
+    description: Optional[str] = None
     parts: List[Part] = field(default_factory=list)
     nodes: List[Node] = field(default_factory=list)
     edges: List[Edge] = field(default_factory=list)
@@ -758,6 +765,12 @@ class Study:
     branch a parallel path stands for) lives entirely in *which edges a human put
     in* ``selection``, unlabelled; this gives that choice a place to be written
     down in prose next to the study rather than only inferred from its edge list.
+
+    ``description``, added 2026-09-14 by handoff ``stack_title_style_pass``, is
+    the one-sentence demotion target for what the ``title`` no longer says --
+    the endpoints, the output unit, the sensitivity column a sibling study
+    differs on. ``docs/SOP_TOLERANCE_STACK.md``'s "Titling an artifact" is the
+    rule; additive, optional, read by nothing that folds.
     """
 
     id: str
@@ -765,6 +778,7 @@ class Study:
     topology: str
     from_node: str
     to_node: str
+    description: Optional[str] = None
     selection: List[str] = field(default_factory=list)
     transforms: Dict[str, str] = field(default_factory=dict)
     closes: Optional[str] = None
@@ -1189,6 +1203,7 @@ def load_topology(path: str | Path, repo_root: str | Path | None = None) -> Topo
         id=data["id"],
         title=data["title"],
         units=data["units"],
+        description=data.get("description"),
         parts=[Part.from_dict(p) for p in data.get("parts", [])],
         nodes=[Node.from_dict(n) for n in data.get("nodes", [])],
         edges=edges,

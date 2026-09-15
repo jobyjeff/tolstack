@@ -71,13 +71,14 @@
       topologies: [
       {
         "id": "demo_mechanism",
-        "title": "Demo mechanism - a fork, a loop, a gap and a coupling",
+        "title": "Demo mechanism",
+        "description": "A fork, a loop, a gap and a linear-rotary coupling -- every state the rails and the grid have to render.",
         "units": "mm",
         "source_file": "docs/topologies/topology_demo_mechanism.json",
         "topology": {
           "schema": "joby.tolerance_stack/topology/v0",
           "id": "demo_mechanism",
-          "title": "Demo mechanism - a fork, a loop, a gap and a coupling",
+          "title": "Demo mechanism",
           "units": "mm",
           "transforms": [
             {
@@ -893,7 +894,8 @@
         "studies": [
           {
             "id": "demo_base_to_tip",
-            "title": "Base datum to arm tip (degrees)",
+            "title": "Base datum to arm tip",
+            "description": "In degrees: the chain crosses the arm coupling, so every contributor is converted before anything is summed.",
             "topology": "demo_mechanism",
             "from": "base_datum",
             "to": "arm_tip",
@@ -918,7 +920,7 @@
             "error": null,
             "result": {
               "study": "demo_base_to_tip",
-              "title": "Base datum to arm tip (degrees)",
+              "title": "Base datum to arm tip",
               "topology": "demo_mechanism",
               "from": "base_datum",
               "to": "arm_tip",
@@ -1066,7 +1068,8 @@
           },
           {
             "id": "demo_strut_branch",
-            "title": "Base datum to strut end (the parallel path)",
+            "title": "Base datum to strut end",
+            "description": "The parallel path back to the base datum.",
             "topology": "demo_mechanism",
             "from": "base_datum",
             "to": "strut_end",
@@ -1086,7 +1089,7 @@
             "error": null,
             "result": {
               "study": "demo_strut_branch",
-              "title": "Base datum to strut end (the parallel path)",
+              "title": "Base datum to strut end",
               "topology": "demo_mechanism",
               "from": "base_datum",
               "to": "strut_end",
@@ -1234,7 +1237,8 @@
           },
           {
             "id": "demo_ambiguous",
-            "title": "Both paths at once (raises BranchAmbiguity)",
+            "title": "Both paths at once",
+            "description": "Selects both branches at the fork, so the traversal raises rather than choosing one.",
             "topology": "demo_mechanism",
             "from": "base_datum",
             "to": "arm_tip",

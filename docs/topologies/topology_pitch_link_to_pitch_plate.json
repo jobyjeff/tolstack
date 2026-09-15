@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "pitch_link_to_pitch_plate",
-  "title": "Pitch link to pitch plate -- the grip-length joint as a topology",
+  "title": "Pitch link to pitch plate grip length",
+  "description": "The grip-length joint as a graph: 4 parts, 7 interfaces, 8 edges. It adds no value and no citation of its own -- if a number here looks wrong, the stack file is where it is wrong.",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",

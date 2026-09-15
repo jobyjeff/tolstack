@@ -721,6 +721,9 @@ def project_study(topology: Topology, study: Study, path: Path,
     row: Dict[str, Any] = {
         "id": study.id,
         "title": study.title,
+        # The title's demotion target: the qualification a short noun-phrase
+        # title sheds, rendered as the nav's hover tooltip. Descriptive only.
+        "description": study.description,
         "topology": study.topology,
         "from": study.from_node,
         "to": study.to_node,
@@ -817,6 +820,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
     return {
         "id": topology.id,
         "title": topology.title,
+        "description": topology.description,
         "units": topology.units,
         "source_file": as_posix_rel(path),
         # The authored document, verbatim, exactly as `results.json` embeds a

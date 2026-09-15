@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "pitch_system",
-  "title": "Propeller pitch system -- blade-pitch position topology (L2: branches + the linear-rotary coupling)",
+  "title": "Propeller pitch system blade-pitch position",
+  "description": "The L2 deliverable: the pitch system's structure, with its branch points, its grounded loops and the one linear-rotary coupling. A structure, not an analysis -- none of its numbers should be quoted.",
   "units": "mm",
   "provenance": {
     "authored_by": "handoff dag_topology_format, 2026-08-31",

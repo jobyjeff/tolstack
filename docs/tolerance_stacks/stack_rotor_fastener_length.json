@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "rotor_fastener_length",
-  "title": "Rotor balance-mass bolt -- grip length (built from scratch, no source workbook; shadow exercise vs Jason Ryan's independent tolerance stack)",
+  "title": "Rotor balance-mass bolt grip length",
+  "description": "Built from scratch with no source workbook, as a shadow exercise against an independent Excel stack by a colleague -- see the worksheet's comparison section.",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",
