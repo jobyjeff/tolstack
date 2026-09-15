@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/topology
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260914_projection_field_guard_rows.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `projection_field_guard_rows` moved to completed/; not independently verified.
 ---
 
 # A topology's new `description` is a second home for structural counts, and the count guard does not read it
