@@ -55,6 +55,18 @@
       return Array.prototype.slice.call(root.querySelectorAll(selector));
     }
 
+    // Class membership that reads the same in the DOM shim and in a real
+    // browser -- this suite runs in both (test.html). An HTML node's classes
+    // come back through `className` (the shim never syncs that to the
+    // attribute); an SVG node's only through getAttribute("class"), because
+    // `className` there is a read-only SVGAnimatedString.
+    function hasClass(node, cls) {
+      var raw = node.getAttribute("class");
+      if (raw === null || raw === undefined) raw = node.className;
+      if (raw && typeof raw === "object") raw = raw.baseVal;
+      return (" " + String(raw || "") + " ").indexOf(" " + cls + " ") !== -1;
+    }
+
     // --- formatting: the no-second-arithmetic rule -------------------------
 
     await test("fmt prints a projection number verbatim, with no rounding", function () {
@@ -2268,38 +2280,84 @@
         });
       });
 
-    await test("the bands TILE the pane: adjacent bands share one edge, no " +
-      "band folds over itself, and none overlaps its neighbour", function () {
-        // The property the running-max clamp exists for. Leaders on the real
-        // pitch_system cross each other 16 times (a leader's vertical run
-        // passes through a later leader's horizontal run, possible ever since
-        // the grid was centred against the DAG), so "the region between two
-        // leaders" drawn literally folds over itself and doubles its own
-        // tint. Sampled across the width in BOTH styles, because the fold is
-        // a property of the endpoints, not of the path shape.
+    await test("the bands TILE the pane even where the leaders cross: " +
+      "adjacent bands share one edge and no band folds over itself",
+      function () {
+        // The property the running-max clamp exists for, and the ONE
+        // configuration that can see it. Leaders cross each other whenever a
+        // leader's grid-side seam sits at or below the NEXT interface's dot,
+        // which became possible when viewer_dag_spine_layout centred the grid
+        // against the DAG and leaders stopped always rising. Drawn literally,
+        // "the region between two leaders" then folds over itself and doubles
+        // its own tint -- a checkerboard exactly where the page is meant to be
+        // getting more legible. (The crossings themselves are a layout
+        // question, not this one: ISSUE_20260914_leaders_cross_each_other_
+        // since_the_grid_was_centred.md.)
+        //
+        // The demo mechanism only crosses once the grid is centred against it,
+        // so the centred store is the fixture and the crossing is asserted
+        // first: without that witness this test passes forever on a straight
+        // ladder of leaders and says nothing.
         var M = VA.RAIL_METRICS;
         var plan = VA.gridPlan(TOPO.layout, TOPO);
-        ["jogged", "angled"].forEach(function (style) {
-          var geo = VA.leaderGeometry(TOPO.layout, plan, M, null, { style: style });
-          eq(geo.bands.length, plan.leaders.length + 1, style);
-          geo.bands.forEach(function (band, i) {
-            // One shared edge, not two that happen to agree.
-            if (i + 1 < geo.bands.length) {
-              ok(band.bottom === geo.bands[i + 1].top,
-                 style + ": band " + i + " and " + (i + 1) + " share one edge");
-            }
-            for (var x = 0; x <= geo.width; x += 3) {
-              var top = profileY(band.top, x);
-              var bottom = profileY(band.bottom, x);
-              ok(bottom >= top - 1e-9,
-                 style + ": band " + i + " is inside out at x=" + x +
-                 " (" + top + " > " + bottom + ")");
-            }
+        var centred = VA.rowPositions(TOPO.layout, TOPO, "uniform", M,
+          { budget: 200, plan: plan });
+        ok(centred.gridOffset > 1, "the grid really is pushed down");
+        // The demo mechanism's own centring only makes the first two leaders
+        // TOUCH, so the store is pushed one step further to model the real
+        // pitch_system, whose grid sits ~300px down a 1170px DAG and whose
+        // leaders cross 16 times. Only `gridOffset` moves -- the same knob
+        // VA.centreOffsets turns -- and leaderGeometry reads nothing else off
+        // a store but that, the node y's and the total height. The [real]
+        // tier below checks the shipped projection rather than this model.
+        var crossed = { nodes: centred.nodes, height: centred.height,
+                        gridOffset: centred.gridOffset + 60 };
+
+        [null, crossed].forEach(function (positions) {
+          ["jogged", "angled"].forEach(function (style) {
+            var label = (positions ? "centred " : "top-aligned ") + style;
+            var geo = VA.leaderGeometry(TOPO.layout, plan, M, positions,
+              { style: style });
+            eq(geo.bands.length, plan.leaders.length + 1, label);
+            geo.bands.forEach(function (band, i) {
+              // One shared edge, not two that happen to agree.
+              if (i + 1 < geo.bands.length) {
+                ok(band.bottom === geo.bands[i + 1].top,
+                   label + ": bands " + i + " and " + (i + 1) + " share an edge");
+              }
+              for (var x = 0; x <= geo.width; x += 2) {
+                var top = profileY(band.top, x);
+                var bottom = profileY(band.bottom, x);
+                ok(bottom >= top - 1e-9,
+                   label + ": band " + i + " is inside out at x=" + x +
+                   " (" + top + " > " + bottom + ")");
+              }
+            });
+            // And the stack covers the whole SVG, top to bottom.
+            eq(geo.bands[0].top[0][1], 0, label);
+            eq(profileY(geo.bands[geo.bands.length - 1].bottom, geo.width),
+               (positions || VA.rowPositions(TOPO.layout, null, "uniform", M)).height,
+               label);
           });
-          // And the stack covers the whole SVG, top to bottom.
-          eq(geo.bands[0].top[0][1], 0);
-          eq(profileY(geo.bands[geo.bands.length - 1].bottom, geo.width),
-             VA.rowPositions(TOPO.layout, null, "uniform", M).height);
+
+          // The witness: with the grid centred, at least one leader's own
+          // vertical really does run through a later leader's horizontal.
+          var jog = VA.leaderGeometry(TOPO.layout, plan, M, positions);
+          var crossings = 0;
+          jog.leaders.forEach(function (a, i) {
+            jog.leaders.slice(i + 1).forEach(function (b) {
+              var lo = Math.min(a.y1, a.y2), hi = Math.max(a.y1, a.y2);
+              if (a.laneX >= b.x1 && a.laneX <= b.laneX &&
+                  b.y1 >= lo && b.y1 <= hi) crossings++;
+            });
+          });
+          if (positions) {
+            ok(crossings > 0,
+               "the centred fixture must actually contain a crossing, or the " +
+               "clamp above is never exercised");
+          } else {
+            eq(crossings, 0, "top-aligned, the leaders still cannot cross");
+          }
         });
       });
 
@@ -2709,9 +2767,9 @@
         drawn.forEach(function (path, i) {
           eq(path.getAttribute("data-band"), String(i));
           ok(path.getAttribute("d"), "a band with no geometry is not a band");
-          eq(path._classSet().has("rail__band--b"), bands[i].parity === 1,
+          eq(hasClass(path, "rail__band--b"), bands[i].parity === 1,
              "band " + i + " wears its own parity");
-          eq(path._classSet().has("rail__band--a"), bands[i].parity === 0,
+          eq(hasClass(path, "rail__band--a"), bands[i].parity === 0,
              "band " + i + " wears its own parity");
         });
 
@@ -2723,8 +2781,8 @@
         rows.forEach(function (row) {
           var id = row.getAttribute("data-id");
           var wantsB = parity[id] === 1;
-          eq(row._classSet().has("tvrow--band-b"), wantsB, id);
-          eq(row._classSet().has("tvrow--band-a"), !wantsB, id);
+          eq(hasClass(row, "tvrow--band-b"), wantsB, id);
+          eq(hasClass(row, "tvrow--band-a"), !wantsB, id);
         });
 
         // Non-vacuity: both tints are actually on screen, in both places.
@@ -5543,6 +5601,158 @@
             var gapGroups = plan.groups.filter(function (g) { return g.part === null; });
             eq(gapGroups.length, 1);
             eq(gapGroups[0].label, VA.GAP_COMPONENT_LABEL);
+          });
+
+        await test("[real] on pitch_system, a rendered row's band tint is its " +
+          "own leader band's, value for value", function () {
+            // The deliverable's own claim, on the document it was asked for:
+            // "the band BETWEEN two adjacent leaders and the grid rows that
+            // band feeds share one alternating tint". Measured as the two
+            // things a reader actually sees -- the parity class on each <tr>
+            // and the parity class on each band polygon -- against the bands
+            // computed from the plan, row by row and band by band.
+            var layout = VA.spineRight(livePitch.layout);
+            var plan = VA.gridPlan(layout, livePitch);
+            var bands = VA.leaderBands(plan);
+            eq(bands.length, 17, "16 leaders cut the grid into 17 bands");
+            // The real pitch_system's own band boundaries, as grid row
+            // indices. 24 edge rows, and two bands carry more than one row
+            // (the walk's opening three hub dimensions and its closing four).
+            eq(bands.map(function (b) { return b.startRow + "-" + b.endRow; }).join(" "),
+               "0-3 3-4 4-5 5-6 6-7 7-8 8-9 9-10 10-11 11-12 12-13 13-15 " +
+               "15-16 16-17 17-18 18-19 19-24");
+            eq(bands[0].endRow, plan.groups[0].count,
+               "the first band is the first merged component group");
+
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: null, crops: realCrops,
+                layoutMode: "topology", selection: null,
+                onSelect: function () {},
+              });
+            });
+            var drawn = all(root, "path.rail__band");
+            eq(drawn.length, bands.length);
+            var rows = all(root, "tr.tvrow");
+            eq(rows.length, plan.rows.length);
+
+            // Row i's tint IS the tint of the band whose row range contains
+            // it -- read off the DOM on both sides, so a renderer that tinted
+            // the rows from anything else (row index parity, group index)
+            // fails here.
+            var bandClass = function (node) {
+              return hasClass(node, "rail__band--b") ||
+                     hasClass(node, "tvrow--band-b") ? 1 : 0;
+            };
+            bands.forEach(function (band, i) {
+              eq(bandClass(drawn[i]), band.parity, "band " + i);
+              for (var r = band.startRow; r < band.endRow; r++) {
+                eq(bandClass(rows[r]), band.parity,
+                   "row " + r + " (" + rows[r].getAttribute("data-id") + ")");
+              }
+            });
+            // Non-vacuous: a run of rows in one band, and neighbours that
+            // differ -- a page that tinted every row the same would pass a
+            // parity check written any less carefully.
+            eq(bandClass(rows[0]), bandClass(rows[1]));
+            eq(bandClass(rows[0]), bandClass(rows[2]));
+            ok(bandClass(rows[2]) !== bandClass(rows[3]),
+               "the band changes where the first leader points");
+          });
+
+        await test("[real] pitch_system's leaders really do cross, and the " +
+          "bands still tile the pane in both styles", function () {
+            // The configuration the band clamp exists for, on the real
+            // document rather than on the mock's stand-in: the shipped
+            // pitch_system, fitted and centred the way the page fits and
+            // centres it. Filed as a defect in its own right
+            // (ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_
+            // centred.md) -- it is a layout-policy question, not a band one.
+            var M = VA.RAIL_METRICS;
+            var layout = VA.spineRight(livePitch.layout);
+            var plan = VA.gridPlan(layout, livePitch);
+            var positions = VA.rowPositions(layout, livePitch, "uniform", M,
+              { budget: 782, plan: plan });
+            ok(positions.gridOffset > 100, "the grid sits well down the DAG");
+
+            var jog = VA.leaderGeometry(layout, plan, M, positions);
+            var crossings = 0;
+            jog.leaders.forEach(function (a, i) {
+              jog.leaders.slice(i + 1).forEach(function (b) {
+                var lo = Math.min(a.y1, a.y2), hi = Math.max(a.y1, a.y2);
+                if (a.laneX >= b.x1 && a.laneX <= b.laneX &&
+                    b.y1 >= lo && b.y1 <= hi) crossings++;
+              });
+            });
+            ok(crossings > 0,
+               "pitch_system's leaders cross; if this ever reaches 0 the " +
+               "issue above was fixed and this test should say so");
+
+            ["jogged", "angled"].forEach(function (style) {
+              var geo = VA.leaderGeometry(layout, plan, M, positions,
+                { style: style });
+              geo.bands.forEach(function (band, i) {
+                if (i + 1 < geo.bands.length) {
+                  ok(band.bottom === geo.bands[i + 1].top, style + " band " + i);
+                }
+                for (var x = 0; x <= geo.width; x += 2) {
+                  var top = profileY(band.top, x);
+                  var bottom = profileY(band.bottom, x);
+                  ok(bottom >= top - 1e-9,
+                     style + ": band " + i + " is inside out at x=" + x);
+                }
+              });
+            });
+          });
+
+        await test("[real] the blade_root rows no longer open with " +
+          "'blade-root', and their full labels are one hover away", function () {
+            // Jeff's own example, on the document he was reading: "under
+            // component `blade_root`, three rows all render 'blade-root
+            // clocking holes to th...'".
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: null, crops: realCrops,
+                layoutMode: "topology", selection: null,
+                onSelect: function () {},
+              });
+            });
+            var plan = VA.gridPlan(VA.spineRight(livePitch.layout), livePitch);
+            var index = VA.topologyIndex(livePitch);
+            var cells = all(root, "td.tvcell--name");
+            eq(cells.length, plan.rows.length);
+
+            var bladeRoot = [];
+            plan.groups.forEach(function (group) {
+              if (group.part !== "blade_root") return;
+              for (var i = 0; i < group.count; i++) {
+                bladeRoot.push(cells[group.start + i]);
+              }
+            });
+            eq(bladeRoot.length, 3, "blade_root carries three rows");
+            bladeRoot.forEach(function (cell, i) {
+              ok(cell.textContent.toLowerCase().indexOf("blade") !== 0,
+                 "blade_root row " + i + " still opens with its component: " +
+                 cell.textContent);
+              ok(cell.textContent.length > 0, "and it is not blank");
+              // Nothing is lost: the title is the edge's own name, whole.
+              var id = plan.rows[0] && cell.getAttribute("title");
+              ok(id === null || id.toLowerCase().indexOf("blade") === 0,
+                 "the full label is the hover text");
+            });
+            // The cells opening with "clocking holes" are the ones Jeff saw
+            // truncated, now saying the thing that distinguishes them.
+            eq(bladeRoot.filter(function (c) {
+              return c.textContent.indexOf("clocking holes") === 0;
+            }).length, 3);
+            // And a row whose label does NOT repeat its component is
+            // untouched, so this is a trim and not a rewrite.
+            var pistonLength = cells.filter(function (c) {
+              return c.textContent === "piston length";
+            });
+            eq(pistonLength.length, 1);
+            eq(pistonLength[0].getAttribute("title"), null);
+            ok(index.edges, "the index is built");
           });
 
         await test("[real] pitch_system is variation-only, so 'feature size' " +
