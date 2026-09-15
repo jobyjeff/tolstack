@@ -1233,25 +1233,34 @@
     }
     root.appendChild(chips);
 
-    root.appendChild(VA.el("div", "detail__where",
-      "on " + node.parts.join(" ⇔ ")));
+    // This node's SIDES, derived from the edges actually incident on it
+    // (VA.nodeSideIds -> VA.nodeAdjacentParts) -- the same adjacency the dot's
+    // hover card prints and the leader rule reads, NOT the document's own
+    // `parts` list.
+    //
+    // It printed `node.parts` until handoff surfaces_that_state_something_
+    // false, and on 10 of the 46 live nodes the same dot answered differently
+    // hovered and clicked. Neither list was wrong: a node against a `gap` edge
+    // has a clearance for a side, and a clearance is not a part, so an
+    // authored parts list cannot name one. The lists answer different
+    // questions -- and the question a reader clicking a dot in the DAG is
+    // asking ("what meets HERE, in the picture I am looking at") is the
+    // derived one, which is why the card already chose it.
+    var sideIds = VA.nodeSideIds(ctx.topoProj, id);
+    root.appendChild(VA.el("div", "detail__where", "on " + sideIds.join(" ⇔ ")));
 
     // Whether this interface got a leader line, and why (viewer_leader_line_
     // grid): the omission rule is the component grouping, so the pane says
     // which side of it this node is on rather than leaving a missing leader
-    // to read as a rendering gap.
-    var adjacentParts = VA.nodeAdjacentParts(ctx.topoProj)[id] || [];
-    var partWords = adjacentParts.map(function (p) {
-      return p === null ? "a clearance" : p;
-    });
+    // to read as a rendering gap. It states the RULE only -- the sides
+    // themselves are the line above, said once, in the same words the card
+    // uses (this sentence used to re-list them with a different separator).
     root.appendChild(VA.el("p", "detail__crop-reason",
-      adjacentParts.length <= 1
-        ? "An internal interface: every dimension meeting here belongs to " +
-          (partWords[0] || "no part") + ", so no leader line is drawn — " +
-          "leaders mark component boundaries only."
-        : "A component boundary: the dimensions meeting here belong to " +
-          partWords.join(" / ") + ", and its leader line marks that seam " +
-          "in the grid."));
+      VA.internalNodes(ctx.topoProj)[id]
+        ? "An internal interface: every dimension meeting here belongs to one " +
+          "part, so no leader line is drawn — leaders mark component " +
+          "boundaries only."
+        : "A component boundary: its leader line marks that seam in the grid."));
     if (node.note) root.appendChild(VA.el("div", "detail__note", node.note));
 
     if (node.source_ref) {

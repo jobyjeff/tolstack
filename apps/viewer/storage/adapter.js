@@ -106,21 +106,57 @@
   // The one page a folder grant can legitimately be asked for.
   var FILE_PROTOCOL = "file:";
 
+  // The hostnames on which an http(s) page can STILL legitimately ask for one.
+  // A module-level vocabulary, never inline literals (repo rule).
+  VA.LOCAL_HOSTNAMES = Object.freeze(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+  // Is this page's reader plausibly holding the repo the picker would open?
+  //
+  // That -- not the protocol -- is the real question behind **Connect folder**,
+  // and the two answers differ:
+  //
+  //   file://   -- they opened a file off their own disk. Nothing else can read
+  //                the repo there, and the grant is the only transport.
+  //   loopback  -- a server on their own machine: `ops.toml`'s serve verb, or
+  //                drawing-checker's local mount (uvicorn on 127.0.0.1:8000,
+  //                which is where /tolstack/annotate/ and /tolstack/viewer/
+  //                live in dev). Same reader, same disk, one extra hop.
+  //   any other -- a HOSTED visitor with no tolstack repo to grant. The picker
+  //                cannot work for them no matter what they click, and it
+  //                reads as "this page wants access to my files".
+  //
+  // `hostname` is the page's own (window.location.hostname). A caller that
+  // omits it gets the STRICTEST answer -- only file:// is local -- so a page
+  // never acquires a picker by accident. apps/viewer deliberately omits it and
+  // apps/annotate deliberately passes it, because their legitimate LOCAL page
+  // is not the same page: the viewer's is file:// (it is built to run by
+  // double-click), and the annotator has no file:// story at all -- File
+  // System Access and a mesh-binary fetch both need a real origin -- so its
+  // only legitimate local page is a loopback server. (handoff
+  // surfaces_that_state_something_false; whether the viewer should pass its
+  // hostname too is ISSUE_20260915_viewer_says_unpublished_on_a_loopback_
+  // origin_it_could_offer_a_picker_for.)
+  VA.isLocalPage = function (protocol, hostname) {
+    if (protocol === FILE_PROTOCOL) return true;
+    return VA.LOCAL_HOSTNAMES.indexOf(String(hostname || "").toLowerCase()) !== -1;
+  };
+
   // Which adapter a page boots on, decided in ONE place.
   //
   // Served is tried first wherever it is possible at all. The rule that
-  // matters is what happens when it FAILS, and it turns on the page's own
-  // protocol:
+  // matters is what happens when it FAILS, and it turns on whether the page is
+  // LOCAL to the reader (VA.isLocalPage above -- file://, or a loopback
+  // origin the caller names):
   //
-  //   file://  -- FSA is the only transport that can exist, and the picker is
-  //               legitimate: the reader is sitting at the machine holding the
-  //               repo, which is the only way they opened this file at all.
-  //   http(s) -- there is NO fallback. A hosted visitor has no tolstack repo
+  //   local    -- FSA may be the only transport that can exist, and the picker
+  //               is legitimate: the reader is sitting at the machine holding
+  //               the repo.
+  //   hosted   -- there is NO fallback. A hosted visitor has no tolstack repo
   //               to grant, so **Connect folder** is a control that cannot
   //               work for them no matter what they click -- and it reads as
   //               "this page wants access to my files", which is worse than
-  //               useless. The honest answer is UNPUBLISHED: the banner says
-  //               the data is not published here, and offers nothing.
+  //               useless. The honest answer is UNPUBLISHED: the caller says
+  //               so in its own words, and offers nothing.
   //
   // (Verified at the wire 2026-09-14: every `/tolstack/...` URL on the hosted
   // origin answered 200 + the site index HTML -- the catch-all shape the
@@ -133,9 +169,12 @@
   // served mode with no user action at all.
   //
   // `http`/`fsa` are the already-constructed candidates (null where the
-  // context cannot support one) and `protocol` is the page's own, so the
-  // whole decision is testable without a browser -- the node tier drives it
-  // against real local servers.
+  // context cannot support one) and `protocol`/`hostname` are the page's own,
+  // so the whole decision is testable without a browser -- the node tier
+  // drives it against real local servers. apps/annotate/ boots on this same
+  // function with `http: null` (it has no HTTP read transport at all --
+  // ISSUE_20260910_annotate_has_no_http_read_transport), which is what keeps
+  // the two apps from growing two answers to one question.
   VA.chooseTransport = async function (opts) {
     opts = opts || {};
     if (opts.http) {
@@ -144,15 +183,15 @@
         return { adapter: opts.http, kind: VA.TRANSPORT.HTTP, state: served };
       }
     }
-    if (opts.protocol !== FILE_PROTOCOL) {
+    if (!VA.isLocalPage(opts.protocol, opts.hostname)) {
       return {
         adapter: null,
         kind: VA.TRANSPORT.UNPUBLISHED,
         state: VA.STATE.DISCONNECTED,
       };
     }
-    // file:// in a browser with no File System Access API: nothing can read
-    // the repo, which is a real dead end and says so as an error.
+    // A local page in a browser with no File System Access API: nothing can
+    // read the repo, which is a real dead end and says so as an error.
     if (!opts.fsa) return { adapter: null, kind: null, state: null };
     var granted = await opts.fsa.init();
     return { adapter: opts.fsa, kind: VA.TRANSPORT.FSA, state: granted };

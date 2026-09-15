@@ -47,6 +47,14 @@
        (deferred by spec) runs. See scene.js's docstring for why this app,
        unlike apps/viewer, has no file:// constraint and can use ES modules
        at all. -->
+  <!-- The SIBLING app's adapter contract, for one function: VA.chooseTransport
+       (apps/viewer/storage/adapter.js) is where "may this page ask for a
+       folder grant?" is decided for both apps, and a second copy of that
+       answer is exactly the drift this repo keeps paying for. Resolves on both
+       serving surfaces the apps have -- drawing-checker's mounts
+       (/tolstack/annotate/ beside /tolstack/viewer/) and ops.toml's serve
+       verb, which serves apps/ for this reason. -->
+  <script src="../viewer/storage/adapter.js"></script>
   <script src="./config.js"></script>
   <script src="./storage/adapter.js"></script>
   <script src="./storage/memory.js"></script>

@@ -827,6 +827,35 @@ async function main() {
   el.consoleRun.onclick = runConsoleCommand;
   el.consoleInput.onkeydown = (ev) => { if (ev.key === "Enter") runConsoleCommand(); };
 
+  // The transport decision comes FIRST, before the 3D scene is constructed --
+  // a hosted page has nothing to render into it, and a page that cannot even
+  // reach the repo should not be spending a WebGL context to say so. (It also
+  // means the honest notice below still appears in a browser with no WebGL at
+  // all, where the scene constructor would throw before the banner.)
+  //
+  // ?mock=1 short-circuits it the way it always has: the tour reads a fixture
+  // and touches no transport, so it is legitimate on any origin.
+  const picked = MOCK ? null : await AA.chooseTransport({
+    protocol: window.location.protocol,
+    hostname: window.location.hostname,
+    fsa: AA.FsaAdapter.isSupported() ? new AA.FsaAdapter() : null,
+  });
+
+  // A hosted origin (handoff surfaces_that_state_something_false, applying
+  // apps/viewer's viewer_transport_honest_hosted posture): ONE sentence and
+  // nothing else. **Connect folder** is removed rather than disabled -- a
+  // hosted visitor has no tolstack repo to grant, so the control could not
+  // work for them however it were presented, and a feature that is absent
+  // shows nothing. Nothing is latched: the decision is recomputed on every
+  // load, so the same URL opened on a loopback server is the ordinary
+  // folder-grant page below.
+  if (AA.isHosted(picked)) {
+    setBanner(AA.HOSTED_NOTICE, "warn");
+    el.connectBtn.style.display = "none";
+    el.transportSub.textContent = "";
+    return;
+  }
+
   state.scene = new AnnotateScene(el.canvasHost, {
     readMeshManifest: (sha) => state.storage.readMeshManifest(sha),
     readMeshBuffer: (sha, name) => state.storage.readMeshBuffer(sha, name),
@@ -846,7 +875,9 @@ async function main() {
     return;
   }
 
-  if (!AA.FsaAdapter.isSupported()) {
+  // A local page in a browser with no File System Access API -- the one
+  // remaining state chooseTransport reports no transport at all for.
+  if (!picked.adapter) {
     setBanner(
       "This browser has no File System Access API -- the annotate surface needs Chrome or Edge, " +
       "served over http(s) (not file://). Try ?mock=1 for a demo with no folder grant.",
@@ -856,9 +887,9 @@ async function main() {
     return;
   }
 
-  state.storage = new AA.FsaAdapter();
+  state.storage = picked.adapter;
   el.transportSub.textContent = "read/write, data/inbox/feature-identity/ writes land in the connected folder";
-  const initial = await state.storage.init();
+  const initial = picked.state;
   el.connectBtn.onclick = async () => {
     try {
       await (initial === AA.STATE.NEEDS_REGRANT ? state.storage.reconnect() : state.storage.connect());

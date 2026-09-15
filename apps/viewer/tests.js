@@ -925,6 +925,33 @@
         });
     }
 
+    await test("isLocalPage: a folder grant is legitimate on file:// and on a " +
+      "loopback origin, and on nothing else", function () {
+        // (surfaces_that_state_something_false.) The shared half of the rule
+        // apps/annotate/ boots on: what makes **Connect folder** legitimate is
+        // not the protocol, it is whether the reader plausibly holds the repo
+        // the picker would open. A server on their own machine does --
+        // drawing-checker serves /tolstack/annotate/ and /tolstack/viewer/
+        // from 127.0.0.1:8000 in dev.
+        eq(VA.isLocalPage("file:", ""), true);
+        eq(VA.isLocalPage("file:", undefined), true);
+        VA.LOCAL_HOSTNAMES.forEach(function (host) {
+          eq(VA.isLocalPage("http:", host), true, host);
+          eq(VA.isLocalPage("https:", host.toUpperCase()), true, host);
+        });
+        // A hosted visitor, in the shapes a real origin produces -- including
+        // a hostname that merely CONTAINS a local one, which an lax match
+        // would wave through.
+        ["tolstack.joby.aero", "kibot", "localhost.attacker.example",
+         "notlocalhost", ""].forEach(function (host) {
+          eq(VA.isLocalPage("https:", host), false, host);
+        });
+        // A caller that names no hostname gets the strictest answer, which is
+        // why apps/viewer's own boot is unchanged by this: topology_app.js
+        // passes the protocol only, on purpose.
+        eq(VA.isLocalPage("https:"), false);
+      });
+
     await test("parseJson treats a half-written projection as absent", function () {
       eq(VA.parseJson('{"a":1}'), { a: 1 });
       eq(VA.parseJson('{"a":'), null);
@@ -4560,6 +4587,33 @@
         eq(gapSide.textContent.indexOf("null"), -1);
       });
 
+    await test("the preview pane names the DERIVED sides its dot's hover card " +
+      "names, not the node's authored `parts` list", function () {
+        // (surfaces_that_state_something_false.) arm_tip DECLARES one part and
+        // is incident on the derived gap, which carries none -- an authored
+        // parts list cannot name a clearance, so hovered and clicked this same
+        // dot used to answer differently. Both surfaces now read one
+        // adjacency: VA.nodeAdjacentParts.
+        eq(VA.topologyIndex(TOPO).nodes.arm_tip.parts, ["arm"]);
+        var pane = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "node", id: "arm_tip" } }));
+        });
+        var where = pane.querySelector("div.detail__where").textContent;
+        eq(where, "on arm ⇔ " + VA.CLEARANCE_SIDE_LABEL);
+        // Side for side, in order, against the card the hover opens.
+        var card = VA.nodeCard(TOPO, "arm_tip", TOPOCROPS);
+        eq(where, "on " + card.sides.map(function (side) {
+          return side.part === null ? VA.CLEARANCE_SIDE_LABEL : side.part;
+        }).join(" ⇔ "));
+        // And the leader sentence states the RULE only: it used to re-list the
+        // same sides two lines below them, with a different separator.
+        var rule = all(pane, "p.detail__crop-reason")[0].textContent;
+        has(rule, "A component boundary");
+        eq(rule.indexOf(VA.CLEARANCE_SIDE_LABEL), -1);
+        eq(rule.indexOf("arm"), -1);
+      });
+
     await test("every node row gets a dot and every edge row gets a bar",
       function () {
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
@@ -7229,6 +7283,58 @@
               "crops.json against the main checkout's data/");
             ok(clearances > 0, "no live node sits against a clearance, so the " +
               "clearance-side wording went unexercised");
+          });
+
+        await test("[real] every live dot answers the SAME on hover and on " +
+          "click, and no live node declares a part it is not incident on",
+          function () {
+            var divergedFromDeclared = 0, nodes = 0;
+            realTopologies.topologies.forEach(function (topoProj) {
+              (topoProj.nodes || []).forEach(function (node) {
+                nodes += 1;
+                var card = VA.nodeCard(topoProj, node.id, realCrops);
+                var sideIds = card.sides.map(function (side) {
+                  return side.part === null ? VA.CLEARANCE_SIDE_LABEL : side.part;
+                });
+                var pane = render(function (r) {
+                  VA.renderTopoDetail(r, {
+                    topoProj: topoProj, study: null, crops: realCrops,
+                    layoutMode: "topology", detailImage: null,
+                    selection: { kind: "node", id: node.id },
+                    onSelect: function () {},
+                  });
+                });
+                eq(pane.querySelector("div.detail__where").textContent,
+                  "on " + sideIds.join(" ⇔ "),
+                  topoProj.id + "/" + node.id + ": the hover card and the " +
+                  "preview pane disagree about this node's sides");
+
+                // WHY they used to disagree, pinned as data rather than as
+                // prose in a lesson. A declared list cannot name a CLEARANCE
+                // (not a part), which is an honest derivation difference and
+                // is every divergence in today's data. A declared part that no
+                // incident edge carries would be a different thing entirely --
+                // an authoring error in the topology document, which printing
+                // the derived sides would HIDE -- so it is asserted away here
+                // rather than assumed.
+                (node.parts || []).forEach(function (part) {
+                  ok(sideIds.indexOf(part) !== -1,
+                    topoProj.id + "/" + node.id + " declares part `" + part +
+                    "`, which no edge incident on it carries: an authoring " +
+                    "error in the topology document, not a display bug");
+                });
+                if ((node.parts || []).join("|") !== sideIds.join("|")) {
+                  divergedFromDeclared += 1;
+                }
+              });
+            });
+            // Vacuity guard, and the number the handoff was filed over: with
+            // declared == derived everywhere, the pane could still be printing
+            // `node.parts` and this test would pass.
+            ok(divergedFromDeclared > 0, "no live node's declared parts differ " +
+              "from its derived sides, so the divergence this test exists for " +
+              "went unexercised");
+            ok(nodes > 0, "no live nodes at all — rebuild topologies.json");
           });
 
         await test("[real] a live bar's card is the same card its grid trigger " +

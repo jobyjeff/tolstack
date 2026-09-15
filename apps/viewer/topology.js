@@ -1769,6 +1769,22 @@
   // it is named rather than skipped -- and named in the grid's own words.
   VA.CLEARANCE_SIDE_LABEL = "a clearance";
 
+  // The same sides, ID-form: the words a surface that has no room for a part's
+  // prose name prints for a node's sides. The node CARD labels each side with
+  // the part's own component-card title, because it pairs the label with that
+  // part's thumbnail; the grid's merged cell and the preview pane print the
+  // part id instead (VA.GAP_COMPONENT_LABEL's own reasoning -- a live part
+  // name runs to eighty characters). Two label styles, ONE derivation: both
+  // read VA.nodeAdjacentParts, so the surfaces cannot disagree about WHICH
+  // sides a node has -- which is exactly what they used to do (handoff
+  // surfaces_that_state_something_false: the pane printed the node's authored
+  // `parts` here and 10 of the 46 live nodes disagreed with their own card).
+  VA.nodeSideIds = function (topoProj, nodeId) {
+    return (VA.nodeAdjacentParts(topoProj)[nodeId] || []).map(function (part) {
+      return part === null ? VA.CLEARANCE_SIDE_LABEL : part;
+    });
+  };
+
   // The node card (viewer_dag_hover_cards), for the DAG's own dots: a node is
   // an INTERFACE, so what a reader wants on hover is which parts meet there --
   // exactly what the preview pane already says, card-form, plus each adjacent
