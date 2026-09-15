@@ -821,11 +821,26 @@
   //          them.
   //   t      the eased fraction, for a view that needs it directly.
   //
+  // Its KEY SET is the target's, in every one of `byRow`, `nodes` and
+  // `edges`, at every `e` -- and "shaped exactly like VA.rowPositions'
+  // output" above is that claim, not a loose one. It used to carry over any
+  // node or edge the outgoing store had and the target does not, which made
+  // a settled store a UNION rather than the target: inert, because both
+  // geometry passes iterate the LAYOUT's rows and look positions up by id,
+  // but it compounded across an interrupted respine (VA.lastTopoRender's
+  // store is this one, and the animator reads it back as `from`), so a later
+  // tween could interpolate from a stale key the current layout has no row
+  // for. The rows a transition drops are drawn by the ghost, from the DOM the
+  // outgoing paint already produced -- never from this store
+  // (ISSUE_20260915_a_settled_tween_store_is_not_the_target_store_it_keeps_
+  // the_outgoing_sides_keys).
+  //
   // Only y is interpolated, and that is a real limit rather than an omission:
   // x is a function of the layout's COLUMN INDEX (VA.railX over row.column)
-  // and a rail is not a keyed row, so sliding a dot's x per element would
-  // walk it off the rail it sits on. The horizontal change is absorbed as a
-  // whole-block slide instead -- VA.respineShift below.
+  // and a rail is not a keyed row, so there is nothing to pair the two
+  // serialisations' rails on element by element. The horizontal change is
+  // absorbed as an interpolation of the drawn layout instead -- the column
+  // count and the pane width, VA.respineX below.
   VA.tweenPositions = function (from, to, e) {
     if (!from || !to) return to || from || null;
     var out = {
@@ -879,9 +894,6 @@
         ? to.nodes[id]
         : lerp(from.nodes[id], to.nodes[id], e);
     });
-    Object.keys(from.nodes).forEach(function (id) {
-      if (out.nodes[id] === undefined) out.nodes[id] = from.nodes[id];
-    });
 
     Object.keys(to.edges).forEach(function (id) {
       var b = to.edges[id];
@@ -891,9 +903,6 @@
         y: lerp(a.y, b.y, e), length: lerp(a.length, b.length, e),
         floored: flooredDuring(a.floored, b.floored, e),
       } : b;
-    });
-    Object.keys(from.edges).forEach(function (id) {
-      if (out.edges[id] === undefined) out.edges[id] = from.edges[id];
     });
 
     return out;
@@ -909,26 +918,70 @@
     return a === undefined ? 1 : a;
   };
 
-  // The horizontal part of a respine, as ONE offset for the whole pane.
+  // The horizontal part of a respine: an interpolation of the DRAWN LAYOUT,
+  // not a slide of the finished picture.
   //
-  // This is what the store interpolation cannot express. A column index is a
-  // claim about the graph and the two serialisations disagree about how many
-  // columns there are (the pitch system's walk needs ten; any one study's
-  // chain is linear and needs one), so every x on the page moves -- but a
-  // rail is not a keyed row, and interpolating the marks' x while their rails
-  // stayed on the target's columns would draw dots floating beside the lines
-  // they sit on. Both serialisations are right-justified against the jog zone
-  // (viewer_dag_spine_layout), so the whole drawn block is slid instead: the
-  // first frame puts the grid's left edge exactly where the outgoing frame
-  // had it, and the slide settles at zero. A CSS transform carries it, which
-  // means no geometry reads it and the settled DOM has none of it.
+  // This is what the keyed store cannot express. A column index is a claim
+  // about the graph, the two serialisations disagree about how many columns
+  // there are (the pitch system's walk needs ten; any one study's chain is
+  // linear and needs one), and a rail belongs to a COLUMN rather than to an
+  // element -- so there is nothing to pair the two frames' rails on the way
+  // the store pairs their rows.
   //
-  // `fromWidth`/`toWidth` are the two frames' SVG widths (VA.leaderGeometry's
-  // `width` -- rails plus jog zone, i.e. the grid's own left edge).
-  VA.respineShift = function (fromWidth, toWidth, e) {
-    if (!(fromWidth > 0) || !(toWidth > 0)) return 0;
-    return (1 - e) * (fromWidth - toWidth);
+  // What the two frames DO agree about is depth from the spine: both are
+  // right-justified (viewer_dag_spine_layout), so the mainline is the last
+  // column of either and a fork sits the same number of columns in from it on
+  // both sides. So the thing to interpolate is the COLUMN COUNT. At `e` the
+  // frame is drawn with lerp(fromColumns, toColumns) columns' worth of
+  // spread, which puts every surviving rail exactly where the outgoing frame
+  // drew it at e = 0 and exactly where a fresh render draws it at e = 1, and
+  // UNFOLDS the columns a respine adds out of the spine rather than sliding
+  // them in from a place they never were.
+  //
+  //   columnShift  how many columns' worth of spread this frame is short of
+  //                the target's (negative when the target is the narrower
+  //                one). A drawn column index is max(0, column -
+  //                columnShift), and the clamp is what collapses a
+  //                not-yet-unfolded column onto the leftmost rail instead of
+  //                drawing it left of the pane.
+  //   width        the SVG's own width this frame, which is the grid's left
+  //                edge: lerp(fromWidth, toWidth). The jog zone's width is a
+  //                function of the LEADER count, which the two serialisations
+  //                also disagree about, so it is interpolated as a width
+  //                rather than re-derived from the columns.
+  //
+  // It replaced a whole-block CSS translate right-anchored on the outgoing
+  // frame's grid seam, and the reason that could not work generalises: the
+  // pane's left edge is fixed, each frame is right-justified against its own
+  // grid, and the two grids are hundreds of pixels apart -- so anchoring a
+  // WIDER incoming block on the outgoing one's right edge necessarily puts
+  // its left part outside the pane, where `.tv__hscroll`'s overflow-x clips
+  // it. On the real pitch_system the first frame of a deselect drew all 45
+  // of the walk's marks left of x = 0, and the DAG appeared to unfold from
+  // behind the pane's edge
+  // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_block_slides).
+  //
+  // `from` is the previous paint's own `{ columns, width }` -- fractional
+  // mid-flight, because VA.lastTopoRender records what a frame DREW, so a
+  // respine interrupting a respine continues from the picture on screen.
+  VA.respineX = function (layout, plan, metrics, from, e, zoneScale) {
+    metrics = metrics || VA.RAIL_METRICS;
+    if (!from || !(from.columns > 0) || !(from.width > 0)) return null;
+    var zone = zoneMetrics(layout, plan, metrics, zoneScale);
+    if (!(zone.columns > 0) || !(zone.width > 0)) return null;
+    var t = !(e > 0) ? 0 : (e > 1 ? 1 : e);
+    return {
+      columnShift: (1 - t) * (zone.columns - from.columns),
+      width: zone.width + (1 - t) * (from.width - zone.width),
+    };
   };
+
+  // A drawn column's x. Total, so every geometry site reads one function
+  // whether a transition is running or not -- a rail, its marks and either
+  // end of a link that touches it cannot end up drawn at different x's.
+  function columnX(column, metrics, x) {
+    return VA.railX(x ? Math.max(0, column - x.columnShift) : column, metrics);
+  }
 
   // --- the spine on the right (viewer_dag_spine_layout, 2026-09-14) -------
   //
@@ -1005,17 +1058,22 @@
   // mark carries its own y1/y2 (its slot's extent, inset 1px) and `floored`,
   // so the view draws the bar the store says rather than re-deriving
   // ±rowHeight/2 — the one place that arithmetic used to live.
-  VA.railGeometry = function (layout, metrics, positions) {
+  //
+  // `options.x` is VA.respineX's, and only a transition frame has one: the
+  // drawn columns are spread as the interpolated column count says rather
+  // than as this layout's own.
+  VA.railGeometry = function (layout, metrics, positions, options) {
     metrics = metrics || VA.RAIL_METRICS;
     positions = positions || VA.rowPositions(layout, null, "uniform", metrics);
+    var x = (options && options.x) || null;
     var rows = (layout && layout.rows) || [];
     var slotY = function (row) {
       var slot = positions.byRow[row];
       return slot ? slot.y : VA.railY(row, metrics);
     };
     var out = {
-      width: VA.railX((layout && layout.columns ? layout.columns - 1 : 0), metrics)
-        + metrics.left,
+      width: columnX((layout && layout.columns ? layout.columns - 1 : 0),
+                     metrics, x) + metrics.left,
       height: positions.height,
       rails: [],
       marks: [],
@@ -1032,7 +1090,7 @@
       var forked = startRow && startRow.column !== rail.column;
       out.rails.push({
         column: rail.column,
-        x: VA.railX(rail.column, metrics),
+        x: columnX(rail.column, metrics, x),
         y1: slotY(rail.start) + (forked ? metrics.rowHeight * 0.5 : 0),
         y2: slotY(rail.end),
         forked: !!forked,
@@ -1047,7 +1105,7 @@
         id: row.id,
         column: row.column,
         branch: !!row.branch,
-        x: VA.railX(row.column, metrics),
+        x: columnX(row.column, metrics, x),
         y: slotY(row.row),
       };
       if (row.kind === "edge" && slot) {
@@ -1064,8 +1122,8 @@
         row: link.row,
         toRow: link.to_row,
         d: link.kind === "branch"
-          ? branchPath(link, metrics, slotY)
-          : closePath(link, metrics, slotY),
+          ? branchPath(link, metrics, slotY, x)
+          : closePath(link, metrics, slotY, x),
       });
     });
     return out;
@@ -1075,9 +1133,9 @@
   // into the rail that starts there. Half a row tall, like git log's — and a
   // fork is a node, whose slot is rowHeight in every length mode, so the
   // curve's shape constants stay constants.
-  function branchPath(link, metrics, slotY) {
-    var x1 = VA.railX(link.from_column, metrics);
-    var x2 = VA.railX(link.to_column, metrics);
+  function branchPath(link, metrics, slotY, x) {
+    var x1 = columnX(link.from_column, metrics, x);
+    var x2 = columnX(link.to_column, metrics, x);
     var y1 = slotY(link.row);
     var y2 = y1 + metrics.rowHeight * 0.5;
     return "M " + x1 + " " + y1 +
@@ -1090,9 +1148,9 @@
   // lands on, which the walk emitted earlier and therefore higher. Long on
   // purpose — a grounded loop that spans half the mechanism should look like it
   // does, not be hidden behind a short stub.
-  function closePath(link, metrics, slotY) {
-    var x1 = VA.railX(link.from_column, metrics);
-    var x2 = VA.railX(link.to_column, metrics);
+  function closePath(link, metrics, slotY, x) {
+    var x1 = columnX(link.from_column, metrics, x);
+    var x2 = columnX(link.to_column, metrics, x);
     var y1 = slotY(link.row);
     var y2 = slotY(link.to_row);
     var lift = Math.min(metrics.rowHeight * 1.5, Math.abs(y1 - y2) / 2);
@@ -1328,20 +1386,28 @@
     positions = positions || VA.rowPositions(layout, null, "uniform", metrics);
     options = options || {};
     var angled = options.style === "angled";
-    var columns = (layout && layout.columns) || 1;
-    var zoneLeft = VA.railX(columns - 1, metrics) + metrics.left;
+    // VA.respineX's, on a transition frame only. A leader crosses the whole
+    // pane, so both its ends move: the node end rides the interpolated
+    // columns, the same x railGeometry's marks are drawn at, and the grid end
+    // rides the interpolated width. The zone between them stretches, which is
+    // what keeps the lanes inside it at every frame.
+    var x = options.x || null;
+    var zone = zoneMetrics(layout, plan, metrics, options.zoneScale);
+    var columns = zone.columns;
     var count = plan.leaders.length;
-    // The zone at its natural width, and then however far the reader has
-    // dragged it open (viewer_leader_grid_legibility): the pad and the lane
-    // pitch scale together, so the lanes stay evenly spread across whatever
-    // width the zone now has. Jeff: "Make the width of the area/column with
-    // the jogged leader lines resizable so that they can be spread out more."
-    var naturalZone = metrics.leaderPad * 2 +
-      (count ? (count - 1) * metrics.leaderLane : 0);
-    var scale = VA.clampJogZoneScale(options.zoneScale === undefined ? 1 : options.zoneScale);
+    var naturalZone = zone.naturalZone;
+    var zoneLeft = columnX(columns - 1, metrics, x) + metrics.left;
+    var width = x ? x.width : zone.width;
+    // The zone at whatever width it has THIS frame -- the reader's own drag
+    // at rest (viewer_leader_grid_legibility), and the stretch between the
+    // two serialisations' zones mid-respine. The pad and the lane pitch scale
+    // together either way, so the lanes stay evenly spread across it and a
+    // settled frame is the reader's preference exactly. Jeff: "Make the width
+    // of the area/column with the jogged leader lines resizable so that they
+    // can be spread out more."
+    var scale = naturalZone > 0 ? (width - zoneLeft) / naturalZone : zone.scale;
     var pad = metrics.leaderPad * scale;
     var lane = metrics.leaderLane * scale;
-    var width = zoneLeft + naturalZone * scale;
 
     var rowsByLayoutRow = {};
     ((layout && layout.rows) || []).forEach(function (row) {
@@ -1351,7 +1417,7 @@
     var leaders = plan.leaders.map(function (leader, i) {
       var row = rowsByLayoutRow[leader.layoutRow] || { column: 0, branch: false };
       var dotR = row.branch ? metrics.branchDot : metrics.dot;
-      var x1 = VA.railX(row.column, metrics) + dotR + 1.5;
+      var x1 = columnX(row.column, metrics, x) + dotR + 1.5;
       var y1 = positions.nodes[leader.id] !== undefined
         ? positions.nodes[leader.id]
         : VA.railY(leader.layoutRow, metrics);
@@ -1385,11 +1451,30 @@
 
     return {
       zoneLeft: zoneLeft, width: width, naturalZone: naturalZone,
-      zoneScale: scale, style: angled ? "angled" : "jogged",
+      // The reader's own preference, clamped -- not the stretch a transition
+      // frame's lanes are spread by, which is `width` minus `zoneLeft`.
+      zoneScale: zone.scale, style: angled ? "angled" : "jogged",
       leaders: leaders,
       bands: bandGeometry(leaders, plan, width, positions.height || 0),
     };
   };
+
+  // The jog zone, and therefore the width the SVG hands the grid: ONE owner
+  // of the sum, because VA.leaderGeometry above reports it and VA.respineX
+  // interpolates it, and a second copy of it is exactly the drift this repo
+  // calls its most-repeated defect. The rails end at the spine -- the last
+  // column, since viewer_dag_spine_layout mirrored the allocation -- and the
+  // zone runs from there to the grid, (leaders x lane pitch) wide.
+  function zoneMetrics(layout, plan, metrics, zoneScale) {
+    var columns = (layout && layout.columns) || 1;
+    var count = (plan && plan.leaders) ? plan.leaders.length : 0;
+    var zoneLeft = VA.railX(columns - 1, metrics) + metrics.left;
+    var naturalZone = metrics.leaderPad * 2 +
+      (count ? (count - 1) * metrics.leaderLane : 0);
+    var scale = VA.clampJogZoneScale(zoneScale === undefined ? 1 : zoneScale);
+    return { columns: columns, zoneLeft: zoneLeft, naturalZone: naturalZone,
+             scale: scale, width: zoneLeft + naturalZone * scale };
+  }
 
   // --- the alternating bands (viewer_leader_grid_legibility, 2026-09-14) ---
   //

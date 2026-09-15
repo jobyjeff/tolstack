@@ -216,6 +216,16 @@
     if (tween && tween.positions) {
       positions = VA.tweenPositions(tween.positions, positions, tween.e);
     }
+    // The horizontal half of the same transition, which no keyed store can
+    // express (VA.respineX says why): the frame is drawn with the
+    // interpolated column count and the interpolated pane width, so a
+    // surviving rail starts where the outgoing frame drew it and a column
+    // this respine ADDS unfolds out of the spine rather than sliding in from
+    // a place it never was -- off the pane's left edge, in the grow
+    // direction. Both geometry passes take it; nothing else changes.
+    var xTween = tween
+      ? VA.respineX(layout, plan, M, tween, tween.e, ctx.jogZoneScale)
+      : null;
     // One element's opacity in a tweened frame: an element the transition is
     // ADDING fades in at its settled position instead of appearing whole, and
     // an element it drops is not in this layout at all -- the outgoing frame's
@@ -225,7 +235,7 @@
       if (a < 1) node.style.opacity = String(a);
       return node;
     };
-    var geometry = VA.railGeometry(layout, M, positions);
+    var geometry = VA.railGeometry(layout, M, positions, { x: xTween });
     // The two display preferences this pane owns beyond the store
     // (viewer_leader_grid_legibility): which style the leaders are drawn in,
     // and how far the reader has dragged the jog zone open. Neither moves a
@@ -234,18 +244,24 @@
     var leaderGeo = VA.leaderGeometry(layout, plan, M, positions, {
       style: ctx.leaderStyle,
       zoneScale: ctx.jogZoneScale,
+      x: xTween,
     });
     // The store this paint actually drew from, kept for the one render after
     // it: the browser tier re-derives the drawn geometry from the same budget
     // the render measured rather than guessing at a viewport, and the staged
     // study-respine animation needs a store that outlives a single paint to
     // tween between two of them.
-    // `width` is the SVG's own width, which is the grid's left edge -- the
-    // respine's horizontal anchor (VA.respineShift). `tweening` says whether
-    // this paint was a transition frame: everything else here describes the
-    // store the paint DREW FROM either way, which is what both readers want.
+    // `columns` and `width` are the horizontal pair a respine interpolates
+    // (VA.respineX): the column count this frame was drawn with -- fractional
+    // mid-transition, because what the next tween has to continue from is the
+    // picture on screen and not the serialisation behind it -- and the SVG's
+    // own width, which is the grid's left edge. `tweening` says whether this
+    // paint was a transition frame: everything else here describes the store
+    // the paint DREW FROM either way, which is what both readers want.
     VA.lastTopoRender = { topologyId: topoProj.id, mode: positions.mode,
                           fit: fit, positions: positions,
+                          columns: layout.columns -
+                            (xTween ? xTween.columnShift : 0),
                           width: leaderGeo.width, tweening: !!tween };
     var index = VA.topologyIndex(topoProj);
     var chain = VA.chainIndex(study);
@@ -281,18 +297,6 @@
     if (tween) rows.style.opacity = String(tween.e);
     body.appendChild(rows);
     hscroll.appendChild(body);
-    // The respine's horizontal slide: the column count differs between the
-    // two serialisations and no keyed store can express that (VA.respineShift
-    // says why), so the drawn block is offset as one. A transform, so it
-    // changes no geometry and no measurement -- and a settled frame, which is
-    // what every correspondence check runs on, carries none of it.
-    if (tween) {
-      var shift = VA.respineShift(tween.width, leaderGeo.width, tween.e);
-      if (shift) {
-        head.style.transform = "translateX(" + shift + "px)";
-        body.style.transform = "translateX(" + shift + "px)";
-      }
-    }
     root.appendChild(hscroll);
     // The outgoing paint, fading out underneath: the rows a study re-lay
     // DROPS are not in the target serialisation at all, so there is nothing
@@ -320,10 +324,10 @@
   //         rather than from inside it.
   //   ctx   the target state's render context, exactly as renderTopoPane
   //         takes it.
-  //   from  { positions, width } -- the store the previous paint drew from
-  //         and the SVG width it drew (VA.lastTopoRender carries both). No
-  //         `from` means there is nothing to animate between; the pane just
-  //         renders.
+  //   from  { positions, columns, width } -- the store the previous paint
+  //         drew from, and the column count and pane width it drew
+  //         (VA.lastTopoRender carries all three). No `from` means there is
+  //         nothing to animate between; the pane just renders.
   //   opts  the clock, the motion preference and the error sink, injected so
   //         the fast tier can drive a whole transition frame by frame with no
   //         browser: { raf, now, duration, reduced, onError }.
@@ -367,8 +371,8 @@
       if (settling) {
         handle.done = true;
       } else {
-        ctx.tween = { positions: previous, width: from.width,
-                      e: VA.respineEase(t), ghost: ghost };
+        ctx.tween = { positions: previous, columns: from.columns,
+                      width: from.width, e: VA.respineEase(t), ghost: ghost };
       }
       try {
         VA.renderTopoPane(root, ctx);
@@ -650,6 +654,10 @@
     // 1. the rails themselves: continuous, neutral, alternating shade by column
     //    parity so two rails crossing can still be told apart. NOT a categorical
     //    palette — see the page's legend for why there isn't one.
+    //    Mid-respine a rail needs no fade of its own: a column the
+    //    transition is adding is drawn collapsed onto the spine at e = 0 and
+    //    unfolds out of it (VA.respineX), so there is nothing to appear from
+    //    nowhere. The marks on it are keyed and the store fades those.
     geometry.rails.forEach(function (rail) {
       svg.appendChild(VA.svg("line",
         "rail rail--" + (rail.column % 2 ? "odd" : "even"),

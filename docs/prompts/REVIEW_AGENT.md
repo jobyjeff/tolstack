@@ -2297,13 +2297,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       walk_is_unwitnessed_in_every_tier.md`.
 - [ ] **An interpolator claimed to be the identity at its far end — check the
       KEY SETS, not the values at the shared keys.** Same handoff.
-      `VA.tweenPositions(from, to, 1)` is tested by
-      *"a respine at e = 1 is the target store exactly"*, which iterates
-      `Object.keys(to.nodes)` / `to.edges` and compares values, and pairs
-      `byRow`'s key set -- so it cannot see that the function deliberately
-      unions in every node and edge the OUTGOING store had (two dropped
-      interfaces, at their outgoing y, measured). Inert today only because
-      both geometry passes iterate the layout rather than the store. The
+      `VA.tweenPositions(from, to, 1)` was tested by
+      *"a respine at e = 1 is the target store exactly"*, which iterated
+      `Object.keys(to.nodes)` / `to.edges` and compared values, and paired
+      `byRow`'s key set -- so it could not see that the function unioned in
+      every node and edge the OUTGOING store had (two dropped interfaces, at
+      their outgoing y, measured). Inert at the time only because both
+      geometry passes iterate the layout rather than the store; fixed
+      2026-09-15 (`respine_tween_fidelity`), and the key sets are now pinned
+      in both directions with the leaking direction named as the witness. The
       general form: when a test's name is "X equals Y exactly", the assertion
       has to be over `keys(X) ∪ keys(Y)`; iterating one side's keys tests
       containment and reads as equality.
