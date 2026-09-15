@@ -7485,15 +7485,22 @@
         // (handoff annotate_affordances_flyout_and_mesh_gating.) Two installed
         // meshes and one alias entry at 2026-09-14, against 29 topology parts:
         // the affordance that used to render on every untraced edge dead-ended
-        // in the annotator's empty state for all but one of them. The LAST of
-        // these three -- the per-part pairing -- is written COUNT-FREE on
-        // purpose: a sibling repo is growing the mesh set, and the rule
-        // ("offer it exactly where a mesh resolves") has to hold at any mesh
-        // count without a test edit. The two edge-specific ones above it are
-        // NOT: they name `gas_spring_mount_213668_002` / the alias target
-        // `machined_213668` and assert `hub` has no mesh, so installing a hub
-        // mesh reddens the second for a correct reason (measured in review;
-        // ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows).
+        // in the annotator's empty state for all but one of them.
+        //
+        // ALL THREE are written COUNT-FREE and NAME-FREE, and that is the whole
+        // discipline of this block: a sibling repo is actively growing the mesh
+        // set, so the rule ("offer it exactly where a mesh resolves") has to
+        // hold at any mesh count without a test edit. The two edge-specific
+        // ones named `gas_spring_mount_213668_002` / the alias target
+        // `machined_213668` and asserted `hub` has no mesh, so installing a hub
+        // mesh reddened one of them for a correct reason -- the shape
+        // docs/prompts/REVIEW_AGENT.md logs as "a demonstration that fails for
+        // an unrelated reason is how a guard gets deleted" (measured in review;
+        // ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows,
+        // fixed by projection_field_guard_rows 2026-09-15). They now pick their
+        // edges BY BEHAVIOUR -- every live edge with a gap to close, split on
+        // whether its part's mesh resolves -- with a non-vacuity witness on
+        // each side, so neither can pass on an empty set.
 
         function detailFor(topoProj, edgeId, studyId) {
           return render(function (r) {
@@ -7506,42 +7513,81 @@
           });
         }
 
-        await test("[real] an untraced pitch_system edge whose part HAS a mesh " +
-          "offers a working annotate-this link", function () {
-            var edge = VA.topologyIndex(livePitch).edges.gas_spring_mount_position;
-            eq(edge.confidence, "untraced");
-            eq(edge.part, "gas_spring_mount_213668_002");
-            // The alias table did the resolving: the mesh is installed under a
-            // different part_id entirely (docs/topologies/part_mesh_aliases.json).
-            ok(VA.partHasMesh(livePitch, edge.part), "the gas spring mount has a mesh");
-            eq(VA.partMeshFact(livePitch, edge.part).part_id, "machined_213668");
-            var root = detailFor(livePitch, "gas_spring_mount_position",
-              "pitch_system_gas_spring_branch");
-            var link = root.querySelector("a.detail__annotate-link");
-            if (!link) throw new Error("expected an annotate-this link for a meshed untraced edge");
-            var href = link.getAttribute("href");
-            has(href, "topology=pitch_system");
-            has(href, "edge=gas_spring_mount_position");
-            has(href, "study=pitch_system_gas_spring_branch");
-            has(href, "isolate=gas_spring_mount_213668_002");
+        // Every live edge that has a gap to close (VA.needsAnnotation), split on
+        // whether its own part's mesh resolves -- which is the ONLY thing the
+        // affordance is allowed to depend on. Each entry carries a study that
+        // selects the edge where one does, because that is the context the pane
+        // is really rendered in; an edge no study reaches renders without one.
+        function annotatableEdges(meshed) {
+          var out = [];
+          realTopologies.topologies.forEach(function (topoProj) {
+            (topoProj.edges || []).forEach(function (edge) {
+              if (!VA.needsAnnotation(edge.confidence)) return;
+              if (VA.partHasMesh(topoProj, edge.part) !== meshed) return;
+              out.push({
+                topoProj: topoProj, edge: edge,
+                study: (topoProj.studies || []).filter(function (s) {
+                  return (s.selection || []).indexOf(edge.id) !== -1;
+                })[0] || null,
+              });
+            });
+          });
+          return out;
+        }
+
+        await test("[real] every untraced edge whose part HAS a mesh offers a " +
+          "working annotate-this link, wherever the mesh set has reached",
+          function () {
+            var candidates = annotatableEdges(true);
+            ok(candidates.length > 0, "no live edge with a gap to close has a " +
+              "meshed part, so the OFFERING half of this rule went unexercised " +
+              "-- rebuild the topology projection against the main checkout's " +
+              "data/meshes");
+            candidates.forEach(function (c) {
+              var where = c.topoProj.id + "/" + c.edge.id;
+              var root = detailFor(c.topoProj, c.edge.id, c.study && c.study.id);
+              var link = root.querySelector("a.detail__annotate-link");
+              if (!link) throw new Error(where + ": expected an annotate-this " +
+                "link for an edge with a gap to close whose part has a mesh");
+              // Every param is read off the edge itself -- nothing is typed
+              // here, so the assertion survives any mesh set.
+              var href = link.getAttribute("href");
+              has(href, "topology=" + c.topoProj.id, where);
+              has(href, "edge=" + c.edge.id, where);
+              has(href, "isolate=" + c.edge.part, where);
+              if (c.study) has(href, "study=" + c.study.id, where);
+            });
+            // The alias table is why a mesh resolves for a part whose id is not
+            // the mesh's: SOME live part's mesh_part_id differs from its own id.
+            // That is the fact the table exists for and the one that survives
+            // any mesh count (the shipped table itself is pinned by
+            // tests/test_part_mesh_aliases.py and apps/annotate/'s [real] tier).
+            var aliased = topoParts(realTopologies).filter(function (part) {
+              return part.mesh.installed && part.mesh.part_id !== part.id;
+            });
+            ok(aliased.length > 0, "no live part's mesh is installed under an " +
+              "id other than its own, so nothing here exercises the alias " +
+              "table docs/topologies/part_mesh_aliases.json exists for");
           });
 
-        await test("[real] an untraced edge whose part has NO mesh offers " +
+        await test("[real] every untraced edge whose part has NO mesh offers " +
           "nothing at all -- not a disabled control, not an explanation",
           function () {
-            var edge = VA.topologyIndex(livePitch).edges.hub_lower_to_top_bearing_flange;
-            eq(edge.confidence, "untraced");
-            eq(edge.part, "hub");
-            eq(VA.partHasMesh(livePitch, "hub"), false);
-            var root = detailFor(livePitch, "hub_lower_to_top_bearing_flange",
-              "pitch_system_blade_angle_worst");
-            eq(all(root, "a.detail__annotate-link").length, 0);
-            eq(all(root, "button.detail__annotate-btn").length, 0);
-            // The row is still on the gap list, and the pane still says so --
-            // what went away is the dead link, not the honesty about the gap.
-            has(root.textContent, "No document backs this number");
-            // And nothing on the pane mentions a 3D model the reader cannot open.
-            eq(/3D/.test(root.textContent), false);
+            var candidates = annotatableEdges(false);
+            ok(candidates.length > 0, "every live edge with a gap to close has " +
+              "a meshed part, so the WITHHOLDING half of this rule went " +
+              "unexercised");
+            candidates.forEach(function (c) {
+              var where = c.topoProj.id + "/" + c.edge.id;
+              var root = detailFor(c.topoProj, c.edge.id, c.study && c.study.id);
+              eq(all(root, "a.detail__annotate-link").length, 0, where);
+              eq(all(root, "button.detail__annotate-btn").length, 0, where);
+              // The row is still on the gap list, and the pane still says so --
+              // what went away is the dead link, not the honesty about the gap.
+              has(root.textContent, "No document backs this number", where);
+              // And nothing on the pane mentions a 3D model the reader cannot open.
+              eq(/3D/.test(root.textContent), false, where);
+            });
           });
 
         await test("[real] across every live topology, a part's 3D affordance " +
@@ -7710,6 +7756,9 @@
         function topoStudies(p) {
           return flat(topoRows(p).map(function (t) { return t.studies; }));
         }
+        function topoParts(p) {
+          return flat(topoRows(p).map(function (t) { return t.parts; }));
+        }
         function topoLayouts(p) {
           return topoRows(p).map(function (t) { return t.layout; }).concat(
             topoStudies(p).map(function (s) { return s.layout; }).filter(Boolean));
@@ -7736,8 +7785,7 @@
           { name: "topologies[].nodes[]", collect: topoNodes },
           { name: "topologies[].edges[]", collect: topoEdges },
           { name: "topologies[].edges[].dimension", collect: topoDimensions },
-          { name: "topologies[].parts[]", collect: function (p) {
-            return flat(topoRows(p).map(function (t) { return t.parts; })); } },
+          { name: "topologies[].parts[]", collect: topoParts },
           { name: "layout (topology and study)", collect: topoLayouts },
           { name: "layout.rows[]", collect: topoLayoutRows },
           { name: "layout.links[]", collect: topoLinks },
@@ -7837,35 +7885,78 @@
             values: function (p) {
               return topoEdges(p).map(function (e) { return e.transform.kind; });
             } },
+          { field: "parts[].mesh.installed",
+            branch: "VA.partHasMesh tests `=== true`, and EVERY 3D affordance " +
+              "hangs off it — the component card's view-in-3D link and an " +
+              "untraced edge's annotate-this link. Its false arm shows NOTHING " +
+              "by design, so any value that is not a boolean lands in that arm " +
+              "silently: an ABSENT mesh block (a projection built before the " +
+              "field existed) reads exactly like a part with no model, and only " +
+              "a rebuild tells the two apart. Read RAW here rather than through " +
+              "VA.partMeshFact, which maps absent to false and is the thing " +
+              "that makes the state silent on the page",
+            known: function (v) { return v === true || v === false; },
+            values: function (p) {
+              return topoParts(p).map(function (part) {
+                return part.mesh ? part.mesh.installed : undefined;
+              });
+            } },
         ];
+
+        // The reporting loop, lifted out of the test below so the bite test
+        // can replay it. It has TWO arms and they catch different things: an
+        // unknown value, and a collector that finds NOTHING. The second arm is
+        // the one `parts[].mesh.installed` was enrolled for -- a boolean's own
+        // two-value set cannot notice an absent block -- and until it was
+        // replayed here it was the one arm nothing exercised.
+        function unexplainedValues(guards, projection) {
+          var unexplained = [];
+          guards.forEach(function (guard) {
+            var values = distinct(guard.values(projection));
+            if (!values.length) {
+              unexplained.push(guard.field + ": no live value found — either " +
+                "the collector is wrong or the builder stopped writing it");
+              return;
+            }
+            values.forEach(function (value) {
+              if (!guard.known(value)) {
+                unexplained.push(guard.field + " = " + JSON.stringify(value) +
+                  " is in the live projection and the page has no branch for " +
+                  "it. Branch table: " + guard.branch);
+              }
+            });
+          });
+          return unexplained;
+        }
 
         await test("[real] no live topology value is one the page cannot render",
           function () {
-            var unexplained = [];
-            TOPO_VALUE_GUARDS.forEach(function (guard) {
-              var values = distinct(guard.values(realTopologies));
-              if (!values.length) {
-                unexplained.push(guard.field + ": no live value found — either " +
-                  "the collector is wrong or the builder stopped writing it");
-                return;
-              }
-              values.forEach(function (value) {
-                if (!guard.known(value)) {
-                  unexplained.push(guard.field + " = " + JSON.stringify(value) +
-                    " is in the live projection and the page has no branch for " +
-                    "it. Branch table: " + guard.branch);
-                }
-              });
-            });
-            eq(unexplained, [], "teach the page these values — or fix the builder");
+            eq(unexplainedValues(TOPO_VALUE_GUARDS, realTopologies), [],
+              "teach the page these values — or fix the builder");
           });
 
         await test("[real] each topology value guard bites on a value nothing " +
-          "explains", function () {
+          "explains, and on finding no value at all", function () {
             var toothless = TOPO_VALUE_GUARDS.filter(function (guard) {
               return guard.known(SENTINEL);
             }).map(function (guard) { return guard.field; });
             eq(toothless, [], "these guards accept any value at all");
+
+            // The second arm, replayed per row: a collector that comes back
+            // empty is REPORTED, not passed over. Replayed against each real
+            // row (its own `field`/`branch`/`known`, collector blinded) rather
+            // than against one synthetic guard, so the claim is about the rows
+            // this file actually ships.
+            TOPO_VALUE_GUARDS.forEach(function (guard) {
+              var report = unexplainedValues([{
+                field: guard.field, branch: guard.branch, known: guard.known,
+                values: function () { return []; },
+              }], realTopologies);
+              eq(report.length, 1, guard.field + ": a blind collector went " +
+                "unreported, so this row cannot notice the builder dropping " +
+                "the field");
+              has(report[0], "no live value found", guard.field);
+            });
           });
       }
 
