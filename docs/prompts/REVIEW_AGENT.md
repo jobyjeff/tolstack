@@ -2246,6 +2246,37 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       grows a parameter — the symptom is a witness reading *some other*
       trigger's box and passing or failing for the wrong reason (it reported
       the grid trigger's 418.5–444.5 for a rail bar until the tail was fixed).
+- [ ] **The deliverable is mutation-tested and the guard the author added on
+      their OWN initiative is not.** New 2026-09-15
+      (`viewer_study_respine_animation`, should-fix). A model tactical sweep:
+      21 one-line reverts, every one observed failing, the list written into
+      the lesson. Five re-run independently in review also fired. The one that
+      **survived all three tiers** was the only line the handoff never asked
+      for -- `state.layoutMode = chainable(studyId) ? "chain" : "topology"`,
+      the author's own answer to "what should a study that REFUSES to sum
+      do?". Mutating it to `"chain"` leaves the fast tier 292/292, `--repo`
+      353/353 and the browser tier 18/18, while the shipped page would caption
+      itself "Showing: study chain" over the whole walk with the toggle
+      disabled. The mechanism is that a mutation list is written from the
+      **deliverables**, so a defensive branch invented while building is
+      exactly what it does not enumerate. So: diff the author's mutation list
+      against their own diff's new conditionals, and mutate every predicate
+      the list does not name. `ISSUE_20260915_a_refusing_study_staying_on_the_
+      walk_is_unwitnessed_in_every_tier.md`.
+- [ ] **An interpolator claimed to be the identity at its far end — check the
+      KEY SETS, not the values at the shared keys.** Same handoff.
+      `VA.tweenPositions(from, to, 1)` is tested by
+      *"a respine at e = 1 is the target store exactly"*, which iterates
+      `Object.keys(to.nodes)` / `to.edges` and compares values, and pairs
+      `byRow`'s key set -- so it cannot see that the function deliberately
+      unions in every node and edge the OUTGOING store had (two dropped
+      interfaces, at their outgoing y, measured). Inert today only because
+      both geometry passes iterate the layout rather than the store. The
+      general form: when a test's name is "X equals Y exactly", the assertion
+      has to be over `keys(X) ∪ keys(Y)`; iterating one side's keys tests
+      containment and reads as equality.
+      `ISSUE_20260915_a_settled_tween_store_is_not_the_target_store_it_keeps_
+      the_outgoing_sides_keys.md`.
 
 ## Architectural errors to check
 
