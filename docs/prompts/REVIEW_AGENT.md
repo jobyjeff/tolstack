@@ -2369,6 +2369,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       endpoints are the easy cases and the interrupt is a third state.
       `ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
       nowhere.md`.
+- [ ] **A handoff's own "confirm the current count before X" instruction is
+      itself a count that may have moved.** New 2026-09-15
+      (`viewer_hygiene_pass`). The handoff staged a table of `dismissCard`
+      definitions/call-counts from an earlier issue and explicitly flagged
+      one cell as possibly stale ("the issue lists a fourth definition;
+      confirm the current count before deleting") -- the author did confirm
+      it (found 4, not the issue's stale 3) and a second number in the same
+      handoff (7 calls) had *also* moved by review time (9, under an
+      unrelated intervening handoff) without anyone flagging it. Neither was
+      wrong in the deliverable; both were re-derived independently in review
+      (`git show <handoff-branch>:<file> | grep`) rather than trusted from
+      the handoff's own prose. General form: when a handoff hands you a
+      table of numbers as its own scoping evidence, treat every cell as
+      needing re-derivation, not just the one the author happened to flag --
+      the flag tells you where the author already knew to look, not where
+      the remaining risk is.
 
 ## Architectural errors to check
 
