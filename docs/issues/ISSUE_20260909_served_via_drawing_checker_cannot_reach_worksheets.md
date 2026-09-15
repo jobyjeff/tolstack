@@ -5,6 +5,7 @@ status: triaged
 area: viewer/storage
 reporter: agent
 strategy: docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md
+found_by: docs/sessions/completed/HANDOFF_20260909_viewer_http_transport.md
 resolution: NOT resolved -- reverted by the 2026-09-11 triage sweep. The reconciliation sweep advanced this to `resolved` because the `handoff:` back-link named a completed handoff; but `viewer_http_transport` is the handoff that FILED this issue ("Filed rather than fixed: a drawing-checker mount change is out of scope for a tolstack-only handoff"), not one that fixed it. The real disposition is the `strategy:` brief below, still pending. The misleading `handoff:` field has been removed so a later sweep does not re-close it; the provenance is in the body.
 ---
 
