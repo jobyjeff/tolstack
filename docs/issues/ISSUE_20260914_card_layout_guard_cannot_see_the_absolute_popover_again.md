@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/browser-tier
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `guard_mutation_witness_tier` moved to completed/; not independently verified.
 ---
 
 # The card-layout guard can no longer see a `position: absolute` popover — the room cap subsumed its witness
