@@ -1,0 +1,234 @@
+{
+  "schema": "joby.tolerance_stack/spec_crop_regions/v0",
+  "title": "Declared crop regions: which rect on a spec-pile sheet a citation is about",
+  "notes": [
+    "A spec-pile citation names a document and a sheet and nothing finer -- the pile is append-only, the filename is the identity, and there is no zone to pin (scripts/build_viewer_crops.py's spec_pile rule). So a fastener card showed a whole photocopied sheet carrying a sixty-four-row table when the citation was about one row of it. Jeff, 2026-09-14: 'Currently datasheet cross refs (for fasteners) just display the entire spec sheet which often has large tables with dozens of rows.' Option B of that session: a registry of declared regions, because a region is reused across stacks and because source_ref stays untouched.",
+    "Declared configuration, never fuzzy matching -- the docs/topologies/part_mesh_aliases.json precedent. Nothing here is found by searching a page: somebody rendered the sheet, looked at it, and recorded the rect with scripts/record_spec_crop_region.py. Each entry's `shows` is its evidence, in the same sense a stack element's source_ref is: a region that claims to be the cited row and is not is a wrong number wearing the right format.",
+    "`rect` is [x0, y0, x1, y1] in PDF points, origin top-left -- the PyMuPDF convention, and the same one crops.json reports as rect_pt.",
+    "`match` is the citation text a region answers to, tested against the where-ref fields named by tolerance_stack.spec_crop_regions.WHERE_REF_FIELDS plus the element's hardware_ref. Longest declared match wins; a tie between two regions is ambiguous and crops nothing; a page carrying exactly one region uses it. A citation that matches nothing keeps the whole-sheet crop it would have had anyway -- nothing is invented.",
+    "Consumed by scripts/build_viewer_crops.py for any citation whose resolved PDF lives in data/inbox/specs/, whichever rule named the document (spec_pile by filename, or a source_ref.export that points into the pile). The crop entry records the region it used as located_by: \"declared_region\". Shape and live matching are pinned by tests/test_spec_crop_regions.py."
+  ],
+  "regions": [
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 2 row",
+      "rect": [
+        84.5,
+        122.75,
+        191.6,
+        129.0
+      ],
+      "match": [
+        "Grip Dash No. 2"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 2 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 2 | .125 | .448 | .495. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 3 row",
+      "rect": [
+        84.5,
+        129.75,
+        191.6,
+        135.5
+      ],
+      "match": [
+        "Grip Dash No. 3"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 3 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 3 | .188 | .511 | .558. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 4 row",
+      "rect": [
+        84.5,
+        136.5,
+        191.6,
+        142.25
+      ],
+      "match": [
+        "Grip Dash No. 4"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 4 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 4 | .250 | .573 | .620. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 5 row",
+      "rect": [
+        84.5,
+        143.25,
+        191.6,
+        149.5
+      ],
+      "match": [
+        "Grip Dash No. 5"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 5 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 5 | .312 | .635 | .682. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 6 row",
+      "rect": [
+        84.5,
+        149.75,
+        191.6,
+        156.25
+      ],
+      "match": [
+        "Grip Dash No. 6"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 6 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 6 | .375 | .698 | .745. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 7 row",
+      "rect": [
+        84.5,
+        156.75,
+        191.6,
+        162.75
+      ],
+      "match": [
+        "Grip Dash No. 7"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 7 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 7 | .438 | .761 | .808. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 8 row",
+      "rect": [
+        84.5,
+        163.5,
+        191.6,
+        170.0
+      ],
+      "match": [
+        "Grip Dash No. 8"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 8 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 8 | .500 | .823 | .870. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 9 row",
+      "rect": [
+        84.5,
+        170.0,
+        191.6,
+        177.25
+      ],
+      "match": [
+        "Grip Dash No. 9"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 9 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 9 | .562 | .885 | .932. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 10 row",
+      "rect": [
+        84.5,
+        177.25,
+        191.6,
+        183.75
+      ],
+      "match": [
+        "Grip Dash No. 10"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 10 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 10 | .625 | .948 | .995. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 11 row",
+      "rect": [
+        84.5,
+        184.0,
+        191.6,
+        190.5
+      ],
+      "match": [
+        "Grip Dash No. 11"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 11 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 11 | .688 | 1.011 | 1.058. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 13 row",
+      "rect": [
+        84.5,
+        196.25,
+        191.6,
+        204.25
+      ],
+      "match": [
+        "Grip Dash No. 13"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 13 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 13 | .812 | 1.135 | 1.182. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Grip Dash No. 14 row",
+      "rect": [
+        84.5,
+        204.5,
+        191.6,
+        211.0
+      ],
+      "match": [
+        "Grip Dash No. 14"
+      ],
+      "shows": "Sheet 3's grip/length table, the band for grip dash number 14 across its first four columns -- 'Grip Dash No.', 'Grip +/-.010', 'NAS6403 .1900-32' and 'NAS6404 .2500-28': 14 | .875 | 1.198 | 1.245. Row identified, and the band checked against its neighbours, on an 8x render of sheet 3 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 1,
+      "label": "NAS6403 row of the sheet-1 dimension table",
+      "rect": [
+        94.5,
+        251.5,
+        410.0,
+        294.0
+      ],
+      "match": [
+        "row NAS6403"
+      ],
+      "shows": "Sheet 1's dimension table: its column headers (BASIC NUMBER, Nom Thread Size, C, D Dia unplated/plated-before/plated-after, E Dia Min, H, J, K Dia, M) and the NAS6403 row beneath them -- .1900-32, C .376/.367, E .335, H .125/.110, J .088/.073, K .056/.046, M .174/.154. Columns right of M (N, P, R Rad, T, TD) are outside the rect; the whole sheet stays one click away on the card. Read off a 7x render of sheet 1 on 2026-09-14.",
+      "recorded": "2026-09-14",
+      "recorded_by": "handoff spec_crop_region_registry"
+    }
+  ]
+}

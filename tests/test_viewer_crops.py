@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
@@ -25,6 +26,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import build_viewer_crops as bvc  # noqa: E402
+
+from tolerance_stack import spec_crop_regions as scr  # noqa: E402
 
 STACKS_DIR = REPO_ROOT / "docs" / "tolerance_stacks"
 
@@ -501,3 +504,146 @@ def test_an_empty_raw_still_resolves_rule_1_the_way_a_topology_document_would(tm
         tmp_path, tmp_path, [tmp_path],
     )
     assert got["resolved_by"] == "source_ref_export" and got["sha256_verified"] is True
+
+
+# --- declared crop regions (handoff spec_crop_region_registry, 2026-09-14) ---
+#
+# The placement half of the same discipline: a spec-pile citation names a
+# document and a sheet and nothing finer, so its crop was the whole photocopy.
+# The registry says which rect the cited row is -- and a citation with no region
+# must keep the whole sheet it would have had anyway, because a rect nobody
+# recorded is a rect nobody looked at. The matching rules themselves live in
+# tests/test_spec_crop_regions.py; these are the crop script's use of them.
+
+
+class FakeRect(NamedTuple):
+    """``page.rect``: read by name in the zone-grid scan and by position when the
+    whole sheet becomes the crop, so it has to be both."""
+
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+
+class FakePage:
+    """The little of a ``fitz.Page`` that :func:`bvc.locate` touches.
+
+    Rendering needs PyMuPDF; deciding *where* the crop goes does not, and that is
+    where a wrong rect would be -- the same split the rest of this module runs on.
+    """
+
+    def __init__(self, text="", words=(), hits=None):
+        self.rect = FakeRect(0.0, 0.0, 610.56, 842.4)
+        self._text = text
+        self._words = list(words)
+        self._hits = hits or {}
+
+    def get_text(self, kind):
+        return self._words if kind == "words" else self._text
+
+    def search_for(self, needle):
+        return self._hits.get(needle, [])
+
+
+def a_region(label="Grip Dash No. 13 row", match=("Grip Dash No. 13",)):
+    return scr.CropRegion(
+        document="NAS6403-NAS6420 Rev 4.pdf", page=3, label=label,
+        rect=(84.5, 196.25, 191.6, 204.25), match=match,
+        shows="the dash-13 row of sheet 3's grip/length table",
+        recorded="2026-09-14", recorded_by="a test",
+    )
+
+
+def test_a_declared_region_is_where_the_crop_goes():
+    registry = scr.CropRegionRegistry(regions=(a_region(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3,
+                         "row 'Grip Dash No. 13'")
+    placement = bvc.locate(FakePage(), {"zone": None}, "NAS6403U13H", 1.0, 200.0,
+                           answer)
+    assert placement["located_by"] == "declared_region"
+    assert placement["rect"] == (84.5, 196.25, 191.6, 204.25)
+    assert placement["region_label"] == "Grip Dash No. 13 row"
+    assert placement["region_match"] == "Grip Dash No. 13"
+
+
+def test_a_citation_with_no_region_keeps_the_whole_sheet_and_says_why():
+    answer = scr.resolve(scr.CropRegionRegistry(), "NAS6403-NAS6420 Rev 4.pdf", 3, "")
+    placement = bvc.locate(FakePage(), {"zone": None}, None, 1.0, 200.0, answer)
+    assert placement["located_by"] == "sheet_full"
+    assert placement["rect"] == (0.0, 0.0, 610.56, 842.4)
+    # The note carries the region's own reason too: "no text layer" alone never
+    # tells a reader that recording a region is the thing that fixes this.
+    assert "no crop region is declared" in placement["note"]
+
+
+def test_a_cited_zone_still_beats_a_declared_region():
+    """A zone is what this citation said about itself; a region is declared for
+    the document. The more specific statement wins, and no existing zone crop
+    may move because a region was recorded on that document's sheet."""
+    words = [(x, 5.0, x + 6.0, 12.0, str(n), 0, 0, 0)
+             for n, x in ((1, 100.0), (2, 200.0), (3, 300.0))]
+    words += [(5.0, y, 12.0, y + 6.0, letter, 0, 0, 0)
+              for letter, y in (("A", 100.0), ("B", 200.0), ("C", 300.0))]
+    page = FakePage(text="a sheet with a grid", words=words)
+    registry = scr.CropRegionRegistry(regions=(a_region(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3,
+                         "row 'Grip Dash No. 13'")
+    placement = bvc.locate(page, {"zone": "B2"}, None, 0.0, 200.0, answer)
+    assert placement["located_by"] == "zone_cell"
+    assert placement["region_label"] is None
+
+
+def test_a_declared_region_beats_a_unique_callout_match():
+    """A rect somebody looked at beats a needle that happened to match once."""
+    page = FakePage(text="a sheet with a text layer",
+                    hits={"NAS6403U13H": [(10.0, 10.0, 60.0, 20.0)]})
+    registry = scr.CropRegionRegistry(regions=(a_region(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3,
+                         "row 'Grip Dash No. 13'")
+    placement = bvc.locate(page, {"zone": None}, "NAS6403U13H", 1.0, 200.0, answer)
+    assert placement["located_by"] == "declared_region"
+
+
+def test_every_placement_carries_the_region_keys():
+    """One shape per crop entry: "no region" and "built before regions existed"
+    must not look the same to a consumer."""
+    page = FakePage(text="a sheet", hits={"NAS6403U13H": [(1.0, 1.0, 2.0, 2.0)]})
+    for placement in (
+        bvc.locate(page, {"zone": None}, "NAS6403U13H", 1.0, 200.0, None),
+        bvc.locate(FakePage(), {"zone": None}, None, 1.0, 200.0, None),
+    ):
+        assert placement["region_label"] is None
+        assert placement["region_match"] is None
+
+
+# --- which citations the registry may touch --------------------------------
+
+
+def test_only_a_document_in_the_pile_gets_a_region(tmp_path):
+    """The registry is a fact about the BYTES in data/inbox/specs/, so it applies
+    whichever rule named them -- but never to a drawing export, which has zones
+    and a text layer and its own two placement rules."""
+    specs = tmp_path / "inbox" / "specs"
+    specs.mkdir(parents=True)
+    pile_doc = specs / "NAS6403-NAS6420 Rev 4.pdf"
+    pile_doc.write_bytes(b"%PDF")
+    drawing = tmp_path / "inbox" / "drawings" / "217755.pdf"
+    drawing.parent.mkdir(parents=True)
+    drawing.write_bytes(b"%PDF")
+    registry = scr.CropRegionRegistry(regions=(a_region(),))
+    ref = {"cell": "row 'Grip Dash No. 13'"}
+
+    answer = bvc.region_for(registry, pile_doc, specs, 3, ref, None)
+    assert answer is not None and answer.region is not None
+    # A drawing gets None -- not a resolution that found nothing, which is the
+    # state that would have put "no region declared" in every drawing's note.
+    assert bvc.region_for(registry, drawing, specs, 3, ref, None) is None
+
+
+def test_no_registry_at_all_means_no_region_anywhere(tmp_path):
+    specs = tmp_path / "inbox" / "specs"
+    specs.mkdir(parents=True)
+    pile_doc = specs / "NAS6403-NAS6420 Rev 4.pdf"
+    pile_doc.write_bytes(b"%PDF")
+    assert bvc.region_for(None, pile_doc, specs, 3, {}, None) is None

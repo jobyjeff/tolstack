@@ -869,12 +869,24 @@ on screen, so this is the fact the hover exists for:
 | `joint_export_run` | *LEGACY RULE: export pinned by the joint block, not by this citation*. Still in the crop script for a stack written before 2026-08-06 (no `source_ref.export`, `document` == `joint.assembly_drawing`, and a `joint.assembly_export` naming a drawing-checker run). No stack in the repo reaches it today. |
 | anything else | *resolved by `"X"`, a rule this viewer has no label for* — loud, and `VA.unlabelledCropRules()` puts it in the banner too. `provenance.sources_used`, deleted from the crop script on 2026-08-06, gets exactly this treatment: a branch for a value nothing can carry reads as "this case is handled". |
 
-Placement, in order: the **cited printed zone** (padded a cell) when the sheet's
-border grid is legible; else a **unique callout-text match**; else the **whole
-sheet**, saying why. When a zone is cropped, the popover also says whether the
-callout's own text was found inside that cell — corroboration, not a
-requirement (a parts-list nomenclature is cited at the balloon and lives on the
-parts-list sheet).
+Placement is a second enumerated field, `located_by`, and `VA.CROP_PLACEMENTS` is
+its table for the same reason `VA.CROP_RULES` is one — it was an `if`/`else`
+chain until 2026-09-14, and a chain with no `else` says nothing about where a
+crop came from, which reads as "the whole sheet":
+
+| `located_by` | what the popover says |
+|---|---|
+| `zone_cell` | *showing the cited zone `D10`*, padded by a cell, plus whether the callout's own text was found **inside** that cell — corroboration, not a requirement (a parts-list nomenclature is cited at the balloon and lives on the parts-list sheet). |
+| `declared_region` | *showing the declared region `"Grip Dash No. 13 row"`, matched on `"Grip Dash No. 13"`* — a rect a human recorded in `docs/spec_library/crop_regions.json` for a spec-pile sheet, which is how a fastener card shows the cited row instead of a photocopy of a sixty-four-row table. When the sheet has only one declared region and nothing in the citation named it, the line says *the only region declared for this sheet* instead: a weaker claim, and it must not read like a match. |
+| `callout_text` | *located by the unique match for `"…"`* — the needle matched exactly once on the page. |
+| `sheet_full` | the crop is the page, and the note says why: no text layer, an illegible border grid, a callout matching nowhere or everywhere — and, on a pile document, that no declared region applied. |
+| anything else | *placed by `"X"`, a rule this viewer has no label for* — loud, exactly like an unlabelled `resolved_by`. |
+
+Order: a **cited zone** first (it is what this citation said about itself), then a
+**declared region**, then a **unique callout match**, then the whole sheet. A
+region loses to a zone and beats a text search: it is declared configuration
+somebody looked at, not a lucky hit, but it is about the document rather than
+about this citation.
 
 ## Worksheets
 

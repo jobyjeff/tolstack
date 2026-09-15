@@ -524,6 +524,12 @@ For each element, try to close the gap, in this order of preference:
    which was slice 1's #1 blocking gap. `data/inbox/specs/README.md` maps the
    known gaps to files. Expect poor photocopies: no text layer, so read the page,
    don't grep it.
+
+   **When you read a value off a pile document, record the region you read it
+   from** — or reuse one already recorded. A pile citation names a document and a
+   sheet and nothing finer, so without a region the reviewer's crop is the whole
+   photocopied sheet. The verb and the rules are in
+   `docs/spec_library/README.md`, "Where on the sheet you read it".
 2. **A drawing callout**, via drawing-checker's extracted runs:
    ```powershell
    venv-win\Scripts\python.exe tests\debug_stack_hardware_crosscheck.py `
