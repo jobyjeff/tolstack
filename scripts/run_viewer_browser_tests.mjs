@@ -2048,7 +2048,7 @@ async function testHostedUnpublished(browser, realProjection) {
     push("the connect-folder banner is not rendered underneath it either",
       await page.locator(".banner--disconnected").count() === 0);
     push("no path, script or command leaks into the sentence",
-      !/\.py|venv-win|C:\|\//.test(banner));
+      !/\.py|venv-win|C:\\|\//.test(banner));
 
     if (!realProjection) {
       push("[real] a reload after the data lands enters served mode (skipped: " +

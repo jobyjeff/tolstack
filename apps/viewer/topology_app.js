@@ -93,10 +93,14 @@
   // mock) or only after the user clicks Connect, and a later Reload never
   // yanks the selection back to what the URL said.
   var pendingDeepLink = null;
-  // Which transport `adapter` is -- "mock" | "http" | "fsa" -- for the
-  // banner's own plain-words line (viewer_http_transport, deliverable 2). Not
-  // read anywhere else: views must key off `adapter.capabilities()`, never
-  // off which class an adapter happens to be.
+  // Which transport `adapter` is -- one of VA.TRANSPORT (storage/adapter.js),
+  // never a literal spelled here -- for the banner's own plain-words line
+  // (viewer_http_transport, deliverable 2). Read in exactly two places: the
+  // banner state below, and the no-adapter branch in boot(), which has to tell
+  // UNPUBLISHED (a served origin with nothing baked -- not an error) from a
+  // file:// page with no File System Access API (a real dead end). Nothing
+  // else may read it: views key off `adapter.capabilities()`, never off which
+  // class an adapter happens to be.
   var transportKind = null;
   var nodes = {};
   var imageCache = {};      // "crops/x.png" -> {url} | null
