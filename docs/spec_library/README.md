@@ -108,7 +108,7 @@ pin), and a fastener standard's sheet is a table of dozens of rows: without a
 region, the crop a reviewer sees is the whole photocopy.
 
 ```
-scripts\record_spec_crop_region.py --document ... --page N --rect X0 Y0 X1 Y1 --label ... --shows ...
+scripts\record_spec_crop_region.py --document "<file>.pdf" --page N --rect X0 Y0 X1 Y1 --label "<what to call it>" --shows "<what is in the rect>" --recorded YYYY-MM-DD --recorded-by "<you>" --preview <where>.png
 ```
 
 Run it from drawing-checker's venv (it needs PyMuPDF, like the crop builder) and

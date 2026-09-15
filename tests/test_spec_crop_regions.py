@@ -260,7 +260,18 @@ EXPECTED = {
 
 def live_pile_citations():
     """Every committed element whose citation names a document the registry
-    knows, read from the tree rather than listed."""
+    knows, read from the tree rather than listed.
+
+    Keys on ``source_ref.document``, which is a **proxy** for what production
+    keys on: ``scripts/build_viewer_crops.py`` resolves the citation to a file
+    first and passes ``pdf.name``. They agree for every live citation -- each
+    export block points at the pile file under its own name -- and this scan is
+    deliberately the cheap one, because it needs no ``data/`` and so runs from a
+    worktree. What it cannot see is a citation whose ``document`` and whose
+    resolved filename differ; the crop builder's own end-to-end tests
+    (``tests/test_viewer_crops.py``) enter at ``crop_element`` and do read the
+    resolved file.
+    """
     out = []
     for path in sorted(STACKS_DIR.glob("stack_*.json")):
         raw = json.loads(path.read_text(encoding="utf-8"))

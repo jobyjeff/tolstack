@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import sys
+import types
 from pathlib import Path
 from typing import NamedTuple
 
@@ -545,6 +546,12 @@ class FakePage:
     def search_for(self, needle):
         return self._hits.get(needle, [])
 
+    def get_pixmap(self, matrix=None, clip=None):
+        # The renderer's own scaling, applied to the clip it was handed -- so a
+        # crop entry's width/height say which rect was rendered.
+        zoom = (matrix or (1.0, 1.0))[0]
+        return FakePixmap(int(clip.width * zoom), int(clip.height * zoom))
+
 
 def a_region(label="Grip Dash No. 13 row", match=("Grip Dash No. 13",)):
     return scr.CropRegion(
@@ -647,3 +654,164 @@ def test_no_registry_at_all_means_no_region_anywhere(tmp_path):
     pile_doc = specs / "NAS6403-NAS6420 Rev 4.pdf"
     pile_doc.write_bytes(b"%PDF")
     assert bvc.region_for(None, pile_doc, specs, 3, {}, None) is None
+
+
+# --- the WIRING: does the builder actually consult the registry? ------------
+#
+# Everything above enters at `bvc.locate` or `bvc.region_for`, which leaves the
+# join between them untested: `region = None` in `_crop_from_citation` reverts
+# the whole deliverable -- spec-pile citations back to whole photocopied sheets
+# -- with every tier green. `registry` is threaded by hand as a trailing
+# positional through main() -> crop_element/crop_topology_edge ->
+# _crop_from_citation -> region_for -> locate, and a refactor that drops the
+# thread, or transposes region_for's `pdf`/`specs_dir` (which fails the pile
+# check and returns None, silently), would say nothing. Found in
+# review/spec_crop_region_registry, B1. These two tests are the seam that goes
+# red for all of it.
+#
+# `fitz` is imported lazily and at function scope (the module docstring says
+# why), so a stand-in in sys.modules drives the real entry points -- rendering
+# and all -- under this repo's own stdlib-only venv.
+
+
+class FakePixmap:
+    def __init__(self, width, height):
+        self.width, self.height = width, height
+
+    def save(self, path):
+        Path(path).write_bytes(b"not a PNG, and nothing here reads one")
+
+
+class FakeClip:
+    """What ``fitz.Rect(*rect) & page.rect`` returns: only width/height are read."""
+
+    def __init__(self, *values):
+        self.values = tuple(float(v) for v in values)
+
+    def __and__(self, _other):
+        return self
+
+    @property
+    def width(self):
+        return self.values[2] - self.values[0]
+
+    @property
+    def height(self):
+        return self.values[3] - self.values[1]
+
+
+class FakeDoc:
+    def __init__(self, page, page_count=4):
+        self._page = page
+        self.page_count = page_count
+
+    def __getitem__(self, index):
+        return self._page
+
+
+@pytest.fixture()
+def fake_fitz(monkeypatch):
+    """Install a ``fitz`` stand-in and hand back the page every open() returns."""
+    page = FakePage(text="a photocopy with no text layer")
+    module = types.SimpleNamespace(
+        open=lambda _path: FakeDoc(page),
+        Rect=FakeClip,
+        Matrix=lambda zx, zy: (zx, zy),
+    )
+    monkeypatch.setitem(sys.modules, "fitz", module)
+    return page
+
+
+def crop_args():
+    return types.SimpleNamespace(zone_pad=1.0, text_pad=200.0, zoom=3.0, max_px=2400)
+
+
+@pytest.fixture()
+def pile(tmp_path):
+    """A spec pile holding the document the shipped registry declares regions on."""
+    specs = tmp_path / "inbox" / "specs"
+    specs.mkdir(parents=True)
+    (specs / "NAS6403-NAS6420 Rev 4.pdf").write_bytes(b"%PDF-1.4 a photocopy")
+    return specs
+
+
+PILE_CITATION = {
+    "kind": "spec",
+    "document": "NAS6403-NAS6420 Rev 4.pdf",
+    "sheet": 3,
+    "zone": None,
+    "cell": "row 'Grip Dash No. 13', column 'NAS6403 .1900-32'",
+}
+
+
+def test_crop_element_crops_a_pile_citation_to_its_declared_region(
+        tmp_path, pile, fake_fitz):
+    entry = bvc.crop_element(
+        {"id": "a_stack"},
+        {"id": "fastener_grip_13", "hardware_ref": "NAS6403U13H",
+         "source_ref": dict(PILE_CITATION)},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(regions=(a_region(),)),
+    )
+    assert entry["status"] == "resolved"
+    assert entry["resolved_by"] == "spec_pile", "the document rule is unchanged"
+    assert entry["located_by"] == "declared_region"
+    assert entry["region_label"] == "Grip Dash No. 13 row"
+    assert entry["region_match"] == "Grip Dash No. 13"
+    assert entry["rect_pt"] == [84.5, 196.25, 191.6, 204.25]
+    # And the PNG is the region, not the sheet: a whole-sheet crop of this
+    # document is 610 x 842 points.
+    assert (entry["width"], entry["height"]) == (321, 24)
+
+
+def test_the_same_citation_without_a_registry_gets_the_whole_sheet(
+        tmp_path, pile, fake_fitz):
+    """The before picture, through the same entry point -- so the test above is
+    measuring the registry and not something the builder did anyway."""
+    entry = bvc.crop_element(
+        {"id": "a_stack"},
+        {"id": "fastener_grip_13", "hardware_ref": "NAS6403U13H",
+         "source_ref": dict(PILE_CITATION)},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(),
+    )
+    assert entry["located_by"] == "sheet_full"
+    assert entry["region_label"] is None
+    assert entry["rect_pt"] == [0.0, 0.0, 610.56, 842.4]
+
+
+def test_crop_topology_edge_consults_the_registry_too(tmp_path, pile, fake_fitz):
+    """The second thread through the same join: an inline topology edge citing a
+    pile document is the same citation shape and gets the same region."""
+    entry = bvc.crop_topology_edge(
+        "a_topology", "an_edge",
+        {"hardware_ref": "NAS6403U13H", "source_ref": dict(PILE_CITATION)},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(regions=(a_region(),)),
+    )
+    assert entry["located_by"] == "declared_region"
+    assert entry["region_label"] == "Grip Dash No. 13 row"
+
+
+def test_a_drawing_citation_is_untouched_by_the_registry(tmp_path, pile, fake_fitz):
+    """A region is a fact about bytes in the pile. An export-resolved drawing
+    living anywhere else keeps the placement rules it always had -- including
+    when the registry happens to declare a region on the sheet it cites."""
+    drawing = tmp_path / "inbox" / "drawings" / "217755.pdf"
+    drawing.parent.mkdir(parents=True)
+    drawing.write_bytes(b"%PDF-1.4 a drawing export")
+    entry = bvc.crop_element(
+        {"id": "a_stack"},
+        {"id": "a_flange", "hardware_ref": None,
+         "source_ref": {
+             "kind": "drawing", "document": "217755", "sheet": 3, "zone": None,
+             "cell": "row 'Grip Dash No. 13'",
+             "export": {"status": "established", "pdf": drawing.as_posix(),
+                        "sha256": bvc.sha256_of(drawing), "runs": []},
+         }},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(regions=(a_region(),)),
+    )
+    assert entry["status"] == "resolved"
+    assert entry["located_by"] == "sheet_full"
+    assert entry["region_label"] is None
