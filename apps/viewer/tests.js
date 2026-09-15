@@ -814,6 +814,93 @@
           ok(threw, "a non-ok POST must reject");
         });
 
+      // --- the transport DECISION (viewer_transport_honest_hosted) ---------
+      //
+      // VA.chooseTransport is the whole of it, so these drive it directly
+      // against the same real local servers the probe tests above use. The
+      // FSA side is a spy rather than the real adapter: there is no File
+      // System Access API in node, and what is being proved is that it is
+      // never REACHED, which a spy proves better than a stub that works.
+      //
+      // Runs BEFORE the mid-session-stop test below for the same reason the
+      // rebuild tests do -- that test permanently closes dataOrigin.
+      var fsaSpy = function () {
+        var spy = {
+          booted: false,
+          init: function () { spy.booted = true; return Promise.resolve(VA.STATE.DISCONNECTED); },
+        };
+        return spy;
+      };
+
+      await test("an http page whose served probes both fail never boots FSA " +
+        "-- a hosted visitor has no repo to grant, so Connect folder is not " +
+        "offered at all", async function () {
+          // Both failure shapes a real hosted origin produces: nothing
+          // answering (404 everywhere), and the catch-all that answers 200 +
+          // HTML for every path -- the one measured on the real host.
+          var origins = [httpFixture.emptyOrigin, httpFixture.htmlOrigin];
+          for (var i = 0; i < origins.length; i++) {
+            var spy = fsaSpy();
+            var picked = await VA.chooseTransport({
+              protocol: "https:",
+              http: httpAdapter("/tolstack/viewer/topology.html", origins[i]),
+              fsa: spy,
+            });
+            eq(picked.kind, VA.TRANSPORT.UNPUBLISHED, "origin " + i);
+            eq(picked.adapter, null, "origin " + i);
+            eq(spy.booted, false, "the FSA adapter must never be initialised");
+          }
+        });
+
+      await test("file:// is the ONE page FSA is still offered on -- nothing " +
+        "else can read the repo there and the grant is legitimate",
+        async function () {
+          var spy = fsaSpy();
+          // HttpAdapter.isSupported() is false on file://, which is why the
+          // page hands chooseTransport a null http candidate there.
+          var picked = await VA.chooseTransport({
+            protocol: "file:", http: null, fsa: spy,
+          });
+          eq(picked.kind, VA.TRANSPORT.FSA);
+          eq(picked.state, VA.STATE.DISCONNECTED);
+          ok(spy.booted, "the FSA adapter must be initialised on file://");
+        });
+
+      await test("file:// in a browser with no File System Access API is a " +
+        "real dead end, not an unpublished page", async function () {
+          var picked = await VA.chooseTransport({
+            protocol: "file:", http: null, fsa: null,
+          });
+          eq(picked.kind, null);
+          eq(picked.adapter, null);
+        });
+
+      await test("an unpublished origin latches NOTHING: publish the data and " +
+        "the next load -- a plain reload, no user action -- is served mode",
+        async function () {
+          var page = "/tolstack/viewer/topology.html";
+          var before = await VA.chooseTransport({
+            protocol: "https:",
+            http: httpAdapter(page, httpFixture.publishableOrigin),
+            fsa: fsaSpy(),
+          });
+          eq(before.kind, VA.TRANSPORT.UNPUBLISHED);
+
+          httpFixture.publishData();
+
+          // A reload is exactly this: a fresh probe over the same URL, with
+          // nothing carried across from the load before it.
+          var after = await VA.chooseTransport({
+            protocol: "https:",
+            http: httpAdapter(page, httpFixture.publishableOrigin),
+            fsa: fsaSpy(),
+          });
+          eq(after.kind, VA.TRANSPORT.HTTP);
+          eq(after.state, VA.STATE.READY);
+          ok((await after.adapter.readTopologies()).topologies,
+            "served mode must actually read the projection");
+        });
+
       await test("a mid-session server stop rejects instead of reading as " +
         "'not built yet' -- a real transport failure must reach the caller",
         async function () {
@@ -1820,6 +1907,29 @@
       has(root.textContent, "Connect folder");
       has(root.className, "banner--disconnected");
     });
+
+    // The hosted-page posture (viewer_transport_honest_hosted): the banner's
+    // FIRST branch, above every connection state, because it is not about a
+    // connection at all.
+    await test("a served page with nothing published states it in plain words " +
+      "and offers NO control -- never Connect folder, which a hosted visitor " +
+      "could not satisfy", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.DISCONNECTED,
+            transport: VA.TRANSPORT.UNPUBLISHED,
+          }, {});
+        });
+        has(root.textContent, "not published on this site yet");
+        has(root.className, "banner--unpublished");
+        ok(root.textContent.indexOf("Connect folder") === -1,
+          "a control the reader cannot satisfy must not be offered at all");
+        eq(all(root, "button").length, 0, "one sentence, and nothing else");
+        // The standing UI-copy rules: no paths, no scripts, no commands.
+        noCommandsOrPaths(root.textContent);
+        ok(root.textContent.indexOf("/") === -1,
+          "must not carry a URL or a path: " + root.textContent);
+      });
 
     await test("a ready banner with no results explains how to build it", function () {
       var root = render(function (r) {

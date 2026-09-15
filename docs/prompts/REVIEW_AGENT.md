@@ -2029,6 +2029,36 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       said, here is why", ask **which test goes red if someone puts the
       handoff's version back**, and mutate to find out rather than assuming.
 
+- [ ] **A "nothing is remembered" claim needs TWO mutations, because each tier
+      is blind to one kind of latch.** New 2026-09-15
+      (`viewer_transport_honest_hosted`), and it is the "fast tier proves
+      nothing here by construction" family's fourth member — except this time
+      the *truth* tier is the blind one half the time. Deliverable 3 was "the
+      banner state must not latch anything persistent, so a plain reload
+      recovers", and both tiers carry a guard for it. Measured: an **in-memory**
+      latch (a module-level `var` in `VA.chooseTransport`) reddens 3 fast-tier
+      tests and leaves the browser tier **17/17 green**, because
+      `page.reload()` tears down the JS context and wipes it; a **persistent**
+      latch (`localStorage`) leaves the fast tier **260/260 green** — node has
+      no `localStorage`, so the branch never runs — and reddens the browser
+      case as a `waitForSelector` timeout. Neither mutation alone is evidence.
+      So when a handoff claims a state is not remembered, write **both**, and
+      check the pair of tiers covers both; one green run against one latch kind
+      certifies nothing about the other.
+- [ ] **A browser-tier sub-check that re-spells a fast-tier helper as an inline
+      regex, and rots in the escaping.** Same handoff (fixed inline in review).
+      `testHostedUnpublished`'s "no path, script or command leaks into the
+      sentence" inlined `tests.js`'s `noCommandsOrPaths` as
+      `!/\.py|venv-win|C:\|\//.test(banner)` — whose third alternative is not
+      `C:\` or `/` but the literal four characters `C:|/`, since `\|` and `\/`
+      are just escaped literals. The guard could see `.py` and `venv-win` and
+      **nothing else**: a bare slash, a URL and `C:\workspace\tolstack` all
+      tested false. Green forever, in the half of the check that matters most
+      for a hosted visitor. Two moves: **run any new regex against the defect
+      strings it names** (five lines of `node`, and it is the only thing that
+      distinguishes a pattern from a comment), and when the fast tier already
+      owns a helper for the same rule, ask why the browser tier is re-spelling
+      it instead of asserting the same thing about the same text.
 - [ ] **A declared-rect registry is a provenance artifact -- open the document
       and look at every rect, not just the shape tests.** New 2026-09-14
       (`spec_crop_region_registry`, `docs/spec_library/crop_regions.json`). The

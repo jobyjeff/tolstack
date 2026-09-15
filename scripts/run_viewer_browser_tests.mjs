@@ -130,6 +130,64 @@ function startRepoRootServer() {
   });
 }
 
+// The HOSTED origin, reproduced (viewer_transport_honest_hosted, 2026-09-14).
+//
+// Measured at the wire on drawing-checker.ai.joby.aero the day this handoff was
+// written: the app itself is reachable, and EVERY other `/tolstack/...` URL
+// answers 200 + the site index HTML -- an nginx catch-all with nothing baked
+// for tolstack yet. That is exactly this server: real files under
+// `/tolstack/viewer/`, a 200 + HTML catch-all for everything else, including
+// the projection the probe asks for.
+//
+// `publish()` flips it to serving the real projections from DATA_REPO, so the
+// same page object can prove the recovery half: nothing is latched, so a plain
+// reload of the SAME url enters served mode with no user action.
+function startHostedCatchAllServer() {
+  return new Promise((resolve) => {
+    let published = false;
+    const server = createServer(async (req, res) => {
+      const u = (req.url || "/").split("?")[0];
+      if (u.startsWith("/tolstack/viewer/")) {
+        try {
+          const rel = u.slice("/tolstack/viewer/".length) || "topology.html";
+          const full = join(APP_DIR, rel);
+          if (full !== APP_DIR && !full.startsWith(APP_DIR + sep)) {
+            res.writeHead(403).end("forbidden");
+            return;
+          }
+          const body = await readFile(full);
+          res.writeHead(200, { "content-type": MIME[extname(full)] || "application/octet-stream" });
+          res.end(body);
+          return;
+        } catch {
+          res.writeHead(404).end("not found");
+          return;
+        }
+      }
+      if (published && u.startsWith("/tolstack/data/")) {
+        try {
+          const rel = u.slice("/tolstack/data/".length);
+          const body = await readFile(join(DATA_REPO, "data", "projections", "viewer", rel));
+          res.writeHead(200, { "content-type": MIME[extname(rel)] || "application/octet-stream" });
+          res.end(body);
+          return;
+        } catch {
+          res.writeHead(404).end("not found");
+          return;
+        }
+      }
+      // The catch-all itself: 200, and the site's own index HTML, for anything
+      // at all. Status alone would read as "the projection is there".
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end("<html><body>drawing-checker site index</body></html>");
+    });
+    server.listen(0, "127.0.0.1", () => resolve({
+      server,
+      publish: () => { published = true; },
+    }));
+  });
+}
+
 // --- a stub tolstack_mount_rebuild_endpoint, sibling-data-mount shape ------
 //
 // Mimics drawing-checker's own mount (webui/analyses.py: VIEWER_MOUNT =
@@ -1966,6 +2024,63 @@ async function testIndexRedirects(browser, url, label) {
   }
 }
 
+// What a hosted visitor actually sees when the server publishes nothing --
+// the whole point of viewer_transport_honest_hosted, and the one thing only a
+// real browser can prove, because it is the FSA fallback that must not happen
+// and only a real `window.location.protocol` decides that.
+async function testHostedUnpublished(browser, realProjection) {
+  const label = "hosted origin with nothing published";
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const { server, publish } = await startHostedCatchAllServer();
+  const url = `http://127.0.0.1:${server.address().port}/tolstack/viewer/topology.html`;
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  try {
+    await page.goto(url, { waitUntil: "load" });
+    await page.waitForSelector(".banner--unpublished", { timeout: 15000 });
+    const banner = await page.locator("#banner").textContent();
+    push("the banner states the data is not published here",
+      /not published on this site yet/.test(banner));
+    push("Connect folder is NOT offered -- a hosted visitor has no repo to grant",
+      !/Connect folder/.test(banner));
+    push("no dead control of any kind sits on the bar",
+      await page.locator("#banner button").count() === 0);
+    push("the connect-folder banner is not rendered underneath it either",
+      await page.locator(".banner--disconnected").count() === 0);
+    push("no path, script or command leaks into the sentence",
+      !/\.py|venv-win|C:\\|\//.test(banner));
+
+    if (!realProjection) {
+      push("[real] a reload after the data lands enters served mode (skipped: " +
+        "topologies.json not built -- build it, or pass --repo <main checkout>)", true);
+    } else {
+      // Deliverable 3: nothing about the unpublished state is latched. The
+      // server starts serving the projections, and a PLAIN RELOAD of the same
+      // url -- no click, no grant, no cache clear -- boots served mode.
+      publish();
+      await page.reload({ waitUntil: "load" });
+      await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+      const after = await page.locator("#banner").textContent();
+      push("[real] a reload after the data lands enters served mode",
+        /Served over HTTP/.test(after) &&
+        await page.locator(".banner--unpublished").count() === 0);
+    }
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 (async () => {
   const server = await startServer();
   const { port } = server.address();
@@ -2016,6 +2131,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     results.push(await testServedModeBoot(
       browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
       stopRepoRootServer));
+    results.push(await testHostedUnpublished(browser, topologies));
     results.push(await testRebuildAffordance(browser));
     results.push(await testAnnotateFlyout(browser, fileBase));
 
