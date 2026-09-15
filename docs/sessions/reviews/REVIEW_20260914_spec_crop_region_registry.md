@@ -3,17 +3,24 @@ type: review
 handoff: HANDOFF_20260914_spec_crop_region_registry.md
 reviewer: review agent (dispatch), branch review/spec_crop_region_registry
 date: 2026-09-14
-verdict: APPROVE
-blockers: 0
+verdict: REQUEST CHANGES
+blockers: 1
 ---
 
 # Review — spec_crop_region_registry
 
-Declared crop regions for spec-pile citations. Four deliverables, all present:
-the registry (`docs/spec_library/crop_regions.json`, schema
+Declared crop regions for spec-pile citations. All four deliverables are
+present and the domain work is, on the evidence below, **correct**: the registry
+(`docs/spec_library/crop_regions.json`, schema
 `joby.tolerance_stack/spec_crop_regions/v0`), the recording verb
 (`scripts/record_spec_crop_region.py`), consumption in
-`scripts/build_viewer_crops.py`, and the SOP / spec-library note.
+`scripts/build_viewer_crops.py`, and the SOP / spec-library note. Sixteen live
+pile citations now crop the row they cite instead of a photocopy of a
+sixty-four-row table, which is exactly what Jeff asked for.
+
+One blocker, and it is not about what the code decides — it is that **the entire
+deliverable can be reverted by deleting one line, with all three test tiers
+staying 100% green.** Detail below. Everything else is nits.
 
 ## The check that mattered: are the rects over the right ink?
 
@@ -29,7 +36,7 @@ PyMuPDF) and read each crop against two independent transcriptions: the entry's
 own `shows` string, and the citing element's `callout`. **All 13 agree on every
 digit.**
 
-| region | crop reads (dash / grip / NAS6403 / NAS6404) | citation's callout |
+| region | crop reads (dash · grip · NAS6403 · NAS6404) | citation's callout |
 |---|---|---|
 | Grip Dash No. 2 row | 2 · .125 · .448 · .495 | Grip = .125, NAS6403 = .448 |
 | Grip Dash No. 3 row | 3 · .188 · .511 · .558 | .188 / .511 |
@@ -82,25 +89,78 @@ after:
   \"declared_region\" is in the live projection and the viewer has no branch for
   it"*) — so the new pairing observes the real projection, not a fixture proxy.
 
-## Verification
+These are good, and they are why the blocker below is the *only* one.
 
-- `venv-win/Scripts/python.exe -m pytest -q` from the merged review branch:
-  **863 passed, 1 skipped.** The skip is the node-fs tier (no projection in this
-  worktree's `data/`); the handoff's own 817 was pre-merge, with `integration`
-  since moved.
-- `node apps/viewer/run_tests.cjs`: **248/248**.
-  `… --repo C:\workspace\tolstack` (the `[real]` tier included): **299/299**.
-- Live crops, rebuilt into the main checkout by the author: **16** entries now
-  carry `located_by: "declared_region"` — the DoD asked for at least one. Four
-  resolve by `spec_pile`, twelve by a `source_ref.export` block pointing into
-  the pile; all sixteen crop the row rather than the sheet.
+## Blocker
+
+### B1 — deleting the one line that wires the registry into the crop builder leaves every tier green
+
+`scripts/build_viewer_crops.py:993`. Replace
+
+```python
+region = region_for(registry, pdf, specs_dir, page_no, source_ref, hardware_ref)
+```
+
+with `region = None` — the whole deliverable, undone, spec-pile citations back
+to whole photocopied sheets — and:
+
+- `venv-win/Scripts/python.exe -m pytest -q` → **863 passed, 1 skipped**
+- `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack` → **311/311**
+
+I ran both. Nothing anywhere goes red, and a rebuild would not change that:
+`test_every_live_pile_citation_resolves_to_the_row_it_cites` calls
+`scr.resolve` directly, `tests/test_viewer_crops.py` enters at `bvc.locate` and
+`bvc.region_for`, and the JS `[real]` value guard only complains about
+`located_by` values it has *no branch for* — never about the value going
+missing. Nothing in the tree drives `_crop_from_citation`, `crop_element`,
+`crop_topology_edge` or `main()`; I grepped.
+
+This is not hypothetical deletion-of-a-line paranoia. `registry` is threaded by
+hand as a **trailing positional argument** through six sites added in this diff
+— `main()` → `crop_element` / `crop_topology_edge` → `_crop_from_citation` →
+`region_for` → `locate` — and `_crop_from_citation` is a function this repo has
+recently refactored (it was extracted to be shared between stack elements and
+topology edges). A future refactor that drops the thread, or transposes
+`region_for`'s positional `pdf` / `specs_dir` (which fails the pile check and
+returns `None`, silently), reverts the feature with nothing to say so.
+
+It is the shape the overlay entry **"The whole deliverable is one line from
+being silently reverted — mutate the wiring, not just the pure function"**
+names, added hours ago by the `viewer_dag_spine_layout` review, where it was
+two blockers. I ran the mutation because that entry arrived on my branch with
+the mid-review `integration` sync, which is the checklist working as designed.
+
+**Suggested fix (small, and the module was built to allow it).** The pure pieces
+are well covered; the *join* is not. `_crop_from_citation` imports `fitz` lazily
+at function scope — deliberately, per the module docstring — so a fake `fitz`
+in `sys.modules` plus the `FakePage` that `tests/test_viewer_crops.py` already
+defines drives it end to end without PyMuPDF. One test asserting that a pile
+citation comes back from `crop_element` with `located_by == "declared_region"`
+and the right `region_label`, and one asserting a drawing citation does not,
+closes it. Any other seam that makes the wiring observable is equally fine —
+the requirement is that *something* goes red when the builder stops consulting
+the registry. Please add it and observe it failing against the mutated line
+before you hand back.
+
+## Verification (of the branch as delivered)
+
+- `venv-win/Scripts/python.exe -m pytest -q`: **863 passed, 1 skipped.** The
+  skip is the node-fs tier (no projection in this worktree's `data/`); the
+  handoff's own 817 was pre-merge, with `integration` since moved.
+- `node apps/viewer/run_tests.cjs`: **257/257** after the `integration` sync
+  (248/248 before it). `… --repo C:\workspace\tolstack`: **311/311**, `[real]`
+  tier included.
+- Live crops rebuilt into the main checkout by the author: **16** entries carry
+  `located_by: "declared_region"` — the DoD asked for at least one. Four resolve
+  by `spec_pile`, twelve by a `source_ref.export` block pointing into the pile;
+  all sixteen crop the row rather than the sheet.
 - **Read-only invariant holds.** Nothing was written into drawing-checker. Its
   only files touched on 2026-09-14 are its own dispatch prompts/state and
   `data/logs/eager/eager_pass_20260914.log`, whose first line reads
   `repo=C:\workspace\drawing-checker` — its own scheduled eager pass, not this
   handoff, which borrowed only the interpreter.
 - **No test pollution.** Main-checkout `git status` clean, and nothing under
-  `data/` modified by either of my pytest runs.
+  `data/` modified by any of my pytest runs.
 - **`data/inbox/specs/` untouched** — nothing renamed, added or tidied; the diff
   contains no `data/` path at all. `docs/reference/` untouched.
 - `ARCHITECTURE.md` gained a row for each new module plus a section; the
@@ -108,12 +168,12 @@ after:
 - Issue frontmatter on the handoff's own filed issue is correct and complete
   (`type: chore`, `priority: med`, `status: open`, `area`, `reporter: agent`).
 
-## The deviation from the handoff, and why it is right
+## The deviations from the handoff, and why both are right
 
 The handoff asked that the crop entry record the region as *"a new `resolved_by`
 value … `VA.CROP_RULES` is total-by-contract and needs the new row"*. The author
 used **`located_by`** instead. I checked the stated reason rather than taking
-it: `apps/viewer/tests.js:4518`, `[real] the marked citations are exactly the
+it: `apps/viewer/tests.js`, `[real] the marked citations are exactly the
 spec_pile-resolved ones`, asserts set equality between the elements carrying a
 derived `identity_rule` and the crops with `resolved_by === "spec_pile"`.
 Minting `spec_pile_region` would have split that set and turned a placement
@@ -125,7 +185,6 @@ honoured and then some: the `if`/`else` chain became `VA.CROP_PLACEMENTS`, the
 `tests.js` value guard moved from a hand-kept `inList` to the strong form
 (`!!VA.CROP_PLACEMENTS[v]`), and a seventh Python↔JS pairing was added, scoped
 by AST to `locate()` so a future forwarding site needs no hand exclusion.
-Correct call, correctly disclosed.
 
 The second deviation — the rule fires for **any** citation whose resolved PDF
 lives in `data/inbox/specs/`, not only `kind: "spec"` ones — is also right and
@@ -133,13 +192,9 @@ also disclosed: a region is a fact about the bytes, and keying on the rule would
 have left `bolt_grip_11` showing a photocopy while `fastener_grip_13` showed its
 row, same table, same sheet, no difference a reader could see.
 
-## Findings
+Both deviations are argued in the lesson. This is the good version of deviating.
 
-No blockers. Nothing invented; `source_ref` schema untouched; no viewer layout
-code touched; the registry is *placement* and cannot make an untraced value
-traced, which `ARCHITECTURE.md` says in as many words.
-
-**Nits — none fixed inline; the first is filed:**
+## Nits — fix or don't, your call; the first is already filed
 
 1. **`record_spec_crop_region.py` tracebacks on a missing `--registry` path.**
    `scr.load()` sits inside the `try` that catches `(RegistryError, Refused)`,
@@ -148,8 +203,8 @@ traced, which `ARCHITECTURE.md` says in as many words.
    2, so this is the one rough edge in a CLI whose selling point is that it
    refuses cleanly. Filed as
    `ISSUE_20260914_record_spec_crop_region_tracebacks_on_a_missing_registry.md`
-   (`type: bug`, `priority: low`) rather than fixed inline, because a new
-   refusal path is a behaviour change that wants its own test.
+   (`type: bug`, `priority: low`) so it survives regardless of what you do with
+   it here.
 2. **The command sketch in `docs/spec_library/README.md` omits two required
    flags** (`--recorded`, `--recorded-by`), so as printed it is an argparse
    error. It is visibly elided (`--document ...`) and points at `--help` in the
@@ -158,15 +213,17 @@ traced, which `ARCHITECTURE.md` says in as many words.
    `source_ref["document"]`; production keys on the resolved `pdf.name`.** They
    agree for all sixteen live citations because every export block points at the
    pile file under its own name — but it is a proxy, and it would be silent on
-   exactly the case where the two diverge. Worth a docstring line if anyone
-   touches it; not worth a change today.
+   exactly the case where the two diverge. Worth a docstring line if you are in
+   the file for B1 anyway.
 
-**Fixed inline, disclosed, on my review branch:** the author's own
+## Fixed inline, disclosed
+
+The author's own
 `ISSUE_20260914_the_shared_viewer_projections_are_from_two_different_trees.md`
 told a future reader that the mixed-tree state is detectable by running the JS
 `[real]` tier against the main checkout. That is no longer true: from this
 review branch — cut from `integration`, which contains both sibling handoffs —
-the same command is **299/299 green** while the three projections genuinely
+the same command is **311/311 green** while the three projections genuinely
 carry three different `provenance.branch` stamps
 (`handoff/spec_crop_region_registry`, `handoff/stack_title_style_pass`,
 `review/annotate_affordances_flyout_and_mesh_gating`). I rewrote that one
@@ -175,9 +232,15 @@ remedy are unchanged — the state is real and the issue stays open.
 
 ## Note for the next reviewer
 
-Two shapes here outlive this handoff and are now in the overlay: a declared-rect
-registry can only be reviewed by **re-rendering the rects**, and a substring
-`match` rule has to be checked against the strings already in the file in *both*
-directions, not just against today's citations. The live trap is the
-sole-region fallback — the second region recorded on a sheet silently changes
-what the first citation there gets.
+Three shapes here outlive this handoff and are now in the overlay: a
+declared-rect registry can only be reviewed by **re-rendering the rects**; a
+substring `match` rule has to be checked against the strings already in the file
+in *both* directions, not just against today's citations; and the sole-region
+fallback is the live trap — the second region recorded on a sheet silently
+changes what the first citation there gets.
+
+**Branch state:** `review/spec_crop_region_registry` has
+`handoff/spec_crop_region_registry` merged (clean fast-forward) plus a later
+`integration` sync (clean, no conflicts) and this report. Nothing has been
+pushed to `integration` — on REQUEST CHANGES the gate stays shut. Worktrees and
+branches left in place for the rework.
