@@ -1,5 +1,15 @@
 # BRIEF 2026-09-15 — what a respine should mean, and how much of the page moves through one
 
+> **PARTIALLY CONSUMED 2026-09-15 — item 1 decided by Jeff's same-day review
+> (forge note `20260915T145908_fwc7qp`): a respine is NOT a view switch — the
+> whole walk stays on screen; the selected chain is emphasized in place
+> (leaders only to chain rows, non-members dimmed), grid shows the chain
+> rows, NO re-columning (the geometry brief's questions stay untouched).
+> Expanded → `HANDOFF_20260915_viewer_respine_whole_walk.md` (depends_on
+> respine_tween_fidelity_round2). Item 2 (grid row motion / FLIP) stays
+> open — re-decide it against the new whole-walk-DAG + chain-subset-grid
+> semantics, after the geometry brief.**
+
 > Routed here by the triage sweep of 2026-09-14/15 from two issues about
 > `viewer_study_respine_animation`. Both are "the shipped behaviour is one
 > defensible reading of an ambiguous requirement" rather than defects — and the
