@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `surfaces_that_state_something_false` moved to completed/; not independently verified.
 ---
 
 # The node preview pane prints the DECLARED parts where the dot's hover card prints the DERIVED sides — 10 of 46 live nodes disagree
