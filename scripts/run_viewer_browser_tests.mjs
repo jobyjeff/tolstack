@@ -200,8 +200,12 @@ function startHostedCatchAllServer() {
 // crops.json provenance stamps agree (fresh) or not (stale);
 // `rebuildCapable` controls whether the stub answers the rebuild routes at
 // all, the same "absent means not shipped yet" case storage/http.js's own
-// probe has to survive.
-function startSiblingMountServer({ matchCrops, rebuildCapable }) {
+// probe has to survive. `terminalState` is which of the endpoint's terminal
+// states the status route settles on -- "done" is a finished rebuild, and
+// "idle" is what a server RESTARTED mid-run answers, having no memory of it
+// (drawing-checker webui/tolstack_rebuild.py: idle | queued | running | done |
+// failed).
+function startSiblingMountServer({ matchCrops, rebuildCapable, terminalState }) {
   return new Promise((resolve) => {
     let busy = false;
     const topologiesJson = () => JSON.stringify({
@@ -221,7 +225,8 @@ function startSiblingMountServer({ matchCrops, rebuildCapable }) {
       if (u === "/tolstack/rebuild/status" && req.method === "GET") {
         if (!rebuildCapable) { res.writeHead(404).end("not found"); return; }
         res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ busy, state: busy ? "running" : "done" }));
+        res.end(JSON.stringify({
+          busy, state: busy ? "running" : (terminalState || "done") }));
         return;
       }
       if (u === "/tolstack/rebuild" && req.method === "POST") {
@@ -268,8 +273,10 @@ function startSiblingMountServer({ matchCrops, rebuildCapable }) {
 
 // The banner's whole deliverable (viewer_rebuild_affordance, 2026-09-10): no
 // rebuild command ever renders again, in either mode, and a live endpoint
-// drives a real click through to a reload. Three servers, one scenario each —
-// a fresh stub per scenario keeps the busy/done state machine from leaking
+// drives a real click through to a reload -- and, since
+// viewer_popover_clamp_and_rebuild_terminal_state, that only the endpoint's
+// own completion state counts as one. Four servers, one scenario each — a
+// fresh stub per scenario keeps the busy/terminal state machine from leaking
 // across them the way one shared server's mutable `busy` flag would.
 async function testRebuildAffordance(browser) {
   const label = "rebuild affordance (stub sibling mount)";
@@ -321,7 +328,38 @@ async function testRebuildAffordance(browser) {
         noCommandsOrPaths(await page.locator("#banner").textContent()));
     });
 
-    // 3) fresh (matching) provenance -> no stale banner at all.
+    // 3) the server restarts mid-poll: the new process has no memory of the
+    //    run and answers a TERMINAL `idle`
+    //    (viewer_popover_clamp_and_rebuild_terminal_state). `idle` is not a
+    //    finished rebuild, and reading it as one -- which the poll did, by
+    //    treating everything that was not "failed" as success -- reloads a
+    //    projection that was never rebuilt and presents it as a fresh one,
+    //    the same shape as the 2026-09-06/08 stale-projection incident except
+    //    with the page asserting freshness. The reader must be told instead.
+    await withServer({ matchCrops: false, rebuildCapable: true,
+                       terminalState: "idle" }, async (page) => {
+      await page.waitForSelector(".banner__rebuild button", { timeout: 15000 });
+      await page.locator(".banner__rebuild button").click();
+      // Bounded, and swallowed on purpose: a poll that reads `idle` as
+      // success never renders this node at all, and that must arrive as a
+      // named sub-check failure rather than as the whole scenario aborting.
+      await page.waitForSelector(".banner__rebuild .banner__error",
+        { timeout: 5000 }).catch(() => {});
+      const text = await page.locator(".banner__rebuild .banner__error")
+        .count() === 1
+        ? await page.locator(".banner__rebuild .banner__error").textContent()
+        : "";
+      push("a terminal `idle` from a restarted server is not read as a " +
+        "finished rebuild", /rebuild failed/i.test(text));
+      // `text` is "" when the error never rendered, which must not read as
+      // "no command in it" -- the absence check needs something to check.
+      push("...said in plain words, with no command or path in it",
+        text.length > 0 && noCommandsOrPaths(text));
+      push("...and the button comes back, so it can be asked for again",
+        !(await page.locator(".banner__rebuild button").isDisabled()));
+    });
+
+    // 4) fresh (matching) provenance -> no stale banner at all.
     await withServer({ matchCrops: true, rebuildCapable: true }, async (page) => {
       // The same trap as the annotate flyout's banner wait, in the other
       // direction: topology.html ships `<div id="banner">` empty too, so
@@ -862,6 +900,9 @@ const FIT_IN_PAGE = () => {
 // horizontally when it switches.
 const TOPO_VIEWPORT = { width: 1600, height: 1000 };
 const CARD_LAYOUT_VIEWPORT = { width: 1600, height: 700 };
+// The one trigger every card-layout contract below is measured on: the demo
+// mechanism's one resolved crop, whose edge card is the tall one.
+const CARD_TRIGGER = "tr.tvrow[data-id='base_thickness'] button.crop-trigger";
 
 async function testTheTopologyPage(browser, url, label, realProjection, realCrops) {
   const page = await browser.newPage({ viewport: TOPO_VIEWPORT });
@@ -872,24 +913,40 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
   const correspondence = () => page.evaluate(CORRESPONDENCE_IN_PAGE);
 
-  // Everything the hover-card layout contract is measured against, all of it
-  // scroll-invariant: the DOCUMENT's own height (the thing a popover that is
-  // still in flow lengthens), the DAG pane's box in DOCUMENT coordinates
-  // (viewport coordinates would move with any scroll playwright's own hover
-  // does on the way to a trigger), and how far the open card reaches past the
-  // document's bottom -- the witness that the configuration being measured is
-  // one where the defect could show at all.
-  const cardLayout = () => page.evaluate(() => {
+  // Everything the hover-card layout contracts are measured against: the
+  // DOCUMENT's own height (the thing a popover that is still in flow
+  // lengthens) and the DAG pane's box in DOCUMENT coordinates -- both
+  // scroll-invariant, since viewport coordinates would move with any scroll
+  // playwright's own hover does on the way to a trigger -- plus the open
+  // card's and the trigger's own boxes, which are read in VIEWPORT coordinates
+  // because that is the frame the card is placed in.
+  const cardLayout = () => page.evaluate((triggerSel) => {
     const pane = document.querySelector("#topopane").getBoundingClientRect();
     const pop = document.querySelector(".croppop");
     const open = pop && getComputedStyle(pop).display !== "none";
     const card = open ? pop.getBoundingClientRect() : null;
+    const trig = document.querySelector(triggerSel);
+    const trigger = trig ? trig.getBoundingClientRect() : null;
     return {
       docHeight: document.documentElement.scrollHeight,
       pane: [pane.x, pane.y + window.scrollY, pane.width, pane.height].join(),
-      cardDocBottom: card ? card.bottom + window.scrollY : null,
+      // ...and the room cap's own frame, in VIEWPORT coordinates, which is
+      // the frame `position: fixed` places the card in: where the card sits
+      // relative to the window and to the trigger it was opened from
+      // (viewer_popover_clamp_and_rebuild_terminal_state).
+      cardTop: card ? card.top : null,
+      cardBottom: card ? card.bottom : null,
+      cardHeight: card ? card.height : null,
+      // Its own scrollport: a card capped to the room beside its trigger is
+      // only honest if the part that did not fit is still reachable.
+      cardScrolls: card ? pop.scrollHeight > pop.clientHeight + 1 : null,
+      cardMid: card ? [card.left + card.width / 2, card.top + card.height / 2]
+                    : null,
+      triggerTop: trigger ? trigger.top : null,
+      triggerBottom: trigger ? trigger.bottom : null,
+      innerHeight: window.innerHeight,
     };
-  });
+  }, CARD_TRIGGER);
 
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
@@ -996,8 +1053,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // hover, not click: a click also SELECTS the row (its normal job), and the
     // detail pane repopulating is legitimate layout movement that would drown
     // the measurement below — the card itself is what must move nothing.
-    await page.locator("tr.tvrow[data-id='base_thickness'] button.crop-trigger")
-      .hover();
+    await page.locator(CARD_TRIGGER).hover();
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
     push("the thumbnail trigger opens the edge hover card with the crop body",
       await page.locator(".croppop").isVisible() &&
@@ -1011,18 +1067,60 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const withCard = await cardLayout();
     // The measurement's own tripwire, asserted BEFORE what it certifies: if a
     // later change (a shorter card, a taller fixture, a bigger viewport here)
-    // stops the card reaching past the document bottom, this suite must go red
-    // for being unable to see the defect rather than green for not finding it.
-    push("the open card hangs past the document's own bottom — the one " +
-      "configuration where an in-flow popover would lengthen it",
-      withCard.cardDocBottom !== null &&
-      withCard.cardDocBottom > beforeCard.docHeight + 8);
+    // stops the card needing to be placed past the bottom, this suite must go
+    // red for being unable to see the defect rather than green for not
+    // finding it.
+    //
+    // Measured as "the cap bit" rather than as "the card hangs past the
+    // document bottom", which is what this said before
+    // viewer_popover_clamp_and_rebuild_terminal_state: the shipped card is now
+    // capped to the room on the side it is placed, so it never reaches past
+    // anything and the old witness can no longer be true. What still
+    // distinguishes this configuration is that the card WANTS more height than
+    // either side of its trigger can give it — its box is exactly the
+    // roomier side's room, and its content still overflows that box.
+    const roomBelow = withCard.innerHeight - withCard.triggerBottom - 16;
+    const roomAbove = withCard.triggerTop - 16;
+    push("the card wants more height than there is room for on either side " +
+      "of its trigger — the configuration the card-layout contracts " +
+      "below are only falsifiable in",
+      withCard.cardBottom !== null && withCard.cardScrolls === true &&
+      Math.abs(withCard.cardHeight - Math.max(roomAbove, roomBelow)) <= 1);
     push("an open card leaves the document's own height untouched",
       withCard.docHeight === beforeCard.docHeight);
     push("an open card moves the DAG pane by nothing at all",
       beforeCard.pane === withCard.pane);
     push("leaders still land on their dots and seams with a card open",
       (await correspondence()).drift.length === 0);
+
+    // The room cap (viewer_popover_clamp_and_rebuild_terminal_state): this
+    // card fits neither below its trigger nor above it, and before the cap it
+    // rendered below anyway with a strip of itself — the citation line and
+    // the crop-key claim — past the window bottom, where a
+    // `position: fixed` element can never be scrolled to and where its own
+    // `overflow-y` does not reach either (the card is shorter than
+    // `max-height: calc(100vh - 24px)`, so nothing scrolls inside it).
+    // Three things have to hold at once, and the last two are why the fix is a
+    // cap and not a move: a card nudged up over its own trigger becomes
+    // undismissable, because hiding it hands the pointer back to the trigger,
+    // whose mouseenter re-opens it.
+    push("the open card's bottom edge is inside the window",
+      withCard.cardBottom !== null &&
+      withCard.cardBottom <= withCard.innerHeight);
+    push("the capped card keeps the overrun reachable in its own scrollport",
+      withCard.cardScrolls === true);
+    push("the card still sits clear of the trigger it was opened from",
+      withCard.cardBottom <= withCard.triggerTop ||
+      withCard.cardTop >= withCard.triggerBottom);
+    // Nothing in this app closes a popover on mouseleave, by design
+    // (views/stack.js's crop trigger says why): the pointer has to leave the
+    // trigger to reach the links inside the card. A REAL pointer move onto the
+    // card proves it — a card that opens and shuts again is worse than one
+    // with an unreachable footer.
+    await page.mouse.move(withCard.cardMid[0], withCard.cardMid[1]);
+    push("and it stays open with the pointer moved off the trigger onto it",
+      await page.locator(".croppop").isVisible());
+
     await page.keyboard.press("Escape");
     push("Escape closes it here too", !(await page.locator(".croppop").isVisible()));
     await page.setViewportSize(TOPO_VIEWPORT);
