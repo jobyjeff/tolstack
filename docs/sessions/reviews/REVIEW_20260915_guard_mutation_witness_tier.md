@@ -25,15 +25,15 @@ package).
 | run | result |
 | --- | --- |
 | `venv-win/Scripts/python.exe -m pytest -q` | **875 passed / 1 skipped** (869/1 at staging; +6 from `test_mutation_witnesses.py`) |
-| `node apps/viewer/run_tests.cjs` | **294/294** |
-| `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack` | **356/356** |
-| `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack` | **19/19 suites**; topology 167, height budget 21, hosted-unpublished 7 |
+| `node apps/viewer/run_tests.cjs` | **298/298** |
+| `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack` | **360/360** |
+| `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack` | **19/19 suites**; topology 167, height budget 21, hosted-unpublished 7, respine 33 |
 | `node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack` | **10/10 declared mutations witnessed**, exit 0 |
 
 Counts went up in every tier, as the DoD required. The lesson's table reads
-292/353/18-suites/869 because integration moved underneath the branch
-(`surfaces_that_state_something_false` added two fast-tier tests, three `[real]`
-ones and a nineteenth browser suite); the deltas reconcile exactly.
+292/353/18-suites/869 because integration moved twice underneath the branch;
+the deltas reconcile exactly. Every row above is the **final** measurement, on
+the second base — see "The merge" below.
 
 ### The new tier, broken on purpose — four observations
 
@@ -86,10 +86,26 @@ right:
   no owner — and it is the same contract the fifth guard is about, not scope
   creep.
 
-## The merge — one conflict, and one thing that is not a conflict
+## The merge — twice, one conflict, and one thing that is not a conflict
 
-`integration` had moved `4c69f32` → `e0322c6` (the
-`surfaces_that_state_something_false` handoff) while this branch was in flight.
+`integration` moved **twice** during this review. First `4c69f32` → `e0322c6`
+(the `surfaces_that_state_something_false` handoff), before I started; then
+`e0322c6` → `8059bdb` (`respine_tween_fidelity`, from the sibling review
+worktree) while I was running the tiers, which is what the canonical prompt's
+"check containment, not sha equality" warning is about — my first
+`git fetch . review/…:integration` was refused as a non-fast-forward.
+
+The second merge was clean (`respine_tween_fidelity` touched
+`apps/viewer/topology.js`, `views/topology.js`, `tests.js` and the *body* of
+`testRespine`, none of which the `SUITES` table or any declared anchor points
+at). Both reviews had appended to `docs/prompts/REVIEW_AGENT.md` near the same
+entry and git merged them without help. **Every tier and the mutation tier were
+re-run from scratch on the new base** — all ten mutations still witnessed, all
+nineteen suites still green, respine's own suite up 30 → 33 — because a merge
+that lands under a guard is exactly the case where "it was green an hour ago"
+means nothing. The counts table above is the second-base measurement.
+
+The conflict below was on the first merge.
 
 **The textual conflict:** `scripts/run_viewer_browser_tests.mjs`, the suite list
 at the bottom of `main()`. `integration` appended a nineteenth suite,
