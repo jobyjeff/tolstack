@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer / projections
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260914_real_tier_shared_projection_coupling.md
 ---
 
 # Two active handoffs that each add a projection field turn each other's `[real]` tier red

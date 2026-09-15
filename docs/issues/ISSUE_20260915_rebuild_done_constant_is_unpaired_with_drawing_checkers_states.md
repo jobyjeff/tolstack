@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: viewer/rebuild
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260915_viewer_hygiene_pass.md
 ---
 
 # `REBUILD_DONE = "done"` is a hand-copy of another repo's constant, and nothing pairs the two

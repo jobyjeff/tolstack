@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
 ---
 
 # The annotator still offers Connect folder on a hosted page — and the filed fix shape would keep it there

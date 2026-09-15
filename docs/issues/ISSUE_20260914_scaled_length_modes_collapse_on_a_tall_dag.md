@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: viewer/edge-length-scaling
 audience: strategy
 reporter: agent
+strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 ---
 
 # Fitting the DAG to the window makes the scaled length modes say nothing on `pitch_system`

@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
 ---
 
 # The node preview pane prints the DECLARED parts where the dot's hover card prints the DERIVED sides — 10 of 46 live nodes disagree

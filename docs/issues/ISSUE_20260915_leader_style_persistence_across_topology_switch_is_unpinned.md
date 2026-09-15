@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
 ---
 
 # `state.leaderStyle` surviving a topology switch is asserted in two docs and pinned by no tier

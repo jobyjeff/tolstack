@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260915_respine_tween_fidelity.md
 ---
 
 # A settled tween store is not "the target store exactly" — it keeps the outgoing side's own node/edge keys

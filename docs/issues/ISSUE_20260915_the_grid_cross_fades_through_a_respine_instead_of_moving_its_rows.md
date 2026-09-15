@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260915_respine_scope_and_grid_motion.md
 ---
 
 # The grid cross-fades through a respine; its rows do not move

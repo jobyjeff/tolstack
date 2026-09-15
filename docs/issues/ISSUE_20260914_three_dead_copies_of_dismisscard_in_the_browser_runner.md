@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tests/browser-tier
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260915_viewer_hygiene_pass.md
 ---
 
 # Three of the four `dismissCard` helpers in the browser runner are never called

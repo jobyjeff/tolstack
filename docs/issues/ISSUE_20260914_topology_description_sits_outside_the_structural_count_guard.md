@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/topology
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_projection_field_guard_rows.md
 ---
 
 # A topology's new `description` is a second home for structural counts, and the count guard does not read it

@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
 ---
 
 # `chainable()`'s false branch — a refusing study staying on the walk — is unwitnessed in every tier

@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260915_respine_scope_and_grid_motion.md
 ---
 
 # A respine shows the study's chain; it does not re-column the whole walk around it

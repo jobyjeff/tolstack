@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: viewer/docs
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260915_viewer_hygiene_pass.md
 ---
 
 # The viewer README's rail-allocation measurement is stale, and now contradicts a guarded count in the same file

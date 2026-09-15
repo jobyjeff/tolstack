@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tests/browser-tier
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260915_viewer_hygiene_pass.md
 ---
 
 # `topology file://`'s real-data study loop hung once on a nav click that never went "stable"

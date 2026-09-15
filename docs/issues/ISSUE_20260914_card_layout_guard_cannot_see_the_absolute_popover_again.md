@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/browser-tier
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
 ---
 
 # The card-layout guard can no longer see a `position: absolute` popover — the room cap subsumed its witness

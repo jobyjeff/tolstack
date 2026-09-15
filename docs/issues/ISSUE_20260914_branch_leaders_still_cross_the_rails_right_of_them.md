@@ -1,10 +1,11 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: viewer/topology-layout
 audience: strategy
 reporter: agent
+strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 ---
 
 # Right-justifying the spine moves the leader crossings onto the branch leaders instead of removing them

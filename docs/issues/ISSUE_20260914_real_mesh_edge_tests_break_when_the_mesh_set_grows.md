@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: viewer/tests
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_projection_field_guard_rows.md
 ---
 
 # Two of the three new `[real]` mesh tests redden when the mesh set grows

@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: viewer / projections
 reporter: agent
+resolution: resolved inline by the 2026-09-14/15 triage sweep -- the batch merge landed integration into master, then scripts/rebuild_projections.ps1 rebuilt all three from the main checkout in one pass (exit 0). Verified by the stamps the issue itself named as the check: topologies.json, results.json and crops.json all now read branch=master head_sha=243749ab46024224f8e1e57e2965b08e679295f2 dirty=false behind_trunk=0, built_at 2026-09-15T06:53:26/27/28Z. One tree.
 ---
 
 # `data/projections/viewer/` currently holds `crops.json` from one tree and `results.json`/`topologies.json` from another

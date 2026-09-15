@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260914_hover_card_occlusion_and_a11y.md
 ---
 
 # A hover card opened from inside the DAG sits over the marks a reader clicks next

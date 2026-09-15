@@ -459,6 +459,22 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A guard that no longer witnesses what it claims, and says nothing about
+      it.** The witness is coupled to an incidental property of the app; the app
+      then changes *correctly* and the guard silently stops biting. Nothing goes
+      red, so nothing announces the coverage left. Do not trust a green tier as
+      evidence that a behaviour is pinned -- **mutate the line and watch it go
+      red.** Promoted by the 2026-09-14/15 triage sweep, which found five in one
+      window, three of them only because a reviewer mutated by hand: the card
+      layout guard (the room cap subsumed its witness), the unpublished banner's
+      "and nothing else" half (one-word mutation ships fast tier 260/260 and
+      browser tier 17/17), `chainable()`'s false branch (`layoutMode = "chain"`
+      unconditionally -- every tier green), the compact-density correspondence
+      check (passes at comfortable density too), and `state.leaderStyle`
+      persistence (asserted in two shipped docs, observable by no tier). See
+      `docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md`, which
+      exists to make the class structurally visible rather than fixing five
+      guards.
 - [ ] **A finding the handoff named but did not fix, recorded only in a
       `LESSONS_*` file.** APPROVE ends the handoff's ownership, and no triage
       sweep reads lessons — a lesson schedules nobody. Every "named, not fixed

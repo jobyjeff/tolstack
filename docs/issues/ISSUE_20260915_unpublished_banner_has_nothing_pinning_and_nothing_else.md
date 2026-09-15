@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
 ---
 
 # The unpublished banner's "and nothing else" half is unguarded — the old error sentence can come back with all three tiers green

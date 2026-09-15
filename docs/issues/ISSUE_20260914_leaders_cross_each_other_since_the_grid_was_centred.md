@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 audience: strategy
+strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 ---
 
 # The topology viewer's leader lines cross each other, 16 times on `pitch_system`

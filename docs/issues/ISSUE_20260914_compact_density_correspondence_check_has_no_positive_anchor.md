@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tests/browser-tier
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md
 ---
 
 # Browser tier: "leaders stay on their dots and seams at compact density" passes at comfortable density too
