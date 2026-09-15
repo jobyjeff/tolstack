@@ -2121,6 +2121,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       have passed it. Ask of any placement/render seam: *would this test still
       pass if the rect were wrong?*
 
+- [ ] **A persistence guard that returns the toggle to its default BEFORE the
+      only switch it could observe.** New 2026-09-15
+      (`viewer_leader_grid_legibility`), the "one line from being silently
+      reverted" entry's cheapest variant and the reason mutating each field
+      separately is not optional. Two new display preferences claim, in a code
+      comment and in README, that `selectTopology()` never resets them.
+      Mutating BOTH resets in reddens the browser tier (`[real] switching
+      topology keeps the SCALE…`); mutating **only `state.leaderStyle`**
+      leaves fast 274/274, `--repo` 331/331 and browser 17/17. Cause: the
+      suite toggles the style to angled, measures it, toggles it **back to
+      jogged**, and only then clicks the other topology — so the switch
+      happens at the default, where a reset and a non-reset are the same
+      state. `ISSUE_20260915_leader_style_persistence_across_topology_switch_
+      is_unpinned.md`. Two moves: never mutate a group of fields together
+      when the claim is made of each one, and for any "switching X keeps Y"
+      check, read the lines ABOVE it to confirm Y was still off its default
+      when X changed.
+- [ ] **An issue's repro prints a number; the sentence beside it is about a
+      different population.** New 2026-09-15 (`viewer_leader_grid_legibility`,
+      fixed inline), and the "one number, two nouns" entry's doc-side twin. A
+      filed issue's repro printed **16** leader-crossing *pairs* on
+      `pitch_system`; the sentence under it, and the `topology.js` comment
+      quoting it, both read "every one of its 16 leaders is in at least one
+      crossing pair". It is **eight** — exactly the leaders that descend; the
+      seven that rise are in none. The repro's bounds are inclusive too, so a
+      strict segment intersection over the same geometry gives 12 pairs across
+      seven leaders. Running the repro reproduces the digit and certifies
+      nothing about the claim. So: run it, then ask **what is this number
+      counting, and what does the sentence say it counts** — and where the
+      issue is `audience: strategy`, the answer changes the design options it
+      is asking someone to choose between.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths

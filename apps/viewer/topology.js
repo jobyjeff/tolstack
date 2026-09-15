@@ -1119,9 +1119,10 @@
   // (structurally `y2 < y1`, the viewer_leader_line_grid lesson's own words),
   // which stopped being true the day viewer_dag_spine_layout centred the grid
   // against the DAG and let a leader above the centre descend. Two leaders
-  // cross exactly when `y2[i] >= y1[i+1]`, and on the real pitch_system every
-  // one of its leaders is in at least one crossing pair (the issue below
-  // carries the count and the repro that prints it). Fixing it is a
+  // cross exactly when `y2[i] >= y1[i+1]`, and on the real pitch_system 16
+  // pairs do -- all of them among the EIGHT leaders that descend, the half
+  // above the centring point; the seven that still rise never cross (the
+  // issue below carries the repro that prints it). Fixing it is a
   // layout-policy change and therefore not this function's to make unasked:
   // ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md,
   // with a test in both tiers asserting the crossings are still there so the

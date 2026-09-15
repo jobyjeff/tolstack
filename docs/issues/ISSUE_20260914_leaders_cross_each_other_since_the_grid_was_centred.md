@@ -60,10 +60,24 @@ console.log(n);"
 ```
 
 Prints **16** on today's `pitch_system` at comfortable density with a 782px
-budget — every one of its 16 leaders is in at least one crossing pair. The
-same check is now a live test in both tiers (`apps/viewer/tests.js`, `[real]
-pitch_system's leaders really do cross…`), asserting `> 0` and saying in its
-own message that reaching 0 means this issue was fixed.
+budget. The same check is now a live test in both tiers
+(`apps/viewer/tests.js`, `[real] pitch_system's leaders really do cross…`),
+asserting `> 0` and saying in its own message that reaching 0 means this
+issue was fixed.
+
+> **Correction, 2026-09-15 (review).** This paragraph first read "every one
+> of its 16 leaders is in at least one crossing pair". Re-derived: the 16
+> pairs are all among the **eight leaders that descend** (`y2 > y1`, indices
+> 0–7 in walk order); the seven that still rise, and the one that is flat,
+> are in no crossing pair at all. The predicate above is inclusive, so it
+> counts a touch as a crossing — a strict segment intersection over the same
+> geometry gives **12** pairs across **seven** leaders (0–6). The shape of
+> the problem is unchanged; its extent is half what the sentence claimed,
+> and that matters to the choice below, because it says the crossings are a
+> property of the descending half rather than of the lane allocation as a
+> whole. Measured at the same density and budget as the repro; in **angled**
+> style the same geometry has **zero** crossings of either kind, which is
+> what makes candidate 4 below more than a palliative.
 
 ## What it does NOT break
 
