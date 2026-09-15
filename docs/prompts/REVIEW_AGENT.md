@@ -2021,6 +2021,37 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a key set that lost a key is silent, not red. Ask the same of the fixture
       key-set guards, which *do* go red (`apps/viewer/fixtures.js`,
       `topology_fixtures.js`) and are therefore the cheap half of this check.
+      **Sequel, 2026-09-15 (`projection_field_guard_rows`, the handoff that
+      closed the entry above): the completeness arm written to fix it was blind
+      to the tuple's most important member.** The repair shape is right and is
+      the one to copy — a second source of truth the constant does not read,
+      here `prose_candidates(raw)` measuring `PROSE_FIELDS` against the corpus,
+      because *a test that iterates a constant cannot guard that constant's
+      completeness*. But the discoverer only recognised prose as a `str` or a
+      flat `dict` of `str`, and `notes` — the field carrying the very inventory
+      the guard exists for — is a `list[str]`. Dropping `notes` from the tuple
+      left `tests/test_topology.py` 120 passed. So when you accept a
+      completeness arm, **replay the drop-a-key demonstration for EVERY member
+      of the tuple, not just the one the handoff was about**: one command, and
+      it is the only thing that distinguishes a discoverer that covers the
+      corpus from one that covers the example. Ask specifically what JSON
+      *shapes* the discoverer walks and which committed field shapes fall
+      outside them.
+
+- [ ] **The mutation tier reports every browser entry NOT WITNESSED in a fresh
+      review worktree, and it is not a wall of broken guards.** New 2026-09-15.
+      `node_modules/playwright-core` is gitignored, so it exists in the main
+      checkout and in a tactical worktree that ran `npm install` — never in a
+      newly-cut review worktree. `run_mutation_witness_tests.mjs` then fails
+      each `browser`-tier entry's clean run and prints `4/12 declared mutations
+      witnessed` with the eight browser ids listed under `NOT WITNESSED`, which
+      reads exactly like the failure mode the tier was built to announce. Copy
+      `node_modules` from the tactical worktree and re-run before believing it
+      (12/12 at this sighting). Two more things about that runner: its shadow
+      tree is `tmp/mutation-witness` **inside your worktree**, a killed run
+      leaves it undeletable from Bash (`Device or resource busy` — PowerShell
+      `Remove-Item -Recurse -Force` clears it), and two concurrent runs of the
+      tier corrupt each other's shadow tree with ENOENT mid-table.
 
 - [ ] **A new scanner's pattern list with no replay of its own motivating
       instances.** Second sighting of the false-positive entry above, 2026-09-14
@@ -2058,6 +2089,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       count-independence, **check it per test, not per block**, and ask which
       already-scheduled sibling change reddens each one.
       `ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows.md`.
+      **Second sighting 2026-09-15, in the fix for the first:**
+      `projection_field_guard_rows` made all three tests genuinely count-free
+      and name-free (verified — `hub` plus 15 more parts meshed in a scratch
+      root is 360/360 where the pre-work file was 359/360) and wrote *"ALL THREE
+      are written COUNT-FREE and NAME-FREE, and that is the whole discipline of
+      this block"* three lines **below** the block's retained header sentence
+      *"Two installed meshes and one alias entry at 2026-09-14, against 29
+      topology parts"* — `data/meshes/` held 24 by then. A dated count is not a
+      false claim, but it is still a count no test reads, and it is the first
+      thing a reader of the block reads. When a diff's own new comment declares
+      a discipline, **read the whole comment block it lands in for the thing the
+      discipline forbids**, not just the lines the diff touched.
 - [ ] **A copy of the live projection under a scratch `--repo` root is the
       general counterfactual harness for this repo's `[real]` tier.** Same
       handoff, and it is worth its own line because it makes "run the
