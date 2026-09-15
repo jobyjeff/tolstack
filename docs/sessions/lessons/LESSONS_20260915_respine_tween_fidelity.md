@@ -156,7 +156,7 @@ re-checked.
   `respineX` returns `{columnShift: 0, width: toWidth}`, and the horizontal
   tween becomes a no-op rather than something to unpick.
 - `ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_has_no_fade.md`
-  — latent, unobservable on any committed document (all 22 study chains are
+  — latent, unobservable on any committed document (all 21 study chains are
   one column with no links), and it becomes real under exactly the
   re-columning above.
 - `ISSUE_20260915_the_respine_is_unwitnessed_with_the_pane_scrolled_sideways.md`

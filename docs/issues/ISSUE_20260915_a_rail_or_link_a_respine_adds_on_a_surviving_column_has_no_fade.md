@@ -28,7 +28,7 @@ which is the same fact the x tween is built around.
 The only two serialisations the page has are a topology's whole walk and one
 study's chain. A chain is linear: **one** column, **no** links at all. So every
 link a respine adds arrives on a column the respine also adds, and the unfold
-covers it. Checked against every committed topology: all 22 study chains
+covers it. Checked against every committed topology: all 21 study chains
 across the five topologies have `columns: 1` and `links: []`, while their walks
 run 2-10 columns and 2-18 links.
 

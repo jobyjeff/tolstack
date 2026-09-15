@@ -2311,6 +2311,26 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       containment and reads as equality.
       `ISSUE_20260915_a_settled_tween_store_is_not_the_target_store_it_keeps_
       the_outgoing_sides_keys.md`.
+- [ ] **A continuity guard that pairs two SCALARS where the claim is about a
+      PICTURE.** New 2026-09-15 (`respine_tween_fidelity`, should-fix). The
+      respine records a *fractional* column count so an interrupted
+      transition continues from the frame on screen, and the guard for it
+      (`a respine interrupting a respine continues from the picture on
+      screen`) compares `spineAndWidth` -- the max rail `x1` and the SVG
+      width -- which are precisely the two numbers `VA.respineX` returns.
+      Measured behind them: the interrupting frame draws **nine extra rails
+      at x = 15..85 where the caught frame drew nothing**, because added
+      columns collapse onto the *leftmost drawn* rail and from a fractional
+      outgoing frame that is not the spine. The three sites justifying "a
+      rail needs no fade" all state the coincidence unconditionally, and it
+      holds from a **settled** frame only. General form: when a guard's
+      subject is "the same picture", the assertion has to be over the drawn
+      SET, and a summary statistic of it computed from the same function
+      under test is not that. Ask **which frame is the outgoing one here --
+      settled, or in flight?** for every interpolation claim; the two
+      endpoints are the easy cases and the interrupt is a third state.
+      `ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
+      nowhere.md`.
 
 ## Architectural errors to check
 
