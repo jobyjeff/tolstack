@@ -130,9 +130,18 @@ worktree cleanup is a plausible path to deleting the main checkout's
   standing `test_viewer_js_suite` worktree skip).
 - Real data: exactly **1 of 29** topology parts, and **1 of 21** studies, offer 3D —
   `gas_spring_mount_213668_002`, through the alias to mesh `machined_213668`.
-  The builder prints that line; the `[real]` tier pairs every part's fact against
-  whether its component card offers the affordance, count-free, so the sibling
-  `assembly_step_part_extraction` handoff growing the mesh set needs no test edit.
+  The builder prints that line; the `[real]` tier's per-part pairing pairs every
+  part's fact against whether its component card offers the affordance,
+  count-free, so the sibling `assembly_step_part_extraction` handoff growing the
+  mesh set needs no edit to *that* test.
+
+  > **Narrowed in review, 2026-09-14.** The sentence above originally claimed the
+  > whole `[real]` tier needed no test edit. Two of its three new tests are
+  > edge-specific and do name the current mesh set: installing a `hub` mesh —
+  > exactly what the sibling handoff will do — reddens
+  > `[real] an untraced edge whose part has NO mesh offers nothing at all` for a
+  > correct reason (measured in review against a scratch projection). Filed as
+  > `ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows.md`.
 
 ## What only Jeff's eyes can judge
 

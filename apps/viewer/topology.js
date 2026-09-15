@@ -27,8 +27,10 @@
   VA.STUDY_STATUSES = ["ok", "error"];
   // What a projected part's `mesh` block says (handoff
   // annotate_affordances_flyout_and_mesh_gating). Every part carries the block,
-  // so a missing one is a stale projection, not "no mesh" — VA.partMeshFact
-  // below is where that distinction is made.
+  // so a missing one means the projection predates the field rather than that
+  // no mesh is installed — but VA.partMeshFact below deliberately reads BOTH as
+  // "no mesh" and surfaces nothing about the difference. Rebuilding the
+  // projection is the only thing that tells the two apart.
   VA.MESH_FACT_FIELDS = ["installed", "part_id"];
 
   // These three are the DOCUMENTS' vocabularies rather than the projection's --

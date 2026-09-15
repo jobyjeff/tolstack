@@ -4871,10 +4871,15 @@
         // (handoff annotate_affordances_flyout_and_mesh_gating.) Two installed
         // meshes and one alias entry at 2026-09-14, against 29 topology parts:
         // the affordance that used to render on every untraced edge dead-ended
-        // in the annotator's empty state for all but one of them. These tests
-        // are written COUNT-FREE on purpose -- a sibling repo is growing the
-        // mesh set, and the rule ("offer it exactly where a mesh resolves") has
-        // to hold at any mesh count without a test edit.
+        // in the annotator's empty state for all but one of them. The LAST of
+        // these three -- the per-part pairing -- is written COUNT-FREE on
+        // purpose: a sibling repo is growing the mesh set, and the rule
+        // ("offer it exactly where a mesh resolves") has to hold at any mesh
+        // count without a test edit. The two edge-specific ones above it are
+        // NOT: they name `gas_spring_mount_213668_002` / the alias target
+        // `machined_213668` and assert `hub` has no mesh, so installing a hub
+        // mesh reddens the second for a correct reason (measured in review;
+        // ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows).
 
         function detailFor(topoProj, edgeId, studyId) {
           return render(function (r) {

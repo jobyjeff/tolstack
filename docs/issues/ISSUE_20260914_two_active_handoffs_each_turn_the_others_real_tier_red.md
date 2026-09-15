@@ -65,3 +65,30 @@ projection's own provenance stamp and, when the projection was built from a tree
 this one does not contain, **report the drift as a named cross-tree condition
 rather than a failure** — the same distinction the builder's gate already draws,
 applied to the test that consumes the artifact.
+
+## Third instance, same day, measured in review (2026-09-14)
+
+It is not two handoffs, it is however many are live. During the review of
+`annotate_affordances_flyout_and_mesh_gating` a **third** active handoff,
+`spec_crop_region_registry`, rebuilt `crops.json` into the same shared directory
+mid-review (`provenance.branch = handoff/spec_crop_region_registry`,
+`built_at 2026-09-14T23:58:47+00:00`, `dirty: true`), and the `[real]` tier went
+from 293/294 to 291/294 between two runs of an unchanged tree:
+
+```
+[real] the fixture's crop shapes still match the builder's
+   crops.json now writes region_label, region_match
+[real] no live value is one the viewer has no branch for
+   crop entry located_by = "declared_region" has no branch in VA.cropProvenanceLine
+[real] every fixture shape still matches the builder's
+   stacks[].description  (stack_title_style_pass, as above)
+```
+
+So the three live projections were simultaneously stamped by three different
+trees (`results.json` = `handoff/stack_title_style_pass`, `crops.json` =
+`handoff/spec_crop_region_registry`, `topologies.json` = this review's branch),
+and no agent's `[real]` tier can be green. Note the extra wrinkle the two-handoff
+write-up did not have: the `located_by` failure is the **value-guard** tier, not
+the shape tier, so the drift now also lands in the guard whose whole purpose is
+to catch a producer the page has not been taught about — indistinguishable, from
+inside one worktree, from a real untaught value.

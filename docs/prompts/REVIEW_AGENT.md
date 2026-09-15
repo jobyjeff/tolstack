@@ -1129,6 +1129,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       whenever `docs/spec_library/events/` moved, and diff old against new: the
       only legitimate difference is the `provenance` block (there is deliberately
       no top-level `built_at` on this one).
+      **The three viewer projections can be stamped by three DIFFERENT trees at
+      once, and then nobody's `[real]` tier is green** (measured 2026-09-14,
+      review of `annotate_affordances_flyout_and_mesh_gating`: `results.json` =
+      `handoff/stack_title_style_pass`, `crops.json` =
+      `handoff/spec_crop_region_registry`, `topologies.json` = the review
+      branch — 291/294, and none of the three failures belonged to the branch
+      under review). **Print all three provenance stamps before you read a
+      `[real]` result**, and attribute each failure to the tree that wrote the
+      field it names; the drift lands in the *value-guard* tier as well as the
+      shape tier, where it is indistinguishable from a real untaught value.
+      `ISSUE_20260914_two_active_handoffs_each_turn_the_others_real_tier_red.md`
+      (which the reviewer extended with this third instance).
 - [ ] **Completeness is a schema field — check the field, not the prose.**
       Until 2026-08-13 `INCOMPLETE` was a prose convention that
       `build_viewer_projection.is_incomplete` grepped for, so a stack writing
@@ -1914,6 +1926,37 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       it — and confirm the replay is red for the scoping and not for something
       else, by checking the asserted message names the scoped param.
 
+- [ ] **A guard written to hold "at any count" that names today's live data in
+      two of its three tests — and a comment claiming the whole block is
+      count-free.** New 2026-09-14 (`annotate_affordances_flyout_and_mesh_gating`).
+      The handoff's `[real]` mesh block heads three tests with *"written
+      COUNT-FREE on purpose -- a sibling repo is growing the mesh set … without a
+      test edit"*. The per-part pairing is exactly that, with non-vacuity
+      witnesses on both sides (verified: flipping every live part to
+      `installed: true` in a scratch projection reddens it on *"every live part
+      has a mesh, so the withholding half of this pairing went unexercised"*).
+      The other two name `gas_spring_mount_213668_002`, the alias target
+      `machined_213668`, and assert `hub` has **no** mesh — so installing a `hub`
+      mesh, which the sibling handoff will do, reddens
+      `[real] an untraced edge whose part has NO mesh offers nothing at all` for
+      a correct reason. Measured by copying the live projection to a scratch
+      `--repo` root with one `mesh` block flipped, which is the cheap way to run
+      this whole class of counterfactual (`apps/viewer/run_tests.cjs --repo
+      <scratch>` only needs `data/projections/viewer/*.json` there — app source
+      always comes from the worktree). So: when a block's comment claims
+      count-independence, **check it per test, not per block**, and ask which
+      already-scheduled sibling change reddens each one.
+      `ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows.md`.
+- [ ] **A copy of the live projection under a scratch `--repo` root is the
+      general counterfactual harness for this repo's `[real]` tier.** Same
+      handoff, and it is worth its own line because it makes "run the
+      counterfactual" cheap for any live-data guard: `run_tests.cjs` resolves
+      `data/projections/viewer/*` through `--repo` and app source through its own
+      directory (`NODE_FS` vs `VIEWER_SRC`, by design), so
+      `cp data/projections/viewer/*` to a scratch dir, edit one field, and point
+      `--repo` there. No shared-`data/` write, so it does not fight the other
+      live agents, and it exercises both of a non-vacuity witness's directions.
+
 ## Architectural errors to check
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
@@ -2079,6 +2122,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       whereas the reader opening a stale viewer gets the misreading in silence.
       **Count the `unlabelled*Text` functions against the tables** — they should
       pair one-to-one.
+      **Third sighting (`annotate_affordances_flyout_and_mesh_gating`,
+      2026-09-14), and this time the new field joined no guard at all.**
+      `topologies[].parts[].mesh.installed` decides whether EVERY 3D affordance
+      renders, and `TOPO_VALUE_GUARDS` (eight rows) got no row for it — so the
+      builder silently ceasing to write the block is unobserved, which is the
+      arm that row's `values()` collector exists for ("no live value found").
+      Worse in the same place: `VA.partMeshFact` reads an **absent** `mesh` key
+      and `{"installed": false}` as the same silent state, and the absent one is
+      reachable today, because nothing rebuilds the projection and every
+      pre-merge `topologies.json` has no such key. That is the
+      `VA.VERDICT_SCOPES` fallback miss verbatim, one field later. Ask of any new
+      projection field: **which `*_VALUE_GUARDS` table does it join, and what
+      does the page say when the key is simply absent?**
+      `ISSUE_20260914_mesh_fact_has_no_value_guard_row_and_an_absent_block_is_silent.md`.
 - [ ] **`check_result` is produced, never stored.** A committed verdict goes stale
       the moment an element changes and nothing notices.
 - [ ] **An imported file may change; its `PROVENANCE.md` row must change with
