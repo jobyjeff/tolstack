@@ -634,12 +634,53 @@
     var box = trigger.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(
       box.left, window.innerWidth - pop.offsetWidth - 16)) + "px";
+    // Measure at the card's NATURAL height: clear the cap the previous
+    // placement may have left on the shared popover node first, or a card
+    // opened once in a tight spot stays squeezed everywhere after.
+    pop.style.maxHeight = "";
     var height = pop.offsetHeight || 400;
-    var roomBelow = window.innerHeight - box.bottom;
-    // Above only when it genuinely fits above: a popover nudged back down to
-    // stay on screen would land ON the trigger, and the resulting mouseleave
-    // would close it the instant it opened.
-    var goAbove = roomBelow < height + 16 && box.top >= height + 16;
+    // The room on each side, already net of the 8px gap to the trigger and the
+    // 8px margin to the window edge, so `height <= room` means "fits".
+    var roomBelow = window.innerHeight - box.bottom - 16;
+    var roomAbove = box.top - 16;
+    // Below by default; above when the card does not fit below and above is
+    // the roomier side. That subsumes the original rule (above only when it
+    // genuinely fits there) and additionally picks the better side when it
+    // fits neither.
+    var goAbove = height > roomBelow && roomAbove > roomBelow;
+    // The 80px floor is for the degenerate case only -- a trigger hard against
+    // an edge, or scrolled out of the window entirely, where the roomier side
+    // still measures near zero or negative. A stub of a card that scrolls
+    // beats a cap the browser rejects as invalid and a card at full height.
+    var room = Math.max(80, goAbove ? roomAbove : roomBelow);
+    // A card that fits neither below nor above is CAPPED to the room on its
+    // side, not nudged back up into the trigger
+    // (viewer_popover_clamp_and_rebuild_terminal_state, 2026-09-14). Before
+    // the cap it rendered below anyway and its footer -- on the edge card, the
+    // citation line and the crop-key claim -- sat past the window bottom,
+    // unreachable: a `position: fixed` element cannot be scrolled into view,
+    // and `max-height: calc(100vh - 24px)` did not bite because the card was
+    // already shorter than the WINDOW; it was the room beside its TRIGGER it
+    // overran. Measured at 1600x700 on ?mock=1, the base_thickness edge card:
+    // trigger 418.5-444.5, card 527.5 tall placed at top 452.5, bottom at 980
+    // on a 700px window -- 280px of it off the bottom, with nothing scrolling
+    // inside it. Capped to the room (402.5, the side above being the roomier
+    // one) it opens at top 8 and ends at 410.5, and `.croppop`'s existing
+    // `overflow-y: auto` is what makes the rest of it reachable.
+    //
+    // Moving the card instead -- the obvious clamp, top = min(top, innerHeight
+    // - height - 8) -- is the wrong fix, and measurably so: a below-placed
+    // card is already only 8px under its trigger, so ANY upward move puts the
+    // card over the trigger, and then hiding the card (Escape, the close box)
+    // hands the pointer straight back to the trigger underneath, whose
+    // mouseenter re-opens it. Undismissable, which is worse than an
+    // unreachable footer. Measured 2026-09-14 in the browser tier: with that
+    // clamp, the topology suite could not dismiss the citation card and every
+    // later hover timed out behind it.
+    if (height > room) {
+      pop.style.maxHeight = room + "px";
+      height = pop.offsetHeight || height;
+    }
     pop.style.top = Math.max(8, goAbove
       ? box.top - height - 8
       : box.bottom + 8) + "px";
@@ -874,6 +915,18 @@
   // script run, seconds long, not a job queue worth backing off against.
   var REBUILD_POLL_MS = 1500;
 
+  // The endpoint's own state vocabulary, read from the server that answers it
+  // rather than guessed: drawing-checker's `webui/tolstack_rebuild.py` STATES
+  // = idle | queued | running | done | failed, with the status dict's `busy`
+  // true for exactly queued and running. `done` is the ONLY state that means a
+  // rebuild finished, which is why pollRebuild tests for it instead of
+  // accepting the complement of `failed`
+  // (viewer_popover_clamp_and_rebuild_terminal_state, 2026-09-14): a server
+  // restarted mid-poll has no memory of the run and answers a terminal `idle`,
+  // and reading that as success reloads a projection that was never rebuilt
+  // and presents it as a fresh one.
+  var REBUILD_DONE = "done";
+
   function onRebuild() {
     if (!adapter || typeof adapter.requestRebuild !== "function" || state.rebuild.busy) return;
     state.rebuild = { busy: true, error: null };
@@ -888,7 +941,12 @@
       }, REBUILD_POLL_MS);
       return;
     }
-    if (!status || status.state === "failed") {
+    // Only the server's own completion state is success. Anything else that
+    // has stopped being busy -- a terminal `idle` from a restarted server, or
+    // a state this client has never heard of -- is not evidence that the
+    // rebuild finished, so it takes the failure exit: no reload, and the
+    // reader is told to try again. An unknown status is not a success.
+    if (!status || status.state !== REBUILD_DONE) {
       rebuildFailed();
       return;
     }
