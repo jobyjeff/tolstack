@@ -6,7 +6,14 @@ importing dispatch's or forge's ``ops.py`` -- this repo depends on neither, and
 the STANDARD_VERBS constraint (`install | serve | deploy | smoke`, no fifth
 verb) is enforced by that code, not this one. This test only pins that the verb
 this repo *declares* has the argv apps/annotate/README.md documents (port 8843,
-`http.server`, `--directory apps\annotate`), not that the console will accept it.
+`http.server`, `--directory apps`), not that the console will accept it.
+
+The root is ``apps``, not ``apps\annotate`` -- changed 2026-09-15 by handoff
+``surfaces_that_state_something_false``. The annotator loads one file from its
+sibling (``../viewer/storage/adapter.js``, the shared transport decision), so a
+lone-app root 404s it and the page never boots; the two apps are siblings on
+the canonical mount (``/tolstack/annotate/`` beside ``/tolstack/viewer/``) for
+the same reason.
 
 Handoff: projections_rebuild_script (2026-09-08).
 """
@@ -38,7 +45,7 @@ def test_serve_verb_is_the_annotate_entry_point():
         "http.server",
         "8843",
         "--directory",
-        "apps\\annotate",
+        "apps",
     ]
     assert serve["long_running"] is True
 

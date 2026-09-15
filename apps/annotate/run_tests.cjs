@@ -21,12 +21,22 @@ const sandbox = { console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 
+// The SIBLING app's adapter contract, loaded first for exactly the reason
+// index.html loads it first: VA.chooseTransport is the shared "may this page
+// ask for a folder grant?" decision, and AA.chooseTransport delegates to it
+// rather than keeping a second copy (handoff surfaces_that_state_something_
+// false). It is a classic script that only defines -- no DOM, no fetch.
+const VIEWER_ADAPTER = path.join(here, "..", "viewer", "storage", "adapter.js");
+vm.runInContext(fs.readFileSync(VIEWER_ADAPTER, "utf8"), sandbox,
+  { filename: "../viewer/storage/adapter.js" });
+
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js", "commands.js", "exec_queue.js", "fixtures.js"];
 for (const f of files) {
   vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), sandbox, { filename: f });
 }
 
 const AA = sandbox.AnnotateApp;
+const VA = sandbox.ViewerApp;
 let failed = 0;
 let passed = 0;
 
@@ -283,6 +293,106 @@ check("ExecQueue: commands still run in arrival order behind a successful gate",
   const outcomes = await withTimeout(Promise.all([first, second]), 500, "queue hung");
   assertEqual(seen, ["first", "second"]);
   assertEqual(outcomes, [{ ok: true, result: 1 }, { ok: true, result: 2 }]);
+});
+
+// --- the transport decision: which pages may ask for a folder grant -------
+//
+// (handoff surfaces_that_state_something_false, applying apps/viewer's
+// viewer_transport_honest_hosted posture here.) These drive the DELEGATION --
+// AA.chooseTransport hands the viewer's VA.chooseTransport an `http: null`
+// candidate, because this app has no HTTP read transport at all -- so what
+// they pin is this app's whole decision: hosted means no control, local means
+// the picker.
+//
+// The FSA side is a SPY rather than a working stub, the same choice the
+// viewer's own tier makes for the same reason: there is no File System Access
+// API in node, and on a hosted origin what has to be true is that FSA is
+// never REACHED.
+function fsaSpy() {
+  const spy = {
+    booted: false,
+    init: () => { spy.booted = true; return Promise.resolve(AA.STATE.DISCONNECTED); },
+  };
+  return spy;
+}
+
+check("a hosted annotate page offers no folder grant, and never boots FSA", async () => {
+  // A named host, a bare intranet name, and no hostname at all (the strictest
+  // answer, for a caller that cannot say where it is).
+  for (const hostname of ["tolstack.joby.aero", "kibot", ""]) {
+    const spy = fsaSpy();
+    const picked = await AA.chooseTransport({
+      protocol: "https:", hostname, fsa: spy,
+    });
+    assertEqual(AA.isHosted(picked), true, `hostname ${JSON.stringify(hostname)}`);
+    assertEqual(picked.adapter, null, `hostname ${JSON.stringify(hostname)}`);
+    assertEqual(spy.booted, false, "the FSA adapter must never be initialised");
+  }
+});
+
+check("a LOOPBACK annotate page still gets the picker -- its only way in", async () => {
+  // This is the half the viewer does not need and this app cannot live
+  // without: drawing-checker serves /tolstack/annotate/ from 127.0.0.1:8000
+  // in dev, and ops.toml's serve verb from 127.0.0.1:8843, so a protocol-only
+  // rule would leave this app with no way in on ANY origin.
+  assertEqual(VA.LOCAL_HOSTNAMES.length > 0, true);
+  for (const hostname of VA.LOCAL_HOSTNAMES) {
+    const spy = fsaSpy();
+    const picked = await AA.chooseTransport({
+      protocol: "http:", hostname, fsa: spy,
+    });
+    assertEqual(AA.isHosted(picked), false, hostname);
+    assertEqual(picked.kind, VA.TRANSPORT.FSA, hostname);
+    assertEqual(picked.adapter === spy, true, hostname);
+    assertEqual(spy.booted, true, hostname);
+  }
+});
+
+check("a file:// annotate page is the honest dead end, not a hosted page", async () => {
+  // Unchanged by this handoff: FSA has no file:// story (storage/fsa.js) so a
+  // real browser hands over a null candidate, and the page says so as an
+  // ERROR rather than as the hosted notice -- two different facts.
+  const picked = await AA.chooseTransport({
+    protocol: "file:", hostname: "", fsa: null,
+  });
+  assertEqual(AA.isHosted(picked), false);
+  assertEqual(picked.kind, null);
+  assertEqual(picked.adapter, null);
+});
+
+check("a loopback page in a browser with no FSA is that same dead end", async () => {
+  const picked = await AA.chooseTransport({
+    protocol: "http:", hostname: "localhost", fsa: null,
+  });
+  assertEqual(AA.isHosted(picked), false);
+  assertEqual(picked.kind, null);
+});
+
+check("the hosted notice offers no control, no path and no command", () => {
+  // Jeff's standing web-UI rules: a feature that is absent shows NOTHING
+  // about itself, and a terminal command is never rendered for a user to
+  // copy. A reader off-machine has no move here, so the sentence states the
+  // fact and stops.
+  const notice = AA.HOSTED_NOTICE;
+  assertEqual(typeof notice === "string" && notice.length > 0, true);
+  for (const banned of ["Connect", "connect", "\\", "python", "http"]) {
+    if (notice.includes(banned)) {
+      throw new Error(`the hosted notice mentions ${JSON.stringify(banned)}: ${notice}`);
+    }
+  }
+});
+
+check("index.html loads the shared decision before this app's own adapter", () => {
+  // app.js cannot be booted in this sandbox (ES module, `document`, WebGL --
+  // see the verb-table check below for the same constraint), so the one thing
+  // the whole posture stands on is read STATICALLY: without this script tag
+  // AA.chooseTransport throws, and the page never boots at all.
+  const html = fs.readFileSync(path.join(here, "index.html"), "utf8");
+  const shared = html.indexOf('src="../viewer/storage/adapter.js"');
+  const own = html.indexOf('src="./storage/adapter.js"');
+  if (shared === -1) throw new Error("index.html does not load ../viewer/storage/adapter.js");
+  if (own === -1) throw new Error("index.html does not load ./storage/adapter.js");
+  if (shared > own) throw new Error("the shared decision must load BEFORE this app's adapter");
 });
 
 // --- README's verb table <-> app.js's commands.register(...) calls -------

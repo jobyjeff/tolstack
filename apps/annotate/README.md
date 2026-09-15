@@ -54,10 +54,15 @@ step_tessellation spike hit this first) nor write one, so both this app's
 reads (mesh binaries) and its one write path need a real transport.
 
 ```powershell
-cd apps\annotate
+cd apps
 C:\workspace\tolstack\venv-win\Scripts\python.exe -m http.server 8843
-# open http://127.0.0.1:8843/index.html
+# open http://127.0.0.1:8843/annotate/index.html
 ```
+
+Serve `apps\`, not `apps\annotate\` — this page loads one file from its
+sibling (`../viewer/storage/adapter.js`, the shared transport decision below),
+and the two apps are siblings on the canonical mount too. `ops.toml`'s
+`serve` verb is the same command.
 
 Click **Connect folder**, pick the tolstack repo root
 (`C:\workspace\tolstack`), grant **read/write**. Build the two projections
@@ -67,6 +72,21 @@ this app reads first, from the main checkout:
 venv-win\Scripts\python.exe scripts\build_topology_projection.py
 venv-win\Scripts\python.exe scripts\build_feature_identity_projection.py
 ```
+
+### On a hosted origin there is no **Connect folder** at all
+
+The folder grant is offered on **local** pages only — a loopback server like
+the one above, or drawing-checker's own local mount. On a hosted origin the
+page states one sentence and offers nothing: a visitor reading the intranet
+copy has no tolstack repo to grant, so the picker could not work for them
+however it were presented, and this app's whole job is to *write* into that
+repo. (handoff `surfaces_that_state_something_false`, applying
+`apps/viewer/`'s `viewer_transport_honest_hosted` posture. The decision
+itself is the viewer's `VA.chooseTransport`, reached through
+`AA.chooseTransport` — one rule for both apps, not two. Note this app hands
+it no HTTP candidate at all, which is
+`ISSUE_20260910_annotate_has_no_http_read_transport`, still open: a hosted
+page cannot *read* here either.)
 
 No folder handy? `index.html?mock=1` runs a small synthetic demo (one
 topology, two edges, one already bound, one `owner_not_in_set`, a single
@@ -144,8 +164,11 @@ camera survive across launches. Replies are
 origin are ignored, and commands arriving before the storage connects queue
 behind it — the deep link's own "queued until you connect" semantics. The
 viewer probes for this mount and degrades to its plain "Annotate →" links
-(new tab) where the probe fails; nothing on this app's side changes
-off-origin.
+(new tab) where the probe fails; this listener's own behaviour is unchanged
+off-origin (a message from any other origin is simply ignored). What *does*
+turn on the origin is the folder grant — a flyout opened on a **hosted**
+viewer page shows the sentence in "On a hosted origin" above instead of a
+connect prompt, because nothing on that origin can write a binding.
 
 `apps/viewer/`'s topology-mode detail pane emits this link (`annotate this
 →`) on any edge whose confidence is `UNTRACED` or `NO CITATION`, naming its
@@ -198,7 +221,11 @@ apps/annotate/
                        highlight, part show/hide/frame. ES module (ADR below).
   app.js               boot + wiring. ES module.
   fixtures.js          the ?mock=1 demo dataset
-  storage/adapter.js   the read/write adapter contract
+  storage/adapter.js   the read/write adapter contract, plus the boot-time
+                       transport decision -- which DELEGATES to
+                       apps/viewer/storage/adapter.js's VA.chooseTransport
+                       (loaded by index.html as a sibling) rather than
+                       keeping a second copy of the rule
   storage/fsa.js       File System Access, mode: "readwrite"
   storage/memory.js    in-memory mock (?mock=1, tests) -- captures writes
                        rather than persisting them
@@ -243,8 +270,14 @@ loudly naming the load error instead of hanging forever, each assertion
 raced against a bounded timeout since a hang has no other observable
 failure) and `storage/memory.js` (a write is
 captured; a second write to the same filename refuses, append-only;
-`canWrite() === false` refuses a write instead of silently no-op'ing). It
-also carries a `[real]` tier that resolves every shipped alias in
+`canWrite() === false` refuses a write instead of silently no-op'ing), and
+the **transport decision** (a hosted origin gets no picker and never even
+initialises the FSA adapter — proved with a spy, since there is no File
+System Access API in node; every loopback hostname does get it; `file://`
+and a no-FSA browser stay the honest dead-end error rather than becoming the
+hosted notice; and, read statically because `app.js` cannot be booted here,
+that `index.html` loads the shared decision before this app's own adapter).
+It also carries a `[real]` tier that resolves every shipped alias in
 `docs/topologies/part_mesh_aliases.json` against the main checkout's
 installed meshes through `resolveMeshIdentifier` itself, skipping honestly
 where `data/meshes/` is absent; `tests/test_part_mesh_aliases.py` owns the

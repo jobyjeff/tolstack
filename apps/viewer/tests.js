@@ -925,6 +925,33 @@
         });
     }
 
+    await test("isLocalPage: a folder grant is legitimate on file:// and on a " +
+      "loopback origin, and on nothing else", function () {
+        // (surfaces_that_state_something_false.) The shared half of the rule
+        // apps/annotate/ boots on: what makes **Connect folder** legitimate is
+        // not the protocol, it is whether the reader plausibly holds the repo
+        // the picker would open. A server on their own machine does --
+        // drawing-checker serves /tolstack/annotate/ and /tolstack/viewer/
+        // from 127.0.0.1:8000 in dev.
+        eq(VA.isLocalPage("file:", ""), true);
+        eq(VA.isLocalPage("file:", undefined), true);
+        VA.LOCAL_HOSTNAMES.forEach(function (host) {
+          eq(VA.isLocalPage("http:", host), true, host);
+          eq(VA.isLocalPage("https:", host.toUpperCase()), true, host);
+        });
+        // A hosted visitor, in the shapes a real origin produces -- including
+        // a hostname that merely CONTAINS a local one, which an lax match
+        // would wave through.
+        ["tolstack.joby.aero", "kibot", "localhost.attacker.example",
+         "notlocalhost", ""].forEach(function (host) {
+          eq(VA.isLocalPage("https:", host), false, host);
+        });
+        // A caller that names no hostname gets the strictest answer, which is
+        // why apps/viewer's own boot is unchanged by this: topology_app.js
+        // passes the protocol only, on purpose.
+        eq(VA.isLocalPage("https:"), false);
+      });
+
     await test("parseJson treats a half-written projection as absent", function () {
       eq(VA.parseJson('{"a":1}'), { a: 1 });
       eq(VA.parseJson('{"a":'), null);

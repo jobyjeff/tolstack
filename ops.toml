@@ -27,15 +27,20 @@ cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", "setup.ps1"]
 # canonical serving surface for apps/annotate/ is now drawing-checker's mount
 # at /tolstack/annotate/, beside /tolstack/viewer/ and /tolstack/data/ --
 # same-origin siblings, which is what the viewer's flyout embedding stands on.
-# This verb serves the annotator ALONE on 8843 (its README's `Run it`
-# section), useful for hacking on the app with no drawing-checker server up;
-# note a lone-app root has no ../viewer or repo data/ beside it. There is no
+# This verb serves the apps/ TREE on 8843 (its README's `Run it` section),
+# useful for hacking on the app with no drawing-checker server up; open
+# /annotate/index.html. The root is apps/, not apps/annotate/, since 2026-09-15
+# (handoff surfaces_that_state_something_false): the annotator loads one file
+# from its sibling -- ../viewer/storage/adapter.js, the shared "may this page
+# ask for a folder grant?" decision -- and a lone-app root 404s it, taking the
+# page's whole boot with it. Repo data/ is still not beside it either way; the
+# folder grant is how this app reads. There is no
 # fifth `rebuild` verb for the projection rebuild recipe -- STANDARD_VERBS is
 # exactly install|serve|deploy|smoke -- so that stays
 # scripts\rebuild_projections.ps1, run by hand or from the ops console's
 # raw-script affordance if it has one.
 [verbs.serve]
-cmd = ["venv-win\\Scripts\\python.exe", "-m", "http.server", "8843", "--directory", "apps\\annotate"]
+cmd = ["venv-win\\Scripts\\python.exe", "-m", "http.server", "8843", "--directory", "apps"]
 long_running = true
 
 # Build AND publish in one motion — there is deliberately no separate `build`

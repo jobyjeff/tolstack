@@ -277,6 +277,16 @@
         return { adapter: memory, kind: VA.TRANSPORT.MOCK, state: connState };
       });
     }
+    // No `hostname`: this page passes the protocol ONLY, so the picker is
+    // offered on file:// and nowhere else -- unchanged from
+    // viewer_transport_honest_hosted. That is deliberate, not an omission
+    // (chooseTransport's own comment): the viewer's legitimate local page IS
+    // file://, since it is built to run by double-click, so it needs no
+    // loopback carve-out the way apps/annotate/ does. Whether a loopback
+    // viewer page with a failing probe should offer the picker rather than
+    // saying "not published on this site" is a real open question, filed as
+    // ISSUE_20260915_viewer_says_unpublished_on_a_loopback_origin_it_could_
+    // offer_a_picker_for rather than decided here.
     return VA.chooseTransport({
       protocol: window.location.protocol,
       http: VA.HttpAdapter.isSupported() ? new VA.HttpAdapter() : null,

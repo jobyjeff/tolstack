@@ -25,6 +25,35 @@ read). The deep-link/trace boot params queue behind the grant (by design),
 so nothing is broken — it is one avoidable click per session, per browser
 profile, for the read-only majority of visits.
 
+> **Correction, 2026-09-15 (handoff `surfaces_that_state_something_false`).**
+> Two phrases below are now wrong, and one of them would reintroduce a defect
+> that has since been fixed.
+>
+> **"fall back to FSA"** (in the paragraph above, describing what the viewer
+> does) — the viewer stopped doing that on 2026-09-14
+> (`viewer_transport_honest_hosted`): on an `http(s)` page whose served probe
+> fails there is **no FSA fallback**, because a hosted visitor has no tolstack
+> repo to grant and a picker they cannot satisfy reads as a page asking for
+> access to their files. Implemented literally, that phrase lands a hosted
+> annotate page back on **Connect folder** — exactly the defect the same
+> handoff that wrote this correction removed from `apps/annotate/`.
+>
+> **The posture is already decided, so the transport work does not get to
+> decide it.** `apps/annotate/` now boots through the *shared* decision
+> (`apps/viewer/storage/adapter.js`'s `VA.chooseTransport`, reached via
+> `AA.chooseTransport`): the folder grant is offered on a **local** page only
+> — `file://`, or a loopback origin — and a hosted origin gets one sentence
+> and no control. When the HTTP transport below lands it becomes the `http`
+> candidate handed to that same function; it does not add a fallback after it.
+> Note the rule that makes the picker legitimate is "local", not "file://":
+> this app has no `file://` story at all, so a loopback server (drawing-
+> checker's `127.0.0.1:8000` mount, or `ops.toml`'s serve verb) is its only
+> legitimate local page.
+>
+> What is *unchanged* is this issue's actual value: a hosted annotate page
+> still cannot **read**, which is why it can say nothing better than the
+> sentence it says. That is what the transport below fixes.
+
 Shape of a fix: an annotate `storage/http.js` sibling of the viewer's —
 same two probe candidates, plus `data/meshes/<sha>/...` binary reads
 (fetch → ArrayBuffer) — with `canWrite() === false`, so the bind forms hide

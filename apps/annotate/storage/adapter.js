@@ -61,6 +61,62 @@
     return e;
   };
 
+  // --- which transport this page boots on -----------------------------------
+  //
+  // NOT a second decision procedure: apps/viewer/storage/adapter.js's
+  // `chooseTransport` owns it for the whole app family, and index.html loads
+  // that file as a sibling so this one can call it (handoff
+  // surfaces_that_state_something_false, applying viewer_transport_honest_
+  // hosted's posture here).
+  //
+  // Annotate hands it `http: null` -- it has no HTTP read transport at all
+  // (ISSUE_20260910_annotate_has_no_http_read_transport), so the whole of the
+  // decision here is *is this page local to the reader?*: a loopback server
+  // gets the picker, a hosted origin gets AA.HOSTED_NOTICE and no control.
+  // The hostname IS passed, unlike the viewer's page: this app has no file://
+  // story at all (File System Access and a mesh-binary fetch both need a real
+  // origin -- see storage/fsa.js and the README's "Run it"), so a loopback
+  // server is its ONLY legitimate local page, and the protocol alone would
+  // leave it with no way in on any origin.
+  AA.chooseTransport = function (opts) {
+    opts = opts || {};
+    var viewer = window.ViewerApp;
+    if (!viewer || !viewer.chooseTransport) {
+      throw new Error(
+        "the shared transport decision did not load: this app is served " +
+        "beside apps/viewer/ (its index.html loads ../viewer/storage/" +
+        "adapter.js), so serve the apps/ directory, not apps/annotate/ alone"
+      );
+    }
+    return viewer.chooseTransport({
+      protocol: opts.protocol,
+      hostname: opts.hostname,
+      http: null,
+      fsa: opts.fsa,
+    });
+  };
+
+  // Did that decision come back "hosted, so no transport at all"? The word is
+  // read out of the shared frozen vocabulary (VA.TRANSPORT.UNPUBLISHED), never
+  // re-spelled here, and it is read in exactly this one place so app.js does
+  // not reach across into the viewer's namespace to ask.
+  AA.isHosted = function (picked) {
+    return !!picked && picked.kind === window.ViewerApp.TRANSPORT.UNPUBLISHED;
+  };
+
+  // What a HOSTED annotate page says instead of offering **Connect folder**.
+  //
+  // It states this app's own fact, not the viewer's ("the data is not
+  // published on this site yet"), and deliberately so: the viewer's sentence
+  // goes stale the moment drawing-checker bakes the projections, whereas this
+  // one stays true either way, because what a hosted visitor cannot do is
+  // WRITE. No control, no path, no command -- a reader off-machine has no
+  // move here, and inventing one for them is the defect this replaces.
+  AA.HOSTED_NOTICE =
+    "Annotating is not available on this site — it records what it learns by " +
+    "writing into the tolerance-stack repository, which only a copy of that " +
+    "repository on your own machine can do.";
+
   AA.requireReady = function (adapter) {
     if (adapter.getState() !== AA.STATE.READY) {
       throw AA.NotReadyError(adapter.getState());
