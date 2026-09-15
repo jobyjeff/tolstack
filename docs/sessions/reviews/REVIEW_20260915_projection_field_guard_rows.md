@@ -3,11 +3,16 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260914_projection_field_guard_rows.md
 reviewer: agent
 date: 2026-09-15
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE
+blockers: 0
+rounds: 2
 ---
 
-# REVIEW 2026-09-15 — projection_field_guard_rows
+# REVIEW 2026-09-15 — projection_field_guard_rows (round 1)
+
+> **Final verdict: APPROVE** after one round of rework (`6711deb`). Round 1 was
+> REQUEST CHANGES on one blocker; the record of it is kept below unedited,
+> followed by **Round 2** with the re-verification and the final verdict.
 
 Branch `handoff/projection_field_guard_rows` (`0c433e0`, `0b16566`), merged into
 `review/projection_field_guard_rows` for verification. **Not merged into
@@ -241,3 +246,112 @@ Three things this review had to learn the hard way, now in the overlay:
   roots: mesh blocks stripped, all parts meshed, `hub` + 15 meshed, and the 28
   meshless blocks removed. Each needs `data/projections/viewer/` (the whole
   directory, crops included) **and** `docs/tolerance_stacks/`.
+
+---
+
+# Round 2 — `6711deb`, and the verdict
+
+`review: widen prose_candidates to list[str], add the reachability arm`. Merged
+into `review/projection_field_guard_rows` and re-verified from scratch; I did
+not take the commit message's measurements on trust.
+
+## Both asks addressed, and the blocker's fix went past what I asked for
+
+**The blocker.** `prose_candidates` now accepts `list[str]`, which is the fix I
+proposed — but the round-2 commit correctly identified that widening the
+discoverer fixes *today* and not the class, and added the arm neither round had:
+
+```python
+assert set(PROSE_FIELDS) <= reachable   # reachable = every key prose_candidates returns
+```
+
+That is a better answer than mine. It separates the two silences every previous
+assertion conflated — "no committed document states an inventory in `title`"
+(safe) from "`notes` is invisible to the scanner" (the defect) — so a *fourth*
+JSON shape cannot land the way the second did. Re-measured, restoring the exact
+reviewed defect:
+
+| mutation | result |
+| --- | --- |
+| `prose_candidates` re-narrowed to `str`+`dict` | **red** — `PROSE_FIELDS lists ['notes'], which prose_candidates returns for no committed topology` |
+| drop `notes` from `PROSE_FIELDS` | **red**, naming all five topology files |
+| drop `description` | **red**, naming both of its files |
+| drop `title` | green — correct: `title` is *reachable*, it simply states no inventory, which is the distinction arm 3 exists to make |
+| drop `provenance` | green, same reason |
+
+The completeness replay is now genuinely in the test rather than a sentence in
+the lesson — `unlisted_inventory_fields(fields)` takes the tuple as an argument
+and the test runs it against `PROSE_FIELDS` minus each key in turn. That is the
+fix for the round-1 defect *and* for how the round-1 defect shipped.
+
+One correction worth recording, since round 1's report implied otherwise: the
+**guard proper was never broken.** `own_prose` json-dumps the raw value, so
+`notes` has always been scanned and planting a wrong count there has always
+reddened. What was wrong was the falsifiability check's claim about itself — a
+narrower defect than I described, and the commit says so plainly rather than
+accepting the larger framing.
+
+**The should-fix.** The `[real]` mesh block's header count is gone, the reason
+kept, pointed at `tests/test_part_mesh_aliases.py` which owns the alias table.
+No digits remain in the block.
+
+**The nit.** `aliased` now reads `(part.mesh || {}).installed`. Re-measured on
+the partial-strip scratch root (28 meshless parts' `mesh` blocks removed, the
+one meshed part's kept): both rewritten tests **pass** and the value-guard row
+prints the rebuild diagnosis, 358/360. The only remaining throw on that root is
+the untouched third test, which the handoff forbade touching and which is
+pre-existing.
+
+## Tiers, re-run post-merge in this review worktree
+
+| tier | result |
+| --- | --- |
+| `pytest -q` | **880 passed / 1 skipped** |
+| `node apps/viewer/run_tests.cjs` | 298/298 |
+| `... --repo C:/workspace/tolstack` | **360/360** |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | **12/12 witnessed** |
+
+No writes to `C:\workspace\tolstack\data\`. Merge into the review branch was
+clean both rounds.
+
+## Findings — round 2
+
+### SHOULD-FIX (filed, not blocked) — the replay's anti-vacuity bound pins which fields today's corpus states an inventory in
+
+`tests/test_topology.py`, last assertion of
+`test_every_prose_field_the_count_pairing_claims_is_really_scanned`:
+
+```python
+    assert replayed == {"description", "notes"}, (…)
+```
+
+`replayed` is derived from the committed corpus, so `==` asserts that no *other*
+topology field will ever carry an inventory. Measured: appending one **correct**
+guarded sentence to `topology_rotor_fastener_length.json`'s
+`provenance.structure` — `"The graph as modelled: 3 parts, 12 edges."`, both
+figures right, in a field `PROSE_FIELDS` already lists — reddens the
+demonstration, and the message explains a field having gone *missing* when the
+reader is holding one that was *added*.
+
+`>=` keeps the entire anti-vacuity guarantee (both known copies must still be
+attributable when dropped) and drops the claim about the corpus's future; the
+per-field `endswith(f":{field}")` assertion inside the loop already replays
+whatever else joins. This is the stale-count family's sixth sighting and its
+second inside an anti-vacuity assertion, which the overlay calls "the last place
+you want a spurious red."
+
+Not a blocker: the guard and all four arms are verified working, and this is a
+future spurious red in a demonstration rather than a present hole. One character
+was not worth a third loopback, so it is filed with an owner instead —
+`ISSUE_20260915_the_prose_field_replay_pins_which_fields_the_corpus_states_an_inventory_in.md`.
+
+## Verdict — APPROVE
+
+Every deliverable is verified by its own counterfactual, not by green: the
+pre-work state reddens and the post-work state does not, measured for all three
+items. The `TOPO_VALUE_GUARDS` audit the handoff asked for is the most valuable
+thing in the branch and is filed where triage will read it. The lesson's round-2
+rewrite is honest about having shipped the same vacuity twice and names the rule
+that generalises.
+
+Merged to `integration`. Trunk untouched.

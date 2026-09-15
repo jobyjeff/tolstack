@@ -2037,6 +2037,33 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       corpus from one that covers the example. Ask specifically what JSON
       *shapes* the discoverer walks and which committed field shapes fall
       outside them.
+      **The repair, from the same review's round 2, and it is the part to
+      carry forward: a completeness arm needs a REACHABILITY arm beside it.**
+      `assert set(PROSE_FIELDS) <= {every key prose_candidates returns}` — two
+      lines. It separates the two silences that every assertion in rounds 1 and
+      2 conflated: *"no committed document states an inventory in `title`"*
+      (safe, expected) from *"`notes` is invisible to the scanner"* (the
+      defect). Corpus-vs-constant is the right shape and is **not sufficient on
+      its own**, because the discoverer standing between them is a third thing
+      that can be wrong, and it fails silently in exactly the direction that
+      looks like good news. So whenever you accept a guard of the form
+      *constant measured against corpus*, ask **what proves the measuring
+      instrument can see every member of the constant** — and check the replay
+      lives in the test rather than as a sentence in the lesson, which is what
+      let round 1 ship. Verified by restoring the defect: the reachability arm
+      reddens with `PROSE_FIELDS lists ['notes'], which prose_candidates
+      returns for no committed topology`.
+      **One trap in the replay itself** (filed, not blocked:
+      `ISSUE_20260915_the_prose_field_replay_pins_which_fields_the_corpus_
+      states_an_inventory_in.md`): the per-member replay's anti-vacuity bound
+      came out as `assert replayed == {"description", "notes"}` — a cached fact
+      about authored data, so appending one *correct* guarded inventory sentence
+      to a topology's `provenance` reddens the demonstration with a message
+      about a field having gone *missing*. `>=` keeps the whole guarantee. This
+      is the stale-count family's **sixth** sighting and its second inside an
+      anti-vacuity assertion: when a new guard's replay enumerates which inputs
+      it bites on, ask whether that enumeration is a property of the code or of
+      today's corpus.
 
 - [ ] **The mutation tier reports every browser entry NOT WITNESSED in a fresh
       review worktree, and it is not a wall of broken guards.** New 2026-09-15.
