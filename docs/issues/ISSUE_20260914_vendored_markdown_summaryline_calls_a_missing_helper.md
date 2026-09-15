@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: apps/viewer/vendor
 reporter: agent
 handoff: forge/docs/sessions/HANDOFF_20260914_markdown_vendor_self_contained.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `markdown_vendor_self_contained` moved to completed/; not independently verified.
 ---
 
 # Vendored markdown.js ships a summaryLine() that throws if anything calls it
