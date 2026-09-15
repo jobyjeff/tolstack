@@ -24,6 +24,11 @@ tolerance_stack/
                     dimensions and gaps as edges, human-lassoed studies summed
                     through fold(). stdlib only. Added 2026-08-31. Explicitly not
                     a solver -- see docs/DAG_TOPOLOGY.md and the section below.
+  spec_crop_regions.py declared crop regions for spec-pile documents: which rect
+                    on which sheet a citation is about, and the rules that match
+                    a citation to a region. stdlib only. Added 2026-09-14.
+                    Declared configuration, never a search of the page -- see the
+                    section below.
   feature_identity.py the feature-identity event stream: binds a stack element
                     or topology edge to a mesh face, per-part attribution,
                     owner-not-in-set, and the staleness re-check. stdlib only.
@@ -58,6 +63,11 @@ scripts/
                                tolerance_stack.feature_identity.rebuild() ->
                                data/projections/feature-identity/bindings.json.
                                Added 2026-09-06; stdlib only.
+  record_spec_crop_region.py   the verb behind docs/spec_library/crop_regions.json:
+                               validates a rect against the pile document and the
+                               sheet it names, previews it, and appends the entry.
+                               Added 2026-09-14; needs PyMuPDF, like the crop
+                               builder it feeds.
   snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
                                the evidence for "nothing was written there"
   run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code)
@@ -217,6 +227,29 @@ the queue does not go looking.
 
 Full detail, including the per-document-vs-per-family schema decision and the
 render recipe for photocopied standards, is in `docs/spec_library/README.md`.
+
+### Declared crop regions (`spec_crop_regions.py`)
+
+A spec-pile citation names a document and a sheet and nothing finer — the pile is
+append-only, so the filename *is* the identity and there is no zone to pin. The
+crop for one was therefore the whole sheet, which for a fastener standard is a
+photocopy of a table with dozens of rows: technically the cited page, useless as
+evidence for the cited row. `docs/spec_library/crop_regions.json` is where a
+human says which rect the row is, and `scripts/build_viewer_crops.py` crops that
+instead.
+
+The shape follows `docs/topologies/part_mesh_aliases.json` deliberately —
+**declared configuration, never fuzzy matching**. A region is recorded by a verb
+(`scripts/record_spec_crop_region.py`) that validates the rect against the
+document and the sheet it names; each entry carries in words what is inside the
+rect, which is its evidence in the same sense a `source_ref` is a value's. A
+citation that matches no region keeps the whole-sheet crop it would have had
+anyway, and the crop's own note says why no region applied — a missing region is
+a gap to record, never a rect to guess.
+
+This is placement, **not identity and not a value source**: which bytes a
+citation was read from is still `source_ref` and `spec_pile`'s filename rule, and
+nothing here can make an untraced value traced.
 
 ### The feature-identity stream (`feature_identity.py`)
 

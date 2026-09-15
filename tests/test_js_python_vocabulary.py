@@ -1,6 +1,6 @@
 """The viewer's status tables, paired with the Python enumerations they copy.
 
-Six vocabularies are **defined in Python and hand-copied into JavaScript**:
+Seven vocabularies are **defined in Python and hand-copied into JavaScript**:
 
 ===============================================  ==================================
  Python (the definition)                          JavaScript (the copy)
@@ -10,6 +10,8 @@ Six vocabularies are **defined in Python and hand-copied into JavaScript**:
  ``MaterialEntry.__post_init__``
  the ``resolved_by`` literals in                  ``VA.CROP_RULES``
  ``scripts/build_viewer_crops.py``
+ the ``located_by`` literals in ``locate()``,     ``VA.CROP_PLACEMENTS``
+ same file
  ``VERDICT_SCOPES``, ``tolerance_stack/stack``    ``VA.VERDICT_SCOPES``
  what ``identity_rule_of_ref`` returns in         ``VA.IDENTITY_RULES``
  ``scripts/build_viewer_projection.py``
@@ -409,6 +411,40 @@ def python_crop_rules() -> tuple[str, ...]:
     return tuple(sorted(set(out)))
 
 
+def python_crop_placements() -> tuple[str, ...]:
+    """Every ``located_by`` value ``build_viewer_crops.py`` can write.
+
+    Same shape of problem, and same answer, as :func:`python_crop_rules`: there is
+    no enumeration to import, the values are string literals in the branches of
+    ``locate()`` that return. Read from the dict literals themselves, which is
+    still the definition and not a copy.
+
+    Scoped to ``locate()`` rather than to the whole module on purpose -- ``locate``
+    is where a placement is *minted*, and a future forwarding site
+    (``"located_by": placement["located_by"]``) would otherwise have to be
+    excluded by hand the way ``python_crop_rules`` excludes its one.
+    """
+    functions = [
+        node for node in ast.walk(ast.parse(CROPS_SCRIPT.read_text(encoding="utf-8")))
+        if isinstance(node, ast.FunctionDef) and node.name == "locate"
+    ]
+    if len(functions) != 1:
+        raise LookupError(
+            "expected exactly one `locate` in scripts/build_viewer_crops.py, "
+            f"found {len(functions)}. If the locator moved, read it where it now "
+            "lives -- do NOT hard-code the values here."
+        )
+    out: list[str] = []
+    for node in ast.walk(functions[0]):
+        if not isinstance(node, ast.Dict):
+            continue
+        for key, value in zip(node.keys, node.values):
+            if (isinstance(key, ast.Constant) and key.value == "located_by"
+                    and isinstance(value, ast.Constant) and isinstance(value.value, str)):
+                out.append(value.value)
+    return tuple(sorted(set(out)))
+
+
 def _projection_module():
     """``scripts/build_viewer_projection.py``, imported by path.
 
@@ -504,6 +540,12 @@ PAIRINGS = (
      "tolerance_stack/thermal.py: the values_status check in MaterialEntry.__post_init__"),
     ("CROP_RULES", js_object_keys, python_crop_rules,
      "scripts/build_viewer_crops.py: the `resolved_by` literals in resolve_pdf"),
+    # Added 2026-09-14 (spec_crop_region_registry). `located_by` was an if/else
+    # chain in VA.cropProvenanceLine and a pinned list in tests.js's VALUE_GUARDS
+    # until the registry needed a fourth value; it is a table now, so it pairs
+    # here like its three siblings.
+    ("CROP_PLACEMENTS", js_object_keys, python_crop_placements,
+     "scripts/build_viewer_crops.py: the `located_by` literals in locate()"),
     # Added 2026-08-13 (check_completeness_schema). This one is a live-data blind
     # spot of the same family and worse: `budget` had zero live instances until
     # that handoff migrated the pitch-link stack in the same commit, and the
