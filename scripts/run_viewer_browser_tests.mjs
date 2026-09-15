@@ -38,6 +38,7 @@
 //   npm install                                   # once: playwright-core, no browser download
 //   node scripts/run_viewer_browser_tests.mjs
 //   node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
+//   node scripts/run_viewer_browser_tests.mjs --only "topology height budget" # one suite
 //
 // `--repo` is the worktree escape hatch, same as apps/viewer/run_tests.cjs's:
 // data/projections/viewer/ exists only in the MAIN checkout, so point the real
@@ -61,6 +62,16 @@ const CHANNELS = ["chrome", "msedge"];
 // same flag as the node-fs tier in apps/viewer/run_tests.cjs.
 const repoFlag = process.argv.indexOf("--repo");
 const DATA_REPO = repoFlag === -1 ? REPO : normalize(process.argv[repoFlag + 1]);
+
+// `--only <substring>` runs just the suites whose printed label contains it.
+// Added for the mutation-witness tier (scripts/run_mutation_witness_tests.mjs),
+// which runs this file once per declared mutation and only ever cares about the
+// one suite that owns the guard — eighteen suites per mutation would have made
+// that tier too slow to be run. A filtered run says so in a banner above its
+// first suite AND on its own summary line: a partial pass must never be
+// mistaken for a full one.
+const onlyFlag = process.argv.indexOf("--only");
+const ONLY = onlyFlag === -1 ? null : process.argv[onlyFlag + 1];
 
 async function readProjection(name) {
   try {
@@ -925,6 +936,15 @@ const FIT_IN_PAGE = () => {
 // horizontally when it switches.
 const TOPO_VIEWPORT = { width: 1600, height: 1000 };
 const CARD_LAYOUT_VIEWPORT = { width: 1600, height: 700 };
+// ...and a third, shorter still, where the DOCUMENT itself scrolls: the mock
+// page's own content is ~700px tall whatever the window does (the DAG re-fits,
+// the topbar/banner/detail column does not), so a 560px window leaves ~140px of
+// real scroll. That is the one configuration that tells `position: fixed` from
+// `position: absolute` now that the room cap has made the old witness
+// unreachable — ISSUE_20260914_card_layout_guard_cannot_see_the_absolute_
+// popover_again, and the comment on the block that uses it. Same width as the
+// other two, so nothing reflows horizontally when the suite switches.
+const CARD_SCROLL_VIEWPORT = { width: 1600, height: 560 };
 // The one trigger every card-layout contract below is measured on: the demo
 // mechanism's one resolved crop, whose edge card is the tall one.
 const CARD_TRIGGER = "tr.tvrow[data-id='base_thickness'] button.crop-trigger";
@@ -1243,6 +1263,55 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
 
     await page.keyboard.press("Escape");
     push("Escape closes it here too", !(await page.locator(".croppop").isVisible()));
+
+    // --- hover chrome is OUT OF FLOW, restored ------------------------------
+    //
+    // The three contracts above (`...the document's own height untouched`,
+    // `...moves the DAG pane by nothing at all`, `leaders still land...`) were
+    // written to catch a `position: absolute` popover and can no longer do it:
+    // the room cap keeps the card wholly inside the window, the document is at
+    // least as tall as the window, and at `scrollY === 0` document and viewport
+    // coordinates coincide — so absolute and fixed place the card identically
+    // and neither lengthens anything. Flipping `.croppop` back to `absolute`
+    // shipped the whole suite green on 2026-09-14
+    // (ISSUE_20260914_card_layout_guard_cannot_see_the_absolute_popover_again);
+    // they are kept because a popover returned to normal FLOW would still
+    // lengthen the document, which is the other half of the same defect.
+    //
+    // What restores the fixed-vs-absolute half is the one configuration where
+    // the two coordinate systems differ: a document taller than the window,
+    // scrolled. `position()` computes the card's placement in VIEWPORT
+    // coordinates and writes it to `style.top`; under `absolute` that same
+    // number is read against the DOCUMENT, so the card renders `scrollY` px
+    // away from the trigger it belongs to. Measured at CARD_SCROLL_VIEWPORT,
+    // 2026-09-15: 8px off the trigger as shipped, 148px off it with
+    // `.croppop` on `absolute`.
+    await dismissCard();
+    await page.setViewportSize(CARD_SCROLL_VIEWPORT);
+    await page.waitForTimeout(450);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const scrollFrame = await page.evaluate(() => ({
+      scrollY: window.scrollY,
+      docHeight: document.documentElement.scrollHeight,
+      innerHeight: window.innerHeight,
+    }));
+    // The tripwire again, asserted before what it certifies: with no scroll
+    // there is nothing to tell the two positioning schemes apart, and this
+    // suite must go red for being unable to see the defect rather than green
+    // for not finding it.
+    push("the document really scrolls at this viewport — the only " +
+      "configuration the out-of-flow contract below is falsifiable in",
+      scrollFrame.docHeight > scrollFrame.innerHeight && scrollFrame.scrollY >= 24);
+    await page.locator(CARD_TRIGGER).hover();
+    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+    const scrolledCard = await cardLayout();
+    const gapBelow = scrolledCard.cardTop - scrolledCard.triggerBottom;
+    const gapAbove = scrolledCard.triggerTop - scrolledCard.cardBottom;
+    push("an open card is placed in the WINDOW's frame, not the document's — " +
+      "it still sits against its trigger with the page scrolled",
+      Math.abs(gapBelow - 8) < 1.5 || Math.abs(gapAbove - 8) < 1.5);
+    await dismissCard();
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.setViewportSize(TOPO_VIEWPORT);
 
     // The citation card, from the row's confidence chip (the same model the
@@ -1464,6 +1533,38 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.locator(".chip--total").count() === 0);
     push("chain mode is unavailable for a study that does not sum",
       await page.locator("#layout-toggle").isDisabled());
+
+    // ...and the other half of that rule, which is the LAYOUT the refusing
+    // study lands on: `onNavStudy`'s `chainable(studyId) ? "chain" :
+    // "topology"` false branch (topology_app.js). Nothing observed it in any
+    // tier until 2026-09-15 — mutating the line to `state.layoutMode =
+    // "chain";` shipped green everywhere (ISSUE_20260915_a_refusing_study_
+    // staying_on_the_walk_is_unwitnessed_in_every_tier), and the page it
+    // produces reads "Showing: study chain" over the whole walk, with the
+    // toggle DISABLED so the reader cannot correct the label.
+    //
+    // Arrived at FROM chain mode on purpose. The refusal click above is
+    // reached from the walk, where the false branch and no branch at all are
+    // the same state — which is exactly why the mutation was invisible. So:
+    // put the page on a chain first, assert it got there, then click the
+    // refusing study and require the walk back.
+    const walkRows = await page.evaluate(() => {
+      const VA = window.ViewerApp;
+      return VA.findTopology(VA.demoTopologyFixture().topologies, "demo_mechanism")
+        .edges.length;
+    });
+    await page.locator(navRow("study", "demo_strut_branch")).click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    push("the anchor: a study that sums really is on its chain first",
+      /Showing: study chain/.test(await page.locator("#layout-toggle").textContent()));
+    await page.locator(navRow("study", "demo_ambiguous")).click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    push("a refusing study drops back onto the whole-topology walk rather " +
+      "than claiming a chain it has not got",
+      /Showing: whole topology/.test(await page.locator("#layout-toggle").textContent()) &&
+      await page.locator("tr.tvrow").count() === walkRows);
 
     // The legend dialog: a help affordance, not layout — closed by default,
     // opens on a real click, and does not affect the DAG pane's own box.
@@ -1869,6 +1970,22 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         dragged.scale > 1.5 && dragged.svg > before.svg + 100 &&
         (await correspondence()).drift.length === 0);
 
+      // The leader STYLE is the third preference in that rule, and it is the
+      // one nothing observed until 2026-09-15 (ISSUE_20260915_leader_style_
+      // persistence_across_topology_switch_is_unpinned): topology_app.js and
+      // apps/viewer/README.md both say it survives a topology switch "like
+      // density does", and adding `state.leaderStyle = "jogged";` to
+      // selectTopology() shipped green in every tier. The reason is placement,
+      // not coverage: the block above toggles to angled, measures, and toggles
+      // BACK before the only topology switch in the suite, and at the default
+      // a reset and a non-reset are the same state. So switch topology while
+      // the style is OFF its default, and read the toggle back afterwards.
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
+      push("[real] the anchor: the leader style really is off its default " +
+        "before the switch",
+        /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()));
+
       await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
       const switched = await zone();
@@ -1877,6 +1994,54 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         switched.natural !== dragged.natural &&
         Math.abs(switched.scale - dragged.scale) < 0.01 &&
         (await correspondence()).drift.length === 0);
+      push("[real] switching topology keeps the leader STYLE too",
+        /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()));
+      // Back to jogged, so everything below this sees the default it expects.
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+
+      // ...and the three OLDER display preferences, whose precedent both docs
+      // invoke when they say the leader style survives a switch "like density
+      // does". Measured 2026-09-15, chasing the same question the leader-style
+      // issue raises at its end: adding `state.rowDensity = "comfortable";`,
+      // `state.edgeLengthMode = "uniform";` or `state.edgeValueOnly = false;`
+      // to selectTopology() reddened NOTHING in any tier. Same hole, same
+      // cause — the suite only ever switched topology with the toolbar at its
+      // defaults, where a reset and a non-reset are the same state — so the
+      // fix is the same: take all three off their defaults, switch, and read
+      // the toolbar back. Done as its own round trip rather than folded into
+      // the jog-zone block above, so nothing here perturbs that measurement.
+      await page.locator("#density-toggle").click();
+      await page.locator("#edge-length-toggle").click();
+      await page.locator("#edge-value-toggle").click();
+      await page.waitForTimeout(80);
+      const offDefaults = async () => ({
+        density: await page.locator("#density-toggle").textContent(),
+        length: await page.locator("#edge-length-toggle").textContent(),
+        valueOnly: await page.locator("#edge-value-toggle").textContent(),
+      });
+      const beforeSwitch = await offDefaults();
+      push("[real] the anchor: density, length mode and value-only rows are " +
+        "all off their defaults before the switch",
+        /Rows: Compact/.test(beforeSwitch.density) &&
+        /Lengths: tolerance/.test(beforeSwitch.length) &&
+        /Rows: values only/.test(beforeSwitch.valueOnly));
+      await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const afterSwitch = await offDefaults();
+      push("[real] switching topology keeps the density, the length mode and " +
+        "the value-only rows as well",
+        afterSwitch.density === beforeSwitch.density &&
+        afterSwitch.length === beforeSwitch.length &&
+        afterSwitch.valueOnly === beforeSwitch.valueOnly);
+      // Back to the defaults, and back to pitch_system, for the checks below.
+      await page.locator("#density-toggle").click();
+      await page.locator("#edge-length-toggle").click();
+      await page.locator("#edge-length-toggle").click();
+      await page.locator("#edge-value-toggle").click();
+      await page.waitForTimeout(80);
       await page.locator(navRow("topology", "pitch_system")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
 
@@ -2054,8 +2219,35 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
 
     // Compact density: correspondence must still hold once row height changes
     // — the leaders and the grid rows both re-derive from the same rowHeight.
+    //
+    // The correspondence check alone anchors NOTHING here, and did not until
+    // 2026-09-15 (ISSUE_20260914_compact_density_correspondence_check_has_no_
+    // positive_anchor): `correspondence()` re-derives both ends from the LIVE
+    // DOM, so it holds at whatever density is on screen and cannot say which
+    // one that was. A toggle that silently stopped working — a renamed id, a
+    // handler that no longer re-renders, a density the toolbar stops emitting
+    // — left this green under a name saying the opposite. The row pitch is the
+    // positive anchor, read against VA.ROW_DENSITIES' own two numbers rather
+    // than against 16 and 26 written out here, and it is also the effect to
+    // wait FOR, which is what retires the 50ms sleep that stood in for it.
+    const rowPitch = () => page.evaluate(
+      () => document.querySelector("tr.tvrow").getBoundingClientRect().height);
+    const densities = await page.evaluate(() => window.ViewerApp.ROW_DENSITIES);
+    const comfortablePitch = await rowPitch();
     await page.locator("#density-toggle").click();
-    await page.waitForTimeout(50);
+    await page.waitForFunction((was) => document.querySelector("tr.tvrow")
+      .getBoundingClientRect().height < was, comfortablePitch, { timeout: 5000 })
+      // A toggle that did NOT take has to fail as this block's own named
+      // sub-check rather than as a suite-level ERROR — the mutation-witness
+      // tier reads the check's name off this file's output.
+      .catch(() => {});
+    const compactPitch = await rowPitch();
+    push("the density toggle really took — the rows are at ROW_DENSITIES' " +
+      "compact pitch, and were at its comfortable one before the click",
+      Math.abs(comfortablePitch - densities.comfortable.rowHeight) < 0.6 &&
+      Math.abs(compactPitch - densities.compact.rowHeight) < 0.6 &&
+      new RegExp("Rows: " + densities.compact.label)
+        .test(await page.locator("#density-toggle").textContent()));
     push("leaders stay on their dots and seams at compact density",
       (await correspondence()).drift.length === 0);
     await page.locator("#density-toggle").click();
@@ -2889,6 +3081,21 @@ async function testHostedUnpublished(browser, realProjection) {
       await page.locator(".banner--disconnected").count() === 0);
     push("no path, script or command leaks into the sentence",
       !/\.py|venv-win|C:\\|\//.test(banner));
+    // The *"and nothing else"* half of the contract, which nothing observed
+    // until 2026-09-15 (ISSUE_20260915_unpublished_banner_has_nothing_pinning_
+    // and_nothing_else). topology_app.js's no-adapter branch writes
+    // `state.error` only for the OTHER no-adapter state — file:// in a browser
+    // with no File System Access API — and views/banner.js's UNPUBLISHED
+    // branch renders `state.error` when it is set. Drop that condition and a
+    // hosted visitor is told to switch to Chrome or Edge and offered `?mock=1`,
+    // neither of which is true of their situation; every check above passes
+    // anyway, because each looks for something that must be ABSENT. So this
+    // one counts what is there: the bar is one span, and no second element of
+    // any kind rides along under it.
+    push("the bar carries that one sentence and nothing else — no second " +
+      "element offering advice that is untrue of a hosted visitor",
+      await page.locator("#banner > *").count() === 1 &&
+      await page.locator("#banner .banner__error").count() === 0);
 
     if (!realProjection) {
       push("[real] a reload after the data lands enters served mode (skipped: " +
@@ -3281,14 +3488,6 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
     ({ browser, channel } = await launch());
     console.log(`browser: ${browser.version()} via channel '${channel}'\n`);
 
-    const results = [];
-    results.push(await runSuite(browser, pathToFileURL(join(APP_DIR, "test.html")).href, "suite file://"));
-    results.push(await runSuite(browser, `${baseUrl}/test.html`, "suite http"));
-    results.push(await testIndexRedirects(browser, fileBase, "index redirect file://"));
-    results.push(await testIndexRedirects(browser, baseUrl, "index redirect http"));
-    results.push(await testTheApp(browser, fileBase, "app file://"));
-    results.push(await testTheApp(browser, baseUrl, "app http"));
-
     const topologies = await readProjection("topologies.json");
     const crops = await readProjection("crops.json");
     const realResults = await readProjection("results.json");
@@ -3297,27 +3496,62 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
 note: no topologies.json under ${DATA_REPO} — the topology ` +
         `page's REAL tier is skipped (build it, or pass --repo <main checkout>)`);
     }
-    results.push(await testTheTopologyPage(
-      browser, fileBase, "topology file://", topologies, crops));
-    results.push(await testTheTopologyPage(
-      browser, baseUrl, "topology http", topologies, crops));
-    results.push(await testDeepLinks(browser, fileBase, "deep links file://"));
-    results.push(await testDeepLinks(browser, baseUrl, "deep links http"));
-    results.push(await testHeightBudget(browser, fileBase, "topology height budget", topologies, crops));
-    results.push(await testRespine(browser, fileBase, "topology file://", topologies, crops));
-    results.push(await testRenderCrash(browser, fileBase, "render crash shows the banner"));
-    results.push(await testRealDataRenderPath(
-      browser, fileBase, "real render path (non-mock)", topologies, realResults, crops));
-    results.push(await testServedModeBoot(
-      browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
-      stopRepoRootServer));
-    results.push(await testHostedUnpublished(browser, topologies));
-    results.push(await testRebuildAffordance(browser));
-    results.push(await testAnnotateFlyout(browser, fileBase));
-    results.push(await testAnnotateHostedPosture(browser));
+
+    // Every suite, keyed by the label it PRINTS — which is what `--only`
+    // matches on, so a filter can be copied straight off a failing line.
+    // `testRespine` prints `${label} respine`, hence the key spelled out here
+    // rather than the argument it is passed.
+    const SUITES = [
+      ["suite file://", () =>
+        runSuite(browser, pathToFileURL(join(APP_DIR, "test.html")).href, "suite file://")],
+      ["suite http", () => runSuite(browser, `${baseUrl}/test.html`, "suite http")],
+      ["index redirect file://", () => testIndexRedirects(browser, fileBase, "index redirect file://")],
+      ["index redirect http", () => testIndexRedirects(browser, baseUrl, "index redirect http")],
+      ["app file://", () => testTheApp(browser, fileBase, "app file://")],
+      ["app http", () => testTheApp(browser, baseUrl, "app http")],
+      ["topology file://", () =>
+        testTheTopologyPage(browser, fileBase, "topology file://", topologies, crops)],
+      ["topology http", () =>
+        testTheTopologyPage(browser, baseUrl, "topology http", topologies, crops)],
+      ["deep links file://", () => testDeepLinks(browser, fileBase, "deep links file://")],
+      ["deep links http", () => testDeepLinks(browser, baseUrl, "deep links http")],
+      ["topology height budget", () =>
+        testHeightBudget(browser, fileBase, "topology height budget", topologies, crops)],
+      ["topology file:// respine", () =>
+        testRespine(browser, fileBase, "topology file://", topologies, crops)],
+      ["render crash shows the banner", () =>
+        testRenderCrash(browser, fileBase, "render crash shows the banner")],
+      ["real render path (non-mock)", () => testRealDataRenderPath(
+        browser, fileBase, "real render path (non-mock)", topologies, realResults, crops)],
+      ["served mode (repo-root static server)", () => testServedModeBoot(
+        browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
+        stopRepoRootServer)],
+      ["hosted origin with nothing published", () => testHostedUnpublished(browser, topologies)],
+      ["rebuild affordance (stub sibling mount)", () => testRebuildAffordance(browser)],
+      ["annotate flyout (repo-root mount + file:// degradation)", () =>
+        testAnnotateFlyout(browser, fileBase)],
+      ["annotate hosted posture (no folder grant off-machine)", () =>
+        testAnnotateHostedPosture(browser)],
+    ];
+    const chosen = ONLY === null
+      ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
+    if (!chosen.length) {
+      console.log(`--only ${JSON.stringify(ONLY)} matches no suite. The suites are:` +
+        SUITES.map(([suiteLabel]) => "\n  " + suiteLabel).join(""));
+      process.exitCode = 1;
+      return;
+    }
+    if (ONLY !== null) {
+      console.log(`--only ${JSON.stringify(ONLY)}: running ${chosen.length} of ` +
+        `${SUITES.length} suites — THIS IS NOT A FULL RUN\n`);
+    }
+
+    const results = [];
+    for (const [, runSuiteFn] of chosen) results.push(await runSuiteFn());
 
     const failed = results.filter((r) => !r.ok);
-    console.log(`\n${results.length - failed.length}/${results.length} browser checks passed`);
+    console.log(`\n${results.length - failed.length}/${results.length} browser ` +
+      `checks passed${ONLY === null ? "" : ` (--only ${JSON.stringify(ONLY)})`}`);
     if (failed.length) {
       console.log("FAILED: " + failed.map((f) => f.label).join(", "));
       process.exitCode = 1;

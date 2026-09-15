@@ -70,7 +70,19 @@ scripts/
                                builder it feeds.
   snapshot_drawing_checker.py  before/after listing of drawing-checker's data/,
                                the evidence for "nothing was written there"
-  run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code)
+  run_viewer_browser_tests.mjs the browser test tier (test tooling, not app code).
+                               Takes a suite filter, which is what affords the
+                               mutation tier below a run per declared mutation.
+  run_mutation_witness_tests.mjs the mutation-witness tier (test tooling): applies a
+                               declared mutation to a shadow copy of the app and
+                               this directory under `tmp/`, runs the tier that
+                               owns the guard, and fails if it stays green or
+                               reddens somewhere else. Added 2026-09-15.
+  mutation_witnesses.json      the mutations themselves -- per guard, the edit it
+                               must redden on, the tier that owns it and the
+                               check that must fail. Read by the runner above
+                               and, for the anchor check, by
+                               `tests/test_mutation_witnesses.py`. Added 2026-09-15.
   rebuild_projections.ps1      runs the topology, results and crops builders from
                                the MAIN checkout in sequence and fails loud,
                                before building anything, if drawing-checker's
