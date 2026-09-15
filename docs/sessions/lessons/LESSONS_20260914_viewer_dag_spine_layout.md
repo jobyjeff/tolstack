@@ -157,14 +157,72 @@ uses it to re-derive what the render measured.
   convert back anyway, or `git status` shows five modified files that have no
   diff.
 
+## Round 2 — the review's two blockers, and why they were invisible
+
+`REVIEW_20260914_viewer_dag_spine_layout.md` returned REQUEST CHANGES with the
+behaviour verified correct and every published number re-derived. Both blockers
+were the same shape: **a deliverable that survives a one-line revert with all
+three tiers 100% green**, found by mutating the wiring in a scratch tree rather
+than by reading the diff. Worth internalising, because I wrote nine tests for
+deliverable 1 and none of them could see it.
+
+- **B1 — the mirror's render wiring.** Every test called `VA.spineRight`
+  itself, so deleting the one call in `renderTopoPane` changed nothing any of
+  them looked at. The structural reason is worth remembering: **a column mirror
+  moves only x, and essentially every check on this page measures y** —
+  correspondence compares leader ends to dot centres (which move together),
+  `BARS_MATCH_STORE_IN_PAGE` re-mirrors the layout before comparing, and the
+  fast tier's render tests count classes. Fixed by reading the x's the page
+  actually drew: mainline dots and bars at `railX(columns − 1)`, no rail to the
+  right of them, at least one rail to the left (or it would pass forever on a
+  one-column diagram), and every mainline leader starting clear of every rail.
+  Verified failing under the revert (`base_datum: 15 !== 35`).
+- **B2 — the centring rule.** `VA.centreOffsets` falls back to height-centring
+  when a serialisation has no leaders, so `if (plan.leaders.length)` → `if
+  (false)` silently ships the handoff's literal reading — the very thing the
+  measurement rejected — and the browser tier's `gridOffset` checks still pass,
+  because they compare the DOM against the store under *any* rule. Fixed by
+  pinning the property that makes leader-span centring the right rule rather
+  than the offset it produces: nudging the grid a row either way must make the
+  worst jog worse (it is the min-max optimum), plus a lopsided fixture where
+  the two rules differ by more than 2×. Verified failing under the revert.
+
+**The transferable rule:** when a deliverable is a *call site* rather than a
+computation, test the call site. "I tested the pure function and the pure
+function is right" is exactly how a dead wiring line ships green.
+
+The three should-fixes went the same round: the browser tier no longer restates
+`pitch_system`'s floor minimum as `26 * 45` (it computes `floorMin` from the
+layout, next to where `FIT_IN_PAGE` already did), the centring contracts gained
+`gridOffset > 1` non-vacuity witnesses in both the `[mock]` and `[real]`
+blocks, and **every live number in `apps/viewer/README.md` is now paired
+against the live projection** by a `[real]` test that parses the prose and
+re-derives it (the crossings totals 92 → 43 and 47 → 43, the max jog
+507 → 208, and 45 rows × 26px = 1170px). That last one is the repo's own rule
+about quantities in prose finally applied to the numbers this handoff
+published; `docs/sessions/` stays exempt as dated history.
+
+One thing the review flagged that has no fix here, only a fence:
+**`VA.lastTopoRender` is render state a test can read *instead of* the DOM**,
+and that is part of how B1 stayed invisible. It exists for two real reasons
+(the browser tier needs the budget the render measured; the animation handoff
+needs a store outliving one paint) — but anything that reads it is asking the
+view-model, not the page, and needs a DOM-level check beside it.
+
 ## Verified
 
 - `node apps/viewer/run_tests.cjs`: 241/241 (worktree).
-- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`: 290/292 —
-  the two reds are the concurrent-rebuild fixture drift above (`fixtures.js`
-  and `topology_fixtures.js` against a projection two other branches rebuilt
-  while this one ran), not this branch. Every test this handoff added is green
-  in both tiers.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`: 291/295 —
+  four reds, none this branch's, and by the end of round 2 the shared
+  projection had been rebuilt by **three** other worktrees (`…mesh_gating`,
+  `stack_title_style_pass`, `spec_crop_region_registry`). Extracting today's
+  `integration` to a scratch tree (`git archive integration | tar -x`) and
+  running the same command there gives 295/297: two of my four (the
+  `description` fixture drift) are already fixed on `integration` by branches
+  that have since landed, and the other two (`crops.json` gaining
+  `region_label`/`region_match`, and `located_by = "declared_region"` having no
+  viewer branch) are red on `integration` itself. Every test this handoff added
+  is green in both tiers.
 - `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`:
   16/16 suites, topology page 118/118 sub-checks over `file://` and http,
   height budget 18/18 (the fit and the centring re-measured at every length

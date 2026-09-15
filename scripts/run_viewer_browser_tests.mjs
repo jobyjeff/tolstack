@@ -635,7 +635,14 @@ const BARS_MATCH_STORE_IN_PAGE = ({ topologyId, mode }) => {
   const breaks = document.querySelectorAll("svg.tv__rails path.rail__break").length;
   if (breaks !== floored) bad.push(`break marks: ${breaks} drawn vs ${floored} floored`);
   const edges = layout.rows.filter((r) => r.kind === "edge").length;
-  return { bad, floored, edges, budget: last.fit.budget,
+  // The shortest this serialisation can ever be drawn: one row per node, one
+  // floor per edge. Computed from the layout rather than restated by hand —
+  // a caller that wrote `26 * 45` for pitch_system would go silently wrong the
+  // day the walk gains a row or the row height moves.
+  const floorMin = VA.RAIL_METRICS.rowHeight *
+    (layout.rows.filter((r) => r.kind === "node").length +
+     edges * VA.EDGE_LENGTH_SCALE.floorRows);
+  return { bad, floored, edges, floorMin, budget: last.fit.budget,
            dagHeight: pos.dagHeight };
 };
 
@@ -1157,7 +1164,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         "store, and the viewport fit floors every one of them rather than " +
         "drawing a DAG the page cannot hold",
         realTol.bad.length === 0 && realTol.floored === realTol.edges &&
-        realTol.dagHeight <= Math.max(realTol.budget, 26 * 45) + 0.5);
+        realTol.dagHeight <= Math.max(realTol.budget, realTol.floorMin) + 0.5);
       if (realTol.bad.length) console.log("    bars: " + realTol.bad.slice(0, 5).join(" | "));
       push("[real] pitch_system tolerance-width leaders still correspond",
         (await correspondence()).drift.length === 0);
@@ -1297,6 +1304,8 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       "its own floor where that is taller",
       mockFit.length === 3 && mockFit.every((f) =>
         f.budget > 0 && f.dagHeight <= Math.max(f.budget, f.floorMin) + 0.5));
+    push("[mock] the grid IS offset against the DAG — the contract below " +
+      "would pass at 0 ≈ 0", mockFit.every((f) => f.gridOffset > 1));
     push("[mock] the grid block sits exactly where the store centres it, in " +
       "every length mode",
       mockFit.every((f) => Math.abs(f.measuredGridOffset - f.gridOffset) < 0.75));
@@ -1382,6 +1391,8 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       push("[real] pitch_system overflows honestly: its own floor is past " +
         "the budget, so it scrolls rather than shrinking below one row",
         realFit.every((f) => f.floorMin > f.budget && f.dagHeight === f.floorMin));
+      push("[real] pitch_system's grid IS offset against its DAG",
+        realFit.every((f) => f.gridOffset > 1));
       push("[real] the grid block sits where the store centres it here too",
         realFit.every((f) => Math.abs(f.measuredGridOffset - f.gridOffset) < 0.75));
       push("[real] leaders still correspond after the mode cycle",

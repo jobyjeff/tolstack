@@ -2097,6 +2097,57 @@
       };
     }
 
+    // A shape the demo does not have and the real documents do: every leader
+    // in the top of the diagram, and all the drawn LENGTH below them. Under a
+    // scaled mode edge `e3` is the yardstick and dwarfs the two above it, so
+    // the DAG's midpoint sits far below the leaders' own midpoint — which is
+    // the whole difference between the two centring rules.
+    function lopsidedTopo() {
+      var edge = function (id, part, from, to, band) {
+        return { id: id, name: id, kind: "structural", part: part, from: from,
+          to: to, confidence: "traced", value_source: "inline",
+          zero_width: false, crop_key: null,
+          dimension: { nominal: 1, min: -band, max: band, plus_minus: band },
+          transform: { id: "identity", kind: "identity", ratio: 1 } };
+      };
+      var node = function (id) {
+        return { id: id, name: id, kind: "mating_surface", parts: [], branch: false,
+                 degree: 2 };
+      };
+      return {
+        id: "lopsided", parts: [{ id: "a" }, { id: "b" }, { id: "c" }],
+        nodes: [node("n0"), node("n1"), node("n2"), node("n3")],
+        edges: [edge("e1", "a", "n0", "n1", 0.01),
+                edge("e2", "b", "n1", "n2", 0.01),
+                edge("e3", "c", "n2", "n3", 1.0)],
+        layout: {
+          columns: 1,
+          rows: [
+            { row: 0, kind: "node", id: "n0", column: 0, branch: false },
+            { row: 1, kind: "edge", id: "e1", column: 0, closes_row: null },
+            { row: 2, kind: "node", id: "n1", column: 0, branch: false },
+            { row: 3, kind: "edge", id: "e2", column: 0, closes_row: null },
+            { row: 4, kind: "node", id: "n2", column: 0, branch: false },
+            { row: 5, kind: "edge", id: "e3", column: 0, closes_row: null },
+            { row: 6, kind: "node", id: "n3", column: 0, branch: false },
+          ],
+          rails: [{ column: 0, start: 0, end: 6 }],
+          links: [],
+        },
+      };
+    }
+
+    // The same max-jog measurement over an arbitrary plan (the one inside the
+    // centring test closes over the demo's).
+    function maxJogAt2(positions, plan, gridOffset, metrics) {
+      var worst = 0;
+      plan.leaders.forEach(function (leader) {
+        var y2 = gridOffset + leader.boundary * metrics.rowHeight;
+        worst = Math.max(worst, Math.abs(positions.nodes[leader.id] - y2));
+      });
+      return worst;
+    }
+
     await test("two tolerances on one feature merge into one component group, " +
       "and their internal node gets no leader — that omission IS the grouping",
       function () {
@@ -2387,6 +2438,64 @@
         eq(after, 0, "right-justified, nothing stands between them and the grid");
       });
 
+    await test("the RENDER draws the spine on the rightmost rail — the page " +
+      "mirrors, not just the layout helper", function () {
+        // The wiring, not the pure function: VA.spineRight is pinned above,
+        // and renderTopoPane calling it is a separate claim that nothing else
+        // in this tree can see. A column mirror moves only x, and every other
+        // check here measures y or compares the store against itself, so
+        // dropping the call renders a left-justified DAG with all three tiers
+        // green. Read the x's the page actually drew.
+        var M = VA.RAIL_METRICS;
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var spineX = VA.railX(TOPO.layout.columns - 1, M);
+        var onMainline = {};
+        TOPO.layout.rows.forEach(function (row) {
+          if (row.column === 0) onMainline[row.id] = true;
+        });
+        var x = function (node, attr) { return Number(node.getAttribute(attr)); };
+
+        // Every dot and bar the projection put on the WALK'S OWN MAINLINE is
+        // drawn in the rightmost column, hard against the jog zone.
+        var mainlineDots = all(root, "circle.rail__dot").filter(function (dot) {
+          return onMainline[dot.getAttribute("data-id")];
+        });
+        ok(mainlineDots.length > 1, "the demo mechanism has a mainline");
+        mainlineDots.forEach(function (dot) {
+          eq(x(dot, "cx"), spineX, dot.getAttribute("data-id"));
+        });
+        all(root, "line.rail__bar").forEach(function (bar) {
+          if (!onMainline[bar.getAttribute("data-id")]) return;
+          eq(x(bar, "x1"), spineX, bar.getAttribute("data-id"));
+        });
+
+        // Nothing is drawn to the right of it, and something is drawn to its
+        // left — otherwise this passes on a one-column diagram forever.
+        var railXs = all(root, "line.rail").map(function (rail) {
+          return x(rail, "x1");
+        });
+        ok(railXs.length > 1, "the demo mechanism has a branch rail");
+        railXs.forEach(function (railX) {
+          ok(railX <= spineX, "a rail at " + railX + " is right of the spine");
+        });
+        ok(railXs.some(function (railX) { return railX < spineX; }),
+           "the branches extend LEFT of the spine");
+
+        // And the observable that buys: a leader off a mainline dot starts
+        // clear of every rail, so it runs straight into its seam.
+        var leaders = all(root, "path.rail__leaderhit").filter(function (hit) {
+          return onMainline[hit.getAttribute("data-leader-id")];
+        });
+        ok(leaders.length > 0, "a mainline interface is a part boundary");
+        leaders.forEach(function (hit) {
+          var startX = Number(/^M ([\d.]+) /.exec(hit.getAttribute("d"))[1]);
+          railXs.forEach(function (railX) {
+            ok(railX < startX,
+               hit.getAttribute("data-leader-id") + " leaves past a rail at " + railX);
+          });
+        });
+      });
+
     await test("fitEdgeLength lands the DAG on its budget, and gives up the " +
       "proportion before it gives up the floor", function () {
         var floor = 26;
@@ -2509,6 +2618,58 @@
         eq(pos.gridHeight, 2 * M.rowHeight);
         eq(pos.gridOffset, (5 - 2) * M.rowHeight / 2);
         eq(pos.offset, 0);
+      });
+
+    await test("centring across the leaders beats centring the two blocks' " +
+      "heights — the measured reason this is not the obvious rule", function () {
+        // The deliverable said "centre the shorter block against the taller".
+        // Shipped instead: centre the LEADERS' own span, because a scaled DAG
+        // puts its length where the big dimensions are and not where the
+        // leaders are, so height-centring can push every leader further than
+        // it started. Without this test the obvious rule passes in place of
+        // the measured one — VA.centreOffsets' fallback IS height-centring,
+        // so forcing it is a one-line edit.
+        var M = VA.RAIL_METRICS;
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        var maxJogAt = function (positions, gridOffset) {
+          var worst = 0;
+          plan.leaders.forEach(function (leader) {
+            var y1 = positions.nodes[leader.id];
+            var y2 = gridOffset + leader.boundary * M.rowHeight;
+            worst = Math.max(worst, Math.abs(y1 - y2));
+          });
+          return worst;
+        };
+        ["uniform", "tolerance", "absolute"].forEach(function (mode) {
+          var pos = VA.rowPositions(TOPO.layout, TOPO, mode, M,
+            { budget: 0, plan: plan });
+          // The rule that shipped, and the one the handoff's words describe.
+          var shipped = maxJogAt(pos, pos.gridOffset);
+          var byHeight = maxJogAt(pos, (pos.dagHeight - pos.gridHeight) / 2);
+          ok(shipped <= byHeight,
+             mode + ": leader-span " + shipped + " vs height-centred " + byHeight);
+          // And it is the best any single block offset can do: shifting the
+          // grid either way from where it sits makes the worst leader worse.
+          ok(maxJogAt(pos, pos.gridOffset + M.rowHeight) > shipped,
+             mode + ": nudging the grid down makes the worst jog worse");
+          ok(maxJogAt(pos, pos.gridOffset - M.rowHeight) > shipped,
+             mode + ": nudging the grid up makes the worst jog worse");
+        });
+        // The case that makes the two rules actually disagree, which is the
+        // real documents' shape: the leaders sit in the top third of a DAG
+        // whose length is all below them (pitch_link_to_pitch_plate under
+        // tolerance width is exactly this — 132px → 228px WORSE if the
+        // heights are centred). A mini fixture reproduces it: one long edge
+        // at the bottom, past every leader.
+        var lopsided = lopsidedTopo();
+        var lopsidedPlan = VA.gridPlan(lopsided.layout, lopsided);
+        var pos = VA.rowPositions(lopsided.layout, lopsided, "tolerance", M,
+          { budget: 0, plan: lopsidedPlan });
+        var shipped = maxJogAt2(pos, lopsidedPlan, pos.gridOffset, M);
+        var byHeight = maxJogAt2(pos, lopsidedPlan,
+          (pos.dagHeight - pos.gridHeight) / 2, M);
+        ok(byHeight > shipped * 2,
+           "height-centring is far worse here: " + byHeight + " vs " + shipped);
       });
 
     await test("the render offsets the grid TABLE by the store's own " +
@@ -4798,6 +4959,96 @@
                    topoProj.id + " " + row.id);
               });
             });
+          });
+
+        await test("[real] every number apps/viewer/README.md states about the " +
+          "spine, the fit and the centring is re-derivable from the live " +
+          "projection", function () {
+            // The README is a live document, and these are quantities in
+            // prose — this repo's standing rule is that one no test reads
+            // from the tree is a defect whether or not it happens to be right
+            // today. The crossings test above deliberately pins only the
+            // SPINE half so a future layout policy is free to move the rest;
+            // this pairs the published totals instead, so moving them means
+            // editing both.
+            var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+            ok(src, "VIEWER_SRC must be injected for the doc pairing");
+            var readme = src.readText("README.md");
+            ok(readme, "apps/viewer/README.md must be readable");
+            var M = VA.RAIL_METRICS;
+
+            // How many rails stand between a leader's dot and its lane,
+            // summed over one serialisation.
+            var crossings = function (topoProj, layout) {
+              var plan = VA.gridPlan(layout, topoProj);
+              var geo = VA.railGeometry(layout, M);
+              var leaderGeo = VA.leaderGeometry(layout, plan, M);
+              var n = 0;
+              leaderGeo.leaders.forEach(function (leader) {
+                geo.rails.forEach(function (rail) {
+                  if (rail.x > leader.x1 && rail.x < leader.laneX &&
+                      rail.y1 <= leader.y1 && leader.y1 <= rail.y2) n++;
+                });
+              });
+              return n;
+            };
+
+            var before = 0, after = 0, zeroed = 0;
+            liveTopos.forEach(function (topoProj) {
+              before += crossings(topoProj, topoProj.layout);
+              var mirrored = crossings(topoProj, VA.spineRight(topoProj.layout));
+              after += mirrored;
+              if (mirrored === 0) zeroed++;
+            });
+
+            // "leader-vs-rail crossings went **92 → 43**, four of the five to
+            // zero"
+            var totals = /crossings went \*\*(\d+) → (\d+)\*\*, (\w+) of the\s+five to zero/
+              .exec(readme);
+            ok(totals, "expected the README's crossings sentence");
+            eq(Number(totals[1]), before, "README's before-total");
+            eq(Number(totals[2]), after, "README's after-total");
+            eq(totals[3], ["zero", "one", "two", "three", "four", "five"][zeroed],
+               "README's count of topologies taken to zero");
+
+            // "that one topology's total only moves 47 → 43"
+            var pitchTotals = /topology's total only moves (\d+) → (\d+)/.exec(readme);
+            ok(pitchTotals, "expected the README's pitch_system crossings sentence");
+            eq(Number(pitchTotals[1]), crossings(livePitch, livePitch.layout));
+            eq(Number(pitchTotals[2]),
+               crossings(livePitch, VA.spineRight(livePitch.layout)));
+
+            // "`pitch_system`'s max jog 507px → 208px". Uniform mode: no
+            // length scaling, so this number is a property of the layout and
+            // the centring alone, exactly as the sentence around it claims.
+            var mirrored = VA.spineRight(livePitch.layout);
+            var plan = VA.gridPlan(mirrored, livePitch);
+            var maxJog = function (positions) {
+              var worst = 0;
+              VA.leaderGeometry(mirrored, plan, M, positions).leaders
+                .forEach(function (leader) {
+                  worst = Math.max(worst, Math.abs(leader.y1 - leader.y2));
+                });
+              return worst;
+            };
+            var jogs = /max jog (\d+)px → (\d+)px/.exec(readme);
+            ok(jogs, "expected the README's max-jog sentence");
+            eq(Number(jogs[1]),
+               maxJog(VA.rowPositions(mirrored, livePitch, "uniform", M)),
+               "README's top-aligned max jog");
+            eq(Number(jogs[2]),
+               maxJog(VA.rowPositions(mirrored, livePitch, "uniform", M,
+                 { budget: 0, plan: plan })),
+               "README's centred max jog");
+
+            // "45 rows × 26px = 1170px" — the floor minimum that makes the
+            // honest overflow honest.
+            var floor = /(\d+)\s+rows × (\d+)px = (\d+)px/.exec(readme);
+            ok(floor, "expected the README's floor-minimum sentence");
+            eq(Number(floor[1]), livePitch.layout.rows.length, "README's row count");
+            eq(Number(floor[2]), M.rowHeight, "README's row height");
+            eq(Number(floor[3]), livePitch.layout.rows.length * M.rowHeight,
+               "README's floor minimum");
           });
 
         await test("[real] right-justifying pitch_system takes its spine " +
