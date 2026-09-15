@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_link_thread_region_t",
-  "title": "Thread region T: bolt overall length against the grip -- a provenance cross-check, not a design quantity",
+  "title": "Thread region T",
+  "description": "Bolt overall length against the grip -- a provenance cross-check that two independently-read NAS6403 table columns agree, not a design quantity.",
   "topology": "pitch_link_to_pitch_plate",
   "from": "shank_full_dia_end",
   "to": "bolt_point",

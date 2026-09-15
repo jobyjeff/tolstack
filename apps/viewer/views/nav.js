@@ -16,8 +16,28 @@
 // the flat list's markCoveredStacks chip used; nothing is hidden or
 // duplicated, and the covered stack's own classic view (with its check) is
 // one click under the topology it also is.
+//
+// Titles are short noun phrases (stack_title_style_pass, 2026-09-14 — the rule
+// is docs/SOP_TOLERANCE_STACK.md's "Titling an artifact"), so the rail scans
+// as a list rather than a wall of text. What a title used to carry inline now
+// lives in the artifact's authored `description`, and this is the only place
+// that renders it: as the row's hover tooltip. Progressive disclosure, no new
+// chrome — a row with no description simply has no tooltip to show.
 (function (VA) {
   "use strict";
+
+  // The row's `title=`, or null for none. Where a row already carries a hint
+  // about what clicking it does, the description goes ABOVE it rather than
+  // replacing it: the hint is the only statement of that behaviour anywhere.
+  function tooltip(description, hint) {
+    if (description && hint) return description + "\n\n" + hint;
+    return description || hint || null;
+  }
+
+  function setTooltip(row, description, hint) {
+    var text = tooltip(description, hint);
+    if (text) row.setAttribute("title", text);
+  }
 
   VA.renderNavTree = function (root, tree, state, handlers) {
     VA.clear(root);
@@ -42,7 +62,8 @@
       (inThisTopology && !state.studyId ? " navtree__row--on" : ""));
     row.appendChild(VA.el("span", "navtree__label", t.title));
     row.appendChild(VA.el("code", "navtree__id", t.id));
-    row.setAttribute("title", "the whole topology, depth-first, with nothing highlighted");
+    setTooltip(row, t.description,
+      "the whole topology, depth-first, with nothing highlighted");
     row.setAttribute("data-nav-kind", "topology");
     row.setAttribute("data-nav-id", t.id);
     row.onclick = function () { handlers.onTopology(t.id); };
@@ -55,6 +76,7 @@
         (active ? " navtree__row--on" : "") +
         (s.status === "error" ? " navtree__row--warn" : ""),
         (s.status === "error" ? "⚠ " : "") + s.title);
+      setTooltip(srow, s.description, null);
       srow.setAttribute("data-nav-kind", "study");
       srow.setAttribute("data-nav-id", s.id);
       srow.setAttribute("data-topology-id", t.id);
@@ -70,6 +92,7 @@
         "this stack's own authored checks live here — the topology this page " +
         "also draws for it compares totals, never a verdict, so this check has " +
         "no field there at all"));
+      setTooltip(srow, stackProj.description, null);
       srow.setAttribute("data-nav-kind", "stack");
       srow.setAttribute("data-nav-id", stackProj.id);
       srow.onclick = function () { handlers.onStack(stackProj.id); };
@@ -92,6 +115,7 @@
         chip.text, chip.title));
     });
     row.appendChild(chips);
+    setTooltip(row, stackProj.description, null);
     row.setAttribute("data-nav-kind", "stack");
     row.setAttribute("data-nav-id", stackProj.id);
     row.onclick = function () { handlers.onStack(stackProj.id); };

@@ -185,15 +185,17 @@ measures exactly that (the DAG pane's box with a card open, to the pixel).
   today crops.json records one crop per citation and an edge carries one
   citation, so one renders where one exists and nothing is invented where none
   (second-side crops are a recorded gap, not a rendering choice). An untraced /
-  uncited edge's card deep-links into the annotator (`VA.annotateLink`), under
-  the same gap-only rule the detail pane applies.
+  uncited edge's card offers the annotator (`VA.annotateLink`) under the same
+  two rules the detail pane applies — the gap-only rule, and **only where the
+  part has a 3D model** ("No dead 3D links" below).
 - **Component card** — on the grid's merged component cell. The part's name,
   drawing and note, plus a thumbnail **derived from what exists**: the resolved
   crop of one of the part's own rows' annotations, which is a crop of that
   part's drawing by construction — never matched by filename or prefix. There
   is no mesh/annotator render yet (the annotator has no snapshot verb), so a
   part with no crop-bearing row gets **no thumbnail** — absent is absent, no
-  placeholder. Deep-links to the annotator isolating the part.
+  placeholder. Offers the annotator isolating the part, where a mesh for it is
+  installed and not otherwise ("No dead 3D links" below).
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the classic elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
@@ -750,18 +752,51 @@ same builder the toolbar's own "Annotate →" link uses) is relative
 (`../annotate/index.html`), carrying `topology`/`edge`, plus `study` when one
 is selected and `isolate=<part>` when the edge names an owning part — booting
 `apps/annotate/` with that study open, the edge selected, and the part
-isolated if a mesh for it happens to be installed (handoff
-`annotate_deep_link_and_part_filter`; `apps/annotate/README.md`'s own "Deep
-link in" section is the other end of this). A binding made there is
-identity, never a value source (`docs/ANNOTATION_SURFACE.md`) — this link
-does not change what number this page shows, only helps someone establish
-which physical feature the row means.
+isolated (handoff `annotate_deep_link_and_part_filter`;
+`apps/annotate/README.md`'s own "Deep link in" section is the other end of
+this). A binding made there is identity, never a value source
+(`docs/ANNOTATION_SURFACE.md`) — this link does not change what number this
+page shows, only helps someone establish which physical feature the row means.
+
+### No dead 3D links
+
+Every one of those affordances — the detail pane's, both hover cards', and the
+toolbar's study launch — renders **only where there is something to open**
+(handoff `annotate_affordances_flyout_and_mesh_gating`).
+`scripts/build_topology_projection.py` resolves each topology `part` against the
+installed meshes at build time, through the declared alias table and in the
+annotator's own precedence (`docs/topologies/part_mesh_aliases.json`; direct
+match, then alias, never fuzzy), and stamps the answer on every projected part:
+
+```json
+"parts": [ { "id": "gas_spring_mount_213668_002",
+             "mesh": { "installed": true, "part_id": "machined_213668" } } ]
+```
+
+The block is **always present** — `{"installed": false, "part_id": null}` where
+nothing resolved — so the page never has to read an absent key as a fact. A
+`part_id` that differs from the part's own id is the alias table having done the
+resolving. The page cannot compute any of this for itself: under
+drawing-checker's data mount `docs/` is unmounted by design, so the alias table
+is unreachable, and `data/meshes/` is in no projection this app reads.
+
+Where a part's block says no mesh is installed, the page shows **nothing** about
+3D — no greyed control, no sentence explaining a model that does not exist. That
+includes the gap-flow affordance on an untraced/uncited edge: it exists to
+*create* a binding, and an annotator with no geometry for the part cannot bind a
+face, so the honest fix is installing the mesh. The row stays on the gap list
+either way. The study launch follows the same rule one level up: a study none of
+whose parts has a mesh would fly out an empty scene, so it is not offered.
+
+Nothing here needs a code change when the mesh set grows: install the mesh (and,
+where the two namespaces differ, add an evidenced alias entry), rebuild the
+topology projection, and exactly that part's affordances turn on.
 
 ## The 3D flyout — the annotator as a side panel (study_3d_flyout)
 
 Where `../annotate/` is **served beside this page** — drawing-checker's
 mounts (`/tolstack/annotate/` next to `/tolstack/viewer/`), or any repo-root
-static server — the two annotate affordances upgrade in place:
+static server — every annotate affordance upgrades in place:
 
 - the toolbar's study affordance becomes **View in 3D →** (`#study-3d`): a
   side panel flies out tracing the selected study's chain — its parts
@@ -771,7 +806,11 @@ static server — the two annotate affordances upgrade in place:
   to the annotator's honest empty/absent states — never a guessed surface;
 - the detail pane's `annotate this →` becomes **attach to 3D →**: the panel
   flies out with that edge selected and its part isolated, ready to click
-  the surface.
+  the surface;
+- a hover card's `annotate this in 3D →` / `view this part in 3D →` drives the
+  **same** panel (handoff `annotate_affordances_flyout_and_mesh_gating`) and
+  closes the card behind it. Before that, a card's link opened a second tab
+  even with the flyout live — two annotators, two folder grants, two cameras.
 
 The panel is a non-modal, `position: fixed` `<dialog>` pinned to the
 viewport's right edge (`#annotate-flyout`): opening it structurally cannot

@@ -431,6 +431,15 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .hovercard__note--open { display: block; -webkit-line-clamp: unset; overflow: visible; }
 .hovercard__links { margin-top: 6px; font-size: 13px; }
+/* The card's 3D affordance is a LINK where the annotator is not served beside
+   this page and a flyout BUTTON where it is (annotate_affordances_flyout_and_
+   mesh_gating) — the same two carriers the detail pane has. They must read as
+   the same affordance, so the button is stripped back to the link's own look;
+   the surrounding anchor styling is the popover's default link colour. */
+.croppop__link--btn {
+  color: var(--accent); background: none; border: none; padding: 0; font: inherit;
+  text-decoration: underline; cursor: pointer;
+}
 .hovercard__noresolve { margin: 4px 0; }
 .hovercard .cropblock img.croppop__img { max-height: 260px; object-fit: contain; }
 /* A card trigger reads as one: same affordance cue as the crop trigger. */

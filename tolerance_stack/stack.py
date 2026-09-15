@@ -674,12 +674,22 @@ class CheckResult:
 
 @dataclass
 class StackDefinition:
-    """An ordered joint plus the named paths and checks defined over it."""
+    """An ordered joint plus the named paths and checks defined over it.
+
+    ``description``, added 2026-09-14 by handoff ``stack_title_style_pass``, is
+    the one-sentence demotion target for everything the ``title`` no longer
+    says. ``docs/SOP_TOLERANCE_STACK.md``'s "Titling an artifact" is the rule:
+    the title names the thing, the description carries the qualification, and
+    the viewer's nav shows the second on hover. Optional, free-form prose, read
+    by nothing that folds -- so the schema stays ``/v0``, the same
+    additive-and-optional test ``joint`` and ``configuration`` already passed.
+    """
 
     id: str
     title: str
     units: str
     elements: List[StackElement]
+    description: Optional[str] = None
     paths: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     checks: List[Dict[str, Any]] = field(default_factory=list)
     joint: Dict[str, Any] = field(default_factory=dict)
@@ -775,6 +785,7 @@ def load_stack(path: str | Path) -> StackDefinition:
         title=data["title"],
         units=data["units"],
         elements=[StackElement.from_dict(e) for e in data["elements"]],
+        description=data.get("description"),
         paths={p["id"]: p for p in data.get("paths", [])},
         checks=data.get("checks", []),
         joint=data.get("joint", {}),

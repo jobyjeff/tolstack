@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "hub_bearing_thermal_fit_m1",
-  "title": "Main spindle bearing seats, M1 as-built -- two-stage thermal shrink fit, the configuration that slipped",
+  "title": "Main spindle bearing seats, M1 as-built",
+  "description": "Two-stage thermal shrink fit, hub bore to sleeve to bearing, in the as-built M1 configuration -- the one that slipped. Kept as the control the M2 intent design is validated against.",
   "units": "mm",
   "archetype": "thermal_fit",
   "joint": {

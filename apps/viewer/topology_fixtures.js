@@ -31,6 +31,16 @@
 // not one physical joint, and declares no worksheet -- so this is a genuine
 // shape fix, not a hand-edited number.
 //
+// Each part's `mesh` block is the fourth thing patched in by hand (handoff
+// annotate_affordances_flyout_and_mesh_gating, 2026-09-14): the builder derives
+// it from the installed meshes under `data/`, which this demo mechanism has
+// none of, so the four parts state the four cases the viewer must render
+// differently -- `base` resolved DIRECTLY (mesh part_id == the part's own id),
+// `arm` resolved through the ALIAS table (a different mesh part_id), and `post`
+// and `strut` with no mesh at all, the state that must show NO 3D affordance.
+// Same licence the fixture already takes with its `unestablished` export: a
+// shape and a set of states, not a hand-edited number.
+//
 // Each study's `checks: []` is the third thing patched in by hand
 // (viewer_error_surface_and_layout, 2026-09-09): `topology_projection_emits_
 // study_checks` (391dc7c) added the field to project_study() after this
@@ -61,13 +71,14 @@
       topologies: [
       {
         "id": "demo_mechanism",
-        "title": "Demo mechanism - a fork, a loop, a gap and a coupling",
+        "title": "Demo mechanism",
+        "description": "A fork, a loop, a gap and a linear-rotary coupling -- every state the rails and the grid have to render.",
         "units": "mm",
         "source_file": "docs/topologies/topology_demo_mechanism.json",
         "topology": {
           "schema": "joby.tolerance_stack/topology/v0",
           "id": "demo_mechanism",
-          "title": "Demo mechanism - a fork, a loop, a gap and a coupling",
+          "title": "Demo mechanism",
           "units": "mm",
           "transforms": [
             {
@@ -297,28 +308,32 @@
             "name": "base plate",
             "drawing": "215197",
             "revision": null,
-            "note": null
+            "note": null,
+            "mesh": { "installed": true, "part_id": "base" }
           },
           {
             "id": "post",
             "name": "post",
             "drawing": null,
             "revision": null,
-            "note": null
+            "note": null,
+            "mesh": { "installed": false, "part_id": null }
           },
           {
             "id": "arm",
             "name": "arm",
             "drawing": null,
             "revision": null,
-            "note": null
+            "note": null,
+            "mesh": { "installed": true, "part_id": "demo_arm_machined" }
           },
           {
             "id": "strut",
             "name": "parallel strut",
             "drawing": null,
             "revision": null,
-            "note": "identity not established"
+            "note": "identity not established",
+            "mesh": { "installed": false, "part_id": null }
           }
         ],
         "nodes": [
@@ -879,7 +894,8 @@
         "studies": [
           {
             "id": "demo_base_to_tip",
-            "title": "Base datum to arm tip (degrees)",
+            "title": "Base datum to arm tip",
+            "description": "In degrees: the chain crosses the arm coupling, so every contributor is converted before anything is summed.",
             "topology": "demo_mechanism",
             "from": "base_datum",
             "to": "arm_tip",
@@ -904,7 +920,7 @@
             "error": null,
             "result": {
               "study": "demo_base_to_tip",
-              "title": "Base datum to arm tip (degrees)",
+              "title": "Base datum to arm tip",
               "topology": "demo_mechanism",
               "from": "base_datum",
               "to": "arm_tip",
@@ -1052,7 +1068,8 @@
           },
           {
             "id": "demo_strut_branch",
-            "title": "Base datum to strut end (the parallel path)",
+            "title": "Base datum to strut end",
+            "description": "The parallel path back to the base datum.",
             "topology": "demo_mechanism",
             "from": "base_datum",
             "to": "strut_end",
@@ -1072,7 +1089,7 @@
             "error": null,
             "result": {
               "study": "demo_strut_branch",
-              "title": "Base datum to strut end (the parallel path)",
+              "title": "Base datum to strut end",
               "topology": "demo_mechanism",
               "from": "base_datum",
               "to": "strut_end",
@@ -1220,7 +1237,8 @@
           },
           {
             "id": "demo_ambiguous",
-            "title": "Both paths at once (raises BranchAmbiguity)",
+            "title": "Both paths at once",
+            "description": "Selects both branches at the fork, so the traversal raises rather than choosing one.",
             "topology": "demo_mechanism",
             "from": "base_datum",
             "to": "arm_tip",

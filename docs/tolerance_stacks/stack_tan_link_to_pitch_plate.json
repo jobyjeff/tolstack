@@ -1,7 +1,7 @@
 {
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "tan_link_to_pitch_plate",
-  "title": "Tangential link to pitch plate -- grip length",
+  "title": "Tangential link to pitch plate grip length",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",

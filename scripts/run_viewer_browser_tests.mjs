@@ -1780,6 +1780,32 @@ async function testAnnotateFlyout(browser, fileBase) {
       await page.locator("#annotate-flyout iframe").count() === 1 &&
       await page.locator("#annotate-flyout").evaluate((n) => n.open));
 
+    // The hover cards' own 3D affordance, rewired to the SAME panel (handoff
+    // annotate_affordances_flyout_and_mesh_gating): before, a card's link
+    // opened a second tab even with the flyout live -- two annotators, two
+    // folder grants, two cameras. And a part with no installed mesh offers
+    // nothing at all: the card still renders its identity, minus a link that
+    // would have dead-ended in the annotator's empty state.
+    await page.locator("#flyout-close").click();
+    await page.locator("td.tvcell--component").filter({ hasText: /^base$/ })
+      .first().click();
+    await page.waitForSelector("#croppop button.hovercard__3d", { timeout: 5000 });
+    push("a component card's 3D affordance is a flyout button, not a new-tab link",
+      await page.locator("#croppop button.hovercard__3d").count() === 1 &&
+      await page.locator("#croppop a.hovercard__3d").count() === 0);
+    await page.locator("#croppop button.hovercard__3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    push("the card drives the one panel and closes itself behind it",
+      await page.locator("#annotate-flyout iframe").count() === 1 &&
+      await page.locator("#croppop").evaluate((n) => n.style.display) === "none");
+    await page.locator("#flyout-close").click();
+    await page.locator("td.tvcell--component").filter({ hasText: /^post$/ })
+      .first().click();
+    await page.waitForSelector("#croppop.hovercard--component", { timeout: 5000 });
+    push("a part with no installed mesh shows NOTHING about 3D on its card",
+      await page.locator("#croppop .hovercard__3d").count() === 0 &&
+      !/3D/.test(await page.locator("#croppop").textContent()));
+
     // --- the trace boot itself, end to end over the annotate mock fixture ---
     await page.goto(url + "/apps/annotate/index.html?mock=1&trace=1" +
       "&topology=demo_system&study=demo_study", { waitUntil: "load" });
@@ -1812,6 +1838,13 @@ async function testAnnotateFlyout(browser, fileBase) {
     push("under file:// the edge pane keeps the annotate-this link",
       await page.locator("a.detail__annotate-link").count() === 1 &&
       await page.locator("button.detail__annotate-btn").count() === 0);
+    await page.locator("td.tvcell--component").filter({ hasText: /^base$/ })
+      .first().click();
+    await page.waitForSelector("#croppop a.hovercard__3d", { timeout: 5000 });
+    push("under file:// a card's 3D affordance stays the plain new-tab link",
+      await page.locator("#croppop a.hovercard__3d").count() === 1 &&
+      await page.locator("#croppop button.hovercard__3d").count() === 0 &&
+      await page.locator("#croppop a.hovercard__3d").getAttribute("target") === "_blank");
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;

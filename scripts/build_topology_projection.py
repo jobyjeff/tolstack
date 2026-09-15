@@ -142,6 +142,32 @@ LINK_KINDS = ("branch", "close")
 #: value on purpose and must not render as a missing one.
 VALUE_SOURCES = ("inline", "stack_ref", "derived")
 
+#: What a part's ``mesh`` block says, and the whole of it. **Every projected part
+#: carries this block**, so an absent key never has to mean anything: ``installed``
+#: is the fact the viewer gates its 3D affordances on (handoff
+#: ``annotate_affordances_flyout_and_mesh_gating``), and ``part_id`` names the
+#: installed mesh it resolved to, or is ``None``. A ``part_id`` that differs from
+#: the part's own id is the alias table having done the resolving.
+#:
+#: The viewer needs this as a *projection* fact because it cannot compute it:
+#: under drawing-checker's data mount ``docs/`` is unmounted by design, so
+#: ``docs/topologies/part_mesh_aliases.json`` is unreachable from the page, and
+#: ``data/meshes/<sha>/provenance.json`` is not part of any projection it reads.
+#: ``apps/viewer/topology.js``'s ``VA.MESH_FACT_FIELDS`` is this tuple's
+#: hand-copy, paired word for word by ``tests/test_topology_projection.py``.
+MESH_FACT_FIELDS = ("installed", "part_id")
+
+#: Where the installed meshes live under a data root, and what one's sidecar is
+#: called (``data/meshes/README.md``).
+MESHES_SUBDIR = "meshes"
+MESH_PROVENANCE_NAME = "provenance.json"
+
+#: The alias table, beside the topology documents whose ``part`` vocabulary it
+#: bridges (``docs/topologies/part_mesh_aliases.json``, handoff
+#: ``mesh_part_alias_table``). Resolved relative to the topologies dir, so a
+#: fixture tree carries its own table the same way it carries its own topologies.
+MESH_ALIASES_NAME = "part_mesh_aliases.json"
+
 #: How a study came out. A study that raises is a **real state the page shows**,
 #: not a build failure: ``BranchAmbiguity``/``BrokenChain``/``CycleDetected``/
 #: ``UnitMismatch`` all carry messages written for a human author, and an author
@@ -498,6 +524,89 @@ def confidence_of(dimension: Any) -> Optional[str]:
     return dimension.source_ref.confidence if dimension.source_ref else "no_source_ref"
 
 
+# ---------------------------------------------------------------------------
+# Mesh availability: is there a 3D model of this part to open?
+# ---------------------------------------------------------------------------
+#
+# Stamped at build time so the viewer can offer an "open this part in 3D"
+# affordance ONLY where opening it would land on something (handoff
+# `annotate_affordances_flyout_and_mesh_gating`). Two installed meshes and one
+# alias at 2026-09-14 against ~29 topology parts: nearly every such link
+# dead-ended in the annotator's empty state, which is exactly the dead link a
+# UI must not offer.
+#
+# The resolution order is `apps/annotate/commands.js`'s `resolveMeshIdentifier`,
+# mirrored: direct sha256, then direct `part_id`, then the alias table, then
+# nothing. NEVER fuzzy -- a part whose identity is not evidenced has no mesh,
+# and the honest fix is an evidenced alias entry, not a prefix match. The sha256
+# pass is carried even though a topology `part` id is not a hash, because that
+# function is the contract and half-mirroring it is how the two drift apart.
+
+
+def installed_meshes(meshes_dir: Optional[Path]) -> List[Dict[str, str]]:
+    """``[{sha256, part_id}]`` for every installed mesh, in directory order.
+
+    ``data/meshes/<source_step_sha256>/provenance.json`` is the sidecar
+    (``data/meshes/README.md``); the directory name is the sha and the sidecar
+    repeats it. A mesh dir with no readable sidecar is **skipped, not guessed
+    at** -- an unnamed mesh cannot be claimed as any part.
+    """
+    if meshes_dir is None or not meshes_dir.is_dir():
+        return []
+    meshes: List[Dict[str, str]] = []
+    for entry in sorted(meshes_dir.iterdir()):
+        sidecar = entry / MESH_PROVENANCE_NAME
+        if not entry.is_dir() or not sidecar.is_file():
+            continue
+        try:
+            raw = json.loads(sidecar.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        part_id = raw.get("part_id")
+        if not part_id:
+            continue
+        meshes.append({"sha256": raw.get("source_step_sha256") or entry.name,
+                       "part_id": part_id})
+    return meshes
+
+
+def load_mesh_aliases(topologies_dir: Path) -> List[Dict[str, str]]:
+    """The declared alias table's entries, or ``[]`` when there is no table."""
+    path = topologies_dir / MESH_ALIASES_NAME
+    if not path.is_file():
+        return []
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return list(raw.get("aliases") or [])
+
+
+def resolve_mesh(meshes: Sequence[Dict[str, str]], identifier: Optional[str],
+                 aliases: Sequence[Dict[str, str]]) -> Optional[Dict[str, str]]:
+    """``apps/annotate/commands.js``'s ``AA.resolveMeshIdentifier``, in Python."""
+    if not identifier:
+        return None
+    for mesh in meshes:
+        if mesh["sha256"] == identifier:
+            return mesh
+    for mesh in meshes:
+        if mesh["part_id"] == identifier:
+            return mesh
+    for alias in aliases:
+        if alias.get("topology_part") != identifier:
+            continue
+        for mesh in meshes:
+            if mesh["part_id"] == alias.get("mesh_part_id"):
+                return mesh
+    return None
+
+
+def mesh_fact(part_id: str, meshes: Sequence[Dict[str, str]],
+              aliases: Sequence[Dict[str, str]]) -> Dict[str, Any]:
+    """The ``MESH_FACT_FIELDS`` block for one part -- always both keys."""
+    mesh = resolve_mesh(meshes, part_id, aliases)
+    return {"installed": mesh is not None,
+            "part_id": mesh["part_id"] if mesh else None}
+
+
 def project_node(topology: Topology, node: Node, branch_nodes: Sequence[str]
                  ) -> Dict[str, Any]:
     return {
@@ -612,6 +721,9 @@ def project_study(topology: Topology, study: Study, path: Path,
     row: Dict[str, Any] = {
         "id": study.id,
         "title": study.title,
+        # The title's demotion target: the qualification a short noun-phrase
+        # title sheds, rendered as the nav's hover tooltip. Descriptive only.
+        "description": study.description,
         "topology": study.topology,
         "from": study.from_node,
         "to": study.to_node,
@@ -685,8 +797,18 @@ def worksheet_for(path: Path, raw: Dict[str, Any]) -> Tuple[Optional[Path], Opti
     return (by_name, "by_name") if by_name.exists() else (None, None)
 
 
+def project_part(part: Any, meshes: Sequence[Dict[str, str]],
+                 aliases: Sequence[Dict[str, str]]) -> Dict[str, Any]:
+    """The authored part, plus the one derived fact the viewer cannot compute."""
+    row = dataclasses.asdict(part)
+    row["mesh"] = mesh_fact(part.id, meshes, aliases)
+    return row
+
+
 def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
                      studies: Sequence[Tuple[Path, Dict[str, Any], Study]],
+                     meshes: Sequence[Dict[str, str]] = (),
+                     aliases: Sequence[Dict[str, str]] = (),
                      ) -> Dict[str, Any]:
     branch_nodes = topology.branch_nodes()
     counts: Dict[str, int] = {}
@@ -698,6 +820,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
     return {
         "id": topology.id,
         "title": topology.title,
+        "description": topology.description,
         "units": topology.units,
         "source_file": as_posix_rel(path),
         # The authored document, verbatim, exactly as `results.json` embeds a
@@ -711,7 +834,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         # `declared` (provenance.worksheet) or `by_name`, the same pairing
         # `results.json` carries for a stack.
         "worksheet_source": worksheet_source,
-        "parts": [dataclasses.asdict(p) for p in topology.parts],
+        "parts": [project_part(p, meshes, aliases) for p in topology.parts],
         "nodes": [project_node(topology, n, branch_nodes) for n in topology.nodes],
         "edges": [project_edge(topology, e) for e in topology.edges],
         "transforms": [dataclasses.asdict(topology.transform(t.id))
@@ -736,7 +859,14 @@ BUILT_BY = "scripts/build_topology_projection.py"
 
 
 def build(topologies_dir: Path,
-          provenance: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+          provenance: Optional[Dict[str, Any]] = None,
+          meshes_dir: Optional[Path] = None) -> Dict[str, Any]:
+    """The whole projection. ``meshes_dir`` is the data root's ``meshes/``.
+
+    ``None`` (the default, and what a test that does not care passes) means **no
+    mesh is installed**, and every part says so -- never "unknown". The CLI hands
+    it ``<data-root>/meshes``; a test hands it a fixture tree.
+    """
     topologies: List[Tuple[Path, Dict[str, Any], Topology]] = []
     for path in sorted(topologies_dir.glob("topology_*.json")):
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -760,6 +890,9 @@ def build(topologies_dir: Path,
     if provenance is None:
         provenance = prov.stamp(REPO_ROOT, topologies_dir, BUILT_BY)
 
+    meshes = installed_meshes(meshes_dir)
+    aliases = load_mesh_aliases(topologies_dir)
+
     return {
         "schema": SCHEMA_PROJECTION,
         "built_at": provenance["built_at"],
@@ -771,7 +904,8 @@ def build(topologies_dir: Path,
         "value_sources": list(VALUE_SOURCES),
         "study_statuses": list(STUDY_STATUSES),
         "topologies": [
-            project_topology(path, raw, topology, studies.get(topology.id, []))
+            project_topology(path, raw, topology, studies.get(topology.id, []),
+                             meshes, aliases)
             for path, raw, topology in topologies
         ],
         "orphan_studies": orphans,
@@ -825,7 +959,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     for line in prov.note_lines(provenance):
         print(line, file=sys.stderr)
 
-    projection = build(topologies_dir, provenance)
+    meshes_dir = Path(args.data_root) / MESHES_SUBDIR
+    if not meshes_dir.is_dir():
+        # Said out loud rather than silently projecting "no part has a mesh":
+        # from a worktree, `data/` is the MAIN checkout's and pointing at the
+        # wrong one would turn every 3D affordance off with no explanation.
+        print(f"note: no meshes dir at {meshes_dir} -- every part projects "
+              f"mesh.installed=false", file=sys.stderr)
+
+    projection = build(topologies_dir, provenance, meshes_dir)
 
     # Wipe-and-rebuild, but only this script's own file.
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -838,12 +980,18 @@ def main(argv: Optional[List[str]] = None) -> int:
     print(f"wrote {out_path}")
     for topology in projection["topologies"]:
         layout = topology["layout"]
+        meshed = [p for p in topology["parts"] if p["mesh"]["installed"]]
         print(
             f"  {topology['id']:28s} {len(topology['nodes']):2d} nodes, "
             f"{len(topology['edges']):2d} edges, "
             f"{len(topology['branch_nodes'])} branch point(s), "
-            f"{len(layout['rows'])} rows over {layout['columns']} rail(s)"
+            f"{len(layout['rows'])} rows over {layout['columns']} rail(s), "
+            f"{len(meshed)}/{len(topology['parts'])} parts with an installed mesh"
         )
+        for part in meshed:
+            via = "" if part["mesh"]["part_id"] == part["id"] else \
+                f" (alias -> {part['mesh']['part_id']})"
+            print(f"    3D: {part['id']}{via}")
         for study in topology["studies"]:
             if study["status"] == "ok":
                 result = study["result"]

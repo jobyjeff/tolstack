@@ -542,13 +542,24 @@
     return pngs;
   }
 
+  // The card's own 3D affordance, routed the same way every other one is
+  // (handoff annotate_affordances_flyout_and_mesh_gating): the ONE flyout
+  // panel where the mount probe passed, a plain new-tab link where it did not
+  // (views/cards.js decides which from this). The card closes on launch -- it
+  // is hover chrome, and the panel it just opened supersedes it.
+  function onCardAnnotate(params) {
+    hideCrop();
+    launchAnnotate(params);
+  }
+
   function showCard(card, trigger) {
     if (!card) return;
     openTrigger = trigger;
     openedAt = new Date().getTime();
     var paint = function () {
       if (openTrigger !== trigger) return;   // a later hover won the race
-      VA.renderHoverCard(nodes.crop, card, imageCache, VA.CONFIG, hideCrop);
+      VA.renderHoverCard(nodes.crop, card, imageCache, VA.CONFIG, hideCrop,
+        { mount: state.annotateMount, onAnnotate: onCardAnnotate });
       nodes.crop.style.display = "block";
       position(nodes.crop, trigger);
       // Re-place once each PNG settles either way — same reasoning as

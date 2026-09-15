@@ -160,8 +160,24 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
 
 | schema | you write it? | what it is |
 |---|---|---|
-| `joby.tolerance_stack/topology/v0` | **yes** — one per system | `parts`, `nodes`, `edges`, named `transforms`, plus an optional `joint`, `provenance` and `notes` |
-| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list, an optional `configuration` block |
+| `joby.tolerance_stack/topology/v0` | **yes** — one per system | `parts`, `nodes`, `edges`, named `transforms`, plus an optional `description`, `joint`, `provenance` and `notes` |
+| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list, an optional `configuration` block, an optional `description` |
+
+### Naming a topology or a study
+
+**One rule, and it lives in the SOP:** `docs/SOP_TOLERANCE_STACK.md`, "Titling
+an artifact". A title is a short noun phrase naming the thing; what it sheds is
+demoted to the optional one-line `description` beside it, which the viewer's
+nav shows on hover. It applies to a topology and a study exactly as it does to
+a stack — the rail lists all three side by side — so it is written once, there,
+and this section does not restate it.
+
+The two traps this archetype in particular walked into (2026-09-14, handoff
+`stack_title_style_pass`, which retitled all five topologies and all twenty
+studies): **"… as a topology"** in a topology's own name, which distinguishes
+nothing now that every joint here is one; and a study's **output unit in
+parentheses**, which the result already carries. The `id` is unaffected by any
+retitle — a study id is a deep link (`?study=`), not a name.
 
 ### Versioning: additive fields stay `/v0` (2026-09-08, handoff `topology_schema_v1`)
 
@@ -178,6 +194,11 @@ topologies and all eight studies load and fold to the identical numbers before
 and after this handoff; `tests/test_topology.py` pins every one of them, so
 this is a checked claim, not a promise.
 
+`Topology.description` and `Study.description` (2026-09-14, handoff
+`stack_title_style_pass`) are the same shape and stayed `/v0` for the same
+reason: optional, defaulting to `null`, read by nothing `fold()`/`traverse()`/
+`summarize()` touches.
+
 ### A topology, in outline
 
 ```json
@@ -185,6 +206,7 @@ this is a checked claim, not a promise.
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "pitch_system",
   "title": "...",
+  "description": "...",
   "units": "mm",
   "transforms": [
     { "id": "pitch_arm_linear_to_rotary", "kind": "linear_to_rotary",

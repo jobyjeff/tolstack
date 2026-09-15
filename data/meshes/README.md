@@ -4,7 +4,11 @@ Per-face triangle meshes, tessellated server-side from a STEP file by
 rotorkit's `stepgeom.tessellate` (see
 `C:\workspace\rotorkit\docs\sessions\lessons\LESSONS_20260904_step_tessellation_spike.md`
 for the feasibility numbers and the face-identity finding this format is
-built around). `apps/annotate/` is the one consumer.
+built around). `apps/annotate/` is the one consumer of the geometry itself;
+since `annotate_affordances_flyout_and_mesh_gating` (2026-09-14)
+`scripts/build_topology_projection.py` also reads each directory's
+`provenance.json` `part_id`, so the viewer can offer a 3D affordance only where
+a mesh is installed.
 
 ```
 data/meshes/<source_step_sha256>/

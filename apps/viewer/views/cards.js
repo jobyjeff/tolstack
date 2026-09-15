@@ -11,10 +11,20 @@
 // body inside a card is VA.cropBlock (views/crop.js) — the same markup the
 // plain crop popover renders, not a second copy of it — and the export block
 // is VA.exportBlockNode (views/detail.js), for the same reason.
+//
+// `annotate` ({mount, onAnnotate}) is the flyout wiring (handoff
+// annotate_affordances_flyout_and_mesh_gating): where the annotator is served
+// beside this page AND a launcher is handed in, a card's 3D affordance drives
+// the ONE flyout panel the toolbar and the detail pane already drive, instead
+// of opening a second tab beside it. Where the probe failed — file:// without
+// the sibling app, a server without the mount — it stays exactly the link it
+// has always been. A card only carries the affordance at all when the part has
+// an installed mesh; that gate is the model's (VA.edgeCard/VA.componentCard),
+// not this file's.
 (function (VA) {
   "use strict";
 
-  VA.renderHoverCard = function (root, card, images, config, onClose) {
+  VA.renderHoverCard = function (root, card, images, config, onClose, annotate) {
     VA.clear(root);
     root.className = "croppop hovercard hovercard--" + card.kind;
 
@@ -25,8 +35,8 @@
       root.appendChild(close);
     }
 
-    if (card.kind === "edge") edgeCard(root, card, images, config);
-    else if (card.kind === "component") componentCard(root, card, images, config);
+    if (card.kind === "edge") edgeCard(root, card, images, config, annotate);
+    else if (card.kind === "component") componentCard(root, card, images, config, annotate);
     else if (card.kind === "citation") citationCard(root, card, images, config);
     else {
       // A card kind this renderer has no branch for is said out loud, the
@@ -46,7 +56,7 @@
   // both sides belong here once both are cropped); each entry renders its own
   // crop block, an unresolved one renders its reason, and an edge with no
   // crop key states which fact that is rather than showing a placeholder.
-  function edgeCard(root, card, images, config) {
+  function edgeCard(root, card, images, config, annotate) {
     var head = VA.el("div", "hovercard__head");
     head.appendChild(VA.el("h4", null, card.title));
     head.appendChild(VA.el("code", "muted", card.id));
@@ -75,15 +85,15 @@
     }
 
     if (card.annotateParams) {
-      root.appendChild(annotateLine(card.annotateParams,
+      root.appendChild(annotateLine(card.annotateParams, annotate,
         "annotate this in 3D →",
-        "opens apps/annotate/ with this edge selected, to resolve which " +
-        "physical feature the row means — select + tag, no measurement"));
+        "resolve which physical feature this row means, on the part's 3D " +
+        "model, with this edge selected — select + tag, no measurement"));
     }
   }
 
   // --- the component card: what the merged cell's part IS --------------------
-  function componentCard(root, card, images, config) {
+  function componentCard(root, card, images, config, annotate) {
     var head = VA.el("div", "hovercard__head");
     head.appendChild(VA.el("h4", null, card.title));
     head.appendChild(VA.el("code", "muted", card.id));
@@ -113,10 +123,9 @@
     }
 
     if (card.annotateParams) {
-      root.appendChild(annotateLine(card.annotateParams,
+      root.appendChild(annotateLine(card.annotateParams, annotate,
         "view this part in 3D →",
-        "opens apps/annotate/ isolating " + card.id +
-        ", if a mesh for it is installed"));
+        "opens the 3D annotation surface with " + card.id + " isolated"));
     }
   }
 
@@ -172,9 +181,21 @@
     return box;
   }
 
-  function annotateLine(params, text, title) {
+  // One affordance, two carriers — the flyout where it exists, a plain new-tab
+  // link where it does not. Same params either way: the launcher hands them to
+  // VA.annotateExecCommands, the link to VA.annotateLink, and those two mirror
+  // each other param for param (viewer.js).
+  function annotateLine(params, annotate, text, title) {
     var line = VA.el("div", "hovercard__links");
-    var a = VA.el("a", "croppop__link", text);
+    var launch = annotate && annotate.mount && annotate.onAnnotate;
+    if (launch) {
+      var button = VA.el("button", "croppop__link croppop__link--btn hovercard__3d", text);
+      button.setAttribute("title", title);
+      button.onclick = function () { annotate.onAnnotate(params); };
+      line.appendChild(button);
+      return line;
+    }
+    var a = VA.el("a", "croppop__link hovercard__3d", text);
     a.setAttribute("href", VA.annotateLink({
       topologyId: params.topologyId,
       edgeId: params.edgeId,

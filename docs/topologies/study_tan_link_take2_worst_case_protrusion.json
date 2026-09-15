@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "tan_link_take2_worst_case_protrusion",
-  "title": "Worst case protrusion: fastener grip against the effective clamped stack",
+  "title": "Worst-case protrusion",
+  "description": "Fastener grip against the effective clamped stack.",
   "topology": "tan_link_to_pitch_plate_take2",
   "from": "flanged_bushing_effective_far_face",
   "to": "shank_full_dia_end",

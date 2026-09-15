@@ -124,11 +124,20 @@ vision-agent driver operating the surface the same way (zoom/pan/rotate/
 filter/select as text commands over a screenshot). A deep link
 (`?topology=&edge=&study=&isolate=`) and a parts panel (per-mesh show/hide/
 isolate) are its first two consumers; `apps/viewer/`'s topology-mode detail
-pane emits the deep link on any untraced/uncited edge ("annotate this →"),
+pane emits the deep link on an untraced/uncited edge ("annotate this →"),
 naming the edge's own `part` as `isolate` — a different vocabulary than a
-mesh's `provenance.json` `part_id`, so most links land on the honest
-empty-state ("no installed mesh for X") rather than an isolated part, until a
-mapping between the two namespaces exists or meshes are named to match.
+mesh's `provenance.json` `part_id`, bridged by the declared alias table
+(`docs/topologies/part_mesh_aliases.json`, handoff `mesh_part_alias_table`).
+
+A link the viewer emits now always resolves to an installed mesh: since
+`annotate_affordances_flyout_and_mesh_gating` (2026-09-14) the viewer offers a
+3D affordance **only** where `scripts/build_topology_projection.py` has already
+resolved that part to one (through the same alias table, in the same
+precedence, stamped into the topology projection as a per-part `mesh` block),
+and shows nothing at all where it has not. A link typed by hand still lands on
+the honest empty-state ("no installed mesh for X") — that state is the
+annotator's answer to an unresolvable identifier, never something the viewer
+may hand a reader.
 
 ## What this MVP does not build
 

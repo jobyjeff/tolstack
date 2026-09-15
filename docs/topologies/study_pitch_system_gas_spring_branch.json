@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_system_gas_spring_branch",
-  "title": "The gas-spring branch: pitch plate connection back to the hub A datum (millimetres)",
+  "title": "Gas-spring branch",
+  "description": "Pitch plate connection back to the hub A datum, in millimetres -- a millimetre study deliberately, because the tangential sensitivity this branch would need is not declared.",
   "topology": "pitch_system",
   "from": "piston_rod_end_bore",
   "to": "hub_lower_bearing_flange",

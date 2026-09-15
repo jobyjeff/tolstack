@@ -1,7 +1,8 @@
 {
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "hub_bearing_thermal_fit_m2",
-  "title": "Main spindle bearing seats, M2/TC intent design -- two-stage thermal shrink fit, hub bore to sleeve to bearing",
+  "title": "Main spindle bearing seats, M2/TC intent",
+  "description": "Two-stage thermal shrink fit, hub bore to sleeve to bearing, in the M2/type-certification intent design.",
   "units": "mm",
   "archetype": "thermal_fit",
   "joint": {
