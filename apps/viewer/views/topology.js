@@ -206,6 +206,25 @@
     var fit = { budget: paneBudget(root, M), plan: plan };
     var positions = VA.rowPositions(layout, topoProj,
       ctx.edgeLengthMode || "uniform", M, fit);
+    // Mid-respine (viewer_study_respine_animation): the frame is drawn from
+    // the TARGET serialisation's layout and plan -- the structure the page is
+    // moving to -- with the store interpolated back toward the one the
+    // previous paint drew from. That is the whole of the animation's effect on
+    // this function: both geometry passes below are untouched, and a frame
+    // with no tween is the render this file has always done.
+    var tween = ctx.tween || null;
+    if (tween && tween.positions) {
+      positions = VA.tweenPositions(tween.positions, positions, tween.e);
+    }
+    // One element's opacity in a tweened frame: an element the transition is
+    // ADDING fades in at its settled position instead of appearing whole, and
+    // an element it drops is not in this layout at all -- the outgoing frame's
+    // own ghost (VA.animateTopoPane) is what fades those out.
+    var fade = function (node, kind, id) {
+      var a = VA.tweenAlpha(positions, kind, id);
+      if (a < 1) node.style.opacity = String(a);
+      return node;
+    };
     var geometry = VA.railGeometry(layout, M, positions);
     // The two display preferences this pane owns beyond the store
     // (viewer_leader_grid_legibility): which style the leaders are drawn in,
@@ -221,8 +240,13 @@
     // the render measured rather than guessing at a viewport, and the staged
     // study-respine animation needs a store that outlives a single paint to
     // tween between two of them.
+    // `width` is the SVG's own width, which is the grid's left edge -- the
+    // respine's horizontal anchor (VA.respineShift). `tweening` says whether
+    // this paint was a transition frame: everything else here describes the
+    // store the paint DREW FROM either way, which is what both readers want.
     VA.lastTopoRender = { topologyId: topoProj.id, mode: positions.mode,
-                          fit: fit, positions: positions };
+                          fit: fit, positions: positions,
+                          width: leaderGeo.width, tweening: !!tween };
     var index = VA.topologyIndex(topoProj);
     var chain = VA.chainIndex(study);
     var chainNodes = VA.chainNodes(study);
@@ -238,13 +262,175 @@
     // rail has nothing to stick within, and a wide row simply bleeds into
     // whatever sits to the pane's right.
     var hscroll = VA.el("div", "tv__hscroll");
-    hscroll.appendChild(header(leaderGeo, ctx));
+    var head = header(leaderGeo, ctx);
+    hscroll.appendChild(head);
     var body = VA.el("div", "tv__body");
-    body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx));
-    body.appendChild(grid(plan, index, chain, marking, ctx, positions.gridOffset));
+    body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes,
+      marking, ctx, fade));
+    var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset, fade);
+    // The grid is the one block a respine CROSS-FADES rather than moves. Its
+    // rows are not positioned from the store at all -- the table's pitch is
+    // fixed and only the block's offset tweens -- and the two serialisations
+    // disagree about which rows exist and in what order, so the outgoing
+    // table and the incoming one can never be made to line up the way the
+    // DAG's dots and bars do. Drawn solid over each other they read as
+    // garbled text; each at its own share of the transition they read as one
+    // table resolving into another. The SVG beside it needs none of this: its
+    // surviving marks are at the same place in both frames at e = 0 and
+    // separate from there, which is the movement this is all for.
+    if (tween) rows.style.opacity = String(tween.e);
+    body.appendChild(rows);
     hscroll.appendChild(body);
+    // The respine's horizontal slide: the column count differs between the
+    // two serialisations and no keyed store can express that (VA.respineShift
+    // says why), so the drawn block is offset as one. A transform, so it
+    // changes no geometry and no measurement -- and a settled frame, which is
+    // what every correspondence check runs on, carries none of it.
+    if (tween) {
+      var shift = VA.respineShift(tween.width, leaderGeo.width, tween.e);
+      if (shift) {
+        head.style.transform = "translateX(" + shift + "px)";
+        body.style.transform = "translateX(" + shift + "px)";
+      }
+    }
     root.appendChild(hscroll);
+    // The outgoing paint, fading out underneath: the rows a study re-lay
+    // DROPS are not in the target serialisation at all, so there is nothing
+    // in this layout to draw them from. See VA.animateTopoPane for why the
+    // already-rendered nodes are re-used rather than re-drawn.
+    if (tween && tween.ghost) {
+      tween.ghost.style.opacity = String(1 - tween.e);
+      root.appendChild(tween.ghost);
+    }
     return root;
+  };
+
+  // --- the respine animator (viewer_study_respine_animation) ---------------
+  //
+  // Renders the pane once per frame from a store interpolated between the
+  // previous paint's and this one's target (VA.tweenPositions), over a ghost
+  // of the previous paint that fades out -- and the LAST frame is a plain
+  // renderTopoPane with no tween and no ghost at all, so the settled DOM is
+  // exactly what a fresh render of the same selection would have produced.
+  // That is the deliverable's own contract: the animation is presentation,
+  // and no correspondence check ever has to know it happened.
+  //
+  //   root  the pane, still holding the outgoing paint -- read BEFORE it is
+  //         cleared, which is why this is called instead of renderTopoPane
+  //         rather than from inside it.
+  //   ctx   the target state's render context, exactly as renderTopoPane
+  //         takes it.
+  //   from  { positions, width } -- the store the previous paint drew from
+  //         and the SVG width it drew (VA.lastTopoRender carries both). No
+  //         `from` means there is nothing to animate between; the pane just
+  //         renders.
+  //   opts  the clock, the motion preference and the error sink, injected so
+  //         the fast tier can drive a whole transition frame by frame with no
+  //         browser: { raf, now, duration, reduced, onError }.
+  //
+  // `onError` is not optional decoration. Every other path into a render on
+  // this page goes through topology_app.js's one try/catch (the 2026-09-09
+  // silently-empty-pane incident is what put it there), and a frame running
+  // off an animation callback is OUTSIDE it -- a throw there would be an
+  // unhandled rejection with the page looking mid-transition and saying
+  // nothing. So a frame that throws stops the transition and hands the error
+  // to the same crash seam every other render uses.
+  //
+  // Returns a handle with `cancel()`, or null when nothing was animated. The
+  // caller MUST cancel a running transition before painting the pane itself:
+  // a frame rendered from a stale ctx would otherwise land on top of it.
+  VA.animateTopoPane = function (root, ctx, from, opts) {
+    opts = opts || {};
+    var previous = from && from.positions;
+    // `prefers-reduced-motion: reduce` means JUMP TO THE END STATE -- one
+    // plain render, no tween, no ghost. The reader gets the same page, it
+    // just arrives rather than travels.
+    var reduced = opts.reduced === undefined
+      ? VA.prefersReducedMotion()
+      : !!opts.reduced;
+    if (!previous || reduced || !root || !root.querySelector) {
+      VA.renderTopoPane(root, ctx);
+      return null;
+    }
+    var duration = opts.duration === undefined ? VA.RESPINE.duration : opts.duration;
+    var now = opts.now || function () { return Date.now(); };
+    var raf = opts.raf || nextFrame;
+    var ghost = ghostOf(root);
+    var start = now();
+    var handle = { cancel: function () { handle.cancelled = true; }, cancelled: false };
+    var step = function () {
+      if (handle.cancelled) return;
+      var t = duration > 0 ? (now() - start) / duration : 1;
+      var settling = !(t < 1);
+      // The settled frame gets no tween argument at all, so the ghost is not
+      // re-appended and every number in the DOM is the target's own.
+      if (settling) {
+        handle.done = true;
+      } else {
+        ctx.tween = { positions: previous, width: from.width,
+                      e: VA.respineEase(t), ghost: ghost };
+      }
+      try {
+        VA.renderTopoPane(root, ctx);
+      } catch (err) {
+        handle.cancelled = true;
+        if (opts.onError) opts.onError(err);
+        return;
+      } finally {
+        delete ctx.tween;
+      }
+      if (!settling) raf(step);
+    };
+    step();
+    return handle;
+  };
+
+  // The outgoing paint, re-parented into an inert overlay rather than
+  // re-drawn or cloned.
+  //
+  // Re-drawn is impossible without a second layout path, which this handoff
+  // is explicitly forbidden: the rows a study re-lay drops exist only in the
+  // OTHER serialisation, so the target layout the frames are drawn from has
+  // nothing to draw them from. Cloned is possible in a browser and not in the
+  // DOM shim the fast tier runs in -- and a clone would duplicate every
+  // click handler in the pane for the length of the transition, which the
+  // `pointer-events: none` below is only half an answer to. Moving the real
+  // nodes is neither: they leave the live tree, stop being reachable, and are
+  // dropped whole when the settled frame renders without them.
+  function ghostOf(root) {
+    var live = root.querySelector(".tv__hscroll");
+    if (!live) return null;
+    // The column header is the same header in both serialisations -- same
+    // nine columns, same words, only its left pad differs -- so a fading copy
+    // of it under the live one is pure double-image with nothing to say.
+    var head = live.querySelector(".tv__head");
+    if (head) head.style.display = "none";
+    var ghost = VA.el("div", "tv__ghost");
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.appendChild(live);
+    return ghost;
+  }
+
+  // One animation frame, or a timer where there is no window to ask (the DOM
+  // shim, and a page whose tab is not the one being animated). The same
+  // fallback shape topology_app.js's resize paint already uses.
+  function nextFrame(fn) {
+    if (typeof window !== "undefined" && window.requestAnimationFrame) {
+      return window.requestAnimationFrame(fn);
+    }
+    return setTimeout(fn, 16);
+  }
+
+  // Whether the reader has asked for less motion. No media query to ask (an
+  // old browser, the DOM shim) reads as "no preference", which is the same
+  // answer a browser that has the query and no preference set gives.
+  VA.prefersReducedMotion = function () {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    try {
+      return !!window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch (err) {
+      return false;
+    }
   };
 
   // How much vertical room the DAG has to normalize itself into
@@ -434,7 +620,8 @@
 
   // --- the SVG -------------------------------------------------------------
 
-  function railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx) {
+  function railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx,
+                    fade) {
     // The SVG spans the rails AND the leader jog zone: its right edge is the
     // grid table's left edge, so a leader's final horizontal segment hands off
     // to its row's boundary with no seam to keep aligned.
@@ -490,8 +677,10 @@
         classes.push(chainNodes[leader.id] ? "rail__leader--on" : "rail__leader--off");
       }
       if (isSelected(ctx, "node", leader.id)) classes.push("rail__leader--selected");
-      svg.appendChild(VA.svg("path", classes.join(" "), { d: leader.d }));
-      var hit = VA.svg("path", "rail__leaderhit", { d: leader.d });
+      svg.appendChild(fade(VA.svg("path", classes.join(" "), { d: leader.d }),
+        "node", leader.id));
+      var hit = fade(VA.svg("path", "rail__leaderhit", { d: leader.d }),
+        "node", leader.id);
       hit.setAttribute("data-leader-id", leader.id);
       hit.setAttribute("data-boundary-edge", leader.beforeEdge || "");
       hit.appendChild(svgTitle(node ? node.name : leader.id));
@@ -517,21 +706,21 @@
         // scaled length mode a bar's slot is its own height.
         var y1 = mark.y1;
         var y2 = mark.y2;
-        var bar = VA.svg("line", classes.join(" "), {
+        var bar = fade(VA.svg("line", classes.join(" "), {
           x1: mark.x, y1: y1, x2: mark.x, y2: y2,
-        });
+        }), "edge", mark.id);
         svg.appendChild(bar);
 
         // A floored bar (scaled modes only) wears a drafting-style break
         // across its middle: this length is the minimum render length, not a
         // measured proportion, and a reader must be able to tell at a glance.
         if (mark.floored) {
-          svg.appendChild(VA.svg("path", "rail__break", {
+          svg.appendChild(fade(VA.svg("path", "rail__break", {
             d: "M " + (mark.x - 5) + " " + (mark.y + 3) +
                " L " + (mark.x + 5) + " " + (mark.y - 1) +
                " M " + (mark.x - 5) + " " + (mark.y + 1) +
                " L " + (mark.x + 5) + " " + (mark.y - 3),
-          }));
+          }), "edge", mark.id));
         }
 
         // The hover/click target, over the SAME length but solid and wide
@@ -543,7 +732,8 @@
         // responds regardless of the visible dash pattern; the visible bar
         // above is untouched, still thin and still dashed where confidence
         // or value_source says it should be.
-        var hit = VA.svg("line", "rail__barhit", { x1: mark.x, y1: y1, x2: mark.x, y2: y2 });
+        var hit = fade(VA.svg("line", "rail__barhit",
+          { x1: mark.x, y1: y1, x2: mark.x, y2: y2 }), "edge", mark.id);
         // One hover surface, not two (viewer_dag_hover_cards): where a card
         // handler exists the bar opens the SAME edge card the grid's crop
         // trigger opens -- the crop thumbnail, the citation line, the deep
@@ -574,9 +764,9 @@
       // The grid has no node rows to wear the selection outline any more
       // (viewer_leader_line_grid), so the dot itself marks a selected node.
       if (isSelected(ctx, "node", mark.id)) dotClasses.push("rail__dot--selected");
-      var dot = VA.svg("circle", dotClasses.join(" "), {
+      var dot = fade(VA.svg("circle", dotClasses.join(" "), {
         cx: mark.x, cy: mark.y, r: mark.branch ? M.branchDot : M.dot,
-      });
+      }), "node", mark.id);
       // The dot's own card (viewer_dag_hover_cards): a node IS an interface,
       // so the hover says which parts meet there and shows their thumbnails,
       // which is strictly more than the name the title carried. Same
@@ -637,7 +827,7 @@
   // the whole group via rowspan, so a component is said once and its
   // tolerance sub-rows read as one block. Node rows are gone — an interface
   // is its dot and (at a part boundary) its leader, both clickable.
-  function grid(plan, index, chain, marking, ctx, offset) {
+  function grid(plan, index, chain, marking, ctx, offset, fade) {
     var box = VA.el("div", "tv__rows");
     // Centred against the DAG beside it (viewer_dag_spine_layout): whichever
     // block is shorter is pushed down by half the difference, which is what
@@ -656,8 +846,8 @@
     plan.groups.forEach(function (group) {
       for (var i = 0; i < group.count; i++) {
         var planRow = plan.rows[group.start + i];
-        tbody.appendChild(edgeRow(planRow, group, i === 0, index, chain,
-          marking, ctx, bandParity[planRow.id]));
+        tbody.appendChild(fade(edgeRow(planRow, group, i === 0, index, chain,
+          marking, ctx, bandParity[planRow.id]), "edge", planRow.id));
       }
     });
     table.appendChild(tbody);

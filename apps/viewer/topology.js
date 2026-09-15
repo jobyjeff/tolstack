@@ -593,7 +593,7 @@
   //
   //   nodes      { nodeId: y }                    dot centres
   //   edges      { edgeId: {y1, y2, y, floored} } bar extents
-  //   byRow      { layoutRow: {top, height, y, floored} }
+  //   byRow      { layoutRow: {top, height, y, floored, id, kind} }
   //   dagHeight  the DAG's own extent
   //   gridHeight the grid block's extent (rows × rowHeight), 0 without a fit
   //   offset     how far the DAG is pushed down to centre it (deliverable 3)
@@ -717,7 +717,13 @@
     var y = centre.dag;
     rows.forEach(function (row, i) {
       var h = heights[i];
-      var slot = { top: y, height: h, y: y + h / 2, floored: flooredAt[i] };
+      // `id`/`kind` on the slot are what make the store correspondable
+      // ACROSS two serialisations (viewer_study_respine_animation): a layout
+      // row INDEX is not comparable between the walk and a study's chain --
+      // row 3 of one is not row 3 of the other -- so the respine tween pairs
+      // the two stores by the element each slot belongs to, not by its key.
+      var slot = { top: y, height: h, y: y + h / 2, floored: flooredAt[i],
+                   id: row.id, kind: row.kind };
       out.byRow[row.row] = slot;
       if (row.kind === "node") out.nodes[row.id] = slot.y;
       if (row.kind === "edge") {
@@ -744,6 +750,184 @@
 
   VA.flooredEdgeTitle = function (edge, id) {
     return VA.edgeHoverTitle(edge, id) + " — " + VA.FLOORED_RENDER_NOTE;
+  };
+
+  // --- the respine tween (viewer_study_respine_animation, 2026-09-14) ------
+  //
+  // Selecting a study RE-SERIALISES the page: the whole walk's spine gives
+  // way to that study's own chain, right-justified, in the order the sum
+  // runs, with the grid re-ordered to match. Jeff asked for that to be a
+  // movement rather than a repaint ("I asked for this before (including
+  // smooth animation when the dag rearranges itself)"), and the seam
+  // viewer_edge_length_scaling deliberately left for it is the keyed store
+  // above: both geometry passes are pure functions of
+  // (layout, metrics, positions), so an animator can hand them a store
+  // interpolated between two renders and neither has to learn what an
+  // animation is. There is no second layout path, and no geometry function
+  // changed to get this.
+  //
+  // PRESENTATION ONLY, and the definition of done pins it: the animation's
+  // last frame is a plain render with no tween at all, so the settled
+  // geometry is the same numbers a fresh render of the same selection would
+  // have produced. Nothing here rounds, clamps or re-derives a position.
+
+  //: How long a respine takes. Short enough that a reader who clicked a study
+  //: is not waiting for the answer, long enough that the eye can follow a row
+  //: from where it was to where it went -- which is the whole point of
+  //: animating it at all rather than repainting.
+  VA.RESPINE = { duration: 260 };
+
+  // Ease-in-out cubic, clamped to [0, 1]. Eased once by the caller and handed
+  // to everything below as a plain fraction, so the tween, the fades and the
+  // horizontal slide cannot end up on three different curves.
+  VA.respineEase = function (t) {
+    var x = !(t > 0) ? 0 : (t > 1 ? 1 : t);
+    return x < 0.5
+      ? 4 * x * x * x
+      : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  };
+
+  // A node and an edge are separate namespaces in the projection (a topology
+  // index keeps two dicts), so a store correspondence keyed by id alone would
+  // pair them if a document ever spelled one of each the same. Composite, and
+  // the view reads it back through VA.tweenAlpha rather than spelling it.
+  function slotKey(kind, id) {
+    return String(kind) + "|" + String(id);
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  // Whether a bar mid-transition claims to be at a measured proportion.
+  // Floored on EITHER side is marked for the whole flight -- while a bar is
+  // moving, nothing about its length is a proportion of anything, so the
+  // honest mark is the one that never under-claims. At the far end the
+  // target's own flag is the only one left, which is what keeps a settled
+  // tween identical to a fresh store.
+  function flooredDuring(from, to, e) {
+    return e >= 1 ? !!to : (!!from || !!to);
+  }
+
+  // The interpolated store: `from` (the store the previous paint drew from)
+  // toward `to` (this paint's target), at the already-eased fraction `e`.
+  // Shaped exactly like VA.rowPositions' output plus two fields, so
+  // railGeometry and leaderGeometry take it unchanged.
+  //
+  //   alpha  { "kind|id": 0..1 } for every element that exists on ONE side
+  //          only -- it FADES at its own settled position rather than sliding
+  //          in from a place it never was, or out to one. Full-opacity
+  //          elements are absent from the map; VA.tweenAlpha answers 1 for
+  //          them.
+  //   t      the eased fraction, for a view that needs it directly.
+  //
+  // Only y is interpolated, and that is a real limit rather than an omission:
+  // x is a function of the layout's COLUMN INDEX (VA.railX over row.column)
+  // and a rail is not a keyed row, so sliding a dot's x per element would
+  // walk it off the rail it sits on. The horizontal change is absorbed as a
+  // whole-block slide instead -- VA.respineShift below.
+  VA.tweenPositions = function (from, to, e) {
+    if (!from || !to) return to || from || null;
+    var out = {
+      mode: to.mode,
+      height: lerp(from.height, to.height, e),
+      dagHeight: lerp(from.dagHeight, to.dagHeight, e),
+      gridHeight: lerp(from.gridHeight, to.gridHeight, e),
+      offset: lerp(from.offset, to.offset, e),
+      gridOffset: lerp(from.gridOffset, to.gridOffset, e),
+      byRow: {}, nodes: {}, edges: {}, alpha: {}, t: e,
+    };
+
+    // The outgoing side's slots, by element -- see `id`/`kind` on the slot in
+    // VA.rowPositions for why the pairing cannot go through the row key.
+    // Entries are struck off as the target claims them, so whatever is left
+    // is exactly what this transition DROPS.
+    var leaving = {};
+    Object.keys(from.byRow).forEach(function (key) {
+      var slot = from.byRow[key];
+      leaving[slotKey(slot.kind, slot.id)] = slot;
+    });
+
+    // byRow is keyed by the TARGET layout's row indices and nothing else:
+    // those are the rows the frame is drawn from, and a row index carried
+    // over from the other serialisation would collide with a different
+    // element's.
+    Object.keys(to.byRow).forEach(function (key) {
+      var slot = to.byRow[key];
+      var id = slotKey(slot.kind, slot.id);
+      var prev = leaving[id];
+      if (!prev) {
+        out.byRow[key] = slot;
+        out.alpha[id] = e;
+        return;
+      }
+      delete leaving[id];
+      out.byRow[key] = {
+        top: lerp(prev.top, slot.top, e),
+        height: lerp(prev.height, slot.height, e),
+        y: lerp(prev.y, slot.y, e),
+        floored: flooredDuring(prev.floored, slot.floored, e),
+        id: slot.id, kind: slot.kind,
+      };
+    });
+    Object.keys(leaving).forEach(function (id) {
+      out.alpha[id] = 1 - e;
+    });
+
+    Object.keys(to.nodes).forEach(function (id) {
+      out.nodes[id] = from.nodes[id] === undefined
+        ? to.nodes[id]
+        : lerp(from.nodes[id], to.nodes[id], e);
+    });
+    Object.keys(from.nodes).forEach(function (id) {
+      if (out.nodes[id] === undefined) out.nodes[id] = from.nodes[id];
+    });
+
+    Object.keys(to.edges).forEach(function (id) {
+      var b = to.edges[id];
+      var a = from.edges[id];
+      out.edges[id] = a ? {
+        y1: lerp(a.y1, b.y1, e), y2: lerp(a.y2, b.y2, e),
+        y: lerp(a.y, b.y, e), length: lerp(a.length, b.length, e),
+        floored: flooredDuring(a.floored, b.floored, e),
+      } : b;
+    });
+    Object.keys(from.edges).forEach(function (id) {
+      if (out.edges[id] === undefined) out.edges[id] = from.edges[id];
+    });
+
+    return out;
+  };
+
+  // How opaque one element is in a tweened frame: 1 unless the store says it
+  // is entering or leaving. Total, so a view can call it on everything it
+  // draws without knowing whether an animation is running at all.
+  VA.tweenAlpha = function (positions, kind, id) {
+    var alpha = positions && positions.alpha;
+    if (!alpha) return 1;
+    var a = alpha[slotKey(kind, id)];
+    return a === undefined ? 1 : a;
+  };
+
+  // The horizontal part of a respine, as ONE offset for the whole pane.
+  //
+  // This is what the store interpolation cannot express. A column index is a
+  // claim about the graph and the two serialisations disagree about how many
+  // columns there are (the pitch system's walk needs ten; any one study's
+  // chain is linear and needs one), so every x on the page moves -- but a
+  // rail is not a keyed row, and interpolating the marks' x while their rails
+  // stayed on the target's columns would draw dots floating beside the lines
+  // they sit on. Both serialisations are right-justified against the jog zone
+  // (viewer_dag_spine_layout), so the whole drawn block is slid instead: the
+  // first frame puts the grid's left edge exactly where the outgoing frame
+  // had it, and the slide settles at zero. A CSS transform carries it, which
+  // means no geometry reads it and the settled DOM has none of it.
+  //
+  // `fromWidth`/`toWidth` are the two frames' SVG widths (VA.leaderGeometry's
+  // `width` -- rails plus jog zone, i.e. the grid's own left edge).
+  VA.respineShift = function (fromWidth, toWidth, e) {
+    if (!(fromWidth > 0) || !(toWidth > 0)) return 0;
+    return (1 - e) * (fromWidth - toWidth);
   };
 
   // --- the spine on the right (viewer_dag_spine_layout, 2026-09-14) -------
