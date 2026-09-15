@@ -1050,6 +1050,54 @@ def inventory_sentences(text: str) -> list:
             if len(stated_counts(s)) >= 2]
 
 
+#: The topology document's OWN prose -- the fields a reader with the file open
+#: is given, and therefore every field that can carry a hand-copied count.
+#:
+#: Named rather than spelled inline inside the guard below, because
+#: ``test_every_prose_field_the_count_pairing_claims_is_really_scanned``
+#: replays the scan over each one: a key dropped from here is a surface that
+#: silently stops being paired, which is the one failure a passing guard cannot
+#: report about itself. ``description`` was exactly that between
+#: ``stack_title_style_pass`` (2026-09-14), which added the field and moved a
+#: structural inventory of two graphs into it, and this list --
+#: ``ISSUE_20260914_topology_description_sits_outside_the_structural_count_guard``.
+#: It is also the copy the **viewer renders** (the nav rail's hover tooltip),
+#: so the unguarded copy was the one a reader is shown.
+PROSE_FIELDS = ("title", "description", "notes", "provenance")
+
+
+def own_prose(raw: dict) -> str:
+    """A topology document's own scanned prose, as one blob to scan.
+
+    ``json.dumps`` rather than a join because ``provenance`` is a nested object:
+    dumping it reaches its strings without this function having to know its
+    shape, and the punctuation it adds is what the sentence splitter reads as a
+    boundary anyway.
+    """
+    return json.dumps({k: v for k, v in raw.items() if k in PROSE_FIELDS})
+
+
+def prose_candidates(raw: dict) -> dict:
+    """Every **top-level** field of a topology document that is prose rather than
+    structure: a string, or a flat object of strings the way ``provenance`` is.
+
+    This is deliberately independent of ``PROSE_FIELDS`` -- it is what the
+    completeness arm of the pairing test measures that tuple *against*, so it
+    must not read it. Nested prose (an edge's note, a study's description) is
+    out of scope on purpose: the guard this serves was written for the
+    document's own header, and widening it is a decision with its own false
+    positives, not a tidy-up.
+    """
+    prose = {}
+    for key, value in raw.items():
+        if isinstance(value, str):
+            prose[key] = value
+        elif isinstance(value, dict) and value and all(
+                isinstance(v, str) for v in value.values()):
+            prose[key] = json.dumps(value)
+    return prose
+
+
 def doc_section_for(topology_file: Path) -> str:
     """The ``###`` section of ``docs/DAG_TOPOLOGY.md`` that names this document.
 
@@ -1101,15 +1149,15 @@ def test_the_doc_states_this_graphs_whole_shape_and_states_it_right(path):
 def test_a_topologys_own_notes_count_the_graph_they_describe(path):
     """The same check where the second copy lives: the document's own prose.
 
-    A topology's ``notes``/``provenance`` restate its shape for a reader who has
-    the file open, which is a hand-copy of something derivable and therefore ages
-    the way every other hand-copy in this repo has.
+    A topology's ``description``/``notes``/``provenance`` restate its shape for a
+    reader who has the file open, which is a hand-copy of something derivable and
+    therefore ages the way every other hand-copy in this repo has. The fields
+    scanned are ``PROSE_FIELDS``; do not spell them again here.
     """
     topology = load_topology(path)
     expected = {stem: how(topology) for stem, how in _COUNTABLES.items()}
     raw = json.loads(path.read_text(encoding="utf-8"))
-    prose = json.dumps({k: v for k, v in raw.items()
-                        if k in ("title", "notes", "provenance")})
+    prose = own_prose(raw)
 
     for sentence in inventory_sentences(prose):
         for stem, values in stated_counts(sentence).items():
@@ -1157,6 +1205,69 @@ def test_the_structural_count_pairing_can_fail():
         sentences = inventory_sentences(doc_section_for(path))
         assert len(sentences) == 1
         assert sorted(stated_counts(sentences[0])) == sorted(_COUNTABLES)
+
+
+def test_every_prose_field_the_count_pairing_claims_is_really_scanned():
+    """The pairing's **scope**, replayed -- not just its parser.
+
+    ``test_the_structural_count_pairing_can_fail`` above proves the scanner
+    reads; it says nothing about *where* the scanner is pointed, and the defect
+    this test exists for was entirely a scope defect: ``description`` carried a
+    correct-today inventory of two graphs for a fortnight while the tuple listed
+    three other fields
+    (``ISSUE_20260914_topology_description_sits_outside_the_structural_count_guard``).
+
+    Two arms, and the second is the load-bearing one. Planting a wrong inventory
+    in each ``PROSE_FIELDS`` entry in turn proves every listed field is really
+    reached -- but a loop over that tuple cannot notice a key **leaving** it, it
+    just goes quiet, which is the same vacuity one level up (measured: dropping
+    ``description`` from the tuple left this test green until the second arm was
+    added). So the second arm measures the tuple against the corpus instead, via
+    ``prose_candidates``, which does not read it.
+    """
+    topology = load_topology(L1_TOPOLOGY)
+    expected = {stem: how(topology) for stem, how in _COUNTABLES.items()}
+    # Two labels, so the sentence splitter reads it as an inventory rather than
+    # a subset claim, and both figures wrong so either label catches it.
+    planted = (f"As a graph: {expected['part'] + 1} parts, "
+               f"{expected['edge'] + 1} edges.")
+
+    for field in PROSE_FIELDS:
+        sentences = inventory_sentences(own_prose({field: planted}))
+        assert len(sentences) == 1, (
+            f"a planted inventory in {field!r} produced {len(sentences)} "
+            f"inventory sentences; {field!r} is in PROSE_FIELDS, so the guard "
+            f"claims to read it")
+        stated = stated_counts(sentences[0])
+        assert {stem: values[0] for stem, values in stated.items()} == {
+            "part": expected["part"] + 1, "edge": expected["edge"] + 1}, (
+            f"the planted counts in {field!r} did not come back wrong: {stated}")
+
+    # And the filter really filters: a field outside the tuple is not scanned,
+    # which is what makes the loop above a claim about scope at all.
+    assert inventory_sentences(own_prose({"id": planted})) == []
+
+    # The completeness arm: every top-level prose field of every committed
+    # topology that states an inventory must be one PROSE_FIELDS lists. This is
+    # what reddens when a key is dropped, and what would have reddened on
+    # 2026-09-14 the moment `description` arrived carrying these counts.
+    inventoried = []
+    for path in topology_files():
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        for key, text in prose_candidates(raw).items():
+            if not inventory_sentences(text):
+                continue
+            inventoried.append(f"{path.name}:{key}")
+            assert key in PROSE_FIELDS, (
+                f"{path.name}'s `{key}` states an inventory of the graph and "
+                f"PROSE_FIELDS does not list it, so nothing pairs that copy to "
+                f"the graph it describes. Add the key to PROSE_FIELDS -- never "
+                f"retype the counts.")
+    assert inventoried, (
+        "no committed topology states an inventory in its own header prose at "
+        "all, so this arm measured nothing. If the counts really are gone, "
+        "check they did not move somewhere prose_candidates does not look "
+        "(a nested note, a study) before believing it.")
 
 
 # --------------------------------------------------------------------------- #
