@@ -3448,6 +3448,17 @@
           var settled = VA.tweenPositions(s.from, s.to, 1);
           eq(Object.keys(settled.byRow).sort(), Object.keys(s.to.byRow).sort(),
              mode + ": byRow is the target's rows and only those");
+          // "exactly" is a claim about the KEY SETS as much as the values, and
+          // it used to be checked on one side of each of the two below --
+          // which reads as equality and tests containment
+          // (ISSUE_20260915_a_settled_tween_store_is_not_the_target_store_it_
+          // keeps_the_outgoing_sides_keys). The carried-over keys were inert,
+          // because both geometry passes iterate the layout rather than the
+          // store, and they compounded across an interrupted respine.
+          eq(Object.keys(settled.nodes).sort(), Object.keys(s.to.nodes).sort(),
+             mode + ": nodes is the target's interfaces and only those");
+          eq(Object.keys(settled.edges).sort(), Object.keys(s.to.edges).sort(),
+             mode + ": edges is the target's dimensions and only those");
           Object.keys(s.to.byRow).forEach(function (key) {
             var a = settled.byRow[key], b = s.to.byRow[key];
             eq([a.id, a.kind], [b.id, b.kind], mode + " row " + key);
@@ -3471,6 +3482,45 @@
             });
           eq(settled.mode, s.to.mode, mode + ": the length mode is the target's");
         });
+      });
+
+    await test("a settled respine store's KEY SET is the target's, in both " +
+      "directions — nothing of the outgoing serialisation survives settling",
+      function () {
+        // The guard the test above is named for, stated once on its own so it
+        // cannot be lost inside a value-drift loop again, and run BOTH ways:
+        // the walk is a superset of any chain, so the select direction is the
+        // only one with keys to leak and the deselect direction would pass on
+        // a broken function. Both are asserted, and so is which of them is
+        // the witness.
+        var s = respineStores();
+        [[s.from, s.to, "select (walk -> chain)"],
+         [s.to, s.from, "deselect (chain -> walk)"]].forEach(function (pair) {
+          var settled = VA.tweenPositions(pair[0], pair[1], 1);
+          ["byRow", "nodes", "edges"].forEach(function (field) {
+            eq(Object.keys(settled[field]).sort(),
+               Object.keys(pair[1][field]).sort(),
+               pair[2] + ": " + field);
+          });
+        });
+        // Non-vacuity: the select direction really does drop keys, so the
+        // assertion above has something to bite on. These are the two
+        // interfaces and three dimensions the chain leaves behind.
+        var dropped = Object.keys(s.from.nodes).filter(function (id) {
+          return s.to.nodes[id] === undefined;
+        }).concat(Object.keys(s.from.edges).filter(function (id) {
+          return s.to.edges[id] === undefined;
+        }));
+        eq(dropped.sort(), ["arm_pin_to_tip", "arm_tip", "post_arm_pin",
+                            "post_height", "tip_to_strut_end"],
+           "the chain drops these, and settling must not keep them");
+        // And the mid-flight store is the target's key set too: a stale key
+        // is not a settling artifact, it is a carry-over that was never
+        // wanted at any e. The rows a transition drops are drawn by the
+        // GHOST, from the DOM the outgoing paint already produced.
+        var mid = VA.tweenPositions(s.from, s.to, 0.4);
+        eq(Object.keys(mid.nodes).sort(), Object.keys(s.to.nodes).sort());
+        eq(Object.keys(mid.edges).sort(), Object.keys(s.to.edges).sort());
       });
 
     await test("an element on one side only fades at its own settled " +
@@ -3549,7 +3599,7 @@
         ghost.appendChild(root.querySelector(".tv__hscroll"));
         VA.renderTopoPane(root, topoCtx({
           study: topoStudy("demo_strut_branch"), layoutMode: "topology",
-          tween: { positions: from.positions, width: from.width, e: 0.25,
+          tween: { positions: from.positions, columns: from.columns, e: 0.25,
                    ghost: ghost },
         }));
         var opacityOf = function (selector, id) {
@@ -3583,35 +3633,165 @@
         eq(opacityOf("circle.rail__dot", "base_datum") || "", "");
       });
 
-    await test("respineShift right-anchors the first frame on the outgoing " +
-      "frame's grid seam, and settles at zero", function () {
-        eq(VA.respineShift(316, 82, 0), 234);
-        eq(VA.respineShift(316, 82, 1), 0);
-        eq(VA.respineShift(316, 82, 0.5), 117);
-        // Backwards is the mirror image, not a special case: deselecting a
-        // study slides the block the other way by the same amount.
-        eq(VA.respineShift(82, 316, 0), -234);
-        eq(VA.respineShift(82, 316, 1), 0);
-        // No width to anchor on (a pane that never rendered) means no slide.
-        eq(VA.respineShift(0, 82, 0), 0);
-        eq(VA.respineShift(316, 0, 0), 0);
+    await test("respineX interpolates the DRAWN COLUMN COUNT and the pane " +
+      "width, and both land on the target's own at e = 1", function () {
+        var s = respineStores();
+        var from = { columns: s.walk.columns,
+                     width: VA.leaderGeometry(s.walk, s.walkPlan, s.M, s.from).width };
+        var toWidth = VA.leaderGeometry(s.chainLayout, s.chainPlan, s.M, s.to).width;
+        var at = function (e) {
+          return VA.respineX(s.chainLayout, s.chainPlan, s.M, from, e,
+                             undefined);
+        };
+        // e = 0 is the outgoing frame's own two numbers, which is the whole
+        // continuity claim: the first frame of a transition draws the picture
+        // the reader is already looking at.
+        var spread = s.chainLayout.columns - s.walk.columns;
+        eq(at(0).columnShift, spread);
+        eq(at(0).width, from.width);
+        eq(s.chainLayout.columns - at(0).columnShift, s.walk.columns,
+           "drawn with the OUTGOING serialisation's column count");
+        // e = 1 is the target's, exactly -- so a settled frame is a plain
+        // render and no geometry drifts through the animation.
+        eq(at(1).columnShift, 0);
+        eq(at(1).width, toWidth);
+        // And it is a straight interpolation in between.
+        eq(at(0.25).columnShift, 0.75 * spread);
+        ok(Math.abs(at(0.25).width - (toWidth + 0.75 * (from.width - toWidth)))
+           < 1e-9);
+        // Out-of-range e is clamped, the same way VA.respineEase clamps it.
+        eq(at(-3).columnShift, at(0).columnShift);
+        eq(at(7).columnShift, 0);
+        // Nothing to interpolate from (a pane that never rendered) is no
+        // tween at all, which is what makes a first paint a plain render.
+        eq(VA.respineX(s.chainLayout, s.chainPlan, s.M, null, 0), null);
+        eq(VA.respineX(s.chainLayout, s.chainPlan, s.M,
+                       { columns: 0, width: 82 }, 0), null);
+        eq(VA.respineX(s.chainLayout, s.chainPlan, s.M,
+                       { columns: 2, width: 0 }, 0), null);
       });
 
-    await test("a tweened render draws the DAG from the interpolated store, " +
-      "slides the whole block, cross-fades the grid and keeps the outgoing " +
-      "frame as an inert ghost", function () {
+    await test("a column a respine ADDS unfolds out of the spine — it is " +
+      "never drawn left of the leftmost rail, because it has no outgoing x " +
+      "to come from", function () {
+        var s = respineStores();
+        var from = { columns: s.chainLayout.columns,
+                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan, s.M,
+                                              s.to).width };
+        var railsAt = function (e) {
+          var x = VA.respineX(s.walk, s.walkPlan, s.M, from, e);
+          return VA.railGeometry(s.walk, s.M,
+            VA.tweenPositions(s.to, s.from, e), { x: x })
+            .rails.map(function (rail) { return rail.x; });
+        };
+        // The deselect direction: the chain's one column gives way to the
+        // walk's, so every column but the spine is one the respine adds. At
+        // e = 0 they are all collapsed onto the leftmost rail -- which is
+        // where the outgoing frame's only rail was -- and they separate from
+        // there.
+        var first = railsAt(0);
+        eq(first.filter(function (x) { return x === VA.railX(0, s.M); }).length,
+           first.length, "every rail starts on the leftmost one: " + first);
+        var settled = railsAt(1);
+        eq(settled, VA.railGeometry(s.walk, s.M, s.from).rails.map(
+             function (rail) { return rail.x; }),
+           "and lands on the plain render's own rails");
+        ok(settled.length > 1 && Math.max.apply(null, settled) >
+           Math.min.apply(null, settled),
+           "this fixture really does have columns to unfold: " + settled);
+        // Monotone in between: a rail only ever moves away from the leftmost
+        // one, never back, so the unfold cannot read as a wobble.
+        var previous = railsAt(0);
+        [0.25, 0.5, 0.75, 1].forEach(function (e) {
+          var now = railsAt(e);
+          now.forEach(function (x, i) {
+            ok(x >= previous[i] - 1e-9,
+               "rail " + i + " went backwards at e = " + e);
+          });
+          previous = now;
+        });
+      });
+
+    await test("every frame of a respine draws every rail, mark, link and " +
+      "leader end inside the pane — the DAG no longer unfolds from behind " +
+      "its left edge", function () {
+        // The defect this pins: the horizontal change used to be one
+        // whole-block CSS translate, right-anchored on the outgoing frame's
+        // grid seam. The pane's left edge is fixed and the incoming block is
+        // the wider one in the grow direction, so anchoring its right edge on
+        // the narrow frame's put its left part outside the pane, where
+        // .tv__hscroll's overflow-x clipped it
+        // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_block_
+        // slides). Measured over every drawn x there is, both directions.
+        var s = respineStores();
+        var drawn = function (fromLayout, fromPlan, fromPos,
+                              toLayout, toPlan, toPos, e) {
+          var from = { columns: fromLayout.columns,
+                       width: VA.leaderGeometry(fromLayout, fromPlan, s.M,
+                                                fromPos).width };
+          var x = VA.respineX(toLayout, toPlan, s.M, from, e);
+          var tweened = VA.tweenPositions(fromPos, toPos, e);
+          var geo = VA.railGeometry(toLayout, s.M, tweened, { x: x });
+          var leaders = VA.leaderGeometry(toLayout, toPlan, s.M, tweened,
+            { x: x });
+          var xs = geo.rails.map(function (r) { return r.x; })
+            .concat(geo.marks.map(function (m) { return m.x; }))
+            .concat(leaders.leaders.map(function (l) { return l.x1; }))
+            .concat(leaders.leaders.map(function (l) { return l.laneX; }));
+          geo.links.forEach(function (link) {
+            (link.d.match(/-?[\d.]+ -?[\d.]+/g) || []).forEach(function (pt) {
+              xs.push(parseFloat(pt.split(" ")[0]));
+            });
+          });
+          return { left: Math.min.apply(null, xs),
+                   right: Math.max.apply(null, xs),
+                   width: leaders.width };
+        };
+        [0, 0.25, 0.5, 0.75, 1].forEach(function (e) {
+          [["deselect", s.chainLayout, s.chainPlan, s.to, s.walk, s.walkPlan,
+            s.from],
+           ["select", s.walk, s.walkPlan, s.from, s.chainLayout, s.chainPlan,
+            s.to]].forEach(function (run) {
+            var box = drawn(run[1], run[2], run[3], run[4], run[5], run[6], e);
+            ok(box.left >= 0, run[0] + " at e = " + e +
+               " draws something at x = " + box.left);
+            // The other edge of the same claim: the SVG's own width is the
+            // grid's left edge, so anything drawn past it would be under the
+            // table (and clipped by the SVG's own viewport).
+            ok(box.right <= box.width + 1e-9, run[0] + " at e = " + e +
+               " draws past the grid seam: " + box.right + " > " + box.width);
+          });
+        });
+        // Non-vacuity: the width-anchored, whole-block slide this replaced
+        // really did put the incoming walk off the pane, so the loop above is
+        // not passing on a transition that never moved.
+        var wideShift =
+          VA.leaderGeometry(s.chainLayout, s.chainPlan, s.M, s.to).width -
+          VA.leaderGeometry(s.walk, s.walkPlan, s.M, s.from).width;
+        ok(wideShift < 0, "the walk really is the wider serialisation");
+        var slid = VA.railGeometry(s.walk, s.M, VA.tweenPositions(s.to, s.from, 0))
+          .marks.map(function (m) { return m.x + wideShift; });
+        ok(Math.min.apply(null, slid) < 0,
+           "the old anchor drew marks at x = " + Math.min.apply(null, slid));
+      });
+
+    await test("a tweened render draws the DAG from the interpolated store " +
+      "and the interpolated layout, cross-fades the grid and keeps the " +
+      "outgoing frame as an inert ghost", function () {
         var s = respineStores();
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var from = VA.lastTopoRender;
         eq(from.tweening, false, "a plain render is not a transition");
         ok(from.width > 0, "the render records the SVG width it drew");
+        eq(from.columns, s.walk.columns,
+           "and the column count -- the horizontal pair a respine tweens");
 
         var ghost = VA.el("div", "tv__ghost");
         ghost.appendChild(root.querySelector(".tv__hscroll"));
         VA.renderTopoPane(root, topoCtx({
           study: topoStudy("demo_strut_branch"), layoutMode: "chain",
-          tween: { positions: from.positions, width: from.width, e: 0.5,
-                   ghost: ghost },
+          tween: { positions: from.positions, columns: from.columns,
+                   width: from.width, e: 0.5, ghost: ghost },
         }));
         eq(VA.lastTopoRender.tweening, true);
 
@@ -3626,16 +3806,35 @@
         ok(Math.abs(parseFloat(bar.getAttribute("y1")) - want) < 0.05,
            "drawn y1 " + bar.getAttribute("y1") + " should be " + want);
 
-        // The block slide, on both halves of the pane -- the header sits over
-        // the columns it names, so it cannot be left behind.
-        var shift = VA.respineShift(from.width, VA.lastTopoRender.width, 0.5);
-        ok(Math.abs(shift) > 1, "this fixture really does slide: " + shift);
+        // The horizontal half, and it is in the GEOMETRY rather than in a
+        // transform: the SVG is drawn at the interpolated pane width, so the
+        // grid beside it and the header padded to sit over it follow without
+        // either of them learning that a transition exists. Nothing carries a
+        // translate any more -- a block slide is what drew the incoming
+        // serialisation off the pane.
+        var x = VA.respineX(s.chainLayout, s.chainPlan, s.M, from, 0.5);
+        var svg = root.querySelector("svg.tv__rails");
+        ok(Math.abs(parseFloat(svg.getAttribute("width")) - x.width) < 0.05,
+           "the SVG is drawn at " + svg.getAttribute("width") +
+           ", should be " + x.width);
+        ok(Math.abs(parseFloat(root.querySelector(".tv__head").style.paddingLeft)
+                    - x.width) < 0.05, "and the header sits over it");
+        ok(x.width !== from.width, "this fixture's two widths really differ");
         [".tv__head", ".tv__body"].forEach(function (sel) {
-          var tf = root.querySelector(sel).style.transform;
-          var px = /translateX\(([-\d.]+)px\)/.exec(tf || "");
-          ok(px, sel + " must carry the slide, got " + JSON.stringify(tf));
-          ok(Math.abs(parseFloat(px[1]) - shift) < 0.05, sel + ": " + px[1]);
+          eq(root.querySelector(sel).style.transform || "", "",
+             sel + " must carry no translate");
         });
+        // The DAG's own x is the interpolated column spread, and a dot's is
+        // the same number its rail is drawn at.
+        var dot = all(root, "circle.rail__dot").filter(function (n) {
+          return n.getAttribute("data-id") === "base_datum";
+        })[0];
+        ok(dot, "the spine's first interface must be drawn");
+        var mark = VA.railGeometry(s.chainLayout, s.M,
+          VA.tweenPositions(s.from, s.to, 0.5), { x: x })
+          .marks.filter(function (m) { return m.id === "base_datum"; })[0];
+        ok(Math.abs(parseFloat(dot.getAttribute("cx")) - mark.x) < 0.05,
+           "drawn cx " + dot.getAttribute("cx") + " should be " + mark.x);
 
         // The grid cross-fades; the ghost is the other half of it.
         ok(Math.abs(parseFloat(root.querySelector("div.tv__rows").style.opacity)
@@ -6442,13 +6641,84 @@
                moved.length + " of " + shared.length);
             ok(Math.max.apply(null, travel) > 200,
                "and the furthest travels " + Math.max.apply(null, travel) + "px");
-            // And the block slide is worth doing: the two jog zones are
-            // hundreds of pixels apart.
+            // A settled store is the target's key set, on the real
+            // document and in both directions -- 10 interfaces and 14
+            // dimensions of this walk are not in the chain, and every one of
+            // them used to survive settling at its outgoing y.
+            [[from, to, "select"], [to, from, "deselect"]].forEach(
+              function (pair) {
+                var store = VA.tweenPositions(pair[0], pair[1], 1);
+                ["byRow", "nodes", "edges"].forEach(function (field) {
+                  eq(Object.keys(store[field]).sort(),
+                     Object.keys(pair[1][field]).sort(),
+                     "pitch_system " + pair[2] + ": " + field);
+                });
+              });
+            ok(Object.keys(from.edges).filter(function (id) {
+              return to.edges[id] === undefined;
+            }).length >= 10, "the chain really does drop most of the walk");
+
+            // And the horizontal tween is worth doing: the two frames'
+            // widths are hundreds of pixels apart, so a respine that only
+            // moved y would leave the whole DAG snapping sideways.
             var fromWidth = VA.leaderGeometry(walk, walkPlan, M, from).width;
             var toWidth = VA.leaderGeometry(chain, chainPlan, M, to).width;
-            ok(VA.respineShift(fromWidth, toWidth, 0) > 100,
-               "the first frame slides by " +
-               VA.respineShift(fromWidth, toWidth, 0) + "px");
+            ok(fromWidth - toWidth > 100,
+               "the two pane widths are " + fromWidth + " and " + toWidth);
+
+            // Every frame of both directions, on the real document, drawn:
+            // every rail, mark, link point and leader end has to land inside
+            // the pane and left of the grid. This is the document the defect
+            // was reported on -- the walk's nine branch rails laid out left
+            // of x = 0, where .tv__hscroll's overflow-x clipped them
+            // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_
+            // block_slides).
+            var drawn = function (fromLayout, fromPlan, fromPos,
+                                  toLayout, toPlan, toPos, e) {
+              var prev = { columns: fromLayout.columns,
+                           width: VA.leaderGeometry(fromLayout, fromPlan, M,
+                                                    fromPos).width };
+              var x = VA.respineX(toLayout, toPlan, M, prev, e);
+              var tweened = VA.tweenPositions(fromPos, toPos, e);
+              var geo = VA.railGeometry(toLayout, M, tweened, { x: x });
+              var leaders = VA.leaderGeometry(toLayout, toPlan, M, tweened,
+                { x: x });
+              var xs = geo.rails.map(function (r) { return r.x; })
+                .concat(geo.marks.map(function (m) { return m.x; }))
+                .concat(leaders.leaders.map(function (l) { return l.x1; }))
+                .concat(leaders.leaders.map(function (l) { return l.laneX; }));
+              geo.links.forEach(function (link) {
+                (link.d.match(/-?[\d.]+ -?[\d.]+/g) || []).forEach(function (pt) {
+                  xs.push(parseFloat(pt.split(" ")[0]));
+                });
+              });
+              return { left: Math.min.apply(null, xs),
+                       right: Math.max.apply(null, xs),
+                       width: leaders.width };
+            };
+            [0, 0.25, 0.5, 0.75, 1].forEach(function (e) {
+              [["deselect", chain, chainPlan, to, walk, walkPlan, from],
+               ["select", walk, walkPlan, from, chain, chainPlan, to]].forEach(
+                function (run) {
+                  var box = drawn(run[1], run[2], run[3], run[4], run[5],
+                                  run[6], e);
+                  ok(box.left >= 0, "pitch_system " + run[0] + " at e = " + e +
+                     " draws something at x = " + box.left);
+                  ok(box.right <= box.width + 1e-9, "pitch_system " + run[0] +
+                     " at e = " + e + " draws past the grid seam: " +
+                     box.right + " > " + box.width);
+                });
+            });
+            // What it used to do, on the same 45 marks: anchored on the two
+            // SVG widths and slid as one block, the first frame of a deselect
+            // drew every one of them left of the pane.
+            var slid = VA.railGeometry(walk, M, VA.tweenPositions(to, from, 0))
+              .marks.map(function (m) { return m.x + (toWidth - fromWidth); });
+            ok(Math.min.apply(null, slid) < -100,
+               "the old anchor drew pitch_system's marks from x = " +
+               Math.min.apply(null, slid));
+            eq(slid.filter(function (x) { return x < 0; }).length, slid.length,
+               "and every one of its " + slid.length + " marks was off-pane");
           });
 
         await test("[real] every edge of every topology renders as a row in " +

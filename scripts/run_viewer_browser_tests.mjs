@@ -2910,8 +2910,22 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
       const last = VA.lastTopoRender;
       const ghost = document.querySelector("div.tv__ghost");
       if (last && last.tweening && ghost) {
-        const body = document.querySelector(".tv__body");
-        const head = document.querySelector(".tv__head");
+        // The LIVE frame, not the ghost's copy of the outgoing one: the pane
+        // holds both mid-transition, and every box below has to come off the
+        // one being drawn.
+        const live = Array.from(document.querySelectorAll(".tv__hscroll"))
+          .filter((n) => !n.closest("div.tv__ghost"))[0];
+        const body = live.querySelector(".tv__body");
+        const head = live.querySelector(".tv__head");
+        const svg = live.querySelector("svg.tv__rails");
+        const rows = live.querySelector("div.tv__rows");
+        const pane = live.getBoundingClientRect();
+        const grid = rows.getBoundingClientRect();
+        // Every drawn thing in the DAG, as BOXES -- which is the only way to
+        // say "inside the pane" rather than "the store says it should be".
+        const marks = Array.from(svg.querySelectorAll(
+          "line.rail, line.rail__bar, circle.rail__dot, path.rail__link, " +
+          "path.rail__leader")).map((n) => n.getBoundingClientRect());
         return {
           t: last.positions.t,
           ghostOpacity: parseFloat(ghost.style.opacity),
@@ -2919,10 +2933,16 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
           ghostHidden: ghost.getAttribute("aria-hidden"),
           ghostRows: ghost.querySelectorAll("tr.tvrow").length,
           ghostHeadHidden: ghost.querySelector(".tv__head").style.display,
-          gridOpacity: parseFloat(
-            document.querySelector("div.tv__rows").style.opacity),
+          gridOpacity: parseFloat(rows.style.opacity),
           bodyShift: body.style.transform,
           headShift: head.style.transform,
+          svgWidth: parseFloat(svg.getAttribute("width")),
+          headPad: parseFloat(head.style.paddingLeft),
+          scrollLeft: live.scrollLeft,
+          drawn: marks.length,
+          // Relative to the pane's own left edge, and to the grid's.
+          dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
+          dagPastGrid: Math.max(...marks.map((b) => b.right - grid.left)),
         };
       }
       await new Promise((r) => requestAnimationFrame(r));
@@ -2957,6 +2977,15 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
     // it samples every frame for as long as a respine can possibly last and
     // keeps the first one it caught. A build that never animates finds
     // nothing to keep, which is the failure this check exists for.
+    // The chain's own settled width, for the in-flight witness below: the
+    // frame in flight has to be drawn at a width strictly between the two
+    // serialisations', so both ends have to be known before the click.
+    await page.locator(navRow("study", study.id)).click();
+    await settled();
+    const chainSettled = await geometry();
+    await page.locator(navRow("topology", "pitch_system")).click();
+    await settled();
+
     await page.locator(navRow("study", study.id)).click();
     const inFlight = await catchFrame();
     push("[real] a study click puts a real transition in flight — the app " +
@@ -2974,13 +3003,33 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
         inFlight.ghostHeadHidden === "none");
       push("[real] the grid cross-fades rather than snapping to the new order",
         inFlight.gridOpacity >= 0 && inFlight.gridOpacity < 1);
-      push("[real] the whole block slides, header and body by the same offset",
-        /translateX\(/.test(inFlight.bodyShift) &&
-        inFlight.headShift === inFlight.bodyShift);
-      push("[real] and by a real distance — the walk and the chain are " +
-        "justified against jog zones far apart",
-        Math.abs(parseFloat(/translateX\(([-\d.]+)px\)/
-          .exec(inFlight.bodyShift)[1])) > 20);
+      // The horizontal tween, measured in the page. It is in the GEOMETRY --
+      // the frame is drawn at an interpolated pane width and an interpolated
+      // column spread (VA.respineX) -- so the witness is the SVG's own width
+      // strictly between the two serialisations', with no transform anywhere.
+      push("[real] the pane is drawn at a width between the two " +
+        "serialisations', so the grid beside it and the header over it move " +
+        "with the DAG",
+        inFlight.svgWidth > Number(chainSettled.svgWidth) &&
+        inFlight.svgWidth < Number(walk.svgWidth) &&
+        Math.abs(inFlight.headPad - inFlight.svgWidth) < 0.6);
+      push("[real] and nothing is slid as a block — a whole-block translate " +
+        "is what drew the incoming serialisation off the pane",
+        inFlight.bodyShift === "" && inFlight.headShift === "");
+      // The defect itself, measured box against box
+      // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_block_
+      // slides): a deselect used to draw all 45 of the walk's marks left of
+      // the pane's own left edge, where .tv__hscroll's overflow-x clips them.
+      push("[real] every rail, bar, dot, fan-out and leader of the frame in " +
+        "flight is drawn INSIDE the pane — not left of its own left edge",
+        inFlight.drawn > 20 && inFlight.scrollLeft === 0 &&
+        inFlight.dagLeft >= -1);
+      if (!(inFlight.dagLeft >= -1)) {
+        console.log("    leftmost drawn box: " + inFlight.dagLeft +
+                    "px from the pane's left edge");
+      }
+      push("[real] and left of the grid it hands off to, so the two blocks " +
+        "never overlap mid-flight", inFlight.dagPastGrid <= 1);
     }
 
     await settled();
@@ -3072,7 +3121,18 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
     const deselectFrame = await catchFrame();
     push("[real] deselecting a study animates too, rather than repainting " +
       "the walk back in", !!deselectFrame &&
-      /translateX\(/.test(deselectFrame.bodyShift));
+      deselectFrame.svgWidth > Number(chainSettled.svgWidth) &&
+      deselectFrame.svgWidth < Number(walk.svgWidth));
+    // The grow direction is the one the off-pane defect was reported in --
+    // the incoming walk is the WIDER serialisation, so it is the block slide
+    // that had nowhere to put its left-hand columns.
+    push("[real] and the incoming walk is drawn inside the pane in the grow " +
+      "direction too, which is the direction that used to clip",
+      !!deselectFrame && deselectFrame.scrollLeft === 0 &&
+      deselectFrame.dagLeft >= -1 && deselectFrame.dagPastGrid <= 1);
+    if (deselectFrame && !(deselectFrame.dagLeft >= -1)) {
+      console.log("    deselect leftmost drawn box: " + deselectFrame.dagLeft);
+    }
     await settled();
 
     await page.locator(studyRow).click();
