@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/annotate
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `surfaces_that_state_something_false` moved to completed/; not independently verified.
 ---
 
 # The annotator still offers Connect folder on a hosted page — and the filed fix shape would keep it there
