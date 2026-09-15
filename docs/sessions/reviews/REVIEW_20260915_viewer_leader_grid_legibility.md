@@ -164,3 +164,26 @@ layering before it shipped. Expect the next viewer handoff to be held to it.
 ## Verdict
 
 **APPROVE.** 0 blockers. Merged to `integration`.
+
+## Post-script — `integration` moved under the review
+
+The finishing `git fetch . review/… :integration` was rejected non-fast-forward:
+`integration` had advanced `3c0af96` → `c63a5d4` while this review ran
+(`viewer_popover_clamp_and_rebuild_terminal_state` landed, plus two
+`master` syncs). Merged `integration` into the review branch instead, per the
+canonical process. **It auto-merged with no conflicts**, so there is no
+resolution to report — but two files changed on both sides
+(`apps/viewer/topology_app.js`, `scripts/run_viewer_browser_tests.mjs`), which
+is exactly where a clean text merge can still be semantically wrong, so all
+four tiers were re-run on the merged tree:
+
+| tier | before | after the integration merge |
+| --- | --- | --- |
+| fast | 274/274 | 274/274 |
+| `--repo` | 331/331 | 331/331 |
+| browser | 17/17, topology 143/143 | 17/17, **topology 147/147**, rebuild affordance **10/10** |
+| pytest | 869 passed, 1 skipped | 869 passed, 1 skipped |
+
+The four new topology sub-checks and the three new rebuild ones are the
+sibling handoff's, arriving with it; nothing of this handoff's regressed. The
+verdict is unchanged.
