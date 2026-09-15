@@ -383,12 +383,16 @@
     head.appendChild(table);
     // The jog zone's own grip, on the seam between the SVG and the grid --
     // the boundary a reader would grab anyway. Absolutely positioned so it
-    // adds no width of its own: a grip that took layout space would sit
-    // between a leader's last segment and the grid's first column, which is
-    // the one handoff this page has no seam to align.
+    // adds no width of its own: a grip that took layout space would push
+    // itself in between a leader's last segment and the grid's first column,
+    // and that hand-off is the one place on this page with no seam to align.
+    //
+    // `naturalZone` rides along because the drag is measured in pixels and
+    // the preference is held as a multiple of it -- without it the app shell
+    // would have nothing to divide by.
     var jogGrip = resizeGrip("jog",
       "Drag to spread the leader lines out.", ctx,
-      { kind: "jog", naturalZone: leaderGeo.naturalZone, scale: leaderGeo.zoneScale });
+      { kind: "jog", naturalZone: leaderGeo.naturalZone });
     jogGrip.style.left = (railWidth - 3) + "px";
     head.appendChild(jogGrip);
     return head;
