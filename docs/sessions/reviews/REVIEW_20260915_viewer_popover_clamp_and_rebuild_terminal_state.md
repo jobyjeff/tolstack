@@ -192,3 +192,21 @@ The lesson is unusually good and worth reading before touching `position()`:
 it records a measured dead end (the handoff's own suggested clamp, which makes
 the card undismissable) that a future handoff would otherwise re-discover from
 the issue text.
+
+## The integration merge, and its one conflict
+
+`integration` moved from `13ce30f` to `3c0af96` while this review ran
+(`spec_crop_region_registry` landed, plus a master sync), so the finishing merge
+was not a fast-forward. Merging `integration` into this review branch conflicted
+in exactly one file: **`docs/prompts/REVIEW_AGENT.md`**, both sides appending to
+the tail of *Recurring bugs to check* — my two new entries on one side, that
+review's "a declared-rect registry is a provenance artifact" entry on the other.
+Nothing overlapping, nothing contradictory: **both sides kept, in that order**,
+three conflict markers removed and nothing else touched. That is the whole
+resolution; no judgement about whose intent survives was needed, because the
+overlay is an append-only checklist and neither side edited the other's text.
+
+Re-verified on the merged tree, not on the pre-merge one:
+**869 passed, 1 skipped** (`pytest -q`, up from 815 because
+`spec_crop_region_registry` brought its own tests) and **17/17 browser checks**,
+`[topology] 122/122` both modes, `[rebuild affordance] 10/10`.
