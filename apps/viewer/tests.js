@@ -67,6 +67,24 @@
       return (" " + String(raw || "") + " ").indexOf(" " + cls + " ") !== -1;
     }
 
+    // Every class in a crop block that joined VA.cropReference's `classPrefix`
+    // straight onto its suffix with nothing between them. Module-level beside
+    // hasClass because BOTH panes that pass a prefix are guarded with it, and
+    // they are 5,000 lines apart.
+    function unseparatedPrefixes(root) {
+      return all(root, "*").map(function (node) {
+        var raw = node.getAttribute("class");
+        if (raw === null || raw === undefined) raw = node.className;
+        if (raw && typeof raw === "object") raw = raw.baseVal;
+        return String(raw || "");
+      }).join(" ").split(/\s+/).filter(function (cls) {
+        // `detail__crop`, `detail__crop--resolved` and `detail__crop-head` are
+        // all right; `detail__crophead` is the defect, and a letter straight
+        // after the prefix is exactly what tells them apart.
+        return /^detail__crop[a-z]/.test(cls);
+      });
+    }
+
     // --- formatting: the no-second-arithmetic rule -------------------------
 
     await test("fmt prints a projection number verbatim, with no rounding", function () {
@@ -1461,18 +1479,24 @@
     // copy and exactly blind to this.
     //
     // The negative half is what makes it bite: the block still renders, still
-    // says the same words, and still has two children -- only their class
+    // says the same words, and still has the same children -- only their class
     // names moved.
+    //
+    // The negative half is also written as a SWEEP rather than as two named
+    // selectors, and that is not neatness. `VA.cropReference` appends its links
+    // row only when there is a link to put in it, and whether there is depends
+    // on the ORIGIN (VA.localFileUrl withholds a file:// link from a served
+    // page) -- so `div.detail__crop-links` is legitimately absent over http,
+    // and this suite runs in both. What is true at every origin is that no
+    // class in the block may join the prefix to its suffix with nothing
+    // between them.
     await test("the stack pane's crop block carries THIS pane's class prefix, " +
       "separator and all", function () {
       var root = render(function (r) {
         VA.renderDetail(r, DEMO, "plate", CROPS, { url: "blob:x" }, VA.CONFIG);
       });
       eq(all(root, "div.detail__crop-head").length, 1);
-      eq(all(root, "div.detail__crop-links").length, 1);
-      eq(all(root, "div.detail__crophead").length, 0,
-         "the prefix lost its separator: the block renders unstyled");
-      eq(all(root, "div.detail__croplinks").length, 0,
+      eq(unseparatedPrefixes(root), [],
          "the prefix lost its separator: the block renders unstyled");
     });
 
@@ -6504,10 +6528,7 @@
             detailImage: { url: "blob:x", name: "x.png" } }));
         });
         eq(all(root, "div.detail__crop-head").length, 1);
-        eq(all(root, "div.detail__crop-links").length, 1);
-        eq(all(root, "div.detail__crophead").length, 0,
-           "the prefix lost its separator: the block renders unstyled");
-        eq(all(root, "div.detail__croplinks").length, 0,
+        eq(unseparatedPrefixes(root), [],
            "the prefix lost its separator: the block renders unstyled");
       });
 
