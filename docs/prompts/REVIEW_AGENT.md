@@ -2755,6 +2755,36 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       upstream source, not by eye. Whenever a diff touches a line containing a
       `\u`-escape sentinel, byte-diff that line specifically rather than
       trusting a visual or line-based diff.
+- [ ] **A "per row" replay that substitutes a STUB for the row's own collector
+      is one assertion written N times.** New 2026-09-15
+      (`viewer_value_guard_rows_and_replays`, nit — the shape was prescribed by
+      the handoff, inherited from `projection_field_guard_rows`).
+      `replayBlindCollectors` in `apps/viewer/tests.js` loops the 15 stack-side
+      and 15 topology rows, and for each builds `{field, branch, known,
+      values: function () { return []; }}` and asserts `unexplainedValues`
+      reports it. `known` is never called on an empty collector, so the only
+      thing that varies across the 30 iterations is the `field` string in the
+      message: it proves `unexplainedValues`' empty arm fires (worth having —
+      deleting the `push` reddens both bite tests, verified), but it does **not**
+      prove anything per row. The per-row claim needs the row's **real**
+      collector run against a projection with that field removed — the scratch
+      `--repo` root harness this checklist already names. Ask of any "replayed
+      per row" comment: *what does iteration 7 execute that iteration 1 did
+      not?*
+- [ ] **A green `run_tests.cjs --repo <main checkout>` can be red five minutes
+      later for reasons that are nobody's.** New 2026-09-15 (same review). The
+      first `--repo C:\workspace\tolstack` run here was **369/373**, four
+      `[real]` pitch-link tests red; a re-run minutes later, same worktree, same
+      commit, was **373/373**. `data/projections/viewer/*.json` is shared by
+      every worktree and other live sessions rebuild it mid-run — the stamp in
+      the file says which tree it came from
+      (`provenance.branch` / `head_sha` / `built_at`; ours read
+      `review/viewer_respine_whole_walk`, not `master`). Before you attribute a
+      `[real]` red to the diff, **read the three stamps and re-run**, and check
+      the same failure at the branch's merge-base with `git archive <base> apps |
+      tar -x -C <scratch>` — app source comes from wherever the runner lives,
+      data comes from `--repo`, so a base comparison costs one command and no
+      worktree.
 
 - [ ] **A scratch `--repo` / `--data-root` root under the session scratchpad
       blows Windows MAX_PATH, and the symptom is a projection with ZERO
@@ -2947,9 +2977,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
         or an `index.html` `.gap--*` / `.croppop--*` block, **re-read the matching
         `inList` by hand**; nothing pairs them.
       Also check the companion test `[real] each value guard bites when fed a value
-      nothing can explain` still covers every row — a guard whose `known` accepts
-      anything is documentation, which is precisely the state `VA.CROP_RULES` was in
-      for the four days the original bug shipped. And know the tier's reach: it
+      nothing can explain, and on finding no value at all` still covers every row —
+      a guard whose `known` accepts anything is documentation, which is precisely
+      the state `VA.CROP_RULES` was in for the four days the original bug shipped.
+      That test replays **both** arms of the shared `unexplainedValues` per row
+      (2026-09-15, `viewer_value_guard_rows_and_replays`): the unknown value, and
+      the **collector that comes back empty**, which is the arm a renamed builder
+      key or a reshaped `crops.json` trips and the one a bite test forgets. The
+      topology table's companion is the same shape and the same helper.
+      And know the tier's reach: it
       reads **live data only**, so a value that exists only in `fixtures.js`
       (`values_status: "not_transcribed"`, `export.status: "unestablished"`) is
       unguarded by it by construction.

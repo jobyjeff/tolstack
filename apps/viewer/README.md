@@ -246,10 +246,8 @@ carriers).
   `VA.componentLabel` text, so there is one label style where there were two
   (ids in the pane, names on the card) and the two can no longer read
   differently about the same interface. The pane printed the authored `parts`
-  list until handoff `surfaces_that_state_something_false`, which is 10 of the
-  46 live nodes answering differently hovered and clicked — a count whose own
-  wording is contested and owned elsewhere
-  (`docs/issues/ISSUE_20260915_the_viewer_readmes_10_of_46_node_divergence_count_is_unguarded_and_counts_the_wrong_thing.md`).
+  list until handoff `surfaces_that_state_something_false`, which is 17 of the
+  46 live nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in

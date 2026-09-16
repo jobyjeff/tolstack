@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tests/topology
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260915_projection_field_guard_rows.md
 handoff: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `viewer_value_guard_rows_and_replays` moved to completed/; not independently verified.
 ---
 
 # `test_every_prose_field_the_count_pairing_claims_is_really_scanned`'s replay pins *which* fields the corpus states an inventory in

@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_surfaces_that_state_something_false.md
 handoff: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `viewer_value_guard_rows_and_replays` moved to completed/; not independently verified.
 ---
 
 # "10 of the 46 live nodes" ships in the README and in a code comment, unpaired, and counts a different thing than the sentence says

@@ -1518,8 +1518,18 @@
     // reader had no way to read.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 10 of the 46 live nodes the same dot answered differently
-    // hovered and clicked. Neither list was wrong: a node against a `gap` edge
+    // false, and on 17 of the 46 live nodes the same dot answered differently
+    // hovered and clicked. (17 is the STRING count, which is what "answered
+    // differently" means; 10 is the smaller count of nodes that differ as a
+    // SET. The other 7 name the same two parts in the opposite order --
+    // authoring order against first-seen-edge order -- and a reader looking at
+    // two orders of two names is still reading two different answers. Every
+    // digit in this paragraph, and the README's copy of the first sentence,
+    // is re-derived from the live projection by apps/viewer/tests.js's
+    // "[real] every live dot answers the SAME on hover and on click" -- the
+    // noun included, because 10 shipped under 17's wording for a day and a
+    // pairing that only checked "some number" would have passed it.)
+    // Neither list was wrong: a node against a `gap` edge
     // has a clearance for a side, and a clearance is not a part, so an
     // authored parts list cannot name one. The lists answer different
     // questions -- and the question a reader clicking a dot in the DAG is
