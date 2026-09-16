@@ -14,8 +14,14 @@ strategy brief. `venv-win/Scripts/python.exe -m pytest -q` at `70241ce`:
 
 ```
 FAILED tests/test_tolerance_stack.py::test_no_live_document_states_an_unguarded_hardware_entry_count
-1 failed, 1154 passed, 1 skipped in 53.85s
+1 failed, 1154 passed in 39.61s          # main checkout
+1 failed, 1153 passed, 1 skipped in 42.23s   # a worktree (one [real] test skips)
 ```
+
+> **Corrected in review, 2026-09-16.** This block first quoted
+> `1 failed, 1154 passed, 1 skipped` for `70241ce`, which is the *post-merge*
+> worktree count — the fixing handoff adds one test. Both lines above were
+> re-measured at `70241ce` itself.
 
 ```
 docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md:152:

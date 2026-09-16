@@ -32,6 +32,20 @@ test, or `hardware_entries.json`. Filed as
 (`high`). Against the handoff's stated 1155-passed baseline the arithmetic is
 exact: 1154 + 1 = 1155, no test gained or lost.
 
+> **Correction, review 2026-09-16 — one test WAS gained, and it is a
+> deliverable.** Re-measured in the review worktree at this branch's base
+> (`70241ce`): **1 failed, 1153 passed, 1 skipped** — 1155 collected. After the
+> merge: **1 failed, 1154 passed, 1 skipped** — 1156 collected.
+> `tests/test_mutation_witnesses.py` goes 10 tests → 11
+> (`test_the_runner_and_this_module_hold_the_same_tier_vocabulary`), which is
+> deliverable 2's pairing guard. So "no test gained or lost" is wrong, and
+> `1154 + 1 = 1155` matched the handoff's baseline only by coincidence: that
+> 1155 was measured in the **main checkout**, where nothing skips
+> (re-measured at `70241ce`: 1 failed, 1154 passed, 0 skipped = 1155
+> collected). A worktree run skips one `[real]` test, so the two figures are
+> not comparable term for term. The failure being pre-existing is confirmed
+> either way.
+
 ---
 
 ## 1. Which hover timed out — and the answer is neither candidate
@@ -122,6 +136,25 @@ compared against what the hover reported.
 The helper scrolls with `block: "nearest"`, not `hoverRailBar`'s `"center"` —
 minimum scroll, because centring gives away scroll the reading is measured
 against.
+
+> **Correction, review 2026-09-16 — the axis is wrong, and so there was no
+> hole.** Re-measured inside the helper: at `CARD_SCROLL_VIEWPORT` with the
+> document scrolled to its end the trigger's rect is
+> `{top: 243.5, bottom: 269.5, left: 1502, right: 1604}` against
+> `innerWidth/innerHeight` 1600/560 — vertically well inside the window and
+> **4px off its RIGHT edge**, because the detail pane scrolls horizontally.
+> `scrollIntoView` therefore moves the **pane** (left 1502 → 1066) and leaves
+> `window.scrollY` at **175 before and 175 after**; `document.scrollHeight -
+> innerHeight` is 175, so the document is pinned at its maximum and cannot
+> give vertical scroll away. The tripwire *"the document really scrolls at
+> this viewport"* was certifying the scroll the measurement is actually taken
+> at, so the "latent hole" above did not exist. What is left standing: the
+> helper does take the scroll branch (`box()` returns null first), and the
+> second tripwire is a real guard — the review observed it fail, by scrolling
+> the window 12px up after the card opened (`177/179`, both it and the
+> declared check red). `inline: "nearest"` is the half doing the work today;
+> `block: "nearest"` holds the same discipline on the axis the reading
+> depends on, which is worth keeping.
 
 ## 3. Before and after, `--only card-layout`
 

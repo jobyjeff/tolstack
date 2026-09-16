@@ -1142,13 +1142,18 @@ async function hoverRailBar(page, id) {
 //
 //   * it will not aim at a point outside the window, which would hover whatever
 //     is really there. It scrolls the element into view first if it has to --
-//     `locator.hover()` did that too, and silently, which matters here: at
-//     CARD_SCROLL_VIEWPORT with the document scrolled to its end this trigger
-//     is ABOVE the window (measured 2026-09-16: scrollY 175, trigger off the
-//     top), so the reading the out-of-flow contract takes has always been at
-//     the scroll `scrollIntoView` left behind and never at the one the tripwire
-//     above it asserted. It returns that scroll so the caller can pin the
-//     position it actually measured at.
+//     `locator.hover()` did that too, and silently, and it DOES have to here.
+//     Re-measured in review, 2026-09-16, and the axis is not the one this note
+//     first named: at CARD_SCROLL_VIEWPORT the trigger's rect comes back
+//     `{top: 243.5, bottom: 269.5, left: 1502, right: 1604}` against
+//     `innerWidth/innerHeight` 1600/560 -- vertically well inside the window
+//     and **4px off its RIGHT edge**, because the detail pane scrolls
+//     horizontally. So `scrollIntoView` moves the PANE (left 1502 -> 1066) and
+//     leaves `window.scrollY` at 175 before and 175 after: no document scroll
+//     is given away, and the reading IS taken at the scroll the tripwire above
+//     asserts. It returns that scroll anyway, so the caller can pin the
+//     position it measured at rather than assume it -- which is what the
+//     second tripwire below spends it on.
 //   * it still proves the pointer landed: the rect and the in-window test are
 //     read in ONE page task (a locator resolved and then evaluated against is
 //     two, and under file:// a late render between them hands back a detached
@@ -1168,8 +1173,11 @@ async function hoverIgnoringOcclusion(page, selector) {
     if (!p) {
       // "nearest", not hoverRailBar's "center": the MINIMUM scroll that gets
       // the trigger into the window, which is what locator.hover() did and
-      // what keeps the document as scrolled as it can be -- centring would
-      // give away scroll the out-of-flow reading below is measured against.
+      // what keeps the document as scrolled as it can be. In today's layout it
+      // is `inline` that does the work (the trigger is off the pane's right
+      // edge, not above the window -- see the note above); `block: "nearest"`
+      // is the same discipline held on the axis the reading below depends on,
+      // so a layout change cannot start giving that scroll away silently.
       el.scrollIntoView({ block: "nearest", inline: "nearest" });
       p = box();
     }
