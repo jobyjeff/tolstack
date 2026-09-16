@@ -1577,13 +1577,26 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       !(await page.locator("#legend-dialog").evaluate((n) => n.open)));
 
     // The demo mechanism's own joint is `{}` (it spans four parts, no single
-    // physical joint) and it declares no worksheet — the "stays silent" half
-    // of deliverable 4 (viewer_v2_single_nav), on the fixture the rest of
-    // this suite already loaded.
+    // physical joint) — the "stays silent" half of deliverable 4
+    // (viewer_v2_single_nav), on the fixture the rest of this suite already
+    // loaded.
     push("a topology with no joint block says so rather than fabricating one",
       /no joint block/.test(await page.locator("#topojoint").textContent()));
-    push("a topology with no worksheet_file hides the worksheet toggle",
-      !(await page.locator("#worksheet-toggle").isVisible()));
+    // It declares no worksheet either, and until
+    // viewer_nav_wedge_and_classic_retirement that hid the toggle. It now
+    // offers the sheet of the stack it re-expresses (`demo_joint`,
+    // VA.worksheetSubject): retiring that stack's own nav row left this page as
+    // the only route to an authored sheet, which is true of three of the four
+    // real conversions too. The dialog names the file it is showing, so a
+    // reader is never left wondering whose sheet they are reading.
+    await page.locator("#worksheet-toggle").click();
+    await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+    const sheet = await page.locator("#worksheet-dialog").textContent();
+    push("a topology with no worksheet of its own offers the one its covered " +
+      "stack authored, and names it", /WORKSHEET_demo_joint\.md/.test(sheet));
+    push("and renders that sheet's own body, not an empty pane",
+      /Demo worksheet/.test(sheet));
+    await page.locator("#worksheet-close").click();
 
     // Edge-length scaling (viewer_edge_length_scaling): cycle the toolbar's
     // mode button through all three stops. At each: the bars measure what the
@@ -2557,15 +2570,30 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
 
     // Every clickable row of the live rail, in the order a reader meets them,
     // tagged with whether clicking it READS anything. `loadWorksheet()` reads
-    // only where the selected subject declares a `worksheet_file` -- the
-    // topology in topology mode (so a study row inherits its topology's), the
-    // stack in stack mode -- and a node with none resolves without touching
-    // the adapter at all. Only the reading rows can see a failed read, so only
-    // they are required to say so; requiring a banner on the others would be
-    // requiring the page to invent an error.
+    // only where the selected subject declares a `worksheet_file` -- and a node
+    // with none resolves without touching the adapter at all. Only the reading
+    // rows can see a failed read, so only they are required to say so;
+    // requiring a banner on the others would be requiring the page to invent an
+    // error.
+    //
+    // The subject is `VA.worksheetSubject`'s, replayed here off the same two
+    // projections: a topology's own sheet, or failing that the sheet of a stack
+    // it re-expresses (a study row inherits its topology's either way). A
+    // deliberate second implementation of a five-line rule -- the point is to
+    // discover which rows really hit the adapter, and asking the page under
+    // test would agree with whatever it does.
+    const sheetless = new Set();
+    for (const stack of realResults.stacks) {
+      if (!stack.worksheet_file) sheetless.add(stack.id);
+    }
     const withWorksheet = new Set();
     for (const topology of realProjection.topologies) {
-      if (topology.worksheet_file) withWorksheet.add("topology:" + topology.id);
+      const covered = (topology.edges || [])
+        .map((edge) => edge.crop_key && edge.crop_key.stack)
+        .filter((id) => id && !sheetless.has(id));
+      if (topology.worksheet_file || covered.length) {
+        withWorksheet.add("topology:" + topology.id);
+      }
     }
     for (const stack of realResults.stacks) {
       if (stack.worksheet_file) withWorksheet.add("stack:" + stack.id);
@@ -2662,6 +2690,37 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     push("every row lands with no error banner at all when the reads work",
       noisy.length === 0 && wedged.length === 0);
     if (noisy.length) console.log(`    banner raised on: ${noisy.join(", ")}`);
+
+    // The other half of deliverable 2, end to end: the sheet a converted
+    // stack authored is still ONE CLICK away, on its topology's page, now that
+    // the stack's own row is gone. Over this seam `texts` is empty, so the
+    // dialog cannot show the markdown -- what it must show is that it is
+    // offering the STACK's sheet, by name, and it must offer the button at all.
+    let fallback = null;
+    for (const topology of realProjection.topologies) {
+      if (topology.worksheet_file) continue;
+      const covered = (topology.edges || [])
+        .map((edge) => edge.crop_key && edge.crop_key.stack).filter(Boolean);
+      const stack = realResults.stacks.find(
+        (s) => covered.includes(s.id) && s.worksheet_file);
+      if (stack) { fallback = { topology, stack }; break; }
+    }
+    push("the live projection has a converted stack whose sheet only its " +
+      "topology's page can reach", fallback !== null);
+    if (fallback) {
+      await page.locator(`#navtree ${navRow("topology", fallback.topology.id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow("topology", fallback.topology.id)}.navtree__row--on`,
+        { timeout: 4000 });
+      push("a topology that declares no worksheet still offers the one its " +
+        "stack authored", await page.locator("#worksheet-toggle").isVisible());
+      await page.locator("#worksheet-toggle").click();
+      await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+      push("and the dialog names that stack's own sheet, not a neighbour's",
+        (await page.locator("#worksheet-dialog").textContent())
+          .includes(fallback.stack.worksheet_file));
+      await page.locator("#worksheet-close").click();
+    }
 
     // The retirement, on the live rail (deliverable 2 and 4): a stack a
     // topology re-expresses has no row, and the word is gone from the page.

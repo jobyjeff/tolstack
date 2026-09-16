@@ -527,9 +527,21 @@
   // own `worksheet_for`, the same two-rule convention) -- so which projection
   // to read it off is the only thing that depends on mode (deliverable 4,
   // viewer_v2_single_nav).
+  //
+  // In topology mode that is VA.worksheetSubject rather than the topology
+  // itself: since the nested stack row went away there is nowhere else to
+  // reach a converted stack's own authored sheet from, and three of the four
+  // have one (viewer_nav_wedge_and_classic_retirement). One function, read by
+  // both the fetch below and the toggle in paint(), so the button and the
+  // dialog can never disagree about which sheet the page is offering.
+  function worksheetSubject() {
+    return state.mode === "topology"
+      ? VA.worksheetSubject(currentTopology(), state.stacksResults)
+      : currentStack();
+  }
+
   function loadWorksheet() {
-    var subject = state.mode === "topology" ? currentTopology() : currentStack();
-    var segments = VA.worksheetSegments(subject);
+    var segments = VA.worksheetSegments(worksheetSubject());
     if (!segments) {
       state.worksheetText = null;
       return Promise.resolve();
@@ -978,8 +990,11 @@
     // offered there. The worksheet is offered wherever the SELECTED node
     // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
     // through the identical field a stack's does, so the same toggle serves
-    // both; a topology with none (most studies' own stacks have one instead)
-    // hides it exactly as a worksheet-less stack always did. Close whichever
+    // both -- and a topology that declares none falls back to the sheet of a
+    // stack it re-expresses (VA.worksheetSubject), which is the only route to
+    // three authored worksheets since the nested stack row was retired. A
+    // subject with none either way hides the toggle exactly as a
+    // worksheet-less stack always did. Close whichever
     // dialog no longer has anything to show: switching modes or nodes with one
     // open is a real path (click a nav row while reading either) and a stale
     // dialog sitting open would be confusing about which page it is even
@@ -992,9 +1007,8 @@
     // memory, node-fs) is read as fully capable.
     var canReadWorksheets = !adapter || typeof adapter.capabilities !== "function" ||
       adapter.capabilities().worksheets !== false;
-    var hasWorksheet = canReadWorksheets && (showTopology
-      ? !!(topoProj && topoProj.worksheet_file)
-      : !!(stackProj && stackProj.worksheet_file));
+    var sheet = worksheetSubject();
+    var hasWorksheet = canReadWorksheets && !!(sheet && sheet.worksheet_file);
     nodes.legendToggle.style.display = showTopology ? "" : "none";
     nodes.worksheetToggle.style.display = hasWorksheet ? "" : "none";
     if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
@@ -1097,8 +1111,7 @@
         state.crops, state.detailImage, VA.CONFIG);
     }
 
-    VA.renderWorksheet(nodes.worksheet, showTopology ? topoProj : stackProj,
-      state.worksheetText);
+    VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
 
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays

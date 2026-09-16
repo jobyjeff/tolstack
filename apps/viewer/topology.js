@@ -2105,6 +2105,33 @@
     });
   };
 
+  // Which projection's worksheet a topology's page offers: the topology's own
+  // if it declares one, otherwise the worksheet of a stack it re-expresses
+  // (deliverable 2, viewer_nav_wedge_and_classic_retirement).
+  //
+  // This exists BECAUSE the nested stack row is gone. Three of the four
+  // converted stacks carry an authored WORKSHEET_*.md and their topologies
+  // declare none -- the naming convention pairs `stack_X.json` with
+  // `WORKSHEET_X.md`, and a topology is a different file name -- so the only
+  // way to those three sheets was the row that has just been removed. Dropping
+  // it without this would have made authored prose silently unreachable, which
+  // is the one thing the row was genuinely still good for.
+  //
+  // Nothing is derived and nothing is copied: it returns a projection, and
+  // views/worksheet.js reads `worksheet_file`/`worksheet_source` off whichever
+  // one it is handed. A topology with neither comes back as itself, so the
+  // pane's "no worksheet for this" branch is reached exactly as before.
+  VA.worksheetSubject = function (topology, results) {
+    if (!topology) return null;
+    if (topology.worksheet_file) return topology;
+    var ids = VA.topologyCoveredStackIds(topology);
+    for (var i = 0; i < ids.length; i++) {
+      var stackProj = VA.findStack(results, ids[i]);
+      if (stackProj && stackProj.worksheet_file) return stackProj;
+    }
+    return topology;
+  };
+
   // --- the single nav tree: one topology -> its studies, and every stack no
   // topology re-expresses as a leaf of the same tree (viewer_v2_single_nav,
   // 2026-09-08). One system, one entry: a topology carries no stack child rows

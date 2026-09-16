@@ -5313,6 +5313,45 @@
         has(root.querySelector("div.worksheet__body").innerHTML, "<h1>");
       });
 
+    // Which worksheet a topology's page offers, now that a covered stack has no
+    // row to reach its own from (viewer_nav_wedge_and_classic_retirement).
+    await test("a topology declares its own worksheet and that is what its " +
+      "page offers", function () {
+        var topology = { id: "t", worksheet_file: "docs/topologies/WORKSHEET_t.md",
+          edges: [{ crop_key: { stack: "k" } }] };
+        var results = { stacks: [{ id: "k",
+          worksheet_file: "docs/tolerance_stacks/WORKSHEET_k.md" }] };
+        eq(VA.worksheetSubject(topology, results).worksheet_file,
+           "docs/topologies/WORKSHEET_t.md");
+      });
+
+    await test("a topology with no worksheet of its own offers the sheet of a " +
+      "stack it re-expresses — the only route left to one", function () {
+        var topology = { id: "t", edges: [
+          { crop_key: { stack: "sheetless" } },
+          { crop_key: { stack: "k" } },
+        ] };
+        var results = { stacks: [
+          { id: "sheetless", worksheet_file: null },
+          { id: "k", worksheet_file: "docs/tolerance_stacks/WORKSHEET_k.md",
+            worksheet_source: "matched" },
+        ] };
+        var subject = VA.worksheetSubject(topology, results);
+        eq(subject.id, "k");
+        eq(subject.worksheet_file, "docs/tolerance_stacks/WORKSHEET_k.md");
+      });
+
+    await test("a topology with no worksheet anywhere comes back as itself, " +
+      "so the pane still says there is none", function () {
+        var topology = { id: "t", edges: [] };
+        eq(VA.worksheetSubject(topology, { stacks: [] }).id, "t");
+        eq(VA.worksheetSubject(null, null), null);
+        var root = render(function (r) {
+          VA.renderWorksheet(r, VA.worksheetSubject(topology, null), null);
+        });
+        has(root.textContent, "No worksheet for this stack");
+      });
+
     await test("the totals are the projection's numbers, printed verbatim",
       function () {
         var study = topoStudy("demo_strut_branch");
@@ -6965,6 +7004,41 @@
             has(html, "<h1>");
             has(html, "end-stop graft workorder");
             has(root.textContent, "declared by this file itself");
+          });
+
+        // The authored sheets the retired stack row was the only route to
+        // (deliverable 2, viewer_nav_wedge_and_classic_retirement). Three of
+        // the four converted stacks carry a WORKSHEET_*.md and none of their
+        // topologies declares one, so without the fallback this page would
+        // have offered no worksheet at all for any of them.
+        await test("[real] every converted stack's own worksheet is still " +
+          "reachable from its topology's page", async function () {
+            var covered = VA.stacksCoveredByTopology(realTopologies);
+            var reached = [];
+            for (var i = 0; i < liveTopos.length; i++) {
+              var topology = liveTopos[i];
+              var subject = VA.worksheetSubject(topology, realResults);
+              if (topology.worksheet_file) {
+                eq(subject.id, topology.id,
+                   "a topology's own sheet must win over a covered stack's");
+                continue;
+              }
+              if (!subject.worksheet_file) continue;
+              ok(covered[subject.id],
+                 "the sheet offered must belong to a stack this topology " +
+                 "re-expresses, never a neighbour's: " + subject.id);
+              var md = await real.readText(VA.worksheetSegments(subject));
+              ok(md, subject.id + "'s worksheet must be readable");
+              var root = render(function (r) {
+                VA.renderWorksheet(r, subject, md);
+              });
+              has(root.querySelector("div.worksheet__body").innerHTML, "<h1>");
+              has(root.textContent, subject.worksheet_file);
+              reached.push(subject.id);
+            }
+            eq(reached.length, 3,
+               "expected the three converted stacks with an authored sheet, " +
+               "got " + reached.join(", "));
           });
 
         await test("[real] a respine of every summing study of every topology " +

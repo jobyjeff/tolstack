@@ -1257,12 +1257,19 @@ about this citation.
 
 The worksheet ("the agent's report") opens in its own `#worksheet-dialog`,
 from the **Show worksheet** button in the topbar — offered in EITHER mode,
-exactly when the selected node's own projection names one
-(`worksheet_file`). A topology can carry one too, since `topology_schema_v1`
-(2026-09-08): `pitch_system`'s own is `WORKSHEET_end_stop_graft.md`,
-`provenance.worksheet`-declared on the topology file the same way a stack's
-is. The button hides for a node with none, in either mode — it used to be
-stack-mode-only, before a topology had a `worksheet_file` field to read. The
+exactly when the page has a sheet to show. A topology can carry one itself,
+since `topology_schema_v1` (2026-09-08): `pitch_system`'s own is
+`WORKSHEET_end_stop_graft.md`, `provenance.worksheet`-declared on the topology
+file the same way a stack's is. A topology that declares none falls back to the
+sheet of a stack it re-expresses (`VA.worksheetSubject`, `topology.js`) — not a
+neighbour's, the same joint's, and since 2026-09-15 the only route to one:
+three of the four converted stacks have an authored sheet, their topologies
+have none, and the nested stack row that used to reach them is gone
+(`viewer_nav_wedge_and_classic_retirement`; the fast tier's "[real] every
+converted stack's own worksheet is still reachable from its topology's page"
+counts them off the projection). The button hides when there is nothing to show
+either way, in either mode — it used to be stack-mode-only, before a topology
+had a `worksheet_file` field to read. The
 worksheet used to live in the right-hand pane; that pane now shows an
 element's or edge's full sourcing instead (see "Selecting an element" above).
 It moved again with `viewer_v2_single_nav` (2026-09-08), from an inline
@@ -1275,8 +1282,8 @@ default so it never covers the table uninvited, but one click away, not gone.
 `docs/tolerance_stacks/` or `docs/topologies/` rather than copied into the
 projection: edit the markdown, reload, see it. Rendered with the
 dependency-free markdown renderer vendored from forge's notes app
-(escape-first, no sanitize pass). A stack or topology with no worksheet of
-its own says so instead of borrowing a neighbour's.
+(escape-first, no sanitize pass). Where nothing in reach names a sheet, the
+pane says so instead of borrowing an unrelated document's.
 
 Which sheet belongs to a stack or a topology is decided by its own
 projection builder, two rules deep and identical between the two: a
