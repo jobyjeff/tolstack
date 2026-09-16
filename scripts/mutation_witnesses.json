@@ -70,15 +70,15 @@
     },
     {
       "id": "refusing-study-stays-on-the-walk",
-      "contract": "A study that REFUSED has no chain to lay out, so clicking it leaves the page on the whole-topology walk -- the same condition the layout toggle disables itself for.",
+      "contract": "A study that REFUSED has no chain, so clicking it leaves the walk at FULL emphasis -- nothing dimmed, every leader, the whole table. The error is the result.",
       "issue": "docs/issues/ISSUE_20260915_a_refusing_study_staying_on_the_walk_is_unwitnessed_in_every_tier.md",
-      "note": "The witness has to arrive from CHAIN mode. Reached from the walk, the false branch and no branch at all are the same state, which is why this shipped green in all three tiers.",
-      "file": "apps/viewer/topology_app.js",
-      "find": "    state.layoutMode = chainable(studyId) ? \"chain\" : \"topology\";",
-      "replace": "    state.layoutMode = \"chain\";",
+      "note": "Re-pointed by viewer_respine_whole_walk (2026-09-15): the condition used to be topology_app.js's chainable() picking a layout, and is now views/topology.js's one `marking` test, which gates the dimming, the leader subset and the grid subset together. The witness still has to arrive from a SUMMING study -- reached from the deselected walk, a refusal and no selection at all draw the same page, which is why this shipped green in all three tiers.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var marking = !!(study && study.status === \"ok\");",
+      "replace": "    var marking = !!study;",
       "tier": "browser",
       "suite": "topology file://",
-      "expect_red": "a refusing study drops back onto the whole-topology walk rather than claiming a chain it has not got"
+      "expect_red": "a refusing study leaves the walk exactly as it was rather than emphasizing a chain it has not got"
     },
     {
       "id": "density-toggle-really-takes",
@@ -98,8 +98,8 @@
       "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
       "note": "The suite used to toggle the style back to its jogged default BEFORE its only topology switch, where a reset and a non-reset are indistinguishable. The sibling preference (jogZoneScale) was covered all along.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.layoutMode = \"topology\";\n    state.selection = null;\n    state.detailImage = null;\n  }\n\n  function selectElement(kind, id) {",
-      "replace": "    state.layoutMode = \"topology\";\n    state.leaderStyle = \"jogged\";\n    state.selection = null;\n    state.detailImage = null;\n  }\n\n  function selectElement(kind, id) {",
+      "find": "    state.studyId = null;\n    state.selection = null;\n    state.detailImage = null;\n  }\n\n  function selectElement(kind, id) {",
+      "replace": "    state.studyId = null;\n    state.leaderStyle = \"jogged\";\n    state.selection = null;\n    state.detailImage = null;\n  }\n\n  function selectElement(kind, id) {",
       "tier": "browser",
       "suite": "topology file://",
       "expect_red": "[real] switching topology keeps the leader STYLE too"
@@ -110,8 +110,8 @@
       "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
       "note": "Found chasing that issue's closing question -- whether the OLDER preferences had the same hole. They did: this reddened nothing in any tier on 2026-09-15, for the same reason leaderStyle did not, and is entered beside the two below it as one contract in three parts.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.layoutMode = \"topology\";\n    state.selection = null;",
-      "replace": "    state.layoutMode = \"topology\";\n    state.rowDensity = \"comfortable\";\n    state.selection = null;",
+      "find": "    state.studyId = null;\n    state.selection = null;",
+      "replace": "    state.studyId = null;\n    state.rowDensity = \"comfortable\";\n    state.selection = null;",
       "tier": "browser",
       "suite": "topology file://",
       "expect_red": "[real] switching topology keeps the density, the length mode and the value-only rows as well"
@@ -122,8 +122,8 @@
       "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
       "note": "The sibling of the entry above; see its note.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.layoutMode = \"topology\";\n    state.selection = null;\n    state.detailImage = null;",
-      "replace": "    state.layoutMode = \"topology\";\n    state.edgeLengthMode = \"uniform\";\n    state.selection = null;\n    state.detailImage = null;",
+      "find": "    state.studyId = null;\n    state.selection = null;\n    state.detailImage = null;",
+      "replace": "    state.studyId = null;\n    state.edgeLengthMode = \"uniform\";\n    state.selection = null;\n    state.detailImage = null;",
       "tier": "browser",
       "suite": "topology file://",
       "expect_red": "[real] switching topology keeps the density, the length mode and the value-only rows as well"
@@ -134,8 +134,8 @@
       "issue": "docs/issues/ISSUE_20260915_leader_style_persistence_across_topology_switch_is_unpinned.md",
       "note": "The sibling of the two entries above; see the first one's note.",
       "file": "apps/viewer/topology_app.js",
-      "find": "    state.studyId = null;\n    state.layoutMode = \"topology\";",
-      "replace": "    state.studyId = null;\n    state.edgeValueOnly = false;\n    state.layoutMode = \"topology\";",
+      "find": "    state.studyId = null;\n    state.selection = null;\n    state.detailImage = null;\n  }",
+      "replace": "    state.studyId = null;\n    state.edgeValueOnly = false;\n    state.selection = null;\n    state.detailImage = null;\n  }",
       "tier": "browser",
       "suite": "topology file://",
       "expect_red": "[real] switching topology keeps the density, the length mode and the value-only rows as well"

@@ -7750,6 +7750,35 @@
               eq(c, Number(columns[2]), "README's chain column count");
             });
 
+            // "the pane goes **316 -> 226px**" / "`gridOffset` goes
+            // **299 -> 143px**" -- the respine section's own statement of what
+            // is left to animate now that a study selection no longer
+            // re-columns anything (viewer_respine_whole_walk). Both are
+            // budget-free under uniform lengths, so they are the numbers the
+            // page really draws and not a reading at one viewport.
+            var respineFrame = function (study) {
+              var layout = VA.spineRight(livePitch.layout);
+              var plan = VA.gridPlan(layout, livePitch, study
+                ? { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) }
+                : null);
+              var pos = VA.rowPositions(layout, livePitch, "uniform", M,
+                { budget: 0, plan: plan });
+              return { width: VA.leaderGeometry(layout, plan, M, pos).width,
+                       gridOffset: pos.gridOffset };
+            };
+            var narrowest = respineFrame(VA.findStudy(livePitch,
+              "pitch_system_gas_spring_branch"));
+            var wholeWalk = respineFrame(null);
+            var pane = /the\s+pane goes \*\*(\d+) → (\d+)px\*\*/.exec(readme);
+            ok(pane, "expected the README's pane-width sentence");
+            eq(Number(pane[1]), wholeWalk.width, "README's walk pane width");
+            eq(Number(pane[2]), narrowest.width, "README's emphasized pane width");
+            var offset = /`gridOffset` goes \*\*(\d+) → (\d+)px\*\*/.exec(readme);
+            ok(offset, "expected the README's gridOffset sentence");
+            eq(Number(offset[1]), wholeWalk.gridOffset, "README's walk gridOffset");
+            eq(Number(offset[2]), narrowest.gridOffset,
+               "README's emphasized gridOffset");
+
             // "3 over 3 for `pitch_link_to_pitch_plate`, 10 over 10 for
             // `pitch_system`, ..." -- the column-reuse bullet's own claim that
             // reuse fires nowhere, re-derived per topology so a sixth
