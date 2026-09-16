@@ -517,3 +517,82 @@ pushed.
 The overlay's F1 entry was rewritten around the author's clip-truncation root
 cause — that is the entry a future reviewer here will actually get value from,
 and it came out of the rework, not out of round 1.
+
+
+---
+
+# Round 2, part 2 — `integration` moved, and the merge was gated on the mutation tier
+
+`integration` advanced while round 2 was in review: `mutation_witness_tier_reaches_its_checks`
+landed (`3d7fd32` … `3b71063`). Merged into `review/citation_identity_correctness`
+at `1701a20`, **no conflicts** — both handoffs appended to
+`docs/prompts/REVIEW_AGENT.md` and the additions are in different sections, so
+the merge is additive and both sides' entries survive (integration's +52 lines,
+this branch's +49 on top; verified by locating all three of my entries and the
+sibling's in the merged file).
+
+Suite on the fully merged tree: **1162 passed, 1 failed, 1 skipped** — +1 over
+round 2 for the sibling's new test, and the same pre-existing brief-guard red
+and the same worktree-only skip.
+
+## The mutation-witness tier, run because this merge is the case nobody runs it on
+
+That handoff filed
+`ISSUE_20260916_a_review_merge_is_the_one_place_the_mutation_tier_is_never_re_run.md`
+(`open`, `audience: strategy`): the tier is the only one whose answer can change
+*as a result of a merge* while every branch involved is green, and a review
+agent's own merge is the one moment it is not re-run. No prompt change has
+landed, but I was holding exactly that merge, so I ran it.
+
+`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`
+(forward slashes, so the `[real]` tier is not skipped):
+
+| tree | result |
+|---|---|
+| `master` @ `6637354` | **25/27** witnessed — `card-layout-out-of-flow`, `nav-click-never-wedges` NOT WITNESSED |
+| this merged tree | **29/29** witnessed |
+
+**No merge-only regression**, and the tier is strictly better than trunk: the two
+reds are the ones the sibling handoff repaired, and its two new entries witness
+here too. The delta is trunk lag, not divergence.
+
+**One obstacle worth recording for the next reviewer who tries this.** Run from
+a worktree, the first attempt reported **12 of 29 NOT WITNESSED**, every one of
+them *"the tier was already red with NO mutation applied"*. That is not a
+regression and not a guard defect: the runner builds its shadow tree under the
+**worktree**, and `node_modules/` (holding `playwright-core`) exists only in the
+main checkout and is gitignored, so every browser-tier entry dies on
+`ERR_MODULE_NOT_FOUND` before any mutation is applied. `--repo <main checkout>`
+supplies the *projection*, not the modules. A directory junction fixes it
+without touching the main checkout:
+
+```
+cmd /c "mklink /J node_modules C:\workspace	olstack
+ode_modules"
+```
+
+Removed afterwards. The runner's new "the tier was red before the mutation, so
+nothing was proved" reporting is what made this diagnosable in one read rather
+than looking like twelve broken guards — that reporting is the sibling
+handoff's, and it earned its keep immediately.
+
+## A duplicate issue, cross-referenced rather than deleted
+
+`mutation_witness_tier_reaches_its_checks` filed
+`ISSUE_20260916_hardware_count_guard_matches_the_other_three_in_unrelated_prose.md`
+— the **same red, same brief line, same `_COUNT_CLAIMS` pattern, same
+diagnosis** as this handoff's filing. Neither branch could see the other; my
+merge is the first tree containing both. Per the overlay's own "Seven issues,
+one red" entry I cross-referenced the newest into the pair and flagged it for
+triage to close as one, keeping both halves: the sibling's carries the cleaner
+baseline (`70241ce` measured in both checkouts), this one carries the anchoring
+`grep` pattern under *Suggested fix*. Neither was deleted — two independent
+sightings of one guard's false positive are themselves the evidence about the
+guard.
+
+## Integration
+
+Merged `review/citation_identity_correctness` → `integration` (fast-forward)
+and pushed. `master` not touched — trunk moves only on the operator's batch
+merge. The handoff moved `active/` → `completed/` on the same commit, matching
+the precedent one commit earlier on this branch (`9942941`).

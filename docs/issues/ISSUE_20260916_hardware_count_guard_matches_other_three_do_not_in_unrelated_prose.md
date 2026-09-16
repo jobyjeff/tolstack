@@ -78,3 +78,26 @@ and this is outside all of them; the repo's "file, don't fix" rule applies.
 The handoff's baseline was measured on `master` at the 2026-09-16 batch merge
 and recorded 1155 passed / 0 failed; this failure arrived on `integration`
 after that point, which is also why the handoff did not warn about it.
+
+---
+
+## Duplicate — cross-referenced in review, 2026-09-16
+
+`ISSUE_20260916_hardware_count_guard_matches_the_other_three_in_unrelated_prose.md`
+(filed by `mutation_witness_tier_reaches_its_checks`, same day, `type: bug`,
+`priority: high`) is the **same red, the same brief line, the same
+`_COUNT_CLAIMS` pattern and the same diagnosis**. Neither filing could have seen
+the other: both branches were cut before either landed, and `integration` only
+brought them together at this handoff's review merge.
+
+**Triage should close these as one.** The sibling's filing additionally records
+the measured counts at `70241ce` for both the main checkout and a worktree
+(`1 failed, 1154 passed` / `1 failed, 1153 passed, 1 skipped`), which is the
+cleaner baseline; this one carries the anchoring `grep` pattern under
+*Suggested fix*, which the sibling's does not. Whichever survives should keep
+both halves.
+
+Noted here rather than deleting a filing, because two independent sightings of
+one guard's false positive are evidence about the guard, and the count of
+filings is the evidence — see this repo's review overlay, "Seven issues, one
+red".
