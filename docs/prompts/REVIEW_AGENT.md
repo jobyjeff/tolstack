@@ -459,6 +459,20 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **`--repo` with backslashes under the BASH tool skips the whole `[real]`
+      tier, and the runner still prints a clean total.** New 2026-09-15
+      (`review/viewer_study_verdicts_and_gaps`). Every doc here spells it
+      `--repo C:` + a backslash path, which is correct under PowerShell; under
+      the Bash tool the shell eats the backslashes, `run_tests.cjs` resolves
+      `.../workspacetolstack/data/...`, and the run reports
+      **`302/302 passed`** with all **69** `[real]` tests gone (302 without the
+      tier, 371 with it, on 2026-09-15). It is not wholly
+      silent -- there is one `SKIP node-fs tier` line naming the mangled path --
+      but it is one line above the total, so a `| tail -4` read misses it
+      entirely. Use `--repo C:/workspace/tolstack` from Bash, and **check the
+      total moved** (371 with the real tier, 302 without) before you
+      believe a green. Same seam in `scripts/run_viewer_browser_tests.mjs`.
+
 - [ ] **A vocabulary pairing compares SETS, so a consumer that ranks by the
       order is unguarded.** New 2026-09-15 (`viewer_study_verdicts_and_gaps`).
       `tests/test_js_python_vocabulary.py` and
