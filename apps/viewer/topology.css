@@ -633,12 +633,15 @@ body { display: flex; flex-direction: column; }
    is worth recording rather than quietly reverting: at 560 the centre pane is
    133px narrower, and the grid's content overflows it horizontally either way
    (the head table is fixed-width and this page has no inner scrollport by
-   design) -- so a widened jog zone put its own drag grip UNDERNEATH this pane,
-   where a pointer reaches the pane and not the grip. The browser tier caught
-   it on pitch_system at 1600px wide with the zone at 5.5x. A reader can still
-   reach that state by dragging this pane open, so the interaction is filed
-   rather than fixed here:
-   ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md. */
+   design) -- so a widened jog zone put its own drag grip OUT of the pane's
+   visible window, where `.tv__hscroll`'s overflow-x clips it and a pointer
+   reaches this pane instead. The browser tier caught it on pitch_system at
+   1600px wide with the zone at 5.5x. That reachability hazard is FIXED
+   (topology_grid_scroll_and_grips, 2026-09-16 -- see `.tvgrip` below, where
+   both grips are now clamped into the visible window and the browser tier
+   drags them at a 560px pane and at VA.TOPO_PANE_WIDTH.max). The default is
+   still 430 anyway: Jeff asked for the pane to be RESIZABLE, not for a wider
+   default, and nothing measured since says otherwise. */
 .tv .detail {
   width: 430px; flex: none; overflow: visible; align-self: stretch;
   /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:
