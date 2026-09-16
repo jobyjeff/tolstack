@@ -712,9 +712,17 @@ Rules:
 - **An entry's inline values are NOT a source, and citing the entry does not
   launder them.** Most of the numbers in this file are slice-1 transcriptions of
   the 260729 workbook, and `values_status: "inline"` says where they *live*, not
-  where they came from. Read the entry's `values_source` before you reuse a band:
-  a `kind: "workbook"` one is forbidden in a from-scratch stack exactly as if you
-  had read it out of the xlsx yourself (Step 5b). This is why the field exists.
+  where they came from. Read the entry's `values_source` before you reuse a band.
+  **Amended 2026-09-15 — see the amendment at Step 5b before you act on this
+  bullet.** It read: *"a `kind: "workbook"` one is forbidden in a from-scratch
+  stack exactly as if you had read it out of the xlsx yourself (Step 5b)."* That
+  ban is rescinded; `pitch_link_to_pitch_plate`'s `washer_nas1149v0332` is the
+  counter-example now sitting in the repo. What survives, and what the field
+  still exists for: you may reuse such a band only by **citing the workbook it
+  came from, at the confidence it deserves** — never by citing the hardware entry
+  and letting `kind: "parts_list"` / `confidence: "inferred"` ride in with it.
+  The laundering this bullet names is still the defect; the blanket ban was the
+  wrong instrument for it.
 - **`library_ref` and `values_status: "library"` are one decision, not two.** The
   invariant a test enforces is the **pairing**, in both directions: a filled
   `library_ref` ⟺ `values_status == "library"`. Writing one half without the
@@ -890,7 +898,7 @@ instructions in this SOP have to be read differently.
 | `workbook_cells: null` + `[NOT IN WORKBOOK]` on added checks | Not applicable — **every** check is new. Drop both markers rather than putting them on everything, and say in the worksheet that the whole stack is original. |
 | `[slip]` and `[drift]` findings (source errors, source-vs-drawing divergence) | Mostly will not occur; there is no source to slip or drift. `[model]` and `[read]` still very much apply. |
 | `kind: "workbook"` source refs | Should appear **zero** times. If one does, ask where that number really came from. |
-| `hardware_entries.json` as a source | **The ban is transitive, and this is where it leaks.** The file is an in-repo design artifact that *looks* like a legitimate source, but most of its inline numbers are slice-1 transcriptions of the 260729 workbook. Citing the entry for the 214820-002 length band would have shown `kind: "parts_list"`, `confidence: "inferred"`, zero workbook references — and laundered an untraced workbook value into the stack, passing every test and every mechanical checklist item in the repo. Read each entry's `values_source` (Step 4) before reusing a band, and treat a workbook-derived one as forbidden here exactly as if you had read the xlsx yourself. |
+| `hardware_entries.json` as a source | **The ban is transitive, and this is where it leaks.** The file is an in-repo design artifact that *looks* like a legitimate source, but most of its inline numbers are slice-1 transcriptions of the 260729 workbook. Citing the entry for the 214820-002 length band would have shown `kind: "parts_list"`, `confidence: "inferred"`, zero workbook references — and laundered an untraced workbook value into the stack, passing every test and every mechanical checklist item in the repo. Read each entry's `values_source` (Step 4) before reusing a band. **The last clause of this row is amended 2026-09-15 — see below.** It read *"and treat a workbook-derived one as forbidden here exactly as if you had read the xlsx yourself"*; the laundering point survives and the analogy does not. Cite the workbook, at its own confidence. |
 
 Everything else applies unchanged, and the one rule applies *harder*: with no
 workbook to lean on, the temptation to supply a "standard" value from memory is
@@ -945,14 +953,23 @@ document would supply it. Do not fill a hole to make the stack look finished.
 >   obliged to fold a band a from-scratch stack was forbidden, so one part read
 >   `4.63/4.76` on one screen and `±0` on another, correctly, by design. A
 >   divergence is now a defect; pin it with a cross-stack, value-level test
->   naming the stacks (`test_one_part_and_feature_folds_one_band_in_every_stack_
->   that_uses_it`), and record any you are out of scope to fix as a listed
->   divergence rather than an exemption.
+>   naming the stacks — `test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it`
+>   in `tests/test_tolerance_stack.py` — and record any you are out of scope to
+>   fix as a listed divergence rather than an exemption.
 >
 > **Untouched:** the prohibition on inventing a value from training-data recall.
 > A placeholder still needs a named source; it just no longer needs a verified
-> one. `kind: "workbook"` appearing zero times is no longer the test of a
-> from-scratch stack — everything else in the table above still is.
+> one.
+>
+> **What this amendment reaches, beyond the row above it.** `kind: "workbook"`
+> appearing zero times is no longer the test of a from-scratch stack, and two
+> other places in this document said the same thing in different words. Both now
+> carry a pointer here: the **Step 4** bullet *"an entry's inline values are NOT
+> a source"* (where an author reads *before* choosing a band, ~190 lines above
+> this), and the last clause of the `hardware_entries.json` row in the table
+> directly above. The **laundering** argument in both survives untouched — it is
+> about the shape of a citation, not about whether a number is verified. Every
+> other row of that table is still the test of a from-scratch stack.
 
 ## Step 5c — when an element cannot be sourced at all
 
@@ -1230,8 +1247,11 @@ checkout too if you like, but never only that one.
     carries `source_ref.export` with the **sha256** — a filename is not an export,
     because Jeff re-exports over it. Cannot establish it? `status:
     "unestablished"` with a `why`, never a plausible run.
-19. Sourced nominal, unsourced band ⇒ a **zero-width band**, declared as such —
-    never a plausible one. RSS reads it as certainty.
+19. Nominal with **no band anywhere** ⇒ a zero-width band, declared as such —
+    never a plausible one. RSS reads it as certainty. A band that *has* a named
+    source but an unverified one is **not** this case since 2026-09-15: apply it,
+    marked `untraced`, cited to the artifact it came from (Step 5b amendment).
+    A workbook cell is a named source; "the standard probably says" is not.
 20. In a budget check, the **larger** deficit magnitude is the requirement; the
     smaller one is where the check fails at its most favourable.
 21. `git status` in drawing-checker proves **nothing** about "we wrote nothing

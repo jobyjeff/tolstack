@@ -430,7 +430,9 @@ Diagnosis codes: **[slip]** an error in a source, **[read]** my own misreading
 **[drift]** the source disagrees with the current drawings. Per SOP Step 5b,
 `[slip]` and `[drift]` are mostly unavailable here — there is no source workbook
 to slip, and nothing older than the drawings to drift from — but one `[drift]`
-turned up between two *exports* of the same drawing.
+turned up between two *exports* of the same drawing (F4), and a second arrived
+on 2026-09-15 with the part drawing itself (F9), which is the first time this
+stack has had a part drawing to drift *from*.
 
 ### F1 — Dimension `M`'s meaning is read from a figure, not from text **[read — resolved, needs a second pair of eyes]**
 
@@ -557,6 +559,54 @@ file is complete. Recorded in the hardware entry's `gaps`.
 
 `data/inbox/specs/` is append-only — nothing was renamed, moved, deduplicated or
 tidied, and no file there was edited.
+
+### F9 — Three documents give the bushing a different length **[drift]**
+
+*Added 2026-09-15 (`pitch_link_known_bands`).* One feature, `214820-002`'s
+overall length, three sources, three numbers:
+
+| source | what it prints | as mm |
+|---|---|---|
+| 217755 sh4 DETAIL B parts list (`[PRELIM 2026-AUG-3]`) | `.1875" LONG` | **4.7625** |
+| 260729 workbook, `grip length tols old` E7 (`take2` repeats it at E39) | hand-typed literal `4.762` | **4.762** |
+| **214820-002 part drawing, SECTION A-A** — Jeff, 2026-09-15 | `4.76 +0.00/−0.13` | **4.76** |
+
+They span 0.0025 mm, which is a rounding artefact and not a manufacturing
+disagreement — but recorded as a finding rather than reconciled away, per the
+review checklist, because a reader who diffs this stack against `tan_link` or
+against `hardware_entries.json` will see three nominals for one part and deserves
+to find the reason written down rather than inferred.
+
+**What each one actually is.** `.1875 in` is a *nomenclature string* on an
+assembly parts list — a description of the part, not a dimension with a
+tolerance. `4.762` is the workbook author's own rounding of `.1875 × 25.4`, and
+it is 0.002 mm **above** the 4.76 MMC sitting two columns from it, which is
+slice 1's F1 shape (`stack_tan_link_to_pitch_plate.json`'s `straight_bushing`
+note records it). `4.76` is what the **part drawing** prints, and a part drawing
+dimensioning its own feature outranks an assembly's description of it.
+
+**Resolved, in one direction only.** This stack stores the drawing's `4.76`.
+Nothing else was changed to match:
+
+- `hardware_entries.json` still records `dimensions_mm.length: 4.7625` — that
+  entry's job is to record what the parts list and the workbook say, and
+  flattening it would delete this finding's evidence;
+- `stack_tan_link_to_pitch_plate.json` and its `take2` still fold `4.762`, with
+  their own note explaining it. Bringing those nominals into line is **not**
+  this handoff's call: they are transcriptions, and a transcription that quietly
+  stops matching its source stops being one.
+
+So the cross-stack guard added this session
+(`test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it`) pairs
+**bands** across stacks and deliberately does **not** pair nominals, and says so
+in a comment. The bands all agree — 4.63/4.76 everywhere — which is the claim
+that matters for the fold; the nominals disagree by a rounding step, which is
+this finding.
+
+**What would close it:** the 214820-002 PDF in `data/inbox/specs/` (gap 3). Once
+the drawing can be re-read here, `4.76` is `traced`, the other two become
+recorded transcription artefacts with a settled arbiter, and this row can be
+re-read rather than taken on report.
 
 ## Source gaps
 

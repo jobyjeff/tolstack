@@ -138,6 +138,105 @@ both present in the projection and both pinned by
 badge keyed on `zero_width` alone will show **nothing** on this stack, which is
 the silent failure the whole ruling was about.
 
+## Round 2 — what `review/pitch_link_known_bands` sent back
+
+REQUEST CHANGES on one blocker plus six should-fixes. All addressed on this
+branch; the review report is at
+`docs/sessions/reviews/REVIEW_20260915_pitch_link_known_bands.md` on the review
+branch.
+
+### B1 — the JS `[real]` tier is a DATA tier, and `pytest -q` structurally cannot see it
+
+**This is the one to carry forward.** Two tests in `apps/viewer/tests.js` pinned
+this stack's numbers and its zero-width flags:
+
+```
+FAIL  [real] the two zero-width bands are flagged        not equal: 0 !== 2
+FAIL  [real] the folded numbers reach the page verbatim  missing: "-8.1939"
+```
+
+I never saw them, and a green `pytest -q` is not evidence they were fine:
+`tests/test_viewer_js_suite.py` runs the JS runner **without** `--repo`, so from
+a worktree the `[real]` tier reports itself skipped and pytest records a *skip*.
+That is deliberate ("a red suite that means 'you are in a worktree' trains people
+to ignore red suites") and it means **any stack-data change can break a viewer
+test invisibly to the Python suite.** The handoff's *"do NOT touch the viewer
+(`apps/`)"* fences the viewer's behaviour; these two are data pins on this exact
+stack, and they belong to deliverable 3 the same way their Python twins did.
+
+**If you change stack data, run the `[real]` tier yourself.** To do it from a
+worktree without clobbering the shared projection:
+
+```
+mkdir <scratch>/data
+mklink /J <scratch>\docs           <worktree>\docs
+mklink /J <scratch>\data\inbox     C:\workspace\tolstack\data\inbox
+mklink /J <scratch>\data\meshes    C:\workspace\tolstack\data\meshes
+mklink /J <scratch>\data\runs      C:\workspace\tolstack\data\runs
+mklink /J <scratch>\data\sessions  C:\workspace\tolstack\data\sessions
+cp -r C:/workspace/tolstack/data/projections <scratch>/data/projections
+```
+
+then rebuild **all three** projections into `<scratch>/data` with
+`--allow-older-tree` (safe — it is your own scratch root, not the shared one) and
+run `node apps/viewer/run_tests.cjs --repo <scratch>`. Junctions for the
+read-only dirs keep it cheap; a scratch root missing `docs/`, `meshes/` or
+`data/inbox/` produces four unrelated failures that look like yours and are not.
+**`build_viewer_crops.py` needs drawing-checker's interpreter**
+(`C:/workspace/drawing-checker/venv-win/Scripts/python.exe`) — PyMuPDF is
+deliberately absent from this repo's requirements.
+
+Two traps inside the fix itself:
+
+- **The DOM shim's selector matcher handles `tag`, `.class` and `tag.class` and
+  nothing compound.** My first fix asserted
+  `all(root, "tr.el-row.conf--untraced")`, which matched **zero** nodes and
+  failed loudly — but the same shape in a *positive* assertion (`length === 0`)
+  would have passed while checking nothing. Use one class per selector and
+  filter with the suite's own `hasClass()`.
+- **`VA.fmt` is `String(n)` — verbatim, no rounding, by design.** The page shows
+  `-8.428`, not `-8.4280`. Documents write the trailing zero for column
+  alignment; the viewer never does. The old pin happened to be `-8.1939`, which
+  has no trailing zero, so the distinction had never come up here.
+
+I repointed `[real] the zero-width flag reaches the page` at
+`rotor_fastener_length` rather than asserting `0` on pitch_link under its own
+name — the same move the Python twin made — and added
+`[real] the pitch-link stack's two unverified bands render untraced, not
+zero-width`, which is the assertion the ruling actually wants.
+
+### The six should-fixes
+
+| | what it was | what it is now |
+|---|---|---|
+| **S1** | both new notes pointed at *"the other 217755 elements in this file"*; after this change there are none | both name `joint.assembly_export` as the true referent, and say outright that no element cites 217755 any more |
+| **S2** | the 4.7625 / 4.762 / 4.76 disagreement was explained in four places and indexed as a finding in none | worksheet **F9 `[drift]`**, with the three sources in a table and what each one *is* |
+| **S3** | the guard's "not vacuous" lines asserted a pair was absent from a set it could never be in — renaming a `SHARED_BANDS` key to a typo left it green | asserts what the loop **matched**: every part in at least two distinct stacks. Verified both mutations the reviewer named now fail |
+| **S4** | `TOLSTACK_ROOT_COMMIT` deleted with the run it was written against | restored, repointed at `20260730_133912`, which also predates root commit `e7bd996` |
+| **S5** | SOP Step 4's bullet and the from-scratch table row still stated the rescinded ban, ~190 lines from the amendment | both carry a dated pointer; the amendment now names what it reaches |
+| **S6** | `PROVENANCE.md` said "six … and three of those" for nine changed tests | nine, grouped by *what* changed in each |
+
+**S3 is the one worth remembering.** "Assert the guard is not vacuous" is only
+worth writing if the assertion can fail, and mine could not: `seen_divergences`
+is fed exclusively from `KNOWN_BAND_DIVERGENCES`, so asking whether a
+*non-divergent* pair is absent from it is asking whether a thing is missing from
+a set it was never eligible for. The shape that works is to record what the loop
+**actually matched** and assert against the curated constant — that fails on a
+misspelled key, on a part leaving every stack, and on a file list that stopped
+seeing a file. Same family as the `dead`-entry check I did get right on the
+divergence list; I just did not apply it to the other side.
+
+**S1 is the cheapest to have avoided**: I wrote *"the same export the other
+217755 citations in this file name"* while editing away the last two such
+citations, in the same commit. A cross-reference written from memory of the file
+you are halfway through changing.
+
+### One thing I did not do
+
+`apps/viewer/tests.js` has **no `PROVENANCE.md` row** — it is not an imported
+file — so changing it needed no amendment there, and
+`test_this_branch_amended_the_row_of_every_imported_file_it_changed` agrees.
+
 ## Watch out for
 
 - **The suite was already red at the branch point.**

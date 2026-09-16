@@ -5812,15 +5812,46 @@
         has(all(root, "li.gap")[0].textContent, "spherical bearing");
       });
 
-      await test("[real] the two zero-width bands are flagged", function () {
-        var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
+      await test("[real] the zero-width flag reaches the page", function () {
+        // Repointed 2026-09-15 (`pitch_link_known_bands`). This read
+        // `pitch_link_to_pitch_plate` and asserted 2 until that handoff gave its
+        // bushing and washer real bands; asserting 0 there would have kept the
+        // name and lost the subject. `rotor_fastener_length` is the live example
+        // now -- two washers, neither of which has a band in any document
+        // (MS21299 and NAS1149 are both absent from the pile).
+        var rotor = VA.findStack(realResults, "rotor_fastener_length");
+        ok(rotor, "rotor_fastener_length must be in the projection");
+        var root = render(function (r) { VA.renderStack(r, rotor, realCrops, {}); });
         eq(all(root, "tr.el-row--zero-width").length, 2);
+      });
+
+      await test("[real] the pitch-link stack's two unverified bands render untraced, not zero-width", function () {
+        // The other half of the same change, and the half Jeff's 2026-09-15
+        // ruling is actually about: a band nobody in this repo can re-check has
+        // to LOOK different from one they can. `zero_width` used to carry that
+        // signal on this stack and now carries nothing here, so the confidence
+        // class carries it alone -- and a badge keyed on `zero_width` would show
+        // the reader nothing at all.
+        var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
+        eq(all(root, "tr.el-row--zero-width").length, 0);
+        // One class per selector: the DOM shim's matcher handles "tag", ".class"
+        // and "tag.class" and nothing compound, so "tr.el-row.conf--untraced"
+        // silently matches nothing rather than erroring. Filter with hasClass.
+        var untraced = all(root, "tr.conf--untraced").filter(function (tr) {
+          return hasClass(tr, "el-row");
+        });
+        eq(untraced.length, 2);
+        has(untraced[0].textContent, "bushing_214820");     // 214820-002 drawing, read by an operator
+        has(untraced[1].textContent, "washer_nas1149v0332"); // 260729 workbook E11/F11
       });
 
       await test("[real] the folded numbers reach the page verbatim", function () {
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
-        has(root.textContent, "-8.1939");   // shank_out worst-case min
-        has(root.textContent, "17.4752");   // the traced NAS6403 grip nominal
+        // `-8.428`, not `-8.4280`: VA.fmt is String(n) and prints the projection
+        // number verbatim, so a trailing zero a document writes for alignment is
+        // not on the page. Was `-8.1939` until 2026-09-15.
+        has(root.textContent, "-8.428");    // shank_out worst-case min
+        has(root.textContent, "17.4752");   // the traced NAS6403 grip nominal, unmoved
       });
 
       await test("[real] the NAS6403 grip crop resolves and its PNG is on disk", async function () {
