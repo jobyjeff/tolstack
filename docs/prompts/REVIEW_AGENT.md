@@ -2445,6 +2445,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       easier to pick two of them and call it a picture, not harder.
       `ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
       nowhere.md`.
+- [ ] **The handoff enumerated the sites of a prose claim -- so grep for the
+      one it missed.** New 2026-09-15 (`respine_tween_fidelity_round2`,
+      should-fix, fixed inline). The handoff listed the three places justifying
+      "a rail needs no fade" and made "all three must end up true" the
+      definition of done; all three were rewritten correctly, and a **fourth**
+      -- `renderTopoPane`'s own `xTween` comment, in a file on the handoff's
+      list -- still said the added column "unfolds out of the spine", which the
+      fix had just made wrong rather than merely conditional. An enumeration in
+      a handoff is the author's *starting* inventory, not a closed set: grep the
+      branch for the superseded phrase (`unfold`, `collapsed onto`, `from
+      nowhere` here) and confirm every survivor is one the fix rewrote. This is
+      the "grep for the other copies of the figure you just corrected" entry
+      applied to a *claim* rather than a number, and to the tactical agent
+      rather than the reviewer.
 - [ ] **A handoff's own "confirm the current count before X" instruction is
       itself a count that may have moved.** New 2026-09-15
       (`viewer_hygiene_pass`). The handoff staged a table of `dismissCard`

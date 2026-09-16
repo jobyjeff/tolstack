@@ -217,12 +217,13 @@
       positions = VA.tweenPositions(tween.positions, positions, tween.e);
     }
     // The horizontal half of the same transition, which no keyed store can
-    // express (VA.respineX says why): the frame is drawn with the
-    // interpolated column count and the interpolated pane width, so a
-    // surviving rail starts where the outgoing frame drew it and a column
-    // this respine ADDS unfolds out of the spine rather than sliding in from
-    // a place it never was -- off the pane's left edge, in the grow
-    // direction. Both geometry passes take it; nothing else changes.
+    // express (VA.respineX says why): the frame is drawn with every column's
+    // drawn index interpolated (VA.drawnColumn) and the pane width with it,
+    // so a surviving rail starts where the outgoing frame drew it and a
+    // column this respine ADDS unfolds out of the OUTGOING FRAME'S LEFTMOST
+    // RAIL -- `from.floor`, not drawn column 0 -- rather than sliding in from
+    // a place it never was, off the pane's left edge in the grow direction.
+    // Both geometry passes take it; nothing else changes.
     var xTween = tween
       ? VA.respineX(layout, plan, M, tween, tween.e, ctx.jogZoneScale)
       : null;
