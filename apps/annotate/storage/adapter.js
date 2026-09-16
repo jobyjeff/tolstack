@@ -117,6 +117,29 @@
     "writing into the tolerance-stack repository, which only a copy of that " +
     "repository on your own machine can do.";
 
+  // What the banner says when the connected folder holds no topology
+  // projection -- this app's most likely first-run condition on a machine that
+  // has never built one, and it should never look like a bug.
+  //
+  // PLAIN WORDS, and deliberately nothing to paste. It used to read "No
+  // topology projection found. Build it: " with the build command
+  // concatenated on, which put an interpreter and a backslash path on screen
+  // for the reader to copy (ISSUE_20260915_annotate_banner_renders_a_terminal_
+  // command_for_the_user_to_copy; apps/viewer/views/banner.js's docstring
+  // records the 2026-09-10 sighting that made this a standing rule across
+  // every web surface in the workspace). A BUTTON would be better still and
+  // is not available: this app has no transport that could ask anything to
+  // rebuild anything (ISSUE_20260910_annotate_has_no_http_read_transport), so
+  // the honest interim is to say where the work happens and stop.
+  //
+  // It lives here, beside AA.HOSTED_NOTICE, because both are sentences this
+  // app says INSTEAD of offering a way forward, and because app.js cannot be
+  // loaded by the fast tier (ES module, document, WebGL) -- a constant is
+  // what lets run_tests.cjs assert on the copy at all.
+  AA.NO_PROJECTION_NOTICE =
+    "No topology projection in the connected folder. It is built in the " +
+    "tolerance-stack repository, not from this page.";
+
   AA.requireReady = function (adapter) {
     if (adapter.getState() !== AA.STATE.READY) {
       throw AA.NotReadyError(adapter.getState());
