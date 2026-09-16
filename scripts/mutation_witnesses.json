@@ -264,7 +264,7 @@
       "id": "nav-click-never-wedges",
       "contract": "Every nav click repaints the page, whatever the worksheet read does: a rejected read lands in the banner and the rail's highlight still moves to the row that was clicked.",
       "issue": null,
-      "note": "The mutation is the bug Jeff reported on 2026-09-15 (\"the page gets wedged on that item and can't unstick unless you do a page refresh\") -- one missing rejection handler. Only the rows whose subject declares a worksheet_file read anything, so the witness needs the REAL projection: pitch_system and the two thermal stacks are the ten rows that can see a failed read at all.",
+      "note": "The mutation is the bug Jeff reported on 2026-09-15 (\"the page gets wedged on that item and can't unstick unless you do a page refresh\") -- one missing rejection handler. Only the rows whose subject declares a worksheet_file read anything, so the witness needs the REAL projection. That was 10 of the surviving rows before this handoff (pitch_system, its 7 studies, the 2 thermal stacks); the worksheet fallback added in the same handoff makes it 26 of 28, and the suite prints the pair it actually exercised so a future drop shows up as a small number rather than a green run.",
       "file": "apps/viewer/topology_app.js",
       "find": "    }, navFailed);",
       "replace": "    });",
