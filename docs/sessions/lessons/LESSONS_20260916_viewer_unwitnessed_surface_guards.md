@@ -5,6 +5,12 @@ guard was planted, watched reddening and reverted; six new entries went into
 `scripts/mutation_witnesses.json` and the tier reports **37/37 declared
 mutations witnessed**.
 
+> **Correction, 2026-09-16 review (`review/viewer_unwitnessed_surface_guards`):
+> eight entries, not six.** `mutations[]` went 29 → 37 (`git show
+> integration:scripts/mutation_witnesses.json` vs. the branch), and §1 below
+> lists all eight by id — the two prose counts here and at §1's head are the
+> only places the number is wrong. The 37/37 total is right.
+
 ## 0. The numbers, and every one of them moved from what the handoff measured
 
 | | handoff said | measured at my base `82d3a95` | after |
@@ -13,7 +19,7 @@ mutations witnessed**.
 | `apps/viewer/run_tests.cjs --repo` | 407/407 | 407/407 | **411/411** |
 | `run_viewer_browser_tests.mjs --repo` | 20/20 | 20/20 | **20/20** (315+315 in the two `suite` passes, was 313+313) |
 | `tests/test_viewer_crops.py` | 73/73 | **77/77** | **80/80** |
-| mutation tier | — | 19/37 (see §6) | **37/37** |
+| mutation tier | — | 19/37 (see §7) | **37/37** |
 
 The pytest red is **not mine and not new**:
 `test_no_live_document_states_an_unguarded_hardware_entry_count` false-positives
@@ -26,7 +32,8 @@ both open. Reproduced at `82d3a95` before I touched anything.
 
 ## 1. The verbatim `expect_red` line for every witness
 
-Six new entries, in the order they were earned.
+Six new entries, in the order they were earned. *(Eight — see the correction
+at the head of this file.)*
 
 **`card-crop-overlay-frame`** (browser, `topology file://`) — style.css's
 `.hovercard .cropblock .cropfig` width cap reverted to the
@@ -163,8 +170,22 @@ keeps its size.
 exactly the row deliverable 6 added by hand.** `JS_PAIRINGS` names nine tables.
 Eight had a `TOPO_VALUE_GUARDS` row before this session; the ninth,
 `GAP_KINDS`, did not — and the one remaining non-row, `MESH_FACT_FIELDS`,
-is field names rather than a value vocabulary, i.e. a named exclusion. So the
-detector's hit rate on the one case there is evidence for is 1 for 1, and its
+is field names rather than a value vocabulary, i.e. a named exclusion.
+
+> **Correction, 2026-09-16 review: seven had a row, not eight — the paragraph
+> as written totals ten tables for nine.** Counted off the two lists in the
+> merged tree: `JS_PAIRINGS`
+> (`tests/test_topology_projection.py`) names `TOPO_ROW_KINDS`,
+> `TOPO_LINK_KINDS`, `STUDY_STATUSES`, `VALUE_SOURCES`, `NODE_KINDS`,
+> `EDGE_KINDS`, `TRANSFORM_KINDS`, `MESH_FACT_FIELDS`, `GAP_KINDS`; exactly
+> the first **seven** are the `known` table of a pre-existing
+> `TOPO_VALUE_GUARDS` row. `GAP_KINDS` is the eighth, added here;
+> `MESH_FACT_FIELDS` is the ninth and the one non-row. (`VERDICTS` and
+> `VERDICT_SCOPES` do have rows and are the easy miscount — they are
+> `viewer.js` tables and are not in `JS_PAIRINGS`.) Seven + one + one = nine,
+> and the conclusion below is unchanged: one hit, one exclusion.
+
+So the detector's hit rate on the one case there is evidence for is 1 for 1, and its
 false-positive rate is 0 given one exclusion entry. That is the strongest
 argument in this lesson for building something rather than writing a
 convention.

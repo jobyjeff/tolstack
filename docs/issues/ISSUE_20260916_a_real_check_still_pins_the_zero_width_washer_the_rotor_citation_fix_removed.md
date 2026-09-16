@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: high
-status: open
+status: resolved
 area: viewer / tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
@@ -78,3 +78,17 @@ check says so instead of passing vacuously.
 `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` is 411/411 after
 it. **Leave this issue open until that branch reaches `integration`**; close it
 then.
+
+## Resolved 2026-09-16 (`review/viewer_unwitnessed_surface_guards`)
+
+Doing what the line above asks, since nothing else would: `found_by:` gets no
+dispatch auto-resolution, so this would have stayed `open` describing a defect
+that no longer exists. The reviewer reproduced the red independently before
+merging — `git show 82d3a95:apps/viewer/tests.js` over a `git archive` copy of
+the branch, `--repo C:/workspace/tolstack`, **406/407 with this one check
+failing** — and the merged tree is 411/411 with
+`node scripts/run_mutation_witness_tests.mjs` at **37/37**, all 18 `fast`-tier
+entries witnessed. The projection moved again under the review
+(`review/python_value_and_schema_pins`, `2026-09-16T21:59:03Z`) and the
+repaired check held, which is the point of deriving the rows rather than
+naming them.
