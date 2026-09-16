@@ -477,16 +477,19 @@ out of it without reading its own `source_ref.confidence` first.
 ### `topology_pitch_link_to_pitch_plate.json` + three studies
 
 Handoff `linear_stack_conversions` (2026-09-08), re-expressing the reviewed,
-committed `docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json` (6
+committed `docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json` (8
 elements, 3 paths, 2 checks) as a graph, the same L1 pattern:
-`dimension_ref`-only edges, no copied numbers. The graph: 4 parts, 7
-interfaces, 8 edges, 3 branch points, 2 grounded loops, 1 gap edge. Unlike L1,
+`dimension_ref`-only edges, no copied numbers. The graph: 6 parts, 9
+interfaces, 10 edges, 3 branch points, 2 grounded loops, 1 gap edge. Unlike L1,
 the bolt's own three fastener dimensions (grip, overall length, cotter-hole
 location) share additional interfaces of their own (the bolt's point, the
 cotter-hole centreline), which is what gives this graph two grounded loops
-rather than L1's one. The pitch-link eye / spherical bearing — the joint's own
-unsourced, missing member — is not modelled as a node or edge, exactly as the
-stack's own checks record it in `excluded_terms`.
+rather than L1's one. The pitch-link eye / spherical bearing was the joint's
+own unsourced, missing member — not modelled as a node or edge, exactly as the
+stack's own checks recorded it in `excluded_terms` — until 2026-09-15, when
+handoff `stack_fable_audit` gave the stack a loudly-marked catalog placeholder
+for it (and the flanged bushing nobody had identified), and this topology
+gained both members with it.
 
 - `study_pitch_link_shank_out.json` — reproduces stack path
   `clamped_stack_sourced` extended with the fastener grip, and carries check
