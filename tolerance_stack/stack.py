@@ -68,8 +68,22 @@ SCHEMA_CHECK = "joby.tolerance_stack/check_result/v0"
 VERDICT_SCOPES = ("joint", "budget")
 
 #: What a check's ``verdict`` can be, worst last. :meth:`CheckResult.verdict`
-#: is the one place a member of this tuple is chosen, and
-#: ``tests/test_tolerance_stack.py`` pins that it can return nothing else.
+#: is the one place a member of this tuple is chosen. **Nothing yet pins that
+#: it can return nothing else**: ``tests/test_tolerance_stack.py``'s two
+#: membership assertions (in
+#: ``test_an_incomplete_check_is_budget_scoped_and_its_verdict_domain_is_unchanged``
+#: and ``test_the_check_result_dict_carries_the_field_and_the_derived_scope``)
+#: each check one constructed check, and each hand-spells these three words
+#: instead of reading this tuple -- corrected in
+#: ``review/viewer_study_verdicts_and_gaps``, which found the sentence here
+#: claiming the pin. See
+#: ``docs/issues/ISSUE_20260915_the_verdict_domain_is_unpinned_and_restated_by_hand_in_two_tests.md``.
+#:
+#: The ORDER is load-bearing and also unguarded: ``VA.worstVerdict``
+#: (``apps/viewer/topology.js``) ranks a study's checks by position in the
+#: JS copy of this tuple, and the pairing test below compares the two as
+#: **sets**. See
+#: ``docs/issues/ISSUE_20260915_worst_verdict_ranks_by_an_unguarded_object_key_order.md``.
 #:
 #: Named here rather than left as three literals in that method because the
 #: viewer now branches on all three -- ``apps/viewer/viewer.js``'s

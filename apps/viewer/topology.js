@@ -393,7 +393,7 @@
     if (!rows.length) return null;
     return rows.length + (rows.length === 1 ? " dimension" : " dimensions") +
       " in this chain " + (rows.length === 1 ? "has" : "have") +
-      " no tolerance recorded, so the worst-case spread below is a LOWER " +
+      " no tolerance recorded, so the worst-case spread above is a LOWER " +
       "bound, not the real one: " + rows.join("; ") + ".";
   };
 
@@ -431,8 +431,12 @@
   // cannot express:
   //
   //   "none"   no pass/fail criterion has been recorded for this study yet.
-  //            Six of the live studies are here, and rendering them blank is
-  //            what made the page look like it had no verdicts at all.
+  //            Five of the live studies are here (recounted in
+  //            review/viewer_study_verdicts_and_gaps: 21 studies, 5 with
+  //            `checks: []` and 16 carrying 18 checks between them -- the
+  //            handoff's own "13 / 6" was stale in both terms), and rendering
+  //            them blank is what made the page look like it had no verdicts
+  //            at all.
   //   "error"  the study does not sum (BranchAmbiguity and friends). Its own
   //            error block says why; this only keeps the badge honest.
   VA.studyVerdict = function (study) {

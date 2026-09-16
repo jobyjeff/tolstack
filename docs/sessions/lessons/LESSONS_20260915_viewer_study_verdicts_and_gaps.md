@@ -2,6 +2,30 @@
 
 What the next agent on this page cannot get from the diff.
 
+> **Correction, 2026-09-15 (`review/viewer_study_verdicts_and_gaps`).** Two
+> numbers below did not re-derive against the live projection:
+>
+> * §4's **"Six live studies"** with `checks: []` is **five**. The live
+>   `data/projections/viewer/topologies.json` carries **21** studies: 5 with
+>   `checks: []` (all `status: ok`, so all five render the `none` badge) and 16
+>   carrying **18** checks between them (14 studies × 1, 2 studies × 2). The
+>   figure came forward unchecked from the handoff's own context paragraph
+>   ("13 studies carry a verdict-bearing check, 6 carry `checks: []`"), which is
+>   stale in both terms. The same "six" was in `VA.studyVerdict`'s comment and
+>   is fixed there. Nothing rests on it — the `[real]` nav test counts the rows
+>   off the projection rather than against a literal — but it is the one number
+>   in this file a later session would quote.
+> * §3's **"604,208 → 639,656 bytes"** describes the author's own
+>   re-serialisation, not the artifact: `topologies.json` on disk is **654,185
+>   bytes**. The *delta* (+35,448, +5.87%) and the 98-row table are sound and
+>   re-derive exactly (18/20, 4/2/23, 1/2/10, 5/6, 3/4 by kind), so read §3 as
+>   a size *delta* and not as the file's size.
+>
+> Also on §7: `npm install` in the worktree is the simpler route to the browser
+> tier than a `node_modules` junction — `playwright-core` is one package with no
+> browser download, and it is how this review ran that tier. The junction still
+> works; it is just the heavier of the two.
+
 ## 1. The margin had to be computed in Python, and that is a one-line rule
 
 The handoff asks for "the margin number (worst-case distance to the criterion,

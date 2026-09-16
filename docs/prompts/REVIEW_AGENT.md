@@ -459,6 +459,41 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **A vocabulary pairing compares SETS, so a consumer that ranks by the
+      order is unguarded.** New 2026-09-15 (`viewer_study_verdicts_and_gaps`).
+      `tests/test_js_python_vocabulary.py` and
+      `tests/test_topology_projection.py`'s `JS_PAIRINGS` both assert
+      `set(python) == set(js)` -- exactly right for "does the page have a branch
+      for every value", and blind to order. `VA.worstVerdict` ranks a study's
+      checks by `Object.keys(VA.VERDICTS).indexOf(...)`, i.e. by the order of a
+      table whose order nothing checks: reversing the three keys left
+      **367/367 fast tier and 13/13 pairing green** while two live studies
+      (`pitch_system_end_stop_minus7`/`_plus72`, `marginal` + `pass`) rolled up
+      as **PASS**. Ask of every new "worst last" / "weakest wins" tuple: *is the
+      ORDER asserted anywhere, or only the membership?*
+      (`ISSUE_20260915_worst_verdict_ranks_by_an_unguarded_object_key_order`.)
+- [ ] **A new derived field reaches a screen, and the test that "matches field
+      for field" now imports the producer's own helper.** Same handoff.
+      `CheckResult.margin` -- the "by how much" the whole handoff exists to
+      publish -- has no Python value test: mutating it to `interval.max` left
+      the suite at its baseline red-count. The field-for-field projection test
+      had been re-pointed at `B.rounded_check()`, the builder's own display
+      rule, which is the right single-owner fix for *rounding* and makes the
+      test structurally unable to see a wrong rule. The only value pin was a
+      rendered string in the JS `[real]` tier, which reads the **built file** and
+      so fires only after a manual rebuild. Ask: *which assertion would go red
+      if this property returned the other end of the interval?*
+      (`ISSUE_20260915_check_result_margin_has_no_value_test_in_python`.)
+- [ ] **A new badge that REPLACES an older marking inherits none of its
+      guards -- read what the diff DELETED, not only what it added.** Same
+      handoff: the grid's `chip--zero-width` chip was removed and a
+      `tvflag--no_tolerance` badge put in its place, and deleting the new
+      badge's one line left **367/367 green**. Its sibling
+      (`tvflag--unverified`) is pinned count-for-count in the same test, which
+      is what makes the omission look like coverage. When a deliverable says
+      "every affected row carries X", mutate X away per kind, not once.
+      (`ISSUE_20260915_the_grids_no_tolerance_badge_is_unguarded_in_every_tier`.)
+
 - [ ] **One sentence made honest, with the chrome around it still instructing
       the reader to do the thing.** New 2026-09-15
       (`surfaces_that_state_something_false`). The banner now says the feature
@@ -2492,6 +2527,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       full run, spot-check the one suite the work touched with `--only` too.
 
 ## Architectural errors to check
+
+- [ ] **Two readers of one input file, one strict and one tolerant.** New
+      2026-09-15 (`viewer_study_verdicts_and_gaps`). Both projection builders
+      read `hardware_entries.json`; `build_viewer_projection.build()` raises on
+      a wrong `schema`, the new `build_topology_projection.load_hardware()`
+      reads `entries` off whatever JSON is there. Tolerating an **absent**
+      register is argued and documented; tolerating a **present but
+      unreadable** one silently turns 43 of 98 live gap rows into "nothing is
+      missing" on the one page whose job is to say what is. When a diff adds a
+      second reader for an existing file, diff the two loaders' refusals, not
+      just their happy paths.
+      (`ISSUE_20260915_topology_builder_drops_the_hardware_register_schema_check`.)
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
       and checks are the same signed term list. And `fold()` reads `min`/`max`
