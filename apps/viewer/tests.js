@@ -7772,14 +7772,20 @@
             // halves of Jeff's sentence.
             var out = shown("pitch_link_shank_out");
             has(out, "fail");
-            has(out, "margin -8.1939 mm at worst case");
+            // -8.428 / +11.0444, not -8.1939 / +11.1435: those were this
+            // stack's numbers until `pitch_link_known_bands` gave its bushing
+            // and washer real bands, and the two branches met for the first
+            // time in the integration merge (resolved during
+            // `review/pitch_link_known_bands`). `VA.fmt` is `String(n)`, so the
+            // page prints -8.428, never the worksheet's aligned -8.4280.
+            has(out, "margin -8.428 mm at worst case");
             has(out, VA.VERDICTS.fail.says);
 
             // PASS, same shape, on the same page -- so a reader can tell the two
             // studies apart without opening either.
             var clear = shown("pitch_link_cotter_hole_clearance");
             has(clear, "pass");
-            has(clear, "margin +11.1435 mm at worst case");
+            has(clear, "margin +11.0444 mm at worst case");
             has(clear, VA.VERDICTS.pass.says);
 
             // And the third: a study that sums and has no criterion recorded.
@@ -7809,10 +7815,27 @@
                "the rollup badge wears the qualification too");
           });
 
-        await test("[real] the shank-out study warns that its spread is a lower " +
-          "bound, and names the rows that make it one", function () {
-            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
-            var study = VA.findStudy(topo, "pitch_link_shank_out");
+        // Repointed at `rotor_fastener_length` during
+        // `review/pitch_link_known_bands`, resolving the integration merge of
+        // this handoff with `pitch_link_known_bands`. This read
+        // `pitch_link_to_pitch_plate` / `pitch_link_shank_out`, whose bushing
+        // and washer were the repo's zero-width example when it was written;
+        // that handoff gave both a real band, so the warning correctly stops
+        // rendering there and the assertion had no subject left. Repointed
+        // rather than deleted, and rather than flipped to `eq(warn.length, 0)`
+        // under a name that promises the warning appears: a field nothing tests
+        // is a field that quietly stops being emitted. `rotor_fastener_grip_u2h`
+        // is the live example now -- its `selection` names both washers, and
+        // MS21299 and NAS1149 are both absent from the pile, so neither has a
+        // band in any document. (The stack-view twin,
+        // `[real] the zero-width flag reaches the page`, moved to the same
+        // stack for the same reason.)
+        await test("[real] a study fed by a zero-width row warns that its " +
+          "spread is a lower bound, and names the rows that make it one",
+          function () {
+            var topo = VA.findTopology(realTopologies, "rotor_fastener_length");
+            ok(topo, "the rotor-fastener topology must be in the projection");
+            var study = VA.findStudy(topo, "rotor_fastener_grip_u2h");
             var root = render(function (r) {
               VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
             });
@@ -7820,8 +7843,28 @@
             eq(warn.length, 1);
             has(warn[0].textContent, "no tolerance recorded");
             has(warn[0].textContent, "LOWER bound");
-            has(warn[0].textContent, "plain bushing length");
-            has(warn[0].textContent, "washer thickness");
+            has(warn[0].textContent, "MS21299C3");
+            has(warn[0].textContent, "NAS1149V0332H");
+          });
+
+        // And the other half of the same move: the stack that USED to raise the
+        // warning must now not raise it, for the recorded reason. Without this,
+        // a regression that put the two pitch-link rows back to zero-width
+        // would be invisible to the line above.
+        await test("[real] the pitch-link shank-out study no longer claims a " +
+          "lower bound, because nothing in its chain is zero-width now",
+          function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var study = VA.findStudy(topo, "pitch_link_shank_out");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
+            });
+            eq(all(root, ".tvwarn--lower-bound").length, 0);
+            // It is still qualified, just for a different reason -- the two
+            // bands are UNVERIFIED rather than missing, which is the whole
+            // point of the 2026-09-15 ruling. A page that dropped both signals
+            // would pass the line above.
+            has(root.textContent, "unverified");
           });
 
         await test("[real] the missing spherical bearing is visible on the page " +

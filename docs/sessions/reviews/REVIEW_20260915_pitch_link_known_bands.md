@@ -416,3 +416,96 @@ rebuild all three.
 ## Verdict
 
 **APPROVE.** Merged to `integration`.
+
+---
+
+# Round 3 — the integration merge, and the semantic conflict it produced
+
+`integration` moved `f629942` → `9380a33` while this review was running: five
+handoffs landed, including **`viewer_study_verdicts_and_gaps`** — the one whose
+deliverable is the loud badging this handoff's data was meant to feed. Merged
+`integration` into `review/pitch_link_known_bands` (`afcbbb4`). **Git reported
+no conflict.** The suites did.
+
+## Both sides, and why the resolution chose what it chose
+
+`git merge` was clean because the two branches never touched the same lines.
+The conflict is semantic, and it is the carve-out case exactly: `viewer_study_
+verdicts_and_gaps` was cut from an `integration` that had `±0` on the pitch-link
+bushing and washer, so it wrote two `[real]` tests against that state, and
+`handoff/pitch_link_known_bands` was cut from an `integration` that did not
+contain those tests. **Neither worktree can see the failure**, and the sibling
+handoff is already in `completed/`. After the merge:
+
+```
+FAIL  [real] the pitch-link studies render their verdicts and their margins …
+      missing: "margin -8.1939 mm at worst case"
+FAIL  [real] the shank-out study warns that its spread is a lower bound, and
+      names the rows that make it one          not equal: 0 !== 1
+370/372 passed
+```
+
+Resolution, in both cases **the handoff-under-review's side for the data and
+`integration`'s side for the surface it renders on** — the sibling's renderer,
+badges, warning text and card structure are untouched; only its two pins moved:
+
+1. **The margin pins were stale numbers, mechanically.** `apps/viewer/tests.js`
+   pinned `margin -8.1939 mm` and `margin +11.0444`'s predecessor
+   `margin +11.1435 mm`. The page now correctly renders `-8.428` and
+   `+11.0444` — the same numbers already pinned by five Python tests and by
+   `[real] the folded numbers reach the page verbatim`, all of which I verified
+   independently. Updated both, with the `VA.fmt`-is-`String(n)` trap noted in
+   place (the page prints `-8.428`, never the worksheet's aligned `-8.4280`).
+2. **The lower-bound warning had lost its subject, not its point.** The
+   sibling's `.tvwarn--lower-bound` fires off `edge.zero_width`; pitch_link has
+   no zero-width row any more, so the warning correctly does not render and
+   `eq(warn.length, 1)` could no longer pass on that stack. **Repointed at
+   `rotor_fastener_length` / `rotor_fastener_grip_u2h`** — whose `selection`
+   names both washers, and whose MS21299 and NAS1149 bands are absent from every
+   document — rather than deleted, and rather than flipped to `eq(…, 0)` under a
+   name that promises the warning appears. This is the third time in this one
+   handoff that a zero-width pin needed this move, and it is the same
+   destination the other two chose.
+
+   I also **added its counterpart**: `[real] the pitch-link shank-out study no
+   longer claims a lower bound, because nothing in its chain is zero-width now`,
+   which asserts `.tvwarn--lower-bound` is absent there *and* that the row is
+   still qualified — as `unverified`. Without it, a regression restoring `±0` on
+   those two rows would be invisible to the repointed test, which is the hole
+   that repointing a pin usually leaves.
+
+## I watched all three edits fail
+
+Not accepted on green:
+
+| mutation | expected to fire | fired |
+|---|---|---|
+| `VA.zeroWidthWarning` returns `null` unconditionally | the repointed rotor test | ✓ `372/373`, that test alone |
+| `attention.noTolerance` collects **every** edge | the new pitch-link counterpart | ✓ `372/373`, that test alone |
+| the margin pins | already observed failing, pre-fix | ✓ (that is how they were found) |
+
+Each mutation reverted; `apps/viewer/topology.js` is byte-identical to
+`integration`'s.
+
+## Post-merge results
+
+| tier | result |
+|---|---|
+| Python | **887 passed, 1 skipped, 1 failed** — the same pre-existing strategy-brief byte-identity claim, which I re-confirmed red on `integration` @ `9380a33` in a detached worktree |
+| JS incl. `[real]`, full scratch rebuild of all three projections | **373/373 passed** |
+
+`887`, up from `885`: `integration`'s own additions. `373`, up from `361`: the
+sibling's new `[real]` studies block plus my added counterpart.
+
+## Scope of the carve-out, stated
+
+The only files I touched in resolving this are `apps/viewer/tests.js` (two pins,
+one repointed test, one added counterpart) and this report. I did **not** use
+being in that file as cover for anything else — I read six other issues the
+sibling's review filed against its own work and left every one of them alone.
+
+## Verdict
+
+**APPROVE**, merged to `integration`. The shared projection at
+`C:\workspace\tolstack\data` is still owed a rebuild by whoever next owns that
+directory — the gate still (correctly) refuses it from here.
