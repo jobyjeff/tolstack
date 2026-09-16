@@ -19,27 +19,21 @@
   //
   // The TOPOLOGY/STUDY <select> pickers retired into the nav tree
   // (views/nav.js, viewer_v2_single_nav 2026-09-08) — selecting WHICH node is
-  // on screen is the nav's job now. What is left here is how it is drawn:
-  // whole-topology vs. study-chain layout, row density, and the annotate
-  // link. Topology mode only; topology_app.js hides this strip in stack mode.
+  // on screen is the nav's job now. What is left here is how it is drawn: row
+  // density, the two leader preferences, the edge-length mode and the
+  // annotate link. Topology mode only; topology_app.js hides this strip in
+  // stack mode.
+  //
+  // There is no "Showing: whole topology / study chain" toggle any more
+  // (viewer_respine_whole_walk, 2026-09-15). It offered a SECOND layout of
+  // the same document, and Jeff read the difference between the two as a bug
+  // rather than a choice: "When you click a study/stack, the entire dag/model
+  // should still be visible." The DAG is now always the whole walk and a
+  // study selection only changes what is EMPHASIZED on it, so there is one
+  // behaviour and nothing left for a control to pick between.
   VA.renderTopoToolbar = function (root, state, topoProj, handlers) {
     VA.clear(root);
     root.className = "tv__toolbar";
-
-    // Two layouts over ONE serialiser (build_topology_projection.serialize_*):
-    // the whole graph depth-first, or the study's chain in the order the sum
-    // runs. The chain is linear by construction, so its layout is one rail —
-    // which is also the honest picture of the L1 fastener stack's study.
-    var toggle = VA.el("button", "ghost tvpick__mode",
-      state.layoutMode === "chain" ? "Showing: study chain" : "Showing: whole topology");
-    toggle.setAttribute("id", "layout-toggle");
-    toggle.setAttribute("title",
-      "Whole topology: every node and edge of the document, depth-first, with " +
-      "the study's path highlighted. Study chain: only the selected study's " +
-      "edges, in the order the sum runs.");
-    toggle.disabled = !(state.studyId && studyOk(topoProj, state.studyId));
-    toggle.onclick = handlers.onLayoutMode;
-    root.appendChild(toggle);
 
     // Row density: trades reading comfort for seeing more of the DAG at once.
     // Comfortable is the default 26px pitch; compact is 16px, which turns the
@@ -146,11 +140,6 @@
     return root;
   };
 
-  function studyOk(topoProj, studyId) {
-    var study = VA.findStudy(topoProj, studyId);
-    return !!(study && study.status === "ok");
-  }
-
   // --- the joint -------------------------------------------------------------
   //
   // Deliverable 4 (viewer_v2_single_nav, 2026-09-08): `topoProj.joint` is the
@@ -188,14 +177,34 @@
     var study = ctx.study;
     // Right-justified (viewer_dag_spine_layout): the walk's mainline on the
     // rightmost rail, hard against the jog zone, branches extending left.
-    var layout = VA.spineRight(layoutFor(topoProj, study, ctx.layoutMode));
-    // The merged-row grid and the leaders come off ONE plan of the same
-    // serialisation the rails were drawn from (viewer_leader_line_grid,
-    // 2026-09-10): the grid holds only the edge rows, grouped into components,
-    // and each non-internal node bridges the two with a jogged leader line.
+    //
+    // ALWAYS the topology's own walk (viewer_respine_whole_walk, 2026-09-15).
+    // Selecting a study used to swap this for `study.layout` — a second
+    // serialisation of the same document, one rail, non-members gone — and
+    // Jeff read the result as a defect: "When you click a study/stack, the
+    // entire dag/model should still be visible." So the rails never change
+    // shape; what a study selection changes is emphasis, leaders and the
+    // table beside them.
+    var layout = VA.spineRight(topoProj.layout);
+    var chain = VA.chainIndex(study);
+    var chainNodes = VA.chainNodes(study);
+    // Whether a study is EMPHASIZED here: a study that refused to sum has no
+    // chain to emphasize (the error is the result), so it leaves the walk at
+    // full emphasis exactly as no selection does.
+    var marking = !!(study && study.status === "ok");
+    // The merged-row grid and the leaders come off ONE plan of the same walk
+    // the rails were drawn from (viewer_leader_line_grid, 2026-09-10): the
+    // grid holds only the edge rows, grouped into components, and each
+    // non-internal node bridges the two with a jogged leader line.
     // It is built BEFORE the positions because its row count is half of what
     // the fit below needs: the two blocks are centred against each other.
-    var plan = VA.gridPlan(layout, topoProj);
+    //
+    // `focus` is the whole of a study's effect on this plan: the table shows
+    // the chain's rows and the leaders run only to chain nodes, while the
+    // rails above keep every node and edge of the walk. The DAG holds the
+    // context; the table holds the sum.
+    var plan = VA.gridPlan(layout, topoProj,
+      marking ? { edges: chain, nodes: chainNodes } : null);
     // The keyed position store (viewer_edge_length_scaling): every dot and
     // bar's y, computed ONCE per render and addressed by id, under whichever
     // length mode is on. Both geometry passes below read this same store, so
@@ -284,9 +293,6 @@
                           links: linkAlpha,
                           width: leaderGeo.width, tweening: !!tween };
     var index = VA.topologyIndex(topoProj);
-    var chain = VA.chainIndex(study);
-    var chainNodes = VA.chainNodes(study);
-    var marking = !!(study && study.status === "ok");
 
     // The header and the body share ONE horizontal scrollport
     // (`.tv__hscroll`, topology.css) so a wide grid's columns and the rail
@@ -479,16 +485,6 @@
     var rect = root.getBoundingClientRect();
     return VA.dagHeightBudget(rect.top + (window.scrollY || 0),
       window.innerHeight, metrics);
-  }
-
-  // Which serialisation the page is showing. Both come out of the projection;
-  // neither is computed here. A study that raised falls back to the whole
-  // topology, because there is no chain to lay out — the error IS the result.
-  function layoutFor(topoProj, study, mode) {
-    if (mode === "chain" && study && study.status === "ok" && study.layout) {
-      return study.layout;
-    }
-    return topoProj.layout;
   }
 
   // The grid is a REAL <table> (deliverable 2): a rectangular selection has to
@@ -714,12 +710,16 @@
     //     visible path is thin; a wider invisible twin (`rail__leaderhit`,
     //     same shape as the edge bars' own hit path) carries the hover title,
     //     the click and the addressable data attributes.
+    //
+    //     With a study selected there is no `--off` leader to draw: the plan
+    //     this reads emits a leader only for a CHAIN node
+    //     (viewer_respine_whole_walk), which is the "it should be fairly
+    //     obvious that there are no leader lines pointing to certain
+    //     elements" half of the emphasis — absence, not a faded line.
     leaderGeo.leaders.forEach(function (leader) {
       var node = index.nodes[leader.id];
       var classes = ["rail__leader"];
-      if (marking) {
-        classes.push(chainNodes[leader.id] ? "rail__leader--on" : "rail__leader--off");
-      }
+      if (marking) classes.push("rail__leader--on");
       if (isSelected(ctx, "node", leader.id)) classes.push("rail__leader--selected");
       svg.appendChild(fade(VA.svg("path", classes.join(" "), { d: leader.d }),
         "node", leader.id));
@@ -979,7 +979,10 @@
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
     if (edge && edge.zero_width) el.className += " tvrow--zero-width";
-    if (marking) el.className += hit ? " tvrow--on" : " tvrow--off";
+    // No on/off marking on a grid row any more (viewer_respine_whole_walk):
+    // with a study selected the table IS the chain, so every row in it is a
+    // member and a faded non-member row is not a thing this grid can hold.
+    // The dimming moved to where the non-members still are — the rails.
     if (planRow.closes) el.className += " tvrow--closes";
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
 

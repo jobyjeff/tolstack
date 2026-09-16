@@ -2164,7 +2164,7 @@
 
     function topoCtx(over) {
       var ctx = {
-        topoProj: TOPO, study: null, crops: TOPOCROPS, layoutMode: "topology",
+        topoProj: TOPO, study: null, crops: TOPOCROPS,
         selection: null, detailImage: null, onSelect: function () {},
       };
       Object.keys(over || {}).forEach(function (k) { ctx[k] = over[k]; });
@@ -3158,7 +3158,7 @@
         mini.parts = [{ id: "blade_root", name: "blade root" }];
         mini.edges[0].name = "blade-root clocking holes to the hub";
         var ctx = { topoProj: mini, study: null, crops: null,
-                    layoutMode: "topology", selection: null, detailImage: null,
+                    selection: null, detailImage: null,
                     onSelect: function () {} };
         var root = render(function (r) { VA.renderTopoPane(r, ctx); });
         var cells = all(root, "td.tvcell--name");
@@ -3412,6 +3412,18 @@
     // index instead of by element would fly the bushing offset in from the
     // post height's slot and still look plausible.
 
+    // The two serialisations the respine machinery was built against: the
+    // walk, and one study's chain laid out on its own. Since
+    // viewer_respine_whole_walk the PAGE no longer draws the second one --
+    // the DAG is always the walk and a study selection only changes emphasis,
+    // leaders and the grid's row subset -- so everything below that pairs
+    // these two is SYNTHETIC, exactly as the shared-column link fade already
+    // was. It is kept, not deleted, for the reason the round-2 lesson gives:
+    // these functions are pure, the guarantee they state is about any two
+    // serialisations rather than about whatever the corpus happens to hold,
+    // and `study.layout` is still in the projection for the day something
+    // re-columns the walk again. What a REAL respine does now is pinned
+    // separately, by "a real respine adds and drops nothing" below.
     function respineStores(mode) {
       var M = VA.RAIL_METRICS;
       var walk = VA.spineRight(TOPO.layout);
@@ -3616,18 +3628,25 @@
 
     await test("an element the transition ADDS fades in at its own settled " +
       "position, and the rows around it do not", function () {
-        // The deselect direction: the chain gives the spine back to the walk,
-        // so three edge rows and two interfaces ARRIVE.
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
-        var root = render(function (r) { VA.renderTopoPane(r, chainCtx); });
-        var from = VA.lastTopoRender;
+        // SYNTHETIC (see respineStores above): the outgoing store is the
+        // chain laid out on its own, which the page cannot produce any more,
+        // so three edge rows and two interfaces ARRIVE. The view's wiring of
+        // VA.tweenAlpha is what is under test, and it is kept because it is
+        // the only thing standing between "a respine adds an element" and
+        // "an element appears whole, from nowhere" the next time a layout
+        // change makes that reachable.
+        var s = respineStores();
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = { positions: s.to, columns: s.chainLayout.columns,
+                     floor: 0, links: {},
+                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
+                                              s.M, s.to).width };
         var ghost = VA.el("div", "tv__ghost");
         ghost.appendChild(root.querySelector(".tv__hscroll"));
         VA.renderTopoPane(root, topoCtx({
-          study: topoStudy("demo_strut_branch"), layoutMode: "topology",
-          tween: { positions: from.positions, columns: from.columns, e: 0.25,
-                   ghost: ghost },
+          tween: { positions: from.positions, columns: from.columns,
+                   floor: from.floor, width: from.width, links: from.links,
+                   e: 0.25, ghost: ghost },
         }));
         var opacityOf = function (selector, id) {
           var hit = all(root, selector).filter(function (n) {
@@ -3935,16 +3954,17 @@
     await test("the rendered frame carries a link's fade on the drawn path, " +
       "and a settled frame carries none", function () {
         // The other half of the check above: the geometry knows each link's
-        // opacity, and this is the view actually putting it on the path. The
-        // deselect direction on the fixture, where both of the walk's links
-        // are ones the transition adds -- a chain is linear and has none at
-        // all, which is why the shared-column case above has to be synthetic.
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
-        var root = render(function (r) { VA.renderTopoPane(r, chainCtx); });
-        var from = VA.lastTopoRender;
-        eq(Object.keys(from.links), [], "a chain is linear: no links to draw");
-        eq(all(root, "path.rail__link").length, 0);
+        // opacity, and this is the view actually putting it on the path.
+        // SYNTHETIC in the same way (see respineStores) -- the outgoing frame
+        // is one that drew no links at all, which a linear chain layout
+        // really was and which no study selection can be any more.
+        var s = respineStores();
+        var from = { positions: s.to, columns: s.chainLayout.columns,
+                     floor: 0, links: {},
+                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
+                                              s.M, s.to).width };
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        eq(Object.keys(from.links), [], "the outgoing frame drew no links");
 
         VA.renderTopoPane(root, topoCtx({
           tween: { positions: from.positions, columns: from.columns,
@@ -4071,18 +4091,26 @@
       "outgoing frame as an inert ghost", function () {
         var s = respineStores();
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var from = VA.lastTopoRender;
-        eq(from.tweening, false, "a plain render is not a transition");
-        ok(from.width > 0, "the render records the SVG width it drew");
-        eq(from.columns, s.walk.columns,
+        var plain = VA.lastTopoRender;
+        eq(plain.tweening, false, "a plain render is not a transition");
+        ok(plain.width > 0, "the render records the SVG width it drew");
+        eq(plain.columns, s.walk.columns,
            "and the column count -- the horizontal pair a respine tweens");
 
+        // SYNTHETIC outgoing frame (see respineStores): a serialisation with
+        // its own column count and its own pane width, which is what the
+        // horizontal interpolation exists for. The target is the walk,
+        // because the walk is the only thing this pane draws now.
+        var from = { positions: s.to, columns: s.chainLayout.columns,
+                     floor: 0, links: {},
+                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
+                                              s.M, s.to).width };
         var ghost = VA.el("div", "tv__ghost");
         ghost.appendChild(root.querySelector(".tv__hscroll"));
         VA.renderTopoPane(root, topoCtx({
-          study: topoStudy("demo_strut_branch"), layoutMode: "chain",
           tween: { positions: from.positions, columns: from.columns,
-                   width: from.width, e: 0.5, ghost: ghost },
+                   floor: from.floor, width: from.width, links: from.links,
+                   e: 0.5, ghost: ghost },
         }));
         eq(VA.lastTopoRender.tweening, true);
 
@@ -4103,7 +4131,7 @@
         // either of them learning that a transition exists. Nothing carries a
         // translate any more -- a block slide is what drew the incoming
         // serialisation off the pane.
-        var x = VA.respineX(s.chainLayout, s.chainPlan, s.M, from, 0.5);
+        var x = VA.respineX(s.walk, s.walkPlan, s.M, from, 0.5);
         var svg = root.querySelector("svg.tv__rails");
         ok(Math.abs(parseFloat(svg.getAttribute("width")) - x.width) < 0.05,
            "the SVG is drawn at " + svg.getAttribute("width") +
@@ -4121,8 +4149,8 @@
           return n.getAttribute("data-id") === "base_datum";
         })[0];
         ok(dot, "the spine's first interface must be drawn");
-        var mark = VA.railGeometry(s.chainLayout, s.M,
-          VA.tweenPositions(s.from, s.to, 0.5), { x: x })
+        var mark = VA.railGeometry(s.walk, s.M,
+          VA.tweenPositions(s.to, s.from, 0.5), { x: x })
           .marks.filter(function (m) { return m.id === "base_datum"; })[0];
         ok(Math.abs(parseFloat(dot.getAttribute("cx")) - mark.x) < 0.05,
            "drawn cx " + dot.getAttribute("cx") + " should be " + mark.x);
@@ -4144,12 +4172,14 @@
         // back as its own `from`, so recording the target serialisation's
         // own numbers instead would make a reader who clicks twice see the
         // DAG jump sideways at the second click.
-        var chainCtx = function (over) {
-          var ctx = { study: topoStudy("demo_strut_branch"),
-                      layoutMode: "chain" };
-          Object.keys(over || {}).forEach(function (k) { ctx[k] = over[k]; });
-          return topoCtx(ctx);
-        };
+        // SYNTHETIC outgoing frame again (see respineStores): a frame drawn
+        // with fewer columns and a narrower pane than the walk the pane is
+        // transitioning to.
+        var s = respineStores();
+        var outgoing = { positions: s.to, columns: s.chainLayout.columns,
+                         floor: 0, links: {},
+                         width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
+                                                  s.M, s.to).width };
         var railSet = function (root) {
           return all(root, "line.rail").map(function (n) {
             return parseFloat(n.getAttribute("x1"));
@@ -4162,18 +4192,25 @@
                     .getAttribute("width"))];
         };
 
-        // A plain walk, then one frame of a respine toward the chain.
+        // The outgoing picture itself -- the frame at e = 0, which is the
+        // one the reader is looking at when the transition starts.
+        var frameAt = function (root, e) {
+          VA.renderTopoPane(root, topoCtx({
+            tween: { positions: outgoing.positions, columns: outgoing.columns,
+                     floor: outgoing.floor, width: outgoing.width,
+                     links: outgoing.links, e: e },
+          }));
+          return VA.lastTopoRender;
+        };
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var walk = VA.lastTopoRender;
-        VA.renderTopoPane(root, chainCtx({
-          tween: { positions: walk.positions, columns: walk.columns,
-                   width: walk.width, e: 0.5 },
-        }));
+        var start = spineAndWidth(render(function (r) { frameAt(r, 0); }));
+        // Halfway toward the walk.
+        frameAt(root, 0.5);
         var caught = VA.lastTopoRender;
         var midway = spineAndWidth(root);
         var midwayRails = railSet(root);
-        ok(caught.columns > Math.min(walk.columns, 1) &&
-           caught.columns < walk.columns,
+        ok(caught.columns > outgoing.columns && caught.columns < walk.columns,
            "the frame records the count it drew with: " + caught.columns);
 
         // The interrupt: a new transition, back the other way, off that
@@ -4206,22 +4243,18 @@
         var freshWalk = spineAndWidth(render(function (r) {
           VA.renderTopoPane(r, topoCtx());
         }));
-        var freshChain = spineAndWidth(render(function (r) {
-          VA.renderTopoPane(r, chainCtx());
-        }));
-        ok(midway[0] !== freshWalk[0] && midway[0] !== freshChain[0],
+        ok(midway[0] !== freshWalk[0] && midway[0] !== start[0],
            "midway is its own picture: " + midway + " between " +
-           freshChain + " and " + freshWalk);
+           start + " and " + freshWalk);
       });
 
     await test("the settled frame carries none of the animation: no ghost, " +
       "no slide, no inline opacity, and the numbers a fresh render draws",
       function () {
-        var chainCtx = function () {
-          return topoCtx({ study: topoStudy("demo_strut_branch"),
-                           layoutMode: "chain" });
+        var studyCtx = function () {
+          return topoCtx({ study: topoStudy("demo_strut_branch") });
         };
-        var fresh = render(function (r) { VA.renderTopoPane(r, chainCtx()); });
+        var fresh = render(function (r) { VA.renderTopoPane(r, studyCtx()); });
         var freshBars = all(fresh, "line.rail__barhit").map(function (n) {
           return [n.getAttribute("data-id"), n.getAttribute("y1"), n.getAttribute("y2")];
         });
@@ -4231,7 +4264,7 @@
         var from = VA.lastTopoRender;
         var clock = 0;
         var queue = [];
-        VA.animateTopoPane(root, chainCtx(), from, {
+        VA.animateTopoPane(root, studyCtx(), from, {
           now: function () { return clock; },
           raf: function (fn) { queue.push(fn); },
           duration: 100, reduced: false,
@@ -4262,8 +4295,7 @@
     await test("VA.animateTopoPane runs a whole transition off an injected " +
       "clock: the outgoing pane becomes the ghost, every frame is a render, " +
       "and a cancel stops it dead", function () {
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var outgoing = root.querySelector(".tv__hscroll");
         var from = VA.lastTopoRender;
@@ -4272,7 +4304,7 @@
         var opts = { now: function () { return clock; },
                      raf: function (fn) { queue.push(fn); },
                      duration: 100, reduced: false };
-        var handle = VA.animateTopoPane(root, chainCtx, from, opts);
+        var handle = VA.animateTopoPane(root, studyCtx, from, opts);
         ok(handle, "an animated transition hands back a handle");
         // The first frame is drawn synchronously, at e = 0, and it is the
         // outgoing picture: the ghost is opaque and the incoming grid is not
@@ -4317,8 +4349,7 @@
 
     await test("a frame that throws stops the transition and lands on the " +
       "page's one crash seam, not on an unhandled error", function () {
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var from = VA.lastTopoRender;
         var real = VA.renderTopoPane;
@@ -4335,7 +4366,7 @@
             if (frames > 1) throw new Error("seeded frame failure");
             return real(r, c);
           };
-          VA.animateTopoPane(root, chainCtx, from, {
+          VA.animateTopoPane(root, studyCtx, from, {
             now: function () { return clock; },
             raf: function (fn) { queue.push(fn); },
             duration: 100, reduced: false,
@@ -4353,12 +4384,11 @@
 
     await test("prefers-reduced-motion jumps to the end state: one render, " +
       "no ghost, no tween", function () {
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var from = VA.lastTopoRender;
         var asked = 0;
-        var handle = VA.animateTopoPane(root, chainCtx, from, {
+        var handle = VA.animateTopoPane(root, studyCtx, from, {
           reduced: true,
           raf: function () { asked++; },
           now: function () { return 0; },
@@ -4368,7 +4398,7 @@
         eq(VA.lastTopoRender.tweening, false);
         eq(all(root, "div.tv__ghost").length, 0);
         eq(root.querySelector("div.tv__rows").style.opacity || "", "");
-        var fresh = render(function (r) { VA.renderTopoPane(r, chainCtx); });
+        var fresh = render(function (r) { VA.renderTopoPane(r, studyCtx); });
         eq(all(root, "line.rail__barhit").map(function (n) {
           return n.getAttribute("y1");
         }), all(fresh, "line.rail__barhit").map(function (n) {
@@ -5194,22 +5224,64 @@
         eq(all(root, "circle.rail__dot--branch").length, TOPO.branch_nodes.length);
       });
 
-    await test("selecting a study numbers its chain and dims everything else",
+    // --- selecting a study (viewer_respine_whole_walk, 2026-09-15) ---------
+    //
+    // The invariant this handoff exists for, in one sentence: a study
+    // selection changes EMPHASIS, never what is on screen. Jeff read the old
+    // behaviour -- selecting a study swapped the DAG for a second, chain-only
+    // layout -- as a bug, and specifically as an inconsistent one: the two
+    // studies whose chains dropped rows looked different from the one whose
+    // chain covered nearly every visible element. The cure is uniformity, so
+    // the check is a count taken over EVERY study of the fixture rather than
+    // one reading of one study.
+    await test("selecting a study never hides a node or an edge: the DAG is " +
+      "the whole walk before and after, whatever the study is",
       function () {
+        var marks = function (root) {
+          return [all(root, "line.rail__barhit").length,
+                  all(root, "circle.rail__dot").length,
+                  all(root, "line.rail").length,
+                  all(root, "path.rail__link").length];
+        };
+        var walk = marks(render(function (r) {
+          VA.renderTopoPane(r, topoCtx());
+        }));
+        eq(walk, [TOPO.edges.length, TOPO.nodes.length,
+                  TOPO.layout.columns, TOPO.layout.links.length],
+           "the deselected walk draws every element of the document");
+        TOPO.studies.forEach(function (study) {
+          var root = render(function (r) {
+            VA.renderTopoPane(r, topoCtx({ study: study }));
+          });
+          eq(marks(root), walk, "study " + study.id + " kept the whole walk");
+        });
+      });
+
+    await test("selecting a study dims the non-members, numbers the chain " +
+      "and drops the grid to the chain's own rows", function () {
         var study = topoStudy("demo_strut_branch");
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ study: study }));
         });
         var chain = study.result.chain;
-        var on = all(root, "tr.tvrow--on");
-        var off = all(root, "tr.tvrow--off");
-        eq(on.length, chain.length, "every chain edge's row is marked");
+        // The DAG: every edge is still drawn, and exactly the chain's are lit.
+        var on = all(root, "line.rail__bar--on");
+        var off = all(root, "line.rail__bar--off");
+        eq(on.length, chain.length, "every chain edge's bar is lit");
         ok(off.length > 0, "the rest of the topology is dimmed, not hidden");
         eq(on.length + off.length, TOPO.edges.length);
-        // The leaders dim with their nodes, so the off-chain part boundaries
-        // recede along with the off-chain rows.
-        ok(all(root, "path.rail__leader--on").length > 0, "on-chain leaders");
-        ok(all(root, "path.rail__leader--off").length > 0, "off-chain leaders");
+        ok(all(root, "circle.rail__dot--off").length > 0, "and so are its dots");
+        // The grid: the chain's rows, and only those. Walk order, not sum
+        // order -- the table sits under a DAG that did not move, so a row
+        // re-ordered here would cross every leader on the page. The sum's own
+        // order is the `#` column, which is what the ordinals below check.
+        var rows = all(root, "tr.tvrow");
+        eq(rows.length, chain.length, "the grid is exactly the chain");
+        eq(rows.map(function (n) { return n.getAttribute("data-id"); }),
+           ["base_thickness", "strut_length", "post_bushing_offset"]);
+        // Nothing in the table is marked off any more: every row in it is a
+        // member, so there is no non-member left to fade.
+        eq(all(root, "tr.tvrow--off").length, 0);
         // The ordinal is the order the SUM runs in, which is NOT the row order:
         // the rows are a depth-first walk of the whole graph.
         chain.forEach(function (contribution, i) {
@@ -5220,6 +5292,73 @@
           ok(row, "chain edge " + contribution.edge + " must have a row");
           has(row.querySelector("td.tvcell--ord").textContent, String(i + 1));
         });
+      });
+
+    await test("the leaders run to the chain and nowhere else, and every one " +
+      "of them lands on a seam one of its OWN edges bounds", function () {
+        var deselected = render(function (r) {
+          VA.renderTopoPane(r, topoCtx());
+        });
+        var leaderIds = function (root) {
+          return all(root, "path.rail__leaderhit").map(function (n) {
+            return n.getAttribute("data-leader-id");
+          });
+        };
+        // The walk's own boundaries: every non-internal node of the document.
+        eq(leaderIds(deselected),
+           ["base_post_seat", "post_arm_pin", "arm_tip", "strut_end",
+            "post_strut_bushing"]);
+        var study = topoStudy("demo_strut_branch");
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ study: study }));
+        });
+        // A leader is drawn or it is not -- there is no faded one. That
+        // absence is the emphasis Jeff asked for first: it should be obvious
+        // that no leader line points at certain elements.
+        eq(leaderIds(root), ["base_post_seat", "strut_end",
+                             "post_strut_bushing"]);
+        eq(all(root, "path.rail__leader--off").length, 0);
+        eq(all(root, "path.rail__leader--on").length, 3);
+        // And the honesty claim under it: a leader says "this interface is
+        // the seam between these two rows", so the seam it points at must be
+        // bounded by one of its own edges. Measured over every study of the
+        // fixture; the same sweep over the five live topologies' 21 studies
+        // finds 99 leaders and 0 violations (viewer_respine_whole_walk).
+        var index = VA.topologyIndex(TOPO);
+        var layout = VA.spineRight(TOPO.layout);
+        TOPO.studies.forEach(function (s) {
+          if (s.status !== "ok") return;
+          var plan = VA.gridPlan(layout, TOPO,
+            { edges: VA.chainIndex(s), nodes: VA.chainNodes(s) });
+          plan.leaders.forEach(function (leader) {
+            var touches = function (planRow) {
+              var edge = planRow && index.edges[planRow.id];
+              return !!edge && (edge.from === leader.id || edge.to === leader.id);
+            };
+            ok(touches(plan.rows[leader.boundary - 1]) ||
+               touches(plan.rows[leader.boundary]),
+               s.id + ": leader " + leader.id + " points at seam " +
+               leader.boundary + ", which neither of its edges bounds");
+          });
+        });
+      });
+
+    await test("a study that REFUSED to sum leaves the walk exactly as it " +
+      "was: nothing dimmed, every leader, every row", function () {
+        // The error is the result (docs/DAG_TOPOLOGY.md, "Not a solver"), so
+        // there is no chain to emphasize and no subset to drop the table to.
+        // This used to be the `chainable()` fallback in topology_app.js; it
+        // is now the one `marking` test in views/topology.js and nothing else.
+        var plain = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ study: topoStudy("demo_ambiguous") }));
+        });
+        eq(all(root, "tr.tvrow").length, all(plain, "tr.tvrow").length);
+        eq(all(root, "path.rail__leaderhit").length,
+           all(plain, "path.rail__leaderhit").length);
+        eq(all(root, "line.rail__bar--off").length, 0, "nothing is dimmed");
+        eq(all(root, "circle.rail__dot--off").length, 0);
+        eq(all(root, "line.rail__bar--on").length, 0, "and nothing is lit");
       });
 
     await test("a chain row prints the weight and the contribution the " +
@@ -5242,24 +5381,59 @@
         has(cell, contribution.units);
       });
 
-    await test("the study-chain layout is the sum's own order, one rail",
+    await test("VA.gridPlan's focus filters the grid and the leaders and " +
+      "nothing else -- the rails are handed the same walk either way",
       function () {
+        var layout = VA.spineRight(TOPO.layout);
         var study = topoStudy("demo_base_to_tip");
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ study: study, layoutMode: "chain" }));
-        });
-        // One row per chain EDGE, in the order the sum runs; the endpoints are
-        // the first and last dots on the one rail, not rows.
-        var rows = all(root, "tr.tvrow");
-        eq(rows.length, study.result.chain.length);
-        study.result.chain.forEach(function (contribution, i) {
-          eq(rows[i].getAttribute("data-id"), contribution.edge);
-        });
-        eq(all(root, "circle.rail__dot").length, study.result.chain.length + 1);
-        // The internal-node rule reads the WHOLE graph's adjacency, not the
-        // chain's: base_datum stays leaderless here too, so the chain layout
-        // shows the same three part boundaries the walk layout does.
-        eq(all(root, "path.rail__leader").length, 3);
+        var walk = VA.gridPlan(layout, TOPO);
+        var focused = VA.gridPlan(layout, TOPO,
+          { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) });
+        eq(walk.rows.map(function (r) { return r.id; }),
+           ["base_thickness", "post_height", "arm_pin_to_tip",
+            "tip_to_strut_end", "strut_length", "post_bushing_offset"]);
+        eq(focused.rows.map(function (r) { return r.id; }),
+           ["base_thickness", "post_height", "arm_pin_to_tip"]);
+        // A dropped edge leaves no gap in the numbering: gridRow is the
+        // index in the table that is actually drawn, which is what the
+        // leaders' seams and the row bands are both counted in.
+        eq(focused.rows.map(function (r) { return r.gridRow; }), [0, 1, 2]);
+        eq(focused.leaders.map(function (l) { return l.id + "@" + l.boundary; }),
+           ["base_post_seat@1", "post_arm_pin@2", "arm_tip@3"]);
+        // `internal` is a property of the whole graph's adjacency and the
+        // focus does not touch it: base_datum has one adjacent part and is
+        // leaderless under either plan.
+        eq(focused.internal, walk.internal);
+        // No focus is the whole walk, exactly as the call that has never
+        // passed one -- the DAG's own plan is unchanged by any of this.
+        eq(VA.gridPlan(layout, TOPO, null).rows.length, walk.rows.length);
+      });
+
+    await test("a focus whose edges are scattered through the walk still " +
+      "breaks its groups where the part really changes", function () {
+        // demo_strut_branch's chain skips two edges in the middle of the walk,
+        // so two of its three rows are not adjacent in walk order. A dropped
+        // edge must not carry its part across the hole (which would merge two
+        // components into one merged cell) and must not swallow a leader
+        // still waiting for a seam.
+        var layout = VA.spineRight(TOPO.layout);
+        var study = topoStudy("demo_strut_branch");
+        var plan = VA.gridPlan(layout, TOPO,
+          { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) });
+        eq(plan.rows.map(function (r) { return r.id; }),
+           ["base_thickness", "strut_length", "post_bushing_offset"]);
+        eq(plan.groups.map(function (g) { return g.count; }), [1, 1, 1]);
+        eq(plan.groups.map(function (g) { return g.part; }).length, 3);
+        // Two leaders on the SAME seam: the interface above the hole and the
+        // one below it both land between rows 0 and 1 once the two edges
+        // between them are gone. Each still bounds one of the two rows.
+        eq(plan.leaders.map(function (l) { return l.id + "@" + l.boundary; }),
+           ["base_post_seat@1", "strut_end@1", "post_strut_bushing@2"]);
+        // ...and the bands built over them survive a zero-height one.
+        var bands = VA.leaderBands(plan);
+        eq(bands.length, plan.leaders.length + 1);
+        eq(bands[1].startRow, 1);
+        eq(bands[1].endRow, 1, "the band between the two co-seam leaders is empty");
       });
 
     // --- the joint + the worksheet (deliverable 4, viewer_v2_single_nav) -----
@@ -5749,33 +5923,39 @@
 
     // --- the toolbar: display preferences, not selection --------------------
 
-    await test("the toolbar's layout-mode toggle is disabled with no study " +
-      "selected", function () {
-        var root = render(function (r) {
-          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
+    await test("the toolbar offers no layout choice: there is one layout, " +
+      "and a study selection is not a second one", function () {
+        // viewer_respine_whole_walk (2026-09-15) retired the "Showing: whole
+        // topology / study chain" toggle. Jeff read the two layouts as a
+        // defect rather than a choice -- "When you click a study/stack, the
+        // entire dag/model should still be visible" -- so there is nothing
+        // left for a control to pick between, and a control for one behaviour
+        // is a control that should not be on screen at all.
+        [null, "demo_base_to_tip", "demo_ambiguous"].forEach(function (studyId) {
+          var root = render(function (r) {
+            VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: studyId,
+              rowDensity: "comfortable" }, TOPO, {});
+          });
+          eq(root.textContent.indexOf("Showing:"), -1,
+             "no layout toggle for study " + studyId);
+          eq(all(root, "button").filter(function (n) {
+            return n.getAttribute("id") === "layout-toggle";
+          }).length, 0, "#layout-toggle is gone for study " + studyId);
         });
-        has(root.textContent, "Showing: whole topology");
-        eq(root.querySelector("button.tvpick__mode").disabled, true);
+      });
+
+    await test("the annotate link appears once a study actually sums, and " +
+      "not before", function () {
+        var none = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            rowDensity: "comfortable" }, TOPO, {});
+        });
         // No study selected: the annotate link has nothing to point at.
-        eq(all(root, "a").length, 0);
-      });
-
-    await test("chain mode stays disabled for a study that raised", function () {
-      var root = render(function (r) {
-        VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_ambiguous",
-          layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
-      });
-      eq(root.querySelector("button.tvpick__mode").disabled, true);
-    });
-
-    await test("chain mode is offered, and the annotate link appears, once a " +
-      "study actually sums", function () {
+        eq(all(none, "a").length, 0);
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
+            rowDensity: "comfortable" }, TOPO, {});
         });
-        eq(root.querySelector("button.tvpick__mode").disabled, false);
         var link = root.querySelector("a");
         ok(link, "expected an annotate link once a study sums");
         has(link.href, "topology=" + TOPO.id);
@@ -5787,7 +5967,7 @@
         var launched = [];
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            layoutMode: "topology", rowDensity: "comfortable", annotateMount: true },
+            rowDensity: "comfortable", annotateMount: true },
             TOPO, { onStudy3d: function (params) { launched.push(params); } });
         });
         eq(all(root, "a").length, 0);
@@ -5812,7 +5992,7 @@
          { annotateMount: false, handlers: {} }].forEach(function (mode, i) {
           var root = render(function (r) {
             VA.renderTopoToolbar(r, { topologyId: meshless.id,
-              studyId: "demo_base_to_tip", layoutMode: "topology",
+              studyId: "demo_base_to_tip",
               rowDensity: "comfortable", annotateMount: mode.annotateMount },
               meshless, mode.handlers);
           });
@@ -5831,13 +6011,13 @@
       "still renders the plain link -- degradation is the default", function () {
         var mountNoHandler = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            layoutMode: "topology", rowDensity: "comfortable", annotateMount: true },
+            rowDensity: "comfortable", annotateMount: true },
             TOPO, {});
         });
         ok(mountNoHandler.querySelector("a"), "expected the link with no onStudy3d");
         var handlerNoMount = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            layoutMode: "topology", rowDensity: "comfortable" },
+            rowDensity: "comfortable" },
             TOPO, { onStudy3d: function () {} });
         });
         ok(handlerNoMount.querySelector("a"), "expected the link with no probed mount");
@@ -5871,14 +6051,16 @@
       "density", function () {
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "compact" }, TOPO, {});
+            rowDensity: "compact" }, TOPO, {});
         });
-        // layout-toggle, density-toggle, edge-value-toggle, edge-length-toggle
+        // density-toggle, edge-value-toggle, edge-length-toggle
         // (viewer_edge_length_scaling), leader-style-toggle
-        // (viewer_leader_grid_legibility) -- five now, not four.
+        // (viewer_leader_grid_legibility) -- four, since
+        // viewer_respine_whole_walk retired the layout toggle that used to
+        // lead the strip.
         var buttons = all(root, "button.tvpick__mode");
-        eq(buttons.length, 5);
-        has(buttons[1].textContent, "Rows: Compact");
+        eq(buttons.length, 4);
+        has(buttons[0].textContent, "Rows: Compact");
       });
 
     function edgeValueToggle(root) {
@@ -5891,7 +6073,7 @@
       "current mode, and defaults to labelled rows", function () {
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable",
+            rowDensity: "comfortable",
             edgeValueOnly: false }, TOPO, {});
         });
         var toggle = edgeValueToggle(root);
@@ -5900,7 +6082,7 @@
 
         var onRoot = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable",
+            rowDensity: "comfortable",
             edgeValueOnly: true }, TOPO, {});
         });
         has(edgeValueToggle(onRoot).textContent, "Rows: values only");
@@ -5911,7 +6093,7 @@
         var called = 0;
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable" }, TOPO,
+            rowDensity: "comfortable" }, TOPO,
             { onEdgeValueOnly: function () { called++; } });
         });
         edgeValueToggle(root).onclick();
@@ -5928,7 +6110,7 @@
       "mode from VA.EDGE_LENGTH_MODES, and defaults to uniform", function () {
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable",
+            rowDensity: "comfortable",
             edgeLengthMode: "uniform" }, TOPO, {});
         });
         var toggle = edgeLengthToggle(root);
@@ -5938,7 +6120,7 @@
         ["tolerance", "absolute"].forEach(function (mode) {
           var r2 = render(function (r) {
             VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-              layoutMode: "topology", rowDensity: "comfortable",
+              rowDensity: "comfortable",
               edgeLengthMode: mode }, TOPO, {});
           });
           has(edgeLengthToggle(r2).textContent,
@@ -5948,7 +6130,7 @@
         // rendering "Lengths: undefined".
         var r3 = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable",
+            rowDensity: "comfortable",
             edgeLengthMode: "cozy" }, TOPO, {});
         });
         has(edgeLengthToggle(r3).textContent, "Lengths: uniform");
@@ -5960,7 +6142,7 @@
         var called = 0;
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable" }, TOPO,
+            rowDensity: "comfortable" }, TOPO,
             { onEdgeLength: function () { called++; } });
         });
         edgeLengthToggle(root).onclick();
@@ -6943,9 +7125,9 @@
                 return [n.getAttribute("data-leader-id"), n.getAttribute("d")];
               }));
             };
-            var ctxFor = function (topoProj, study, layoutMode, mode) {
+            var ctxFor = function (topoProj, study, mode) {
               return { topoProj: topoProj, study: study, crops: realCrops,
-                       layoutMode: layoutMode, selection: null,
+                       selection: null,
                        edgeLengthMode: mode, onSelect: function () {} };
             };
             var runTo = function (root, ctx) {
@@ -6974,16 +7156,16 @@
               if (!study) return;
               ["uniform", "tolerance", "absolute"].forEach(function (mode) {
                 var walkCtx = ctxFor(topoProj, null, "topology", mode);
-                var chainCtx = ctxFor(topoProj, study, "chain", mode);
+                var studyCtx = ctxFor(topoProj, study, "chain", mode);
                 var freshChain = geometryOf(render(function (r) {
-                  VA.renderTopoPane(r, chainCtx);
+                  VA.renderTopoPane(r, studyCtx);
                 }));
                 var freshWalk = geometryOf(render(function (r) {
                   VA.renderTopoPane(r, walkCtx);
                 }));
 
                 var root = render(function (r) { VA.renderTopoPane(r, walkCtx); });
-                runTo(root, chainCtx);
+                runTo(root, studyCtx);
                 eq(geometryOf(root), freshChain,
                    topoProj.id + "/" + study.id + "/" + mode + ": selecting");
                 runTo(root, walkCtx);
@@ -6997,11 +7179,20 @@
                "modes, must actually have been cycled: " + cycles);
           });
 
-        await test("[real] pitch_system's respine really does move the whole " +
-          "page — the contract above would pass on a diagram that never " +
-          "changed", function () {
-            // A non-vacuity witness, because "settled == fresh" is trivially
-            // true if the two serialisations happen to draw the same picture.
+        await test("[real] the horizontal machinery still holds between two " +
+          "serialisations that DO differ by their columns — synthetic since " +
+          "viewer_respine_whole_walk, and deliberately kept", function () {
+            // The walk paired against one study's own `study.layout`. The
+            // page stopped drawing that second serialisation on 2026-09-15
+            // (the DAG is always the walk now), so nothing below is reachable
+            // through a click any more. It is kept because VA.respineX,
+            // VA.drawnColumn and VA.tweenPositions are pure functions whose
+            // guarantee is about ANY two serialisations, `study.layout` is
+            // still in the projection, and this is the only place the
+            // off-pane defect it was written for
+            // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_
+            // block_slides) can still be reproduced at all. The real
+            // respine's own non-vacuity is the test above.
             var M = VA.RAIL_METRICS;
             var study = livePitch.studies.filter(function (s) {
               return s.status === "ok" && s.layout;
@@ -7124,7 +7315,7 @@
               var root = render(function (r) {
                 VA.renderTopoPane(r, {
                   topoProj: topoProj, study: null, crops: realCrops,
-                  layoutMode: "topology", selection: null,
+                  selection: null,
                   onSelect: function () {},
                 });
               });
@@ -7227,7 +7418,7 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: null, crops: realCrops,
-                layoutMode: "topology", selection: null,
+                selection: null,
                 onSelect: function () {},
               });
             });
@@ -7313,7 +7504,7 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: null, crops: realCrops,
-                layoutMode: "topology", selection: null,
+                selection: null,
                 onSelect: function () {},
               });
             });
@@ -7405,7 +7596,7 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: null, crops: realCrops,
-                layoutMode: "topology", selection: null,
+                selection: null,
                 edgeLengthMode: "tolerance", onSelect: function () {},
               });
             });
@@ -7649,7 +7840,7 @@
           var root = render(function (r) {
             VA.renderTopoPane(r, {
               topoProj: livePitch, study: null, crops: realCrops,
-              layoutMode: "topology", selection: null, onSelect: function () {},
+              selection: null, onSelect: function () {},
             });
           });
           eq(all(root, "circle.rail__dot--branch").length, 5);
@@ -7856,7 +8047,7 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: null, crops: realCrops,
-                layoutMode: "topology", selection: null, onSelect: function () {},
+                selection: null, onSelect: function () {},
               });
             });
             var flagged = all(root, ".tvflag--unverified");
@@ -7875,15 +8066,124 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: study, crops: realCrops,
-                layoutMode: "topology", selection: null, onSelect: function () {},
+                selection: null, onSelect: function () {},
               });
             });
-            var on = all(root, "tr.tvrow--on");
-            var off = all(root, "tr.tvrow--off");
-            ok(off.length > 0, "a 24-edge topology has rows off a 10-edge chain");
+            var on = all(root, "line.rail__bar--on");
+            var off = all(root, "line.rail__bar--off");
+            ok(off.length > 0, "a 24-edge topology has bars off a 10-edge chain");
             eq(on.length, study.result.chain.length);
-            eq(on.length + off.length, livePitch.edges.length);
-            eq(all(root, "line.rail__bar--on").length, study.result.chain.length);
+            eq(on.length + off.length, livePitch.edges.length,
+               "every edge of the walk is still drawn, lit or dimmed");
+            // The table beside them is the chain and only the chain.
+            eq(all(root, "tr.tvrow").length, study.result.chain.length);
+          });
+
+        // The definition of done of viewer_respine_whole_walk, on the live
+        // corpus: "Behavior identical in kind across all five topologies."
+        // Jeff's report was about the INCONSISTENCY between three studies of
+        // one topology, so the check has to be a sweep rather than a reading.
+        await test("[real] no study of any committed topology hides a node, " +
+          "an edge, a rail or a link -- and every grid is exactly its chain",
+          function () {
+            var swept = 0;
+            liveTopos.forEach(function (topoProj) {
+              var marks = function (study) {
+                var root = render(function (r) {
+                  VA.renderTopoPane(r, {
+                    topoProj: topoProj, study: study, crops: realCrops,
+                    selection: null, onSelect: function () {},
+                  });
+                });
+                return { shape: [all(root, "line.rail__barhit").length,
+                                 all(root, "circle.rail__dot").length,
+                                 all(root, "line.rail").length,
+                                 all(root, "path.rail__link").length],
+                         rows: all(root, "tr.tvrow").length,
+                         leaders: all(root, "path.rail__leaderhit")
+                           .map(function (n) {
+                             return n.getAttribute("data-leader-id");
+                           }) };
+              };
+              var walk = marks(null);
+              eq(walk.shape, [topoProj.edges.length, topoProj.nodes.length,
+                              topoProj.layout.columns,
+                              topoProj.layout.links.length], topoProj.id);
+              eq(walk.rows, topoProj.edges.length, topoProj.id + " deselected");
+              (topoProj.studies || []).forEach(function (study) {
+                var lit = marks(study);
+                eq(lit.shape, walk.shape,
+                   topoProj.id + "/" + study.id + " changed what is on screen");
+                if (study.status !== "ok") {
+                  eq(lit.rows, walk.rows,
+                     study.id + " refused: the table stays the whole walk");
+                  eq(lit.leaders, walk.leaders, study.id + " refused: leaders");
+                  return;
+                }
+                eq(lit.rows, study.result.chain.length,
+                   topoProj.id + "/" + study.id + ": grid is the chain");
+                // Leaders run to chain nodes and to nothing else.
+                var nodes = VA.chainNodes(study);
+                lit.leaders.forEach(function (id) {
+                  ok(nodes[id], study.id + ": leader to non-member " + id);
+                  ok(walk.leaders.indexOf(id) !== -1,
+                     study.id + ": leader " + id + " is not a walk boundary");
+                });
+                swept++;
+              });
+            });
+            ok(swept >= 21, "every summing study must have been swept: " + swept);
+          });
+
+        await test("[real] a study selection is still a respine worth " +
+          "animating: the grid block travels and the jog zone narrows",
+          function () {
+            // Non-vacuity for the NEW semantics. The rails no longer move at
+            // all -- both frames are the same walk, so VA.respineX returns a
+            // zero column shift -- and what is left to interpolate is the
+            // pane width (the jog zone loses a lane per dropped leader) and
+            // the grid block's own offset (a shorter table re-centres against
+            // a DAG that did not change height). If both of those came out
+            // zero the animation would be a quarter-second of nothing.
+            var M = VA.RAIL_METRICS;
+            var frame = function (topoProj, study) {
+              var layout = VA.spineRight(topoProj.layout);
+              var plan = VA.gridPlan(layout, topoProj, study
+                ? { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) }
+                : null);
+              var pos = VA.rowPositions(layout, topoProj, "uniform", M,
+                { budget: 782, plan: plan });
+              return { width: VA.leaderGeometry(layout, plan, M, pos).width,
+                       gridOffset: pos.gridOffset,
+                       dagHeight: pos.dagHeight, columns: layout.columns };
+            };
+            var moved = 0;
+            liveTopos.forEach(function (topoProj) {
+              var walk = frame(topoProj, null);
+              (topoProj.studies || []).forEach(function (study) {
+                if (study.status !== "ok") return;
+                var lit = frame(topoProj, study);
+                eq(lit.columns, walk.columns,
+                   study.id + ": a respine never re-columns any more");
+                eq(lit.dagHeight, walk.dagHeight,
+                   study.id + ": nor does it change the DAG's extent");
+                ok(Math.abs(lit.gridOffset - walk.gridOffset) > 0 ||
+                   Math.abs(lit.width - walk.width) > 0,
+                   study.id + ": nothing moves, so nothing is worth animating");
+                moved++;
+              });
+            });
+            ok(moved >= 21, "swept " + moved + " studies");
+            // And the pitch system, the document the whole respine thread was
+            // reported on, moves by a lot in both halves.
+            var walk = frame(livePitch, null);
+            var lit = frame(livePitch, VA.findStudy(livePitch,
+              "pitch_system_gas_spring_mechanical_stroke"));
+            ok(walk.width - lit.width > 50,
+               "the jog zone narrows " + walk.width + " -> " + lit.width);
+            ok(Math.abs(walk.gridOffset - lit.gridOffset) > 20,
+               "and the grid block travels " + walk.gridOffset + " -> " +
+               lit.gridOffset);
           });
 
         await test("[real] an L1 edge reaches the stack element's own crop",
@@ -7980,7 +8280,7 @@
           return render(function (r) {
             VA.renderTopoDetail(r, {
               topoProj: topoProj, study: VA.findStudy(topoProj, studyId),
-              crops: realCrops, layoutMode: "topology",
+              crops: realCrops,
               selection: { kind: "edge", id: edgeId },
               detailImage: null, onSelect: function () {},
             });
@@ -8152,7 +8452,7 @@
                 var pane = render(function (r) {
                   VA.renderTopoDetail(r, {
                     topoProj: topoProj, study: null, crops: realCrops,
-                    layoutMode: "topology", detailImage: null,
+                    detailImage: null,
                     selection: { kind: "node", id: node.id },
                     onSelect: function () {},
                   });

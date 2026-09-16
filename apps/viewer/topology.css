@@ -270,7 +270,6 @@ body { display: flex; flex-direction: column; }
   fill: none; stroke: transparent; stroke-width: 10;
   pointer-events: stroke; cursor: pointer;
 }
-.rail__leader--off { opacity: .28; }
 .rail__leader--on { stroke: var(--rail-odd); }
 .rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
 
@@ -365,7 +364,6 @@ body { display: flex; flex-direction: column; }
    (this file's own collapsed-border lesson, above) and a shadow never does,
    so the group line cannot nudge a row off its leader. */
 .tvrow--group-start .tvcell { box-shadow: inset 0 1px 0 var(--line); }
-.tvrow--off { opacity: .35; }
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 /* Same tint the elements table uses: an untraced value has to survive a skim.
    As a background IMAGE (a flat two-stop gradient is the only way CSS spells
