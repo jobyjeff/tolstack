@@ -459,6 +459,55 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **`--repo` with backslashes under the BASH tool skips the whole `[real]`
+      tier, and the runner still prints a clean total.** New 2026-09-15
+      (`review/viewer_study_verdicts_and_gaps`). Every doc here spells it
+      `--repo C:` + a backslash path, which is correct under PowerShell; under
+      the Bash tool the shell eats the backslashes, `run_tests.cjs` resolves
+      `.../workspacetolstack/data/...`, and the run reports
+      **`302/302 passed`** with all **69** `[real]` tests gone (302 without the
+      tier, 371 with it, on 2026-09-15). It is not wholly
+      silent -- there is one `SKIP node-fs tier` line naming the mangled path --
+      but it is one line above the total, so a `| tail -4` read misses it
+      entirely. Use `--repo C:/workspace/tolstack` from Bash, and **check the
+      total moved** (371 with the real tier, 302 without) before you
+      believe a green. Same seam in `scripts/run_viewer_browser_tests.mjs`.
+
+- [ ] **A vocabulary pairing compares SETS, so a consumer that ranks by the
+      order is unguarded.** New 2026-09-15 (`viewer_study_verdicts_and_gaps`).
+      `tests/test_js_python_vocabulary.py` and
+      `tests/test_topology_projection.py`'s `JS_PAIRINGS` both assert
+      `set(python) == set(js)` -- exactly right for "does the page have a branch
+      for every value", and blind to order. `VA.worstVerdict` ranks a study's
+      checks by `Object.keys(VA.VERDICTS).indexOf(...)`, i.e. by the order of a
+      table whose order nothing checks: reversing the three keys left
+      **367/367 fast tier and 13/13 pairing green** while two live studies
+      (`pitch_system_end_stop_minus7`/`_plus72`, `marginal` + `pass`) rolled up
+      as **PASS**. Ask of every new "worst last" / "weakest wins" tuple: *is the
+      ORDER asserted anywhere, or only the membership?*
+      (`ISSUE_20260915_worst_verdict_ranks_by_an_unguarded_object_key_order`.)
+- [ ] **A new derived field reaches a screen, and the test that "matches field
+      for field" now imports the producer's own helper.** Same handoff.
+      `CheckResult.margin` -- the "by how much" the whole handoff exists to
+      publish -- has no Python value test: mutating it to `interval.max` left
+      the suite at its baseline red-count. The field-for-field projection test
+      had been re-pointed at `B.rounded_check()`, the builder's own display
+      rule, which is the right single-owner fix for *rounding* and makes the
+      test structurally unable to see a wrong rule. The only value pin was a
+      rendered string in the JS `[real]` tier, which reads the **built file** and
+      so fires only after a manual rebuild. Ask: *which assertion would go red
+      if this property returned the other end of the interval?*
+      (`ISSUE_20260915_check_result_margin_has_no_value_test_in_python`.)
+- [ ] **A new badge that REPLACES an older marking inherits none of its
+      guards -- read what the diff DELETED, not only what it added.** Same
+      handoff: the grid's `chip--zero-width` chip was removed and a
+      `tvflag--no_tolerance` badge put in its place, and deleting the new
+      badge's one line left **367/367 green**. Its sibling
+      (`tvflag--unverified`) is pinned count-for-count in the same test, which
+      is what makes the omission look like coverage. When a deliverable says
+      "every affected row carries X", mutate X away per kind, not once.
+      (`ISSUE_20260915_the_grids_no_tolerance_badge_is_unguarded_in_every_tier`.)
+
 - [ ] **One sentence made honest, with the chrome around it still instructing
       the reader to do the thing.** New 2026-09-15
       (`surfaces_that_state_something_false`). The banner now says the feature
@@ -475,6 +524,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       browser). Ask: what else on this page claims a capability the branch just
       withdrew? (`ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_
       reader_to_bind_a_face`.)
+      **Second sighting 2026-09-15, in the fix for the first, and it moves the
+      question from "what else on this page" to "what else reaches this
+      page":** `annotate_hosted_page_posture` withheld the whole workspace on
+      the hosted origin correctly -- and `main()` has a *second* dead-end
+      branch, `if (!picked.adapter)` (a local page in a browser with no File
+      System Access API, i.e. every Firefox and Safari reader), which still
+      renders the full bind workspace, a live dev console and a real empty
+      `<canvas>` under its own honest sentence. Measured by deleting
+      `window.showDirectoryPicker` in a `page.addInitScript` against the
+      loopback server -- 20 lines of playwright, and the only way to see a
+      state the suite's own browser cannot enter. So: **enumerate every early
+      return and every terminal branch of the function the fix lands in, and
+      ask which of them leaves the same chrome standing.** A fix scoped to one
+      state is right; a *rule* stated for the app is a claim about all of them.
+      (`ISSUE_20260915_a_browser_with_no_fsa_gets_the_full_bind_workspace_
+      under_a_dead_end_sentence.md`, routed to the origin-posture brief.)
 - [ ] **A guard that no longer witnesses what it claims, and says nothing about
       it.** The witness is coupled to an incidental property of the app; the app
       then changes *correctly* and the guard silently stops biting. Nothing goes
@@ -485,7 +550,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       layout guard (the room cap subsumed its witness), the unpublished banner's
       "and nothing else" half (one-word mutation ships fast tier 260/260 and
       browser tier 17/17), `chainable()`'s false branch (`layoutMode = "chain"`
-      unconditionally -- every tier green), the compact-density correspondence
+      unconditionally -- every tier green; `chainable()` and `layoutMode` were
+      both deleted by `viewer_respine_whole_walk` on 2026-09-15 and the
+      contract now lives on `views/topology.js`'s `marking`, so do not go
+      looking for either name), the compact-density correspondence
       check (passes at comfortable density too), and `state.leaderStyle`
       persistence (asserted in two shipped docs, observable by no tier). See
       `docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md`, which
@@ -874,6 +942,80 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`test_the_vocabulary_pairing_can_fail`) rather than re-deriving the diff by
       hand — that is the one thing left for you: whether a *sentence about a rule*
       (not a word list) drifted, which no vocabulary-vs-constant pairing can see.
+- [ ] **A web surface saying something only its author can read.** New
+      2026-09-15 (`viewer_component_names_and_reference_copy`), off Jeff's own
+      review of the live pitch-link topology — and it is the same class of
+      defect as a drifted vocabulary, one layer out: the words were correct
+      about the *schema* and useless to the *reader*. What he found, in one
+      sitting, on one page:
+      an internal id printed as a part's name in the main table
+      (`bolt_nas6403u11d`); a merged cell's component description and part
+      number repeated in every row's element cell beside it; "no drawing
+      recorded for this part" on a COTS fastener, which is true of the field
+      and false about the part; `source_ref`, `crop_key` and `sha256` in body
+      copy; absolute workstation paths (`C:/workspace/tolstack/data/...`)
+      rendered beside a link; a rebuild **command** rendered in a hover
+      popover for the reader to copy into a terminal; and a link that did
+      nothing at all when clicked. So, whenever a diff touches `apps/viewer/`,
+      `apps/annotate/` or any other web surface, read the **rendered strings**
+      and check each of these:
+      (a) **No internal id, field name or artifact filename in anything a
+      reader reads.** An id is a deep-link handle and a debugging aid; put it
+      on a hover title if it must exist at all. The guards are
+      `apps/viewer/tests.js`'s two banned-string walks (one over the fixture,
+      one over every live topology) and
+      `tests/test_topology_prose_for_a_reader.py` over the authored documents
+      — extend them rather than writing a third.
+      (b) **One fact once per row.** Two adjacent cells repeating the same
+      phrase is not a copy nit: it is what pushes the meaningful half of a
+      label off the end of a column (`VA.elementDisplayLabel`, display only —
+      a document is never edited to fix a layout).
+      (c) **Say what is true, not which field is empty.** "No drawing
+      recorded" describes the schema; "standard part — dimensions from
+      NAS6403-NAS6420 Rev 4 · sheet 3" describes the part. Where neither
+      exists, render **nothing** — never a sentence about an absence.
+      (d) **A control the current origin cannot service must not render.**
+      The broken "open the PDF" link was not a bad URL: Chrome refuses *every*
+      navigation from an http(s) page to a `file:` URL, so on the
+      drawing-checker-served origin the click silently did nothing (measured
+      both ways, `VA.originOpensLocalFiles`). Ask of any affordance: which
+      transports can actually service this, and does it disappear on the
+      others?
+      (e) **Never a terminal command, and never a workstation path.** Wire the
+      action to a button or degrade to plain words. The banner is this repo's
+      one sanctioned exception and states it once for the whole page.
+      (f) **Provenance a reader did not ask for goes behind a disclosure, not
+      into the reading flow** (`VA.disclosure`) — and a disclosure is a fold,
+      never a place to hide a gap.
+- [ ] **A test that is ALREADY red names a list, and the diff added to it.**
+      New 2026-09-15 (`viewer_component_names_and_reference_copy`, fixed in
+      review). `tests/test_provenance.py::test_every_byte_identity_claim_…`
+      was red on master for a strategy brief's sake, and the author filed that
+      correctly -- but the test reports *every* unbacked claim, and the branch
+      had quietly added two of its own (`apps/viewer/README.md`, the new
+      "checked against the citation, byte for byte" wording quoted into prose
+      with nothing naming the comparison in the same block). `1 failed` reads
+      identically at one item and at three, so a known-red test is a mask
+      exactly the width of its own assertion message. **Read the failure's
+      item list against the diff, never the pass/fail tally** -- and prefer
+      `pytest <nodeid>` on the known-red test to eyeballing the summary line.
+      The same question applies to any aggregating guard this repo has (the
+      doc scans, the vocabulary pairings, the module inventory): *which rows
+      does it name today, and which of them are mine?*
+- [ ] **Single-sourcing a RENDERER hands the class prefix to the callee, and
+      no tier reads a class prefix.** New 2026-09-15 (same handoff; the bug
+      the author found by eye and shipped a fix for without a guard --
+      `ISSUE_20260915_the_shared_crop_renderers_class_prefix_argument_is_
+      unguarded_in_every_tier.md`). `VA.cropReference(box, entry, config,
+      classPrefix)` serves four surfaces and the prefix carries its own
+      separator (`"croppop__"` vs `"detail__crop-"`), so passing
+      `"detail__crop"` renders `detail__crophead` -- unstyled, and measured
+      green at 386/386 fast and 33/33 browser in review. Every assertion on
+      those blocks reads `textContent`, which is right for copy and blind to
+      this. When a diff factors a renderer out across surfaces, ask **what
+      does each caller pass that only CSS can see**, and require one selector
+      assertion per call site. Sibling of "Single-sourcing replaced N hand
+      copies with ONE argument -- now mutate the argument", one layer down.
 - [ ] **Documents cited from a worktree that cannot see them.** `data/` is
       gitignored, so `data/inbox/specs/` in a worktree holds one tracked
       `README.md` and nothing else — the pile (several dozen files, and growing;
@@ -1672,6 +1814,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       and when it comes back equal, ask what else the sentence was propping up.
       All three corrected inline and `test_reuse_is_what_this_invariant_guards`
       added (the smallest graph that does reuse).
+      **Second sighting 2026-09-16 (review of `stack_fable_audit`), and this
+      variant HAS a source to recount against — the diff's own completed
+      model.** The wide-bearing counterfactual "~3.3 mm inside the column" was
+      computed mid-investigation, before the flange member went in, and shipped
+      in five places beside a test that pins the completed column's figure,
+      **4.8324** — same commit, same author, argument direction unaffected. A
+      "with X instead of Y" figure in an argument is a fold over the shipped
+      model: recompute it against the term list as committed, not as it stood
+      when the reasoning was first worked out, and expect the diff that ADDS a
+      member to invalidate every counterfactual written before it.
 - [ ] **The handoff fixed the one guarded copy of a count and missed every
       unguarded one.** Third sighting of the "grep the repo for the other copies"
       entry above (2026-09-01, `dag_viewer_poc`) and the direction is now
@@ -2386,6 +2538,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       grows a parameter — the symptom is a witness reading *some other*
       trigger's box and passing or failing for the wrong reason (it reported
       the grid trigger's 418.5–444.5 for a rail bar until the tail was fixed).
+      **Second sighting 2026-09-15 (`viewer_component_names_and_reference_copy`),
+      and it names the tier the entry above leaves out: run
+      `run_mutation_witness_tests.mjs` after the integration merge too.** The
+      handoff branch witnessed 16/16 and the merged tree 21/22 --
+      `card-layout-out-of-flow` no longer reddens on its declared sub-check.
+      Bisected by `git archive <rev>` into scratch trees: witnessed at the
+      merge-base, at the handoff tip, and at `0573826`; NOT witnessed from
+      `afcbbb4` onward, the *review* merge that brought three sibling handoffs
+      onto one line. Each of the three was green alone, so nobody could see it,
+      and a review merge is the one place the mutation tier is not re-run.
+      `ISSUE_20260915_the_card_layout_out_of_flow_mutation_witness_stopped_
+      witnessing_on_integration.md`. The tell is the same one this block keeps
+      producing: the tier goes red as `ERROR: locator.hover: Timeout`, a
+      symptom with no name attached, rather than on the check that owns the
+      claim.
 - [ ] **The deliverable is mutation-tested and the guard the author added on
       their OWN initiative is not.** New 2026-09-15
       (`viewer_study_respine_animation`, should-fix). A model tactical sweep:
@@ -2402,7 +2569,39 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       exactly what it does not enumerate. So: diff the author's mutation list
       against their own diff's new conditionals, and mutate every predicate
       the list does not name. `ISSUE_20260915_a_refusing_study_staying_on_the_
-      walk_is_unwitnessed_in_every_tier.md`.
+      walk_is_unwitnessed_in_every_tier.md`. (That line is gone --
+      `viewer_respine_whole_walk` retired `layoutMode` and `chainable()` on
+      2026-09-15; its mutation entry is re-pointed at
+      `views/topology.js`'s `marking`. The example stands; the code does not.)
+      **Second sighting 2026-09-15 (`annotate_hosted_page_posture`), and the
+      un-witnessed half was in the handoff, not invented:** deliverable 1 had
+      two halves -- the hosted page *shows* nothing about the bind workflow,
+      and the controls it withholds are *never wired* -- and the author said so
+      in the lesson ("two separate defects, two separate fixes"), asserted both
+      in the browser tier, and declared a `mutation_witnesses.json` entry for
+      the first only. So the rule is wider than "mutate the predicates the list
+      does not name": **count the contracts the deliverable states and the
+      entries declared for it, and mutate any half without one.** Confirmed by
+      hand here (wiring moved back above the hosted early-return -> 17/18, the
+      right sub-check), then declared as a second entry in review -- which is
+      the cheap move the tier exists for, five strings, not an issue.
+      **Third sighting 2026-09-15 (`viewer_nav_wedge_and_classic_retirement`),
+      and it moves where you read the contracts from: the new function's own
+      COMMENT, not the handoff.** `topology_app.js`'s `navigate()` states three
+      in four paragraphs -- the rejection arm, retiring a stale banner on a read
+      that works, and clearing `state.worksheetText` so the previous node's
+      prose does not sit in the dialog under this node's title -- plus a fourth
+      about calling the read from inside the `try`. The declared entry covers
+      the first; the second reddens the browser tier anyway; the third and
+      fourth are **100% green in all three tiers when deleted** (measured:
+      308/308, 382/382, 20/20), and the third is reachable and wrong-on-screen,
+      because `paint()` decides the toggle from the projection's
+      `worksheet_file` and `views/worksheet.js` prints the new subject's path
+      over the old subject's body. So: **enumerate the contracts out of the
+      diff's own prose, one per paragraph, and mutate each** -- a handoff's
+      deliverable list is the coarser of the two inventories and the comment is
+      the one the author wrote while thinking.
+      (`ISSUE_20260915_navigates_stale_worksheet_clear_and_sync_throw_door_are_unwitnessed.md`.)
 - [ ] **An interpolator claimed to be the identity at its far end — check the
       KEY SETS, not the values at the shared keys.** Same handoff.
       `VA.tweenPositions(from, to, 1)` was tested by
@@ -2437,8 +2636,28 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       under test is not that. Ask **which frame is the outgoing one here --
       settled, or in flight?** for every interpolation claim; the two
       endpoints are the easy cases and the interrupt is a third state.
+      Fixed 2026-09-15 (`respine_tween_fidelity_round2`): the outgoing frame
+      records its **leftmost** drawn column index as well as the spine's, so
+      the unfold holds from a transition frame, and that guard now pairs the
+      whole drawn rail set beside the two scalars. Note what did *not* shrink
+      — `VA.respineX` returns four numbers now instead of two, which makes it
+      easier to pick two of them and call it a picture, not harder.
       `ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
       nowhere.md`.
+- [ ] **The handoff enumerated the sites of a prose claim -- so grep for the
+      one it missed.** New 2026-09-15 (`respine_tween_fidelity_round2`,
+      should-fix, fixed inline). The handoff listed the three places justifying
+      "a rail needs no fade" and made "all three must end up true" the
+      definition of done; all three were rewritten correctly, and a **fourth**
+      -- `renderTopoPane`'s own `xTween` comment, in a file on the handoff's
+      list -- still said the added column "unfolds out of the spine", which the
+      fix had just made wrong rather than merely conditional. An enumeration in
+      a handoff is the author's *starting* inventory, not a closed set: grep the
+      branch for the superseded phrase (`unfold`, `collapsed onto`, `from
+      nowhere` here) and confirm every survivor is one the fix rewrote. This is
+      the "grep for the other copies of the figure you just corrected" entry
+      applied to a *claim* rather than a number, and to the tactical agent
+      rather than the reviewer.
 - [ ] **A handoff's own "confirm the current count before X" instruction is
       itself a count that may have moved.** New 2026-09-15
       (`viewer_hygiene_pass`). The handoff staged a table of `dismissCard`
@@ -2455,8 +2674,302 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       needing re-derivation, not just the one the author happened to flag --
       the flag tells you where the author already knew to look, not where
       the remaining risk is.
+- [ ] **Single-sourcing replaced N hand copies with ONE argument -- now mutate
+      the argument.** New 2026-09-15 (`mutation_witness_tier_repair`). The
+      right fix for a registry that restates its own keys is to hand the key
+      to the callee, and this repo has now done it: `SUITES` rows in
+      `scripts/run_viewer_browser_tests.mjs` are `[label, (label) => fn(...,
+      label)]`. But the whole deliverable then rests on one word in the run
+      loop -- changing `runSuiteFn(label)` to `runSuiteFn()` leaves every
+      tier green, exit 0, pytest included, with every suite printing
+      `[undefined]` (measured). Ask, of any single-sourcing fix: *what fires
+      if the hand-off of the single source is dropped?* The cheap answer is a
+      returned-value pairing (`result.label !== key`), which is NOT "comparing
+      a string to itself" once the copies are gone --
+      `ISSUE_20260915_the_suites_label_pass_through_is_one_word_from_a_silent_revert.md`.
+- [ ] **A lesson's claim about which files a `--repo` / `NODE_FS` seam reaches
+      is checked by DELETING the directory, not by reading the prose.** New
+      2026-09-15, same handoff: the lesson stated the fast tier's `[real]`
+      mesh checks "read `data/meshes/` as well as `data/projections/`". They
+      do not -- `run_tests.cjs`'s only `--repo`-seam read is
+      `data/projections/viewer/*` (plus tracked paths like
+      `docs/tolerance_stacks/WORKSHEET_*.md`), and mesh facts are baked into
+      the projection as `part.mesh.installed` at build time. `mv data/meshes`
+      aside and the fast tier is still 360/360; the directory is needed by the
+      **browser** tier instead. One `mv` settles a seam claim, and the scratch
+      `--repo` root entry below is the general harness for it.
+- [ ] **A suite that is green in a full run is not green -- the mutation tier
+      runs suites ALONE.** New 2026-09-15, same review:
+      `--only "annotate flyout"` aborts on a strict-mode violation (two
+      `tr.tvrow[data-id='arm_pin_to_tip']` in the mock page) in five runs of
+      six, while the full nineteen-suite run passes it 18/18, on `integration`
+      as well as on the branch --
+      `ISSUE_20260915_annotate_flyout_suite_is_red_alone_and_green_in_a_full_run.md`.
+      Because `mutation_witnesses.json` dispatches one suite per mutation, such
+      a suite can carry no declared witness at all (the clean run comes back
+      RED and the entry is reported `SKIPPED`). When a review's evidence is a
+      full run, spot-check the one suite the work touched with `--only` too.
+- [ ] **A STACK-DATA change is a viewer-test change, and `pytest -q` is
+      structurally blind to it.** New 2026-09-15 (`pitch_link_known_bands`) —
+      the first time a pure data handoff broke the JS `[real]` tier, and the
+      author's `pytest -q` could not have told them. `tests/test_viewer_js_suite.py`
+      runs the JS runner **without** `--repo`, so from a worktree the node-fs
+      tier reports itself skipped and pytest records a `skip`, deliberately
+      ("a red suite that means 'you are in a worktree' trains people to ignore
+      red suites"). Meanwhile `apps/viewer/tests.js`'s `[real]` block pins live
+      stack numbers and live projection flags by hand — `has(root.textContent,
+      "-8.1939")` and `eq(all(root, "tr.el-row--zero-width").length, 2)` both
+      named `pitch_link_to_pitch_plate` and both went red the moment two of its
+      elements gained a band. **So: whenever a diff changes a value, a band, a
+      `confidence` or a `zero_width` in `docs/tolerance_stacks/`, grep
+      `apps/viewer/tests.js` for the moved number and for the stack id before
+      you judge the suite green**, then rebuild the projections and run
+      `node apps/viewer/run_tests.cjs --repo <root>` yourself. Two traps in the
+      fix: a `[real]` pin whose stack stopped exercising the field should be
+      **repointed at a stack that still does** (the Python twin,
+      `test_checks_carry_their_zero_width_inputs`, was correctly moved to
+      `rotor_fastener_length`) rather than flipped to assert `0` under a name
+      that promises 2; and if the shared projection is owned by a live sibling
+      worktree, build all three into a scratch `--data-root` seeded from a copy
+      of the real one instead of reaching for `--allow-older-tree` — a partial
+      scratch root (no `docs/`, no `meshes/`, no `data/inbox/`) manufactures
+      four extra failures that are yours, not the branch's.
+      **Two traps inside the fix, both found in that handoff's round 2.** (a)
+      The DOM shim's selector matcher handles `tag`, `.class` and `tag.class`
+      and **nothing compound** — `all(root, "tr.el-row.conf--untraced")` matches
+      zero nodes silently, so it fails loudly in a `=== 2` assertion and passes
+      *vacuously* in a `=== 0` one. One class per selector, then filter with the
+      suite's own `hasClass()`. (b) `VA.fmt` is `String(n)`, verbatim and by
+      design, so the page shows `-8.428` where every document writes `-8.4280`
+      for column alignment — a pin copied out of the worksheet will not match.
+      The old pin happened to have no trailing zero, which is why this had never
+      surfaced.
+      **Second sighting 2026-09-16 (`stack_fable_audit`), and it widens the
+      grep past `tests.js`: `apps/viewer/README.md`'s derived totals are now
+      regex-paired against the live projection by `[real]` tests** (the spine
+      leader-vs-rail crossings sentence, and "17 of the 46 live nodes"), so a
+      diff that changes a topology's SHAPE — not just a value — moves them. The
+      tactical author fixed the crossings total (92 → 96) and could not see the
+      live-node pairing at all, because it landed on `integration` after the
+      branch was cut: the review merge is where 46 vs 48 first failed. When a
+      data handoff adds or removes nodes/edges, re-run the `[real]` tier
+      **after** the integration merge and expect a README-digit pairing among
+      the reds — it is the anchor-fires-at-merge-time entry, for doc pairings.
+- [ ] **A "not vacuous" assertion that tests a set the value could never be
+      in.** New 2026-09-15 (`pitch_link_known_bands`), and it is the
+      guard-that-cannot-fail shape hiding inside the *replay* rather than the
+      guard. `test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it`
+      closes with `assert ("pitch_link_to_pitch_plate", "bushing_214820") not in
+      seen_divergences` under the comment *"Not vacuous: the pairing has to be
+      seeing the stacks that matter"* — but `seen_divergences` only ever
+      receives members of the one-row `KNOWN_BAND_DIVERGENCES`, so the assertion
+      is true by construction. Measured: typo the `SHARED_BANDS` part number and
+      the test stays **green** while checking nothing about the part the handoff
+      was written for. The test to apply: *what does this assertion read that
+      the loop wrote?* A non-vacuity replay has to assert on something the
+      **matching branch** populated (`matched[part].add(stack.id)`), never on
+      absence from an allowlist. Watch for its sibling too: a curated key tuple
+      whose second element is never used in the match (`(part, feature)` matched
+      on `part` alone) is decoration that reads as precision.
+- [ ] **A `\uXXXX` escape sequence typed into an Edit/Write tool call gets
+      JSON-unescaped into the raw codepoint before it reaches the file.** New
+      2026-09-15 (`vendor_markdown_recopy`). `apps/viewer/vendor/markdown.js`'s
+      `CODE_MARK` sentinel is the literal 6-character source text `"\uE000"` in
+      forge's file — writing it by re-typing the line (not a plain file copy)
+      can silently swap that for the actual raw PUA character, which looks
+      identical on screen and diffs clean under most viewers. Confirmed by
+      piping the line through `cat -A` / comparing raw bytes against the
+      upstream source, not by eye. Whenever a diff touches a line containing a
+      `\u`-escape sentinel, byte-diff that line specifically rather than
+      trusting a visual or line-based diff.
+- [ ] **A helper whose parameter list a diff NARROWED, with its call sites
+      still passing the old arity -- JavaScript drops the extra argument and
+      the loop around it goes vacuous.** New 2026-09-15
+      (`viewer_respine_whole_walk`, should-fix, fixed inline).
+      `tests.js`'s `[real] a respine of every summing study of every topology
+      settles on the fresh render's own geometry ... in every length mode`
+      builds its contexts through a local `ctxFor`, which the diff correctly
+      narrowed from `(topoProj, study, layoutMode, mode)` to
+      `(topoProj, study, mode)` when `layoutMode` was retired -- and left both
+      calls as `ctxFor(topoProj, null, "topology", mode)` /
+      `ctxFor(topoProj, study, "chain", mode)`. So `edgeLengthMode` became the
+      literal `"topology"` / `"chain"`, both of which fall back to uniform, and
+      the `["uniform", "tolerance", "absolute"].forEach` ran the SAME mode three
+      times. `378/378`, exit 0, and the `cycles >= 12` anti-vacuity assertion
+      still passed because it counts iterations, not distinct modes. Restoring
+      the two arguments keeps it green, so this was pure coverage loss. Two
+      moves: whenever a diff removes a parameter, **grep every call of that
+      function and count the arguments** (no linter here will), and treat a
+      `forEach` over a mode/flag list as unexercised until one assertion reads
+      something the mode changes.
+- [ ] **A retired behaviour's justification prose is a claim about a tree you
+      still have -- replay it, don't read it.** New 2026-09-15
+      (`viewer_respine_whole_walk`), the counterfactual entry's historical
+      member: the fix is right, and the README's new paragraph explains it with
+      *"two of `pitch_link_to_pitch_plate`'s studies dropped rows while the
+      third's chain covered nearly everything"*, restating the handoff's own
+      item 3. Neither of the two states the pre-change page could be in
+      produces that: `git archive`-ing the branch base and probing it through
+      the fast `[real]` tier gives chain mode = all three studies dropped rows
+      (8 -> 5 / 4 / 2) and nothing dimmed in any of them, and topology mode
+      (the deep-link path) = no rows dropped and 3 / 4 / 6 dimmed, with
+      `thread_region_t` the *most* reduced in both. When a diff retires a
+      behaviour and writes down what was wrong with it, that sentence is
+      checkable in one `git archive` plus one probe --
+      `ISSUE_20260915_the_readmes_inconsistency_premise_for_the_whole_walk_
+      change_does_not_reproduce.md`.
+- [ ] **A "per row" replay that substitutes a STUB for the row's own collector
+      is one assertion written N times.** New 2026-09-15
+      (`viewer_value_guard_rows_and_replays`, nit — the shape was prescribed by
+      the handoff, inherited from `projection_field_guard_rows`).
+      `replayBlindCollectors` in `apps/viewer/tests.js` loops the 15 stack-side
+      and 15 topology rows, and for each builds `{field, branch, known,
+      values: function () { return []; }}` and asserts `unexplainedValues`
+      reports it. `known` is never called on an empty collector, so the only
+      thing that varies across the 30 iterations is the `field` string in the
+      message: it proves `unexplainedValues`' empty arm fires (worth having —
+      deleting the `push` reddens both bite tests, verified), but it does **not**
+      prove anything per row. The per-row claim needs the row's **real**
+      collector run against a projection with that field removed — the scratch
+      `--repo` root harness this checklist already names. Ask of any "replayed
+      per row" comment: *what does iteration 7 execute that iteration 1 did
+      not?*
+- [ ] **A green `run_tests.cjs --repo <main checkout>` can be red five minutes
+      later for reasons that are nobody's.** New 2026-09-15 (same review). The
+      first `--repo C:\workspace\tolstack` run here was **369/373**, four
+      `[real]` pitch-link tests red; a re-run minutes later, same worktree, same
+      commit, was **373/373**. `data/projections/viewer/*.json` is shared by
+      every worktree and other live sessions rebuild it mid-run — the stamp in
+      the file says which tree it came from
+      (`provenance.branch` / `head_sha` / `built_at`; ours read
+      `review/viewer_respine_whole_walk`, not `master`). Before you attribute a
+      `[real]` red to the diff, **read the three stamps and re-run**, and check
+      the same failure at the branch's merge-base with `git archive <base> apps |
+      tar -x -C <scratch>` — app source comes from wherever the runner lives,
+      data comes from `--repo`, so a base comparison costs one command and no
+      worktree.
+
+- [ ] **A scratch `--repo` / `--data-root` root under the session scratchpad
+      blows Windows MAX_PATH, and the symptom is a projection with ZERO
+      installed meshes and exit 0.** New 2026-09-15
+      (`viewer_nav_wedge_and_classic_retirement`). The scratch-root harness two
+      entries above is the right move when a live sibling owns the shared
+      projection -- but the agent scratchpad path is ~150 characters before you
+      add `data/meshes/<64-char sha>/provenance.json`, which lands past 260.
+      `installed_meshes()` skips a mesh dir whose sidecar is not
+      `is_file()` **by design** ("an unnamed mesh cannot be claimed as any
+      part"), so the long path is indistinguishable from an unnamed mesh:
+      `build_topology_projection.py` prints `0/N parts with an installed mesh`
+      for every topology and exits 0, and the `[real]` tier then fails two mesh
+      tests whose own message says *"rebuild the topology projection against
+      the main checkout's data/meshes"* -- pointing at the one cause it is not.
+      Put the scratch root somewhere short (`%TEMP%/tsrev`) and **check the
+      mesh count before you read any `[real]` result**:
+      `installed_meshes(Path(root)/"data"/"meshes")` should be 24+, and the
+      builder's per-topology line should not say `0/`.
+- [ ] **Retiring a route invalidates prose in OTHER tracks' issues and briefs,
+      which no doc-scan guard reads.** New 2026-09-15
+      (`viewer_nav_wedge_and_classic_retirement`). Removing the nested
+      covered-stack nav row also removed the **mechanism a live strategy brief
+      named as one of the two options it asks someone to choose between**:
+      `BRIEF_20260911_viewer_3d_and_card_content_reach.md` §1 and its triaged
+      issue both argue from "(covered-stack nesting)" and "Most real stacks are
+      loose today" -- and loose stacks went from a majority to **2 of 7** in the
+      same commit. `docs/issues/`, `docs/strategy/` and `docs/sessions/` are out
+      of scope for every count and phrase scan this repo owns, deliberately, as
+      dated history -- but a `status: triaged` issue with a `strategy:` pointer
+      is not history, it is an input to a decision nobody has made yet. So when
+      work retires a route or a rendering: `git grep` the retired mechanism's
+      own nouns across `docs/issues/` and `docs/strategy/` as well as the live
+      docs, and check every `status: open|triaged` hit. File rather than fix --
+      the correction changes what a decision is about, which is the other
+      track's call.
+      (`ISSUE_20260915_the_3d_reach_brief_still_argues_from_covered_stack_nesting_and_a_loose_majority.md`.)
+
+- [ ] **A deliverable whose whole point is GEOMETRIC, pinned only where it is a
+      pure function or a hand-fed renderer.** New 2026-09-16
+      (`viewer_reference_crops_in_context`, three should-fixes of one shape).
+      The handoff's claim was "a box over the right part of the picture"; the
+      tests build their own crop entry and assert the box's `style.left` in
+      percent, which is right and is not the claim. Four one-line reverts stayed
+      **1121 pytest / 407 fast / 20 browser** green: the hover card's
+      `max-width: calc(260px * var(--crop-ratio))` put back to
+      `max-height: 260px; object-fit: contain` (the overlay then points into the
+      letterbox — the exact defect the lesson credits the browser tier with
+      catching), `companion = None` and `"drawing_no": None` in
+      `_crop_from_citation`, and the three companion-prefetch terms in
+      `topology_app.js`. The tell each time: the assertion is fed the field
+      rather than reading what a producer wrote. Ask, per deliverable, **which
+      edit undoes it, and which tier is even capable of seeing that edit** —
+      for a percentage overlay the answer is only a browser-tier client-rect
+      comparison, and for a builder field only a wiring test through the `fitz`
+      stand-in (`test_crop_element_crops_a_pile_citation_to_its_declared_region`
+      is the shape to copy; `fitz` is imported lazily on purpose).
+      `ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md`.
+- [ ] **A new crop/projection field that renders a CLAIM, with no
+      `VALUE_GUARDS` row and a silent drop on the way in.** Same handoff.
+      `crops.json`'s `highlights[]` carries the solid-vs-dashed
+      found-vs-declared distinction — the whole visual language — and
+      `VA.cropHighlights` filters out any box whose `frac` is not four numbers,
+      returning `[]`, which renders identically to an honest "nothing here was
+      marked". No `[real]` assertion reads a live crop's boxes at all (grep
+      `crophl|companion|highlights|drawing_no` below `tests.js:7036`: nothing).
+      The *vocabulary* was covered from the other side and well —
+      `HIGHLIGHT_KINDS` is importable, `highlight()` refuses a word outside it,
+      and `test_js_python_vocabulary.py` pairs it (verified: renaming the JS key
+      reddens that row) — which is exactly what makes the **absent/malformed**
+      direction easy to call covered. Two different questions; ask both.
+      `ISSUE_20260916_crop_highlights_have_no_live_data_value_guard.md`.
+- [ ] **A `{key: row for row in rows}` over another repo's list, where the key
+      is narrower than the row.** New 2026-09-16, and the cheapest instance of
+      the canonical identity-key check this repo has produced.
+      `parts_list_row_for` keys drawing-checker's `parts_list` by
+      `part_number`; the 2026-AUG-19 217755 export carries `NAS1149V0332H` at
+      **find 13 and find 32** (two different parts), so a dict comprehension
+      keeps whichever is last and the crop's balloon, its companion row and its
+      solid *"found on the page: balloon N"* highlight are all decided by JSON
+      row order. Right today by luck; `list(reversed(rows))` flips it to the
+      wrong item with nothing red. The disambiguator was in the data the whole
+      time — every live citation's callout ends `"(find 34)"` / `"(find 32, …)"`
+      — and the sibling function one screen down already breaks the same tie by
+      find number. **Demand the collision test that plants two rows and then
+      reverses their order**; a round-trip over today's data passes either way.
+      `ISSUE_20260916_a_parts_list_row_is_keyed_by_part_number_alone_and_one_row_is_overwritten.md`.
+- [ ] **A `shows` / evidence string is an inventory sentence — recount every
+      figure in it against the render.** New 2026-09-16, the stale-count family
+      landing in `docs/spec_library/crop_regions.json`. The two new page
+      contexts are correct rects (checked by rendering both), and the sheet-3
+      entry's `shows` — the field this repo treats the way it treats a
+      `source_ref` — said *"the fourteen basic-number columns"* (there are
+      **13**; the NAS series skips odd numbers above 6410) and *"all 96
+      grip-dash rows"* (there are **64**; 96 is the highest dash NUMBER). Every
+      other clause in the same sentence was exact, which is what makes this
+      class survive. Render the rect and count; both fixed inline.
+- [ ] **Seven issues, one red.** New 2026-09-16 and the duplicate-filing entry's
+      terminal form: `docs/issues/` now holds **seven** filings of the single
+      `test_every_byte_identity_claim_…` failure, one per handoff that ran the
+      suite between 2026-09-15 and 2026-09-16, all `area: docs/strategy`, all
+      saying the same thing. **Six of them were already in this handoff's own
+      merge-base tree.** So the branch-point excuse is spent: before accepting an
+      issue about a condition that is not specific to the diff,
+      `ls docs/issues/ | grep <the noun>` in the MERGED tree, and where siblings
+      exist, cross-reference the newest into them and say in the report that
+      triage should close them as one. Filing an eighth costs a triage sweep more
+      than the red costs a session.
 
 ## Architectural errors to check
+
+- [ ] **Two readers of one input file, one strict and one tolerant.** New
+      2026-09-15 (`viewer_study_verdicts_and_gaps`). Both projection builders
+      read `hardware_entries.json`; `build_viewer_projection.build()` raises on
+      a wrong `schema`, the new `build_topology_projection.load_hardware()`
+      reads `entries` off whatever JSON is there. Tolerating an **absent**
+      register is argued and documented; tolerating a **present but
+      unreadable** one silently turns 43 of 98 live gap rows into "nothing is
+      missing" on the one page whose job is to say what is. When a diff adds a
+      second reader for an existing file, diff the two loaders' refusals, not
+      just their happy paths.
+      (`ISSUE_20260915_topology_builder_drops_the_hardware_register_schema_check`.)
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
       and checks are the same signed term list. And `fold()` reads `min`/`max`
@@ -2598,9 +3111,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
         or an `index.html` `.gap--*` / `.croppop--*` block, **re-read the matching
         `inList` by hand**; nothing pairs them.
       Also check the companion test `[real] each value guard bites when fed a value
-      nothing can explain` still covers every row — a guard whose `known` accepts
-      anything is documentation, which is precisely the state `VA.CROP_RULES` was in
-      for the four days the original bug shipped. And know the tier's reach: it
+      nothing can explain, and on finding no value at all` still covers every row —
+      a guard whose `known` accepts anything is documentation, which is precisely
+      the state `VA.CROP_RULES` was in for the four days the original bug shipped.
+      That test replays **both** arms of the shared `unexplainedValues` per row
+      (2026-09-15, `viewer_value_guard_rows_and_replays`): the unknown value, and
+      the **collector that comes back empty**, which is the arm a renamed builder
+      key or a reshaped `crops.json` trips and the one a bite test forgets. The
+      topology table's companion is the same shape and the same helper.
+      And know the tier's reach: it
       reads **live data only**, so a value that exists only in `fixtures.js`
       (`values_status: "not_transcribed"`, `export.status: "unestablished"`) is
       unguarded by it by construction.
@@ -3018,6 +3537,71 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       whether the render side actually reads the new field, and grep the
       diff's own doc changes for a sentence describing the field's absence
       that the same handoff's schema baseline just falsified.
+- [ ] **A mechanism fact corrected in one doc and left standing in its
+      near-verbatim mirror — the fact-rather-than-count variant of "the
+      handoff fixed the one guarded copy."** New 2026-09-15
+      (`extracted_mesh_alias_rows`). The handoff's own scope line named three
+      files, and inside them the author correctly rewrote
+      `data/meshes/README.md`'s opening sentence: meshes are no longer only
+      `stepgeom.tessellate` output hand-copied from a per-part STEP (22 of the
+      24 installed are `stepgeom.assembly` extractions written into this repo
+      directly, and have no per-part STEP upstream at all). `ARCHITECTURE.md`'s
+      rotorkit bullet carries that same sentence almost word for word and did
+      not move; `docs/ANNOTATION_SURFACE.md`'s mesh-format paragraph carries the
+      weaker form. No guard forces either — `ARCHITECTURE.md`'s guarded surface
+      is its *module inventory*, and surrounding prose is outside every
+      quantifier guard here. So when a diff rewrites a **definitional sentence**
+      (not a number), grep the tree for its distinctive nouns — here
+      `stepgeom.tessellate`, "copies the binary mesh output", "source STEP" —
+      rather than only for the digits.
+      `ISSUE_20260915_architecture_md_still_says_every_mesh_is_a_tessellated_per_part_step_copy.md`.
+- [ ] **Two handoffs from one triage sweep file the same issue, because a
+      branch point predates the other's merge.** New 2026-09-15. A repo-wide
+      condition — most often *the suite is already red on `integration`* — is
+      discovered by whichever handoff runs the full suite first, and every later
+      worktree cut from an **older** `integration` sees an issues directory that
+      does not contain it yet. Sighted exactly: this handoff filed
+      `ISSUE_20260915_byte_identity_guard_reds_the_suite_on_a_triage_authored_brief.md`
+      at a branch point of `3141e51` (15:01) for the same brief line as
+      `ISSUE_20260915_byte_for_byte_claim_in_a_strategy_brief_reddens_pytest_on_integration.md`,
+      which reached `integration` at 15:22. Not a finding against either author
+      — neither could see the other. It lands on **you**, because the merge is
+      where the duplicate first exists: before approving an issue about a
+      condition that is not specific to this handoff's own diff,
+      `git log integration -- docs/issues/` (or just `ls` the merged tree) for a
+      sibling filing, and either cross-reference or say in the report which one
+      triage should close.
+      **Third filing of that same red, same day, and this one had no excuse:**
+      `annotate_hosted_page_posture` was cut from `f629942`, an `integration`
+      that already carried *both* siblings, so `ls docs/issues/` in its own
+      worktree would have shown them -- and it filed a third at a different
+      priority (`high` against their `med`). The no-fault reading above applies
+      only when the branch point genuinely predates the sibling's merge:
+      **check the branch point (`git merge-base`) against the sibling's first
+      commit before you decide which it is**, because the two look identical in
+      the merged tree and only one of them is a finding against the author.
+      Cross-referenced in review rather than deleted -- the newest filing
+      carried the priority argument the other two did not.
+
+- [ ] **A guard on a named CONSTANT, where lifting the copy into that constant
+      is what moved the assertion away from the defect.** New 2026-09-15
+      (`annotate_hosted_page_posture`, should-fix). The fix for "this banner
+      renders a terminal command" was the right one -- plain words, and the
+      command strings deleted from `config.js` so there is nothing left to
+      concatenate -- and the guard asserts (a) the constant's text is clean and
+      (b) `AA.CONFIG.rebuild === undefined`. Nothing pairs the constant to the
+      one call site that renders it, so restoring the pre-handoff banner as a
+      bare string literal in `loadAll()` ships **65/65 green** on the annotate
+      fast tier, invisible to pytest (the copy is JS) and to the browser tier
+      (no suite reaches a connected folder with no projection). The lift into a
+      constant is usually done *so that* a testable tier can read the copy at
+      all -- which is exactly what takes the assertion off the surface. Ask of
+      any "the copy must not say X" guard: **what fails if the surface stops
+      reading the constant?** Where the rendered text is expensive to reach, a
+      static scan of the caller for the constant's name is three lines and the
+      file is already being read.
+      `ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_not_the_
+      call_site.md`.
 
 ## Writing the review
 

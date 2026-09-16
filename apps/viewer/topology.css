@@ -68,8 +68,8 @@ body.tv-resizing { cursor: col-resize; user-select: none; }
 
 /* --- the single nav tree (viewer_v2_single_nav, 2026-09-08) -------------
    Replaces the TOPOLOGY/STUDY <select> pickers AND the flat stack rail at
-   once: one topology's studies (and any stack it also covers) as children,
-   every classic-only stack as a leaf of the same tree. views/nav.js.
+   once: one topology's studies as children, and every stack no topology
+   re-expresses as a leaf of the same tree. views/nav.js.
 
    The one independent scroll region left on the page (full-page-scroll,
    viewer_error_surface_and_layout, 2026-09-09): everything else now
@@ -270,7 +270,6 @@ body { display: flex; flex-direction: column; }
   fill: none; stroke: transparent; stroke-width: 10;
   pointer-events: stroke; cursor: pointer;
 }
-.rail__leader--off { opacity: .28; }
 .rail__leader--on { stroke: var(--rail-odd); }
 .rail__leader--selected { stroke: var(--accent); stroke-width: 2; }
 
@@ -365,7 +364,6 @@ body { display: flex; flex-direction: column; }
    (this file's own collapsed-border lesson, above) and a shadow never does,
    so the group line cannot nudge a row off its leader. */
 .tvrow--group-start .tvcell { box-shadow: inset 0 1px 0 var(--line); }
-.tvrow--off { opacity: .35; }
 .tvrow--selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 /* Same tint the elements table uses: an untraced value has to survive a skim.
    As a background IMAGE (a flat two-stop gradient is the only way CSS spells
@@ -456,7 +454,7 @@ body { display: flex; flex-direction: column; }
   display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
   height: var(--tv-row); overflow: hidden;
 }
-/* The shared `.crop-trigger` (style.css) is sized for the classic table's
+/* The shared `.crop-trigger` (style.css) is sized for the stack view's
    taller, block-stacked sourcing cell — `margin-top: 6px` alone is most of
    why a crop-key'd row was drawn taller than its own `rowHeight`, since a
    real <tr>'s inline `height` is a floor, not a cap, and nothing here clips
@@ -516,12 +514,15 @@ body { display: flex; flex-direction: column; }
 .tverror__message { margin: 6px 0; white-space: pre-wrap; }
 .tverror__advice { margin: 6px 0 0; color: var(--muted); }
 
-/* --- the classic stack view ----------------------------------------------
+/* --- the stack view ------------------------------------------------------
    Absorbed from the retired stack viewer (deliverable 3 of
    viewer_consolidation): most stacks in docs/tolerance_stacks/ have no
    topology re-expressing them (VA.looseStacks), so this page still needs
    somewhere to show them, unchanged. Reached from the nav tree now
-   (.navtree, above), not a separate flat rail. */
+   (.navtree, above), not a separate flat rail. It is not a second kind of
+   page and nothing on screen says it is (deliverable 4,
+   viewer_nav_wedge_and_classic_retirement): from a reader's seat there is one
+   viewer, and some entries simply have no DAG. */
 
 /* A flex ITEM of `.tv__main`'s column, not `.center`'s — same shape
    `.tv__scroll` above now is (full-page-scroll, viewer_error_surface_and_
@@ -531,9 +532,41 @@ body { display: flex; flex-direction: column; }
 
 /* --- the preview pane --------------------------------------------------- */
 
+/* The pane's drag divider (Jeff, 2026-09-15: "it's too narrow"). Full height
+   of the flex row, so it is grabbable anywhere down the seam rather than only
+   where a header happens to be -- unlike the column and jog-zone grips, which
+   live inside the column header because that is where a reader looks to
+   resize a COLUMN. Same 7px hit area and same hairline-turns-accent hover as
+   those (.tvgrip above), because it is the same gesture. */
+.tv__divider {
+  flex: none; width: 7px; margin: 0 -3px; cursor: col-resize; z-index: 3;
+  position: relative; background: none; border: none; padding: 0;
+}
+.tv__divider::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 3px;
+  width: 1px; background: transparent;
+}
+.tv__divider:hover::before, .tv__divider:focus::before { background: var(--accent); }
+.tv__divider:focus { outline: none; }
+
 /* Narrower than the stack viewer's 520px: this page's centre pane carries six
    columns and a rail gutter, and the preview is a companion to them rather than
-   the main event. */
+   the main event. THE DEFAULT ONLY, and still the one place it lives: a
+   remembered width is written as an INLINE width over this rule, and a page
+   with nothing remembered sets no inline width at all rather than restating
+   this number in JS. (The bounds a drag is clamped to have their own one
+   place: VA.TOPO_PANE_WIDTH, views/topology.js.)
+
+   It went to 560px on 2026-09-15 with the drag and came straight back, which
+   is worth recording rather than quietly reverting: at 560 the centre pane is
+   133px narrower, and the grid's content overflows it horizontally either way
+   (the head table is fixed-width and this page has no inner scrollport by
+   design) -- so a widened jog zone put its own drag grip UNDERNEATH this pane,
+   where a pointer reaches the pane and not the grip. The browser tier caught
+   it on pitch_system at 1600px wide with the zone at 5.5x. A reader can still
+   reach that state by dragging this pane open, so the interaction is filed
+   rather than fixed here:
+   ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md. */
 .tv .detail {
   width: 430px; flex: none; overflow: visible; align-self: stretch;
   /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:
@@ -624,3 +657,108 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 #legend-dialog ul { margin: 0; padding-left: 20px; }
 #legend-dialog li { margin-bottom: 8px; }
 #worksheet-dialog { width: 90vw; max-width: 900px; }
+
+/* --- verdicts, attention flags and the gap panel -------------------------
+   viewer_study_verdicts_and_gaps (2026-09-15). Jeff's review: "None of the
+   tolerance stacks in the entire page appear to have any kind of roll up that
+   shows whether the stack passes or fails, or by how much margin", and on the
+   flags: the old page "omits them entirely and then fails silently which is
+   worst of both worlds". So these are the loudest marks on the page after the
+   provenance palette itself, and they deliberately reuse it rather than
+   inventing a fourth colour axis: a verdict is pass/marginal/fail green, amber,
+   red (`.verdict--*`, style.css, the stack view's own), and a flag is drawn
+   in the colour of the thing it is about — an unverified number in the untraced
+   red, a missing tolerance in the zero-width blue, an incomplete chain in the
+   inferred amber (the same amber `.chip--budget` already uses for exactly this
+   claim). */
+
+/* The verdict badge. Filled, uppercase, and never absent: `--none` and
+   `--error` are states a verdict cannot express, and they are styled to read as
+   "there is no answer here" rather than as a quiet pass. */
+.tvverdict {
+  font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
+  font-size: 11px; padding: 2px 9px;
+}
+.tvverdict--pass { color: #fff; background: var(--pass); border-color: var(--pass); }
+.tvverdict--marginal { color: #0b1020; background: var(--marginal); border-color: var(--marginal); }
+.tvverdict--fail { color: #fff; background: var(--fail); border-color: var(--fail); }
+.tvverdict--none, .tvverdict--error, .tvverdict--unknown {
+  color: var(--muted); border-color: var(--muted); border-style: dashed;
+  background: none; text-transform: none; font-weight: 600;
+}
+/* A verdict on a chain that is knowingly short a term. The hatch is the same
+   "this is a budget, not an answer" mark `.check--budget` (style.css) puts on
+   the stack view's card, shrunk to a chip: a FAIL here is true of the model
+   and false of the hardware, and the badge must not read like a clean one. */
+.tvverdict--qualified {
+  outline: 2px dashed var(--inferred); outline-offset: 1px;
+}
+
+/* The attention flags. Filled for the same reason `.conf--untraced` is: these
+   have to survive a glance across a 43-row grid and a 20-study nav rail. */
+.tvflag { font-weight: 700; font-size: 10px; text-transform: uppercase; }
+.tvflag--unverified { color: #fff; background: var(--untraced); border-color: var(--untraced); }
+.tvflag--no_tolerance { color: #0b1020; background: var(--zero); border-color: var(--zero); }
+.tvflag--incomplete { color: #0b1020; background: var(--inferred); border-color: var(--inferred); }
+
+/* The per-check block under the totals strip: verdict, what it means, and by
+   how much — then, where the chain is short a term, WHAT is missing, above the
+   fold and not behind a hover. */
+.tvverdicts { margin: 2px 0 6px; }
+.tvverdicts__none {
+  margin: 6px 0; color: var(--muted); border-left: 3px solid var(--line);
+  padding-left: 10px;
+}
+.tvverdict-card {
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
+  margin-top: 6px; background: var(--panel);
+}
+.tvverdict-card--qualified {
+  border-left: 3px solid var(--inferred);
+  background: repeating-linear-gradient(135deg,
+    var(--panel), var(--panel) 10px, #23262e 10px, #23262e 20px);
+}
+.tvverdict-card__head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.tvverdict-card__says { font-weight: 600; }
+.tvverdict-card__margin { font-family: ui-monospace, monospace; color: var(--accent); }
+.tvverdict-card__label { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.tvverdict-card__missing { margin-top: 8px; }
+.tvverdict-card__missinghead { margin: 0; font-size: 13px; }
+.tvverdict-card__missinglist { margin: 4px 0 0; padding-left: 20px; }
+.tvverdict-card__more { margin-top: 6px; }
+.tvverdict-card__more summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+
+/* The two chain-level warnings. Not `.muted`: a lower bound presented quietly
+   is a number a reader takes at face value. */
+.tvwarn {
+  margin: 6px 0; padding: 6px 10px; border-radius: 0 6px 6px 0; font-size: 13px;
+}
+.tvwarn--lower-bound {
+  border-left: 3px solid var(--zero); background: rgba(122, 167, 214, .12);
+}
+.tvwarn--unverified {
+  border-left: 3px solid var(--untraced); background: rgba(224, 82, 82, .12);
+}
+
+/* "What's missing" — collapsed by default, with its total in the summary line.
+   Progressive disclosure: pitch_system carries 38 gap rows and a wall of 38
+   lines under a DAG is a wall nobody reads, but a count beside a heading is a
+   number a reader can act on. */
+.tvgaps { margin: 4px 0 6px; }
+.tvgaps__none { margin: 6px 0; }
+.tvgaps__summary {
+  cursor: pointer; display: flex; gap: 8px; align-items: center;
+  font-weight: 600; padding: 4px 0;
+}
+.tvgaps__group { margin: 10px 0 0; padding-left: 10px; border-left: 2px solid var(--line); }
+.tvgaps__heading { margin: 0; font-size: 13px; }
+.tvgaps__closes { margin: 2px 0 4px; font-size: 12px; }
+.tvgaps__list { margin: 0; padding-left: 18px; }
+.tvgaps__item { font-size: 13px; margin-bottom: 3px; }
+.tvgaps__where { color: var(--accent); margin-right: 6px; }
+
+/* The study-level flags, on their own line under the strip. They wrap; the
+   strip above them deliberately does not (see `.tvtotals__strip` -- it scrolls
+   sideways so its height cannot grow), and three long badges inside a
+   non-wrapping scrollport would have pushed the folded totals out of reach. */
+.tvtotals__flags { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 4px; }

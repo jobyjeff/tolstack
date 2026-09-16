@@ -44,8 +44,11 @@ scripts/
                                (projection_provenance, and since
                                topology_projection_emits_study_checks also
                                build_viewer_projection, for its confidence
-                               vocabulary). The layout lives here, not in JS,
-                               so pytest can pin it.
+                               vocabulary, its shared check-rounding rule and,
+                               since viewer_study_verdicts_and_gaps, its
+                               stack_gaps derivation -- a topology also carries
+                               a `gaps` list now). The layout lives here, not
+                               in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
                                2026-08-10; stdlib only. Imported by all six
@@ -116,7 +119,7 @@ here that nothing checks is the defect, not the value it happens to have.
 | `Term` | an element, a sign (`+1`/`-1`), and a positive `coefficient` (default `1.0`), all validated |
 | `Interval` | a fold result: nominal, worst-case min/max, RSS center/half |
 | `fold(terms)` | **the only place element values are combined**, outside the exceptions declared in "Where computation may live" |
-| `CheckResult` | a check outcome + the `verdict` property |
+| `CheckResult` | a check outcome + the `verdict` and `margin` properties -- the word and by how much, both against `criterion` and both computed here |
 | `StackDefinition` | elements + paths + checks; `path()`, `check()`, `all_checks()` |
 | `load_stack(path)` | read + schema-check a stack-definition JSON |
 
@@ -258,6 +261,15 @@ rect, which is its evidence in the same sense a `source_ref` is a value's. A
 citation that matches no region keeps the whole-sheet crop it would have had
 anyway, and the crop's own note says why no region applied — a missing region is
 a gap to record, never a rect to guess.
+
+A sheet may also declare one **page context** (2026-09-15): the wider rect the
+crop is actually taken from, inside which the matched region is drawn as a
+highlight box rather than being the crop itself. A row band answered "which rect
+is the cited row" and then showed only that — "just four numbers with no context
+for what they mean", because a row carries neither the column headers nor the
+figure the lettered columns refer to. Same recording discipline, same verb
+(`--context`), one per `(document, sheet)`: it answers "what does a reader of
+this sheet need to see", which has one answer per sheet.
 
 This is placement, **not identity and not a value source**: which bytes a
 citation was read from is still `source_ref` and `spec_pile`'s filename rule, and
@@ -494,6 +506,25 @@ above: the viewer must not contain a second arithmetic path. So
 - `scripts/build_viewer_crops.py` resolves each `source_ref` to a page of a real
   PDF and renders a crop, or records **why not**. The viewer cannot roam the
   filesystem or reach drawing-checker, so hovers read pre-rendered PNGs.
+
+Each crop also carries the **boxes worth drawing over it** — in points and as
+fractions of the crop, so the viewer positions an overlay without knowing the
+render scale. Two kinds, and the pair is the whole visual language: a box round
+something **found** on the page (the callout's own text, or the balloon carrying
+the citation's find number) is solid; a box round a rect somebody merely
+**declared** — a registry region, or a cited zone whose callout text was not in
+it — is dashed. The distinction was previously carried only by a sentence beside
+the picture, and the picture is what a reader looks at. `HIGHLIGHT_KINDS` is the
+vocabulary, paired with the viewer's copy by
+`tests/test_js_python_vocabulary.py`.
+
+Placement reads drawing-checker's extracted balloon geometry where it exists
+(`<run>/<drawing>_balloons.json`: an item's `bbox_pt` per page, plus the run's
+parts-list rows), which is how a parts-list citation is cropped to the item
+rather than to its view's caption, and how such a crop gains a second image of
+the parts-list row. Still **read-only DATA**, like every other use of that repo
+here — nothing is imported and nothing over there is written; the claim is
+evidenced by `scripts/snapshot_drawing_checker.py`.
 
 Resolution never guesses: `source_ref.export`, whose `sha256` is mandatory and
 always verified; else the spec pile by filename; else the legacy free-text

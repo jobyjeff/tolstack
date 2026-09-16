@@ -153,9 +153,61 @@
     }).catch(function () { return false; });
   };
 
+  // What a verdict MEANS, in the words a reader who has never opened this repo
+  // would use. The verdict word alone answers "did it pass"; `says` answers the
+  // question underneath it, which is the one a reviewer actually has ("can I
+  // build this?"). One table rather than three sentences scattered through the
+  // views, and a total function with a loud fallback for the same reason
+  // VA.VERDICT_SCOPES is one: a fourth verdict must gain a branch on screen, not
+  // arrive silently.
+  //
+  // Paired against tolerance_stack/stack.py's VERDICTS by
+  // tests/test_js_python_vocabulary.py: one definition in Python, one rendering
+  // here.
+  VA.VERDICTS = {
+    pass: {
+      says: "every build clears it",
+      title: "The worst case still satisfies the criterion, so no build of " +
+        "this joint violates it.",
+    },
+    marginal: {
+      says: "clears on average, not in the worst case",
+      title: "Nominal satisfies the criterion and the worst case does not. No " +
+        "single build is guaranteed — this joint needs selection at assembly, " +
+        "not a clean analytical answer.",
+    },
+    fail: {
+      says: "does not clear, even on average",
+      title: "Neither the worst case nor nominal satisfies the criterion.",
+    },
+  };
+
   VA.verdictClass = function (verdict) {
-    return "verdict--" + (["pass", "marginal", "fail"].indexOf(verdict) === -1
-      ? "unknown" : verdict);
+    return "verdict--" + (VA.VERDICTS[verdict] ? verdict : "unknown");
+  };
+
+  // What a verdict this viewer has never heard of must say. Names the value, and
+  // is LOUD, for the reason VA.unlabelledVerdictScopeText is: falling through to
+  // silence would render an unknown verdict as though the page had considered it.
+  VA.unlabelledVerdictText = function (verdict) {
+    return "verdict " + JSON.stringify(verdict === undefined ? null : verdict) +
+      ", which this viewer has no branch for — what it means is NOT shown here";
+  };
+
+  // The worst verdict among a study's checks, weakest wins — the same rule
+  // VA.studyWorstConfidence applies to citations, and for the same reason: a
+  // study with one failing check has a failing answer, whatever the other one
+  // says. A lookup over an enumerated field in the order Python ranked it
+  // (VERDICTS, worst last); nothing is compared, added or re-derived.
+  VA.worstVerdict = function (checks) {
+    var words = Object.keys(VA.VERDICTS);
+    var worst = null;
+    (checks || []).forEach(function (check) {
+      var rank = words.indexOf(check && check.verdict);
+      if (rank === -1) return;
+      if (worst === null || rank > words.indexOf(worst)) worst = check.verdict;
+    });
+    return worst;
   };
 
   // What a verdict is a verdict ABOUT. The projection derives it from the
@@ -317,14 +369,14 @@
     established: {
       loud: false,
       headline: function (x) {
-        return "export established: " + (VA.baseName(x.pdf) || "(names no file)");
+        return "Read from " + (VA.baseName(x.pdf) || "(the citation names no file)");
       },
     },
     unestablished: {
       loud: true,
       headline: function () {
-        return "EXPORT UNESTABLISHED — which file this value was read off cannot " +
-          "be identified";
+        return "FILE NOT IDENTIFIED — which file this value was read from " +
+          "cannot be established";
       },
     },
   };
@@ -334,8 +386,8 @@
   // been through yet. 26 of 48 live citations are here, and four of them are
   // `traced` — so this state is not a synonym for "untraced value" either.
   VA.NO_EXPORT_TEXT =
-    "no export block — this citation names no exported file, so nothing here " +
-    "identifies the bytes the value was read off";
+    "This citation names no file, so nothing here says which copy of the " +
+    "document the value was read from.";
 
   // --- identity_rule: the citation that names no export AND IS RIGHT NOT TO ---
   //
@@ -360,10 +412,10 @@
   // because that is what it is a sibling of — not an alarm.
   VA.IDENTITY_RULES = {
     spec_pile_filename: {
-      headline: "Spec-pile document: identity by filename (append-only pile)",
-      detail: "no export block is missing here — data/inbox/specs/ is " +
-        "append-only, so nothing is renamed or written over and the filename " +
-        "above IS the identity of the bytes",
+      headline: "A standard-spec document, identified by its filename",
+      detail: "nothing is missing here: the standard-spec library is only " +
+        "ever added to — never renamed, never written over — so the filename " +
+        "above IS which file this was read from",
     },
   };
 
@@ -374,9 +426,9 @@
   // views/stack.js (the compact row's chip, the only export fact still legible
   // there) and views/detail.js (the full block, moved out of the row).
   VA.EXPORT_CHIP_TEXT = {
-    unestablished: "EXPORT UNESTABLISHED",
-    unlabelled: "EXPORT STATUS UNKNOWN",
-    identity_unlabelled: "IDENTITY RULE UNKNOWN",
+    unestablished: "FILE NOT IDENTIFIED",
+    unlabelled: "FILE STATUS UNKNOWN",
+    identity_unlabelled: "SOURCE RULE UNKNOWN",
   };
 
   // An identity rule the viewer has never heard of. Same treatment as an
@@ -407,16 +459,23 @@
     return parts[parts.length - 1] || null;
   };
 
-  // Whether a sha256 is RECORDED, and its first 12 — never "verified". The
-  // viewer cannot hash a file, so the only honest claim it can make about an
-  // export's sha is that the stack wrote one down. The VERIFIED/NOT-VERIFIED
-  // language belongs to the crop hover, where a script really did compare bytes
-  // (VA.cropShaText).
+  // Whether a checksum is RECORDED — never "verified". The viewer cannot hash
+  // a file, so the only honest claim it can make is that the stack wrote one
+  // down. The VERIFIED/NOT-VERIFIED language belongs to the crop provenance,
+  // where a script really did compare bytes (VA.cropShaText).
+  //
+  // It said "sha256 recorded (a1b2c3d4e5f6…)" until 2026-09-15, twelve hex
+  // digits included. Jeff's standing web-copy rule retired both halves: the
+  // algorithm's name is an internal detail, and a truncated hash is not
+  // something a reader can do anything with. What a reader needs is the one
+  // fact — this file is pinned to its exact bytes, or it is identified by name
+  // only — and the digest itself is in the citation in the stack file for
+  // anyone checking it.
   VA.exportShaText = function (exportBlock) {
     var sha = exportBlock && exportBlock.sha256;
     return sha
-      ? "sha256 recorded (" + String(sha).slice(0, 12) + "…)"
-      : "NO sha256 recorded — the file is identified by name only";
+      ? "pinned to this exact file, by checksum"
+      : "NO checksum recorded — the file is identified by name only";
   };
 
   // The run ids out of `export.runs`, whose entries are `{run_id, ts}`. Runs are
@@ -612,12 +671,18 @@
   //   unresolvable  — the citation could not be pinned to a page, with a reason
   //   not-built     — crops.json is absent; nobody has run the crop script
   //   no-entry      — crops.json exists but says nothing about this element
-  //                   (it predates the element — i.e. it is stale)
+  //                   (it predates the element — i.e. it is out of date)
+  //
+  // The `reason` of each is RENDERED, on four surfaces, so it is written for a
+  // reader and not for whoever maintains the index: no artifact filename, no
+  // field name, and above all no command to type (2026-09-15, the standing
+  // web-copy rules). What the reader needs from these four is which of them
+  // applies; what to DO about it is the banner's, once, for the whole page.
   VA.cropFor = function (cropsIndex, stackId, elementId) {
     if (!cropsIndex) {
       return {
         status: "not-built",
-        reason: "the crop projection has not been built",
+        reason: "no drawing crops have been prepared yet.",
       };
     }
     var byStack = cropsIndex.by_stack || {};
@@ -625,8 +690,8 @@
     if (!entry) {
       return {
         status: "no-entry",
-        reason: "crops.json has no entry for this element — it is older than " +
-          "the stack; re-run the crop script",
+        reason: "the prepared crops are older than this stack and do not " +
+          "cover this element yet.",
       };
     }
     return entry;
@@ -651,7 +716,7 @@
     if (!cropKey) {
       return {
         status: "no-entry",
-        reason: "this edge carries no crop key — nothing addresses the crop index",
+        reason: "nothing addresses a drawing crop for this row.",
       };
     }
     if (cropKey.stack) {
@@ -660,15 +725,14 @@
     if (!cropKey.topology) {
       return {
         status: "unresolvable",
-        reason: "crop_key " + JSON.stringify(cropKey) + " is a shape this " +
-          "viewer has no branch for — scripts/build_topology_projection.py's " +
-          "crop_key and VA.cropForKey have drifted",
+        reason: "this row addresses a drawing crop in a way this page has no " +
+          "branch for: " + JSON.stringify(cropKey),
       };
     }
     if (!cropsIndex) {
       return {
         status: "not-built",
-        reason: "the crop projection has not been built",
+        reason: "no drawing crops have been prepared yet.",
       };
     }
     var byTopology = cropsIndex.by_topology || {};
@@ -676,8 +740,8 @@
     if (!entry) {
       return {
         status: "no-entry",
-        reason: "crops.json has no entry for this edge — it is older than " +
-          "the topology; re-run the crop script",
+        reason: "the prepared crops are older than this topology and do not " +
+          "cover this row yet.",
       };
     }
     return entry;
@@ -788,26 +852,58 @@
     return base + "/run/" + encodeURIComponent(cropEntry.run_dir);
   };
 
-  // A file:// URL for the source PDF. Works because the app itself is served
-  // from file://; from an http origin Chrome refuses the navigation, which is
-  // why the plain path is always rendered beside the link.
+  // A file:// URL for the source PDF. Pure string work — it says nothing about
+  // whether the link can be FOLLOWED; VA.localFileUrl below is the one callers
+  // want.
   VA.fileUrl = function (absPath) {
     if (!absPath) return null;
     var normalised = String(absPath).replace(/\\/g, "/");
     return "file:///" + normalised.replace(/^\/+/, "");
   };
 
+  // The link a view should render for a source PDF, or **null where this
+  // origin cannot follow one** — see VA.originOpensLocalFiles
+  // (storage/adapter.js) for the measurement and for why the answer turns on
+  // the origin rather than on the path. A view renders nothing at all in the
+  // null case: a dead control that looks live is worse than an absent one, and
+  // it is what Jeff hit on 2026-09-15.
+  //
+  // The protocol is read from the page when the caller does not name one, so a
+  // view keeps its one-argument call. A page with no `location` at all (the
+  // node fast tier's DOM shim) reads as "cannot follow", the same
+  // strictest-answer default VA.isLocalPage takes.
+  //
+  // It goes through this one function rather than reading `window.location`
+  // inline, and that indirection is the test seam: assigning to
+  // `location.protocol` in a real browser NAVIGATES the page, so a test
+  // driving the served case has to replace this instead. (tests.js runs in
+  // Chrome too, through test.html — the fast tier is not the only reader.)
+  VA.pageProtocol = function () {
+    return (typeof window !== "undefined" && window.location &&
+      window.location.protocol) || "";
+  };
+
+  VA.localFileUrl = function (absPath, protocol) {
+    var origin = protocol === undefined ? VA.pageProtocol() : protocol;
+    if (!VA.originOpensLocalFiles(origin)) return null;
+    return VA.fileUrl(absPath);
+  };
+
   // Whether the bytes that were cropped are the bytes the citation names. Three
   // states, and collapsing any two of them is the bug this file had: a crop of a
   // *guessed* export looks perfectly correct on screen, so "verified" is the one
-  // fact a hover cannot leave out. `false` and `null` are different answers —
-  // `false` is a rule that had a sha to check and could not, `null` is a rule
-  // with no sha available at all (the spec pile is append-only, so a filename is
-  // its identity).
+  // fact this line cannot leave out. `false` and `null` are different answers —
+  // `false` is a rule that had a checksum to check and could not, `null` is a
+  // rule with no checksum available at all (the spec pile is append-only, so a
+  // filename is its identity).
+  //
+  // "sha256" left the wording on 2026-09-15 (handoff viewer_component_names_
+  // and_reference_copy): the algorithm's name is an internal detail no reader
+  // of this page can act on, and the three claims read the same without it.
   VA.cropShaText = function (cropEntry) {
-    if (cropEntry.sha256_verified === true) return "sha256 VERIFIED";
-    if (cropEntry.sha256_verified === false) return "sha256 NOT verified";
-    return "no sha256 to verify";
+    if (cropEntry.sha256_verified === true) return "checked against the citation, byte for byte";
+    if (cropEntry.sha256_verified === false) return "NOT checked against the citation";
+    return "no checksum on record to check against";
   };
 
   // Every value `scripts/build_viewer_crops.py` can write into `resolved_by`,
@@ -899,9 +995,82 @@
         return "located by the unique match for " + JSON.stringify(e.needle);
       },
     },
+    balloon_view: {
+      text: function (e) {
+        // The strongest placement this index has: the item's own balloon,
+        // found on the page by the drawing's native geometry. Say which
+        // balloon, because "the right view" and "the right item in it" are two
+        // claims and the second is the one a reader is checking.
+        return "showing the view around balloon " + e.find_no +
+          (e.cited_zone ? ", with the cited zone " + e.cited_zone : "");
+      },
+    },
+    page_context: {
+      text: function (e) {
+        // The sheet's declared context with nothing highlighted: honest, and
+        // deliberately not dressed up as a match.
+        return "showing the declared page context " +
+          JSON.stringify(e.context_label || "(unnamed)") +
+          " — no declared region matched this citation";
+      },
+    },
     sheet_full: {
       text: function (e) { return e.note || "whole sheet"; },
     },
+  };
+
+  // What a box drawn over a crop CLAIMS. Paired against
+  // scripts/build_viewer_crops.py's HIGHLIGHT_KINDS by
+  // tests/test_js_python_vocabulary.py — a third kind arriving with no branch
+  // here would draw nothing at all, which reads as "nothing on this sheet was
+  // marked" rather than as a viewer that cannot tell.
+  //
+  // `solid` is the whole visual distinction and it is the point of there being
+  // two kinds: a solid box says the citation's own text or balloon was FOUND
+  // here; a dashed one says a human declared the rect, or the citation named
+  // this printed zone, and nothing on the page corroborated it. The same fact
+  // the provenance line has always spelled out in words ("the crop is the
+  // citation, not a match") — now carried by the picture, which is what a
+  // reader actually looks at.
+  VA.CROP_HIGHLIGHT_KINDS = {
+    verified_match: {
+      solid: true,
+      text: function (label) {
+        return label ? "found on the page: " + label : "found on the page";
+      },
+    },
+    declared_region: {
+      solid: false,
+      text: function (label) {
+        return (label ? label + " — " : "") +
+          "a declared region, not a match on the page";
+      },
+    },
+  };
+
+  // The boxes to draw over a crop (or over its companion image), always an
+  // array. An entry written before highlights existed carries none, which is
+  // the same rendering as a crop with nothing to mark — correctly: neither
+  // makes a claim about the page.
+  VA.cropHighlights = function (carrier) {
+    var boxes = carrier && carrier.highlights;
+    if (!boxes || !boxes.length) return [];
+    return boxes.filter(function (box) {
+      return box && box.frac && box.frac.length === 4;
+    });
+  };
+
+  // What the link into drawing-checker should SAY: the drawing's own number and
+  // revision, as the citation states them — "215197 rev A.1". Never "open run"
+  // and never a URL (Jeff's standing web-copy rule: no internal names in
+  // user-facing copy, and a run id is the most internal name in this repo).
+  // null when the entry does not carry both, so the caller keeps its old text
+  // rather than printing "undefined rev undefined".
+  VA.drawingLinkText = function (cropEntry) {
+    if (!cropEntry || !cropEntry.drawing_no || !cropEntry.drawing_revision) {
+      return null;
+    }
+    return cropEntry.drawing_no + " rev " + cropEntry.drawing_revision;
   };
 
   // What a crop resolved by a rule this viewer has never heard of must say. It
@@ -917,6 +1086,17 @@
   // for the same reason: a hover that quietly says nothing about where on the
   // sheet a crop was taken reads as "the whole sheet", which is a different
   // claim from "this viewer cannot tell you".
+  // The same, for a box drawn over a crop whose kind this viewer has no branch
+  // for. It still gets drawn -- a highlight the builder emitted is a rect
+  // somebody meant, and hiding it would hide the claim -- but it says out loud
+  // that whether the rect was FOUND or merely declared is not shown here,
+  // because those are the two very different things a box on a drawing can mean.
+  VA.unlabelledHighlightText = function (kind) {
+    return "highlighted as " + JSON.stringify(kind === undefined ? null : kind) +
+      ", a kind this viewer has no label for — whether this rect was found on " +
+      "the page or only declared is NOT shown here";
+  };
+
   VA.unlabelledPlacementText = function (locatedBy) {
     return "placed by " + JSON.stringify(locatedBy === undefined ? null : locatedBy) +
       ", a rule this viewer has no label for — WHERE on the sheet this crop " +

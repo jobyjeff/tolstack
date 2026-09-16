@@ -18,10 +18,12 @@
   <div id="banner" class="banner"></div>
 
   <main class="tv">
-    <!-- The one nav (viewer_v2_single_nav, 2026-09-08): every topology, its
-         studies as children, and every classic-only stack as a leaf of the
-         same tree -- see views/nav.js. The TOPOLOGY/STUDY <select> pickers and
-         the separate stack rail both retired into this one element. -->
+    <!-- The one nav (viewer_v2_single_nav, 2026-09-08): every topology with
+         its studies as children, and every stack no topology re-expresses as
+         a leaf of the same tree -- see views/nav.js, whose header carries why
+         a covered stack has no row of its own. The TOPOLOGY/STUDY <select>
+         pickers and the separate stack rail both retired into this one
+         element. -->
     <nav id="navtree" class="navtree"></nav>
     <div class="tv__main">
       <div id="toolbar" class="tv__toolbar"></div>
@@ -35,6 +37,16 @@
       <section id="stackview" class="stackview"></section>
       <section id="totals" class="tvtotals"></section>
     </div>
+    <!-- The preview pane's drag divider (Jeff, 2026-09-15: "the right preview
+         pane is resizable. It's too narrow"). Static markup, not rendered by a
+         view, because the pane serves BOTH modes and neither mode's renderer
+         owns it -- and because a re-render must not destroy the node a drag is
+         in progress on. The drag itself is topology_app.js's onResizeStart,
+         the same document-level pointer handler the column and jog-zone grips
+         already use; the arrow keys nudge it without a pointer. -->
+    <div id="detail-divider" class="tv__divider" role="separator"
+         aria-orientation="vertical" tabindex="0"
+         title="drag to resize the preview pane (or use the arrow keys)"></div>
     <aside id="detail" class="detail"></aside>
   </main>
   <div id="croppop" class="croppop"></div>
@@ -92,6 +104,21 @@
         parallel path binds is a mechanics question this tool does not answer and
         must not learn to — see <code>docs/DAG_TOPOLOGY.md</code>, "Not a
         solver".</li>
+      <li><b>Every study says whether it passes, and by how much.</b> The badge
+        on the nav rail and at the head of the totals is the verdict; the margin
+        beside it is how far the worst case is from the criterion, signed. A
+        study nobody has yet written a criterion for says exactly that rather
+        than staying blank. Where a badge is outlined in amber, a dimension the
+        joint needs is missing from the chain — the verdict is then true of the
+        model and not of the hardware, and what is missing is named underneath
+        it.</li>
+      <li><b>A loud badge is a number you should not trust yet.</b>
+        <b>unverified</b> means nothing readable stands behind it;
+        <b>no tolerance recorded</b> means the value is sourced but its
+        plus/minus is not, so every spread it feeds is a lower bound. Badges
+        appear on the row that earned them and again on the study that sums it.
+        <b>What's missing</b>, under the totals, is the same story for the whole
+        assembly, with what would close each gap.</li>
       <li><b>Selecting a study</b> highlights its chain, numbers each row with its
         place in the sum, prints each edge's own signed and scaled contribution,
         and puts the totals in the footer below. Every one of those numbers came

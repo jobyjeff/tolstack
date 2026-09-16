@@ -5,13 +5,69 @@
     "A topology edge's `part` (docs/DAG_TOPOLOGY.md's vocabulary, authored per-edge) and an installed mesh's provenance.json `part_id` (the tessellation run's own naming, data/meshes/README.md) are two namespaces with zero exact matches at 2026-09-10. This table is the one sanctioned bridge between them (strategy brief BRIEF_20260909_topology_part_vocabulary_mesh_mapping, option b: declared configuration, never fuzzy matching, never renaming installed meshes).",
     "Every entry asserts 'these two strings name the same physical part' and carries the evidence for that identity -- the mesh's own provenance.json, data/meshes/README.md, or a drawing number. A pair whose identity cannot be evidenced stays out of this table: the annotate app's 'no installed mesh' empty state is the honest answer, never a guessed match.",
     "Values map to a mesh's `part_id`, not its sha256, so a re-tessellated mesh installed under the same part identity keeps its aliases.",
+    "The eleven `asm217755_*` rows were added by handoff extracted_mesh_alias_rows (2026-09-15) against the piece-part meshes rotorkit's assembly_step_part_extraction (2026-09-14) extracted from `217755-001 A.1 PROPULSION ASSEMBLY, PROPELLER, CW Released.stp` and installed into data/meshes/. Each row is an exact drawing- or spec-number match on both sides, with the mesh side read off the live provenance.json at merge time rather than transcribed. Further topology part ids stayed OUT, as candidates rather than rows -- each needs a decision nothing in the STEP can settle: `tan_link_mount_215175_002` (the dash number differs), the two `spherical_bearing_*` ids (two topology ids, three installed MS141xx meshes, mapping undetermined), the two `flanged_bushing_*` ids (which NAS77 dash answers to which id is not in the STEP, and one of the two ids may be the wrong family entirely), and `gas_spring` (structural adjacency to PMF200521 only -- no drawing number, no dimension match). What each one needs decided is recorded in docs/sessions/lessons/LESSONS_20260915_extracted_mesh_alias_rows.md.",
     "Consumed by apps/annotate/commands.js `resolveMeshIdentifier` (exact match, consulted only after a direct sha256/part_id match misses) and, since handoff annotate_affordances_flyout_and_mesh_gating (2026-09-14), by scripts/build_topology_projection.py `resolve_mesh` -- the same precedence in Python, so the topology projection can stamp per-part mesh availability for the viewer to gate its 3D affordances on. Paired against both live vocabularies by tests/test_part_mesh_aliases.py and apps/annotate/run_tests.cjs's [real] tier."
   ],
   "aliases": [
     {
       "topology_part": "gas_spring_mount_213668_002",
       "mesh_part_id": "machined_213668",
-      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_system.json's part carries drawing 213668-002 rev A.1, name 'MOUNT, GAS SPRING, PROPELLER 213668-002'; the mesh's own provenance.json (data/meshes/6d5b1321446d54cd713da0739f7821c5266b3d6898ad047465e30003e7f549cf/provenance.json) records source STEP '213668-002_2026-07-23_Released.stp' with label '213668-002 MOUNT, GAS SPRING (single solid)'. Both name drawing 213668-002's gas-spring mount."
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_system.json's part carries drawing 213668-002 rev A.1, name '213668-002 gas-spring mount'; the mesh's own provenance.json (data/meshes/6d5b1321446d54cd713da0739f7821c5266b3d6898ad047465e30003e7f549cf/provenance.json) records source STEP '213668-002_2026-07-23_Released.stp' with label '213668-002 MOUNT, GAS SPRING (single solid)'. Both name drawing 213668-002's gas-spring mount."
+    },
+    {
+      "topology_part": "pitch_plate_215177_001",
+      "mesh_part_id": "asm217755_215177_001",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_system.json's part carries drawing 215177-001, name '215177-001 pitch plate'; the mesh's provenance.json (data/meshes/365deebccbc4b3c56d82436702e9ddcea431d5d45ac8892c6459afc98a7b0551/provenance.json) records product_name '215177-001' at XCAF label 0:1:1:1458 of '217755-001 A.1 PROPULSION ASSEMBLY, PROPELLER, CW Released.stp'. NOTE what this mesh is: 215177-001 is an INSTALLATION in that assembly, so the mesh is the plate plus its 9 NAS77 bushings (10 solids, product_is_assembly true). Its one machined detail is installed separately as `asm217755_215735_001`; manifest.json's per-face solid_id already lets a reader address the plate alone inside this mesh, and a consumer that would rather have the bare plate should re-point this row at the detail explicitly rather than reinterpret this one."
+    },
+    {
+      "topology_part": "bushing_214820_002",
+      "mesh_part_id": "asm217755_214820_002",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_link_to_pitch_plate.json's part carries drawing 214820-002, name '214820-002 plain bushing'; the mesh's provenance.json (data/meshes/ddf99082401970b320580bfc07d463fe1025a92710d95ab70e1bc36a8b92b02e/provenance.json) records product_name '214820-002' at XCAF label 0:1:1:1463 of the 217755-001 A.1 assembly -- one solid, 8 instances, which matches the topology part's own 'Balloon 8X in DETAIL B' note."
+    },
+    {
+      "topology_part": "straight_bushing_214820_002",
+      "mesh_part_id": "asm217755_214820_002",
+      "evidence": "Same drawing number on both sides, resolving to the same product label as `bushing_214820_002` above -- two topology ids for one physical part in two different joints, which is what this table's one-part-many-ids shape is for. docs/topologies/topology_tan_link_to_pitch_plate_take2.json's part carries drawing 214820-002 (balloon find 34 in 217755 sheet 4 DETAIL B); the mesh is data/meshes/ddf99082401970b320580bfc07d463fe1025a92710d95ab70e1bc36a8b92b02e, product_name '214820-002'."
+    },
+    {
+      "topology_part": "plain_bushing_214943_002",
+      "mesh_part_id": "asm217755_214943_002",
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_output_to_pitch_plate.json's part carries drawing 214943-002, name '214943-002 plain bushing'; the mesh's provenance.json (data/meshes/7b30dea1c26934aa7526c4d79afd68481a1b051139e3ad5f4ef15d073e52818d/provenance.json) records product_name '214943-002' at XCAF label 0:1:1:1441 of the 217755-001 A.1 assembly, one solid."
+    },
+    {
+      "topology_part": "bolt_nas6403u11d",
+      "mesh_part_id": "asm217755_NAS6403U11D",
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_pitch_link_to_pitch_plate.json's part is named 'NAS6403U11D hex-head bolt' (NAS6403-NAS6420 Rev 4); the mesh's provenance.json (data/meshes/85a7c4e39ef62a76d4021782283fcd31573c31c94a14062f8dd6d14bf9e48b1c/provenance.json) records product_name 'NAS6403U11D' at XCAF label 0:1:1:1466 of the 217755-001 A.1 assembly, one solid, 5 instances."
+    },
+    {
+      "topology_part": "bolt_nas6403u13h",
+      "mesh_part_id": "asm217755_NAS6403U13H",
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_tan_link_to_pitch_plate_take2.json's part is named 'NAS6403U13H bolt, .1900-32, .812 grip' (NAS6403-NAS6420 Rev 4 sheet 3 dash 13); the mesh's provenance.json (data/meshes/2dbf77aff79769a7b987e7a852173fbbe42749242e2775751d9a7d27421db5aa/provenance.json) records product_name 'NAS6403U13H' at XCAF label 0:1:1:1451 of the 217755-001 A.1 assembly, one solid, 3 instances."
+    },
+    {
+      "topology_part": "bolt_nas6404u13d",
+      "mesh_part_id": "asm217755_NAS6404U13D",
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_vpa_output_to_pitch_plate.json's part is named 'NAS6404U13D bolt, .2500-28, .812 grip' (balloon 27 in 217755 sheet 5 DETAIL X); the mesh's provenance.json (data/meshes/aaf6260b234fe5940c106d5a110b2e3ff3701d6de9f5504332ec24bb616a7bde/provenance.json) records product_name 'NAS6404U13D' at XCAF label 0:1:1:1440 of the 217755-001 A.1 assembly. Corroborated structurally by that same provenance's instance_path: the single NAS6404U13D instance sits inside 'P2-214943.1' alongside 214943-002 and MS21299C4K -- exactly the joint this topology models."
+    },
+    {
+      "topology_part": "washer_ms21299c3",
+      "mesh_part_id": "asm217755_MS21299C3",
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_rotor_fastener_length.json's part is named 'MS21299C3 washer, countersunk, .063 in, under the bolt head' (SECTION T-T, find 60); the mesh's provenance.json (data/meshes/70ef2db04b1e5424622751cff5a72433ab2ca1ac60f1de20087f9e852d22fdd5/provenance.json) records product_name 'MS21299C3' at XCAF label 0:1:1:1507 of the 217755-001 A.1 assembly, one solid."
+    },
+    {
+      "topology_part": "washer_ms21299c4k",
+      "mesh_part_id": "asm217755_MS21299C4K",
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_vpa_output_to_pitch_plate.json's part is named 'MS21299C4K washer, countersunk, 17-4PH' (balloon 29 in 217755 sheet 5 DETAIL X); the mesh's provenance.json (data/meshes/e13d2e96a250b6233f25be01acd8fab2881b0bbd0043afb0f2b1b080ee528186/provenance.json) records product_name 'MS21299C4K' at XCAF label 0:1:1:193 of the 217755-001 A.1 assembly, one solid, 11 instances."
+    },
+    {
+      "topology_part": "washer_nas1149v0332h",
+      "mesh_part_id": "asm217755_NAS1149V0332H",
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_pitch_link_to_pitch_plate.json's part is named 'NAS1149V0332H washer, flat, 6Al-4V, .203 x .438 x .032 in' (balloon 8X in DETAIL B, find 32); the mesh's provenance.json (data/meshes/9f3a169037fead27d5d37112a17265ea2d60f57d26828f8992ff694af8c85f6c/provenance.json) records product_name 'NAS1149V0332H' at XCAF label 0:1:1:198 of the 217755-001 A.1 assembly, one solid, 29 instances."
+    },
+    {
+      "topology_part": "washer_nas1149v0332_tt",
+      "mesh_part_id": "asm217755_NAS1149V0332H",
+      "evidence": "Same spec number, resolving to the same product label as `washer_nas1149v0332h` above -- one physical part, a second topology id for a different application. docs/topologies/topology_rotor_fastener_length.json's part is named 'NAS1149V0332H washer, flat, 6Al-4V, .032 in, rotor balance-mass bolt' (find 32, zone K4, SECTION T-T); the mesh is data/meshes/9f3a169037fead27d5d37112a17265ea2d60f57d26828f8992ff694af8c85f6c, product_name 'NAS1149V0332H', which that provenance records at 29 instances across the assembly -- enough for both applications."
     }
   ]
 }

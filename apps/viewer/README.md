@@ -2,12 +2,12 @@
 
 **Review a stack or a topology without opening a `.json`.** One page,
 `topology.html`, one left-rail nav tree: every topology with its studies as
-children, and every stack as a leaf — a classic-only stack (most of them; a
-topology is extra authoring, not a free side effect of having a stack) at the
-top level, the one stack a topology also re-expresses nested under that
-topology instead. Picking a topology or a study draws the rail diagram + grid;
-picking a stack renders the classic elements table — folds, checks with
-verdicts, notes and gaps, coloured by where each value came from. Either way,
+children, and every stack no topology re-expresses as a leaf beside them.
+**One system, one entry** — a stack a topology *does* re-express is offered as
+that topology and nowhere else, because the graph states everything the table
+did. Picking a topology or a study draws the rail diagram + grid; picking a
+leaf renders the elements table — folds, checks with verdicts, notes and gaps,
+coloured by where each value came from. Either way,
 clicking a row opens its full sourcing (citation, export provenance, drawing
 crop) in the pane on the right, and every crop-bearing row also carries a
 hover/click thumbnail trigger right there in the grid.
@@ -125,8 +125,8 @@ tree instead*, or merge it in here first. `--allow-older-tree` overrides it,
 loudly, for the one legitimate case — a deliberate rebuild from an older tree.
 
 No folder grant handy? `topology.html?mock=1` renders a seeded demo — a
-mechanism plus the nav tree's own demo classic-only stack — that exercises
-every provenance state. Nothing touches disk.
+mechanism plus a demo stack no topology re-expresses — that exercises every
+provenance state. Nothing touches disk.
 
 ## Deep links in — the URL contract
 
@@ -143,10 +143,10 @@ semantics change as **breaking**, and change this section with it.
 | param | opens |
 |---|---|
 | `topology=<id>` | topology mode, that topology |
-| `study=<id>` | …with that study selected (chain highlighted, totals in the strip). Requires `topology`. |
+| `study=<id>` | …with that study emphasized on the walk (chain lit, the rest dimmed, the grid on the chain's rows, totals in the strip). Requires `topology`. |
 | `edge=<id>` | …with that edge selected in the detail pane. Requires `topology`. |
 | `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
-| `stack=<id>` | stack mode — the classic elements table — on that stack |
+| `stack=<id>` | stack mode — the elements table — on that stack. Resolves against the projection, not the nav, so it still reaches a stack a topology re-expresses (which has no row of its own). |
 | `element=<id>` | …with that element's row selected and its sourcing in the right pane. Requires `stack`. |
 
 The rules a consumer can rely on:
@@ -241,12 +241,15 @@ carriers).
   crop-bearing row gets no thumbnail and no slot — the component card's rule,
   unchanged. There is never a crop *of the interface itself*: an interface is
   a location, not a value, and the card says so. **The preview pane the same
-  dot's click fills names the same derived sides** (`VA.nodeSideIds`, the id
-  form of the one adjacency) — it printed the authored `parts` list until
-  handoff `surfaces_that_state_something_false`, which is 10 of the 46 live
-  nodes answering differently hovered and clicked.
+  dot's click fills names the same derived sides** — and, since 2026-09-15,
+  names them the same WAY: `VA.nodeSideLabels` returns the part's own
+  `VA.componentLabel` text, so there is one label style where there were two
+  (ids in the pane, names on the card) and the two can no longer read
+  differently about the same interface. The pane printed the authored `parts`
+  list until handoff `surfaces_that_state_something_false`, which is 17 of the
+  48 live nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
-  topology grid's chips cell and the classic elements table's sourcing cell).
+  topology grid's chips cell and the elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
   full, the export/identity block (`VA.exportBlockNode`, the same builder the
   right pane uses, run links included) and the crop of the cited sheet where
@@ -256,8 +259,10 @@ Outbound deep links from cards: the drawing-checker **run** page wherever a
 crop resolved through a run (`/run/<run_dir>`, `VA.runUrl` — the immutable
 per-version URL; the evergreen `/container/<id>` needs a container id nothing
 in the projections carries yet, a recorded gap), the source PDF as `file://`
-link + copyable path (for a spec-pile crop that path IS the spec pile), and
-the annotator (`../annotate/index.html?…`, the existing relative shape).
+link — **only on a `file://` origin**, where a `file:` navigation can actually
+happen (see "Open the PDF only renders where the origin can follow it" below;
+the copyable path that used to sit beside it is gone) — and the annotator
+(`../annotate/index.html?…`, the existing relative shape).
 
 ### The stale-pair alarm never prints a command (`viewer_rebuild_affordance`)
 
@@ -297,42 +302,59 @@ projection.
 
 The left rail (`#navtree`, `views/nav.js`) is a single tree, not a picker plus
 a separate stack rail: every topology lists its studies as children, and every
-stack is a leaf. Clicking a topology or a study draws the rail diagram + grid
-(topology mode); clicking a stack switches the centre pane to the classic
-elements/paths/checks/gaps view (`views/stack.js`, stack mode) instead. The
-active node is the one thing driving the page — there is no second "which mode
-am I in" state to keep in sync with it.
+stack no topology re-expresses is a leaf beside them. Clicking a topology or a
+study draws the rail diagram + grid (topology mode); clicking a leaf switches
+the centre pane to the elements/paths/checks/gaps view (`views/stack.js`, stack
+mode) instead. The active node is the one thing driving the page — there is no
+second "which mode am I in" state to keep in sync with it.
 
-Most stacks have no topology re-expressing them — a topology is extra
-authoring for a mechanism-shaped question, not a free side effect of having a
-stack, and today only `stack_vpa_output_to_pitch_plate.json` does
-(`topology_vpa_output_to_pitch_plate.json`, the L1 proof). Those classic-only
-stacks are top-level leaves of the tree; the one stack a topology also
-re-expresses is nested as a child of that topology instead, alongside its
-studies, rather than being a second top-level leaf — but it is still there,
-one click under the topology it also is, and not merged into or hidden by it:
-its own authored `checks` block (a worst-case verdict against a criterion) has
-no field in the topology projection at all — DAG_TOPOLOGY.md's L1 proof
-compares *totals*, never a verdict — so making it unreachable would drop that
-check off the page entirely. `VA.navTree` (`topology.js`) computes which stack
-that is by reading the linkage already on hand — an edge that re-expresses a
-stack element carries `crop_key: {stack, element}`, and that IS the "this
-stack has a topology" fact, so nothing new is authored to say so.
+A topology is extra authoring for a mechanism-shaped question, not a free side
+effect of having a stack, so some stacks have one and some do not — and what
+the rail offers is **one entry per system either way**. A stack a topology
+re-expresses has no row: it is the same joint in another notation, and the
+graph states every verdict, gap, excluded term and missing tolerance the table
+stated (`tests/test_topology_conversions.py` pins that claim document by
+document, so it fails rather than a reader quietly losing a gap list). A stack
+*superseded* by a later take has no row either — `VA.SUPERSEDED_STACKS`
+(`topology.js`) names the take that replaced it, and the same test checks both
+documents really exist; the JSON is never deleted, it just stops being a rail
+entry. Which stacks are re-expressed is read off the linkage already on hand:
+an edge that re-expresses a stack element carries
+`crop_key: {stack, element}`, and that IS the "this stack has a topology" fact,
+so nothing new is authored to say so (`VA.navTree`, `topology.js`).
+
+> **History:** until 2026-09-15 a re-expressed stack *was* offered, nested
+> under its topology behind a "classic view" chip, because a study's own
+> `checks` had no field in the topology projection and a verdict was reachable
+> *only* through that nested table. The field landed on 2026-09-09
+> (`topology_projection_emits_study_checks`) and the DAG page rendered it on
+> 2026-09-15 (`viewer_study_verdicts_and_gaps`), leaving a second entry for the
+> same joint with no argument behind it — and a wedge behind the click, which
+> is what Jeff's review of that day reported. Handoff
+> `viewer_nav_wedge_and_classic_retirement` removed the row and contained the
+> wedge.
+
+**No click can leave the page without a repaint.** Each of the three handlers
+(`onNavTopology` / `onNavStudy` / `onNavStack`, `topology_app.js`) moves the
+state and then awaits a worksheet read, and all three go through `navigate()`:
+on a failed read the banner says so and the page still paints the node that was
+clicked; on a read that works the banner a previous failure wrote is retired.
+Before that, a rejected read reached no paint at all — the rail's highlight
+never moved and the only way out was F5.
 
 ## The topology mode
 
 The third archetype's surface — read `docs/DAG_TOPOLOGY.md` first; this section
 is only about how it is drawn. A topology or a study, picked from the nav tree
-("The one nav" above), draws this; a stack picked from the same tree (most
-stacks — no topology re-expresses them) switches to the classic elements table
-instead. Building it:
+("The one nav" above), draws this; a leaf picked from the same tree (a stack
+no topology re-expresses) switches to the elements table instead. Building it:
 
 ```powershell
 venv-win\Scripts\python.exe scripts\build_topology_projection.py
 ```
 
 Then reload the page. (`topology.html?mock=1` runs a demo mechanism with no
-disk access, exactly like the classic view's own demo.)
+disk access, exactly like the stack view's own demo.)
 
 ### The row model: edge rows, merged components, and leader lines
 
@@ -373,8 +395,8 @@ The grid itself is a real `<table>` (since 2026-09-04, handoff
 look like one — a rectangular selection of it pastes into Excel as columns, cell
 for cell, which only genuine table markup does. The values are `nominal` /
 `min` / `max`, three columns, printed exactly as transcribed (`VA.fmt`: no
-`toFixed`, no band derived from the limits — the same rule the classic elements
-table follows). Column widths live on a shared `<colgroup>`
+`toFixed`, no band derived from the limits — the same rule the elements table
+follows). Column widths live on a shared `<colgroup>`
 (`views/topology.js`'s `COLUMNS`), one array driving both the head table and the
 body table so the two cannot silently disagree about how wide a column is.
 
@@ -389,7 +411,7 @@ topology's id can equal a stack's, so the spaces cannot merge — the real
 is fetched (`ensureThumbImages`, topology_app.js) the trigger *is* the
 thumbnail, the actual crop of the tolerance annotation inline on the row;
 before that, or for a crop that cannot resolve, it is the same stateful text
-button the classic elements table has always had. Hover, focus or click opens
+button the elements table has always had. Hover, focus or click opens
 the **edge hover card** ("Hover reference cards" above) — the crop body plus
 the citation line and the deep links out. An edge with no `crop_key` — a
 workbook/assumed inline dimension, or a derived gap — gets nothing at all,
@@ -419,7 +441,7 @@ the mirror is a bijection, so rail continuity, column reuse and the
 one-dashed-curve-per-cycle invariant all survive it untouched. What it buys is
 the leaders: the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the five
-committed topologies, leader-vs-rail crossings went **92 → 43**, four of the
+committed topologies, leader-vs-rail crossings went **96 → 43**, four of the
 five to zero; on `pitch_system` its eight spine leaders went 43 → 0 (the
 mechanism's own branch leaders pick some up in exchange, which is why that one
 topology's total only moves 47 → 43).
@@ -450,8 +472,9 @@ Three shapes come out of it, and all three are in the projection:
 The L1 grip stack draws as **two rails that rejoin**, not one, and that is the
 truth about it: every interface has exactly two edges — the five clamped members
 in series, the bolt's grip running parallel to them, and the derived `shank_out`
-gap closing the ring. The single-rail case is its *study*, which is what
-"Showing: study chain" draws.
+gap closing the ring. Its *study* is a single chain through that ring, and the
+page shows that by lighting the chain on the two rails rather than by redrawing
+them as one — see "Selecting a study emphasizes the walk" below.
 
 ### The colours: there is no lane palette, and that is deliberate
 
@@ -476,7 +499,24 @@ has twelve parts, which is past any categorical palette's cap regardless. So:
 * the selected study's path is the accent, and that is a binary, so it needs no
   palette.
 
-Part identity is carried as text, on the row and in the preview pane.
+Part identity is carried as text, on the row and in the preview pane -- as
+the part's **name**, never its id. It printed the id until 2026-09-15, with the
+name demoted to hover, because a live part name ran to eighty characters and
+would not fit a 150px cell; Jeff read the result and said what it was: *"2nd
+line `bolt_nas6403u11d` appears to be some type of internal id that is
+meaningless to user. Actually just realized this is what's used in the main
+table -- replace these with a concise human friendly name (NAS6403U11D Shoulder
+Bolt is fine)."* Every part `name` in `docs/topologies/` is a short noun phrase
+now (`VA.componentLabel`), with what it shed demoted into `note`, and an id is
+rendered nowhere a reader reads: not the merged cell, not a pane heading, not a
+card heading, not an interface's side list. It rides a heading's hover title,
+which is where a deep link or a debugging session can still reach it.
+
+Guarded from both sides, because the strings live in two places: the documents
+by `tests/test_topology_prose_for_a_reader.py` (which also pins the four
+pitch-link names by value) and the rendering by two banned-string walks in
+`apps/viewer/tests.js` -- one over the fixture, one over every live topology's
+grid, preview panes and hover cards.
 
 ### Reading the leaders: bands, two styles, and two widths you can drag
 
@@ -522,30 +562,85 @@ measured in every combination of them.
   a second source would come apart on the first drag). Widening is the only
   relief valve on offer: cell content still clips rather than wrapping, because
   a `<tr>`'s height is a floor and not a cap.
-* **The element label drops its own component's name** where it repeats it —
-  under component `blade_root`, rows that all read "blade-root clocking holes
-  to th…" now read "clocking holes to the …". Display only: the full label is
-  the cell's hover text and is what the preview pane prints. A label that does
-  not open with its component's name, or that *is* its component's name, renders
-  unchanged.
+* **The element label drops whatever the rest of the row already says.** Two
+  reductions, both of them *one fact said once per row*
+  (`VA.elementDisplayLabel`): the component cell's own words come off the front
+  — under component `blade_root`, rows that all read "blade-root clocking holes
+  to th…" now read "clocking holes to the …" — and a whole **clause** that only
+  restates the component or the row's own value is dropped with its separator,
+  so "fastener grip, NAS6403U11D (.688 in)" reads *fastener grip* beside a cell
+  saying "NAS6403U11D hex-head bolt" and three number columns. Jeff's own
+  example: *"the element column can just say 'grip length' (for the bolt) or
+  'length' for the plain bushing. The component's description and part number
+  don't need to be repeated in every column."*
 
-Neither resize persists across a reload, which is the same answer density and
-the length modes give — the page is opened from `file://` as often as it is
-served, and one preference that outlived a reload while four others did not
-would be the surprise.
+  Display only, and never a rewrite: every character of the output is a
+  character of the input in the input's order (pinned by walking the two,
+  on the fixture and on every live row), the full label is the cell's hover
+  text, and the preview pane prints it whole. A label with nothing to drop
+  comes back unchanged; one that is *only* its component's words keeps them,
+  because a blank cell would be a worse lie than a repetitive one. Whether the
+  authored `name` fields should themselves be shortened is a separate,
+  undecided authoring question
+  (`docs/issues/ISSUE_20260914_element_and_edge_names_are_not_under_the_title_rule.md`).
+
+**The preview pane on the right is draggable too, and it is the one preference
+on this page that survives a reload.** A full-height divider on its left edge
+(`#detail-divider`), dragged or nudged with the arrow keys, clamped by
+`VA.TOPO_PANE_WIDTH`, remembered in `localStorage` under one key
+(`VA.PANE_WIDTH_KEY`).
+
+Its **default** width did not change, and that is a measured decision rather
+than a reading of the ask. It went to 560px with the drag and came straight
+back: the centre pane is then 133px narrower, the grid's content overflows it
+horizontally either way (fixed-width head table, no inner scrollport by
+design), and a widened jog zone put its own drag grip *underneath* the preview
+pane, where a pointer reaches the pane and not the grip. The browser tier
+caught it on `pitch_system` at 1600px wide. A reader can still reach that state
+by dragging this pane open, so the interaction is filed rather than papered
+over: `docs/issues/ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md`.
+
+The other four preferences (density, the two leader settings, the jog zone's
+width) still do **not** persist, and that asymmetry is deliberate rather than
+an oversight. They are ways of reading the *diagram*, and a stored pixel width
+for a jog zone crushes one topology's lanes while barely moving another's; a
+pane width is a property of the window, means the same thing on every topology
+and in both modes, and is the one Jeff noticed was wrong. Every access is
+wrapped either way — a `file://` page's `localStorage` is per-path at best and
+throws outright in some configurations, and a preference is never worth a
+crash.
 
 ### Studies
 
-Picking a study **re-spines the page onto that study's chain**: the rows become
-`StudyResult.chain` — one rail, right-justified, in the order the sum runs —
-each numbered with its place in that sum, with its own signed and scaled
-contribution printed and the totals at the bottom. "Showing: whole topology"
-puts the walk back, with the chain highlighted on it and everything else
-dimmed; a study that refuses to sum has no chain to lay out and stays on the
-walk, which is the same condition that button disables itself for.
+Picking a study **emphasizes its chain on the walk**. The DAG does not change
+shape: every node and every edge of the document stays on screen, the chain's
+bars and dots light, the rest dim, and a **leader is drawn only where it points
+at a chain node** — so the part boundaries the study does not cross simply have
+no line, which is the loudest of the three signals. The grid beside it drops to
+the chain's own rows, in **walk order**, each numbered with its place in the sum
+(`#`), with its signed and scaled contribution printed and the totals at the
+bottom. A study that refuses to sum has no chain, so it leaves the walk at full
+emphasis — the error is the result.
 
-The re-spine is **animated** — see "Selecting a study re-spines the DAG"
-below.
+There is **no layout toggle**, and there is no second layout for it to pick.
+Until 2026-09-15 selecting a study swapped the DAG for `StudyResult.chain` laid
+out on its own — one rail, in the order the sum runs — with "Showing: whole
+topology" to put the walk back. Jeff, reviewing it: *"When you click a
+study/stack, the entire dag/model should still be visible. It should be fairly
+obvious that there are no leader lines pointing to certain elements."* And the
+report was about **inconsistency** as much as about hiding: two of
+`pitch_link_to_pitch_plate`'s studies dropped rows while the third's chain
+covered nearly everything, so the same control read as three different
+behaviours. One layout, varying emphasis, is the answer to both.
+
+`study.layout` is still in the projection and still built by
+`scripts/build_topology_projection.py` — nothing about the data changed, only
+which serialisation this page draws. The viewer no longer reads it; the
+respine's own column machinery is now exercised against it synthetically (see
+below).
+
+The change of emphasis is **animated** — see "Selecting a study re-spines the
+DAG" below.
 
 **A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,
 `BrokenChain`, `CycleDetected` and `UnitMismatch` each render as a block carrying
@@ -563,15 +658,57 @@ pair `crops.json`'s `by_stack` is keyed by. An **inline** edge with a croppable
 citation gets a `{topology, edge}` key into the separate `by_topology` space
 instead (see "The row model" above for why the two spaces cannot merge). The
 pane runs either through `VA.cropForKey`, so the resolved / unresolvable /
-not-built / stale-index quartet is unchanged, and `VA.cropKeyText` states which
-claim the key is making — "this edge IS that stack element" vs "the crop is of
-this edge's own citation".
+not-built / stale-index quartet is unchanged. Which of the two spaces answered
+is **not** rendered: `VA.cropKeyText` states the claim ("this edge IS that
+stack element" vs "the crop is of this edge's own citation") and printed it
+above the picture until 2026-09-15, in the ids of a stack and an element —
+internal plumbing, in internal ids, over an image that names its own document
+on the line below. It is still the string a test reads.
 
 An edge with no key is **not** a stale index and must not read like one. It says
 which of the two it is: a workbook/assumed dimension (no croppable document
 behind it) or a derived gap (no value to cite). A citation of kind
 `assumed` says outright that there is no document behind it to crop — which is
 much of the pitch system.
+
+### Every crop says where on it to look, and how sure that is
+
+(`viewer_reference_crops_in_context`, 2026-09-15.) A crop used to be the whole
+answer: the rect was the claim, and a rect too tight to read was indistinguishable
+from a rect that was wrong. Each crop now comes with the **boxes worth looking
+at**, and each surface that shows a crop draws them over the picture — the
+popover, the hover cards and both preview panes, through one builder
+(`VA.cropFigure`).
+
+Two kinds, and the difference is the point:
+
+- **solid** — the citation's own callout text, or the balloon carrying its find
+  number, was *found* at this rect on this page;
+- **dashed** — somebody *declared* this rect (a spec-sheet crop region), or the
+  citation named this printed zone and nothing on the page corroborated it.
+
+That second one is a real state and a common one: a parts-list nomenclature is
+cited at a balloon and printed on the parts-list sheet, so its zone never
+corroborates. It used to be a clause in the folded provenance line; it is now
+the border style of the box, because the picture is what a reader looks at.
+
+The overlay is DOM, positioned in **percentages** of the image (`crops.json`
+carries each box as a fraction of the crop as well as in PDF points), not pixels
+burnt into the PNG: one crop is laid out at four different widths across this
+page, and pixels are right at one of them. A surface that wants to cap a crop's
+height caps its **width** instead, off the `--crop-ratio` the builder sets — an
+`object-fit: contain` image is inset inside its element, and a percentage
+overlay would then point into the letterbox.
+
+Two things a crop can also carry:
+
+- **a second image.** A crop framed on a balloon shows a number in a circle, so
+  it comes with the **parts-list row** for that item — find number, part number,
+  nomenclature, quantity — with the part number boxed.
+- **a link called by the drawing.** Where the crop resolved through a
+  drawing-checker run, the click-through reads *"215197 rev A.1"*, not "open
+  run": a run is an internal artifact, and its id told a reader nothing about
+  which drawing they were about to open.
 
 ### Row/leader correspondence is the claim, so it is measured
 
@@ -735,7 +872,7 @@ The toolbar's fourth button (`#edge-length-toggle`, `state.edgeLengthMode`,
 `VA.EDGE_LENGTH_MODES` in `topology.js`) cycles how much vertical extent a
 dimension bar gets:
 
-* **uniform** — the default and the classic rendering: every slot is one
+* **uniform** — the default, and the original rendering: every slot is one
   `rowHeight`.
 * **tolerance width** — a bar's length ∝ its dimension's band (`max − min`,
   falling back to `2 × plus_minus` where min/max are absent).
@@ -825,12 +962,29 @@ ever re-renders (no scroll rewind).
 ### Selecting a study re-spines the DAG, and that is a movement
 
 Jeff, on the shipped arcs: *"I asked for this before (including smooth
-animation when the dag rearranges itself)."* So the three controls that change
-**which serialisation** is on screen — picking a study in the nav, dropping it
-again, and the toolbar's own layout toggle — render the pane as a transition
-rather than a repaint. Nothing else does: density, length mode, leader style
-and the two drag widths all change how the *same* rows are drawn, and have
-always been a plain render.
+animation when the dag rearranges itself)."* So the two clicks that change
+**which serialisation** is on screen — picking a study in the nav and dropping
+it again — render the pane as a transition rather than a repaint. Nothing else
+does: density, length mode, leader style and the two drag widths all change how
+the *same* rows are drawn, and have always been a plain render. (There used to
+be a third: the toolbar's layout toggle, retired with the second layout it
+picked between.)
+
+**What actually moves, since the walk stopped being swapped out.** The rails do
+not: both frames are the same walk, so every column, every rail and every dot's
+`y` is identical on the two sides and `VA.respineX` returns a zero column
+shift. What is left is real, and measured per study on the live corpus. Taking
+`pitch_system`'s `gas_spring_branch`:
+
+* the **jog zone narrows** as leaders drop, and the pane width with it — the
+  pane goes **316 → 250px**;
+* the **grid block travels**, because a shorter table re-centres against a DAG
+  of unchanged height — `gridOffset` goes **299 → 143px**;
+* the grid **cross-fades** between two different row sets, as it always did.
+
+Every committed study moves at least one of those, which the `[real]` tier
+asserts study by study — a quarter-second of nothing would be worse than no
+animation at all.
 
 `VA.tweenPositions(from, to, e)` interpolates one position store into another
 and hands the result to the two geometry passes unchanged, which is why there
@@ -856,14 +1010,44 @@ things are worth knowing about it:
   needs **1**), and a rail belongs to a *column* rather than to an element, so
   there is nothing to pair the two frames' rails on. What the two frames do
   agree about is **depth from the spine** — both are right-justified, so the
-  mainline is the last column of either — so `VA.respineX` interpolates the
-  **column count** and the **pane width**, and both geometry passes draw the
+  mainline is the last column of either — so `VA.respineX` pairs a column *by
+  depth* and `VA.drawnColumn` interpolates its drawn index between the two
+  frames' own, alongside the **pane width**; both geometry passes draw the
   frame from those. A surviving rail starts exactly where the outgoing frame
-  drew it; a column the respine *adds* unfolds out of the spine rather than
-  arriving from a place it never was. The SVG is drawn at the interpolated
-  width, which is the grid's own left edge, so the table beside it and the
-  header padded to sit over it follow without either learning that a
-  transition exists — **nothing is slid as a block.**
+  drew it; a column the respine *adds* unfolds out of **the outgoing frame's
+  leftmost rail** rather than arriving from a place it never was.
+
+  That last qualifier is load-bearing, and getting it wrong is what the first
+  cut did: it collapsed an added column onto drawn index **0**, which every
+  *settled* frame has a rail at and a frame caught mid-unfold does not.
+  Interrupting a select at `e = 0.5` — a 10-column walk half way into a
+  1-column chain, the real `pitch_system`'s own gap — left one rail drawn at
+  x = 105 with nothing to its left, and the deselect's first frame popped nine
+  rails in at x = 15…85. The spine and the pane width were continuous across
+  that, which is why the guard on those two numbers never saw it. So the
+  outgoing frame now records the **leftmost** index it drew as well as the
+  spine's, and the unfold holds from a transition frame and not only from a
+  settled one;
+* **a link is the one drawn thing that unfold does NOT cover, so it carries an
+  opacity of its own.** A rail belongs to a column, and every column *both*
+  serialisations have has a rail on both sides — so the only rails a respine
+  can add are exactly the ones the unfold draws on top of a rail already
+  there. A link belongs to a *pair* of columns, and two serialisations can
+  differ by a link on columns they **share**: a loop closure present in one
+  and not the other arrives on rails that never move, with nothing to hide
+  behind. `VA.linkOpacity` fades it in, keyed by `VA.linkKey` — the *elements*
+  at the link's two ends, the same element-by-element pairing the store makes
+  for a row. (A branch link's two ends are the same fork row, so two fan-outs
+  off one fork would key alike; a branch is keyed by the row it *lands* on
+  instead.) No committed topology can show this yet — all 21 study chains
+  across the five topologies are linear, `columns: 1` and `links: []`, so
+  every link a respine adds today arrives on a column it also adds — so the
+  check for it is synthetic, against the day a respine re-columns the whole
+  walk;
+* **the width goes with it, and nothing is slid as a block.** The SVG is drawn
+  at the interpolated width, which is the grid's own left edge, so the table
+  beside it and the header padded to sit over it follow without either
+  learning that a transition exists.
 
   The first cut *was* a whole-block CSS translate, right-anchored on the
   outgoing frame's grid seam, and it is worth knowing why that cannot work:
@@ -878,14 +1062,19 @@ things are worth knowing about it:
   count, which the two serialisations also disagree about, so the 234px slide
   over-shot the rails' true 180px travel and drew even the spine left of where
   it had just been;
-* **the rows a chain drops cannot be drawn from the target layout**, because
+* **the rows a study drops cannot be drawn from the target layout**, because
   they are not in it. So the outgoing paint is kept — the real nodes, moved
   into an inert overlay — and faded out while the incoming one moves into
-  place. The grid cross-fades with it rather than moving, because two tables in
-  different orders and of different lengths cannot be lined up; the DAG beside
-  it does not, because its surviving marks start exactly where they were.
-  Rows and interfaces the transition *adds* fade in at their own settled
-  position.
+  place. The grid cross-fades with it rather than moving, because two tables of
+  different lengths cannot be lined up; the DAG beside it does not, because its
+  marks start exactly where they were.
+
+  The per-element fade `VA.tweenAlpha` drives is a **second** mechanism, and
+  since 2026-09-15 nothing a reader can click reaches it: both sides of a
+  respine are now the same walk, so the position store's key set is identical
+  and no DAG element is ever added or dropped. It is kept, and tested
+  synthetically, for the same reason the shared-column link fade is — the
+  guarantee is about any two serialisations, not about the corpus.
 
 **The animation is presentation and nothing else.** Its last frame is a plain
 render with no tween and no ghost, so the settled page is the page a render
@@ -1065,10 +1254,10 @@ pane, beneath its citation:
 
 | state | what the block says |
 |---|---|
-| `established` | *export established: `X.pdf`* · **sha256 recorded** (first 12) · the drawing-checker runs that consumed it, or *no run has consumed this export*. The sha **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
-| `unestablished` | **filled magenta, on the row's chip AND on the panel's block**: *EXPORT UNESTABLISHED — which file this value was read off cannot be identified*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
-| no `export` key | *no export block — this citation names no exported file, so nothing here identifies the bytes the value was read off*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
-| no `export` key, `identity_rule: "spec_pile_filename"` | *Spec-pile document: identity by filename (append-only pile)*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
+| `established` | *Read from `X.pdf`* · **pinned to this exact file, by checksum** · the drawing-checker runs that consumed it, or *no run has consumed this export*. The checksum **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
+| `unestablished` | **filled magenta, on the row's chip AND on the panel's block**: *FILE NOT IDENTIFIED — which file this value was read from cannot be established*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
+| no `export` key | *This citation names no file, so nothing here says which copy of the document the value was read from*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
+| no `export` key, `identity_rule: "spec_pile_filename"` | *A standard-spec document, identified by its filename*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
 | anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. An identity rule the viewer has no branch for is loud the same way, through `VA.IDENTITY_RULES`. |
 
 ### The spec-pile exception
@@ -1099,9 +1288,16 @@ column"**, the collapsed legend above the elements table.
 
 Two deliberate limits:
 
-* the block says a sha is **recorded**, never *verified*. The viewer cannot hash a
-  file, so that is the only honest claim available to it; `sha256 VERIFIED`
-  belongs to the crop hover below, where a script really did compare bytes.
+* the block says the file is **pinned by checksum**, never *verified*. The
+  viewer cannot hash a file, so that is the only honest claim available to it;
+  *checked against the citation, byte for byte* belongs to the crop's own
+  provenance below, where a script really did compare bytes -- that line is the
+  crop entry's own `sha256_verified`, written by `scripts/build_viewer_crops.py`
+  after it compared the file's digest with the citation's, and it is the only
+  byte-for-byte claim on this page that anything checked. Neither line names
+  the algorithm or prints the digest any more (2026-09-15): twelve hex digits
+  are not something a reader of this page can do anything with, and the digest
+  is in the stack file for anyone checking it.
 * a run id is a **link** only where the element's own crop resolved through that
   run. An export carries a run *id* (`20260803_145243`); drawing-checker addresses
   a run by its *directory* name (the id plus the drawing), which only the crop
@@ -1157,15 +1353,58 @@ cell keeps them apart:
 
 Each element has a **drawing crop** button, kept on the compact row alongside
 the crop-trigger's own hover behaviour: hover, focus or click it (✕, `Esc`
-or an outside click closes it). The popover shows the pre-rendered crop, *how it
-was placed*, and click-throughs: the drawing-checker run page when a run is
-behind the citation (needs `cmd /c serve.bat` in that repo — see
-`config.js`), plus the source PDF as a `file://` link and as a copyable path.
+or an outside click closes it). The popover shows the pre-rendered crop and
+then **the reference, and nothing else** — "NAS6403-NAS6420 Rev 4.pdf · sheet
+3" — with the click-throughs beside it: the drawing-checker run page when a
+run is behind the citation (needs `cmd /c serve.bat` in that repo — see
+`config.js`), plus the source PDF, **only where this origin can open one**.
 
 Selecting the row does the same thing without a hover: the right pane fetches
-and renders the same crop **inline**, with the same placement text and the same
-links, so the image is visible the whole time the row is selected rather than
-only while the pointer sits on the trigger.
+and renders the same crop **inline**, through the same one builder
+(`VA.cropReference`), so the image is visible the whole time the row is selected
+rather than only while the pointer sits on the trigger. All four surfaces that
+show a resolved crop go through that builder — this popover, the hover cards
+and both preview panes — because they printed the same three lines in three
+slightly different orders before, which is the drift a shared builder exists to
+stop.
+
+**Two things left these surfaces on 2026-09-15**, both of them things Jeff read
+and none of them a loss of a fact a reader wanted:
+
+* *the always-rendered absolute path* (`C:/workspace/tolstack/data/...`). It was
+  the fallback for a link that could not navigate — Jeff: "full workstation
+  file paths — never rendered when the link works" — and the link now renders
+  only where it does work, so the fallback has nothing left to fall back from.
+* *the matching provenance, into a fold.* Which rule pinned the file, whether
+  the bytes were checked, which region of the sheet was taken: all still said,
+  all now behind one small disclosure (`VA.disclosure`, "How this crop was
+  matched"). In the open it restated the concise line above it in jargon. A
+  disclosure is a fold, never a place to hide a gap — an unresolved crop still
+  states its reason in the open.
+
+### "Open the PDF" only renders where the origin can follow it
+
+The link did nothing at all when clicked from the drawing-checker-served
+origin, and the reason is not the URL: **Chrome refuses every navigation from
+an http(s) page to a `file:` URL.** Measured 2026-09-15 with this repo's own
+browser tier, both transports, the real crop entry:
+
+| origin | click |
+|---|---|
+| `file://` | opens the PDF — new tab and same tab alike |
+| `http://` | nothing happens. Console: *Not allowed to load local resource* |
+
+So the fix is not a better path, and it is not an explanation beside a dead
+control either: `VA.originOpensLocalFiles` (storage/adapter.js, beside
+`chooseTransport`, because what an origin can do is a property of the *origin*)
+answers the question once, `VA.localFileUrl` returns null, and the affordance
+is simply **absent** on a served page. That is the standing rule — if a feature
+is absent from a build, show nothing about it — applied to a transport
+capability rather than to a build flag. The reference line is unaffected: it
+names the document in words on any origin, which is what a reader came for.
+
+Note this is **not** `VA.isLocalPage`'s question. A loopback server is local to
+the reader — same machine, same disk — and still cannot open a local file.
 
 `crops.json` reports four different answers and the difference matters:
 
@@ -1173,8 +1412,8 @@ only while the pointer sits on the trigger.
 |---|---|
 | `resolved` | there's a crop |
 | `unresolvable` | the citation could not be pinned to a page **without guessing** — a finding about the stack, with the reason |
-| `not-built` | nobody has run `build_viewer_crops.py` — a chore, and the popover shows the command |
-| `no-entry` | `crops.json` predates this element, i.e. it's stale |
+| `not-built` | nobody has run `build_viewer_crops.py` — a chore. The popover used to print the **command**, as a `<code>` block for the reader to copy into a terminal; removed 2026-09-15, because a terminal command in a web UI is against a standing rule and hover chrome is the worst possible carrier for one. The state is still stated; the banner is where a rebuild is offered, once, as a button where the origin can service it. |
+| `no-entry` | `crops.json` predates this element, i.e. it's out of date |
 
 A resolved popover then says **which rule** pinned the document and **whether
 the bytes were verified** — a crop of a *guessed* export looks perfectly correct
@@ -1182,8 +1421,8 @@ on screen, so this is the fact the hover exists for:
 
 | `resolved_by` | what the popover says |
 |---|---|
-| `source_ref_export` | *read from the export this citation names, `X.pdf` — sha256 VERIFIED*. The rule every export-resolved crop in the repo uses; the sha is mandatory under it, so a crop can only exist if the bytes matched. |
-| `spec_pile` | *from `data/inbox/specs/` by filename — no sha256 to verify*. The pile is append-only, so a filename **is** the identity; there is no sha to check and the line says so rather than implying one passed. |
+| `source_ref_export` | *read from the export this citation names, `X.pdf` — checked against the citation, byte for byte*. The rule every export-resolved crop in the repo uses; the checksum is mandatory under it, so a crop can only exist if the bytes matched -- the comparison is `scripts/build_viewer_crops.py`'s, recorded as the entry's `sha256_verified`. |
+| `spec_pile` | *from `data/inbox/specs/` by filename — no checksum on record to check against*. The pile is append-only, so a filename **is** the identity; there is nothing to check and the line says so rather than implying a check passed. |
 | `joint_export_run` | *LEGACY RULE: export pinned by the joint block, not by this citation*. Still in the crop script for a stack written before 2026-08-06 (no `source_ref.export`, `document` == `joint.assembly_drawing`, and a `joint.assembly_export` naming a drawing-checker run). No stack in the repo reaches it today. |
 | anything else | *resolved by `"X"`, a rule this viewer has no label for* — loud, and `VA.unlabelledCropRules()` puts it in the banner too. `provenance.sources_used`, deleted from the crop script on 2026-08-06, gets exactly this treatment: a branch for a value nothing can carry reads as "this case is handled". |
 
@@ -1210,12 +1449,19 @@ about this citation.
 
 The worksheet ("the agent's report") opens in its own `#worksheet-dialog`,
 from the **Show worksheet** button in the topbar — offered in EITHER mode,
-exactly when the selected node's own projection names one
-(`worksheet_file`). A topology can carry one too, since `topology_schema_v1`
-(2026-09-08): `pitch_system`'s own is `WORKSHEET_end_stop_graft.md`,
-`provenance.worksheet`-declared on the topology file the same way a stack's
-is. The button hides for a node with none, in either mode — it used to be
-stack-mode-only, before a topology had a `worksheet_file` field to read. The
+exactly when the page has a sheet to show. A topology can carry one itself,
+since `topology_schema_v1` (2026-09-08): `pitch_system`'s own is
+`WORKSHEET_end_stop_graft.md`, `provenance.worksheet`-declared on the topology
+file the same way a stack's is. A topology that declares none falls back to the
+sheet of a stack it re-expresses (`VA.worksheetSubject`, `topology.js`) — not a
+neighbour's, the same joint's, and since 2026-09-15 the only route to one:
+three of the four converted stacks have an authored sheet, their topologies
+have none, and the nested stack row that used to reach them is gone
+(`viewer_nav_wedge_and_classic_retirement`; the fast tier's "[real] every
+converted stack's own worksheet is still reachable from its topology's page"
+counts them off the projection). The button hides when there is nothing to show
+either way, in either mode — it used to be stack-mode-only, before a topology
+had a `worksheet_file` field to read. The
 worksheet used to live in the right-hand pane; that pane now shows an
 element's or edge's full sourcing instead (see "Selecting an element" above).
 It moved again with `viewer_v2_single_nav` (2026-09-08), from an inline
@@ -1228,8 +1474,8 @@ default so it never covers the table uninvited, but one click away, not gone.
 `docs/tolerance_stacks/` or `docs/topologies/` rather than copied into the
 projection: edit the markdown, reload, see it. Rendered with the
 dependency-free markdown renderer vendored from forge's notes app
-(escape-first, no sanitize pass). A stack or topology with no worksheet of
-its own says so instead of borrowing a neighbour's.
+(escape-first, no sanitize pass). Where nothing in reach names a sheet, the
+pane says so instead of borrowing an unrelated document's.
 
 Which sheet belongs to a stack or a topology is decided by its own
 projection builder, two rules deep and identical between the two: a
@@ -1396,7 +1642,7 @@ apps/viewer/
 
 The stylesheet was inline in `index.html` until 2026-08-31 and has been a linked
 file since, because the DAG mode needs the same colour system, the same chips
-and the same right-hand pane the classic mode does — and now, since the two
+and the same right-hand pane stack mode does — and now, since the two
 modes are one page, `style.css` is simply the whole app's stylesheet
 (`topology.css` on top of it for the DAG-specific rules). A `<link>` is safe from
 `file://`; an ES module import is not, which is the constraint this whole app is

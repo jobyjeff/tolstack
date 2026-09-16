@@ -537,107 +537,389 @@ def test_pitch_link_pitch_plate_lug_is_the_5X_group_not_the_3X_or_1X(pitch_link,
     assert mine.source_ref.confidence == "traced"
 
 
-def test_pitch_link_clamped_stack_excludes_the_unsourced_link_eye(pitch_link):
-    """The sourced part of the clamped column only. The pitch-link eye /
-    spherical bearing is NOT an element: no document gives its width, and the
-    neighbouring tan-link stack's 11.05/11.10 is an untraced workbook value for
-    a different link."""
-    assert "spherical_bearing" not in {e.id for e in pitch_link.elements}
+def test_pitch_link_clamped_stack_is_all_five_members(pitch_link):
+    """The clamped column, complete since 2026-09-15 (`stack_fable_audit`).
+
+    From founding the pitch-link eye was NOT an element (no document gave its
+    width) and the flanged bushing was missing outright (its part identity was
+    unknown); the path was three sourced members and every check read as a
+    budget. The audit added both: the eye as the MS14101-3 ball width off the
+    RBC catalog -- a loudly-marked placeholder, `untraced`, bearing identity
+    awaiting the 213862-002 drawing -- and the flange as NAS77A3-015A's
+    .062 +.000/-.005, identity from the 215177-A pitch-plate-assembly parts
+    list. The path id keeps its founding name; the label says what it now is.
+    """
+    ids = [e.id for e in pitch_link.elements]
+    assert "pitch_link_eye" in ids and "flange_bushing_flange" in ids
     got = pitch_link.path("clamped_stack_sourced")
-    assert got.nominal == pytest.approx(4.7625 + 4.06 + 0.8128, abs=TOL)
-    assert got.min == pytest.approx(9.5353, abs=TOL)               # lug at 3.96
-    assert got.max == pytest.approx(9.7353, abs=TOL)               # lug at 4.16
-    # The lug is the ONLY term with a band, so the whole spread is its +-0.10.
-    assert got.worst_case_half == pytest.approx(0.10, abs=TOL)
+    # 214820-002 + MS14101-3 W + NAS77A3 F + 215197 5X lug + NAS1149V0332
+    assert got.nominal == pytest.approx(4.76 + 7.14 + 1.5748 + 4.06 + 0.8128, abs=TOL)
+    assert got.min == pytest.approx(17.8390, abs=TOL)  # 4.63+7.09+1.4478+3.96+0.7112
+    assert got.max == pytest.approx(18.5492, abs=TOL)  # 4.76+7.14+1.5748+4.16+0.9144
+    assert got.worst_case_half == pytest.approx(
+        0.065 + 0.025 + 0.0635 + 0.10 + 0.1016, abs=TOL)
+    # THREE asymmetric bands now (bushing 4.76+0/-0.13, eye 7.14+0/-0.05, flange
+    # 1.5748+0/-0.127): each has nominal == max, `fold()` centres RSS on the
+    # MIDPOINT, so the offset is the sum of the three half-bands.
+    assert got.rss_center == pytest.approx(got.nominal - (0.065 + 0.025 + 0.0635), abs=TOL)
 
 
-def test_pitch_link_shank_out_deficit_is_the_required_link_eye_width(pitch_link):
-    """This check 'fails' by construction -- the eye is missing from the column.
-    Its magnitude is the useful output: the eye width the joint requires for
-    JPS00094 Rev C section 5.5.5 ('the nut ... shall not engage any incomplete
-    threads of the bolt shank')."""
-    got = pitch_link.check("shank_out__11_sourced_only")
-    assert got.interval.nominal == pytest.approx(-7.8399, abs=TOL)
-    assert got.interval.min == pytest.approx(-8.1939, abs=TOL)
-    assert got.interval.max == pytest.approx(-7.4859, abs=TOL)
-    assert got.verdict == "fail"
-    # The 'by construction' half is a SCHEMA claim since 2026-08-13, not a word
-    # in the label: `fail` here is true of the model and false of the hardware,
-    # and `verdict_scope` is where that gets said. The label used to shout
-    # `-- INCOMPLETE: pitch-link eye width unsourced` and the projection went
-    # looking for that string; it says neither now.
-    assert got.complete is False
-    assert got.verdict_scope == "budget"
-    assert got.excluded_terms == (
-        "pitch-link eye / spherical bearing width -- no document",)
-    assert "INCOMPLETE" not in got.label
+def test_pitch_link_eye_is_a_loud_placeholder_not_a_quiet_number(pitch_link):
+    """The audit's central addition, pinned at its weakest points.
+
+    The VALUE is re-readable in-repo (RBC catalog, MS14101-3 row, ball width W
+    = .281 +.000/-.002 in); the IDENTITY is not -- no document names the
+    bearing inside the 213862-002 pitch link, and the two candidate bearings
+    differ by 3.96 mm, so the element must stay `untraced` and loudly marked
+    until that drawing lands. A later pass that promotes it to `inferred` or
+    `traced` without the 213862-002 drawing fails here.
+    """
+    eye = pitch_link.element("pitch_link_eye")
+    assert (eye.min, eye.nominal, eye.max) == (7.09, 7.14, 7.14)  # RBC p19 -03 W
+    assert eye.plus_minus is None, "one-sided band; +- would misstate it"
+    assert eye.hardware_ref == "MS14101-3"
+    assert eye.source_ref.kind == "spec"
+    assert eye.source_ref.document == "RBC_Aerospace_Plain_Bearings_Web.pdf"
+    assert eye.source_ref.confidence == "untraced"
+    assert "UNCONFIRMED" in eye.name or "UNCONFIRMED" in eye.note
+    assert "213862-002" in eye.note, "the closing document must be named on the element"
+
+    flange = pitch_link.element("flange_bushing_flange")
+    assert (flange.min, flange.nominal, flange.max) == (1.4478, 1.5748, 1.5748)
+    assert flange.hardware_ref == "NAS77A3-015A"
+    assert flange.source_ref.kind == "spec"
+    assert flange.source_ref.document == "JB_NAS77.pdf"
+    assert flange.source_ref.confidence == "inferred"
 
 
-def test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end(pitch_link):
-    """Added by review/pitch_link_stack. The deficit interval is symmetric-looking
-    and its two ends mean opposite things, so which one the worksheet quotes as
-    "the requirement" matters: a reader who takes the SMALLER magnitude accepts an
-    eye that fails worst case. Pinned so the prose cannot drift back.
+def test_pitch_link_shank_out_is_complete_and_passes_thinly(pitch_link):
+    """The check the whole 2026-09-15 audit was aimed at.
 
-      >= 8.1939  eye needed to PASS worst case  (grip MAX - column MIN) <- binding
-      >= 7.8399  eye needed to pass nominal; 7.8399..8.1939 is `marginal`
-      <  7.4859  fails even at grip MIN - column MAX, the favourable end
+    From founding this check was a BUDGET: the eye was excluded for want of any
+    source, its verdict was `fail` by construction, and its magnitude read as
+    the eye width the joint requires (binding end 8.4280 mm worst case -- a
+    figure the MS14101-3 ball alone, at 7.09/7.14, does NOT meet; the missing
+    1.45-1.57 mm was the flanged bushing nobody had identified). With both
+    members in, the sum is complete and the criterion (JPS00094 Rev C 5.5.5,
+    the nut must not engage incomplete threads) PASSES worst case -- by
+    0.1098 mm, on a column whose eye and bushing are unverified placeholders,
+    so `worst_confidence` stays the honest headline, not the verdict.
     """
     got = pitch_link.check("shank_out__11_sourced_only")
     grip = pitch_link.element("bolt_grip_11")
     column = pitch_link.path("clamped_stack_sourced")
-
-    binding = grip.max - column.min
-    assert binding == pytest.approx(8.1939, abs=TOL)
-    assert binding == pytest.approx(-got.interval.min, abs=TOL)
-
-    at_nominal = grip.nominal - column.nominal
-    assert at_nominal == pytest.approx(7.8399, abs=TOL)
-    assert at_nominal == pytest.approx(-got.interval.nominal, abs=TOL)
-
-    favourable = grip.min - column.max
-    assert favourable == pytest.approx(7.4859, abs=TOL)
-    assert favourable == pytest.approx(-got.interval.max, abs=TOL)
-
-    # The binding requirement is the LARGEST of the three, which is the whole point.
-    assert binding > at_nominal > favourable
+    assert got.interval.nominal == pytest.approx(0.8724, abs=TOL)
+    assert got.interval.min == pytest.approx(0.1098, abs=TOL)
+    assert got.interval.max == pytest.approx(1.3280, abs=TOL)
+    assert got.interval.min == pytest.approx(column.min - grip.max, abs=TOL)
+    assert got.verdict == "pass"
+    assert got.margin == pytest.approx(0.1098, abs=TOL)
+    assert got.complete is True
+    assert got.verdict_scope == "joint"
+    assert got.excluded_terms == ()
+    # The wide-bearing counterfactual, pinned because it is the quantitative
+    # argument for the narrow placeholder: MS14103-3's 11.05/11.10 in the eye
+    # would push the cotter hole INSIDE the clamped stack (see the cotter test)
+    # and leave the shank ~4.8 mm short of the washer face at nominal.
+    wide_nominal_shank_out = (column.nominal - 7.14 + 11.10) - grip.nominal
+    assert wide_nominal_shank_out == pytest.approx(4.8324, abs=TOL)
 
 
 def test_pitch_link_cotter_hole_budget(pitch_link):
-    """Head-to-cotter-hole minus the sourced column: the budget left for the
-    pitch-link eye PLUS the MS9363-09 nut's thread-start-to-castellation
-    distance. Passes, and settles nothing -- see the worksheet."""
+    """Head-to-cotter-hole minus the (now five-member) clamped column: the
+    budget left for the MS9363-09 nut's height up to a castellation slot.
+    Passes as a budget and settles nothing -- the castellation PHASE is
+    uncontrolled by any document (JPS00094 5.9.7's washer-swap procedure is the
+    remedy), so the nut side stays an excluded term and the verdict stays
+    budget-scoped."""
     got = pitch_link.check("cotter_hole_clear_of_sourced_stack")
-    assert got.interval.nominal == pytest.approx(11.8785, abs=TOL)
-    assert got.interval.min == pytest.approx(11.1435, abs=TOL)
-    assert got.interval.max == pytest.approx(12.6135, abs=TOL)
+    # Moved 2026-09-15 (`stack_fable_audit`): 11.8810 / 11.0444 / 12.8476
+    # before, when the column the budget subtracts was three members. The eye
+    # and flange consume 8.7148 mm of it at nominal.
+    assert got.interval.nominal == pytest.approx(3.1662, abs=TOL)
+    assert got.interval.min == pytest.approx(2.3296, abs=TOL)
+    assert got.interval.max == pytest.approx(4.3098, abs=TOL)
     assert got.verdict == "pass"
+    assert got.complete is False
+    assert got.verdict_scope == "budget"
+    assert len(got.excluded_terms) == 1 and "MS9363-09" in got.excluded_terms[0]
+    # An MS9363-09 at max height (.198 in = 5.0292 mm) does not fit inside the
+    # worst-case budget -- the quantised-grip / washer-selection story again.
+    assert 5.0292 > got.interval.min
+    # The wide-bearing counterfactual: with MS14103-3 in the eye this budget
+    # would be NEGATIVE at worst case (the cotter hole inside the clamped
+    # stack), which is the second independent argument for the narrow bearing.
+    assert got.interval.min - (11.05 - 7.09) < 0
 
 
-def test_pitch_link_declares_its_zero_width_bands_rather_than_inventing_one(pitch_link):
-    """Two elements have min == max == nominal because NO document gives a
-    tolerance. The workbook-derived bands in hardware_entries.json (4.63/4.76
-    and +-.004 in) are untraced, so SOP Step 5b forbids them here. Guards
-    against a later 'tidy-up' quietly filling them in."""
-    zero_width = {e.id for e in pitch_link.elements if e.min == e.max}
-    assert zero_width == {"bushing_214820", "washer_nas1149v0332"}
-    for eid in zero_width:
-        e = pitch_link.element(eid)
-        assert e.source_ref.confidence == "inferred"
-        assert e.source_ref.kind == "parts_list"
-        assert "ZERO-WIDTH BAND" in e.note
+def test_pitch_link_carries_its_two_unverified_bands_loudly_and_not_as_traced(pitch_link):
+    """The pin that used to hold the zero-width bands, moved with the data.
+
+    Until 2026-09-15 this asserted ``min == max == nominal`` on the bushing and
+    the washer, and its whole job was to stop a later "tidy-up" quietly filling
+    them in from ``hardware_entries.json``. That was the right guard for the
+    rule then in force -- SOP Step 5b banned a from-scratch stack from taking a
+    workbook-derived band -- and it worked: the bands were still zero when Jeff
+    opened the 214820-002 drawing on 2026-09-15, found ``4.76 +0.00/-0.13``
+    printed in SECTION A-A, and ruled the omission worse than the placeholder
+    (*"it's ok to use unverified numbers as placeholders, but they need to be
+    very loudly identified as unverified/incomplete. Current design omits them
+    entirely and then fails silently which is worst of both worlds."*).
+
+    So this is the deliberate, cited change the old test existed to force
+    someone to make on purpose -- handoff ``pitch_link_known_bands``, and the
+    SOP amendments of the same date at Step 5b and Step 5c. What it guards now
+    is the half of the ruling that is easy to lose: the bands are **in**, and
+    they are **untraced**, and a later pass that quietly promotes either one to
+    ``inferred`` or ``traced`` -- which is what makes the viewer stop badging
+    them -- fails here.
+    """
+    assert [e.id for e in pitch_link.elements if e.min == e.max] == []
+
+    unverified = {
+        e.id for e in pitch_link.elements if e.source_ref.confidence == "untraced"}
+    # Three since 2026-09-15 (`stack_fable_audit`): the eye joined as a
+    # catalog-valued placeholder whose bearing IDENTITY is the unverified half.
+    assert unverified == {"bushing_214820", "washer_nas1149v0332", "pitch_link_eye"}
+
+    bushing = pitch_link.element("bushing_214820")
+    # 214820-002 SECTION A-A "4.76 +0.00/-0.13", read by Jeff 2026-09-15
+    assert (bushing.min, bushing.nominal, bushing.max) == (4.63, 4.76, 4.76)
+    assert (bushing.lmc, bushing.mmc) == (4.63, 4.76)
+    assert bushing.plus_minus is None, "the band is one-sided; +- would misstate it"
+    assert bushing.source_ref.kind == "drawing"
+    assert bushing.source_ref.document == "214820-002"
+    # The drawing is not in this repo, so the export cannot be established --
+    # and saying so is the difference between this and a laundered citation.
+    assert bushing.source_ref.export.status == "unestablished"
+    assert "20260915T145908_fwc7qp" in bushing.source_ref.export.why
+
+    washer = pitch_link.element("washer_nas1149v0332")
+    # 260729_sample_tol_stack.xlsx "grip length tols old" E11/F11, .032 +-.004 in
+    assert washer.min == pytest.approx(0.7112, abs=TOL)
+    assert washer.nominal == pytest.approx(0.8128, abs=TOL)
+    assert washer.max == pytest.approx(0.9144, abs=TOL)
+    assert washer.plus_minus == pytest.approx(0.1016, abs=TOL)
+    assert washer.source_ref.kind == "workbook"
+    assert washer.source_ref.cell == "E11/F11"
+
+    # Loudly, in the element a reader opens as well as in the field the viewer
+    # reads. All three notes name the source that would close the gap.
+    assert "UNVERIFIED SOURCE" in bushing.note and "UNVERIFIED SOURCE" in washer.note
+    eye = pitch_link.element("pitch_link_eye")
+    assert "PLACEHOLDER" in eye.note and "UNCONFIRMED" in eye.note
 
 
-def test_pitch_link_has_no_workbook_source_and_no_untraced_value(pitch_link):
-    """SOP Step 5b: a from-scratch stack cites no workbook. And with no workbook
-    to supply a number, `untraced` has nothing to attach to -- every unsourced
-    value is a listed gap instead of a quiet element."""
-    kinds = {e.source_ref.kind for e in pitch_link.elements}
-    assert "workbook" not in kinds
+def test_pitch_link_untraced_values_are_exactly_the_listed_gaps(pitch_link):
+    """SOP Step 5b's one permanent rule survives the amendment: ``untraced`` is
+    allowed only as an explicitly-listed gap, never as a quiet fallback.
+
+    Before 2026-09-15 this stack satisfied that trivially -- it had no
+    ``untraced`` element at all, because it refused every number it could not
+    trace. It now has two, so the rule bites for the first time: gap 3
+    (the 214820-002 part drawing) and gap 4 (NAS1149) are the rows in the
+    worksheet's ranked list, each naming the document that closes it, and this
+    test is what stops a third untraced value arriving without one.
+    """
     confidences = [e.source_ref.confidence for e in pitch_link.elements]
     assert confidences.count("traced") == 4
-    assert confidences.count("inferred") == 2
-    assert confidences.count("untraced") == 0
+    assert confidences.count("inferred") == 1     # the NAS77A3-015A flange
+    assert confidences.count("untraced") == 3     # bushing, washer, eye
+
+    worksheet = (STACKS_DIR / "WORKSHEET_pitch_link_to_pitch_plate.md").read_text(
+        encoding="utf-8")
+    gaps = worksheet.split("## Source gaps", 1)[1].split("###", 1)[0]
+    # The three documents that would close them, in the ranked table and nowhere
+    # else -- `excluded_terms` feeds the viewer's gap list, not this one.
+    assert "213862-002" in gaps
+    assert "214820-002" in gaps
+    assert "NAS1149" in gaps
+    for e in pitch_link.elements:
+        if e.source_ref.confidence != "untraced":
+            continue
+        assert "gap" in e.note.lower(), (
+            f"{e.id} is untraced and its note does not point at a ranked gap")
+
+
+# --- one part, one band, across every stack that uses it --------------------
+#
+# The rule SOP Step 5b gained on 2026-09-15: *the same part+feature must carry
+# the same band in every stack that uses it.* It is a new rule because the old
+# one made a divergence unavoidable -- a from-scratch stack was forbidden the
+# workbook band a transcription stack was obliged to use, so `214820-002` was
+# 4.63/4.76 in `tan_link_to_pitch_plate` and +-0 in `pitch_link_to_pitch_plate`
+# at the same time, by design. Jeff found that in the viewer and it is what this
+# handoff exists to end: "the tolerance stack notes zero width band (4.7625+/-0?)
+# but I just opened the drawing and it's very clearly 4.76 +0/-.13."
+#
+# Bands only. NOMINALS are deliberately not paired: `tan_link`'s bushing nominal
+# is 4.762 (the workbook's hand-typed literal, 0.002 mm above its own MMC and a
+# recorded finding), `take2`'s repeats it, and `pitch_link`'s is the drawing's
+# 4.76. Three transcriptions of three sources disagreeing in the fourth decimal
+# is information; forcing them to agree would delete a finding.
+
+#: ``hardware_ref`` -> the band every stack must fold for it. Curated rather than
+#: derived: the point is to state the expected band *outside* the files being
+#: checked, so an edit to one of them cannot quietly redefine what "consistent"
+#: means.
+#:
+#: Keyed on ``hardware_ref`` **alone**, and that is a live assumption rather than
+#: a design: it holds only while one hardware entry contributes exactly one
+#: folded feature. It does today -- ``214820-002`` is cited for its length and
+#: ``NAS1149V0332`` for its thickness, nowhere for anything else. The day a stack
+#: folds a bushing's OD beside its length, this guard would demand the length
+#: band of both; the key grows a feature then, and ``FEATURE_HINT`` below is what
+#: lets a reader see the assumption instead of inferring it. (This was a
+#: ``(part, feature)`` tuple until ``review/pitch_link_known_bands`` pointed out
+#: that the second half was never read -- a key that looks like it discriminates
+#: and does not is worse than one that visibly does not.)
+SHARED_BANDS = {
+    "214820-002": (4.63, 4.76),
+    "NAS1149V0332": (0.7112, 0.9144),
+    # Extended 2026-09-15 (`stack_fable_audit`, deliverable 1): every remaining
+    # part+feature folded in more than one stack, so the invariant holds
+    # repo-wide rather than only where the 09-15 ruling first bit. Parts folded
+    # in exactly ONE stack (MS14101-3, NAS77A4-015A, NAS6403U14D, NAS6404U13D,
+    # the NAS6403 U*H family, both MS21299s, NAS1149V0363) are deliberately
+    # absent: the guard's own floor below demands two stacks per key, because a
+    # band folded once has nothing to be consistent with -- their values are
+    # pinned by their stacks' own tests.
+    "NAS6403U13H": (20.3708, 20.8788),   # grip, tan_link + take2
+    "MS14103-3": (11.05, 11.1),          # ball width, tan_link + take2
+    "214589-002": (199.98, 200.0),       # bearing OD, thermal m1 + m2
+    "214588-002": (129.991, 130.0),      # bearing OD, thermal m1 + m2
+}
+
+#: What each part above is folded FOR. Not used for matching -- read only to name
+#: the feature in this guard's failure message, and to carry the assumption above.
+FEATURE_HINT = {
+    "214820-002": "plain bushing length",
+    "NAS1149V0332": "washer thickness",
+    "NAS6403U13H": "fastener grip",
+    "MS14103-3": "spherical bearing ball width",
+    "214589-002": "bearing outer-ring OD",
+    "214588-002": "bearing outer-ring OD",
+}
+
+#: The day the docstring above predicted arrived on 2026-09-15: NAS77A3-015A is
+#: folded for THREE features (its flange, its barrel, its I.D. chamfer), so a
+#: single part->band key cannot carry it. The key grows the feature here, stated
+#: as ``part -> feature -> (band, element ids that fold it)``: the element-id
+#: set is the classifier, curated so that a NEW element folding this part in
+#: some future stack fails loudly ("classify me") instead of being skipped.
+SHARED_MULTI_FEATURE_BANDS = {
+    "NAS77A3-015A": {
+        "flange thickness": ((1.4478, 1.5748), {"flange_bushing_flange"}),
+        "barrel length": ((3.683, 3.937), {"flange_bushing_L"}),
+        "I.D. chamfer": ((0.635, 0.889), {"bushing_chamfer"}),
+    },
+}
+
+#: Stack/element pairs that use one of the parts above and do NOT fold its band,
+#: each with the issue that tracks bringing it into line. An entry here is a
+#: **known divergence**, not an exemption: the test below fails if a listed pair
+#: has quietly come into line (delete the row) or stopped existing.
+KNOWN_BAND_DIVERGENCES = {
+    ("rotor_fastener_length", "washer_nas1149v0332_tt"):
+        "ISSUE_20260915_rotor_fastener_washer_band_diverges_from_its_siblings.md",
+}
+
+
+def test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it():
+    """SOP Step 5b, 2026-09-15 amendment, checked at value level.
+
+    A reviewer cannot see this by reading one stack -- that is the whole problem
+    with it. Each file is internally coherent and cites its own source honestly;
+    the defect only exists in the relation between two of them, which is exactly
+    the kind nothing catches until a human opens the viewer and notices that one
+    number is suspiciously round.
+    """
+    divergent = []
+    seen_divergences = set()
+    matched = {part: set() for part in SHARED_BANDS}
+    matched.update({(part, feature): set()
+                    for part, features in SHARED_MULTI_FEATURE_BANDS.items()
+                    for feature in features})
+    for filename in ALL_STACK_FILES:
+        stack = load_stack(STACKS_DIR / filename)
+        for element in stack.elements:
+            band = None
+            if element.hardware_ref in SHARED_BANDS:
+                part = element.hardware_ref
+                band = SHARED_BANDS[part]
+                matched[part].add(stack.id)
+            elif element.hardware_ref in SHARED_MULTI_FEATURE_BANDS:
+                part = element.hardware_ref
+                features = SHARED_MULTI_FEATURE_BANDS[part]
+                claimed = [f for f, (_, ids) in features.items()
+                           if element.id in ids]
+                assert claimed, (
+                    f"{stack.id}:{element.id} folds {part}, a multi-feature "
+                    f"shared part, and no feature in SHARED_MULTI_FEATURE_BANDS "
+                    f"claims that element id -- classify it (which feature does "
+                    f"it fold?) rather than letting it ride past this guard")
+                band = features[claimed[0]][0]
+                matched[(part, claimed[0])].add(stack.id)
+            if band is None:
+                continue
+            pair = (stack.id, element.id)
+            if (element.min, element.max) == band:
+                assert pair not in KNOWN_BAND_DIVERGENCES, (
+                    f"{pair} is listed in KNOWN_BAND_DIVERGENCES and now folds "
+                    f"{band} -- delete the row, the divergence is closed")
+                continue
+            if pair in KNOWN_BAND_DIVERGENCES:
+                seen_divergences.add(pair)
+                continue
+            divergent.append((pair, element.hardware_ref,
+                              (element.min, element.max), band))
+
+    assert not divergent, (
+        "one part+feature folding two different bands:\n" + "\n".join(
+            f"  {sid}:{eid} folds {got} for {part}, expected {want}"
+            for (sid, eid), part, got, want in divergent))
+
+    dead = set(KNOWN_BAND_DIVERGENCES) - seen_divergences
+    assert not dead, (
+        f"{sorted(dead)} are recorded as known band divergences and were not "
+        f"found -- a stale row here is a part nobody is checking")
+
+    # NOT VACUOUS, and this is the half that needs saying out loud. Everything
+    # above is a loop that finds nothing when it matches nothing: a typo in a
+    # `SHARED_BANDS` key, a part dropped from every stack, or an `ALL_STACK_FILES`
+    # that stopped seeing a file all leave this green while it silently stops
+    # guarding the part the whole rule exists for. An earlier version asserted
+    # two pairs were absent from `seen_divergences` -- a set only ever fed from
+    # `KNOWN_BAND_DIVERGENCES`, so they were absent by construction and neither
+    # assertion could fail; renaming a `SHARED_BANDS` key to a typo left the
+    # suite green (`review/pitch_link_known_bands`).
+    #
+    # Assert what the loop actually matched instead. Two distinct stacks is the
+    # floor that makes the word "cross-stack" mean anything: a part folded in one
+    # stack has nothing to be consistent with.
+    for key, stacks_seen in matched.items():
+        if isinstance(key, tuple):
+            part, feature = key
+            band = SHARED_MULTI_FEATURE_BANDS[part][feature][0]
+            label = f"{part} / {feature}"
+        else:
+            part, band = key, SHARED_BANDS[key]
+            label = f"{key} ({FEATURE_HINT.get(key, 'feature unrecorded')})"
+        assert len(stacks_seen) >= 2, (
+            f"{label} (band {band}) was matched in {sorted(stacks_seen)} -- fewer "
+            f"than two stacks, so this guard is checking nothing for it. Either "
+            f"the key is misspelled, the part left the stacks, or "
+            f"ALL_STACK_FILES stopped seeing a file.")
+    # And the stacks specific handoffs brought into line are named, so an edit
+    # that quietly drops one of them from either part is visible here too.
+    both = {"pitch_link_to_pitch_plate", "tan_link_to_pitch_plate"}
+    assert both <= matched["214820-002"]
+    assert both <= matched["NAS1149V0332"]
+    # `stack_fable_audit`'s additions: the flange is the one feature folded in
+    # THREE stacks, and the thermal pair carries the guard beyond grip joints.
+    assert both <= matched[("NAS77A3-015A", "flange thickness")]
+    assert matched["214588-002"] == {"hub_bearing_thermal_fit_m1",
+                                     "hub_bearing_thermal_fit_m2"}
 
 
 def test_pitch_link_carries_no_invented_thread_transition_allowance(pitch_link):
@@ -1054,6 +1336,27 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     The constants are git history, which does not move. If this test ever fails,
     either a citation gained a run that postdates the session (the finding this
     exists to surface) or history was rewritten.
+
+    **Changed 2026-09-15** (``pitch_link_known_bands``): the two 217755 runs are
+    no longer cited at ELEMENT level. Both elements that carried them -- the
+    bushing and the washer -- were re-cited when their bands were applied, to
+    the 214820-002 part drawing (export ``unestablished``; it is not in this
+    repo) and to the 260729 workbook. They are still named in
+    ``joint.assembly_export``, which is the prose field
+    ``build_viewer_crops.py`` parses, so the *citation* survives -- but that
+    field carries no ``ts``, so the timestamp half of this invariant no longer
+    reaches them and this test does not pretend otherwise. What is left is the
+    three 215197 runs, which is real bite and not a vacuous pass; the gap is
+    filed as ``ISSUE_20260915_the_joint_assembly_export_is_prose_so_its_runs_have_no_ts.md``.
+
+    **The root-commit claim survives, on a different run.** It was written
+    against ``20260803_145243`` and was dropped with it during
+    ``pitch_link_known_bands``; ``review/pitch_link_known_bands`` pointed out
+    that its *subject* had not gone away. ``20260730_133912``
+    (``2026-07-30T20:39:33.291499Z``) also predates the root commit, so the
+    strongest form of the invariant -- *a cited run predates this repo's
+    existence, so this repo cannot have produced it* -- is still checkable here,
+    and is checked below.
     """
     # git -C C:\workspace\tolstack log --format='%h %ad' --date=iso-strict
     PITCH_LINK_FIRST_COMMIT = datetime(2026, 8, 4, 22, 42, 57, tzinfo=timezone.utc)  # d6829f2
@@ -1065,13 +1368,23 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
         for element in stack.elements
         for run in (element.source_ref.export.runs if element.source_ref.export else ())
     }
-    assert "20260804_114000" in cited, "the run the review could not attribute"
+    assert cited, "no run cited at all -- this invariant would pass vacuously"
     for run_id, ts in cited.items():
         assert ts < PITCH_LINK_FIRST_COMMIT, (
             f"run {run_id} ({ts.isoformat()}) postdates the session's first commit -- "
             f"it may be this repo's own write into a read-only dependency"
         )
-    assert cited["20260803_145243"] < TOLSTACK_ROOT_COMMIT
+    # The 215197 export, which is the only element-level one left.
+    assert set(cited) == {"20260409_170546", "20260409_172341", "20260730_133912"}
+    # The stronger claim, repointed: this run existed before this repo did.
+    assert cited["20260730_133912"] < TOLSTACK_ROOT_COMMIT
+
+    # And the run the review could not attribute is still cited by this stack,
+    # at joint level. Losing the citation entirely would be a different defect
+    # from losing its timestamp, and only one of the two happened.
+    raw = json.loads(
+        (STACKS_DIR / "stack_pitch_link_to_pitch_plate.json").read_text(encoding="utf-8"))
+    assert "20260804_114000" in raw["joint"]["assembly_export"]
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
@@ -1344,7 +1657,17 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
         "stack_vpa_output_to_pitch_plate.json",
     ]
     seeded = _counts(STACKS_DIR / n for n in SEEDED_STACK_FILES)
-    assert seeded == {"instances": 26, "traced": 5, "inferred": 3, "untraced": 18}
+    # Moved 2026-09-15 (`stack_fable_audit`): inferred 3 -> 12, untraced 18 -> 9.
+    # Nine seeded instances -- the two link-bearing widths and the flanged
+    # bushing's flange/L/chamfer in both tan-link stacks, plus the VPA flange --
+    # were re-cited from the 260729 workbook to the RBC catalog pages that had
+    # been in data/inbox/specs/ the whole time, with part identity from the
+    # 212956-005-A and 215177-A parts-list extractions. `inferred`, not
+    # `traced`: each band is printed in the cited page, and the part-to-joint
+    # binding is a count/adjacency argument rather than a printed statement.
+    # The numerator did not move, again -- a label stopped UNDERSTATING its
+    # support this time, the mirror image of the 2026-08-10 correction.
+    assert seeded == {"instances": 26, "traced": 5, "inferred": 12, "untraced": 9}
 
     every = _counts(sorted(STACKS_DIR.glob("stack_*.json")))
     # Moved 2026-08-25 (fastener_stack_shadow): "21 of 48" -> "30 of 59". The new
@@ -1352,7 +1675,15 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
     # NAS6403 grip family) and 2 inferred (both washers, zero-width bands, same
     # treatment as the other from-scratch joints) -- so traced and instances both
     # rose and untraced did not move.
-    assert every == {"instances": 59, "traced": 30, "inferred": 9, "untraced": 20}
+    # Moved 2026-09-15 (`pitch_link_known_bands`): inferred 9 -> 7, untraced
+    # 20 -> 22. `pitch_link_to_pitch_plate`'s bushing and washer went
+    # `inferred` (a parts-list nominal with no band) -> `untraced` (a real band
+    # whose only support is an operator's drawing reading and a workbook cell).
+    # Moved again 2026-09-15 (`stack_fable_audit`): instances 59 -> 61
+    # (`pitch_link_to_pitch_plate` gained its eye and flange members, one
+    # `untraced` placeholder and one `inferred`), and the nine seeded re-cites
+    # above moved the columns to 17 inferred / 14 untraced. `traced` still 30.
+    assert every == {"instances": 61, "traced": 30, "inferred": 17, "untraced": 14}
 
     # Instances, not distinct ids, and not "elements that carry a hardware_ref".
     # Those are the two denominators a reader reaches for by mistake; recording
@@ -1360,7 +1691,10 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
     stacks = [load_stack(STACKS_DIR / n) for n in SEEDED_STACK_FILES]
     elements = [e for s in stacks for e in s.elements]
     assert len({e.id for e in elements}) == 18
-    assert sum(1 for e in elements if e.hardware_ref) == 10
+    # 10 until 2026-09-15 (`stack_fable_audit`): the nine re-cited instances all
+    # gained a `hardware_ref` (MS14103-3, NAS77A3-015A, NAS77A4-015A) alongside
+    # their catalog citations, so the wrong-denominator count moved too.
+    assert sum(1 for e in elements if e.hardware_ref) == 19
 
 
 # --- what both doc-level scans share: the QUOTATION rule and the CORPUS ------
@@ -1852,7 +2186,7 @@ def test_hardware_entry_values_source_counts_match_the_description():
     """
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     entries = data["entries"]
-    assert len(entries) == 25
+    assert len(entries) == 29
     counted = {}
     for entry in entries:
         src = entry.get("values_source") or {}
@@ -1860,8 +2194,11 @@ def test_hardware_entry_values_source_counts_match_the_description():
             (entry["values_status"], src.get("kind")), 0) + 1
     assert counted == {
         ("inline", "workbook"): 5,     # forbidden as a source in a from-scratch stack
-        ("inline", "spec"): 12,        # the three bolts re-sourced 2026-08-10, plus nine
-                                        # NAS6403U2H..U10H added 2026-08-25 (rotor_fastener_length)
+        ("inline", "spec"): 16,        # the three bolts re-sourced 2026-08-10, nine
+                                        # NAS6403U2H..U10H added 2026-08-25
+                                        # (rotor_fastener_length), and the two RBC
+                                        # bearings + two NAS77 bushings added
+                                        # 2026-09-15 (stack_fable_audit)
         ("library", "spec"): 1,        # NAS6403U11D, promoted by spec_library_v0
         ("inline", "drawing"): 2,      # 214589-002, 214588-002 -- source control drawings
         ("inline", "parts_list"): 1,   # MS21299C3, added 2026-08-25 (rotor_fastener_length)
@@ -1870,16 +2207,20 @@ def test_hardware_entry_values_source_counts_match_the_description():
     # traced-ness is a property of values_source, not of values_status: the three
     # bolts re-sourced by `fastener_citations_and_confidence` are `traced` and
     # still `inline`, because being printed in the standard is not the same fact
-    # as the spec library owning the numbers.
+    # as the spec library owning the numbers. The four 2026-09-15 catalog entries
+    # are `traced` HERE (the entry's values are the catalog's, re-readable) while
+    # the stack elements citing them are `inferred` or `untraced` -- an entry
+    # grades its numbers, an element grades its numbers FOR ITS JOINT.
     traced = {e["id"] for e in entries
               if (e.get("values_source") or {}).get("confidence") == "traced"}
     assert traced == {"NAS6403U11D", "NAS6403U13H", "NAS6403U14D", "NAS6404U13D",
                       "214589-002", "214588-002",
                       "NAS6403U2H", "NAS6403U3H", "NAS6403U4H", "NAS6403U5H",
                       "NAS6403U6H", "NAS6403U7H", "NAS6403U8H", "NAS6403U9H",
-                      "NAS6403U10H"}
+                      "NAS6403U10H",
+                      "MS14101-3", "MS14103-3", "NAS77A3-015A", "NAS77A4-015A"}
     text = data["description"]
-    for phrase in ("five of the 25", "FIFTEEN entries are traced",
+    for phrase in ("five of the 29", "NINETEEN entries are traced",
                    "Four entries are `not_transcribed`"):
         assert phrase in text, f"description no longer says {phrase!r}"
 
@@ -1927,6 +2268,10 @@ def hardware_entry_counts() -> dict[str, int]:
         "spec": n(lambda e: src(e).get("kind") == "spec"),
         "drawing": n(lambda e: src(e).get("kind") == "drawing"),
         "traced": n(lambda e: src(e).get("confidence") == "traced"),
+        # The NAS bolts specifically, not everything spec-sourced: "the thirteen
+        # NAS bolts" stopped equalling the spec count on 2026-09-15, when the RBC
+        # bearing/bushing entries joined the spec-sourced set.
+        "nas_bolts": n(lambda e: (e.get("standard") or "").startswith("NAS64")),
         "inline": n(lambda e: e["values_status"] == "inline"),
         "library": n(lambda e: e["values_status"] == "library"),
         "not_transcribed": n(lambda e: e["values_status"] == "not_transcribed"),
@@ -1950,9 +2295,9 @@ _COUNT_CLAIMS = [
     ("entries with a traced values_source",
      rf"({_NUM})\s+entries\s+are\s+traced", ("traced",)),
     ("entries traced to the NAS standard",
-     rf"({_NUM})\s+traced\s+to\s+the\s+NAS", ("spec",)),
+     rf"({_NUM})\s+traced\s+to\s+the\s+NAS", (("spec", "nas_bolts"),)),
     ("entries traced to the NAS standard",
-     rf"the\s+({_NUM})\s+NAS\s+bolts", ("spec",)),
+     rf"the\s+({_NUM})\s+NAS\s+bolts", (("spec", "nas_bolts"),)),
     ("entries traced to a source-control drawing",
      rf"({_NUM})\s+(?:traced\s+)?to\s+(?:their\s+own\s+)?source.control\s+drawings",
      ("drawing",)),
@@ -2037,7 +2382,7 @@ def test_the_hardware_entry_count_guard_can_fail():
     claims = hardware_entry_count_claims(stale)
     assert [(str(k), s) for _, k, s, _ in claims] == [
         ("workbook", 8), ("('total', 'sourced')", 11), ("safe", 3),
-        ("spec", 1), ("drawing", 2)]
+        ("('spec', 'nas_bolts')", 1), ("drawing", 2)]
 
     # Asserted by count KEY, not by the stale digits: which of those digits still
     # disagrees depends on the size of hardware_entries.json, and that file changes
@@ -2052,7 +2397,7 @@ def test_the_hardware_entry_count_guard_can_fail():
     flagged = {str(k) for _, k, s, _ in claims
                if s not in ({counts[x] for x in k} if isinstance(k, tuple)
                             else {counts[k]})}
-    assert {"workbook", "safe", "spec"} <= flagged, (
+    assert {"workbook", "safe", "('spec', 'nas_bolts')"} <= flagged, (
         "the scan no longer flags the numerators the 2026-08-10 README sentence "
         f"got wrong; it flags {sorted(flagged)}")
 
@@ -2265,7 +2610,21 @@ def test_hardware_entries_flag_the_two_parts_missing_from_the_assembly():
     states = {}
     for entry in data["entries"]:
         states.setdefault(entry["assembly_status"].get("present"), set()).add(entry["id"])
-    assert states[False] == {"NAS1149V0363", "NAS77A4-015"}, "absent-from-assembly findings"
+    # Two flavours of False since 2026-09-15 (`stack_fable_audit`), both honest:
+    # the first two are FINDINGS (the workbook models a part the assembly does
+    # not contain, or names the wrong part number); the other four are NESTED
+    # parts -- not 217755 rows because they arrive inside 212956-005 / 215177's
+    # own parts lists, and each entry's note says which. A reader of `present`
+    # alone cannot tell the flavours apart; the note is load-bearing.
+    assert states[False] == {"NAS1149V0363", "NAS77A4-015",
+                             "MS14101-3", "MS14103-3",
+                             "NAS77A3-015A", "NAS77A4-015A"}, "absent from 217755's own parts list"
+    for entry_id in ("MS14101-3", "MS14103-3", "NAS77A3-015A", "NAS77A4-015A"):
+        entry = next(e for e in data["entries"] if e["id"] == entry_id)
+        note = entry["assembly_status"].get("note", "")
+        assert "Not a 217755 parts-list row" in note, (
+            f"{entry_id}: a nested part's present:false must say it is nested, "
+            f"or it reads as a workbook-vs-assembly finding")
     assert states[None] == {"214589-002", "214588-002"}, "assembly presence not yet checked"
     for entry_id in states[None]:
         entry = next(e for e in data["entries"] if e["id"] == entry_id)
@@ -2374,20 +2733,38 @@ def test_every_inline_hardware_entry_cites_where_its_values_came_from():
     for entry in data["entries"]:
         if entry["values_source"]:
             by_kind.setdefault(entry["values_source"]["kind"], []).append(entry["id"])
+    # ... and grew by four 2026-09-15 (stack_fable_audit): the two RBC spherical
+    # bearings and the two NAS77 flanged bushings, off the catalogs in the pile.
     assert sorted(by_kind["spec"]) == [
+        "MS14101-3", "MS14103-3",
         "NAS6403U10H", "NAS6403U11D", "NAS6403U13H", "NAS6403U14D",
         "NAS6403U2H", "NAS6403U3H", "NAS6403U4H", "NAS6403U5H", "NAS6403U6H",
-        "NAS6403U7H", "NAS6403U8H", "NAS6403U9H", "NAS6404U13D"]
+        "NAS6403U7H", "NAS6403U8H", "NAS6403U9H", "NAS6404U13D",
+        "NAS77A3-015A", "NAS77A4-015A"]
     assert len(by_kind["workbook"]) == 5
     assert len(by_kind["parts_list"]) == 1
 
 
 def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_link):
     """SOP Step 5b's workbook ban is TRANSITIVE, and `values_source` is what
-    makes it checkable. Where pitch_link_to_pitch_plate points at a hardware
-    entry whose inline values are a workbook transcription, it may take the
-    parts-list nominal but NOT the band -- so the element is zero-width. Without
-    this test the ban is prose, and the laundered value passes everything."""
+    makes it checkable.
+
+    **What the ban forbids changed on 2026-09-15** (``pitch_link_known_bands``,
+    and the SOP amendment at Step 5b). Until then it forbade the *band*: an
+    element pointing at a hardware entry whose inline values are a workbook
+    transcription had to fold zero-width, and this test asserted exactly that.
+    Jeff's ruling replaced that with a weaker rule that catches the same defect:
+    a sourced-but-unverified value may be applied, but it must arrive wearing
+    its real confidence, because ``confidence`` is the field every consumer --
+    the viewer's badge most of all -- actually reads.
+
+    So what is still forbidden, and what this now checks, is **laundering**: an
+    element folding a band that came from a workbook while its ``source_ref``
+    says ``parts_list`` or ``drawing`` and its confidence says ``inferred``.
+    That combination is the shape SOP Step 5b names at the ``214820-002`` row --
+    a citation that shows a drawing, a respectable confidence and zero workbook
+    references, and passes every mechanical check in the repo.
+    """
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     entries = {e["id"]: e for e in data["entries"]}
     laundered = []
@@ -2395,11 +2772,17 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
         if not element.hardware_ref:
             continue
         src = entries[element.hardware_ref]["values_source"]
-        if src and src["kind"] == "workbook" and element.min != element.max:
-            laundered.append(element.id)
-    assert not laundered, f"workbook-derived band reused via hardware_ref: {laundered}"
-    # And the two that do point at workbook-sourced entries are exactly the two
-    # zero-width elements -- i.e. this test is not passing vacuously.
+        if not (src and src["kind"] == "workbook" and element.min != element.max):
+            continue
+        if element.source_ref.confidence != "untraced":
+            laundered.append((element.id, element.source_ref.confidence))
+    assert not laundered, (
+        f"workbook-derived band folded above `untraced`: {laundered}. The band "
+        f"may be used (SOP Step 5b, 2026-09-15) but not while claiming support "
+        f"it does not have."
+    )
+    # And the two that point at workbook-sourced entries are exactly the two
+    # that fold such a band -- i.e. this test is not passing vacuously.
     refs = {e.id: e.hardware_ref for e in pitch_link.elements if e.hardware_ref}
     workbook_backed = {
         eid for eid, ref in refs.items()
@@ -2409,6 +2792,12 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
         if (entries[ref]["values_source"] or {}).get("kind") == "workbook"
     }
     assert workbook_backed == {"bushing_214820", "washer_nas1149v0332"}
+    # Neither of them still cites the 217755 parts list, which is the citation
+    # that WOULD have laundered the band: the parts-list row gives a nominal and
+    # no tolerance, so pointing at it for a band is pointing at a page that does
+    # not contain the number. Each now names the artifact its band came from.
+    assert pitch_link.element("washer_nas1149v0332").source_ref.kind == "workbook"
+    assert pitch_link.element("bushing_214820").source_ref.document == "214820-002"
 
 
 def hardware_entry_problems(entry: dict) -> list[str]:

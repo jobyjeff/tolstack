@@ -310,6 +310,10 @@
         eq(out.notices, []);
       });
 
+    // `demo_joint` is a stack the demo mechanism re-expresses, so since
+    // viewer_nav_wedge_and_classic_retirement it has no nav row at all -- and
+    // a link to it still resolves, because a deep link is answered by the
+    // PROJECTION and not by what the rail chose to offer.
     await test("resolveDeepLink selects a stack and its element", function () {
       var out = VA.resolveDeepLink({ stack: "demo_joint", element: "plate" },
         VA.demoTopologyProjection(), FIXTURE.results);
@@ -318,6 +322,22 @@
       eq(out.elementId, "plate");
       eq(out.notices, []);
     });
+
+    // Same rule for a superseded stack, which is the one most likely to be
+    // "tidied up" later: hiding it is a NAV decision (VA.SUPERSEDED_STACKS),
+    // never a removal, so a link somebody saved before it was superseded must
+    // still open the document rather than answering "no such stack".
+    await test("a link to a superseded stack still opens it — hiding a row is " +
+      "not removing a document", function () {
+        var hidden = Object.keys(VA.SUPERSEDED_STACKS)[0];
+        var results = { stacks: [{ id: hidden, title: "take 1", elements: [] }] };
+        eq(VA.looseStacks(null, results).length, 0,
+           "precondition: the rail offers it nowhere");
+        var out = VA.resolveDeepLink({ stack: hidden }, null, results);
+        eq(out.mode, "stack");
+        eq(out.stackId, hidden);
+        eq(out.notices, []);
+      });
 
     await test("resolveDeepLink turns every unresolvable id into a plain-words " +
       "notice and falls back rather than guessing", function () {
@@ -425,7 +445,7 @@
         eq(VA.cropForKey(null, { topology: "t", edge: "e" }).status, "not-built");
         var stale = VA.cropForKey(CROPS, { topology: "demo_mechanism", edge: "new_edge" });
         eq(stale.status, "no-entry");
-        has(stale.reason, "older than the topology");
+        has(stale.reason, "older than this topology");
         var noTopo = VA.cropForKey(CROPS, { topology: "never_built", edge: "e" });
         eq(noTopo.status, "no-entry");
       });
@@ -468,11 +488,15 @@
     // perfectly correct on screen, so a hover that cannot distinguish verified
     // from guessed is worse than no hover
     // (ISSUE_20260806_viewer_does_not_label_the_source_ref_export_rule).
-    await test("cropProvenanceLine names the rule, the export and the sha verdict", function () {
+    await test("cropProvenanceLine names the rule, the file and the check verdict", function () {
       var line = VA.cropProvenanceLine(CROPS.by_stack.demo_joint.plate);
       has(line, "read from the export this citation names");
       has(line, "215197 A.1.pdf");
-      has(line, "sha256 VERIFIED");
+      has(line, "checked against the citation, byte for byte");
+      // No algorithm name anywhere a reader reads (viewer_component_names_and_
+      // reference_copy, 2026-09-15): "sha256" is an internal detail nobody on
+      // this page can act on, and the three verdicts read the same without it.
+      ok(line.indexOf("sha256") === -1, "no algorithm name in rendered copy: " + line);
       has(line, "cited zone D10");
       // The matched needle is named, not just "found": "4.06" corroborates far
       // less than the whole callout would, and the line must let a reader see
@@ -481,16 +505,16 @@
     });
 
     // `false` and `null` are different answers and must not read the same: one
-    // is a rule that had a sha and could not check it, the other a rule with no
-    // sha to check (the append-only spec pile).
-    await test("cropProvenanceLine keeps the three sha states distinct", function () {
+    // is a rule that had a checksum and could not check it, the other a rule
+    // with no checksum to check (the append-only spec pile).
+    await test("cropProvenanceLine keeps the three check states distinct", function () {
       var base = { status: "resolved", resolved_by: "source_ref_export",
                    pdf_name: "x.pdf", located_by: "sheet_full", note: "whole sheet" };
-      has(VA.cropProvenanceLine(base), "no sha256 to verify");
+      has(VA.cropProvenanceLine(base), "no checksum on record to check against");
       base.sha256_verified = false;
-      has(VA.cropProvenanceLine(base), "sha256 NOT verified");
+      has(VA.cropProvenanceLine(base), "NOT checked against the citation");
       base.sha256_verified = true;
-      has(VA.cropProvenanceLine(base), "sha256 VERIFIED");
+      has(VA.cropProvenanceLine(base), "checked against the citation, byte for byte");
       has(VA.cropProvenanceLine({
         status: "resolved", resolved_by: "spec_pile",
         pdf_name: "NAS6403-NAS6420 Rev 4.pdf", sha256_verified: null,
@@ -1306,17 +1330,22 @@
     // crop hover, where build_viewer_crops.py really did compare bytes — and
     // "recorded" reading as "verified" is the same collapse VA.cropShaText exists
     // to prevent one layer up.
-    await test("an export's sha is RECORDED, never described as verified", function () {
+    await test("an export's checksum is RECORDED, never described as verified", function () {
       var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
-      has(line, "sha256 recorded (a1b2c3d4e5f6…)");
+      has(line, "pinned to this exact file, by checksum");
       ok(line.indexOf("VERIFIED") === -1, "the viewer verifies nothing: " + line);
-      has(VA.exportShaText({ status: "established" }), "NO sha256 recorded");
+      has(VA.exportShaText({ status: "established" }), "NO checksum recorded");
+      // Neither the algorithm's name nor the digest itself: twelve hex digits
+      // are not something a reader of this page can do anything with, and the
+      // digest is in the stack file for anyone checking it (2026-09-15).
+      ok(line.indexOf("sha256") === -1, "no algorithm name: " + line);
+      ok(line.indexOf("a1b2c3d4e5f6") === -1, "no digest digits: " + line);
     });
 
-    await test("an established export names the file, the sha and the runs", function () {
+    await test("an established export names the file, the checksum and the runs", function () {
       var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
       // The BASENAME, because the live paths are absolute and 90 characters long.
-      has(line, "export established: 215197.pdf");
+      has(line, "Read from 215197.pdf");
       has(line, "drawing-checker runs: 20260804_114000_x");
       // An export no run ever consumed says so — 15 of the 22 live established
       // CITATIONS are in that state (6 of the 9 distinct exports they name), and
@@ -1328,12 +1357,13 @@
 
     await test("an unestablished export leads with the why, not with the file", function () {
       var line = VA.exportProvenanceLine(DEMO.stack.elements[1].source_ref);
-      has(line, "EXPORT UNESTABLISHED");
+      has(line, "FILE NOT IDENTIFIED");
       has(line, "none hashes to the one this .032\" was read off");
-      // No sha clause at all: an unestablished export carries no sha by
-      // construction (SourceExport raises if it does), so "NO sha256 recorded"
-      // would read as a second, separate failing when it is the same one.
-      ok(line.indexOf("sha256") === -1, "no sha clause on an unestablished export");
+      // No checksum clause at all: an unestablished export carries no checksum
+      // by construction (SourceExport raises if it does), so "NO checksum
+      // recorded" would read as a second, separate failing when it is the same
+      // one.
+      ok(line.indexOf("checksum") === -1, "no checksum clause on an unestablished export");
     });
 
     // The link treatment is REUSED from the crop popover rather than invented,
@@ -1387,13 +1417,20 @@
       ok(!note.onclick, "the panel's note is not clamped, so it needs no toggle");
     });
 
-    await test("the panel header names the element and its confidence", function () {
+    await test("the panel header names the element and its confidence, and puts " +
+      "its id on hover rather than on the page", function () {
       var root = render(function (r) {
         VA.renderDetail(r, DEMO, "washer", CROPS, null, VA.CONFIG);
       });
       has(root.textContent, "washer thickness");
-      has(all(root, "code")[0].textContent, "washer");
       has(all(root, "span.conf--inferred")[0].textContent, "inferred");
+      // 2026-09-15: the id used to print beside the name in a <code> chip.
+      // It is a deep-link handle, not a label -- it rides the heading's hover
+      // title now, and nothing a reader reads carries it.
+      var heading = all(root, "h3")[0];
+      eq(heading.getAttribute("title"), "washer");
+      ok(root.textContent.indexOf("washer thickness") !== -1);
+      eq(all(root, "code").length, 0);
     });
 
     await test("the crop renders inline in the panel when it has resolved", function () {
@@ -1437,7 +1474,7 @@
           VA.renderDetail(r, DEMO, "plate", null, null, VA.CONFIG);
         });
         has(all(notBuilt, "div.detail__crop-reason")[0].textContent,
-            "has not been built");
+            "no drawing crops have been prepared yet");
       });
 
     // --- source_ref.export, in the right pane ---------------------------------
@@ -1452,13 +1489,17 @@
       });
       var box = all(root, "div.el-export--established");
       eq(box.length, 1);
-      has(box[0].textContent, "export established: 215197.pdf");
-      has(box[0].textContent, "sha256 recorded");
+      has(box[0].textContent, "Read from 215197.pdf");
+      has(box[0].textContent, "pinned to this exact file");
       has(box[0].textContent, "20260804_114000_x");
-      // The absolute path beside the basename, for the same reason the crop
-      // popover prints it: a file:// link only navigates from a file:// page, and
-      // copy-paste is the fallback that always works.
-      has(all(root, "div.el-export__path")[0].textContent, "C:/workspace/demo/215197.pdf");
+      // The absolute path used to print beside the basename as the fallback
+      // for a file:// link that could not navigate. Gone 2026-09-15 (Jeff:
+      // "full workstation file paths -- never rendered when the link works"),
+      // and the link now renders only where the origin CAN follow it, so the
+      // fallback has nothing left to fall back from.
+      eq(all(root, "div.el-export__path").length, 0);
+      ok(root.textContent.indexOf("C:/workspace/demo/215197.pdf") === -1,
+         "no absolute workstation path in rendered output");
       // The export's own note is clamped like the citation's used to be, and does
       // NOT reuse its class — a selector for one must never pick up the other.
       var note = all(root, "div.el-export__note")[0];
@@ -1481,10 +1522,10 @@
         // chip beside the confidence chip, on the washer's row and no other.
         var chips = all(rowsRoot, "span.chip--export-unestablished");
         eq(chips.length, 1);
-        has(chips[0].textContent, "EXPORT UNESTABLISHED");
+        has(chips[0].textContent, "FILE NOT IDENTIFIED");
         var rows = all(rowsRoot, "tr.el-row");
-        has(rows[1].textContent, "EXPORT UNESTABLISHED");
-        ok(rows[0].textContent.indexOf("EXPORT UNESTABLISHED") === -1,
+        has(rows[1].textContent, "FILE NOT IDENTIFIED");
+        ok(rows[0].textContent.indexOf("FILE NOT IDENTIFIED") === -1,
            "the established row is not tarred with it");
 
         var detailRoot = render(function (r) {
@@ -1493,7 +1534,7 @@
         var box = all(detailRoot, "div.el-export--unestablished");
         eq(box.length, 1);
         ok(box[0].className.indexOf("el-export--loud") !== -1, "must be loud");
-        has(box[0].textContent, "EXPORT UNESTABLISHED");
+        has(box[0].textContent, "FILE NOT IDENTIFIED");
         // The reason, unclamped and not behind a hover: it was reachable only
         // through a crop popover before, and hiding it behind a second click here
         // would reproduce that defect one notch down.
@@ -1511,7 +1552,7 @@
         VA.renderDetail(r, DEMO, "washer", null, null, VA.CONFIG);
       });
       has(all(root, "div.el-export__why")[0].textContent, "none hashes to the one");
-      has(root.textContent, "EXPORT UNESTABLISHED");
+      has(root.textContent, "FILE NOT IDENTIFIED");
     });
 
     await test("a citation with no export block says so rather than nothing", function () {
@@ -1520,7 +1561,7 @@
       });
       var box = all(root, "div.el-export--none");
       eq(box.length, 1);
-      has(box[0].textContent, "names no exported file");
+      has(box[0].textContent, "names no file");
       // Not loud, and no chip: see the comment on the state in views/stack.js.
       ok(box[0].className.indexOf("--loud") === -1);
     });
@@ -1554,8 +1595,7 @@
       var grip = DEMO.stack.elements[3].source_ref;
       var p = VA.exportProvenance(grip, "spec_pile_filename");
       eq(p.state, "identity_rule");
-      eq(p.headline,
-         "Spec-pile document: identity by filename (append-only pile)");
+      eq(p.headline, "A standard-spec document, identified by its filename");
       // Not loud: this says the bytes ARE identified, by a rule this repo argued
       // for. It is a sibling of `established`, not of `unestablished`.
       eq(p.loud, false);
@@ -1592,9 +1632,9 @@
       function () {
         var line = VA.exportProvenanceLine(DEMO.stack.elements[3].source_ref,
                                            "spec_pile_filename");
-        has(line, "identity by filename");
-        has(line, "append-only");
-        ok(line.indexOf("names no exported file") === -1,
+        has(line, "identified by its filename");
+        has(line, "only ever added to");
+        ok(line.indexOf("names no file") === -1,
            "the no-export sentence must be replaced, not appended to: " + line);
       });
 
@@ -1605,7 +1645,7 @@
       eq(all(rowsRoot, "span.chip--export-identity_rule").length, 0);
       var rows = all(rowsRoot, "tr.el-row");
       has(rows[3].textContent, "fastener grip (spec pile)");
-      ok(rows[3].textContent.indexOf("names no exported file") === -1,
+      ok(rows[3].textContent.indexOf("names no file") === -1,
          "the four spec citations must stop reading as 'nothing identifies this'");
 
       // The argument for the state, in full, in the panel — unclamped and not
@@ -1615,8 +1655,8 @@
       });
       var box = all(root, "div.el-export--identity_rule");
       eq(box.length, 1);
-      has(box[0].textContent, "identity by filename (append-only pile)");
-      has(all(root, "div.el-export__detail")[0].textContent, "append-only");
+      has(box[0].textContent, "identified by its filename");
+      has(all(root, "div.el-export__detail")[0].textContent, "only ever added to");
       ok(box[0].className.indexOf("--loud") === -1, "not an alarm");
     });
 
@@ -1626,7 +1666,7 @@
         poisoned.elements[3].identity_rule = "sha_of_pile";
         var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
         has(all(rowsRoot, "span.chip--export-identity_unlabelled")[0].textContent,
-            "IDENTITY RULE UNKNOWN");
+            "SOURCE RULE UNKNOWN");
         // Its own chip class and its own wording: calling an unknown identity rule
         // "EXPORT STATUS UNKNOWN" would send a reader looking for a field this
         // citation does not have.
@@ -1662,7 +1702,7 @@
         poisoned.stack.elements[0].source_ref.export = { status: "provisional" };
         var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
         has(all(rowsRoot, "span.chip--export-unlabelled")[0].textContent,
-            "EXPORT STATUS UNKNOWN");
+            "FILE STATUS UNKNOWN");
         // The unestablished chip's class is NOT reused for it: the two states are
         // different facts and a stylesheet must be able to tell them apart, even
         // though today they share one loud rule. The washer's is untouched by
@@ -1801,35 +1841,66 @@
 
     // --- crop popover -------------------------------------------------------
 
-    await test("a resolved popover shows the image, the sheet and both links", function () {
+    // The PDF link only renders where the ORIGIN can follow one
+    // (VA.originOpensLocalFiles), and this file runs on both: under file://
+    // from test.html and over http from the browser tier's own server. So the
+    // origin is named rather than inherited -- it is an input to what the
+    // popover renders, and a test that inherits it passes on one transport and
+    // fails on the other, which is exactly what happened on 2026-09-15.
+    await test("a resolved popover on a file:// page shows the image, the " +
+      "sheet and the PDF link", function () {
       var entry = CROPS.by_stack.demo_joint.plate;
-      var root = render(function (r) {
-        VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
-      });
+      var realProtocol = VA.pageProtocol;
+      VA.pageProtocol = function () { return "file:"; };
+      var root;
+      try {
+        root = render(function (r) {
+          VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+        });
+      } finally {
+        VA.pageProtocol = realProtocol;
+      }
       eq(all(root, "img").length, 1);
       // The height is reserved from crops.json's pixel size, so the popover is
       // measured at its final size before the PNG decodes.
       eq(all(root, "img")[0].style.aspectRatio, "800 / 600");
       has(root.textContent, "sheet 2");
-      has(root.textContent, "C:/workspace/demo/215197.pdf");
-      // No run behind this one, so no run link — only the PDF.
+      // No run behind this one, so no run link — only the PDF, and only
+      // because the fast tier's shim reports a file:// origin (see the
+      // origin-capability cases below). The absolute path that used to print
+      // beside it is gone: never rendered when the link works (2026-09-15).
       eq(all(root, "a").length, 1);
+      ok(root.textContent.indexOf("C:/workspace/demo/215197.pdf") === -1,
+         "no absolute workstation path in the popover");
     });
 
-    await test("a run-resolved popover links to the drawing-checker run page", function () {
-      var root = render(function (r) {
-        VA.renderCrop(r, {
-          status: "resolved", png: "crops/x.png", pdf: "C:/x.pdf", pdf_name: "x.pdf",
-          page: 4, resolved_by: "joint_export_run", run_dir: "20260804_114000_x",
-          sha256_verified: true, located_by: "zone_cell", cited_zone: "H3",
-          callout_text_in_zone: true,
-        }, { url: "blob:x" }, VA.CONFIG);
-      });
+    await test("a run-resolved popover links to the drawing-checker run page",
+      function () {
+      // Same reason as above: the PDF half of this turns on the origin, and
+      // the run half does not.
+      var realProtocol = VA.pageProtocol;
+      VA.pageProtocol = function () { return "file:"; };
+      var root;
+      try {
+        root = render(function (r) {
+          VA.renderCrop(r, {
+            status: "resolved", png: "crops/x.png", pdf: "C:/x.pdf", pdf_name: "x.pdf",
+            page: 4, resolved_by: "joint_export_run", run_dir: "20260804_114000_x",
+            sha256_verified: true, located_by: "zone_cell", cited_zone: "H3",
+            callout_text_in_zone: true,
+          }, { url: "blob:x" }, VA.CONFIG);
+        });
+      } finally {
+        VA.pageProtocol = realProtocol;
+      }
       var hrefs = all(root, "a").map(function (a) { return a.getAttribute("href"); });
       eq(hrefs.length, 2);
       has(hrefs[0], "/run/20260804_114000_x");
       has(hrefs[1], "file:///C:/x.pdf");
-      has(root.textContent, "sha256 VERIFIED");
+      // Behind the fold now, but still said (VA.CROP_PROVENANCE_SUMMARY).
+      has(root.textContent, VA.CROP_PROVENANCE_SUMMARY);
+      has(root.textContent, "checked against the citation, byte for byte");
+      eq(all(root, "details.provfold").length, 1);
     });
 
     await test("an unresolvable popover shows the reason and offers no image", function () {
@@ -1846,12 +1917,20 @@
       has(root.className, "croppop--unresolvable");
     });
 
-    await test("a not-built popover offers the command instead of a reason", function () {
+    // 2026-09-15: it used to print the rebuild COMMAND here, as a <code> block
+    // for the reader to copy into a terminal. "Never render terminal commands
+    // in a web UI for the user to copy/paste" is a standing rule, and hover
+    // chrome is the worst possible carrier for one. The state is still stated;
+    // only the command went, and the banner remains the one surface that
+    // offers a rebuild (as a button, where the origin can service it).
+    await test("a not-built popover states the state and offers NO command", function () {
       var root = render(function (r) {
         VA.renderCrop(r, VA.cropFor(null, "s", "e"), null, VA.CONFIG);
       });
-      has(root.textContent, "has not been built");
-      has(root.textContent, "build_viewer_crops.py");
+      has(root.textContent, "no drawing crops have been prepared yet");
+      ok(root.textContent.indexOf("build_viewer_crops.py") === -1,
+         "no terminal command in hover chrome: " + root.textContent);
+      eq(all(root, "code.croppop__cmd").length, 0);
     });
 
     await test("a resolved entry whose PNG vanished says the index is stale", function () {
@@ -1859,6 +1938,191 @@
         VA.renderCrop(r, CROPS.by_stack.demo_joint.plate, null, VA.CONFIG);
       });
       has(root.textContent, "is not on disk");
+    });
+
+    // --- the highlight overlay (viewer_reference_crops_in_context) ----------
+    //
+    // Jeff, 2026-09-15, on the bolt-grip crop: it "is just four numbers with no
+    // context for what they mean". The answer is a WIDER crop with the used
+    // cell boxed, so the whole deliverable turns on a box actually being
+    // emitted over the picture -- a crop that widened and marked nothing is
+    // strictly worse than the tight strip it replaced, and it would look
+    // perfectly fine in a screenshot. These cases are that seam.
+
+    // The datasheet case, value for value as the live NAS sheet-3 crop carries
+    // it: the CONTEXT is the crop (the whole grip/length table with its
+    // headers), and the declared row band is one dashed box inside it.
+    function datasheetEntry() {
+      return {
+        status: "resolved", png: "crops/nas.png", pdf: "C:/specs/nas.pdf",
+        pdf_name: "NAS6403-NAS6420 Rev 4.pdf", page: 3,
+        resolved_by: "source_ref_export", run_dir: null, run_id: null,
+        sha256_verified: true, located_by: "declared_region",
+        region_label: "Grip Dash No. 11 row", region_match: "Grip Dash No. 11",
+        context_label: "Sheet 3, the whole grip/length table with its headers",
+        cited_zone: null, callout_text_in_zone: null, find_no: null,
+        drawing_no: null, drawing_revision: null, companion: null,
+        width: 1374, height: 1566, rect_pt: [82, 76, 540, 598],
+        highlights: [{
+          kind: "declared_region", label: "Grip Dash No. 11 row",
+          rect_pt: [84.5, 184, 191.6, 190.5],
+          frac: [0.005, 0.2, 0.24, 0.215],
+        }],
+      };
+    }
+
+    await test("a datasheet crop draws its used cell as a box positioned in " +
+      "PERCENTAGES of the image", function () {
+      var root = render(function (r) {
+        VA.renderCrop(r, datasheetEntry(), { url: "blob:x" }, VA.CONFIG);
+      });
+      var boxes = all(root, "div.crophl");
+      eq(boxes.length, 1);
+      // Percentages, not pixels: the same PNG is laid out at four different
+      // widths on this page, and a box in pixels is right at one of them.
+      eq(boxes[0].style.left, "0.5%");
+      eq(boxes[0].style.top, "20%");
+      // width/height are the frac SPAN, not its far edge -- reading `frac[2]`
+      // as a width draws the box off the right-hand side of the sheet.
+      eq(boxes[0].style.width, "23.5%");
+      eq(boxes[0].style.height, "1.5%");
+      // The box lives in the same frame as the picture, or it is positioned
+      // against something else and points somewhere else.
+      var frames = all(root, "div.cropfig");
+      eq(frames.length, 1);
+      eq(all(frames[0], "img").length, 1);
+      // Read through parentNode, not by indexing childNodes: in a real browser
+      // childNodes is a NodeList with no `filter` or `indexOf`, and the node
+      // shim's array-shaped one hid that until the browser tier ran.
+      ok(boxes[0].parentNode === frames[0],
+         "the box is a child of the frame the picture is in");
+      // And the frame carries the crop's own ratio, which is what lets a
+      // surface cap a crop's height WITHOUT letterboxing the picture inside
+      // its element -- an inset picture and a percentage overlay disagree.
+      // getPropertyValue, for the same reason: a real CSSStyleDeclaration does
+      // not expose a custom property as a plain key.
+      eq(frames[0].style.getPropertyValue("--crop-ratio"), "0.8774");
+    });
+
+    await test("a declared region is DASHED and a found match is SOLID -- the " +
+      "picture carries the distinction, not a sentence", function () {
+      var declared = render(function (r) {
+        VA.renderCrop(r, datasheetEntry(), { url: "blob:x" }, VA.CONFIG);
+      });
+      has(all(declared, "div.crophl")[0].className, "crophl--dashed");
+      has(all(declared, "div.crophl")[0].className, "crophl--declared_region");
+      // The zone crop whose callout text WAS found there: same overlay, solid.
+      var found = render(function (r) {
+        VA.renderCrop(r, CROPS.by_stack.demo_joint.plate, { url: "blob:x" },
+                      VA.CONFIG);
+      });
+      has(all(found, "div.crophl")[0].className, "crophl--solid");
+      has(all(found, "div.crophl")[0].className, "crophl--verified_match");
+      // And the title says which claim it is, in words, for a reader who
+      // cannot tell two border styles apart.
+      has(all(found, "div.crophl")[0].getAttribute("title"), "found on the page");
+      has(all(declared, "div.crophl")[0].getAttribute("title"),
+          "not a match on the page");
+    });
+
+    await test("a highlight kind this build has no branch for is still drawn, " +
+      "and says its claim is unknown", function () {
+      var entry = datasheetEntry();
+      entry.highlights[0].kind = "some_new_kind";
+      var root = render(function (r) {
+        VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+      });
+      eq(all(root, "div.crophl").length, 1);
+      has(all(root, "div.crophl")[0].className, "crophl--unlabelled");
+      has(all(root, "div.crophl")[0].getAttribute("title"), "some_new_kind");
+      has(all(root, "div.crophl")[0].getAttribute("title"), "NOT shown here");
+    });
+
+    await test("a crop with no highlights renders the image and no boxes -- an " +
+      "index older than highlights reads the same way, not as an error",
+      function () {
+        var bare = datasheetEntry();
+        delete bare.highlights;
+        var root = render(function (r) {
+          VA.renderCrop(r, bare, { url: "blob:x" }, VA.CONFIG);
+        });
+        eq(all(root, "img").length, 1);
+        eq(all(root, "div.crophl").length, 0);
+      });
+
+    // --- the parts-list companion, and what the drawing link is CALLED ------
+
+    function balloonEntry() {
+      return {
+        status: "resolved", png: "crops/detailb.png",
+        pdf: "C:/dc/217755.pdf", pdf_name: "217755 A.1.pdf", page: 4,
+        resolved_by: "source_ref_export",
+        run_dir: "20260803_145243_217755_A.1", run_id: "20260803_145243",
+        sha256_verified: true, located_by: "balloon_view", find_no: 34,
+        cited_zone: "H3", callout_text_in_zone: null,
+        region_label: null, region_match: null, context_label: null,
+        drawing_no: "217755", drawing_revision: "A.1",
+        width: 1342, height: 2049, rect_pt: [1788, 159, 2235, 842],
+        highlights: [{
+          kind: "verified_match", label: "balloon 34",
+          rect_pt: [1854.7, 219.1, 1878.5, 242.9],
+          frac: [0.149, 0.088, 0.203, 0.123],
+        }],
+        companion: {
+          role: "parts_list_row", png: "crops/detailb__parts_list.png",
+          width: 1965, height: 254, page: 1, label: "Parts list, sheet 1",
+          find_no: 34, part_number: "214820-002",
+          nomenclature: "BUSHING, PLAIN, ALUMINUM BRONZE",
+          rect_pt: [56.5, 636, 711.3, 720.1],
+          highlights: [{
+            kind: "verified_match", label: "214820-002",
+            rect_pt: [116.2, 670, 174.8, 686.1],
+            frac: [0.091, 0.404, 0.181, 0.596],
+          }],
+        },
+      };
+    }
+
+    await test("a balloon crop shows the balloon boxed AND the parts-list row " +
+      "beside it, each with its own overlay", function () {
+      var root = render(function (r) {
+        VA.renderCrop(r, balloonEntry(), { url: "blob:crop" }, VA.CONFIG, null,
+                      { "crops/detailb__parts_list.png": { url: "blob:pl" } });
+      });
+      // Two pictures: the view with the balloon, and the row that says what
+      // the balloon's number IS. A number in a circle is not a part.
+      eq(all(root, "img").length, 2);
+      eq(all(root, "div.crophl").length, 2);
+      eq(all(root, "div.cropcompanion").length, 1);
+      has(root.textContent, "Parts list, sheet 1");
+      // Everyday words: no field value, no role name in the copy.
+      ok(root.textContent.indexOf("parts_list_row") === -1,
+         "no field value in the copy: " + root.textContent);
+    });
+
+    await test("the drawing-checker link is called by the DRAWING, not by the " +
+      "machinery behind it", function () {
+      var root = render(function (r) {
+        VA.renderCrop(r, balloonEntry(), { url: "blob:crop" }, VA.CONFIG);
+      });
+      var links = all(root, "a").map(function (a) { return a.textContent; });
+      has(links.join(" | "), "217755 rev A.1");
+      ok(links.join(" | ").indexOf("run") === -1,
+         "no internal artifact name in the link text: " + links.join(" | "));
+      // And an entry that does not carry both facts keeps a plain-words
+      // fallback rather than printing "undefined rev undefined".
+      eq(VA.drawingLinkText({ drawing_no: "217755" }), null);
+      eq(VA.drawingLinkText(null), null);
+    });
+
+    await test("a companion whose image has not arrived says so, and does not " +
+      "take the crop's picture down with it", function () {
+      var root = render(function (r) {
+        VA.renderCrop(r, balloonEntry(), { url: "blob:crop" }, VA.CONFIG, null, {});
+      });
+      eq(all(root, "img").length, 1);
+      has(root.textContent, VA.CROP_IMAGE_MISSING_TEXT);
+      has(root.textContent, "Parts list, sheet 1");
     });
 
     // --- worksheet ----------------------------------------------------------
@@ -2164,7 +2428,7 @@
 
     function topoCtx(over) {
       var ctx = {
-        topoProj: TOPO, study: null, crops: TOPOCROPS, layoutMode: "topology",
+        topoProj: TOPO, study: null, crops: TOPOCROPS,
         selection: null, detailImage: null, onSelect: function () {},
       };
       Object.keys(over || {}).forEach(function (k) { ctx[k] = over[k]; });
@@ -2233,8 +2497,14 @@
         eq(plan.rows.map(function (r) { return r.id; }), TOPO_EDGE_ORDER);
         plan.rows.forEach(function (r, i) { eq(r.gridRow, i); });
         eq(plan.groups.length, 6);
+        // The part's NAME, not its id (VA.componentLabel, 2026-09-15).
         eq(plan.groups.map(function (g) { return g.label; }),
-          ["base", "post", "arm", VA.GAP_COMPONENT_LABEL, "strut", "post"]);
+          ["base plate", "post", "arm", VA.GAP_COMPONENT_LABEL,
+           "parallel strut", "post"]);
+        // The id is still what the group is keyed by -- it is the handle every
+        // lookup and every deep link uses, and only the LABEL changed.
+        eq(plan.groups.map(function (g) { return g.part; }),
+          ["base", "post", "arm", null, "strut", "post"]);
         plan.groups.forEach(function (g) { eq(g.count, 1); });
         // A leader's boundary is the count of edge rows the walk emitted
         // before its node — the seam between the row above and the row below.
@@ -2350,7 +2620,9 @@
         var mini = miniTopo(false);
         var plan = VA.gridPlan(mini.layout, mini);
         eq(plan.groups.length, 1);
-        eq(plan.groups[0].label, "p");
+        // The part's NAME, keyed by its id (VA.componentLabel, 2026-09-15).
+        eq(plan.groups[0].part, "p");
+        eq(plan.groups[0].label, "one part");
         eq(plan.groups[0].count, 2);
         eq(plan.leaders, []);   // n0/n1/n2 all sit inside part p
 
@@ -2360,7 +2632,7 @@
         var cells = all(root, "td.tvcell--component");
         eq(cells.length, 1);
         eq(cells[0].getAttribute("rowspan"), "2");
-        eq(cells[0].textContent, "p");
+        eq(cells[0].textContent, "one part");
         eq(all(root, "path.rail__leader").length, 0);
       });
 
@@ -2372,7 +2644,7 @@
                                      // serialisation)
         var plan = VA.gridPlan(mini.layout, mini);
         eq(plan.groups.map(function (g) { return g.label + ":" + g.count; }),
-          ["p:1", "p:1"]);
+          ["one part:1", "one part:1"]);
         eq(plan.leaders.map(function (l) { return l.id + ":" + l.boundary; }),
           ["n1:1"]);
       });
@@ -2620,8 +2892,8 @@
            { zoneScale: 99 }).zoneScale, VA.JOG_ZONE_SCALE.max);
       });
 
-    await test("elementDisplayLabel drops only a leading repeat of the " +
-      "component's own name, and never blanks a cell", function () {
+    await test("elementDisplayLabel drops the leading words the component cell " +
+      "already carries, and never blanks a cell", function () {
         // Jeff's case, verbatim: under component `blade_root`, three rows all
         // opened with "blade-root".
         eq(VA.elementDisplayLabel("blade-root clocking holes to the hub", "blade_root"),
@@ -2635,13 +2907,422 @@
         // No repeat at all: unchanged, character for character.
         eq(VA.elementDisplayLabel("hub bore to the pin", "blade_root"),
            "hub bore to the pin");
-        // A label that is ONLY its component's name keeps it -- an empty
+        // A label that is ONLY its component's words keeps them -- an empty
         // element cell would be a worse lie than a repetitive one.
         eq(VA.elementDisplayLabel("blade-root", "blade_root"), "blade-root");
         // A gap group has no part, so there is nothing to match against.
         eq(VA.elementDisplayLabel("shank out", null), "shank out");
         eq(VA.elementDisplayLabel("shank out", ""), "shank out");
         eq(VA.elementDisplayLabel(null, "hub"), "");
+        // The part ROW is what the grid passes now, and the words matched are
+        // the ones the merged cell PRINTS -- its label, never its id or its
+        // drawing number. The rule's whole justification is "the cell beside
+        // it already says this", so a string the cell does not show must not
+        // license a drop.
+        eq(VA.elementDisplayLabel("bushing flange thickness",
+           { id: "flanged_bushing_unidentified", name: "part not identified" }),
+           "bushing flange thickness");
+        eq(VA.elementDisplayLabel("plain bushing length",
+           { id: "bushing_214820_002", name: "214820-002 plain bushing" }),
+           "length");
+        // Only LEADING words, never a word inside a phrase: this is why the
+        // rule consumes a run off the front rather than deleting every
+        // occurrence. "bolt point" is the tip of the bolt, not a repeat.
+        eq(VA.elementDisplayLabel("cotter-hole centreline to bolt point",
+           { id: "bolt_nas6403u11d", name: "NAS6403U11D hex-head bolt" }),
+           "cotter-hole centreline to bolt point");
+      });
+
+    // Jeff, 2026-09-15: "the element column can just say 'grip length' (for
+    // the bolt) or 'length' for the plain bushing. The component's description
+    // and part number don't need to be repeated in every column." A clause
+    // that only restates the component, or only restates the row's own value,
+    // goes -- with its separator, so what is left reads as written.
+    await test("elementDisplayLabel drops a clause that only restates the " +
+      "component or the row's own value, keeping every other clause verbatim",
+      function () {
+        var bolt = { id: "bolt_nas6403u11d", name: "NAS6403U11D hex-head bolt" };
+        var bushing = { id: "bushing_214820_002", name: "214820-002 plain bushing" };
+        var washer = { id: "washer_nas1149v0332h", name: "NAS1149V0332H flat washer" };
+        var plate = { id: "pitch_plate_215197", name: "215197 pitch plate" };
+
+        // The four live pitch-link rows, which is what Jeff was reading.
+        eq(VA.elementDisplayLabel("fastener grip, NAS6403U11D (.688 in)", bolt),
+           "fastener grip");
+        eq(VA.elementDisplayLabel("plain bushing length (214820-002)", bushing),
+           "length");
+        eq(VA.elementDisplayLabel("washer thickness, NAS1149V0332H (.032 in)", washer),
+           "thickness");
+        eq(VA.elementDisplayLabel("pitch plate lug thickness (5X group)", plate),
+           "lug thickness (5X group)");
+        // A middle clause dropped leaves the ones around it joined as authored.
+        eq(VA.elementDisplayLabel(
+           "NAS6403U11D overall length, head bearing face to point (1.011 in)", bolt),
+           "overall length, head bearing face to point");
+
+        // A clause survives unless EVERY token in it is already-said. These
+        // three are the ones that made a blanket word-removal unsafe.
+        eq(VA.elementDisplayLabel("hub flange (A datum) to deck",
+           { id: "hub", name: "propeller hub" }), "flange (A datum) to deck");
+        eq(VA.elementDisplayLabel("cotter-hole centreline to bolt point (dimension M)",
+           bolt), "cotter-hole centreline to bolt point (dimension M)");
+        // A dash number is not the family's name: the nine rotor-fastener rows
+        // are separated by nothing else, so the rule must not eat it.
+        eq(VA.elementDisplayLabel("NAS6403U2H grip length (.125 in) -- shortest of nine options",
+           { id: "fastener_family", name: "NAS6403 grip-selection family" }),
+           "NAS6403U2H grip length -- shortest of nine options");
+        // Units are a module-level vocabulary, not inline literals.
+        ok(VA.LABEL_UNIT_WORDS.indexOf("in") !== -1);
+        ok(VA.LABEL_UNIT_WORDS.indexOf("mm") !== -1);
+        // Nothing is ever reworded or reordered: every character of the output
+        // is a character of the input, in the input's order.
+        var input = "pitch plate lug thickness (5X group)";
+        var out = VA.elementDisplayLabel(input, plate);
+        var at = 0;
+        out.split("").forEach(function (ch) {
+          at = input.indexOf(ch, at);
+          ok(at !== -1, "output character " + JSON.stringify(ch) + " is not the input's");
+          at += 1;
+        });
+      });
+
+    // --- names, references and the copy rules (viewer_component_names_and_
+    //     reference_copy, 2026-09-15) ---------------------------------------
+    //
+    // Jeff's review of the live pitch-link topology, five items. The ones that
+    // are claims about RENDERED TEXT are pinned at the value level, because
+    // that is the only tier that can read what a reader reads: a class-name
+    // check passes straight through a wrong sentence.
+
+    // Every string this page must never print, with what each one IS. Not a
+    // style preference -- each is a class of thing a reader cannot act on, and
+    // each had a live instance on 2026-09-15. Shared with the [real] tier
+    // below, which runs the same list over every live topology; internal IDS
+    // are per-topology and are checked there against each topology's own.
+    var BANNED_IN_RENDERED_TEXT = [
+      ["sha256", "an algorithm's name -- nothing a reader can act on"],
+      ["source_ref", "a field name out of the schema"],
+      ["crop_key", "a field name out of the schema"],
+      ["crops.json", "an internal artifact's filename"],
+      ["C:/", "an absolute workstation path"],
+      ["C:\\", "an absolute workstation path, the other way round"],
+      ["build_viewer_crops.py", "a terminal command for the reader to type"],
+      ["venv-win", "a terminal command for the reader to type"],
+    ];
+
+    // The nodes that print a DOCUMENT's own prose, word for word: a citation's
+    // note, a callout as printed, an export's recorded `why`. The ban above is
+    // on the VIEWER's words, not on the record's -- trimming a stack's own
+    // written argument because it names a field would be editing the record,
+    // which this page exists not to do. So these are subtracted before the
+    // scan, and the list is short and named on purpose: a new class here is a
+    // new excuse, and it should have to be argued for in a diff.
+    var VERBATIM_PROSE_CLASSES = [
+      "div.detail__note", "div.detail__callout",
+      "div.hovercard__note", "div.hovercard__notefull", "div.hovercard__callout",
+      "div.el-export__note", "div.el-export__why",
+    ];
+
+    // Everything on a surface that the VIEWER wrote -- the rendered text with
+    // the verbatim-prose nodes' own text removed.
+    function viewerAuthoredText(root) {
+      var text = root.textContent;
+      VERBATIM_PROSE_CLASSES.forEach(function (selector) {
+        all(root, selector).forEach(function (node) {
+          var quoted = node.textContent;
+          if (quoted) text = text.split(quoted).join(" ");
+        });
+      });
+      return text;
+    }
+
+    function bannedIn(text, where) {
+      BANNED_IN_RENDERED_TEXT.forEach(function (pair) {
+        ok(String(text).indexOf(pair[0]) === -1,
+           where + " renders " + JSON.stringify(pair[0]) + " (" + pair[1] +
+           "): " + text);
+      });
+    }
+
+    await test("the component label is the part's own name, and an id is what " +
+      "it is keyed by -- never what is printed", function () {
+        var index = VA.topologyIndex(TOPO);
+        eq(VA.componentLabel(index.parts.base), "base plate");
+        eq(VA.componentLabel(index.parts.strut), "parallel strut");
+        // A part with no name at all falls back to its id rather than to an
+        // empty cell: absent is absent, but a blank component column would be
+        // a worse lie than a raw id.
+        eq(VA.componentLabel({ id: "only_an_id" }), "only_an_id");
+        // A gap is not a part and says what it is.
+        eq(VA.componentLabel(null), VA.GAP_COMPONENT_LABEL);
+        // An interface, same rule.
+        eq(VA.nodeLabel(TOPO, "base_post_seat"), "base / post seat");
+        eq(VA.nodeLabel(TOPO, "not_a_node"), "not_a_node");
+      });
+
+    await test("an interface's sides, the grid's merged cell and a node card " +
+      "all name a part the SAME way, off one derivation", function () {
+        eq(VA.nodeSideLabels(TOPO, "base_post_seat"), ["base plate", "post"]);
+        // A clearance is a real side and is named, not skipped.
+        ok(VA.nodeSideLabels(TOPO, "strut_end")
+            .indexOf(VA.CLEARANCE_SIDE_LABEL) !== -1);
+        // The same strings the node card labels its sides with -- ONE label
+        // style now, where there used to be two (ids in the pane, names on the
+        // card) and the two could disagree.
+        var card = VA.nodeCard(TOPO, "base_post_seat", TOPOCROPS);
+        eq(card.sides.map(function (s) { return s.label; }),
+           VA.nodeSideLabels(TOPO, "base_post_seat"));
+        // And the same string the grid prints for the group.
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        eq(plan.groups[0].label, VA.componentLabel(VA.topologyIndex(TOPO).parts.base));
+      });
+
+    await test("partReferences derives which documents a part's own dimensions " +
+      "are cited from, and referenceText says it in a reader's words", function () {
+        var refs = VA.partReferences(TOPO, "base");
+        eq(refs.length, 1);
+        eq(refs[0].document, "215197");
+        eq(refs[0].kinds, ["drawing"]);
+        eq(refs[0].sheets, [2]);
+        eq(VA.referenceText(refs[0]), "215197 · sheet 2");
+        // Sheets in the DOCUMENT's order, deduplicated, plural only when
+        // there is more than one. (The live NAS bolt cites sheet 3 twice and
+        // sheet 1 once, which is where the dedupe and the sort come from.)
+        eq(VA.referenceText({ document: "NAS.pdf", kinds: ["spec"], sheets: [3, 1] }),
+           "NAS.pdf · sheets 1, 3");
+        // A citation with no sheet names the document alone rather than
+        // inventing a page number.
+        eq(VA.referenceText({ document: "NAS.pdf", kinds: ["spec"], sheets: [] }),
+           "NAS.pdf");
+        // No revision, deliberately: the live NAS citation's is a four-clause
+        // per-sheet note, and printing it here would put back the wall of text
+        // this pass removed. See VA.referenceText's own comment.
+        ok(VA.referenceText({ document: "NAS.pdf", revision: "Rev 4 (sheet 1 rev 4)",
+          kinds: ["spec"], sheets: [3] }).indexOf("Rev 4 (sheet 1") === -1);
+        // A part no row of which cites anything gets nothing to render.
+        eq(VA.partReferences(TOPO, "no_such_part"), []);
+        eq(VA.referenceText(null), "");
+      });
+
+    // THE ITEM. Jeff: "'no drawing recorded for this part' on a COTS fastener
+    // -- wrong and meaningless; say what's true: it's a standard part whose
+    // dimensions come from the NAS sheet."
+    await test("a part with no drawing is identified by the document its own " +
+      "dimensions come off, not by the field it does not have", function () {
+        // `strut` carries no `drawing` and its one dimension cites a SPEC
+        // document -- the COTS-fastener shape exactly.
+        var card = VA.componentCard(TOPO, "strut", TOPOCROPS);
+        eq(card.drawing, null);
+        eq(card.standardPart, true);
+        eq(card.references.map(VA.referenceText), ["STRUT-DATASHEET.pdf"]);
+        var root = render(function (r) {
+          VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+        });
+        has(root.textContent, "standard part — dimensions from STRUT-DATASHEET.pdf");
+        ok(root.textContent.indexOf("no drawing recorded") === -1,
+           "the sentence that was wrong about the part: " + root.textContent);
+
+        // "standard part" is licensed by the citation KIND, not by the absence
+        // of a drawing: `post` also has no drawing, and its dimension is cited
+        // to a parts list, so the card names the document without calling the
+        // part standard.
+        var fromPartsList = VA.componentCard(TOPO, "post", TOPOCROPS);
+        eq(fromPartsList.standardPart, false);
+        eq(fromPartsList.references.map(VA.referenceText), ["217755 · sheet 1"]);
+        var listed = render(function (r) {
+          VA.renderHoverCard(r, fromPartsList, {}, VA.CONFIG, null);
+        });
+        has(listed.textContent, "dimensions from 217755 · sheet 1");
+        ok(listed.textContent.indexOf("standard part") === -1);
+
+        // A part that HAS a drawing prints the drawing -- that drawing IS the
+        // reference, and the card carries no second one.
+        var withDrawing = VA.componentCard(TOPO, "base", TOPOCROPS);
+        eq(withDrawing.references, []);
+        eq(withDrawing.standardPart, false);
+        var drawn = render(function (r) {
+          VA.renderHoverCard(r, withDrawing, {}, VA.CONFIG, null);
+        });
+        has(drawn.textContent, "drawing 215197");
+        ok(drawn.textContent.indexOf("dimensions from") === -1);
+
+        // A part with NEITHER says nothing at all, rather than inventing a
+        // sentence about an absence.
+        var bare = { id: "t", parts: [{ id: "z", name: "zed" }], nodes: [], edges: [] };
+        var neither = VA.componentCard(bare, "z", null);
+        eq(neither.drawing, null);
+        eq(neither.references, []);
+        eq(neither.standardPart, false);
+        var quiet = render(function (r) {
+          VA.renderHoverCard(r, neither, {}, VA.CONFIG, null);
+        });
+        eq(all(quiet, "div.hovercard__where").length, 0);
+      });
+
+    // ITEM 4, the measured half. The link did nothing when clicked, and the
+    // reason is the ORIGIN: Chrome refuses every navigation from an http(s)
+    // page to a file: URL. Measured 2026-09-15 with this repo's own browser
+    // tier, both transports, the real crop entry -- file:// opened the PDF in
+    // a new tab AND in the same tab; http opened nothing at all and logged
+    // "Not allowed to load local resource".
+    await test("a local-file link renders only where the origin can follow it",
+      function () {
+        eq(VA.originOpensLocalFiles("file:"), true);
+        eq(VA.originOpensLocalFiles("http:"), false);
+        eq(VA.originOpensLocalFiles("https:"), false);
+        // The strictest answer for anything unstated, the same default
+        // VA.isLocalPage takes -- a control is never acquired by accident.
+        eq(VA.originOpensLocalFiles(undefined), false);
+        eq(VA.originOpensLocalFiles(""), false);
+        // NOT the same question as VA.isLocalPage: a loopback server is local
+        // to the reader and still cannot open a local file.
+        eq(VA.isLocalPage("http:", "127.0.0.1"), true);
+        eq(VA.originOpensLocalFiles("http:"), false);
+
+        eq(VA.localFileUrl("C:/x/y.pdf", "file:"), "file:///C:/x/y.pdf");
+        eq(VA.localFileUrl("C:/x/y.pdf", "http:"), null);
+        eq(VA.localFileUrl(null, "file:"), null);
+        // VA.fileUrl itself is unchanged and still pure: it builds the URL and
+        // says nothing about whether it can be followed.
+        eq(VA.fileUrl("C:\\x\\y.pdf"), "file:///C:/x/y.pdf");
+
+        // And it reaches the rendered crop: the link where the origin can
+        // service it, NOTHING where it cannot -- not a disabled control and
+        // not an explanation of a link the reader cannot use.
+        //
+        // VA.pageProtocol is replaced rather than window.location.protocol
+        // assigned: this file runs in Chrome too (test.html), where assigning
+        // to location.protocol navigates the page.
+        var entry = CROPS.by_stack.demo_joint.plate;
+        var realProtocol = VA.pageProtocol;
+        try {
+          VA.pageProtocol = function () { return "http:"; };
+          var hosted = render(function (r) {
+            VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+          });
+          eq(all(hosted, "a").length, 0);
+          ok(hosted.textContent.indexOf("open the PDF") === -1,
+             "a control this origin cannot service is absent, not explained");
+          // The reference itself is unaffected -- it is what a reader came
+          // for, and it names the document in words on any origin.
+          has(hosted.textContent, entry.pdf_name);
+          VA.pageProtocol = function () { return "file:"; };
+          var local = render(function (r) {
+            VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+          });
+          eq(all(local, "a").length, 1);
+          has(all(local, "a")[0].getAttribute("href"), "file:///");
+        } finally {
+          VA.pageProtocol = realProtocol;
+        }
+      });
+
+    // ITEM 3's own guard, at the fixture tier: over every surface this session
+    // owns, none of the banned classes of string appears.
+    await test("no rendered topology surface prints an internal id, a field " +
+      "name, a checksum or a workstation path", function () {
+        var surfaces = [["the grid", render(function (r) {
+          VA.renderTopoPane(r, topoCtx());
+        })]];
+        (TOPO.nodes || []).forEach(function (node) {
+          surfaces.push(["the pane on node " + node.id, render(function (r) {
+            VA.renderTopoDetail(r, topoCtx({
+              selection: { kind: "node", id: node.id } }));
+          })]);
+          surfaces.push(["the card on node " + node.id, render(function (r) {
+            VA.renderHoverCard(r, VA.nodeCard(TOPO, node.id, TOPOCROPS), {},
+              VA.CONFIG, null);
+          })]);
+        });
+        (TOPO.edges || []).forEach(function (edge) {
+          surfaces.push(["the pane on edge " + edge.id, render(function (r) {
+            VA.renderTopoDetail(r, topoCtx({
+              selection: { kind: "edge", id: edge.id } }));
+          })]);
+          surfaces.push(["the card on edge " + edge.id, render(function (r) {
+            VA.renderHoverCard(r, VA.edgeCard(TOPO, edge, TOPOCROPS), {},
+              VA.CONFIG, null);
+          })]);
+        });
+        (TOPO.parts || []).forEach(function (part) {
+          surfaces.push(["the card on part " + part.id, render(function (r) {
+            VA.renderHoverCard(r, VA.componentCard(TOPO, part.id, TOPOCROPS), {},
+              VA.CONFIG, null);
+          })]);
+        });
+
+        var ids = (TOPO.parts || []).map(function (p) { return p.id; })
+          .concat((TOPO.nodes || []).map(function (n) { return n.id; }));
+        surfaces.forEach(function (pair) {
+          bannedIn(pair[1].textContent, pair[0]);
+          ids.forEach(function (id) {
+            // An id that happens also to BE a phrase a human would write is no
+            // evidence of anything (`post`, `arm`); only ids with a separator
+            // in them are unambiguously machine-shaped.
+            if (id.indexOf("_") === -1) return;
+            ok(pair[1].textContent.indexOf(id) === -1,
+               pair[0] + " prints the internal id `" + id + "`: " +
+               pair[1].textContent);
+          });
+        });
+        ok(surfaces.length > 20, "the walk must not be vacuous");
+      });
+
+    // ITEM 5. The pane's width, and the one preference on this page that
+    // outlives the session.
+    await test("the preview pane's width clamps, and a drag on its divider " +
+      "widens it by moving LEFT", function () {
+        eq(VA.clampPaneWidth(600), 600);
+        eq(VA.clampPaneWidth(10), VA.TOPO_PANE_WIDTH.min);
+        eq(VA.clampPaneWidth(99999), VA.TOPO_PANE_WIDTH.max);
+        eq(VA.clampPaneWidth("560"), 560);
+        eq(VA.clampPaneWidth(560.4), 560);
+        eq(VA.clampPaneWidth("wide"), VA.TOPO_PANE_WIDTH.min);
+        // The sign. The pane is RIGHT of its divider, so dragging LEFT (a
+        // negative dx) makes it wider -- getting this backwards is the
+        // likeliest mistake in the whole feature, which is why the arithmetic
+        // is in the pure layer and not in the pointer handler.
+        eq(VA.paneWidthAfterDrag(560, -40), 600);
+        eq(VA.paneWidthAfterDrag(560, 40), 520);
+        eq(VA.paneWidthAfterDrag(VA.TOPO_PANE_WIDTH.min, 400),
+           VA.TOPO_PANE_WIDTH.min);
+        ok(VA.TOPO_PANE_WIDTH.min < VA.TOPO_PANE_WIDTH.max);
+      });
+
+    await test("the pane width is remembered, under one key, and a storage " +
+      "that cannot answer is never a crash", function () {
+        var store = {
+          data: {},
+          getItem: function (k) {
+            return Object.prototype.hasOwnProperty.call(this.data, k)
+              ? this.data[k] : null;
+          },
+          setItem: function (k, v) { this.data[k] = String(v); },
+        };
+        eq(VA.readStoredPaneWidth(store), null);   // nothing stored yet
+        VA.writeStoredPaneWidth(store, 640);
+        eq(store.data[VA.PANE_WIDTH_KEY], "640");
+        eq(VA.readStoredPaneWidth(store), 640);
+        // Clamped on the way IN as well as out, so a hand-edited value or one
+        // stored on a much wider screen cannot produce an unusable pane.
+        VA.writeStoredPaneWidth(store, 99999);
+        eq(VA.readStoredPaneWidth(store), VA.TOPO_PANE_WIDTH.max);
+        store.data[VA.PANE_WIDTH_KEY] = "not a number";
+        eq(VA.readStoredPaneWidth(store), null);
+        store.data[VA.PANE_WIDTH_KEY] = "";
+        eq(VA.readStoredPaneWidth(store), null);
+
+        // A file:// page's localStorage is per-path at best and throws
+        // outright in some configurations, and a preference is never worth a
+        // crash. Both directions swallow it, and so does having no store.
+        var hostile = {
+          getItem: function () { throw new Error("SecurityError"); },
+          setItem: function () { throw new Error("SecurityError"); },
+        };
+        eq(VA.readStoredPaneWidth(hostile), null);
+        VA.writeStoredPaneWidth(hostile, 600);     // must not throw
+        eq(VA.readStoredPaneWidth(null), null);
+        VA.writeStoredPaneWidth(null, 600);        // must not throw
       });
 
     // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) -------
@@ -3158,7 +3839,7 @@
         mini.parts = [{ id: "blade_root", name: "blade root" }];
         mini.edges[0].name = "blade-root clocking holes to the hub";
         var ctx = { topoProj: mini, study: null, crops: null,
-                    layoutMode: "topology", selection: null, detailImage: null,
+                    selection: null, detailImage: null,
                     onSelect: function () {} };
         var root = render(function (r) { VA.renderTopoPane(r, ctx); });
         var cells = all(root, "td.tvcell--name");
@@ -3412,6 +4093,18 @@
     // index instead of by element would fly the bushing offset in from the
     // post height's slot and still look plausible.
 
+    // The two serialisations the respine machinery was built against: the
+    // walk, and one study's chain laid out on its own. Since
+    // viewer_respine_whole_walk the PAGE no longer draws the second one --
+    // the DAG is always the walk and a study selection only changes emphasis,
+    // leaders and the grid's row subset -- so everything below that pairs
+    // these two is SYNTHETIC, exactly as the shared-column link fade already
+    // was. It is kept, not deleted, for the reason the round-2 lesson gives:
+    // these functions are pure, the guarantee they state is about any two
+    // serialisations rather than about whatever the corpus happens to hold,
+    // and `study.layout` is still in the projection for the day something
+    // re-columns the walk again. What a REAL respine does now is pinned
+    // separately, by "a real respine adds and drops nothing" below.
     function respineStores(mode) {
       var M = VA.RAIL_METRICS;
       var walk = VA.spineRight(TOPO.layout);
@@ -3616,18 +4309,25 @@
 
     await test("an element the transition ADDS fades in at its own settled " +
       "position, and the rows around it do not", function () {
-        // The deselect direction: the chain gives the spine back to the walk,
-        // so three edge rows and two interfaces ARRIVE.
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
-        var root = render(function (r) { VA.renderTopoPane(r, chainCtx); });
-        var from = VA.lastTopoRender;
+        // SYNTHETIC (see respineStores above): the outgoing store is the
+        // chain laid out on its own, which the page cannot produce any more,
+        // so three edge rows and two interfaces ARRIVE. The view's wiring of
+        // VA.tweenAlpha is what is under test, and it is kept because it is
+        // the only thing standing between "a respine adds an element" and
+        // "an element appears whole, from nowhere" the next time a layout
+        // change makes that reachable.
+        var s = respineStores();
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var from = { positions: s.to, columns: s.chainLayout.columns,
+                     floor: 0, links: {},
+                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
+                                              s.M, s.to).width };
         var ghost = VA.el("div", "tv__ghost");
         ghost.appendChild(root.querySelector(".tv__hscroll"));
         VA.renderTopoPane(root, topoCtx({
-          study: topoStudy("demo_strut_branch"), layoutMode: "topology",
-          tween: { positions: from.positions, columns: from.columns, e: 0.25,
-                   ghost: ghost },
+          tween: { positions: from.positions, columns: from.columns,
+                   floor: from.floor, width: from.width, links: from.links,
+                   e: 0.25, ghost: ghost },
         }));
         var opacityOf = function (selector, id) {
           var hit = all(root, selector).filter(function (n) {
@@ -3670,25 +4370,34 @@
           return VA.respineX(s.chainLayout, s.chainPlan, s.M, from, e,
                              undefined);
         };
+        // The spine's own drawn index, which is the number the drawn column
+        // COUNT is: VA.drawnColumn of the last column, plus one.
+        var count = function (e) {
+          return VA.drawnColumn(s.chainLayout.columns - 1, at(e)) + 1;
+        };
         // e = 0 is the outgoing frame's own two numbers, which is the whole
         // continuity claim: the first frame of a transition draws the picture
         // the reader is already looking at.
         var spread = s.chainLayout.columns - s.walk.columns;
         eq(at(0).columnShift, spread);
         eq(at(0).width, from.width);
-        eq(s.chainLayout.columns - at(0).columnShift, s.walk.columns,
+        eq(count(0), s.walk.columns,
            "drawn with the OUTGOING serialisation's column count");
         // e = 1 is the target's, exactly -- so a settled frame is a plain
         // render and no geometry drifts through the animation.
-        eq(at(1).columnShift, 0);
+        eq(count(1), s.chainLayout.columns);
         eq(at(1).width, toWidth);
-        // And it is a straight interpolation in between.
-        eq(at(0.25).columnShift, 0.75 * spread);
+        // And it is a straight interpolation in between. `columnShift` is the
+        // outgoing frame's whole shortfall at every e -- it does not decay,
+        // because the decay lives in VA.drawnColumn, which interpolates each
+        // column between the two frames' own indices for its depth.
+        eq(at(0.25).columnShift, spread);
+        eq(count(0.25), s.walk.columns + 0.25 * (s.chainLayout.columns - s.walk.columns));
         ok(Math.abs(at(0.25).width - (toWidth + 0.75 * (from.width - toWidth)))
            < 1e-9);
         // Out-of-range e is clamped, the same way VA.respineEase clamps it.
-        eq(at(-3).columnShift, at(0).columnShift);
-        eq(at(7).columnShift, 0);
+        eq(count(-3), count(0));
+        eq(count(7), count(1));
         // Nothing to interpolate from (a pane that never rendered) is no
         // tween at all, which is what makes a first paint a plain render.
         eq(VA.respineX(s.chainLayout, s.chainPlan, s.M, null, 0), null);
@@ -3698,9 +4407,9 @@
                        { columns: 2, width: 0 }, 0), null);
       });
 
-    await test("a column a respine ADDS unfolds out of the spine — it is " +
-      "never drawn left of the leftmost rail, because it has no outgoing x " +
-      "to come from", function () {
+    await test("a column a respine ADDS unfolds out of the outgoing frame's " +
+      "leftmost rail — it is never drawn left of it, because it has no " +
+      "outgoing x to come from", function () {
         var s = respineStores();
         var from = { columns: s.chainLayout.columns,
                      width: VA.leaderGeometry(s.chainLayout, s.chainPlan, s.M,
@@ -3711,11 +4420,12 @@
             VA.tweenPositions(s.to, s.from, e), { x: x })
             .rails.map(function (rail) { return rail.x; });
         };
-        // The deselect direction: the chain's one column gives way to the
-        // walk's, so every column but the spine is one the respine adds. At
-        // e = 0 they are all collapsed onto the leftmost rail -- which is
-        // where the outgoing frame's only rail was -- and they separate from
-        // there.
+        // The deselect direction from a SETTLED chain: its one column gives
+        // way to the walk's, so every column but the spine is one the respine
+        // adds. At e = 0 they are all collapsed onto drawn column 0 -- which
+        // is where a settled frame's leftmost rail always is, and where this
+        // one's only rail was. The interrupted case, where the outgoing frame
+        // is mid-unfold and has no rail there at all, is the check below.
         var first = railsAt(0);
         eq(first.filter(function (x) { return x === VA.railX(0, s.M); }).length,
            first.length, "every rail starts on the leftmost one: " + first);
@@ -3737,6 +4447,261 @@
           });
           previous = now;
         });
+      });
+
+    // A synthetic 10-column walk and a 1-column chain -- the real
+    // pitch_system's own column gap, at VA.RAIL_METRICS. The demo fixture is
+    // 2 columns wide, which is enough to show a rail unfolding and not enough
+    // to show WHERE it unfolds from: the two candidate floors are one gutter
+    // apart there and nine apart here.
+    function tenColumnWalk() {
+      var walk = { columns: 10, rows: [], rails: [], links: [] };
+      for (var c = 0; c < 10; c++) {
+        walk.rows.push({ row: c, kind: "node", id: "n" + c, column: c });
+        walk.rails.push({ column: c, start: c, end: 9 });
+      }
+      return walk;
+    }
+
+    function oneColumnChain() {
+      return { columns: 1,
+               rows: [{ row: 0, kind: "node", id: "n0", column: 0 }],
+               rails: [{ column: 0, start: 0, end: 0 }], links: [] };
+    }
+
+    // What a frame DREW, in the three numbers VA.lastTopoRender records and
+    // the next transition continues from.
+    function drewX(layout, x, width) {
+      return { columns: VA.drawnColumn(layout.columns - 1, x) + 1,
+               floor: VA.drawnColumn(0, x),
+               width: x ? x.width : width };
+    }
+
+    await test("a respine interrupting a respine unfolds out of a rail the " +
+      "frame it interrupted really drew — not out of drawn column 0, which " +
+      "a frame caught mid-unfold has nothing on", function () {
+        // ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
+        // nowhere, at its own numbers. The claim rails and links are drawn
+        // with no opacity of their own on the strength of -- "a column the
+        // transition is adding is drawn collapsed onto a rail the outgoing
+        // frame drew, so there is nothing to appear from nowhere" -- used to
+        // clamp at drawn column 0. A SETTLED frame always has a rail there;
+        // a frame caught at e = 0.5 of a select does not, and nine rails
+        // arrived at full opacity where it had drawn nothing at all.
+        var M = VA.RAIL_METRICS;
+        var plan = { leaders: [], rows: [] };
+        var walk = tenColumnWalk();
+        var chain = oneColumnChain();
+        var railsAt = function (layout, x) {
+          return VA.railGeometry(layout, M, undefined, { x: x })
+            .rails.map(function (rail) { return rail.x; });
+        };
+        // Frame A: half way through a select, out of the settled walk.
+        var walkWidth = VA.leaderGeometry(walk, plan, M).width;
+        var xA = VA.respineX(chain, plan, M,
+          { columns: walk.columns, width: walkWidth }, 0.5);
+        var frameA = railsAt(chain, xA);
+        eq(frameA, [VA.railX(4.5, M)],
+           "the chain's one rail, half way out of the walk's spine");
+        // Non-vacuity, and the whole defect in one line: frame A has no rail
+        // at drawn column 0, so clamping there collapses onto nothing.
+        ok(frameA.indexOf(VA.railX(0, M)) === -1,
+           "frame A must have nothing at drawn column 0: " + frameA);
+
+        // Frame B: the reader clicks again mid-flight. The interrupting
+        // transition's first frame continues from frame A's own record, and
+        // every rail it draws has to land on a rail frame A drew.
+        var xB = VA.respineX(walk, plan, M, drewX(chain, xA), 0);
+        var frameB = railsAt(walk, xB);
+        frameB.forEach(function (x, i) {
+          ok(frameA.indexOf(x) !== -1, "rail " + i + " of the interrupting " +
+             "frame is at " + x + ", where the frame it interrupted drew " +
+             "nothing: " + frameB + " vs " + frameA);
+        });
+        eq(xB.width, xA.width, "and the pane width is continuous too");
+
+        // It still unfolds: the floor relaxes to 0 as the transition settles,
+        // so e = 1 is the plain render's own rails and nothing has drifted.
+        eq(railsAt(walk, VA.respineX(walk, plan, M, drewX(chain, xA), 1)),
+           railsAt(walk, null), "and lands on the plain render's own rails");
+        // And no rail wobbles on the way. The settled case's stronger claim
+        // -- every rail only ever moves AWAY from the leftmost one -- is not
+        // this one's: the fold point here is drawn column 4.5 and has to
+        // travel back to 0, so the rails left of the spine move LEFT for the
+        // whole flight while the spine moves right. What must hold is that
+        // each rail picks one direction and keeps it.
+        var track = [0, 0.25, 0.5, 0.75, 1].map(function (e) {
+          return railsAt(walk, VA.respineX(walk, plan, M, drewX(chain, xA), e));
+        });
+        track[0].forEach(function (unused, i) {
+          var sign = 0;
+          for (var k = 1; k < track.length; k++) {
+            var step = track[k][i] - track[k - 1][i];
+            if (Math.abs(step) < 1e-9) continue;
+            var now = step > 0 ? 1 : -1;
+            ok(sign === 0 || sign === now, "rail " + i + " reversed: " +
+               track.map(function (frame) { return frame[i]; }));
+            sign = now;
+          }
+        });
+        var settled = track[track.length - 1];
+        ok(Math.max.apply(null, settled) > Math.min.apply(null, settled),
+           "the walk really does unfold: " + settled);
+
+        // A settled `from` carries no floor at all, and reads as 0 -- which
+        // is what a settled frame's leftmost drawn column index is.
+        eq(VA.respineX(chain, plan, M,
+             { columns: walk.columns, width: walkWidth }, 0.5).floor, 0);
+        eq(VA.drawnColumn(3, null), 3, "no transition, no clamp");
+      });
+
+    await test("a link a respine ADDS between two columns BOTH serialisations " +
+      "have fades in — the column unfold cannot cover it, because neither " +
+      "column is one the transition adds", function () {
+        // ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_
+        // has_no_fade. Synthetic on purpose, and the reason is worth keeping:
+        // all 21 study chains across the five committed topologies have
+        // `columns: 1` and `links: []` while their walks run 2-10 columns and
+        // 2-18 links, so every link a respine adds TODAY arrives on a column
+        // the respine also adds and the unfold covers it. The pair below is
+        // the case BRIEF_20260915_respine_scope_and_grid_motion item 1 makes
+        // reachable: two serialisations differing by a loop closure and by
+        // nothing else.
+        var M = VA.RAIL_METRICS;
+        var plan = { leaders: [], rows: [] };
+        var rows = [
+          { row: 0, kind: "node", id: "a", column: 0, branch: true },
+          { row: 1, kind: "edge", id: "ab", column: 1 },
+          { row: 2, kind: "node", id: "b", column: 1 },
+          { row: 3, kind: "edge", id: "bc", column: 0 },
+          { row: 4, kind: "node", id: "c", column: 0 },
+        ];
+        var rails = [{ column: 0, start: 0, end: 4 },
+                     { column: 1, start: 0, end: 2 }];
+        var branch = { kind: "branch", row: 0, from_column: 0, to_row: 0,
+                       to_column: 1 };
+        var closure = { kind: "close", row: 3, from_column: 0, to_row: 2,
+                        to_column: 1 };
+        var open = { columns: 2, rows: rows, rails: rails, links: [branch] };
+        var closed = { columns: 2, rows: rows, rails: rails,
+                       links: [branch, closure] };
+        var linksOf = function (layout) {
+          return VA.railGeometry(layout, M).links;
+        };
+        var keyOf = function (layout, link) { return VA.linkKey(layout, link); };
+        var kept = keyOf(open, branch);
+        var added = keyOf(closed, closure);
+        ok(kept !== added, "the two links are not the same link");
+        eq(linksOf(open).map(function (l) { return l.key; }), [kept]);
+        eq(linksOf(closed).map(function (l) { return l.key; }), [kept, added]);
+
+        // The two sides share their columns, so respineX has nothing to
+        // unfold: every rail is at rest from the first frame, and so are both
+        // ends of the closure. Its own opacity is the only thing that can
+        // carry it in.
+        var settledLinks = VA.linkOpacity(linksOf(open), null, 1);
+        var from = { columns: open.columns, floor: 0,
+                     width: VA.leaderGeometry(open, plan, M).width,
+                     links: settledLinks };
+        var x = VA.respineX(closed, plan, M, from, 0);
+        eq(x.columnShift, 0, "nothing to unfold: the columns are the same");
+        eq(VA.railGeometry(closed, M, undefined, { x: x }).rails.map(
+             function (r) { return r.x; }),
+           VA.railGeometry(open, M).rails.map(function (r) { return r.x; }),
+           "and every rail is exactly where the outgoing frame drew it");
+
+        var alphaAt = function (e, prev) {
+          return VA.linkOpacity(linksOf(closed),
+                                prev === undefined ? from.links : prev, e);
+        };
+        eq(alphaAt(0)[added], 0,
+           "the loop closure would otherwise appear from nowhere at e = 0");
+        eq(alphaAt(0.25)[added], 0.25);
+        eq(alphaAt(1)[added], 1, "and is whole once the transition settles");
+        [0, 0.5, 1].forEach(function (e) {
+          eq(alphaAt(e)[kept], 1, "a link both sides draw never fades");
+        });
+        // Interrupted, a part-done fade continues from what was drawn --
+        // the same continuity the column floor gives the rails.
+        var caught = alphaAt(0.4);
+        eq(alphaAt(0, caught)[added], 0.4);
+        ok(alphaAt(0.5, caught)[added] > 0.4 &&
+           alphaAt(0.5, caught)[added] < 1);
+        // No transition behind it: everything is opaque, which is what makes
+        // a plain render carry nothing of the animation.
+        eq(VA.linkOpacity(linksOf(closed), null, 0)[added], 1);
+      });
+
+    await test("the rendered frame carries a link's fade on the drawn path, " +
+      "and a settled frame carries none", function () {
+        // The other half of the check above: the geometry knows each link's
+        // opacity, and this is the view actually putting it on the path.
+        // SYNTHETIC in the same way (see respineStores) -- the outgoing frame
+        // is one that drew no links at all, which a linear chain layout
+        // really was and which no study selection can be any more.
+        var s = respineStores();
+        var from = { positions: s.to, columns: s.chainLayout.columns,
+                     floor: 0, links: {},
+                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
+                                              s.M, s.to).width };
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        eq(Object.keys(from.links), [], "the outgoing frame drew no links");
+
+        VA.renderTopoPane(root, topoCtx({
+          tween: { positions: from.positions, columns: from.columns,
+                   floor: from.floor, width: from.width, links: from.links,
+                   e: 0.25 },
+        }));
+        var drawn = all(root, "path.rail__link");
+        eq(drawn.length, TOPO.layout.links.length,
+           "the walk's own links are drawn");
+        drawn.forEach(function (node) {
+          ok(Math.abs(parseFloat(node.style.opacity) - 0.25) < 1e-9,
+             "a link the respine adds arrives faded: " + node.style.opacity);
+        });
+        // A plain render fades nothing -- the settled page is the page a
+        // render that never animated produces.
+        var fresh = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var settled = all(fresh, "path.rail__link");
+        eq(settled.length, TOPO.layout.links.length);
+        settled.forEach(function (node) {
+          eq(node.style.opacity || "", "", "a plain render fades no link");
+        });
+      });
+
+    await test("a branch link is keyed by where it LANDS, so one fork's two " +
+      "fan-outs are two different links", function () {
+        // A close link's two ends are two different rows and name it
+        // outright; a branch link's `row` and `to_row` are the SAME fork row,
+        // so two branches off one fork differ only in `to_column` -- which is
+        // the one thing that is not comparable between two serialisations.
+        var layout = {
+          columns: 3,
+          rows: [
+            { row: 0, kind: "node", id: "fork", column: 0, branch: true },
+            { row: 1, kind: "edge", id: "left", column: 1 },
+            { row: 2, kind: "edge", id: "right", column: 2 },
+          ],
+          rails: [{ column: 0, start: 0, end: 0 }, { column: 1, start: 0, end: 1 },
+                  { column: 2, start: 0, end: 2 }],
+          links: [
+            { kind: "branch", row: 0, from_column: 0, to_row: 0, to_column: 1 },
+            { kind: "branch", row: 0, from_column: 0, to_row: 0, to_column: 2 },
+          ],
+        };
+        var keys = VA.railGeometry(layout, VA.RAIL_METRICS).links.map(
+          function (l) { return l.key; });
+        eq(keys, ["link|branch|node|fork|edge|left",
+                  "link|branch|node|fork|edge|right"]);
+        // And on the fixture, every drawn link of the walk is distinct --
+        // a collision would fade two links as one.
+        var walk = VA.spineRight(TOPO.layout);
+        var fixture = VA.railGeometry(walk, VA.RAIL_METRICS).links.map(
+          function (l) { return l.key; });
+        ok(fixture.length === TOPO.layout.links.length && fixture.length > 1,
+           "the fixture really has links to key: " + fixture);
+        eq(fixture.filter(function (k, i) { return fixture.indexOf(k) !== i; }),
+           [], "duplicate link keys: " + fixture);
       });
 
     await test("every frame of a respine draws every rail, mark, link and " +
@@ -3807,18 +4772,26 @@
       "outgoing frame as an inert ghost", function () {
         var s = respineStores();
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
-        var from = VA.lastTopoRender;
-        eq(from.tweening, false, "a plain render is not a transition");
-        ok(from.width > 0, "the render records the SVG width it drew");
-        eq(from.columns, s.walk.columns,
+        var plain = VA.lastTopoRender;
+        eq(plain.tweening, false, "a plain render is not a transition");
+        ok(plain.width > 0, "the render records the SVG width it drew");
+        eq(plain.columns, s.walk.columns,
            "and the column count -- the horizontal pair a respine tweens");
 
+        // SYNTHETIC outgoing frame (see respineStores): a serialisation with
+        // its own column count and its own pane width, which is what the
+        // horizontal interpolation exists for. The target is the walk,
+        // because the walk is the only thing this pane draws now.
+        var from = { positions: s.to, columns: s.chainLayout.columns,
+                     floor: 0, links: {},
+                     width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
+                                              s.M, s.to).width };
         var ghost = VA.el("div", "tv__ghost");
         ghost.appendChild(root.querySelector(".tv__hscroll"));
         VA.renderTopoPane(root, topoCtx({
-          study: topoStudy("demo_strut_branch"), layoutMode: "chain",
           tween: { positions: from.positions, columns: from.columns,
-                   width: from.width, e: 0.5, ghost: ghost },
+                   floor: from.floor, width: from.width, links: from.links,
+                   e: 0.5, ghost: ghost },
         }));
         eq(VA.lastTopoRender.tweening, true);
 
@@ -3839,7 +4812,7 @@
         // either of them learning that a transition exists. Nothing carries a
         // translate any more -- a block slide is what drew the incoming
         // serialisation off the pane.
-        var x = VA.respineX(s.chainLayout, s.chainPlan, s.M, from, 0.5);
+        var x = VA.respineX(s.walk, s.walkPlan, s.M, from, 0.5);
         var svg = root.querySelector("svg.tv__rails");
         ok(Math.abs(parseFloat(svg.getAttribute("width")) - x.width) < 0.05,
            "the SVG is drawn at " + svg.getAttribute("width") +
@@ -3857,8 +4830,8 @@
           return n.getAttribute("data-id") === "base_datum";
         })[0];
         ok(dot, "the spine's first interface must be drawn");
-        var mark = VA.railGeometry(s.chainLayout, s.M,
-          VA.tweenPositions(s.from, s.to, 0.5), { x: x })
+        var mark = VA.railGeometry(s.walk, s.M,
+          VA.tweenPositions(s.to, s.from, 0.5), { x: x })
           .marks.filter(function (m) { return m.id === "base_datum"; })[0];
         ok(Math.abs(parseFloat(dot.getAttribute("cx")) - mark.x) < 0.05,
            "drawn cx " + dot.getAttribute("cx") + " should be " + mark.x);
@@ -3880,64 +4853,89 @@
         // back as its own `from`, so recording the target serialisation's
         // own numbers instead would make a reader who clicks twice see the
         // DAG jump sideways at the second click.
-        var chainCtx = function (over) {
-          var ctx = { study: topoStudy("demo_strut_branch"),
-                      layoutMode: "chain" };
-          Object.keys(over || {}).forEach(function (k) { ctx[k] = over[k]; });
-          return topoCtx(ctx);
-        };
-        var spineAndWidth = function (root) {
-          var rails = all(root, "line.rail").map(function (n) {
+        // SYNTHETIC outgoing frame again (see respineStores): a frame drawn
+        // with fewer columns and a narrower pane than the walk the pane is
+        // transitioning to.
+        var s = respineStores();
+        var outgoing = { positions: s.to, columns: s.chainLayout.columns,
+                         floor: 0, links: {},
+                         width: VA.leaderGeometry(s.chainLayout, s.chainPlan,
+                                                  s.M, s.to).width };
+        var railSet = function (root) {
+          return all(root, "line.rail").map(function (n) {
             return parseFloat(n.getAttribute("x1"));
           });
+        };
+        var spineAndWidth = function (root) {
+          var rails = railSet(root);
           return [Math.max.apply(null, rails),
                   parseFloat(root.querySelector("svg.tv__rails")
                     .getAttribute("width"))];
         };
 
-        // A plain walk, then one frame of a respine toward the chain.
+        // The outgoing picture itself -- the frame at e = 0, which is the
+        // one the reader is looking at when the transition starts.
+        var frameAt = function (root, e) {
+          VA.renderTopoPane(root, topoCtx({
+            tween: { positions: outgoing.positions, columns: outgoing.columns,
+                     floor: outgoing.floor, width: outgoing.width,
+                     links: outgoing.links, e: e },
+          }));
+          return VA.lastTopoRender;
+        };
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var walk = VA.lastTopoRender;
-        VA.renderTopoPane(root, chainCtx({
-          tween: { positions: walk.positions, columns: walk.columns,
-                   width: walk.width, e: 0.5 },
-        }));
+        var start = spineAndWidth(render(function (r) { frameAt(r, 0); }));
+        // Halfway toward the walk.
+        frameAt(root, 0.5);
         var caught = VA.lastTopoRender;
         var midway = spineAndWidth(root);
-        ok(caught.columns > Math.min(walk.columns, 1) &&
-           caught.columns < walk.columns,
+        var midwayRails = railSet(root);
+        ok(caught.columns > outgoing.columns && caught.columns < walk.columns,
            "the frame records the count it drew with: " + caught.columns);
 
         // The interrupt: a new transition, back the other way, off that
         // record. Its FIRST frame has to draw the same picture.
         VA.renderTopoPane(root, topoCtx({
           tween: { positions: caught.positions, columns: caught.columns,
-                   width: caught.width, e: 0 },
+                   floor: caught.floor, width: caught.width,
+                   links: caught.links, e: 0 },
         }));
         eq(spineAndWidth(root), midway,
            "the interrupting frame must continue from the drawn picture");
+        // And over the whole DRAWN SET, not just its two summary numbers.
+        // `spineAndWidth` reduces a frame of N rails to the max rail x and
+        // the SVG width -- which are precisely the two numbers VA.respineX
+        // returns, so it agreed with itself while the interrupting frame
+        // drew rails at x's the caught frame had nothing at
+        // (ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
+        // nowhere). Not an equal SET: the walk has more columns than the
+        // frame it interrupts, and the extra ones are collapsed on top of
+        // one another. Every rail must land on a rail that was there.
+        railSet(root).forEach(function (x, i) {
+          ok(midwayRails.indexOf(x) !== -1, "rail " + i + " of the " +
+             "interrupting frame is at " + x + ", where the frame it " +
+             "interrupted drew nothing: " + railSet(root) + " vs " +
+             midwayRails);
+        });
 
         // Non-vacuity: the two serialisations' own spines are far apart, so
         // continuing from either of them instead would be visible.
         var freshWalk = spineAndWidth(render(function (r) {
           VA.renderTopoPane(r, topoCtx());
         }));
-        var freshChain = spineAndWidth(render(function (r) {
-          VA.renderTopoPane(r, chainCtx());
-        }));
-        ok(midway[0] !== freshWalk[0] && midway[0] !== freshChain[0],
+        ok(midway[0] !== freshWalk[0] && midway[0] !== start[0],
            "midway is its own picture: " + midway + " between " +
-           freshChain + " and " + freshWalk);
+           start + " and " + freshWalk);
       });
 
     await test("the settled frame carries none of the animation: no ghost, " +
       "no slide, no inline opacity, and the numbers a fresh render draws",
       function () {
-        var chainCtx = function () {
-          return topoCtx({ study: topoStudy("demo_strut_branch"),
-                           layoutMode: "chain" });
+        var studyCtx = function () {
+          return topoCtx({ study: topoStudy("demo_strut_branch") });
         };
-        var fresh = render(function (r) { VA.renderTopoPane(r, chainCtx()); });
+        var fresh = render(function (r) { VA.renderTopoPane(r, studyCtx()); });
         var freshBars = all(fresh, "line.rail__barhit").map(function (n) {
           return [n.getAttribute("data-id"), n.getAttribute("y1"), n.getAttribute("y2")];
         });
@@ -3947,7 +4945,7 @@
         var from = VA.lastTopoRender;
         var clock = 0;
         var queue = [];
-        VA.animateTopoPane(root, chainCtx(), from, {
+        VA.animateTopoPane(root, studyCtx(), from, {
           now: function () { return clock; },
           raf: function (fn) { queue.push(fn); },
           duration: 100, reduced: false,
@@ -3978,8 +4976,7 @@
     await test("VA.animateTopoPane runs a whole transition off an injected " +
       "clock: the outgoing pane becomes the ghost, every frame is a render, " +
       "and a cancel stops it dead", function () {
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var outgoing = root.querySelector(".tv__hscroll");
         var from = VA.lastTopoRender;
@@ -3988,7 +4985,7 @@
         var opts = { now: function () { return clock; },
                      raf: function (fn) { queue.push(fn); },
                      duration: 100, reduced: false };
-        var handle = VA.animateTopoPane(root, chainCtx, from, opts);
+        var handle = VA.animateTopoPane(root, studyCtx, from, opts);
         ok(handle, "an animated transition hands back a handle");
         // The first frame is drawn synchronously, at e = 0, and it is the
         // outgoing picture: the ghost is opaque and the incoming grid is not
@@ -4033,8 +5030,7 @@
 
     await test("a frame that throws stops the transition and lands on the " +
       "page's one crash seam, not on an unhandled error", function () {
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var from = VA.lastTopoRender;
         var real = VA.renderTopoPane;
@@ -4051,7 +5047,7 @@
             if (frames > 1) throw new Error("seeded frame failure");
             return real(r, c);
           };
-          VA.animateTopoPane(root, chainCtx, from, {
+          VA.animateTopoPane(root, studyCtx, from, {
             now: function () { return clock; },
             raf: function (fn) { queue.push(fn); },
             duration: 100, reduced: false,
@@ -4069,12 +5065,11 @@
 
     await test("prefers-reduced-motion jumps to the end state: one render, " +
       "no ghost, no tween", function () {
-        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
-                                 layoutMode: "chain" });
+        var studyCtx = topoCtx({ study: topoStudy("demo_strut_branch") });
         var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
         var from = VA.lastTopoRender;
         var asked = 0;
-        var handle = VA.animateTopoPane(root, chainCtx, from, {
+        var handle = VA.animateTopoPane(root, studyCtx, from, {
           reduced: true,
           raf: function () { asked++; },
           now: function () { return 0; },
@@ -4084,7 +5079,7 @@
         eq(VA.lastTopoRender.tweening, false);
         eq(all(root, "div.tv__ghost").length, 0);
         eq(root.querySelector("div.tv__rows").style.opacity || "", "");
-        var fresh = render(function (r) { VA.renderTopoPane(r, chainCtx); });
+        var fresh = render(function (r) { VA.renderTopoPane(r, studyCtx); });
         eq(all(root, "line.rail__barhit").map(function (n) {
           return n.getAttribute("y1");
         }), all(fresh, "line.rail__barhit").map(function (n) {
@@ -4187,8 +5182,13 @@
         // One merged cell per group, each spanning its own count.
         var cells = all(root, "td.tvcell--component");
         eq(cells.length, 6);
+        // Human names, never part ids (Jeff, 2026-09-15: "2nd line
+        // bolt_nas6403u11d appears to be some type of internal id that is
+        // meaningless to user ... replace these with a concise human friendly
+        // name").
         eq(cells.map(function (c) { return c.textContent; }),
-          ["base", "post", "arm", VA.GAP_COMPONENT_LABEL, "strut", "post"]);
+          ["base plate", "post", "arm", VA.GAP_COMPONENT_LABEL,
+           "parallel strut", "post"]);
       });
 
     await test("the value cell is decomposed into nominal / min / max columns, " +
@@ -4484,7 +5484,7 @@
       });
 
     await test("renderHoverCard: an edge card shows the crop block, the " +
-      "citation line and the crop-key claim", function () {
+      "citation line and its part in words", function () {
         var edge = VA.topologyIndex(TOPO).edges.base_thickness;
         var card = VA.edgeCard(TOPO, edge, TOPOCROPS);
         var images = {};
@@ -4495,7 +5495,18 @@
         has(root.className, "hovercard--edge");
         eq(all(root, "img").length, 1);
         has(root.textContent, "cited at:");
-        has(root.textContent, "from stack `demo_joint`, element `plate`");
+        // The part in a reader's words. `card.part` is still the id -- it is
+        // what the annotate deep link carries -- and the card prints
+        // `partLabel` (2026-09-15).
+        eq(card.part, "base");
+        eq(card.partLabel, "base plate");
+        has(root.textContent, "a dimension of base plate");
+        ok(root.textContent.indexOf("a dimension of base") !== -1);
+        // The crop-KEY line went with the same pass: it printed which of the
+        // crop index's two key spaces addressed this crop, in the ids of a
+        // stack and an element, above a picture that names its own document.
+        ok(root.textContent.indexOf("from stack `demo_joint`") === -1,
+           "no crop-key plumbing in a hover card: " + root.textContent);
         has(root.textContent, "215197 A.1.pdf");
         // The close button is the popover's own.
         eq(all(root, "button.croppop__close").length, 1);
@@ -4559,7 +5570,7 @@
         });
         has(root.className, "hovercard--citation");
         has(root.textContent, "215197 · rev A.1 · sheet 2");
-        has(root.textContent, "export established");
+        has(root.textContent, "Read from 215197.pdf");
         eq(all(root, ".el-export").length, 1);
         eq(all(root, "img").length, 1);
         // The run ids print through the same one runs-line builder the right
@@ -4910,22 +5921,64 @@
         eq(all(root, "circle.rail__dot--branch").length, TOPO.branch_nodes.length);
       });
 
-    await test("selecting a study numbers its chain and dims everything else",
+    // --- selecting a study (viewer_respine_whole_walk, 2026-09-15) ---------
+    //
+    // The invariant this handoff exists for, in one sentence: a study
+    // selection changes EMPHASIS, never what is on screen. Jeff read the old
+    // behaviour -- selecting a study swapped the DAG for a second, chain-only
+    // layout -- as a bug, and specifically as an inconsistent one: the two
+    // studies whose chains dropped rows looked different from the one whose
+    // chain covered nearly every visible element. The cure is uniformity, so
+    // the check is a count taken over EVERY study of the fixture rather than
+    // one reading of one study.
+    await test("selecting a study never hides a node or an edge: the DAG is " +
+      "the whole walk before and after, whatever the study is",
       function () {
+        var marks = function (root) {
+          return [all(root, "line.rail__barhit").length,
+                  all(root, "circle.rail__dot").length,
+                  all(root, "line.rail").length,
+                  all(root, "path.rail__link").length];
+        };
+        var walk = marks(render(function (r) {
+          VA.renderTopoPane(r, topoCtx());
+        }));
+        eq(walk, [TOPO.edges.length, TOPO.nodes.length,
+                  TOPO.layout.columns, TOPO.layout.links.length],
+           "the deselected walk draws every element of the document");
+        TOPO.studies.forEach(function (study) {
+          var root = render(function (r) {
+            VA.renderTopoPane(r, topoCtx({ study: study }));
+          });
+          eq(marks(root), walk, "study " + study.id + " kept the whole walk");
+        });
+      });
+
+    await test("selecting a study dims the non-members, numbers the chain " +
+      "and drops the grid to the chain's own rows", function () {
         var study = topoStudy("demo_strut_branch");
         var root = render(function (r) {
           VA.renderTopoPane(r, topoCtx({ study: study }));
         });
         var chain = study.result.chain;
-        var on = all(root, "tr.tvrow--on");
-        var off = all(root, "tr.tvrow--off");
-        eq(on.length, chain.length, "every chain edge's row is marked");
+        // The DAG: every edge is still drawn, and exactly the chain's are lit.
+        var on = all(root, "line.rail__bar--on");
+        var off = all(root, "line.rail__bar--off");
+        eq(on.length, chain.length, "every chain edge's bar is lit");
         ok(off.length > 0, "the rest of the topology is dimmed, not hidden");
         eq(on.length + off.length, TOPO.edges.length);
-        // The leaders dim with their nodes, so the off-chain part boundaries
-        // recede along with the off-chain rows.
-        ok(all(root, "path.rail__leader--on").length > 0, "on-chain leaders");
-        ok(all(root, "path.rail__leader--off").length > 0, "off-chain leaders");
+        ok(all(root, "circle.rail__dot--off").length > 0, "and so are its dots");
+        // The grid: the chain's rows, and only those. Walk order, not sum
+        // order -- the table sits under a DAG that did not move, so a row
+        // re-ordered here would cross every leader on the page. The sum's own
+        // order is the `#` column, which is what the ordinals below check.
+        var rows = all(root, "tr.tvrow");
+        eq(rows.length, chain.length, "the grid is exactly the chain");
+        eq(rows.map(function (n) { return n.getAttribute("data-id"); }),
+           ["base_thickness", "strut_length", "post_bushing_offset"]);
+        // Nothing in the table is marked off any more: every row in it is a
+        // member, so there is no non-member left to fade.
+        eq(all(root, "tr.tvrow--off").length, 0);
         // The ordinal is the order the SUM runs in, which is NOT the row order:
         // the rows are a depth-first walk of the whole graph.
         chain.forEach(function (contribution, i) {
@@ -4936,6 +5989,73 @@
           ok(row, "chain edge " + contribution.edge + " must have a row");
           has(row.querySelector("td.tvcell--ord").textContent, String(i + 1));
         });
+      });
+
+    await test("the leaders run to the chain and nowhere else, and every one " +
+      "of them lands on a seam one of its OWN edges bounds", function () {
+        var deselected = render(function (r) {
+          VA.renderTopoPane(r, topoCtx());
+        });
+        var leaderIds = function (root) {
+          return all(root, "path.rail__leaderhit").map(function (n) {
+            return n.getAttribute("data-leader-id");
+          });
+        };
+        // The walk's own boundaries: every non-internal node of the document.
+        eq(leaderIds(deselected),
+           ["base_post_seat", "post_arm_pin", "arm_tip", "strut_end",
+            "post_strut_bushing"]);
+        var study = topoStudy("demo_strut_branch");
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ study: study }));
+        });
+        // A leader is drawn or it is not -- there is no faded one. That
+        // absence is the emphasis Jeff asked for first: it should be obvious
+        // that no leader line points at certain elements.
+        eq(leaderIds(root), ["base_post_seat", "strut_end",
+                             "post_strut_bushing"]);
+        eq(all(root, "path.rail__leader--off").length, 0);
+        eq(all(root, "path.rail__leader--on").length, 3);
+        // And the honesty claim under it: a leader says "this interface is
+        // the seam between these two rows", so the seam it points at must be
+        // bounded by one of its own edges. Measured over every study of the
+        // fixture; the same sweep over the five live topologies' 21 studies
+        // finds 99 leaders and 0 violations (viewer_respine_whole_walk).
+        var index = VA.topologyIndex(TOPO);
+        var layout = VA.spineRight(TOPO.layout);
+        TOPO.studies.forEach(function (s) {
+          if (s.status !== "ok") return;
+          var plan = VA.gridPlan(layout, TOPO,
+            { edges: VA.chainIndex(s), nodes: VA.chainNodes(s) });
+          plan.leaders.forEach(function (leader) {
+            var touches = function (planRow) {
+              var edge = planRow && index.edges[planRow.id];
+              return !!edge && (edge.from === leader.id || edge.to === leader.id);
+            };
+            ok(touches(plan.rows[leader.boundary - 1]) ||
+               touches(plan.rows[leader.boundary]),
+               s.id + ": leader " + leader.id + " points at seam " +
+               leader.boundary + ", which neither of its edges bounds");
+          });
+        });
+      });
+
+    await test("a study that REFUSED to sum leaves the walk exactly as it " +
+      "was: nothing dimmed, every leader, every row", function () {
+        // The error is the result (docs/DAG_TOPOLOGY.md, "Not a solver"), so
+        // there is no chain to emphasize and no subset to drop the table to.
+        // This used to be the `chainable()` fallback in topology_app.js; it
+        // is now the one `marking` test in views/topology.js and nothing else.
+        var plain = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var root = render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ study: topoStudy("demo_ambiguous") }));
+        });
+        eq(all(root, "tr.tvrow").length, all(plain, "tr.tvrow").length);
+        eq(all(root, "path.rail__leaderhit").length,
+           all(plain, "path.rail__leaderhit").length);
+        eq(all(root, "line.rail__bar--off").length, 0, "nothing is dimmed");
+        eq(all(root, "circle.rail__dot--off").length, 0);
+        eq(all(root, "line.rail__bar--on").length, 0, "and nothing is lit");
       });
 
     await test("a chain row prints the weight and the contribution the " +
@@ -4958,24 +6078,59 @@
         has(cell, contribution.units);
       });
 
-    await test("the study-chain layout is the sum's own order, one rail",
+    await test("VA.gridPlan's focus filters the grid and the leaders and " +
+      "nothing else -- the rails are handed the same walk either way",
       function () {
+        var layout = VA.spineRight(TOPO.layout);
         var study = topoStudy("demo_base_to_tip");
-        var root = render(function (r) {
-          VA.renderTopoPane(r, topoCtx({ study: study, layoutMode: "chain" }));
-        });
-        // One row per chain EDGE, in the order the sum runs; the endpoints are
-        // the first and last dots on the one rail, not rows.
-        var rows = all(root, "tr.tvrow");
-        eq(rows.length, study.result.chain.length);
-        study.result.chain.forEach(function (contribution, i) {
-          eq(rows[i].getAttribute("data-id"), contribution.edge);
-        });
-        eq(all(root, "circle.rail__dot").length, study.result.chain.length + 1);
-        // The internal-node rule reads the WHOLE graph's adjacency, not the
-        // chain's: base_datum stays leaderless here too, so the chain layout
-        // shows the same three part boundaries the walk layout does.
-        eq(all(root, "path.rail__leader").length, 3);
+        var walk = VA.gridPlan(layout, TOPO);
+        var focused = VA.gridPlan(layout, TOPO,
+          { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) });
+        eq(walk.rows.map(function (r) { return r.id; }),
+           ["base_thickness", "post_height", "arm_pin_to_tip",
+            "tip_to_strut_end", "strut_length", "post_bushing_offset"]);
+        eq(focused.rows.map(function (r) { return r.id; }),
+           ["base_thickness", "post_height", "arm_pin_to_tip"]);
+        // A dropped edge leaves no gap in the numbering: gridRow is the
+        // index in the table that is actually drawn, which is what the
+        // leaders' seams and the row bands are both counted in.
+        eq(focused.rows.map(function (r) { return r.gridRow; }), [0, 1, 2]);
+        eq(focused.leaders.map(function (l) { return l.id + "@" + l.boundary; }),
+           ["base_post_seat@1", "post_arm_pin@2", "arm_tip@3"]);
+        // `internal` is a property of the whole graph's adjacency and the
+        // focus does not touch it: base_datum has one adjacent part and is
+        // leaderless under either plan.
+        eq(focused.internal, walk.internal);
+        // No focus is the whole walk, exactly as the call that has never
+        // passed one -- the DAG's own plan is unchanged by any of this.
+        eq(VA.gridPlan(layout, TOPO, null).rows.length, walk.rows.length);
+      });
+
+    await test("a focus whose edges are scattered through the walk still " +
+      "breaks its groups where the part really changes", function () {
+        // demo_strut_branch's chain skips two edges in the middle of the walk,
+        // so two of its three rows are not adjacent in walk order. A dropped
+        // edge must not carry its part across the hole (which would merge two
+        // components into one merged cell) and must not swallow a leader
+        // still waiting for a seam.
+        var layout = VA.spineRight(TOPO.layout);
+        var study = topoStudy("demo_strut_branch");
+        var plan = VA.gridPlan(layout, TOPO,
+          { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) });
+        eq(plan.rows.map(function (r) { return r.id; }),
+           ["base_thickness", "strut_length", "post_bushing_offset"]);
+        eq(plan.groups.map(function (g) { return g.count; }), [1, 1, 1]);
+        eq(plan.groups.map(function (g) { return g.part; }).length, 3);
+        // Two leaders on the SAME seam: the interface above the hole and the
+        // one below it both land between rows 0 and 1 once the two edges
+        // between them are gone. Each still bounds one of the two rows.
+        eq(plan.leaders.map(function (l) { return l.id + "@" + l.boundary; }),
+           ["base_post_seat@1", "strut_end@1", "post_strut_bushing@2"]);
+        // ...and the bands built over them survive a zero-height one.
+        var bands = VA.leaderBands(plan);
+        eq(bands.length, plan.leaders.length + 1);
+        eq(bands[1].startRow, 1);
+        eq(bands[1].endRow, 1, "the band between the two co-seam leaders is empty");
       });
 
     // --- the joint + the worksheet (deliverable 4, viewer_v2_single_nav) -----
@@ -5027,6 +6182,45 @@
         has(root.textContent, "declared by this file itself");
         has(root.textContent, "several stacks or topologies");
         has(root.querySelector("div.worksheet__body").innerHTML, "<h1>");
+      });
+
+    // Which worksheet a topology's page offers, now that a covered stack has no
+    // row to reach its own from (viewer_nav_wedge_and_classic_retirement).
+    await test("a topology declares its own worksheet and that is what its " +
+      "page offers", function () {
+        var topology = { id: "t", worksheet_file: "docs/topologies/WORKSHEET_t.md",
+          edges: [{ crop_key: { stack: "k" } }] };
+        var results = { stacks: [{ id: "k",
+          worksheet_file: "docs/tolerance_stacks/WORKSHEET_k.md" }] };
+        eq(VA.worksheetSubject(topology, results).worksheet_file,
+           "docs/topologies/WORKSHEET_t.md");
+      });
+
+    await test("a topology with no worksheet of its own offers the sheet of a " +
+      "stack it re-expresses — the only route left to one", function () {
+        var topology = { id: "t", edges: [
+          { crop_key: { stack: "sheetless" } },
+          { crop_key: { stack: "k" } },
+        ] };
+        var results = { stacks: [
+          { id: "sheetless", worksheet_file: null },
+          { id: "k", worksheet_file: "docs/tolerance_stacks/WORKSHEET_k.md",
+            worksheet_source: "matched" },
+        ] };
+        var subject = VA.worksheetSubject(topology, results);
+        eq(subject.id, "k");
+        eq(subject.worksheet_file, "docs/tolerance_stacks/WORKSHEET_k.md");
+      });
+
+    await test("a topology with no worksheet anywhere comes back as itself, " +
+      "so the pane still says there is none", function () {
+        var topology = { id: "t", edges: [] };
+        eq(VA.worksheetSubject(topology, { stacks: [] }).id, "t");
+        eq(VA.worksheetSubject(null, null), null);
+        var root = render(function (r) {
+          VA.renderWorksheet(r, VA.worksheetSubject(topology, null), null);
+        });
+        has(root.textContent, "No worksheet for this stack");
       });
 
     await test("the totals are the projection's numbers, printed verbatim",
@@ -5093,8 +6287,14 @@
         });
         has(root.textContent, "base / post seat");
         has(root.textContent, "mating_surface");
-        has(root.textContent, "base ⇔ post");
+        // The parts' NAMES (VA.nodeSideLabels, 2026-09-15) -- this pane
+        // printed their ids until then, which is the one thing it said that a
+        // reader had no way to read.
+        has(root.textContent, "base plate ⇔ post");
         has(root.textContent, "An interface is a location, not a value");
+        // And the node's own id is on the heading's hover title, not printed.
+        eq(all(root, "h3")[0].getAttribute("title"), "base_post_seat");
+        eq(all(root, "code").length, 0);
       });
 
     await test("the preview pane shows a dimension as transcribed, with its " +
@@ -5107,7 +6307,10 @@
         has(root.textContent, "215197");
         has(root.textContent, "3.98");
         eq(all(root, "div.el-export--established").length, 1);
-        has(root.textContent, "sha256 recorded");
+        has(root.textContent, "pinned to this exact file");
+        // The part and both interfaces in their own names, not their ids.
+        has(root.textContent, "a dimension of base plate");
+        has(root.textContent, "base datum face → base / post seat");
       });
 
     await test("an untraced dimension says so in the pane, not only on the row",
@@ -5208,7 +6411,7 @@
         eq(all(root, "div.detail__annotate").length, 0);
         eq(/3D/.test(root.textContent), false);
         // The gap itself is still stated -- only the dead link went away.
-        has(root.textContent, "This dimension carries no source_ref at all");
+        has(root.textContent, "This dimension cites nothing at all");
       });
 
     await test("the pane explains a missing crop rather than reporting a stale " +
@@ -5222,7 +6425,7 @@
         });
         eq(all(inline, "div.detail__crop--no-key").length, 1);
         has(inline.textContent, "No crop index covers it");
-        has(inline.textContent, "no source_ref at all");
+        has(inline.textContent, "cites nothing at all");
 
         var derived = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
@@ -5257,7 +6460,7 @@
             selection: { kind: "edge", id: "strut_length" } }));
         });
         eq(all(stale, "div.detail__crop--no-entry").length, 1);
-        has(stale.textContent, "it is older than");
+        has(stale.textContent, "older than this stack");
       });
 
     await test("the pane shows a selected edge's place in the study's sum",
@@ -5324,17 +6527,66 @@
 
     // --- the single nav tree (viewer_v2_single_nav, 2026-09-08) -------------
 
-    await test("VA.navTree nests a topology's studies and any stack it also " +
-      "covers, and lists every classic-only stack as a leaf", function () {
+    // One system, one entry (viewer_nav_wedge_and_classic_retirement,
+    // 2026-09-15): a topology's children are its studies and nothing else. The
+    // stack it re-expresses used to be nested under it as a "classic view" row
+    // -- and clicking one was the wedge Jeff reported. It is the same joint in
+    // another notation, and the graph now states every verdict, gap, excluded
+    // term and missing tolerance the table did (paired row for row by
+    // tests/test_topology_conversions.py).
+    await test("VA.navTree nests a topology's studies and nothing else, and " +
+      "lists every stack no topology re-expresses as a leaf", function () {
         var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
         eq(tree.topologies.length, TOPOFIX.topologies.length);
         var demoMechanism = tree.topologies[0];
         eq(demoMechanism.id, TOPO.id);
         eq(demoMechanism.studies.length, TOPO.studies.length);
-        eq(demoMechanism.coveredStacks.length, 1);
-        eq(demoMechanism.coveredStacks[0].id, "demo_joint");
+        eq(demoMechanism.coveredStacks, undefined,
+           "a covered stack must not come back as a child of its topology");
         eq(tree.looseStacks.length, 1);
         eq(tree.looseStacks[0].id, "stack_rotor_fastener_length");
+      });
+
+    // The covered stack is still IN the projection and still renders (a
+    // ?stack= deep link reaches it); what it no longer has is a row.
+    await test("the nav offers no row at all for a stack a topology " +
+      "re-expresses, and says nothing about a classic view", function () {
+        var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
+        var root = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPO.id }, {});
+        });
+        var ids = all(root, ".navtree__row").map(function (row) {
+          return row.getAttribute("data-nav-id");
+        });
+        eq(ids.indexOf("demo_joint"), -1,
+           "a covered stack must have no row of its own");
+        ok(ids.indexOf("stack_rotor_fastener_length") !== -1,
+           "a stack no topology re-expresses is still a leaf");
+        eq(root.textContent.toLowerCase().indexOf("classic"), -1,
+           "no surface says \"classic\" anywhere (deliverable 4)");
+      });
+
+    // A superseded first pass keeps its JSON forever and loses its row: the
+    // rail is live work, and two near-identical titles one above the other is
+    // a reader's problem. The real entry is exercised rather than a synthetic
+    // one, so the constant itself is under test and not a copy of it.
+    await test("a stack VA.SUPERSEDED_STACKS names is offered nowhere in " +
+      "the nav, and its successor is", function () {
+        var superseded = Object.keys(VA.SUPERSEDED_STACKS);
+        ok(superseded.length >= 1, "the table must not be empty");
+        var stacks = superseded.map(function (id) {
+          return { id: id, title: "superseded: " + id };
+        });
+        superseded.forEach(function (id) {
+          stacks.push({ id: VA.SUPERSEDED_STACKS[id], title: "the take that replaced it" });
+        });
+        var tree = VA.navTree(null, { stacks: stacks });
+        var offered = tree.looseStacks.map(function (s) { return s.id; });
+        superseded.forEach(function (id) {
+          eq(offered.indexOf(id), -1, id + " must not be on the rail");
+          ok(offered.indexOf(VA.SUPERSEDED_STACKS[id]) !== -1,
+             "the take that replaced " + id + " must be");
+        });
       });
 
     await test("VA.navTree tolerates missing projections", function () {
@@ -5343,8 +6595,8 @@
       eq(VA.navTree(TOPOFIX, null).topologies[0].studies.length, TOPO.studies.length);
     });
 
-    await test("the nav tree renders every topology, its studies, its " +
-      "covered stack and every loose stack, and marks the active node",
+    await test("the nav tree renders every topology, its studies and every " +
+      "loose stack, and marks the active node",
       function () {
         var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
         var root = render(function (r) {
@@ -5353,7 +6605,6 @@
         });
         has(root.textContent, "⚠ ");
         has(root.textContent, "no topology re-expresses this");
-        has(root.textContent, "classic view");
         var active = all(root, ".navtree__row--on");
         eq(active.length, 1);
         has(active[0].textContent, "⚠");
@@ -5414,9 +6665,6 @@
             description: "Hub A datum to blade OML, in degrees." },
           { id: "s2", title: "Bare study", status: "ok", description: null },
         ],
-        coveredStacks: [
-          { id: "k1", title: "Described stack", description: "Built with no source workbook." },
-        ],
       }],
       looseStacks: [
         { id: "k2", title: "Described loose stack", description: "A loose stack's own one-liner." },
@@ -5436,7 +6684,6 @@
         has(byId.t1, "The long qualification the title shed.");
         eq(byId.s1, "Hub A datum to blade OML, in degrees.");
         eq(byId.s2, null);
-        eq(byId.k1, "Built with no source workbook.");
         eq(byId.k2, "A loose stack's own one-liner.");
         eq(byId.k3, null);
       });
@@ -5465,33 +6712,39 @@
 
     // --- the toolbar: display preferences, not selection --------------------
 
-    await test("the toolbar's layout-mode toggle is disabled with no study " +
-      "selected", function () {
-        var root = render(function (r) {
-          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
+    await test("the toolbar offers no layout choice: there is one layout, " +
+      "and a study selection is not a second one", function () {
+        // viewer_respine_whole_walk (2026-09-15) retired the "Showing: whole
+        // topology / study chain" toggle. Jeff read the two layouts as a
+        // defect rather than a choice -- "When you click a study/stack, the
+        // entire dag/model should still be visible" -- so there is nothing
+        // left for a control to pick between, and a control for one behaviour
+        // is a control that should not be on screen at all.
+        [null, "demo_base_to_tip", "demo_ambiguous"].forEach(function (studyId) {
+          var root = render(function (r) {
+            VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: studyId,
+              rowDensity: "comfortable" }, TOPO, {});
+          });
+          eq(root.textContent.indexOf("Showing:"), -1,
+             "no layout toggle for study " + studyId);
+          eq(all(root, "button").filter(function (n) {
+            return n.getAttribute("id") === "layout-toggle";
+          }).length, 0, "#layout-toggle is gone for study " + studyId);
         });
-        has(root.textContent, "Showing: whole topology");
-        eq(root.querySelector("button.tvpick__mode").disabled, true);
+      });
+
+    await test("the annotate link appears once a study actually sums, and " +
+      "not before", function () {
+        var none = render(function (r) {
+          VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
+            rowDensity: "comfortable" }, TOPO, {});
+        });
         // No study selected: the annotate link has nothing to point at.
-        eq(all(root, "a").length, 0);
-      });
-
-    await test("chain mode stays disabled for a study that raised", function () {
-      var root = render(function (r) {
-        VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_ambiguous",
-          layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
-      });
-      eq(root.querySelector("button.tvpick__mode").disabled, true);
-    });
-
-    await test("chain mode is offered, and the annotate link appears, once a " +
-      "study actually sums", function () {
+        eq(all(none, "a").length, 0);
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            layoutMode: "topology", rowDensity: "comfortable" }, TOPO, {});
+            rowDensity: "comfortable" }, TOPO, {});
         });
-        eq(root.querySelector("button.tvpick__mode").disabled, false);
         var link = root.querySelector("a");
         ok(link, "expected an annotate link once a study sums");
         has(link.href, "topology=" + TOPO.id);
@@ -5503,7 +6756,7 @@
         var launched = [];
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            layoutMode: "topology", rowDensity: "comfortable", annotateMount: true },
+            rowDensity: "comfortable", annotateMount: true },
             TOPO, { onStudy3d: function (params) { launched.push(params); } });
         });
         eq(all(root, "a").length, 0);
@@ -5528,7 +6781,7 @@
          { annotateMount: false, handlers: {} }].forEach(function (mode, i) {
           var root = render(function (r) {
             VA.renderTopoToolbar(r, { topologyId: meshless.id,
-              studyId: "demo_base_to_tip", layoutMode: "topology",
+              studyId: "demo_base_to_tip",
               rowDensity: "comfortable", annotateMount: mode.annotateMount },
               meshless, mode.handlers);
           });
@@ -5547,13 +6800,13 @@
       "still renders the plain link -- degradation is the default", function () {
         var mountNoHandler = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            layoutMode: "topology", rowDensity: "comfortable", annotateMount: true },
+            rowDensity: "comfortable", annotateMount: true },
             TOPO, {});
         });
         ok(mountNoHandler.querySelector("a"), "expected the link with no onStudy3d");
         var handlerNoMount = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: "demo_base_to_tip",
-            layoutMode: "topology", rowDensity: "comfortable" },
+            rowDensity: "comfortable" },
             TOPO, { onStudy3d: function () {} });
         });
         ok(handlerNoMount.querySelector("a"), "expected the link with no probed mount");
@@ -5587,14 +6840,16 @@
       "density", function () {
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "compact" }, TOPO, {});
+            rowDensity: "compact" }, TOPO, {});
         });
-        // layout-toggle, density-toggle, edge-value-toggle, edge-length-toggle
+        // density-toggle, edge-value-toggle, edge-length-toggle
         // (viewer_edge_length_scaling), leader-style-toggle
-        // (viewer_leader_grid_legibility) -- five now, not four.
+        // (viewer_leader_grid_legibility) -- four, since
+        // viewer_respine_whole_walk retired the layout toggle that used to
+        // lead the strip.
         var buttons = all(root, "button.tvpick__mode");
-        eq(buttons.length, 5);
-        has(buttons[1].textContent, "Rows: Compact");
+        eq(buttons.length, 4);
+        has(buttons[0].textContent, "Rows: Compact");
       });
 
     function edgeValueToggle(root) {
@@ -5607,7 +6862,7 @@
       "current mode, and defaults to labelled rows", function () {
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable",
+            rowDensity: "comfortable",
             edgeValueOnly: false }, TOPO, {});
         });
         var toggle = edgeValueToggle(root);
@@ -5616,7 +6871,7 @@
 
         var onRoot = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable",
+            rowDensity: "comfortable",
             edgeValueOnly: true }, TOPO, {});
         });
         has(edgeValueToggle(onRoot).textContent, "Rows: values only");
@@ -5627,7 +6882,7 @@
         var called = 0;
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable" }, TOPO,
+            rowDensity: "comfortable" }, TOPO,
             { onEdgeValueOnly: function () { called++; } });
         });
         edgeValueToggle(root).onclick();
@@ -5644,7 +6899,7 @@
       "mode from VA.EDGE_LENGTH_MODES, and defaults to uniform", function () {
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable",
+            rowDensity: "comfortable",
             edgeLengthMode: "uniform" }, TOPO, {});
         });
         var toggle = edgeLengthToggle(root);
@@ -5654,7 +6909,7 @@
         ["tolerance", "absolute"].forEach(function (mode) {
           var r2 = render(function (r) {
             VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-              layoutMode: "topology", rowDensity: "comfortable",
+              rowDensity: "comfortable",
               edgeLengthMode: mode }, TOPO, {});
           });
           has(edgeLengthToggle(r2).textContent,
@@ -5664,7 +6919,7 @@
         // rendering "Lengths: undefined".
         var r3 = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable",
+            rowDensity: "comfortable",
             edgeLengthMode: "cozy" }, TOPO, {});
         });
         has(edgeLengthToggle(r3).textContent, "Lengths: uniform");
@@ -5676,7 +6931,7 @@
         var called = 0;
         var root = render(function (r) {
           VA.renderTopoToolbar(r, { topologyId: TOPO.id, studyId: null,
-            layoutMode: "topology", rowDensity: "comfortable" }, TOPO,
+            rowDensity: "comfortable" }, TOPO,
             { onEdgeLength: function () { called++; } });
         });
         edgeLengthToggle(root).onclick();
@@ -5706,7 +6961,7 @@
         eq(edgeRow.getAttribute("title"), edge.name);
         // The merged component cell is grouping, not an edge label — the
         // toggle never touches it.
-        eq(edgeRow.querySelector("td.tvcell--component").textContent, "base");
+        eq(edgeRow.querySelector("td.tvcell--component").textContent, "base plate");
 
         // A row the projection cannot resolve still states its own diagnostic
         // regardless of mode -- that text is never redundant and must not be
@@ -5796,31 +7051,68 @@
         ok(pitch, "pitch_link_to_pitch_plate must be there");
       });
 
-      await test("[real] the pitch-link stack renders its two budget-scope checks", function () {
+      await test("[real] the pitch-link stack renders one budget and one joint-scope check", function () {
+        // Two budget checks until 2026-09-15 (`stack_fable_audit`): the eye and
+        // flange members completed the shank-out column, so only the cotter
+        // budget still carries an excluded term -- the MS9363-09 nut side.
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
         var budget = all(root, "article.check--budget");
-        eq(budget.length, 2);
-        // The live migration off the `-- INCOMPLETE:` label suffix: the schema
-        // field is what raises the stripe now, so the shout is gone from the
-        // label and the excluded term is on the card instead.
-        has(budget[0].textContent, "spherical bearing");
+        eq(budget.length, 1);
+        has(budget[0].textContent, "MS9363-09");
         eq(root.textContent.indexOf("INCOMPLETE:"), -1);
       });
 
-      await test("[real] gap 1 — the unsourced bearing width — is visible", function () {
+      await test("[real] the excluded nut side is visible as a gap", function () {
+        // Was "gap 1 -- the unsourced bearing width": the eye is an ELEMENT
+        // now (a loudly-marked placeholder), so the excluded-from-model gap
+        // that survives is the cotter budget's nut side.
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
-        has(all(root, "li.gap")[0].textContent, "spherical bearing");
+        has(all(root, "li.gap")[0].textContent, "MS9363-09");
       });
 
-      await test("[real] the two zero-width bands are flagged", function () {
-        var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
+      await test("[real] the zero-width flag reaches the page", function () {
+        // Repointed 2026-09-15 (`pitch_link_known_bands`). This read
+        // `pitch_link_to_pitch_plate` and asserted 2 until that handoff gave its
+        // bushing and washer real bands; asserting 0 there would have kept the
+        // name and lost the subject. `rotor_fastener_length` is the live example
+        // now -- two washers, neither of which has a band in any document
+        // (MS21299 and NAS1149 are both absent from the pile).
+        var rotor = VA.findStack(realResults, "rotor_fastener_length");
+        ok(rotor, "rotor_fastener_length must be in the projection");
+        var root = render(function (r) { VA.renderStack(r, rotor, realCrops, {}); });
         eq(all(root, "tr.el-row--zero-width").length, 2);
+      });
+
+      await test("[real] the pitch-link stack's three unverified bands render untraced, not zero-width", function () {
+        // The other half of the same change, and the half Jeff's 2026-09-15
+        // ruling is actually about: a band nobody in this repo can re-check has
+        // to LOOK different from one they can. `zero_width` used to carry that
+        // signal on this stack and now carries nothing here, so the confidence
+        // class carries it alone -- and a badge keyed on `zero_width` would show
+        // the reader nothing at all. Three rows since `stack_fable_audit`
+        // added the eye placeholder (MS14101-3, bearing identity unconfirmed).
+        var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
+        eq(all(root, "tr.el-row--zero-width").length, 0);
+        // One class per selector: the DOM shim's matcher handles "tag", ".class"
+        // and "tag.class" and nothing compound, so "tr.el-row.conf--untraced"
+        // silently matches nothing rather than erroring. Filter with hasClass.
+        var untraced = all(root, "tr.conf--untraced").filter(function (tr) {
+          return hasClass(tr, "el-row");
+        });
+        eq(untraced.length, 3);
+        has(untraced[0].textContent, "bushing_214820");     // 214820-002 drawing, read by an operator
+        has(untraced[1].textContent, "pitch_link_eye");     // RBC catalog band, bearing identity open
+        has(untraced[2].textContent, "washer_nas1149v0332"); // 260729 workbook E11/F11
       });
 
       await test("[real] the folded numbers reach the page verbatim", function () {
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
-        has(root.textContent, "-8.1939");   // shank_out worst-case min
-        has(root.textContent, "17.4752");   // the traced NAS6403 grip nominal
+        // `0.1098`, not `0.10980`: VA.fmt is String(n) and prints the projection
+        // number verbatim, so a trailing zero a document writes for alignment is
+        // not on the page. Was `-8.1939`, then `-8.428`, until the audit's two
+        // members flipped the shank-out check to a thin joint-scoped pass.
+        has(root.textContent, "0.1098");    // shank_out worst-case min (the thin margin)
+        has(root.textContent, "17.4752");   // the traced NAS6403 grip nominal, unmoved
       });
 
       await test("[real] the NAS6403 grip crop resolves and its PNG is on disk", async function () {
@@ -5883,14 +7175,16 @@
             has(line, entry.pdf_name, where);
             // Under this rule the sha is mandatory and always checked, so a live
             // entry that is not verified is a finding, not a display case.
-            eq(entry.sha256_verified, true, where + " must be sha-verified");
-            has(line, "sha256 VERIFIED", where);
+            eq(entry.sha256_verified, true, where + " must be checksum-verified");
+            has(line, "checked against the citation, byte for byte", where);
           });
-          // And it reaches the popover, not just the string function.
+          // And it reaches the popover, not just the string function --
+          // behind the fold, which is where it lives since 2026-09-15.
           var root = render(function (r) {
             VA.renderCrop(r, entries[0][2], { url: "blob:x" }, VA.CONFIG);
           });
-          has(root.textContent, "sha256 VERIFIED");
+          has(root.textContent, VA.CROP_PROVENANCE_SUMMARY);
+          has(root.textContent, "checked against the citation, byte for byte");
           has(root.textContent, entries[0][2].pdf_name);
         });
 
@@ -6130,6 +7424,64 @@
         return cropEntriesIn(c).filter(function (e) { return e.status === "resolved"; });
       }
 
+      // One vocabulary, one list. `worksheet_source` is written by BOTH viewer
+      // builders (`scripts/build_viewer_projection.py`'s `worksheet_for` and
+      // `scripts/build_topology_projection.py`'s, the same two rules
+      // deliberately not shared because each builder is stdlib-only and
+      // self-contained), so it is guarded twice below — once per projection —
+      // and two rows keeping two copies of one list is the drift this repo
+      // names as its most-repeated defect. The real home for it is a
+      // `VA.WORKSHEET_SOURCES` that `views/worksheet.js` itself reads; that is
+      // ISSUE_20260915_worksheet_source_vocabulary_has_no_va_constant, out of
+      // this handoff's file scope.
+      var WORKSHEET_SOURCES = ["declared", "by_name", null];
+
+      // The reporting loop behind every value guard in this file, stack-side
+      // and topology-side. It has TWO arms and they catch different things: an
+      // unknown value, and a collector that finds NOTHING. The second arm is
+      // what `parts[].mesh.installed` was enrolled for — a boolean's own
+      // two-value set cannot notice an absent block — and it is the arm a bite
+      // test forgets, because a row that accepts everything is the obvious
+      // failure and a row whose collector went blind is not.
+      //
+      // `crops` is passed through for the stack-side rows that read
+      // `crops.json`; the topology rows take one argument and ignore it.
+      function unexplainedValues(guards, projection, crops) {
+        var unexplained = [];
+        guards.forEach(function (guard) {
+          var values = distinct(guard.values(projection, crops));
+          if (!values.length) {
+            unexplained.push(guard.field + ": no live value found — either the " +
+              "collector in tests.js is wrong or the builder stopped writing it");
+            return;
+          }
+          values.forEach(function (value) {
+            if (!guard.known(value)) {
+              unexplained.push(guard.field + " = " + JSON.stringify(value) +
+                " is in the live projection and the viewer has no branch for " +
+                "it. Branch table: " + guard.branch);
+            }
+          });
+        });
+        return unexplained;
+      }
+
+      // Each row's empty-collector arm, replayed: the row's own
+      // `field`/`branch`/`known` with its collector blinded, so the claim is
+      // about the rows this file actually ships rather than about one
+      // synthetic guard. Shared by both bite tests.
+      function replayBlindCollectors(guards, projection, crops) {
+        guards.forEach(function (guard) {
+          var report = unexplainedValues([{
+            field: guard.field, branch: guard.branch, known: guard.known,
+            values: function () { return []; },
+          }], projection, crops);
+          eq(report.length, 1, guard.field + ": a blind collector went " +
+            "unreported, so this row cannot notice the builder dropping the field");
+          has(report[0], "no live value found", guard.field);
+        });
+      }
+
       var VALUE_GUARDS = [
         { field: "source_ref.confidence and elements[].confidence",
           branch: "VA.CONFIDENCES, through VA.confidenceClass",
@@ -6189,9 +7541,10 @@
             return resolvedCrops(c).map(function (e) { return e.located_by; });
           } },
         { field: "crop entry status",
-          branch: "VA.cropFor + unresolvedHeadline in views/crop.js + the " +
-            ".croppop--* rules in index.html. `unresolvable` is the DEFAULT arm, " +
-            "so a new status renders as 'Crop unresolvable' — a lie, not a gap",
+          branch: "VA.cropFor + VA.cropUnresolvedHeadline in views/crop.js + " +
+            "the .croppop--* rules in index.html. `unresolvable` is the " +
+            "DEFAULT arm, so a new status renders as \"this citation could not " +
+            "be pinned to a page\" — a lie, not a gap",
           known: inList(["resolved", "unresolvable", "not-built", "no-entry"]),
           values: function (r, c) {
             return cropEntriesIn(c).map(function (e) { return e.status; });
@@ -6200,7 +7553,7 @@
           branch: "views/worksheet.js — only `declared` earns the 'one worksheet " +
             "may cover several stacks' note; `by_name` and null are the silent " +
             "default, correctly",
-          known: inList(["declared", "by_name", null]),
+          known: inList(WORKSHEET_SOURCES),
           values: function (r) {
             return stacksIn(r).map(function (s) { return s.worksheet_source; });
           } },
@@ -6271,37 +7624,27 @@
       ];
 
       await test("[real] no live value is one the viewer has no branch for", function () {
-        var unexplained = [];
-        VALUE_GUARDS.forEach(function (guard) {
-          var values = distinct(guard.values(realResults, realCrops));
-          if (!values.length) {
-            unexplained.push(guard.field + ": no live value found — either the " +
-              "collector in tests.js is wrong or the builder stopped writing it");
-            return;
-          }
-          values.forEach(function (value) {
-            if (!guard.known(value)) {
-              unexplained.push(guard.field + " = " + JSON.stringify(value) +
-                " is in the live projection and the viewer has no branch for it. " +
-                "Branch table: " + guard.branch);
-            }
-          });
-        });
-        eq(unexplained, [], "teach the viewer these values — or fix the builder " +
-          "that emitted them");
+        eq(unexplainedValues(VALUE_GUARDS, realResults, realCrops), [],
+          "teach the viewer these values — or fix the builder that emitted them");
       });
 
       // A guard that cannot fail is documentation. This is exactly the half the
       // original bug got past: VA.CROP_RULES was a real branch table and nothing
       // compared the live values against it, so a rule the script had deleted sat
       // in the fixture for four days looking handled.
-      await test("[real] each value guard bites when fed a value nothing can explain",
-        function () {
+      await test("[real] each value guard bites when fed a value nothing can " +
+        "explain, and on finding no value at all", function () {
           var toothless = VALUE_GUARDS.filter(function (guard) {
             return guard.known(SENTINEL);
           }).map(function (guard) { return guard.field; });
           eq(toothless, [], "these guards accept any value at all, so they are " +
             "not guards");
+
+          // The other arm, replayed per row. Without it, a renamed key in
+          // build_viewer_projection.py or a reshaped crops.json would take a
+          // collector blind and the table would report ": no live value found"
+          // at runtime with nothing here proving that report ever fires.
+          replayBlindCollectors(VALUE_GUARDS, realResults, realCrops);
         });
 
       await test("[real] an unresolvable citation carries a reason, never a blank", function () {
@@ -6405,7 +7748,8 @@
             VA.renderDetail(r, pair[0], pair[1].id, realCrops, null, VA.CONFIG);
           }).textContent;
           has(text, p.pdfName, where + " must name the export file");
-          has(text, "sha256 recorded", where + " must say a sha is on record");
+          has(text, "pinned to this exact file", where +
+              " must say a checksum is on record");
           // Under `established` a sha256 is mandatory (SourceExport raises
           // without one), so a live export with none is a finding, not a display
           // case.
@@ -6525,10 +7869,10 @@
             });
             var box = all(root, "div.el-export--identity_rule");
             eq(box.length, 1, where);
-            has(box[0].textContent, "identity by filename (append-only pile)", where);
+            has(box[0].textContent, "identified by its filename", where);
             // The row the issue was filed about: `traced` beside "nothing here
             // identifies the bytes". That pair must no longer be reachable here.
-            ok(box[0].textContent.indexOf("names no exported file") === -1,
+            ok(box[0].textContent.indexOf("names no file") === -1,
                where + " still reads as a gap");
           });
         });
@@ -6585,9 +7929,13 @@
       });
 
       await test("[real] the slice-1 stacks show their untraced elements loudly", function () {
+        // >= 6 until 2026-09-15 (`stack_fable_audit`): four of tan_link's
+        // untraced rows were re-cited to the RBC catalogs at `inferred`, so the
+        // stack's honest untraced remainder is the two washers and the
+        // thread-transition allowance.
         var tan = VA.findStack(realResults, "tan_link_to_pitch_plate");
         var root = render(function (r) { VA.renderStack(r, tan, realCrops, {}); });
-        ok(all(root, "tr.conf--untraced").length >= 6,
+        ok(all(root, "tr.conf--untraced").length >= 3,
            "expected the workbook-sourced elements to be flagged untraced");
       });
 
@@ -6639,6 +7987,41 @@
             has(root.textContent, "declared by this file itself");
           });
 
+        // The authored sheets the retired stack row was the only route to
+        // (deliverable 2, viewer_nav_wedge_and_classic_retirement). Three of
+        // the four converted stacks carry a WORKSHEET_*.md and none of their
+        // topologies declares one, so without the fallback this page would
+        // have offered no worksheet at all for any of them.
+        await test("[real] every converted stack's own worksheet is still " +
+          "reachable from its topology's page", async function () {
+            var covered = VA.stacksCoveredByTopology(realTopologies);
+            var reached = [];
+            for (var i = 0; i < liveTopos.length; i++) {
+              var topology = liveTopos[i];
+              var subject = VA.worksheetSubject(topology, realResults);
+              if (topology.worksheet_file) {
+                eq(subject.id, topology.id,
+                   "a topology's own sheet must win over a covered stack's");
+                continue;
+              }
+              if (!subject.worksheet_file) continue;
+              ok(covered[subject.id],
+                 "the sheet offered must belong to a stack this topology " +
+                 "re-expresses, never a neighbour's: " + subject.id);
+              var md = await real.readText(VA.worksheetSegments(subject));
+              ok(md, subject.id + "'s worksheet must be readable");
+              var root = render(function (r) {
+                VA.renderWorksheet(r, subject, md);
+              });
+              has(root.querySelector("div.worksheet__body").innerHTML, "<h1>");
+              has(root.textContent, subject.worksheet_file);
+              reached.push(subject.id);
+            }
+            eq(reached.length, 3,
+               "expected the three converted stacks with an authored sheet, " +
+               "got " + reached.join(", "));
+          });
+
         await test("[real] a respine of every summing study of every topology " +
           "settles on the fresh render's own geometry, bar for bar, in every " +
           "length mode — the animation is presentation and nothing else",
@@ -6659,9 +8042,9 @@
                 return [n.getAttribute("data-leader-id"), n.getAttribute("d")];
               }));
             };
-            var ctxFor = function (topoProj, study, layoutMode, mode) {
+            var ctxFor = function (topoProj, study, mode) {
               return { topoProj: topoProj, study: study, crops: realCrops,
-                       layoutMode: layoutMode, selection: null,
+                       selection: null,
                        edgeLengthMode: mode, onSelect: function () {} };
             };
             var runTo = function (root, ctx) {
@@ -6689,17 +8072,17 @@
               })[0];
               if (!study) return;
               ["uniform", "tolerance", "absolute"].forEach(function (mode) {
-                var walkCtx = ctxFor(topoProj, null, "topology", mode);
-                var chainCtx = ctxFor(topoProj, study, "chain", mode);
+                var walkCtx = ctxFor(topoProj, null, mode);
+                var studyCtx = ctxFor(topoProj, study, mode);
                 var freshChain = geometryOf(render(function (r) {
-                  VA.renderTopoPane(r, chainCtx);
+                  VA.renderTopoPane(r, studyCtx);
                 }));
                 var freshWalk = geometryOf(render(function (r) {
                   VA.renderTopoPane(r, walkCtx);
                 }));
 
                 var root = render(function (r) { VA.renderTopoPane(r, walkCtx); });
-                runTo(root, chainCtx);
+                runTo(root, studyCtx);
                 eq(geometryOf(root), freshChain,
                    topoProj.id + "/" + study.id + "/" + mode + ": selecting");
                 runTo(root, walkCtx);
@@ -6713,11 +8096,20 @@
                "modes, must actually have been cycled: " + cycles);
           });
 
-        await test("[real] pitch_system's respine really does move the whole " +
-          "page — the contract above would pass on a diagram that never " +
-          "changed", function () {
-            // A non-vacuity witness, because "settled == fresh" is trivially
-            // true if the two serialisations happen to draw the same picture.
+        await test("[real] the horizontal machinery still holds between two " +
+          "serialisations that DO differ by their columns — synthetic since " +
+          "viewer_respine_whole_walk, and deliberately kept", function () {
+            // The walk paired against one study's own `study.layout`. The
+            // page stopped drawing that second serialisation on 2026-09-15
+            // (the DAG is always the walk now), so nothing below is reachable
+            // through a click any more. It is kept because VA.respineX,
+            // VA.drawnColumn and VA.tweenPositions are pure functions whose
+            // guarantee is about ANY two serialisations, `study.layout` is
+            // still in the projection, and this is the only place the
+            // off-pane defect it was written for
+            // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_
+            // block_slides) can still be reproduced at all. The real
+            // respine's own non-vacuity is the test above.
             var M = VA.RAIL_METRICS;
             var study = livePitch.studies.filter(function (s) {
               return s.status === "ok" && s.layout;
@@ -6840,7 +8232,7 @@
               var root = render(function (r) {
                 VA.renderTopoPane(r, {
                   topoProj: topoProj, study: null, crops: realCrops,
-                  layoutMode: "topology", selection: null,
+                  selection: null,
                   onSelect: function () {},
                 });
               });
@@ -6889,13 +8281,16 @@
             eq(plan.leaders.length, 16);
             eq(plan.groups.length, 18);
             // The walk's first run: three hub dimensions merged across their
-            // two internal interfaces.
-            eq(plan.groups[0].label, "hub");
+            // two internal interfaces. The label is the part's NAME
+            // (VA.componentLabel); `part` is still the id it is keyed by.
+            eq(plan.groups[0].part, "hub");
+            eq(plan.groups[0].label, "propeller hub");
             eq(plan.groups[0].count, 3);
             // The loop-closing hub edges at the walk's tail merge too — four
             // consecutive hub rows with no boundary node between them.
             var last = plan.groups[plan.groups.length - 1];
-            eq(last.label, "hub");
+            eq(last.part, "hub");
+            eq(last.label, "propeller hub");
             eq(last.count, 4);
             // The DEPTH-FIRST walk revisits parts on later branches, so "one
             // merged row per part" is per contiguous RUN: hub appears as 2
@@ -6943,7 +8338,7 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: null, crops: realCrops,
-                layoutMode: "topology", selection: null,
+                selection: null,
                 onSelect: function () {},
               });
             });
@@ -7029,7 +8424,7 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: null, crops: realCrops,
-                layoutMode: "topology", selection: null,
+                selection: null,
                 onSelect: function () {},
               });
             });
@@ -7063,11 +8458,15 @@
             }).length, 3);
             // And a row whose label does NOT repeat its component is
             // untouched, so this is a trim and not a rewrite.
+            // "piston length" under a cell reading "actuator piston (output
+            // rod end)" is the same repeat one column over, and loses its
+            // leading word for the same reason -- with the full label on
+            // hover, which is what makes this a trim and not a rewrite.
             var pistonLength = cells.filter(function (c) {
-              return c.textContent === "piston length";
+              return c.textContent === "length" &&
+                c.getAttribute("title") === "piston length";
             });
             eq(pistonLength.length, 1);
-            eq(pistonLength[0].getAttribute("title"), null);
             ok(index.edges, "the index is built");
           });
 
@@ -7121,7 +8520,7 @@
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: null, crops: realCrops,
-                layoutMode: "topology", selection: null,
+                selection: null,
                 edgeLengthMode: "tolerance", onSelect: function () {},
               });
             });
@@ -7275,6 +8674,35 @@
               eq(c, Number(columns[2]), "README's chain column count");
             });
 
+            // "the pane goes **316 -> 250px**" / "`gridOffset` goes
+            // **299 -> 143px**" -- the respine section's own statement of what
+            // is left to animate now that a study selection no longer
+            // re-columns anything (viewer_respine_whole_walk). Both are
+            // budget-free under uniform lengths, so they are the numbers the
+            // page really draws and not a reading at one viewport.
+            var respineFrame = function (study) {
+              var layout = VA.spineRight(livePitch.layout);
+              var plan = VA.gridPlan(layout, livePitch, study
+                ? { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) }
+                : null);
+              var pos = VA.rowPositions(layout, livePitch, "uniform", M,
+                { budget: 0, plan: plan });
+              return { width: VA.leaderGeometry(layout, plan, M, pos).width,
+                       gridOffset: pos.gridOffset };
+            };
+            var narrowest = respineFrame(VA.findStudy(livePitch,
+              "pitch_system_gas_spring_branch"));
+            var wholeWalk = respineFrame(null);
+            var pane = /the\s+pane goes \*\*(\d+) → (\d+)px\*\*/.exec(readme);
+            ok(pane, "expected the README's pane-width sentence");
+            eq(Number(pane[1]), wholeWalk.width, "README's walk pane width");
+            eq(Number(pane[2]), narrowest.width, "README's emphasized pane width");
+            var offset = /`gridOffset` goes \*\*(\d+) → (\d+)px\*\*/.exec(readme);
+            ok(offset, "expected the README's gridOffset sentence");
+            eq(Number(offset[1]), wholeWalk.gridOffset, "README's walk gridOffset");
+            eq(Number(offset[2]), narrowest.gridOffset,
+               "README's emphasized gridOffset");
+
             // "3 over 3 for `pitch_link_to_pitch_plate`, 10 over 10 for
             // `pitch_system`, ..." -- the column-reuse bullet's own claim that
             // reuse fires nowhere, re-derived per topology so a sixth
@@ -7365,7 +8793,7 @@
           var root = render(function (r) {
             VA.renderTopoPane(r, {
               topoProj: livePitch, study: null, crops: realCrops,
-              layoutMode: "topology", selection: null, onSelect: function () {},
+              selection: null, onSelect: function () {},
             });
           });
           eq(all(root, "circle.rail__dot--branch").length, 5);
@@ -7431,21 +8859,400 @@
             has(root.textContent, "shank_out");  // the derived gap it closes
           });
 
+        // --- the verdict, the margin and what is missing ----------------------
+        //
+        // viewer_study_verdicts_and_gaps (2026-09-15), from Jeff's review of
+        // this page: "None of the tolerance stacks in the entire page appear to
+        // have any kind of roll up that shows whether the stack passes or fails,
+        // or by how much margin." The data had been in the projection since
+        // 2026-09-09 and nothing read it, so these are value-level: they pin the
+        // rendered STRINGS against the live projection's own numbers, not the
+        // presence of an element.
+
+        await test("[real] the pitch-link studies render their verdicts and " +
+          "their margins, including the study that has no criterion at all",
+          function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            ok(topo, "the pitch-link topology must be in the projection");
+            var index = VA.topologyIndex(topo);
+            var shown = function (studyId) {
+              return render(function (r) {
+                VA.renderTopoTotals(r, topo, VA.findStudy(topo, studyId), index);
+              }).textContent;
+            };
+
+            // PASS with a THIN margin, and the word "margin" beside it: the two
+            // halves of Jeff's sentence. This study read `fail` /
+            // `margin -8.428` (and `-8.1939` before that) until 2026-09-15's
+            // `stack_fable_audit` completed the clamped column -- the old fail
+            // was a budget artifact of the missing eye and flange members.
+            // `VA.fmt` is `String(n)`, so the page prints 0.1098 verbatim.
+            var out = shown("pitch_link_shank_out");
+            has(out, "pass");
+            has(out, "margin +0.1098 mm at worst case");
+            has(out, VA.VERDICTS.pass.says);
+
+            // PASS, same shape, on the same page. +2.3296, not +11.0444: the
+            // completed column consumed most of the old budget.
+            var clear = shown("pitch_link_cotter_hole_clearance");
+            has(clear, "pass");
+            has(clear, "margin +2.3296 mm at worst case");
+            has(clear, VA.VERDICTS.pass.says);
+
+            // And the third: a study that sums and has no criterion recorded.
+            // Rendering this one blank is what made the whole page look as
+            // though it held no verdicts.
+            var none = shown("pitch_link_thread_region_t");
+            has(none, "No pass/fail criterion has been recorded for this study yet");
+            eq(none.indexOf("margin "), -1,
+               "a study with no criterion must not print a margin");
+          });
+
+        await test("[real] an incomplete check states what is missing ABOVE its " +
+          "number, and its verdict is visibly qualified", function () {
+            // Repointed 2026-09-15 (`stack_fable_audit`) from the shank-out
+            // study, whose check completed when the eye and flange members went
+            // in; the cotter budget is the live incomplete specimen now, and
+            // what it excludes is the MS9363-09 nut side.
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var study = VA.findStudy(topo, "pitch_link_cotter_hole_clearance");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
+            });
+            eq(study.checks[0].complete, false,
+               "this claim rests on the live check really being incomplete");
+            has(root.textContent, "budget for what is missing");
+            // The term itself, in the words the check wrote -- not a field name
+            // and not a count.
+            has(root.textContent, "MS9363-09 nut height");
+            eq(all(root, ".tvverdict-card--qualified").length, 1);
+            ok(all(root, ".tvverdict--qualified").length >= 1,
+               "the rollup badge wears the qualification too");
+          });
+
+        // Repointed at `rotor_fastener_length` during
+        // `review/pitch_link_known_bands`, resolving the integration merge of
+        // this handoff with `pitch_link_known_bands`. This read
+        // `pitch_link_to_pitch_plate` / `pitch_link_shank_out`, whose bushing
+        // and washer were the repo's zero-width example when it was written;
+        // that handoff gave both a real band, so the warning correctly stops
+        // rendering there and the assertion had no subject left. Repointed
+        // rather than deleted, and rather than flipped to `eq(warn.length, 0)`
+        // under a name that promises the warning appears: a field nothing tests
+        // is a field that quietly stops being emitted. `rotor_fastener_grip_u2h`
+        // is the live example now -- its `selection` names both washers, and
+        // MS21299 and NAS1149 are both absent from the pile, so neither has a
+        // band in any document. (The stack-view twin,
+        // `[real] the zero-width flag reaches the page`, moved to the same
+        // stack for the same reason.)
+        await test("[real] a study fed by a zero-width row warns that its " +
+          "spread is a lower bound, and names the rows that make it one",
+          function () {
+            var topo = VA.findTopology(realTopologies, "rotor_fastener_length");
+            ok(topo, "the rotor-fastener topology must be in the projection");
+            var study = VA.findStudy(topo, "rotor_fastener_grip_u2h");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
+            });
+            var warn = all(root, ".tvwarn--lower-bound");
+            eq(warn.length, 1);
+            has(warn[0].textContent, "no tolerance recorded");
+            has(warn[0].textContent, "LOWER bound");
+            has(warn[0].textContent, "MS21299C3");
+            has(warn[0].textContent, "NAS1149V0332H");
+          });
+
+        // And the other half of the same move: the stack that USED to raise the
+        // warning must now not raise it, for the recorded reason. Without this,
+        // a regression that put the two pitch-link rows back to zero-width
+        // would be invisible to the line above.
+        await test("[real] the pitch-link shank-out study no longer claims a " +
+          "lower bound, because nothing in its chain is zero-width now",
+          function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var study = VA.findStudy(topo, "pitch_link_shank_out");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
+            });
+            eq(all(root, ".tvwarn--lower-bound").length, 0);
+            // It is still qualified, just for a different reason -- the two
+            // bands are UNVERIFIED rather than missing, which is the whole
+            // point of the 2026-09-15 ruling. A page that dropped both signals
+            // would pass the line above.
+            has(root.textContent, "unverified");
+          });
+
+        await test("[real] the excluded nut side is visible on the page " +
+          "without opening any JSON", function () {
+            // Was "the missing spherical bearing ..." until 2026-09-15: the eye
+            // is modelled now (a loudly-marked placeholder), so the surviving
+            // excluded-from-model row is the cotter budget's MS9363-09 side.
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            // With NO study selected -- the state a reader arrives in.
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, null, VA.topologyIndex(topo));
+            });
+            has(root.textContent, "What's missing");
+            has(root.textContent, "MS9363-09 nut height");
+            has(root.textContent, VA.GAP_KINDS.excluded_from_model.heading);
+          });
+
+        await test("[real] every live gap row is one this page has words for, " +
+          "and every kind the builder writes is used somewhere", function () {
+            var kinds = {};
+            liveTopos.forEach(function (topoProj) {
+              (topoProj.gaps || []).forEach(function (gap) {
+                kinds[gap.kind] = (kinds[gap.kind] || 0) + 1;
+                ok(VA.GAP_KINDS[gap.kind],
+                   topoProj.id + " writes gap kind " + JSON.stringify(gap.kind) +
+                   " and this page has no words for it");
+                ok(gap.text, topoProj.id + ": a gap row with no words in it");
+              });
+            });
+            // Anti-vacuity: the loop above passes trivially over an empty
+            // projection, and all four kinds have live rows today.
+            eq(Object.keys(VA.GAP_KINDS).filter(function (k) { return !kinds[k]; }),
+               [], "a kind with no live row -- the loop above stops checking it");
+          });
+
+        await test("[real] every study wears a verdict badge on the nav rail, " +
+          "and not one of them is blank", function () {
+            var tree = VA.navTree(realTopologies, null);
+            var root = render(function (r) {
+              VA.renderNavTree(r, tree, { mode: "topology" }, {
+                onTopology: function () {}, onStudy: function () {},
+                onStack: function () {},
+              });
+            });
+            var rows = all(root, ".navtree__row--study");
+            var studies = liveTopos.reduce(function (n, t) {
+              return n + (t.studies || []).length;
+            }, 0);
+            eq(rows.length, studies);
+            ok(studies >= 20, "expected the live study count, got " + studies);
+            var blank = rows.filter(function (row) {
+              return all(row, ".tvverdict").length !== 1;
+            });
+            eq(blank.length, 0,
+               "a study row with no verdict badge reads as a study that passed");
+            // And the three states are all really on screen, so the assertion
+            // above is not satisfied by one word repeated 21 times.
+            ok(all(root, ".tvverdict--fail").length >= 1, "a failing study");
+            ok(all(root, ".tvverdict--pass").length >= 1, "a passing study");
+            ok(all(root, ".tvverdict--none").length >= 1,
+               "a study with no criterion recorded");
+          });
+
+        // The whole rail, against the live repo (deliverable 2 and 3,
+        // viewer_nav_wedge_and_classic_retirement). Every row a reader can
+        // click, counted: one per topology, one per study, and a leaf for each
+        // stack that has no topology and nothing superseding it. The four
+        // stacks a topology re-expresses have no row, take 1 of the tangential
+        // link has no row, and the two thermal-fit stacks -- real deliverables
+        // with no graph by design -- do.
+        await test("[real] the live nav offers one entry per system: every " +
+          "topology, no covered stack, no superseded stack, both thermal " +
+          "stacks", function () {
+            var tree = VA.navTree(realTopologies, realResults);
+            var root = render(function (r) {
+              VA.renderNavTree(r, tree, { mode: "topology" }, {
+                onTopology: function () {}, onStudy: function () {},
+                onStack: function () {},
+              });
+            });
+            var byKind = {};
+            all(root, ".navtree__row").forEach(function (row) {
+              var kind = row.getAttribute("data-nav-kind");
+              (byKind[kind] = byKind[kind] || []).push(row.getAttribute("data-nav-id"));
+            });
+            eq((byKind.topology || []).length, liveTopos.length);
+
+            var covered = VA.stacksCoveredByTopology(realTopologies);
+            ok(Object.keys(covered).length >= 4,
+               "expected the live conversions, got " + Object.keys(covered).length);
+            var offered = byKind.stack || [];
+            Object.keys(covered).forEach(function (id) {
+              eq(offered.indexOf(id), -1,
+                 id + " is re-expressed as a topology and must have no row");
+            });
+            Object.keys(VA.SUPERSEDED_STACKS).forEach(function (id) {
+              ok(VA.findStack(realResults, id),
+                 id + " must still be in the projection -- only its row is gone");
+              eq(offered.indexOf(id), -1, id + " is superseded and must have no row");
+            });
+            // The leaves, by name: a stack with no graph is still a deliverable
+            // and must stay one click away.
+            ["hub_bearing_thermal_fit_m1", "hub_bearing_thermal_fit_m2"]
+              .forEach(function (id) {
+                ok(offered.indexOf(id) !== -1, id + " must be reachable");
+              });
+            eq(offered.length, 2,
+               "the live leaves are exactly the two thermal-fit stacks, got " +
+               offered.join(", "));
+            eq(root.textContent.toLowerCase().indexOf("classic"), -1,
+               "no row says \"classic\" (deliverable 4)");
+          });
+
+        // Every leaf really does render as a page, which is the other half of
+        // "reachable": a row that paints nothing is not an entry.
+        await test("[real] every stack the rail offers renders its own page",
+          function () {
+            var offered = VA.navTree(realTopologies, realResults).looseStacks;
+            eq(offered.length, 2);
+            offered.forEach(function (stackProj) {
+              var root = render(function (r) {
+                VA.renderStack(r, stackProj, realCrops, {});
+              });
+              has(root.textContent, stackProj.title);
+              ok(all(root, "table.eltable").length >= 1,
+                 stackProj.id + " must render its elements table");
+              eq(root.textContent.toLowerCase().indexOf("classic"), -1,
+                 stackProj.id + " must not be labelled a classic view");
+            });
+          });
+
+        await test("[real] a row whose number has nothing behind it says so in " +
+          "the grid, in the words a reader brought with them", function () {
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: null, crops: realCrops,
+                selection: null, onSelect: function () {},
+              });
+            });
+            var flagged = all(root, ".tvflag--unverified");
+            var unverified = livePitch.edges.filter(function (e) {
+              return VA.needsAnnotation(e.confidence);
+            });
+            ok(unverified.length >= 1, "pitch_system has unverified edges");
+            eq(flagged.length, unverified.length,
+               "one badge per unverified row, no more and no fewer");
+            has(root.textContent, VA.ATTENTION.unverified.text);
+          });
+
         await test("[real] selecting a study marks its chain on the real rails",
           function () {
             var study = VA.findStudy(livePitch, "pitch_system_blade_angle_worst");
             var root = render(function (r) {
               VA.renderTopoPane(r, {
                 topoProj: livePitch, study: study, crops: realCrops,
-                layoutMode: "topology", selection: null, onSelect: function () {},
+                selection: null, onSelect: function () {},
               });
             });
-            var on = all(root, "tr.tvrow--on");
-            var off = all(root, "tr.tvrow--off");
-            ok(off.length > 0, "a 24-edge topology has rows off a 10-edge chain");
+            var on = all(root, "line.rail__bar--on");
+            var off = all(root, "line.rail__bar--off");
+            ok(off.length > 0, "a 24-edge topology has bars off a 10-edge chain");
             eq(on.length, study.result.chain.length);
-            eq(on.length + off.length, livePitch.edges.length);
-            eq(all(root, "line.rail__bar--on").length, study.result.chain.length);
+            eq(on.length + off.length, livePitch.edges.length,
+               "every edge of the walk is still drawn, lit or dimmed");
+            // The table beside them is the chain and only the chain.
+            eq(all(root, "tr.tvrow").length, study.result.chain.length);
+          });
+
+        // The definition of done of viewer_respine_whole_walk, on the live
+        // corpus: "Behavior identical in kind across all five topologies."
+        // Jeff's report was about the INCONSISTENCY between three studies of
+        // one topology, so the check has to be a sweep rather than a reading.
+        await test("[real] no study of any committed topology hides a node, " +
+          "an edge, a rail or a link -- and every grid is exactly its chain",
+          function () {
+            var swept = 0;
+            liveTopos.forEach(function (topoProj) {
+              var marks = function (study) {
+                var root = render(function (r) {
+                  VA.renderTopoPane(r, {
+                    topoProj: topoProj, study: study, crops: realCrops,
+                    selection: null, onSelect: function () {},
+                  });
+                });
+                return { shape: [all(root, "line.rail__barhit").length,
+                                 all(root, "circle.rail__dot").length,
+                                 all(root, "line.rail").length,
+                                 all(root, "path.rail__link").length],
+                         rows: all(root, "tr.tvrow").length,
+                         leaders: all(root, "path.rail__leaderhit")
+                           .map(function (n) {
+                             return n.getAttribute("data-leader-id");
+                           }) };
+              };
+              var walk = marks(null);
+              eq(walk.shape, [topoProj.edges.length, topoProj.nodes.length,
+                              topoProj.layout.columns,
+                              topoProj.layout.links.length], topoProj.id);
+              eq(walk.rows, topoProj.edges.length, topoProj.id + " deselected");
+              (topoProj.studies || []).forEach(function (study) {
+                var lit = marks(study);
+                eq(lit.shape, walk.shape,
+                   topoProj.id + "/" + study.id + " changed what is on screen");
+                if (study.status !== "ok") {
+                  eq(lit.rows, walk.rows,
+                     study.id + " refused: the table stays the whole walk");
+                  eq(lit.leaders, walk.leaders, study.id + " refused: leaders");
+                  return;
+                }
+                eq(lit.rows, study.result.chain.length,
+                   topoProj.id + "/" + study.id + ": grid is the chain");
+                // Leaders run to chain nodes and to nothing else.
+                var nodes = VA.chainNodes(study);
+                lit.leaders.forEach(function (id) {
+                  ok(nodes[id], study.id + ": leader to non-member " + id);
+                  ok(walk.leaders.indexOf(id) !== -1,
+                     study.id + ": leader " + id + " is not a walk boundary");
+                });
+                swept++;
+              });
+            });
+            ok(swept >= 21, "every summing study must have been swept: " + swept);
+          });
+
+        await test("[real] a study selection is still a respine worth " +
+          "animating: the grid block travels and the jog zone narrows",
+          function () {
+            // Non-vacuity for the NEW semantics. The rails no longer move at
+            // all -- both frames are the same walk, so VA.respineX returns a
+            // zero column shift -- and what is left to interpolate is the
+            // pane width (the jog zone loses a lane per dropped leader) and
+            // the grid block's own offset (a shorter table re-centres against
+            // a DAG that did not change height). If both of those came out
+            // zero the animation would be a quarter-second of nothing.
+            var M = VA.RAIL_METRICS;
+            var frame = function (topoProj, study) {
+              var layout = VA.spineRight(topoProj.layout);
+              var plan = VA.gridPlan(layout, topoProj, study
+                ? { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) }
+                : null);
+              var pos = VA.rowPositions(layout, topoProj, "uniform", M,
+                { budget: 782, plan: plan });
+              return { width: VA.leaderGeometry(layout, plan, M, pos).width,
+                       gridOffset: pos.gridOffset,
+                       dagHeight: pos.dagHeight, columns: layout.columns };
+            };
+            var moved = 0;
+            liveTopos.forEach(function (topoProj) {
+              var walk = frame(topoProj, null);
+              (topoProj.studies || []).forEach(function (study) {
+                if (study.status !== "ok") return;
+                var lit = frame(topoProj, study);
+                eq(lit.columns, walk.columns,
+                   study.id + ": a respine never re-columns any more");
+                eq(lit.dagHeight, walk.dagHeight,
+                   study.id + ": nor does it change the DAG's extent");
+                ok(Math.abs(lit.gridOffset - walk.gridOffset) > 0 ||
+                   Math.abs(lit.width - walk.width) > 0,
+                   study.id + ": nothing moves, so nothing is worth animating");
+                moved++;
+              });
+            });
+            ok(moved >= 21, "swept " + moved + " studies");
+            // And the pitch system, the document the whole respine thread was
+            // reported on, moves by a lot in both halves.
+            var walk = frame(livePitch, null);
+            var lit = frame(livePitch, VA.findStudy(livePitch,
+              "pitch_system_gas_spring_mechanical_stroke"));
+            ok(walk.width - lit.width > 50,
+               "the jog zone narrows " + walk.width + " -> " + lit.width);
+            ok(Math.abs(walk.gridOffset - lit.gridOffset) > 20,
+               "and the grid block travels " + walk.gridOffset + " -> " +
+               lit.gridOffset);
           });
 
         await test("[real] an L1 edge reaches the stack element's own crop",
@@ -7542,7 +9349,7 @@
           return render(function (r) {
             VA.renderTopoDetail(r, {
               topoProj: topoProj, study: VA.findStudy(topoProj, studyId),
-              crops: realCrops, layoutMode: "topology",
+              crops: realCrops,
               selection: { kind: "edge", id: edgeId },
               detailImage: null, onSelect: function () {},
             });
@@ -7703,24 +9510,29 @@
         await test("[real] every live dot answers the SAME on hover and on " +
           "click, and no live node declares a part it is not incident on",
           function () {
-            var divergedFromDeclared = 0, nodes = 0;
+            var divergedFromDeclared = 0, divergedAsSet = 0, nodes = 0;
             realTopologies.topologies.forEach(function (topoProj) {
               (topoProj.nodes || []).forEach(function (node) {
                 nodes += 1;
                 var card = VA.nodeCard(topoProj, node.id, realCrops);
+                // Both surfaces print the part's NAME now (2026-09-15) --
+                // one label style, one derivation. The card's own side label
+                // IS the string, so this compares what a reader sees rather
+                // than re-deriving it.
+                var sideLabels = card.sides.map(function (side) { return side.label; });
                 var sideIds = card.sides.map(function (side) {
                   return side.part === null ? VA.CLEARANCE_SIDE_LABEL : side.part;
                 });
                 var pane = render(function (r) {
                   VA.renderTopoDetail(r, {
                     topoProj: topoProj, study: null, crops: realCrops,
-                    layoutMode: "topology", detailImage: null,
+                    detailImage: null,
                     selection: { kind: "node", id: node.id },
                     onSelect: function () {},
                   });
                 });
                 eq(pane.querySelector("div.detail__where").textContent,
-                  "on " + sideIds.join(" ⇔ "),
+                  "on " + sideLabels.join(" ⇔ "),
                   topoProj.id + "/" + node.id + ": the hover card and the " +
                   "preview pane disagree about this node's sides");
 
@@ -7738,8 +9550,20 @@
                     "`, which no edge incident on it carries: an authoring " +
                     "error in the topology document, not a display bug");
                 });
+                // TWO counts, because two different claims get made about
+                // this. `divergedFromDeclared` is the STRING count — what the
+                // reader of the pane actually sees change — and it counts the
+                // same two parts in the opposite order as a difference, which
+                // it is. `divergedAsSet` is the smaller MEMBERSHIP count. The
+                // documents used to print the second under the first's
+                // wording; keeping both here is what lets each sentence be
+                // paired to the number it is really making a claim about.
                 if ((node.parts || []).join("|") !== sideIds.join("|")) {
                   divergedFromDeclared += 1;
+                }
+                if ((node.parts || []).slice().sort().join("|") !==
+                    sideIds.slice().sort().join("|")) {
+                  divergedAsSet += 1;
                 }
               });
             });
@@ -7750,6 +9574,53 @@
               "from its derived sides, so the divergence this test exists for " +
               "went unexercised");
             ok(nodes > 0, "no live nodes at all — rebuild topologies.json");
+
+            // The published digits, paired. `17` and `46` are properties of
+            // data/projections/viewer/topologies.json: add a node or a gap
+            // edge and both documents go stale in silence unless something
+            // re-derives them. Third sighting on apps/viewer/README.md in two
+            // weeks, and the pattern copied here is its own — the spine/fit/
+            // centring pairing three tests down regexes the sentence out of
+            // VIEWER_SRC.readText and asserts against the live projection.
+            //
+            // The noun is pinned too, not just the digit: the README's `10`
+            // was a membership count printed under a string claim, so a
+            // pairing that only checked "some number" would have passed it.
+            var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+            ok(src, "VIEWER_SRC must be injected for the doc pairing");
+
+            var readme = src.readText("README.md");
+            ok(readme, "apps/viewer/README.md must be readable");
+            var hovered =
+              /which is (\d+) of the\s+(\d+) live\s+nodes answering differently hovered and clicked/
+                .exec(readme);
+            ok(hovered, "expected the README's hover-card divergence sentence");
+            eq(Number(hovered[1]), divergedFromDeclared,
+               "README's count of nodes answering differently hovered and " +
+               "clicked — that wording is the STRING count, not the membership one");
+            eq(Number(hovered[2]), nodes, "README's live node total");
+
+            // The same sentence's copy in the code, which is where the next
+            // person editing renderNodeDetail reads it.
+            var view = src.readText("views/topology.js");
+            ok(view, "apps/viewer/views/topology.js must be readable");
+            var commented =
+              /on (\d+) of the (\d+) live nodes the same dot answered differently/
+                .exec(view);
+            ok(commented, "expected renderNodeDetail's divergence comment");
+            eq(Number(commented[1]), divergedFromDeclared,
+               "renderNodeDetail's comment must state the same number as the " +
+               "README, under the same noun");
+            eq(Number(commented[2]), nodes, "renderNodeDetail's live node total");
+            var asSet = /(\d+) is the smaller count of nodes that differ as a/
+              .exec(view);
+            ok(asSet, "expected renderNodeDetail's membership-count aside");
+            eq(Number(asSet[1]), divergedAsSet,
+               "renderNodeDetail's membership count");
+            var reordered = /The other (\d+) name the same two parts/.exec(view);
+            ok(reordered, "expected renderNodeDetail's same-set-different-order aside");
+            eq(Number(reordered[1]), divergedFromDeclared - divergedAsSet,
+               "renderNodeDetail's count of same-set, different-order nodes");
           });
 
         await test("[real] a live bar's card is the same card its grid trigger " +
@@ -7778,6 +9649,223 @@
               "half of the bar card went unexercised");
           });
 
+        // --- [real] names and copy on the live topologies -------------------
+        //
+        // (viewer_component_names_and_reference_copy, 2026-09-15.) The two
+        // claims the fixture tier cannot make: that what is rendered off the
+        // LIVE projection is the part's own name, and that no live authored
+        // string smuggles a banned class of text onto a surface.
+        //
+        // These pin the RULE against whatever projection is on disk rather
+        // than a table of today's labels, and that is deliberate: the labels
+        // themselves are authored, and the one place they are pinned by value
+        // is tests/test_topology_part_names.py, which reads the documents in
+        // THIS tree. A [real] test pinning them here would instead pin the
+        // shared projection's build, which any concurrently-active worktree
+        // can move (ISSUE_20260914_two_active_handoffs_each_turn_the_others_
+        // real_tier_red).
+
+        await test("[real] every merged component cell on every live topology " +
+          "is its part's own NAME, and no cell is a part id", function () {
+            var cells = 0, topologies = 0;
+            liveTopos.forEach(function (topoProj) {
+              var index = VA.topologyIndex(topoProj);
+              var plan = VA.gridPlan(VA.spineRight(topoProj.layout), topoProj);
+              var root = render(function (r) {
+                VA.renderTopoPane(r, {
+                  topoProj: topoProj, study: null, crops: realCrops,
+                  layoutMode: "topology", selection: null,
+                  onSelect: function () {},
+                });
+              });
+              var rendered = all(root, "td.tvcell--component");
+              eq(rendered.length, plan.groups.length, topoProj.id);
+              plan.groups.forEach(function (group, i) {
+                var where = topoProj.id + "/group " + i;
+                if (group.part === null) {
+                  eq(rendered[i].textContent, VA.GAP_COMPONENT_LABEL, where);
+                  return;
+                }
+                var part = index.parts[group.part];
+                ok(part, where + ": the group names a part the topology declares");
+                eq(rendered[i].textContent, part.name, where +
+                  ": the merged cell must print the part's own name");
+                ok(rendered[i].textContent !== group.part, where +
+                  ": the merged cell is printing the part ID `" + group.part +
+                  "`, which is what Jeff's 2026-09-15 review was about");
+                cells += 1;
+              });
+              topologies += 1;
+            });
+            eq(topologies, liveTopos.length);
+            ok(cells > 30, "the walk must not be vacuous: " + cells + " cells");
+          });
+
+        // Jeff's own two examples, stated as the SHAPE they are examples of:
+        // the element column carries the feature and nothing the row says
+        // elsewhere. Pinned over every live row rather than the two he named,
+        // because the rule is what has to hold.
+        await test("[real] no element cell repeats its component's words or " +
+          "its own value, and nothing a cell drops is lost", function () {
+            var trimmed = 0, untouched = 0;
+            liveTopos.forEach(function (topoProj) {
+              var index = VA.topologyIndex(topoProj);
+              var plan = VA.gridPlan(VA.spineRight(topoProj.layout), topoProj);
+              var root = render(function (r) {
+                VA.renderTopoPane(r, {
+                  topoProj: topoProj, study: null, crops: realCrops,
+                  layoutMode: "topology", selection: null,
+                  onSelect: function () {},
+                });
+              });
+              var cells = all(root, "td.tvcell--name");
+              eq(cells.length, plan.rows.length, topoProj.id);
+              plan.rows.forEach(function (planRow, i) {
+                var edge = index.edges[planRow.id];
+                if (!edge) return;
+                var cell = cells[i];
+                var where = topoProj.id + "/" + planRow.id;
+                ok(cell.textContent.length > 0, where + ": never blank");
+                if (cell.textContent === edge.name) {
+                  eq(cell.getAttribute("title"), null, where +
+                    ": an untrimmed cell needs no hover title");
+                  untouched += 1;
+                  return;
+                }
+                // Nothing is lost: the full label is one hover away, and the
+                // preview pane prints it whole.
+                eq(cell.getAttribute("title"), edge.name, where +
+                  ": a trimmed cell carries the full label on hover");
+                // And nothing was reworded: every character of the cell is a
+                // character of the authored name, in order.
+                var at = 0;
+                cell.textContent.split("").forEach(function (ch) {
+                  at = edge.name.indexOf(ch, at);
+                  ok(at !== -1, where + ": the cell is not a substring-" +
+                    "composition of the authored name: " + cell.textContent);
+                  at += 1;
+                });
+                trimmed += 1;
+              });
+            });
+            ok(trimmed > 20, "most live rows repeat something: " + trimmed);
+            ok(untouched > 0, "a row with nothing to drop must come back " +
+              "unchanged, or this is a rewrite and not a trim");
+          });
+
+        await test("[real] no rendered surface of any live topology prints an " +
+          "internal id, a field name, a checksum or a workstation path",
+          function () {
+            var surfaces = 0;
+            liveTopos.forEach(function (topoProj) {
+              var ids = (topoProj.parts || []).map(function (p) { return p.id; })
+                .concat((topoProj.nodes || []).map(function (n) { return n.id; }))
+                .concat((topoProj.edges || []).map(function (e) { return e.id; }))
+                // A one-word id is a word a human would write ("hub",
+                // "post"); only ids with a separator are unambiguously
+                // machine-shaped, and those are the ones Jeff read as
+                // meaningless.
+                .filter(function (id) { return id.indexOf("_") !== -1; });
+              var ctx = function (selection) {
+                return {
+                  topoProj: topoProj, study: null, crops: realCrops,
+                  config: VA.CONFIG, layoutMode: "topology", detailImage: null,
+                  selection: selection, onSelect: function () {},
+                };
+              };
+              var check = function (where, root) {
+                var text = viewerAuthoredText(root);
+                bannedIn(text, where);
+                ids.forEach(function (id) {
+                  ok(text.indexOf(id) === -1,
+                     where + " prints the internal id `" + id + "`: " + text);
+                });
+                surfaces += 1;
+              };
+              check(topoProj.id + " grid", render(function (r) {
+                VA.renderTopoPane(r, ctx(null));
+              }));
+              (topoProj.nodes || []).forEach(function (node) {
+                check(topoProj.id + " pane on " + node.id, render(function (r) {
+                  VA.renderTopoDetail(r, ctx({ kind: "node", id: node.id }));
+                }));
+                check(topoProj.id + " card on " + node.id, render(function (r) {
+                  VA.renderHoverCard(r, VA.nodeCard(topoProj, node.id, realCrops),
+                    {}, VA.CONFIG, null);
+                }));
+              });
+              (topoProj.edges || []).forEach(function (edge) {
+                check(topoProj.id + " pane on " + edge.id, render(function (r) {
+                  VA.renderTopoDetail(r, ctx({ kind: "edge", id: edge.id }));
+                }));
+                check(topoProj.id + " card on " + edge.id, render(function (r) {
+                  VA.renderHoverCard(r, VA.edgeCard(topoProj, edge, realCrops),
+                    {}, VA.CONFIG, null);
+                }));
+              });
+              (topoProj.parts || []).forEach(function (part) {
+                check(topoProj.id + " card on " + part.id, render(function (r) {
+                  VA.renderHoverCard(r,
+                    VA.componentCard(topoProj, part.id, realCrops), {},
+                    VA.CONFIG, null);
+                }));
+              });
+            });
+            ok(surfaces > 200, "the walk must not be vacuous: " + surfaces);
+          });
+
+        // The other half of Jeff's first bullet: a COTS fastener's card used
+        // to say "no drawing recorded for this part", which is true of the
+        // field and wrong about the part.
+        await test("[real] every live part with no drawing names the document " +
+          "its own dimensions come off, or says nothing at all", function () {
+            var standard = 0, drawn = 0, silent = 0;
+            liveTopos.forEach(function (topoProj) {
+              (topoProj.parts || []).forEach(function (part) {
+                var card = VA.componentCard(topoProj, part.id, realCrops);
+                var root = render(function (r) {
+                  VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+                });
+                var where = topoProj.id + "/" + part.id;
+                ok(root.textContent.indexOf("no drawing recorded") === -1,
+                   where + " still says a field is empty rather than what is true");
+                if (card.drawing) {
+                  has(root.textContent, "drawing " + card.drawing, where);
+                  eq(card.references, [], where +
+                    ": a part with a drawing needs no second reference");
+                  drawn += 1;
+                  return;
+                }
+                if (!card.references.length) {
+                  eq(all(root, "div.hovercard__where").length, 0, where +
+                    ": a part with neither says nothing, not a sentence about " +
+                    "an absence");
+                  silent += 1;
+                  return;
+                }
+                card.references.forEach(function (reference) {
+                  has(root.textContent, VA.referenceText(reference), where);
+                });
+                if (card.standardPart) {
+                  has(root.textContent, "standard part — dimensions from", where);
+                  standard += 1;
+                } else {
+                  has(root.textContent, "dimensions from", where);
+                  ok(root.textContent.indexOf("standard part") === -1, where +
+                     ": 'standard part' is licensed by a spec citation, not by " +
+                     "the absence of a drawing");
+                }
+              });
+            });
+            // All three branches live, or the walk proves nothing. The
+            // standard-part branch is the one Jeff filed: the NAS bolts.
+            ok(standard > 0, "no live part is sourced only to a standard sheet, " +
+              "so the sentence Jeff asked for went unexercised");
+            ok(drawn > 0, "no live part carries a drawing");
+            ok(silent > 0, "no live part has neither a drawing nor a citation, " +
+              "so the say-nothing branch went unexercised");
+          });
+
         // --- [real] the topology fixture, against the real shapes -------------
         //
         // The same two guards the stack projection has, for the same two
@@ -7799,6 +9887,9 @@
         }
         function topoParts(p) {
           return flat(topoRows(p).map(function (t) { return t.parts; }));
+        }
+        function topoStudyChecks(p) {
+          return flat(topoStudies(p).map(function (s) { return s.checks || []; }));
         }
         function topoLayouts(p) {
           return topoRows(p).map(function (t) { return t.layout; }).concat(
@@ -7942,33 +10033,113 @@
                 return part.mesh ? part.mesh.installed : undefined;
               });
             } },
+          // Added 2026-09-15 (viewer_value_guard_rows_and_replays) out of the
+          // audit row 9 asked for: four more fields the page branches on that
+          // this table did not list. Two of them predate the audit window
+          // (5679129, 2026-09-01) -- they are not drift, they are the class
+          // having been incomplete from the day it was written.
+          { field: "topologies[].worksheet_source",
+            branch: "views/worksheet.js — only `declared` earns the 'one " +
+              "worksheet may cover several documents' note; `by_name` and null " +
+              "are the silent default, correctly. The topology page reaches it " +
+              "through topology_app.js's VA.renderWorksheet, so this is the " +
+              "SAME branch the stack-side row guards, over the other " +
+              "projection: the stack table runs against realResults only and " +
+              "never sees this copy of the field",
+            known: inList(WORKSHEET_SOURCES),
+            values: function (p) {
+              return topoRows(p).map(function (t) { return t.worksheet_source; });
+            } },
+          { field: "edges[].zero_width",
+            branch: "views/topology.js's row class (.tvrow--zero-width) and " +
+              "detail chip, and topology.js's `no_tolerance` badge. FALSY is " +
+              "the silent arm, the mesh.installed shape again: an absent field " +
+              "withholds the chip with nothing said, and a zero-width band is " +
+              "a claim about a LOWER BOUND on the real spread — the chip a " +
+              "reader can least afford to lose quietly",
+            known: function (v) { return v === true || v === false; },
+            values: function (p) {
+              return topoEdges(p).map(function (e) { return e.zero_width; });
+            } },
+          { field: "nodes[].branch",
+            branch: "views/topology.js's BRANCH POINT chip, whose title is the " +
+              "page's only explanation of BranchAmbiguity. Falsy is the silent " +
+              "arm: an absent field drops the chip and the node reads as an " +
+              "ordinary interface",
+            known: function (v) { return v === true || v === false; },
+            values: function (p) {
+              return topoNodes(p).map(function (n) { return n.branch; });
+            } },
+          { field: "layout.rows[].branch (node rows)",
+            branch: "topology.js's `branch: !!row.branch` -> the rail dot's " +
+              "class (.rail__dot--branch) and its larger radius. The SECOND of " +
+              "the two projection fields the builder writes the same fork mark " +
+              "into (build_topology_projection.py says so where it computes " +
+              "them), so guarding one is not guarding the other. Collected " +
+              "over NODE rows only: an edge row carries no `branch` key at all, " +
+              "by design",
+            known: function (v) { return v === true || v === false; },
+            values: function (p) {
+              return topoLayoutRows(p).filter(function (r) {
+                return r.kind === "node";
+              }).map(function (r) { return r.branch; });
+            } },
+          // The audit that added the four rows above ALSO reported
+          // `studies[].checks[]`'s three vocabularies as "emitted since
+          // 2026-09-09 (391dc7c) and rendered nowhere, so a row would guard an
+          // unrendered field". That was true when it was measured and stopped
+          // being true days later: viewer_study_verdicts_and_gaps (2026-09-15)
+          // put the verdict strip on this page, and the fields the strip reads
+          // are branched here now. So two of the three are rows, and the third
+          // is not — which is the whole point of measuring per field rather
+          // than per commit.
+          { field: "studies[].checks[].verdict",
+            branch: "VA.VERDICTS, through VA.studyCheckRow and VA.studyVerdict " +
+              "— the topology page's own reader, not the stack view's " +
+              "VA.verdictClass. The fallback is LOUD " +
+              "(VA.unlabelledVerdictText), so an unknown verdict does not read " +
+              "as a considered one; this row is what makes it a test failure " +
+              "rather than a reader's discovery. Same field as the stack-side " +
+              "row, over the other projection — that table runs against " +
+              "realResults only",
+            known: function (v) { return !!VA.VERDICTS[v]; },
+            values: function (p) {
+              return topoStudyChecks(p).map(function (c) { return c.verdict; });
+            } },
+          { field: "studies[].checks[].verdict_scope",
+            branch: "VA.VERDICT_SCOPES, through VA.studyCheckRow — `joint` " +
+              "raises no chip and `budget` raises BUDGET, and an unknown scope " +
+              "gets the loud SCOPE UNKNOWN chip. The reachable case is a STALE " +
+              "projection rather than a new word, which is exactly what a " +
+              "guard over the live file catches",
+            known: function (v) { return !!VA.VERDICT_SCOPES[v]; },
+            values: function (p) {
+              return topoStudyChecks(p).map(function (c) { return c.verdict_scope; });
+            } },
+          // --- Deliberately NOT rows, and why -----------------------------
+          //
+          // Recorded here rather than in a lesson because this list is what
+          // the next person asking "is this field covered?" reads, and the
+          // audit that produced these findings would otherwise be re-derived
+          // from scratch.
+          //
+          // `studies[].checks[].worst_confidence` — the third of that strip's
+          // vocabularies, emitted with the other two and still read by NOTHING
+          // on this page (grep: views/stack.js is the only reader, and it
+          // reads the results projection's copy, which the stack-side
+          // `checks[].worst_confidence and paths[].worst_confidence` row
+          // guards). A row here would guard an unrendered field. WHOEVER PUTS
+          // A WEAKEST-INPUT CHIP ON THE STUDY STRIP: VA.CONFIDENCES arrives
+          // with it and wants a row here the same day.
+          //
+          // `studies[].error.type` — VA.STUDY_ERRORS is a real branch table
+          // with a LOUD fallback (VA.unlabelledStudyErrorText), unlike the
+          // silent default arms above, and no live study carries an error, so
+          // a row would trip the empty-collector arm on every run,
+          // permanently. It is paired to Python by
+          // tests/test_topology_projection.py (VA.STUDY_ERRORS vs. the
+          // exception set) instead. Not a gap.
         ];
-
-        // The reporting loop, lifted out of the test below so the bite test
-        // can replay it. It has TWO arms and they catch different things: an
-        // unknown value, and a collector that finds NOTHING. The second arm is
-        // the one `parts[].mesh.installed` was enrolled for -- a boolean's own
-        // two-value set cannot notice an absent block -- and until it was
-        // replayed here it was the one arm nothing exercised.
-        function unexplainedValues(guards, projection) {
-          var unexplained = [];
-          guards.forEach(function (guard) {
-            var values = distinct(guard.values(projection));
-            if (!values.length) {
-              unexplained.push(guard.field + ": no live value found — either " +
-                "the collector is wrong or the builder stopped writing it");
-              return;
-            }
-            values.forEach(function (value) {
-              if (!guard.known(value)) {
-                unexplained.push(guard.field + " = " + JSON.stringify(value) +
-                  " is in the live projection and the page has no branch for " +
-                  "it. Branch table: " + guard.branch);
-              }
-            });
-          });
-          return unexplained;
-        }
 
         await test("[real] no live topology value is one the page cannot render",
           function () {
@@ -7983,21 +10154,7 @@
             }).map(function (guard) { return guard.field; });
             eq(toothless, [], "these guards accept any value at all");
 
-            // The second arm, replayed per row: a collector that comes back
-            // empty is REPORTED, not passed over. Replayed against each real
-            // row (its own `field`/`branch`/`known`, collector blinded) rather
-            // than against one synthetic guard, so the claim is about the rows
-            // this file actually ships.
-            TOPO_VALUE_GUARDS.forEach(function (guard) {
-              var report = unexplainedValues([{
-                field: guard.field, branch: guard.branch, known: guard.known,
-                values: function () { return []; },
-              }], realTopologies);
-              eq(report.length, 1, guard.field + ": a blind collector went " +
-                "unreported, so this row cannot notice the builder dropping " +
-                "the field");
-              has(report[0], "no live value found", guard.field);
-            });
+            replayBlindCollectors(TOPO_VALUE_GUARDS, realTopologies);
           });
       }
 

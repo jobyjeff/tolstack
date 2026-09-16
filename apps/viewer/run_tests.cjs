@@ -30,7 +30,16 @@ function makeDocument() {
     this.tagName = (tag || "").toUpperCase();
     this.childNodes = [];
     this.attributes = {};
-    this.style = {};
+    // A plain bag, plus the two custom-property methods a real CSSStyleDeclaration
+    // has: VA.cropFigure sets `--crop-ratio` on a crop's frame, and a `style`
+    // object without setProperty throws rather than recording it. Stored under
+    // the property's own name so a test can read it back the way it was written.
+    this.style = {
+      setProperty: function (name, value) { this[name] = value; },
+      getPropertyValue: function (name) {
+        return this[name] === undefined ? "" : this[name];
+      },
+    };
     this._className = "";
     this._text = "";
     this._html = null;
@@ -117,6 +126,13 @@ function makeDocument() {
 const sandbox = { console };
 sandbox.window = sandbox;
 sandbox.document = makeDocument();
+// The page's ORIGIN, which is a real input to the views now: whether a link to
+// a local file can be followed at all is a property of it (VA.localFileUrl /
+// VA.originOpensLocalFiles, measured 2026-09-15 -- an http page cannot open a
+// file:// URL and the click silently does nothing). file:// is the viewer's
+// own default origin, so that is what the shim reports; a test that wants the
+// other answer sets `window.location.protocol` and restores it.
+sandbox.location = { protocol: "file:", hostname: "", search: "" };
 sandbox.URL = { createObjectURL: function () { return "blob:x"; } };
 sandbox.setTimeout = setTimeout;
 sandbox.clearTimeout = clearTimeout;

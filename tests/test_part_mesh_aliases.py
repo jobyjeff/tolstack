@@ -25,6 +25,13 @@ paired here structurally:
 precedence on fixtures, and a ``[real]`` check that each alias resolves
 through ``resolveMeshIdentifier`` itself); this module owns the table's own
 shape and its two pairings.
+
+It also owns one guard on the mesh vocabulary *itself* rather than on the
+table: ``test_installed_mesh_part_ids_are_unique``. Both resolvers match a
+``part_id`` exactly, so two installed directories claiming one ``part_id``
+make every alias naming it resolve to whichever is listed first -- a wrong
+solid shown silently. That belongs beside the pairings because this table is
+what makes the collision reachable.
 """
 
 from __future__ import annotations
@@ -59,6 +66,29 @@ def installed_meshes_dir() -> Path | None:
         if any(SHA256_RE.match(child.name) for child in candidate.iterdir()):
             return candidate
     return None
+
+
+def installed_part_id_owners(meshes_dir: Path) -> dict[str, list[str]]:
+    """``part_id`` -> the mesh directory names claiming it, **one list entry
+    per directory**.
+
+    The single reader of the installed store's ``part_id`` side, deliberately
+    NOT returning a set: a duplicate is the thing two of the tests below are
+    about, and a set is where a duplicate goes to die quietly.
+    """
+    owners: dict[str, list[str]] = {}
+    for child in sorted(meshes_dir.iterdir()):
+        if not SHA256_RE.match(child.name):
+            continue
+        provenance_file = child / "provenance.json"
+        if not provenance_file.is_file():
+            continue
+        provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
+        part_id = provenance.get("part_id")
+        if not part_id:
+            continue
+        owners.setdefault(part_id, []).append(child.name)
+    return owners
 
 
 @pytest.fixture(scope="module")
@@ -140,15 +170,7 @@ def test_every_mesh_side_value_matches_an_installed_meshes_part_id(aliases):
     removed or re-installed under a different part_id turns this red rather
     than silently orphaning an alias."""
     meshes_dir = installed_meshes_dir()
-    installed: set[str] = set()
-    for child in meshes_dir.iterdir():
-        if not SHA256_RE.match(child.name):
-            continue
-        provenance_file = child / "provenance.json"
-        if not provenance_file.is_file():
-            continue
-        provenance = json.loads(provenance_file.read_text(encoding="utf-8"))
-        installed.add(provenance["part_id"])
+    installed = set(installed_part_id_owners(meshes_dir))
     assert installed, (
         f"{meshes_dir} has mesh directories but no readable provenance.json "
         "part_ids -- the pairing below would pass vacuously against an empty set"
@@ -162,4 +184,56 @@ def test_every_mesh_side_value_matches_an_installed_meshes_part_id(aliases):
         f"alias table names mesh part_ids with no installed mesh: {orphaned} -- "
         f"installed part_ids: {sorted(installed)}; update or remove the alias "
         "(docs/topologies/part_mesh_aliases.json)"
+    )
+
+
+@pytest.mark.skipif(
+    installed_meshes_dir() is None,
+    reason="no data/meshes/ with an installed mesh (gitignored, main checkout "
+           "only -- see data/meshes/README.md); this pairing needs real data",
+)
+def test_installed_mesh_part_ids_are_unique():
+    """[real] tier: no two installed mesh directories may claim one ``part_id``.
+
+    The consumer half of the collision, and why it is silent: this table maps a
+    topology part onto a ``part_id``, and both resolvers match it **exactly**
+    (``apps/annotate/commands.js`` ``resolveMeshIdentifier``,
+    ``scripts/build_topology_projection.py`` ``resolve_mesh``) -- so two
+    directories under one ``part_id`` resolve every alias to whichever the
+    store happens to list first. Nothing raises; a reader is simply shown a
+    plausible-looking wrong solid.
+
+    Not hypothetical. ``MS14101-3`` is three product labels in
+    ``217755-001 A.1``: two that hash to one geometry signature and a third
+    that is a *genuinely different solid* under the same spec number. The
+    store is keyed by that signature, so it deduplicated the matching pair
+    correctly (the second install reported ``already_installed`` and wrote
+    nothing) -- but ``part_id`` is
+    derived from the product name, which does not carry the geometry, and both
+    surviving solids installed as ``asm217755_MS14101_3`` (rotorkit's
+    ``LESSONS_20260914_assembly_step_part_extraction``; the two directories
+    were repaired in place, each carrying a ``repair`` block). A spec or
+    drawing number is not a geometry key, even for catalog hardware.
+
+    The producer-side guard is rotorkit's to write
+    (``rotorkit/docs/issues/ISSUE_20260915_mesh_install_path_two_silent_failure_modes.md``);
+    this is the consumer-side one, and it holds for meshes installed by any
+    route, including a hand copy.
+    """
+    meshes_dir = installed_meshes_dir()
+    owners = installed_part_id_owners(meshes_dir)
+    assert owners, (
+        f"{meshes_dir} has mesh directories but no readable provenance.json "
+        "part_ids -- the check below would pass vacuously"
+    )
+    collisions = {
+        part_id: dirs for part_id, dirs in sorted(owners.items()) if len(dirs) > 1
+    }
+    assert collisions == {}, (
+        "installed meshes collide on part_id -- every alias naming one of these "
+        f"resolves to whichever directory is listed first: {collisions}. Give "
+        "each solid a distinct part_id (rotorkit's assembly.part_id appends the "
+        "geometry signature's first 8 hex when one requested number matched more "
+        f"than one product label) and correct provenance.json and manifest.json "
+        f"in place, under {meshes_dir}"
     )

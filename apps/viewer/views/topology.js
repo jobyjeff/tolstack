@@ -19,27 +19,21 @@
   //
   // The TOPOLOGY/STUDY <select> pickers retired into the nav tree
   // (views/nav.js, viewer_v2_single_nav 2026-09-08) — selecting WHICH node is
-  // on screen is the nav's job now. What is left here is how it is drawn:
-  // whole-topology vs. study-chain layout, row density, and the annotate
-  // link. Topology mode only; topology_app.js hides this strip in stack mode.
+  // on screen is the nav's job now. What is left here is how it is drawn: row
+  // density, the two leader preferences, the edge-length mode and the
+  // annotate link. Topology mode only; topology_app.js hides this strip in
+  // stack mode.
+  //
+  // There is no "Showing: whole topology / study chain" toggle any more
+  // (viewer_respine_whole_walk, 2026-09-15). It offered a SECOND layout of
+  // the same document, and Jeff read the difference between the two as a bug
+  // rather than a choice: "When you click a study/stack, the entire dag/model
+  // should still be visible." The DAG is now always the whole walk and a
+  // study selection only changes what is EMPHASIZED on it, so there is one
+  // behaviour and nothing left for a control to pick between.
   VA.renderTopoToolbar = function (root, state, topoProj, handlers) {
     VA.clear(root);
     root.className = "tv__toolbar";
-
-    // Two layouts over ONE serialiser (build_topology_projection.serialize_*):
-    // the whole graph depth-first, or the study's chain in the order the sum
-    // runs. The chain is linear by construction, so its layout is one rail —
-    // which is also the honest picture of the L1 fastener stack's study.
-    var toggle = VA.el("button", "ghost tvpick__mode",
-      state.layoutMode === "chain" ? "Showing: study chain" : "Showing: whole topology");
-    toggle.setAttribute("id", "layout-toggle");
-    toggle.setAttribute("title",
-      "Whole topology: every node and edge of the document, depth-first, with " +
-      "the study's path highlighted. Study chain: only the selected study's " +
-      "edges, in the order the sum runs.");
-    toggle.disabled = !(state.studyId && studyOk(topoProj, state.studyId));
-    toggle.onclick = handlers.onLayoutMode;
-    root.appendChild(toggle);
 
     // Row density: trades reading comfort for seeing more of the DAG at once.
     // Comfortable is the default 26px pitch; compact is 16px, which turns the
@@ -146,11 +140,6 @@
     return root;
   };
 
-  function studyOk(topoProj, studyId) {
-    var study = VA.findStudy(topoProj, studyId);
-    return !!(study && study.status === "ok");
-  }
-
   // --- the joint -------------------------------------------------------------
   //
   // Deliverable 4 (viewer_v2_single_nav, 2026-09-08): `topoProj.joint` is the
@@ -188,14 +177,34 @@
     var study = ctx.study;
     // Right-justified (viewer_dag_spine_layout): the walk's mainline on the
     // rightmost rail, hard against the jog zone, branches extending left.
-    var layout = VA.spineRight(layoutFor(topoProj, study, ctx.layoutMode));
-    // The merged-row grid and the leaders come off ONE plan of the same
-    // serialisation the rails were drawn from (viewer_leader_line_grid,
-    // 2026-09-10): the grid holds only the edge rows, grouped into components,
-    // and each non-internal node bridges the two with a jogged leader line.
+    //
+    // ALWAYS the topology's own walk (viewer_respine_whole_walk, 2026-09-15).
+    // Selecting a study used to swap this for `study.layout` — a second
+    // serialisation of the same document, one rail, non-members gone — and
+    // Jeff read the result as a defect: "When you click a study/stack, the
+    // entire dag/model should still be visible." So the rails never change
+    // shape; what a study selection changes is emphasis, leaders and the
+    // table beside them.
+    var layout = VA.spineRight(topoProj.layout);
+    var chain = VA.chainIndex(study);
+    var chainNodes = VA.chainNodes(study);
+    // Whether a study is EMPHASIZED here: a study that refused to sum has no
+    // chain to emphasize (the error is the result), so it leaves the walk at
+    // full emphasis exactly as no selection does.
+    var marking = !!(study && study.status === "ok");
+    // The merged-row grid and the leaders come off ONE plan of the same walk
+    // the rails were drawn from (viewer_leader_line_grid, 2026-09-10): the
+    // grid holds only the edge rows, grouped into components, and each
+    // non-internal node bridges the two with a jogged leader line.
     // It is built BEFORE the positions because its row count is half of what
     // the fit below needs: the two blocks are centred against each other.
-    var plan = VA.gridPlan(layout, topoProj);
+    //
+    // `focus` is the whole of a study's effect on this plan: the table shows
+    // the chain's rows and the leaders run only to chain nodes, while the
+    // rails above keep every node and edge of the walk. The DAG holds the
+    // context; the table holds the sum.
+    var plan = VA.gridPlan(layout, topoProj,
+      marking ? { edges: chain, nodes: chainNodes } : null);
     // The keyed position store (viewer_edge_length_scaling): every dot and
     // bar's y, computed ONCE per render and addressed by id, under whichever
     // length mode is on. Both geometry passes below read this same store, so
@@ -217,12 +226,13 @@
       positions = VA.tweenPositions(tween.positions, positions, tween.e);
     }
     // The horizontal half of the same transition, which no keyed store can
-    // express (VA.respineX says why): the frame is drawn with the
-    // interpolated column count and the interpolated pane width, so a
-    // surviving rail starts where the outgoing frame drew it and a column
-    // this respine ADDS unfolds out of the spine rather than sliding in from
-    // a place it never was -- off the pane's left edge, in the grow
-    // direction. Both geometry passes take it; nothing else changes.
+    // express (VA.respineX says why): the frame is drawn with every column's
+    // drawn index interpolated (VA.drawnColumn) and the pane width with it,
+    // so a surviving rail starts where the outgoing frame drew it and a
+    // column this respine ADDS unfolds out of the OUTGOING FRAME'S LEFTMOST
+    // RAIL -- `from.floor`, not drawn column 0 -- rather than sliding in from
+    // a place it never was, off the pane's left edge in the grow direction.
+    // Both geometry passes take it; nothing else changes.
     var xTween = tween
       ? VA.respineX(layout, plan, M, tween, tween.e, ctx.jogZoneScale)
       : null;
@@ -236,6 +246,20 @@
       return node;
     };
     var geometry = VA.railGeometry(layout, M, positions, { x: xTween });
+    // The links' opacity, which is neither the store's business nor the
+    // unfold's (VA.linkOpacity says why): a link on a column BOTH
+    // serialisations have is the one drawn thing the interpolated column
+    // spread cannot put on top of something the outgoing frame drew, so it
+    // fades in at its own position instead. `tween.links` is the previous
+    // paint's own map, so an interrupted respine continues a part-done fade
+    // rather than restarting it.
+    var linkAlpha = VA.linkOpacity(geometry.links, tween && tween.links,
+                                   tween ? tween.e : 1);
+    var fadeLink = function (node, key) {
+      var a = linkAlpha[key];
+      if (a < 1) node.style.opacity = String(a);
+      return node;
+    };
     // The two display preferences this pane owns beyond the store
     // (viewer_leader_grid_legibility): which style the leaders are drawn in,
     // and how far the reader has dragged the jog zone open. Neither moves a
@@ -251,22 +275,24 @@
     // the render measured rather than guessing at a viewport, and the staged
     // study-respine animation needs a store that outlives a single paint to
     // tween between two of them.
-    // `columns` and `width` are the horizontal pair a respine interpolates
-    // (VA.respineX): the column count this frame was drawn with -- fractional
-    // mid-transition, because what the next tween has to continue from is the
-    // picture on screen and not the serialisation behind it -- and the SVG's
-    // own width, which is the grid's left edge. `tweening` says whether this
-    // paint was a transition frame: everything else here describes the store
-    // the paint DREW FROM either way, which is what both readers want.
+    // `columns`, `floor` and `width` are the horizontal trio a respine
+    // interpolates (VA.respineX): the drawn index of the spine plus one --
+    // fractional mid-transition, because what the next tween has to continue
+    // from is the picture on screen and not the serialisation behind it --
+    // the leftmost drawn column index, which is the rail an interrupting
+    // transition has to collapse its added columns onto, and the SVG's own
+    // width, which is the grid's left edge. `links` is the same continuity
+    // for the one drawn thing with an opacity of its own (VA.linkOpacity).
+    // `tweening` says whether this paint was a transition frame: everything
+    // else here describes the store the paint DREW FROM either way, which is
+    // what both readers want.
     VA.lastTopoRender = { topologyId: topoProj.id, mode: positions.mode,
                           fit: fit, positions: positions,
-                          columns: layout.columns -
-                            (xTween ? xTween.columnShift : 0),
+                          columns: VA.drawnColumn(layout.columns - 1, xTween) + 1,
+                          floor: VA.drawnColumn(0, xTween),
+                          links: linkAlpha,
                           width: leaderGeo.width, tweening: !!tween };
     var index = VA.topologyIndex(topoProj);
-    var chain = VA.chainIndex(study);
-    var chainNodes = VA.chainNodes(study);
-    var marking = !!(study && study.status === "ok");
 
     // The header and the body share ONE horizontal scrollport
     // (`.tv__hscroll`, topology.css) so a wide grid's columns and the rail
@@ -282,7 +308,7 @@
     hscroll.appendChild(head);
     var body = VA.el("div", "tv__body");
     body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes,
-      marking, ctx, fade));
+      marking, ctx, fade, fadeLink));
     var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset, fade);
     // The grid is the one block a respine CROSS-FADES rather than moves. Its
     // rows are not positioned from the store at all -- the table's pitch is
@@ -324,10 +350,11 @@
   //         rather than from inside it.
   //   ctx   the target state's render context, exactly as renderTopoPane
   //         takes it.
-  //   from  { positions, columns, width } -- the store the previous paint
-  //         drew from, and the column count and pane width it drew
-  //         (VA.lastTopoRender carries all three). No `from` means there is
-  //         nothing to animate between; the pane just renders.
+  //   from  { positions, columns, floor, width, links } -- the store the
+  //         previous paint drew from, and the four things it DREW: the spine's
+  //         drawn column index, the leftmost one, the pane width and each
+  //         link's opacity (VA.lastTopoRender carries all five). No `from`
+  //         means there is nothing to animate between; the pane just renders.
   //   opts  the clock, the motion preference and the error sink, injected so
   //         the fast tier can drive a whole transition frame by frame with no
   //         browser: { raf, now, duration, reduced, onError }.
@@ -372,7 +399,8 @@
         handle.done = true;
       } else {
         ctx.tween = { positions: previous, columns: from.columns,
-                      width: from.width, e: VA.respineEase(t), ghost: ghost };
+                      floor: from.floor, width: from.width, links: from.links,
+                      e: VA.respineEase(t), ghost: ghost };
       }
       try {
         VA.renderTopoPane(root, ctx);
@@ -459,16 +487,6 @@
       window.innerHeight, metrics);
   }
 
-  // Which serialisation the page is showing. Both come out of the projection;
-  // neither is computed here. A study that raised falls back to the whole
-  // topology, because there is no chain to lay out — the error IS the result.
-  function layoutFor(topoProj, study, mode) {
-    if (mode === "chain" && study && study.status === "ok" && study.layout) {
-      return study.layout;
-    }
-    return topoProj.layout;
-  }
-
   // The grid is a REAL <table> (deliverable 2): a rectangular selection has to
   // paste into Excel as columns, which only a genuine table body does — a
   // div-flex grid copies as one run of text no matter how it looks on screen.
@@ -493,7 +511,13 @@
     { cls: "min", label: "min", width: 80 },
     { cls: "max", label: "max", width: 80 },
     { cls: "contribution", label: "contribution", width: 200 },
-    { cls: "chips", label: "sourcing", width: 200 },
+    // 260, not the 200 it was until viewer_study_verdicts_and_gaps: this cell
+    // clips rather than wraps (`.tvcell__chipswrap`, topology.css — a <tr>'s
+    // height is a floor, so a wrapped chip would grow the row off its leader's
+    // seam), and the row's loud "what is wrong with this number" badges now sit
+    // in it ahead of the citation chip. At 200 a badged row clipped its own
+    // citation chip, which is the trigger for the citation card.
+    { cls: "chips", label: "sourcing", width: 260 },
     { cls: "crop", label: "crop", width: 110 },
   ];
 
@@ -512,6 +536,75 @@
   // column is a flag, not a mechanism.
   VA.TOPO_COLUMNS = COLUMNS;
   VA.TOPO_COLUMN_WIDTH = { min: 80, max: 900 };
+
+  // --- the preview pane's width (Jeff, 2026-09-15: "it's too narrow") -------
+  //
+  // The pane shows a drawing crop at the pane's own width, so how wide it
+  // wants to be is a property of the DOCUMENT a reader happens to be reading,
+  // not something this page can pick once. It is dragged, by the divider on
+  // its left edge (topology.html), and remembered.
+  //
+  // `min` keeps the values column's two number rows from wrapping; `max`
+  // exists so a drag cannot leave the grid unreadably narrow, which is the
+  // only failure a drag on this divider can produce. `preset` is the width
+  // topology.css declares — not repeated here, READ from the pane at boot, so
+  // the stylesheet stays the one place the default lives.
+  VA.TOPO_PANE_WIDTH = { min: 320, max: 1000 };
+
+  VA.clampPaneWidth = function (px) {
+    var n = Math.round(Number(px));
+    if (!isFinite(n)) return VA.TOPO_PANE_WIDTH.min;
+    return Math.min(VA.TOPO_PANE_WIDTH.max,
+      Math.max(VA.TOPO_PANE_WIDTH.min, n));
+  };
+
+  // The width a drag lands on. The pane is on the RIGHT of its divider, so
+  // dragging left (negative dx) makes it WIDER — the sign inversion is here,
+  // in the pure layer, rather than in the app shell's pointer handler, for the
+  // same reason VA.jogZoneScaleAfterDrag is: it is the one line of arithmetic
+  // a test can check without a pointer, and getting it backwards is the
+  // likeliest mistake in the whole feature.
+  VA.paneWidthAfterDrag = function (startWidth, dx) {
+    return VA.clampPaneWidth(startWidth - dx);
+  };
+
+  // Where the remembered width is kept, and the ONE key it is kept under.
+  // Jeff asked for the width to persist and said localStorage is fine.
+  //
+  // This is the first preference on this page that outlives the session, and
+  // it is deliberately the only one: the others (row density, edge length
+  // mode, leader style, jog zone scale) are ways of reading the DIAGRAM, and
+  // topology_app.js's own comment on `jogZoneScale` argues they are better
+  // reset — a stored pixel width for a jog zone crushes one topology's lanes
+  // and barely moves another's. A pane width has none of that coupling: it is
+  // a property of the window, it means the same thing on every topology and
+  // in both modes, and it is the one Jeff noticed was wrong.
+  //
+  // `store` is injected so both directions are testable without a browser,
+  // and every access is wrapped: a file:// page's localStorage is per-path at
+  // best and throws outright in some configurations, and a preference is never
+  // worth a crash. A read that cannot answer returns null, which the caller
+  // reads as "no preference stored" — the stylesheet's width.
+  VA.PANE_WIDTH_KEY = "tolstack.viewer.detailWidth";
+
+  VA.readStoredPaneWidth = function (store) {
+    try {
+      var raw = store && store.getItem(VA.PANE_WIDTH_KEY);
+      if (raw === null || raw === undefined || raw === "") return null;
+      var n = Number(raw);
+      return isFinite(n) ? VA.clampPaneWidth(n) : null;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  VA.writeStoredPaneWidth = function (store, px) {
+    try {
+      if (store) store.setItem(VA.PANE_WIDTH_KEY, String(VA.clampPaneWidth(px)));
+    } catch (err) {
+      // A browser that refuses to store it still resizes for this session.
+    }
+  };
 
   VA.topoColumn = function (cls) {
     for (var i = 0; i < COLUMNS.length; i++) {
@@ -625,7 +718,7 @@
   // --- the SVG -------------------------------------------------------------
 
   function railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx,
-                    fade) {
+                    fade, fadeLink) {
     // The SVG spans the rails AND the leader jog zone: its right edge is the
     // grid table's left edge, so a leader's final horizontal segment hands off
     // to its row's boundary with no seam to keep aligned.
@@ -654,20 +747,28 @@
     // 1. the rails themselves: continuous, neutral, alternating shade by column
     //    parity so two rails crossing can still be told apart. NOT a categorical
     //    palette — see the page's legend for why there isn't one.
-    //    Mid-respine a rail needs no fade of its own: a column the
-    //    transition is adding is drawn collapsed onto the spine at e = 0 and
-    //    unfolds out of it (VA.respineX), so there is nothing to appear from
-    //    nowhere. The marks on it are keyed and the store fades those.
+    //    Mid-respine a rail needs no fade of its own, and this is the whole
+    //    reason why: a column the transition is adding is drawn collapsed
+    //    onto the OUTGOING FRAME'S LEFTMOST RAIL at e = 0 and unfolds out of
+    //    it (VA.respineX, whose `floor` is that rail), so there is nothing to
+    //    appear from nowhere -- from a settled outgoing frame or from a
+    //    transition frame alike. Every column both serialisations have has a
+    //    rail on both sides, so those are the only rails a respine can add.
+    //    The marks on a rail are keyed and the store fades those.
     geometry.rails.forEach(function (rail) {
       svg.appendChild(VA.svg("line",
         "rail rail--" + (rail.column % 2 ? "odd" : "even"),
         { x1: rail.x, y1: rail.y1, x2: rail.x, y2: rail.y2 }));
     });
 
-    // 2. the fan-outs and the loop closures.
+    // 2. the fan-outs and the loop closures. A link is the one drawn thing the
+    //    unfold above does NOT cover: it belongs to a pair of columns, and a
+    //    link a respine adds between two columns BOTH serialisations have
+    //    arrives on rails that never move. So it carries an opacity of its
+    //    own, keyed on its two ends' elements (VA.linkOpacity).
     geometry.links.forEach(function (link) {
-      svg.appendChild(VA.svg("path", "rail__link rail__link--" + link.kind,
-        { d: link.d }));
+      svg.appendChild(fadeLink(VA.svg("path",
+        "rail__link rail__link--" + link.kind, { d: link.d }), link.key));
     });
 
     // 2b. the leaders (viewer_leader_line_grid): one jogged line per
@@ -678,12 +779,16 @@
     //     visible path is thin; a wider invisible twin (`rail__leaderhit`,
     //     same shape as the edge bars' own hit path) carries the hover title,
     //     the click and the addressable data attributes.
+    //
+    //     With a study selected there is no `--off` leader to draw: the plan
+    //     this reads emits a leader only for a CHAIN node
+    //     (viewer_respine_whole_walk), which is the "it should be fairly
+    //     obvious that there are no leader lines pointing to certain
+    //     elements" half of the emphasis — absence, not a faded line.
     leaderGeo.leaders.forEach(function (leader) {
       var node = index.nodes[leader.id];
       var classes = ["rail__leader"];
-      if (marking) {
-        classes.push(chainNodes[leader.id] ? "rail__leader--on" : "rail__leader--off");
-      }
+      if (marking) classes.push("rail__leader--on");
       if (isSelected(ctx, "node", leader.id)) classes.push("rail__leader--selected");
       svg.appendChild(fade(VA.svg("path", classes.join(" "), { d: leader.d }),
         "node", leader.id));
@@ -943,7 +1048,10 @@
     if (edge && edge.kind === "gap") el.className += " tvrow--gap";
     if (edge && edge.value_source === "derived") el.className += " tvrow--derived";
     if (edge && edge.zero_width) el.className += " tvrow--zero-width";
-    if (marking) el.className += hit ? " tvrow--on" : " tvrow--off";
+    // No on/off marking on a grid row any more (viewer_respine_whole_walk):
+    // with a study selected the table IS the chain, so every row in it is a
+    // member and a faded non-member row is not a thing this grid can hold.
+    // The dimming moved to where the non-members still are — the rails.
     if (planRow.closes) el.className += " tvrow--closes";
     if (isSelected(ctx, "edge", planRow.id)) el.className += " tvrow--selected";
 
@@ -961,15 +1069,21 @@
     if (valueOnly) el.setAttribute("title", VA.edgeHoverTitle(edge, planRow.id));
     el.appendChild(VA.el("td", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
 
-    // The element label, with its own component's name dropped off the front
-    // where it repeats the merged cell to its left (VA.elementDisplayLabel,
-    // topology.js -- display only, nothing about the edge changes). Where
-    // anything was dropped the cell carries the FULL label as its hover
-    // title, so the words are one hover away and the detail pane prints them
-    // in full regardless.
+    // The element label, with everything the rest of the row already says
+    // dropped out of it (VA.elementDisplayLabel, topology.js -- display only,
+    // nothing about the edge changes): the component's own words off the
+    // front, and any clause that only restates the component or the row's own
+    // value. Where anything was dropped the cell carries the FULL label as its
+    // hover title, so the words are one hover away and the preview pane prints
+    // them in full regardless.
+    //
+    // The PART ROW is passed, not its id: the rule matches against what the
+    // merged cell actually prints, which is the part's name now.
     var fullName = edge ? edge.name : missing(planRow.id);
     var shownName = edge && group
-      ? VA.elementDisplayLabel(fullName, group.part) : fullName;
+      ? VA.elementDisplayLabel(fullName,
+          group.part ? (index.parts[group.part] || { id: group.part }) : null)
+      : fullName;
     var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : shownName);
     if (!valueOnly && shownName !== fullName) nameCell.setAttribute("title", fullName);
     el.appendChild(nameCell);
@@ -1004,6 +1118,18 @@
 
     var chips = chipsCell("chips");
     if (edge) {
+      // What this row has to admit about itself, FIRST and loud
+      // (viewer_study_verdicts_and_gaps, deliverable 2): a study-level badge
+      // that cannot be traced to its rows sends the reader hunting through 43
+      // of them. Everyday words — the confidence chip beside it keeps the
+      // repo's own vocabulary and is the citation card's trigger; this says
+      // the same thing in the words a reader brought with them. It is also
+      // where the old "zero-width band" chip went: two chips on one row saying
+      // one thing in two vocabularies is the redundancy, not the loudness.
+      VA.edgeAttention(edge).forEach(function (flag) {
+        chips.wrap.appendChild(
+          VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
+      });
       var confChip = VA.chip(VA.confidenceClass(edge.confidence),
         edge.confidence === null ? "no value"
           : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence));
@@ -1033,10 +1159,6 @@
       if (edge.value_source === "derived") {
         chips.wrap.appendChild(VA.chip("chip--derived", "DERIVED",
           VA.VALUE_SOURCES.derived.title));
-      }
-      if (edge.zero_width) {
-        chips.wrap.appendChild(VA.chip("chip--zero-width", "zero-width band",
-          "min == max: every interval this feeds is a LOWER bound on the real spread."));
       }
       if (edge.transform && edge.transform.kind !== "identity") {
         chips.wrap.appendChild(VA.chip("chip--transform", edge.transform.kind,
@@ -1124,14 +1246,17 @@
   // sentence and any notes still exist, behind a same-line "Details" toggle,
   // so nothing is dropped — only what is ALWAYS on screen shrinks.
   //
-  // NOT here: a study's own authored `checks` (verdict vs. criterion) —
-  // deliverable 4's third piece, and the one this page cannot wire yet.
-  // `topoProj.joint` and `topoProj.worksheet_file` (project_topology,
-  // topology_schema_v1) reach the page above (renderTopoJoint) and through
-  // topology_app.js's worksheet toggle; a study's own `checks` never reaches
-  // the projection at all — `project_study()` has no `checks` key, tracked in
-  // `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`. This
-  // strip prints totals, never a verdict, until that field exists.
+  // A study's own authored `checks` — the verdict, and by how much — ARE here
+  // since viewer_study_verdicts_and_gaps (2026-09-15). They reach the page the
+  // same way `topoProj.joint` and `topoProj.worksheet_file` do: as a projection
+  // field. `project_study()` gained its `checks` key on 2026-09-09
+  // (topology_projection_emits_study_checks, closing
+  // `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`), and
+  // for six days after that the field existed and nothing read it — the comment
+  // that used to sit here said the opposite, which is how a stale comment costs
+  // more than no comment. The margin beside the verdict is CheckResult.margin,
+  // computed in Python against the check's own criterion; this strip still adds
+  // nothing up.
   VA.renderTopoTotals = function (root, topoProj, study, index) {
     VA.clear(root);
     root.className = "tvtotals";
@@ -1140,10 +1265,24 @@
         "Pick a study to see a path highlighted on the rails and its totals here. " +
         "A study is a HUMAN-lassoed chain: this page reports where the forks are " +
         "and never chooses one."));
+      // The gap panel is a fact about the TOPOLOGY, not about the selected
+      // study, so it is on screen before one is picked — which is also the
+      // state a reader arrives in.
+      root.appendChild(gapsPanel(topoProj));
       return root;
     }
 
+    var verdict = VA.studyVerdict(study);
     var strip = VA.el("div", "tvtotals__strip");
+    // The verdict leads — ahead of the title, because it is the one thing a
+    // reader came for and the one thing this page never said. It is the ONLY
+    // thing this handoff put in the strip: the strip does not wrap, it scrolls
+    // sideways (`.tvtotals__strip`, topology.css), and a long `from → to` span
+    // already pushes the folded totals past its right edge on a 870px pane.
+    // Three more chips in here would have pushed them further for a reader who
+    // has to drag to reach them — so the flags get their own line below,
+    // where they can wrap.
+    strip.appendChild(verdictChip(verdict));
     strip.appendChild(VA.el("span", "tvtotals__title", study.title));
     strip.appendChild(VA.el("code", "muted", study.id));
     strip.appendChild(VA.el("span", "muted tvtotals__span",
@@ -1153,9 +1292,11 @@
     if (study.status !== "ok") {
       root.appendChild(strip);
       root.appendChild(errorBlock(study));
+      root.appendChild(gapsPanel(topoProj));
       return root;
     }
 
+    var attention = VA.studyAttention(study, index);
     var worst = VA.studyWorstConfidence(study, index);
     strip.appendChild(VA.chip("chip--kind", study.result.chain.length + " contributions"));
     strip.appendChild(VA.chip("chip--kind", study.result.units));
@@ -1171,6 +1312,24 @@
     });
     root.appendChild(strip);
 
+    // The study-level flags, on their own wrapping line (deliverable 2): loud,
+    // never clipped, and directly above the block that explains each of them.
+    if (attention.badges.length) {
+      var flags = VA.el("div", "tvtotals__flags");
+      attention.badges.forEach(function (flag) {
+        flags.appendChild(
+          VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
+      });
+      root.appendChild(flags);
+    }
+
+    root.appendChild(verdictBlock(verdict, attention));
+
+    var warning = VA.zeroWidthWarning(attention);
+    if (warning) {
+      root.appendChild(VA.el("p", "tvwarn tvwarn--lower-bound", warning));
+    }
+
     var more = VA.el("details", "tvtotals__more");
     more.appendChild(VA.el("summary", null, "Details"));
     more.appendChild(VA.el("p", "muted tvtotals__rule",
@@ -1181,8 +1340,124 @@
       more.appendChild(VA.el("p", "tvtotals__note", note));
     });
     root.appendChild(more);
+    root.appendChild(gapsPanel(topoProj));
     return root;
   };
+
+  // The rollup badge, in one shape for all five states — a verdict word, the
+  // two states a verdict cannot express, and the unknown-word fallback. Never
+  // blank: a study with no recorded criterion says so, because a blank badge
+  // and a passing one look identical at a glance, which is the reading this
+  // whole block exists to stop.
+  function verdictChip(verdict) {
+    if (!verdict) return VA.el("span", "muted", "");
+    var chip = VA.chip("tvverdict tvverdict--" + verdict.state,
+      verdict.word, verdict.title);
+    if (verdict.incomplete) chip.className += " tvverdict--qualified";
+    return chip;
+  }
+
+  // Under the strip: what the verdict means, by how much, and — where the chain
+  // is knowingly short a term — what is missing, in words, ABOVE the number. An
+  // unqualified verdict on an incomplete chain is the exact lie this repo
+  // exists to avoid, so the qualification is not a footnote and not a hover.
+  function verdictBlock(verdict, attention) {
+    var box = VA.el("div", "tvverdicts");
+    if (!verdict) return box;
+    if (verdict.state === "none") {
+      box.appendChild(VA.el("p", "tvverdicts__none",
+        "No pass/fail criterion has been recorded for this study yet — the " +
+        "totals above are its answer, and whether that answer is good enough " +
+        "is not written down anywhere this page can read."));
+      return box;
+    }
+    verdict.checks.forEach(function (row) {
+      var card = VA.el("div", "tvverdict-card" +
+        (row.incomplete ? " tvverdict-card--qualified" : ""));
+      var head = VA.el("div", "tvverdict-card__head");
+      head.appendChild(VA.chip("tvverdict tvverdict--" + row.verdict,
+        row.verdict, row.title));
+      head.appendChild(VA.el("span", "tvverdict-card__says", row.says));
+      head.appendChild(VA.el("span", "tvverdict-card__margin", row.marginText));
+      card.appendChild(head);
+      card.appendChild(VA.el("div", "tvverdict-card__label", row.label));
+      if (row.incomplete) {
+        var missingBox = VA.el("div", "tvverdict-card__missing");
+        missingBox.appendChild(VA.el("p", "tvverdict-card__missinghead",
+          "This answer does not include everything the joint needs, so it is a " +
+          "budget for what is missing rather than a verdict on the hardware. " +
+          "Missing:"));
+        var list = VA.el("ul", "tvverdict-card__missinglist");
+        row.excludedTerms.forEach(function (term) {
+          list.appendChild(VA.el("li", null, term));
+        });
+        missingBox.appendChild(list);
+        card.appendChild(missingBox);
+      }
+      if (row.guidance) {
+        var more = VA.el("details", "tvverdict-card__more");
+        more.appendChild(VA.el("summary", null, "Why"));
+        more.appendChild(VA.el("p", null, row.guidance));
+        card.appendChild(more);
+      }
+      box.appendChild(card);
+    });
+    if (attention && attention.unverified.length) {
+      box.appendChild(VA.el("p", "tvwarn tvwarn--unverified",
+        attention.unverified.length +
+        (attention.unverified.length === 1 ? " dimension" : " dimensions") +
+        " in this chain " +
+        (attention.unverified.length === 1 ? "is" : "are") +
+        " unverified — nothing readable stands behind " +
+        (attention.unverified.length === 1 ? "it" : "them") + ": " +
+        attention.unverified.join("; ") + "."));
+    }
+    return box;
+  }
+
+  // "What's missing" for the whole topology (deliverable 4). Grouped, collapsed,
+  // and counted in the summary line: pitch_system carries 38 gap rows, and 38
+  // lines always-open is a wall nobody reads — but a count in a heading is a
+  // number a reader can act on. Every row's words come from the projection; the
+  // heading and the way out come from VA.GAP_KINDS.
+  function gapsPanel(topoProj) {
+    var panel = VA.el("section", "tvgaps");
+    var groups = VA.topologyGapGroups(topoProj);
+    if (!groups.length) {
+      panel.appendChild(VA.el("p", "muted tvgaps__none",
+        "Nothing is recorded as missing for this assembly."));
+      return panel;
+    }
+    var total = groups.reduce(function (n, group) { return n + group.gaps.length; }, 0);
+    var box = VA.el("details", "tvgaps__box");
+    var summary = VA.el("summary", "tvgaps__summary");
+    summary.appendChild(VA.el("span", "tvgaps__summarytext", "What's missing"));
+    summary.appendChild(VA.chip("tvflag tvflag--incomplete", String(total)));
+    box.appendChild(summary);
+    groups.forEach(function (group) {
+      var section = VA.el("div", "tvgaps__group");
+      var head = VA.el("h4", "tvgaps__heading",
+        group.heading + " (" + group.gaps.length + ")");
+      section.appendChild(head);
+      section.appendChild(VA.el("p", "muted tvgaps__closes", group.closes));
+      var list = VA.el("ul", "tvgaps__list");
+      group.gaps.forEach(function (gap) {
+        var item = VA.el("li", "tvgaps__item");
+        if (gap.edge_name) {
+          item.appendChild(VA.el("span", "tvgaps__where", gap.edge_name));
+        } else if (gap.hardware_id) {
+          item.appendChild(VA.el("span", "tvgaps__where", gap.hardware_id));
+        }
+        item.appendChild(VA.el("span", "tvgaps__text",
+          gap.edge_name && gap.edge_name === gap.text ? "" : gap.text));
+        list.appendChild(item);
+      });
+      section.appendChild(list);
+      box.appendChild(section);
+    });
+    panel.appendChild(box);
+    return panel;
+  }
 
   // A study that raises is a RESULT. The message is the exception's own, written
   // for a human author; the headline and the advice come from VA.STUDY_ERRORS.
@@ -1225,10 +1500,7 @@
       root.appendChild(VA.el("p", "muted", missing(id)));
       return;
     }
-    var head = VA.el("div", "detail__head");
-    head.appendChild(VA.el("h3", null, node.name));
-    head.appendChild(VA.el("code", "muted", node.id));
-    root.appendChild(head);
+    root.appendChild(paneHead(node.name, node.id));
 
     var chips = VA.el("div", "detail__chips");
     chips.appendChild(VA.chip("chip--kind", node.kind));
@@ -1242,20 +1514,32 @@
     root.appendChild(chips);
 
     // This node's SIDES, derived from the edges actually incident on it
-    // (VA.nodeSideIds -> VA.nodeAdjacentParts) -- the same adjacency the dot's
-    // hover card prints and the leader rule reads, NOT the document's own
-    // `parts` list.
+    // (VA.nodeSideLabels -> VA.nodeAdjacentParts) -- the same adjacency the
+    // dot's hover card prints and the leader rule reads, NOT the document's
+    // own `parts` list. In the parts' own NAMES since 2026-09-15; it printed
+    // their ids until then, which is the one thing this pane said that a
+    // reader had no way to read.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 10 of the 46 live nodes the same dot answered differently
-    // hovered and clicked. Neither list was wrong: a node against a `gap` edge
+    // false, and on 17 of the 48 live nodes the same dot answered differently
+    // hovered and clicked. (17 is the STRING count, which is what "answered
+    // differently" means; 10 is the smaller count of nodes that differ as a
+    // SET. The other 7 name the same two parts in the opposite order --
+    // authoring order against first-seen-edge order -- and a reader looking at
+    // two orders of two names is still reading two different answers. Every
+    // digit in this paragraph, and the README's copy of the first sentence,
+    // is re-derived from the live projection by apps/viewer/tests.js's
+    // "[real] every live dot answers the SAME on hover and on click" -- the
+    // noun included, because 10 shipped under 17's wording for a day and a
+    // pairing that only checked "some number" would have passed it.)
+    // Neither list was wrong: a node against a `gap` edge
     // has a clearance for a side, and a clearance is not a part, so an
     // authored parts list cannot name one. The lists answer different
     // questions -- and the question a reader clicking a dot in the DAG is
     // asking ("what meets HERE, in the picture I am looking at") is the
     // derived one, which is why the card already chose it.
-    var sideIds = VA.nodeSideIds(ctx.topoProj, id);
-    root.appendChild(VA.el("div", "detail__where", "on " + sideIds.join(" ⇔ ")));
+    var sides = VA.nodeSideLabels(ctx.topoProj, id);
+    root.appendChild(VA.el("div", "detail__where", "on " + sides.join(" ⇔ ")));
 
     // Whether this interface got a leader line, and why (viewer_leader_line_
     // grid): the omission rule is the component grouping, so the pane says
@@ -1284,10 +1568,7 @@
       root.appendChild(VA.el("p", "muted", missing(id)));
       return;
     }
-    var head = VA.el("div", "detail__head");
-    head.appendChild(VA.el("h3", null, edge.name));
-    head.appendChild(VA.el("code", "muted", edge.id));
-    root.appendChild(head);
+    root.appendChild(paneHead(edge.name, edge.id));
 
     var source = VA.VALUE_SOURCES[edge.value_source];
     var chips = VA.el("div", "detail__chips");
@@ -1305,9 +1586,16 @@
     }
     root.appendChild(chips);
 
+    // The part and the two interfaces, in their own names -- all three were
+    // printed as ids here until 2026-09-15.
+    var partLabel = edge.part
+      ? VA.componentLabel(VA.topologyIndex(ctx.topoProj).parts[edge.part] ||
+          { id: edge.part })
+      : null;
     root.appendChild(VA.el("div", "detail__where",
-      (edge.part ? "a dimension of " + edge.part : "across a clearance") +
-      "  ·  " + edge.from + " → " + edge.to));
+      (partLabel ? "a dimension of " + partLabel : "across a clearance") +
+      "  ·  " + VA.nodeLabel(ctx.topoProj, edge.from) +
+      " → " + VA.nodeLabel(ctx.topoProj, edge.to)));
 
     // Deep link OUT to apps/annotate/ (deliverable 4): only for the two loud
     // gap confidences -- a traced/inferred edge already has a citation, and a
@@ -1334,22 +1622,22 @@
         // as the link below, but the annotator flies out beside this page
         // with just this edge's part visible, ready to click the surface.
         var attachBtn = VA.el("button", "detail__annotate-btn",
-          "attach to 3D" + (edge.part ? " (" + edge.part + ")" : "") + " →");
+          "attach to 3D" + (partLabel ? " (" + partLabel + ")" : "") + " →");
         attachBtn.setAttribute("title",
           "flies out the 3D annotation panel with this edge selected" +
-          (edge.part ? ", isolating " + edge.part : "") +
+          (partLabel ? ", showing " + partLabel + " on its own" : "") +
           " -- click the correct surface(s) there to resolve which feature this is");
         attachBtn.onclick = function () { ctx.onAttach3d(annotateParams); };
         annotateBox.appendChild(attachBtn);
       } else {
         var annotateLink = VA.el("a", "detail__annotate-link",
-          "annotate this" + (edge.part ? " (" + edge.part + ")" : "") + " →");
+          "annotate this" + (partLabel ? " (" + partLabel + ")" : "") + " →");
         annotateLink.setAttribute("href", VA.annotateLink(annotateParams));
         annotateLink.setAttribute("target", "_blank");
         annotateLink.setAttribute("rel", "noopener");
         annotateLink.setAttribute("title",
           "opens the 3D annotation surface with this edge selected" +
-          (edge.part ? ", isolating " + edge.part : "") +
+          (partLabel ? ", showing " + partLabel + " on its own" : "") +
           " -- click the correct surface(s) there to resolve which feature this is");
         annotateBox.appendChild(annotateLink);
       }
@@ -1376,7 +1664,7 @@
       "default transform: " + VA.transformText(edge.transform)));
 
     var hit = VA.chainIndex(ctx.study)[edge.id];
-    if (hit) root.appendChild(contributionBlock(hit, ctx.study));
+    if (hit) root.appendChild(contributionBlock(hit, ctx.study, ctx.topoProj));
 
     if (edge.note) root.appendChild(VA.el("div", "detail__note", edge.note));
 
@@ -1387,11 +1675,23 @@
       if (provenance) root.appendChild(exportBlock(provenance));
     } else if (dimension) {
       root.appendChild(VA.el("div", "el-export el-export--none el-export--loud",
-        "This dimension carries no source_ref at all — nothing says where the " +
-        "number came from."));
+        "This dimension cites nothing at all — nothing on record says where " +
+        "the number came from."));
     }
 
     root.appendChild(cropSection(edge, ctx));
+  }
+
+  // A preview-pane heading: the thing's own NAME, with its id on the
+  // heading's hover title instead of printed beside it in a <code> chip
+  // (2026-09-15 -- an id is a deep-link handle, not a label; the hover cards
+  // and the stack pane took the same treatment).
+  function paneHead(name, id) {
+    var head = VA.el("div", "detail__head");
+    var heading = VA.el("h3", null, name);
+    if (id) heading.setAttribute("title", id);
+    head.appendChild(heading);
+    return head;
   }
 
   function row(box, label, value) {
@@ -1401,12 +1701,13 @@
     box.appendChild(line);
   }
 
-  function contributionBlock(hit, study) {
+  function contributionBlock(hit, study, topoProj) {
     var c = hit.contribution;
     var box = VA.el("div", "detail__contribution");
     box.appendChild(VA.el("h4", null,
       "In this study — contribution #" + hit.ordinal));
-    row(box, "crossed", c.from + " → " + c.to);
+    row(box, "crossed", VA.nodeLabel(topoProj, c.from) + " → " +
+      VA.nodeLabel(topoProj, c.to));
     row(box, "sign", c.sign < 0 ? "− (against the edge's orientation)"
       : "+ (with the edge's orientation)");
     row(box, "transform", c.transform + "  ×" + VA.fmt(c.ratio));
@@ -1472,28 +1773,26 @@
     }
     var entry = VA.cropForKey(ctx.crops, edge.crop_key);
     box.className = "detail__crop detail__crop--" + entry.status;
-    box.appendChild(VA.el("div", "muted", VA.cropKeyText(edge.crop_key)));
+    // The crop KEY line used to print here (VA.cropKeyText): which of the crop
+    // index's two key spaces addressed this crop, spelled in the ids of a
+    // stack and an element. Internal plumbing, in internal ids, immediately
+    // above a picture that names its own document -- gone 2026-09-15, on the
+    // same pass that took it off the hover cards.
     if (entry.status !== "resolved") {
       box.appendChild(VA.el("div", "detail__crop-reason", entry.reason || entry.status));
       return box;
     }
-    if (ctx.detailImage && ctx.detailImage.url) {
-      var img = VA.el("img", "detail__crop-img");
-      img.setAttribute("src", ctx.detailImage.url);
-      img.setAttribute("alt", "crop of " + entry.pdf_name + " sheet " + entry.page);
-      if (entry.width && entry.height) {
-        img.style.aspectRatio = entry.width + " / " + entry.height;
-      }
-      box.appendChild(img);
-    } else {
-      box.appendChild(VA.el("div", "detail__crop-reason",
-        "crops.json points at " + entry.png + ", which is not on disk — the crop " +
-        "index is stale; re-run the crop script"));
-    }
-    box.appendChild(VA.el("div", "detail__crop-head",
-      entry.pdf_name + " · sheet " + entry.page));
-    box.appendChild(VA.el("div", "detail__crop-prov", VA.cropProvenanceLine(entry)));
-    box.appendChild(VA.el("div", "detail__crop-path", entry.pdf));
+    // Shared builder, same as the stack pane's: the image, its highlight boxes
+    // and the parts-list companion for a balloon crop.
+    box.appendChild(VA.cropFigure(entry, ctx.detailImage, "detail__crop-img"));
+    var companion = VA.companionFigure(entry, ctx.cropImages);
+    if (companion) box.appendChild(companion);
+    // The reference, its links and the folded matching provenance, from the
+    // ONE builder every crop surface shares (VA.cropReference, views/crop.js).
+    // This pane used to print the reference, then the provenance line in the
+    // open, then the absolute path -- three lines where a reader wanted one,
+    // and no way to reach the document at all.
+    VA.cropReference(box, entry, ctx.config, "detail__crop-");
     return box;
   }
 })(window.ViewerApp = window.ViewerApp || {});

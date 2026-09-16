@@ -30,6 +30,7 @@
     "pitch_arm_link_hole_to_clocking_hole": "blade_root_tangential_to_rotary_average",
     "blade_root_clocking_to_oml": "pitch_arm_linear_to_rotary_average"
   },
+  "no_checks_reason": "The requirement-cited checks over this exact selection and transform set live in study_pitch_system_end_stop_plus72.json, whose selection and transforms are byte-identical to this study's by test (test_an_end_stop_study_s_selection_and_transforms_equal_its_source_study[plus72-vs-average]); duplicating its S461-607 / S461-617 checks here would render the same criteria twice over the same total. This study exists to hold the full-sweep-average sensitivity column beside its worst-case twin. No further criterion is citable in-repo: S461-805's threshold is literally 'TBD deg'. Recorded 2026-09-15 (stack_fable_audit, check-coverage sweep).",
   "provenance": {
     "authored_by": "handoff dag_topology_format, 2026-08-31",
     "why_this_file_exists": "Same topology, same selection, same chain order, DIFFERENT transform set -- the second of the source workbook's two parallel result columns. It is the case that made a per-study `transforms` map the right shape rather than putting sensitivities only on edges: two sensitivity sets over one graph is not two graphs, and a schema that forced it to be would double every future edit.",

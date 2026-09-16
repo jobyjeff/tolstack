@@ -1,21 +1,29 @@
 // The single left-rail nav (viewer_v2_single_nav, 2026-09-08): one tree,
 // replacing both the TOPOLOGY/STUDY <select> pickers (views/topology.js's old
 // renderTopoPicker) and the flat stack rail (the retired views/list.js) at
-// once. Every topology lists its studies as children; every classic-only
-// stack (no topology re-expresses it) is a leaf of the same tree. Selecting
-// any node drives the whole page — see topology_app.js's onNavTopology /
-// onNavStudy / onNavStack.
+// once. Every topology lists its studies as children; a stack no topology
+// re-expresses is a leaf of the same tree. Selecting any node drives the whole
+// page — see topology_app.js's onNavTopology / onNavStudy / onNavStack.
 //
-// The one stack a topology ALSO re-expresses is not a second top-level leaf:
-// LESSONS_20260904_viewer_consolidation.md §1 found that stack's own authored
-// `checks` block (a worst-case verdict against a criterion) has no field in
-// the topology projection at all — DAG_TOPOLOGY.md's L1 proof compares
-// totals, never a verdict — so it must stay reachable. Nesting it as a child
-// of the topology it belongs to (VA.navTree's `coveredStacks`, topology.js)
-// is the tree-shaped form of the same "extra pointer, never a removal" rule
-// the flat list's markCoveredStacks chip used; nothing is hidden or
-// duplicated, and the covered stack's own classic view (with its check) is
-// one click under the topology it also is.
+// A stack a topology DOES re-express has no row of its own
+// (viewer_nav_wedge_and_classic_retirement, 2026-09-15). It used to get one:
+// nested under its topology, chipped "classic view", rendering the elements
+// table beside the graph. The reason that existed is spent.
+// LESSONS_20260904_viewer_consolidation.md §1 found a stack's own verdict had
+// no field in the topology projection at all, so the elements table was the
+// only place on this whole page a verdict could be read — true until the
+// field landed (2026-09-09) and this page rendered it (2026-09-15,
+// viewer_study_verdicts_and_gaps), along with every gap, excluded term and
+// missing-tolerance warning the table carried. That the graph now states all
+// of it is not an argument in a comment: it is paired stack-against-topology,
+// row for row, by tests/test_topology_conversions.py's coverage section.
+//
+// So one system is one entry, and a reader is never offered the same joint
+// twice in two notations. Jeff's 2026-09-15 review is the whole of the case:
+// "Why is this still here? I had you completely delete that page, and now
+// it's sneaking back into this page." Some entries simply have no DAG (the
+// two thermal-fit stacks); those are the leaves, rendered as plain stack
+// pages, and nothing on the rail labels them as a different kind of page.
 //
 // Titles are short noun phrases (stack_title_style_pass, 2026-09-14 — the rule
 // is docs/SOP_TOLERANCE_STACK.md's "Titling an artifact"), so the rail scans
@@ -74,8 +82,18 @@
       var active = inThisTopology && state.studyId === s.id;
       var srow = VA.el("div", "navtree__row navtree__row--study" +
         (active ? " navtree__row--on" : "") +
-        (s.status === "error" ? " navtree__row--warn" : ""),
-        (s.status === "error" ? "⚠ " : "") + s.title);
+        (s.status === "error" ? " navtree__row--warn" : ""));
+      srow.appendChild(VA.el("span", "navtree__label",
+        (s.status === "error" ? "⚠ " : "") + s.title));
+      // The verdict, on the rail (viewer_study_verdicts_and_gaps, 2026-09-15).
+      // Every study wears one, including the ones with no criterion recorded:
+      // the rail is where a reader sees the shape of a whole document at once,
+      // and a row that stays silent about whether its study passes reads as a
+      // row whose study passed. The badge is never bare where the chain is
+      // short a term — VA.studyVerdict's `incomplete` puts "incomplete" beside
+      // it, because "fail" on an incomplete chain is true of the model and
+      // false of the hardware.
+      srow.appendChild(studyBadges(s));
       setTooltip(srow, s.description, null);
       srow.setAttribute("data-nav-kind", "study");
       srow.setAttribute("data-nav-id", s.id);
@@ -83,23 +101,31 @@
       srow.onclick = function () { handlers.onStudy(t.id, s.id); };
       children.appendChild(VA.el("li", "navtree__item", srow));
     });
-    (t.coveredStacks || []).forEach(function (stackProj) {
-      var active = state.mode === "stack" && state.selectedStackId === stackProj.id;
-      var srow = VA.el("div", "navtree__row navtree__row--stack" +
-        (active ? " navtree__row--on" : ""));
-      srow.appendChild(VA.el("span", "navtree__label", stackProj.title));
-      srow.appendChild(VA.chip("chip--kind", "classic view",
-        "this stack's own authored checks live here — the topology this page " +
-        "also draws for it compares totals, never a verdict, so this check has " +
-        "no field there at all"));
-      setTooltip(srow, stackProj.description, null);
-      srow.setAttribute("data-nav-kind", "stack");
-      srow.setAttribute("data-nav-id", stackProj.id);
-      srow.onclick = function () { handlers.onStack(stackProj.id); };
-      children.appendChild(VA.el("li", "navtree__item", srow));
-    });
     if (children.childNodes.length) li.appendChild(children);
     return li;
+  }
+
+  // The study row's chips: the verdict, then every flag the study earned. The
+  // verdict badge carries its own qualification as a style (`--qualified`)
+  // rather than as a fourth chip; the WORD "incomplete" still arrives, from the
+  // attention flags, so a reader sees the qualification and not only a tint.
+  //
+  // A study with no criterion recorded says "no criterion" rather than nothing:
+  // a silent row on a rail of verdicts reads as a row that passed, which is the
+  // misreading this whole badge exists to stop.
+  function studyBadges(s) {
+    var chips = VA.el("div", "navtree__chips");
+    var verdict = s.verdict;
+    if (verdict) {
+      var chip = VA.chip("tvverdict tvverdict--" + verdict.state,
+        verdict.state === "none" ? "no criterion" : verdict.word, verdict.title);
+      if (verdict.incomplete) chip.className += " tvverdict--qualified";
+      chips.appendChild(chip);
+    }
+    ((s.attention && s.attention.badges) || []).forEach(function (flag) {
+      chips.appendChild(VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
+    });
+    return chips;
   }
 
   function stackItem(stackProj, state, handlers) {

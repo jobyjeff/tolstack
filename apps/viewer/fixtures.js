@@ -185,6 +185,15 @@
             // tolerance_stack.fold() in Python. Two spellings of the same
             // structure is what the real projection carries, so the fixture
             // carries it too.
+            //
+            // Each projected check's `margin` (added 2026-09-15,
+            // viewer_study_verdicts_and_gaps) is a DERIVED field, not a fifth
+            // hand-picked number: CheckResult.margin is the signed worst-case
+            // distance to the criterion, and for `">= 0"` — the only criterion
+            // this repo supports, and the criterion of all four checks in this
+            // file — that distance is `worst_case_min`. Each one below is the
+            // `worst_case_min` three lines under it, which is what the builder
+            // would have written.
             paths: [{
               id: "clamped", label: "clamped column", workbook_cells: null,
               terms: [{ element: "plate" }, { element: "washer" }],
@@ -253,6 +262,7 @@
               check_id: "clearance", label: "clearance over the clamped column",
               configuration: { fastener: "demo bolt" }, criterion: ">= 0", units: "mm",
               verdict: "pass", guidance: "A complete check, for contrast.",
+              margin: 0.9272,
               nominal: 1.1272, worst_case_min: 0.9272, worst_case_max: 1.3272,
               worst_case_half: 0.2, rss_center: 1.1272, rss_half: 0.141421,
               rss_min: 0.985779, rss_max: 1.268621,
@@ -268,6 +278,7 @@
               check_id: "shank_out", label: "shank out",
               configuration: {},
               criterion: ">= 0", units: "mm", verdict: "fail",
+              margin: -3.3272,
               guidance: "Read the magnitude as the eye width the joint requires.",
               nominal: -3.1272, worst_case_min: -3.3272, worst_case_max: -2.9272,
               worst_case_half: 0.2, rss_center: -3.1272, rss_half: 0.141421,
@@ -353,8 +364,23 @@
               // the builder writes both keys on every entry: "no region" and
               // "built before regions existed" must not look the same.
               region_label: null, region_match: null,
+              // Null for the same reason region_label is: the builder writes
+              // every key on every entry, so "this crop names no page context /
+              // no find number" and "this index predates them" cannot look the
+              // same to a reader. `drawing_no`/`drawing_revision` are what the
+              // link into drawing-checker is CALLED, and are written only where
+              // a run exists to link to -- this entry has none.
+              context_label: null, find_no: null,
+              drawing_no: null, drawing_revision: null, companion: null,
               note: "printed zone D10 padded by 1 cell(s)",
               rect_pt: [0, 0, 100, 100],
+              // The boxes drawn over the crop, as fractions of it. This one
+              // corroborated (`callout_text_in_zone: true`), so the box is a
+              // `verified_match` and the viewer draws it SOLID.
+              highlights: [{
+                kind: "verified_match", label: "4.06",
+                rect_pt: [40, 30, 60, 40], frac: [0.4, 0.3, 0.6, 0.4],
+              }],
             },
             washer: {
               status: "unresolvable", png: null,
@@ -394,9 +420,15 @@
               sha256_verified: true, located_by: "sheet_full", needle: null,
               cited_zone: null, zone_grid: "read", callout_text_in_zone: null,
               region_label: null, region_match: null,
+              context_label: null, find_no: null,
+              drawing_no: null, drawing_revision: null, companion: null,
               note: "whole sheet -- no zone cited and the callout text " +
                 "matches zero or many places",
               rect_pt: [0, 0, 100, 100],
+              // A whole-sheet crop marks nothing, and says so with an empty
+              // list rather than by omitting the key: nothing on this sheet was
+              // located, which is a statement, not a gap in the index.
+              highlights: [],
             },
             post_bushing_offset: {
               status: "unresolvable", png: null,
@@ -638,6 +670,7 @@
               configuration: { chain: "seat", stage: "hub_to_sleeve", temperature: "hot",
                                temperature_c: "72", stiffness_ratio: "0.8" },
               criterion: ">= 0", units: "mm", verdict: "marginal",
+              margin: -0.034024,
               guidance: "Interference, positive = interfering. The worst-case " +
                 "minimum is the loosest corner and is the binding one.",
               nominal: 0.00601, worst_case_min: -0.034024, worst_case_max: 0.046044,
@@ -667,6 +700,7 @@
                                temperature: "hot", temperature_c: "72",
                                stiffness_ratio: "1", sensitivity: "true" },
               criterion: ">= 0", units: "mm", verdict: "marginal",
+              margin: -0.007073,
               guidance: "NOT A RESULT. k = 1 means the sleeve absorbs all of stage " +
                 "1's interference, so its own free size drops out of the term list.",
               nominal: 0.027961, worst_case_min: -0.007073, worst_case_max: 0.062996,

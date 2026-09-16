@@ -9,8 +9,11 @@ done:
    :class:`~tolerance_stack.stack.CheckResult` object the rest of the repo
    reads, field for field -- not a re-derivation.
 2. **A gap-bearing/failing stack stays visibly not-clean.** The pitch-link
-   stack's ``untraced``/``inferred`` confidences and its incomplete,
-   ``fail``-verdict check must ride through unchanged.
+   stack's ``traced``/``untraced`` confidences and its incomplete,
+   ``fail``-verdict check must ride through unchanged. (It read
+   ``untraced``/``inferred`` until 2026-09-15: that stack had no ``untraced``
+   element until ``pitch_link_known_bands`` applied two unverified bands to it,
+   and none of its confidences was ``inferred`` afterwards.)
 3. **The Windows CSV traps are pinned, not just avoided by construction.**
    ``test_written_csv_has_a_utf8_bom`` asserts the leading BOM bytes, and
    ``test_written_csv_preserves_plus_minus_and_diameter_characters`` asserts
@@ -110,16 +113,25 @@ def test_element_row_values_are_the_stored_values_not_rederived():
     assert row["note"] == element.note
 
 
-def test_zero_width_element_has_no_invented_band():
-    """``bushing_214820`` is min == max -- no document gives it a tolerance.
+def test_an_asymmetric_unverified_band_is_exported_verbatim():
+    """``bushing_214820`` is ``4.76 +0.00/-0.13`` -- nominal == max, no ``+-``.
 
-    The exporter must report that verbatim, not smooth it into a band.
+    It was ``min == max == nominal`` until 2026-09-15 (``pitch_link_known_bands``)
+    and this test asserted that instead; the exporter's job is the same either
+    way, and the one-sided band is the harder case. A round number in the
+    ``plus_minus`` column here would state a symmetric tolerance the drawing does
+    not carry, and a reader diffing this export against a source sheet column-for
+    -column is exactly who would be misled by it.
     """
     stack = load_stack(PITCH_LINK)
     rows = {r["element_id"]: r for r in E.element_rows_for_stack(stack)}
     row = rows["bushing_214820"]
-    assert row["min"] == row["max"] == row["nominal"]
-    assert row["confidence"] == "inferred"
+    assert (row["min"], row["nominal"], row["max"]) == (4.63, 4.76, 4.76)
+    assert (row["lmc"], row["mmc"]) == (4.63, 4.76)
+    assert row["plus_minus"] == "", "an absent tolerance exports empty, not 0"
+    # And the band's weakness travels with it -- this export is the artifact a
+    # reader takes out of the repo, where the citation trail does not follow.
+    assert row["confidence"] == "untraced"
 
 
 def test_element_with_no_source_ref_carries_empty_confidence_not_a_guess():
@@ -178,21 +190,31 @@ def test_path_row_matches_fold_exactly():
 
 
 def test_check_row_matches_fold_and_stays_visibly_not_clean():
-    """The pitch-link stack's headline check: incomplete, budget-scoped, fails.
+    """A gap-bearing check must stay visibly not-clean in the export: verdict,
+    completeness and the excluded term must all survive into it.
 
-    This is the "gap-bearing stack is visibly not-clean" requirement: verdict,
-    completeness and the excluded term must all survive into the export.
+    Until 2026-09-15 (``stack_fable_audit``) the shank-out check was the
+    specimen (incomplete, budget-scoped, fail-by-construction); its column is
+    complete now, so the cotter budget -- still excluding the MS9363-09 nut
+    side -- carries this assertion, and the shank-out row is checked for the
+    complementary claim: a completed check exports as joint-scoped.
     """
     stack = load_stack(PITCH_LINK)
     rows = {r["id"]: r for r in E.fold_rows_for_stack(stack) if r["row_kind"] == "check"}
-    result = stack.check("shank_out__11_sourced_only")
-    row = rows["shank_out__11_sourced_only"]
-    assert row["verdict"] == result.verdict == "fail"
+
+    result = stack.check("cotter_hole_clear_of_sourced_stack")
+    row = rows["cotter_hole_clear_of_sourced_stack"]
+    assert row["verdict"] == result.verdict == "pass"
     assert row["verdict_scope"] == "budget"
     assert row["complete"] is False
-    assert "pitch-link eye" in row["excluded_terms"]
+    assert "MS9363-09" in row["excluded_terms"]
     for key, value in result.interval.as_dict().items():
         assert row[key] == value, key
+
+    shank = rows["shank_out__11_sourced_only"]
+    assert shank["verdict"] == "pass"
+    assert shank["verdict_scope"] == "joint"
+    assert shank["complete"] is True
 
 
 # ---------------------------------------------------------------------------

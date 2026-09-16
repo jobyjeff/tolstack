@@ -22,6 +22,9 @@ const el = {
   banner: document.getElementById("banner"),
   connectBtn: document.getElementById("connect-btn"),
   transportSub: document.getElementById("transport-sub"),
+  // The whole bind workspace, as one node (index.html's #workspace) -- see
+  // main()'s hosted branch for why it is addressed as a single thing.
+  workspace: document.getElementById("workspace"),
   topologySelect: document.getElementById("topology-select"),
   studySelect: document.getElementById("study-select"),
   elementList: document.getElementById("element-list"),
@@ -735,7 +738,7 @@ async function loadAll() {
     state.topologyProjection = await state.storage.readTopologyProjection();
     state.identityProjection = await state.storage.readFeatureIdentityProjection();
     if (!state.topologyProjection) {
-      setBanner("No topology projection found. Build it: " + AA.CONFIG.rebuild.topologies, "warn");
+      setBanner(AA.NO_PROJECTION_NOTICE, "warn");
       // Loaded-but-empty: queued commands should fail loudly ("no topology
       // projection loaded yet"), not hang forever behind this gate.
       execQueue.markLoaded();
@@ -816,22 +819,18 @@ async function runConsoleCommand() {
 }
 
 async function main() {
-  el.topologySelect.onchange = async () => {
-    try { await AA.exec(["select-topology", el.topologySelect.value]); }
-    catch (err) { setBanner(err.message, "error"); }
-  };
-  el.studySelect.onchange = async () => {
-    try { await AA.exec(["select-study", el.studySelect.value]); }
-    catch (err) { setBanner(err.message, "error"); }
-  };
-  el.consoleRun.onclick = runConsoleCommand;
-  el.consoleInput.onkeydown = (ev) => { if (ev.key === "Enter") runConsoleCommand(); };
-
-  // The transport decision comes FIRST, before the 3D scene is constructed --
-  // a hosted page has nothing to render into it, and a page that cannot even
-  // reach the repo should not be spending a WebGL context to say so. (It also
-  // means the honest notice below still appears in a browser with no WebGL at
-  // all, where the scene constructor would throw before the banner.)
+  // The transport decision comes FIRST -- before the 3D scene is constructed
+  // and before a single control is wired. A hosted page has nothing to render
+  // into the scene, and a page that cannot even reach the repo should not be
+  // spending a WebGL context to say so. (It also means the honest notice
+  // below still appears in a browser with no WebGL at all, where the scene
+  // constructor would throw before the banner.)
+  //
+  // The WIRING moved below this too (handoff annotate_hosted_page_posture):
+  // it used to run first, which left a hosted page with a live dev console
+  // and two live pickers underneath a sentence saying this page cannot
+  // annotate. A control that is about to be withheld is never wired -- then
+  // "is it hidden?" and "does it do anything?" cannot drift apart.
   //
   // ?mock=1 short-circuits it the way it always has: the tour reads a fixture
   // and touches no transport, so it is legitimate on any origin.
@@ -849,12 +848,38 @@ async function main() {
   // shows nothing. Nothing is latched: the decision is recomputed on every
   // load, so the same URL opened on a loopback server is the ordinary
   // folder-grant page below.
+  //
+  // "And nothing else" is the whole PAGE, not just the top bar (handoff
+  // annotate_hosted_page_posture, ISSUE_20260915_the_hosted_annotate_page_
+  // still_instructs_the_reader_to_bind_a_face): every column of #workspace
+  // exists to serve the bind workflow -- the element list and its two
+  // pickers, the parts panel, the 3D pane the detail hint tells the reader to
+  // click a face in, and the dev console that drives the same verbs. None of
+  // them can do anything here, and the hint actively contradicts the sentence
+  // two inches above it. So the workspace is withheld as ONE node rather than
+  // emptied element by element: an emptied three-column grid is still three
+  // columns of nothing, and a per-element hide list is a list a later column
+  // can be added to without being added to. Hidden, not deleted, for the same
+  // reason the button is -- nothing here is latched, so a reload on a loopback
+  // origin is the ordinary page with no "put it back" path to get wrong.
   if (AA.isHosted(picked)) {
     setBanner(AA.HOSTED_NOTICE, "warn");
     el.connectBtn.style.display = "none";
     el.transportSub.textContent = "";
+    el.workspace.style.display = "none";
     return;
   }
+
+  el.topologySelect.onchange = async () => {
+    try { await AA.exec(["select-topology", el.topologySelect.value]); }
+    catch (err) { setBanner(err.message, "error"); }
+  };
+  el.studySelect.onchange = async () => {
+    try { await AA.exec(["select-study", el.studySelect.value]); }
+    catch (err) { setBanner(err.message, "error"); }
+  };
+  el.consoleRun.onclick = runConsoleCommand;
+  el.consoleInput.onkeydown = (ev) => { if (ev.key === "Enter") runConsoleCommand(); };
 
   state.scene = new AnnotateScene(el.canvasHost, {
     readMeshManifest: (sha) => state.storage.readMeshManifest(sha),

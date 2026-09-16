@@ -14,7 +14,7 @@
 //      real navigation too, checked the same way.
 //   2. topology.html?mock=1 really renders BOTH modes: the topology mode (see
 //      #4) and, since handoff viewer_consolidation retired the separate stack
-//      viewer into this same page, the classic elements-table mode reached by
+//      viewer into this same page, the elements-table mode reached by
 //      clicking a leaf in the ONE nav tree (viewer_v2_single_nav) — an
 //      untraced row that is visibly filled, an unestablished export block that
 //      is visibly filled, a budget-scope check, and the gap list — asserted
@@ -289,8 +289,7 @@ function startSiblingMountServer({ matchCrops, rebuildCapable, terminalState }) 
 // own completion state counts as one. Four servers, one scenario each — a
 // fresh stub per scenario keeps the busy/terminal state machine from leaking
 // across them the way one shared server's mutable `busy` flag would.
-async function testRebuildAffordance(browser) {
-  const label = "rebuild affordance (stub sibling mount)";
+async function testRebuildAffordance(browser, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const noCommandsOrPaths = (text) => !/\.py|venv-win|C:\\/.test(text || "");
@@ -455,13 +454,22 @@ function navRow(kind, id) {
   return `[data-nav-kind="${kind}"][data-nav-id="${String(id).replace(/"/g, '\\"')}"]`;
 }
 
-// --- the classic elements table, reached through the ONE nav tree ----------
+// --- the elements table, reached through the ONE nav tree ------------------
 //
-// Reached by clicking a stack leaf (VA.looseStacks, or a topology's own
-// covered-stack child) in the nav, not by its own page any more — index.html
-// is a redirect stub (checked separately, testIndexRedirects). Every assertion
-// below is unchanged from the retired stack viewer's own browser test:
-// views/stack.js and views/detail.js did not move, only what boots them did.
+// Reached by clicking a stack leaf (VA.looseStacks) in the nav, not by its own
+// page any more — index.html is a redirect stub (checked separately,
+// testIndexRedirects). Every assertion below is unchanged from the retired
+// stack viewer's own browser test: views/stack.js and views/detail.js did not
+// move, only what boots them did.
+//
+// A LEAF is the only way in now (viewer_nav_wedge_and_classic_retirement,
+// 2026-09-15). This suite used to enter through `demo_joint`, the stack the
+// demo mechanism re-expresses, which the nav nested under its topology behind
+// a "classic view" chip; that row is gone, because the graph states everything
+// the table did. So the way in is the leaf the fixture carries for exactly this
+// — `demo_joint_standalone`, the same rich stack under an id no crop_key names,
+// which is the shape the real repo is in: two thermal-fit stacks with no
+// topology, and every other stack re-expressed as one.
 async function testTheApp(browser, url, label) {
   const page = await browser.newPage();
   const errors = [];
@@ -473,22 +481,21 @@ async function testTheApp(browser, url, label) {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector('[data-nav-kind="stack"]', { timeout: 15000 });
 
-    // Both the stack a topology covers (demo_joint, nested under its topology
-    // in the tree) and the one that stands in for every stack that has none
-    // (demo_joint_standalone, a top-level leaf) — deliverable 1's nav lists
-    // every stack, not just the loose ones (views/nav.js's own comment says
-    // why: a covered stack's own check verdict lives nowhere else).
-    push("the nav lists every stack, covered or not",
-      await page.locator('[data-nav-kind="stack"]').count() === 2);
-    push("the one a topology covers carries the pointer to it",
-      await page.locator(".chip--kind", { hasText: "classic view" }).count() === 1);
+    // One stack row, not two: the fixture holds `demo_joint` (which the demo
+    // mechanism re-expresses) and `demo_joint_standalone` (which nothing does),
+    // and only the second is an entry. One system, one entry.
+    push("the nav lists exactly the stacks no topology re-expresses",
+      await page.locator('[data-nav-kind="stack"]').count() === 1);
+    push("and says nothing about a classic view anywhere on the page",
+      !(await page.evaluate(() =>
+        document.body.textContent.toLowerCase().includes("classic"))));
 
     // Switch from the default topology mode into stack mode — a real click,
     // which is the one thing this test tier exists to exercise.
-    await page.locator(navRow("stack", "demo_joint")).click();
+    await page.locator(navRow("stack", "demo_joint_standalone")).click();
     await page.waitForSelector("tr.el-row", { timeout: 15000 });
     push("picking the stack marks its nav row and hides the toolbar",
-      await page.locator(navRow("stack", "demo_joint")).evaluate(
+      await page.locator(navRow("stack", "demo_joint_standalone")).evaluate(
         (n) => n.className.indexOf("navtree__row--on") !== -1) &&
       await page.locator("#toolbar").evaluate((n) => getComputedStyle(n).display) === "none");
 
@@ -536,9 +543,10 @@ async function testTheApp(browser, url, label) {
     push("the selected row is visibly marked",
       await page.locator("tr.el-row--selected").count() === 1);
     await page.waitForSelector(".detail__crop-img", { timeout: 5000 });
-    push("an established export names its file and its sha in the right pane",
-      /export established/.test(await page.locator(".el-export--established").textContent()) &&
-      /sha256 recorded/.test(await page.locator(".el-export--established").textContent()));
+    push("an established export names its file and its checksum in the right pane",
+      /Read from 215197\.pdf/.test(await page.locator(".el-export--established").textContent()) &&
+      /pinned to this exact file, by checksum/
+        .test(await page.locator(".el-export--established").textContent()));
     push("the crop renders inline in the right pane, not only behind a hover",
       await page.locator(".detail__crop-img").count() === 1);
 
@@ -567,7 +575,7 @@ async function testTheApp(browser, url, label) {
     const identity = page.locator(".el-export--identity_rule");
     push("the spec-pile row states its identity rule",
       await identity.count() === 1 &&
-      /identity by filename \(append-only pile\)/.test(await identity.textContent()));
+      /identified by its filename/.test(await identity.textContent()));
     const identitySpine = await identity.first()
       .evaluate((n) => getComputedStyle(n).borderLeftColor);
     push("the spec-pile spine is not the no-export grey",
@@ -597,10 +605,36 @@ async function testTheApp(browser, url, label) {
     await page.locator("#stackview button.crop-trigger--resolved").first().click();
     await page.waitForSelector(".croppop--resolved", { state: "visible", timeout: 5000 });
     push("the resolved popover is visible", await page.locator(".croppop").isVisible());
-    push("the popover shows the source PDF path",
-      /215197/.test(await page.locator(".croppop__path").textContent()));
-    push("the popover offers a click-through to the reference",
-      await page.locator(".croppop__link").count() >= 1);
+    // The REFERENCE, which is what a reader came for -- and not the absolute
+    // workstation path, which used to print beneath it and went on 2026-09-15
+    // ("full workstation file paths -- never rendered when the link works").
+    push("the popover names the document and sheet",
+      /215197/.test(await page.locator(".croppop__head").textContent()));
+    push("the popover renders no workstation path",
+      await page.locator(".croppop__path").count() === 0 &&
+      !/C:[\/]/.test(await page.locator(".croppop").textContent()));
+    // The matching provenance is still said, behind one small disclosure --
+    // closed by default, which is the whole point of folding it.
+    push("the crop's matching provenance is folded away, not deleted",
+      await page.locator(".croppop details.provfold").count() === 1 &&
+      !(await page.locator(".croppop details.provfold").evaluate((n) => n.open)));
+    push("opening the fold shows how the crop was matched", await (async () => {
+      await page.locator(".croppop details.provfold summary").click();
+      return /read from the export this citation names/
+        .test(await page.locator(".croppop details.provfold").textContent());
+    })());
+    // ORIGIN-DEPENDENT, and that is the feature: the only click-through this
+    // crop has is the PDF (no drawing-checker run is behind it), and Chrome
+    // refuses a `file:` navigation from an http(s) page -- so on a served
+    // origin there is nothing to offer and nothing is rendered, rather than a
+    // control that does nothing (VA.originOpensLocalFiles). Measured
+    // 2026-09-15; this check asserted >= 1 unconditionally and passed only
+    // under file://.
+    const opensLocalFiles = await page.evaluate(
+      () => window.ViewerApp.originOpensLocalFiles(window.location.protocol));
+    push(`the popover offers a click-through where this origin can follow one ` +
+      `(${opensLocalFiles ? "file://, so yes" : "served, so nothing at all"})`,
+      (await page.locator(".croppop__link").count() >= 1) === opensLocalFiles);
 
     // Escape closes it — and it has to, because an open popover overlays the
     // rows underneath (Playwright's "intercepts pointer events" is the reader's
@@ -935,6 +969,25 @@ const CARD_LAYOUT_VIEWPORT = { width: 1600, height: 700 };
 // popover_again, and the comment on the block that uses it. Same width as the
 // other two, so nothing reflows horizontally when the suite switches.
 const CARD_SCROLL_VIEWPORT = { width: 1600, height: 560 };
+// ...and a FOURTH, for the ROOM CAP's own tripwire: the cap can only be
+// observed where the card wants more height than either side of its trigger
+// can give it, and on 2026-09-15 the card stopped being tall enough for
+// CARD_LAYOUT_VIEWPORT to produce that. The edge card lost about 60px that day
+// (viewer_component_names_and_reference_copy): the crop-key line, the absolute
+// path and the open provenance line all left it, the last of the three into a
+// closed disclosure. Measured on `?mock=1` for base_thickness' grid trigger,
+// 1600 wide, card content 442px throughout:
+//
+//   height 700 -> trigger at 459.5, room above 443.5: the card FITS. No cap,
+//                 nothing scrolls, and the contracts below are vacuous.
+//   height 440 -> trigger at 413.5, room above 397.5: capped to 397.5 with
+//                 442px of content inside it. 44px of margin, which is what
+//                 keeps this from going vacuous again on a one-line change.
+//
+// Shortening the window rather than lengthening the card is the remedy the
+// tripwire's own comment names, and it is the honest one: the card is shorter
+// because it says less, and it says less on purpose.
+const CARD_CAP_VIEWPORT = { width: 1600, height: 440 };
 // The one trigger every card-layout contract below is measured on: the demo
 // mechanism's one resolved crop, whose edge card is the tall one.
 const CARD_TRIGGER = "tr.tvrow[data-id='base_thickness'] button.crop-trigger";
@@ -1178,7 +1231,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // out of flow it cannot. Measured 2026-09-11: 700 -> 889 with `.croppop`
     // back on `position: absolute` and `position()` back on scroll offsets,
     // 700 -> 700 as shipped.
-    await page.setViewportSize(CARD_LAYOUT_VIEWPORT);
+    await page.setViewportSize(CARD_CAP_VIEWPORT);
+    await page.waitForTimeout(450);
     const beforeCard = await cardLayout();
     // hover, not click: a click also SELECTS the row (its normal job), and the
     // detail pane repopulating is legitimate layout movement that would drown
@@ -1187,10 +1241,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
     push("the thumbnail trigger opens the edge hover card with the crop body",
       await page.locator(".croppop").isVisible() &&
-      /215197/.test(await page.locator(".croppop__path").textContent()) &&
+      /215197/.test(await page.locator(".croppop__head").textContent()) &&
       /cited at:/.test(await page.locator(".croppop").textContent()) &&
-      /from stack `demo_joint`, element `plate`/
-        .test(await page.locator(".croppop").textContent()));
+      // The part in a reader's words. This asserted the crop KEY here until
+      // 2026-09-15 ("from stack `demo_joint`, element `plate`") -- which of the
+      // crop index's two key spaces answered, in the ids of a stack and an
+      // element, above a picture that names its own document.
+      /a dimension of base plate/.test(await page.locator(".croppop").textContent()) &&
+      !/from stack `demo_joint`/.test(await page.locator(".croppop").textContent()));
     // Cards are hover-only chrome: opening one must not disturb the layout
     // contracts — the document's own height, the DAG pane's box and the leader
     // correspondence are all measured with the card OPEN.
@@ -1310,8 +1368,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.locator("tr.tvrow[data-id='base_thickness'] span.cardtrig").hover();
     await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
     const citationText = await page.locator(".croppop").textContent();
-    push("the confidence chip opens the citation card with the export block",
-      /215197/.test(citationText) && /export established/.test(citationText));
+    push("the confidence chip opens the citation card with the file it was read from",
+      /215197/.test(citationText) && /Read from 215197\.pdf/.test(citationText));
     await page.keyboard.press("Escape");
 
     // The component card, from the merged component cell: part identity plus
@@ -1474,44 +1532,61 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       "not just its own dashes",
       hoverCoverage && hoverCoverage.every((id) => id === "tip_to_strut_end"));
 
-    // Study selection, through the nav tree. Since viewer_study_respine_
-    // animation this RE-SPINES: the study's chain becomes the layout, so the
-    // page lands in chain mode rather than on the walk with a highlight.
+    // Study selection, through the nav tree. Since viewer_respine_whole_walk
+    // this is an EMPHASIS change, not a view switch: the rails stay the whole
+    // walk, the non-members dim, the leaders retarget onto the chain and the
+    // grid drops to the chain's rows.
+    const railShape = () => page.evaluate(() => ({
+      dots: document.querySelectorAll("svg.tv__rails circle.rail__dot").length,
+      bars: document.querySelectorAll("svg.tv__rails line.rail__bar").length,
+      rails: document.querySelectorAll("svg.tv__rails line.rail").length,
+      links: document.querySelectorAll("svg.tv__rails path.rail__link").length,
+      leaders: [...document.querySelectorAll("svg.tv__rails path.rail__leaderhit")]
+        .map((n) => n.getAttribute("data-leader-id")),
+    }));
+    const walkShape = await railShape();
+    const walkRows = await page.locator("tr.tvrow").count();
     await page.locator(navRow("study", "demo_strut_branch")).click();
-    await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
+    await page.waitForSelector(".chip--total", { timeout: 5000 });
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
-    push("selecting a study re-spines the page onto its chain",
-      /Showing: study chain/.test(await page.locator("#layout-toggle").textContent()));
+    const litShape = await railShape();
+    push("selecting a study hides nothing: every dot, bar, rail and link the " +
+      "walk drew is still on screen",
+      litShape.dots === walkShape.dots && litShape.bars === walkShape.bars &&
+      litShape.rails === walkShape.rails && litShape.links === walkShape.links);
+    if (litShape.dots !== walkShape.dots || litShape.bars !== walkShape.bars) {
+      console.log("    walk " + JSON.stringify(walkShape) +
+                  " vs study " + JSON.stringify(litShape));
+    }
+    push("the leaders point at the chain and at nothing else",
+      litShape.leaders.length > 0 &&
+      litShape.leaders.length < walkShape.leaders.length &&
+      litShape.leaders.every((id) => walkShape.leaders.includes(id)));
     const chained = await correspondence();
-    push("the chain layout corresponds too — including a leader that points " +
-      "below the whole grid", chained.drift.length === 0);
+    push("the emphasized walk corresponds too — every leader on its own dot " +
+      "and its own seam", chained.drift.length === 0);
     if (chained.drift.length) console.log("    drift: " + chained.drift.slice(0, 5).join(" | "));
-    push("a chain is one rail, one row per contribution",
-      await page.locator("svg.tv__rails circle.rail__dot").count() ===
-      chained.rows + 1 &&
-      await page.locator("svg.tv__rails line.rail__bar").count() === chained.rows);
+    push("the grid is exactly the chain, and shorter than the walk's table",
+      chained.rows === 3 && chained.rows < walkRows);
+    const dimmedBar = await page.locator("svg.tv__rails line.rail__bar--off")
+      .first().evaluate((n) => parseFloat(getComputedStyle(n).opacity));
+    push("a non-member is actually dimmed, not just classed", dimmedBar < 0.9);
     push("the totals render as chips in the slim strip",
       await page.locator(".chip--total").count() === 5);
     await page.locator(".tvtotals__more summary").click();
     push("the totals say where the numbers came from, behind the Details toggle",
       /This page adds nothing up/.test(await page.locator("#totals").textContent()));
 
-    // And the whole walk, with the chain marked on it, is one click away --
-    // the layout the study click used to land on.
-    await page.locator("#layout-toggle").click();
+    // Deselecting is the same transition run backwards: the walk gets its
+    // leaders and its own table back.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
-    push("whole-topology mode says so", /Showing: whole topology/
-      .test(await page.locator("#layout-toggle").textContent()));
-    push("it marks the study's chain and dims the rest",
-      await page.locator("tr.tvrow--on").count() > 0 &&
-      await page.locator("tr.tvrow--off").count() > 0);
-    const dimmed = await page.locator("tr.tvrow--off").first()
-      .evaluate((n) => parseFloat(getComputedStyle(n).opacity));
-    push("an off-chain row is actually dimmed, not just classed", dimmed < 0.9);
-    push("the whole walk corresponds with a study selected too",
-      (await correspondence()).drift.length === 0);
+    push("deselecting restores the walk's own leaders and rows",
+      JSON.stringify(await railShape()) === JSON.stringify(walkShape) &&
+      await page.locator("tr.tvrow").count() === walkRows &&
+      await page.locator("svg.tv__rails line.rail__bar--off").count() === 0);
 
     // A study that refuses to sum shows the refusal, with its next step.
     await page.locator(navRow("study", "demo_ambiguous")).click();
@@ -1521,40 +1596,41 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /The selection reaches a fork/.test(refusal) &&
       /still unused/.test(refusal) &&
       await page.locator(".chip--total").count() === 0);
-    push("chain mode is unavailable for a study that does not sum",
-      await page.locator("#layout-toggle").isDisabled());
 
-    // ...and the other half of that rule, which is the LAYOUT the refusing
-    // study lands on: `onNavStudy`'s `chainable(studyId) ? "chain" :
-    // "topology"` false branch (topology_app.js). Nothing observed it in any
-    // tier until 2026-09-15 — mutating the line to `state.layoutMode =
-    // "chain";` shipped green everywhere (ISSUE_20260915_a_refusing_study_
-    // staying_on_the_walk_is_unwitnessed_in_every_tier), and the page it
-    // produces reads "Showing: study chain" over the whole walk, with the
-    // toggle DISABLED so the reader cannot correct the label.
+    // ...and the other half of that rule: a refusing study has no chain, so
+    // it must leave the walk at FULL emphasis rather than dimming everything
+    // or emptying the table. This used to be `onNavStudy`'s `chainable()`
+    // false branch and was unwitnessed in every tier until 2026-09-15
+    // (ISSUE_20260915_a_refusing_study_staying_on_the_walk_is_unwitnessed_
+    // in_every_tier); it is now the single `marking` test in
+    // views/topology.js, and this is what watches it.
     //
-    // Arrived at FROM chain mode on purpose. The refusal click above is
-    // reached from the walk, where the false branch and no branch at all are
-    // the same state — which is exactly why the mutation was invisible. So:
-    // put the page on a chain first, assert it got there, then click the
-    // refusing study and require the walk back.
-    const walkRows = await page.evaluate(() => {
-      const VA = window.ViewerApp;
-      return VA.findTopology(VA.demoTopologyFixture().topologies, "demo_mechanism")
-        .edges.length;
-    });
+    // Arrived at FROM a summing study on purpose. Reached from the walk, a
+    // refusal and no selection at all are the same picture — which is
+    // exactly why the old mutation was invisible.
     await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
-    push("the anchor: a study that sums really is on its chain first",
-      /Showing: study chain/.test(await page.locator("#layout-toggle").textContent()));
+    push("the anchor: a study that sums really is emphasized first",
+      await page.locator("svg.tv__rails line.rail__bar--off").count() > 0);
     await page.locator(navRow("study", "demo_ambiguous")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
-    push("a refusing study drops back onto the whole-topology walk rather " +
-      "than claiming a chain it has not got",
-      /Showing: whole topology/.test(await page.locator("#layout-toggle").textContent()) &&
-      await page.locator("tr.tvrow").count() === walkRows);
+    push("a refusing study leaves the walk exactly as it was rather than " +
+      "emphasizing a chain it has not got",
+      await page.locator("svg.tv__rails line.rail__bar--off").count() === 0 &&
+      await page.locator("svg.tv__rails line.rail__bar--on").count() === 0 &&
+      await page.locator("tr.tvrow").count() === walkRows &&
+      JSON.stringify(await railShape()) === JSON.stringify(walkShape));
+
+    // Back to the deselected walk for the rest of this suite. A refusing
+    // study and no selection draw the same page (that is the check above), so
+    // this changes nothing a reader would see -- but it does keep the blocks
+    // below measuring a page whose STATE is the one they describe, rather
+    // than one that merely looks like it.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
 
     // The legend dialog: a help affordance, not layout — closed by default,
     // opens on a real click, and does not affect the DAG pane's own box.
@@ -1570,13 +1646,26 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       !(await page.locator("#legend-dialog").evaluate((n) => n.open)));
 
     // The demo mechanism's own joint is `{}` (it spans four parts, no single
-    // physical joint) and it declares no worksheet — the "stays silent" half
-    // of deliverable 4 (viewer_v2_single_nav), on the fixture the rest of
-    // this suite already loaded.
+    // physical joint) — the "stays silent" half of deliverable 4
+    // (viewer_v2_single_nav), on the fixture the rest of this suite already
+    // loaded.
     push("a topology with no joint block says so rather than fabricating one",
       /no joint block/.test(await page.locator("#topojoint").textContent()));
-    push("a topology with no worksheet_file hides the worksheet toggle",
-      !(await page.locator("#worksheet-toggle").isVisible()));
+    // It declares no worksheet either, and until
+    // viewer_nav_wedge_and_classic_retirement that hid the toggle. It now
+    // offers the sheet of the stack it re-expresses (`demo_joint`,
+    // VA.worksheetSubject): retiring that stack's own nav row left this page as
+    // the only route to an authored sheet, which is true of three of the four
+    // real conversions too. The dialog names the file it is showing, so a
+    // reader is never left wondering whose sheet they are reading.
+    await page.locator("#worksheet-toggle").click();
+    await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+    const sheet = await page.locator("#worksheet-dialog").textContent();
+    push("a topology with no worksheet of its own offers the one its covered " +
+      "stack authored, and names it", /WORKSHEET_demo_joint\.md/.test(sheet));
+    push("and renders that sheet's own body, not an empty pane",
+      /Demo worksheet/.test(sheet));
+    await page.locator("#worksheet-close").click();
 
     // Edge-length scaling (viewer_edge_length_scaling): cycle the toolbar's
     // mode button through all three stops. At each: the bars measure what the
@@ -1871,7 +1960,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
             missing.length === 0);
           if (missing.length) console.log(`    missing: ${missing.join(", ")}`);
           push(`[real] ${study.id} numbers every contribution`,
-            await page.locator("tr.tvrow--on").count() >= study.result.chain.length);
+            await page.locator("tr.tvrow").count() === study.result.chain.length);
         }
       }
 
@@ -1950,6 +2039,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
       // reset them -- the rule density and the length modes already follow.
       const zone = () => page.evaluate(ZONE_IN_PAGE);
+      // The clamp's own ceiling, read from the app rather than written here:
+      // a zone already AT it cannot widen, and a drag that cannot widen is
+      // not a broken drag (VA.JOG_ZONE_SCALE, topology.js).
+      const VA_JOG_MAX = await page.evaluate(() => window.ViewerApp.JOG_ZONE_SCALE.max);
       const before = await zone();
       // Not asserted to be 1: the mock block above dragged it, and the app's
       // state module survives the fixture swap and re-boot this tier does --
@@ -1966,9 +2059,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.mouse.up();
       await page.waitForTimeout(80);
       const dragged = await zone();
-      push("[real] pitch_system's jog zone drags open, leaders still on their " +
-        "dots and seams",
-        dragged.scale > 1.5 && dragged.svg > before.svg + 100 &&
+      // Three claims, three named checks (split 2026-09-15): as one `&&` this
+      // reported a bare FAIL and gave no way to tell a drag that did not take
+      // from a correspondence that broke -- which cost a session an hour of
+      // probe scripts. The numbers are in each name.
+      push(`[real] pitch_system's jog zone drags open (scale ${before.scale.toFixed(2)} ` +
+        `-> ${dragged.scale.toFixed(2)}, ceiling ${VA_JOG_MAX})`,
+        dragged.scale > 1.5 && dragged.scale > before.scale);
+      push(`[real] and the SVG really widened with it (${before.svg} -> ${dragged.svg}px)`,
+        dragged.svg > before.svg + 100);
+      push("[real] leaders still land on their dots and seams in the widened zone",
         (await correspondence()).drift.length === 0);
 
       // The leader STYLE is the third preference in that rule, and it is the
@@ -2053,6 +2153,77 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] an L1 edge shows the stack element's own citation",
         /NAS6403-NAS6420 Rev 4\.pdf/.test(detail) && /NAS6404U13D/.test(detail));
     }
+
+    // --- the preview pane's own divider (viewer_component_names_and_
+    //     reference_copy, 2026-09-15) -------------------------------------
+    //
+    // Jeff: "the right preview pane is resizable. It's too narrow." Three
+    // claims a DOM shim cannot make: that a real pointer drag on the divider
+    // widens the pane, that the DAG beside it gives up the width rather than
+    // overflowing, and that a RELOAD gets the width back. The last one is the
+    // interesting one -- it is the only preference on this page that persists,
+    // so a reload is the whole test.
+    const paneWidth = () => page.evaluate(() => ({
+      pane: document.getElementById("detail").getBoundingClientRect().width,
+      main: document.querySelector(".tv__main").getBoundingClientRect().width,
+      stored: window.localStorage.getItem("tolstack.viewer.detailWidth"),
+    }));
+
+    const divider = page.locator("#detail-divider");
+    push("the preview pane carries a full-height drag divider",
+      await divider.count() === 1);
+    const dividerBox = await divider.boundingBox();
+    const beforePane = await paneWidth();
+    // Full height of the flex row, not a grip inside a header: a reader must
+    // be able to grab the seam anywhere down it.
+    push("the divider spans the panes it sits between",
+      dividerBox.height > 300);
+    // Drag LEFT to widen -- the pane is on the right of its divider, and
+    // getting that sign backwards is the likeliest mistake in the feature.
+    await page.mouse.move(dividerBox.x + dividerBox.width / 2,
+                          dividerBox.y + 120);
+    await page.mouse.down();
+    await page.mouse.move(dividerBox.x + dividerBox.width / 2 - 160,
+                          dividerBox.y + 120, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(120);
+    const afterPane = await paneWidth();
+    push("dragging the divider LEFT widens the preview pane",
+      afterPane.pane > beforePane.pane + 120);
+    push("and the centre pane gave up the width rather than overflowing",
+      afterPane.main < beforePane.main - 120 &&
+      (await page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)));
+    push("the drag wrote the width down when the pointer came up",
+      Number(afterPane.stored) === Math.round(afterPane.pane));
+    push("leaders still land on their dots and seams beside a wider pane",
+      (await correspondence()).drift.length === 0);
+
+    // The keyboard path, which needs no pointer at all: the divider is
+    // focusable and the arrow keys nudge it.
+    await divider.focus();
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(80);
+    const nudged = await paneWidth();
+    push("the arrow keys nudge the divider without a pointer",
+      nudged.pane < afterPane.pane - 4 &&
+      Number(nudged.stored) === Math.round(nudged.pane));
+    push("and the divider keeps its focus across the re-render the nudge caused",
+      await page.evaluate(() => document.activeElement &&
+        document.activeElement.id === "detail-divider"));
+
+    // THE claim. A reload constructs the page from scratch; nothing but
+    // localStorage carries the width across it.
+    await page.reload();
+    await page.waitForSelector(".tvtable", { timeout: 15000 });
+    const reloaded = await paneWidth();
+    push("a reload gets the remembered pane width back",
+      Math.abs(reloaded.pane - nudged.pane) < 2);
+    // And it is the ONLY preference that does: the diagram settings are back
+    // to their defaults, which is the asymmetry the README argues for.
+    push("the diagram's own preferences did NOT persist with it",
+      /comfortable/i.test(await page.locator("#density-toggle").textContent()));
+    await page.evaluate(() => window.localStorage.removeItem("tolstack.viewer.detailWidth"));
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
@@ -2147,13 +2318,16 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       /needs a rebuild/.test(await page.locator("#banner").textContent()));
 
     await page.locator(navRow("study", "demo_base_to_tip")).click();
-    await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
-    // Back onto the whole walk: selecting a study re-spines onto its chain
-    // now (viewer_study_respine_animation), and every contract in this
-    // function is about the height the WHOLE serialisation demands of the
-    // page -- a 7-row chain would fit a viewport that its 12-row walk does
-    // not, which is the case being tested.
-    await page.locator("#layout-toggle").click();
+    await page.waitForSelector(".chip--total", { timeout: 5000 });
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    // Deselect: the DAG's own extent no longer changes with a study
+    // (viewer_respine_whole_walk -- the rails are always the whole walk), but
+    // the GRID beside it does, and the contracts below are about the height
+    // the whole serialisation demands of the page. Clicking the topology row
+    // puts the table back too, so the two blocks are measured in the state
+    // the rest of this function describes.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
 
@@ -2262,11 +2436,12 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       const okStudy = pitch && pitch.studies.find((s) => s.status === "ok");
       if (okStudy) {
         await page.locator(navRow("study", okStudy.id)).click();
-        await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
-        // Back onto the walk, same reason as the mock block above: the
-        // height contracts are about pitch_system's 45 slots, and a study
-        // re-spine shows a 21-slot chain instead.
-        await page.locator("#layout-toggle").click();
+        await page.waitForSelector(".chip--total", { timeout: 5000 });
+        await page.waitForFunction(
+          () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
+        // Deselect, same reason as the mock block above: the height
+        // contracts are about the whole serialisation's own table.
+        await page.locator(navRow("topology", "pitch_system")).click();
         await page.waitForFunction(
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
       }
@@ -2475,6 +2650,271 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
   }
 }
 
+// --- no click may wedge the page (viewer_nav_wedge_and_classic_retirement) --
+//
+// Jeff's 2026-09-15 review, second half: "when you click on a classic view, the
+// page gets wedged on that item and can't unstick unless you do a page
+// refresh." The cause was one missing `.catch`. All three nav handlers move
+// `state` FIRST and then await a worksheet read (`loadWorksheet().then(...)`),
+// so a rejected read never reached a repaint: the page kept the picture of the
+// node you clicked away from, the rail's highlight never moved, and every
+// later click did the same thing again. Nothing threw where a user could see
+// it -- it was an unhandled rejection in the console, which is the same shape
+// as the 2026-09-09 silently-empty-DAG incident that got `onReload` its catch
+// and left these three without one.
+//
+// So this suite is not "does the error look right". It is: click EVERY row of
+// the real nav, twice over, and require that the page went somewhere.
+//
+//   1. worksheet reads REJECTING -- an FSA grant revoked mid-session, or an
+//      origin that errors on the docs path. (Note which shape this is NOT:
+//      drawing-checker's sibling-data-mount reaches no `docs/` at all, so
+//      there `readText` resolves null and the toggle is simply not offered --
+//      no rejection, which is pass 2's case and is honest on its own. The
+//      failing read is the one nothing rendered.)
+//   2. the same rows with reads RESOLVING, where no banner may appear at all.
+//
+// The wedge detector is the rail's own highlight: `navtree__row--on` moves
+// only when renderNav runs, and renderNav runs only from a paint. A row that
+// never lights up is a click that painted nothing, which is the bug, whatever
+// the rest of the page looks like.
+async function testNavNeverWedges(browser, url, label, realProjection, realResults, realCrops) {
+  if (!realProjection || !realResults) {
+    console.log(`[${label}] SKIP: topologies.json/results.json not built under ` +
+      "the target repo (fresh clone) -- build them, or pass --repo <main checkout>");
+    return { label, ok: true };
+  }
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    await page.goto(url + "/topology.html", { waitUntil: "load" });
+    await page.evaluate(() => {
+      window.__REJECTIONS__ = [];
+      window.addEventListener("unhandledrejection", (ev) => {
+        window.__REJECTIONS__.push(String((ev.reason && ev.reason.stack) || ev.reason));
+      });
+    });
+
+    // The real boot path with a fake adapter, exactly as the non-mock suite
+    // above does it -- plus one switch on `readText`, which is the only method
+    // a nav click awaits.
+    await page.evaluate(({ topologies, results, crops }) => {
+      const VA = window.ViewerApp;
+      window.__WORKSHEETS_FAIL__ = true;
+      const Fake = function () {
+        const memory = new VA.MemoryAdapter({
+          startState: VA.STATE.READY, topologies, results, crops, images: {}, texts: {},
+        });
+        const real = memory.readText.bind(memory);
+        memory.readText = function (segments) {
+          if (window.__WORKSHEETS_FAIL__) {
+            return Promise.reject(new Error("this origin cannot reach the worksheet"));
+          }
+          return real(segments);
+        };
+        return memory;
+      };
+      Fake.isSupported = () => true;
+      VA.FsaAdapter = Fake;
+      VA.bootTopology();
+    }, { topologies: realProjection, results: realResults, crops: realCrops });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+
+    // Every clickable row of the live rail, in the order a reader meets them,
+    // tagged with whether clicking it READS anything. `loadWorksheet()` reads
+    // only where the selected subject declares a `worksheet_file` -- and a node
+    // with none resolves without touching the adapter at all. Only the reading
+    // rows can see a failed read, so only they are required to say so;
+    // requiring a banner on the others would be requiring the page to invent an
+    // error.
+    //
+    // The subject is `VA.worksheetSubject`'s, replayed here off the same two
+    // projections: a topology's own sheet, or failing that the sheet of a stack
+    // it re-expresses (a study row inherits its topology's either way). A
+    // deliberate second implementation of a five-line rule -- the point is to
+    // discover which rows really hit the adapter, and asking the page under
+    // test would agree with whatever it does.
+    const sheetless = new Set();
+    for (const stack of realResults.stacks) {
+      if (!stack.worksheet_file) sheetless.add(stack.id);
+    }
+    const withWorksheet = new Set();
+    for (const topology of realProjection.topologies) {
+      const covered = (topology.edges || [])
+        .map((edge) => edge.crop_key && edge.crop_key.stack)
+        .filter((id) => id && !sheetless.has(id));
+      if (topology.worksheet_file || covered.length) {
+        withWorksheet.add("topology:" + topology.id);
+      }
+    }
+    for (const stack of realResults.stacks) {
+      if (stack.worksheet_file) withWorksheet.add("stack:" + stack.id);
+    }
+    const rows = (await page.evaluate(() =>
+      Array.prototype.map.call(
+        document.querySelectorAll("#navtree [data-nav-kind]"),
+        (row) => ({ kind: row.getAttribute("data-nav-kind"),
+                    id: row.getAttribute("data-nav-id"),
+                    topologyId: row.getAttribute("data-topology-id") }))
+    )).map((row) => Object.assign(row, {
+      reads: withWorksheet.has(
+        row.kind === "study" ? "topology:" + row.topologyId : row.kind + ":" + row.id),
+    }));
+    push("the rail offers rows to click at all", rows.length >= 20);
+    push("some of those rows really do read a worksheet, so the failing " +
+      "transport is exercised at all",
+      rows.filter((row) => row.reads).length >= 3);
+
+    // Pass 1: every read rejects. Each click must still land -- the row lights
+    // up, the pane it implies is on screen, and the banner says what happened.
+    const wedged = [];
+    const unbannered = [];
+    const blank = [];
+    for (const row of rows) {
+      await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
+      try {
+        await page.waitForSelector(
+          `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
+      } catch {
+        wedged.push(`${row.kind}:${row.id}`);
+        continue;
+      }
+      const seen = await page.evaluate(() => ({
+        banner: (document.querySelector(".banner__error") || {}).textContent || "",
+        rails: document.querySelectorAll("tr.tvrow").length,
+        elements: document.querySelectorAll("#stackview table.eltable").length,
+      }));
+      if (row.reads && !seen.banner.trim()) unbannered.push(`${row.kind}:${row.id}`);
+      if (!row.reads && seen.banner.trim()) unbannered.push(`${row.kind}:${row.id} (nothing to read, yet it raised one)`);
+      const painted = row.kind === "stack" ? seen.elements >= 1 : seen.rails >= 1;
+      if (!painted) blank.push(`${row.kind}:${row.id}`);
+    }
+    push("no click leaves the page wedged: every row still moves the rail's " +
+      "highlight when the worksheet read fails", wedged.length === 0);
+    console.log(`    (${rows.length} rows clicked, ` +
+      `${rows.filter((row) => row.reads).length} of them reading)`);
+    if (wedged.length) console.log(`    wedged on: ${wedged.join(", ")}`);
+    push("a failed worksheet read says so in the banner rather than failing " +
+      "silently, and a node with no worksheet raises nothing",
+      unbannered.length === 0);
+    if (unbannered.length) console.log(`    wrong banner state on: ${unbannered.join(", ")}`);
+    push("the page the click asked for is on screen even though the read " +
+      "failed", blank.length === 0);
+    if (blank.length) console.log(`    nothing painted for: ${blank.join(", ")}`);
+
+    // Recovery, with no user action and no reload: the next read that works
+    // retires the banner. A message that outlives what it was about is a
+    // sentence about the wrong node, and the banner has no dismiss control.
+    const reader = rows.find((row) => row.reads);
+    let cleared = false;
+    try {
+      await page.locator(`#navtree ${navRow(reader.kind, reader.id)}`).click();
+      await page.waitForSelector(".banner__error", { timeout: 4000 });
+      await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = false; });
+      await page.locator(`#navtree ${navRow(reader.kind, reader.id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow(reader.kind, reader.id)}.navtree__row--on`, { timeout: 4000 });
+      cleared = (await page.locator(".banner__error").count()) === 0;
+    } catch {
+      // Swallowed on purpose. A wedged page never raises the banner this waits
+      // for, and a timeout thrown from here would take the whole suite down as
+      // an ERROR -- which carries no check name, so the mutation-witness tier
+      // reports it as a MISS rather than as the red it is
+      // (scripts/mutation_witnesses.json, "ONE THING AN ENTRY CANNOT DECLARE").
+      await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = false; });
+    }
+    push("a read that works clears the banner a failed one wrote", cleared);
+
+    // Pass 2: reads resolving. Same rows, and now no banner may appear at all
+    // -- the containment must not be paying for itself with a false alarm.
+    const noisy = [];
+    for (const row of rows) {
+      await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
+      try {
+        await page.waitForSelector(
+          `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
+      } catch {
+        wedged.push(`${row.kind}:${row.id} (reads working)`);
+        continue;
+      }
+      if (await page.locator(".banner__error").count()) noisy.push(`${row.kind}:${row.id}`);
+    }
+    push("every row lands with no error banner at all when the reads work",
+      noisy.length === 0 && wedged.length === 0);
+    if (noisy.length) console.log(`    banner raised on: ${noisy.join(", ")}`);
+
+    // The other half of deliverable 2, end to end: the sheet a converted
+    // stack authored is still ONE CLICK away, on its topology's page, now that
+    // the stack's own row is gone. Over this seam `texts` is empty, so the
+    // dialog cannot show the markdown -- what it must show is that it is
+    // offering the STACK's sheet, by name, and it must offer the button at all.
+    let fallback = null;
+    for (const topology of realProjection.topologies) {
+      if (topology.worksheet_file) continue;
+      const covered = (topology.edges || [])
+        .map((edge) => edge.crop_key && edge.crop_key.stack).filter(Boolean);
+      const stack = realResults.stacks.find(
+        (s) => covered.includes(s.id) && s.worksheet_file);
+      if (stack) { fallback = { topology, stack }; break; }
+    }
+    push("the live projection has a converted stack whose sheet only its " +
+      "topology's page can reach", fallback !== null);
+    if (fallback) {
+      await page.locator(`#navtree ${navRow("topology", fallback.topology.id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow("topology", fallback.topology.id)}.navtree__row--on`,
+        { timeout: 4000 });
+      push("a topology that declares no worksheet still offers the one its " +
+        "stack authored", await page.locator("#worksheet-toggle").isVisible());
+      await page.locator("#worksheet-toggle").click();
+      await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+      push("and the dialog names that stack's own sheet, not a neighbour's",
+        (await page.locator("#worksheet-dialog").textContent())
+          .includes(fallback.stack.worksheet_file));
+      await page.locator("#worksheet-close").click();
+    }
+
+    // The retirement, on the live rail (deliverable 2 and 4): a stack a
+    // topology re-expresses has no row, and the word is gone from the page.
+    const covered = [];
+    for (const topology of realProjection.topologies) {
+      for (const edge of topology.edges || []) {
+        const id = edge.crop_key && edge.crop_key.stack;
+        if (id && !covered.includes(id)) covered.push(id);
+      }
+    }
+    push("the live projection really does re-express some stacks as graphs",
+      covered.length >= 4);
+    push("no row anywhere on the rail says \"classic\"",
+      !(await page.evaluate(() =>
+        document.getElementById("navtree").textContent.toLowerCase().includes("classic"))));
+    const offered = rows.filter((row) => row.kind === "stack").map((row) => row.id);
+    push("every stack row the rail offers is one no topology re-expresses",
+      covered.every((id) => !offered.includes(id)));
+
+    const rejections = await page.evaluate(() => window.__REJECTIONS__);
+    push("no unhandled promise rejection from any nav click",
+      rejections.length === 0);
+    if (rejections.length) console.log(`    rejections: ${rejections.join(" | ")}`);
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
 // --- served mode: the real, non-mock boot with NO folder grant at all ------
 //
 // Deliverable 4 (viewer_http_transport): everywhere else in this file, a
@@ -2541,7 +2981,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       await page.goto(url + "/apps/viewer/topology.html" +
         "?topology=pitch_system&study=pitch_system_gas_spring_branch",
         { waitUntil: "load" });
-      await page.waitForSelector("tr.tvrow--on", { timeout: 15000 });
+      await page.waitForSelector(".chip--total", { timeout: 15000 });
       push("[real] a deep link opens the named study selected, over the real " +
         "served transport",
         /pitch_system_gas_spring_branch/
@@ -2566,9 +3006,15 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
         await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 15000 });
         const cardText = await page.locator(".croppop").textContent();
         push("[real] hovering the edge shows the crop card with the real image " +
-          "and the topology-space claim",
+          "and the document it is a crop OF",
           await page.locator(".hovercard--edge img.croppop__img").count() === 1 &&
-          /authored in topology `pitch_system`/.test(cardText));
+          // The reference, in a reader's words. This asserted the crop-KEY
+          // claim here until 2026-09-15 ("authored in topology
+          // `pitch_system`") -- which of the crop index's two key spaces
+          // answered, in the topology's id, above a picture that names its
+          // own document on the line below.
+          /\.pdf · sheet \d/.test(cardText) &&
+          !/authored in topology/.test(cardText));
         await page.keyboard.press("Escape");
 
         // The DoD's own sentence, on the real graph (viewer_dag_hover_cards):
@@ -2694,8 +3140,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
 //      renders), and the `trace` deep-link boot really executes end to end
 //      over ?mock=1 -- WebGL scene, ghost + mark-face handlers, the published
 //      window.__lastTrace summary (the autotest convention).
-async function testAnnotateFlyout(browser, fileBase) {
-  const label = "annotate flyout (repo-root mount + file:// degradation)";
+async function testAnnotateFlyout(browser, fileBase, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const server = await startRepoRootServer();
@@ -2783,7 +3228,9 @@ async function testAnnotateFlyout(browser, fileBase) {
     // nothing at all: the card still renders its identity, minus a link that
     // would have dead-ended in the annotator's empty state.
     await page.locator("#flyout-close").click();
-    await page.locator("td.tvcell--component").filter({ hasText: /^base$/ })
+    // The merged cell prints the part's NAME, not its id, since 2026-09-15
+    // (VA.componentLabel) -- `base` was the id and is nowhere a reader reads.
+    await page.locator("td.tvcell--component").filter({ hasText: /^base plate$/ })
       .first().click();
     await page.waitForSelector("#croppop button.hovercard__3d", { timeout: 5000 });
     push("a component card's 3D affordance is a flyout button, not a new-tab link",
@@ -2834,7 +3281,9 @@ async function testAnnotateFlyout(browser, fileBase) {
     push("under file:// the edge pane keeps the annotate-this link",
       await page.locator("a.detail__annotate-link").count() === 1 &&
       await page.locator("button.detail__annotate-btn").count() === 0);
-    await page.locator("td.tvcell--component").filter({ hasText: /^base$/ })
+    // The merged cell prints the part's NAME, not its id, since 2026-09-15
+    // (VA.componentLabel) -- `base` was the id and is nowhere a reader reads.
+    await page.locator("td.tvcell--component").filter({ hasText: /^base plate$/ })
       .first().click();
     await page.waitForSelector("#croppop a.hovercard__3d", { timeout: 5000 });
     push("under file:// a card's 3D affordance stays the plain new-tab link",
@@ -2870,10 +3319,21 @@ async function testAnnotateFlyout(browser, fileBase) {
 // rather than just being strict: a build that removed the picker everywhere
 // would pass the hosted half and fail the local one, which is the regression
 // that would quietly kill Jeff's own annotation workflow.
-async function testAnnotateHostedPosture(browser) {
-  const label = "annotate hosted posture (no folder grant off-machine)";
+async function testAnnotateHostedPosture(browser, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
+  // "Is this element on the page at all?" -- NOT locator.isVisible(), which
+  // answers "does it have a non-empty box" and calls an empty <ul> or an
+  // empty <select> invisible. Both are legitimately zero-height on the
+  // loopback page before a folder is granted, and that page is the
+  // discriminating half of every withholding check below, so the question has
+  // to be the one actually being asked: offsetParent is null for an element
+  // inside a display:none subtree and non-null for an empty one that still
+  // renders.
+  const rendered = (page, selector) => page.evaluate((sel) => {
+    const node = document.querySelector(sel);
+    return !!node && node.offsetParent !== null;
+  }, selector);
   const server = await startRepoRootServer();
   const { port } = server.address();
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
@@ -2901,6 +3361,45 @@ async function testAnnotateHostedPosture(browser) {
     push("the honest notice is not an error thrown on the way to it",
       errors.length === 0);
 
+    // --- and nothing else on the page instructs an action it has ruled out --
+    //
+    // (handoff annotate_hosted_page_posture, ISSUE_20260915_the_hosted_
+    // annotate_page_still_instructs_the_reader_to_bind_a_face.) The banner was
+    // made honest first and the page under it did not move with it, so the
+    // page said "annotating is not available here" and, two inches below, told
+    // the reader how to annotate. Every check above looks for something ABSENT
+    // from the SENTENCE; these look at the page, element by element, because
+    // the whole point is that a true sentence is not enough on its own.
+    //
+    // Element by element rather than one assertion on the container that
+    // actually gets hidden, on purpose: the contract is about what a reader
+    // can see, so it survives the workspace being withheld a different way
+    // later (per column, or removed from the DOM) and still fails if one
+    // column is forgotten.
+    push("the bind instruction is gone -- it named a 3D view this origin does not have",
+      !(await rendered(page, "#detail")));
+    push("no topology picker is offered for data this page cannot load",
+      !(await rendered(page, "#topology-select")));
+    push("nor a study picker",
+      !(await rendered(page, "#study-select")));
+    push("no element list or parts panel either",
+      !(await rendered(page, "#element-list")) &&
+      !(await rendered(page, "#parts-panel")));
+    push("there is no 3D pane standing empty where the hint pointed",
+      !(await rendered(page, "#canvas-host")) &&
+      await page.locator("canvas").count() === 0);
+    // The console is the one that was WIRED, not merely visible -- main() bound
+    // its click and Enter handlers before the hosted early-return, so a hosted
+    // reader had a live command line into an app with no storage behind it. A
+    // hidden-but-live control is a different defect from a misleading hint, so
+    // both halves are asserted: withheld, and never wired in the first place.
+    push("the dev console is not shown",
+      !(await rendered(page, "#console-input")) &&
+      !(await rendered(page, "#console-run")));
+    push("and it was never wired -- no live handler behind the withheld control",
+      await page.evaluate(() => document.querySelector("#console-run").onclick === null &&
+        document.querySelector("#console-input").onkeydown === null));
+
     // --- local: the same URL from the machine holding the repo --------------
     // Unchanged by this handoff and it must stay that way: drawing-checker
     // serves this app from 127.0.0.1:8000 in dev, and the folder grant is the
@@ -2915,6 +3414,24 @@ async function testAnnotateHostedPosture(browser) {
       /Connect folder|File System Access/.test(localBanner));
     push("and it does NOT show the hosted notice",
       !/not available on this site/.test(localBanner));
+    // The discriminating half of the withholding above: on the origin that CAN
+    // annotate, the whole workspace is there and the console is live, before a
+    // folder has even been granted. Without this, "hide everything, always"
+    // would pass every one of the hosted checks.
+    push("the same page on loopback still has the full bind workspace",
+      await rendered(page, "#detail") &&
+      await rendered(page, "#topology-select") &&
+      await rendered(page, "#study-select") &&
+      await rendered(page, "#element-list") &&
+      await rendered(page, "#parts-panel") &&
+      await rendered(page, "#canvas-host") &&
+      await rendered(page, "#console-input") &&
+      await rendered(page, "#console-run"));
+    push("and the 3D view the bind instruction names really is there",
+      await page.locator("#canvas-host canvas").count() === 1);
+    push("and its dev console is wired there",
+      await page.evaluate(() => document.querySelector("#console-run").onclick !== null &&
+        document.querySelector("#console-input").onkeydown !== null));
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
@@ -2952,7 +3469,7 @@ async function testDeepLinks(browser, url, label) {
     await page.goto(url +
       "/topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip",
       { waitUntil: "load" });
-    await page.waitForSelector("tr.tvrow--on", { timeout: 15000 });
+    await page.waitForSelector(".chip--total", { timeout: 15000 });
     push("a topology+study link opens with the study selected",
       /demo_base_to_tip/.test(await page.locator("#totals").textContent()) &&
       await page.locator(".chip--total").count() === 5);
@@ -3040,8 +3557,7 @@ async function testIndexRedirects(browser, url, label) {
 // the whole point of viewer_transport_honest_hosted, and the one thing only a
 // real browser can prove, because it is the FSA fallback that must not happen
 // and only a real `window.location.protocol` decides that.
-async function testHostedUnpublished(browser, realProjection) {
-  const label = "hosted origin with nothing published";
+async function testHostedUnpublished(browser, realProjection, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const { server, publish } = await startHostedCatchAllServer();
@@ -3130,8 +3646,10 @@ async function testHostedUnpublished(browser, realProjection) {
 // the build's own no-animation path. Both are real pages, measured off the
 // DOM, which is what makes it a drift check rather than a re-reading of the
 // store the render used.
-async function testRespine(browser, url, label, realProjection, realCrops) {
-  const suite = `${label} respine`;
+// `suite` is the label SUITES passes in and this suite prints verbatim — it is
+// not derived from the page's label, because a derived label is a second copy
+// of the registry key wearing a template string.
+async function testRespine(browser, url, suite, realProjection, realCrops) {
   if (!realProjection) {
     console.log(`[${suite}] skipped: no topologies.json under ${DATA_REPO}`);
     return { label: suite, ok: true };
@@ -3220,7 +3738,15 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
           headShift: head.style.transform,
           svgWidth: parseFloat(svg.getAttribute("width")),
           headPad: parseFloat(head.style.paddingLeft),
+          // The pane's own sideways scroll, and the two numbers that say
+          // where its right-hand end is. Since VA.respineX the SVG is drawn
+          // at the interpolated width, so `scrollWidth` CHANGES mid-flight
+          // and a browser clamps `scrollLeft` when it shrinks -- which is
+          // only observable with the pane actually scrolled (the scrolled arm
+          // below).
           scrollLeft: live.scrollLeft,
+          scrollWidth: live.scrollWidth,
+          clientWidth: live.clientWidth,
           drawn: marks.length,
           // Relative to the pane's own left edge, and to the grid's.
           dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
@@ -3333,10 +3859,11 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
     if (chained.drift.length) {
       console.log("    drift: " + chained.drift.slice(0, 5).join(" | "));
     }
-    push("[real] and the page IS in chain mode — which is what re-spining is",
-      /Showing: study chain/
-        .test(await page.locator("#layout-toggle").textContent()) &&
-      chained.rows === study.result.chain.length);
+    push("[real] and the page IS emphasized on the study — the grid is its " +
+      "chain, on rails that still carry the whole walk",
+      chained.rows === study.result.chain.length &&
+      await page.locator("svg.tv__rails line.rail__bar").count() ===
+        pitch.edges.length);
 
     // (3). Both directions, in every length mode. `edgeLengthMode` is
     // in-session state and survives a selection, so the modes are cycled
@@ -3429,15 +3956,150 @@ async function testRespine(browser, url, label, realProjection, realCrops) {
     }
     await settled();
 
+    // (4). The same respine with the pane SCROLLED SIDEWAYS. This arm is
+    // browser-tier only, and not for want of trying elsewhere: neither the
+    // fixture tier nor the DOM shim it runs in has a layout, so there is no
+    // overflow to scroll and `scrollLeft` is a number nobody can move. Every
+    // other respine check in both tiers runs at horizontal scroll zero, and
+    // the two claims that makes trivially true are exactly the two this arm
+    // exists for (ISSUE_20260915_the_respine_is_unwitnessed_with_the_pane_
+    // scrolled_sideways):
+    //
+    //   * `.tv__rails { position: sticky; left: 0 }` should keep the DAG
+    //     pinned to the pane's VISIBLE left edge for the whole transition --
+    //     which is what makes "nothing is drawn left of the pane" mean
+    //     anything to a scrolled reader. At scrollLeft 0 it holds of a pane
+    //     with no sticky on it at all;
+    //   * since VA.respineX the SVG is drawn at the interpolated width, so
+    //     the pane's CONTENT width now changes during a transition, and a
+    //     browser clamps `scrollLeft` when content shrinks. A reader at the
+    //     right end of the grid is the one who would feel it.
+    //
+    // The subject is the real pitch_system, whose walk is the corpus's widest
+    // DAG and whose chain is one column: the biggest shrink there is.
+    // The same boxes catchFrame takes, off a SETTLED pane, after scrolling it
+    // sideways. `where` is "end" (as far right as the pane goes), "sticky"
+    // (as far as the room the DAG leaves beside it), a number, or null.
+    const paneBoxes = (where) => page.evaluate((target) => {
+      const live = Array.from(document.querySelectorAll(".tv__hscroll"))
+        .filter((n) => !n.closest("div.tv__ghost"))[0];
+      const svg = live.querySelector("svg.tv__rails");
+      const dagWidth = svg.getBoundingClientRect().width;
+      if (target === "end") live.scrollLeft = live.scrollWidth;
+      else if (target === "sticky") live.scrollLeft = live.clientWidth - dagWidth - 20;
+      else if (typeof target === "number") live.scrollLeft = target;
+      const rows = live.querySelector("div.tv__rows");
+      const pane = live.getBoundingClientRect();
+      const grid = rows.getBoundingClientRect();
+      const marks = Array.from(svg.querySelectorAll(
+        "line.rail, line.rail__bar, circle.rail__dot, path.rail__link, " +
+        "path.rail__leader")).map((n) => n.getBoundingClientRect());
+      return {
+        scrollLeft: live.scrollLeft, scrollWidth: live.scrollWidth,
+        clientWidth: live.clientWidth, dagWidth: dagWidth, drawn: marks.length,
+        dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
+        dagPastGrid: Math.max(...marks.map((b) => b.right - grid.left)),
+      };
+    }, where === undefined ? null : where);
+    await page.locator(walkRow).click();
+    await settled();
+    const scrolledWalk = await paneBoxes("end");
+    push("[real] the pane really does overflow sideways here, so the arm " +
+      "below is not measuring a pane that cannot scroll",
+      scrolledWalk.scrollLeft > 0 &&
+      scrolledWalk.scrollLeft === scrolledWalk.scrollWidth - scrolledWalk.clientWidth);
+    if (!(scrolledWalk.scrollLeft > 0)) {
+      console.log("    pane content " + scrolledWalk.scrollWidth +
+        "px in a " + scrolledWalk.clientWidth + "px pane: nothing to scroll");
+    }
+    // The sticky claim, and this is the only place in either tier where it is
+    // worth anything: `.tv__rails { position: sticky; left: 0 }` holds the
+    // DAG against the pane's VISIBLE left edge, and at scrollLeft 0 that is
+    // true of a pane with no sticky on it at all.
+    //
+    // It holds -- but not for the whole scroll, which is the thing nothing
+    // measured. A sticky box is bounded by its CONTAINING BLOCK, and here
+    // that is `.tv__body`, which is the pane's own width rather than its
+    // content's: the grid table overflows out of `.tv__rows` instead of
+    // widening the flex row. So the SVG can be pushed right by at most
+    // (paneWidth - dagWidth), and a reader who scrolls further than that
+    // drags the DAG back off the left edge -- 41.5px of it, at this viewport,
+    // on the real pitch_system
+    // (ISSUE_20260915_the_sticky_rails_stop_sticking_once_the_grid_is_
+    // scrolled_past_the_dags_own_width). Both halves are pinned, so the fix
+    // turns the second check red rather than leaving a stale claim behind.
+    const stickyWalk = await paneBoxes("sticky");
+    push("[real] scrolled sideways, the DAG stays pinned to the pane's " +
+      "VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a " +
+      "scrolled reader's rails beside their own rows",
+      stickyWalk.scrollLeft > 0 && stickyWalk.drawn > 20 &&
+      stickyWalk.dagLeft >= -1);
+    if (!(stickyWalk.dagLeft >= -1)) {
+      console.log("    at scrollLeft " + stickyWalk.scrollLeft +
+        " the leftmost drawn box is " + stickyWalk.dagLeft +
+        "px from the pane's left edge");
+    }
+    push("[real] but only as far as the room the DAG leaves beside it: past " +
+      "that the sticky runs out of containing block and the rails slide off " +
+      "the pane's left edge",
+      scrolledWalk.scrollLeft > scrolledWalk.clientWidth - scrolledWalk.dagWidth &&
+      scrolledWalk.dagLeft < -1);
+    console.log("    sticky holds to scrollLeft " +
+      (scrolledWalk.clientWidth - scrolledWalk.dagWidth) + " of " +
+      scrolledWalk.scrollLeft + "; at the far end the DAG is " +
+      scrolledWalk.dagLeft + "px from the pane's left edge");
+    // And the respine out of that scrolled pane. The question the issue asked
+    // was whether the browser's scrollLeft CLAMP is felt as a sideways jump
+    // when the DAG shrinks 316 -> 82px under a reader parked at the right
+    // end. Measured, it never gets that far: VA.renderTopoPane clears the
+    // pane and builds a fresh `.tv__hscroll`, which starts at 0, so the
+    // reader's sideways scroll is gone on the FIRST frame and there is no
+    // scroll left for the clamp to act on. That is not the respine's doing --
+    // every render of this pane does it, density and length mode included --
+    // so it is filed rather than fixed here
+    // (ISSUE_20260915_every_topology_pane_render_throws_away_the_readers_
+    // sideways_scroll). This check states what the build actually does, so
+    // the day that issue is fixed it goes red and this claim gets rewritten
+    // rather than quietly outliving the behaviour it describes.
+    await page.locator(studyRow).click();
+    const scrolledFrame = await catchFrame();
+    push("[real] a respine rebuilds the pane, so a scrolled reader is at the " +
+      "left edge from the first frame — the scrollLeft clamp the shrinking " +
+      "DAG would otherwise cause is never reached",
+      !!scrolledFrame && scrolledFrame.scrollLeft === 0);
+    if (scrolledFrame) {
+      push("[real] and the frame in flight is drawn inside the pane from " +
+        "there, exactly as the unscrolled arms measured",
+        scrolledFrame.drawn > 20 && scrolledFrame.dagLeft >= -1 &&
+        scrolledFrame.dagPastGrid <= 1);
+    }
+    await settled();
+    const afterScroll = await paneBoxes(false);
+    push("[real] and it settles at the left edge on a pane the respine made " +
+      "narrower, with the DAG still inside it",
+      afterScroll.scrollLeft === 0 &&
+      afterScroll.scrollWidth < scrolledWalk.scrollWidth &&
+      afterScroll.dagLeft >= -1);
+    console.log("    scrolled respine: scrollLeft " + scrolledWalk.scrollLeft +
+      " -> " + (scrolledFrame ? scrolledFrame.scrollLeft : "?") + " -> " +
+      afterScroll.scrollLeft + " (pane content " + scrolledWalk.scrollWidth +
+      " -> " + afterScroll.scrollWidth + "px)");
+    // Back to the walk for the blocks below, which measure a pane at
+    // horizontal zero -- where the respine above has already left it.
+    await page.locator(walkRow).click();
+    await settled();
+
     await page.locator(studyRow).click();
     await settled();
-    await page.locator("#layout-toggle").click();
-    const toggleFrame = await catchFrame();
-    push("[real] and so does the toolbar's own layout toggle — the same " +
-      "re-serialisation asked for by hand", !!toggleFrame);
+    await page.locator(walkRow).click();
+    const byNavFrame = await catchFrame();
+    push("[real] and so does DEselecting — the nav's topology row is the " +
+      "only other way to re-serialise this page now that the toolbar's " +
+      "layout toggle is gone", !!byNavFrame);
     await settled();
-    push("[real] the toggle landed on the whole walk", /Showing: whole topology/
-      .test(await page.locator("#layout-toggle").textContent()));
+    push("[real] deselecting landed on the un-emphasized walk",
+      await page.locator("svg.tv__rails line.rail__bar--off").count() === 0 &&
+      await page.locator("tr.tvrow").count() === pitch.edges.length);
 
     // A paint that is not one of the transition's own frames has to STOP it:
     // a transition renders from the ctx it started with, so a frame landing
@@ -3558,39 +4220,51 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
 
     // Every suite, keyed by the label it PRINTS — which is what `--only`
     // matches on, so a filter can be copied straight off a failing line.
-    // `testRespine` prints `${label} respine`, hence the key spelled out here
-    // rather than the argument it is passed.
+    //
+    // The key IS the label: it is handed to the suite function as `label`
+    // rather than restated inside it, so there is one copy of each of these
+    // strings in the tree and no way for a key and a printed label to drift
+    // apart. (They used to be two copies — for most suites the same string
+    // twice on one line, and for four of them a `const label = "..."` hundreds
+    // of lines away in the function body. All nineteen agreed; nothing made
+    // them. `scripts/mutation_witnesses.json`'s `suite` fields are a third
+    // copy, and the one that cannot be single-sourced away because it lives in
+    // another file — `tests/test_mutation_witnesses.py` pairs those against
+    // this table on every pytest run.)
     const SUITES = [
-      ["suite file://", () =>
-        runSuite(browser, pathToFileURL(join(APP_DIR, "test.html")).href, "suite file://")],
-      ["suite http", () => runSuite(browser, `${baseUrl}/test.html`, "suite http")],
-      ["index redirect file://", () => testIndexRedirects(browser, fileBase, "index redirect file://")],
-      ["index redirect http", () => testIndexRedirects(browser, baseUrl, "index redirect http")],
-      ["app file://", () => testTheApp(browser, fileBase, "app file://")],
-      ["app http", () => testTheApp(browser, baseUrl, "app http")],
-      ["topology file://", () =>
-        testTheTopologyPage(browser, fileBase, "topology file://", topologies, crops)],
-      ["topology http", () =>
-        testTheTopologyPage(browser, baseUrl, "topology http", topologies, crops)],
-      ["deep links file://", () => testDeepLinks(browser, fileBase, "deep links file://")],
-      ["deep links http", () => testDeepLinks(browser, baseUrl, "deep links http")],
-      ["topology height budget", () =>
-        testHeightBudget(browser, fileBase, "topology height budget", topologies, crops)],
-      ["topology file:// respine", () =>
-        testRespine(browser, fileBase, "topology file://", topologies, crops)],
-      ["render crash shows the banner", () =>
-        testRenderCrash(browser, fileBase, "render crash shows the banner")],
-      ["real render path (non-mock)", () => testRealDataRenderPath(
-        browser, fileBase, "real render path (non-mock)", topologies, realResults, crops)],
-      ["served mode (repo-root static server)", () => testServedModeBoot(
-        browser, repoRootBaseUrl, "served mode (repo-root static server)", topologies,
-        stopRepoRootServer)],
-      ["hosted origin with nothing published", () => testHostedUnpublished(browser, topologies)],
-      ["rebuild affordance (stub sibling mount)", () => testRebuildAffordance(browser)],
-      ["annotate flyout (repo-root mount + file:// degradation)", () =>
-        testAnnotateFlyout(browser, fileBase)],
-      ["annotate hosted posture (no folder grant off-machine)", () =>
-        testAnnotateHostedPosture(browser)],
+      ["suite file://", (label) =>
+        runSuite(browser, pathToFileURL(join(APP_DIR, "test.html")).href, label)],
+      ["suite http", (label) => runSuite(browser, `${baseUrl}/test.html`, label)],
+      ["index redirect file://", (label) => testIndexRedirects(browser, fileBase, label)],
+      ["index redirect http", (label) => testIndexRedirects(browser, baseUrl, label)],
+      ["app file://", (label) => testTheApp(browser, fileBase, label)],
+      ["app http", (label) => testTheApp(browser, baseUrl, label)],
+      ["topology file://", (label) =>
+        testTheTopologyPage(browser, fileBase, label, topologies, crops)],
+      ["topology http", (label) =>
+        testTheTopologyPage(browser, baseUrl, label, topologies, crops)],
+      ["deep links file://", (label) => testDeepLinks(browser, fileBase, label)],
+      ["deep links http", (label) => testDeepLinks(browser, baseUrl, label)],
+      ["topology height budget", (label) =>
+        testHeightBudget(browser, fileBase, label, topologies, crops)],
+      ["topology file:// respine", (label) =>
+        testRespine(browser, fileBase, label, topologies, crops)],
+      ["render crash shows the banner", (label) =>
+        testRenderCrash(browser, fileBase, label)],
+      ["real render path (non-mock)", (label) => testRealDataRenderPath(
+        browser, fileBase, label, topologies, realResults, crops)],
+      ["no nav click wedges the page", (label) => testNavNeverWedges(
+        browser, fileBase, label, topologies, realResults, crops)],
+      ["served mode (repo-root static server)", (label) => testServedModeBoot(
+        browser, repoRootBaseUrl, label, topologies, stopRepoRootServer)],
+      ["hosted origin with nothing published", (label) =>
+        testHostedUnpublished(browser, topologies, label)],
+      ["rebuild affordance (stub sibling mount)", (label) =>
+        testRebuildAffordance(browser, label)],
+      ["annotate flyout (repo-root mount + file:// degradation)", (label) =>
+        testAnnotateFlyout(browser, fileBase, label)],
+      ["annotate hosted posture (no folder grant off-machine)", (label) =>
+        testAnnotateHostedPosture(browser, label)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
@@ -3606,7 +4280,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
     }
 
     const results = [];
-    for (const [, runSuiteFn] of chosen) results.push(await runSuiteFn());
+    for (const [label, runSuiteFn] of chosen) results.push(await runSuiteFn(label));
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser ` +

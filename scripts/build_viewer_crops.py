@@ -60,14 +60,27 @@ resolves through that space unchanged (``scripts/build_topology_projection.py``'
 ``crop_key``), and nothing about the stack scan below reads from or writes to
 a topology document at all.
 
-Where the crop is taken (in order):
+Where the crop is taken (in order; :func:`locate` is the one place the order is
+written, and says at each step why it sits where it does):
 
+* **the item's own balloon**, when the citation names a part the run's
+  ``*_balloons.json`` places on the cited sheet (:func:`balloon_answer`). This
+  beats the cited zone deliberately: a parts-list citation's zone is the zone of
+  the view's *caption*, which is not where the item is -- the bushing's crop
+  showed DETAIL B with balloon 34, the one the citation is about, off the top
+  edge -- and a caption's printed zone is not even stable between exports of one
+  revision (the pitch_link worksheet's finding F4). Such a crop also carries a
+  second image, the parts-list row for that item
+  (:func:`parts_list_companion`), because a balloon on its own is a number in a
+  circle.
 * **the cited zone**, if ``zone`` is set and the sheet's printed border grid is
   legible: the cited cell padded by ``--zone-pad`` cells. The citation is a zone
   citation, so the zone is what gets shown. The locator also records whether the
   callout's own text was found *inside* that cell -- corroboration, not a
   requirement (a parts-list nomenclature is cited at the balloon, and lives on
-  the parts-list sheet).
+  the parts-list sheet). When it *was* found, the rect is widened to whatever
+  the callout's leader reaches (:func:`attachment_rect`), so a dimension is
+  shown on the feature it dimensions rather than floating in space.
 * **a declared crop region**, when the resolved PDF lives in
   ``data/inbox/specs/`` and ``docs/spec_library/crop_regions.json`` declares a
   region for the cited sheet that this citation matches. A pile citation names a
@@ -77,12 +90,32 @@ Where the crop is taken (in order):
   ``tolerance_stack/spec_crop_regions.py`` owns the matching rules, and the rule
   applies whichever rule above named the document, because the region is a fact
   about the *bytes in the pile* rather than about how the citation reached them.
+  Where that sheet also declares a **page context**, the context is the crop and
+  the region becomes a highlight box inside it: a row band alone was "just four
+  numbers with no context for what they mean" (Jeff, 2026-09-15), because it
+  carries neither the column headers nor the figure the columns refer to.
 * **the callout text**, if none of the above and a needle derived from the
-  callout matches exactly once on the page.
+  callout matches exactly once on the page -- widened along its leader, same as
+  a corroborated zone.
+* **the sheet's declared page context**, when the page has one and nothing above
+  placed the crop: coarse, so it loses to a unique text match, but it is a rect
+  a human recorded and it beats the whole sheet. Nothing is highlighted, which
+  is the honest answer -- no region matched, and which row was meant is not
+  declared.
 * **the whole sheet** otherwise, with the reason recorded (a scanned standard
   with no text layer, which is what ``NAS6403-NAS6420 Rev 4.pdf`` is, lands
   here -- and for a pile document the reason also says why no declared region
   applied, because "record one" is the action that fixes it).
+
+Every entry also carries the **boxes worth drawing over the crop**
+(``highlights``), each as a rect in points *and* as fractions of the crop, so
+the viewer can position an overlay without knowing what scale the PNG was
+rendered at. Their two-word vocabulary is :data:`HIGHLIGHT_KINDS` and it is the
+whole visual distinction the viewer draws: a box round something **found** on
+the page is solid, a box round a rect somebody merely **declared** -- a
+registry region, or a cited zone the callout text was not in -- is dashed. That
+keeps "the crop is the citation, not a match" a property of the picture rather
+than of a sentence beside it.
 
 Output (wipe-and-rebuild; owns only its own files, ``results.json`` is
 ``build_viewer_projection.py``'s)::
@@ -150,6 +183,51 @@ _RUN_ID_RE = re.compile(r"\b(\d{8}_\d{6})\b")
 # A needle worth searching for: a part number, a dimension, a dash number --
 # anything with a digit in it and no interior whitespace.
 _NEEDLE_RE = re.compile(r"[^\s,;()]*\d[^\s,;()]*")
+
+#: What a highlight box drawn over a crop CLAIMS -- the whole vocabulary, and
+#: there are exactly two words because there are exactly two claims a box on one
+#: of these images can make. ``verified_match``: the citation's own text, or the
+#: balloon carrying its find number, was **found** at this rect on this page.
+#: ``declared_region``: a human recorded this rect, or the citation named this
+#: printed zone, and nothing on the page corroborated it. The viewer draws the
+#: first solid and the second dashed -- the same distinction
+#: ``callout_text_in_zone`` has always reported in words ("the crop is the
+#: citation, not a match"), now carried by the picture, which is the surface a
+#: reader actually looks at. A field vocabulary is a module-level constant in
+#: this repo, never an inline literal: ``docs/prompts/REVIEW_AGENT.md``,
+#: "Documented vocabularies drifting from the seeded data".
+HIGHLIGHT_KINDS: Tuple[str, ...] = ("verified_match", "declared_region")
+
+#: What a second image beside a crop IS. One role today: the parts-list row for
+#: the cited item, so a balloon crop can show the part number and nomenclature
+#: the balloon stands for without the reader opening the drawing.
+COMPANION_ROLES: Tuple[str, ...] = ("parts_list_row",)
+
+# --- the attachment walk (see attachment_rect) ------------------------------
+# A callout's leader starts a little away from the end of its text, so "touching
+# the text" has to mean "within this many points of it".
+LEADER_GAP_PT = 24.0
+# How much room the feature a leader lands on gets around it. A crop that ends
+# exactly at the arrowhead shows the arrow and not what it points at.
+ATTACHMENT_PAD_PT = 60.0
+# A path bigger than this in either direction is scenery -- a view outline, the
+# drawing frame -- and is not followed. Without it one connected edge could walk
+# the crop out to the whole sheet.
+ATTACHMENT_MAX_PATH_PT = 400.0
+# How close to a leader's end a path has to be to count as what it lands on.
+ATTACHMENT_TIP_PT = 6.0
+
+# --- the parts-list row companion (see parts_list_row_rect) -----------------
+# Rows of context kept above and below the cited row, so the crop reads as a
+# parts list rather than as one floating line of text.
+PARTS_LIST_CONTEXT_PT = 34.0
+# The printed column header that delimits one block of the parts list. A Joby
+# parts list is printed as several side-by-side blocks, each with its own header
+# row, so this is what says where the cited row's block starts and ends.
+PARTS_LIST_BLOCK_HEADER = "FIND"
+# Trimmed off each side of a block so the neighbouring block's rule does not
+# appear in the crop.
+PARTS_LIST_BLOCK_INSET_PT = 3.0
 
 # Kinds that name no page of any document, so no crop can exist for them.
 NO_DOCUMENT_KINDS = {
@@ -543,6 +621,338 @@ def center_in(rect: Sequence[float], hit: Sequence[float]) -> bool:
     return rect[0] <= cx <= rect[2] and rect[1] <= cy <= rect[3]
 
 
+def union_rect(
+    a: Sequence[float], b: Sequence[float]
+) -> Tuple[float, float, float, float]:
+    return (min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
+
+
+def rects_overlap(a: Sequence[float], b: Sequence[float]) -> bool:
+    return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
+
+
+def rect_contains(outer: Sequence[float], inner: Sequence[float]) -> bool:
+    return (outer[0] <= inner[0] and outer[1] <= inner[1]
+            and outer[2] >= inner[2] and outer[3] >= inner[3])
+
+
+def clamp_to(rect: Sequence[float], page_rect: Sequence[float]) -> Tuple[float, ...]:
+    """``rect`` cut down to the page. The renderer intersects with the page
+    anyway (``fitz.Rect(*rect) & page.rect``), so clamping here is what keeps
+    the reported ``rect_pt`` -- and every highlight fraction measured against
+    it -- describing the image that was actually written."""
+    return (max(rect[0], page_rect[0]), max(rect[1], page_rect[1]),
+            min(rect[2], page_rect[2]), min(rect[3], page_rect[3]))
+
+
+def highlight(kind: str, label: Optional[str],
+              rect: Sequence[float]) -> Dict[str, Any]:
+    """One box to draw over a crop. ``kind`` is one of :data:`HIGHLIGHT_KINDS`."""
+    if kind not in HIGHLIGHT_KINDS:
+        raise ValueError(f"{kind!r} is not one of {list(HIGHLIGHT_KINDS)}")
+    return {"kind": kind, "label": label,
+            "rect_pt": [round(float(v), 2) for v in rect]}
+
+
+def with_fracs(rect: Sequence[float],
+               highlights: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Each highlight re-expressed as fractions of the crop rect it sits in.
+
+    The viewer holds a PNG and no idea what scale it was rendered at, so a box
+    in PDF points is unusable there; a fraction of the image is usable at any
+    size the page happens to lay the image out at, which is the whole reason the
+    overlay is drawn in the DOM rather than burnt into the pixels. Clamped to
+    [0, 1]: a highlight can legitimately run off the edge of the crop (a padded
+    zone cell trimmed by the page border), and a box drawn outside its frame
+    would point at nothing.
+    """
+    width = (rect[2] - rect[0]) or 1.0
+    height = (rect[3] - rect[1]) or 1.0
+    out: List[Dict[str, Any]] = []
+    for box in highlights:
+        r = box["rect_pt"]
+        frac = ((r[0] - rect[0]) / width, (r[1] - rect[1]) / height,
+                (r[2] - rect[0]) / width, (r[3] - rect[1]) / height)
+        out.append({**box,
+                    "frac": [round(min(1.0, max(0.0, v)), 5) for v in frac]})
+    return out
+
+
+def path_rects(page) -> List[Tuple[float, ...]]:
+    """Every vector path's bounding box on ``page``, or ``[]``.
+
+    ``[]`` covers both "this sheet is a scan with no vector content" and "this
+    page object does not expose drawings at all" -- the callers treat the two the
+    same way, by keeping the rect they already had.
+    """
+    getter = getattr(page, "get_drawings", None)
+    if getter is None:
+        return []
+    return [tuple(float(v) for v in path["rect"]) for path in getter()
+            if path.get("rect") is not None]
+
+
+def small_enough(rect: Sequence[float]) -> bool:
+    """Whether a path is a feature rather than scenery -- see
+    :data:`ATTACHMENT_MAX_PATH_PT`."""
+    return ((rect[2] - rect[0]) <= ATTACHMENT_MAX_PATH_PT
+            and (rect[3] - rect[1]) <= ATTACHMENT_MAX_PATH_PT)
+
+
+def attachment_rect(page, hit: Sequence[float]) -> Optional[Tuple[float, ...]]:
+    """The geometry the callout at ``hit`` points at, or ``None``.
+
+    A dimension callout is a piece of text plus a **leader**: one line running
+    from the text to the feature being dimensioned. Cropping the text's
+    neighbourhood therefore shows the number and not the thing it measures --
+    Jeff, 2026-09-15, on the pitch-plate lug: the crop "just shows dimensions
+    floating in space, the part itself is cropped out of the view, can't tell
+    what they are attached to."
+
+    So follow the drawing's own geometry, two hops and no further:
+
+    1. the paths within :data:`LEADER_GAP_PT` of the callout text -- its leader
+       (a leader does not start flush against the last character, which is why
+       the gap is not zero);
+    2. the paths touching the far ends of those, within :data:`ATTACHMENT_TIP_PT`
+       -- the arrowhead and the edge it lands on.
+
+    Union, padded by :data:`ATTACHMENT_PAD_PT` so the feature has room around it.
+    Two hops is a deliberate stop: a connected outline would otherwise walk the
+    crop out to the whole sheet one edge at a time, and :func:`small_enough`
+    refuses a path big enough to be a view outline or the frame for the same
+    reason. A path that *encloses* the callout (a box drawn round the text) is
+    not a leader and is skipped.
+
+    ``None`` means nothing was found and the caller keeps its own rect -- never a
+    guess at a bigger box.
+    """
+    paths = [rect for rect in path_rects(page) if small_enough(rect)]
+    if not paths:
+        return None
+    reach = pad_rect(tuple(hit), LEADER_GAP_PT, LEADER_GAP_PT)
+    leaders = [rect for rect in paths
+               if rects_overlap(rect, reach) and not rect_contains(rect, hit)]
+    if not leaders:
+        return None
+
+    grown: Tuple[float, ...] = tuple(float(v) for v in hit)
+    for rect in leaders:
+        grown = union_rect(grown, rect)
+    near_text = pad_rect(tuple(hit), LEADER_GAP_PT / 2, LEADER_GAP_PT / 2)
+    for rect in leaders:
+        for x, y in ((rect[0], rect[1]), (rect[2], rect[3]),
+                     (rect[0], rect[3]), (rect[2], rect[1])):
+            if near_text[0] <= x <= near_text[2] and near_text[1] <= y <= near_text[3]:
+                continue
+            tip = (x - ATTACHMENT_TIP_PT, y - ATTACHMENT_TIP_PT,
+                   x + ATTACHMENT_TIP_PT, y + ATTACHMENT_TIP_PT)
+            for candidate in paths:
+                if rects_overlap(candidate, tip):
+                    grown = union_rect(grown, candidate)
+    return pad_rect(grown, ATTACHMENT_PAD_PT, ATTACHMENT_PAD_PT)
+
+
+# ---------------------------------------------------------------------------
+# balloons: drawing-checker's extracted item geometry, read (never written)
+# ---------------------------------------------------------------------------
+#
+# A location reference cited to an assembly-drawing balloon -- ``kind:
+# "parts_list"``, and any drawing citation naming a part -- was cropped to the
+# printed zone of its VIEW CAPTION, which is a different place from the balloon
+# and, as this repo's own pitch_link worksheet records, not even stable between
+# exports of one revision. The bushing's crop showed DETAIL B with balloons 32
+# and 35 in it and balloon 34, the one the citation is about, off the top edge.
+#
+# drawing-checker already extracts what is needed and tolstack already depends
+# on its runs read-only: ``<run>/<drawing>_balloons.json`` carries every
+# balloon's ``item_no`` and ``bbox_pt`` per page, and the run's ``parts_list``
+# rows with their ``find_no``. That is native-PDF geometry, not vision output,
+# so it is the same class of fact as the printed zone grid this file already
+# reads. Nothing new is rendered over there and nothing is written -- see
+# ``scripts/snapshot_drawing_checker.py`` for how that claim is evidenced.
+
+
+def balloons_for_run(dc_root: Path, run_dir_name: Optional[str]) -> Optional[Dict[str, Any]]:
+    """A run's ``*_balloons.json``, or ``None`` when there isn't one.
+
+    ``None`` is an ordinary answer: a part drawing carries no balloons at all
+    (215197 is one), an older run predates the extractor, and a crop resolved
+    from the spec pile has no run. Each keeps the placement rules it had.
+    """
+    if not run_dir_name:
+        return None
+    run = dc_root / "data" / "runs" / run_dir_name
+    matches = sorted(run.glob("*_balloons.json")) if run.is_dir() else []
+    if not matches:
+        return None
+    return json.loads(matches[0].read_text(encoding="utf-8"))
+
+
+def candidate_part_numbers(source_ref: Dict[str, Any],
+                           hardware_ref: Optional[str]) -> List[str]:
+    """The part numbers this citation could be naming, most-authoritative first.
+
+    The element's ``hardware_ref``, then the **first whitespace-delimited token
+    of the callout** -- a parts-list callout in this repo opens with the part
+    number. Both are used as-is: each is compared for *equality* against a
+    parts-list row, nothing is normalised, and nothing is prefix-matched.
+    ``NAS1149V0332`` and ``NAS1149V0332H`` are two different part numbers, and
+    accepting one for the other is exactly the class of error this repo exists
+    to prevent -- which is also why the callout token is needed at all, since
+    the washer element's ``hardware_ref`` is the former and its parts-list row
+    the latter.
+    """
+    out: List[str] = []
+    if hardware_ref:
+        out.append(str(hardware_ref).strip())
+    callout = (source_ref or {}).get("callout")
+    if callout:
+        tokens = str(callout).strip().split()
+        if tokens:
+            out.append(tokens[0])
+    seen, ordered = set(), []
+    for candidate in out:
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            ordered.append(candidate)
+    return ordered
+
+
+def parts_list_row_for(balloons: Dict[str, Any], source_ref: Dict[str, Any],
+                       hardware_ref: Optional[str]) -> Optional[Dict[str, Any]]:
+    """The parts-list row this citation names, by exact part-number equality."""
+    rows = balloons.get("parts_list") or []
+    by_number = {str(row.get("part_number") or ""): row for row in rows}
+    for candidate in candidate_part_numbers(source_ref, hardware_ref):
+        row = by_number.get(candidate)
+        if row and row.get("find_no") is not None:
+            return row
+    return None
+
+
+def balloon_answer(balloons: Optional[Dict[str, Any]], page_no: int,
+                   source_ref: Dict[str, Any],
+                   hardware_ref: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Where this citation's item is ballooned on the cited sheet, or ``None``.
+
+    ``None`` whenever any link in the chain is missing -- no balloon file, no
+    parts-list row for the part number, no balloon for that find number on that
+    sheet. The caller then places the crop exactly as it did before, so this
+    rule can only ever *add* a located crop.
+
+    When the citation names a view, balloons whose ``view_id`` names that view
+    are preferred; if none does, every balloon of the item on the sheet is used
+    and ``view_matched`` says so. Filtering to nothing would throw away the one
+    piece of real evidence available.
+    """
+    if not balloons:
+        return None
+    row = parts_list_row_for(balloons, source_ref, hardware_ref)
+    if row is None:
+        return None
+    find_no = row["find_no"]
+    on_sheet = [b for b in (balloons.get("balloons") or [])
+                if b.get("page") == page_no and b.get("item_no") == find_no
+                and b.get("bbox_pt")]
+    if not on_sheet:
+        return None
+    cited_view = str((source_ref or {}).get("view") or "").strip().upper()
+    in_view = [b for b in on_sheet
+               if cited_view and cited_view in str(b.get("view_id") or "").upper()]
+    chosen = in_view or on_sheet
+    view_id = str(chosen[0].get("view_id") or "")
+    # Every balloon sharing that view, item or not: the extent of the view the
+    # item is in, as evidenced by what is ballooned inside it. The caller uses
+    # it to frame the crop when the citation named no printed zone -- a crop
+    # padded around one balloon shows a number in a circle and nothing it could
+    # be a number FOR.
+    siblings = [b for b in (balloons.get("balloons") or [])
+                if b.get("page") == page_no and b.get("bbox_pt")
+                and str(b.get("view_id") or "") == view_id]
+    return {
+        "find_no": find_no,
+        "part_number": str(row.get("part_number") or ""),
+        "nomenclature": str(row.get("nomenclature") or ""),
+        "view_matched": bool(in_view),
+        "view_id": view_id,
+        "rects": [tuple(float(v) for v in b["bbox_pt"]) for b in chosen],
+        "view_rects": [tuple(float(v) for v in b["bbox_pt"]) for b in siblings],
+        "pl_page": balloons.get("pl_page"),
+    }
+
+
+def parts_list_table_rect(dc_root: Path, run_dir_name: Optional[str],
+                          pl_page: Optional[int]) -> Optional[Tuple[float, ...]]:
+    """The parts-list table's own bbox on its sheet, from the run's page JSON.
+
+    ``zones.parts_list.tight_bbox_pt`` -- drawing-checker's own answer to "where
+    is the table", so the row search below is bounded by the table rather than
+    by the page (a part number printed in a note is not a parts-list row).
+    """
+    if not run_dir_name or not pl_page:
+        return None
+    run = dc_root / "data" / "runs" / run_dir_name
+    if not run.is_dir():
+        return None
+    for path in sorted(run.glob(f"*_p{int(pl_page):02d}.json")):
+        zones = (json.loads(path.read_text(encoding="utf-8")).get("zones") or {})
+        rect = (zones.get("parts_list") or {}).get("tight_bbox_pt")
+        if isinstance(rect, (list, tuple)) and len(rect) == 4:
+            return tuple(float(v) for v in rect)
+    return None
+
+
+def parts_list_row_rect(page, table_rect: Sequence[float], part_number: str,
+                        find_no: Optional[int] = None
+                        ) -> Optional[Tuple[Tuple[float, ...], Tuple[float, ...]]]:
+    """``(band, hit)``: the row band to crop and the part number's own rect.
+
+    The band spans the printed column block the hit sits in, delimited by the
+    ``FIND`` headers (:data:`PARTS_LIST_BLOCK_HEADER`): a Joby parts list prints
+    as several side-by-side blocks, so a band across the whole table would carry
+    two unrelated rows' worth of columns. :data:`PARTS_LIST_CONTEXT_PT` of
+    neighbouring rows is kept above and below, so the crop reads as a parts list
+    and not as one floating line of text.
+
+    One part number can occupy **more than one row**: 217755's parts list
+    carries ``NAS1149V0332H`` as both find 13 and find 32, and the citation is
+    about one of them. So when several rows match, ``find_no`` breaks the tie
+    the way a reader would -- by the number printed in the ``FIND`` column to
+    the left of the part number, on the same row -- and a tie that survives
+    that is left unresolved rather than guessed at. ``None`` when the part
+    number is not on the sheet, or when which row it means cannot be answered.
+    """
+    hits = [tuple(float(v) for v in h) for h in page.search_for(part_number)
+            if center_in(table_rect, h)]
+    if not hits:
+        return None
+    headers = sorted(float(h[0]) for h in page.search_for(PARTS_LIST_BLOCK_HEADER))
+
+    def block_of(hit):
+        left = max([x for x in headers if x <= hit[0] + 1.0], default=table_rect[0])
+        right = min([x for x in headers if x > left + 1.0], default=table_rect[2])
+        return left, right
+
+    if len(hits) > 1 and find_no is not None:
+        printed = [tuple(float(v) for v in h)
+                   for h in page.search_for(str(find_no))
+                   if center_in(table_rect, h)]
+        hits = [hit for hit in hits if any(
+            block_of(hit)[0] - 1.0 <= found[0] < hit[0]
+            and found[1] <= (hit[1] + hit[3]) / 2 <= found[3]
+            for found in printed)]
+    if len(hits) != 1:
+        return None
+    hit = hits[0]
+    left, right = block_of(hit)
+    band = (left - PARTS_LIST_BLOCK_INSET_PT,
+            hit[1] - PARTS_LIST_CONTEXT_PT,
+            right - PARTS_LIST_BLOCK_INSET_PT,
+            hit[3] + PARTS_LIST_CONTEXT_PT)
+    return band, hit
+
+
 # ---------------------------------------------------------------------------
 # rendering
 # ---------------------------------------------------------------------------
@@ -550,16 +960,45 @@ def center_in(rect: Sequence[float], hit: Sequence[float]) -> bool:
 
 def locate(page, source_ref: Dict[str, Any], hardware_ref: Optional[str],
            zone_pad: float, text_pad: float,
-           region: Optional["scr.RegionResolution"] = None) -> Dict[str, Any]:
-    """Decide the crop rect on ``page``. Never raises -- worst case is the sheet.
+           region: Optional["scr.RegionResolution"] = None,
+           balloon: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Decide the crop rect on ``page``, and the boxes to draw on it. Never
+    raises -- worst case is the sheet.
 
     ``region`` is the declared-region answer for this citation
     (:func:`tolerance_stack.spec_crop_regions.resolve`), or ``None`` when the
-    document is not a pile document and no region could apply. It is consulted
-    **after** a cited zone and **before** the callout-text search: a zone is
-    something this citation said about itself, while a region is declared per
-    document, so the more specific statement wins -- but a declared rect
-    somebody looked at beats a needle that happened to match once.
+    document is not a pile document and no region could apply. ``balloon`` is
+    :func:`balloon_answer`, or ``None`` when the citation names no item that
+    drawing-checker ballooned on this sheet.
+
+    The order, and why it is this order:
+
+    1. **the balloon**, when one was found. It is the item the citation is
+       *about*, located on the page by native geometry, and it beats the cited
+       zone -- which for a parts-list citation is the zone of the view CAPTION,
+       a place the item is not, and one this repo has already watched move
+       between two exports of one revision.
+    2. **the cited zone**, padded by ``zone_pad`` cells, widened to whatever the
+       callout's leader reaches (:func:`attachment_rect`) when the callout text
+       was found inside the cell. The citation is a zone citation, so the zone is
+       what gets shown -- but a dimension with its geometry cropped out shows a
+       number floating in space, which is the third thing Jeff reported.
+    3. **a declared crop region**, inside its sheet's declared **context** if one
+       is recorded: then the context is the crop and the region is a highlight.
+       A zone is something this citation said about itself while a region is
+       declared per document, so the more specific statement still wins -- but a
+       declared rect somebody looked at beats a needle that happened to match
+       once.
+    4. **the callout text**, if a needle derived from the callout matches exactly
+       once on the page, again widened to what its leader reaches.
+    5. **the sheet's declared context**, when the page has one and nothing above
+       placed the crop. Coarse, so it loses to a unique text match, but it is a
+       rect a human recorded and it beats the whole sheet.
+    6. **the whole sheet**, with the reason recorded.
+
+    Every branch returns the same keys, ``highlights`` included: a consumer must
+    never have to tell "no highlight" from "this builder is older than
+    highlights".
     """
     cols, rows = page_native_grid(page)
     needles = callout_needles(source_ref, hardware_ref)
@@ -574,48 +1013,142 @@ def locate(page, source_ref: Dict[str, Any], hardware_ref: Optional[str],
         # "this builder is older than regions".
         "region_label": None,
         "region_match": None,
+        "context_label": None,
+        "find_no": None,
+        "highlights": [],
     }
 
     cell = zone_cell(cols, rows, str(cited_zone)) if (cited_zone and grid_read) else None
-    if cell:
-        width, height = cell[2] - cell[0], cell[3] - cell[1]
-        found, matched = False, None
-        for needle in needles:
-            if any(center_in(cell, hit) for hit in page.search_for(needle)):
-                found, matched = True, needle
-                break
+
+    if balloon is not None and balloon.get("rects"):
+        rect = None
+        for box in balloon["rects"]:
+            padded = pad_rect(box, ATTACHMENT_PAD_PT, ATTACHMENT_PAD_PT)
+            rect = padded if rect is None else union_rect(rect, padded)
+        note = (f"balloon {balloon['find_no']} for {balloon['part_number']}, "
+                f"padded for the view around it")
+        if cell:
+            # The cited zone stays in the frame as well: it is what the citation
+            # said, and on the one live case it is what carries the view's
+            # caption, so a reader sees the balloon AND the name of the view.
+            width, height = cell[2] - cell[0], cell[3] - cell[1]
+            rect = union_rect(rect, pad_rect(cell, width * zone_pad, height * zone_pad))
+            note += f"; unioned with the cited zone {cited_zone}"
+        elif balloon.get("view_rects"):
+            # No zone cited, so the frame comes from the view instead: the
+            # extent of everything ballooned in it. Without this the crop is a
+            # padded box round one balloon -- a number in a circle, with none of
+            # the geometry it labels.
+            for box in balloon["view_rects"]:
+                rect = union_rect(rect, box)
+            rect = pad_rect(rect, ATTACHMENT_PAD_PT, ATTACHMENT_PAD_PT)
+            note += (f"; framed on the {len(balloon['view_rects'])} balloon(s) of "
+                     f"the view it sits in, the citation naming no printed zone")
+        if not balloon["view_matched"] and (source_ref or {}).get("view"):
+            note += (f"; no balloon of this item is recorded in "
+                     f"{source_ref['view']!r}, so every balloon of it on this "
+                     f"sheet is shown")
         return {
             **placement,
-            "rect": pad_rect(cell, width * zone_pad, height * zone_pad),
+            "rect": rect,
+            "located_by": "balloon_view",
+            "needle": None,
+            "find_no": balloon["find_no"],
+            "highlights": [highlight("verified_match",
+                                     f"balloon {balloon['find_no']}", box)
+                           for box in balloon["rects"]],
+            "note": note,
+        }
+
+    if cell:
+        width, height = cell[2] - cell[0], cell[3] - cell[1]
+        matched, hit = None, None
+        for needle in needles:
+            for found in page.search_for(needle):
+                if center_in(cell, found):
+                    matched, hit = needle, tuple(float(v) for v in found)
+                    break
+            if hit is not None:
+                break
+        rect = pad_rect(cell, width * zone_pad, height * zone_pad)
+        note = f"printed zone {cited_zone} padded by {zone_pad:g} cell(s)"
+        if hit is not None:
+            highlights = [highlight("verified_match", matched, hit)]
+            attachment = attachment_rect(page, hit)
+            if attachment is not None:
+                rect = union_rect(rect, attachment)
+                note += ("; widened to the geometry the callout's leader "
+                         "reaches, so the dimension is shown on the feature "
+                         "rather than floating in space")
+        else:
+            # Nothing on the page corroborated the citation, so the box round
+            # the zone is DASHED: "the crop is the citation, not a match".
+            highlights = [highlight("declared_region",
+                                    f"cited zone {cited_zone}", cell)]
+        return {
+            **placement,
+            "rect": rect,
             "located_by": "zone_cell",
             "needle": matched,
             "zone_grid": "read",
-            "callout_text_in_zone": found,
-            "note": f"printed zone {cited_zone} padded by {zone_pad:g} cell(s)",
+            "callout_text_in_zone": hit is not None,
+            "highlights": highlights,
+            "note": note,
         }
 
     if region is not None and region.region is not None:
+        context = region.context
+        rect = tuple(region.region.rect)
+        boxes: List[Dict[str, Any]] = []
+        note = f"declared crop region {region.region.label!r} -- {region.why}"
+        if context is not None:
+            rect = tuple(context.rect)
+            boxes = [highlight("declared_region", region.region.label,
+                               region.region.rect)]
+            note += (f"; shown inside the page context {context.label!r}, so the "
+                     f"column headers and any figure are in the frame")
         return {
             **placement,
-            "rect": tuple(region.region.rect),
+            "rect": rect,
             "located_by": "declared_region",
             "needle": None,
             "region_label": region.region.label,
             "region_match": region.matched,
-            "note": (f"declared crop region {region.region.label!r} -- "
-                     f"{region.why}"),
+            "context_label": context.label if context is not None else None,
+            "highlights": boxes,
+            "note": note,
         }
 
     for needle in needles:
         hits = page.search_for(needle)
         if len(hits) == 1:
+            hit = tuple(float(v) for v in hits[0])
+            rect = pad_rect(hit, text_pad, text_pad)
+            note = f"located by the unique match for {needle!r}"
+            attachment = attachment_rect(page, hit)
+            if attachment is not None:
+                rect = union_rect(rect, attachment)
+                note += "; widened to the geometry the callout's leader reaches"
             return {
                 **placement,
-                "rect": pad_rect(tuple(hits[0]), text_pad, text_pad),
+                "rect": rect,
                 "located_by": "callout_text",
                 "needle": needle,
-                "note": f"located by the unique match for {needle!r}",
+                "highlights": [highlight("verified_match", needle, hit)],
+                "note": note,
             }
+
+    if region is not None and region.context is not None:
+        return {
+            **placement,
+            "rect": tuple(region.context.rect),
+            "located_by": "page_context",
+            "needle": None,
+            "context_label": region.context.label,
+            "note": (f"the page context {region.context.label!r} -- no declared "
+                     f"region matched this citation ({region.why}), so the "
+                     f"sheet's own context is shown with nothing highlighted"),
+        }
 
     if not page.get_text("text").strip():
         why = "this sheet has no text layer, so the callout cannot be located"
@@ -960,6 +1493,50 @@ def region_for(registry, pdf: Path, specs_dir: Path, page_no: int,
                        scr.where_ref_text(source_ref, hardware_ref))
 
 
+def parts_list_companion(doc, page, balloon, dc_root, run_dir_name, crops_dir,
+                         name_stem, args) -> Optional[Dict[str, Any]]:
+    """The cited item's parts-list row, rendered as a second image, or ``None``.
+
+    A balloon crop shows a number in a circle. The row is what says the number
+    is ``214820-002  BUSHING, PLAIN, ALUMINIUM BRONZE ...``, and a reader should
+    not have to open the drawing to find that out -- deliverable 1 of handoff
+    ``viewer_reference_crops_in_context``.
+
+    ``None`` at every step that cannot be taken without guessing: no parts-list
+    sheet recorded, no table bbox from the run, the part number not found
+    exactly once inside that table. ``role`` is one of :data:`COMPANION_ROLES`.
+    """
+    pl_page = balloon.get("pl_page")
+    if not pl_page or not 1 <= int(pl_page) <= doc.page_count:
+        return None
+    table = parts_list_table_rect(dc_root, run_dir_name, int(pl_page))
+    if table is None:
+        return None
+    sheet = doc[int(pl_page) - 1]
+    found = parts_list_row_rect(sheet, table, balloon["part_number"],
+                                balloon["find_no"])
+    if found is None:
+        return None
+    band, hit = found
+    band = clamp_to(band, tuple(float(v) for v in sheet.rect))
+    name = f"{name_stem}__parts_list.png"
+    width, height = render(sheet, band, crops_dir / name, args.zoom, args.max_px)
+    return {
+        "role": "parts_list_row",
+        "png": f"crops/{name}",
+        "width": width,
+        "height": height,
+        "page": int(pl_page),
+        "label": f"Parts list, sheet {int(pl_page)}",
+        "find_no": balloon["find_no"],
+        "part_number": balloon["part_number"],
+        "nomenclature": balloon["nomenclature"],
+        "rect_pt": [round(v, 2) for v in band],
+        "highlights": with_fracs(
+            band, [highlight("verified_match", balloon["part_number"], hit)]),
+    }
+
+
 def _crop_from_citation(raw, source_ref, hardware_ref, name_stem, no_ref_reason,
                         specs_dir, dc_root, rel_roots, crops_dir, open_docs,
                         args, registry) -> Dict[str, Any]:
@@ -991,11 +1568,21 @@ def _crop_from_citation(raw, source_ref, hardware_ref, name_stem, no_ref_reason,
             )
         page = doc[page_no - 1]
         region = region_for(registry, pdf, specs_dir, page_no, source_ref, hardware_ref)
+        balloon = balloon_answer(
+            balloons_for_run(dc_root, resolved["run_dir"]), page_no, source_ref,
+            hardware_ref)
         placement = locate(page, source_ref, hardware_ref, args.zone_pad,
-                           args.text_pad, region)
+                           args.text_pad, region, balloon)
+        # Clamped before it is rendered AND before the highlight fractions are
+        # measured against it, so `rect_pt` and every `frac` describe the image
+        # that was actually written -- `render` intersects with the page anyway.
+        rect = clamp_to(placement["rect"], tuple(float(v) for v in page.rect))
         name = f"{name_stem}.png"
-        width, height = render(page, placement["rect"], crops_dir / name,
-                               args.zoom, args.max_px)
+        width, height = render(page, rect, crops_dir / name, args.zoom, args.max_px)
+        companion = (parts_list_companion(doc, page, balloon, dc_root,
+                                          resolved["run_dir"], crops_dir,
+                                          name_stem, args)
+                     if balloon is not None else None)
     except Unresolvable as err:
         return {"status": "unresolvable", "reason": str(err), "png": None}
 
@@ -1012,9 +1599,21 @@ def _crop_from_citation(raw, source_ref, hardware_ref, name_stem, no_ref_reason,
         "run_dir": resolved["run_dir"],
         "run_id": resolved["run_id"],
         "sha256_verified": resolved["sha256_verified"],
+        # What the viewer calls the link into drawing-checker: the drawing's own
+        # number and revision, as the CITATION states them, e.g. "215197 rev
+        # A.1". Only where there is a run to link to -- a spec-pile document has
+        # no run page, and its `document` is a filename rather than a drawing
+        # number, so labelling one would be a category error.
+        "drawing_no": (str(source_ref.get("document") or "") or None
+                       if resolved["run_dir"] else None),
+        "drawing_revision": (str(source_ref.get("revision") or "") or None
+                             if resolved["run_dir"] else None),
+        "companion": companion,
     }
-    entry.update({k: v for k, v in placement.items() if k != "rect"})
-    entry["rect_pt"] = [round(v, 2) for v in placement["rect"]]
+    entry.update({k: v for k, v in placement.items()
+                  if k not in ("rect", "highlights")})
+    entry["rect_pt"] = [round(v, 2) for v in rect]
+    entry["highlights"] = with_fracs(rect, placement["highlights"])
     return entry
 
 

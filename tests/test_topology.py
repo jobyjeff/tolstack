@@ -127,6 +127,37 @@ def test_every_committed_study_resolves_and_sums(path):
     assert result.units
 
 
+@pytest.mark.parametrize("path", study_files(), ids=lambda p: p.stem)
+def test_every_study_has_checks_or_says_why_not(path):
+    """Check coverage, made a property of the file rather than of a sweep.
+
+    The 2026-09-15 full-pass audit (handoff ``stack_fable_audit``) found five
+    studies with no ``checks`` entry and no recorded reason -- each reason
+    existed, scattered through ``notes`` or nowhere, which is invisible to a
+    scan. ``no_checks_reason`` is the additive field that carries it: a real
+    sentence naming why no criterion is citable (or why the criterion lives on
+    a twin study), never a placeholder. Exactly one of the two must be present:
+    a study with checks AND a no-checks reason is contradicting itself, and a
+    study with neither is the silent gap the audit was asked to end.
+
+    Raw JSON on purpose: ``Study.from_dict`` drops unknown fields, so the
+    loader cannot see this one -- the file is the contract.
+    """
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    checks = raw.get("checks") or []
+    reason = (raw.get("no_checks_reason") or "").strip()
+    if checks:
+        assert not reason, (
+            f"{path.name} carries {len(checks)} check(s) AND a no_checks_reason "
+            f"-- one of the two is stale; delete the reason or the checks")
+    else:
+        assert len(reason) >= 40, (
+            f"{path.name} has no checks and no substantive no_checks_reason. "
+            f"Either author a check whose criterion is citable in-repo, or "
+            f"record why there is none yet (docs/DAG_TOPOLOGY.md, 'A study "
+            f"with no checks says why').")
+
+
 # --------------------------------------------------------------------------- #
 # 1. the L1 value proof                                                       #
 # --------------------------------------------------------------------------- #
@@ -1261,7 +1292,11 @@ def test_every_prose_field_the_count_pairing_claims_is_really_scanned():
        for some committed topology.
     4. **Completeness, and its own replay.** Nothing in the corpus states an
        inventory in a field the tuple omits -- and dropping any key that has
-       something to report *is* reported.
+       something to report *is* reported. Which keys those are is **derived**
+       from the corpus, never listed: a hand-listed set makes appending one
+       correct, guarded inventory sentence redden the guard's own
+       demonstration, which is a spurious red in the last place you want one
+       (``ISSUE_20260915_the_prose_field_replay_pins_which_fields_the_corpus_states_an_inventory_in``).
 
     Arms 1 and 2 alone were vacuous, and measurably so: a loop over
     ``PROSE_FIELDS`` cannot notice a key **leaving** it, it just does one fewer
@@ -1344,13 +1379,39 @@ def test_every_prose_field_the_count_pairing_claims_is_really_scanned():
             f"dropping {field!r} from PROSE_FIELDS reported {named}, which "
             f"names some other field -- the scan is not attributing what it "
             f"finds to the key that went missing.")
-    assert replayed == {"description", "notes"}, (
-        f"dropping a key reddens for {sorted(replayed)}; the corpus states an "
-        f"inventory in `description` and in `notes`, so those are the two that "
-        f"must. A field missing from this set is either a "
-        f"corpus change -- check the counts moved somewhere still guarded -- or "
-        f"prose_candidates having gone blind to that field's JSON shape again, "
-        f"which is what the reachability arm above is for.")
+    # Which fields SHOULD have been replayed, derived rather than listed. Run
+    # with an empty tuple, `unlisted_inventory_fields` reports every top-level
+    # prose field of every committed topology that states an inventory at all
+    # -- so this is the same one scanner, asked the question from the other
+    # end, with nothing hand-maintained between the two.
+    #
+    # It used to be the literal `{"description", "notes"}`, which pinned *which
+    # fields the corpus happens to state an inventory in*: appending one
+    # correct, already-guarded inventory sentence to `provenance.structure` --
+    # an ordinary authoring act, caught by the guard proper if it went wrong --
+    # reddened the guard's own demonstration, with a message that diagnosed the
+    # opposite case (a field MISSING from the set, when the reader was holding
+    # one that had been added). A demonstration that fails for an unrelated
+    # reason is how a guard gets deleted.
+    #
+    # The intersection is belt-and-braces: the completeness arm above has
+    # already asserted that nothing outside PROSE_FIELDS states an inventory,
+    # so this line does not depend on that arm having run first.
+    expects_replay = {n.rsplit(":", 1)[1]
+                      for n in unlisted_inventory_fields(())} & set(PROSE_FIELDS)
+    assert expects_replay, (
+        "no committed topology states an inventory in ANY prose field, so the "
+        "replay below has nothing to prove and would pass having run zero "
+        "iterations. Either the corpus lost every hand-copied count -- check "
+        "they moved somewhere still guarded -- or `inventory_sentences` has "
+        "gone blind, which arms 1 and 2 above are what catch.")
+    assert replayed == expects_replay, (
+        f"dropping a key reddens for {sorted(replayed)}, and the corpus states "
+        f"an inventory in {sorted(expects_replay)}: those fields must be "
+        f"replayed and were not. `unlisted_inventory_fields` is not honouring "
+        f"its `fields` argument for the difference -- which is precisely the "
+        f"defect that argument exists to rule out, since a scan that reads the "
+        f"constant it is measuring cannot notice a key leaving it.")
 
 
 # --------------------------------------------------------------------------- #

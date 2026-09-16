@@ -25,36 +25,36 @@
   "parts": [
     {
       "id": "bolt_nas6404u13d",
-      "name": "NAS6404U13D bolt, .2500-28, .812 grip",
-      "note": "Balloon 27, find 27 qty 1, in 217755 sheet 5 DETAIL X per the referenced stack element's source_ref. A standard part, so its dimensional identity is the NAS6403-NAS6420 Rev 4 sheet the element cites, not a Joby part drawing."
+      "name": "NAS6404U13D hex-head bolt",
+      "note": "A standard part: its dimensions come from NAS6403-NAS6420 Rev 4, not from a Joby part drawing. Hex head, 6Al-4V, .2500-28 thread, .812 in grip. Balloon 27 (find 27, qty 1) in DETAIL X of 217755 sheet 5."
     },
     {
       "id": "washer_ms21299c4k",
-      "name": "MS21299C4K washer, countersunk, 17-4PH",
-      "note": "Balloon 29 in 217755 sheet 5 DETAIL X. The referenced element's nominal is sourced from the parts-list nomenclature; its BAND is not, and the element carries that as confidence `inferred` plus the repo's open gap."
+      "name": "MS21299C4K countersunk washer",
+      "note": "Countersunk washer, 17-4PH. Balloon 29 in DETAIL X of 217755 sheet 5. Its nominal comes from the parts-list nomenclature; its BAND does not, which is why the thickness here is `inferred` and on the gap list."
     },
     {
       "id": "pitch_flange_215197",
-      "name": "pitch flange (215197 A.1, feature ambiguous)",
+      "name": "215197 pitch flange",
       "drawing": "215197",
       "revision": "A.1",
-      "note": "Carried over from the referenced element, ambiguity included: 215197 prints TWO 4.06 +/-0.10 callouts and the element's own source_ref says the tolerance alone cannot decide between them, AND that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than the pitch plate 215177-001, so 215197 may be the wrong part entirely. Named here as a part because the topology needs a lane for this thickness to be a dimension OF; the drawing number is the referenced element's claim, not a new one."
+      "note": "Carried over from the referenced element, ambiguity included: 215197 prints TWO 4.06 +/-0.10 callouts and the citation behind this thickness says the tolerance alone cannot decide between them, AND that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than the pitch plate 215177-001, so 215197 may be the wrong part entirely. Named here as a part because the topology needs a lane for this thickness to be a dimension OF; the drawing number is the referenced element's claim, not a new one."
     },
     {
       "id": "flanged_bushing_unidentified",
-      "name": "the part carrying the bushing flange thickness -- NOT IDENTIFIED",
+      "name": "part not identified",
       "note": "The referenced element `bushing_flange_thickness` cites workbook cell E65 and names no part at all. It is modelled as its own part because the flange is a separate 0.062 in feature from the straight bushing's length, and putting both dimensions on one part would be a structural claim (that they are one flanged bushing) with nothing behind it. Which part this is remains open -- see notes."
     },
     {
       "id": "spherical_bearing_in_vpa",
-      "name": "spherical bearing, internal to 208510-007 VARIABLE PITCH ACTUATOR ASSEMBLY",
-      "note": "No balloon in DETAIL X: the referenced element's source_ref records it as internal to the VPA assembly (balloon 1). Its part number is not established -- the workbook's comment column names MS21299C4K on this row, and that part is the countersunk washer, not a bearing (the referenced stack's `column_I_caveat`)."
+      "name": "spherical bearing",
+      "note": "Internal to 208510-007 VARIABLE PITCH ACTUATOR ASSEMBLY (balloon 1), so it has no balloon of its own in DETAIL X. Its part number is not established -- the workbook's comment column names MS21299C4K on this row, and that part is the countersunk washer, not a bearing (the referenced stack's `column_I_caveat`)."
     },
     {
       "id": "plain_bushing_214943_002",
-      "name": "BUSHING, PLAIN, ALUMINUM BRONZE, .250 in ID (Joby 214943-002)",
+      "name": "214943-002 plain bushing",
       "drawing": "214943-002",
-      "note": "Balloon 28 in DETAIL X, per the referenced element's source_ref. That element's modelled length is still `untraced` and still on the gap list: NAS77A4-015, the number the source workbook names, was RULED OUT on the merits in 2026-08-13 and 214943-002's own part drawing is not in the pile."
+      "note": "Plain bushing, aluminium bronze, .250 in ID. Balloon 28 in DETAIL X of 217755 sheet 5. Its modelled length is still `untraced` and still on the gap list: NAS77A4-015, the number the source workbook names, was RULED OUT on the merits in 2026-08-13 and 214943-002's own part drawing is not in the pile."
     }
   ],
   "nodes": [
@@ -63,7 +63,7 @@
       "name": "bolt-head bearing face against the countersunk washer",
       "parts": ["bolt_nas6404u13d", "washer_ms21299c4k"],
       "kind": "mating_surface",
-      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, per the referenced fastener element's source_ref."
+      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, and that is the definition the grip dimension here is cited to."
     },
     {
       "id": "washer_flange_face",

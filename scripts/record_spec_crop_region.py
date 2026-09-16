@@ -25,6 +25,12 @@ Run ``--preview`` before you commit the entry: it renders exactly the rect you
 are recording, so "the dash-13 row" is a thing you looked at rather than a thing
 you believe.
 
+``--context`` records the sheet's **page context** instead of a region: the wider
+rect the crop is taken from, inside which a matched region becomes a highlight
+box (``tolerance_stack/spec_crop_regions.py``, "Page contexts"). A context takes
+no ``--match`` -- it is not chosen by a citation's text -- and a sheet may
+declare only one, so a second is refused the way a duplicate label is.
+
 Needs **PyMuPDF** (``fitz``) for the page size and the preview -- deliberately
 absent from this repo's ``requirements.txt``, exactly like
 ``scripts/build_viewer_crops.py``, so run it from drawing-checker's venv::
@@ -113,6 +119,10 @@ def main(argv: Optional[List[str]] = None,
     ap.add_argument("--match", action="append", default=None, metavar="TEXT",
                     help="citation text this region answers to (repeatable). "
                          "Defaults to the label.")
+    ap.add_argument("--context", action="store_true",
+                    help="record the sheet's page CONTEXT -- the rect the crop is "
+                         "taken from, inside which a region highlights -- rather "
+                         "than a region. Takes no --match.")
     ap.add_argument("--recorded", required=True, metavar="YYYY-MM-DD",
                     help="the date you looked at the page")
     ap.add_argument("--recorded-by", required=True,
@@ -164,20 +174,39 @@ def main(argv: Optional[List[str]] = None,
             )
         check_rect(args.rect, page_rect)
 
-        region = scr.CropRegion(
-            document=args.document,
-            page=args.page,
-            label=args.label,
-            rect=tuple(args.rect),  # type: ignore[arg-type]
-            match=tuple(args.match) if args.match else (args.label,),
-            shows=args.shows,
-            recorded=args.recorded,
-            recorded_by=args.recorded_by,
-        )
-        # `append` re-runs the whole registry's invariants, so a duplicate label
-        # or a colliding match string is refused here rather than discovered by
-        # a crop that quietly stopped resolving.
-        grown = scr.append(registry, region)
+        if args.context:
+            if args.match:
+                raise Refused(
+                    "--context takes no --match: a page context is not chosen by "
+                    "a citation's text, it is the one rect this sheet is cropped "
+                    "from (see tolerance_stack/spec_crop_regions.py)"
+                )
+            entry = scr.CropContext(
+                document=args.document,
+                page=args.page,
+                label=args.label,
+                rect=tuple(args.rect),  # type: ignore[arg-type]
+                shows=args.shows,
+                recorded=args.recorded,
+                recorded_by=args.recorded_by,
+            )
+            grown = scr.append_context(registry, entry)
+        else:
+            entry = scr.CropRegion(
+                document=args.document,
+                page=args.page,
+                label=args.label,
+                rect=tuple(args.rect),  # type: ignore[arg-type]
+                match=tuple(args.match) if args.match else (args.label,),
+                shows=args.shows,
+                recorded=args.recorded,
+                recorded_by=args.recorded_by,
+            )
+            grown = scr.append(registry, entry)
+        # `append`/`append_context` re-run the whole registry's invariants, so a
+        # duplicate label, a colliding match string or a second context on one
+        # sheet is refused here rather than discovered by a crop that quietly
+        # stopped resolving.
     except (scr.RegistryError, Refused, json.JSONDecodeError) as refusal:
         print(f"refused: {refusal}", file=sys.stderr)
         return 2
@@ -197,9 +226,11 @@ def main(argv: Optional[List[str]] = None,
         return 0
 
     registry_path.write_text(scr.dumps(grown), encoding="utf-8")
-    print(f"recorded {region.label!r} on {region.document} sheet {region.page} "
-          f"-> {registry_path}")
-    print(f"  {len(grown.regions)} region(s) now declared")
+    kind = "context" if args.context else "region"
+    print(f"recorded {kind} {entry.label!r} on {entry.document} sheet "
+          f"{entry.page} -> {registry_path}")
+    print(f"  {len(grown.regions)} region(s) and {len(grown.contexts)} page "
+          f"context(s) now declared")
     print("  rebuild the crops to see it: "
           r"C:\workspace\drawing-checker\venv-win\Scripts\python.exe "
           r"scripts\build_viewer_crops.py --data-root C:\workspace\tolstack\data")

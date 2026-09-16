@@ -303,6 +303,240 @@
     return null;
   };
 
+  // --- does it pass, by how much, and what is missing -----------------------
+  //
+  // Everything below is a LOOKUP over fields the projection already carries.
+  // Nothing here compares a tolerance or computes a margin: the verdict came
+  // out of CheckResult.verdict and the margin out of CheckResult.margin, both
+  // in Python, both against the check's own criterion. This file decides which
+  // words go beside them.
+  //
+  // Until 2026-09-15 the DAG page rendered none of it — a study's verdict was
+  // reachable only through a nested "classic view" row for the one stack a
+  // topology also covers (a row since removed, and this is why:
+  // viewer_nav_wedge_and_classic_retirement), and a study with no covered
+  // stack had nowhere at all to state whether it passed. Jeff's review put it plainly: "None of the
+  // tolerance stacks in the entire page appear to have any kind of roll up that
+  // shows whether the stack passes or fails, or by how much margin."
+
+  // The three things that make a study's answer less than it looks, in the
+  // everyday words Jeff asked for (2026-09-15): no schema field names, no file
+  // paths, nothing a reader has to have read this repo to parse. `loud` is the
+  // whole point — the failure mode being fixed is a page that "omits them
+  // entirely and then fails silently, which is worst of both worlds", so these
+  // are badges, not footnotes.
+  VA.ATTENTION = {
+    unverified: {
+      text: "unverified",
+      title: "Nothing readable stands behind this number — it traces to no " +
+        "drawing or datasheet, or carries no citation at all.",
+    },
+    no_tolerance: {
+      text: "no tolerance recorded",
+      title: "A value with no plus/minus behind it. The spread it feeds is a " +
+        "LOWER bound on the real one, never the real one.",
+    },
+    incomplete: {
+      text: "incomplete",
+      title: "A dimension the joint needs is missing from this chain, so the " +
+        "verdict is about the model, not about the hardware.",
+    },
+  };
+
+  function badge(key) {
+    return { key: key, text: VA.ATTENTION[key].text, title: VA.ATTENTION[key].title };
+  }
+
+  // What ONE row of the grid has to admit about itself. At most two, in
+  // severity order: a number nothing stands behind first, then a number whose
+  // band nobody wrote down. Both are facts the projection already carries per
+  // edge (`confidence`, `zero_width`).
+  VA.edgeAttention = function (edge) {
+    var badges = [];
+    if (!edge) return badges;
+    if (VA.needsAnnotation(edge.confidence)) badges.push(badge("unverified"));
+    if (edge.zero_width) badges.push(badge("no_tolerance"));
+    return badges;
+  };
+
+  // The same question asked of a whole study, plus WHICH rows earned each
+  // answer — a badge that cannot name its rows sends the reader hunting, which
+  // is the subtler half of the same failure.
+  //
+  // The chain is walked through the topology's own edge index rather than read
+  // off the contributions, because confidence and zero-width are properties of
+  // the EDGE and a contribution carries neither.
+  VA.studyAttention = function (study, index) {
+    var chain = (study && study.result && study.result.chain) || [];
+    var out = { unverified: [], noTolerance: [], excluded: [], badges: [] };
+    chain.forEach(function (row) {
+      var edge = index && index.edges ? index.edges[row.edge] : null;
+      if (!edge) return;
+      if (VA.needsAnnotation(edge.confidence)) out.unverified.push(edge.name);
+      if (edge.zero_width) out.noTolerance.push(edge.name);
+    });
+    ((study && study.checks) || []).forEach(function (check) {
+      (check.excluded_terms || []).forEach(function (term) {
+        if (out.excluded.indexOf(term) === -1) out.excluded.push(term);
+      });
+    });
+    if (out.unverified.length) out.badges.push(badge("unverified"));
+    if (out.noTolerance.length) out.badges.push(badge("no_tolerance"));
+    if (out.excluded.length) out.badges.push(badge("incomplete"));
+    return out;
+  };
+
+  // The lower-bound sentence, or null where no row in the chain earned it
+  // (deliverable 3). Plain words, and it NAMES the rows: "two of them" leaves a
+  // reader scrolling a 43-row grid looking for which two.
+  VA.zeroWidthWarning = function (attention) {
+    var rows = (attention && attention.noTolerance) || [];
+    if (!rows.length) return null;
+    return rows.length + (rows.length === 1 ? " dimension" : " dimensions") +
+      " in this chain " + (rows.length === 1 ? "has" : "have") +
+      " no tolerance recorded, so the worst-case spread above is a LOWER " +
+      "bound, not the real one: " + rows.join("; ") + ".";
+  };
+
+  // One check, as the strip renders it. `margin` is `CheckResult.margin` — the
+  // signed worst-case distance to the criterion, computed in Python beside the
+  // verdict it agrees with — printed verbatim, sign and all. There is no
+  // absolute value taken and no comparison made here; "by how much" is a number
+  // this file received, not one it worked out.
+  VA.studyCheckRow = function (check) {
+    var known = VA.VERDICTS[check && check.verdict];
+    var scope = VA.VERDICT_SCOPES[check && check.verdict_scope];
+    return {
+      checkId: check.check_id,
+      label: check.label,
+      verdict: check.verdict,
+      says: known ? known.says : VA.unlabelledVerdictText(check.verdict),
+      title: known ? known.title : VA.unlabelledVerdictText(check.verdict),
+      // "margin +11.1435 mm at worst case" — the words a reader asked for
+      // ("or by how much margin"), against the number Python signed.
+      marginText: "margin " + (typeof check.margin === "number"
+        ? (check.margin > 0 ? "+" : "") + VA.fmt(check.margin)
+        : "—") + " " + check.units + " at worst case",
+      criterion: check.criterion,
+      incomplete: check.complete === false,
+      scopeChip: scope ? scope.chip : "SCOPE UNKNOWN",
+      scopeTitle: scope ? scope.title
+        : VA.unlabelledVerdictScopeText(check && check.verdict_scope),
+      excludedTerms: (check.excluded_terms || []).slice(),
+      guidance: check.guidance || null,
+    };
+  };
+
+  // The one-badge answer for a study, for the nav row and the head of the
+  // totals strip. `state` is a verdict word, or one of the two states a verdict
+  // cannot express:
+  //
+  //   "none"   no pass/fail criterion has been recorded for this study yet.
+  //            Five of the live studies are here (recounted in
+  //            review/viewer_study_verdicts_and_gaps: 21 studies, 5 with
+  //            `checks: []` and 16 carrying 18 checks between them -- the
+  //            handoff's own "13 / 6" was stale in both terms), and rendering
+  //            them blank is what made the page look like it had no verdicts
+  //            at all.
+  //   "error"  the study does not sum (BranchAmbiguity and friends). Its own
+  //            error block says why; this only keeps the badge honest.
+  VA.studyVerdict = function (study) {
+    if (!study) return null;
+    if (study.status !== "ok") {
+      return { state: "error", word: "does not sum", says: null,
+               title: "This study raises rather than summing — see the study " +
+                 "itself for which fork or which missing edge stopped it.",
+               incomplete: false, checks: [] };
+    }
+    var checks = (study.checks || []).map(VA.studyCheckRow);
+    if (!checks.length) {
+      return { state: "none", word: "no pass/fail criterion recorded yet",
+               says: null,
+               title: "This study sums, and nobody has yet written down what " +
+                 "the total has to be for the joint to be acceptable. The " +
+                 "totals below are the answer; whether they are good enough " +
+                 "is not recorded.",
+               incomplete: false, checks: [] };
+    }
+    var worst = VA.worstVerdict(study.checks);
+    var lead = checks.filter(function (row) { return row.verdict === worst; })[0]
+      || checks[0];
+    return {
+      state: worst || "unknown",
+      word: lead.verdict,
+      says: lead.says,
+      title: lead.title,
+      marginText: lead.marginText,
+      // Never a bare verdict where a term is missing: "fail" on an incomplete
+      // chain is true of the model and false of the hardware, and that is the
+      // one misreading this repo exists to prevent.
+      incomplete: checks.some(function (row) { return row.incomplete; }),
+      checks: checks,
+    };
+  };
+
+  // --- what is missing ------------------------------------------------------
+
+  // What each kind of gap IS and what would close it, in plain words. The
+  // hand-copy of scripts/build_topology_projection.py's TOPOLOGY_GAP_KINDS,
+  // paired word for word by tests/test_topology_projection.py — the projection
+  // writes the kind and the text, this table writes the heading and the way
+  // out, and neither side restates the other.
+  VA.GAP_KINDS = {
+    excluded_from_model: {
+      heading: "Left out of the chain",
+      closes: "Find a document that gives this dimension, add it to the chain, " +
+        "and the verdict above stops being a budget and becomes an answer " +
+        "about the joint.",
+    },
+    unverified_value: {
+      heading: "Numbers with nothing behind them",
+      closes: "Find the drawing callout or datasheet line that states the " +
+        "dimension, and cite it on the row.",
+    },
+    no_tolerance_recorded: {
+      heading: "Dimensions with no tolerance",
+      closes: "Find the plus/minus on the drawing. Until then every spread " +
+        "these feed is a lower bound.",
+    },
+    hardware_entry: {
+      heading: "Open questions about the hardware",
+      closes: "Each is a question recorded against a part when it was " +
+        "transcribed; closing one takes a source for what it asks about.",
+    },
+  };
+
+  VA.unlabelledGapKindText = function (kind) {
+    return "This page has no words for a gap of kind " +
+      JSON.stringify(kind === undefined ? null : kind) +
+      ", so what it is and what would close it are NOT shown here.";
+  };
+
+  // The gap list, grouped by kind in VA.GAP_KINDS' own order — worst first,
+  // the same rule the builder orders its rows by — so the panel reads as four
+  // answerable questions rather than as 38 lines. A kind with no rows is not a
+  // group; a kind this page has never heard of gets a loud one of its own
+  // rather than being dropped.
+  VA.topologyGapGroups = function (topoProj) {
+    var gaps = (topoProj && topoProj.gaps) || [];
+    var order = Object.keys(VA.GAP_KINDS);
+    var byKind = {};
+    gaps.forEach(function (gap) {
+      (byKind[gap.kind] = byKind[gap.kind] || []).push(gap);
+      if (order.indexOf(gap.kind) === -1) order.push(gap.kind);
+    });
+    return order.filter(function (kind) { return byKind[kind]; })
+      .map(function (kind) {
+        var known = VA.GAP_KINDS[kind];
+        return {
+          kind: kind,
+          heading: known ? known.heading : "Gaps this page cannot describe",
+          closes: known ? known.closes : VA.unlabelledGapKindText(kind),
+          gaps: byKind[kind],
+        };
+      });
+  };
+
   // --- the rail geometry ---------------------------------------------------
 
   //: Row height, column pitch and the left margin, in CSS pixels. One object so
@@ -918,6 +1152,47 @@
     return a === undefined ? 1 : a;
   };
 
+  // How opaque each LINK of a frame is -- the one drawn thing the keyed store
+  // above cannot answer for, and the one the column unfold cannot cover
+  // either.
+  //
+  // A link belongs to a PAIR of columns, so it is not a keyed row and cannot
+  // be in the store's alpha map. Where the two serialisations differ by their
+  // COLUMN COUNT that costs nothing: a link a respine adds arrives on a column
+  // the respine also adds, and the unfold (VA.respineX) draws it on top of a
+  // rail the outgoing frame really drew. A link on a column BOTH sides have is
+  // the case with nothing behind it -- a loop closure present in one
+  // serialisation and not in the other would be drawn at full opacity from the
+  // first frame, on a rail that never moves
+  // (ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_has_
+  // no_fade). So a link carries an opacity of its own, keyed on VA.linkKey --
+  // its two ENDS' elements, the same element-by-element pairing the store uses
+  // for a row.
+  //
+  //   links  this frame's drawn links (VA.railGeometry's, each with a `key`)
+  //   from   the alphas the PREVIOUS paint drew, `{ key: alpha }` -- this
+  //          function's own output, recorded by the render. Absent means no
+  //          transition: everything is opaque.
+  //   e      the eased fraction.
+  //
+  // A link the previous frame did not draw starts at 0 and reaches 1 at e = 1;
+  // one it drew part-way in continues from exactly that, so an interrupted
+  // respine does not restart a fade or snap it to full. Rails need no
+  // equivalent: a rail belongs to a column, every column both serialisations
+  // have has a rail on both sides, and the only rails a respine adds are the
+  // ones the unfold already covers.
+  VA.linkOpacity = function (links, from, e) {
+    var t = !(e > 0) ? 0 : (e > 1 ? 1 : e);
+    var out = {};
+    (links || []).forEach(function (link) {
+      if (!from) { out[link.key] = 1; return; }
+      var prev = from[link.key];
+      if (!(prev >= 0)) prev = 0;
+      out[link.key] = prev + (1 - prev) * t;
+    });
+    return out;
+  };
+
   // The horizontal part of a respine: an interpolation of the DRAWN LAYOUT,
   // not a slide of the finished picture.
   //
@@ -931,19 +1206,36 @@
   // What the two frames DO agree about is depth from the spine: both are
   // right-justified (viewer_dag_spine_layout), so the mainline is the last
   // column of either and a fork sits the same number of columns in from it on
-  // both sides. So the thing to interpolate is the COLUMN COUNT. At `e` the
-  // frame is drawn with lerp(fromColumns, toColumns) columns' worth of
-  // spread, which puts every surviving rail exactly where the outgoing frame
-  // drew it at e = 0 and exactly where a fresh render draws it at e = 1, and
-  // UNFOLDS the columns a respine adds out of the spine rather than sliding
-  // them in from a place they never were.
+  // both sides. So a column is PAIRED BY DEPTH and its drawn index is
+  // interpolated between the two ends of that pairing -- exactly what
+  // VA.tweenPositions does for a row's y, one level down from the element the
+  // store keys on. Every surviving rail is therefore drawn precisely where
+  // the outgoing frame drew it at e = 0 and precisely where a fresh render
+  // draws it at e = 1, and a column the respine ADDS (one whose depth the
+  // outgoing frame had no rail at) UNFOLDS out of the OUTGOING FRAME'S
+  // LEFTMOST RAIL rather than arriving from a place it never was.
   //
-  //   columnShift  how many columns' worth of spread this frame is short of
-  //                the target's (negative when the target is the narrower
-  //                one). A drawn column index is max(0, column -
-  //                columnShift), and the clamp is what collapses a
-  //                not-yet-unfolded column onto the leftmost rail instead of
-  //                drawing it left of the pane.
+  //   columnShift  how many columns' worth of spread the OUTGOING frame was
+  //                short of the target's (negative when the target is the
+  //                narrower one). It does not decay with `t`: the decay is in
+  //                the interpolation VA.drawnColumn does, which is the one
+  //                place a drawn column index is computed.
+  //   floor        the outgoing frame's LEFTMOST drawn column index, which is
+  //                the rail a column it had no rail for unfolds out of. It is
+  //                what makes the unfold claim hold from a TRANSITION frame
+  //                and not only from a settled one. Assuming 0 instead --
+  //                which every settled frame does have a rail at, and a frame
+  //                caught mid-unfold does not -- was the defect: interrupting
+  //                a select of a 1-column chain out of a 10-column walk at
+  //                e = 0.5 left the spine at drawn index 4.5 with nothing to
+  //                its left, and the deselect's own first frame popped nine
+  //                rails in at x = 15..85 where the frame it continued from
+  //                had drawn nothing at all
+  //                (ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_
+  //                from_nowhere).
+  //   t            the clamped, already-eased fraction, because the
+  //                interpolation above is per column rather than one shift
+  //                applied to all of them.
   //   width        the SVG's own width this frame, which is the grid's left
   //                edge: lerp(fromWidth, toWidth). The jog zone's width is a
   //                function of the LEADER count, which the two serialisations
@@ -961,9 +1253,12 @@
   // behind the pane's edge
   // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_block_slides).
   //
-  // `from` is the previous paint's own `{ columns, width }` -- fractional
-  // mid-flight, because VA.lastTopoRender records what a frame DREW, so a
-  // respine interrupting a respine continues from the picture on screen.
+  // `from` is the previous paint's own `{ columns, width, floor }` --
+  // fractional mid-flight, because VA.lastTopoRender records what a frame
+  // DREW, so a respine interrupting a respine continues from the picture on
+  // screen. A `from` with no `floor` (a settled frame, or a caller that
+  // predates it) reads as 0, which is what a settled frame's leftmost drawn
+  // column index always is.
   VA.respineX = function (layout, plan, metrics, from, e, zoneScale) {
     metrics = metrics || VA.RAIL_METRICS;
     if (!from || !(from.columns > 0) || !(from.width > 0)) return null;
@@ -971,16 +1266,36 @@
     if (!(zone.columns > 0) || !(zone.width > 0)) return null;
     var t = !(e > 0) ? 0 : (e > 1 ? 1 : e);
     return {
-      columnShift: (1 - t) * (zone.columns - from.columns),
+      columnShift: zone.columns - from.columns,
+      floor: from.floor > 0 ? from.floor : 0,
+      t: t,
       width: zone.width + (1 - t) * (from.width - zone.width),
     };
+  };
+
+  // The drawn column index a layout column lands on this frame: between the
+  // index the OUTGOING frame drew that column's depth at -- its own leftmost
+  // rail, for a depth it had no rail at -- and the index the target draws it
+  // at, which is the column itself.
+  //
+  // One expression, so there is one place a drawn column index is computed
+  // and one place it can be wrong. It is monotone in `t` per column by
+  // construction, which is the property that keeps an unfold from reading as
+  // a wobble: a rail moves one way for the whole flight, even when the fold
+  // point it leaves is itself travelling (an interrupted respine's is).
+  // Exported because the render has to record the leftmost index it actually
+  // drew (VA.lastTopoRender.floor, the next frame's `from.floor`).
+  VA.drawnColumn = function (column, x) {
+    if (!x) return column;
+    return (1 - x.t) * Math.max(x.floor, column - x.columnShift) +
+      x.t * column;
   };
 
   // A drawn column's x. Total, so every geometry site reads one function
   // whether a transition is running or not -- a rail, its marks and either
   // end of a link that touches it cannot end up drawn at different x's.
   function columnX(column, metrics, x) {
-    return VA.railX(x ? Math.max(0, column - x.columnShift) : column, metrics);
+    return VA.railX(VA.drawnColumn(column, x), metrics);
   }
 
   // --- the spine on the right (viewer_dag_spine_layout, 2026-09-14) -------
@@ -1121,6 +1436,7 @@
         kind: link.kind,
         row: link.row,
         toRow: link.to_row,
+        key: VA.linkKey(layout, link),
         d: link.kind === "branch"
           ? branchPath(link, metrics, slotY, x)
           : closePath(link, metrics, slotY, x),
@@ -1128,6 +1444,40 @@
     });
     return out;
   };
+
+  // A link's identity across the two serialisations, for the one question a
+  // column index cannot answer: did the OTHER frame draw this link?
+  //
+  // Built out of the ELEMENTS at the link's two ends, because a column index
+  // is not comparable between a walk and a chain (VA.respineX says why) while
+  // a node or an edge id is the same element on both sides -- the same pairing
+  // VA.tweenPositions makes for a row.
+  //
+  // A `close` link's two ends are two different rows -- the closing edge, and
+  // the node it lands back on -- so those two elements name it outright. A
+  // `branch` link's are NOT: its `row` and `to_row` are the same fork row, and
+  // a fork that opens two branches emits two links differing only in
+  // `to_column`. What tells those apart is where each one LANDS, so the second
+  // half of a branch's key is the first row on the new column below the fork.
+  VA.linkKey = function (layout, link) {
+    var rows = (layout && layout.rows) || [];
+    var tail = link.kind === "branch"
+      ? firstRowOnColumn(rows, link.to_column, link.row)
+      : rows[link.to_row];
+    return "link|" + link.kind + "|" + rowElementKey(rows[link.row]) +
+      "|" + rowElementKey(tail);
+  };
+
+  function rowElementKey(row) {
+    return row ? slotKey(row.kind, row.id) : "?";
+  }
+
+  function firstRowOnColumn(rows, column, after) {
+    for (var i = after + 1; i < rows.length; i++) {
+      if (rows[i] && rows[i].column === column) return rows[i];
+    }
+    return null;
+  }
 
   // A fan-out at a fork: out of the node's dot, across to the new column, down
   // into the rail that starts there. Half a row tall, like git log's — and a
@@ -1202,73 +1552,200 @@
     return internal;
   };
 
-  // The label a component group's merged cell prints. The part id, not the
-  // long prose name — the name rides on the cell's hover title instead
-  // (componentTitle below). A gap has no part and says what it is in the
-  // words the old per-row part cell already used.
+  // The label a component group's merged cell prints: the part's own HUMAN
+  // NAME. It printed the part id until 2026-09-15 (`bolt_nas6403u11d`), with
+  // the name demoted to hover, because a live part name ran to eighty
+  // characters and would not fit a 150px cell. The 2026-09-14 title pass took
+  // that reason away for titles, and this handoff took it away for part names
+  // too -- every live `name` is now a short noun phrase (Jeff: "replace these
+  // with a concise human friendly name (NAS6403U11D Shoulder Bolt is fine)").
+  //
+  // An id is not a label. It is a deep-link handle and a debugging aid, and it
+  // is rendered nowhere a reader looks now: not the merged cell, not the
+  // preview pane's heading, not a hover card's heading, not an interface's
+  // side list. A part with no `name` at all falls back to its id rather than
+  // to an empty cell -- absent is absent, but a blank component column would
+  // be a worse lie than a raw id.
+  //
+  // A gap has no part and says what it is in the words the old per-row part
+  // cell already used.
   VA.GAP_COMPONENT_LABEL = "— across a clearance —";
+
+  VA.componentLabel = function (part) {
+    if (!part) return VA.GAP_COMPONENT_LABEL;
+    return part.name || part.id;
+  };
 
   VA.componentTitle = function (part) {
     if (!part) return "a gap: its two interfaces share no part";
-    var text = part.name || part.id;
+    var text = VA.componentLabel(part);
     if (part.drawing) text += " · drawing " + part.drawing;
     return text;
   };
 
-  // --- the element cell drops its own component's name ---------------------
+  // --- the element cell drops what the rest of the row already says --------
   //
   // Jeff, 2026-09-14: "nearly every row in the 'element' column starts with
   // the same phrase as the 'component' column to the left, which then robs a
   // bunch of the limited space, and then the meaningful content gets
   // truncated" -- under component `blade_root`, three rows all rendered
-  // "blade-root clocking holes to th...". The prefix is saying, in the
-  // narrowest column on the page, exactly what the merged cell immediately
-  // left of it already says once for the whole group.
+  // "blade-root clocking holes to th...". And again on 2026-09-15, wider:
+  // "the element column can just say 'grip length' (for the bolt) or 'length'
+  // for the plain bushing. The component's description and part number don't
+  // need to be repeated in every column."
+  //
+  // So two reductions, not one, and both are ONE FACT SAID ONCE PER ROW:
+  //
+  //   1. a whole CLAUSE that only restates the component (", NAS6403U11D",
+  //      "(214820-002)") or only restates the row's own value ("(.688 in)" --
+  //      the row has three number columns) is dropped, with its separator;
+  //   2. then any LEADING WORDS the component cell already carries are
+  //      dropped off the front ("plain bushing length" -> "length").
   //
   // DISPLAY ONLY. This never touches the document, the projection or any
   // value: the full label still rides on the cell's own hover title and is
-  // what the detail pane prints, so nothing a reader can cite has been
-  // shortened. A label that does not open with its component's name comes
-  // back unchanged, and a label that is ONLY its component's name comes back
-  // unchanged too -- an empty element cell would be a worse lie than a
-  // repetitive one.
+  // what the preview pane prints, so nothing a reader can cite has been
+  // shortened. Nothing is reworded or reordered either -- every character of
+  // the output is a character of the input, in the input's order, which is
+  // what lets this be applied to authored prose without becoming an author.
+  // (Whether the authored `name` fields should themselves be shortened is
+  // ISSUE_20260914_element_and_edge_names_are_not_under_the_title_rule.md --
+  // an authoring question this display rule deliberately does not pre-empt.)
   //
-  // The match is on WORDS, case- and separator-insensitive, so `blade_root`
-  // (what the merged cell prints) catches "blade-root clocking holes" and
-  // "Blade Root seat" alike, and never catches a word that merely starts the
-  // same way ("blade_root" must not eat "blade_rooting_torque"). It is made
-  // against the component cell's own text -- the part id -- because that is
-  // the repetition being removed; a part's prose `name` lives on the cell's
-  // hover card and was never in the element column to begin with.
+  // Guards, each one a case off the five live topologies:
+  //   * a label with nothing to drop comes back unchanged, character for
+  //     character (pinned in apps/viewer/tests.js by walking the output's
+  //     characters against the input's, on the fixture and on every live row);
+  //   * a label that is ONLY its component's words comes back unchanged -- an
+  //     empty element cell would be a worse lie than a repetitive one;
+  //   * only LEADING words are dropped by rule 2, never words inside a
+  //     phrase: "cotter-hole centreline to bolt point", under a component
+  //     whose name contains "bolt", must not become "... to point";
+  //   * a clause is dropped only when EVERY token in it is already-said, so
+  //     "(A datum)", "(5X group)" and "(dimension M)" all survive;
+  //   * the component's words match whole and case/separator-insensitively,
+  //     so `NAS6403 grip-selection family` never eats `NAS6403U2H` -- the
+  //     dash number is the only thing separating that topology's nine rows
+  //     from each other.
   function labelWords(text) {
     return String(text === null || text === undefined ? "" : text)
-      .toLowerCase().split(/[\s\-_]+/).filter(Boolean);
+      .toLowerCase().split(/[\s\-_/,;:()[\]]+/).filter(Boolean);
   }
 
-  VA.elementDisplayLabel = function (label, componentLabel) {
+  // A unit says nothing the row's own number columns do not. A module-level
+  // vocabulary, never inline literals (repo rule): these words are read by
+  // the clause test below and by the test that pins the rule.
+  VA.LABEL_UNIT_WORDS = Object.freeze(["in", "in.", "inch", "inches",
+    "mm", "deg", "degree", "degrees", "rad", "radians"]);
+
+  function isNumberWord(word) {
+    return /^[+\-±]?[0-9]*\.?[0-9]+$/.test(word);
+  }
+
+  // The words the component cell to the left of this row actually PRINTS --
+  // its label and nothing else. Not the id and not the drawing: the whole
+  // justification for dropping a word is "the cell beside it already says
+  // this", so matching against a string the cell does not show would drop
+  // words the reader never saw twice ("bushing flange thickness" under a cell
+  // reading "part not identified", whose id happens to be
+  // `flanged_bushing_unidentified`). Accepts the projected part row, or a
+  // bare string -- which is the part id, the cell's own text until this
+  // handoff, and still what a caller with only an id on hand can pass.
+  function componentWords(part) {
+    if (!part) return [];
+    return labelWords(typeof part === "string" ? part : VA.componentLabel(part));
+  }
+
+  // The label split into (separator, clause) segments, on commas, semicolons,
+  // dashes, middots and bracketed groups. Concatenating every segment
+  // reproduces the input exactly -- which is what lets one clause be dropped
+  // without rewriting the ones around it, and a separator therefore travels
+  // with the clause that FOLLOWS it.
+  function labelSegments(text) {
+    var segments = [];
+    var re = /(\s*(?:,|;|--|—|·)\s*)|(\([^)]*\)|\[[^\]]*\])/g;
+    var sep = "";
+    var buf = "";
+    var at = 0;
+    var m;
+    var flush = function (nextSep) {
+      if (buf) segments.push({ sep: sep, text: buf });
+      sep = nextSep;
+      buf = "";
+    };
+    while ((m = re.exec(text)) !== null) {
+      buf += text.slice(at, m.index);
+      at = re.lastIndex;
+      if (m[1] !== undefined) {
+        flush(m[1]);
+        continue;
+      }
+      // A bracketed group is a clause of its own; the whitespace in front of
+      // it becomes that clause's separator, so dropping it takes the space.
+      var lead = /\s*$/.exec(buf)[0];
+      buf = buf.slice(0, buf.length - lead.length);
+      flush(lead);
+      buf = m[2];
+      flush("");
+    }
+    buf += text.slice(at);
+    flush("");
+    return segments;
+  }
+
+  VA.elementDisplayLabel = function (label, part) {
     var text = String(label === null || label === undefined ? "" : label);
-    var component = labelWords(componentLabel);
-    if (!component.length) return text;
-    var words = labelWords(text);
-    if (words.length <= component.length) return text;
-    for (var i = 0; i < component.length; i++) {
-      if (words[i] !== component[i]) return text;
+    var component = componentWords(part);
+    var said = {};
+    component.forEach(function (word) { said[word] = true; });
+
+    // 1. the clauses that say nothing the rest of the row does not.
+    var kept = labelSegments(text).filter(function (segment) {
+      var words = labelWords(segment.text);
+      if (!words.length) return true;
+      return !words.every(function (word) {
+        return said[word] === true || isNumberWord(word) ||
+          VA.LABEL_UNIT_WORDS.indexOf(word) !== -1;
+      });
+    });
+    var out = kept.map(function (segment, index) {
+      return (index === 0 ? "" : segment.sep) + segment.text;
+    }).join("").trim();
+    if (!out) return text;
+
+    // 2. the leading words the component cell already carries.
+    //
+    // Consumed greedily word by word, but a cut is only TAKEN where it lands
+    // on a whitespace boundary or where the run has covered the component's
+    // whole name. That second clause is what keeps `blade_root` off
+    // "blade_rooting torque" -- one hyphen- or underscore-joined token is one
+    // word to a reader, so cutting inside one is only safe when the thing cut
+    // off is unmistakably the component's own name and not the front half of a
+    // longer word. (The first clause is what lets "blade-root clocking holes"
+    // lose both its words under a component cell reading "blade root".)
+    if (!component.length) return out;
+    var wanted = component.length;
+    var covered = {};
+    var coveredCount = 0;
+    var cut = 0;                 // characters consumed by the best cut so far
+    var at = 0;
+    for (;;) {
+      var head = /^[\s\-_/]*([^\s\-_/,;:()[\]]+)/.exec(out.slice(at));
+      if (!head) break;
+      var word = head[1].toLowerCase();
+      if (said[word] !== true) break;
+      at += head[0].length;
+      if (covered[word] !== true) { covered[word] = true; coveredCount += 1; }
+      var boundary = at >= out.length || /^\s/.test(out.slice(at));
+      if (!boundary && coveredCount < wanted) continue;
+      // Never leave the cell empty: a repetitive label beats a blank one.
+      if (labelWords(out.slice(at)).length) cut = at;
     }
-    // Consume exactly that many words off the ORIGINAL string, so whatever
-    // separators and capitalisation the rest of the label uses survive.
-    var rest = text;
-    for (var j = 0; j < component.length; j++) {
-      var m = /^[\s\-_]*[^\s\-_]+/.exec(rest);
-      if (!m) return text;
-      rest = rest.slice(m[0].length);
-    }
-    rest = rest.replace(/^[\s\-_]+/, "");
-    return rest || text;
+    return cut ? out.slice(cut).replace(/^[\s\-_/]+/, "") || out : out;
   };
 
-  // The whole plan of the merged-row grid, from one serialisation (a
-  // topology's whole-graph walk or a study's chain — both carry the same row
-  // shape). Everything the grid and the leaders need, keyed by id:
+  // The whole plan of the merged-row grid, from the topology's whole-graph
+  // walk. Everything the grid and the leaders need, keyed by id:
   //
   //   rows     [{ id, layoutRow, gridRow }]      one per edge, walk order
   //   groups   [{ part, label, title, start, count }]   contiguous runs
@@ -1291,10 +1768,26 @@
   // last). `beforeEdge` is the edge id whose row starts at that seam, or null
   // at the very bottom — it is what lets a browser test measure the leader's
   // end against the actual row box rather than re-deriving arithmetic.
-  VA.gridPlan = function (layout, topoProj) {
+  //
+  // `focus` (viewer_respine_whole_walk, 2026-09-15) is how a selected study
+  // reaches this grid, and it restricts the TABLE only — never the rails. The
+  // DAG is always the whole walk now, so `layout` is always the topology's
+  // own; a study selection passes
+  //
+  //   { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) }
+  //
+  // and the walk is filtered through it on the way in: an edge outside the
+  // chain emits no grid row, a node outside it no leader. Everything after
+  // that filter is the walk-order logic unchanged — the kept rows stay in
+  // WALK order (the sum's own order is the `#` column, VA.chainIndex's
+  // ordinal), because a table re-ordered under a DAG that did not move would
+  // cross every leader on the page. No focus is the whole walk, unchanged.
+  VA.gridPlan = function (layout, topoProj, focus) {
     var index = VA.topologyIndex(topoProj);
     var internal = VA.internalNodes(topoProj);
     var partsById = index.parts;
+    var focusEdges = (focus && focus.edges) || null;
+    var focusNodes = (focus && focus.nodes) || null;
 
     var rows = [];
     var groups = [];
@@ -1304,7 +1797,7 @@
 
     ((layout && layout.rows) || []).forEach(function (row) {
       if (row.kind === "node") {
-        if (!internal[row.id]) {
+        if (!internal[row.id] && (!focusNodes || focusNodes[row.id])) {
           pendingBoundaryNode = row.id;
           leaders.push({
             id: row.id,
@@ -1316,15 +1809,20 @@
         return;
       }
       if (row.kind !== "edge") return;
+      // A dropped edge leaves `prevPart` and `pendingBoundaryNode` alone, so a
+      // leader waiting for a seam binds to the next row the grid actually
+      // keeps and a group break still lands where the part really changes.
+      if (focusEdges && !focusEdges[row.id]) return;
       var edge = index.edges[row.id] || null;
       var part = edge && edge.part !== undefined ? edge.part : null;
       var breakHere = rows.length === 0 || part !== prevPart ||
         pendingBoundaryNode !== null;
       if (breakHere) {
+        var partRow = part === null ? null : partsById[part] || { id: part };
         groups.push({
           part: part,
-          label: part === null ? VA.GAP_COMPONENT_LABEL : String(part),
-          title: VA.componentTitle(part === null ? null : partsById[part] || { id: part }),
+          label: VA.componentLabel(partRow),
+          title: VA.componentTitle(partRow),
           start: rows.length,
           count: 0,
         });
@@ -1676,7 +2174,7 @@
     return seg.join(" ");
   }
 
-  // --- loose stacks: what the topology page absorbs the stack viewer for ---
+  // --- loose stacks: the systems this page shows as a table, not a graph ---
   //
   // Most stacks in docs/tolerance_stacks/ have no topology document at all —
   // topology is opt-in per system, and re-expressing a stack as a graph is
@@ -1685,17 +2183,22 @@
   // also has to offer every stack NO topology re-expresses, rendered exactly
   // as the stack viewer rendered it (views/stack.js, unchanged).
   //
-  // Which stacks those are is read off the data already on hand, not a new
+  // A stack a topology DOES re-express is offered as that topology, and
+  // nowhere else (viewer_nav_wedge_and_classic_retirement, 2026-09-15): the
+  // graph states every verdict, gap, excluded term and missing tolerance the
+  // table stated, so a second entry for the same joint is a second notation
+  // for the same facts. views/nav.js's own header carries the case.
+  //
+  // Which stacks are covered is read off the data already on hand, not a new
   // field: an edge that re-expresses a stack element carries `crop_key`
-  // (`{stack, element}`), and that IS the linkage — the one committed L1 stack
-  // covered by a topology is exactly the one every one of its edges' crop_keys
-  // names. No schema change, no second source of truth.
+  // (`{stack, element}`), and that IS the linkage — a stack covered by a
+  // topology is exactly the one every one of its edges' crop_keys names. No
+  // schema change, no second source of truth.
   //
   // The stack ids ONE topology's own edges re-express, first-seen order, no
-  // duplicates. Shared by VA.stacksCoveredByTopology (a flat "is this stack
-  // covered by ANY topology" map) and VA.navTree (which needs to know covered
-  // BY WHICH topology, to nest the stack under it) so the `crop_key.stack`
-  // extraction lives in exactly one place.
+  // duplicates. The per-topology shape is what the flat "is this stack covered
+  // by ANY topology" map (VA.stacksCoveredByTopology) is folded from, so the
+  // `crop_key.stack` extraction lives in exactly one place.
   VA.topologyCoveredStackIds = function (topology) {
     var seen = {};
     var ids = [];
@@ -1717,24 +2220,78 @@
     return covered;
   };
 
+  // Stacks the page does not offer, and what replaced each one. A superseded
+  // first pass is kept on disk forever — it is history, and it is the document
+  // the take that replaced it was read against — but a rail where every other
+  // entry is live work is not where it belongs, and two near-identical titles
+  // one above the other is a reader's problem, not an archive's
+  // (viewer_nav_wedge_and_classic_retirement, 2026-09-15).
+  //
+  // A map rather than a list, and a module-level constant rather than an id
+  // spelled at a call site: the value names the artifact that supersedes the
+  // key, so the claim is checkable — tests/test_topology_conversions.py's
+  // coverage section pins that every successor named here really exists.
+  //
+  // `tan_link_to_pitch_plate` (take 1) is the only entry. It has no topology
+  // and never will: its checks mix a `path` term with individually-signed
+  // elements, which docs/DAG_TOPOLOGY.md fences rather than converts (the
+  // fence itself is pinned by test_tan_link_to_pitch_plate_take_1_has_no_
+  // topology), so take 2 is the only reachable form of that joint.
+  VA.SUPERSEDED_STACKS = {
+    tan_link_to_pitch_plate: "tan_link_to_pitch_plate_take2",
+  };
+
+  // Every stack the page offers as a table: no topology re-expresses it, and
+  // nothing supersedes it. `hasOwnProperty` rather than a truthiness test — a
+  // stack id that collided with an Object.prototype member would otherwise
+  // read as superseded and vanish from the nav with no trace of why.
   VA.looseStacks = function (topologies, results) {
     var covered = VA.stacksCoveredByTopology(topologies);
     return ((results && results.stacks) || []).filter(function (s) {
-      return !covered[s.id];
+      return !covered[s.id] &&
+        !Object.prototype.hasOwnProperty.call(VA.SUPERSEDED_STACKS, s.id);
     });
   };
 
-  // --- the single nav tree: one topology -> its studies (+ any stack it also
-  // covers, nested rather than hidden) -> and every classic-only stack as a
-  // leaf of the same tree (viewer_v2_single_nav, 2026-09-08). views/nav.js
-  // renders this; nothing here touches the DOM.
+  // Which projection's worksheet a topology's page offers: the topology's own
+  // if it declares one, otherwise the worksheet of a stack it re-expresses
+  // (deliverable 2, viewer_nav_wedge_and_classic_retirement).
+  //
+  // This exists BECAUSE the nested stack row is gone. Three of the four
+  // converted stacks carry an authored WORKSHEET_*.md and their topologies
+  // declare none -- the naming convention pairs `stack_X.json` with
+  // `WORKSHEET_X.md`, and a topology is a different file name -- so the only
+  // way to those three sheets was the row that has just been removed. Dropping
+  // it without this would have made authored prose silently unreachable, which
+  // is the one thing the row was genuinely still good for.
+  //
+  // Nothing is derived and nothing is copied: it returns a projection, and
+  // views/worksheet.js reads `worksheet_file`/`worksheet_source` off whichever
+  // one it is handed. A topology with neither comes back as itself, so the
+  // pane's "no worksheet for this" branch is reached exactly as before.
+  VA.worksheetSubject = function (topology, results) {
+    if (!topology) return null;
+    if (topology.worksheet_file) return topology;
+    var ids = VA.topologyCoveredStackIds(topology);
+    for (var i = 0; i < ids.length; i++) {
+      var stackProj = VA.findStack(results, ids[i]);
+      if (stackProj && stackProj.worksheet_file) return stackProj;
+    }
+    return topology;
+  };
+
+  // --- the single nav tree: one topology -> its studies, and every stack no
+  // topology re-expresses as a leaf of the same tree (viewer_v2_single_nav,
+  // 2026-09-08). One system, one entry: a topology carries no stack child rows
+  // (viewer_nav_wedge_and_classic_retirement, 2026-09-15 — views/nav.js's
+  // header has the case). views/nav.js renders this; nothing here touches the
+  // DOM.
   VA.navTree = function (topologies, results) {
-    var stacksById = {};
-    ((results && results.stacks) || []).forEach(function (s) { stacksById[s.id] = s; });
     var topoNodes = ((topologies && topologies.topologies) || []).map(function (t) {
-      var coveredStacks = VA.topologyCoveredStackIds(t)
-        .map(function (id) { return stacksById[id]; })
-        .filter(Boolean);
+      // One index per topology, not one per study: VA.studyAttention resolves
+      // each chain row to its edge, and rebuilding the index inside the map
+      // would walk this topology's edges once per study.
+      var index = VA.topologyIndex(t);
       return {
         id: t.id,
         title: t.title,
@@ -1744,9 +2301,15 @@
         description: t.description || null,
         studies: (t.studies || []).map(function (s) {
           return { id: s.id, title: s.title, status: s.status,
-                   description: s.description || null };
+                   description: s.description || null,
+                   // Does it pass, and is there anything about the answer a
+                   // reader must not miss — on the rail itself, so the shape of
+                   // the whole document is readable without clicking through
+                   // twenty studies one at a time
+                   // (viewer_study_verdicts_and_gaps, deliverable 1).
+                   verdict: VA.studyVerdict(s),
+                   attention: VA.studyAttention(s, index) };
         }),
-        coveredStacks: coveredStacks,
       };
     });
     return { topologies: topoNodes, looseStacks: VA.looseStacks(topologies, results) };
@@ -1780,6 +2343,13 @@
       title: edge.name,
       id: edge.id,
       part: edge.part || null,
+      // The part in a reader's words, never its id (VA.componentLabel). `part`
+      // above stays the id: it is what the annotate deep link carries and what
+      // a test addresses a row by, and those are not reading surfaces.
+      partLabel: edge.part
+        ? VA.componentLabel(VA.topologyIndex(topoProj).parts[edge.part] ||
+            { id: edge.part })
+        : null,
       confidence: edge.confidence,
       citation: (edge.dimension && edge.dimension.source_ref) || null,
       crops: [],
@@ -1814,6 +2384,79 @@
     return card;
   };
 
+  // --- what a part with no drawing of its own is sourced FROM ---------------
+  //
+  // Jeff, 2026-09-15, on the component card for a COTS fastener: "'no drawing
+  // recorded for this part' on a COTS fastener -- wrong and meaningless; say
+  // what's true: it's a standard part whose dimensions come from the NAS
+  // sheet, e.g. 'standard part -- dimensions from NAS6403-NAS6420 Rev 4,
+  // sheet 3'."
+  //
+  // He is right that the old sentence was wrong, and the reason is worth
+  // keeping: `drawing` is a part's SOURCE-CONTROL identity, and a standard
+  // part legitimately has none. What it has instead is a standard sheet, and
+  // the card can derive WHICH from what the part's own rows already cite --
+  // nothing new is authored, nothing is matched by filename, and a part whose
+  // rows cite nothing gets no line at all rather than a placeholder.
+  //
+  // The one citation `kind` (SOURCE_REF_KINDS, tolerance_stack/stack.py) that
+  // means "an industry standard sheet rather than a Joby drawing" -- which is
+  // what licenses the words "standard part". A module-level constant, never an
+  // inline literal (repo rule).
+  VA.SPEC_CITATION_KIND = "spec";
+
+  // The documents a part's OWN dimensions are cited from, one row per
+  // document, first-seen order, with the distinct sheets each was read on.
+  VA.partReferences = function (topoProj, partId) {
+    var byDocument = {};
+    var order = [];
+    ((topoProj && topoProj.edges) || []).forEach(function (edge) {
+      if (edge.part !== partId) return;
+      var ref = edge.dimension && edge.dimension.source_ref;
+      if (!ref || !ref.document) return;
+      var document = String(ref.document);
+      if (!byDocument[document]) {
+        byDocument[document] = { document: document, kinds: [], sheets: [] };
+        order.push(document);
+      }
+      var row = byDocument[document];
+      if (ref.kind && row.kinds.indexOf(ref.kind) === -1) row.kinds.push(ref.kind);
+      if (ref.sheet !== null && ref.sheet !== undefined &&
+          row.sheets.indexOf(ref.sheet) === -1) {
+        row.sheets.push(ref.sheet);
+      }
+      return;
+    });
+    return order.map(function (document) { return byDocument[document]; });
+  };
+
+  // One reference, in a reader's words: "NAS6403-NAS6420 Rev 4.pdf · sheet 3".
+  //
+  // No revision. It is not an oversight: the live NAS citation's `revision` is
+  // "Rev 4 (sheet 1 rev 4, sheet 2 rev 2, sheet 3 NEW, sheet 4 rev 2)" -- a
+  // four-clause per-sheet note, and printing it here would put back exactly
+  // the wall of text this pass removed. The document's own name carries the
+  // revision a reader needs to find the file, and the FULL citation (revision,
+  // view, zone and all) is on the row's own citation, one click away in the
+  // preview pane.
+  VA.referenceText = function (reference) {
+    if (!reference) return "";
+    var bits = [reference.document];
+    if (reference.sheets.length) {
+      // Sheet ORDER, not citation order: a reader looking for these pages
+      // wants them in the order they are in the document. A sheet is normally
+      // a number and occasionally a string ("A"), so this sorts numerically
+      // where it can and lexically where it cannot.
+      var sheets = reference.sheets.slice().sort(function (a, b) {
+        var na = Number(a), nb = Number(b);
+        if (isFinite(na) && isFinite(nb)) return na - nb;
+        return String(a) < String(b) ? -1 : (String(a) > String(b) ? 1 : 0);
+      });
+      bits.push((sheets.length > 1 ? "sheets " : "sheet ") + sheets.join(", "));
+    }
+    return bits.join(" · ");
+  };
+
   // The component card, for the grid's merged component cell: the part's own
   // identity (name, drawing, note) plus a thumbnail DERIVED from what exists
   // — the resolved crop of one of its OWN edges' tolerance annotations, which
@@ -1833,12 +2476,25 @@
         thumbs.push({ edgeId: edge.id, edgeName: edge.name, entry: entry });
       }
     });
+    var references = VA.partReferences(topoProj, partId);
     return {
       kind: "component",
-      title: part.name || part.id,
+      title: VA.componentLabel(part),
       id: part.id,
       drawing: part.drawing || null,
       revision: part.revision || null,
+      // Where a part with no drawing of its own gets its dimensions, and
+      // whether that makes it a STANDARD part: every document its rows cite
+      // is a standard sheet. Both empty/false for a part that has a drawing —
+      // that drawing IS the reference, and the card prints it instead.
+      references: part.drawing ? [] : references,
+      standardPart: !part.drawing && references.length > 0 &&
+        references.every(function (reference) {
+          return reference.kinds.length > 0 &&
+            reference.kinds.every(function (kind) {
+              return kind === VA.SPEC_CITATION_KIND;
+            });
+        }),
       note: part.note || null,
       thumbs: thumbs,
       // "view this part in 3D" only where there IS a 3D model of it: with two
@@ -1854,19 +2510,39 @@
   // it is named rather than skipped -- and named in the grid's own words.
   VA.CLEARANCE_SIDE_LABEL = "a clearance";
 
-  // The same sides, ID-form: the words a surface that has no room for a part's
-  // prose name prints for a node's sides. The node CARD labels each side with
-  // the part's own component-card title, because it pairs the label with that
-  // part's thumbnail; the grid's merged cell and the preview pane print the
-  // part id instead (VA.GAP_COMPONENT_LABEL's own reasoning -- a live part
-  // name runs to eighty characters). Two label styles, ONE derivation: both
-  // read VA.nodeAdjacentParts, so the surfaces cannot disagree about WHICH
-  // sides a node has -- which is exactly what they used to do (handoff
-  // surfaces_that_state_something_false: the pane printed the node's authored
-  // `parts` here and 10 of the 46 live nodes disagreed with their own card).
-  VA.nodeSideIds = function (topoProj, nodeId) {
+  // An interface in a reader's words. Same rule as VA.componentLabel: the
+  // authored name, and the id only where a projection names a node the graph
+  // does not declare -- which is a diagnostic, not a label.
+  VA.nodeLabel = function (topoProj, nodeId) {
+    var node = VA.topologyIndex(topoProj).nodes[nodeId];
+    return (node && node.name) || String(nodeId);
+  };
+
+  // The words the preview pane prints for a node's sides. ONE label style
+  // now, and ONE derivation: this returns the same `VA.componentLabel` text
+  // the grid's merged cell and the node card's side list print, off the same
+  // `VA.nodeAdjacentParts` adjacency, so no two surfaces can disagree about
+  // either WHICH sides a node has or what to call them.
+  //
+  // It returned part IDS until 2026-09-15 -- and was named `nodeSideIds` for
+  // it -- because a live part name ran to eighty characters and a pane heading
+  // had no room for two of them. The names are short noun phrases now
+  // (VA.componentLabel), and an id is not a label: see that function.
+  //
+  // (The adjacency half of this is handoff surfaces_that_state_something_
+  // false: the pane printed the node's AUTHORED `parts` here, and live nodes
+  // disagreed with their own hover card, because a node against a `gap` edge
+  // has a clearance for a side and an authored parts list cannot name one.
+  // How MANY was contested and is settled (handoff viewer_value_guard_rows_
+  // and_replays, 2026-09-15): it is stated in exactly two places, views/
+  // topology.js's renderNodeDetail comment and apps/viewer/README.md, and both
+  // are re-derived from the live projection by tests.js's "[real] every live
+  // dot answers the SAME on hover and on click". So it is not restated here.)
+  VA.nodeSideLabels = function (topoProj, nodeId) {
+    var parts = VA.topologyIndex(topoProj).parts;
     return (VA.nodeAdjacentParts(topoProj)[nodeId] || []).map(function (part) {
-      return part === null ? VA.CLEARANCE_SIDE_LABEL : part;
+      if (part === null) return VA.CLEARANCE_SIDE_LABEL;
+      return VA.componentLabel(parts[part] || { id: part });
     });
   };
 

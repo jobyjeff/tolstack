@@ -32,14 +32,24 @@
       "max": 3.937,
       "lmc": 3.683,
       "mmc": 3.937,
-      "note": "0.150 in +/-0.005 in. The barrel of the flanged bushing, the part that sits inside the bore.",
+      "hardware_ref": "NAS77A3-015A",
+      "note": "0.150 in +/-0.005 in. The barrel of the flanged bushing, the part that sits inside the bore. RE-CITED 2026-09-15 (handoff stack_fable_audit): the part is NAS77A3-015A and the band is printed on the NAS77 page in the spec pile -- see source_ref. The workbook's E14 (`=0.15*25.4`) folds the identical numbers, so nothing moved.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E14",
-        "confidence": "untraced",
-        "note": "No flanged-bushing part drawing in this repo. Candidate as-drawn part is 214936-002 (BUSHING, PLAIN, COUNTERSUNK, .1900 in ID), balloned on 217755 sheet 5 DETAIL F -- not DETAIL B."
+        "kind": "spec",
+        "document": "JB_NAS77.pdf",
+        "sheet": 1,
+        "view": "NAS77 UNLINED FLANGED BUSHINGS -- figure + dash decode",
+        "cell": "figure 'L ±.005'; footnote 'xxx: Length in .010 increments (ex: -025 = .25 in.)'",
+        "callout": "L ±.005, dash -015 = .150 in",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/JB_NAS77.pdf",
+          "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop. No drawing-checker run consumes a spec."
+        },
+        "confidence": "inferred",
+        "note": "RE-CITED 2026-09-15 (handoff stack_fable_audit); WAS `kind: workbook` cell E14, `untraced`, with candidate part 214936-002 -- a COUNTERSUNK bushing ballooned at DETAIL F, i.e. a different joint's part; wrong candidate, superseded. The real part is NAS77A3-015A: find 2 (qty 8) of the 215177-A PITCH PLATE ASSEMBLY's own parts list (drawing-checker run 20260813_180719, ts 2026-08-14T01:07:33Z), press-fit into the plate, which is why 217755 DETAIL B balloons no flanged bushing. The catalog page prints the band (L ±.005) and the dash decode (-015 = .150 in); `inferred` rather than `traced` because the qty-8 = 3+5 lug split is a count argument, and the as-drawn trailing 'A' (aluminum coated) is a variant the page does not decode. The 260729 workbook's E14/G14/H14 fold these same numbers -- corroboration that this identification is what the workbook's author meant."
       }
     },
     {
@@ -51,13 +61,24 @@
       "max": 0.889,
       "lmc": 0.889,
       "mmc": 0.635,
-      "note": "0.025-0.035 in. Subtracted from the bushing length: a BIGGER chamfer removes MORE material, which is why the workbook's LMC column (0.889) is larger than its MMC column (0.635). Nominal is the midpoint, not a separately specified value.",
+      "hardware_ref": "NAS77A3-015A",
+      "note": "0.025-0.035 in. Subtracted from the bushing length: a BIGGER chamfer removes MORE material, which is why the workbook's LMC column (0.889) is larger than its MMC column (0.635). Nominal is the midpoint, not a separately specified value -- the catalog states limits only, so the midpoint is computed here (SOP Step 2, 'when the source states limits only'). RE-CITED 2026-09-15 (handoff stack_fable_audit) to the NAS77 page, which prints 'I.D. .025 -- .035 x 45° CHAMFER BOTH ENDS'.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E15",
-        "confidence": "untraced"
+        "kind": "spec",
+        "document": "JB_NAS77.pdf",
+        "sheet": 1,
+        "view": "NAS77 UNLINED FLANGED BUSHINGS -- figure",
+        "cell": "figure note at the I.D. chamfer leader",
+        "callout": "I.D. .025 -- .035 x 45° CHAMFER BOTH ENDS (SEE NOTE 6)",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/JB_NAS77.pdf",
+          "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop."
+        },
+        "confidence": "inferred",
+        "note": "RE-CITED 2026-09-15 (handoff stack_fable_audit); WAS `kind: workbook` cell E15, `untraced`. Same part-identity chain as flange_bushing_L (NAS77A3-015A via the 215177-A parts list). The page chamfers BOTH ends of the I.D.; the workbook subtracts ONE chamfer from the effective barrel length, which is its own modelling choice for the bore-depth path ('measured to inside of c'sink') and is preserved unchanged here."
       }
     },
     {
@@ -69,13 +90,24 @@
       "max": 1.5748,
       "lmc": 1.4478,
       "mmc": 1.5748,
-      "note": "0.062 in -0.005/-0. Nominal 1.575 was typed in mm and is 0.0002 mm above MMC -- harmless, but it is not the midpoint.",
+      "hardware_ref": "NAS77A3-015A",
+      "note": "0.062 in +.000/-.005. Nominal 1.575 was typed in mm (workbook E9) and is 0.0002 mm above MMC -- harmless, but it is not the midpoint; kept as transcribed, per the nominal-is-information rule. RE-CITED 2026-09-15 (handoff stack_fable_audit) to the NAS77 page's F column.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E9",
-        "confidence": "untraced"
+        "kind": "spec",
+        "document": "JB_NAS77.pdf",
+        "sheet": 1,
+        "view": "NAS77 UNLINED FLANGED BUSHINGS -- dimensions table",
+        "cell": "row NAS77A3-xxx, column F",
+        "callout": "F .062, column header '+.000, -.005 / +.00, -.13'",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/JB_NAS77.pdf",
+          "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop."
+        },
+        "confidence": "inferred",
+        "note": "RE-CITED 2026-09-15 (handoff stack_fable_audit); WAS `kind: workbook` cell E9, `untraced`. Same part-identity chain as flange_bushing_L (NAS77A3-015A via the 215177-A parts list, find 2 qty 8). The band 1.4478/1.5748 is the page's .062 +.000/-.005 to the digit -- the workbook's G9/H9 formulas were transcribing this page's numbers all along."
       }
     },
     {
@@ -121,14 +153,24 @@
       "max": 11.1,
       "lmc": 11.05,
       "mmc": 11.1,
-      "note": "Nominal equals MMC; the tolerance is one-sided (-0.05/-0).",
+      "hardware_ref": "MS14103-3",
+      "note": "Nominal equals MMC; the tolerance is one-sided (-0.05/-0). RE-CITED 2026-09-15 (handoff stack_fable_audit): the bearing is MS14103-3 and its ball width band is printed in the RBC catalog in the spec pile -- the workbook's 11.05/11.1 matches it to the digit.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E8",
-        "confidence": "untraced",
-        "note": "No bearing balloon in DETAIL B -- the bearing is internal to 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY (find 24, qty 3). Its width can only come from that subassembly's drawing or a bearing standard, neither of which is in this repo."
+        "kind": "spec",
+        "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+        "sheet": 22,
+        "view": "MS14102 & MS14103 SELF-LUBRICATED SPHERICAL BEARING, WIDE -- dimensions table",
+        "cell": "row -03, column W",
+        "callout": "-03 | W .437 / 11.10 | column header 'W +.000, -.002 / +.00, -.05'",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/RBC_Aerospace_Plain_Bearings_Web.pdf",
+          "sha256": "a2bfa011d54e6c1ce632a5ad6f24e0da1694694d43cd10a099f03935456f3036",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop. `sheet` is the PDF page (printed page 20)."
+        },
+        "confidence": "inferred",
+        "note": "RE-CITED 2026-09-15 (handoff stack_fable_audit); WAS `kind: workbook` cell E8, `untraced`, with the note 'its width can only come from that subassembly's drawing or a bearing standard, neither of which is in this repo' -- both halves of which had quietly stopped being true: the RBC catalog has been in the pile since before founding, and the 212956-005-A drawing was extracted by drawing-checker on 2026-09-04 (run 20260904_184233, ts 2026-09-05T01:42:48Z). That extraction's parts list holds find 1 = MS14103-3 (wide, qty 1) and find 2 = MS14101-3 (narrow, qty 1) -- one bearing per eye of the link (which this stack calls the tangential link and the drawing titles PITCH ANTI ROTATION LINK ASSEMBLY; the naming tangle is a recorded finding, not resolved here). W is the BALL width, the clamped inner ring, read off the table figure. `inferred`, not `traced`: WHICH eye faces the pitch plate is stated by no document -- the evidence this joint consumes the WIDE one is (1) the workbook's band matching MS14103-3 to the digit, and (2) the drawing-selected -13/-14 bolt grips (20.6/22.2 mm) closing only against a column containing the wide width. The 212956-005 balloons place find 1 at one eye and find 2 at the other without naming the mating parts."
       }
     },
     {

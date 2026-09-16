@@ -2,7 +2,7 @@
 // (formerly app.js, now deleted — index.html redirects here): most stacks in
 // docs/tolerance_stacks/ have no topology re-expressing them (VA.looseStacks,
 // topology.js), so this file has to be able to show a system EITHER way —
-// rails + grid for one that has a topology, the classic elements table
+// rails + grid for one that has a topology, the elements table
 // (views/stack.js, unchanged) for one that does not — not just the DAG.
 //
 // Same shape as the file it replaced: state at the top, one `render()`, and
@@ -17,7 +17,7 @@
     connection: VA.STATE.DISCONNECTED,
     topologies: null,
     // The stacks projection (results.json) — read for the loose-stack nav and
-    // for the classic stack view, never for anything the DAG renders.
+    // for the stack view, never for anything the DAG renders.
     stacksResults: null,
     crops: null,
 
@@ -27,12 +27,12 @@
     mode: "topology",
 
     topologyId: null,
-    // null = no study; the whole topology is shown with nothing highlighted.
+    // null = no study; the whole topology is shown at full emphasis. A study
+    // does NOT change which layout is drawn -- there is only one, the walk
+    // (viewer_respine_whole_walk, 2026-09-15) -- it changes which of the
+    // walk's elements are emphasized, which leaders are drawn and which rows
+    // the grid beside them holds. The retired `layoutMode` used to live here.
     studyId: null,
-    // "topology" (the depth-first walk of the whole graph) or "chain" (only the
-    // selected study's edges, in the order the sum runs). Both layouts come out
-    // of the projection; this only says which one to draw.
-    layoutMode: "topology",
     // "comfortable" (26px rows) or "compact" (16px) — a display preference,
     // not a fact about a topology or a study, so selectTopology() never resets
     // it. See VA.ROW_DENSITIES (topology.js).
@@ -67,6 +67,15 @@
     // either -- one inconsistent preference would be the surprise, not the
     // feature.
     jogZoneScale: 1,
+    // How wide the right preview pane is, in px, or null for "whatever
+    // topology.css declares" (Jeff, 2026-09-15: "the right preview pane is
+    // resizable. It's too narrow"). The ONE preference on this page that
+    // outlives the session -- VA.readStoredPaneWidth/writeStoredPaneWidth own
+    // the storage and argue there why this one and none of the four above.
+    // null rather than a number by default so the stylesheet stays the single
+    // place the default width lives; nothing is written inline until a drag
+    // or a remembered value says otherwise.
+    detailWidth: null,
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -143,11 +152,15 @@
       worksheetToggle: document.getElementById("worksheet-toggle"),
       worksheetClose: document.getElementById("worksheet-close"),
       detail: document.getElementById("detail"),
+      detailDivider: document.getElementById("detail-divider"),
       crop: document.getElementById("croppop"),
       flyout: document.getElementById("annotate-flyout"),
       flyoutClose: document.getElementById("flyout-close"),
     };
     applyDensity();
+    state.detailWidth = VA.readStoredPaneWidth(paneWidthStore());
+    applyPaneWidth();
+    wireDetailDivider();
 
     nodes.flyoutClose.onclick = function () { nodes.flyout.close(); };
 
@@ -378,7 +391,6 @@
     // happens to exist in both would show the wrong element under the right
     // name.
     state.studyId = null;
-    state.layoutMode = "topology";
     state.selection = null;
     state.detailImage = null;
   }
@@ -412,44 +424,86 @@
   // separate selects never had to handle — they only ever offered studies of
   // the topology already picked.
 
+  // No click may leave the page wedged (deliverable 1,
+  // viewer_nav_wedge_and_classic_retirement). Every nav handler moves `state`
+  // FIRST and then awaits a worksheet read, so a rejected read with no catch
+  // strands the page in the state it just moved to with no repaint at all --
+  // the picture on screen is the node you clicked away from, the nav's
+  // highlight is nowhere, and the only way out is F5. That is the same bug
+  // shape as the 2026-09-09 silently-empty-DAG incident (render()'s own
+  // comment names it), which was fixed for onReload and not here.
+  //
+  // So: whatever happens to the read, the page repaints. The paint is the
+  // handler's own (a respine transition, or a plain render in stack mode) on
+  // success, and always a plain render on failure -- animating INTO an error
+  // would be a quarter-second of the page pretending the click worked.
+  //
+  // `state.worksheetText` is cleared rather than left alone, for the same
+  // reason the banner is written: loadWorksheet() only ASSIGNS on success, so
+  // the previous node's worksheet would otherwise still be sitting in the
+  // dialog under this node's title.
+  //
+  // The read is called from INSIDE the try, not handed in as a promise: an
+  // adapter whose readText throws before it ever returns one (a null adapter,
+  // an unready handle -- VA.requireReady throws) would otherwise unwind
+  // straight out of the click handler, which is the wedge this exists to stop,
+  // reached by a different door.
+  function navigate(paint) {
+    var pending;
+    try {
+      pending = loadWorksheet();
+    } catch (err) {
+      navFailed(err);
+      return;
+    }
+    pending.then(function () {
+      // A read that worked retires the banner a previous failure wrote. The
+      // banner has no dismiss control, so an error left standing after the
+      // page has demonstrably recovered is a sentence the reader cannot get
+      // rid of -- and it would be sitting over a node it was never about.
+      // Same rule as gesture() and the banner's own onReload.
+      state.error = null;
+      paint();
+    }, navFailed);
+  }
+
+  function navFailed(err) {
+    state.worksheetText = null;
+    state.error = String(err && err.message || err);
+    render();
+  }
+
   function onNavTopology(topologyId) {
     selectTopology(topologyId);
-    // Deselecting a study is the respine run backwards -- the chain gives the
-    // spine back to the whole walk (viewer_study_respine_animation). Same
-    // topology, so there is a previous store to animate from; a click that
-    // switches to a DIFFERENT topology is a different graph, and respine()
-    // falls through to a plain paint for it.
-    loadWorksheet().then(respine);
+    // Deselecting a study is the respine run backwards -- the whole walk gets
+    // its leaders and its full emphasis back (viewer_study_respine_animation).
+    // Same topology, so there is a previous store to animate from; a click
+    // that switches to a DIFFERENT topology is a different graph, and
+    // respine() falls through to a plain paint for it.
+    navigate(respine);
   }
 
   function onNavStudy(topologyId, studyId) {
     if (state.topologyId !== topologyId) selectTopology(topologyId);
     state.studyId = studyId || null;
-    // Selecting a study RE-SPINES (viewer_study_respine_animation, from the
-    // viewer-arcs brief's decision 5): the study's chain becomes the
-    // right-justified linear run and the grid re-orders to the order the sum
-    // runs in -- the layout the toolbar's toggle has always offered, now the
-    // default for a study that sums. A study that REFUSED has no chain to lay
-    // out (the error is the result), so it stays on the whole-topology walk,
-    // which is the same condition the toggle disables itself for.
-    state.layoutMode = chainable(studyId) ? "chain" : "topology";
+    // Selecting a study RE-SPINES (viewer_study_respine_animation), and since
+    // viewer_respine_whole_walk a respine is no longer a view switch: the
+    // rails keep every node and edge of the walk, the non-members dim, the
+    // leaders retarget onto the chain and the grid drops to the chain's rows.
+    // The transition the animator runs is therefore the leaders' jog zone
+    // narrowing and the two blocks re-centring, not a second layout sliding
+    // in over the first. A study that REFUSED has no chain, so it leaves the
+    // walk exactly as it was -- and that is the same condition
+    // views/topology.js's `marking` tests, not a second rule here.
     state.selection = null;
     state.detailImage = null;
-    loadWorksheet().then(respine);
-  }
-
-  // Whether a study has a chain to lay out at all -- the one condition the
-  // chain layout has ever had (views/topology.js's layoutFor, and the
-  // toolbar's own disabled test).
-  function chainable(studyId) {
-    var study = studyId ? VA.findStudy(currentTopology(), studyId) : null;
-    return !!(study && study.status === "ok" && study.layout);
+    navigate(respine);
   }
 
   function onNavStack(stackId) {
     selectStack(stackId);
     hideCrop();
-    loadWorksheet().then(render);
+    navigate(render);
   }
 
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
@@ -478,9 +532,21 @@
   // own `worksheet_for`, the same two-rule convention) -- so which projection
   // to read it off is the only thing that depends on mode (deliverable 4,
   // viewer_v2_single_nav).
+  //
+  // In topology mode that is VA.worksheetSubject rather than the topology
+  // itself: since the nested stack row went away there is nowhere else to
+  // reach a converted stack's own authored sheet from, and three of the four
+  // have one (viewer_nav_wedge_and_classic_retirement). One function, read by
+  // both the fetch below and the toggle in paint(), so the button and the
+  // dialog can never disagree about which sheet the page is offering.
+  function worksheetSubject() {
+    return state.mode === "topology"
+      ? VA.worksheetSubject(currentTopology(), state.stacksResults)
+      : currentStack();
+  }
+
   function loadWorksheet() {
-    var subject = state.mode === "topology" ? currentTopology() : currentStack();
-    var segments = VA.worksheetSegments(subject);
+    var segments = VA.worksheetSegments(worksheetSubject());
     if (!segments) {
       state.worksheetText = null;
       return Promise.resolve();
@@ -509,15 +575,31 @@
       entry = VA.cropFor(state.crops, stackProj.id, state.selectedElementId);
     }
     if (entry.status !== "resolved" || !entry.png) return Promise.resolve();
-    if (Object.prototype.hasOwnProperty.call(imageCache, entry.png)) {
-      state.detailImage = imageCache[entry.png];
-      return Promise.resolve();
+    // A balloon crop names a SECOND image, its parts-list row (the crop index's
+    // `companion`), so the pane's fetch is a list rather than one blob. It is
+    // awaited alongside the crop: a companion that arrived a paint later would
+    // show the pane's "image not on disk" line for an instant on every
+    // selection.
+    var pngs = [entry.png];
+    if (entry.companion && entry.companion.png) pngs.push(entry.companion.png);
+    return Promise.all(pngs.map(cacheCropImage)).then(function () {
+      state.detailImage = imageCache[entry.png] || null;
+    });
+  }
+
+  // One PNG into `imageCache`, at most once. A fetch that fails caches `null`,
+  // which is the same thing the surfaces read as "no image" — never a retry
+  // loop on every repaint.
+  function cacheCropImage(png) {
+    if (Object.prototype.hasOwnProperty.call(imageCache, png)) {
+      return Promise.resolve(imageCache[png]);
     }
-    return adapter.readCropImage(entry.png).then(function (image) {
-      imageCache[entry.png] = image;
-      state.detailImage = image;
+    return adapter.readCropImage(png).then(function (image) {
+      imageCache[png] = image;
+      return image;
     }).catch(function () {
-      imageCache[entry.png] = null;
+      imageCache[png] = null;
+      return null;
     });
   }
 
@@ -533,7 +615,7 @@
     openedAt = new Date().getTime();
     var paint = function (image) {
       if (openTrigger !== trigger) return;   // a later hover won the race
-      VA.renderCrop(nodes.crop, entry, image, VA.CONFIG, hideCrop);
+      VA.renderCrop(nodes.crop, entry, image, VA.CONFIG, hideCrop, imageCache);
       // display first, then measure: offsetHeight is 0 while display is none.
       nodes.crop.style.display = "block";
       position(nodes.crop, trigger);
@@ -553,12 +635,14 @@
     // Paint the frame immediately so the popover never feels laggy, then swap
     // the image in when the blob resolves.
     paint(null);
-    adapter.readCropImage(entry.png).then(function (image) {
-      imageCache[entry.png] = image;
-      paint(image);
-    }).catch(function () {
-      imageCache[entry.png] = null;
-      paint(null);
+    // The companion (a balloon crop's parts-list row) is fetched alongside, and
+    // each arrival repaints — the same "paint once, repaint as PNGs land" shape
+    // showCard below uses, and for the same reason: this popover can name two
+    // images now.
+    var pngs = [entry.png];
+    if (entry.companion && entry.companion.png) pngs.push(entry.companion.png);
+    pngs.forEach(function (png) {
+      cacheCropImage(png).then(function () { paint(imageCache[entry.png]); });
     });
   }
 
@@ -578,10 +662,10 @@
   function cardPngs(card) {
     var pngs = [];
     var add = function (entry) {
-      if (entry && entry.status === "resolved" && entry.png &&
-          pngs.indexOf(entry.png) === -1) {
-        pngs.push(entry.png);
-      }
+      if (!entry || entry.status !== "resolved") return;
+      [entry.png, entry.companion && entry.companion.png].forEach(function (png) {
+        if (png && pngs.indexOf(png) === -1) pngs.push(png);
+      });
     };
     (card.crops || []).forEach(function (crop) { add(crop.entry); });
     (card.thumbs || []).forEach(function (thumb) { add(thumb.entry); });
@@ -802,7 +886,63 @@
     resizeFrame = raf(function () { resizeFrame = null; render(); });
   }
 
+  // localStorage, or null where there is none to have (the node fast tier's
+  // DOM shim, a browser with storage disabled, a file:// page in a
+  // configuration that throws on access). Reaching for it is wrapped here as
+  // well as inside the read/write pair: on some file:// configurations even
+  // TOUCHING window.localStorage throws, which is before either of those
+  // functions gets a chance to catch anything.
+  function paneWidthStore() {
+    try {
+      return (typeof window !== "undefined" && window.localStorage) || null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  // The remembered width onto the pane, or nothing at all -- an unset
+  // `detailWidth` must leave the stylesheet's own width standing rather than
+  // overwrite it with a number this file guessed.
+  function applyPaneWidth() {
+    if (!nodes.detail || state.detailWidth === null) return;
+    nodes.detail.style.width = state.detailWidth + "px";
+  }
+
+  // What a drag on the divider measures FROM. In a browser the pane's own
+  // laid-out width, which is what makes the first drag continuous with
+  // whatever the stylesheet declared; the remembered width where there is one;
+  // and the clamp's minimum in the DOM shim, which has no layout to measure.
+  function paneWidthNow() {
+    var measured = nodes.detail && nodes.detail.offsetWidth;
+    if (typeof measured === "number" && measured > 0) return measured;
+    if (state.detailWidth !== null) return state.detailWidth;
+    return VA.TOPO_PANE_WIDTH.min;
+  }
+
+  // The divider is static markup (topology.html), so it is wired once at boot
+  // rather than per render -- which also means a re-render mid-drag cannot
+  // destroy the node the gesture started on, the problem the column grip's own
+  // re-focus dance exists to work around.
+  function wireDetailDivider() {
+    var divider = nodes.detailDivider;
+    if (!divider) return;
+    var spec = { kind: "pane" };
+    divider.onpointerdown = function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      onResizeStart(spec, event);
+    };
+    divider.onkeydown = function (event) {
+      var key = event && event.key;
+      if (key !== "ArrowLeft" && key !== "ArrowRight") return;
+      if (event.preventDefault) event.preventDefault();
+      onResizeNudge(spec, (event.shiftKey ? 40 : 8) * (key === "ArrowRight" ? 1 : -1));
+    };
+  }
+
   function resizeFrom(spec) {
+    if (spec && spec.kind === "pane") {
+      return { kind: "pane", width: paneWidthNow() };
+    }
     if (spec && spec.kind === "column") {
       var column = VA.topoColumn(spec.cls);
       return { kind: "column", cls: spec.cls, width: column ? column.width : 0 };
@@ -820,6 +960,15 @@
       state.jogZoneScale = VA.jogZoneScaleAfterDrag(from.scale, dx, from.naturalZone);
     } else if (from.kind === "column") {
       VA.setTopoColumnWidth(from.cls, from.width + dx);
+    } else if (from.kind === "pane") {
+      // The sign inversion (the pane is RIGHT of its divider) is
+      // VA.paneWidthAfterDrag's, not this shell's -- same division of labour
+      // as the other two branches. Applied to the node immediately rather
+      // than waiting for the render this drag schedules: the pane's width is
+      // pure layout, and moving it a frame early is what makes the drag feel
+      // attached to the pointer even while a big topology repaints.
+      state.detailWidth = VA.paneWidthAfterDrag(from.width, dx);
+      applyPaneWidth();
     }
   }
 
@@ -835,6 +984,7 @@
       document.removeEventListener("pointerup", end);
       document.removeEventListener("pointercancel", end);
       document.body.classList.remove("tv-resizing");
+      rememberPaneWidth(spec);
     };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", end);
@@ -856,9 +1006,22 @@
   function onResizeNudge(spec, dx) {
     applyResize(resizeFrom(spec), dx);
     render();
+    rememberPaneWidth(spec);
+    // The pane's divider is static markup and survives the render, so it
+    // keeps its own focus and needs none of what follows -- which exists
+    // because render() rebuilds the column header and destroys the grip the
+    // keydown came from.
+    if (spec.kind === "pane") return;
     var key = spec.kind + (spec.cls ? ":" + spec.cls : "");
     var grip = document.querySelector('[data-resize="' + key + '"]');
     if (grip && grip.focus) grip.focus();
+  }
+
+  // Written at the END of a gesture, never per pointermove: a drag fires
+  // hundreds of moves and a localStorage write is synchronous.
+  function rememberPaneWidth(spec) {
+    if (!spec || spec.kind !== "pane" || state.detailWidth === null) return;
+    VA.writeStoredPaneWidth(paneWidthStore(), state.detailWidth);
   }
 
   // --- render ----------------------------------------------------------------
@@ -929,8 +1092,11 @@
     // offered there. The worksheet is offered wherever the SELECTED node
     // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
     // through the identical field a stack's does, so the same toggle serves
-    // both; a topology with none (most studies' own stacks have one instead)
-    // hides it exactly as a worksheet-less stack always did. Close whichever
+    // both -- and a topology that declares none falls back to the sheet of a
+    // stack it re-expresses (VA.worksheetSubject), which is the only route to
+    // three authored worksheets since the nested stack row was retired. A
+    // subject with none either way hides the toggle exactly as a
+    // worksheet-less stack always did. Close whichever
     // dialog no longer has anything to show: switching modes or nodes with one
     // open is a real path (click a nav row while reading either) and a stale
     // dialog sitting open would be confusing about which page it is even
@@ -943,9 +1109,8 @@
     // memory, node-fs) is read as fully capable.
     var canReadWorksheets = !adapter || typeof adapter.capabilities !== "function" ||
       adapter.capabilities().worksheets !== false;
-    var hasWorksheet = canReadWorksheets && (showTopology
-      ? !!(topoProj && topoProj.worksheet_file)
-      : !!(stackProj && stackProj.worksheet_file));
+    var sheet = worksheetSubject();
+    var hasWorksheet = canReadWorksheets && !!(sheet && sheet.worksheet_file);
     nodes.legendToggle.style.display = showTopology ? "" : "none";
     nodes.worksheetToggle.style.display = hasWorksheet ? "" : "none";
     if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
@@ -954,7 +1119,12 @@
     if (showTopology) {
       var ctx = {
         topoProj: topoProj, study: study, crops: state.crops,
-        layoutMode: state.layoutMode, selection: state.selection,
+        // The same config the stack pane and the popovers get: since the
+        // preview pane started rendering the crop's links through the shared
+        // VA.cropReference (viewer_component_names_and_reference_copy) it
+        // needs the drawing-checker base URL like every other crop surface.
+        config: VA.CONFIG,
+        selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: state.edgeLengthMode,
         // The two leader-legibility preferences (viewer_leader_grid_
@@ -980,13 +1150,6 @@
         onAttach3d: launchAnnotate,
       };
       VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
-        // The same re-serialisation the nav's study click makes, asked for
-        // by hand -- so it animates the same way (viewer_study_respine_
-        // animation). rewind()'s scroll reset rides along inside respine().
-        onLayoutMode: function () {
-          state.layoutMode = state.layoutMode === "chain" ? "topology" : "chain";
-          respine();
-        },
         // Density changes how tall the rows already on screen are, not WHICH
         // rows are on screen — so a plain render(), not rewind(): see
         // rewind's own comment for why that distinction matters.
@@ -1045,11 +1208,10 @@
         selectedElementId: state.selectedElementId,
       });
       VA.renderDetail(nodes.detail, stackProj, state.selectedElementId,
-        state.crops, state.detailImage, VA.CONFIG);
+        state.crops, state.detailImage, VA.CONFIG, imageCache);
     }
 
-    VA.renderWorksheet(nodes.worksheet, showTopology ? topoProj : stackProj,
-      state.worksheetText);
+    VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
 
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays
@@ -1058,11 +1220,17 @@
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its
-  // studies as children (and, nested under it, any stack it also covers —
-  // VA.navTree, topology.js), and every classic-only stack as a leaf of the
-  // same tree. Replaces both the TOPOLOGY/STUDY <select> pickers and the flat
-  // stack rail (the retired views/list.js) at once; views/nav.js does the
-  // rendering, this is only the three clicks it can make.
+  // studies as children, and every stack no topology re-expresses as a leaf of
+  // the same tree (VA.navTree, topology.js). Replaces both the TOPOLOGY/STUDY
+  // <select> pickers and the flat stack rail (the retired views/list.js) at
+  // once; views/nav.js does the rendering, this is only the three clicks it can
+  // make.
+  //
+  // Still three handlers, not two, with no stack child rows left to click
+  // (viewer_nav_wedge_and_classic_retirement): onNavStack serves the leaves —
+  // the stacks no topology re-expresses — and an inbound deep link at
+  // `?stack=<id>`, which resolves against the projection rather than the nav
+  // and so still reaches a covered stack the rail no longer offers.
   function renderNav() {
     if (state.connection !== VA.STATE.READY) {
       VA.clear(nodes.navtree);
@@ -1086,12 +1254,12 @@
   //
   // A rewind() whose pane paint is a TRANSITION rather than a repaint: the
   // store the outgoing paint drew from is captured here, before anything is
-  // re-rendered, and paint() hands it to VA.animateTopoPane. Only the two
-  // controls that change WHICH serialisation is on screen come through here
-  // (picking or dropping a study in the nav, and the toolbar's layout
-  // toggle); everything else -- density, length mode, leader style, a resize
-  // drag -- changes how the SAME rows are drawn and has always been a plain
-  // render.
+  // re-rendered, and paint() hands it to VA.animateTopoPane. Only the control
+  // that changes WHICH serialisation is on screen comes through here --
+  // picking or dropping a study in the nav, which since
+  // viewer_respine_whole_walk is the only one there is; everything else --
+  // density, length mode, leader style, a resize drag -- changes how the SAME
+  // rows are drawn and has always been a plain render.
   //
   // VA.lastTopoRender is the store the LAST pane paint drew from, which
   // during a transition is that transition's own last frame: interrupting a
@@ -1101,14 +1269,13 @@
   var respineHandle = null;
   var paintedSerialisation = null;
 
-  // Which serialisation is on screen: the topology, the study and which of
-  // the two layouts. A respine is only a TRANSITION when one of those three
-  // actually changed -- clicking the nav row of the topology already open is
-  // a no-op, and animating a no-op would lay a fading ghost of the page over
-  // the identical page for a quarter of a second.
+  // Which serialisation is on screen: the mode, the topology and the study.
+  // A respine is only a TRANSITION when one of those actually changed --
+  // clicking the nav row of the topology already open is a no-op, and
+  // animating a no-op would lay a fading ghost of the page over the identical
+  // page for a quarter of a second.
   function serialisation() {
-    return [state.mode, state.topologyId, state.studyId,
-            state.layoutMode].join(" / ");
+    return [state.mode, state.topologyId, state.studyId].join(" / ");
   }
 
   function respine() {
