@@ -3135,6 +3135,41 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a number word, and confirm it stays quiet on both. A scan proven to
       fire is not yet proven to fire *only* on the defect.
 
+- [ ] **A control's position moved from LAYOUT-DERIVED to hand-accumulated
+      arithmetic — measure it against the real edge, because no tier does.**
+      New 2026-09-16 (`topology_grid_scroll_and_grips`). The ELEMENT grip used
+      to be `.tvgrip--col { right: 0 }` inside its own `<th>` — the browser put
+      it on the column edge by construction. It is now an absolute `left`
+      written from `railWidth + Σ COLUMNS[i].width` (`VA.columnGripLeft`), and
+      every check on it is *behavioural* (`dragBy` + read the preference back),
+      so a grip drawn 20px off its boundary still drags the column and still
+      passes. Replay: print the grip's `getBoundingClientRect()` beside
+      `th.tvcell--name`'s at several `scrollLeft`s. (Verified exact here —
+      `colRight - thRight = 0.0` at `scrollLeft` 0/100/300/666, and the jog
+      grip's hairline sits on `svg.tv__rails`'s right edge at all of them — but
+      nothing in the repo would have told you.)
+
+- [ ] **A fast-tier test that writes `scrollLeft` (or any layout/hit-test
+      state) is vacuous in the BROWSER half of the same file.**
+      New 2026-09-16 (`topology_grid_scroll_and_grips`), the fourth member of
+      the "fast tier proves nothing here by construction" family. `tests.js`
+      runs in the node DOM shim *and* in `test.html`: the shim keeps whatever is
+      written to it, a real browser silently refuses to scroll the detached,
+      unlaid-out `<div>` the suite renders into — so the same assertion is a
+      real check in one tier and `0 === 0` in the other, and it reports PASS in
+      both. The accepted shape here is a capability probe (`canHoldScroll`) that
+      returns early plus a named browser-tier twin on a laid-out pane; demand
+      both, and confirm the node half actually bites by breaking the behaviour
+      (here: `carriedScroll` → 0 took the fast tier to 333/335).
+
+- [ ] **…and the duplicate-filing entry above reached FOUR on a second noun.**
+      2026-09-16: `docs/issues/` now holds four filings of the
+      `test_no_live_document_states_an_unguarded_hardware_entry_count` false
+      positive as well — two of them already in this handoff's own merge-base
+      tree. Same instruction, and it is cheap: before accepting an issue about
+      a red the diff did not cause, `ls docs/issues/ | grep <noun>` in the
+      MERGED tree, cross-reference, and tell triage to close them as one.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New

@@ -330,6 +330,18 @@ at `TOPO_PANE_WIDTH.max`, with the ELEMENT column pre-dragged +220. It restores
 the pane width and the column width afterwards and asserts that it did, because
 the divider block below it measures from the shipped default.
 
+> **Correction (review, 2026-09-16).** It restores both, but the assertion
+> covers the **pane width only** — the `-220` on the ELEMENT grip is
+> unwitnessed. (It does land: measured in review, the suite below it is green
+> and the respine arm still reports the shipped-default `scrollWidth` 1534.)
+> Two more review notes on the same block: the four new sub-checks were
+> verified to bite (clamp disabled in `VA.jogGripInset` → both jog sub-checks
+> red; in `VA.columnGripLeft` → both ELEMENT sub-checks red), but the jog arm
+> is only at a clamping stage because the block ~130 lines above it leaves the
+> jog zone dragged open —
+> `docs/issues/ISSUE_20260916_the_grip_reachability_checks_inherit_their_stage_from_an_earlier_block.md`,
+> which also carries the one rewritten claim that does not name this handoff.
+
 ---
 
 ## Scope: one file past the fence, reported as the handoff asks

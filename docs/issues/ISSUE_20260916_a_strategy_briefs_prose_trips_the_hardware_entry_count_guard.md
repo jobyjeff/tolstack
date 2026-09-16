@@ -56,3 +56,17 @@ the brief nor the guard, and the failure reproduces with those changes reverted.
    rather than fixed.
 
 Repro: `venv-win/Scripts/python.exe -m pytest -q tests/test_tolerance_stack.py -k unguarded_hardware_entry_count`.
+
+---
+
+> **Cross-reference added in review (2026-09-16, `review/topology_grid_scroll_
+> and_grips`): this is the FOURTH filing of the same red.** Its siblings are
+> `ISSUE_20260916_hardware_count_guard_matches_other_three_do_not_in_unrelated_prose.md`,
+> `ISSUE_20260916_hardware_count_guard_matches_the_other_three_in_unrelated_prose.md`
+> and `ISSUE_20260916_hardware_count_guard_regex_matches_ordinary_prose.md` —
+> two of them already in this handoff's own merge-base tree (`1b3848b`), the
+> third on `integration`. All four describe one false positive in one pattern.
+> **Triage: close them as one.** The diagnosis and the three candidate fixes
+> above are the fullest of the four, so fix from this one and resolve the rest
+> against it.
+
