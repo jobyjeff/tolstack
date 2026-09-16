@@ -559,10 +559,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       it_declares.md`, `..._card_layout_out_of_flow_mutation_reddens_an_earlier_
       check_so_it_is_never_witnessed.md`, `..._the_card_layout_out_of_flow_
       mutation_witness_stopped_witnessing_on_integration.md`; all three routed
-      to `HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md`). Two of
-      the three then asserted a mechanism — "aborts ~150 lines before the check"
-      — that the line numbers contradict (declared check pushed at 1358, the
-      timing-out hover at 1414, i.e. 56 lines *after*).
+      to `HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md`). All
+      three asserted a *mechanism* and **all three were wrong**, in both
+      directions: two said "aborts ~150 lines before the check"; this entry then
+      said the line numbers contradict them (declared check at 1358, the
+      timing-out hover at 1414, 56 lines *after*) and **that was wrong too** —
+      `CARD_TRIGGER` is the same literal selector as the 1414 hover, so the
+      Playwright call log cannot tell them apart. Settled 2026-09-16 by fixing
+      the reporting and reading the count: `ABORTED after 22 sub-checks, 0 of
+      them already FAILED`, and the declared check is sub-check 23. It was the
+      hover on the line immediately above the check, and nothing had gone red.
+      **Do not diagnose "where did a 1180-line `try` die" from a call log — make
+      the abort line print a count, then read it.**
       **The one-line question: if this stage failed right now, would anything be
       printed that NAMES what failed?** Not "would it go red" — whether the
       *name* survives the path out. Ask it of every `catch`, every `finally`,
@@ -2988,6 +2996,42 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       exist, cross-reference the newest into them and say in the report that
       triage should close them as one. Filing an eighth costs a triage sweep more
       than the red costs a session.
+- [ ] **A harness escape hatch's justifying MEASUREMENT names the wrong axis —
+      re-take it inside the helper, not from the call log.** New 2026-09-16
+      (`mutation_witness_tier_reaches_its_checks`). `hoverIgnoringOcclusion`'s
+      note explained its `scrollIntoView` branch with *"at CARD_SCROLL_VIEWPORT
+      … this trigger is ABOVE the window (scrollY 175, trigger off the top), so
+      the reading … has always been at the scroll `scrollIntoView` left
+      behind"*, and the lesson built a "latent hole" on it. Instrumenting the
+      helper: the rect is `{top: 243.5, bottom: 269.5, left: 1502, right: 1604}`
+      at `innerWidth/Height` 1600/560 — **4px off the RIGHT edge**, vertically
+      inside; the pane scrolls horizontally, so `scrollIntoView` moves the pane
+      (left 1502 → 1066) and `window.scrollY` is 175 before *and* after
+      (`scrollHeight - innerHeight` is also 175, so the document is pinned at
+      max and cannot give vertical scroll away). The hole did not exist. Two
+      transferable moves: **(a)** when a comment says "element X was outside the
+      window", ask *which edge*, and get it from
+      `getBoundingClientRect()` + `innerWidth/innerHeight` printed together in
+      one page task — a `didScroll` flag alone tells you the branch ran, not
+      why; **(b)** a document pinned at `scrollY == scrollHeight - innerHeight`
+      makes any "the page did not move" assertion **half vacuous** — mutate it
+      in the direction it *can* move (scroll UP) or it passes for free. Both
+      corrections were written back as blockquotes; the guard itself is real and
+      was observed failing.
+- [ ] **A tier-vocabulary word added to code and paired, then restated a third
+      time in the table's own prose.** Same handoff, and the near-miss worth
+      carrying: `tier` went from two words to three, `TIER_HARNESS` (runner) and
+      `TIERS`/`CHECK_SOURCE` (pytest) were correctly paired by a new test — and
+      `mutation_witnesses.json`'s `about` block then enumerated all three words
+      with per-word descriptions *and* asserted *"written in exactly two
+      places"*. Nothing pairs that block. Whenever a diff widens a vocabulary,
+      grep the declaring data file's own header for the words it just added:
+      the header is the one copy the pairing test cannot see. (The enumeration
+      is legitimate documentation and was kept; *"Those three words"* was fixed
+      inline to *"The tier words themselves"*, because a fourth word tomorrow
+      makes the count false with nothing red. And the same block's shadow-tree
+      sentence **had** gone stale in that very commit, which is what this class
+      predicts.)
 
 - [ ] **A re-cite's prose claim about the SUPERSEDED document, which nothing
       checks and nobody re-reads.** New 2026-09-16

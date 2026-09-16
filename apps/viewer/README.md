@@ -1527,12 +1527,16 @@ announce that the coverage left.
 
 `scripts/mutation_witnesses.json` declares, per guard, the exact edit it must
 redden on, the tier that owns it, and the name of the check that must fail.
-`scripts/run_mutation_witness_tests.mjs` copies `apps/` and `scripts/` to a
-shadow tree under `tmp/`, patches the copy, runs the owning tier — clean first,
+`scripts/run_mutation_witness_tests.mjs` copies everything a tier reads — its
+`SHADOWED` list, which is where that set is written down — to a shadow tree
+under `tmp/`, patches the copy, runs the owning tier — clean first,
 which must be green, or nothing the mutation does proves anything — and fails
 unless the **declared** check goes red. It takes `--repo` for the same reason
-the other two do: three of the declared witnesses are `[real]` checks. This
-tree is never written to.
+the other two do: several of the declared witnesses redden `[real]` checks, and
+those skip without a projection (no count here — this line said "three" and was
+seven by 2026-09-16;
+`grep -c '"expect_red": "\[real\]' scripts/mutation_witnesses.json` answers it).
+This tree is never written to.
 
 Adding an entry is meant to be cheaper than filing an issue: copy the nearest
 one and change five strings. If you find a guard that shrugs off a hand
