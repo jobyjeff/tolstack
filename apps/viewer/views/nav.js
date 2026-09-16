@@ -7,15 +7,21 @@
 // onNavStudy / onNavStack.
 //
 // The one stack a topology ALSO re-expresses is not a second top-level leaf:
-// LESSONS_20260904_viewer_consolidation.md §1 found that stack's own authored
-// `checks` block (a worst-case verdict against a criterion) has no field in
-// the topology projection at all — DAG_TOPOLOGY.md's L1 proof compares
-// totals, never a verdict — so it must stay reachable. Nesting it as a child
-// of the topology it belongs to (VA.navTree's `coveredStacks`, topology.js)
-// is the tree-shaped form of the same "extra pointer, never a removal" rule
-// the flat list's markCoveredStacks chip used; nothing is hidden or
-// duplicated, and the covered stack's own classic view (with its check) is
-// one click under the topology it also is.
+// it is nested as a child of the topology it belongs to (VA.navTree's
+// `coveredStacks`, topology.js) — the tree-shaped form of the same "extra
+// pointer, never a removal" rule the flat list's markCoveredStacks chip used.
+// Nothing is hidden or duplicated, and the same joint as a table is one click
+// under the topology it also is.
+//
+// The ORIGINAL reason for that nesting is spent, and saying so here is the
+// point: LESSONS_20260904_viewer_consolidation.md §1 found that a stack's own
+// verdict had no field in the topology projection at all, so the classic view
+// was the only place on the whole page a verdict could be read. That held
+// until 2026-09-09 (the field) and 2026-09-15 (this page rendering it,
+// viewer_study_verdicts_and_gaps). The nesting survives on its own merits —
+// an element table, the paths and the worksheet are all still stack-only —
+// and the handoff after this one (viewer_nav_wedge_and_classic_retirement) is
+// where whether it survives AT ALL gets decided.
 //
 // Titles are short noun phrases (stack_title_style_pass, 2026-09-14 — the rule
 // is docs/SOP_TOLERANCE_STACK.md's "Titling an artifact"), so the rail scans
@@ -99,9 +105,8 @@
         (active ? " navtree__row--on" : ""));
       srow.appendChild(VA.el("span", "navtree__label", stackProj.title));
       srow.appendChild(VA.chip("chip--kind", "classic view",
-        "this stack's own authored checks live here — the topology this page " +
-        "also draws for it compares totals, never a verdict, so this check has " +
-        "no field there at all"));
+        "the same joint as a table: its elements one per row, with its paths " +
+        "and its worksheet beside them"));
       setTooltip(srow, stackProj.description, null);
       srow.setAttribute("data-nav-kind", "stack");
       srow.setAttribute("data-nav-id", stackProj.id);

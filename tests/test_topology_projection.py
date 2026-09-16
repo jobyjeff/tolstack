@@ -752,10 +752,13 @@ def test_every_confidence_the_projection_writes_is_a_word_the_viewer_knows(proje
 #: restate a vocabulary in a third place** -- both sides are read, neither is
 #: written out here.
 #:
-#: The last three are the **documents'** vocabularies rather than the
-#: projection's: they are validated by ``Node``/``Edge``/``Transform``'s own
-#: ``__post_init__`` and ride through :func:`project_node` / :func:`project_edge`
-#: untouched, and the page branches on each with a silent default arm. Added in
+#: ``NODE_KINDS``, ``EDGE_KINDS`` and ``TRANSFORM_KINDS`` are the **documents'**
+#: vocabularies rather than the projection's (named, not counted off the end of
+#: the tuple -- "the last three" stopped being true the first time a row was
+#: appended after them): they are validated by ``Node``/``Edge``/``Transform``'s
+#: own ``__post_init__`` and ride through :func:`project_node` /
+#: :func:`project_edge` untouched, and the page branches on each with a silent
+#: default arm. Added in
 #: ``review/dag_viewer_poc``: they shipped written out a third time inside
 #: ``apps/viewer/tests.js``'s ``TOPO_VALUE_GUARDS``, where an ``inList`` copy
 #: fails loudly on a new **live** value but nothing tells it that Python's
@@ -769,6 +772,13 @@ JS_PAIRINGS = (
     ("EDGE_KINDS", js_array_strings, EDGE_KINDS),
     ("TRANSFORM_KINDS", js_array_strings, TRANSFORM_KINDS),
     ("MESH_FACT_FIELDS", js_array_strings, B.MESH_FACT_FIELDS),
+    # Added 2026-09-15 (viewer_study_verdicts_and_gaps). An object literal, not
+    # an array, because each kind earns a heading and a "what would close it"
+    # sentence on the page -- so this pairing is the strong kind: the table it
+    # checks is the one the reader actually sees, and a kind the builder starts
+    # writing that the page has no words for renders as a loud "this page
+    # cannot describe this gap" block rather than as a silently dropped row.
+    ("GAP_KINDS", js_object_keys, B.TOPOLOGY_GAP_KINDS),
 )
 
 

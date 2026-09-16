@@ -311,10 +311,14 @@ stacks are top-level leaves of the tree; the one stack a topology also
 re-expresses is nested as a child of that topology instead, alongside its
 studies, rather than being a second top-level leaf — but it is still there,
 one click under the topology it also is, and not merged into or hidden by it:
-its own authored `checks` block (a worst-case verdict against a criterion) has
-no field in the topology projection at all — DAG_TOPOLOGY.md's L1 proof
-compares *totals*, never a verdict — so making it unreachable would drop that
-check off the page entirely. `VA.navTree` (`topology.js`) computes which stack
+it holds the stack's own element table, its paths and its worksheet, none of
+which a topology re-expresses. (Until 2026-09-15 the reason given here was that
+a study's own `checks` had no field in the topology projection at all and a
+verdict was therefore reachable *only* through this nested view. That stopped
+being true in two steps — `topology_projection_emits_study_checks` added the
+field on 2026-09-09, and `viewer_study_verdicts_and_gaps` made the DAG page
+render it on 2026-09-15 — so the asymmetry this sentence described is gone, and
+with it the argument that rested on it.) `VA.navTree` (`topology.js`) computes which stack
 that is by reading the linkage already on hand — an edge that re-expresses a
 stack element carries `crop_key: {stack, element}`, and that IS the "this
 stack has a topology" fact, so nothing new is authored to say so.

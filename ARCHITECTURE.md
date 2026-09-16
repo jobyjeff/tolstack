@@ -44,8 +44,11 @@ scripts/
                                (projection_provenance, and since
                                topology_projection_emits_study_checks also
                                build_viewer_projection, for its confidence
-                               vocabulary). The layout lives here, not in JS,
-                               so pytest can pin it.
+                               vocabulary, its shared check-rounding rule and,
+                               since viewer_study_verdicts_and_gaps, its
+                               stack_gaps derivation -- a topology also carries
+                               a `gaps` list now). The layout lives here, not
+                               in JS, so pytest can pin it.
   projection_provenance.py     which tree built a projection, + the ancestry gate
                                that refuses an older tree's rebuild. Added
                                2026-08-10; stdlib only. Imported by all six
@@ -116,7 +119,7 @@ here that nothing checks is the defect, not the value it happens to have.
 | `Term` | an element, a sign (`+1`/`-1`), and a positive `coefficient` (default `1.0`), all validated |
 | `Interval` | a fold result: nominal, worst-case min/max, RSS center/half |
 | `fold(terms)` | **the only place element values are combined**, outside the exceptions declared in "Where computation may live" |
-| `CheckResult` | a check outcome + the `verdict` property |
+| `CheckResult` | a check outcome + the `verdict` and `margin` properties -- the word and by how much, both against `criterion` and both computed here |
 | `StackDefinition` | elements + paths + checks; `path()`, `check()`, `all_checks()` |
 | `load_stack(path)` | read + schema-check a stack-definition JSON |
 
