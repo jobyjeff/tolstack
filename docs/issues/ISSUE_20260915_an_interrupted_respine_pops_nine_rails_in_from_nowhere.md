@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260915_respine_tween_fidelity.md
 handoff: docs/sessions/HANDOFF_20260915_respine_tween_fidelity_round2.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `respine_tween_fidelity_round2` moved to completed/; not independently verified.
 ---
 
 # An interrupted respine pops rails in from nowhere — "nothing appears from nowhere" holds only from a settled frame

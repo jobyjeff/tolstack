@@ -217,12 +217,13 @@
       positions = VA.tweenPositions(tween.positions, positions, tween.e);
     }
     // The horizontal half of the same transition, which no keyed store can
-    // express (VA.respineX says why): the frame is drawn with the
-    // interpolated column count and the interpolated pane width, so a
-    // surviving rail starts where the outgoing frame drew it and a column
-    // this respine ADDS unfolds out of the spine rather than sliding in from
-    // a place it never was -- off the pane's left edge, in the grow
-    // direction. Both geometry passes take it; nothing else changes.
+    // express (VA.respineX says why): the frame is drawn with every column's
+    // drawn index interpolated (VA.drawnColumn) and the pane width with it,
+    // so a surviving rail starts where the outgoing frame drew it and a
+    // column this respine ADDS unfolds out of the OUTGOING FRAME'S LEFTMOST
+    // RAIL -- `from.floor`, not drawn column 0 -- rather than sliding in from
+    // a place it never was, off the pane's left edge in the grow direction.
+    // Both geometry passes take it; nothing else changes.
     var xTween = tween
       ? VA.respineX(layout, plan, M, tween, tween.e, ctx.jogZoneScale)
       : null;
@@ -236,6 +237,20 @@
       return node;
     };
     var geometry = VA.railGeometry(layout, M, positions, { x: xTween });
+    // The links' opacity, which is neither the store's business nor the
+    // unfold's (VA.linkOpacity says why): a link on a column BOTH
+    // serialisations have is the one drawn thing the interpolated column
+    // spread cannot put on top of something the outgoing frame drew, so it
+    // fades in at its own position instead. `tween.links` is the previous
+    // paint's own map, so an interrupted respine continues a part-done fade
+    // rather than restarting it.
+    var linkAlpha = VA.linkOpacity(geometry.links, tween && tween.links,
+                                   tween ? tween.e : 1);
+    var fadeLink = function (node, key) {
+      var a = linkAlpha[key];
+      if (a < 1) node.style.opacity = String(a);
+      return node;
+    };
     // The two display preferences this pane owns beyond the store
     // (viewer_leader_grid_legibility): which style the leaders are drawn in,
     // and how far the reader has dragged the jog zone open. Neither moves a
@@ -251,17 +266,22 @@
     // the render measured rather than guessing at a viewport, and the staged
     // study-respine animation needs a store that outlives a single paint to
     // tween between two of them.
-    // `columns` and `width` are the horizontal pair a respine interpolates
-    // (VA.respineX): the column count this frame was drawn with -- fractional
-    // mid-transition, because what the next tween has to continue from is the
-    // picture on screen and not the serialisation behind it -- and the SVG's
-    // own width, which is the grid's left edge. `tweening` says whether this
-    // paint was a transition frame: everything else here describes the store
-    // the paint DREW FROM either way, which is what both readers want.
+    // `columns`, `floor` and `width` are the horizontal trio a respine
+    // interpolates (VA.respineX): the drawn index of the spine plus one --
+    // fractional mid-transition, because what the next tween has to continue
+    // from is the picture on screen and not the serialisation behind it --
+    // the leftmost drawn column index, which is the rail an interrupting
+    // transition has to collapse its added columns onto, and the SVG's own
+    // width, which is the grid's left edge. `links` is the same continuity
+    // for the one drawn thing with an opacity of its own (VA.linkOpacity).
+    // `tweening` says whether this paint was a transition frame: everything
+    // else here describes the store the paint DREW FROM either way, which is
+    // what both readers want.
     VA.lastTopoRender = { topologyId: topoProj.id, mode: positions.mode,
                           fit: fit, positions: positions,
-                          columns: layout.columns -
-                            (xTween ? xTween.columnShift : 0),
+                          columns: VA.drawnColumn(layout.columns - 1, xTween) + 1,
+                          floor: VA.drawnColumn(0, xTween),
+                          links: linkAlpha,
                           width: leaderGeo.width, tweening: !!tween };
     var index = VA.topologyIndex(topoProj);
     var chain = VA.chainIndex(study);
@@ -282,7 +302,7 @@
     hscroll.appendChild(head);
     var body = VA.el("div", "tv__body");
     body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes,
-      marking, ctx, fade));
+      marking, ctx, fade, fadeLink));
     var rows = grid(plan, index, chain, marking, ctx, positions.gridOffset, fade);
     // The grid is the one block a respine CROSS-FADES rather than moves. Its
     // rows are not positioned from the store at all -- the table's pitch is
@@ -324,10 +344,11 @@
   //         rather than from inside it.
   //   ctx   the target state's render context, exactly as renderTopoPane
   //         takes it.
-  //   from  { positions, columns, width } -- the store the previous paint
-  //         drew from, and the column count and pane width it drew
-  //         (VA.lastTopoRender carries all three). No `from` means there is
-  //         nothing to animate between; the pane just renders.
+  //   from  { positions, columns, floor, width, links } -- the store the
+  //         previous paint drew from, and the four things it DREW: the spine's
+  //         drawn column index, the leftmost one, the pane width and each
+  //         link's opacity (VA.lastTopoRender carries all five). No `from`
+  //         means there is nothing to animate between; the pane just renders.
   //   opts  the clock, the motion preference and the error sink, injected so
   //         the fast tier can drive a whole transition frame by frame with no
   //         browser: { raf, now, duration, reduced, onError }.
@@ -372,7 +393,8 @@
         handle.done = true;
       } else {
         ctx.tween = { positions: previous, columns: from.columns,
-                      width: from.width, e: VA.respineEase(t), ghost: ghost };
+                      floor: from.floor, width: from.width, links: from.links,
+                      e: VA.respineEase(t), ghost: ghost };
       }
       try {
         VA.renderTopoPane(root, ctx);
@@ -631,7 +653,7 @@
   // --- the SVG -------------------------------------------------------------
 
   function railsSvg(geometry, leaderGeo, index, chain, chainNodes, marking, ctx,
-                    fade) {
+                    fade, fadeLink) {
     // The SVG spans the rails AND the leader jog zone: its right edge is the
     // grid table's left edge, so a leader's final horizontal segment hands off
     // to its row's boundary with no seam to keep aligned.
@@ -660,20 +682,28 @@
     // 1. the rails themselves: continuous, neutral, alternating shade by column
     //    parity so two rails crossing can still be told apart. NOT a categorical
     //    palette — see the page's legend for why there isn't one.
-    //    Mid-respine a rail needs no fade of its own: a column the
-    //    transition is adding is drawn collapsed onto the spine at e = 0 and
-    //    unfolds out of it (VA.respineX), so there is nothing to appear from
-    //    nowhere. The marks on it are keyed and the store fades those.
+    //    Mid-respine a rail needs no fade of its own, and this is the whole
+    //    reason why: a column the transition is adding is drawn collapsed
+    //    onto the OUTGOING FRAME'S LEFTMOST RAIL at e = 0 and unfolds out of
+    //    it (VA.respineX, whose `floor` is that rail), so there is nothing to
+    //    appear from nowhere -- from a settled outgoing frame or from a
+    //    transition frame alike. Every column both serialisations have has a
+    //    rail on both sides, so those are the only rails a respine can add.
+    //    The marks on a rail are keyed and the store fades those.
     geometry.rails.forEach(function (rail) {
       svg.appendChild(VA.svg("line",
         "rail rail--" + (rail.column % 2 ? "odd" : "even"),
         { x1: rail.x, y1: rail.y1, x2: rail.x, y2: rail.y2 }));
     });
 
-    // 2. the fan-outs and the loop closures.
+    // 2. the fan-outs and the loop closures. A link is the one drawn thing the
+    //    unfold above does NOT cover: it belongs to a pair of columns, and a
+    //    link a respine adds between two columns BOTH serialisations have
+    //    arrives on rails that never move. So it carries an opacity of its
+    //    own, keyed on its two ends' elements (VA.linkOpacity).
     geometry.links.forEach(function (link) {
-      svg.appendChild(VA.svg("path", "rail__link rail__link--" + link.kind,
-        { d: link.d }));
+      svg.appendChild(fadeLink(VA.svg("path",
+        "rail__link rail__link--" + link.kind, { d: link.d }), link.key));
     });
 
     // 2b. the leaders (viewer_leader_line_grid): one jogged line per

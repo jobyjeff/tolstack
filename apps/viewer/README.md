@@ -860,14 +860,44 @@ things are worth knowing about it:
   needs **1**), and a rail belongs to a *column* rather than to an element, so
   there is nothing to pair the two frames' rails on. What the two frames do
   agree about is **depth from the spine** — both are right-justified, so the
-  mainline is the last column of either — so `VA.respineX` interpolates the
-  **column count** and the **pane width**, and both geometry passes draw the
+  mainline is the last column of either — so `VA.respineX` pairs a column *by
+  depth* and `VA.drawnColumn` interpolates its drawn index between the two
+  frames' own, alongside the **pane width**; both geometry passes draw the
   frame from those. A surviving rail starts exactly where the outgoing frame
-  drew it; a column the respine *adds* unfolds out of the spine rather than
-  arriving from a place it never was. The SVG is drawn at the interpolated
-  width, which is the grid's own left edge, so the table beside it and the
-  header padded to sit over it follow without either learning that a
-  transition exists — **nothing is slid as a block.**
+  drew it; a column the respine *adds* unfolds out of **the outgoing frame's
+  leftmost rail** rather than arriving from a place it never was.
+
+  That last qualifier is load-bearing, and getting it wrong is what the first
+  cut did: it collapsed an added column onto drawn index **0**, which every
+  *settled* frame has a rail at and a frame caught mid-unfold does not.
+  Interrupting a select at `e = 0.5` — a 10-column walk half way into a
+  1-column chain, the real `pitch_system`'s own gap — left one rail drawn at
+  x = 105 with nothing to its left, and the deselect's first frame popped nine
+  rails in at x = 15…85. The spine and the pane width were continuous across
+  that, which is why the guard on those two numbers never saw it. So the
+  outgoing frame now records the **leftmost** index it drew as well as the
+  spine's, and the unfold holds from a transition frame and not only from a
+  settled one;
+* **a link is the one drawn thing that unfold does NOT cover, so it carries an
+  opacity of its own.** A rail belongs to a column, and every column *both*
+  serialisations have has a rail on both sides — so the only rails a respine
+  can add are exactly the ones the unfold draws on top of a rail already
+  there. A link belongs to a *pair* of columns, and two serialisations can
+  differ by a link on columns they **share**: a loop closure present in one
+  and not the other arrives on rails that never move, with nothing to hide
+  behind. `VA.linkOpacity` fades it in, keyed by `VA.linkKey` — the *elements*
+  at the link's two ends, the same element-by-element pairing the store makes
+  for a row. (A branch link's two ends are the same fork row, so two fan-outs
+  off one fork would key alike; a branch is keyed by the row it *lands* on
+  instead.) No committed topology can show this yet — all 21 study chains
+  across the five topologies are linear, `columns: 1` and `links: []`, so
+  every link a respine adds today arrives on a column it also adds — so the
+  check for it is synthetic, against the day a respine re-columns the whole
+  walk;
+* **the width goes with it, and nothing is slid as a block.** The SVG is drawn
+  at the interpolated width, which is the grid's own left edge, so the table
+  beside it and the header padded to sit over it follow without either
+  learning that a transition exists.
 
   The first cut *was* a whole-block CSS translate, right-anchored on the
   outgoing frame's grid seam, and it is worth knowing why that cannot work:
