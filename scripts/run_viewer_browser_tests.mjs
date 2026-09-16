@@ -2959,6 +2959,14 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
           if (window.__WORKSHEETS_FAIL__) {
             return Promise.reject(new Error("this origin cannot reach the worksheet"));
           }
+          // A stand-in for prose the previous node's read really returned:
+          // this seam's `texts` is empty, so a SUCCESSFUL read resolves null
+          // and `state.worksheetText` is never anything a later node could
+          // inherit. The stale-worksheet block below is the only thing that
+          // sets it, and it clears it again immediately.
+          if (window.__WORKSHEET_MARKER__) {
+            return Promise.resolve(window.__WORKSHEET_MARKER__);
+          }
           return real(segments);
         };
         return memory;
@@ -3050,6 +3058,80 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     push("the page the click asked for is on screen even though the read " +
       "failed", blank.length === 0);
     if (blank.length) console.log(`    nothing painted for: ${blank.join(", ")}`);
+
+    // --- the stale worksheet, which is navFailed's OTHER contract ----------
+    //
+    // `navFailed` clears `state.worksheetText` because `loadWorksheet()` only
+    // ASSIGNS on success -- so without the clear, the previous node's markdown
+    // is still in the dialog under this node's title. It is reachable and
+    // observable, and nothing watched it: measured 2026-09-16, deleting
+    // `state.worksheetText = null;` left the fast tier at 308/308, the
+    // node-fs tier at 382/382 and this file at 20/20.
+    //
+    // `paint()` computes `hasWorksheet` from `sheet.worksheet_file` -- the
+    // projection, not the text -- so the toggle is still offered after a
+    // failed read, and views/worksheet.js then renders `.worksheet__path` from
+    // the NEW subject and `.worksheet__body` from `state.worksheetText`: the
+    // OLD node's prose. The "could not be read from the connected folder"
+    // branch the line exists to reach is skipped entirely.
+    //
+    // Two reading rows, because the defect is one node's prose surviving onto
+    // another, and the whole thing is bracketed so pass 1's state is handed to
+    // the recovery block below exactly as it found it.
+    const readers = rows.filter((row) => row.reads);
+    const openSheet = async () => {
+      if (!(await page.locator("#worksheet-toggle").isVisible())) return null;
+      await page.locator("#worksheet-toggle").click();
+      await page.waitForSelector("#worksheet-dialog[open]", { timeout: 4000 });
+      const seen = await page.evaluate(() => ({
+        bodies: document.querySelectorAll(".worksheet__body").length,
+        text: (document.querySelector("#worksheet-dialog") || {}).textContent || "",
+        heading: ((document.querySelector(".worksheet__body h1") || {})
+          .textContent || ""),
+        path: ((document.querySelector(".worksheet__path") || {})
+          .textContent || ""),
+      }));
+      await page.keyboard.press("Escape");
+      return seen;
+    };
+    const STALE_MARKER = "a previous node's worksheet";
+    let afterRead = null, afterFailedRead = null;
+    if (readers.length >= 2) {
+      await page.evaluate((marker) => {
+        window.__WORKSHEET_MARKER__ = "# " + marker + "\n\nits prose.\n";
+        window.__WORKSHEETS_FAIL__ = false;
+      }, STALE_MARKER);
+      await page.locator(`#navtree ${navRow(readers[0].kind, readers[0].id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow(readers[0].kind, readers[0].id)}.navtree__row--on`,
+        { timeout: 4000 });
+      afterRead = await openSheet();
+      await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = true; });
+      await page.locator(`#navtree ${navRow(readers[1].kind, readers[1].id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow(readers[1].kind, readers[1].id)}.navtree__row--on`,
+        { timeout: 4000 });
+      afterFailedRead = await openSheet();
+      await page.evaluate(() => { delete window.__WORKSHEET_MARKER__; });
+    }
+    // The tripwire, asserted before what it certifies: a read that WORKED has
+    // to have put prose in the dialog, or there is nothing for the next node
+    // to inherit and the contract below is vacuous.
+    push("a worksheet read that works puts that node's own prose in the " +
+      "dialog — the thing the next node could inherit",
+      afterRead !== null && afterRead.bodies === 1 &&
+      afterRead.heading.indexOf(STALE_MARKER) !== -1);
+    push("a node whose worksheet read FAILED shows the sentence saying so, " +
+      "never the previous node's prose under this node's title",
+      afterFailedRead !== null &&
+      afterFailedRead.text.indexOf("could not be read from the connected " +
+        "folder") !== -1 &&
+      afterFailedRead.bodies === 0 &&
+      afterFailedRead.text.indexOf(STALE_MARKER) === -1);
+    if (afterFailedRead && afterFailedRead.bodies) {
+      console.log(`    stale sheet: "${afterFailedRead.heading}" under ` +
+        `"${afterFailedRead.path}"`);
+    }
 
     // Recovery, with no user action and no reload: the next read that works
     // retires the banner. A message that outlives what it was about is a

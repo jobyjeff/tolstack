@@ -444,10 +444,21 @@
   // dialog under this node's title.
   //
   // The read is called from INSIDE the try, not handed in as a promise: an
-  // adapter whose readText throws before it ever returns one (a null adapter,
-  // an unready handle -- VA.requireReady throws) would otherwise unwind
-  // straight out of the click handler, which is the wedge this exists to stop,
-  // reached by a different door.
+  // adapter whose readText throws before it ever returns one would otherwise
+  // unwind straight out of the click handler, which is the wedge this exists
+  // to stop, reached by a different door.
+  //
+  // WHICH adapters those are, narrowed 2026-09-16 from "a null adapter, an
+  // unready handle -- VA.requireReady throws", which overstated the door in
+  // both halves. FsaAdapter.readText and HttpAdapter.readText are `async`, so
+  // a requireReady throw in either arrives as a REJECTION and is caught by the
+  // handler below rather than by this try. The two that can throw
+  // synchronously are the non-async ones: MemoryAdapter (requireReady, on an
+  // unready handle) and NodeFsAdapter (whose `_io.readText` is a synchronous
+  // filesystem read). A null `adapter` would throw as well, but boot() returns
+  // before any nav row renders without one. So the guard is defence in depth
+  // through a narrower door than it claimed -- kept, because those two doors
+  // are real and the cost is one `try`. No tier reaches it today.
   function navigate(paint) {
     var pending;
     try {

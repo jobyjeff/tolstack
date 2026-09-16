@@ -481,6 +481,18 @@
       "tier": "fast",
       "suite": null,
       "expect_red": "[real] a row whose number has no plus/minus behind it says so in the grid too"
+    },
+    {
+      "id": "nav-failure-clears-the-stale-worksheet",
+      "contract": "A nav click whose worksheet read failed shows the sentence saying so -- never the PREVIOUS node's prose under this node's title. loadWorksheet() only assigns on success, so navFailed has to clear the text.",
+      "issue": "docs/issues/ISSUE_20260915_navigates_stale_worksheet_clear_and_sync_throw_door_are_unwitnessed.md",
+      "note": "The second of navigate()'s three stated contracts; only the rejection arm had a witness (nav-click-never-wedges). Measured 2026-09-16 with this line deleted: fast 308/308, node-fs 382/382, browser 20/20 -- entirely silent. It is observable because paint() computes hasWorksheet from `sheet.worksheet_file` (the projection, not the text), so the toggle is still offered and views/worksheet.js then renders the new subject's path over the old subject's body. The witness needs a SUCCESSFUL read first, which this seam's empty `texts` cannot give -- hence the suite's `__WORKSHEET_MARKER__` stand-in.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "  function navFailed(err) {\n    state.worksheetText = null;",
+      "replace": "  function navFailed(err) {",
+      "tier": "browser",
+      "suite": "no nav click wedges the page",
+      "expect_red": "a node whose worksheet read FAILED shows the sentence saying so, never the previous node's prose under this node's title"
     }
   ]
 }
