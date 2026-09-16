@@ -3103,6 +3103,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       merge gate, and it is the mirror image of the "file it before you write
       APPROVE" rule for what you *didn't* fix.
 
+- [ ] **A quantifier+noun doc-scan anchored at "same sentence" is still too
+      loose — pin adjacency, not co-membership.** New 2026-09-16
+      (`doc_facts_and_projection_stamps`, self-caught by the tactical agent,
+      recorded here so the next scan starts tight). A guard meant to catch "N
+      of the declared witnesses" first matched quantifier + noun anywhere in
+      the same sentence, which also fired on the *corrected* sentence itself
+      — "the other two do" (naming the other two test tiers) shares a
+      sentence with "declared witnesses," and "two" is a listed number word.
+      Fixed by anchoring the quantifier directly onto the noun phrase (`` `N
+      of the declared witness` ``, a few-character window) instead of
+      "anywhere in the same sentence." When reviewing a new phrase-plus-noun
+      scan, don't just check it fires on the stale sentence (see the
+      universal "guard observed failing" check) — also feed it the
+      **corrected** sentence and any nearby sentence sharing the same noun or
+      a number word, and confirm it stays quiet on both. A scan proven to
+      fire is not yet proven to fire *only* on the defect.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
