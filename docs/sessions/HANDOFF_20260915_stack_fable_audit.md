@@ -39,9 +39,31 @@ Ground truth available in-repo:
   provenance).
 - `data/inbox/specs/` datasheets and the drawing-checker exports the stacks
   cite.
-- The SOP amendment landed by `pitch_link_known_bands`: a recorded
-  hardware-entry band MAY be applied with true confidence shown; same
-  part+feature ⇒ same band in every stack.
+- The SOP amendments landed by `pitch_link_known_bands` (Jeff's 2026-09-15
+  placeholder policy): a sourced-but-unverified value MAY be applied with
+  true confidence carried; **a member with such a source is included as a
+  loudly-marked placeholder rather than omitted**; same part+feature ⇒ same
+  band in every stack. Omission + excluded-terms only when no number exists
+  anywhere.
+
+Operator facts supplied by Jeff, 2026-09-15 (use them; do not re-derive):
+- **The spherical bearings are MS14101-3 and MS14103-3**, one per link type
+  (pitch anti-rotation links vs tangential links). The RBC catalogs are
+  already in the inbox: `data/inbox/specs/RBC - Plain bearings (NAS77 p92).pdf`
+  and `RBC_Aerospace_Plain_Bearings_Web.pdf` — so bearing width values are
+  citable NOW; what's unresolved is only **which bearing goes with which
+  link**, which the link assembly drawings call out.
+- **The link assemblies are the machined links with the bearings
+  pressed/swaged in.** The 217755 A.1 top-level parts list (drawing-checker
+  run `20260909_174538_217755_A.1_...`, `217755_A_p01.json`, 97 rows) has:
+  find 25 = `212956-005` "PITCH ANTI ROTATION LINK ASSEMBLY, PROPELLER"
+  (qty 3), find 41/73 = `215175-001/-002` tangential link mount assemblies,
+  find 1/72 = the CW/CCW VPA assemblies (`208510-007` / `218510-006`). The
+  MS bearings do NOT appear at this level — they're in the link assemblies'
+  own parts lists, so the bearing↔link mapping needs those drawings
+  (212956 at least), which Jeff will export on request (he did a ~7-drawing
+  export batch before; ask via the operator queue, naming exact drawing
+  numbers).
 
 ## Deliverables
 
@@ -53,10 +75,21 @@ Ground truth available in-repo:
 2. **Joint-completeness sweep.** For each topology, compare its member set
    against the physical joint (the sibling topologies and Jeff's workbook
    rows are the reference for the three grip joints): a missing member is
-   either added (if its dimensions exist in-repo with citations) or recorded
-   as a named, ranked gap with exactly what closes it. The pitch-link eye /
-   spherical bearing is the known case — it needs the pitch link's part
-   number, which only Jeff can supply; do not invent it.
+   **added with best-available placeholder values** (workbook / RBC catalog /
+   MS spec, confidence carried honestly) per the placeholder policy —
+   omission is reserved for members with no number anywhere, and those still
+   get a named, ranked gap. The pitch-link eye / spherical bearing is the
+   known case: the link assembly is `212956-005` per the 217755 PL; its
+   bearing is MS14101-3 or MS14103-3; the RBC catalog values are citable
+   now. Add the member with the catalog band and a loud
+   which-bearing-unconfirmed marker if the 212956 drawing hasn't landed;
+   the drawing export request goes on the operator queue.
+   **Also flag, don't fix: the pitch_system "piston" vocabulary.** Jeff
+   states the CW VPA (208510-007) contains no piston; the topology's
+   `vpa_piston` part and `piston_length` edge inherit Chao's end-stop
+   worksheet wording (rows 38/39). Put the naming question on the operator
+   queue with the specific rows quoted — what is the actual moving output
+   member — rather than renaming on a guess.
 3. **Check coverage.** 6 of 19 studies carry `checks: []`. Every study gets
    either a check with a stated criterion (only where the criterion is
    citable in-repo) or an explicit recorded reason there isn't one yet.
@@ -66,10 +99,14 @@ Ground truth available in-repo:
 5. **The operator queue.** Every item only Jeff can close becomes an agent
    todo via `forge todo propose` (run from `C:\workspace\forge`, effector
    CLI — one todo per ask, `source_note 20260915T145908_fwc7qp`), each with
-   the exact ask and what it unblocks, e.g.: "pitch link part number (for
-   the eye/bearing member — blocks completing the pitch-link topology)";
-   "214820-002 drawing PDF into tolstack data/inbox/specs/ (you read it
-   2026-09-15: 4.76 +0/−0.13)"; "NAS1149 washer spec sheet". Rank them.
+   the exact ask and what it unblocks, e.g.: "export the 212956-005 pitch
+   anti-rotation link assembly drawing (confirms which MS bearing the
+   pitch link carries)"; "214820-002 drawing PDF into tolstack
+   data/inbox/specs/ (you read it 2026-09-15: 4.76 +0/−0.13)"; "NAS1149
+   washer spec sheet"; "what is the VPA's actual moving output member
+   (the sheet's 'piston', rows 38/39)". Rank them. Jeff has said he'll
+   export drawings on request until Enovia auto-export is wired — name
+   exact drawing numbers, batch them.
    This queue — not silence, not a buried worksheet table — is how gaps
    reach the operator from now on.
 6. **The audit report** (`docs/tolerance_stacks/AUDIT_20260915_full_pass.md`
