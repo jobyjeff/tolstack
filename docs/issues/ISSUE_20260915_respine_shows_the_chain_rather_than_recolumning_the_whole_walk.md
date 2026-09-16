@@ -83,3 +83,25 @@ Nothing is blocked on this: the shipped respine satisfies the deliverable's
 own definition of done and Jeff's own re-confirmation ("smooth animation when
 the dag rearranges itself"). This is the bigger feature behind it, with no
 owner once `viewer_study_respine_animation` completes.
+
+---
+
+> **Decided and built, 2026-09-15** — `viewer_respine_whole_walk`, off item 1
+> of the brief above, which Jeff decided the same day.
+>
+> The answer is **neither** of the two readings this issue framed. A respine is
+> not a view switch, and it is not a re-columning either: the DAG is *always*
+> the topology's own walk, unchanged in shape, and a study selection changes
+> only **emphasis** — its chain lights, non-members dim, leaders are drawn only
+> where they point at a chain node, and the grid drops to the chain's rows in
+> walk order. Nothing is re-columned, so question 2 above ("what does it do
+> when a walk with the chain as its mainline does not exist?") does not arise,
+> and the geometry brief's column questions stay untouched.
+>
+> Question 3 was right about the animation: with the column count equal on
+> both sides `VA.respineX` returns a zero column shift, and what is left to
+> tween is the pane width (leaders drop) and the grid block's own offset.
+>
+> The "Showing: whole topology / study chain" toggle is gone with the second
+> layout it picked between. `study.layout` is still built and still in the
+> projection; the viewer no longer reads it.
