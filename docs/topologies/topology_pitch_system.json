@@ -109,25 +109,25 @@
   "parts": [
     {
       "id": "hub",
-      "name": "propeller hub -- the ground every load path returns to",
-      "note": "Part identity not established here. It carries the A datum (lower bearing flange), the top bearing flange, the top deck, the blade root seats and the ring-gear seat, which is why two of this topology's five branch points sit on it (the other three are the pitch plate connection, the blade-root clocking interface, and the gas-spring mount flange -- the last added 2026-09-06 by handoff mechanical_stroke_stack)."
+      "name": "propeller hub",
+      "note": "Part identity not established here. The ground every load path in this topology returns to. It carries the A datum (lower bearing flange), the top bearing flange, the top deck, the blade root seats and the ring-gear seat, which is why two of this topology's five branch points sit on it (the other three are the pitch plate connection, the blade-root clocking interface, and the gas-spring mount flange -- the last added 2026-09-06 by handoff mechanical_stroke_stack)."
     },
     {
       "id": "vpa_208510_007",
-      "name": "VARIABLE PITCH ACTUATOR ASSEMBLY 208510-007 (body)",
+      "name": "208510-007 variable pitch actuator",
       "drawing": "208510-007",
-      "note": "Balloon 1 in 217755 sheet 5 DETAIL X, per the source_ref on `spherical_bearing` in docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json. Modelled as the actuator body: the part the piston travels in and that carries the end-stop feature."
+      "note": "Balloon 1 in 217755 sheet 5 DETAIL X, as cited by the spherical-bearing width in the VPA-output stack. Modelled as the actuator body: the part the piston travels in and that carries the end-stop feature."
     },
     {
       "id": "vpa_piston",
-      "name": "VPA piston / output rod end",
+      "name": "actuator piston (output rod end)",
       "note": "Part identity not established -- internal to the actuator assembly. Split from the body as its own part because the source sheet tolerances the piston length (row 38) and the piston-end-to-stop-feature distance (row 39) separately, and those two cannot be dimensions of one part if the stop feature is on the body."
     },
     {
       "id": "pitch_plate_215177_001",
-      "name": "PITCH PLATE 215177-001",
+      "name": "215177-001 pitch plate",
       "drawing": "215177-001",
-      "note": "Named in the source_ref on `pitch_flange_thickness` in docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json, which records that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than this part at that joint. Carried forward as an open question, not resolved here."
+      "note": "Named by the pitch-flange thickness citation in the VPA-output stack, which records that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than this part at that joint. Carried forward as an open question, not resolved here."
     },
     {
       "id": "pitch_link",
@@ -156,20 +156,20 @@
     },
     {
       "id": "gas_spring_mount_213668_002",
-      "name": "MOUNT, GAS SPRING, PROPELLER 213668-002",
+      "name": "213668-002 gas-spring mount",
       "drawing": "213668-002",
       "revision": "A.1",
       "note": "The one part in this topology with a confirmed drawing: WORKSHEET_end_stop_graft.md's currency check names 213668-002 A.1 and records that drawing-checker has extractions of it, whose schema holds title block / revision block / notes / parts list but no individual linear dimensions -- so the drawing exists and its dimensions are still couldn't-check."
     },
     {
       "id": "tan_link_mount_215175_002",
-      "name": "TANGENTIAL LINK MOUNT 215175-002",
+      "name": "215175-002 tangential link mount",
       "drawing": "215175-002",
-      "note": "Named in the source_ref on `pitch_flange_thickness` in the VPA-output stack (balloon 72 in DETAIL X). In this topology it is the structure between the hub top deck and the gas-spring mount, per the source sheet's rows 42/45/57."
+      "note": "Named by the pitch-flange thickness citation in the VPA-output stack (balloon 72 in DETAIL X). In this topology it is the structure between the hub top deck and the gas-spring mount, per the source sheet's rows 42/45/57."
     },
     {
       "id": "hydraulic_brake",
-      "name": "hydraulic brake (design-concept alternative to the gas spring)",
+      "name": "hydraulic brake",
       "note": "NO part identity and NO values: the brief names it as an alternative to the gas spring 'per design concept'. It is in the graph so that branch 1 shows as a genuine choice between two designs rather than a single path, and every band on it is `assumed`."
     }
   ],
@@ -217,7 +217,7 @@
       "name": "piston rod end into the pitch plate -- the pitch plate connection",
       "parts": ["vpa_piston", "pitch_plate_215177_001"],
       "kind": "mating_surface",
-      "note": "The brief's 'pitch plate connection', and the branch point where the load path divides. It is also the joint that docs/topologies/topology_vpa_output_to_pitch_plate.json models axially in millimetres -- one interface, two topologies, at two different levels of the same system. Joining them is a later handoff's decision, not assumed here."
+      "note": "The brief's 'pitch plate connection', and the branch point where the load path divides. It is also the joint the VPA-output topology models axially in millimetres -- one interface, two topologies, at two different levels of the same system. Joining them is a later handoff's decision, not assumed here."
     },
     {
       "id": "pitch_plate_link_hole",

@@ -942,6 +942,80 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`test_the_vocabulary_pairing_can_fail`) rather than re-deriving the diff by
       hand — that is the one thing left for you: whether a *sentence about a rule*
       (not a word list) drifted, which no vocabulary-vs-constant pairing can see.
+- [ ] **A web surface saying something only its author can read.** New
+      2026-09-15 (`viewer_component_names_and_reference_copy`), off Jeff's own
+      review of the live pitch-link topology — and it is the same class of
+      defect as a drifted vocabulary, one layer out: the words were correct
+      about the *schema* and useless to the *reader*. What he found, in one
+      sitting, on one page:
+      an internal id printed as a part's name in the main table
+      (`bolt_nas6403u11d`); a merged cell's component description and part
+      number repeated in every row's element cell beside it; "no drawing
+      recorded for this part" on a COTS fastener, which is true of the field
+      and false about the part; `source_ref`, `crop_key` and `sha256` in body
+      copy; absolute workstation paths (`C:/workspace/tolstack/data/...`)
+      rendered beside a link; a rebuild **command** rendered in a hover
+      popover for the reader to copy into a terminal; and a link that did
+      nothing at all when clicked. So, whenever a diff touches `apps/viewer/`,
+      `apps/annotate/` or any other web surface, read the **rendered strings**
+      and check each of these:
+      (a) **No internal id, field name or artifact filename in anything a
+      reader reads.** An id is a deep-link handle and a debugging aid; put it
+      on a hover title if it must exist at all. The guards are
+      `apps/viewer/tests.js`'s two banned-string walks (one over the fixture,
+      one over every live topology) and
+      `tests/test_topology_prose_for_a_reader.py` over the authored documents
+      — extend them rather than writing a third.
+      (b) **One fact once per row.** Two adjacent cells repeating the same
+      phrase is not a copy nit: it is what pushes the meaningful half of a
+      label off the end of a column (`VA.elementDisplayLabel`, display only —
+      a document is never edited to fix a layout).
+      (c) **Say what is true, not which field is empty.** "No drawing
+      recorded" describes the schema; "standard part — dimensions from
+      NAS6403-NAS6420 Rev 4 · sheet 3" describes the part. Where neither
+      exists, render **nothing** — never a sentence about an absence.
+      (d) **A control the current origin cannot service must not render.**
+      The broken "open the PDF" link was not a bad URL: Chrome refuses *every*
+      navigation from an http(s) page to a `file:` URL, so on the
+      drawing-checker-served origin the click silently did nothing (measured
+      both ways, `VA.originOpensLocalFiles`). Ask of any affordance: which
+      transports can actually service this, and does it disappear on the
+      others?
+      (e) **Never a terminal command, and never a workstation path.** Wire the
+      action to a button or degrade to plain words. The banner is this repo's
+      one sanctioned exception and states it once for the whole page.
+      (f) **Provenance a reader did not ask for goes behind a disclosure, not
+      into the reading flow** (`VA.disclosure`) — and a disclosure is a fold,
+      never a place to hide a gap.
+- [ ] **A test that is ALREADY red names a list, and the diff added to it.**
+      New 2026-09-15 (`viewer_component_names_and_reference_copy`, fixed in
+      review). `tests/test_provenance.py::test_every_byte_identity_claim_…`
+      was red on master for a strategy brief's sake, and the author filed that
+      correctly -- but the test reports *every* unbacked claim, and the branch
+      had quietly added two of its own (`apps/viewer/README.md`, the new
+      "checked against the citation, byte for byte" wording quoted into prose
+      with nothing naming the comparison in the same block). `1 failed` reads
+      identically at one item and at three, so a known-red test is a mask
+      exactly the width of its own assertion message. **Read the failure's
+      item list against the diff, never the pass/fail tally** -- and prefer
+      `pytest <nodeid>` on the known-red test to eyeballing the summary line.
+      The same question applies to any aggregating guard this repo has (the
+      doc scans, the vocabulary pairings, the module inventory): *which rows
+      does it name today, and which of them are mine?*
+- [ ] **Single-sourcing a RENDERER hands the class prefix to the callee, and
+      no tier reads a class prefix.** New 2026-09-15 (same handoff; the bug
+      the author found by eye and shipped a fix for without a guard --
+      `ISSUE_20260915_the_shared_crop_renderers_class_prefix_argument_is_
+      unguarded_in_every_tier.md`). `VA.cropReference(box, entry, config,
+      classPrefix)` serves four surfaces and the prefix carries its own
+      separator (`"croppop__"` vs `"detail__crop-"`), so passing
+      `"detail__crop"` renders `detail__crophead` -- unstyled, and measured
+      green at 386/386 fast and 33/33 browser in review. Every assertion on
+      those blocks reads `textContent`, which is right for copy and blind to
+      this. When a diff factors a renderer out across surfaces, ask **what
+      does each caller pass that only CSS can see**, and require one selector
+      assertion per call site. Sibling of "Single-sourcing replaced N hand
+      copies with ONE argument -- now mutate the argument", one layer down.
 - [ ] **Documents cited from a worktree that cannot see them.** `data/` is
       gitignored, so `data/inbox/specs/` in a worktree holds one tracked
       `README.md` and nothing else — the pile (several dozen files, and growing;
@@ -2454,6 +2528,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       grows a parameter — the symptom is a witness reading *some other*
       trigger's box and passing or failing for the wrong reason (it reported
       the grid trigger's 418.5–444.5 for a rail bar until the tail was fixed).
+      **Second sighting 2026-09-15 (`viewer_component_names_and_reference_copy`),
+      and it names the tier the entry above leaves out: run
+      `run_mutation_witness_tests.mjs` after the integration merge too.** The
+      handoff branch witnessed 16/16 and the merged tree 21/22 --
+      `card-layout-out-of-flow` no longer reddens on its declared sub-check.
+      Bisected by `git archive <rev>` into scratch trees: witnessed at the
+      merge-base, at the handoff tip, and at `0573826`; NOT witnessed from
+      `afcbbb4` onward, the *review* merge that brought three sibling handoffs
+      onto one line. Each of the three was green alone, so nobody could see it,
+      and a review merge is the one place the mutation tier is not re-run.
+      `ISSUE_20260915_the_card_layout_out_of_flow_mutation_witness_stopped_
+      witnessing_on_integration.md`. The tell is the same one this block keeps
+      producing: the tier goes red as `ERROR: locator.hover: Timeout`, a
+      symptom with no name attached, rather than on the check that owns the
+      claim.
 - [ ] **The deliverable is mutation-tested and the guard the author added on
       their OWN initiative is not.** New 2026-09-15
       (`viewer_study_respine_animation`, should-fix). A model tactical sweep:
@@ -2691,6 +2780,36 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       checkable in one `git archive` plus one probe --
       `ISSUE_20260915_the_readmes_inconsistency_premise_for_the_whole_walk_
       change_does_not_reproduce.md`.
+- [ ] **A "per row" replay that substitutes a STUB for the row's own collector
+      is one assertion written N times.** New 2026-09-15
+      (`viewer_value_guard_rows_and_replays`, nit — the shape was prescribed by
+      the handoff, inherited from `projection_field_guard_rows`).
+      `replayBlindCollectors` in `apps/viewer/tests.js` loops the 15 stack-side
+      and 15 topology rows, and for each builds `{field, branch, known,
+      values: function () { return []; }}` and asserts `unexplainedValues`
+      reports it. `known` is never called on an empty collector, so the only
+      thing that varies across the 30 iterations is the `field` string in the
+      message: it proves `unexplainedValues`' empty arm fires (worth having —
+      deleting the `push` reddens both bite tests, verified), but it does **not**
+      prove anything per row. The per-row claim needs the row's **real**
+      collector run against a projection with that field removed — the scratch
+      `--repo` root harness this checklist already names. Ask of any "replayed
+      per row" comment: *what does iteration 7 execute that iteration 1 did
+      not?*
+- [ ] **A green `run_tests.cjs --repo <main checkout>` can be red five minutes
+      later for reasons that are nobody's.** New 2026-09-15 (same review). The
+      first `--repo C:\workspace\tolstack` run here was **369/373**, four
+      `[real]` pitch-link tests red; a re-run minutes later, same worktree, same
+      commit, was **373/373**. `data/projections/viewer/*.json` is shared by
+      every worktree and other live sessions rebuild it mid-run — the stamp in
+      the file says which tree it came from
+      (`provenance.branch` / `head_sha` / `built_at`; ours read
+      `review/viewer_respine_whole_walk`, not `master`). Before you attribute a
+      `[real]` red to the diff, **read the three stamps and re-run**, and check
+      the same failure at the branch's merge-base with `git archive <base> apps |
+      tar -x -C <scratch>` — app source comes from wherever the runner lives,
+      data comes from `--repo`, so a base comparison costs one command and no
+      worktree.
 
 ## Architectural errors to check
 
@@ -2846,9 +2965,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
         or an `index.html` `.gap--*` / `.croppop--*` block, **re-read the matching
         `inList` by hand**; nothing pairs them.
       Also check the companion test `[real] each value guard bites when fed a value
-      nothing can explain` still covers every row — a guard whose `known` accepts
-      anything is documentation, which is precisely the state `VA.CROP_RULES` was in
-      for the four days the original bug shipped. And know the tier's reach: it
+      nothing can explain, and on finding no value at all` still covers every row —
+      a guard whose `known` accepts anything is documentation, which is precisely
+      the state `VA.CROP_RULES` was in for the four days the original bug shipped.
+      That test replays **both** arms of the shared `unexplainedValues` per row
+      (2026-09-15, `viewer_value_guard_rows_and_replays`): the unknown value, and
+      the **collector that comes back empty**, which is the arm a renamed builder
+      key or a reshaped `crops.json` trips and the one a bite test forgets. The
+      topology table's companion is the same shape and the same helper.
+      And know the tier's reach: it
       reads **live data only**, so a value that exists only in `fixtures.js`
       (`values_status: "not_transcribed"`, `export.status: "unestablished"`) is
       unguarded by it by construction.

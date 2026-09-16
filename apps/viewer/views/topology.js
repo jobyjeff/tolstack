@@ -537,6 +537,75 @@
   VA.TOPO_COLUMNS = COLUMNS;
   VA.TOPO_COLUMN_WIDTH = { min: 80, max: 900 };
 
+  // --- the preview pane's width (Jeff, 2026-09-15: "it's too narrow") -------
+  //
+  // The pane shows a drawing crop at the pane's own width, so how wide it
+  // wants to be is a property of the DOCUMENT a reader happens to be reading,
+  // not something this page can pick once. It is dragged, by the divider on
+  // its left edge (topology.html), and remembered.
+  //
+  // `min` keeps the values column's two number rows from wrapping; `max`
+  // exists so a drag cannot leave the grid unreadably narrow, which is the
+  // only failure a drag on this divider can produce. `preset` is the width
+  // topology.css declares — not repeated here, READ from the pane at boot, so
+  // the stylesheet stays the one place the default lives.
+  VA.TOPO_PANE_WIDTH = { min: 320, max: 1000 };
+
+  VA.clampPaneWidth = function (px) {
+    var n = Math.round(Number(px));
+    if (!isFinite(n)) return VA.TOPO_PANE_WIDTH.min;
+    return Math.min(VA.TOPO_PANE_WIDTH.max,
+      Math.max(VA.TOPO_PANE_WIDTH.min, n));
+  };
+
+  // The width a drag lands on. The pane is on the RIGHT of its divider, so
+  // dragging left (negative dx) makes it WIDER — the sign inversion is here,
+  // in the pure layer, rather than in the app shell's pointer handler, for the
+  // same reason VA.jogZoneScaleAfterDrag is: it is the one line of arithmetic
+  // a test can check without a pointer, and getting it backwards is the
+  // likeliest mistake in the whole feature.
+  VA.paneWidthAfterDrag = function (startWidth, dx) {
+    return VA.clampPaneWidth(startWidth - dx);
+  };
+
+  // Where the remembered width is kept, and the ONE key it is kept under.
+  // Jeff asked for the width to persist and said localStorage is fine.
+  //
+  // This is the first preference on this page that outlives the session, and
+  // it is deliberately the only one: the others (row density, edge length
+  // mode, leader style, jog zone scale) are ways of reading the DIAGRAM, and
+  // topology_app.js's own comment on `jogZoneScale` argues they are better
+  // reset — a stored pixel width for a jog zone crushes one topology's lanes
+  // and barely moves another's. A pane width has none of that coupling: it is
+  // a property of the window, it means the same thing on every topology and
+  // in both modes, and it is the one Jeff noticed was wrong.
+  //
+  // `store` is injected so both directions are testable without a browser,
+  // and every access is wrapped: a file:// page's localStorage is per-path at
+  // best and throws outright in some configurations, and a preference is never
+  // worth a crash. A read that cannot answer returns null, which the caller
+  // reads as "no preference stored" — the stylesheet's width.
+  VA.PANE_WIDTH_KEY = "tolstack.viewer.detailWidth";
+
+  VA.readStoredPaneWidth = function (store) {
+    try {
+      var raw = store && store.getItem(VA.PANE_WIDTH_KEY);
+      if (raw === null || raw === undefined || raw === "") return null;
+      var n = Number(raw);
+      return isFinite(n) ? VA.clampPaneWidth(n) : null;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  VA.writeStoredPaneWidth = function (store, px) {
+    try {
+      if (store) store.setItem(VA.PANE_WIDTH_KEY, String(VA.clampPaneWidth(px)));
+    } catch (err) {
+      // A browser that refuses to store it still resizes for this session.
+    }
+  };
+
   VA.topoColumn = function (cls) {
     for (var i = 0; i < COLUMNS.length; i++) {
       if (COLUMNS[i].cls === cls) return COLUMNS[i];
@@ -1000,15 +1069,21 @@
     if (valueOnly) el.setAttribute("title", VA.edgeHoverTitle(edge, planRow.id));
     el.appendChild(VA.el("td", "tvcell tvcell--ord", hit ? String(hit.ordinal) : ""));
 
-    // The element label, with its own component's name dropped off the front
-    // where it repeats the merged cell to its left (VA.elementDisplayLabel,
-    // topology.js -- display only, nothing about the edge changes). Where
-    // anything was dropped the cell carries the FULL label as its hover
-    // title, so the words are one hover away and the detail pane prints them
-    // in full regardless.
+    // The element label, with everything the rest of the row already says
+    // dropped out of it (VA.elementDisplayLabel, topology.js -- display only,
+    // nothing about the edge changes): the component's own words off the
+    // front, and any clause that only restates the component or the row's own
+    // value. Where anything was dropped the cell carries the FULL label as its
+    // hover title, so the words are one hover away and the preview pane prints
+    // them in full regardless.
+    //
+    // The PART ROW is passed, not its id: the rule matches against what the
+    // merged cell actually prints, which is the part's name now.
     var fullName = edge ? edge.name : missing(planRow.id);
     var shownName = edge && group
-      ? VA.elementDisplayLabel(fullName, group.part) : fullName;
+      ? VA.elementDisplayLabel(fullName,
+          group.part ? (index.parts[group.part] || { id: group.part }) : null)
+      : fullName;
     var nameCell = VA.el("td", "tvcell tvcell--name", valueOnly ? "" : shownName);
     if (!valueOnly && shownName !== fullName) nameCell.setAttribute("title", fullName);
     el.appendChild(nameCell);
@@ -1425,10 +1500,7 @@
       root.appendChild(VA.el("p", "muted", missing(id)));
       return;
     }
-    var head = VA.el("div", "detail__head");
-    head.appendChild(VA.el("h3", null, node.name));
-    head.appendChild(VA.el("code", "muted", node.id));
-    root.appendChild(head);
+    root.appendChild(paneHead(node.name, node.id));
 
     var chips = VA.el("div", "detail__chips");
     chips.appendChild(VA.chip("chip--kind", node.kind));
@@ -1442,20 +1514,32 @@
     root.appendChild(chips);
 
     // This node's SIDES, derived from the edges actually incident on it
-    // (VA.nodeSideIds -> VA.nodeAdjacentParts) -- the same adjacency the dot's
-    // hover card prints and the leader rule reads, NOT the document's own
-    // `parts` list.
+    // (VA.nodeSideLabels -> VA.nodeAdjacentParts) -- the same adjacency the
+    // dot's hover card prints and the leader rule reads, NOT the document's
+    // own `parts` list. In the parts' own NAMES since 2026-09-15; it printed
+    // their ids until then, which is the one thing this pane said that a
+    // reader had no way to read.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 10 of the 46 live nodes the same dot answered differently
-    // hovered and clicked. Neither list was wrong: a node against a `gap` edge
+    // false, and on 17 of the 46 live nodes the same dot answered differently
+    // hovered and clicked. (17 is the STRING count, which is what "answered
+    // differently" means; 10 is the smaller count of nodes that differ as a
+    // SET. The other 7 name the same two parts in the opposite order --
+    // authoring order against first-seen-edge order -- and a reader looking at
+    // two orders of two names is still reading two different answers. Every
+    // digit in this paragraph, and the README's copy of the first sentence,
+    // is re-derived from the live projection by apps/viewer/tests.js's
+    // "[real] every live dot answers the SAME on hover and on click" -- the
+    // noun included, because 10 shipped under 17's wording for a day and a
+    // pairing that only checked "some number" would have passed it.)
+    // Neither list was wrong: a node against a `gap` edge
     // has a clearance for a side, and a clearance is not a part, so an
     // authored parts list cannot name one. The lists answer different
     // questions -- and the question a reader clicking a dot in the DAG is
     // asking ("what meets HERE, in the picture I am looking at") is the
     // derived one, which is why the card already chose it.
-    var sideIds = VA.nodeSideIds(ctx.topoProj, id);
-    root.appendChild(VA.el("div", "detail__where", "on " + sideIds.join(" ⇔ ")));
+    var sides = VA.nodeSideLabels(ctx.topoProj, id);
+    root.appendChild(VA.el("div", "detail__where", "on " + sides.join(" ⇔ ")));
 
     // Whether this interface got a leader line, and why (viewer_leader_line_
     // grid): the omission rule is the component grouping, so the pane says
@@ -1484,10 +1568,7 @@
       root.appendChild(VA.el("p", "muted", missing(id)));
       return;
     }
-    var head = VA.el("div", "detail__head");
-    head.appendChild(VA.el("h3", null, edge.name));
-    head.appendChild(VA.el("code", "muted", edge.id));
-    root.appendChild(head);
+    root.appendChild(paneHead(edge.name, edge.id));
 
     var source = VA.VALUE_SOURCES[edge.value_source];
     var chips = VA.el("div", "detail__chips");
@@ -1505,9 +1586,16 @@
     }
     root.appendChild(chips);
 
+    // The part and the two interfaces, in their own names -- all three were
+    // printed as ids here until 2026-09-15.
+    var partLabel = edge.part
+      ? VA.componentLabel(VA.topologyIndex(ctx.topoProj).parts[edge.part] ||
+          { id: edge.part })
+      : null;
     root.appendChild(VA.el("div", "detail__where",
-      (edge.part ? "a dimension of " + edge.part : "across a clearance") +
-      "  ·  " + edge.from + " → " + edge.to));
+      (partLabel ? "a dimension of " + partLabel : "across a clearance") +
+      "  ·  " + VA.nodeLabel(ctx.topoProj, edge.from) +
+      " → " + VA.nodeLabel(ctx.topoProj, edge.to)));
 
     // Deep link OUT to apps/annotate/ (deliverable 4): only for the two loud
     // gap confidences -- a traced/inferred edge already has a citation, and a
@@ -1534,22 +1622,22 @@
         // as the link below, but the annotator flies out beside this page
         // with just this edge's part visible, ready to click the surface.
         var attachBtn = VA.el("button", "detail__annotate-btn",
-          "attach to 3D" + (edge.part ? " (" + edge.part + ")" : "") + " →");
+          "attach to 3D" + (partLabel ? " (" + partLabel + ")" : "") + " →");
         attachBtn.setAttribute("title",
           "flies out the 3D annotation panel with this edge selected" +
-          (edge.part ? ", isolating " + edge.part : "") +
+          (partLabel ? ", showing " + partLabel + " on its own" : "") +
           " -- click the correct surface(s) there to resolve which feature this is");
         attachBtn.onclick = function () { ctx.onAttach3d(annotateParams); };
         annotateBox.appendChild(attachBtn);
       } else {
         var annotateLink = VA.el("a", "detail__annotate-link",
-          "annotate this" + (edge.part ? " (" + edge.part + ")" : "") + " →");
+          "annotate this" + (partLabel ? " (" + partLabel + ")" : "") + " →");
         annotateLink.setAttribute("href", VA.annotateLink(annotateParams));
         annotateLink.setAttribute("target", "_blank");
         annotateLink.setAttribute("rel", "noopener");
         annotateLink.setAttribute("title",
           "opens the 3D annotation surface with this edge selected" +
-          (edge.part ? ", isolating " + edge.part : "") +
+          (partLabel ? ", showing " + partLabel + " on its own" : "") +
           " -- click the correct surface(s) there to resolve which feature this is");
         annotateBox.appendChild(annotateLink);
       }
@@ -1576,7 +1664,7 @@
       "default transform: " + VA.transformText(edge.transform)));
 
     var hit = VA.chainIndex(ctx.study)[edge.id];
-    if (hit) root.appendChild(contributionBlock(hit, ctx.study));
+    if (hit) root.appendChild(contributionBlock(hit, ctx.study, ctx.topoProj));
 
     if (edge.note) root.appendChild(VA.el("div", "detail__note", edge.note));
 
@@ -1587,11 +1675,23 @@
       if (provenance) root.appendChild(exportBlock(provenance));
     } else if (dimension) {
       root.appendChild(VA.el("div", "el-export el-export--none el-export--loud",
-        "This dimension carries no source_ref at all — nothing says where the " +
-        "number came from."));
+        "This dimension cites nothing at all — nothing on record says where " +
+        "the number came from."));
     }
 
     root.appendChild(cropSection(edge, ctx));
+  }
+
+  // A preview-pane heading: the thing's own NAME, with its id on the
+  // heading's hover title instead of printed beside it in a <code> chip
+  // (2026-09-15 -- an id is a deep-link handle, not a label; the hover cards
+  // and the stack pane took the same treatment).
+  function paneHead(name, id) {
+    var head = VA.el("div", "detail__head");
+    var heading = VA.el("h3", null, name);
+    if (id) heading.setAttribute("title", id);
+    head.appendChild(heading);
+    return head;
   }
 
   function row(box, label, value) {
@@ -1601,12 +1701,13 @@
     box.appendChild(line);
   }
 
-  function contributionBlock(hit, study) {
+  function contributionBlock(hit, study, topoProj) {
     var c = hit.contribution;
     var box = VA.el("div", "detail__contribution");
     box.appendChild(VA.el("h4", null,
       "In this study — contribution #" + hit.ordinal));
-    row(box, "crossed", c.from + " → " + c.to);
+    row(box, "crossed", VA.nodeLabel(topoProj, c.from) + " → " +
+      VA.nodeLabel(topoProj, c.to));
     row(box, "sign", c.sign < 0 ? "− (against the edge's orientation)"
       : "+ (with the edge's orientation)");
     row(box, "transform", c.transform + "  ×" + VA.fmt(c.ratio));
@@ -1672,7 +1773,11 @@
     }
     var entry = VA.cropForKey(ctx.crops, edge.crop_key);
     box.className = "detail__crop detail__crop--" + entry.status;
-    box.appendChild(VA.el("div", "muted", VA.cropKeyText(edge.crop_key)));
+    // The crop KEY line used to print here (VA.cropKeyText): which of the crop
+    // index's two key spaces addressed this crop, spelled in the ids of a
+    // stack and an element. Internal plumbing, in internal ids, immediately
+    // above a picture that names its own document -- gone 2026-09-15, on the
+    // same pass that took it off the hover cards.
     if (entry.status !== "resolved") {
       box.appendChild(VA.el("div", "detail__crop-reason", entry.reason || entry.status));
       return box;
@@ -1687,13 +1792,14 @@
       box.appendChild(img);
     } else {
       box.appendChild(VA.el("div", "detail__crop-reason",
-        "crops.json points at " + entry.png + ", which is not on disk — the crop " +
-        "index is stale; re-run the crop script"));
+        VA.CROP_IMAGE_MISSING_TEXT));
     }
-    box.appendChild(VA.el("div", "detail__crop-head",
-      entry.pdf_name + " · sheet " + entry.page));
-    box.appendChild(VA.el("div", "detail__crop-prov", VA.cropProvenanceLine(entry)));
-    box.appendChild(VA.el("div", "detail__crop-path", entry.pdf));
+    // The reference, its links and the folded matching provenance, from the
+    // ONE builder every crop surface shares (VA.cropReference, views/crop.js).
+    // This pane used to print the reference, then the provenance line in the
+    // open, then the absolute path -- three lines where a reader wanted one,
+    // and no way to reach the document at all.
+    VA.cropReference(box, entry, ctx.config, "detail__crop-");
     return box;
   }
 })(window.ViewerApp = window.ViewerApp || {});

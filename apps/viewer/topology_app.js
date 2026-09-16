@@ -67,6 +67,15 @@
     // either -- one inconsistent preference would be the surprise, not the
     // feature.
     jogZoneScale: 1,
+    // How wide the right preview pane is, in px, or null for "whatever
+    // topology.css declares" (Jeff, 2026-09-15: "the right preview pane is
+    // resizable. It's too narrow"). The ONE preference on this page that
+    // outlives the session -- VA.readStoredPaneWidth/writeStoredPaneWidth own
+    // the storage and argue there why this one and none of the four above.
+    // null rather than a number by default so the stylesheet stays the single
+    // place the default width lives; nothing is written inline until a drag
+    // or a remembered value says otherwise.
+    detailWidth: null,
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -143,11 +152,15 @@
       worksheetToggle: document.getElementById("worksheet-toggle"),
       worksheetClose: document.getElementById("worksheet-close"),
       detail: document.getElementById("detail"),
+      detailDivider: document.getElementById("detail-divider"),
       crop: document.getElementById("croppop"),
       flyout: document.getElementById("annotate-flyout"),
       flyoutClose: document.getElementById("flyout-close"),
     };
     applyDensity();
+    state.detailWidth = VA.readStoredPaneWidth(paneWidthStore());
+    applyPaneWidth();
+    wireDetailDivider();
 
     nodes.flyoutClose.onclick = function () { nodes.flyout.close(); };
 
@@ -794,7 +807,63 @@
     resizeFrame = raf(function () { resizeFrame = null; render(); });
   }
 
+  // localStorage, or null where there is none to have (the node fast tier's
+  // DOM shim, a browser with storage disabled, a file:// page in a
+  // configuration that throws on access). Reaching for it is wrapped here as
+  // well as inside the read/write pair: on some file:// configurations even
+  // TOUCHING window.localStorage throws, which is before either of those
+  // functions gets a chance to catch anything.
+  function paneWidthStore() {
+    try {
+      return (typeof window !== "undefined" && window.localStorage) || null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  // The remembered width onto the pane, or nothing at all -- an unset
+  // `detailWidth` must leave the stylesheet's own width standing rather than
+  // overwrite it with a number this file guessed.
+  function applyPaneWidth() {
+    if (!nodes.detail || state.detailWidth === null) return;
+    nodes.detail.style.width = state.detailWidth + "px";
+  }
+
+  // What a drag on the divider measures FROM. In a browser the pane's own
+  // laid-out width, which is what makes the first drag continuous with
+  // whatever the stylesheet declared; the remembered width where there is one;
+  // and the clamp's minimum in the DOM shim, which has no layout to measure.
+  function paneWidthNow() {
+    var measured = nodes.detail && nodes.detail.offsetWidth;
+    if (typeof measured === "number" && measured > 0) return measured;
+    if (state.detailWidth !== null) return state.detailWidth;
+    return VA.TOPO_PANE_WIDTH.min;
+  }
+
+  // The divider is static markup (topology.html), so it is wired once at boot
+  // rather than per render -- which also means a re-render mid-drag cannot
+  // destroy the node the gesture started on, the problem the column grip's own
+  // re-focus dance exists to work around.
+  function wireDetailDivider() {
+    var divider = nodes.detailDivider;
+    if (!divider) return;
+    var spec = { kind: "pane" };
+    divider.onpointerdown = function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      onResizeStart(spec, event);
+    };
+    divider.onkeydown = function (event) {
+      var key = event && event.key;
+      if (key !== "ArrowLeft" && key !== "ArrowRight") return;
+      if (event.preventDefault) event.preventDefault();
+      onResizeNudge(spec, (event.shiftKey ? 40 : 8) * (key === "ArrowRight" ? 1 : -1));
+    };
+  }
+
   function resizeFrom(spec) {
+    if (spec && spec.kind === "pane") {
+      return { kind: "pane", width: paneWidthNow() };
+    }
     if (spec && spec.kind === "column") {
       var column = VA.topoColumn(spec.cls);
       return { kind: "column", cls: spec.cls, width: column ? column.width : 0 };
@@ -812,6 +881,15 @@
       state.jogZoneScale = VA.jogZoneScaleAfterDrag(from.scale, dx, from.naturalZone);
     } else if (from.kind === "column") {
       VA.setTopoColumnWidth(from.cls, from.width + dx);
+    } else if (from.kind === "pane") {
+      // The sign inversion (the pane is RIGHT of its divider) is
+      // VA.paneWidthAfterDrag's, not this shell's -- same division of labour
+      // as the other two branches. Applied to the node immediately rather
+      // than waiting for the render this drag schedules: the pane's width is
+      // pure layout, and moving it a frame early is what makes the drag feel
+      // attached to the pointer even while a big topology repaints.
+      state.detailWidth = VA.paneWidthAfterDrag(from.width, dx);
+      applyPaneWidth();
     }
   }
 
@@ -827,6 +905,7 @@
       document.removeEventListener("pointerup", end);
       document.removeEventListener("pointercancel", end);
       document.body.classList.remove("tv-resizing");
+      rememberPaneWidth(spec);
     };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", end);
@@ -848,9 +927,22 @@
   function onResizeNudge(spec, dx) {
     applyResize(resizeFrom(spec), dx);
     render();
+    rememberPaneWidth(spec);
+    // The pane's divider is static markup and survives the render, so it
+    // keeps its own focus and needs none of what follows -- which exists
+    // because render() rebuilds the column header and destroys the grip the
+    // keydown came from.
+    if (spec.kind === "pane") return;
     var key = spec.kind + (spec.cls ? ":" + spec.cls : "");
     var grip = document.querySelector('[data-resize="' + key + '"]');
     if (grip && grip.focus) grip.focus();
+  }
+
+  // Written at the END of a gesture, never per pointermove: a drag fires
+  // hundreds of moves and a localStorage write is synchronous.
+  function rememberPaneWidth(spec) {
+    if (!spec || spec.kind !== "pane" || state.detailWidth === null) return;
+    VA.writeStoredPaneWidth(paneWidthStore(), state.detailWidth);
   }
 
   // --- render ----------------------------------------------------------------
@@ -946,6 +1038,11 @@
     if (showTopology) {
       var ctx = {
         topoProj: topoProj, study: study, crops: state.crops,
+        // The same config the stack pane and the popovers get: since the
+        // preview pane started rendering the crop's links through the shared
+        // VA.cropReference (viewer_component_names_and_reference_copy) it
+        // needs the drawing-checker base URL like every other crop surface.
+        config: VA.CONFIG,
         selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: state.edgeLengthMode,

@@ -295,6 +295,54 @@
       "tier": "browser",
       "suite": "topology file:// respine",
       "expect_red": "[real] scrolled sideways, the DAG stays pinned to the pane's VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a scrolled reader's rails beside their own rows"
+    },
+    {
+      "id": "component-cell-prints-the-name-not-the-id",
+      "contract": "The grid's merged component cell, the preview pane's heading, a hover card's heading and an interface's side list all print a part's NAME. An id is a deep-link handle and is rendered nowhere a reader reads -- Jeff, 2026-09-15: \"2nd line bolt_nas6403u11d appears to be some type of internal id that is meaningless to user\".",
+      "issue": null,
+      "note": "Swaps the fallback order rather than deleting the name, so a part WITH a name renders its id and a part without one is unaffected -- which is the exact defect, not a crash. Reddens 17 tests; the declared one is the fixture-tier statement of the rule, so it witnesses without a projection on disk. Reasoning and the measurements: docs/sessions/lessons/LESSONS_20260915_viewer_component_names_and_reference_copy.md.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return part.name || part.id;",
+      "replace": "    return part.id || part.name;",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "the component label is the part's own name, and an id is what it is keyed by -- never what is printed"
+    },
+    {
+      "id": "pdf-link-withheld-where-the-origin-cannot-follow-it",
+      "contract": "The \"open the PDF\" link renders only on an origin that can service a file: navigation. Chrome refuses every navigation from an http(s) page to a file: URL, so on a served page the click did nothing at all (Jeff, 2026-09-15) -- and a control that does nothing must be absent, not explained.",
+      "issue": null,
+      "note": "Reverts the one call to the pure URL builder, which is exactly the pre-fix code. VA.fileUrl is deliberately still pure and still exported, so this mutation is the real regression rather than a synthetic one. Reasoning and the measurements: docs/sessions/lessons/LESSONS_20260915_viewer_component_names_and_reference_copy.md.",
+      "file": "apps/viewer/views/crop.js",
+      "find": "    var fileUrl = VA.localFileUrl(entry.pdf);",
+      "replace": "    var fileUrl = VA.fileUrl(entry.pdf);",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "a local-file link renders only where the origin can follow it"
+    },
+    {
+      "id": "no-workstation-path-in-rendered-copy",
+      "contract": "No surface renders an absolute workstation path. It was the fallback for a link that could not navigate; the link now renders only where it works, so the fallback has nothing to fall back from -- Jeff, 2026-09-15: \"full workstation file paths -- never rendered when the link works\".",
+      "issue": null,
+      "note": "Puts the path line back where it used to be, in the ONE shared crop builder, so the mutation reaches all four crop surfaces at once. The declared check is the fixture-tier banned-string walk; the [real] walk over every live topology reddens too. Reasoning and the measurements: docs/sessions/lessons/LESSONS_20260915_viewer_component_names_and_reference_copy.md.",
+      "file": "apps/viewer/views/crop.js",
+      "find": "      box.appendChild(fold.box);\n    }\n    return box;",
+      "replace": "      box.appendChild(fold.box);\n    }\n    box.appendChild(VA.el(\"div\", base + \"path\", entry.pdf));\n    return box;",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "no rendered topology surface prints an internal id, a field name, a checksum or a workstation path"
+    },
+    {
+      "id": "preview-pane-widens-when-its-divider-is-dragged-left",
+      "contract": "The preview pane is RIGHT of its divider, so dragging left widens it. The sign lives in the pure layer (VA.paneWidthAfterDrag) precisely because getting it backwards is the likeliest mistake in the feature and the app shell cannot be checked without a pointer.",
+      "issue": null,
+      "note": "Flips the sign only. The clamp still holds, so a mutated build still 'works' -- it resizes the wrong way, which is the defect a reader would report and the one a green suite must not allow. Reasoning and the measurements: docs/sessions/lessons/LESSONS_20260915_viewer_component_names_and_reference_copy.md.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return VA.clampPaneWidth(startWidth - dx);",
+      "replace": "    return VA.clampPaneWidth(startWidth + dx);",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "the preview pane's width clamps, and a drag on its divider widens it by moving LEFT"
     }
   ]
 }
