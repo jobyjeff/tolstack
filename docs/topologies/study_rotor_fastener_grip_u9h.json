@@ -25,7 +25,7 @@
         "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
       ],
       "criterion": ">= 0",
-      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 14.2748 - 2.413 = 11.8618 mm; worst case = 14.5288 - 2.413 = 12.1158 mm."
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 14.2748 - 2.413 = 11.8618 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 14.5288 - 2.3114 = 12.2174 mm."
     }
   ],
   "provenance": {

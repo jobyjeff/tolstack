@@ -1301,3 +1301,105 @@ def test_a_zero_width_crop_does_not_divide_by_zero():
     boxes = bvc.with_fracs((10.0, 10.0, 10.0, 10.0),
                            [bvc.highlight("verified_match", None, (0, 0, 5, 5))])
     assert boxes[0]["frac"] == [0.0, 0.0, 0.0, 0.0]
+
+
+# --- the parts-list row identity: (part_number, find_no), never part_number --
+# 217755's parts list carries NAS1149V0332H twice -- find 13 (qty 15) and find
+# 32 (qty 9). Keyed by part number alone, one of those two real rows is deleted
+# by whichever the export wrote second, and the survivor is then answered for a
+# citation naming the other. The fixture records BOTH rows, in the array order
+# the 2026-AUG-19 export wrote them.
+
+
+def _colliding_balloons(balloon_fixture, reverse=False):
+    rows = list(balloon_fixture["parts_list"])
+    return {"parts_list": list(reversed(rows)) if reverse else rows,
+            "balloons": balloon_fixture["balloons_sheet4_detail_b"],
+            "pl_page": balloon_fixture["pl_page"]}
+
+
+#: The rotor washer's real citation, verbatim from
+#: ``stack_rotor_fastener_length.json::washer_nas1149v0332_tt``. It names the
+#: row it means -- find 32 -- in its own prose.
+_FIND_32_CITATION = {
+    "kind": "parts_list", "view": "SECTION T-T",
+    "callout": ("NAS1149V0332H  WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\""
+                "  (find 32, qty 9 across the assembly; balloon at SECTION T-T)"),
+}
+
+
+def test_the_cited_parts_list_row_wins_over_the_one_sharing_its_part_number(
+        balloon_fixture):
+    """Two real rows, one part number. The citation states which row it means,
+    so that is the row -- and the find-13 row's presence does not change the
+    answer."""
+    row = bvc.parts_list_row_for(_colliding_balloons(balloon_fixture),
+                                 _FIND_32_CITATION, "NAS1149V0332")
+    assert row["find_no"] == 32
+    assert row["qty"] == 9
+    # The row that must NOT be answered for this citation. Its only page-8
+    # balloon is in SECTION R-R, and the citation names SECTION T-T -- so the
+    # wrong row here does not fail, it frames the crop on another view of the
+    # cited sheet and titles it "balloon 13" under this element's own name.
+    other = bvc.parts_list_row_for(
+        _colliding_balloons(balloon_fixture),
+        {**_FIND_32_CITATION,
+         "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V  (find 13, qty 15)"},
+        "NAS1149V0332")
+    assert other["find_no"] == 13
+
+
+def test_the_parts_list_row_answer_does_not_depend_on_the_export_row_order(
+        balloon_fixture):
+    """The assertion that catches keying by part number alone. A dict keyed on
+    the part number keeps whichever colliding row was inserted LAST, so the
+    answer is a property of the array order drawing-checker happened to write
+    rather than of the citation. Reversed, this returned find 13."""
+    forward = bvc.parts_list_row_for(_colliding_balloons(balloon_fixture),
+                                     _FIND_32_CITATION, "NAS1149V0332")
+    reversed_ = bvc.parts_list_row_for(
+        _colliding_balloons(balloon_fixture, reverse=True),
+        _FIND_32_CITATION, "NAS1149V0332")
+    assert forward == reversed_
+    assert reversed_["find_no"] == 32
+
+
+def test_two_rows_colliding_with_no_cited_find_number_are_refused_not_guessed(
+        balloon_fixture):
+    """A citation that names the full part number and NO find number cannot
+    say which of the two rows it means, so the answer is a refusal. ``None``
+    here places the crop exactly as it did before (``balloon_answer``'s
+    contract), which is honest; the last row written is not."""
+    balloons = _colliding_balloons(balloon_fixture)
+    ambiguous = {"kind": "parts_list",
+                 "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V"}
+    assert bvc.parts_list_row_for(balloons, ambiguous, "NAS1149V0332") is None
+    # ...and reversing the rows does not turn the refusal into an answer.
+    assert bvc.parts_list_row_for(_colliding_balloons(balloon_fixture,
+                                                      reverse=True),
+                                  ambiguous, "NAS1149V0332") is None
+    # A refused row is a refused balloon: no crop is moved onto the wrong item.
+    assert bvc.balloon_answer(balloons, 4, ambiguous, "NAS1149V0332") is None
+    # The uncontested row next to it is unaffected -- refusal is per part
+    # number, not a general loss of nerve.
+    assert bvc.parts_list_row_for(
+        balloons, {"callout": "214820-002  BUSHING"}, "214820-002"
+    )["find_no"] == 34
+
+
+def test_the_cited_find_number_is_read_from_the_callout_by_a_named_pattern():
+    """The find number lives in the callout's prose, and the pattern that reads
+    it is a module-level constant (repo CLAUDE.md: a field vocabulary is never
+    an inline literal). All four live parts-list citations state it."""
+    live_callouts = {
+        "214820-002  BUSHING, PLAIN  (find 34)": 34,
+        _FIND_32_CITATION["callout"]: 32,
+        "MS21299C3  WASHER  (find 60, qty AR; balloon at SECTION T-T)": 60,
+        "NAS1149V0332H  WASHER  (find 29, qty 1)": 29,
+    }
+    for callout, expected in live_callouts.items():
+        match = bvc.CALLOUT_FIND_NO_RE.search(callout)
+        assert match is not None, callout
+        assert int(match.group(1)) == expected
+    # A callout stating none is not a match -- it is the refusal case above.
+    assert bvc.CALLOUT_FIND_NO_RE.search("214820-002  BUSHING, PLAIN") is None

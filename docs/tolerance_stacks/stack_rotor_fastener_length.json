@@ -100,36 +100,27 @@
       "name": "washer thickness, NAS1149V0332H (.032 in), rotor balance-mass bolt",
       "role": "washer",
       "nominal": 0.8128,
-      "min": 0.8128,
-      "max": 0.8128,
-      "lmc": null,
-      "mmc": null,
-      "plus_minus": null,
+      "min": 0.7112,
+      "max": 0.9144,
+      "lmc": 0.7112,
+      "mmc": 0.9144,
+      "plus_minus": 0.1016,
       "hardware_ref": "NAS1149V0332",
-      "note": "0.032 in, read out of the parts-list nomenclature -- same part number the pitch-link and tangential-link joints already cite, a different balloon (find 32, zone K4, SECTION T-T) of the same 217755 sheet. ZERO-WIDTH BAND, same reason as the other two joints: NAS1149 is not in data/inbox/specs/, and the +/-.004 in in hardware_entries.json is the 260729-workbook value, unusable in a from-scratch stack (SOP Step 5b).",
+      "note": "0.032 +/-0.004 in. Additive member, so MMC (most material) is the thickest and mmc -> max. UNVERIFIED SOURCE, SAID LOUDLY: the +/-.004 in is the 260729 workbook's alone, and NAS1149 is still not in data/inbox/specs/, so no standard here can be re-read for it. BAND APPLIED 2026-09-16 (handoff citation_identity_correctness), closing the last divergence of SOP Step 5b's same-part-same-band rule: tan_link_to_pitch_plate::washer_thin and pitch_link_to_pitch_plate::washer_nas1149v0332 have folded 0.7112/0.9144 since 2026-09-15 (pitch_link_known_bands) and this element was explicitly out of that handoff's scope, so it kept folding +/-0 -- recorded as a KNOWN_BAND_DIVERGENCES row rather than fixed. Same ruling, same reasons: Jeff's placeholder verdict (a sourced-but-unverified value belongs in a stack loudly rather than omitted silently), and one part+feature folding two different bands across three stacks is a defect in itself. WHAT THIS ELEMENT WAS, so the change is legible: nominal 0.8128 with min = max = nominal, lmc/mmc/plus_minus all null, source_ref kind 'parts_list' on 217755 sh8 zone K4 SECTION T-T, confidence 'inferred'. The parts-list reading is not lost, it moved into the source_ref note -- a parts-list row carries a nominal and never a band, so it cannot be the citation for a banded element. Gap 4 STAYS OPEN in the worksheet, reworded from 'no band known' to 'band workbook-sourced, NAS1149 not in the repo', exactly as the pitch-link worksheet's gap 4 was.",
       "source_ref": {
-        "kind": "parts_list",
-        "document": "217755",
-        "revision": "A.1",
-        "sheet": 8,
-        "zone": "K4",
-        "view": "SECTION T-T",
-        "cell": null,
-        "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\"  (find 32, qty 9 across the assembly; balloon at SECTION T-T)",
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "revision": null,
+        "sheet": "grip length tols old",
+        "zone": null,
+        "view": null,
+        "cell": "E11/F11",
+        "callout": null,
         "element_id": null,
         "run_id": null,
-        "export": {
-          "status": "established",
-          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-19] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
-          "sha256": "789efa194e39454e5386ae10e016a3a313c8be15c419452dfcd1cc60afb2c939",
-          "runs": [
-            { "run_id": "20260819_110144", "ts": "2026-08-19T18:04:18.360563+00:00" },
-            { "run_id": "20260819_163414", "ts": "2026-08-19T23:36:39.110582+00:00" }
-          ],
-          "note": "Established 2026-08-25, same method as washer_ms21299c3 above."
-        },
-        "confidence": "inferred",
-        "note": "Same hardware entry (NAS1149V0332) the pitch-link and tangential-link joints already cite; a fresh source_ref because this is a different balloon on a different sheet/view of the same drawing. Parts list gives nominal only -> gap."
+        "export": null,
+        "confidence": "untraced",
+        "note": "THE ONE kind: 'workbook' CITATION IN THIS FILE, and it is deliberate -- the same shape, for the same part and the same feature, that pitch_link_to_pitch_plate::washer_nas1149v0332 took on 2026-09-15. Cited at its weakest: E11 is the formula '=0.032*25.4' and F11 '=0.004*25.4', with the workbook's comment column naming NAS1149V0332 at I11. The alternative on offer was re-citing hardware_entries.json, whose own values_source for this entry says 'workbook' -- that is the laundering SOP Step 5b names, so the workbook is cited directly instead. WHAT THIS REPLACED, and what is therefore recorded here rather than in a source_ref field: the element cited 217755 A.1 sheet 8 zone K4 SECTION T-T, callout 'NAS1149V0332H  WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\"  (find 32, qty 9 across the assembly; balloon at SECTION T-T)', on the [PRELIM 2026-AUG-19] export (sha256 789efa194e39454e5386ae10e016a3a313c8be15c419452dfcd1cc60afb2c939, runs 20260819_110144 and 20260819_163414). That reading still stands and still corroborates the NOMINAL independently of the workbook -- it is find 32's printed nomenclature, and find 32 is the row, not find 13, which is the other NAS1149V0332H row on that same parts list. It does not support the BAND, because a parts-list row never carries one, and that is what makes this element untraced and keeps it on the gap list. Two consequences worth knowing: this element no longer produces a viewer crop (kind 'workbook' names no page of any document), and washer_ms21299c3 below is now the only 217755 citation left in this file. The NAS1149 standard closes gap 4, and nothing else does."
       }
     },
     {
@@ -391,7 +382,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "sourced clamped column minus grip. This check carries `complete: false` -- the balancing mass(es) and the receiving structure are both missing from the column, so the verdict is scoped to a BUDGET, not the joint. Read the magnitude instead: it is the combined mass+structure thickness this dash can accommodate before the receiving member would engage the bolt's incomplete threads (JPS00094 5.5.5). At worst case (grip max vs sourced-column min, both zero-width so nominal=min=max=2.413 mm) that budget is 3.429 - 2.413 = 1.016 mm; at nominal it is 3.175 - 2.413 = 0.762 mm. This is the SHORTEST of the nine options and therefore the smallest budget in the family.",
+      "guidance": "sourced clamped column minus grip. This check carries `complete: false` -- the balancing mass(es) and the receiving structure are both missing from the column, so the verdict is scoped to a BUDGET, not the joint. Read the magnitude instead: it is the combined mass+structure thickness this dash can accommodate before the receiving member would engage the bolt's incomplete threads (JPS00094 5.5.5). At worst case (grip max vs sourced-column min, 2.3114 mm) that budget is 3.429 - 2.3114 = 1.1176 mm; at nominal it is 3.175 - 2.413 = 0.762 mm. This is the SHORTEST of the nine options and therefore the smallest budget in the family. The column stopped being zero-width on 2026-09-16 (handoff citation_identity_correctness): the NAS1149V0332H washer now folds the 260729 workbook's +/-0.1016 mm band, the same band its two sibling stacks have folded since 2026-09-15, so the sourced column is 2.413 +/-0.1016 mm and only the MS21299C3 washer is still zero-width. Nominal budgets did not move; each worst case widened at one end and tightened at the other, and RSS no longer equals worst case.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u2h", "sign": -1 }
@@ -408,7 +399,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 4.7752 - 2.413 = 2.3622 mm; worst case (grip max) = 5.0292 - 2.413 = 2.6162 mm.",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 4.7752 - 2.413 = 2.3622 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 5.0292 - 2.3114 = 2.7178 mm.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u3h", "sign": -1 }
@@ -425,7 +416,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 6.35 - 2.413 = 3.937 mm; worst case = 6.604 - 2.413 = 4.191 mm.",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 6.35 - 2.413 = 3.937 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 6.604 - 2.3114 = 4.2926 mm.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u4h", "sign": -1 }
@@ -442,7 +433,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 7.9248 - 2.413 = 5.5118 mm; worst case = 8.1788 - 2.413 = 5.7658 mm.",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 7.9248 - 2.413 = 5.5118 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 8.1788 - 2.3114 = 5.8674 mm.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u5h", "sign": -1 }
@@ -459,7 +450,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 9.525 - 2.413 = 7.112 mm; worst case = 9.779 - 2.413 = 7.366 mm.",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 9.525 - 2.413 = 7.112 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 9.779 - 2.3114 = 7.4676 mm.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u6h", "sign": -1 }
@@ -476,7 +467,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 11.1252 - 2.413 = 8.7122 mm; worst case = 11.3792 - 2.413 = 8.9662 mm.",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 11.1252 - 2.413 = 8.7122 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 11.3792 - 2.3114 = 9.0678 mm.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u7h", "sign": -1 }
@@ -493,7 +484,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 12.7 - 2.413 = 10.287 mm; worst case = 12.954 - 2.413 = 10.541 mm.",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 12.7 - 2.413 = 10.287 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 12.954 - 2.3114 = 10.6426 mm.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u8h", "sign": -1 }
@@ -510,7 +501,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 14.2748 - 2.413 = 11.8618 mm; worst case = 14.5288 - 2.413 = 12.1158 mm.",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 14.2748 - 2.413 = 11.8618 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 14.5288 - 2.3114 = 12.2174 mm.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u9h", "sign": -1 }
@@ -527,7 +518,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Same budget shape as grip_budget__u2h -- the LONGEST option, and therefore the largest budget in the family. Nominal budget = 15.875 - 2.413 = 13.462 mm; worst case = 16.129 - 2.413 = 13.716 mm.",
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 15.875 - 2.413 = 13.462 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 16.129 - 2.3114 = 13.8176 mm. This is the LONGEST of the nine options and therefore the largest budget in the family.",
       "terms": [
         { "path": "sourced_clamped_stack" },
         { "element": "fastener_grip_u10h", "sign": -1 }

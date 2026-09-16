@@ -693,8 +693,11 @@ def test_checks_carry_their_zero_width_inputs(pitch_link, projection):
 
     rotor = by_id(projection, "rotor_fastener_length")
     check = check_by_id(rotor, "grip_budget__u2h")
-    assert set(check["zero_width_inputs"]) == {
-        "washer_ms21299c3", "washer_nas1149v0332_tt"}
+    # One member, not two, since 2026-09-16 (`citation_identity_correctness`):
+    # washer_nas1149v0332_tt took the band its two sibling stacks already
+    # folded. MS21299 is genuinely absent from the pile, with no workbook value
+    # either, so it stays zero-width and this field keeps a live subject.
+    assert set(check["zero_width_inputs"]) == {"washer_ms21299c3"}
 
 
 def test_element_terms_expand_nested_paths(pitch_link):

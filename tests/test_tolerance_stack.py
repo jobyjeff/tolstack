@@ -522,17 +522,26 @@ def test_pitch_link_cotter_hole_position_is_traced_and_carries_no_material_condi
 
 
 def test_pitch_link_pitch_plate_lug_is_the_5X_group_not_the_3X_or_1X(pitch_link, tan_link):
-    """215197 carries three distinct 4.06 callouts. Only the COUNT ties one to a
-    joint: 5X for the five pitch links (five blades), 3X for the three
-    tangential links, 1X for the VPA. Matching on 4.06 alone gets you nowhere."""
+    """The pitch plate drawing carries several distinct 4.06 callouts. Only the
+    COUNT ties one to a joint: 5X for the five pitch links (five blades), 3X for
+    the three tangential links, and the un-counted ones on sheet 1 for the VPA.
+    Matching on 4.06 alone gets you nowhere.
+
+    Re-cited 2026-09-16 (handoff citation_identity_correctness) from the PRELIM
+    215197 A.1 fixture to the RELEASED plate, 215735 rev A -- a different part
+    number, whose sheet 2 prints these same two groups at these same addresses.
+    No value moved. What did move on the released plate is the un-counted group:
+    215197 sheet 1 printed ONE 4.06 +-0.10, 215735-A sheet 1 prints two (D5 and
+    D6), which is why the sentence above no longer says "1X"."""
     mine = pitch_link.element("pitch_plate_flange")
     theirs = tan_link.element("pitch_plate_flange")
     assert mine.nominal == theirs.nominal == 4.06
-    assert (mine.min, mine.max) == (3.96, 4.16)                    # 215197 sh2 D10 "5X 4.06 +-0.10"
-    assert (theirs.min, theirs.max) == (3.98, 4.14)                # 215197 sh2 B4  "3X 4.06 +-0.08"
+    assert (mine.min, mine.max) == (3.96, 4.16)                    # 215735-A sh2 D10 "5X 4.06 +-0.10"
+    assert (theirs.min, theirs.max) == (3.98, 4.14)                # 215735-A sh2 B4  "3X 4.06 +-0.08"
     assert mine.source_ref.callout == "5X 4.06 ±0.10"
-    assert (mine.source_ref.document, mine.source_ref.sheet, mine.source_ref.zone) == (
-        "215197", 2, "D10",
+    assert (mine.source_ref.document, mine.source_ref.revision,
+            mine.source_ref.sheet, mine.source_ref.zone) == (
+        "215735", "A", 2, "D10",
     )
     assert mine.source_ref.confidence == "traced"
 
@@ -820,8 +829,15 @@ SHARED_MULTI_FEATURE_BANDS = {
 #: **known divergence**, not an exemption: the test below fails if a listed pair
 #: has quietly come into line (delete the row) or stopped existing.
 KNOWN_BAND_DIVERGENCES = {
-    ("rotor_fastener_length", "washer_nas1149v0332_tt"):
-        "ISSUE_20260915_rotor_fastener_washer_band_diverges_from_its_siblings.md",
+    # Empty since 2026-09-16 (`citation_identity_correctness`), and the empty
+    # dict is the statement rather than a leftover: the one row it held --
+    # ("rotor_fastener_length", "washer_nas1149v0332_tt"), tracked by
+    # ISSUE_20260915_rotor_fastener_washer_band_diverges_from_its_siblings.md --
+    # was deleted when that element took the 0.7112/0.9144 band its two siblings
+    # have folded since 2026-09-15. Deleting it was not a tidy-up: the test below
+    # fails on a row whose divergence has closed. Every part in SHARED_BANDS now
+    # folds one band in every stack that uses it, with no exception recorded
+    # anywhere -- which is the first time that has been true.
 }
 
 
@@ -992,15 +1008,29 @@ def test_rotor_fastener_grip_family_spans_nine_dash_numbers(rotor_fastener):
 
 
 def test_rotor_fastener_sourced_clamped_stack_is_the_two_washers_only(rotor_fastener):
-    """Both washers carry a zero-width band (SOP Step 5b: NAS1149 and MS21299
-    are both absent from data/inbox/specs/), so the path is zero-width too --
-    the balancing mass(es) and the receiving-structure thickness are OMITTED,
-    not folded with an invented number (Step 5c)."""
+    """The two washers, and no invented member: the balancing mass(es) and the
+    receiving-structure thickness are OMITTED rather than folded with a made-up
+    number (SOP Step 5c).
+
+    **The premise inverted on 2026-09-16** (`citation_identity_correctness`).
+    This test used to read "both washers carry a zero-width band ... so the path
+    is zero-width too", and asserted `min == max`. `washer_nas1149v0332_tt` now
+    folds the 260729 workbook's 0.7112/0.9144, the band its two sibling stacks
+    have folded since 2026-09-15 -- so exactly ONE of the two is still
+    zero-width (MS21299 is genuinely absent from data/inbox/specs/ and has no
+    workbook value either) and the path has a real width for the first time.
+    The nominal did not move, which is why it is asserted separately below: a
+    band applied symmetrically about the transcribed nominal must not shift the
+    centre."""
     assert "balancing_mass" not in {e.id for e in rotor_fastener.elements}
     got = rotor_fastener.path("sourced_clamped_stack")
     assert got.nominal == pytest.approx(0.8128 + 1.6002, abs=TOL)  # NAS1149V0332H + MS21299C3
-    assert got.min == got.max == pytest.approx(2.413, abs=TOL)
-    assert got.worst_case_half == pytest.approx(0.0, abs=TOL)
+    assert (got.min, got.max) == (pytest.approx(2.3114, abs=TOL),
+                                  pytest.approx(2.5146, abs=TOL))
+    assert got.worst_case_half == pytest.approx(0.1016, abs=TOL)
+    # One zero-width member left, and it is the one with nothing behind it.
+    zero_width = {e.id for e in rotor_fastener.elements if e.min == e.max}
+    assert zero_width == {"washer_ms21299c3"}
 
 
 def test_rotor_fastener_grip_budgets_span_shortest_to_longest_option(rotor_fastener):
@@ -1020,26 +1050,73 @@ def test_rotor_fastener_grip_budgets_span_shortest_to_longest_option(rotor_faste
     assert magnitudes == sorted(magnitudes)          # strictly widening budget
     assert magnitudes[0] == pytest.approx(0.762, abs=TOL)     # dash 2, smallest
     assert magnitudes[-1] == pytest.approx(13.462, abs=TOL)   # dash 10, largest
-    # worst-case budget (grip MAX vs the zero-width sourced column)
-    assert -checks[0].interval.min == pytest.approx(1.016, abs=TOL)
-    assert -checks[-1].interval.min == pytest.approx(13.716, abs=TOL)
+    # Worst-case budget: grip MAX vs the sourced column's MIN. Moved 2026-09-16
+    # (`citation_identity_correctness`) when the column stopped being zero-width
+    # -- it was 2.413 and is now 2.3114, so every worst-case budget grew by
+    # exactly 0.1016 and the nominals above did not move at all.
+    assert -checks[0].interval.min == pytest.approx(1.1176, abs=TOL)
+    assert -checks[-1].interval.min == pytest.approx(13.8176, abs=TOL)
+    # And the other end tightened by the same amount, which is the half a
+    # one-sided repin would have missed.
+    assert -checks[0].interval.max == pytest.approx(0.4064, abs=TOL)
+    # RSS is no longer worst case. With two banded terms the RSS half-width is
+    # sqrt(0.1016**2 + 0.254**2), not the 0.3556 a zero-width column gave -- a
+    # claim the worksheet used to make in prose, so it is pinned here too.
+    assert checks[0].interval.rss_half == pytest.approx(0.2735664, abs=TOL)
+    assert checks[0].interval.worst_case_half == pytest.approx(0.3556, abs=TOL)
 
 
-def test_rotor_fastener_has_no_workbook_source_and_declares_its_zero_width_bands(rotor_fastener):
-    """SOP Step 5b: no workbook citation anywhere in a from-scratch stack. Both
-    washers are zero-width by declaration, not by omission."""
-    kinds = {e.source_ref.kind for e in rotor_fastener.elements}
-    assert "workbook" not in kinds
+def test_rotor_fastener_carries_its_one_unverified_band_loudly_and_not_as_traced(
+        rotor_fastener):
+    """Exactly one workbook citation in this file, named, `untraced`, with its
+    gap open -- and a later pass that quietly promotes it fails here.
+
+    **The rule this replaces.** Until 2026-09-16 this test was
+    `test_rotor_fastener_has_no_workbook_source_and_declares_its_zero_width_bands`
+    and asserted `"workbook" not in kinds`: SOP Step 5b's original reading, that
+    a from-scratch stack cites no workbook at all, with both washers zero-width
+    "by declaration, not by omission". Jeff's 2026-09-15 ruling replaced it --
+    a sourced-but-unverified value belongs in a stack loudly rather than
+    omitted silently -- and the Step 5b amendment of the same date added the
+    half that forced this file's hand: the same part+feature must carry the same
+    band in every stack that uses it. `pitch_link_known_bands` applied that to
+    two stacks and left this one out of scope; `citation_identity_correctness`
+    closed it.
+
+    **So what is easy to lose now, and is therefore what this guards.** Not the
+    band -- `test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it`
+    holds that. It is the LOUDNESS. `untraced` is what makes the viewer badge
+    this value and what keeps it on the worksheet's gap list; a later session
+    that reads "well, the workbook agrees with the parts-list nominal" and
+    relabels it `inferred` would silently retire both, with no number changing
+    anywhere. This is the shape
+    `test_pitch_link_carries_its_two_unverified_bands_loudly_and_not_as_traced`
+    guards one stack over, for the same part, for the same reason.
+    """
+    workbook = [e for e in rotor_fastener.elements
+                if e.source_ref.kind == "workbook"]
+    assert [e.id for e in workbook] == ["washer_nas1149v0332_tt"], (
+        "this file holds exactly one workbook citation, deliberately; a second "
+        "one is a decision somebody has to make out loud, not a detail")
+    cited = workbook[0].source_ref
+    assert cited.confidence == "untraced", (
+        "the NAS1149 standard is still not in data/inbox/specs/, so a workbook "
+        "cell is this band's only support -- promoting this label is what makes "
+        "the viewer stop badging it")
+    assert (cited.document, cited.sheet, cited.cell) == (
+        "260729_sample_tol_stack.xlsx", "grip length tols old", "E11/F11")
+    assert cited.export is None          # a spreadsheet is not an export
+    # The other washer is still zero-width, and honestly so: MS21299 is absent
+    # from the pile and has no workbook value either, so there is nothing to
+    # apply. One zero-width element in this file now, not two.
     zero_width = {e.id for e in rotor_fastener.elements if e.min == e.max}
-    assert zero_width == {"washer_ms21299c3", "washer_nas1149v0332_tt"}
-    for eid in zero_width:
-        e = rotor_fastener.element(eid)
-        assert e.source_ref.kind == "parts_list"
-        assert e.source_ref.confidence == "inferred"
+    assert zero_width == {"washer_ms21299c3"}
+    ms21299 = rotor_fastener.element("washer_ms21299c3").source_ref
+    assert (ms21299.kind, ms21299.confidence) == ("parts_list", "inferred")
     confidences = [e.source_ref.confidence for e in rotor_fastener.elements]
     assert confidences.count("traced") == 9
-    assert confidences.count("inferred") == 2
-    assert confidences.count("untraced") == 0
+    assert confidences.count("inferred") == 1
+    assert confidences.count("untraced") == 1
 
 
 def test_rotor_fastener_has_no_castellated_retention(rotor_fastener):
@@ -1317,6 +1394,29 @@ def test_a_source_ref_refuses_a_kind_outside_the_vocabulary():
         SourceRef.from_dict({"kind": "drawing ", "document": "217755"})
 
 
+#: Cited drawing-checker runs whose read-only status is **not** settled by a
+#: timestamp, each with the argument that stands in for one. Written by run id
+#: rather than by rule so the list cannot quietly grow, and paired both ways by
+#: the test below -- an unlisted postdating run fails, and a listed run nobody
+#: cites fails too.
+_RUNS_CLEARED_WITHOUT_A_TIMESTAMP = {
+    "20260813_180734": (
+        "215735-A, run 1 of 2. Postdates pitch_link_stack's first commit by 9 "
+        "days, so 'it predates us' is unavailable. Cleared instead by "
+        "drawing-checker's own record: run_meta.json says purpose 'eager', its "
+        "eager-publish policy wrote it, and tolstack has no write path into "
+        "that repo -- weaker than arithmetic on a commit date, and with no "
+        "enforcement behind it (ISSUE_20260804_drawing_checker_readonly_check_"
+        "has_no_teeth.md)."
+    ),
+    "20260819_153213": (
+        "215735-A, run 2 of 2. Same argument, same weakness; 15 days after the "
+        "commit. Both runs record the same source sha256 in their run_meta.json "
+        "inputs, which is what makes 'which export' a unique answer here."
+    ),
+}
+
+
 def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     """**The invariant, verified rather than asserted** -- the first time.
 
@@ -1349,18 +1449,42 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     three 215197 runs, which is real bite and not a vacuous pass; the gap is
     filed as ``ISSUE_20260915_the_joint_assembly_export_is_prose_so_its_runs_have_no_ts.md``.
 
-    **The root-commit claim survives, on a different run.** It was written
-    against ``20260803_145243`` and was dropped with it during
-    ``pitch_link_known_bands``; ``review/pitch_link_known_bands`` pointed out
-    that its *subject* had not gone away. ``20260730_133912``
-    (``2026-07-30T20:39:33.291499Z``) also predates the root commit, so the
-    strongest form of the invariant -- *a cited run predates this repo's
-    existence, so this repo cannot have produced it* -- is still checkable here,
-    and is checked below.
+    **Changed 2026-09-16** (``citation_identity_correctness``): ``pitch_plate_flange``
+    was re-cited from the PRELIM 215197 fixture to the RELEASED plate 215735-A,
+    and **the three 215197 runs left with it**. The two 215735-A runs that
+    replaced them -- ``20260813_180734`` (2026-08-14T01:07:56Z) and
+    ``20260819_153213`` (2026-08-19T22:32:36Z) -- **postdate** both constants
+    below, so for this stack the timestamp proof is gone: nothing element-level
+    here predates the session any more, and with it the root-commit form went
+    too (``20260730_133912`` was the last holder and is no longer cited here).
+
+    **So what does this test claim now, and how can it still fail?** Not that
+    every cited run predates the session -- two demonstrably do not. It claims
+    that **every cited run is cleared, and by a named argument**: by timestamp
+    where the timestamp settles it, and otherwise by appearing in
+    :data:`_RUNS_CLEARED_WITHOUT_A_TIMESTAMP` with the reason written down. A
+    run that is neither predating nor listed fails here, which is the finding
+    this test exists to surface. The exemption is deliberately by run id and
+    not by rule, so it cannot quietly grow.
+
+    **The argument the two exempted runs rest on is weaker, and saying which is
+    the point.** "It predates us, so we cannot have produced it" is proof. What
+    stands in for it here is drawing-checker's own record: both runs carry
+    ``"purpose": "eager"`` in their ``run_meta.json`` -- that repo's own
+    eager-publish policy wrote them, not a request from here -- and tolstack has
+    no write path into it. That is evidence about another repo's behaviour, not
+    arithmetic on a commit date, and
+    ``ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth.md`` is the
+    standing record that it has no enforcement behind it. The strongest form of
+    the invariant has NOT disappeared from the repo -- it moved to the two
+    stacks that still cite pre-root runs, and
+    ``test_the_strongest_read_only_claim_still_has_a_subject`` below is where it
+    is now checked. What was lost here specifically -- this test's own name no
+    longer describes its subject, and several live documents name it -- is filed
+    as ``ISSUE_20260916_the_readonly_invariant_test_name_outlived_its_claim.md``.
     """
     # git -C C:\workspace\tolstack log --format='%h %ad' --date=iso-strict
     PITCH_LINK_FIRST_COMMIT = datetime(2026, 8, 4, 22, 42, 57, tzinfo=timezone.utc)  # d6829f2
-    TOLSTACK_ROOT_COMMIT = datetime(2026, 8, 3, 23, 5, 8, tzinfo=timezone.utc)       # e7bd996
 
     stack = load_stack(STACKS_DIR / "stack_pitch_link_to_pitch_plate.json")
     cited = {
@@ -1369,15 +1493,21 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
         for run in (element.source_ref.export.runs if element.source_ref.export else ())
     }
     assert cited, "no run cited at all -- this invariant would pass vacuously"
+    # The 215735-A export, which is the only element-level one left.
+    assert set(cited) == {"20260813_180734", "20260819_153213"}
     for run_id, ts in cited.items():
-        assert ts < PITCH_LINK_FIRST_COMMIT, (
-            f"run {run_id} ({ts.isoformat()}) postdates the session's first commit -- "
-            f"it may be this repo's own write into a read-only dependency"
+        if ts < PITCH_LINK_FIRST_COMMIT:
+            continue
+        assert run_id in _RUNS_CLEARED_WITHOUT_A_TIMESTAMP, (
+            f"run {run_id} ({ts.isoformat()}) postdates the session's first commit "
+            f"and no reason is recorded for citing it anyway -- it may be this "
+            f"repo's own write into a read-only dependency"
         )
-    # The 215197 export, which is the only element-level one left.
-    assert set(cited) == {"20260409_170546", "20260409_172341", "20260730_133912"}
-    # The stronger claim, repointed: this run existed before this repo did.
-    assert cited["20260730_133912"] < TOLSTACK_ROOT_COMMIT
+    # A reason recorded for a run nobody cites is the other way this row goes
+    # stale, and it is the direction that fails silently.
+    assert set(_RUNS_CLEARED_WITHOUT_A_TIMESTAMP) <= set(cited), (
+        "a run is exempted here that this stack no longer cites -- delete the row"
+    )
 
     # And the run the review could not attribute is still cited by this stack,
     # at joint level. Losing the citation entirely would be a different defect
@@ -1385,6 +1515,46 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     raw = json.loads(
         (STACKS_DIR / "stack_pitch_link_to_pitch_plate.json").read_text(encoding="utf-8"))
     assert "20260804_114000" in raw["joint"]["assembly_export"]
+
+
+def test_the_strongest_read_only_claim_still_has_a_subject():
+    """*A cited run existed before this repo did, so this repo cannot have
+    produced it.* The strongest form of the read-only invariant, checked across
+    every stack rather than in one of them.
+
+    Written 2026-09-16 (``citation_identity_correctness``). It used to live in
+    the test above, resting on ``20260730_133912``; re-citing the pitch plate to
+    215735-A took that run out of the pitch-link stack, and the form would have
+    died with it if it were only ever checked there. It was not only there: the
+    tan-link and VPA stacks each cite four 2026-JUL runs that predate tolstack's
+    root commit outright. So the claim moves rather than weakens -- and it is
+    now checked where its subjects actually are, which is what stops the next
+    re-cite from emptying it unnoticed.
+
+    Fails if the last pre-root citation goes: a repo whose every cited run
+    postdates it has to make the read-only argument some other way, and should
+    be told so rather than quietly losing the strongest one it had.
+    """
+    TOLSTACK_ROOT_COMMIT = datetime(2026, 8, 3, 23, 5, 8, tzinfo=timezone.utc)   # e7bd996
+
+    pre_root = {}
+    for path in sorted(STACKS_DIR.glob("stack_*.json")):
+        for element in load_stack(path).elements:
+            export = element.source_ref.export
+            for run in (export.runs if export else ()):
+                if datetime.fromisoformat(run.ts) < TOLSTACK_ROOT_COMMIT:
+                    pre_root.setdefault(run.run_id, set()).add(path.name)
+    assert pre_root, (
+        "no cited run predates this repo's root commit any more -- the strongest "
+        "form of the read-only invariant has lost its subject everywhere, and "
+        "nothing else in this suite would have said so"
+    )
+    # Named, so the set emptying one citation at a time is visible as it happens
+    # rather than at the moment the last one goes.
+    assert set(pre_root) == {"20260723_163810", "20260727_153847",
+                             "20260730_131903", "20260730_132230"}
+    assert {name for names in pre_root.values() for name in names} == {
+        "stack_tan_link_to_pitch_plate.json", "stack_vpa_output_to_pitch_plate.json"}
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
@@ -1683,7 +1853,15 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
     # (`pitch_link_to_pitch_plate` gained its eye and flange members, one
     # `untraced` placeholder and one `inferred`), and the nine seeded re-cites
     # above moved the columns to 17 inferred / 14 untraced. `traced` still 30.
-    assert every == {"instances": 61, "traced": 30, "inferred": 17, "untraced": 14}
+    # Moved 2026-09-16 (`citation_identity_correctness`): inferred 17 -> 16,
+    # untraced 14 -> 15. `rotor_fastener_length`'s washer_nas1149v0332_tt went
+    # `inferred` (a parts-list nominal with no band) -> `untraced` (the 260729
+    # workbook's band, its only support) -- the same move, for the same part,
+    # that `pitch_link_known_bands` made one stack over. `instances` and
+    # `traced` do not move, and neither does the SEEDED ratio above:
+    # rotor_fastener_length is not one of the three seeded files, so the "5 of
+    # 26" figure the eleven ratio publishers quote is untouched.
+    assert every == {"instances": 61, "traced": 30, "inferred": 16, "untraced": 15}
 
     # Instances, not distinct ids, and not "elements that carry a hardware_ref".
     # Those are the two denominators a reader reaches for by mistake; recording
@@ -2159,13 +2337,22 @@ def test_the_coverage_set_assertions_go_red_on_a_derivation_pointed_nowhere(tmp_
 
 
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
-    """215197 is the one part drawing this repo holds for these joints, and
-    exactly one element traces to it. Everything else is a fastener-library gap."""
+    """215735 is the one part drawing this repo holds for these joints, and
+    exactly one element traces to it. Everything else is a fastener-library gap.
+
+    It became a drawing this repo *holds* on 2026-09-16
+    (citation_identity_correctness): until then this value cited 215197 A.1, a
+    PRELIM export living in drawing-checker's test fixtures, and the sentence
+    above was false as written. The released plate is 215735-A, copied into
+    data/inbox/drawings/ and cited from there."""
     traced = [e.id for e in tan_link.elements if e.source_ref.confidence == "traced"]
     assert "pitch_plate_flange" in traced
     ref = tan_link.element("pitch_plate_flange").source_ref
-    assert (ref.document, ref.sheet, ref.zone) == ("215197", 2, "B4")
+    assert (ref.document, ref.revision, ref.sheet, ref.zone) == ("215735", "A", 2, "B4")
     assert ref.callout == "3X 4.06 ±0.08"
+    # Cited repo-relative, so it resolves against this repo's own data root and
+    # not a path into the read-only upstream.
+    assert ref.export.pdf == "data/inbox/drawings/215735-A.pdf"
 
 
 def test_hardware_entry_values_source_counts_match_the_description():
@@ -2745,7 +2932,43 @@ def test_every_inline_hardware_entry_cites_where_its_values_came_from():
     assert len(by_kind["parts_list"]) == 1
 
 
-def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_link):
+#: Every from-scratch stack that folds at least one workbook-derived band, and
+#: the elements in it that do. Curated rather than derived, for the same reason
+#: :data:`SHARED_BANDS` is: the expected answer has to be stated outside the
+#: files being checked, so an edit to one of them cannot redefine what the guard
+#: is looking for. It is also the guard's non-vacuity floor -- a stack whose set
+#: comes back different has either acquired a laundering candidate or lost the
+#: one it had, and both want a human.
+#:
+#: ``rotor_fastener_length`` joined on 2026-09-16
+#: (``citation_identity_correctness``), which is why this became a parametrized
+#: test: until then ``pitch_link_to_pitch_plate`` was the only such stack and
+#: the guard was hard-coded to it. A rule with one instance that grows a second
+#: and is checked on neither is how this class of defect survives.
+WORKBOOK_BACKED_BANDS = {
+    "pitch_link_to_pitch_plate": {"bushing_214820", "washer_nas1149v0332"},
+    "rotor_fastener_length": {"washer_nas1149v0332_tt"},
+}
+
+#: For each of those stacks, the citation each workbook-backed element ended up
+#: carrying -- ``(element id) -> (source_ref kind, document)``. This is the half
+#: that says the laundering did not merely move: a band that came from the
+#: workbook has to name the artifact it came from, or name a document that
+#: actually prints it. A parts-list row prints a nominal and never a band, so
+#: ``kind: "parts_list"`` here would be the exact defect.
+WORKBOOK_BACKED_CITATIONS = {
+    "pitch_link_to_pitch_plate": {
+        "bushing_214820": ("drawing", "214820-002"),
+        "washer_nas1149v0332": ("workbook", "260729_sample_tol_stack.xlsx"),
+    },
+    "rotor_fastener_length": {
+        "washer_nas1149v0332_tt": ("workbook", "260729_sample_tol_stack.xlsx"),
+    },
+}
+
+
+@pytest.mark.parametrize("stack_id", sorted(WORKBOOK_BACKED_BANDS))
+def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(stack_id):
     """SOP Step 5b's workbook ban is TRANSITIVE, and `values_source` is what
     makes it checkable.
 
@@ -2765,10 +2988,11 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
     a citation that shows a drawing, a respectable confidence and zero workbook
     references, and passes every mechanical check in the repo.
     """
+    stack = load_stack(STACKS_DIR / f"stack_{stack_id}.json")
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     entries = {e["id"]: e for e in data["entries"]}
     laundered = []
-    for element in pitch_link.elements:
+    for element in stack.elements:
         if not element.hardware_ref:
             continue
         src = entries[element.hardware_ref]["values_source"]
@@ -2781,23 +3005,27 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
         f"may be used (SOP Step 5b, 2026-09-15) but not while claiming support "
         f"it does not have."
     )
-    # And the two that point at workbook-sourced entries are exactly the two
-    # that fold such a band -- i.e. this test is not passing vacuously.
-    refs = {e.id: e.hardware_ref for e in pitch_link.elements if e.hardware_ref}
+    # The elements that point at workbook-sourced entries are exactly the ones
+    # expected to fold such a band -- i.e. this test is not passing vacuously.
+    refs = {e.id: e.hardware_ref for e in stack.elements if e.hardware_ref}
+    banded = {e.id for e in stack.elements if e.min != e.max}
     workbook_backed = {
         eid for eid, ref in refs.items()
         # `or {}` because a not_transcribed entry's values_source is null, and a
         # future hardware_ref to one (MS9363 is the named next document) should
         # fail this test cleanly rather than TypeError out of it.
         if (entries[ref]["values_source"] or {}).get("kind") == "workbook"
+        and eid in banded
     }
-    assert workbook_backed == {"bushing_214820", "washer_nas1149v0332"}
-    # Neither of them still cites the 217755 parts list, which is the citation
-    # that WOULD have laundered the band: the parts-list row gives a nominal and
-    # no tolerance, so pointing at it for a band is pointing at a page that does
-    # not contain the number. Each now names the artifact its band came from.
-    assert pitch_link.element("washer_nas1149v0332").source_ref.kind == "workbook"
-    assert pitch_link.element("bushing_214820").source_ref.document == "214820-002"
+    assert workbook_backed == WORKBOOK_BACKED_BANDS[stack_id]
+    # None of them still cites the 217755 parts list, which is the citation that
+    # WOULD have laundered the band: the parts-list row gives a nominal and no
+    # tolerance, so pointing at it for a band is pointing at a page that does
+    # not contain the number. Each names the artifact its band came from.
+    for eid, (kind, document) in WORKBOOK_BACKED_CITATIONS[stack_id].items():
+        ref = stack.element(eid).source_ref
+        assert (ref.kind, ref.document) == (kind, document)
+        assert ref.kind != "parts_list"
 
 
 def hardware_entry_problems(entry: dict) -> list[str]:

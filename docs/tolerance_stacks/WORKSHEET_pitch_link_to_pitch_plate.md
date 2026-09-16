@@ -90,7 +90,7 @@ Covers `stack_pitch_link_to_pitch_plate.json`. All values in **mm**.
 | Assembly | 217755 PROPULSION ASSEMBLY, PROPELLER rev A.1 (`[PRELIM 2026-AUG-3]` export) |
 | Location | sheet 4 (*SPINDLE CLAMP AND PITCH PLATE*), **DETAIL B**, scale 2:1, printed zone **H3** (caption; view body spans printed J3–K4) |
 | Places | **5** |
-| Pitch plate | 215197 PITCH PLATE, PROPELLER, inside 215177-001 PITCH PLATE ASSEMBLY CW (balloon 31; 74 = -002 CCW) |
+| Pitch plate | 215735 PITCH PLATE, PROPELLER, inside 215177-001 PITCH PLATE ASSEMBLY CW (balloon 31; 74 = -002 CCW) — re-cited 2026-09-16 from the PRELIM 215197; see element 4 |
 | Link | **213862-002 PITCH LINK ASSEMBLY, PROPELLER** (identified 2026-09-15 via the 216231 A.1 HUB AND BLADE ASSEMBLY parts list, item 24, qty 5 — no part in the **217755** parts list is named "pitch link", which is why this row read *"unidentified — see gap 1"* for six weeks). Its bearing: MS14101-3 or MS14103-3, **unconfirmed** — see gap 1 |
 | Flanged bushing | **NAS77A3-015A** `BUSHING, FLANGED, PRESS FIT ... ALUMINUM COATED, .1900" ID` — not ballooned in DETAIL B because it arrives press-fit inside the 215177-001/-002 plate assembly (its find 2, qty 8 = 3+5) |
 | Fastener as drawn | **NAS6403U11D** `.190-32 × .688" GRIP` (balloon **5X 38**, qty 5) — unplated, **drilled shank** |
@@ -129,11 +129,20 @@ the identification is by elimination plus four corroborations, and it is
    front view — counted, five). One pitch link per blade gives five places; the
    three anti-rotation links are a separate, smaller set. The 8X bushing / 8X
    washer / 8X nut / 8X cotter counts in DETAIL B are exactly 3 + 5.
-4. **215197 carries a distinct 5X flange group.** The pitch plate has three
+4. **The pitch plate carries a distinct 5X flange group.** It has three
    4.06 mm callout groups: `3X ±0.08` (sheet 2 zone B4 — tangential),
    `5X ±0.10` (sheet 2 zone D10 — **this joint**) and `1X ±0.10` (sheet 1 zone
    D5 — VPA output). The count is what ties the callout to the joint; matching
    on the value 4.06 alone would get you to "one of three" (slice 1's trap 11).
+
+   > **2026-09-16** (`citation_identity_correctness`): this argument was made on
+   > 215197 A.1 and is recorded as made. It carries over to the released plate
+   > **215735 rev A** unchanged — sheet 2 prints the same `3X` and `5X` groups at
+   > the same zones, so the count argument is untouched. The `1X` half of the
+   > sentence is the part that aged: 215735-A sheet 1 prints **two** `4.06 ±0.10`
+   > callouts (zones D5 and D6), where 215197 printed one and an `8.80 ±0.10`.
+   > That widens the VPA group; it does not touch the 5X/3X distinction this
+   > elimination turns on.
 
 The link's own part number was still missing when this section was written; it
 is **213862-002** as of 2026-09-15 (fifth corroboration: the 216231 A.1
@@ -149,7 +158,7 @@ Physical order from the bolt head. `conf` is the result, not decoration.
 | 1 | plain bushing length (214820-002) | bushing | 4.7600 | 4.6300 | 4.7600 | 214820-002 SECTION A-A, read by Jeff 2026-09-15 | **untraced** |
 | 2 | pitch-link eye: spherical bearing ball width — **bearing identity UNCONFIRMED** | bearing | 7.1400 | 7.0900 | 7.1400 | **RBC catalog p19, MS14101-3 row, column W** — a placeholder until the 213862-002 drawing lands (gap 1) | **untraced** |
 | 3 | flanged bushing flange thickness (NAS77A3-015A) | bushing | 1.5748 | 1.4478 | 1.5748 | **JB_NAS77.pdf, row NAS77A3-xxx, column F** | inferred |
-| 4 | pitch plate lug thickness (5X group) | clamped_member | 4.0600 | 3.9600 | 4.1600 | **215197 sh2 zone D10 SECTION A-A** | **traced** |
+| 4 | pitch plate lug thickness (5X group) | clamped_member | 4.0600 | 3.9600 | 4.1600 | **215735-A sh2 zone D10 SECTION A-A** | **traced** |
 | 5 | washer thickness, NAS1149V0332H (.032 in) | washer | 0.8128 | 0.7112 | 0.9144 | 260729 workbook `grip length tols old` E11/F11 | **untraced** |
 | 6 | NAS6403U11D grip length (.688 in) | fastener | 17.4752 | 17.2212 | 17.7292 | **NAS6403-NAS6420 Rev 4 sh3** | **traced** |
 | 7 | NAS6403U11D overall length (1.011 in) | fastener | 25.6794 | 25.2984 | 26.0604 | **NAS6403-NAS6420 Rev 4 sh3** | **traced** |
@@ -699,7 +708,7 @@ This list is the intake queue for the spec-library / fastener-library stream.
 | 5 | **MIL-S-8879** (the thread spec NAS6403 sheet 1 invokes for UNJF-3A) | the **thread run-out / incomplete-thread length**. NAS6403 turns out *not* to dimension it — see below. This is what slice 1's 1/16 in "thread transition allowance" was standing in for. | 2 |
 | 6 | NAS6403 **sheet 5 of 5** | completeness of the standard in the pile (F8). Nothing here depends on it. | 3 |
 | 7 | MS24665 / NASM24665 cotter pin | pin-to-hole fit. `.063 in` pin in a `.070/.080 in` hole is consistent; the parts list calls MS24665 while JPS00094 §5.7.6.a calls NASM24665. | 3 |
-| 8 | 215197 at a **current** revision | the flange callouts here are read off a `[PRELIM 2025-MAY-22]` export held in drawing-checker's test fixtures. It is the only 215197 PDF available and it is over a year older than the assembly export. | 3 |
+| 8 | ~~215197 at a **current** revision~~ — **CLOSED 2026-09-16** (`citation_identity_correctness`), by a **different part number**. | It read *"the flange callouts here are read off a `[PRELIM 2025-MAY-22]` export held in drawing-checker's test fixtures. It is the only 215197 PDF available and it is over a year older than the assembly export."* All still true of 215197 — and no longer this stack's problem, because the released design's plate is **215735-001/-002** (find 1 and find 4 of the 215177 PITCH PLATE ASSEMBLY parts list), not 215197 at a newer revision. `215735-A.pdf` is `MATURITY STATE: Released`, released 01/JUL/2025, copied into `data/inbox/drawings/`, and element 4 now cites it. The lug value did not move. | ~~3~~ — **done** |
 
 ### Closed this session — what slice 1 could not source
 
