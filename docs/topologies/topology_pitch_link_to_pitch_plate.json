@@ -24,26 +24,26 @@
   "parts": [
     {
       "id": "bolt_nas6403u11d",
-      "name": "NAS6403U11D bolt, .1900-32, .688 grip",
-      "note": "Balloon 5X in DETAIL B, per the referenced stack's parts list. A standard part; its dimensional identity is the NAS6403-NAS6420 Rev 4 sheet the referenced elements cite."
+      "name": "NAS6403U11D hex-head bolt",
+      "note": "A standard part: its dimensions come from NAS6403-NAS6420 Rev 4 sheet 3, not from a Joby part drawing. Hex head, 6Al-4V, .1900-32 thread, .688 in grip, per the 217755 parts-list nomenclature. Ballooned 5X in DETAIL B of 217755 sheet 4."
     },
     {
       "id": "bushing_214820_002",
-      "name": "214820-002 BUSHING, PLAIN, ALUMINUM BRONZE, .1900 in ID X .1875 in LONG",
+      "name": "214820-002 plain bushing",
       "drawing": "214820-002",
-      "note": "Balloon 8X in DETAIL B per the referenced element's source_ref. The Joby part drawing for 214820-002 is not in this repo -- see the referenced element's own gap note."
+      "note": "Plain bushing, aluminium bronze, .1900 in ID X .1875 in long, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4. Drawing 214820-002 itself is not in this repo, so the length is transcribed from the assembly parts list and its band is on the gap list."
     },
     {
       "id": "pitch_plate_215197",
-      "name": "pitch plate (215197), 5X 4.06 +/-0.10 flange group",
+      "name": "215197 pitch plate",
       "drawing": "215197",
       "revision": "A.1",
-      "note": "The referenced element's source_ref names this drawing and zone D10, the 5X group distinct from the 3X (tangential link) and 1X (VPA output) groups on the same sheet."
+      "note": "The lug thickness cited here is the 5X 4.06 +/-0.10 flange group at zone D10 of 215197 A.1 sheet 2 -- distinct from the 3X group (tangential link) and the 1X group (VPA output) on the same sheet."
     },
     {
       "id": "washer_nas1149v0332h",
-      "name": "NAS1149V0332H washer, flat, 6Al-4V, .203 x .438 x .032 in",
-      "note": "Balloon 8X in DETAIL B per the referenced element's source_ref (find 32, qty 9 across the assembly)."
+      "name": "NAS1149V0332H flat washer",
+      "note": "Flat washer, 6Al-4V, .203 x .438 x .032 in, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4 (find 32, qty 9 across the assembly)."
     }
   ],
   "nodes": [
@@ -52,7 +52,7 @@
       "name": "bolt-head bearing face against the plain bushing",
       "parts": ["bolt_nas6403u11d", "bushing_214820_002"],
       "kind": "mating_surface",
-      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, per the referenced fastener elements' source_ref."
+      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, and that is the definition the grip dimensions here are cited to."
     },
     {
       "id": "bushing_pitch_plate_face",
@@ -93,7 +93,7 @@
       "name": "cotter-pin hole centreline",
       "parts": ["bolt_nas6403u11d"],
       "kind": "datum_feature",
-      "note": "NAS6403-NAS6420 Rev 4 sheet 1, dimension M, read off the figure per the referenced element's own source_ref note."
+      "note": "Located by dimension M on NAS6403-NAS6420 Rev 4 sheet 1, read off the figure."
     }
   ],
   "edges": [

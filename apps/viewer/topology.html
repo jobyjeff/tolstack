@@ -35,6 +35,16 @@
       <section id="stackview" class="stackview"></section>
       <section id="totals" class="tvtotals"></section>
     </div>
+    <!-- The preview pane's drag divider (Jeff, 2026-09-15: "the right preview
+         pane is resizable. It's too narrow"). Static markup, not rendered by a
+         view, because the pane serves BOTH modes and neither mode's renderer
+         owns it -- and because a re-render must not destroy the node a drag is
+         in progress on. The drag itself is topology_app.js's onResizeStart,
+         the same document-level pointer handler the column and jog-zone grips
+         already use; the arrow keys nudge it without a pointer. -->
+    <div id="detail-divider" class="tv__divider" role="separator"
+         aria-orientation="vertical" tabindex="0"
+         title="drag to resize the preview pane (or use the arrow keys)"></div>
     <aside id="detail" class="detail"></aside>
   </main>
   <div id="croppop" class="croppop"></div>

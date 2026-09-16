@@ -24,18 +24,18 @@
   "parts": [
     {
       "id": "washer_ms21299c3",
-      "name": "MS21299C3 washer, countersunk, .063 in, under the bolt head",
-      "note": "Balloon at SECTION T-T, find 60, qty AR (JPS00094 5.5.3.a allows 0-3). The referenced element models the ONE this section draws."
+      "name": "MS21299C3 countersunk washer",
+      "note": "The washer under the bolt head, .063 in thick. Balloon at SECTION T-T, find 60, qty AR (JPS00094 5.5.3.a allows 0-3); the element here models the ONE this section draws."
     },
     {
       "id": "washer_nas1149v0332_tt",
-      "name": "NAS1149V0332H washer, flat, 6Al-4V, .032 in, rotor balance-mass bolt",
-      "note": "Same part number the pitch-link and tangential-link joints cite, a different balloon (find 32, zone K4, SECTION T-T) of the same 217755 sheet."
+      "name": "NAS1149V0332H flat washer",
+      "note": "The flat washer under the rotor balance-mass bolt: 6Al-4V, .032 in thick. Same part number the pitch-link and tangential-link joints cite, a different balloon (find 32, zone K4, SECTION T-T) of the same 217755 sheet."
     },
     {
       "id": "fastener_family",
-      "name": "NAS6403 grip-selection family, dash TBD at assembly (note 24: SELECT ONE FASTENER ... AS REQUIRED FOR CORRECT GRIP LENGTH)",
-      "note": "Modelled as ONE part rather than nine, because the nine dash options (U2H through U10H) are mutually-exclusive alternatives of a single designed feature -- 'whichever grip the assembler selects' -- not nine parts that could ever be present at once. Treating them as nine separate parts would force each of `head_bearing_face`/`shank_full_dia_end` to list up to nine part ids, which Node.parts refuses outright (an interface joins at most two parts); it would also misrepresent nine alternatives as nine simultaneous members. This is a repo-first pattern -- topology_vpa_output_to_pitch_plate.json and topology_pitch_link_to_pitch_plate.json each model one fixed as-drawn fastener -- and it exists because this is the repo's first genuine grip-SELECTION joint, exactly as the referenced stack's own joint.identification_note argues."
+      "name": "NAS6403 grip-selection family",
+      "note": "The dash number is chosen at assembly: 217755 note 24 reads SELECT ONE FASTENER ... AS REQUIRED FOR CORRECT GRIP LENGTH. Modelled as ONE part rather than nine, because the nine dash options (U2H through U10H) are mutually-exclusive alternatives of a single designed feature -- 'whichever grip the assembler selects' -- not nine parts that could ever be present at once. Treating them as nine separate parts would force each of `head_bearing_face`/`shank_full_dia_end` to list up to nine part ids, which Node.parts refuses outright (an interface joins at most two parts); it would also misrepresent nine alternatives as nine simultaneous members. This is a repo-first pattern -- topology_vpa_output_to_pitch_plate.json and topology_pitch_link_to_pitch_plate.json each model one fixed as-drawn fastener -- and it exists because this is the repo's first genuine grip-SELECTION joint, exactly as the referenced stack's own joint.identification_note argues."
     }
   ],
   "nodes": [
