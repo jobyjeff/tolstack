@@ -733,13 +733,31 @@ def test_pitch_link_untraced_values_are_exactly_the_listed_gaps(pitch_link):
 # 4.76. Three transcriptions of three sources disagreeing in the fourth decimal
 # is information; forcing them to agree would delete a finding.
 
-#: ``(hardware_ref, feature)`` -> the band every stack must fold for it, and the
-#: stacks that are known to use it. Curated rather than derived: the point is to
-#: state the expected band *outside* the files being checked, so an edit to one
-#: of them cannot quietly redefine what "consistent" means.
+#: ``hardware_ref`` -> the band every stack must fold for it. Curated rather than
+#: derived: the point is to state the expected band *outside* the files being
+#: checked, so an edit to one of them cannot quietly redefine what "consistent"
+#: means.
+#:
+#: Keyed on ``hardware_ref`` **alone**, and that is a live assumption rather than
+#: a design: it holds only while one hardware entry contributes exactly one
+#: folded feature. It does today -- ``214820-002`` is cited for its length and
+#: ``NAS1149V0332`` for its thickness, nowhere for anything else. The day a stack
+#: folds a bushing's OD beside its length, this guard would demand the length
+#: band of both; the key grows a feature then, and ``FEATURE_HINT`` below is what
+#: lets a reader see the assumption instead of inferring it. (This was a
+#: ``(part, feature)`` tuple until ``review/pitch_link_known_bands`` pointed out
+#: that the second half was never read -- a key that looks like it discriminates
+#: and does not is worse than one that visibly does not.)
 SHARED_BANDS = {
-    ("214820-002", "plain bushing length"): (4.63, 4.76),
-    ("NAS1149V0332", "washer thickness"): (0.7112, 0.9144),
+    "214820-002": (4.63, 4.76),
+    "NAS1149V0332": (0.7112, 0.9144),
+}
+
+#: What each part above is folded FOR. Not used for matching -- read only to name
+#: the feature in this guard's failure message, and to carry the assumption above.
+FEATURE_HINT = {
+    "214820-002": "plain bushing length",
+    "NAS1149V0332": "washer thickness",
 }
 
 #: Stack/element pairs that use one of the parts above and do NOT fold its band,
@@ -763,12 +781,14 @@ def test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it():
     """
     divergent = []
     seen_divergences = set()
+    matched = {part: set() for part in SHARED_BANDS}
     for filename in ALL_STACK_FILES:
         stack = load_stack(STACKS_DIR / filename)
         for element in stack.elements:
-            for (part, _feature), band in SHARED_BANDS.items():
+            for part, band in SHARED_BANDS.items():
                 if element.hardware_ref != part:
                     continue
+                matched[part].add(stack.id)
                 pair = (stack.id, element.id)
                 if (element.min, element.max) == band:
                     assert pair not in KNOWN_BAND_DIVERGENCES, (
@@ -790,9 +810,30 @@ def test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it():
         f"{sorted(dead)} are recorded as known band divergences and were not "
         f"found -- a stale row here is a part nobody is checking")
 
-    # Not vacuous: the pairing has to be seeing the stacks that matter.
-    assert ("pitch_link_to_pitch_plate", "bushing_214820") not in seen_divergences
-    assert ("tan_link_to_pitch_plate", "straight_bushing") not in seen_divergences
+    # NOT VACUOUS, and this is the half that needs saying out loud. Everything
+    # above is a loop that finds nothing when it matches nothing: a typo in a
+    # `SHARED_BANDS` key, a part dropped from every stack, or an `ALL_STACK_FILES`
+    # that stopped seeing a file all leave this green while it silently stops
+    # guarding the part the whole rule exists for. An earlier version asserted
+    # two pairs were absent from `seen_divergences` -- a set only ever fed from
+    # `KNOWN_BAND_DIVERGENCES`, so they were absent by construction and neither
+    # assertion could fail; renaming a `SHARED_BANDS` key to a typo left the
+    # suite green (`review/pitch_link_known_bands`).
+    #
+    # Assert what the loop actually matched instead. Two distinct stacks is the
+    # floor that makes the word "cross-stack" mean anything: a part folded in one
+    # stack has nothing to be consistent with.
+    for part, band in SHARED_BANDS.items():
+        assert len(matched[part]) >= 2, (
+            f"{part} ({FEATURE_HINT.get(part, 'feature unrecorded')}, band {band}) "
+            f"was matched in {sorted(matched[part])} -- fewer than two stacks, so "
+            f"this guard is checking nothing for it. Either the key is misspelled, "
+            f"the part left the stacks, or ALL_STACK_FILES stopped seeing a file.")
+    # And the two stacks this handoff brought into line are named, so an edit
+    # that quietly drops one of them from either part is visible here too.
+    both = {"pitch_link_to_pitch_plate", "tan_link_to_pitch_plate"}
+    assert both <= matched["214820-002"]
+    assert both <= matched["NAS1149V0332"]
 
 
 def test_pitch_link_carries_no_invented_thread_transition_allowance(pitch_link):
@@ -1221,9 +1262,19 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     reaches them and this test does not pretend otherwise. What is left is the
     three 215197 runs, which is real bite and not a vacuous pass; the gap is
     filed as ``ISSUE_20260915_the_joint_assembly_export_is_prose_so_its_runs_have_no_ts.md``.
+
+    **The root-commit claim survives, on a different run.** It was written
+    against ``20260803_145243`` and was dropped with it during
+    ``pitch_link_known_bands``; ``review/pitch_link_known_bands`` pointed out
+    that its *subject* had not gone away. ``20260730_133912``
+    (``2026-07-30T20:39:33.291499Z``) also predates the root commit, so the
+    strongest form of the invariant -- *a cited run predates this repo's
+    existence, so this repo cannot have produced it* -- is still checkable here,
+    and is checked below.
     """
     # git -C C:\workspace\tolstack log --format='%h %ad' --date=iso-strict
     PITCH_LINK_FIRST_COMMIT = datetime(2026, 8, 4, 22, 42, 57, tzinfo=timezone.utc)  # d6829f2
+    TOLSTACK_ROOT_COMMIT = datetime(2026, 8, 3, 23, 5, 8, tzinfo=timezone.utc)       # e7bd996
 
     stack = load_stack(STACKS_DIR / "stack_pitch_link_to_pitch_plate.json")
     cited = {
@@ -1239,6 +1290,8 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
         )
     # The 215197 export, which is the only element-level one left.
     assert set(cited) == {"20260409_170546", "20260409_172341", "20260730_133912"}
+    # The stronger claim, repointed: this run existed before this repo did.
+    assert cited["20260730_133912"] < TOLSTACK_ROOT_COMMIT
 
     # And the run the review could not attribute is still cited by this stack,
     # at joint level. Losing the citation entirely would be a different defect
