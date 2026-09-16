@@ -310,6 +310,10 @@
         eq(out.notices, []);
       });
 
+    // `demo_joint` is a stack the demo mechanism re-expresses, so since
+    // viewer_nav_wedge_and_classic_retirement it has no nav row at all -- and
+    // a link to it still resolves, because a deep link is answered by the
+    // PROJECTION and not by what the rail chose to offer.
     await test("resolveDeepLink selects a stack and its element", function () {
       var out = VA.resolveDeepLink({ stack: "demo_joint", element: "plate" },
         VA.demoTopologyProjection(), FIXTURE.results);
@@ -318,6 +322,22 @@
       eq(out.elementId, "plate");
       eq(out.notices, []);
     });
+
+    // Same rule for a superseded stack, which is the one most likely to be
+    // "tidied up" later: hiding it is a NAV decision (VA.SUPERSEDED_STACKS),
+    // never a removal, so a link somebody saved before it was superseded must
+    // still open the document rather than answering "no such stack".
+    await test("a link to a superseded stack still opens it — hiding a row is " +
+      "not removing a document", function () {
+        var hidden = Object.keys(VA.SUPERSEDED_STACKS)[0];
+        var results = { stacks: [{ id: hidden, title: "take 1", elements: [] }] };
+        eq(VA.looseStacks(null, results).length, 0,
+           "precondition: the rail offers it nowhere");
+        var out = VA.resolveDeepLink({ stack: hidden }, null, results);
+        eq(out.mode, "stack");
+        eq(out.stackId, hidden);
+        eq(out.notices, []);
+      });
 
     await test("resolveDeepLink turns every unresolvable id into a plain-words " +
       "notice and falls back rather than guessing", function () {

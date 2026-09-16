@@ -322,27 +322,30 @@ def test_every_gap_a_covered_stack_states_is_stated_by_its_topology(projections)
 
 def test_every_check_a_covered_stack_publishes_is_published_by_its_topology(
         projections):
-    """The verdict and its criterion, per authored check.
+    """The verdict, its criterion and what the chain left out, per check.
 
-    ``label``/``verdict``/``criterion`` rather than the whole dict: the two
-    projections wrap a check in different envelopes (a stack's is per-path, a
-    topology's per-study), and what a reader must not lose is *which* check,
-    *what it required* and *whether it passed*.
+    Four fields rather than the whole dict: the two projections wrap a check in
+    different envelopes (a stack's is per-path, a topology's per-study), and
+    what a reader must not lose is *which* check, *what it required*, *whether
+    it passed* and *what was excluded from the answer* -- the last because an
+    unqualified verdict on a chain knowingly short a term is the exact lie this
+    repo exists to prevent.
     """
+    def identity(check: dict) -> tuple:
+        return (check.get("label"), check.get("verdict"), check.get("criterion"),
+                tuple(check.get("excluded_terms") or ()))
+
     for stack, topology in covered_pairs(projections):
         assert stack.get("checks"), (
             f"{stack['id']} publishes no checks at all -- a covered stack with "
             f"nothing to compare makes this test vacuous")
         theirs = {
-            (check.get("label"), check.get("verdict"), check.get("criterion"))
+            identity(check)
             for study in topology.get("studies", [])
             for check in (study.get("checks") or [])
         }
-        missing = [
-            check for check in stack.get("checks", [])
-            if (check.get("label"), check.get("verdict"),
-                check.get("criterion")) not in theirs
-        ]
+        missing = [check for check in stack.get("checks", [])
+                   if identity(check) not in theirs]
         assert not missing, (
             f"{stack['id']} publishes {len(missing)} check(s) no study of "
             f"{topology['id']} publishes:\n" +
