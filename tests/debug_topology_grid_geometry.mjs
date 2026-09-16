@@ -289,17 +289,23 @@ try {
     if (width === 560) {
       const g = await page.locator(".tvgrip--jog").boundingBox();
       const y = g.y + g.height / 2;
+      // Dragged LEFT, which narrows the jog zone: a widening drag pushes its
+      // own result off the pane and photographs as almost nothing, where a
+      // narrowing one brings the grid's columns back into the frame. Held
+      // down for the shot, so the picture is of the gesture, not of its
+      // aftermath.
       await page.mouse.move(g.x + g.width / 2, y);
       await page.mouse.down();
-      await page.mouse.move(g.x + g.width / 2 + 90, y, { steps: 8 });
+      await page.mouse.move(g.x + g.width / 2 - 200, y, { steps: 8 });
       await page.waitForTimeout(120);
       const held = await prefs();
-      line("  held", `SVG ${held.svgWidth}px with the pointer down on the grip`);
+      line("  held", `SVG ${held.svgWidth}px with the pointer down on the grip ` +
+        `and dragged 200px left`);
       await shot(`1_${TAG}_grip_under_pane`);
       await page.mouse.up();
       await page.waitForTimeout(90);
       if ((await prefs()).svgWidth !== seeded.svgWidth) {
-        await dragBy(".tvgrip--jog", -90);
+        await dragBy(".tvgrip--jog", 200);
       }
     }
   }
@@ -409,6 +415,9 @@ try {
   const zero = await dagLeftAt(0);
   line("at zero", `dagLeft ${zero.dagLeft.toFixed(1)}px, svgLeft ` +
     `${zero.svgLeft.toFixed(1)}px`);
+  // The shot is the FAR END, which is the only place the before and after
+  // differ -- at scrollLeft 0 a pane with no sticky at all looks the same.
+  await dagLeftAt(max);
   await shot(`3_${TAG}_rails_${TAG === "before" ? "slide" : "hold"}`);
 
   // ---- the four box numbers the lesson records ----------------------------
