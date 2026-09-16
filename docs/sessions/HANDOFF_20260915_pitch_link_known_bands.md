@@ -34,7 +34,13 @@ this exact element at :893. The sibling stacks (`tan_link*`, `vpa_output*`)
 use these same bands openly. **Jeff has now adjudicated it from the drawing
 itself**: 4.76 +0/−0.13 is real, the zero-width rendering is wrong for these
 elements, and the same part must not carry a real band in one stack and ±0
-in another.
+in another. He ratified the general shape in his 2026-09-15 follow-up:
+"include the worksheet values but then very loudly (via badges etc) announce
+that that line item, and the entire study is incomplete/unverified" — the
+loud badging is `viewer_study_verdicts_and_gaps`' deliverable; this
+handoff's job is to make sure the data those badges read (per-element
+confidence, unverified-source markers) is present and correct in the stack
+JSON and survives into the viewer projection.
 
 ## Deliverables
 
@@ -64,14 +70,26 @@ in another.
    recompute; `complete`/`excluded_terms` on the two checks are unchanged
    (the spherical-bearing exclusion is a separate, still-open gap — do NOT
    invent that element here).
-5. **Scoped SOP amendment** (`docs/SOP_TOLERANCE_STACK.md` Step 5b): add a
-   dated amendment block — the pitch-link no-workbook experiment concluded
-   2026-09-15 by operator verdict; a band recorded in `hardware_entries.json`
-   with workbook provenance MAY be applied to a stack element **with its
-   true confidence displayed**, and the same part+feature must carry the
-   same band in every stack that uses it. The "never substitute a plausible
-   band" rule is untouched — this covers only recorded, provenance-carrying
-   values. Do not restructure the SOP (a separate strategy brief owns that).
+5. **SOP amendment — the placeholder policy** (`docs/SOP_TOLERANCE_STACK.md`,
+   dated amendment blocks at Step 5b AND Step 5c): Jeff's 2026-09-15 ruling,
+   quoted for the record: "it's ok to use unverified numbers as placeholders,
+   but they need to be very loudly identified as unverified/incomplete.
+   Current design omits them entirely and then fails silently which is worst
+   of both worlds."
+   - Step 5b: the pitch-link no-workbook experiment concluded 2026-09-15 by
+     operator verdict. A value recorded with provenance (workbook cell,
+     catalog, operator statement) MAY be applied to a stack element with its
+     true confidence carried and displayed; the same part+feature must carry
+     the same band in every stack that uses it.
+   - Step 5c: "never create a placeholder element" is **rescinded** for the
+     case where a sourced-but-unverified value exists — include the member
+     with those values marked unverified rather than omitting it;
+     omission + `excluded_terms` remains only when literally no number
+     exists anywhere. (The member *additions* themselves are
+     `stack_fable_audit`'s work, not this handoff's.)
+   - Untouched: the core prohibition on inventing values from training-data
+     recall. A placeholder still needs a named source; it just doesn't need
+     a verified one. Do not restructure the SOP (a strategy brief owns that).
 
 ## Definition of done
 

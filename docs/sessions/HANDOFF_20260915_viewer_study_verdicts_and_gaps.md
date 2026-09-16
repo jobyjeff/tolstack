@@ -59,18 +59,27 @@ tiers (owned by `mutation_witness_tier_repair` / `viewer_value_guard_rows_and_re
    spherical bearing width — no source document yet"), because an
    unqualified verdict on an incomplete chain is the exact lie this repo
    exists to avoid.
-2. **Lower-bound warning when zero-width inputs are present.** If a study's
+2. **Unverified/incomplete is LOUD, at both levels** (Jeff, 2026-09-15
+   follow-up, binding): any study whose chain contains an unverified,
+   placeholder, or zero-width input — or whose check excludes terms —
+   carries a prominent badge at the **study level** (totals strip AND nav
+   row), and each affected **line item** carries its own badge in the grid.
+   His words: the current design "omits them entirely and then fails
+   silently which is worst of both worlds." Loud beats subtle here; the
+   badge vocabulary is everyday words ("unverified", "incomplete", "no
+   tolerance recorded"), styled to be impossible to miss at a glance.
+3. **Lower-bound warning when zero-width inputs are present.** If a study's
    chain contains zero-width-band elements, the totals strip says so in
    everyday words: "N dimensions in this chain have no tolerance recorded —
    the worst-case spread shown is a lower bound." Name the affected rows.
-3. **Gaps reach the DAG page.** Emit a gaps list for topologies in the viewer
+4. **Gaps reach the DAG page.** Emit a gaps list for topologies in the viewer
    projection (reuse/extend the `stack_gaps` derivation; the covered stack's
    gaps are the right starting set) and render a "what's missing" panel on
    the topology page: excluded terms, untraced bands, absent source
    documents — each in plain words with what would close it.
-4. **Fix the stale comment** at `views/topology.js:1127-1133` — it now states
+5. **Fix the stale comment** at `views/topology.js:1127-1133` — it now states
    the opposite of the data contract.
-5. **UI copy rules apply** (Jeff, standing): no internal field names
+6. **UI copy rules apply** (Jeff, standing): no internal field names
    (`excluded_terms`, `source_ref`), no file paths, no schema jargon in any
    rendered string. Plain words only.
 
@@ -82,7 +91,9 @@ tiers (owned by `mutation_witness_tier_repair` / `viewer_value_guard_rows_and_re
   **PASS** with margin, `thread_region_t` "no criterion recorded"; the
   shank-out study shows the lower-bound warning naming the bushing and washer
   rows; the missing spherical-bearing exclusion is visible on the page
-  without opening any JSON.
+  without opening any JSON; every study with unverified/placeholder inputs
+  or excluded terms is visibly badged at the study level AND on each
+  affected line item.
 - Value-level tests pin the rendered verdict/margin strings for the pitch-link
   studies and the `checks: []` and `complete: false` renderings; full suite
   green.
