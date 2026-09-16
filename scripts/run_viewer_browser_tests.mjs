@@ -2347,6 +2347,94 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const detail = await page.locator("#detail").textContent();
       push("[real] an L1 edge shows the stack element's own citation",
         /NAS6403-NAS6420 Rev 4\.pdf/.test(detail) && /NAS6404U13D/.test(detail));
+
+      // --- the grips under a widened preview pane ------------------------
+      //
+      // The reader can drag the preview pane over the grid's own controls
+      // (ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_
+      // grips): the grid has no horizontal scrollport of its own -- full-page
+      // scroll, viewer_error_surface_and_layout 2026-09-09 -- so a grip parked
+      // at a content coordinate simply left the pane's visible window, where
+      // `.tv__hscroll`'s overflow-x clips it and a pointer reaches the preview
+      // pane instead. Measured on this projection at 1600x1000 before
+      // topology_grid_scroll_and_grips: at the shipped 430px pane the jog grip
+      // answered and at 560px it did not, and with the ELEMENT column dragged
+      // +220 the ELEMENT grip answered at neither.
+      //
+      // A pointer-down is the whole claim, so this drags each grip for real
+      // and reads the preference back -- a `boundingBox()` would report a
+      // clipped grip's box just as happily as a visible one's, which is
+      // exactly how this went unnoticed.
+      const PANE_MAX = await page.evaluate(() => window.ViewerApp.TOPO_PANE_WIDTH.max);
+      const dragBy = async (selector, dx) => {
+        const box = await page.locator(selector).boundingBox();
+        if (!box) return false;
+        const y = box.y + box.height / 2;
+        await page.mouse.move(box.x + box.width / 2, y);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 + dx, y, { steps: 6 });
+        await page.mouse.up();
+        await page.waitForTimeout(90);
+        return true;
+      };
+      const gripState = () => page.evaluate(() => ({
+        svg: Number(document.querySelector("svg.tv__rails").getAttribute("width")),
+        name: window.ViewerApp.topoColumn("name").width,
+      }));
+      // Each grip dragged out and straight back, so the check leaves the page
+      // on the state it found.
+      const gripsAnswer = async () => {
+        const before = await gripState();
+        await dragBy(".tvgrip--jog", 40);
+        const jogged = await gripState();
+        await dragBy(".tvgrip--jog", -40);
+        await dragBy(".tvgrip--col", 40);
+        const widened = await gripState();
+        await dragBy(".tvgrip--col", -40);
+        return { jog: jogged.svg > before.svg, col: widened.name > before.name };
+      };
+      // The divider is where the reader's own hand is: dragging it LEFT widens
+      // the preview pane and narrows the grid.
+      const setPane = async (target) => {
+        const box = await page.locator("#detail-divider").boundingBox();
+        const now = await page.evaluate(() =>
+          document.getElementById("detail").getBoundingClientRect().width);
+        await page.mouse.move(box.x + box.width / 2, box.y + 120);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 - (target - now), box.y + 120,
+          { steps: 8 });
+        await page.mouse.up();
+        await page.waitForTimeout(140);
+        return page.evaluate(() =>
+          Math.round(document.getElementById("detail").getBoundingClientRect().width));
+      };
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const paneAtStart = await page.evaluate(() =>
+        Math.round(document.getElementById("detail").getBoundingClientRect().width));
+      // The ELEMENT column dragged wide first, which is half of the reported
+      // repro and the state its own grip was unreachable in at EVERY pane
+      // width -- its boundary ends up ~550px right of anything on screen.
+      await dragBy(".tvgrip--col", 220);
+      for (const target of [560, PANE_MAX]) {
+        const got = await setPane(target);
+        const answered = await gripsAnswer();
+        push(`[real] with the preview pane dragged to ${got}px, the jog grip ` +
+          `still answers a pointer-down (topology_grid_scroll_and_grips)`,
+          answered.jog);
+        push(`[real] ...and so does the ELEMENT column's, ${
+          got === PANE_MAX ? "at the pane's own maximum" : "220px of column later"}`,
+          answered.col);
+      }
+      await dragBy(".tvgrip--col", -220);
+      await setPane(paneAtStart);
+      push("[real] and the page is back on the pane width it started at, so " +
+        "the divider block below measures what it thinks it does",
+        Math.abs((await page.evaluate(() =>
+          document.getElementById("detail").getBoundingClientRect().width)) -
+          paneAtStart) < 2);
+      await page.evaluate(() =>
+        window.localStorage.removeItem("tolstack.viewer.detailWidth"));
     }
 
     // --- the preview pane's own divider (viewer_component_names_and_
@@ -4081,6 +4169,10 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
           scrollLeft: live.scrollLeft,
           scrollWidth: live.scrollWidth,
           clientWidth: live.clientWidth,
+          // The ghost's own window, which has to be the live pane's or the
+          // cross-fade doubles the text (topology_grid_scroll_and_grips).
+          ghostScrollLeft: ghost.querySelector(".tv__hscroll")
+            ? ghost.querySelector(".tv__hscroll").scrollLeft : null,
           drawn: marks.length,
           // Relative to the pane's own left edge, and to the grid's.
           dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
@@ -4351,17 +4443,20 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // DAG against the pane's VISIBLE left edge, and at scrollLeft 0 that is
     // true of a pane with no sticky on it at all.
     //
-    // It holds -- but not for the whole scroll, which is the thing nothing
-    // measured. A sticky box is bounded by its CONTAINING BLOCK, and here
-    // that is `.tv__body`, which is the pane's own width rather than its
-    // content's: the grid table overflows out of `.tv__rows` instead of
-    // widening the flex row. So the SVG can be pushed right by at most
-    // (paneWidth - dagWidth), and a reader who scrolls further than that
-    // drags the DAG back off the left edge -- 41.5px of it, at this viewport,
-    // on the real pitch_system
+    // It holds for the WHOLE scroll since topology_grid_scroll_and_grips
+    // (2026-09-16), and until then it did not, which is what these two checks
+    // are for. A sticky box is bounded by its CONTAINING BLOCK, and that is
+    // `.tv__body` -- which used to be the pane's own width rather than its
+    // content's, because the grid table overflowed out of `.tv__rows` instead
+    // of widening the flex row. So the SVG could be pushed right by at most
+    // (paneWidth - dagWidth) = 552 of the real pitch_system's 666, and a
+    // reader who scrolled further dragged the DAG back off the left edge --
+    // 103.5px of it, at this viewport
     // (ISSUE_20260915_the_sticky_rails_stop_sticking_once_the_grid_is_
-    // scrolled_past_the_dags_own_width). Both halves are pinned, so the fix
-    // turns the second check red rather than leaving a stale claim behind.
+    // scrolled_past_the_dags_own_width). `.tv__body { width: max-content }`
+    // is the fix; the second check below is the one that was measuring the
+    // defect and now measures its absence, at the ONE scroll position where
+    // the old shape and the new one disagree most.
     const stickyWalk = await paneBoxes("sticky");
     push("[real] scrolled sideways, the DAG stays pinned to the pane's " +
       "VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a " +
@@ -4373,51 +4468,71 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
         " the leftmost drawn box is " + stickyWalk.dagLeft +
         "px from the pane's left edge");
     }
-    push("[real] but only as far as the room the DAG leaves beside it: past " +
-      "that the sticky runs out of containing block and the rails slide off " +
-      "the pane's left edge",
+    push("[real] and it holds PAST the room the DAG leaves beside it, all " +
+      "the way to the far end — the sticky's containing block is the " +
+      "content's width now, not the pane's (topology_grid_scroll_and_grips)",
       scrolledWalk.scrollLeft > scrolledWalk.clientWidth - scrolledWalk.dagWidth &&
-      scrolledWalk.dagLeft < -1);
-    console.log("    sticky holds to scrollLeft " +
-      (scrolledWalk.clientWidth - scrolledWalk.dagWidth) + " of " +
-      scrolledWalk.scrollLeft + "; at the far end the DAG is " +
-      scrolledWalk.dagLeft + "px from the pane's left edge");
+      scrolledWalk.dagLeft >= -1);
+    console.log("    the DAG leaves " +
+      (scrolledWalk.clientWidth - scrolledWalk.dagWidth) + "px of room beside " +
+      "it and the scroll runs to " + scrolledWalk.scrollLeft +
+      "; at the far end the DAG is " + scrolledWalk.dagLeft +
+      "px from the pane's left edge");
     // And the respine out of that scrolled pane. The question the issue asked
     // was whether the browser's scrollLeft CLAMP is felt as a sideways jump
-    // when the DAG shrinks 316 -> 82px under a reader parked at the right
-    // end. Measured, it never gets that far: VA.renderTopoPane clears the
-    // pane and builds a fresh `.tv__hscroll`, which starts at 0, so the
-    // reader's sideways scroll is gone on the FIRST frame and there is no
-    // scroll left for the clamp to act on. That is not the respine's doing --
-    // every render of this pane does it, density and length mode included --
-    // so it is filed rather than fixed here
+    // when the DAG shrinks under a reader parked at the right end. Until
+    // topology_grid_scroll_and_grips (2026-09-16) it never got that far:
+    // VA.renderTopoPane cleared the pane and built a fresh `.tv__hscroll`,
+    // which starts at 0, so the reader's sideways position was not clamped,
+    // it was DISCARDED -- on the first frame and by every other render of
+    // this pane too, density and length mode included
     // (ISSUE_20260915_every_topology_pane_render_throws_away_the_readers_
-    // sideways_scroll). This check states what the build actually does, so
-    // the day that issue is fixed it goes red and this claim gets rewritten
-    // rather than quietly outliving the behaviour it describes.
+    // sideways_scroll). It is carried now, and the clamp IS the behaviour:
+    // the browser holds the reader as far right as the narrower content
+    // allows. Both halves are checked here -- the carry onto the in-flight
+    // frame, and the clamped landing -- so the arm states what a reader gets
+    // rather than what the renderer happened to leave behind.
+    //
+    // Re-parked first: the sticky measurement above left the pane at
+    // (clientWidth - dagWidth - 20), which is not the far end and would make
+    // "carried, then clamped" unfalsifiable.
+    const parked = await paneBoxes("end");
     await page.locator(studyRow).click();
     const scrolledFrame = await catchFrame();
-    push("[real] a respine rebuilds the pane, so a scrolled reader is at the " +
-      "left edge from the first frame — the scrollLeft clamp the shrinking " +
-      "DAG would otherwise cause is never reached",
-      !!scrolledFrame && scrolledFrame.scrollLeft === 0);
+    push("[real] a respine carries the reader's sideways scroll onto the " +
+      "FIRST frame rather than rebuilding the pane back at the left edge " +
+      "(topology_grid_scroll_and_grips)",
+      !!scrolledFrame && scrolledFrame.scrollLeft > 0 &&
+      scrolledFrame.scrollLeft <= parked.scrollLeft);
     if (scrolledFrame) {
-      push("[real] and the frame in flight is drawn inside the pane from " +
-        "there, exactly as the unscrolled arms measured",
-        scrolledFrame.drawn > 20 && scrolledFrame.dagLeft >= -1 &&
-        scrolledFrame.dagPastGrid <= 1);
+      push("[real] and the ghost under it shows the SAME horizontal window, " +
+        "so the cross-fade is one table resolving into another rather than " +
+        "two slices of it stacked",
+        Math.abs(scrolledFrame.ghostScrollLeft - scrolledFrame.scrollLeft) <= 1);
+      // `dagPastGrid` is deliberately NOT asserted here, unlike the
+      // unscrolled arms: a sticky DAG over a scrolled grid is SUPPOSED to
+      // overlap the columns that have slid under it -- that is what
+      // `.tv__rails`'s own background is for -- so the claim those arms make
+      // at scrollLeft 0 is not a claim about this one.
+      push("[real] and the frame in flight is drawn from the pane's visible " +
+        "left edge, with the grid scrolled under the sticky DAG",
+        scrolledFrame.drawn > 20 && scrolledFrame.dagLeft >= -1);
     }
     await settled();
     const afterScroll = await paneBoxes(false);
-    push("[real] and it settles at the left edge on a pane the respine made " +
-      "narrower, with the DAG still inside it",
-      afterScroll.scrollLeft === 0 &&
-      afterScroll.scrollWidth < scrolledWalk.scrollWidth &&
+    push("[real] and it settles where the reader was, clamped by the browser " +
+      "to the right-hand end of the narrower pane the respine produced",
+      afterScroll.scrollLeft > 0 &&
+      afterScroll.scrollWidth < parked.scrollWidth &&
+      afterScroll.scrollLeft ===
+        Math.min(parked.scrollLeft,
+                 afterScroll.scrollWidth - afterScroll.clientWidth) &&
       afterScroll.dagLeft >= -1);
-    console.log("    scrolled respine: scrollLeft " + scrolledWalk.scrollLeft +
+    console.log("    scrolled respine: scrollLeft " + parked.scrollLeft +
       " -> " + (scrolledFrame ? scrolledFrame.scrollLeft : "?") + " -> " +
-      afterScroll.scrollLeft + " (pane content " + scrolledWalk.scrollWidth +
-      " -> " + afterScroll.scrollWidth + "px)");
+      afterScroll.scrollLeft + " (pane content " + parked.scrollWidth +
+      " -> " + afterScroll.scrollWidth + "px, so the reader's own maximum " +
+      "moved to " + (afterScroll.scrollWidth - afterScroll.clientWidth) + ")");
     // Back to the walk for the blocks below, which measure a pane at
     // horizontal zero -- where the respine above has already left it.
     await page.locator(walkRow).click();

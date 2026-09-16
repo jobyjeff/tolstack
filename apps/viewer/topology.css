@@ -181,13 +181,35 @@ body { display: flex; flex-direction: column; }
    `auto` for (the "one visible + one not" interaction rule) never actually
    clips or scrolls vertically in practice. */
 .tv__hscroll { overflow-x: auto; height: max-content; }
+/* `width: max-content` on BOTH of the scrollport's children, and it is load-
+   bearing rather than tidiness (topology_grid_scroll_and_grips, 2026-09-16).
+   A block child of a scroll container is sized to the scrollport, NOT to the
+   content it holds: the head table and the body table are given a fixed inline
+   width off COLUMNS (views/topology.js) and simply overflowed these two boxes,
+   which stayed at the pane's own width. That cost two things, one per box:
+
+     * `.tv__body` is the sticky rails' CONTAINING BLOCK, and a sticky box may
+       not be pushed outside it. At the pane's width the SVG could be held
+       against the visible left edge for only the first (paneWidth - dagWidth)
+       of scroll -- 552 of 666 on the real pitch_system at 1600x1000 -- and
+       then slid off it, 103.5px at the far end, which is exactly the "rails
+       beside rows that point at nothing" the note below says must never
+       happen;
+     * `.tv__head` painted its background and its bottom border across the
+       pane's width only, so a reader scrolled past that stopped having a
+       header band behind the column labels at all.
+
+   `min-width: 100%` is the other half: a topology narrower than the pane must
+   still fill it, or the header band stops short of the pane's right edge in
+   the other direction. */
 .tv__head {
   display: flex; position: sticky; top: 0; z-index: 2;
+  width: max-content; min-width: 100%;
   background: var(--panel); border-bottom: 1px solid var(--line);
   color: var(--muted); font-size: 11px; text-transform: uppercase;
   letter-spacing: .04em; height: 26px; line-height: 25px;
 }
-.tv__body { display: flex; align-items: flex-start; }
+.tv__body { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
 /* The rails stay put when the grid is scrolled sideways: a six-column grid is
    wider than the pane, and rails that scrolled off the left would leave the
    rows they align with pointing at nothing. */
@@ -195,6 +217,12 @@ body { display: flex; flex-direction: column; }
   flex: none; display: block; position: sticky; left: 0; z-index: 1;
   background: var(--bg);
 }
+/* Sized to the table it holds, not to the flex line: under `.tv__body`'s
+   `max-content` there is no free space to grow into when the grid is wider
+   than the pane, so the table stops overflowing THIS box and widens the
+   sticky's containing block instead. `flex: 1 1 auto` still fills the line on
+   a topology narrower than the pane, which is what `min-width: 100%` above
+   leaves over. */
 .tv__rows { flex: 1 1 auto; min-width: 0; }
 
 /* The respine's outgoing frame (viewer_study_respine_animation): the previous
@@ -286,17 +314,54 @@ body { display: flex; flex-direction: column; }
 
 /* --- the resize grips (viewer_leader_grid_legibility) --------------------
    Two of them, both in the sticky column header: the jog zone's sits on the
-   seam between the SVG and the grid (positioned inline from the geometry the
-   SVG was drawn at), the ELEMENT column's on that header cell's right edge.
-   Absolutely positioned in both cases, so neither adds a pixel of layout
-   width -- a grip that took space between a leader's last segment and the
-   grid's first column would be the one seam this page has nothing to align
-   against. Visible as a hairline at rest, brighter on hover/focus: enough to
-   find, not enough to read as a column border. */
+   seam between the SVG and the grid, the ELEMENT column's on that header
+   cell's right edge. Neither adds a pixel of layout width -- a grip that took
+   space between a leader's last segment and the grid's first column would be
+   the one seam this page has nothing to align against. Visible as a hairline
+   at rest, brighter on hover/focus: enough to find, not enough to read as a
+   column border.
+
+   CLAMPED INTO THE PANE'S VISIBLE WINDOW since topology_grid_scroll_and_grips
+   (2026-09-16), and that is what makes them reachable at all. Parked at a
+   content coordinate they walked out of that window -- `.tv__hscroll`'s own
+   `overflow-x` clips there -- so a reader who widened the preview pane (or the
+   jog zone, or the ELEMENT column) was left pressing on a grip the browser had
+   already clipped away. Measured on the real pitch_system at 1600x1000, jog
+   zone 5.5x, ELEMENT +220: at the shipped 430px pane the jog grip answered a
+   pointer and at 560px it did not, and the ELEMENT grip answered at neither.
+   The two are clamped by different mechanisms, because they mark two different
+   kinds of boundary:
+
+     * the JOG grip is STICKY, with its `left` written inline from the geometry
+       (views/topology.js's VA.jogGripInset). The seam it marks is itself
+       sticky -- `.tv__rails`'s `position: sticky; left: 0` holds the SVG's
+       right edge exactly `railWidth` from the pane's VISIBLE left edge at
+       every scroll -- so the grip has to be held by the same mechanism or it
+       drifts off the very seam it names the moment the reader scrolls
+       sideways. Sticky also means the browser holds it, frame for frame with
+       the SVG, rather than a scroll handler catching up a frame later;
+     * the ELEMENT grip is ABSOLUTE, with its `left` written per render and
+       per scroll (VA.columnGripLeft). Its boundary is a column edge and really
+       does scroll, so there is no fixed inset to sticky it at: it rides the
+       edge while the edge is on screen and pins to the pane's right edge past
+       that. `position: sticky; right: 0` is the obvious CSS for that and does
+       NOT work here -- measured in Chrome on this page, a sticky box whose
+       natural position is right of the scrollport is left exactly where it is
+       at every scrollLeft, so the grip never came in. Do not "simplify" this
+       back to a right inset without re-measuring it.
+
+   The jog grip's inset is clamped 7px clear of the ELEMENT grip's right-hand
+   pin, so the two cannot land on the same pixel on a pane narrower than the
+   DAG (reachable: the preview pane drags to VA.TOPO_PANE_WIDTH.max = 1000px,
+   which leaves the grid ~298px). `.tvgrip`'s width is paired against
+   VA.TOPO_GRIP by a test in apps/viewer/tests.js -- that arithmetic is in JS
+   and the pixels are here, so the two are one number or they are a bug. */
 .tvgrip {
   position: absolute; top: 0; width: 7px; height: 100%;
   cursor: col-resize; z-index: 3; background: none; border: none; padding: 0;
+  pointer-events: auto;
 }
+.tvgrip--jog { position: sticky; top: auto; }
 .tvgrip::before {
   content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px;
   width: 1px; background: var(--line);
@@ -305,11 +370,18 @@ body { display: flex; flex-direction: column; }
   background: var(--accent); top: 0; bottom: 0;
 }
 .tvgrip:focus { outline: none; }
-/* The column grip hangs on the right edge of its own <th>, which needs to be
-   a containing block for it. `.tvcell`'s `overflow: hidden` is why it sits
-   fully inside rather than straddling the boundary. */
-.tvheadtable th { position: relative; }
-.tvgrip--col { right: 0; }
+/* One lane per grip: an inert overlay spanning the header's WHOLE scroll width
+   (`.tv__head` is `width: max-content`, above, which is what makes `left: 0;
+   right: 0` mean that), so the jog grip inside it is in normal flow -- sticky
+   needs that -- and free to stick anywhere across the content, and the column
+   grip's own `left` is a plain scrollport coordinate. One lane each rather
+   than one shared lane, because in a shared one an in-flow grip's natural
+   position would be measured from the grip before it. Inert, so the lane
+   itself never swallows a pointer aimed at a header cell. */
+.tv__griplane {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 3; pointer-events: none;
+}
 
 /* Study highlighting. Binary, so no palette: on the path or off it. */
 .rail__bar--off, .rail__dot--off { opacity: .28; }
@@ -561,12 +633,15 @@ body { display: flex; flex-direction: column; }
    is worth recording rather than quietly reverting: at 560 the centre pane is
    133px narrower, and the grid's content overflows it horizontally either way
    (the head table is fixed-width and this page has no inner scrollport by
-   design) -- so a widened jog zone put its own drag grip UNDERNEATH this pane,
-   where a pointer reaches the pane and not the grip. The browser tier caught
-   it on pitch_system at 1600px wide with the zone at 5.5x. A reader can still
-   reach that state by dragging this pane open, so the interaction is filed
-   rather than fixed here:
-   ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md. */
+   design) -- so a widened jog zone put its own drag grip OUT of the pane's
+   visible window, where `.tv__hscroll`'s overflow-x clips it and a pointer
+   reaches this pane instead. The browser tier caught it on pitch_system at
+   1600px wide with the zone at 5.5x. That reachability hazard is FIXED
+   (topology_grid_scroll_and_grips, 2026-09-16 -- see `.tvgrip` below, where
+   both grips are now clamped into the visible window and the browser tier
+   drags them at a 560px pane and at VA.TOPO_PANE_WIDTH.max). The default is
+   still 430 anyway: Jeff asked for the pane to be RESIZABLE, not for a wider
+   default, and nothing measured since says otherwise. */
 .tv .detail {
   width: 430px; flex: none; overflow: visible; align-self: stretch;
   /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:

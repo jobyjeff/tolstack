@@ -3877,6 +3877,158 @@
         eq(nudged[2][0].cls, "name");
       });
 
+    // --- the grips' own geometry (topology_grid_scroll_and_grips) ----------
+    //
+    // Both grips live in a box the reader can scroll sideways and can make
+    // narrower than the content (the preview pane's divider), so where a grip
+    // is drawn is arithmetic and not a constant. The two functions below are
+    // that arithmetic; the browser tier drags the real grips at the real pane
+    // widths, which is the claim these cannot make.
+    await test("the jog grip rides the seam, clamped into the pane when the " +
+      "DAG is wider than the pane shows", function () {
+        var G = VA.TOPO_GRIP;
+        // The plain case: the seam, less the hairline's own offset inside the
+        // grip, so the hairline lands ON the boundary.
+        eq(VA.jogGripInset(316, 868), 316 - G.half);
+        // No layout to clamp against (the DOM shim) reads as "do not clamp".
+        eq(VA.jogGripInset(316, 0), 316 - G.half);
+        eq(VA.jogGripInset(316, undefined), 316 - G.half);
+        // A pane narrower than the DAG: pinned one grip's width clear of the
+        // ELEMENT grip's own right-hand pin, so the two never stack.
+        eq(VA.jogGripInset(316, 298), 298 - 2 * G.width);
+        ok(VA.jogGripInset(316, 298) <
+           VA.columnGripLeft(316 + 408, 0, 298) - G.width + 1,
+           "the jog grip stays left of the column grip's pin");
+        // ...and never off the pane's own left edge, however narrow it gets.
+        eq(VA.jogGripInset(316, 4), 0);
+      });
+
+    await test("a column grip rides its own boundary while that boundary is " +
+      "on screen, and pins to the pane's right edge past it", function () {
+        var G = VA.TOPO_GRIP;
+        // On screen: the boundary itself, so the browser scrolls the grip
+        // with the content and no handler has to keep up.
+        eq(VA.columnGripLeft(700, 0, 868), 700 - G.width);
+        eq(VA.columnGripLeft(700, 200, 868), 700 - G.width);
+        // Off the right: pinned, and the pin follows the scroll.
+        eq(VA.columnGripLeft(1424, 0, 868), 868 - G.width);
+        eq(VA.columnGripLeft(1424, 300, 868), 300 + 868 - G.width);
+        // Scrolled past it on the left, the grip goes with its column rather
+        // than parking over the sticky rails.
+        eq(VA.columnGripLeft(700, 900, 868), 700 - G.width);
+        eq(VA.columnGripLeft(1424, 0, 0), 1424 - G.width, "no layout, no clamp");
+      });
+
+    await test("each grip is rendered in its own lane, and the grip's pixels " +
+      "are the stylesheet's own", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var lanes = all(root, "div.tv__griplane");
+        eq(lanes.length, 2, "one lane per grip");
+        lanes.forEach(function (lane) {
+          eq(all(lane, "div.tvgrip").length, 1,
+             "a shared lane would measure one grip's position from another's");
+        });
+        var jog = all(root, "div.tvgrip").filter(function (g) {
+          return g.getAttribute("data-resize") === "jog";
+        })[0];
+        ok(jog, "the jog grip");
+        var railWidth = VA.leaderGeometry(VA.spineRight(TOPO.layout),
+          VA.gridPlan(VA.spineRight(TOPO.layout), TOPO), VA.RAIL_METRICS).width;
+        // No layout in the shim, so this is the unclamped seam.
+        eq(jog.style.left, VA.jogGripInset(railWidth, 0) + "px");
+        var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+        if (!src) return;
+        // One number in two files is this repo's most-repeated defect: the
+        // insets above are computed in JS against a hairline drawn in CSS.
+        var css = src.readText("topology.css");
+        ok(css, "topology.css must be readable");
+        var width = /\.tvgrip\s*\{[^}]*[;{\s]width:\s*(\d+)px/.exec(css);
+        ok(width, "expected an explicit width on .tvgrip in topology.css");
+        eq(Number(width[1]), VA.TOPO_GRIP.width,
+           "VA.TOPO_GRIP.width must be .tvgrip's own CSS width");
+        var half = /\.tvgrip::before\s*\{[^}]*[;{\s]left:\s*(\d+)px/.exec(css);
+        ok(half, "expected an explicit left on .tvgrip::before in topology.css");
+        eq(Number(half[1]), VA.TOPO_GRIP.half,
+           "VA.TOPO_GRIP.half must be the hairline's own offset");
+      });
+
+    // Whether this tier can hold a scroll position at all. The suite renders
+    // into a DETACHED div, and a real browser refuses to scroll a box that is
+    // not laid out and has nothing to overflow -- `scrollLeft = n` there is a
+    // silent no-op, so the two checks below would be asserting 0 === 0 about a
+    // pane that was never scrolled. The DOM shim keeps whatever is written to
+    // it, which is exactly the property they need. The browser half of this
+    // claim is scripts/run_viewer_browser_tests.mjs's testRespine scrolled
+    // arm, on a laid-out pane with real overflow.
+    function canHoldScroll(root) {
+      var pane = root.querySelector(".tv__hscroll");
+      pane.scrollLeft = 1;
+      var held = pane.scrollLeft === 1;
+      pane.scrollLeft = 0;
+      return held;
+    }
+
+    // --- the reader's sideways scroll across a rebuild ---------------------
+    //
+    // ISSUE_20260915_every_topology_pane_render_throws_away_the_readers_
+    // sideways_scroll: renderTopoPane clears the pane and builds a fresh
+    // `.tv__hscroll` every call, and a fresh element's scrollLeft is 0, so the
+    // position was discarded rather than clamped. The shim has no layout and
+    // therefore no clamp to observe -- that half is the browser tier's -- but
+    // WHICH renders carry the number at all is pure logic, and it is the half
+    // a reviewer would otherwise have to take on trust.
+    await test("a re-render of the same topology carries the reader's " +
+      "sideways scroll, and a different topology starts at the left edge",
+      function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        if (!canHoldScroll(root)) return;
+        root.querySelector(".tv__hscroll").scrollLeft = 240;
+        VA.renderTopoPane(root, topoCtx());
+        eq(root.querySelector(".tv__hscroll").scrollLeft, 240,
+           "the same topology, re-drawn, keeps the reader where they were");
+        // A study selection is the same topology re-serialised, not a new one.
+        root.querySelector(".tv__hscroll").scrollLeft = 310;
+        VA.renderTopoPane(root, topoCtx({ study: topoStudy(TOPO.studies[0].id) }));
+        eq(root.querySelector(".tv__hscroll").scrollLeft, 310);
+        // A DIFFERENT mechanism shares no horizontal extent with this one, so
+        // carrying the number across would be carrying a number, not a place.
+        root.querySelector(".tv__hscroll").scrollLeft = 310;
+        var other = JSON.parse(JSON.stringify(TOPO));
+        other.id = TOPO.id + "_elsewhere";
+        VA.renderTopoPane(root, topoCtx({ topoProj: other }));
+        // `|| 0`: a fresh element's scrollLeft is 0 in a browser and undefined
+        // in the DOM shim, and what is being claimed is that nothing was
+        // written back, not which of those two a tier reports.
+        eq(root.querySelector(".tv__hscroll").scrollLeft || 0, 0);
+      });
+
+    await test("the respine's ghost is handed the scroll the outgoing pane " +
+      "was carrying, so the cross-fade shows ONE horizontal window",
+      function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        if (!canHoldScroll(root)) return;
+        var outgoing = root.querySelector(".tv__hscroll");
+        outgoing.scrollLeft = 275;
+        // What VA.animateTopoPane does before its first frame: re-parent the
+        // outgoing pane into an inert ghost. In a browser that resets its
+        // scrollLeft, which is why ghostOf has to read the number first.
+        var ghost = VA.el("div", "tv__ghost");
+        ghost.paneScrollLeft = outgoing.scrollLeft;
+        ghost.appendChild(outgoing);
+        // The DOM shim's appendChild does not detach from the old parent, so
+        // the pane has to be taken out of `root` by hand for the shim to be in
+        // the state a browser is already in. Both tiers run this file.
+        VA.clear(root);
+        outgoing.scrollLeft = 0;
+        VA.renderTopoPane(root, topoCtx({
+          tween: { positions: null, e: 0.5, ghost: ghost },
+        }));
+        eq(root.querySelector(".tv__hscroll").scrollLeft, 275,
+           "the first frame is drawn at the position the reader left");
+        eq(ghost.querySelector(".tv__hscroll").scrollLeft, 275,
+           "and the ghost under it shows the same window");
+      });
+
     await test("column widths come off the ONE array -- both tables' <col>s " +
       "and their inline totals move together, and the stylesheet declares none",
       function () {

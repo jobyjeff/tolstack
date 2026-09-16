@@ -562,6 +562,20 @@ measured in every combination of them.
   a second source would come apart on the first drag). Widening is the only
   relief valve on offer: cell content still clips rather than wrapping, because
   a `<tr>`'s height is a floor and not a cap.
+
+  Both are **clamped into the pane's visible window**
+  (`topology_grid_scroll_and_grips`, 2026-09-16), and the two are clamped by
+  different mechanisms because they mark two different kinds of boundary. The
+  jog grip is `position: sticky` at the inset its seam sits at, because that
+  seam is itself sticky — `.tv__rails` holds the SVG's right edge a fixed
+  distance from the pane's *visible* left edge at every horizontal scroll, so
+  a grip at a fixed content coordinate drifted off the seam it names the
+  moment the reader scrolled. The ELEMENT grip rides its own column's edge,
+  which really does scroll, and pins to the pane's right edge past it. Before
+  that, either grip could simply leave the window — `.tv__hscroll`'s
+  `overflow-x` clips there — and a reader who had widened the preview pane,
+  the jog zone or the column itself was pressing on a control the browser had
+  already clipped away.
 * **The element label drops whatever the rest of the row already says.** Two
   reductions, both of them *one fact said once per row*
   (`VA.elementDisplayLabel`): the component cell's own words come off the front
@@ -594,11 +608,16 @@ Its **default** width did not change, and that is a measured decision rather
 than a reading of the ask. It went to 560px with the drag and came straight
 back: the centre pane is then 133px narrower, the grid's content overflows it
 horizontally either way (fixed-width head table, no inner scrollport by
-design), and a widened jog zone put its own drag grip *underneath* the preview
-pane, where a pointer reaches the pane and not the grip. The browser tier
-caught it on `pitch_system` at 1600px wide. A reader can still reach that state
-by dragging this pane open, so the interaction is filed rather than papered
-over: `docs/issues/ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md`.
+design), and a widened jog zone put its own drag grip *out of the pane's
+visible window*, where `.tv__hscroll` clips it and a pointer reaches the
+preview pane instead. The browser tier caught it on `pitch_system` at 1600px
+wide.
+
+That hazard is **fixed** (`topology_grid_scroll_and_grips`, 2026-09-16): both
+grips are clamped into the visible window, and the browser tier drags them for
+real at a 560px pane and at `VA.TOPO_PANE_WIDTH.max`. The default stayed at
+430px anyway — Jeff asked for the pane to be *resizable*, not for a wider
+default, and nothing measured since says otherwise.
 
 The other four preferences (density, the two leader settings, the jog zone's
 width) still do **not** persist, and that asymmetry is deliberate rather than
