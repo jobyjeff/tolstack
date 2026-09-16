@@ -8,6 +8,22 @@
     "assembly_drawing": "217755",
     "assembly_revision": "A.1",
     "assembly_export": "[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf (drawing-checker run 20260804_114000 / 20260803_145243)",
+    "assembly_export_ref": {
+      "status": "established",
+      "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+      "sha256": "c6381f204582dc7a87d25664855bbc547b619226997e9fa62697b6d6ea4294d8",
+      "runs": [
+        {
+          "run_id": "20260803_145243",
+          "ts": "2026-08-03T21:53:01.395741+00:00"
+        },
+        {
+          "run_id": "20260804_114000",
+          "ts": "2026-08-04T18:40:27.959980+00:00"
+        }
+      ],
+      "note": "The export named in the prose `assembly_export` beside this, as a SourceExport so its runs carry their `ts`. Established 2026-08-06 by `citation_export_provenance`: data/runs.jsonl and both runs' run_meta.json record this file and this sha256 as their input. It was carried at element level until 2026-09-15, when `pitch_link_known_bands` re-cited the bushing and the washer -- the only two elements holding it -- and left these runs named in prose alone, which has no `ts`. Recovered here from commit 02e5077^ and the sha256 re-verified against the file in drawing-checker's inbox on 2026-09-16 before being written; `washer_nas1149v0332`'s note in this same file quotes the same sha256 independently."
+    },
     "sheet": 4,
     "sheet_description": "SPINDLE CLAMP AND PITCH PLATE",
     "view": "DETAIL B",

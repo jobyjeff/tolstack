@@ -25,7 +25,12 @@ from tolerance_stack import (
     ExportRun, SourceExport, SourceRef, StackDefinition, StackElement, Term, fold,
     load_stack,
 )
-from tolerance_stack.stack import EXPORT_STATUSES, VERDICTS
+from tolerance_stack.stack import (
+    EXPORT_STATUSES,
+    JOINT_EXPORT_KEY,
+    JOINT_EXPORT_PROSE_KEY,
+    VERDICTS,
+)
 
 from tests.test_js_python_vocabulary import python_values_statuses
 
@@ -1456,6 +1461,26 @@ def test_the_export_is_a_sibling_of_the_feature_identity_slot_not_a_filling_in()
             assert ref.element_id is None and ref.run_id is None
 
 
+def cited_exports(stack):
+    """``(where, SourceExport)`` for every export this stack cites, both levels.
+
+    One definition of *cited*, because there are now two places an export can be
+    named and the read-only invariant has to reach both. Element level has been
+    here since ``citation_export_provenance`` (2026-08-06); joint level since
+    2026-09-16, when ``joint.assembly_export_ref`` gave the assembly export a
+    :class:`SourceExport` beside its prose sentence.
+
+    ``where`` is for the failure message only -- the element id, or the literal
+    ``joint`` -- so a test that fails names the block a reader has to open.
+    """
+    found = [(element.id, element.source_ref.export)
+             for element in stack.elements
+             if element.source_ref and element.source_ref.export]
+    if stack.assembly_export_ref is not None:
+        found.append(("joint", stack.assembly_export_ref))
+    return found
+
+
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
 def test_every_cited_run_carries_the_ts_from_its_own_run_meta(filename):
     """A run id is a name; a run id plus its ``ts`` is an identity.
@@ -1469,12 +1494,11 @@ def test_every_cited_run_carries_the_ts_from_its_own_run_meta(filename):
     commit dates instead of an inference about someone else's commit log.
     """
     stack = load_stack(STACKS_DIR / filename)
-    for element in stack.elements:
-        export = element.source_ref.export
-        for run in (export.runs if export else ()):
-            assert run.run_id, f"{stack.id}:{element.id} names a run with no id"
+    for where, export in cited_exports(stack):
+        for run in export.runs:
+            assert run.run_id, f"{stack.id}:{where} names a run with no id"
             assert run.ts, (
-                f"{stack.id}:{element.id} cites run {run.run_id} with no ts -- "
+                f"{stack.id}:{where} cites run {run.run_id} with no ts -- "
                 f"copy it from that run's run_meta.json"
             )
             # Parseable, and tz-aware: a naive stamp cannot be compared with a
@@ -1633,6 +1657,16 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     this test exists to surface. The exemption is deliberately by run id and
     not by rule, so it cannot quietly grow.
 
+    **Changed 2026-09-16 again** (``python_value_and_schema_pins``): the two
+    217755 runs are back inside this test's reach. ``joint.assembly_export`` is
+    still the prose sentence it always was, and a sentence still has no ``ts``
+    -- what is new is the structured sibling ``joint.assembly_export_ref``, a
+    ``SourceExport`` carrying the same export's ``sha256`` and both runs with
+    their ``run_meta.json`` timestamps, so ``cited_exports`` reaches it the same
+    way it reaches an element's. Both predate ``d6829f2`` by arithmetic and
+    neither needs an exemption, which means the half of this invariant the
+    2026-09-15 re-citation lost is the strong half, and it has come back.
+
     **The argument the two exempted runs rest on is weaker, and saying which is
     the point.** "It predates us, so we cannot have produced it" is proof. What
     stands in for it here is drawing-checker's own record: both runs carry
@@ -1655,12 +1689,15 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     stack = load_stack(STACKS_DIR / "stack_pitch_link_to_pitch_plate.json")
     cited = {
         run.run_id: datetime.fromisoformat(run.ts)
-        for element in stack.elements
-        for run in (element.source_ref.export.runs if element.source_ref.export else ())
+        for _, export in cited_exports(stack)
+        for run in export.runs
     }
     assert cited, "no run cited at all -- this invariant would pass vacuously"
-    # The 215735-A export, which is the only element-level one left.
-    assert set(cited) == {"20260813_180734", "20260819_153213"}
+    # Two element-level (the 215735-A export) and two joint-level (the
+    # [PRELIM 2026-AUG-3] 217755 export, structured in 2026-09-16's
+    # `python_value_and_schema_pins`).
+    assert set(cited) == {"20260813_180734", "20260819_153213",
+                          "20260803_145243", "20260804_114000"}
     for run_id, ts in cited.items():
         if ts < PITCH_LINK_FIRST_COMMIT:
             continue
@@ -1675,12 +1712,16 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
         "a run is exempted here that this stack no longer cites -- delete the row"
     )
 
-    # And the run the review could not attribute is still cited by this stack,
-    # at joint level. Losing the citation entirely would be a different defect
-    # from losing its timestamp, and only one of the two happened.
+    # And the run the review could not attribute is cited by this stack at
+    # joint level in BOTH forms. The prose sentence is what
+    # `scripts/build_viewer_crops.py` parses with `_RUN_ID_RE`, so it is load
+    # bearing and not decoration; the structured sibling is what put the `ts`
+    # back in `cited` above. Asserting both is what stops the migration from
+    # being undone in either direction.
     raw = json.loads(
         (STACKS_DIR / "stack_pitch_link_to_pitch_plate.json").read_text(encoding="utf-8"))
-    assert "20260804_114000" in raw["joint"]["assembly_export"]
+    assert "20260804_114000" in raw["joint"][JOINT_EXPORT_PROSE_KEY]
+    assert "20260804_114000" in stack.assembly_export_ref.run_ids
 
 
 def test_the_strongest_read_only_claim_still_has_a_subject():
@@ -1705,9 +1746,8 @@ def test_the_strongest_read_only_claim_still_has_a_subject():
 
     pre_root = {}
     for path in sorted(STACKS_DIR.glob("stack_*.json")):
-        for element in load_stack(path).elements:
-            export = element.source_ref.export
-            for run in (export.runs if export else ()):
+        for _, export in cited_exports(load_stack(path)):
+            for run in export.runs:
                 if datetime.fromisoformat(run.ts) < TOLSTACK_ROOT_COMMIT:
                     pre_root.setdefault(run.run_id, set()).add(path.name)
     assert pre_root, (
@@ -1717,10 +1757,141 @@ def test_the_strongest_read_only_claim_still_has_a_subject():
     )
     # Named, so the set emptying one citation at a time is visible as it happens
     # rather than at the moment the last one goes.
+    #
+    # `20260803_145243` (2026-08-03T21:53:01Z, 72 minutes before `e7bd996`)
+    # rejoined on 2026-09-16 when the pitch-link joint export became structured:
+    # it had been in this repo's citations since founding and was only ever
+    # invisible here because the walk stopped at element level.
     assert set(pre_root) == {"20260723_163810", "20260727_153847",
-                             "20260730_131903", "20260730_132230"}
+                             "20260730_131903", "20260730_132230",
+                             "20260803_145243"}
     assert {name for names in pre_root.values() for name in names} == {
-        "stack_tan_link_to_pitch_plate.json", "stack_vpa_output_to_pitch_plate.json"}
+        "stack_pitch_link_to_pitch_plate.json",
+        "stack_tan_link_to_pitch_plate.json",
+        "stack_vpa_output_to_pitch_plate.json"}
+
+
+def test_a_joint_that_names_an_export_in_prose_also_names_it_structurally():
+    """The pairing that makes the 2026-09-16 migration stick.
+
+    ``joint.assembly_export`` is a sentence and ``joint.assembly_export_ref`` is
+    a :class:`SourceExport`; the sentence is what
+    ``scripts/build_viewer_crops.py`` parses for run ids and the block is what
+    carries each run's ``ts``. Neither is derived from the other -- that is the
+    point of the additive shape -- so nothing but this test stops the next stack
+    from writing one and not the other, which is exactly the state the pitch
+    link spent 2026-09-15 to 2026-09-16 in.
+
+    Both directions. A prose field with no block is a run id with no identity in
+    time, which is the defect. A block with no prose field would be a run id the
+    crop builder's regex can no longer see, which is the same defect pointed the
+    other way -- and it is the shape a well-meaning tidy-up would produce.
+    """
+    missing_block, missing_prose = [], []
+    for filename in ALL_STACK_FILES:
+        raw = json.loads((STACKS_DIR / filename).read_text(encoding="utf-8"))
+        joint = raw.get("joint") or {}
+        if JOINT_EXPORT_PROSE_KEY in joint and JOINT_EXPORT_KEY not in joint:
+            missing_block.append(filename)
+        if JOINT_EXPORT_KEY in joint and JOINT_EXPORT_PROSE_KEY not in joint:
+            missing_prose.append(filename)
+    assert missing_block == [], (
+        f"a joint names its assembly export only in prose, so its runs have no "
+        f"ts: {missing_block} -- add {JOINT_EXPORT_KEY} beside it")
+    assert missing_prose == [], (
+        f"a joint dropped the prose {JOINT_EXPORT_PROSE_KEY} that "
+        f"build_viewer_crops.py's _RUN_ID_RE reads: {missing_prose}")
+
+
+def test_the_three_states_of_a_joint_export_are_all_live_and_all_distinct():
+    """Three states, not two -- and the third is **absent**, not a sentinel.
+
+    * ``established`` -- the pitch-link and rotor-fastener joints, each naming
+      the 217755 export they were read from, by ``sha256``, with both
+      drawing-checker runs and their timestamps;
+    * ``unestablished`` -- the two hub-bearing thermal stacks, whose prose said
+      ``"not read for this stack"``. :class:`SourceExport` is what makes that
+      machine-readable, and it enforces the honesty: an ``unestablished`` export
+      that also named a pdf or a sha would raise;
+    * **absent** -- the tan-link pair and the VPA stack, whose ``joint`` carries
+      an ``assembly_drawing`` and a sheet/view/zone and makes no export claim at
+      all. Writing an ``unestablished`` block for these would assert that
+      somebody looked and could not establish one, which is a different and
+      unsupported statement. An absent key is the only honest encoding of "the
+      question was never asked".
+
+    Pinned by name because the three are one field's whole domain and the
+    difference between the last two is the kind of thing a later migration
+    flattens without noticing.
+    """
+    states = {}
+    for filename in ALL_STACK_FILES:
+        export = load_stack(STACKS_DIR / filename).assembly_export_ref
+        states[filename] = export.status if export else None
+
+    assert states == {
+        "stack_pitch_link_to_pitch_plate.json": "established",
+        "stack_rotor_fastener_length.json": "established",
+        "stack_hub_bearing_thermal_fit_m1.json": "unestablished",
+        "stack_hub_bearing_thermal_fit_m2.json": "unestablished",
+        "stack_tan_link_to_pitch_plate.json": None,
+        "stack_tan_link_to_pitch_plate_take2.json": None,
+        "stack_vpa_output_to_pitch_plate.json": None,
+    }
+    # All three states occur, so none of the branches above is dead, and the
+    # two established ones carry what `established` promises.
+    assert set(states.values()) == set(EXPORT_STATUSES) | {None}
+    for filename, status in states.items():
+        export = load_stack(STACKS_DIR / filename).assembly_export_ref
+        if status == "established":
+            assert export.pdf and len(export.sha256) == 64
+            assert export.runs, f"{filename}: an established joint export names no run"
+        elif status == "unestablished":
+            assert export.why and not export.pdf and not export.sha256
+            assert not export.runs
+
+
+def test_a_malformed_joint_export_is_refused_when_the_stack_loads(tmp_path):
+    """At load, not at first read -- the same moment an element-level export is
+    validated, so a stack that would render a wrong citation never constructs.
+
+    The three shapes that matter, and all three are ways an author could write
+    this key while believing it correct: a bare run id (the pre-2026-08-07 shape
+    ``ExportRun`` exists to refuse), an ``unestablished`` export that also names
+    a pdf, and a scalar where an object belongs -- which is what copying the
+    prose sentence into the new key would produce.
+    """
+    base = json.loads(
+        (STACKS_DIR / "stack_tan_link_to_pitch_plate.json").read_text(encoding="utf-8"))
+    assert JOINT_EXPORT_KEY not in base["joint"], "fixture must start with no block"
+
+    def written(block):
+        raw = json.loads(json.dumps(base))
+        raw["joint"][JOINT_EXPORT_KEY] = block
+        path = tmp_path / "stack_fixture.json"
+        path.write_text(json.dumps(raw), encoding="utf-8")
+        return path
+
+    bad_runs = written({
+        "status": "established", "pdf": "d.pdf", "sha256": "a" * 64,
+        "runs": ["20260804_114000"]})
+    with pytest.raises(ValueError, match="bare run id"):
+        load_stack(bad_runs)
+
+    contradictory = written({
+        "status": "unestablished", "why": "not read", "pdf": "d.pdf"})
+    with pytest.raises(ValueError, match="must not name a pdf"):
+        load_stack(contradictory)
+
+    prose_in_the_wrong_key = written(
+        "[PRELIM 2026-AUG-3] 217755 (drawing-checker run 20260804_114000)")
+    with pytest.raises(ValueError, match="must be an export object"):
+        load_stack(prose_in_the_wrong_key)
+
+    # And the well-formed one loads, so the three refusals above are
+    # discriminating rather than refusing the key outright.
+    ok = written({"status": "unestablished", "why": "not read for this stack"})
+    assert load_stack(ok).assembly_export_ref.status == "unestablished"
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)

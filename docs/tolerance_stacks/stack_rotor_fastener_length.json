@@ -8,6 +8,22 @@
     "assembly_drawing": "217755",
     "assembly_revision": "A.1",
     "assembly_export": "[PRELIM 2026-AUG-19] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf (drawing-checker runs 20260819_163414 / 20260819_110144, both consuming the same export)",
+    "assembly_export_ref": {
+      "status": "established",
+      "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-19] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+      "sha256": "789efa194e39454e5386ae10e016a3a313c8be15c419452dfcd1cc60afb2c939",
+      "runs": [
+        {
+          "run_id": "20260819_110144",
+          "ts": "2026-08-19T18:04:18.360563+00:00"
+        },
+        {
+          "run_id": "20260819_163414",
+          "ts": "2026-08-19T23:36:39.110582+00:00"
+        }
+      ],
+      "note": "The export named in the prose `assembly_export` beside this, as a SourceExport so its runs carry their `ts`. Same export, same sha256 and the same two runs as this stack's `washer_ms21299c3` element-level citation, which is where this block was copied from; established 2026-08-25 by re-hashing the file in drawing-checker's inbox against both runs' run_meta.json, and re-verified against those bytes on 2026-09-16."
+    },
     "sheet": 8,
     "sheet_description": "BALANCE WEIGHTS AND SPINNER",
     "view": "SECTION T-T",

@@ -9,6 +9,10 @@
     "assembly": "217755",
     "assembly_revision": null,
     "assembly_export": "not read for this stack",
+    "assembly_export_ref": {
+      "status": "unestablished",
+      "why": "Not read for this stack -- the machine-readable form of the prose `assembly_export` beside this. This is a diametral/thermal fit built from the five part drawings and the 260729 workbook; the 217755 assembly drawing was never opened for it, so there is no export to establish rather than one somebody tried and failed to establish."
+    },
     "configuration": "M1 as-built (superseded by M2; retained because it is the FAILURE case)",
     "question": "Same question as the M2 stack -- does either shrink-fit joint reach zero interference at any corner? -- asked of the configuration that actually slipped, so that the M2 change can be read against something.",
     "why_this_stack_exists": "M1 is not a live design and nothing here is a decision input for it. It is the CONTROL. Jeff's account is that bearings and sleeves slipped and rotated under certain conditions and that this analysis validated the fix ahead of system-level testing; a fix is only validated against the thing it fixed. Modelling both configurations with the same code is also the only way to show that the archetype distinguishes them -- if M1 and M2 read the same, the model is not measuring what the failure was about.",
