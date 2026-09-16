@@ -137,11 +137,14 @@ Three things that definition fixes, each of which had already gone wrong:
 venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --ratio
 ```
 
-As of 2026-08-10 that prints **5 of 26 element instances across the three seeded
-stacks are `traced`; 3 are `inferred` and 18 are `untraced`** — and, as of
-2026-08-25 (`fastener_stack_shadow`, which added the `rotor_fastener_length`
-stack), **30 of 59 across all seven stacks** (quoting the retired
-`"21 of 48"` here rather than deleting it, per the rule below). `tests/test_tolerance_stack.py`
+As of 2026-09-15 (`stack_fable_audit`) that prints **5 of 26 element instances
+across the three seeded stacks are `traced`; 12 are `inferred` and 9 are
+`untraced`** — the split moved from `"3 are inferred and 18 are untraced"` when
+nine long-untraced seeded values (the two link bearings and the flanged-bushing
+trio) were re-cited to the RBC catalog pages that had been in the spec pile all
+along — and **30 of 61 across all seven stacks** (previously `"30 of 59"` as of
+2026-08-25's `fastener_stack_shadow`, and `"21 of 48"` before that; both quoted
+here rather than deleted, per the rule below). `tests/test_tolerance_stack.py`
 pins both, so a doc quoting a stale number fails the suite rather than merely
 being wrong.
 
