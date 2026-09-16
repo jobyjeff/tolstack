@@ -261,7 +261,13 @@ Experiments (all reverted):
   one copy instead of two, but still not co-located with the branch. The
   comment above it names the issue.
 - `ISSUE_20260915_a_strategy_briefs_byte_for_byte_figure_of_speech_reddens_the_provenance_guard.md`
-  — the baseline red, above.
+  — the baseline pytest red, above.
+- `ISSUE_20260915_card_layout_out_of_flow_mutation_reddens_an_earlier_check_so_it_is_never_witnessed.md`
+  — the mutation tier reports **17/18**, and has at this branch's base too
+  (verified by checking out `apps/` at `9349f6d` and re-running `--only`).
+  The mutation breaks the page badly enough that a hover times out *upstream*
+  of the check it was written for: *"the tier went red, but not on the declared
+  check."* `scripts/run_mutation_witness_tests.mjs` was named do-not-touch.
 
 ## Out of scope, fixed anyway (one sentence)
 
