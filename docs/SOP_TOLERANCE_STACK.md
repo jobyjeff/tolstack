@@ -134,7 +134,7 @@ Three things that definition fixes, each of which had already gone wrong:
 **Do not count it by hand, and do not copy it out of another document.** Run:
 
 ```powershell
-venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --ratio
+venv-win/Scripts/python.exe tests\debug_report_tolerance_stacks.py --ratio
 ```
 
 As of 2026-09-15 (`stack_fable_audit`) that prints **5 of 26 element instances
@@ -215,7 +215,7 @@ because `load_stack()` validates its `schema` string and refuses anything else.
 Load it and fold it as you go rather than writing the whole thing blind:
 
 ```powershell
-venv-win\Scripts\python.exe -c "from tolerance_stack import load_stack; s = load_stack('docs/tolerance_stacks/stack_<id>.json'); print([c.verdict for c in s.all_checks()])"
+venv-win/Scripts/python.exe -c "from tolerance_stack import load_stack; s = load_stack('docs/tolerance_stacks/stack_<id>.json'); print([c.verdict for c in s.all_checks()])"
 ```
 
 The load-bearing structural decision: **`paths` and `checks` are the same shape**
@@ -232,7 +232,7 @@ what stop it drifting.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File setup.ps1
-venv-win\Scripts\python.exe -m pytest -q          # expect a green suite
+venv-win/Scripts/python.exe -m pytest -q          # expect a green suite
 ```
 
 The suite grows with every stack, so this file does **not** pin the count — a
@@ -242,7 +242,7 @@ inventory numbers are a recurring bug in this repo. Green is the requirement.
 **Then snapshot drawing-checker, before you read a single drawing.**
 
 ```powershell
-venv-win\Scripts\python.exe scripts\snapshot_drawing_checker.py take `
+venv-win/Scripts/python.exe scripts\snapshot_drawing_checker.py take `
     C:\workspace\tolstack\data\sessions\<slug>\before.json
 ```
 
@@ -570,7 +570,7 @@ For each element, try to close the gap, in this order of preference:
    `docs/spec_library/README.md`, "Where on the sheet you read it".
 2. **A drawing callout**, via drawing-checker's extracted runs:
    ```powershell
-   venv-win\Scripts\python.exe tests\debug_stack_hardware_crosscheck.py `
+   venv-win/Scripts/python.exe tests\debug_stack_hardware_crosscheck.py `
        "C:/workspace/drawing-checker/data/runs/<run>"
    ```
    This tells you whether a part number is in the parts list and which balloons
@@ -794,8 +794,8 @@ changes the arithmetic.
 Compute:
 
 ```powershell
-venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py
-venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --compare
+venv-win/Scripts/python.exe tests\debug_report_tolerance_stacks.py
+venv-win/Scripts/python.exe tests\debug_report_tolerance_stacks.py --compare
 ```
 
 ### Verdicts
@@ -1160,7 +1160,7 @@ was not a legacy defect; it was what this SOP produced by default, because nothi
 enforced it.
 
 ```powershell
-venv-win\Scripts\python.exe -m pytest -q
+venv-win/Scripts/python.exe -m pytest -q
 ```
 
 Then, from the forge repo root (cwd must be forge — `-m forge` fails elsewhere),
@@ -1168,7 +1168,7 @@ pointed at **your worktree**, not the main checkout:
 
 ```powershell
 cd C:\workspace\forge
-venv-win\Scripts\python.exe -m forge check C:\workspace\tolstack-worktrees\<slug>
+venv-win/Scripts/python.exe -m forge check C:\workspace\tolstack-worktrees\<slug>
 ```
 
 Checking `C:\workspace\tolstack` instead gives a **false pass**: parts of the
@@ -1185,9 +1185,9 @@ checkout too if you like, but never only that one.
 - **The drawing-checker snapshot, taken again and diffed.** Step 0's other half:
 
   ```powershell
-  venv-win\Scripts\python.exe scripts\snapshot_drawing_checker.py take `
+  venv-win/Scripts/python.exe scripts\snapshot_drawing_checker.py take `
       C:\workspace\tolstack\data\sessions\<slug>\after.json
-  venv-win\Scripts\python.exe scripts\snapshot_drawing_checker.py diff `
+  venv-win/Scripts/python.exe scripts\snapshot_drawing_checker.py diff `
       C:\workspace\tolstack\data\sessions\<slug>\before.json `
       C:\workspace\tolstack\data\sessions\<slug>\after.json
   ```

@@ -425,8 +425,8 @@ Everything Jeff should look at before any of this is sent to Chao:
 ## Reproducing this worksheet
 
 ```powershell
-venv-win\Scripts\python.exe tests\debug_dump_tol_stack_xlsx.py "data/inbox/tolerance_stacks/260825_End_Stop_JC.xlsx"
-venv-win\Scripts\python.exe -m pytest -q
+venv-win/Scripts/python.exe tests\debug_dump_tol_stack_xlsx.py "data/inbox/tolerance_stacks/260825_End_Stop_JC.xlsx"
+venv-win/Scripts/python.exe -m pytest -q
 ```
 
 No new stack JSON or parsing helper was added for this handoff — the existing

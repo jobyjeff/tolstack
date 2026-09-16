@@ -34,7 +34,7 @@ writes into drawing-checker.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File setup.ps1
-venv-win\Scripts\python.exe -m pytest -q
+venv-win/Scripts/python.exe -m pytest -q
 ```
 
 ## Reviewing a stack or a topology
@@ -87,7 +87,7 @@ edge lands on is a claim about the graph, so it is made in Python, where
   immutable `spec-parse/v0` event per (document, parser-version),
   `intake_queue.json` says which document closes which gap. Read its `README.md`
   before adding either. Rebuild the projection with
-  `venv-win\Scripts\python.exe -m tolerance_stack` — from a worktree, add
+  `venv-win/Scripts/python.exe -m tolerance_stack` — from a worktree, add
   `--data-root C:\workspace\tolstack\data`, since `data/` is shared and this
   tree's copy is deleted at cleanup.
 - `docs/reference/` — imported reference material, not authored here.

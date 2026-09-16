@@ -18,7 +18,7 @@ data/projections/spec_library/library.json
 Rebuild, from the main checkout:
 
 ```
-venv-win\Scripts\python.exe -m tolerance_stack
+venv-win/Scripts/python.exe -m tolerance_stack
 ```
 
 From a worktree, `data/` is that worktree's own throwaway copy, so name the main

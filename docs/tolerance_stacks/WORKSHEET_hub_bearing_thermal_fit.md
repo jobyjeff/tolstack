@@ -620,11 +620,11 @@ That is the number to quote.
 ## Reproducing this worksheet
 
 ```powershell
-venv-win\Scripts\python.exe -m pytest -q
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --markdown
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --compare --markdown
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --workbook --markdown
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --terms --markdown
+venv-win/Scripts/python.exe -m pytest -q
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --markdown
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --compare --markdown
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --workbook --markdown
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --terms --markdown
 ```
 
 `--terms` is the one that matters for review: this archetype **generates** its

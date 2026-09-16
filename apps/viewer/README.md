@@ -87,13 +87,13 @@ $sc.Save()
 
 ```powershell
 # 1. build what the viewer renders (fast, stdlib only)
-venv-win\Scripts\python.exe scripts\build_viewer_projection.py
+venv-win/Scripts/python.exe scripts\build_viewer_projection.py
 
 # 2. build the drawing crops (needs PyMuPDF -> drawing-checker's venv)
 C:\workspace\drawing-checker\venv-win\Scripts\python.exe scripts\build_viewer_crops.py
 
 # 3. for a system that has one, the topology + study folds (shares the crops above)
-venv-win\Scripts\python.exe scripts\build_topology_projection.py
+venv-win/Scripts/python.exe scripts\build_topology_projection.py
 ```
 
 4. Open the page, click **Connect folder**, pick the **tolstack repo root**
@@ -350,7 +350,7 @@ is only about how it is drawn. A topology or a study, picked from the nav tree
 no topology re-expresses) switches to the elements table instead. Building it:
 
 ```powershell
-venv-win\Scripts\python.exe scripts\build_topology_projection.py
+venv-win/Scripts/python.exe scripts\build_topology_projection.py
 ```
 
 Then reload the page. (`topology.html?mock=1` runs a demo mechanism with no
@@ -1114,7 +1114,7 @@ worse than rendering nothing at all. The identical term table prints outside the
 browser with:
 
 ```powershell
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --terms --markdown
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --terms --markdown
 ```
 
 A stack declaring an archetype the projection has **no** loader for still renders
@@ -1502,7 +1502,7 @@ Two tiers (forge `CONVENTIONS.md` §7), plus a third that tests the tests:
 ```powershell
 node apps\viewer\run_tests.cjs                          # fast tier (node + DOM shim)
 node apps\viewer\run_tests.cjs --repo C:\workspace\tolstack   # ...from a worktree
-venv-win\Scripts\python.exe -m pytest -q                # runs the fast tier too
+venv-win/Scripts/python.exe -m pytest -q                # runs the fast tier too
 
 npm install                                             # once: playwright-core, no browser download
 node scripts\run_viewer_browser_tests.mjs               # truth tier (installed Chrome, file:// + http)

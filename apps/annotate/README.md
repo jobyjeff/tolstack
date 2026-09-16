@@ -69,8 +69,8 @@ Click **Connect folder**, pick the tolstack repo root
 this app reads first, from the main checkout:
 
 ```powershell
-venv-win\Scripts\python.exe scripts\build_topology_projection.py
-venv-win\Scripts\python.exe scripts\build_feature_identity_projection.py
+venv-win/Scripts/python.exe scripts\build_topology_projection.py
+venv-win/Scripts/python.exe scripts\build_feature_identity_projection.py
 ```
 
 ### On a hosted origin there is one sentence and nothing else
@@ -265,7 +265,7 @@ is deferred by spec, so `window.AnnotateApp` is fully built by the time
 
 ```powershell
 node apps\annotate\run_tests.cjs
-venv-win\Scripts\python.exe -m pytest tests\test_annotate_js_vocabulary.py -q
+venv-win/Scripts/python.exe -m pytest tests\test_annotate_js_vocabulary.py -q
 ```
 
 `run_tests.cjs` covers `binding_state.js` (stack-key equality, binding-state

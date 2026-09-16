@@ -169,7 +169,7 @@ alone (`tolerance_stack.fold`, pinned in `tests/test_tolerance_stack.py`).
 not this repo's.
 
 Regenerate with
-`venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --compare`.
+`venv-win/Scripts/python.exe tests\debug_report_tolerance_stacks.py --compare`.
 
 | cell | quantity | Jeff (xlsx cached) | re-derived | delta |
 |---|---|---|---|---|

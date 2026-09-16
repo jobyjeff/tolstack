@@ -160,21 +160,21 @@ analytical answer.
 ## Regenerating
 
 ```powershell
-venv-win\Scripts\python.exe -m pytest -q
+venv-win/Scripts/python.exe -m pytest -q
 
 # the linear stacks
-venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py
-venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --compare
+venv-win/Scripts/python.exe tests\debug_report_tolerance_stacks.py
+venv-win/Scripts/python.exe tests\debug_report_tolerance_stacks.py --compare
 
 # the thermal-fit stacks
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --markdown
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --compare --markdown
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --workbook --markdown
-venv-win\Scripts\python.exe tests\debug_report_thermal_fit.py --terms --markdown
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --markdown
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --compare --markdown
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --workbook --markdown
+venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --terms --markdown
 
 # which open gaps a document in the spec pile could close (MAIN checkout only --
 # `data/inbox/specs/` is gitignored, so a worktree gets a loud skip, not an answer)
-venv-win\Scripts\python.exe tests\debug_report_spec_pile_gaps.py
+venv-win/Scripts/python.exe tests\debug_report_spec_pile_gaps.py
 ```
 
 Run the last one **whenever a document lands in `data/inbox/specs/`**, and again
@@ -203,14 +203,14 @@ every other reader sees, as a clearly separated block. Nothing is computed a
 second time and nothing is scraped from `apps/viewer/`'s DOM.
 
 ```powershell
-venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+venv-win/Scripts/python.exe scripts\export_stack_tabular.py `
     --stack pitch_link_to_pitch_plate --out pitch_link.csv
 
-venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+venv-win/Scripts/python.exe scripts\export_stack_tabular.py `
     --study pitch_system_blade_angle_worst --topologies-dir docs\topologies `
     --out blade_angle_worst.csv
 
-venv-win\Scripts\python.exe scripts\export_stack_tabular.py `
+venv-win/Scripts/python.exe scripts\export_stack_tabular.py `
     --all --out-dir data\exports\tabular
 ```
 

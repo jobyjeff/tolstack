@@ -85,7 +85,7 @@ softening indicator, not a probability statement.
 ## Re-derivation vs Jeff's cells
 
 Regenerate with
-`venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --compare`.
+`venv-win/Scripts/python.exe tests\debug_report_tolerance_stacks.py --compare`.
 
 | cell | quantity | Jeff (xlsx cached) | re-derived | delta |
 |---|---|---|---|---|
