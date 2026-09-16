@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: tolerance_stacks
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20260915_stack_fable_audit.md
 handoff: docs/sessions/HANDOFF_20260916_citation_identity_correctness.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `citation_identity_correctness` moved to completed/; not independently verified.
 ---
 
 # The pitch-plate lug citations name the PRELIM 215197; the released plate is 215735-001/-002
