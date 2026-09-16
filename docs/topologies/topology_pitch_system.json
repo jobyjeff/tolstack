@@ -132,7 +132,8 @@
     {
       "id": "pitch_link",
       "name": "pitch link",
-      "note": "Part identity not established. Nominal length 109.4 mm at a 77 deg link angle per the source sheet's K3/K2; carried in `properties` on its edge, not as a dimension."
+      "drawing": "213862-002",
+      "note": "Identified 2026-09-15 (stack_fable_audit): 213862-002 PITCH LINK ASSEMBLY, PROPELLER, qty 5, per the 216231 A.1 HUB AND BLADE ASSEMBLY parts list in tolstack's spec pile -- one per blade, the count these five links need, where the 212956-005 anti-rotation link (which a 2026-09-06 owner refinement briefly pointed this part's length row at) is qty 3. Its own drawing is unacquired (operator queue). Nominal length 109.4 mm at a 77 deg link angle per the source sheet's K3/K2; carried in `properties` on its edge, not as a dimension."
     },
     {
       "id": "pitch_arm",
@@ -578,7 +579,7 @@
         "source_ref": {
           "kind": "workbook", "document": "260825_End_Stop_JC.xlsx",
           "sheet": "End Stop Tol Stack", "cell": "B31", "confidence": "untraced",
-          "note": "0.06 mm total tolerance width. The 109.4 mm nominal length is in this edge's `properties`, not in the band -- see provenance.variation_only. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 31, 'still blocked, owner refined'): 212956-005-A (the pitch anti-rotation link assembly, now in hand) carries only a parenthesized reference length, (81.43) -- the toleranced length lives one BOM level deeper, on 213863-004, still unacquired."
+          "note": "0.06 mm total tolerance width. The 109.4 mm nominal length is in this edge's `properties`, not in the band -- see provenance.variation_only. Retraced 2026-09-06 (WORKSHEET_endstop_vision_baseline.md §8b row 31, 'still blocked, owner refined'): 212956-005-A (the pitch anti-rotation link assembly, now in hand) carries only a parenthesized reference length, (81.43) -- the toleranced length lives one BOM level deeper, on 213863-004, still unacquired. OWNER RE-REFINED 2026-09-15 (stack_fable_audit): that 2026-09-06 refinement pointed at the WRONG LINK. The 216231 A.1 HUB AND BLADE ASSEMBLY parts list (in tolstack's own spec pile) names 213862-002 PITCH LINK ASSEMBLY, PROPELLER at qty 5 -- one per blade, the count this topology's five pitch links need -- where 212956-005 is qty 3 and its machined link's (81.43) reference cannot be the 109.4 mm nominal this edge carries. The owner of this row is therefore 213862-002 (and its machined link one BOM level deeper), unacquired and on the operator queue; the band stays the workbook's, untraced, unchanged."
         }
       }
     },
