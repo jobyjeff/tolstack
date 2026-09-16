@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/nav
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_nav_wedge_and_classic_retirement.md
 handoff: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `viewer_unwitnessed_surface_guards` moved to completed/; not independently verified.
 ---
 
 # Two of `navigate()`'s three contracts are unwitnessed in every tier

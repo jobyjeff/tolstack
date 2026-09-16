@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: tests/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_mutation_witness_tier_repair.md
 handoff: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `viewer_unwitnessed_surface_guards` moved to completed/; not independently verified.
 ---
 
 # The single-sourced `SUITES` label is one word from a silent revert: nothing pairs what a suite RETURNS against the key it was handed

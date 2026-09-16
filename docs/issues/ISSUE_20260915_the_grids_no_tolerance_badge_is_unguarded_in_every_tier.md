@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
 handoff: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `viewer_unwitnessed_surface_guards` moved to completed/; not independently verified.
 ---
 
 # The topology grid's "no tolerance recorded" row badge has no guard in any tier

@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
 handoff: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `viewer_unwitnessed_surface_guards` moved to completed/; not independently verified.
 ---
 
 # `VA.cropReference`'s `classPrefix` argument is unguarded: pass the wrong one and all three tiers stay green
