@@ -282,6 +282,62 @@ function startSiblingMountServer({ matchCrops, rebuildCapable, terminalState }) 
   });
 }
 
+// --- how a suite reports, on BOTH paths out of it --------------------------
+//
+// Every suite here is one long `try` that collects `checks` (a name and a
+// condition per sub-check) plus `errors` (uncaught page errors), and ends by
+// printing the count and then the NAME of each sub-check that failed. Those
+// names are the whole machine-readable surface of this runner: the
+// mutation-witness tier parses them and nothing else out of this output
+// (`scripts/run_mutation_witness_tests.mjs`, `BROWSER_FAIL`), because an
+// entry there claims one named guard reddens and not that the suite went red.
+//
+// WHICH IS WHY THE ERROR PATH PRINTS THEM TOO, and that is what this pair of
+// functions exists to stop anyone from forgetting again. Fourteen copies of
+// the reporting block used to sit at the bottom of fourteen suites, each
+// beside a `catch` that printed `err.message` and DISCARDED every failure
+// already collected. So a mutation that reddens a check early and then breaks
+// a hover fifty lines further down reported as "the tier went red, but not on
+// the declared check" — the tier's way of saying *I cannot attribute this* —
+// when in fact the declared check had been reached, had failed, and its name
+// was sitting in an array nobody printed. Three sessions filed that as three
+// separate defects on 2026-09-15 (ISSUE_20260915_card_layout_out_of_flow_
+// mutation_reddens_an_earlier_check_so_it_is_never_witnessed and its two
+// siblings).
+//
+// The two results are independent and both get said: the sub-checks that ran
+// are real findings, and the abort is a second finding on top of them. What
+// is NOT done here is teaching anything to treat a bare abort as a named red
+// — a suite that dies before its first `push` still prints no names, and the
+// mutation tier still reports that as unattributable, which is correct.
+function printCollectedFailures(failed, errors) {
+  for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+  if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+}
+
+/** The normal way out: every sub-check ran. */
+function reportSuite(label, checks, errors = []) {
+  const failed = checks.filter((c) => !c.cond);
+  const ok = failed.length === 0 && errors.length === 0;
+  console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+  printCollectedFailures(failed, errors);
+  return { label, ok };
+}
+
+/**
+ * The other way out: something threw, so the sub-checks BELOW the throw never
+ * ran. The ones above it did, and are reported before the exception, because
+ * a named failure is the specific result and a 30-second hover timeout with a
+ * 60-line call log is the noisy one.
+ */
+function reportAbortedSuite(label, checks, errors, err) {
+  const failed = checks.filter((c) => !c.cond);
+  console.log(`[${label}] ABORTED after ${checks.length} sub-checks, ` +
+    `${failed.length} of them already FAILED: FAIL`);
+  printCollectedFailures(failed, errors);
+  console.log(`[${label}] ERROR: ${err.message}`);
+  return { label, ok: false };
+}
 // The banner's whole deliverable (viewer_rebuild_affordance, 2026-09-10): no
 // rebuild command ever renders again, in either mode, and a live endpoint
 // drives a real click through to a reload -- and, since
@@ -383,14 +439,9 @@ async function testRebuildAffordance(browser, label) {
         await page.locator(".banner__stale").count() === 0);
     });
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    return { label, ok };
+    return reportSuite(label, checks);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, [], err);
   }
 }
 
@@ -668,16 +719,9 @@ async function testTheApp(browser, url, label) {
       await page.locator("#stackview").evaluate((n) => getComputedStyle(n).display) === "none" &&
       await page.locator("tr.tvrow").count() > 0);
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -1073,6 +1117,71 @@ async function hoverRailBar(page, id) {
   throw new Error(`hovering the rail bar ${id} never opened its card — ${seen}`);
 }
 
+// Hover a trigger WITHOUT asking playwright whether anything sits on top of it.
+//
+// `locator.hover()` refuses to act on an OCCLUDED element: it re-checks the hit
+// target, finds something else under the point, and retries until it times out.
+// That is the behaviour you want almost everywhere, and it is exactly wrong for
+// the out-of-flow contract below -- because the mutation that contract exists to
+// catch (`.croppop` back on `position: absolute`,
+// `scripts/mutation_witnesses.json`) places the open card ON TOP OF the trigger
+// it was opened from. The first hover opens the card, the card occludes the
+// trigger, and every retry from then on sees the occlusion and backs off. So the
+// suite died on a 30-second timeout ONE sub-check before the check that names
+// the defect, the mutation-witness tier saw a red it could not attribute, and
+// `card-layout-out-of-flow` read NOT WITNESSED for four days -- filed three
+// times over on 2026-09-15 (ISSUE_20260915_card_layout_out_of_flow_mutation_
+// reddens_an_earlier_check_so_it_is_never_witnessed and its two siblings). A
+// card intercepting its own trigger is the DEFECT, so the harness must not be
+// the thing that refuses to look at it.
+//
+// `page.mouse.move` performs no actionability check at all -- the same escape
+// hatch hoverRailBar takes for a different playwright limitation, with the same
+// one-round-trip discipline for reading the rect. What is NOT given up:
+//
+//   * it will not aim at a point outside the window, which would hover whatever
+//     is really there. It scrolls the element into view first if it has to --
+//     `locator.hover()` did that too, and silently, which matters here: at
+//     CARD_SCROLL_VIEWPORT with the document scrolled to its end this trigger
+//     is ABOVE the window (measured 2026-09-16: scrollY 175, trigger off the
+//     top), so the reading the out-of-flow contract takes has always been at
+//     the scroll `scrollIntoView` left behind and never at the one the tripwire
+//     above it asserted. It returns that scroll so the caller can pin the
+//     position it actually measured at.
+//   * it still proves the pointer landed: the rect and the in-window test are
+//     read in ONE page task (a locator resolved and then evaluated against is
+//     two, and under file:// a late render between them hands back a detached
+//     node -- hoverRailBar's own note), and the caller waits on the card.
+async function hoverIgnoringOcclusion(page, selector) {
+  const at = await page.evaluate((s) => {
+    const el = document.querySelector(s);
+    if (!el || !el.isConnected) return null;
+    const box = () => {
+      const b = el.getBoundingClientRect();
+      if (!b.width || !b.height) return null;
+      const inWindow = b.top >= 0 && b.left >= 0 &&
+        b.bottom <= window.innerHeight && b.right <= window.innerWidth;
+      return inWindow ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
+    };
+    let p = box();
+    if (!p) {
+      // "nearest", not hoverRailBar's "center": the MINIMUM scroll that gets
+      // the trigger into the window, which is what locator.hover() did and
+      // what keeps the document as scrolled as it can be -- centring would
+      // give away scroll the out-of-flow reading below is measured against.
+      el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      p = box();
+    }
+    return p === null ? null : { ...p, scrollY: window.scrollY };
+  }, selector);
+  if (!at) {
+    throw new Error(`hoverIgnoringOcclusion: ${selector} resolves to no element ` +
+      "with a box inside the window, even after scrolling to it");
+  }
+  await page.mouse.move(at.x, at.y);
+  return at;
+}
+
 async function testTheTopologyPage(browser, url, label, realProjection, realCrops) {
   const page = await browser.newPage({ viewport: TOPO_VIEWPORT });
   const errors = [];
@@ -1350,8 +1459,21 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("the document really scrolls at this viewport — the only " +
       "configuration the out-of-flow contract below is falsifiable in",
       scrollFrame.docHeight > scrollFrame.innerHeight && scrollFrame.scrollY >= 24);
-    await page.locator(CARD_TRIGGER).hover();
+    // NOT locator.hover(): hoverIgnoringOcclusion's own note says why at
+    // length -- under the mutation this contract is named for, the card lands
+    // ON its own trigger, and playwright's hover refuses to act on an occluded
+    // element and retries to its 30-second timeout instead. The measurement
+    // below is the thing that has to be REACHED.
+    const aimed = await hoverIgnoringOcclusion(page, CARD_TRIGGER);
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+    // ...and the second half of the tripwire above, on the scroll the reading
+    // is actually taken at rather than the one it was set up at. Getting the
+    // trigger into the window moves the page (it sits above the window once the
+    // document is scrolled to its end), and a card opened back at the top would
+    // be measured in the one configuration where `fixed` and `absolute` agree.
+    const openedAt = await page.evaluate(() => window.scrollY);
+    push("the card was opened with the document still scrolled, and opening " +
+      "it moved the page by nothing", aimed.scrollY >= 24 && openedAt === aimed.scrollY);
     const scrolledCard = await cardLayout();
     const gapBelow = scrolledCard.cardTop - scrolledCard.triggerBottom;
     const gapAbove = scrolledCard.triggerTop - scrolledCard.cardBottom;
@@ -2225,16 +2347,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /comfortable/i.test(await page.locator("#density-toggle").textContent()));
     await page.evaluate(() => window.localStorage.removeItem("tolstack.viewer.detailWidth"));
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -2481,16 +2596,9 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
         (await correspondence()).drift.length === 0);
     }
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -2562,16 +2670,9 @@ async function testRenderCrash(browser, url, label) {
     push("and nothing escaped it as an uncaught page error either",
       errors.length === 0);
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -2635,16 +2736,9 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
         "through the real load()+render() pipeline", rowCount === expected);
     }
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -2900,16 +2994,9 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
       rejections.length === 0);
     if (rejections.length) console.log(`    rejections: ${rejections.join(" | ")}`);
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -3111,16 +3198,9 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       }
     }
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -3291,16 +3371,9 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       await page.locator("#croppop button.hovercard__3d").count() === 0 &&
       await page.locator("#croppop a.hovercard__3d").getAttribute("target") === "_blank");
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
     server.closeAllConnections();
@@ -3433,16 +3506,9 @@ async function testAnnotateHostedPosture(browser, label) {
       await page.evaluate(() => document.querySelector("#console-run").onclick !== null &&
         document.querySelector("#console-input").onkeydown !== null));
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
     server.closeAllConnections();
@@ -3508,16 +3574,9 @@ async function testDeepLinks(browser, url, label) {
     push("a mistyped link never raises the needs-a-rebuild alarm",
       await page.locator(".banner__stale").count() === 0);
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -3540,14 +3599,9 @@ async function testIndexRedirects(browser, url, label) {
     await page.waitForSelector('[data-nav-kind], tr.tvrow', { timeout: 15000 });
     push("index.html redirects to topology.html", page.url().includes("topology.html"));
     push("the query string survives the redirect", page.url().includes("mock=1"));
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    return { label, ok };
+    return reportSuite(label, checks);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, [], err);
   } finally {
     await page.close();
   }
@@ -3609,14 +3663,9 @@ async function testHostedUnpublished(browser, realProjection, label) {
         await page.locator(".banner--unpublished").count() === 0);
     }
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    return { label, ok };
+    return reportSuite(label, checks);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, [], err);
   } finally {
     await page.close();
     server.closeAllConnections();
@@ -4172,17 +4221,9 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       (await correspondence()).drift.length === 0);
     await page.emulateMedia({ reducedMotion: null });
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${suite}] ${checks.length - failed.length}/${checks.length} ` +
-      `sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label: suite, ok };
+    return reportSuite(suite, checks, errors);
   } catch (err) {
-    console.log(`[${suite}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label: suite, ok: false };
+    return reportAbortedSuite(suite, checks, errors, err);
   } finally {
     await page.close();
   }

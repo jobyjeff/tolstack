@@ -19,7 +19,7 @@
 //   node scripts/run_mutation_witness_tests.mjs --verbose            # show the red
 //   node scripts/run_mutation_witness_tests.mjs --list
 //
-// `--repo` is the worktree escape hatch, same as the two tiers below it:
+// `--repo` is the worktree escape hatch, same as the tiers below it:
 // data/projections/viewer/ lives only in the MAIN checkout, and the `[real]`
 // witnesses are skipped -- and so reported as misses -- without it. It is
 // passed straight through to whichever tier a mutation names.
@@ -53,8 +53,10 @@
 //      other check is reported as a miss, with the names that did fail, because
 //      the entry's claim is about one guard and not about the suite.
 //
-// THE SHADOW TREE. `apps/` and `scripts/` are copied to tmp/mutation-witness/
-// and the copy is what gets patched; this tree is never written to. The shadow
+// THE SHADOW TREE. Everything a tier reads (`SHADOWED` below -- `apps/`,
+// `scripts/` and the one tracked table under `docs/`) is copied to
+// tmp/mutation-witness/ and the copy is what gets patched; this tree is never
+// written to. The shadow
 // has to live INSIDE the repo (tmp/ is gitignored) for one specific reason:
 // node resolves `playwright-core` by walking up from the running script's own
 // directory, so a shadow under the system temp dir would find no node_modules
@@ -68,11 +70,20 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
 const SHADOW = join(REPO, "tmp", "mutation-witness");
 const TABLE = join(HERE, "mutation_witnesses.json");
-// The directories the tiers actually read. apps/ is the app under test and
-// scripts/ is the browser runner itself; nothing else in the repo is loaded by
-// either tier, and copying data/ (gigabytes, gitignored, main-checkout only)
-// would be both wrong and slow -- `--repo` is how a tier reaches that.
-const SHADOWED = ["apps", "scripts"];
+// The directories the tiers actually read, as path segments. apps/ is the app
+// under test and scripts/ is the browser runner itself. Copying data/
+// (gigabytes, gitignored, main-checkout only) would be both wrong and slow --
+// `--repo` is how a tier reaches that.
+//
+// docs/topologies/ is here because a tier reads a TRACKED table out of it:
+// apps/annotate/run_tests.cjs resolves part_mesh_aliases.json repo-relatively
+// (correctly -- it is tracked, so it is in every worktree) and its two [real]
+// checks threw ENOENT inside the shadow, which read as "the tier was red
+// before the mutation" and blocked the whole annotate tier from witnessing
+// anything, 2026-09-16. Narrow rather than all of docs/ on purpose: 194 KB
+// against 5.2 MB, and the next tracked-input directory some tier starts
+// reading should have to be named here, where the reason can be written down.
+const SHADOWED = [["apps"], ["scripts"], ["docs", "topologies"]];
 
 const argFlag = (name) => {
   const i = process.argv.indexOf(name);
@@ -111,26 +122,95 @@ function oneLine(text) {
 
 // --- running a tier --------------------------------------------------------
 //
-// Both tiers report the same two things this file needs: an exit code, and the
-// NAME of every check that failed. The fast tier prints `FAIL  <name>`; the
-// browser tier prints `    FAIL sub-check: <name>` under the suite that owns
-// it. Nothing else in either output is parsed -- a tier is free to print
-// whatever else it likes.
-const FAST_FAIL = /^FAIL {2}(.+)$/;
-const BROWSER_FAIL = /^ {4}FAIL sub-check: (.+)$/;
+// Every tier reports the same two things this file needs: an exit code, and the
+// NAME of every check that failed. Nothing else in any tier's output is parsed
+// -- a tier is free to print whatever else it likes.
+//
+// `tier` IS A VOCABULARY, and this object is the one place it is written on
+// this side (CLAUDE.md: a field vocabulary is a module-level constant, never an
+// inline literal). `tests/test_mutation_witnesses.py` pairs these keys against
+// its own `TIERS`/`CHECK_SOURCE` on every pytest run, so a tier word that
+// exists here and nowhere else -- or the reverse -- is red in a second rather
+// than after a browser sweep.
+//
+// A tier word names ONE HARNESS, not a speed. "fast" is the VIEWER's fast
+// runner specifically, which is why the annotate app needed a word of its own
+// rather than a second meaning for that one: the two are separate harnesses,
+// with separate check-name sources and no suite registry in common
+// (ISSUE_20260915_the_annotate_fast_tier_cannot_own_a_mutation_witness).
+const TIER_HARNESS = {
+  // The viewer's fast tier. The harness is run_tests.cjs; the check NAMES live
+  // in the tests.js it loads, which is what CHECK_SOURCE points at.
+  fast: {
+    script: ["apps", "viewer", "run_tests.cjs"],
+    fail: /^FAIL {2}(.+)$/,
+    suites: false,
+  },
+  // The annotate app's fast tier -- a second harness, not a second suite of the
+  // first. It prints the same `FAIL  <name>` line, and unlike the viewer it is
+  // both the harness and where the names are written.
+  annotate: {
+    script: ["apps", "annotate", "run_tests.cjs"],
+    fail: /^FAIL {2}(.+)$/,
+    suites: false,
+  },
+  // The browser tier, whose failures are printed under the suite that owns
+  // them -- so an entry names a `suite` and pays for one suite, not all of them.
+  browser: {
+    script: ["scripts", "run_viewer_browser_tests.mjs"],
+    fail: /^ {4}FAIL sub-check: (.+)$/,
+    suites: true,
+  },
+};
+
+// WHY AN ENTRY MISSED, in words a reader gets at a glance -- and the reason
+// this is a vocabulary and not five inline strings.
+//
+// The summary line used to read `NOT WITNESSED: card-layout-out-of-flow` and
+// nothing else: the ENTRY, never the REASON. The reasons are different defects
+// with different fixes, and the distinction was already being drawn per entry,
+// several screens up, in a sentence. So on 2026-09-14 one session read
+// `card-layout-out-of-flow` as "the witness cannot see the difference" and
+// repaired the witness; on 2026-09-15 three sessions read the same line, each
+// found "the tier never reached the witness" underneath it, and each filed it
+// as a new bug (ISSUE_20260915_card_layout_out_of_flow_mutation_reddens_an_
+// earlier_check_so_it_is_never_witnessed and its two siblings). The reason
+// belongs on the line that gets read.
+const MISS = {
+  // The `find` no longer resolves: not a failing guard, a guard that stopped
+  // being checked.
+  ROTTED: "the mutation no longer describes a place in the tree",
+  // Nothing was proved either way, because the tier was broken before this
+  // entry touched it.
+  TIER_ALREADY_RED: "the tier was red before the mutation, so nothing was proved",
+  // The mutation applied and the tier shrugged. THE GUARD is the problem.
+  BLIND: "the witness cannot see the difference",
+  // The tier died before any check could be attributed -- typically the
+  // mutation broke the page badly enough to take a later hover or wait down
+  // with it. THE HARNESS is the problem, not the guard.
+  NEVER_REACHED: "the tier never reached the witness",
+  // Some other named check caught it first, so the entry's own claim -- that
+  // THIS guard reddens -- is still unproved.
+  ATTRIBUTED_ELSEWHERE: "another check reddened, but not the declared one",
+};
+
+function harnessFor(mutation) {
+  const harness = TIER_HARNESS[mutation.tier];
+  if (!harness) {
+    throw new Error(`${mutation.id}: unknown tier ${JSON.stringify(mutation.tier)}`);
+  }
+  return harness;
+}
 
 function tierCommand(mutation) {
-  // Always passed: a tier spawned inside the shadow would otherwise resolve its
-  // data root to the shadow, which holds no data/ by design.
-  const repoArgs = ["--repo", DATA_REPO];
-  if (mutation.tier === "fast") {
-    return [join(SHADOW, "apps", "viewer", "run_tests.cjs"), ...repoArgs];
-  }
-  if (mutation.tier === "browser") {
-    return [join(SHADOW, "scripts", "run_viewer_browser_tests.mjs"),
-            ...repoArgs, "--only", mutation.suite];
-  }
-  throw new Error(`${mutation.id}: unknown tier ${JSON.stringify(mutation.tier)}`);
+  const harness = harnessFor(mutation);
+  // Always passed, to every tier: a tier spawned inside the shadow would
+  // otherwise resolve its data root to the shadow, which holds no data/ by
+  // design. A harness that does not read it ignores it harmlessly -- one code
+  // path here is worth more than a per-tier exception, and a harness that
+  // learns `--repo` later then works with no change on this side.
+  return [join(SHADOW, ...harness.script), "--repo", DATA_REPO,
+          ...(harness.suites ? ["--only", mutation.suite] : [])];
 }
 
 function runTier(mutation) {
@@ -141,7 +221,7 @@ function runTier(mutation) {
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { out += d; });
     child.on("close", (code) => {
-      const pattern = mutation.tier === "fast" ? FAST_FAIL : BROWSER_FAIL;
+      const pattern = harnessFor(mutation).fail;
       const failures = out.split(/\r?\n/)
         .map((line) => (line.match(pattern) || [])[1])
         .filter(Boolean);
@@ -155,8 +235,8 @@ function runTier(mutation) {
 function buildShadow() {
   rmSync(SHADOW, { recursive: true, force: true });
   mkdirSync(SHADOW, { recursive: true });
-  for (const dir of SHADOWED) {
-    cpSync(join(REPO, dir), join(SHADOW, dir), { recursive: true });
+  for (const parts of SHADOWED) {
+    cpSync(join(REPO, ...parts), join(SHADOW, ...parts), { recursive: true });
   }
 }
 
@@ -209,6 +289,7 @@ function anchorHits(mutation) {
   console.log(`building the shadow tree at ${SHADOW}`);
   buildShadow();
 
+  // Each miss carries its REASON, not just its id -- see MISS above.
   const misses = [];
   // One clean run per distinct (tier, suite): step 2 above. Keyed rather than
   // run per entry because three of the declared witnesses share one suite.
@@ -222,7 +303,7 @@ function anchorHits(mutation) {
       console.log(`  ANCHOR ROTTED: ${JSON.stringify(oneLine(mutation.find))} matches ` +
         `${hits} places in ${mutation.file} (expected exactly 1). This entry is ` +
         `checking nothing until its \`find\` is re-pointed at the code it means.`);
-      misses.push(mutation.id);
+      misses.push({ id: mutation.id, why: MISS.ROTTED });
       continue;
     }
 
@@ -239,7 +320,7 @@ function anchorHits(mutation) {
       console.log(`  SKIPPED: the tier is already red with NO mutation applied, so ` +
         `nothing this entry does would prove anything. Fix the tier first.`);
       console.log(indent(baseline.out));
-      misses.push(mutation.id);
+      misses.push({ id: mutation.id, why: MISS.TIER_ALREADY_RED });
       continue;
     }
 
@@ -260,10 +341,12 @@ function anchorHits(mutation) {
       continue;
     }
 
-    misses.push(mutation.id);
     if (result.code === 0 && result.failures.length === 0) {
+      misses.push({ id: mutation.id, why: MISS.BLIND });
       console.log("NOT WITNESSED — the tier stayed GREEN with the mutation applied.");
     } else {
+      misses.push({ id: mutation.id, why: result.failures.length
+        ? MISS.ATTRIBUTED_ELSEWHERE : MISS.NEVER_REACHED });
       console.log("NOT WITNESSED — the tier went red, but not on the declared check.");
       console.log(`  declared: ${mutation.expect_red}`);
       console.log(`  actually failed:` +
@@ -289,7 +372,8 @@ function anchorHits(mutation) {
   const witnessed = chosen.length - misses.length;
   console.log(`\n${witnessed}/${chosen.length} declared mutations witnessed`);
   if (misses.length) {
-    console.log("NOT WITNESSED: " + misses.join(", "));
+    console.log("NOT WITNESSED:" +
+      misses.map((m) => `\n  ${m.id} — ${m.why}`).join(""));
     console.log("A guard that no longer reddens on its own declared mutation is " +
       "not a guard. Repair the guard, or -- if the app changed so the mutation " +
       "no longer describes a defect -- retire the entry and say why.");
