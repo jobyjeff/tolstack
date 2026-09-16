@@ -187,6 +187,18 @@
       "tier": "fast",
       "suite": null,
       "expect_red": "[real] every untraced edge whose part HAS a mesh offers a working annotate-this link, wherever the mesh set has reached"
+    },
+    {
+      "id": "hosted-annotate-withholds-the-bind-workspace",
+      "contract": "A hosted annotate page says annotating is unavailable and then shows nothing that instructs it -- no bind hint, no pickers, no parts panel, no empty 3D pane and no dev console.",
+      "issue": "docs/issues/ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_reader_to_bind_a_face.md",
+      "note": "Every sub-check that existed before this one reads the BANNER, and the banner was already honest while the page under it told the reader to click a face in a 3D view that does not exist on that origin. So a mutation that puts the workspace back leaves all of them green.",
+      "file": "apps/annotate/app.js",
+      "find": "    el.workspace.style.display = \"none\";",
+      "replace": "    el.workspace.style.display = \"\";",
+      "tier": "browser",
+      "suite": "annotate hosted posture (no folder grant off-machine)",
+      "expect_red": "the bind instruction is gone -- it named a 3D view this origin does not have"
     }
   ]
 }
