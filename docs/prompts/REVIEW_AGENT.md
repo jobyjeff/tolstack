@@ -2515,6 +2515,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       of the real one instead of reaching for `--allow-older-tree` — a partial
       scratch root (no `docs/`, no `meshes/`, no `data/inbox/`) manufactures
       four extra failures that are yours, not the branch's.
+      **Two traps inside the fix, both found in that handoff's round 2.** (a)
+      The DOM shim's selector matcher handles `tag`, `.class` and `tag.class`
+      and **nothing compound** — `all(root, "tr.el-row.conf--untraced")` matches
+      zero nodes silently, so it fails loudly in a `=== 2` assertion and passes
+      *vacuously* in a `=== 0` one. One class per selector, then filter with the
+      suite's own `hasClass()`. (b) `VA.fmt` is `String(n)`, verbatim and by
+      design, so the page shows `-8.428` where every document writes `-8.4280`
+      for column alignment — a pin copied out of the worksheet will not match.
+      The old pin happened to have no trailing zero, which is why this had never
+      surfaced.
 - [ ] **A "not vacuous" assertion that tests a set the value could never be
       in.** New 2026-09-15 (`pitch_link_known_bands`), and it is the
       guard-that-cannot-fail shape hiding inside the *replay* rather than the

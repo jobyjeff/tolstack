@@ -3,15 +3,20 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260915_pitch_link_known_bands.md
 reviewer: review agent (dispatch)
 date: 2026-09-15
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE
+blockers: 0 (round 1: 1, fixed in round 2)
 ---
 
 # Review — `pitch_link_known_bands`
 
+> **Round 2, 2026-09-15 — APPROVE.** Everything below is round 1's report,
+> unedited, and its verdict was REQUEST CHANGES. The tactical agent returned
+> `83f8e6e` ("review round 2"), which fixes the blocker and all six should-fixes
+> and all three nits. Round 2's verification is the last section of this file;
+> read it for what actually shipped. The work is merged to `integration`.
+
 Merged `handoff/pitch_link_known_bands` into `review/pitch_link_known_bands` at
-`30bf6c7` to review and verify. **Not merged to `integration`** — see the
-blocker.
+`30bf6c7` to review and verify (round 2's merge is `83f8e6e`).
 
 This is careful, honest work. Every number I re-derived matched, the provenance
 argument is made in the right places and at the right strength, and the two
@@ -311,3 +316,103 @@ re-review, run **all three**: `pytest -q`, `node apps/viewer/run_tests.cjs
 
 **REQUEST CHANGES** — B1. The six should-fixes are the handoff's while it is
 open; none needs an issue unless the re-review approves without them.
+
+---
+
+# Round 2 — `83f8e6e`, verified 2026-09-15
+
+Merged into `review/pitch_link_known_bands`. **APPROVE.**
+
+## The blocker is closed, and closed the right way
+
+| tier | result |
+|---|---|
+| Python, review merge | **885 passed, 1 skipped, 1 failed** (the pre-existing strategy-brief byte-identity claim) |
+| Python, tactical worktree at `83f8e6e` | **885 passed, 1 skipped, 1 failed** — same |
+| JS incl. `[real]`, full scratch rebuild of all three projections | **361/361 passed** |
+
+361, not 360: the author did not simply move a pin. `[real] the two zero-width
+bands are flagged` was **repointed** at `rotor_fastener_length` (which still has
+two, `washer_ms21299c3` and `washer_nas1149v0332_tt`) rather than flipped to
+assert `0` under a name promising 2 — the same move its Python twin made — and a
+**new** test was added for what Jeff's ruling is actually about: `[real] the
+pitch-link stack's two unverified bands render untraced, not zero-width`, which
+asserts `zero_width` is empty here *and* that the two rows carry
+`conf--untraced` *and* that they are the right two elements.
+
+**I mutation-tested that new test rather than accepting it on green.** Breaking
+the one production line that carries the signal — `VA.confidenceClass` in
+`apps/viewer/viewer.js:80`, stubbed to return `"conf--unknown"` — turns it red
+along with five siblings. It observes the thing it certifies, not a proxy.
+
+The `-8.1939` → `-8.428` fix is right for a reason worth recording: `VA.fmt` is
+`String(n)`, so the page shows `-8.428` and never the document's `-8.4280`. The
+author found that by hitting it, and wrote it into the lesson.
+
+## The six should-fixes and three nits
+
+All closed. Re-verified individually:
+
+* **S1** — both notes now name `joint.assembly_export` as the referent and state
+  outright that no element cites 217755 any more; the bushing's note no longer
+  attributes "the 4.7625 nominal" to an element storing 4.76.
+* **S2** — worksheet **F9 `[drift]`**, a three-row table of what each source
+  prints, what each one *is* (a parts-list nomenclature string vs. a workbook
+  rounding vs. a part drawing dimensioning its own feature), and what stays
+  unchanged and why. I confirmed its supporting claim: `tan_link`'s
+  `straight_bushing` really is nominal 4.762 against max 4.76, i.e. 0.002 mm
+  above its own MMC. The `[drift]` preamble was updated to say there are now two.
+* **S3** — the guard now records `matched[part].add(stack.id)` inside the
+  matching branch and asserts every `SHARED_BANDS` part was seen in ≥2 distinct
+  stacks. **Re-ran my mutation:** the `"214820-002"` → `"214820-002-TYPO"` key
+  typo that left round 1 **green** now fails with
+  `0 = len(set())`. The `(part, feature)` key became a plain `part` key plus a
+  read-only `FEATURE_HINT`, with the one-feature-per-entry assumption written
+  down instead of implied — the better of the two fixes I suggested.
+* **S4** — `TOLSTACK_ROOT_COMMIT` restored and repointed at `20260730_133912`.
+  Not vacuous: the run set is pinned exactly one line above, so the claim cannot
+  silently lose its subject again.
+* **S5** — SOP Step 4's bullet and the from-scratch table's last clause each
+  carry a dated pointer, and the Step 5b amendment gained a paragraph naming
+  both places it reaches. Trap 19 rewritten as "nominal with **no band
+  anywhere**", with "a workbook cell is a named source; *the standard probably
+  says* is not" — which is the distinction the whole ruling turns on.
+* **S6** — `PROVENANCE.md` now says "nine existing tests changed", grouped by
+  what changed in each. Correct: four numeric-pin-only, one pin plus a new
+  assertion, three changed what they assert, one lost part of its subject.
+* **Nits** — "all three … except" → "three stacks use this part; TWO of them";
+  the SOP test name is no longer broken across a backtick span; trap 19 covered
+  under S5.
+
+## Fixed inline (one sentence)
+
+The same `PROVENANCE.md` row that S6 corrected then stated a suite result that
+is wrong: *"884 passed / 1 skipped … plus 2 failed, both in
+`tests/test_provenance.py` … one is this row."* I re-ran the suite twice —
+in the tactical worktree at `83f8e6e` and at the review merge — and measured
+**885 passed / 1 skipped / 1 failed** both times, with the single failure being
+the strategy brief. There is no second `test_provenance.py` failure and this row
+is not one. (The `**146 tests** in this file` half was right.) Rewritten with a
+dated parenthetical saying what it used to read. This is the canonical
+re-derive-every-count check and its blessed fix shape; no behaviour changed and
+no test was needed.
+
+Its own claim about `apps/viewer/tests.js` needing no `PROVENANCE.md` row also
+checks out: the file has no row (it is not an imported file), and
+`test_this_branch_amended_the_row_of_every_imported_file_it_changed` is green.
+
+## Still owed by whoever comes next
+
+**The shared projection at `C:\workspace\tolstack\data` is not rebuilt.**
+`build_viewer_projection.py` still exits 3 — `handoff/viewer_study_verdicts_and_gaps`
+@ `13fbf3f` (dirty) owns it and is not an ancestor of this tree. I did not pass
+`--allow-older-tree` against the shared root in either round; a live sibling
+session is in that worktree and the gate is doing exactly its job. All
+verification here was done against a scratch `--data-root` seeded from a copy of
+the real one, which is sound because the projections are a pure function of the
+stacks and topologies dirs. The next session to own that directory should
+rebuild all three.
+
+## Verdict
+
+**APPROVE.** Merged to `integration`.
