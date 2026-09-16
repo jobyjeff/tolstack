@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/browser-tier
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_mutation_witness_tier_repair.md
 handoff: docs/sessions/HANDOFF_20260916_js_guards_and_suite_isolation.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `js_guards_and_suite_isolation` moved to completed/; not independently verified.
 ---
 
 # `--only "annotate flyout"` aborts on a strict-mode violation — the suite the mutation tier would have to run alone is mostly red alone, and green in a full run

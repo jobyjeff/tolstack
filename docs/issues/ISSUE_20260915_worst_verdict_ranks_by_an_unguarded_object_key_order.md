@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
 handoff: docs/sessions/HANDOFF_20260916_js_guards_and_suite_isolation.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `js_guards_and_suite_isolation` moved to completed/; not independently verified.
 ---
 
 # `VA.worstVerdict` ranks by `VA.VERDICTS`' key order, and nothing guards that order
