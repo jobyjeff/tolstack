@@ -2,7 +2,7 @@
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "pitch_link_to_pitch_plate",
   "title": "Pitch link to pitch plate grip length",
-  "description": "Built from scratch with no source workbook behind it: every element is cited to a drawing or a specification directly.",
+  "description": "Built from scratch against the drawings and the NAS standards. Two of its six elements carry a band no document in this repo can be re-read for, applied 2026-09-15 by operator ruling and marked untraced rather than omitted.",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",
@@ -31,7 +31,7 @@
   },
   "provenance": {
     "transcribed_from": null,
-    "source_note": "Built from scratch per docs/SOP_TOLERANCE_STACK.md Step 5b. There is NO source workbook for this joint -- that is the point of the exercise (Jeff's atomic note 20260803T153839_cwzuzq: 'there will be no excel sheet to cheat off of'). No element here carries a source_ref of kind 'workbook'.",
+    "source_note": "Built from scratch per docs/SOP_TOLERANCE_STACK.md Step 5b: there is no source workbook for this joint, so there is no re-derivation section, no workbook_cells on any path or check, and no [NOT IN WORKBOOK] markers -- every check here is original. What HAS changed, 2026-09-15 (handoff pitch_link_known_bands): the stricter half of the original exercise -- Jeff's atomic note 20260803T153839_cwzuzq, 'there will be no excel sheet to cheat off of', which this stack read as 'zero source_refs of kind workbook' -- is over by his own verdict. He opened the 214820-002 drawing, found a real 4.76 +0.00/-0.13 band where this stack was rendering +/-0, and ruled (forge note 20260915T145908_fwc7qp and its follow-up): 'it's ok to use unverified numbers as placeholders, but they need to be very loudly identified as unverified/incomplete. Current design omits them entirely and then fails silently which is worst of both worlds.' So `washer_nas1149v0332` now cites the 260729 workbook directly and `bushing_214820` cites his drawing reading, both at confidence `untraced` and both still on the ranked gap list. One kind: 'workbook' source_ref now exists here, deliberately and with its own note.",
     "authored_by": "handoff pitch_link_stack, 2026-08-04",
     "sources_used": [
       "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf -- sheets 1, 2, 3 (scan, no text layer; read by vision)",
@@ -39,44 +39,38 @@
       "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf -- sheet 2 SECTION A-A (read-only)",
       "C:/workspace/drawing-checker/data/runs/20260803_145243_217755_A.1_.../217755_A_balloons.json and the 2026-AUG-3 PDF (read-only)"
     ],
-    "not_used": "The 214820-002 bushing length band (4.63/4.76) and the NAS1149V0332 thickness band (+/-.004 in) already sitting in hardware_entries.json were NOT adopted here. Both are slice-1 transcriptions of the 260729 workbook, i.e. untraced, and SOP Step 5b requires zero workbook-sourced values in a from-scratch stack. Those two elements therefore carry a ZERO-WIDTH band, which makes every worst-case interval below a LOWER bound on the true spread. See the worksheet."
+    "not_used": "RESOLVED 2026-09-15 (handoff pitch_link_known_bands). This field used to say that the 214820-002 bushing length band (4.63/4.76) and the NAS1149V0332 thickness band (+/-.004 in) sitting in hardware_entries.json were NOT adopted here, because both are slice-1 transcriptions of the 260729 workbook. Both are adopted now, and the two elements no longer carry a zero-width band, so no interval in this stack is a lower bound on that account any more. What is still not used: nothing. The pitch-link eye / spherical bearing remains ABSENT rather than unused -- no source of any kind gives its width, so there is no number here to adopt or refuse, and it stays gap 1 and an excluded term on both checks."
   },
   "elements": [
     {
       "id": "bushing_214820",
       "name": "plain bushing length (214820-002)",
       "role": "bushing",
-      "nominal": 4.7625,
-      "min": 4.7625,
-      "max": 4.7625,
-      "lmc": null,
-      "mmc": null,
+      "nominal": 4.76,
+      "min": 4.63,
+      "max": 4.76,
+      "lmc": 4.63,
+      "mmc": 4.76,
       "plus_minus": null,
       "hardware_ref": "214820-002",
-      "note": "0.1875 in, read out of the parts-list nomenclature. ZERO-WIDTH BAND: no document in this repo gives a tolerance on this length. The Joby part drawing for 214820-002 is not here, and the 4.63/4.76 limits in hardware_entries.json come from the 260729 workbook (untraced), which a from-scratch stack may not use. Treat the folded worst case as a lower bound on the real spread.",
+      "note": "4.76 +0.00/-0.13 mm. ASYMMETRIC BAND -- the nominal IS the max, which is why plus_minus is null; additive member, so MMC (most material) is the longest and mmc -> max. UNVERIFIED SOURCE, SAID LOUDLY: the band rests on Jeff's 2026-09-15 reading of the 214820-002 part drawing, and that drawing is still not in data/inbox/specs/, so nothing in this repo can re-read it. The three sources and what each one actually says: (1) 217755 sh4 DETAIL B parts list -- '.1875\" LONG' = 4.7625 mm, a nominal and never a band; that is the zero-width value this element carried from founding until 2026-09-15. (2) hardware_entries.json 214820-002 -- length_min 4.63 / length_max 4.76, transcribed from 260729 workbook cells G7/H7, untraced, with no inch source and no formula behind them. (3) Jeff's drawing reading -- '4.76 +0.00/-0.13', i.e. 4.63/4.76, which agrees with (2) to the digit and adjudicates the nominal: the drawing prints 4.76, not .1875 in. The drawing's form is what is stored (handoff pitch_link_known_bands). Gap 3 STAYS OPEN, reworded from 'no band known' to 'band operator-confirmed, drawing not yet in the repo'.",
       "source_ref": {
-        "kind": "parts_list",
-        "document": "217755",
-        "revision": "A",
-        "sheet": 4,
-        "zone": "H3",
-        "view": "DETAIL B",
+        "kind": "drawing",
+        "document": "214820-002",
+        "revision": null,
+        "sheet": null,
+        "zone": null,
+        "view": "SECTION A-A",
         "cell": null,
-        "callout": "214820-002  BUSHING, PLAIN, ALUMINUM BRONZE, .1900\" ID X .1875\" LONG  (find 34, qty 8; balloon reads 8X in DETAIL B)",
+        "callout": "4.76 +0.00/-0.13",
         "element_id": null,
         "run_id": null,
         "export": {
-          "status": "established",
-          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
-          "sha256": "c6381f204582dc7a87d25664855bbc547b619226997e9fa62697b6d6ea4294d8",
-          "runs": [
-            {"run_id": "20260803_145243", "ts": "2026-08-03T21:53:01.395741+00:00"},
-            {"run_id": "20260804_114000", "ts": "2026-08-04T18:40:27.959980+00:00"}
-          ],
-          "note": "Established 2026-08-06 by handoff citation_export_provenance from the prose joint.assembly_export: data/runs.jsonl and run_meta.json both record this file and this sha256 as the input of runs 20260803_145243 and 20260804_114000, and the file in drawing-checker's inbox still hashes to it (mtime 2026-08-03T21:52:43Z, unchanged since the run)."
+          "status": "unestablished",
+          "why": "The 214820-002 part drawing is not in this repo and never has been. Jeff opened it on his own machine on 2026-09-15 and reported the callout in forge note 20260915T145908_fwc7qp, whose third attachment is his screenshot of SECTION A-A with '4.76 +0.00/-0.13' circled. There is no PDF here to hash, so no export can be established -- and this citation must NOT borrow the 217755 assembly export the parts-list citation used, because that is a different document that does not carry this band."
         },
-        "confidence": "inferred",
-        "note": "Presence and nominal only. qty 8 = the 3 tangential-link places plus the 5 places of this joint, which is how one bushing per joint is inferred; the balloon prefix 8X in DETAIL B is consistent. Band untraced -> gap 3."
+        "confidence": "untraced",
+        "note": "OPERATOR-CONFIRMED, NOT TRACED, and the distinction is the point. `traced` in this repo means a reader of THIS repo can re-find the value on a named export; this one cannot be re-found here at all. Its support is 'Jeff opened the drawing and read it out', corroborated by workbook cells G7/H7 -- transcribed by a different session, from a different artifact, months earlier -- landing on the same 4.63/4.76. That is strong corroboration and still not a trace, so the field says `untraced` and gap 3 lists it, which is the only condition on which this repo permits the word. Presence and the 4.7625 nominal remain inferred from the same parts-list row cited by the other 217755 elements in this file (sh4 zone H3 DETAIL B, find 34 qty 8 = 3 tangential-link places + 5 here); that row is what the note above calls source (1). Acquiring the 214820-002 PDF into data/inbox/specs/ is the only thing that makes this `traced`."
       }
     },
     {
@@ -122,36 +116,27 @@
       "name": "washer thickness, NAS1149V0332H (.032 in)",
       "role": "washer",
       "nominal": 0.8128,
-      "min": 0.8128,
-      "max": 0.8128,
-      "lmc": null,
-      "mmc": null,
-      "plus_minus": null,
+      "min": 0.7112,
+      "max": 0.9144,
+      "lmc": 0.7112,
+      "mmc": 0.9144,
+      "plus_minus": 0.1016,
       "hardware_ref": "NAS1149V0332",
-      "note": "0.032 in, read out of the parts-list nomenclature. ZERO-WIDTH BAND: the NAS1149 standard is not in data/inbox/specs/, and the +/-.004 in in hardware_entries.json is a 260729-workbook value (untraced), unusable here. Treat the folded worst case as a lower bound.",
+      "note": "0.032 +/-0.004 in. Additive member, so MMC (most material) is the thickest and mmc -> max. UNVERIFIED SOURCE, SAID LOUDLY: the +/-.004 in is the 260729 workbook's alone, and NAS1149 is still not in data/inbox/specs/, so no standard here can be re-read for it. The three sources and what each one actually says: (1) 217755 sh4 DETAIL B parts list -- '.203\" X .438\" X .032\"' on the 2026-AUG-3 export, a nominal and no band; the 2026-JUL-23 export read '.032\" MIN', and the MIN qualifier plus the thread call have since been dropped (worksheet F3). (2) hardware_entries.json NAS1149V0332 -- thickness_tol 0.1016 mm from 260729 workbook cells E11/F11 ('=0.004*25.4'), untraced. (3) No standard: NAS1149 has never been in the pile. Applied here 2026-09-15 (handoff pitch_link_known_bands) under Jeff's placeholder ruling, and because the same part+feature must not fold as +/-.004 in tan_link_to_pitch_plate and as +/-0 here. Gap 4 STAYS OPEN, reworded from 'no band known' to 'band workbook-sourced, NAS1149 not in the repo'.",
       "source_ref": {
-        "kind": "parts_list",
-        "document": "217755",
-        "revision": "A",
-        "sheet": 4,
-        "zone": "H3",
-        "view": "DETAIL B",
-        "cell": null,
-        "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\"  (find 32, qty 9; balloon reads 8X in DETAIL B)",
+        "kind": "workbook",
+        "document": "260729_sample_tol_stack.xlsx",
+        "revision": null,
+        "sheet": "grip length tols old",
+        "zone": null,
+        "view": null,
+        "cell": "E11/F11",
+        "callout": null,
         "element_id": null,
         "run_id": null,
-        "export": {
-          "status": "established",
-          "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
-          "sha256": "c6381f204582dc7a87d25664855bbc547b619226997e9fa62697b6d6ea4294d8",
-          "runs": [
-            {"run_id": "20260803_145243", "ts": "2026-08-03T21:53:01.395741+00:00"},
-            {"run_id": "20260804_114000", "ts": "2026-08-04T18:40:27.959980+00:00"}
-          ],
-          "note": "Established 2026-08-06 by handoff citation_export_provenance from the prose joint.assembly_export: data/runs.jsonl and run_meta.json both record this file and this sha256 as the input of runs 20260803_145243 and 20260804_114000, and the file in drawing-checker's inbox still hashes to it (mtime 2026-08-03T21:52:43Z, unchanged since the run)."
-        },
-        "confidence": "inferred",
-        "note": "The 2026-AUG-3 export reads '.032\"'. The 2026-JUL-23 POST export slice 1 worked from read '.032\" MIN, .1900-32 UNJF-3B' -- the MIN qualifier and the thread call have been dropped between exports (worksheet finding F3). Either way the parts list gives no band -> gap 4."
+        "export": null,
+        "confidence": "untraced",
+        "note": "THE ONE kind: 'workbook' CITATION IN THIS FILE, and it is deliberate. This stack was built to hold zero of them (Jeff's 20260803T153839_cwzuzq); his 2026-09-15 ruling ended that experiment, and citing the workbook openly is the honest shape -- the alternative on offer was re-citing hardware_entries.json, whose own values_source for this entry says 'workbook', which is the laundering SOP Step 5b names. Cited at its weakest, per that entry: E11 is the formula '=0.032*25.4' and F11 '=0.004*25.4', with the workbook's comment column naming NAS1149V0332 at I11. The nominal is independently corroborated by the 217755 parts-list nomenclature (find 32, sh4 zone H3 DETAIL B, on the [PRELIM 2026-AUG-3] export sha256 c6381f204582dc7a87d25664855bbc547b619226997e9fa62697b6d6ea4294d8, the same export the other 217755 citations in this file name); the BAND has no support outside this workbook, which is what makes it `untraced` and puts it on gap 4. The NAS1149 standard closes it, and nothing else does."
       }
     },
     {
@@ -301,7 +286,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "clamped column minus grip. Negative means the end of the full cylindrical shank sits proud of the nut bearing face, so the nut would engage incomplete threads -- which JPS00094 Rev C section 5.5.5 forbids outright ('The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank'). This check carries `complete: false`: the pitch-link eye is missing from the column, so its verdict is scoped to the budget, not to the joint, and the verdict below is not a design conclusion. Read the magnitude instead -- it is the pitch-link eye width the joint REQUIRES. The BINDING requirement is the worst-case end: eye >= 8.1939 mm (grip at max 17.7292 against the column at min 9.5353) to pass worst case, and >= 7.8399 mm to pass at nominal, so an eye between 7.8399 and 8.1939 mm makes this check `marginal`. The other worst-case end, 7.4859 mm (grip at min against the column at max), is the value below which the check fails even in the most favourable combination -- it is NOT the requirement. Sourcing that one number flips this check.",
+      "guidance": "clamped column minus grip. Negative means the end of the full cylindrical shank sits proud of the nut bearing face, so the nut would engage incomplete threads -- which JPS00094 Rev C section 5.5.5 forbids outright ('The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank'). This check carries `complete: false`: the pitch-link eye is missing from the column, so its verdict is scoped to the budget, not to the joint, and the verdict below is not a design conclusion. Read the magnitude instead -- it is the pitch-link eye width the joint REQUIRES. The BINDING requirement is the worst-case end: eye >= 8.4280 mm (grip at max 17.7292 against the column at min 9.3012) to pass worst case, and >= 7.8424 mm to pass at nominal, so an eye between 7.8424 and 8.4280 mm makes this check `marginal`. The other worst-case end, 7.3868 mm (grip at min against the column at max), is the value below which the check fails even in the most favourable combination -- it is NOT the requirement. Sourcing that one number flips this check. These three numbers WIDENED on 2026-09-15 (handoff pitch_link_known_bands) when the bushing and washer bands were applied: the binding requirement moved 8.1939 -> 8.4280 and the marginal window from 0.354 mm wide to 0.586 mm. Two of the three terms in the column are `untraced`, so the requirement is only as good as a workbook cell and an operator's screenshot.",
       "terms": [
         {"path": "clamped_stack_sourced"},
         {"element": "bolt_grip_11", "sign": -1}
@@ -320,7 +305,7 @@
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Head-to-cotter-hole minus the sourced clamped column. What is left over must cover the pitch-link eye PLUS the nut's thread-start-to-castellation distance; both are unsourced, so this is a budget, not a verdict on the joint. It passes with 11.1435 mm worst case available. It cannot settle the joint: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the notes and the worksheet.",
+      "guidance": "Head-to-cotter-hole minus the sourced clamped column. What is left over must cover the pitch-link eye PLUS the nut's thread-start-to-castellation distance; both are unsourced, so this is a budget, not a verdict on the joint. It passes with 11.0444 mm worst case available (11.1435 before the 2026-09-15 bands were applied). It cannot settle the joint: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the notes and the worksheet.",
       "terms": [
         {"path": "head_to_cotter_hole"},
         {"path": "clamped_stack_sourced", "sign": -1}
@@ -328,10 +313,11 @@
     }
   ],
   "notes": [
-    "BUILT FROM SCRATCH. No source workbook exists for this joint, so there is no re-derivation section in the worksheet, no `workbook_cells` on any path or check, and no `[NOT IN WORKBOOK]` markers -- every check here is original. `kind: \"workbook\"` appears zero times, as SOP Step 5b requires.",
+    "BUILT FROM SCRATCH. No source workbook exists for this joint, so there is no re-derivation section in the worksheet, no `workbook_cells` on any path or check, and no `[NOT IN WORKBOOK]` markers -- every check here is original. What is NO LONGER true, as of 2026-09-15: `kind: \"workbook\"` appeared zero times, and now appears exactly once (`washer_nas1149v0332`). SOP Step 5b's amendment of the same date is what permits it -- a sourced-but-unverified value may be applied with its true confidence carried and displayed, and the same part+feature must carry the same band in every stack that uses it. See `provenance.source_note`.",
     "THE STACK IS INCOMPLETE AND SAYS SO. The pitch-link eye / spherical bearing width is not in any document available here, so it is NOT modelled as an element with invented or recalled numbers -- it is a named gap, and the two checks are written so that the missing value appears as an explicit budget. Nothing in this file was filled from memory.",
-    "ZERO-WIDTH BANDS. `bushing_214820` and `washer_nas1149v0332` carry min == max == nominal because no document gives a tolerance. Every worst-case interval below is therefore a LOWER bound on the true spread, and the RSS half-ranges likewise understate it. This is stated rather than papered over with a plausible band.",
-    "NO INVERTING ELEMENT EXISTS HERE. Every element is an additive external length or a hole location; there is no chamfer, relief or counterbore, so `max == mmc` on all three elements that carry lmc/mmc, and `cotter_hole_from_point` carries neither. That is not the naive-MMC-mapping smell the review checklist warns about -- it is the absence of a subtracted material feature. The only negative signs in this file are on whole-element/whole-path subtractions.",
+    "NO ZERO-WIDTH BAND REMAINS, AND TWO BANDS ARE UNVERIFIED. Until 2026-09-15 `bushing_214820` and `washer_nas1149v0332` carried min == max == nominal, which made every interval here a LOWER bound on the true spread. Jeff opened the 214820-002 drawing, found a real 4.76 +0.00/-0.13 where the viewer was showing +/-0, and ruled that a sourced-but-unverified number belongs in the stack loudly rather than omitted silently. Both now carry their band and both carry `confidence: \"untraced\"`, which is what a reader and the viewer must key on: the intervals are no longer lower bounds, and they are no longer re-checkable inside this repo either. Their sources -- an operator's screenshot of a drawing that is not here, and a cell in a workbook that is -- are named in each element's notes and remain ranked gaps 3 and 4.",
+    "ONE ASYMMETRIC BAND, AND IT MOVES THE RSS CENTRE OFF THE NOMINAL. `bushing_214820` is 4.76 +0.00/-0.13: its nominal IS its max, so its midpoint (4.695) is not its nominal. `fold()` combines half-ranges in quadrature about the MIDPOINT, so from 2026-09-15 `rss_center != nominal` on `clamped_stack_sourced` (9.5678 vs 9.6328) and on both checks, by exactly the 0.065 mm half-offset of that one element. This stack's notes and worksheet previously said the re-centering artefact did not occur here; it does now. It is an artefact of the fold model, not a second opinion about the joint -- verdicts never read RSS (`CheckResult.verdict` cannot see it), and the worst-case columns are unaffected.",
+    "NO INVERTING ELEMENT EXISTS HERE. Every element is an additive external length or a hole location; there is no chamfer, relief or counterbore, so `max == mmc` on all five elements that carry lmc/mmc (three until 2026-09-15, when the bushing and washer gained bands and with them a material condition), and `cotter_hole_from_point` carries neither, because it is a location and 'most material' has no meaning for where a hole sits. That is not the naive-MMC-mapping smell the review checklist warns about -- it is the absence of a subtracted material feature. The only negative signs in this file are on whole-element/whole-path subtractions.",
     "QUANTISED GRIP -- THE MODEL DOES NOT SETTLE THIS JOINT. Retention is MS9363-09 (NUT, SLOTTED, HEXAGON, SHEAR) plus MS24665-153 cotter pin through the drilled shank. The governing constraint is whether a castellation slot lines up with the bolt's cotter hole, which quantises acceptable grip into discrete workable values instead of bounding it in a continuous interval. JPS00094 Rev C section 5.9.7 states the remedy in as many words -- 'If the hole and nut castellation do not align, change/add a washer or a different nut, and try again' with a footnote that 'Different nuts likely have different manufactured thread-start to castellation-hole spacing' -- and section 5.5.3.a caps the remedy at three washers per fastener. So this is assembly-time selection by specification, and no grip interval computed here can replace it. The two documents that would close it: MS9363 (slot count and depth) and the nut height; the bolt side is already closed by NAS6403 sheet 1 M = .174/.154.",
     "Element order is the physical order from the bolt head: bushing, [pitch-link eye -- MISSING], pitch-plate lug, washer; the three fastener dimensions follow. Only the path term lists are load-bearing for the arithmetic."
   ]
