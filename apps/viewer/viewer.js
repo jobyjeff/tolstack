@@ -995,9 +995,82 @@
         return "located by the unique match for " + JSON.stringify(e.needle);
       },
     },
+    balloon_view: {
+      text: function (e) {
+        // The strongest placement this index has: the item's own balloon,
+        // found on the page by the drawing's native geometry. Say which
+        // balloon, because "the right view" and "the right item in it" are two
+        // claims and the second is the one a reader is checking.
+        return "showing the view around balloon " + e.find_no +
+          (e.cited_zone ? ", with the cited zone " + e.cited_zone : "");
+      },
+    },
+    page_context: {
+      text: function (e) {
+        // The sheet's declared context with nothing highlighted: honest, and
+        // deliberately not dressed up as a match.
+        return "showing the declared page context " +
+          JSON.stringify(e.context_label || "(unnamed)") +
+          " — no declared region matched this citation";
+      },
+    },
     sheet_full: {
       text: function (e) { return e.note || "whole sheet"; },
     },
+  };
+
+  // What a box drawn over a crop CLAIMS. Paired against
+  // scripts/build_viewer_crops.py's HIGHLIGHT_KINDS by
+  // tests/test_js_python_vocabulary.py — a third kind arriving with no branch
+  // here would draw nothing at all, which reads as "nothing on this sheet was
+  // marked" rather than as a viewer that cannot tell.
+  //
+  // `solid` is the whole visual distinction and it is the point of there being
+  // two kinds: a solid box says the citation's own text or balloon was FOUND
+  // here; a dashed one says a human declared the rect, or the citation named
+  // this printed zone, and nothing on the page corroborated it. The same fact
+  // the provenance line has always spelled out in words ("the crop is the
+  // citation, not a match") — now carried by the picture, which is what a
+  // reader actually looks at.
+  VA.CROP_HIGHLIGHT_KINDS = {
+    verified_match: {
+      solid: true,
+      text: function (label) {
+        return label ? "found on the page: " + label : "found on the page";
+      },
+    },
+    declared_region: {
+      solid: false,
+      text: function (label) {
+        return (label ? label + " — " : "") +
+          "a declared region, not a match on the page";
+      },
+    },
+  };
+
+  // The boxes to draw over a crop (or over its companion image), always an
+  // array. An entry written before highlights existed carries none, which is
+  // the same rendering as a crop with nothing to mark — correctly: neither
+  // makes a claim about the page.
+  VA.cropHighlights = function (carrier) {
+    var boxes = carrier && carrier.highlights;
+    if (!boxes || !boxes.length) return [];
+    return boxes.filter(function (box) {
+      return box && box.frac && box.frac.length === 4;
+    });
+  };
+
+  // What the link into drawing-checker should SAY: the drawing's own number and
+  // revision, as the citation states them — "215197 rev A.1". Never "open run"
+  // and never a URL (Jeff's standing web-copy rule: no internal names in
+  // user-facing copy, and a run id is the most internal name in this repo).
+  // null when the entry does not carry both, so the caller keeps its old text
+  // rather than printing "undefined rev undefined".
+  VA.drawingLinkText = function (cropEntry) {
+    if (!cropEntry || !cropEntry.drawing_no || !cropEntry.drawing_revision) {
+      return null;
+    }
+    return cropEntry.drawing_no + " rev " + cropEntry.drawing_revision;
   };
 
   // What a crop resolved by a rule this viewer has never heard of must say. It
@@ -1013,6 +1086,17 @@
   // for the same reason: a hover that quietly says nothing about where on the
   // sheet a crop was taken reads as "the whole sheet", which is a different
   // claim from "this viewer cannot tell you".
+  // The same, for a box drawn over a crop whose kind this viewer has no branch
+  // for. It still gets drawn -- a highlight the builder emitted is a rect
+  // somebody meant, and hiding it would hide the claim -- but it says out loud
+  // that whether the rect was FOUND or merely declared is not shown here,
+  // because those are the two very different things a box on a drawing can mean.
+  VA.unlabelledHighlightText = function (kind) {
+    return "highlighted as " + JSON.stringify(kind === undefined ? null : kind) +
+      ", a kind this viewer has no label for — whether this rect was found on " +
+      "the page or only declared is NOT shown here";
+  };
+
   VA.unlabelledPlacementText = function (locatedBy) {
     return "placed by " + JSON.stringify(locatedBy === undefined ? null : locatedBy) +
       ", a rule this viewer has no label for — WHERE on the sheet this crop " +

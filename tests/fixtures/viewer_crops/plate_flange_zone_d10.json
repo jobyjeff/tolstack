@@ -1,0 +1,161 @@
+{
+  "_recorded": "2026-09-15, handoff viewer_reference_crops_in_context",
+  "_source": "drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf, sheet 2 -- the ONLY export of 215197 in the workspace (stack_pitch_link_to_pitch_plate's pitch_plate_flange names it, sha256 3716251b...)",
+  "_why": "Tracked because data/ and drawing-checker's runs are gitignored: a test that opened the PDF would pass in the main checkout and fail in every worktree. These are the numbers the real page gave, so the values pinned against them are the live ones.",
+  "page_rect": [
+    0.0,
+    0.0,
+    1683.78,
+    1190.5601
+  ],
+  "cited_zone": "D10",
+  "zone_cell": [
+    280.6245,
+    595.2806,
+    420.9435,
+    744.1006
+  ],
+  "callout_hit": [
+    365.46,
+    606.654,
+    396.8842,
+    622.8006
+  ],
+  "needle": "\u00b10.10",
+  "paths_reached": [
+    [
+      399.73,
+      615.1501,
+      414.9,
+      615.1501
+    ],
+    [
+      414.9,
+      552.1901,
+      570.71,
+      615.1501
+    ],
+    [
+      369.72,
+      627.9001,
+      369.72,
+      644.91
+    ],
+    [
+      385.87,
+      627.9001,
+      385.87,
+      644.91
+    ],
+    [
+      401.18,
+      627.9001,
+      401.18,
+      644.91
+    ],
+    [
+      415.63,
+      627.9001,
+      415.63,
+      644.91
+    ],
+    [
+      368.02,
+      644.91,
+      368.02,
+      661.92
+    ],
+    [
+      383.33,
+      644.91,
+      383.33,
+      661.92
+    ],
+    [
+      311.92,
+      627.9001,
+      415.63,
+      627.9001
+    ],
+    [
+      311.92,
+      644.91,
+      415.63,
+      644.91
+    ],
+    [
+      576.47,
+      543.7501,
+      633.26,
+      684.29
+    ],
+    [
+      570.1825,
+      549.0088,
+      578.5982,
+      553.5085
+    ],
+    [
+      570.18,
+      549.0101,
+      578.6,
+      553.5101
+    ],
+    [
+      311.92,
+      661.92,
+      383.33,
+      661.92
+    ],
+    [
+      311.92,
+      627.9001,
+      311.92,
+      644.91
+    ],
+    [
+      311.92,
+      644.91,
+      311.92,
+      661.92
+    ]
+  ],
+  "paths_not_reached": [
+    [
+      334.03,
+      627.9001,
+      334.03,
+      644.91
+    ],
+    [
+      334.03,
+      644.91,
+      334.03,
+      661.92
+    ],
+    [
+      278.53,
+      721.2301,
+      295.54,
+      738.2401
+    ]
+  ],
+  "expected_attachment_rect": [
+    251.92,
+    483.7501,
+    693.26,
+    744.29
+  ],
+  "expected_crop_rect": [
+    140.3055,
+    446.4606,
+    693.26,
+    892.9206
+  ],
+  "expected_crop_rect_rounded": [
+    140.31,
+    446.46,
+    693.26,
+    892.92
+  ]
+}

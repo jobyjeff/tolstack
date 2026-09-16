@@ -1,0 +1,222 @@
+{
+  "_recorded": "2026-09-15, handoff viewer_reference_crops_in_context",
+  "_source": "drawing-checker run 20260803_145243_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER -- 217755_A_balloons.json (the parts-list rows and the sheet-4 DETAIL B balloons) and 217755_A_p01.json (the parts-list table's tight bbox). Both gitignored over there, hence the copy.",
+  "_why": "The bushing/washer parts-list citations are located by their own BALLOON, which is drawing-checker's native-PDF geometry. A test that read the run directly would be green only in the main checkout.",
+  "pl_page": 1,
+  "parts_list": [
+    {
+      "find_no": 32,
+      "part_number": "NAS1149V0332H",
+      "nomenclature": "WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\"",
+      "qty": 9,
+      "qty_raw": "9",
+      "qty_alt": 9,
+      "qty_alt_raw": "9"
+    },
+    {
+      "find_no": 34,
+      "part_number": "214820-002",
+      "nomenclature": "BUSHING, PLAIN, ALUMINUM BRONZE, .1900\" ID X .1875\" LONG",
+      "qty": 8,
+      "qty_raw": "8",
+      "qty_alt": 8,
+      "qty_alt_raw": "8"
+    }
+  ],
+  "balloons_sheet4_detail_b": [
+    {
+      "item_no": 78,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        1629.76,
+        633.66,
+        1653.57,
+        657.47
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 74,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        1714.94,
+        380.66,
+        1738.75,
+        404.47
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 34,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        1854.71,
+        219.08,
+        1878.52,
+        242.88
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 38,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        1764.27,
+        270.11,
+        1788.08,
+        293.92
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 33,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        2101.59,
+        224.75,
+        2125.4,
+        248.56
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 36,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        2132.77,
+        309.79,
+        2156.58,
+        333.6
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 32,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        2067.57,
+        564.91,
+        2091.38,
+        588.72
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 35,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        1832.3,
+        567.75,
+        1856.11,
+        591.55
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 31,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        1738.75,
+        380.66,
+        1762.56,
+        404.47
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 6,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        1898.46,
+        881.05,
+        1922.27,
+        904.85
+      ],
+      "page": 4
+    },
+    {
+      "item_no": 86,
+      "qty": 1,
+      "view_id": "p4:DETAIL B",
+      "view_places": 1,
+      "view_assoc": "contained",
+      "bbox_pt": [
+        1966.49,
+        864.04,
+        1990.3,
+        887.85
+      ],
+      "page": 4
+    }
+  ],
+  "parts_list_table_rect": [
+    59.53,
+    219.69,
+    1473.96,
+    1606.33
+  ],
+  "part_number_hits_on_sheet1": {
+    "214820-002": [
+      [
+        116.22,
+        668.8339,
+        174.8259,
+        684.9805
+      ]
+    ],
+    "NAS1149V0332H": [
+      [
+        116.22,
+        739.1039,
+        196.9294,
+        755.2505
+      ]
+    ]
+  },
+  "find_header_x": [
+    59.53,
+    714.33
+  ],
+  "expected_parts_list_band": [
+    56.53,
+    634.8339,
+    711.33,
+    718.9805
+  ],
+  "expected_parts_list_hit": [
+    116.22,
+    668.8339,
+    174.8259,
+    684.9805
+  ]
+}

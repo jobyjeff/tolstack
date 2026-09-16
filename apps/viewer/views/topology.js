@@ -1769,18 +1769,11 @@
       box.appendChild(VA.el("div", "detail__crop-reason", entry.reason || entry.status));
       return box;
     }
-    if (ctx.detailImage && ctx.detailImage.url) {
-      var img = VA.el("img", "detail__crop-img");
-      img.setAttribute("src", ctx.detailImage.url);
-      img.setAttribute("alt", "crop of " + entry.pdf_name + " sheet " + entry.page);
-      if (entry.width && entry.height) {
-        img.style.aspectRatio = entry.width + " / " + entry.height;
-      }
-      box.appendChild(img);
-    } else {
-      box.appendChild(VA.el("div", "detail__crop-reason",
-        VA.CROP_IMAGE_MISSING_TEXT));
-    }
+    // Shared builder, same as the stack pane's: the image, its highlight boxes
+    // and the parts-list companion for a balloon crop.
+    box.appendChild(VA.cropFigure(entry, ctx.detailImage, "detail__crop-img"));
+    var companion = VA.companionFigure(entry, ctx.cropImages);
+    if (companion) box.appendChild(companion);
     // The reference, its links and the folded matching provenance, from the
     // ONE builder every crop surface shares (VA.cropReference, views/crop.js).
     // This pane used to print the reference, then the provenance line in the

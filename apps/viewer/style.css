@@ -426,6 +426,44 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .croppop__reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
 .croppop__links { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
 
+/* --- highlight boxes over a crop (viewer_reference_crops_in_context) -------
+   crops.json carries, per crop, the rects worth pointing at as FRACTIONS of
+   the crop itself (`highlights[].frac`), so the overlay is a positioned box
+   inside .cropfig rather than pixels burnt into the PNG: one image then reads
+   correctly at every one of the four widths this page lays a crop out at, and
+   the verified/declared distinction is a CSS rule instead of two render paths
+   in the crop builder.
+
+   Two kinds, and the difference is the whole reason there are two
+   (VA.CROP_HIGHLIGHT_KINDS): SOLID means the citation's own text, or the
+   balloon carrying its find number, was FOUND at this rect on this page.
+   DASHED means a human declared the rect, or the citation named this printed
+   zone, and nothing on the page corroborated it -- the fact the provenance
+   line has always spelled out in words ("the crop is the citation, not a
+   match"), now carried by the picture. */
+.cropfig { position: relative; }
+.crophl {
+  position: absolute; pointer-events: none; box-sizing: border-box;
+  border-radius: 2px;
+  /* The same reading drawing-checker's run viewer gives a glowed balloon: a
+     light wash inside, a firmer edge around it. Replicated rather than reused
+     -- that surface is a live SVG overlay over a pdf.js canvas and these are
+     pre-rendered PNGs, so the treatment travels and the mechanism cannot. */
+  background: rgba(255, 196, 0, .18);
+  border: 2px solid rgba(255, 196, 0, .95);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 0 10px 2px rgba(255, 196, 0, .45);
+}
+.crophl--dashed {
+  border-style: dashed; background: rgba(255, 196, 0, .07); box-shadow: none;
+}
+/* A kind this build has no branch for is still drawn -- the rect is real -- and
+   reads as the weaker claim, because which of the two it is is unknown here. */
+.crophl--unlabelled { border-color: var(--muted); background: none; box-shadow: none; }
+
+/* A crop's second image: the parts-list row for the item its balloon marks. */
+.cropcompanion { margin-top: 8px; }
+.cropcompanion__head { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
 /* --- hover reference cards (viewer_hover_cards_and_deep_links) --------- */
 /* Rendered into the SAME positioned #croppop node as the crop popover, so
    they inherit its absolute positioning and can never disturb the page's
@@ -460,7 +498,15 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
   text-decoration: underline; cursor: pointer;
 }
 .hovercard__noresolve { margin: 4px 0; }
-.hovercard .cropblock img.croppop__img { max-height: 260px; object-fit: contain; }
+/* A card's crop is capped by WIDTH, not height, so the picture is never
+   letterboxed inside its element -- `object-fit: contain` did exactly that, and
+   the highlight overlay is positioned in percentages of the element, so it
+   would have pointed into the letterbox rather than at the rect. `--crop-ratio`
+   is the crop's own width/height, set inline by VA.cropFigure, which turns
+   "260px tall at most" into a width this rule can actually write. */
+.hovercard .cropblock .cropfig {
+  max-width: calc(260px * var(--crop-ratio, 1)); margin-inline: auto;
+}
 /* A card trigger reads as one: same affordance cue as the crop trigger. */
 .cardtrig { cursor: help; }
 

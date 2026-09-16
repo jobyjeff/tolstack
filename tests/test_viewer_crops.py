@@ -815,3 +815,464 @@ def test_a_drawing_citation_is_untouched_by_the_registry(tmp_path, pile, fake_fi
     assert entry["status"] == "resolved"
     assert entry["located_by"] == "sheet_full"
     assert entry["region_label"] is None
+
+
+# --- the three live cases, pinned value for value --------------------------
+#
+# Handoff ``viewer_reference_crops_in_context`` (2026-09-15), from Jeff's review
+# of the pitch-link topology. Three crops were wrong in three different ways and
+# the fix for each is a RECT, so each is pinned as a rect here rather than as a
+# shape:
+#
+#   * the bolt grip -- a 322x20px strip of one table row, "just four numbers
+#     with no context for what they mean": now the sheet's declared page CONTEXT
+#     (headers, figure, closing note) with the row as a highlight box;
+#   * the bushing -- the zone of the DETAIL B *caption*, with the balloon the
+#     citation is about off the top edge: now framed on the balloon itself;
+#   * the pitch-plate lug -- "just shows dimensions floating in space, the part
+#     itself is cropped out of the view": now widened along the callout's leader
+#     to the feature it dimensions.
+#
+# The geometry comes from tracked fixtures in ``tests/fixtures/viewer_crops/``,
+# recorded off the real export and the real drawing-checker run. It is copied
+# rather than read live for one reason: ``data/`` and drawing-checker's
+# ``data/runs/`` are BOTH gitignored, so a test that opened them would be green
+# in the main checkout and red in every worktree -- which trains people to
+# ignore red suites (the same reasoning ``test_viewer_js_suite.py`` gives for
+# skipping rather than failing). Each fixture records where it came from.
+
+FIXTURES = REPO_ROOT / "tests" / "fixtures" / "viewer_crops"
+
+
+def load_fixture(name):
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def plate_fixture():
+    return load_fixture("plate_flange_zone_d10.json")
+
+
+@pytest.fixture(scope="module")
+def balloon_fixture():
+    return load_fixture("detail_b_balloons.json")
+
+
+class RecordedPage(FakePage):
+    """A :class:`FakePage` whose hits, vector paths and grid come off a fixture.
+
+    The one thing it adds over ``FakePage`` is ``get_drawings``: the attachment
+    walk (:func:`bvc.attachment_rect`) is the only placement rule that reads a
+    page's vector content, and it is the rule the pitch-plate case turns on.
+    """
+
+    def __init__(self, page_rect, hits=None, paths=(), words=(), text=""):
+        super().__init__(text=text, words=words, hits=hits)
+        self.rect = FakeRect(*page_rect)
+        self._paths = [tuple(p) for p in paths]
+
+    def get_drawings(self):
+        return [{"rect": rect} for rect in self._paths]
+
+
+# --- case 3: the dimension crop that has to contain the geometry ------------
+
+
+def test_the_attachment_walk_follows_the_callouts_leader_to_the_feature(plate_fixture):
+    """The pitch-plate lug, value for value off the real sheet.
+
+    ``expected_attachment_rect`` was recorded from the live page, so this is the
+    number the builder writes today and not a near miss: the walk reaches the
+    leader, then the edge its arrowhead lands on, then stops.
+    """
+    page = RecordedPage(
+        plate_fixture["page_rect"],
+        paths=plate_fixture["paths_reached"] + plate_fixture["paths_not_reached"],
+    )
+    got = bvc.attachment_rect(page, plate_fixture["callout_hit"])
+    assert got is not None
+    assert [round(v, 4) for v in got] == plate_fixture["expected_attachment_rect"]
+
+
+def test_the_widened_zone_crop_is_the_rect_the_live_projection_carries(plate_fixture):
+    """The whole placement, through :func:`bvc.locate`: zone D10 padded by one
+    cell, unioned with what the leader reaches. Before this handoff the crop
+    stopped at the zone and the lug was outside it."""
+    words = zone_words(plate_fixture["zone_cell"], "D", 10)
+    page = RecordedPage(
+        plate_fixture["page_rect"],
+        hits={plate_fixture["needle"]: [plate_fixture["callout_hit"]]},
+        paths=plate_fixture["paths_reached"] + plate_fixture["paths_not_reached"],
+        words=words, text="a sheet with a text layer",
+    )
+    placement = bvc.locate(page, {"zone": "D10", "callout": "5X 4.06 \u00b10.10"},
+                           None, 1.0, 200.0)
+    assert placement["located_by"] == "zone_cell"
+    assert placement["callout_text_in_zone"] is True
+    assert [round(v, 2) for v in placement["rect"]] == \
+        plate_fixture["expected_crop_rect_rounded"]
+    # And the callout itself is boxed, SOLID, because it was found there.
+    assert [(h["kind"], h["rect_pt"]) for h in placement["highlights"]] == [
+        ("verified_match", [round(v, 2) for v in plate_fixture["callout_hit"]])
+    ]
+
+
+def test_a_zone_crop_whose_callout_is_absent_keeps_its_old_rect_and_a_dashed_box(
+        plate_fixture):
+    """Declared-region honesty, in the picture (deliverable 4). Nothing on the
+    page corroborated the citation, so the crop does NOT widen -- there is no
+    leader to follow -- and the box round the zone says as much by being the
+    `declared_region` kind, which the viewer draws dashed."""
+    words = zone_words(plate_fixture["zone_cell"], "D", 10)
+    page = RecordedPage(plate_fixture["page_rect"], hits={}, words=words,
+                        paths=plate_fixture["paths_reached"],
+                        text="a sheet with a text layer")
+    placement = bvc.locate(page, {"zone": "D10", "callout": "5X 4.06 \u00b10.10"},
+                           None, 1.0, 200.0)
+    assert placement["callout_text_in_zone"] is False
+    cell = plate_fixture["zone_cell"]
+    width, height = cell[2] - cell[0], cell[3] - cell[1]
+    assert [round(v, 2) for v in placement["rect"]] == [
+        round(v, 2) for v in bvc.pad_rect(tuple(cell), width, height)]
+    assert [h["kind"] for h in placement["highlights"]] == ["declared_region"]
+
+
+def test_the_attachment_walk_refuses_scenery_and_stops_at_two_hops():
+    """A path big enough to be a view outline or the drawing frame is not
+    followed: one connected edge would otherwise walk the crop out to the whole
+    sheet, which is the failure the two-hop rule and
+    :data:`bvc.ATTACHMENT_MAX_PATH_PT` exist to prevent."""
+    hit = (100.0, 100.0, 140.0, 112.0)
+    frame = (0.0, 0.0, 2000.0, 1400.0)
+    page = RecordedPage((0.0, 0.0, 2000.0, 1400.0), paths=[frame])
+    assert bvc.attachment_rect(page, hit) is None
+    # A leader of a sane size IS followed, and reaches exactly what touches its
+    # far end -- not what touches that.
+    leader = (150.0, 60.0, 250.0, 104.0)
+    feature = (252.0, 40.0, 290.0, 80.0)
+    far = (400.0, 40.0, 430.0, 80.0)
+    page = RecordedPage((0.0, 0.0, 2000.0, 1400.0),
+                        paths=[frame, leader, feature, far])
+    got = bvc.attachment_rect(page, hit)
+    assert got == bvc.pad_rect(
+        bvc.union_rect(bvc.union_rect(hit, leader), feature),
+        bvc.ATTACHMENT_PAD_PT, bvc.ATTACHMENT_PAD_PT)
+
+
+def test_a_page_with_no_vector_content_yields_no_attachment():
+    """A scan, and a page object that does not expose drawings at all, are the
+    same answer: keep the rect you had. The NAS standard is a photocopy."""
+    assert bvc.attachment_rect(RecordedPage((0, 0, 610, 842)), (1, 1, 2, 2)) is None
+    assert bvc.attachment_rect(FakePage(), (1, 1, 2, 2)) is None
+
+
+def zone_words(cell, letter, number):
+    """Border words that make :func:`bvc.zone_cell` return ``cell`` exactly.
+
+    ``page_native_grid`` reads the printed grid off words near a page edge and
+    ``zone_cell`` sizes a cell from the MEDIAN spacing of what it read, so three
+    labels a cell-width apart on each axis reproduce one known cell. Derived
+    from the cell rather than hard-coded, so the fixture stays the only place a
+    number lives.
+    """
+    width, height = cell[2] - cell[0], cell[3] - cell[1]
+    cx, cy = (cell[0] + cell[2]) / 2, (cell[1] + cell[3]) / 2
+    words = []
+    for index, offset in enumerate((-1, 0, 1)):
+        x = cx + offset * width
+        words.append((x - 3.0, 5.0, x + 3.0, 12.0, str(number + offset), 0, 0, 0))
+        y = cy + offset * height
+        words.append((5.0, y - 3.0, 12.0, y + 3.0,
+                      chr(ord(letter) + offset), 0, 0, 0))
+    return words
+
+
+# --- case 1: the location reference, framed on its own balloon --------------
+
+
+def test_a_parts_list_citation_is_located_by_its_own_balloon(balloon_fixture):
+    """The bushing. Its citation names zone H3, which is where the DETAIL B
+    CAPTION is printed -- balloon 34 sits 200pt above that cell, so the old crop
+    showed the view with the item off the top edge."""
+    answer = bvc.balloon_answer(
+        {"parts_list": balloon_fixture["parts_list"],
+         "balloons": balloon_fixture["balloons_sheet4_detail_b"],
+         "pl_page": balloon_fixture["pl_page"]},
+        4,
+        {"kind": "parts_list", "view": "DETAIL B",
+         "callout": "214820-002  BUSHING, PLAIN, ALUMINUM BRONZE"},
+        "214820-002",
+    )
+    assert answer["find_no"] == 34
+    assert answer["part_number"] == "214820-002"
+    assert answer["view_matched"] is True
+    assert len(answer["rects"]) == 1
+    # The item's balloon, and the extent of the view it is in -- the frame when
+    # a citation names no zone.
+    assert len(answer["view_rects"]) == len(
+        balloon_fixture["balloons_sheet4_detail_b"])
+
+
+def test_the_balloon_crop_contains_the_balloon_and_the_cited_zone(balloon_fixture):
+    balloon = bvc.balloon_answer(
+        {"parts_list": balloon_fixture["parts_list"],
+         "balloons": balloon_fixture["balloons_sheet4_detail_b"],
+         "pl_page": balloon_fixture["pl_page"]},
+        4, {"kind": "parts_list", "view": "DETAIL B",
+            "callout": "214820-002  BUSHING"}, "214820-002")
+    cell = (1936.95, 561.26, 2085.94, 701.59)   # printed zone H3, from the export
+    page = RecordedPage((0.0, 0.0, 2383.94, 1683.78),
+                        words=zone_words(cell, "H", 3),
+                        text="a drawing with a text layer")
+    placement = bvc.locate(page, {"zone": "H3", "view": "DETAIL B",
+                                  "callout": "214820-002  BUSHING"},
+                           "214820-002", 1.0, 200.0, None, balloon)
+    assert placement["located_by"] == "balloon_view"
+    assert placement["find_no"] == 34
+    item = balloon["rects"][0]
+    # The balloon is inside the crop, which is the whole point -- it was not
+    # before. And so is the cited zone, which carries the view's caption.
+    assert bvc.rect_contains(placement["rect"], item)
+    assert bvc.rect_contains(placement["rect"], cell)
+    assert [(h["kind"], h["label"]) for h in placement["highlights"]] == [
+        ("verified_match", "balloon 34")]
+
+
+def test_a_balloon_beats_the_cited_zone_because_the_caption_is_not_the_item(
+        balloon_fixture):
+    """The one precedence this handoff changed, and the reason: a zone citation
+    for a parts-list item names the view's caption cell, and this repo has
+    already watched such a zone MOVE between two exports of one revision
+    (pitch_link worksheet, finding F4). The balloon is the item itself."""
+    balloon = bvc.balloon_answer(
+        {"parts_list": balloon_fixture["parts_list"],
+         "balloons": balloon_fixture["balloons_sheet4_detail_b"],
+         "pl_page": balloon_fixture["pl_page"]},
+        4, {"view": "DETAIL B", "callout": "214820-002  BUSHING"}, "214820-002")
+    cell = (1936.95, 561.26, 2085.94, 701.59)
+    page = RecordedPage((0.0, 0.0, 2383.94, 1683.78),
+                        words=zone_words(cell, "H", 3), text="a drawing")
+    with_balloon = bvc.locate(page, {"zone": "H3", "view": "DETAIL B"},
+                              "214820-002", 1.0, 200.0, None, balloon)
+    without = bvc.locate(page, {"zone": "H3", "view": "DETAIL B"},
+                         "214820-002", 1.0, 200.0, None, None)
+    assert with_balloon["located_by"] == "balloon_view"
+    assert without["located_by"] == "zone_cell"
+    assert not bvc.rect_contains(without["rect"], balloon["rects"][0]), (
+        "the zone crop did not contain the item's balloon -- which is the "
+        "defect this rule exists to fix; if this ever passes, the fixture "
+        "moved and the rest of this case is measuring nothing"
+    )
+
+
+def test_a_part_number_is_matched_exactly_never_by_prefix(balloon_fixture):
+    """``NAS1149V0332`` (the element's ``hardware_ref``) and ``NAS1149V0332H``
+    (its parts-list row) are two part numbers. The row is reached through the
+    CALLOUT's first token, which is the full number; nothing is prefix-matched,
+    because accepting one part number for another is the whole class of error
+    this repo exists to prevent."""
+    balloons = {"parts_list": balloon_fixture["parts_list"],
+                "balloons": balloon_fixture["balloons_sheet4_detail_b"],
+                "pl_page": balloon_fixture["pl_page"]}
+    row = bvc.parts_list_row_for(
+        balloons,
+        {"callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V  (find 32, qty 9)"},
+        "NAS1149V0332")
+    assert row["part_number"] == "NAS1149V0332H"
+    assert row["find_no"] == 32
+    # The truncated number alone reaches nothing.
+    assert bvc.parts_list_row_for(balloons, {}, "NAS1149V0332") is None
+    assert bvc.candidate_part_numbers({"callout": "214820-002 BUSHING"}, None) == \
+        ["214820-002"]
+
+
+def test_a_citation_naming_no_ballooned_item_gets_no_balloon_answer(balloon_fixture):
+    """Every missing link short-circuits to ``None``, and the caller then places
+    the crop exactly as it did before -- so this rule can only ever ADD a
+    located crop, never move one it does not understand."""
+    balloons = {"parts_list": balloon_fixture["parts_list"],
+                "balloons": balloon_fixture["balloons_sheet4_detail_b"],
+                "pl_page": balloon_fixture["pl_page"]}
+    # no balloon file at all
+    assert bvc.balloon_answer(None, 4, {}, "214820-002") is None
+    # a part number no row carries
+    assert bvc.balloon_answer(balloons, 4, {}, "999999-001") is None
+    # the right item, the wrong sheet
+    assert bvc.balloon_answer(balloons, 7, {}, "214820-002") is None
+
+
+def test_a_view_the_balloons_do_not_name_shows_every_balloon_of_the_item(
+        balloon_fixture):
+    """Filtering to nothing would throw away the only evidence there is, so a
+    cited view no ``view_id`` names falls back to every balloon of the item on
+    the sheet -- and says so through ``view_matched``."""
+    answer = bvc.balloon_answer(
+        {"parts_list": balloon_fixture["parts_list"],
+         "balloons": balloon_fixture["balloons_sheet4_detail_b"],
+         "pl_page": balloon_fixture["pl_page"]},
+        4, {"view": "SECTION ZZ-ZZ"}, "214820-002")
+    assert answer["view_matched"] is False
+    assert len(answer["rects"]) == 1
+
+
+def test_the_parts_list_row_band_is_the_cited_rows_own_column_block(balloon_fixture):
+    """The companion image. The band spans the printed block the row is in --
+    delimited by the ``FIND`` headers, because a Joby parts list prints as
+    several side-by-side blocks and a band across the whole table would carry
+    two unrelated rows' columns."""
+    hits = balloon_fixture["part_number_hits_on_sheet1"]
+    page = RecordedPage(
+        (0.0, 0.0, 2383.94, 1683.78),
+        hits={**hits,
+              bvc.PARTS_LIST_BLOCK_HEADER: [(x, 1588.9, x + 22.0, 1605.1)
+                                            for x in balloon_fixture["find_header_x"]]},
+    )
+    band, hit = bvc.parts_list_row_rect(
+        page, balloon_fixture["parts_list_table_rect"], "214820-002")
+    assert [round(v, 4) for v in band] == \
+        balloon_fixture["expected_parts_list_band"]
+    assert [round(v, 4) for v in hit] == balloon_fixture["expected_parts_list_hit"]
+    # The block, not the table: the table runs to x=1473.96 and the next FIND
+    # header starts at 714.33.
+    assert band[2] < balloon_fixture["parts_list_table_rect"][2]
+
+
+def test_a_part_number_that_is_not_unique_in_the_table_yields_no_row():
+    """Two hits is two rows, and this function will not pick one."""
+    table = (0.0, 0.0, 800.0, 1600.0)
+    page = RecordedPage((0.0, 0.0, 800.0, 1600.0), hits={
+        "X-1": [(10.0, 100.0, 60.0, 116.0), (10.0, 300.0, 60.0, 316.0)],
+    })
+    assert bvc.parts_list_row_rect(page, table, "X-1") is None
+    assert bvc.parts_list_row_rect(page, table, "not-on-the-sheet") is None
+
+
+# --- case 2: the datasheet crop, with the used cell boxed -------------------
+
+
+def a_context(label="Sheet 3, the whole grip/length table with its headers"):
+    return scr.CropContext(
+        document="NAS6403-NAS6420 Rev 4.pdf", page=3, label=label,
+        rect=(82.0, 76.0, 540.0, 598.0),
+        shows="the whole table, its headers and its closing note",
+        recorded="2026-09-15", recorded_by="a test",
+    )
+
+
+def test_a_declared_context_becomes_the_crop_and_the_region_becomes_a_box():
+    """Deliverable 2. The crop is the whole table; the cited row is one box in
+    it. Before this, the crop WAS the row band -- 322x20 pixels, "just four
+    numbers with no context for what they mean"."""
+    registry = scr.CropRegionRegistry(regions=(a_region(),),
+                                      contexts=(a_context(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3,
+                         "row 'Grip Dash No. 13'")
+    placement = bvc.locate(FakePage(), {"zone": None}, "NAS6403U13H", 1.0, 200.0,
+                           answer)
+    assert placement["located_by"] == "declared_region"
+    assert placement["rect"] == (82.0, 76.0, 540.0, 598.0)
+    assert placement["context_label"] == a_context().label
+    assert placement["region_label"] == "Grip Dash No. 13 row"
+    # DASHED: a human recorded the rect; nothing on this photocopy corroborated
+    # it, and it has no text layer to corroborate with.
+    assert [(h["kind"], h["rect_pt"]) for h in placement["highlights"]] == [
+        ("declared_region", [84.5, 196.25, 191.6, 204.25])]
+
+
+def test_the_shipped_registry_declares_a_context_for_both_cited_nas_sheets():
+    """The live case, read out of the tracked registry: sheet 3 (the grip/length
+    table the bolt's grip and length are read from) and sheet 1 (the figure and
+    dimension table the cotter-hole dimension M is read from) each declare one,
+    and every region on those sheets falls INSIDE it -- a region outside its
+    sheet's context would be highlighted off the edge of the crop."""
+    registry = scr.load(REPO_ROOT / scr.REGISTRY_RELPATH)
+    for page in (1, 3):
+        context = registry.context_for("NAS6403-NAS6420 Rev 4.pdf", page)
+        assert context is not None, f"sheet {page} declares no crop context"
+        for region in registry.for_page("NAS6403-NAS6420 Rev 4.pdf", page):
+            assert bvc.rect_contains(context.rect, region.rect), (
+                f"{region.label!r} is outside the context {context.label!r}"
+            )
+
+
+def test_a_page_context_with_no_matching_region_is_the_crop_and_says_so():
+    """Honest middle state: the sheet's context beats the whole sheet, and it
+    highlights nothing rather than guessing which row was meant."""
+    registry = scr.CropRegionRegistry(
+        regions=(a_region(), a_region(label="Grip Dash No. 14 row",
+                                      match=("Grip Dash No. 14",))),
+        contexts=(a_context(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3, "no row named")
+    assert answer.how == "no_match"
+    placement = bvc.locate(FakePage(), {"zone": None}, None, 1.0, 200.0, answer)
+    assert placement["located_by"] == "page_context"
+    assert placement["rect"] == (82.0, 76.0, 540.0, 598.0)
+    assert placement["highlights"] == []
+    assert "no declared region matched" in placement["note"]
+
+
+def test_a_unique_callout_match_still_beats_the_page_context():
+    """A context is the sheet-wide answer and a text hit is a place. The
+    specific one wins -- and it is widened along its leader like any other
+    located callout."""
+    registry = scr.CropRegionRegistry(contexts=(a_context(),))
+    answer = scr.resolve(registry, "NAS6403-NAS6420 Rev 4.pdf", 3, "")
+    page = FakePage(text="a sheet with a text layer",
+                    hits={"NAS6403U13H": [(10.0, 10.0, 60.0, 20.0)]})
+    placement = bvc.locate(page, {"zone": None}, "NAS6403U13H", 1.0, 200.0, answer)
+    assert placement["located_by"] == "callout_text"
+    assert [h["kind"] for h in placement["highlights"]] == ["verified_match"]
+
+
+# --- the shape every consumer reads ----------------------------------------
+
+
+def test_every_placement_carries_highlights_and_the_new_keys():
+    """One shape per entry, highlights included: "nothing was marked on this
+    sheet" and "this index is older than highlights" must not look the same to
+    the viewer, which is why an empty list is written rather than no key."""
+    page = FakePage(text="a sheet", hits={"NAS6403U13H": [(1.0, 1.0, 2.0, 2.0)]})
+    for placement in (
+        bvc.locate(page, {"zone": None}, "NAS6403U13H", 1.0, 200.0, None),
+        bvc.locate(FakePage(), {"zone": None}, None, 1.0, 200.0, None),
+    ):
+        assert placement["highlights"] == [] or all(
+            box["kind"] in bvc.HIGHLIGHT_KINDS for box in placement["highlights"])
+        for key in ("context_label", "find_no", "region_label", "region_match"):
+            assert key in placement
+
+
+def test_a_highlight_kind_outside_the_vocabulary_is_refused_at_the_source():
+    """The vocabulary is a module-level constant and the constructor is the one
+    gate: a new word reaches ``crops.json`` only by being added to
+    :data:`bvc.HIGHLIGHT_KINDS`, where
+    ``tests/test_js_python_vocabulary.py`` pairs it against the viewer's copy."""
+    assert bvc.HIGHLIGHT_KINDS == ("verified_match", "declared_region")
+    with pytest.raises(ValueError, match="not one of"):
+        bvc.highlight("glowing", "a label", (0, 0, 1, 1))
+
+
+def test_highlight_fractions_are_measured_against_the_crop_and_clamped():
+    """The viewer holds a PNG and no idea what scale it was rendered at, so a
+    box in points is unusable there. Clamped because a padded zone cell trimmed
+    by the page border legitimately runs off the crop, and a box drawn outside
+    its frame points at nothing."""
+    rect = (100.0, 200.0, 300.0, 400.0)
+    boxes = bvc.with_fracs(rect, [
+        bvc.highlight("verified_match", "inside", (150.0, 250.0, 200.0, 300.0)),
+        bvc.highlight("declared_region", "hanging off", (50.0, 150.0, 400.0, 500.0)),
+    ])
+    assert boxes[0]["frac"] == [0.25, 0.25, 0.5, 0.5]
+    assert boxes[1]["frac"] == [0.0, 0.0, 1.0, 1.0]
+    # The rect in points is kept beside it: the fraction is for drawing, the
+    # points are what a reviewer checks against the sheet.
+    assert boxes[0]["rect_pt"] == [150.0, 250.0, 200.0, 300.0]
+
+
+def test_a_zero_width_crop_does_not_divide_by_zero():
+    """A degenerate rect is not a crash. It cannot arise from `locate` today,
+    but `with_fracs` is called on a rect clamped to the page and a citation
+    naming a rect entirely off-page would clamp to nothing."""
+    boxes = bvc.with_fracs((10.0, 10.0, 10.0, 10.0),
+                           [bvc.highlight("verified_match", None, (0, 0, 5, 5))])
+    assert boxes[0]["frac"] == [0.0, 0.0, 0.0, 0.0]

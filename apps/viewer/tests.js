@@ -1920,6 +1920,188 @@
       has(root.textContent, "is not on disk");
     });
 
+    // --- the highlight overlay (viewer_reference_crops_in_context) ----------
+    //
+    // Jeff, 2026-09-15, on the bolt-grip crop: it "is just four numbers with no
+    // context for what they mean". The answer is a WIDER crop with the used
+    // cell boxed, so the whole deliverable turns on a box actually being
+    // emitted over the picture -- a crop that widened and marked nothing is
+    // strictly worse than the tight strip it replaced, and it would look
+    // perfectly fine in a screenshot. These cases are that seam.
+
+    // The datasheet case, value for value as the live NAS sheet-3 crop carries
+    // it: the CONTEXT is the crop (the whole grip/length table with its
+    // headers), and the declared row band is one dashed box inside it.
+    function datasheetEntry() {
+      return {
+        status: "resolved", png: "crops/nas.png", pdf: "C:/specs/nas.pdf",
+        pdf_name: "NAS6403-NAS6420 Rev 4.pdf", page: 3,
+        resolved_by: "source_ref_export", run_dir: null, run_id: null,
+        sha256_verified: true, located_by: "declared_region",
+        region_label: "Grip Dash No. 11 row", region_match: "Grip Dash No. 11",
+        context_label: "Sheet 3, the whole grip/length table with its headers",
+        cited_zone: null, callout_text_in_zone: null, find_no: null,
+        drawing_no: null, drawing_revision: null, companion: null,
+        width: 1374, height: 1566, rect_pt: [82, 76, 540, 598],
+        highlights: [{
+          kind: "declared_region", label: "Grip Dash No. 11 row",
+          rect_pt: [84.5, 184, 191.6, 190.5],
+          frac: [0.005, 0.2, 0.24, 0.215],
+        }],
+      };
+    }
+
+    await test("a datasheet crop draws its used cell as a box positioned in " +
+      "PERCENTAGES of the image", function () {
+      var root = render(function (r) {
+        VA.renderCrop(r, datasheetEntry(), { url: "blob:x" }, VA.CONFIG);
+      });
+      var boxes = all(root, "div.crophl");
+      eq(boxes.length, 1);
+      // Percentages, not pixels: the same PNG is laid out at four different
+      // widths on this page, and a box in pixels is right at one of them.
+      eq(boxes[0].style.left, "0.5%");
+      eq(boxes[0].style.top, "20%");
+      // width/height are the frac SPAN, not its far edge -- reading `frac[2]`
+      // as a width draws the box off the right-hand side of the sheet.
+      eq(boxes[0].style.width, "23.5%");
+      eq(boxes[0].style.height, "1.5%");
+      // The box lives in the same frame as the picture, or it is positioned
+      // against something else and points somewhere else.
+      var frames = all(root, "div.cropfig");
+      eq(frames.length, 1);
+      eq(frames[0].childNodes.filter(function (n) {
+        return n.tagName === "IMG";
+      }).length, 1);
+      ok(frames[0].childNodes.indexOf(boxes[0]) !== -1,
+         "the box is a child of the frame the picture is in");
+      // And the frame carries the crop's own ratio, which is what lets a
+      // surface cap a crop's height WITHOUT letterboxing the picture inside
+      // its element -- an inset picture and a percentage overlay disagree.
+      eq(all(root, "div.cropfig")[0].style["--crop-ratio"], "0.8774");
+    });
+
+    await test("a declared region is DASHED and a found match is SOLID -- the " +
+      "picture carries the distinction, not a sentence", function () {
+      var declared = render(function (r) {
+        VA.renderCrop(r, datasheetEntry(), { url: "blob:x" }, VA.CONFIG);
+      });
+      has(all(declared, "div.crophl")[0].className, "crophl--dashed");
+      has(all(declared, "div.crophl")[0].className, "crophl--declared_region");
+      // The zone crop whose callout text WAS found there: same overlay, solid.
+      var found = render(function (r) {
+        VA.renderCrop(r, CROPS.by_stack.demo_joint.plate, { url: "blob:x" },
+                      VA.CONFIG);
+      });
+      has(all(found, "div.crophl")[0].className, "crophl--solid");
+      has(all(found, "div.crophl")[0].className, "crophl--verified_match");
+      // And the title says which claim it is, in words, for a reader who
+      // cannot tell two border styles apart.
+      has(all(found, "div.crophl")[0].getAttribute("title"), "found on the page");
+      has(all(declared, "div.crophl")[0].getAttribute("title"),
+          "not a match on the page");
+    });
+
+    await test("a highlight kind this build has no branch for is still drawn, " +
+      "and says its claim is unknown", function () {
+      var entry = datasheetEntry();
+      entry.highlights[0].kind = "some_new_kind";
+      var root = render(function (r) {
+        VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+      });
+      eq(all(root, "div.crophl").length, 1);
+      has(all(root, "div.crophl")[0].className, "crophl--unlabelled");
+      has(all(root, "div.crophl")[0].getAttribute("title"), "some_new_kind");
+      has(all(root, "div.crophl")[0].getAttribute("title"), "NOT shown here");
+    });
+
+    await test("a crop with no highlights renders the image and no boxes -- an " +
+      "index older than highlights reads the same way, not as an error",
+      function () {
+        var bare = datasheetEntry();
+        delete bare.highlights;
+        var root = render(function (r) {
+          VA.renderCrop(r, bare, { url: "blob:x" }, VA.CONFIG);
+        });
+        eq(all(root, "img").length, 1);
+        eq(all(root, "div.crophl").length, 0);
+      });
+
+    // --- the parts-list companion, and what the drawing link is CALLED ------
+
+    function balloonEntry() {
+      return {
+        status: "resolved", png: "crops/detailb.png",
+        pdf: "C:/dc/217755.pdf", pdf_name: "217755 A.1.pdf", page: 4,
+        resolved_by: "source_ref_export",
+        run_dir: "20260803_145243_217755_A.1", run_id: "20260803_145243",
+        sha256_verified: true, located_by: "balloon_view", find_no: 34,
+        cited_zone: "H3", callout_text_in_zone: null,
+        region_label: null, region_match: null, context_label: null,
+        drawing_no: "217755", drawing_revision: "A.1",
+        width: 1342, height: 2049, rect_pt: [1788, 159, 2235, 842],
+        highlights: [{
+          kind: "verified_match", label: "balloon 34",
+          rect_pt: [1854.7, 219.1, 1878.5, 242.9],
+          frac: [0.149, 0.088, 0.203, 0.123],
+        }],
+        companion: {
+          role: "parts_list_row", png: "crops/detailb__parts_list.png",
+          width: 1965, height: 254, page: 1, label: "Parts list, sheet 1",
+          find_no: 34, part_number: "214820-002",
+          nomenclature: "BUSHING, PLAIN, ALUMINUM BRONZE",
+          rect_pt: [56.5, 636, 711.3, 720.1],
+          highlights: [{
+            kind: "verified_match", label: "214820-002",
+            rect_pt: [116.2, 670, 174.8, 686.1],
+            frac: [0.091, 0.404, 0.181, 0.596],
+          }],
+        },
+      };
+    }
+
+    await test("a balloon crop shows the balloon boxed AND the parts-list row " +
+      "beside it, each with its own overlay", function () {
+      var root = render(function (r) {
+        VA.renderCrop(r, balloonEntry(), { url: "blob:crop" }, VA.CONFIG, null,
+                      { "crops/detailb__parts_list.png": { url: "blob:pl" } });
+      });
+      // Two pictures: the view with the balloon, and the row that says what
+      // the balloon's number IS. A number in a circle is not a part.
+      eq(all(root, "img").length, 2);
+      eq(all(root, "div.crophl").length, 2);
+      eq(all(root, "div.cropcompanion").length, 1);
+      has(root.textContent, "Parts list, sheet 1");
+      // Everyday words: no field value, no role name in the copy.
+      ok(root.textContent.indexOf("parts_list_row") === -1,
+         "no field value in the copy: " + root.textContent);
+    });
+
+    await test("the drawing-checker link is called by the DRAWING, not by the " +
+      "machinery behind it", function () {
+      var root = render(function (r) {
+        VA.renderCrop(r, balloonEntry(), { url: "blob:crop" }, VA.CONFIG);
+      });
+      var links = all(root, "a").map(function (a) { return a.textContent; });
+      has(links.join(" | "), "217755 rev A.1");
+      ok(links.join(" | ").indexOf("run") === -1,
+         "no internal artifact name in the link text: " + links.join(" | "));
+      // And an entry that does not carry both facts keeps a plain-words
+      // fallback rather than printing "undefined rev undefined".
+      eq(VA.drawingLinkText({ drawing_no: "217755" }), null);
+      eq(VA.drawingLinkText(null), null);
+    });
+
+    await test("a companion whose image has not arrived says so, and does not " +
+      "take the crop's picture down with it", function () {
+      var root = render(function (r) {
+        VA.renderCrop(r, balloonEntry(), { url: "blob:crop" }, VA.CONFIG, null, {});
+      });
+      eq(all(root, "img").length, 1);
+      has(root.textContent, VA.CROP_IMAGE_MISSING_TEXT);
+      has(root.textContent, "Parts list, sheet 1");
+    });
+
     // --- worksheet ----------------------------------------------------------
 
     await test("the worksheet renders markdown, tables included", function () {
