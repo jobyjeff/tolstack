@@ -2638,6 +2638,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       absence from an allowlist. Watch for its sibling too: a curated key tuple
       whose second element is never used in the match (`(part, feature)` matched
       on `part` alone) is decoration that reads as precision.
+- [ ] **A `\uXXXX` escape sequence typed into an Edit/Write tool call gets
+      JSON-unescaped into the raw codepoint before it reaches the file.** New
+      2026-09-15 (`vendor_markdown_recopy`). `apps/viewer/vendor/markdown.js`'s
+      `CODE_MARK` sentinel is the literal 6-character source text `"\uE000"` in
+      forge's file — writing it by re-typing the line (not a plain file copy)
+      can silently swap that for the actual raw PUA character, which looks
+      identical on screen and diffs clean under most viewers. Confirmed by
+      piping the line through `cat -A` / comparing raw bytes against the
+      upstream source, not by eye. Whenever a diff touches a line containing a
+      `\u`-escape sentinel, byte-diff that line specifically rather than
+      trusting a visual or line-based diff.
 
 ## Architectural errors to check
 
