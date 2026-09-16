@@ -247,7 +247,7 @@ carriers).
   (ids in the pane, names on the card) and the two can no longer read
   differently about the same interface. The pane printed the authored `parts`
   list until handoff `surfaces_that_state_something_false`, which is 17 of the
-  46 live nodes answering differently hovered and clicked.
+  48 live nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
