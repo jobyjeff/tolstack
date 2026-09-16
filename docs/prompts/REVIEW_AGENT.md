@@ -2989,6 +2989,45 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       triage should close them as one. Filing an eighth costs a triage sweep more
       than the red costs a session.
 
+- [ ] **A re-cite's prose claim about the SUPERSEDED document, which nothing
+      checks and nobody re-reads.** New 2026-09-16
+      (`citation_identity_correctness`, blocker). The three *new* citations were
+      exact — sha256, sheet, zone, callout, frames, all re-read on 215735-A and
+      all independently reproducible. What was wrong was the sentence comparing
+      the released sheet against the PRELIM: *"215197 printed `8.80 ±0.10`
+      here"*, in five live artifacts including `data/inbox/drawings/PROVENANCE.md`
+      and two `source_ref` notes. Measured: 215197 A.1 sheet 1 zone **D6 is
+      empty**; the token is **`18.80`** and it sits in zone **D7**, beside the
+      `10.68 ±0.10` that survives on the released sheet. So the succession claim
+      ("a feature that was 8.80 is now 4.06, printed beside the callout this
+      joint's qty already argued for") had no support, and it landed in the one
+      open feature-identity question the element hangs on. **Re-read the old
+      export too, and zone-resolve the comparison rather than eyeballing the
+      neighbourhood** — `build_viewer_crops.page_native_grid` +
+      `zone_cell(cols, rows, "D6")` answers it in three lines, over both PDFs,
+      and is how this one was caught.
+- [ ] **A re-cite moved `document` and `name` and left `revision` behind.** Same
+      handoff, should-fix. `topology_{pitch_link,vpa_output}_to_pitch_plate.json`
+      each have exactly one `parts[]` entry carrying a `revision`, and both kept
+      `"A.1"` (215197's) while `drawing` became `215735` — whose revision is
+      **A**, as the same object's own `note` says two clauses later. The handoff's
+      restating inventory named `name`, `drawing`, `note` and `part_identity`
+      and not `revision`: the "grep for the one the handoff missed" entry,
+      applied to a re-cite. After any citation move, diff the **whole** carrier
+      object, not the fields the handoff enumerated.
+- [ ] **A curated registry that parametrizes a guard, with nothing pairing it
+      against the set it is supposed to cover.** Same handoff, should-fix.
+      Extending `test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry`
+      from one hard-coded stack to a `WORKBOOK_BACKED_BANDS` dict was the right
+      move and its per-stack non-vacuity half was kept — but a **third**
+      from-scratch stack that folds a workbook-derived band is simply not
+      parametrized, so it is unguarded silently. (Verified complete today: of
+      the four `transcribed_from: null` stacks, only `pitch_link_to_pitch_plate`
+      and `rotor_fastener_length` reach a `values_source.kind == "workbook"`
+      entry.) Ask of any curated expectation dict: **what fails when a new file
+      belongs in it and is not?** Derive the candidate set and assert it equals
+      the keys, keeping the curated values as the expectations.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
