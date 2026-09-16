@@ -624,3 +624,108 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 #legend-dialog ul { margin: 0; padding-left: 20px; }
 #legend-dialog li { margin-bottom: 8px; }
 #worksheet-dialog { width: 90vw; max-width: 900px; }
+
+/* --- verdicts, attention flags and the gap panel -------------------------
+   viewer_study_verdicts_and_gaps (2026-09-15). Jeff's review: "None of the
+   tolerance stacks in the entire page appear to have any kind of roll up that
+   shows whether the stack passes or fails, or by how much margin", and on the
+   flags: the old page "omits them entirely and then fails silently which is
+   worst of both worlds". So these are the loudest marks on the page after the
+   provenance palette itself, and they deliberately reuse it rather than
+   inventing a fourth colour axis: a verdict is pass/marginal/fail green, amber,
+   red (`.verdict--*`, style.css, the classic view's own), and a flag is drawn
+   in the colour of the thing it is about — an unverified number in the untraced
+   red, a missing tolerance in the zero-width blue, an incomplete chain in the
+   inferred amber (the same amber `.chip--budget` already uses for exactly this
+   claim). */
+
+/* The verdict badge. Filled, uppercase, and never absent: `--none` and
+   `--error` are states a verdict cannot express, and they are styled to read as
+   "there is no answer here" rather than as a quiet pass. */
+.tvverdict {
+  font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
+  font-size: 11px; padding: 2px 9px;
+}
+.tvverdict--pass { color: #fff; background: var(--pass); border-color: var(--pass); }
+.tvverdict--marginal { color: #0b1020; background: var(--marginal); border-color: var(--marginal); }
+.tvverdict--fail { color: #fff; background: var(--fail); border-color: var(--fail); }
+.tvverdict--none, .tvverdict--error, .tvverdict--unknown {
+  color: var(--muted); border-color: var(--muted); border-style: dashed;
+  background: none; text-transform: none; font-weight: 600;
+}
+/* A verdict on a chain that is knowingly short a term. The hatch is the same
+   "this is a budget, not an answer" mark `.check--budget` (style.css) puts on
+   the classic view's card, shrunk to a chip: a FAIL here is true of the model
+   and false of the hardware, and the badge must not read like a clean one. */
+.tvverdict--qualified {
+  outline: 2px dashed var(--inferred); outline-offset: 1px;
+}
+
+/* The attention flags. Filled for the same reason `.conf--untraced` is: these
+   have to survive a glance across a 43-row grid and a 20-study nav rail. */
+.tvflag { font-weight: 700; font-size: 10px; text-transform: uppercase; }
+.tvflag--unverified { color: #fff; background: var(--untraced); border-color: var(--untraced); }
+.tvflag--no_tolerance { color: #0b1020; background: var(--zero); border-color: var(--zero); }
+.tvflag--incomplete { color: #0b1020; background: var(--inferred); border-color: var(--inferred); }
+
+/* The per-check block under the totals strip: verdict, what it means, and by
+   how much — then, where the chain is short a term, WHAT is missing, above the
+   fold and not behind a hover. */
+.tvverdicts { margin: 2px 0 6px; }
+.tvverdicts__none {
+  margin: 6px 0; color: var(--muted); border-left: 3px solid var(--line);
+  padding-left: 10px;
+}
+.tvverdict-card {
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
+  margin-top: 6px; background: var(--panel);
+}
+.tvverdict-card--qualified {
+  border-left: 3px solid var(--inferred);
+  background: repeating-linear-gradient(135deg,
+    var(--panel), var(--panel) 10px, #23262e 10px, #23262e 20px);
+}
+.tvverdict-card__head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.tvverdict-card__says { font-weight: 600; }
+.tvverdict-card__margin { font-family: ui-monospace, monospace; color: var(--accent); }
+.tvverdict-card__label { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.tvverdict-card__missing { margin-top: 8px; }
+.tvverdict-card__missinghead { margin: 0; font-size: 13px; }
+.tvverdict-card__missinglist { margin: 4px 0 0; padding-left: 20px; }
+.tvverdict-card__more { margin-top: 6px; }
+.tvverdict-card__more summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+
+/* The two chain-level warnings. Not `.muted`: a lower bound presented quietly
+   is a number a reader takes at face value. */
+.tvwarn {
+  margin: 6px 0; padding: 6px 10px; border-radius: 0 6px 6px 0; font-size: 13px;
+}
+.tvwarn--lower-bound {
+  border-left: 3px solid var(--zero); background: rgba(122, 167, 214, .12);
+}
+.tvwarn--unverified {
+  border-left: 3px solid var(--untraced); background: rgba(224, 82, 82, .12);
+}
+
+/* "What's missing" — collapsed by default, with its total in the summary line.
+   Progressive disclosure: pitch_system carries 38 gap rows and a wall of 38
+   lines under a DAG is a wall nobody reads, but a count beside a heading is a
+   number a reader can act on. */
+.tvgaps { margin: 4px 0 6px; }
+.tvgaps__none { margin: 6px 0; }
+.tvgaps__summary {
+  cursor: pointer; display: flex; gap: 8px; align-items: center;
+  font-weight: 600; padding: 4px 0;
+}
+.tvgaps__group { margin: 10px 0 0; padding-left: 10px; border-left: 2px solid var(--line); }
+.tvgaps__heading { margin: 0; font-size: 13px; }
+.tvgaps__closes { margin: 2px 0 4px; font-size: 12px; }
+.tvgaps__list { margin: 0; padding-left: 18px; }
+.tvgaps__item { font-size: 13px; margin-bottom: 3px; }
+.tvgaps__where { color: var(--accent); margin-right: 6px; }
+
+/* The study-level flags, on their own line under the strip. They wrap; the
+   strip above them deliberately does not (see `.tvtotals__strip` -- it scrolls
+   sideways so its height cannot grow), and three long badges inside a
+   non-wrapping scrollport would have pushed the folded totals out of reach. */
+.tvtotals__flags { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 4px; }

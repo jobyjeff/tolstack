@@ -73,7 +73,7 @@ venv-win\Scripts\python.exe scripts\build_topology_projection.py
 venv-win\Scripts\python.exe scripts\build_feature_identity_projection.py
 ```
 
-### On a hosted origin there is no **Connect folder** at all
+### On a hosted origin there is one sentence and nothing else
 
 The folder grant is offered on **local** pages only — a loopback server like
 the one above, or drawing-checker's own local mount. On a hosted origin the
@@ -87,6 +87,17 @@ itself is the viewer's `VA.chooseTransport`, reached through
 it no HTTP candidate at all, which is
 `ISSUE_20260910_annotate_has_no_http_read_transport`, still open: a hosted
 page cannot *read* here either.)
+
+The sentence is the whole page, not just the top bar. Everything below it —
+the element list and its two pickers, the parts panel, the 3D pane and the
+dev console — exists to serve the bind workflow, so on this origin none of it
+can do anything, and the detail pane's hint (*"Pick an element on the left,
+then click a face in the 3D view to bind it"*) actively contradicted the
+sentence two inches above it. It is all withheld together, and the console is
+not wired at all rather than wired-but-hidden (handoff
+`annotate_hosted_page_posture`,
+`ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_reader_to_bind_a_face`).
+Nothing is latched: the same URL on a loopback server is the full page below.
 
 No folder handy? `index.html?mock=1` runs a small synthetic demo (one
 topology, two edges, one already bound, one `owner_not_in_set`, a single
@@ -203,7 +214,8 @@ turns out to be costly in practice.
 apps/annotate/
   index.html          the page shell
   style.css           this app's own stylesheet (not shared with apps/viewer)
-  config.js           paths, rebuild commands
+  config.js           the paths this app reads, and nothing else -- see
+                      its own comment on why it holds no build commands
   binding_state.js     PURE logic: stack-side keys, binding-state derivation,
                        event construction -- no DOM, no fetch. The one file a
                        test loads without a browser (run_tests.cjs).
@@ -277,6 +289,12 @@ System Access API in node; every loopback hostname does get it; `file://`
 and a no-FSA browser stay the honest dead-end error rather than becoming the
 hosted notice; and, read statically because `app.js` cannot be booted here,
 that `index.html` loads the shared decision before this app's own adapter).
+Both sentences this app says *instead of* offering a way forward —
+`AA.HOSTED_NOTICE` and `AA.NO_PROJECTION_NOTICE` — are asserted to carry no
+command, no interpreter and no path, and so is the absence of `CONFIG.rebuild`
+that used to supply one (handoff `annotate_hosted_page_posture`). They are
+constants in `storage/adapter.js` for exactly that reason: it is the only way
+this tier can read the copy at all.
 It also carries a `[real]` tier that resolves every shipped alias in
 `docs/topologies/part_mesh_aliases.json` against the main checkout's
 installed meshes through `resolveMeshIdentifier` itself, skipping honestly

@@ -3670,25 +3670,34 @@
           return VA.respineX(s.chainLayout, s.chainPlan, s.M, from, e,
                              undefined);
         };
+        // The spine's own drawn index, which is the number the drawn column
+        // COUNT is: VA.drawnColumn of the last column, plus one.
+        var count = function (e) {
+          return VA.drawnColumn(s.chainLayout.columns - 1, at(e)) + 1;
+        };
         // e = 0 is the outgoing frame's own two numbers, which is the whole
         // continuity claim: the first frame of a transition draws the picture
         // the reader is already looking at.
         var spread = s.chainLayout.columns - s.walk.columns;
         eq(at(0).columnShift, spread);
         eq(at(0).width, from.width);
-        eq(s.chainLayout.columns - at(0).columnShift, s.walk.columns,
+        eq(count(0), s.walk.columns,
            "drawn with the OUTGOING serialisation's column count");
         // e = 1 is the target's, exactly -- so a settled frame is a plain
         // render and no geometry drifts through the animation.
-        eq(at(1).columnShift, 0);
+        eq(count(1), s.chainLayout.columns);
         eq(at(1).width, toWidth);
-        // And it is a straight interpolation in between.
-        eq(at(0.25).columnShift, 0.75 * spread);
+        // And it is a straight interpolation in between. `columnShift` is the
+        // outgoing frame's whole shortfall at every e -- it does not decay,
+        // because the decay lives in VA.drawnColumn, which interpolates each
+        // column between the two frames' own indices for its depth.
+        eq(at(0.25).columnShift, spread);
+        eq(count(0.25), s.walk.columns + 0.25 * (s.chainLayout.columns - s.walk.columns));
         ok(Math.abs(at(0.25).width - (toWidth + 0.75 * (from.width - toWidth)))
            < 1e-9);
         // Out-of-range e is clamped, the same way VA.respineEase clamps it.
-        eq(at(-3).columnShift, at(0).columnShift);
-        eq(at(7).columnShift, 0);
+        eq(count(-3), count(0));
+        eq(count(7), count(1));
         // Nothing to interpolate from (a pane that never rendered) is no
         // tween at all, which is what makes a first paint a plain render.
         eq(VA.respineX(s.chainLayout, s.chainPlan, s.M, null, 0), null);
@@ -3698,9 +3707,9 @@
                        { columns: 2, width: 0 }, 0), null);
       });
 
-    await test("a column a respine ADDS unfolds out of the spine — it is " +
-      "never drawn left of the leftmost rail, because it has no outgoing x " +
-      "to come from", function () {
+    await test("a column a respine ADDS unfolds out of the outgoing frame's " +
+      "leftmost rail — it is never drawn left of it, because it has no " +
+      "outgoing x to come from", function () {
         var s = respineStores();
         var from = { columns: s.chainLayout.columns,
                      width: VA.leaderGeometry(s.chainLayout, s.chainPlan, s.M,
@@ -3711,11 +3720,12 @@
             VA.tweenPositions(s.to, s.from, e), { x: x })
             .rails.map(function (rail) { return rail.x; });
         };
-        // The deselect direction: the chain's one column gives way to the
-        // walk's, so every column but the spine is one the respine adds. At
-        // e = 0 they are all collapsed onto the leftmost rail -- which is
-        // where the outgoing frame's only rail was -- and they separate from
-        // there.
+        // The deselect direction from a SETTLED chain: its one column gives
+        // way to the walk's, so every column but the spine is one the respine
+        // adds. At e = 0 they are all collapsed onto drawn column 0 -- which
+        // is where a settled frame's leftmost rail always is, and where this
+        // one's only rail was. The interrupted case, where the outgoing frame
+        // is mid-unfold and has no rail there at all, is the check below.
         var first = railsAt(0);
         eq(first.filter(function (x) { return x === VA.railX(0, s.M); }).length,
            first.length, "every rail starts on the leftmost one: " + first);
@@ -3737,6 +3747,260 @@
           });
           previous = now;
         });
+      });
+
+    // A synthetic 10-column walk and a 1-column chain -- the real
+    // pitch_system's own column gap, at VA.RAIL_METRICS. The demo fixture is
+    // 2 columns wide, which is enough to show a rail unfolding and not enough
+    // to show WHERE it unfolds from: the two candidate floors are one gutter
+    // apart there and nine apart here.
+    function tenColumnWalk() {
+      var walk = { columns: 10, rows: [], rails: [], links: [] };
+      for (var c = 0; c < 10; c++) {
+        walk.rows.push({ row: c, kind: "node", id: "n" + c, column: c });
+        walk.rails.push({ column: c, start: c, end: 9 });
+      }
+      return walk;
+    }
+
+    function oneColumnChain() {
+      return { columns: 1,
+               rows: [{ row: 0, kind: "node", id: "n0", column: 0 }],
+               rails: [{ column: 0, start: 0, end: 0 }], links: [] };
+    }
+
+    // What a frame DREW, in the three numbers VA.lastTopoRender records and
+    // the next transition continues from.
+    function drewX(layout, x, width) {
+      return { columns: VA.drawnColumn(layout.columns - 1, x) + 1,
+               floor: VA.drawnColumn(0, x),
+               width: x ? x.width : width };
+    }
+
+    await test("a respine interrupting a respine unfolds out of a rail the " +
+      "frame it interrupted really drew — not out of drawn column 0, which " +
+      "a frame caught mid-unfold has nothing on", function () {
+        // ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
+        // nowhere, at its own numbers. The claim rails and links are drawn
+        // with no opacity of their own on the strength of -- "a column the
+        // transition is adding is drawn collapsed onto a rail the outgoing
+        // frame drew, so there is nothing to appear from nowhere" -- used to
+        // clamp at drawn column 0. A SETTLED frame always has a rail there;
+        // a frame caught at e = 0.5 of a select does not, and nine rails
+        // arrived at full opacity where it had drawn nothing at all.
+        var M = VA.RAIL_METRICS;
+        var plan = { leaders: [], rows: [] };
+        var walk = tenColumnWalk();
+        var chain = oneColumnChain();
+        var railsAt = function (layout, x) {
+          return VA.railGeometry(layout, M, undefined, { x: x })
+            .rails.map(function (rail) { return rail.x; });
+        };
+        // Frame A: half way through a select, out of the settled walk.
+        var walkWidth = VA.leaderGeometry(walk, plan, M).width;
+        var xA = VA.respineX(chain, plan, M,
+          { columns: walk.columns, width: walkWidth }, 0.5);
+        var frameA = railsAt(chain, xA);
+        eq(frameA, [VA.railX(4.5, M)],
+           "the chain's one rail, half way out of the walk's spine");
+        // Non-vacuity, and the whole defect in one line: frame A has no rail
+        // at drawn column 0, so clamping there collapses onto nothing.
+        ok(frameA.indexOf(VA.railX(0, M)) === -1,
+           "frame A must have nothing at drawn column 0: " + frameA);
+
+        // Frame B: the reader clicks again mid-flight. The interrupting
+        // transition's first frame continues from frame A's own record, and
+        // every rail it draws has to land on a rail frame A drew.
+        var xB = VA.respineX(walk, plan, M, drewX(chain, xA), 0);
+        var frameB = railsAt(walk, xB);
+        frameB.forEach(function (x, i) {
+          ok(frameA.indexOf(x) !== -1, "rail " + i + " of the interrupting " +
+             "frame is at " + x + ", where the frame it interrupted drew " +
+             "nothing: " + frameB + " vs " + frameA);
+        });
+        eq(xB.width, xA.width, "and the pane width is continuous too");
+
+        // It still unfolds: the floor relaxes to 0 as the transition settles,
+        // so e = 1 is the plain render's own rails and nothing has drifted.
+        eq(railsAt(walk, VA.respineX(walk, plan, M, drewX(chain, xA), 1)),
+           railsAt(walk, null), "and lands on the plain render's own rails");
+        // And no rail wobbles on the way. The settled case's stronger claim
+        // -- every rail only ever moves AWAY from the leftmost one -- is not
+        // this one's: the fold point here is drawn column 4.5 and has to
+        // travel back to 0, so the rails left of the spine move LEFT for the
+        // whole flight while the spine moves right. What must hold is that
+        // each rail picks one direction and keeps it.
+        var track = [0, 0.25, 0.5, 0.75, 1].map(function (e) {
+          return railsAt(walk, VA.respineX(walk, plan, M, drewX(chain, xA), e));
+        });
+        track[0].forEach(function (unused, i) {
+          var sign = 0;
+          for (var k = 1; k < track.length; k++) {
+            var step = track[k][i] - track[k - 1][i];
+            if (Math.abs(step) < 1e-9) continue;
+            var now = step > 0 ? 1 : -1;
+            ok(sign === 0 || sign === now, "rail " + i + " reversed: " +
+               track.map(function (frame) { return frame[i]; }));
+            sign = now;
+          }
+        });
+        var settled = track[track.length - 1];
+        ok(Math.max.apply(null, settled) > Math.min.apply(null, settled),
+           "the walk really does unfold: " + settled);
+
+        // A settled `from` carries no floor at all, and reads as 0 -- which
+        // is what a settled frame's leftmost drawn column index is.
+        eq(VA.respineX(chain, plan, M,
+             { columns: walk.columns, width: walkWidth }, 0.5).floor, 0);
+        eq(VA.drawnColumn(3, null), 3, "no transition, no clamp");
+      });
+
+    await test("a link a respine ADDS between two columns BOTH serialisations " +
+      "have fades in — the column unfold cannot cover it, because neither " +
+      "column is one the transition adds", function () {
+        // ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_
+        // has_no_fade. Synthetic on purpose, and the reason is worth keeping:
+        // all 21 study chains across the five committed topologies have
+        // `columns: 1` and `links: []` while their walks run 2-10 columns and
+        // 2-18 links, so every link a respine adds TODAY arrives on a column
+        // the respine also adds and the unfold covers it. The pair below is
+        // the case BRIEF_20260915_respine_scope_and_grid_motion item 1 makes
+        // reachable: two serialisations differing by a loop closure and by
+        // nothing else.
+        var M = VA.RAIL_METRICS;
+        var plan = { leaders: [], rows: [] };
+        var rows = [
+          { row: 0, kind: "node", id: "a", column: 0, branch: true },
+          { row: 1, kind: "edge", id: "ab", column: 1 },
+          { row: 2, kind: "node", id: "b", column: 1 },
+          { row: 3, kind: "edge", id: "bc", column: 0 },
+          { row: 4, kind: "node", id: "c", column: 0 },
+        ];
+        var rails = [{ column: 0, start: 0, end: 4 },
+                     { column: 1, start: 0, end: 2 }];
+        var branch = { kind: "branch", row: 0, from_column: 0, to_row: 0,
+                       to_column: 1 };
+        var closure = { kind: "close", row: 3, from_column: 0, to_row: 2,
+                        to_column: 1 };
+        var open = { columns: 2, rows: rows, rails: rails, links: [branch] };
+        var closed = { columns: 2, rows: rows, rails: rails,
+                       links: [branch, closure] };
+        var linksOf = function (layout) {
+          return VA.railGeometry(layout, M).links;
+        };
+        var keyOf = function (layout, link) { return VA.linkKey(layout, link); };
+        var kept = keyOf(open, branch);
+        var added = keyOf(closed, closure);
+        ok(kept !== added, "the two links are not the same link");
+        eq(linksOf(open).map(function (l) { return l.key; }), [kept]);
+        eq(linksOf(closed).map(function (l) { return l.key; }), [kept, added]);
+
+        // The two sides share their columns, so respineX has nothing to
+        // unfold: every rail is at rest from the first frame, and so are both
+        // ends of the closure. Its own opacity is the only thing that can
+        // carry it in.
+        var settledLinks = VA.linkOpacity(linksOf(open), null, 1);
+        var from = { columns: open.columns, floor: 0,
+                     width: VA.leaderGeometry(open, plan, M).width,
+                     links: settledLinks };
+        var x = VA.respineX(closed, plan, M, from, 0);
+        eq(x.columnShift, 0, "nothing to unfold: the columns are the same");
+        eq(VA.railGeometry(closed, M, undefined, { x: x }).rails.map(
+             function (r) { return r.x; }),
+           VA.railGeometry(open, M).rails.map(function (r) { return r.x; }),
+           "and every rail is exactly where the outgoing frame drew it");
+
+        var alphaAt = function (e, prev) {
+          return VA.linkOpacity(linksOf(closed),
+                                prev === undefined ? from.links : prev, e);
+        };
+        eq(alphaAt(0)[added], 0,
+           "the loop closure would otherwise appear from nowhere at e = 0");
+        eq(alphaAt(0.25)[added], 0.25);
+        eq(alphaAt(1)[added], 1, "and is whole once the transition settles");
+        [0, 0.5, 1].forEach(function (e) {
+          eq(alphaAt(e)[kept], 1, "a link both sides draw never fades");
+        });
+        // Interrupted, a part-done fade continues from what was drawn --
+        // the same continuity the column floor gives the rails.
+        var caught = alphaAt(0.4);
+        eq(alphaAt(0, caught)[added], 0.4);
+        ok(alphaAt(0.5, caught)[added] > 0.4 &&
+           alphaAt(0.5, caught)[added] < 1);
+        // No transition behind it: everything is opaque, which is what makes
+        // a plain render carry nothing of the animation.
+        eq(VA.linkOpacity(linksOf(closed), null, 0)[added], 1);
+      });
+
+    await test("the rendered frame carries a link's fade on the drawn path, " +
+      "and a settled frame carries none", function () {
+        // The other half of the check above: the geometry knows each link's
+        // opacity, and this is the view actually putting it on the path. The
+        // deselect direction on the fixture, where both of the walk's links
+        // are ones the transition adds -- a chain is linear and has none at
+        // all, which is why the shared-column case above has to be synthetic.
+        var chainCtx = topoCtx({ study: topoStudy("demo_strut_branch"),
+                                 layoutMode: "chain" });
+        var root = render(function (r) { VA.renderTopoPane(r, chainCtx); });
+        var from = VA.lastTopoRender;
+        eq(Object.keys(from.links), [], "a chain is linear: no links to draw");
+        eq(all(root, "path.rail__link").length, 0);
+
+        VA.renderTopoPane(root, topoCtx({
+          tween: { positions: from.positions, columns: from.columns,
+                   floor: from.floor, width: from.width, links: from.links,
+                   e: 0.25 },
+        }));
+        var drawn = all(root, "path.rail__link");
+        eq(drawn.length, TOPO.layout.links.length,
+           "the walk's own links are drawn");
+        drawn.forEach(function (node) {
+          ok(Math.abs(parseFloat(node.style.opacity) - 0.25) < 1e-9,
+             "a link the respine adds arrives faded: " + node.style.opacity);
+        });
+        // A plain render fades nothing -- the settled page is the page a
+        // render that never animated produces.
+        var fresh = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var settled = all(fresh, "path.rail__link");
+        eq(settled.length, TOPO.layout.links.length);
+        settled.forEach(function (node) {
+          eq(node.style.opacity || "", "", "a plain render fades no link");
+        });
+      });
+
+    await test("a branch link is keyed by where it LANDS, so one fork's two " +
+      "fan-outs are two different links", function () {
+        // A close link's two ends are two different rows and name it
+        // outright; a branch link's `row` and `to_row` are the SAME fork row,
+        // so two branches off one fork differ only in `to_column` -- which is
+        // the one thing that is not comparable between two serialisations.
+        var layout = {
+          columns: 3,
+          rows: [
+            { row: 0, kind: "node", id: "fork", column: 0, branch: true },
+            { row: 1, kind: "edge", id: "left", column: 1 },
+            { row: 2, kind: "edge", id: "right", column: 2 },
+          ],
+          rails: [{ column: 0, start: 0, end: 0 }, { column: 1, start: 0, end: 1 },
+                  { column: 2, start: 0, end: 2 }],
+          links: [
+            { kind: "branch", row: 0, from_column: 0, to_row: 0, to_column: 1 },
+            { kind: "branch", row: 0, from_column: 0, to_row: 0, to_column: 2 },
+          ],
+        };
+        var keys = VA.railGeometry(layout, VA.RAIL_METRICS).links.map(
+          function (l) { return l.key; });
+        eq(keys, ["link|branch|node|fork|edge|left",
+                  "link|branch|node|fork|edge|right"]);
+        // And on the fixture, every drawn link of the walk is distinct --
+        // a collision would fade two links as one.
+        var walk = VA.spineRight(TOPO.layout);
+        var fixture = VA.railGeometry(walk, VA.RAIL_METRICS).links.map(
+          function (l) { return l.key; });
+        ok(fixture.length === TOPO.layout.links.length && fixture.length > 1,
+           "the fixture really has links to key: " + fixture);
+        eq(fixture.filter(function (k, i) { return fixture.indexOf(k) !== i; }),
+           [], "duplicate link keys: " + fixture);
       });
 
     await test("every frame of a respine draws every rail, mark, link and " +
@@ -3886,10 +4150,13 @@
           Object.keys(over || {}).forEach(function (k) { ctx[k] = over[k]; });
           return topoCtx(ctx);
         };
-        var spineAndWidth = function (root) {
-          var rails = all(root, "line.rail").map(function (n) {
+        var railSet = function (root) {
+          return all(root, "line.rail").map(function (n) {
             return parseFloat(n.getAttribute("x1"));
           });
+        };
+        var spineAndWidth = function (root) {
+          var rails = railSet(root);
           return [Math.max.apply(null, rails),
                   parseFloat(root.querySelector("svg.tv__rails")
                     .getAttribute("width"))];
@@ -3904,6 +4171,7 @@
         }));
         var caught = VA.lastTopoRender;
         var midway = spineAndWidth(root);
+        var midwayRails = railSet(root);
         ok(caught.columns > Math.min(walk.columns, 1) &&
            caught.columns < walk.columns,
            "the frame records the count it drew with: " + caught.columns);
@@ -3912,10 +4180,26 @@
         // record. Its FIRST frame has to draw the same picture.
         VA.renderTopoPane(root, topoCtx({
           tween: { positions: caught.positions, columns: caught.columns,
-                   width: caught.width, e: 0 },
+                   floor: caught.floor, width: caught.width,
+                   links: caught.links, e: 0 },
         }));
         eq(spineAndWidth(root), midway,
            "the interrupting frame must continue from the drawn picture");
+        // And over the whole DRAWN SET, not just its two summary numbers.
+        // `spineAndWidth` reduces a frame of N rails to the max rail x and
+        // the SVG width -- which are precisely the two numbers VA.respineX
+        // returns, so it agreed with itself while the interrupting frame
+        // drew rails at x's the caught frame had nothing at
+        // (ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
+        // nowhere). Not an equal SET: the walk has more columns than the
+        // frame it interrupts, and the extra ones are collapsed on top of
+        // one another. Every rail must land on a rail that was there.
+        railSet(root).forEach(function (x, i) {
+          ok(midwayRails.indexOf(x) !== -1, "rail " + i + " of the " +
+             "interrupting frame is at " + x + ", where the frame it " +
+             "interrupted drew nothing: " + railSet(root) + " vs " +
+             midwayRails);
+        });
 
         // Non-vacuity: the two serialisations' own spines are far apart, so
         // continuing from either of them instead would be visible.
@@ -7460,6 +7744,160 @@
             has(root.textContent, "-0.0824");    // nominal
             has(root.textContent, "0.6449");     // worst-case half
             has(root.textContent, "shank_out");  // the derived gap it closes
+          });
+
+        // --- the verdict, the margin and what is missing ----------------------
+        //
+        // viewer_study_verdicts_and_gaps (2026-09-15), from Jeff's review of
+        // this page: "None of the tolerance stacks in the entire page appear to
+        // have any kind of roll up that shows whether the stack passes or fails,
+        // or by how much margin." The data had been in the projection since
+        // 2026-09-09 and nothing read it, so these are value-level: they pin the
+        // rendered STRINGS against the live projection's own numbers, not the
+        // presence of an element.
+
+        await test("[real] the pitch-link studies render their verdicts and " +
+          "their margins, including the study that has no criterion at all",
+          function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            ok(topo, "the pitch-link topology must be in the projection");
+            var index = VA.topologyIndex(topo);
+            var shown = function (studyId) {
+              return render(function (r) {
+                VA.renderTopoTotals(r, topo, VA.findStudy(topo, studyId), index);
+              }).textContent;
+            };
+
+            // FAIL, with the margin, and the word "margin" beside it: the two
+            // halves of Jeff's sentence.
+            var out = shown("pitch_link_shank_out");
+            has(out, "fail");
+            has(out, "margin -8.1939 mm at worst case");
+            has(out, VA.VERDICTS.fail.says);
+
+            // PASS, same shape, on the same page -- so a reader can tell the two
+            // studies apart without opening either.
+            var clear = shown("pitch_link_cotter_hole_clearance");
+            has(clear, "pass");
+            has(clear, "margin +11.1435 mm at worst case");
+            has(clear, VA.VERDICTS.pass.says);
+
+            // And the third: a study that sums and has no criterion recorded.
+            // Rendering this one blank is what made the whole page look as
+            // though it held no verdicts.
+            var none = shown("pitch_link_thread_region_t");
+            has(none, "No pass/fail criterion has been recorded for this study yet");
+            eq(none.indexOf("margin "), -1,
+               "a study with no criterion must not print a margin");
+          });
+
+        await test("[real] an incomplete check states what is missing ABOVE its " +
+          "number, and its verdict is visibly qualified", function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var study = VA.findStudy(topo, "pitch_link_shank_out");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
+            });
+            eq(study.checks[0].complete, false,
+               "this claim rests on the live check really being incomplete");
+            has(root.textContent, "budget for what is missing");
+            // The term itself, in the words the check wrote -- not a field name
+            // and not a count.
+            has(root.textContent, "spherical bearing width");
+            eq(all(root, ".tvverdict-card--qualified").length, 1);
+            ok(all(root, ".tvverdict--qualified").length >= 1,
+               "the rollup badge wears the qualification too");
+          });
+
+        await test("[real] the shank-out study warns that its spread is a lower " +
+          "bound, and names the rows that make it one", function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var study = VA.findStudy(topo, "pitch_link_shank_out");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
+            });
+            var warn = all(root, ".tvwarn--lower-bound");
+            eq(warn.length, 1);
+            has(warn[0].textContent, "no tolerance recorded");
+            has(warn[0].textContent, "LOWER bound");
+            has(warn[0].textContent, "plain bushing length");
+            has(warn[0].textContent, "washer thickness");
+          });
+
+        await test("[real] the missing spherical bearing is visible on the page " +
+          "without opening any JSON", function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            // With NO study selected -- the state a reader arrives in.
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, null, VA.topologyIndex(topo));
+            });
+            has(root.textContent, "What's missing");
+            has(root.textContent, "spherical bearing width");
+            has(root.textContent, VA.GAP_KINDS.excluded_from_model.heading);
+          });
+
+        await test("[real] every live gap row is one this page has words for, " +
+          "and every kind the builder writes is used somewhere", function () {
+            var kinds = {};
+            liveTopos.forEach(function (topoProj) {
+              (topoProj.gaps || []).forEach(function (gap) {
+                kinds[gap.kind] = (kinds[gap.kind] || 0) + 1;
+                ok(VA.GAP_KINDS[gap.kind],
+                   topoProj.id + " writes gap kind " + JSON.stringify(gap.kind) +
+                   " and this page has no words for it");
+                ok(gap.text, topoProj.id + ": a gap row with no words in it");
+              });
+            });
+            // Anti-vacuity: the loop above passes trivially over an empty
+            // projection, and all four kinds have live rows today.
+            eq(Object.keys(VA.GAP_KINDS).filter(function (k) { return !kinds[k]; }),
+               [], "a kind with no live row -- the loop above stops checking it");
+          });
+
+        await test("[real] every study wears a verdict badge on the nav rail, " +
+          "and not one of them is blank", function () {
+            var tree = VA.navTree(realTopologies, null);
+            var root = render(function (r) {
+              VA.renderNavTree(r, tree, { mode: "topology" }, {
+                onTopology: function () {}, onStudy: function () {},
+                onStack: function () {},
+              });
+            });
+            var rows = all(root, ".navtree__row--study");
+            var studies = liveTopos.reduce(function (n, t) {
+              return n + (t.studies || []).length;
+            }, 0);
+            eq(rows.length, studies);
+            ok(studies >= 20, "expected the live study count, got " + studies);
+            var blank = rows.filter(function (row) {
+              return all(row, ".tvverdict").length !== 1;
+            });
+            eq(blank.length, 0,
+               "a study row with no verdict badge reads as a study that passed");
+            // And the three states are all really on screen, so the assertion
+            // above is not satisfied by one word repeated 21 times.
+            ok(all(root, ".tvverdict--fail").length >= 1, "a failing study");
+            ok(all(root, ".tvverdict--pass").length >= 1, "a passing study");
+            ok(all(root, ".tvverdict--none").length >= 1,
+               "a study with no criterion recorded");
+          });
+
+        await test("[real] a row whose number has nothing behind it says so in " +
+          "the grid, in the words a reader brought with them", function () {
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: null, crops: realCrops,
+                layoutMode: "topology", selection: null, onSelect: function () {},
+              });
+            });
+            var flagged = all(root, ".tvflag--unverified");
+            var unverified = livePitch.edges.filter(function (e) {
+              return VA.needsAnnotation(e.confidence);
+            });
+            ok(unverified.length >= 1, "pitch_system has unverified edges");
+            eq(flagged.length, unverified.length,
+               "one badge per unverified row, no more and no fewer");
+            has(root.textContent, VA.ATTENTION.unverified.text);
           });
 
         await test("[real] selecting a study marks its chain on the real rails",

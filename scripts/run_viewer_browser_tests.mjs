@@ -2871,6 +2871,18 @@ async function testAnnotateFlyout(browser, fileBase, label) {
 async function testAnnotateHostedPosture(browser, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
+  // "Is this element on the page at all?" -- NOT locator.isVisible(), which
+  // answers "does it have a non-empty box" and calls an empty <ul> or an
+  // empty <select> invisible. Both are legitimately zero-height on the
+  // loopback page before a folder is granted, and that page is the
+  // discriminating half of every withholding check below, so the question has
+  // to be the one actually being asked: offsetParent is null for an element
+  // inside a display:none subtree and non-null for an empty one that still
+  // renders.
+  const rendered = (page, selector) => page.evaluate((sel) => {
+    const node = document.querySelector(sel);
+    return !!node && node.offsetParent !== null;
+  }, selector);
   const server = await startRepoRootServer();
   const { port } = server.address();
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
@@ -2898,6 +2910,45 @@ async function testAnnotateHostedPosture(browser, label) {
     push("the honest notice is not an error thrown on the way to it",
       errors.length === 0);
 
+    // --- and nothing else on the page instructs an action it has ruled out --
+    //
+    // (handoff annotate_hosted_page_posture, ISSUE_20260915_the_hosted_
+    // annotate_page_still_instructs_the_reader_to_bind_a_face.) The banner was
+    // made honest first and the page under it did not move with it, so the
+    // page said "annotating is not available here" and, two inches below, told
+    // the reader how to annotate. Every check above looks for something ABSENT
+    // from the SENTENCE; these look at the page, element by element, because
+    // the whole point is that a true sentence is not enough on its own.
+    //
+    // Element by element rather than one assertion on the container that
+    // actually gets hidden, on purpose: the contract is about what a reader
+    // can see, so it survives the workspace being withheld a different way
+    // later (per column, or removed from the DOM) and still fails if one
+    // column is forgotten.
+    push("the bind instruction is gone -- it named a 3D view this origin does not have",
+      !(await rendered(page, "#detail")));
+    push("no topology picker is offered for data this page cannot load",
+      !(await rendered(page, "#topology-select")));
+    push("nor a study picker",
+      !(await rendered(page, "#study-select")));
+    push("no element list or parts panel either",
+      !(await rendered(page, "#element-list")) &&
+      !(await rendered(page, "#parts-panel")));
+    push("there is no 3D pane standing empty where the hint pointed",
+      !(await rendered(page, "#canvas-host")) &&
+      await page.locator("canvas").count() === 0);
+    // The console is the one that was WIRED, not merely visible -- main() bound
+    // its click and Enter handlers before the hosted early-return, so a hosted
+    // reader had a live command line into an app with no storage behind it. A
+    // hidden-but-live control is a different defect from a misleading hint, so
+    // both halves are asserted: withheld, and never wired in the first place.
+    push("the dev console is not shown",
+      !(await rendered(page, "#console-input")) &&
+      !(await rendered(page, "#console-run")));
+    push("and it was never wired -- no live handler behind the withheld control",
+      await page.evaluate(() => document.querySelector("#console-run").onclick === null &&
+        document.querySelector("#console-input").onkeydown === null));
+
     // --- local: the same URL from the machine holding the repo --------------
     // Unchanged by this handoff and it must stay that way: drawing-checker
     // serves this app from 127.0.0.1:8000 in dev, and the folder grant is the
@@ -2912,6 +2963,24 @@ async function testAnnotateHostedPosture(browser, label) {
       /Connect folder|File System Access/.test(localBanner));
     push("and it does NOT show the hosted notice",
       !/not available on this site/.test(localBanner));
+    // The discriminating half of the withholding above: on the origin that CAN
+    // annotate, the whole workspace is there and the console is live, before a
+    // folder has even been granted. Without this, "hide everything, always"
+    // would pass every one of the hosted checks.
+    push("the same page on loopback still has the full bind workspace",
+      await rendered(page, "#detail") &&
+      await rendered(page, "#topology-select") &&
+      await rendered(page, "#study-select") &&
+      await rendered(page, "#element-list") &&
+      await rendered(page, "#parts-panel") &&
+      await rendered(page, "#canvas-host") &&
+      await rendered(page, "#console-input") &&
+      await rendered(page, "#console-run"));
+    push("and the 3D view the bind instruction names really is there",
+      await page.locator("#canvas-host canvas").count() === 1);
+    push("and its dev console is wired there",
+      await page.evaluate(() => document.querySelector("#console-run").onclick !== null &&
+        document.querySelector("#console-input").onkeydown !== null));
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
@@ -3218,7 +3287,15 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
           headShift: head.style.transform,
           svgWidth: parseFloat(svg.getAttribute("width")),
           headPad: parseFloat(head.style.paddingLeft),
+          // The pane's own sideways scroll, and the two numbers that say
+          // where its right-hand end is. Since VA.respineX the SVG is drawn
+          // at the interpolated width, so `scrollWidth` CHANGES mid-flight
+          // and a browser clamps `scrollLeft` when it shrinks -- which is
+          // only observable with the pane actually scrolled (the scrolled arm
+          // below).
           scrollLeft: live.scrollLeft,
+          scrollWidth: live.scrollWidth,
+          clientWidth: live.clientWidth,
           drawn: marks.length,
           // Relative to the pane's own left edge, and to the grid's.
           dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
@@ -3425,6 +3502,139 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     if (deselectFrame && !(deselectFrame.dagLeft >= -1)) {
       console.log("    deselect leftmost drawn box: " + deselectFrame.dagLeft);
     }
+    await settled();
+
+    // (4). The same respine with the pane SCROLLED SIDEWAYS. This arm is
+    // browser-tier only, and not for want of trying elsewhere: neither the
+    // fixture tier nor the DOM shim it runs in has a layout, so there is no
+    // overflow to scroll and `scrollLeft` is a number nobody can move. Every
+    // other respine check in both tiers runs at horizontal scroll zero, and
+    // the two claims that makes trivially true are exactly the two this arm
+    // exists for (ISSUE_20260915_the_respine_is_unwitnessed_with_the_pane_
+    // scrolled_sideways):
+    //
+    //   * `.tv__rails { position: sticky; left: 0 }` should keep the DAG
+    //     pinned to the pane's VISIBLE left edge for the whole transition --
+    //     which is what makes "nothing is drawn left of the pane" mean
+    //     anything to a scrolled reader. At scrollLeft 0 it holds of a pane
+    //     with no sticky on it at all;
+    //   * since VA.respineX the SVG is drawn at the interpolated width, so
+    //     the pane's CONTENT width now changes during a transition, and a
+    //     browser clamps `scrollLeft` when content shrinks. A reader at the
+    //     right end of the grid is the one who would feel it.
+    //
+    // The subject is the real pitch_system, whose walk is the corpus's widest
+    // DAG and whose chain is one column: the biggest shrink there is.
+    // The same boxes catchFrame takes, off a SETTLED pane, after scrolling it
+    // sideways. `where` is "end" (as far right as the pane goes), "sticky"
+    // (as far as the room the DAG leaves beside it), a number, or null.
+    const paneBoxes = (where) => page.evaluate((target) => {
+      const live = Array.from(document.querySelectorAll(".tv__hscroll"))
+        .filter((n) => !n.closest("div.tv__ghost"))[0];
+      const svg = live.querySelector("svg.tv__rails");
+      const dagWidth = svg.getBoundingClientRect().width;
+      if (target === "end") live.scrollLeft = live.scrollWidth;
+      else if (target === "sticky") live.scrollLeft = live.clientWidth - dagWidth - 20;
+      else if (typeof target === "number") live.scrollLeft = target;
+      const rows = live.querySelector("div.tv__rows");
+      const pane = live.getBoundingClientRect();
+      const grid = rows.getBoundingClientRect();
+      const marks = Array.from(svg.querySelectorAll(
+        "line.rail, line.rail__bar, circle.rail__dot, path.rail__link, " +
+        "path.rail__leader")).map((n) => n.getBoundingClientRect());
+      return {
+        scrollLeft: live.scrollLeft, scrollWidth: live.scrollWidth,
+        clientWidth: live.clientWidth, dagWidth: dagWidth, drawn: marks.length,
+        dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
+        dagPastGrid: Math.max(...marks.map((b) => b.right - grid.left)),
+      };
+    }, where === undefined ? null : where);
+    await page.locator(walkRow).click();
+    await settled();
+    const scrolledWalk = await paneBoxes("end");
+    push("[real] the pane really does overflow sideways here, so the arm " +
+      "below is not measuring a pane that cannot scroll",
+      scrolledWalk.scrollLeft > 0 &&
+      scrolledWalk.scrollLeft === scrolledWalk.scrollWidth - scrolledWalk.clientWidth);
+    if (!(scrolledWalk.scrollLeft > 0)) {
+      console.log("    pane content " + scrolledWalk.scrollWidth +
+        "px in a " + scrolledWalk.clientWidth + "px pane: nothing to scroll");
+    }
+    // The sticky claim, and this is the only place in either tier where it is
+    // worth anything: `.tv__rails { position: sticky; left: 0 }` holds the
+    // DAG against the pane's VISIBLE left edge, and at scrollLeft 0 that is
+    // true of a pane with no sticky on it at all.
+    //
+    // It holds -- but not for the whole scroll, which is the thing nothing
+    // measured. A sticky box is bounded by its CONTAINING BLOCK, and here
+    // that is `.tv__body`, which is the pane's own width rather than its
+    // content's: the grid table overflows out of `.tv__rows` instead of
+    // widening the flex row. So the SVG can be pushed right by at most
+    // (paneWidth - dagWidth), and a reader who scrolls further than that
+    // drags the DAG back off the left edge -- 41.5px of it, at this viewport,
+    // on the real pitch_system
+    // (ISSUE_20260915_the_sticky_rails_stop_sticking_once_the_grid_is_
+    // scrolled_past_the_dags_own_width). Both halves are pinned, so the fix
+    // turns the second check red rather than leaving a stale claim behind.
+    const stickyWalk = await paneBoxes("sticky");
+    push("[real] scrolled sideways, the DAG stays pinned to the pane's " +
+      "VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a " +
+      "scrolled reader's rails beside their own rows",
+      stickyWalk.scrollLeft > 0 && stickyWalk.drawn > 20 &&
+      stickyWalk.dagLeft >= -1);
+    if (!(stickyWalk.dagLeft >= -1)) {
+      console.log("    at scrollLeft " + stickyWalk.scrollLeft +
+        " the leftmost drawn box is " + stickyWalk.dagLeft +
+        "px from the pane's left edge");
+    }
+    push("[real] but only as far as the room the DAG leaves beside it: past " +
+      "that the sticky runs out of containing block and the rails slide off " +
+      "the pane's left edge",
+      scrolledWalk.scrollLeft > scrolledWalk.clientWidth - scrolledWalk.dagWidth &&
+      scrolledWalk.dagLeft < -1);
+    console.log("    sticky holds to scrollLeft " +
+      (scrolledWalk.clientWidth - scrolledWalk.dagWidth) + " of " +
+      scrolledWalk.scrollLeft + "; at the far end the DAG is " +
+      scrolledWalk.dagLeft + "px from the pane's left edge");
+    // And the respine out of that scrolled pane. The question the issue asked
+    // was whether the browser's scrollLeft CLAMP is felt as a sideways jump
+    // when the DAG shrinks 316 -> 82px under a reader parked at the right
+    // end. Measured, it never gets that far: VA.renderTopoPane clears the
+    // pane and builds a fresh `.tv__hscroll`, which starts at 0, so the
+    // reader's sideways scroll is gone on the FIRST frame and there is no
+    // scroll left for the clamp to act on. That is not the respine's doing --
+    // every render of this pane does it, density and length mode included --
+    // so it is filed rather than fixed here
+    // (ISSUE_20260915_every_topology_pane_render_throws_away_the_readers_
+    // sideways_scroll). This check states what the build actually does, so
+    // the day that issue is fixed it goes red and this claim gets rewritten
+    // rather than quietly outliving the behaviour it describes.
+    await page.locator(studyRow).click();
+    const scrolledFrame = await catchFrame();
+    push("[real] a respine rebuilds the pane, so a scrolled reader is at the " +
+      "left edge from the first frame — the scrollLeft clamp the shrinking " +
+      "DAG would otherwise cause is never reached",
+      !!scrolledFrame && scrolledFrame.scrollLeft === 0);
+    if (scrolledFrame) {
+      push("[real] and the frame in flight is drawn inside the pane from " +
+        "there, exactly as the unscrolled arms measured",
+        scrolledFrame.drawn > 20 && scrolledFrame.dagLeft >= -1 &&
+        scrolledFrame.dagPastGrid <= 1);
+    }
+    await settled();
+    const afterScroll = await paneBoxes(false);
+    push("[real] and it settles at the left edge on a pane the respine made " +
+      "narrower, with the DAG still inside it",
+      afterScroll.scrollLeft === 0 &&
+      afterScroll.scrollWidth < scrolledWalk.scrollWidth &&
+      afterScroll.dagLeft >= -1);
+    console.log("    scrolled respine: scrollLeft " + scrolledWalk.scrollLeft +
+      " -> " + (scrolledFrame ? scrolledFrame.scrollLeft : "?") + " -> " +
+      afterScroll.scrollLeft + " (pane content " + scrolledWalk.scrollWidth +
+      " -> " + afterScroll.scrollWidth + "px)");
+    // Back to the walk for the blocks below, which measure a pane at
+    // horizontal zero -- where the respine above has already left it.
+    await page.locator(walkRow).click();
     await settled();
 
     await page.locator(studyRow).click();

@@ -311,10 +311,14 @@ stacks are top-level leaves of the tree; the one stack a topology also
 re-expresses is nested as a child of that topology instead, alongside its
 studies, rather than being a second top-level leaf — but it is still there,
 one click under the topology it also is, and not merged into or hidden by it:
-its own authored `checks` block (a worst-case verdict against a criterion) has
-no field in the topology projection at all — DAG_TOPOLOGY.md's L1 proof
-compares *totals*, never a verdict — so making it unreachable would drop that
-check off the page entirely. `VA.navTree` (`topology.js`) computes which stack
+it holds the stack's own element table, its paths and its worksheet, none of
+which a topology re-expresses. (Until 2026-09-15 the reason given here was that
+a study's own `checks` had no field in the topology projection at all and a
+verdict was therefore reachable *only* through this nested view. That stopped
+being true in two steps — `topology_projection_emits_study_checks` added the
+field on 2026-09-09, and `viewer_study_verdicts_and_gaps` made the DAG page
+render it on 2026-09-15 — so the asymmetry this sentence described is gone, and
+with it the argument that rested on it.) `VA.navTree` (`topology.js`) computes which stack
 that is by reading the linkage already on hand — an edge that re-expresses a
 stack element carries `crop_key: {stack, element}`, and that IS the "this
 stack has a topology" fact, so nothing new is authored to say so.
@@ -856,14 +860,44 @@ things are worth knowing about it:
   needs **1**), and a rail belongs to a *column* rather than to an element, so
   there is nothing to pair the two frames' rails on. What the two frames do
   agree about is **depth from the spine** — both are right-justified, so the
-  mainline is the last column of either — so `VA.respineX` interpolates the
-  **column count** and the **pane width**, and both geometry passes draw the
+  mainline is the last column of either — so `VA.respineX` pairs a column *by
+  depth* and `VA.drawnColumn` interpolates its drawn index between the two
+  frames' own, alongside the **pane width**; both geometry passes draw the
   frame from those. A surviving rail starts exactly where the outgoing frame
-  drew it; a column the respine *adds* unfolds out of the spine rather than
-  arriving from a place it never was. The SVG is drawn at the interpolated
-  width, which is the grid's own left edge, so the table beside it and the
-  header padded to sit over it follow without either learning that a
-  transition exists — **nothing is slid as a block.**
+  drew it; a column the respine *adds* unfolds out of **the outgoing frame's
+  leftmost rail** rather than arriving from a place it never was.
+
+  That last qualifier is load-bearing, and getting it wrong is what the first
+  cut did: it collapsed an added column onto drawn index **0**, which every
+  *settled* frame has a rail at and a frame caught mid-unfold does not.
+  Interrupting a select at `e = 0.5` — a 10-column walk half way into a
+  1-column chain, the real `pitch_system`'s own gap — left one rail drawn at
+  x = 105 with nothing to its left, and the deselect's first frame popped nine
+  rails in at x = 15…85. The spine and the pane width were continuous across
+  that, which is why the guard on those two numbers never saw it. So the
+  outgoing frame now records the **leftmost** index it drew as well as the
+  spine's, and the unfold holds from a transition frame and not only from a
+  settled one;
+* **a link is the one drawn thing that unfold does NOT cover, so it carries an
+  opacity of its own.** A rail belongs to a column, and every column *both*
+  serialisations have has a rail on both sides — so the only rails a respine
+  can add are exactly the ones the unfold draws on top of a rail already
+  there. A link belongs to a *pair* of columns, and two serialisations can
+  differ by a link on columns they **share**: a loop closure present in one
+  and not the other arrives on rails that never move, with nothing to hide
+  behind. `VA.linkOpacity` fades it in, keyed by `VA.linkKey` — the *elements*
+  at the link's two ends, the same element-by-element pairing the store makes
+  for a row. (A branch link's two ends are the same fork row, so two fan-outs
+  off one fork would key alike; a branch is keyed by the row it *lands* on
+  instead.) No committed topology can show this yet — all 21 study chains
+  across the five topologies are linear, `columns: 1` and `links: []`, so
+  every link a respine adds today arrives on a column it also adds — so the
+  check for it is synthetic, against the day a respine re-columns the whole
+  walk;
+* **the width goes with it, and nothing is slid as a block.** The SVG is drawn
+  at the interpolated width, which is the grid's own left edge, so the table
+  beside it and the header padded to sit over it follow without either
+  learning that a transition exists.
 
   The first cut *was* a whole-block CSS translate, right-anchored on the
   outgoing frame's grid seam, and it is worth knowing why that cannot work:

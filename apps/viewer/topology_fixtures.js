@@ -48,6 +48,17 @@
 // honest -- the demo studies author no checks -- so this is the same kind of
 // shape fix, not a hand-edited number.
 //
+// The topology's `gaps` array is the fifth (viewer_study_verdicts_and_gaps,
+// 2026-09-15) -- and the one hand-patch here that is fully DERIVABLE rather
+// than merely honest. `topology_gaps()` reads three things: the studies'
+// checks (all `[]` here, so no excluded terms), a hardware register (the demo
+// mechanism names no hardware), and the EDGES already in this file. Apply its
+// rule to those six edges and you get exactly the three rows below, in exactly
+// that order: the two edges whose citation is `untraced`/absent, then the one
+// whose min == max. `tip_to_strut_end` is a DERIVED gap carrying no dimension
+// at all and is correctly not a row -- an edge with no value on purpose is not
+// an unsourced one, which is the distinction the builder's own comment makes.
+//
 // The numbers are arbitrary and internally consistent with a fold; nothing here
 // is a claim about any Joby part.
 (function (VA) {
@@ -1264,6 +1275,11 @@
             "result": null,
             "layout": null
           }
+        ],
+        "gaps": [
+          {"kind": "unverified_value", "text": "arm pin to tip", "hardware_id": null, "edge": "arm_pin_to_tip", "edge_name": "arm pin to tip"},
+          {"kind": "unverified_value", "text": "post bushing offset", "hardware_id": null, "edge": "post_bushing_offset", "edge_name": "post bushing offset"},
+          {"kind": "no_tolerance_recorded", "text": "arm pin to tip", "hardware_id": null, "edge": "arm_pin_to_tip", "edge_name": "arm pin to tip"}
         ]
       }
       ],

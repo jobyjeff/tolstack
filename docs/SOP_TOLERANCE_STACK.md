@@ -805,6 +805,13 @@ venv-win\Scripts\python.exe tests\debug_report_tolerance_stacks.py --compare
 | `marginal` | **nominal passes but worst case does not** |
 | `fail` | nominal does not pass either |
 
+Beside the word, **by how much**: `CheckResult.margin` is the signed worst-case
+distance to the criterion, in the check's own units. Positive is slack,
+negative is shortfall, and it agrees with the verdict by construction -- both
+are the same comparison, written once. Nothing downstream re-derives it: a
+renderer that read `criterion` and subtracted would be a second place a sign
+can be wrong, about the one number a reader acts on.
+
 `marginal` is what lets the output say *"there is no clean analytical answer,
 this joint needs assembly-time selection"* honestly, instead of picking a side.
 Use it. It is the most informative of the three.

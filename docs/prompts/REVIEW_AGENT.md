@@ -459,6 +459,55 @@ deliberately absent here). Recipe and the resolution-ceiling trick are in
 
 Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
 
+- [ ] **`--repo` with backslashes under the BASH tool skips the whole `[real]`
+      tier, and the runner still prints a clean total.** New 2026-09-15
+      (`review/viewer_study_verdicts_and_gaps`). Every doc here spells it
+      `--repo C:` + a backslash path, which is correct under PowerShell; under
+      the Bash tool the shell eats the backslashes, `run_tests.cjs` resolves
+      `.../workspacetolstack/data/...`, and the run reports
+      **`302/302 passed`** with all **69** `[real]` tests gone (302 without the
+      tier, 371 with it, on 2026-09-15). It is not wholly
+      silent -- there is one `SKIP node-fs tier` line naming the mangled path --
+      but it is one line above the total, so a `| tail -4` read misses it
+      entirely. Use `--repo C:/workspace/tolstack` from Bash, and **check the
+      total moved** (371 with the real tier, 302 without) before you
+      believe a green. Same seam in `scripts/run_viewer_browser_tests.mjs`.
+
+- [ ] **A vocabulary pairing compares SETS, so a consumer that ranks by the
+      order is unguarded.** New 2026-09-15 (`viewer_study_verdicts_and_gaps`).
+      `tests/test_js_python_vocabulary.py` and
+      `tests/test_topology_projection.py`'s `JS_PAIRINGS` both assert
+      `set(python) == set(js)` -- exactly right for "does the page have a branch
+      for every value", and blind to order. `VA.worstVerdict` ranks a study's
+      checks by `Object.keys(VA.VERDICTS).indexOf(...)`, i.e. by the order of a
+      table whose order nothing checks: reversing the three keys left
+      **367/367 fast tier and 13/13 pairing green** while two live studies
+      (`pitch_system_end_stop_minus7`/`_plus72`, `marginal` + `pass`) rolled up
+      as **PASS**. Ask of every new "worst last" / "weakest wins" tuple: *is the
+      ORDER asserted anywhere, or only the membership?*
+      (`ISSUE_20260915_worst_verdict_ranks_by_an_unguarded_object_key_order`.)
+- [ ] **A new derived field reaches a screen, and the test that "matches field
+      for field" now imports the producer's own helper.** Same handoff.
+      `CheckResult.margin` -- the "by how much" the whole handoff exists to
+      publish -- has no Python value test: mutating it to `interval.max` left
+      the suite at its baseline red-count. The field-for-field projection test
+      had been re-pointed at `B.rounded_check()`, the builder's own display
+      rule, which is the right single-owner fix for *rounding* and makes the
+      test structurally unable to see a wrong rule. The only value pin was a
+      rendered string in the JS `[real]` tier, which reads the **built file** and
+      so fires only after a manual rebuild. Ask: *which assertion would go red
+      if this property returned the other end of the interval?*
+      (`ISSUE_20260915_check_result_margin_has_no_value_test_in_python`.)
+- [ ] **A new badge that REPLACES an older marking inherits none of its
+      guards -- read what the diff DELETED, not only what it added.** Same
+      handoff: the grid's `chip--zero-width` chip was removed and a
+      `tvflag--no_tolerance` badge put in its place, and deleting the new
+      badge's one line left **367/367 green**. Its sibling
+      (`tvflag--unverified`) is pinned count-for-count in the same test, which
+      is what makes the omission look like coverage. When a deliverable says
+      "every affected row carries X", mutate X away per kind, not once.
+      (`ISSUE_20260915_the_grids_no_tolerance_badge_is_unguarded_in_every_tier`.)
+
 - [ ] **One sentence made honest, with the chrome around it still instructing
       the reader to do the thing.** New 2026-09-15
       (`surfaces_that_state_something_false`). The banner now says the feature
@@ -475,6 +524,22 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       browser). Ask: what else on this page claims a capability the branch just
       withdrew? (`ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_
       reader_to_bind_a_face`.)
+      **Second sighting 2026-09-15, in the fix for the first, and it moves the
+      question from "what else on this page" to "what else reaches this
+      page":** `annotate_hosted_page_posture` withheld the whole workspace on
+      the hosted origin correctly -- and `main()` has a *second* dead-end
+      branch, `if (!picked.adapter)` (a local page in a browser with no File
+      System Access API, i.e. every Firefox and Safari reader), which still
+      renders the full bind workspace, a live dev console and a real empty
+      `<canvas>` under its own honest sentence. Measured by deleting
+      `window.showDirectoryPicker` in a `page.addInitScript` against the
+      loopback server -- 20 lines of playwright, and the only way to see a
+      state the suite's own browser cannot enter. So: **enumerate every early
+      return and every terminal branch of the function the fix lands in, and
+      ask which of them leaves the same chrome standing.** A fix scoped to one
+      state is right; a *rule* stated for the app is a claim about all of them.
+      (`ISSUE_20260915_a_browser_with_no_fsa_gets_the_full_bind_workspace_
+      under_a_dead_end_sentence.md`, routed to the origin-posture brief.)
 - [ ] **A guard that no longer witnesses what it claims, and says nothing about
       it.** The witness is coupled to an incidental property of the app; the app
       then changes *correctly* and the guard silently stops biting. Nothing goes
@@ -2403,6 +2468,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       against their own diff's new conditionals, and mutate every predicate
       the list does not name. `ISSUE_20260915_a_refusing_study_staying_on_the_
       walk_is_unwitnessed_in_every_tier.md`.
+      **Second sighting 2026-09-15 (`annotate_hosted_page_posture`), and the
+      un-witnessed half was in the handoff, not invented:** deliverable 1 had
+      two halves -- the hosted page *shows* nothing about the bind workflow,
+      and the controls it withholds are *never wired* -- and the author said so
+      in the lesson ("two separate defects, two separate fixes"), asserted both
+      in the browser tier, and declared a `mutation_witnesses.json` entry for
+      the first only. So the rule is wider than "mutate the predicates the list
+      does not name": **count the contracts the deliverable states and the
+      entries declared for it, and mutate any half without one.** Confirmed by
+      hand here (wiring moved back above the hosted early-return -> 17/18, the
+      right sub-check), then declared as a second entry in review -- which is
+      the cheap move the tier exists for, five strings, not an issue.
 - [ ] **An interpolator claimed to be the identity at its far end — check the
       KEY SETS, not the values at the shared keys.** Same handoff.
       `VA.tweenPositions(from, to, 1)` was tested by
@@ -2437,8 +2514,28 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       under test is not that. Ask **which frame is the outgoing one here --
       settled, or in flight?** for every interpolation claim; the two
       endpoints are the easy cases and the interrupt is a third state.
+      Fixed 2026-09-15 (`respine_tween_fidelity_round2`): the outgoing frame
+      records its **leftmost** drawn column index as well as the spine's, so
+      the unfold holds from a transition frame, and that guard now pairs the
+      whole drawn rail set beside the two scalars. Note what did *not* shrink
+      — `VA.respineX` returns four numbers now instead of two, which makes it
+      easier to pick two of them and call it a picture, not harder.
       `ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
       nowhere.md`.
+- [ ] **The handoff enumerated the sites of a prose claim -- so grep for the
+      one it missed.** New 2026-09-15 (`respine_tween_fidelity_round2`,
+      should-fix, fixed inline). The handoff listed the three places justifying
+      "a rail needs no fade" and made "all three must end up true" the
+      definition of done; all three were rewritten correctly, and a **fourth**
+      -- `renderTopoPane`'s own `xTween` comment, in a file on the handoff's
+      list -- still said the added column "unfolds out of the spine", which the
+      fix had just made wrong rather than merely conditional. An enumeration in
+      a handoff is the author's *starting* inventory, not a closed set: grep the
+      branch for the superseded phrase (`unfold`, `collapsed onto`, `from
+      nowhere` here) and confirm every survivor is one the fix rewrote. This is
+      the "grep for the other copies of the figure you just corrected" entry
+      applied to a *claim* rather than a number, and to the tactical agent
+      rather than the reviewer.
 - [ ] **A handoff's own "confirm the current count before X" instruction is
       itself a count that may have moved.** New 2026-09-15
       (`viewer_hygiene_pass`). The handoff staged a table of `dismissCard`
@@ -2543,6 +2640,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       on `part` alone) is decoration that reads as precision.
 
 ## Architectural errors to check
+
+- [ ] **Two readers of one input file, one strict and one tolerant.** New
+      2026-09-15 (`viewer_study_verdicts_and_gaps`). Both projection builders
+      read `hardware_entries.json`; `build_viewer_projection.build()` raises on
+      a wrong `schema`, the new `build_topology_projection.load_hardware()`
+      reads `entries` off whatever JSON is there. Tolerating an **absent**
+      register is argued and documented; tolerating a **present but
+      unreadable** one silently turns 43 of 98 live gap rows into "nothing is
+      missing" on the one page whose job is to say what is. When a diff adds a
+      second reader for an existing file, diff the two loaders' refusals, not
+      just their happy paths.
+      (`ISSUE_20260915_topology_builder_drops_the_hardware_register_schema_check`.)
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
       and checks are the same signed term list. And `fold()` reads `min`/`max`
@@ -3138,6 +3247,37 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `git log integration -- docs/issues/` (or just `ls` the merged tree) for a
       sibling filing, and either cross-reference or say in the report which one
       triage should close.
+      **Third filing of that same red, same day, and this one had no excuse:**
+      `annotate_hosted_page_posture` was cut from `f629942`, an `integration`
+      that already carried *both* siblings, so `ls docs/issues/` in its own
+      worktree would have shown them -- and it filed a third at a different
+      priority (`high` against their `med`). The no-fault reading above applies
+      only when the branch point genuinely predates the sibling's merge:
+      **check the branch point (`git merge-base`) against the sibling's first
+      commit before you decide which it is**, because the two look identical in
+      the merged tree and only one of them is a finding against the author.
+      Cross-referenced in review rather than deleted -- the newest filing
+      carried the priority argument the other two did not.
+
+- [ ] **A guard on a named CONSTANT, where lifting the copy into that constant
+      is what moved the assertion away from the defect.** New 2026-09-15
+      (`annotate_hosted_page_posture`, should-fix). The fix for "this banner
+      renders a terminal command" was the right one -- plain words, and the
+      command strings deleted from `config.js` so there is nothing left to
+      concatenate -- and the guard asserts (a) the constant's text is clean and
+      (b) `AA.CONFIG.rebuild === undefined`. Nothing pairs the constant to the
+      one call site that renders it, so restoring the pre-handoff banner as a
+      bare string literal in `loadAll()` ships **65/65 green** on the annotate
+      fast tier, invisible to pytest (the copy is JS) and to the browser tier
+      (no suite reaches a connected folder with no projection). The lift into a
+      constant is usually done *so that* a testable tier can read the copy at
+      all -- which is exactly what takes the assertion off the surface. Ask of
+      any "the copy must not say X" guard: **what fails if the surface stops
+      reading the constant?** Where the rendered text is expensive to reach, a
+      static scan of the caller for the constant's name is three lines and the
+      file is already being read.
+      `ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_not_the_
+      call_site.md`.
 
 ## Writing the review
 
