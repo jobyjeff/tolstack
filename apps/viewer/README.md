@@ -627,11 +627,11 @@ Until 2026-09-15 selecting a study swapped the DAG for `StudyResult.chain` laid
 out on its own — one rail, in the order the sum runs — with "Showing: whole
 topology" to put the walk back. Jeff, reviewing it: *"When you click a
 study/stack, the entire dag/model should still be visible. It should be fairly
-obvious that there are no leader lines pointing to certain elements."* And the
-report was about **inconsistency** as much as about hiding: two of
-`pitch_link_to_pitch_plate`'s studies dropped rows while the third's chain
-covered nearly everything, so the same control read as three different
-behaviours. One layout, varying emphasis, is the answer to both.
+obvious that there are no leader lines pointing to certain elements."* That old
+nav-click behaviour gave a reader no signal at all about what a study excluded
+from the walk: every study dropped its non-chain rows and none of them dimmed
+anything, so there was nothing on screen to notice was missing. One layout,
+varying emphasis, is the fix.
 
 `study.layout` is still in the projection and still built by
 `scripts/build_topology_projection.py` — nothing about the data changed, only
@@ -1509,7 +1509,8 @@ node scripts\run_viewer_browser_tests.mjs               # truth tier (installed 
 node scripts\run_viewer_browser_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
 node scripts\run_viewer_browser_tests.mjs --only "topology height budget"  # one suite
 
-node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack   # mutation-witness tier
+npm run test:mutations                                  # mutation-witness tier
+node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
 ```
 
 ### The mutation-witness tier
@@ -1532,11 +1533,10 @@ redden on, the tier that owns it, and the name of the check that must fail.
 under `tmp/`, patches the copy, runs the owning tier — clean first,
 which must be green, or nothing the mutation does proves anything — and fails
 unless the **declared** check goes red. It takes `--repo` for the same reason
-the other two do: several of the declared witnesses redden `[real]` checks, and
-those skip without a projection (no count here — this line said "three" and was
-seven by 2026-09-16;
-`grep -c '"expect_red": "\[real\]' scripts/mutation_witnesses.json` answers it).
-This tree is never written to.
+the other two do: some of the declared witnesses redden `[real]` checks, which
+skip without a projection — no count here, because the table this tier reads
+gains entries faster than any digit written in prose would stay true; the
+runner prints each entry's id as it runs. This tree is never written to.
 
 Adding an entry is meant to be cheaper than filing an issue: copy the nearest
 one and change five strings. If you find a guard that shrugs off a hand

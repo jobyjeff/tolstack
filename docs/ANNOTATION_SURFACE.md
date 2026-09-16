@@ -84,9 +84,10 @@ vocabulary constant: `tolerance_stack/feature_identity.py`.
 `data/meshes/<source_step_sha256>/` — the spike's binary format verbatim:
 `positions.f32` / `indices.u32` / `face_ids.u32` (raw little-endian typed
 arrays) + `manifest.json` (the face table: `area_native2` +
-`centroid_native` per face) + a `provenance.json` sidecar (source STEP path,
-sha256, tessellation tier, the rotorkit command that produced it). See
-`data/meshes/README.md`.
+`centroid_native` per face) + a `provenance.json` sidecar naming the
+geometry source and hash, the tessellation tier, and the rotorkit run that
+produced it. See `data/meshes/README.md` for what the sidecar carries on
+each of the two routes a mesh can arrive by.
 
 ### The projection
 

@@ -574,11 +574,16 @@ Read-only, one way:
 - **forge** — the atomic-notes attachment stream is the upstream of the source
   workbook (see `data/inbox/tolerance_stacks/PROVENANCE.md`). Forge attachments
   are immutable; treat copies as read-only.
-- **rotorkit** — `data/meshes/<sha>/` is tessellated from a STEP file by
-  rotorkit's `stepgeom.tessellate` (`scripts/tessellate_parts.py`, run from
-  rotorkit's own checkout and venv — OCP lives there, never here). This repo
-  never patches rotorkit or imports its code; it copies the binary mesh
-  output, unmodified, plus a provenance sidecar (`data/meshes/README.md`).
+- **rotorkit** — `data/meshes/<sha>/` holds part geometry tessellated by
+  rotorkit, by one of two routes, both run from rotorkit's own checkout and
+  venv (OCP lives there, never here): a single-part STEP export
+  (`scripts/tessellate_parts.py`, copied in and renamed here) or a product
+  extracted from an assembly STEP (`scripts/extract_assembly_parts.py`, which
+  writes this repo's layout directly — no copy step on that route). This repo
+  never patches rotorkit or imports its code. Each directory's own
+  `provenance.json` says which route produced it and what
+  `source_step_sha256` hashes in that case; see `data/meshes/README.md`,
+  "Two ways a mesh gets here."
 
 ## Imported material — what may change, and how it is recorded
 
