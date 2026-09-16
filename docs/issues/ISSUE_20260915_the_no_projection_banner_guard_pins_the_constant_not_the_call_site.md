@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260915_annotate_hosted_page_posture.md
+handoff: docs/sessions/HANDOFF_20260916_js_guards_and_suite_isolation.md
 ---
 
 # The "no projection" banner's guard pins the constant, not what `setBanner` is called with — the exact defect comes back 65/65 green

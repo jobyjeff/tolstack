@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: scripts
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
+handoff: docs/sessions/HANDOFF_20260916_python_value_and_schema_pins.md
 ---
 
 # Two builders read `hardware_entries.json`; only one refuses a register with the wrong schema

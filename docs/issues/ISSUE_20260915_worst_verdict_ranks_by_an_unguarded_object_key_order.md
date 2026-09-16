@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
+handoff: docs/sessions/HANDOFF_20260916_js_guards_and_suite_isolation.md
 ---
 
 # `VA.worstVerdict` ranks by `VA.VERDICTS`' key order, and nothing guards that order

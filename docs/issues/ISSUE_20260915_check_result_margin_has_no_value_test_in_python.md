@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: tolerance_stack
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
+handoff: docs/sessions/HANDOFF_20260916_python_value_and_schema_pins.md
 ---
 
 # `CheckResult.margin` — the number the DAG page publishes — has no Python test pinning its value

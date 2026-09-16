@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: spec_library
 audience: strategy
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20260915_stack_fable_audit.md
+strategy: docs/strategy/BRIEF_20260916_drawing_arrival_gap_join.md
 ---
 
 # Nothing notices when a drawing a gap is waiting on lands in drawing-checker

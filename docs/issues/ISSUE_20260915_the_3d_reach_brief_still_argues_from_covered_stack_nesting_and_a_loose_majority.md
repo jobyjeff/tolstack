@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: docs/strategy
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260915_viewer_nav_wedge_and_classic_retirement.md
+strategy: docs/strategy/BRIEF_20260911_viewer_3d_and_card_content_reach.md
 ---
 
 # The 3D-reach brief's decision rests on two facts `viewer_nav_wedge_and_classic_retirement` just retired

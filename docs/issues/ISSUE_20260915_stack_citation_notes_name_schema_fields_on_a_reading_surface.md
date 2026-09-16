@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: low
-status: open
+status: triaged
 area: docs/authoring
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
+strategy: docs/strategy/BRIEF_20260915_prose_field_rules_names_and_derivable_counts.md
 ---
 
 # Seven stack citation notes name a schema field or a checksum, and the viewer renders them verbatim

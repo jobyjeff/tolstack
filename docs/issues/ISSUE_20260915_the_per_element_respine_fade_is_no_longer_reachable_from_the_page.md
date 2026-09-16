@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: viewer/respine
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260915_viewer_respine_whole_walk.md
+strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 ---
 
 # `VA.tweenAlpha`'s per-element fade can no longer be reached by any click — keep it, or retire it?

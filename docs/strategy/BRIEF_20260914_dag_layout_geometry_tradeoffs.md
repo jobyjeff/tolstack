@@ -125,3 +125,60 @@ defects in the shipped tween machinery, routed to
 decision here. `BRIEF_20260915_respine_scope_and_grid_motion` owns what a respine
 should *mean*. Coordinate with that brief if a column-repacking decision here
 would change what a respine re-columns.
+
+## 2026-09-16 triage sweep — item 2 also decides whether the per-element respine fade is live machinery or dead code
+
+Source issue:
+`docs/issues/ISSUE_20260915_the_per_element_respine_fade_is_no_longer_reachable_from_the_page.md`
+(chore, low, `audience: strategy`), filed off
+`docs/sessions/HANDOFF_20260915_viewer_respine_whole_walk.md`.
+
+**Why it is here and not in `BRIEF_20260915_respine_scope_and_grid_motion`.**
+That brief is partially consumed, and its marker leaves open only its item 2 —
+whether the grid's fixed row pitch may become dynamic, and what a leader's
+grid-side seam points at mid-flight. The fade question is not inside that
+remainder: it is about **DAG-element alpha**, which respine item 1's landed
+decision (the DAG is always the topology's own walk) is exactly what made
+unreachable. The lever that decides it is **this** brief's item 2, column
+re-packing. Recorded here so the re-packing call is made knowing its second
+consequence — it adds no constraint to that call, and it is not a reason to
+decide item 2 either way.
+
+**The measurement.** `viewer_respine_whole_walk` made both sides of every
+respine the same serialisation, so `VA.rowPositions` produces the same key set
+on both sides, `VA.tweenPositions`' `leaving` / `out.alpha` maps come out empty
+at every `e`, and `VA.tweenAlpha` (`apps/viewer/topology.js:1148`) answers `1`
+for everything the view asks about. Measured in the issue across all five
+committed topologies × 21 studies: node keys, edge keys and every node's `y` are
+identical between the deselected walk and each study's emphasized frame; only
+`gridOffset` and the pane width differ.
+
+What that leaves in the tree, all of it retained by that session:
+
+- `VA.tweenPositions`' entering/leaving arms and `out.alpha` — pure, unit
+  tested, not reached by the app;
+- `renderTopoPane`'s local `fade()` (`apps/viewer/views/topology.js:243`) and
+  its **seven** call sites — leader path, leader hit-path, bar, break mark, bar
+  hit-line, node dot, and the grid's edge row — reached every frame and always
+  a no-op (the source issue describes these as "two call sites (rail marks,
+  grid rows)", which is the two groups, not the site count);
+- the render-level test "an element the transition ADDS fades in at its own
+  settled position", re-based by that session onto a synthetic outgoing store
+  (the study's own `study.layout`, which the page no longer draws) and labelled
+  as such.
+
+**The question item 2's decider inherits.** Column re-packing is precisely the
+change that would make a respine add or drop a DAG element again, which is the
+only thing that puts `out.alpha` back on screen. So:
+
+- if re-packing (or anything else that re-columns on selection) is greenlit,
+  the machinery is about to be needed and keeping it is cheap insurance;
+- if item 2 settles on "column order stays a fact about the walk", full stop,
+  then the fade is machinery whose comment describes a transition that cannot
+  happen — the `LESSONS_20260915_surfaces_that_state_something_false` shape — and
+  retiring it (`alpha` out of the store, `VA.tweenAlpha`, `fade()`, the
+  synthetic test) is smaller and truer to what the page does, at the price of
+  having to rebuild it correctly the day a layout change re-introduces the case.
+
+Either answer is a one-line consequence of item 2; neither needs its own
+session slot, and neither should be picked by a tactical agent ahead of item 2.

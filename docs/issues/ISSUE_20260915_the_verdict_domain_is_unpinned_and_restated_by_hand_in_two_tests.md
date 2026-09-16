@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: tolerance_stack
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
+handoff: docs/sessions/HANDOFF_20260916_python_value_and_schema_pins.md
 ---
 
 # `VERDICTS` was minted to end the inline copies, and the two inline copies are in the tests

@@ -100,3 +100,86 @@ about where a `name`'s demoted half may go.
   `test_every_prose_field_the_count_pairing_claims_is_really_scanned`, which is
   the *guard's own* fragility and not a rule question. It is staged and fenced;
   do not fold it in here.
+
+## 2026-09-16 triage sweep — a third prose field: the citation's own `note`, and whether the fix is authoring-side at all
+
+Source issue:
+`docs/issues/ISSUE_20260915_stack_citation_notes_name_schema_fields_on_a_reading_surface.md`
+(feature, low, `audience: strategy`), filed off
+`docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md`.
+It belongs to this brief's question — *what a prose field may carry* — and it
+adds a field this brief does not yet name (`note` / `source_ref.note` on a
+stack element) plus a second axis the `name` question does not have. Nothing
+here picks between them.
+
+**What the issue found.** `viewer_component_names_and_reference_copy` put every
+string the viewer writes, and every `name`/`note` in `docs/topologies/*.json`,
+under Jeff's web-copy rules (guarded by
+`tests/test_topology_prose_for_a_reader.py`) and deliberately stopped at
+`docs/tolerance_stacks/stack_*.json`. Authored strings there carry the same
+shapes — naming a schema field (`source_ref`) or a checksum (`sha256`) in prose
+— and are rendered verbatim in the topology preview pane (a `dimension_ref`
+edge resolves its citation out of the stack file), on the citation hover card,
+and in the stack-mode detail pane.
+
+**The population is larger than the issue's table.** Re-measured 2026-09-16
+over all seven committed `stack_*.json`, element `note` + `source_ref.note`
+only, matching `source_ref` or `sha256`: **10 strings across 6 stacks**, not
+seven across five. The issue's table omits three —
+
+| stack | field | shape |
+|---|---|---|
+| `pitch_link_to_pitch_plate` | `bushing_214820.source_ref.note` | `source_ref` |
+| `pitch_link_to_pitch_plate` | `washer_nas1149v0332.source_ref.note` | `sha256` |
+| `tan_link_to_pitch_plate` | `flange_bushing_L.note` | `source_ref` |
+
+— and `pitch_link_to_pitch_plate` does not appear in it at all.
+
+**And there is a fourth field behind it, also on screen.** The same scan finds
+**34 more** authored strings at `source_ref.export.note` naming `sha256`,
+spread across all seven stacks (8 in `hub_bearing_thermal_fit_m2` alone). Those
+render too: `div.el-export__note` is a real rendered node
+(`apps/viewer/tests.js:1506`) and is one of the classes the handoff's own JS
+guard subtracts before scanning (`VERBATIM_PROSE_CLASSES`,
+`apps/viewer/tests.js:3020`). So if whatever rule this brief writes reaches
+citation prose at all, the surface it governs is **44 authored strings**, not
+7 — which is itself an argument the decider should have in front of them,
+because it prices the two routes very differently.
+
+**The second axis, which the `name` question does not have.** For a `name` the
+only question is what the field may carry. For a citation `note` the issue
+offers two non-equivalent routes and declines to pick:
+
+1. **Authoring-side.** Bring these fields under the written rule and reword
+   them. But a `source_ref.note` is *the written argument behind a value*,
+   addressed to a reviewer working through the provenance record — e.g. a
+   `RE-SOURCED <date> … WAS a slice-1 transcription of workbook row 23`
+   history, where naming `source_ref` is how the author referred to a sibling
+   citation. Rewording without re-reading the source risks changing what the
+   note **claims**, which is the failure mode this repo's rules exist against.
+2. **Presentational.** A citation's own note is record prose, so it renders
+   inside a marked "the citation's own words" block (the way a `callout`
+   already does) rather than as a sentence the page appears to be saying. The
+   JS guard already carves exactly these nodes out by class on that reasoning;
+   making the carve-out visible on screen is the un-taken half.
+
+That is the same shape as this brief's *"where a demoted half goes, if
+anywhere"* question, one field over — and the answers constrain each other: a
+rule that says record prose is quoted rather than rewritten is also a rule
+about whether a long `name` is a caption or a title.
+
+**Scope note for route 2.** Two of the 10 sit in `tan_link_to_pitch_plate`
+(take 1), which `VA.SUPERSEDED_STACKS` (`apps/viewer/topology.js:2240`) drops
+from the nav — reachable only through a `?stack=<id>` deep link. A
+presentational fix reaches them; an authoring pass would be editing the record
+of a stack the page no longer offers a row for.
+
+**One correction to the source issue.** It proposes that the natural carrier is
+"whichever handoff comes out of
+`docs/strategy/BRIEF_20260909_sop_full_topology_first_restructure.md` … the same
+disposition `ISSUE_20260914_element_and_edge_names_are_not_under_the_title_rule.md`
+got". That is not the disposition that issue got: its `strategy:` back-link
+names **this** brief, not the SOP-restructure one. The SOP brief decides
+whether `SOP_TOLERANCE_STACK.md`'s steps are rewritten topology-first; the rule
+this issue needs is the one being written here. Where the resulting sentence
+lands in the SOP is downstream of that.

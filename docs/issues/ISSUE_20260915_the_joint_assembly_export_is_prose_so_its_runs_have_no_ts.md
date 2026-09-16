@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tolerance_stacks
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_pitch_link_known_bands.md
+handoff: docs/sessions/HANDOFF_20260916_python_value_and_schema_pins.md
 ---
 
 # `joint.assembly_export` is a prose string, so the runs it names carry no `ts` and the read-only invariant cannot check them
