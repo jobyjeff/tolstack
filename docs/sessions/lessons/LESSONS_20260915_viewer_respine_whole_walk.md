@@ -137,6 +137,17 @@ complaint. Measured on the live projection, 1600×1000, all three: 7 dots, 8
 bars, 3 rails, 0 links — identical — with 3 / 4 / 6 bars dimmed, 4 / 5 / 2
 leaders drawn, and 5 / 4 / 2 grid rows (each exactly its chain's length).
 
+> **Correction, 2026-09-15 (review).** The link count is **4**, not 0 —
+> `pitch_link_to_pitch_plate`'s `layout.links` has four entries and the page
+> draws all four under every one of the three studies. Re-derived off the
+> rebuilt projection with a throwaway `[real]` probe: `7/8/3/4` dots / bars /
+> rails / links for the deselected walk and for each study. Every other figure
+> in the sentence reproduced exactly (3 / 4 / 6 dimmed, 4 / 5 / 2 leaders,
+> 5 / 4 / 2 rows), which is what makes a wrong sixth one survive a read. The
+> `[real]` sweep this session added asserts the rendered link count against
+> `topoProj.layout.links.length`, so the *code* was never wrong here — only
+> this sentence.
+
 **What did not fall out:** `docs/prompts/REVIEW_AGENT.md` cites `chainable()`'s
 false branch twice, as a dated example in two checklist items. Both are true
 statements about code as it was on 2026-09-15 and both name the handoff that

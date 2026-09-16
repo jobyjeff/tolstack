@@ -7186,8 +7186,8 @@
               })[0];
               if (!study) return;
               ["uniform", "tolerance", "absolute"].forEach(function (mode) {
-                var walkCtx = ctxFor(topoProj, null, "topology", mode);
-                var studyCtx = ctxFor(topoProj, study, "chain", mode);
+                var walkCtx = ctxFor(topoProj, null, mode);
+                var studyCtx = ctxFor(topoProj, study, mode);
                 var freshChain = geometryOf(render(function (r) {
                   VA.renderTopoPane(r, studyCtx);
                 }));
@@ -7781,7 +7781,7 @@
               eq(c, Number(columns[2]), "README's chain column count");
             });
 
-            // "the pane goes **316 -> 226px**" / "`gridOffset` goes
+            // "the pane goes **316 -> 250px**" / "`gridOffset` goes
             // **299 -> 143px**" -- the respine section's own statement of what
             // is left to animate now that a study selection no longer
             // re-columns anything (viewer_respine_whole_walk). Both are
