@@ -1615,9 +1615,8 @@
     return rest || text;
   };
 
-  // The whole plan of the merged-row grid, from one serialisation (a
-  // topology's whole-graph walk or a study's chain — both carry the same row
-  // shape). Everything the grid and the leaders need, keyed by id:
+  // The whole plan of the merged-row grid, from the topology's whole-graph
+  // walk. Everything the grid and the leaders need, keyed by id:
   //
   //   rows     [{ id, layoutRow, gridRow }]      one per edge, walk order
   //   groups   [{ part, label, title, start, count }]   contiguous runs
@@ -1640,10 +1639,26 @@
   // last). `beforeEdge` is the edge id whose row starts at that seam, or null
   // at the very bottom — it is what lets a browser test measure the leader's
   // end against the actual row box rather than re-deriving arithmetic.
-  VA.gridPlan = function (layout, topoProj) {
+  //
+  // `focus` (viewer_respine_whole_walk, 2026-09-15) is how a selected study
+  // reaches this grid, and it restricts the TABLE only — never the rails. The
+  // DAG is always the whole walk now, so `layout` is always the topology's
+  // own; a study selection passes
+  //
+  //   { edges: VA.chainIndex(study), nodes: VA.chainNodes(study) }
+  //
+  // and the walk is filtered through it on the way in: an edge outside the
+  // chain emits no grid row, a node outside it no leader. Everything after
+  // that filter is the walk-order logic unchanged — the kept rows stay in
+  // WALK order (the sum's own order is the `#` column, VA.chainIndex's
+  // ordinal), because a table re-ordered under a DAG that did not move would
+  // cross every leader on the page. No focus is the whole walk, unchanged.
+  VA.gridPlan = function (layout, topoProj, focus) {
     var index = VA.topologyIndex(topoProj);
     var internal = VA.internalNodes(topoProj);
     var partsById = index.parts;
+    var focusEdges = (focus && focus.edges) || null;
+    var focusNodes = (focus && focus.nodes) || null;
 
     var rows = [];
     var groups = [];
@@ -1653,7 +1668,7 @@
 
     ((layout && layout.rows) || []).forEach(function (row) {
       if (row.kind === "node") {
-        if (!internal[row.id]) {
+        if (!internal[row.id] && (!focusNodes || focusNodes[row.id])) {
           pendingBoundaryNode = row.id;
           leaders.push({
             id: row.id,
@@ -1665,6 +1680,10 @@
         return;
       }
       if (row.kind !== "edge") return;
+      // A dropped edge leaves `prevPart` and `pendingBoundaryNode` alone, so a
+      // leader waiting for a seam binds to the next row the grid actually
+      // keeps and a group break still lands where the part really changes.
+      if (focusEdges && !focusEdges[row.id]) return;
       var edge = index.edges[row.id] || null;
       var part = edge && edge.part !== undefined ? edge.part : null;
       var breakHere = rows.length === 0 || part !== prevPart ||
