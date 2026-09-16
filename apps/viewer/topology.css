@@ -723,3 +723,9 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvgaps__list { margin: 0; padding-left: 18px; }
 .tvgaps__item { font-size: 13px; margin-bottom: 3px; }
 .tvgaps__where { color: var(--accent); margin-right: 6px; }
+
+/* The study-level flags, on their own line under the strip. They wrap; the
+   strip above them deliberately does not (see `.tvtotals__strip` -- it scrolls
+   sideways so its height cannot grow), and three long badges inside a
+   non-wrapping scrollport would have pushed the folded totals out of reach. */
+.tvtotals__flags { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 4px; }

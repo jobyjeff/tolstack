@@ -1166,6 +1166,15 @@
 
     var verdict = VA.studyVerdict(study);
     var strip = VA.el("div", "tvtotals__strip");
+    // The verdict leads — ahead of the title, because it is the one thing a
+    // reader came for and the one thing this page never said. It is the ONLY
+    // thing this handoff put in the strip: the strip does not wrap, it scrolls
+    // sideways (`.tvtotals__strip`, topology.css), and a long `from → to` span
+    // already pushes the folded totals past its right edge on a 870px pane.
+    // Three more chips in here would have pushed them further for a reader who
+    // has to drag to reach them — so the flags get their own line below,
+    // where they can wrap.
+    strip.appendChild(verdictChip(verdict));
     strip.appendChild(VA.el("span", "tvtotals__title", study.title));
     strip.appendChild(VA.el("code", "muted", study.id));
     strip.appendChild(VA.el("span", "muted tvtotals__span",
@@ -1180,12 +1189,6 @@
     }
 
     var attention = VA.studyAttention(study, index);
-    // The verdict leads the strip: it is the one thing a reader came for, and
-    // it used to be the one thing this page never said.
-    strip.appendChild(verdictChip(verdict));
-    attention.badges.forEach(function (flag) {
-      strip.appendChild(VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
-    });
     var worst = VA.studyWorstConfidence(study, index);
     strip.appendChild(VA.chip("chip--kind", study.result.chain.length + " contributions"));
     strip.appendChild(VA.chip("chip--kind", study.result.units));
@@ -1200,6 +1203,17 @@
         total.label + " " + total.value + " " + total.units));
     });
     root.appendChild(strip);
+
+    // The study-level flags, on their own wrapping line (deliverable 2): loud,
+    // never clipped, and directly above the block that explains each of them.
+    if (attention.badges.length) {
+      var flags = VA.el("div", "tvtotals__flags");
+      attention.badges.forEach(function (flag) {
+        flags.appendChild(
+          VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
+      });
+      root.appendChild(flags);
+    }
 
     root.appendChild(verdictBlock(verdict, attention));
 
