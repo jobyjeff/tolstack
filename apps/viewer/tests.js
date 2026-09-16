@@ -4150,10 +4150,13 @@
           Object.keys(over || {}).forEach(function (k) { ctx[k] = over[k]; });
           return topoCtx(ctx);
         };
-        var spineAndWidth = function (root) {
-          var rails = all(root, "line.rail").map(function (n) {
+        var railSet = function (root) {
+          return all(root, "line.rail").map(function (n) {
             return parseFloat(n.getAttribute("x1"));
           });
+        };
+        var spineAndWidth = function (root) {
+          var rails = railSet(root);
           return [Math.max.apply(null, rails),
                   parseFloat(root.querySelector("svg.tv__rails")
                     .getAttribute("width"))];
@@ -4168,6 +4171,7 @@
         }));
         var caught = VA.lastTopoRender;
         var midway = spineAndWidth(root);
+        var midwayRails = railSet(root);
         ok(caught.columns > Math.min(walk.columns, 1) &&
            caught.columns < walk.columns,
            "the frame records the count it drew with: " + caught.columns);
@@ -4176,10 +4180,26 @@
         // record. Its FIRST frame has to draw the same picture.
         VA.renderTopoPane(root, topoCtx({
           tween: { positions: caught.positions, columns: caught.columns,
-                   width: caught.width, e: 0 },
+                   floor: caught.floor, width: caught.width,
+                   links: caught.links, e: 0 },
         }));
         eq(spineAndWidth(root), midway,
            "the interrupting frame must continue from the drawn picture");
+        // And over the whole DRAWN SET, not just its two summary numbers.
+        // `spineAndWidth` reduces a frame of N rails to the max rail x and
+        // the SVG width -- which are precisely the two numbers VA.respineX
+        // returns, so it agreed with itself while the interrupting frame
+        // drew rails at x's the caught frame had nothing at
+        // (ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
+        // nowhere). Not an equal SET: the walk has more columns than the
+        // frame it interrupts, and the extra ones are collapsed on top of
+        // one another. Every rail must land on a rail that was there.
+        railSet(root).forEach(function (x, i) {
+          ok(midwayRails.indexOf(x) !== -1, "rail " + i + " of the " +
+             "interrupting frame is at " + x + ", where the frame it " +
+             "interrupted drew nothing: " + railSet(root) + " vs " +
+             midwayRails);
+        });
 
         // Non-vacuity: the two serialisations' own spines are far apart, so
         // continuing from either of them instead would be visible.
