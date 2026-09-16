@@ -12,17 +12,17 @@
     {
       "topology_part": "gas_spring_mount_213668_002",
       "mesh_part_id": "machined_213668",
-      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_system.json's part carries drawing 213668-002 rev A.1, name 'MOUNT, GAS SPRING, PROPELLER 213668-002'; the mesh's own provenance.json (data/meshes/6d5b1321446d54cd713da0739f7821c5266b3d6898ad047465e30003e7f549cf/provenance.json) records source STEP '213668-002_2026-07-23_Released.stp' with label '213668-002 MOUNT, GAS SPRING (single solid)'. Both name drawing 213668-002's gas-spring mount."
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_system.json's part carries drawing 213668-002 rev A.1, name '213668-002 gas-spring mount'; the mesh's own provenance.json (data/meshes/6d5b1321446d54cd713da0739f7821c5266b3d6898ad047465e30003e7f549cf/provenance.json) records source STEP '213668-002_2026-07-23_Released.stp' with label '213668-002 MOUNT, GAS SPRING (single solid)'. Both name drawing 213668-002's gas-spring mount."
     },
     {
       "topology_part": "pitch_plate_215177_001",
       "mesh_part_id": "asm217755_215177_001",
-      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_system.json's part carries drawing 215177-001, name 'PITCH PLATE 215177-001'; the mesh's provenance.json (data/meshes/365deebccbc4b3c56d82436702e9ddcea431d5d45ac8892c6459afc98a7b0551/provenance.json) records product_name '215177-001' at XCAF label 0:1:1:1458 of '217755-001 A.1 PROPULSION ASSEMBLY, PROPELLER, CW Released.stp'. NOTE what this mesh is: 215177-001 is an INSTALLATION in that assembly, so the mesh is the plate plus its 9 NAS77 bushings (10 solids, product_is_assembly true). Its one machined detail is installed separately as `asm217755_215735_001`; manifest.json's per-face solid_id already lets a reader address the plate alone inside this mesh, and a consumer that would rather have the bare plate should re-point this row at the detail explicitly rather than reinterpret this one."
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_system.json's part carries drawing 215177-001, name '215177-001 pitch plate'; the mesh's provenance.json (data/meshes/365deebccbc4b3c56d82436702e9ddcea431d5d45ac8892c6459afc98a7b0551/provenance.json) records product_name '215177-001' at XCAF label 0:1:1:1458 of '217755-001 A.1 PROPULSION ASSEMBLY, PROPELLER, CW Released.stp'. NOTE what this mesh is: 215177-001 is an INSTALLATION in that assembly, so the mesh is the plate plus its 9 NAS77 bushings (10 solids, product_is_assembly true). Its one machined detail is installed separately as `asm217755_215735_001`; manifest.json's per-face solid_id already lets a reader address the plate alone inside this mesh, and a consumer that would rather have the bare plate should re-point this row at the detail explicitly rather than reinterpret this one."
     },
     {
       "topology_part": "bushing_214820_002",
       "mesh_part_id": "asm217755_214820_002",
-      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_link_to_pitch_plate.json's part carries drawing 214820-002, name '214820-002 BUSHING, PLAIN, ALUMINUM BRONZE, .1900 in ID X .1875 in LONG'; the mesh's provenance.json (data/meshes/ddf99082401970b320580bfc07d463fe1025a92710d95ab70e1bc36a8b92b02e/provenance.json) records product_name '214820-002' at XCAF label 0:1:1:1463 of the 217755-001 A.1 assembly -- one solid, 8 instances, which matches the topology part's own 'Balloon 8X in DETAIL B' note."
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_pitch_link_to_pitch_plate.json's part carries drawing 214820-002, name '214820-002 plain bushing'; the mesh's provenance.json (data/meshes/ddf99082401970b320580bfc07d463fe1025a92710d95ab70e1bc36a8b92b02e/provenance.json) records product_name '214820-002' at XCAF label 0:1:1:1463 of the 217755-001 A.1 assembly -- one solid, 8 instances, which matches the topology part's own 'Balloon 8X in DETAIL B' note."
     },
     {
       "topology_part": "straight_bushing_214820_002",
@@ -32,12 +32,12 @@
     {
       "topology_part": "plain_bushing_214943_002",
       "mesh_part_id": "asm217755_214943_002",
-      "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_output_to_pitch_plate.json's part carries drawing 214943-002, name 'BUSHING, PLAIN, ALUMINUM BRONZE, .250 in ID (Joby 214943-002)'; the mesh's provenance.json (data/meshes/7b30dea1c26934aa7526c4d79afd68481a1b051139e3ad5f4ef15d073e52818d/provenance.json) records product_name '214943-002' at XCAF label 0:1:1:1441 of the 217755-001 A.1 assembly, one solid."
+      "evidence": "Same drawing number on both sides. docs/topologies/topology_vpa_output_to_pitch_plate.json's part carries drawing 214943-002, name '214943-002 plain bushing'; the mesh's provenance.json (data/meshes/7b30dea1c26934aa7526c4d79afd68481a1b051139e3ad5f4ef15d073e52818d/provenance.json) records product_name '214943-002' at XCAF label 0:1:1:1441 of the 217755-001 A.1 assembly, one solid."
     },
     {
       "topology_part": "bolt_nas6403u11d",
       "mesh_part_id": "asm217755_NAS6403U11D",
-      "evidence": "Exact spec number on both sides. docs/topologies/topology_pitch_link_to_pitch_plate.json's part is named 'NAS6403U11D bolt, .1900-32, .688 grip' (NAS6403-NAS6420 Rev 4); the mesh's provenance.json (data/meshes/85a7c4e39ef62a76d4021782283fcd31573c31c94a14062f8dd6d14bf9e48b1c/provenance.json) records product_name 'NAS6403U11D' at XCAF label 0:1:1:1466 of the 217755-001 A.1 assembly, one solid, 5 instances."
+      "evidence": "Exact spec number on both sides. docs/topologies/topology_pitch_link_to_pitch_plate.json's part is named 'NAS6403U11D hex-head bolt' (NAS6403-NAS6420 Rev 4); the mesh's provenance.json (data/meshes/85a7c4e39ef62a76d4021782283fcd31573c31c94a14062f8dd6d14bf9e48b1c/provenance.json) records product_name 'NAS6403U11D' at XCAF label 0:1:1:1466 of the 217755-001 A.1 assembly, one solid, 5 instances."
     },
     {
       "topology_part": "bolt_nas6403u13h",

@@ -117,6 +117,13 @@ function makeDocument() {
 const sandbox = { console };
 sandbox.window = sandbox;
 sandbox.document = makeDocument();
+// The page's ORIGIN, which is a real input to the views now: whether a link to
+// a local file can be followed at all is a property of it (VA.localFileUrl /
+// VA.originOpensLocalFiles, measured 2026-09-15 -- an http page cannot open a
+// file:// URL and the click silently does nothing). file:// is the viewer's
+// own default origin, so that is what the shim reports; a test that wants the
+// other answer sets `window.location.protocol` and restores it.
+sandbox.location = { protocol: "file:", hostname: "", search: "" };
 sandbox.URL = { createObjectURL: function () { return "blob:x"; } };
 sandbox.setTimeout = setTimeout;
 sandbox.clearTimeout = clearTimeout;

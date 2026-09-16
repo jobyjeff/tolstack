@@ -141,6 +141,35 @@
     return VA.LOCAL_HOSTNAMES.indexOf(String(hostname || "").toLowerCase()) !== -1;
   };
 
+  // Can a link to a file on this machine's own disk be serviced from this
+  // ORIGIN at all? This is NOT VA.isLocalPage's question and the two answers
+  // differ on loopback: a server on the reader's own machine is local to the
+  // reader and still cannot open one.
+  //
+  // Chrome (and Edge) refuse EVERY navigation from an http(s) page to a
+  // `file:` URL. Measured on 2026-09-15 with this repo's own browser tier,
+  // both transports, the real crop entry:
+  //
+  //   file:// page  -> click opens the PDF (new tab and same tab alike)
+  //   http:// page  -> NOTHING HAPPENS. Console: "Not allowed to load local
+  //                    resource: file:///C:/.../NAS6403-NAS6420%20Rev%204.pdf"
+  //
+  // That second line is Jeff's 2026-09-15 report verbatim -- "the 'open the
+  // PDF' link is broken, nothing happens when clicked" -- and it is a property
+  // of the origin, not of the link, the path, the spaces in the filename or
+  // the PDF. So the honest fix is not a better URL: it is not rendering a
+  // control this origin cannot service (the capability-gap posture -- if a
+  // feature is absent from a build, show NOTHING about it). Callers go through
+  // VA.localFileUrl (viewer.js), which returns null here.
+  //
+  // It lives beside the transport decision for the reason chooseTransport does
+  // (handoff viewer_transport_honest_hosted): what an origin can and cannot do
+  // is a property of the ORIGIN, so it belongs with the adapter contract
+  // rather than in a view.
+  VA.originOpensLocalFiles = function (protocol) {
+    return protocol === FILE_PROTOCOL;
+  };
+
   // Which adapter a page boots on, decided in ONE place.
   //
   // Served is tried first wherever it is possible at all. The rule that

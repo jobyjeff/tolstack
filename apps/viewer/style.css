@@ -95,7 +95,11 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 }
 .banner__stale-head { color: var(--untraced); font-weight: 600; }
 .banner__stale-list { margin: 4px 0 6px; padding-left: 20px; }
-.banner__cmd, .croppop__cmd {
+/* The banner is the ONLY surface that still prints a rebuild command, and it
+   prints it once for the whole page. The crop popover's own copy
+   (.croppop__cmd) went on 2026-09-15 -- a terminal command in hover chrome,
+   against the standing rule twice over. */
+.banner__cmd {
   display: inline-block; margin-top: 5px; background: var(--bg);
   padding: 3px 7px; border-radius: 4px; font-size: 12px; color: var(--ink);
 }
@@ -274,10 +278,6 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 /* An id this page cannot address is dotted-underlined rather than left to
    look like an ordinary word — the title says why there is no link. */
 .el-export__runid { color: var(--muted); border-bottom: 1px dotted var(--line); }
-.el-export__path {
-  color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace;
-  margin-top: 3px; overflow-wrap: anywhere;
-}
 
 /* --- material provenance ---------------------------------------------- */
 /* The soak ranges a scalar CTE is APPLIED over, under the range the source
@@ -388,11 +388,24 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .detail__crop { margin-top: 10px; }
 .detail__crop-img { display: block; width: 100%; background: #fff; border-radius: 4px; }
 .detail__crop-head { font-weight: 600; margin-top: 6px; }
-.detail__crop-prov, .detail__crop-reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.detail__crop-reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
 .detail__crop-links { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
-.detail__crop-path {
-  color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace;
-  margin-top: 4px; overflow-wrap: anywhere;
+
+/* --- the folded provenance (VA.disclosure, views/dom.js) --------------
+   ONE rule for every surface that folds something away, which today is the
+   crop's matching provenance on all four of them. Deliberately quiet: a
+   disclosure that draws the eye defeats the point of folding, and what is
+   inside it is a fact a reader checks rather than reads. */
+.provfold { margin: 4px 0; }
+.provfold__summary {
+  cursor: pointer; color: var(--muted); font-size: 12px; list-style: none;
+}
+.provfold__summary::-webkit-details-marker { display: none; }
+.provfold__summary::before { content: "▸  "; }
+.provfold[open] .provfold__summary::before { content: "▾  "; }
+.provfold__body {
+  color: var(--muted); font-size: 12px; margin: 3px 0 0 12px;
+  overflow-wrap: anywhere;
 }
 /* --- crop popover ---------------------------------------------------- */
 /* position: FIXED, not absolute (viewer_hover_cards_and_deep_links): hover
@@ -410,9 +423,8 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .croppop__close { float: right; background: #363b45; color: var(--ink); padding: 1px 8px; margin-left: 6px; }
 .croppop__img { display: block; width: 100%; background: #fff; border-radius: 4px; }
 .croppop__head { font-weight: 600; margin-top: 6px; }
-.croppop__prov, .croppop__reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.croppop__reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
 .croppop__links { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
-.croppop__path { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; margin-top: 4px; overflow-wrap: anywhere; }
 
 /* --- hover reference cards (viewer_hover_cards_and_deep_links) --------- */
 /* Rendered into the SAME positioned #croppop node as the crop popover, so
