@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: low
-status: triaged
+status: resolved
 area: docs/DAG_TOPOLOGY.md, data/meshes/
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260909_topology_part_vocabulary_mesh_mapping.md
+resolution: verified resolved by the 2026-09-16 triage sweep -- the declared alias table landed via docs/sessions/completed/HANDOFF_20260910_mesh_part_alias_table.md and is guarded by tests/test_part_mesh_aliases.py. Was invisible because it was status: triaged against a brief the census had archived (BRIEF_20260909_topology_part_vocabulary_mesh_mapping.md, consumed 2026-09-10)
 ---
 
 # A topology edge's `part` and a mesh's `provenance.json` `part_id` are two unmapped vocabularies, so most deep-link isolates land on the empty state
@@ -47,3 +48,20 @@ parts sharing a drawing-number digit run). Option (a) is the cheapest and
 keeps the "nothing invented" posture, but it means re-tessellating/
 re-installing the two existing meshes under new names, and needs a decision
 on which side's spelling wins when a part is renamed later on either side.
+
+## Resolved — 2026-09-16 triage sweep, verified
+
+The mapping this issue asked for landed as the **declared alias table**:
+`docs/sessions/completed/HANDOFF_20260910_mesh_part_alias_table.md`, guarded by
+`tests/test_part_mesh_aliases.py`. The brief that decided it,
+`docs/strategy/BRIEF_20260909_topology_part_vocabulary_mesh_mapping.md`, records
+the decision and was consumed 2026-09-10.
+
+### Same filing defect as `ISSUE_20260825_stack_viewer_layout_v2_edited_the_main_checkout_directly.md`
+
+`status: triaged` pointing at a **consumed** brief: skipped by every triage
+sweep, archived out of the strategy inbox, and held back by close-out because it
+carries a `strategy:` link. Three correct rules composing into an unannounced
+terminal state. Both of tolstack's instances were found this sweep only because
+the brief-consolidation pass read every `strategy:` back-link against the
+census's own classification rather than against "does the file exist".

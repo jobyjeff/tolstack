@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: high
-status: triaged
+status: resolved
 area: worktree-conventions
 reporter: agent
 audience: strategy
 strategy: docs/strategy/BRIEF_20260826_main_checkout_tracked_edit_guard.md
+resolution: verified resolved by the 2026-09-16 triage sweep -- dispatch/hooks/main_checkout_edit_guard.py exists and is wired (dispatch/hooks/__init__.py exports DISABLE_ENV/WATCHED_TOOLS and GUARD_SCRIPT; dispatch/tests/test_edit_guard.py covers it), landed by dispatch/docs/sessions/completed/HANDOFF_20260901_main_checkout_edit_guard.md. Was invisible for 15 days because it was status: triaged against a brief the census had archived
 ---
 
 # `stack_viewer_layout_v2` edited tracked files directly in the main checkout instead of its worktree
@@ -52,3 +53,34 @@ construction.
 onboarding/dispatch conventions to decide (a lint/hook that warns on tracked-
 file writes to the main checkout root outside of `board:`/administrative
 commits; a reminder in the launch prompt; or accepting the residual risk).
+
+## Resolved — 2026-09-16 triage sweep, verified
+
+The guard this issue asked for **exists and is wired**:
+`dispatch/hooks/main_checkout_edit_guard.py`, exported from
+`dispatch/hooks/__init__.py` (which resolves `GUARD_SCRIPT` and re-exports
+`DISABLE_ENV` / `WATCHED_TOOLS`) and covered by `dispatch/tests/test_edit_guard.py`.
+It was landed by
+`dispatch/docs/sessions/completed/HANDOFF_20260901_main_checkout_edit_guard.md`.
+It is live enough that the standing instructions prepended to every
+dispatch-launched session now cite it by name as the mechanical enforcement of
+the worktree-reality rule.
+
+### Why this sat for 15 days after being fixed — the part worth keeping
+
+This issue was `status: triaged` with
+`strategy: docs/strategy/BRIEF_20260826_main_checkout_tracked_edit_guard.md`, and
+that brief was **consumed 2026-09-01** — the same day the fix merged. From then
+on the issue was invisible from three directions at once:
+
+- every triage sweep is instructed to **skip `triaged`**;
+- forge's brief census **archives** a consumed brief, so no strategy session
+  would open the target;
+- dispatch's close-out **refuses to advance an issue carrying a `strategy:`
+  link**, by design, because a brief is the issue's recorded disposition.
+
+Each of those three rules is individually correct. Together they make
+"`triaged` against a consumed brief" a terminal state that nothing announces —
+and this was a `priority: high` chore about a **data-loss** shape. The workspace
+audit rule cannot catch it either, because the rule tests whether the target
+*exists*, and it does; it is merely archived.
