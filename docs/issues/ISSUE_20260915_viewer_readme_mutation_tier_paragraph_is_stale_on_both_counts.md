@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: docs/viewer-readme
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_mutation_witness_tier_repair.md
 handoff: docs/sessions/HANDOFF_20260916_doc_facts_and_projection_stamps.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `doc_facts_and_projection_stamps` moved to completed/; not independently verified.
 ---
 
 # `apps/viewer/README.md`'s mutation-tier paragraph restates a count nothing pairs, and still presents `--repo` as the only way to run the tier

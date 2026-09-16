@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: viewer/docs
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_respine_whole_walk.md
 handoff: docs/sessions/HANDOFF_20260916_doc_facts_and_projection_stamps.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `doc_facts_and_projection_stamps` moved to completed/; not independently verified.
 ---
 
 # `apps/viewer/README.md`'s "two studies dropped rows, the third covered nearly everything" is not a state the pre-change page could be in

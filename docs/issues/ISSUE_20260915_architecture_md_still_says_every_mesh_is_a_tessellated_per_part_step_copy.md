@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: ARCHITECTURE.md, docs/ANNOTATION_SURFACE.md
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_extracted_mesh_alias_rows.md
 handoff: docs/sessions/HANDOFF_20260916_doc_facts_and_projection_stamps.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `doc_facts_and_projection_stamps` moved to completed/; not independently verified.
 ---
 
 # `ARCHITECTURE.md` still says every mesh is `stepgeom.tessellate` output hand-copied from a per-part STEP — true for 2 of 24
