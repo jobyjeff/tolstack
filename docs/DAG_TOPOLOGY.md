@@ -161,7 +161,7 @@ Two schemas, both `/v0`, both filesystem JSON — no SQLite, by locked decision.
 | schema | you write it? | what it is |
 |---|---|---|
 | `joby.tolerance_stack/topology/v0` | **yes** — one per system | `parts`, `nodes`, `edges`, named `transforms`, plus an optional `description`, `joint`, `provenance` and `notes` |
-| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list, an optional `configuration` block, an optional `description` |
+| `joby.tolerance_stack/study/v0` | **yes** — one per question | a `selection` of edge ids, two endpoints, an optional per-study `transforms` map, an optional `closes`, an optional `checks` list (or a `no_checks_reason` saying why there is none), an optional `configuration` block, an optional `description` |
 
 ### Naming a topology or a study
 
@@ -343,6 +343,19 @@ Three cases, and the difference matters:
   branch a parallel path stands for) lives entirely in *which edges a human
   put in* `selection`, unlabelled; this gives that a place to be written down.
   See `study_pitch_system_gas_spring_branch.json`.
+- **`no_checks_reason`, added 2026-09-15 by handoff `stack_fable_audit` — a
+  study with no checks says why.** The full-pass audit found five studies with
+  an empty `checks` and no recorded reason; each reason existed, scattered
+  through `notes` or nowhere, which no scan can see. The field is one authored
+  sentence-or-more naming why no criterion is citable — a reference dimension a
+  check would dress as a requirement (`study_pitch_link_thread_region_t`), a
+  criterion that lives on a byte-identical twin study
+  (`study_pitch_system_blade_angle_*` vs the end-stop pair), or a quantity no
+  in-repo document states a limit for (the two millimetre studies). Exactly one
+  of `checks` / `no_checks_reason` may be present, enforced by
+  `tests/test_topology.py::test_every_study_has_checks_or_says_why_not`.
+  Additive and optional, read by nothing that folds (`Study.from_dict` drops
+  it — the file is the contract), so the schema stays `/v0`.
 
 **A check whose terms combine several *named* term lists — the way a stack's
 own `checks` mix an element with a `{"path": id, "sign": -1}` term

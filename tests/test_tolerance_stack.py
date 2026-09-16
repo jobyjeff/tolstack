@@ -776,6 +776,18 @@ def test_pitch_link_untraced_values_are_exactly_the_listed_gaps(pitch_link):
 SHARED_BANDS = {
     "214820-002": (4.63, 4.76),
     "NAS1149V0332": (0.7112, 0.9144),
+    # Extended 2026-09-15 (`stack_fable_audit`, deliverable 1): every remaining
+    # part+feature folded in more than one stack, so the invariant holds
+    # repo-wide rather than only where the 09-15 ruling first bit. Parts folded
+    # in exactly ONE stack (MS14101-3, NAS77A4-015A, NAS6403U14D, NAS6404U13D,
+    # the NAS6403 U*H family, both MS21299s, NAS1149V0363) are deliberately
+    # absent: the guard's own floor below demands two stacks per key, because a
+    # band folded once has nothing to be consistent with -- their values are
+    # pinned by their stacks' own tests.
+    "NAS6403U13H": (20.3708, 20.8788),   # grip, tan_link + take2
+    "MS14103-3": (11.05, 11.1),          # ball width, tan_link + take2
+    "214589-002": (199.98, 200.0),       # bearing OD, thermal m1 + m2
+    "214588-002": (129.991, 130.0),      # bearing OD, thermal m1 + m2
 }
 
 #: What each part above is folded FOR. Not used for matching -- read only to name
@@ -783,6 +795,24 @@ SHARED_BANDS = {
 FEATURE_HINT = {
     "214820-002": "plain bushing length",
     "NAS1149V0332": "washer thickness",
+    "NAS6403U13H": "fastener grip",
+    "MS14103-3": "spherical bearing ball width",
+    "214589-002": "bearing outer-ring OD",
+    "214588-002": "bearing outer-ring OD",
+}
+
+#: The day the docstring above predicted arrived on 2026-09-15: NAS77A3-015A is
+#: folded for THREE features (its flange, its barrel, its I.D. chamfer), so a
+#: single part->band key cannot carry it. The key grows the feature here, stated
+#: as ``part -> feature -> (band, element ids that fold it)``: the element-id
+#: set is the classifier, curated so that a NEW element folding this part in
+#: some future stack fails loudly ("classify me") instead of being skipped.
+SHARED_MULTI_FEATURE_BANDS = {
+    "NAS77A3-015A": {
+        "flange thickness": ((1.4478, 1.5748), {"flange_bushing_flange"}),
+        "barrel length": ((3.683, 3.937), {"flange_bushing_L"}),
+        "I.D. chamfer": ((0.635, 0.889), {"bushing_chamfer"}),
+    },
 }
 
 #: Stack/element pairs that use one of the parts above and do NOT fold its band,
@@ -807,23 +837,42 @@ def test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it():
     divergent = []
     seen_divergences = set()
     matched = {part: set() for part in SHARED_BANDS}
+    matched.update({(part, feature): set()
+                    for part, features in SHARED_MULTI_FEATURE_BANDS.items()
+                    for feature in features})
     for filename in ALL_STACK_FILES:
         stack = load_stack(STACKS_DIR / filename)
         for element in stack.elements:
-            for part, band in SHARED_BANDS.items():
-                if element.hardware_ref != part:
-                    continue
+            band = None
+            if element.hardware_ref in SHARED_BANDS:
+                part = element.hardware_ref
+                band = SHARED_BANDS[part]
                 matched[part].add(stack.id)
-                pair = (stack.id, element.id)
-                if (element.min, element.max) == band:
-                    assert pair not in KNOWN_BAND_DIVERGENCES, (
-                        f"{pair} is listed in KNOWN_BAND_DIVERGENCES and now folds "
-                        f"{band} -- delete the row, the divergence is closed")
-                    continue
-                if pair in KNOWN_BAND_DIVERGENCES:
-                    seen_divergences.add(pair)
-                    continue
-                divergent.append((pair, part, (element.min, element.max), band))
+            elif element.hardware_ref in SHARED_MULTI_FEATURE_BANDS:
+                part = element.hardware_ref
+                features = SHARED_MULTI_FEATURE_BANDS[part]
+                claimed = [f for f, (_, ids) in features.items()
+                           if element.id in ids]
+                assert claimed, (
+                    f"{stack.id}:{element.id} folds {part}, a multi-feature "
+                    f"shared part, and no feature in SHARED_MULTI_FEATURE_BANDS "
+                    f"claims that element id -- classify it (which feature does "
+                    f"it fold?) rather than letting it ride past this guard")
+                band = features[claimed[0]][0]
+                matched[(part, claimed[0])].add(stack.id)
+            if band is None:
+                continue
+            pair = (stack.id, element.id)
+            if (element.min, element.max) == band:
+                assert pair not in KNOWN_BAND_DIVERGENCES, (
+                    f"{pair} is listed in KNOWN_BAND_DIVERGENCES and now folds "
+                    f"{band} -- delete the row, the divergence is closed")
+                continue
+            if pair in KNOWN_BAND_DIVERGENCES:
+                seen_divergences.add(pair)
+                continue
+            divergent.append((pair, element.hardware_ref,
+                              (element.min, element.max), band))
 
     assert not divergent, (
         "one part+feature folding two different bands:\n" + "\n".join(
@@ -848,17 +897,29 @@ def test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it():
     # Assert what the loop actually matched instead. Two distinct stacks is the
     # floor that makes the word "cross-stack" mean anything: a part folded in one
     # stack has nothing to be consistent with.
-    for part, band in SHARED_BANDS.items():
-        assert len(matched[part]) >= 2, (
-            f"{part} ({FEATURE_HINT.get(part, 'feature unrecorded')}, band {band}) "
-            f"was matched in {sorted(matched[part])} -- fewer than two stacks, so "
-            f"this guard is checking nothing for it. Either the key is misspelled, "
-            f"the part left the stacks, or ALL_STACK_FILES stopped seeing a file.")
-    # And the two stacks this handoff brought into line are named, so an edit
+    for key, stacks_seen in matched.items():
+        if isinstance(key, tuple):
+            part, feature = key
+            band = SHARED_MULTI_FEATURE_BANDS[part][feature][0]
+            label = f"{part} / {feature}"
+        else:
+            part, band = key, SHARED_BANDS[key]
+            label = f"{key} ({FEATURE_HINT.get(key, 'feature unrecorded')})"
+        assert len(stacks_seen) >= 2, (
+            f"{label} (band {band}) was matched in {sorted(stacks_seen)} -- fewer "
+            f"than two stacks, so this guard is checking nothing for it. Either "
+            f"the key is misspelled, the part left the stacks, or "
+            f"ALL_STACK_FILES stopped seeing a file.")
+    # And the stacks specific handoffs brought into line are named, so an edit
     # that quietly drops one of them from either part is visible here too.
     both = {"pitch_link_to_pitch_plate", "tan_link_to_pitch_plate"}
     assert both <= matched["214820-002"]
     assert both <= matched["NAS1149V0332"]
+    # `stack_fable_audit`'s additions: the flange is the one feature folded in
+    # THREE stacks, and the thermal pair carries the guard beyond grip joints.
+    assert both <= matched[("NAS77A3-015A", "flange thickness")]
+    assert matched["214588-002"] == {"hub_bearing_thermal_fit_m1",
+                                     "hub_bearing_thermal_fit_m2"}
 
 
 def test_pitch_link_carries_no_invented_thread_transition_allowance(pitch_link):
