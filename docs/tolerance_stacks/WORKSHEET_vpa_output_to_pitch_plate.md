@@ -59,7 +59,7 @@ Every balloon in DETAIL X is qty 1 — a single joint, unlike the tan-link's 3×
 | 1 | straight bushing | bushing | 4.7620 | 4.7100 | 4.8100 | workbook E63 | untraced |
 | 2 | spherical bearing width | bearing | 8.7100 | 8.6600 | 8.7100 | workbook E64 (candidate: MS14101-4, unconfirmed) | untraced |
 | 3 | bushing flange thickness | bushing | 1.5750 | 1.4478 | 1.5748 | **JB_NAS77.pdf, row NAS77A4-xxx, column F** | inferred |
-| 4 | pitch flange thickness | clamped_member | 4.0600 | 3.9600 | 4.1600 | 215197 sh2 zone D10 | inferred |
+| 4 | pitch flange thickness | clamped_member | 4.0600 | 3.9600 | 4.1600 | 215735-A sh2 zone D10 | inferred |
 | 5 | under head chamfer washer | washer | 1.6002 | 1.4478 | 1.7526 | 217755 sh5 DETAIL X (MS21299C4K) | inferred |
 | 6 | fastener grip (.812 in) | fastener | 20.6248 | 20.3708 | 20.8788 | **NAS6403-NAS6420 Rev 4.pdf sh3, row *Grip Dash No. 13*, NAS6404 column** | **traced** |
 
@@ -172,14 +172,20 @@ The stack is named "VPA Output to Pitch Plate" and its clamped member is a
 **215175-002 TANGENTIAL LINK MOUNT ASSEMBLY, CCW** (item 72). The pitch plate
 assembly (215177-001) is ballooned in sheet 4 DETAIL B, not here.
 
-So the 4.06 flange in this stack may belong to 215175, not 215197 — in which
-case the value and tolerance matching 215197 is a coincidence of two parts
-sharing a 4.06 mm flange, which is entirely plausible in one assembly. No 215175
-drawing is in this repo, so this cannot be settled here.
+So the 4.06 flange in this stack may belong to 215175, not the pitch plate — in
+which case the value and tolerance matching the pitch plate is a coincidence of
+two parts sharing a 4.06 mm flange, which is entirely plausible in one assembly.
+No 215175 drawing is in this repo, so this cannot be settled here.
+
+> **2026-09-16** (`citation_identity_correctness`): this finding was written
+> against 215197 and stands exactly as reasoned. The citation has since moved to
+> the released plate **215735 rev A**, which changes the part number the doubt is
+> about and nothing else — 215175 is still the alternative, and no 215175 drawing
+> has arrived.
 
 ### F15 — The 4.06 ±0.10 value traces, but the *feature* does not **[read — partially resolved]**
 
-215197 carries **three** distinct 4.06 flange callouts:
+215197 A.1 carries **three** distinct 4.06 flange callouts:
 
 | where | callout | GD&T | likely |
 |---|---|---|---|
@@ -192,6 +198,26 @@ So the tan-link stack's ±0.08 and this stack's ±0.10 are **both real** and are
 contradiction was wrong. But ±0.10 alone cannot say *which* of the two ±0.10
 features this stack means. The joint is qty 1, which argues for the sheet-1 D5
 callout; nothing in the workbook says.
+
+> **2026-09-16 — re-read on the released plate, and the ambiguity got wider**
+> (`citation_identity_correctness`). The table above records what 215197 A.1
+> prints and stays as read. Re-cited 2026-09-16 (handoff `citation_identity_correctness`) from the `[PRELIM 2025-MAY-22]` 215197 A.1 fixture to the RELEASED plate, **215735 rev A** (`data/inbox/drawings/215735-A.pdf`, sha256 `a06526c2…`, `MATURITY STATE: Released`, `DRAWING RELEASE DATE 01/JUL/2025`). No value, band or confidence moved. On **215735-A** the same three
+> addresses print the same three values, with one addition and one subtraction:
+>
+> | where | callout | GD&T | vs 215197 A.1 |
+> |---|---|---|---|
+> | sheet 2 zone B4, SECTION A-A | `3X 4.06 ±0.08` | ⌖0.2 A B C, ⊥0.05 F, 3X INDIVIDUALLY | same, minus the ⌀ on the position frame |
+> | sheet 2 zone D10, SECTION A-A | `5X 4.06 ±0.10` | ⌖0.2 A B C, ⊥0.05 G, 5X INDIVIDUALLY | same, minus the ⌀ |
+> | sheet 1 zone D5 | `4.06 ±0.10` | ⌖0.2 A B C, datum D | same |
+> | sheet 1 zone D6 | `4.06 ±0.10` | — | **new**; 215197 printed `8.80 ±0.10` here |
+>
+> So "one of two ±0.10 features" is now **one of three**: the released plate has
+> a further feature that came to 4.06, immediately beside the sheet-1 callout
+> this joint's qty already argued for. The citation was NOT re-pointed at it —
+> choosing which printed callout a value means is a feature-identity decision
+> and nothing in the released drawing makes it — so this element still cites
+> sheet 2 zone D10 and still reads `inferred`. This finding is *less* resolved
+> than it was, and saying so is the point.
 
 This is the cleanest argument in the slice for feature identity: value matching
 got us to "one of two", and only a stable per-feature address gets us to "this
@@ -218,12 +244,14 @@ say so rather than pretend a clean answer exists."* Slice 1's answer: it says so
 | 3 | **MS21299** countersunk washer | the ±.006 in band, and the countersink geometry that "under head chamfer" is really about. **Confirmed absent from `data/inbox/specs/` on 2026-08-06**, which is why element 5 is `inferred` and not `traced`. | 2 |
 | 4 | 214943-002 bushing (Joby part drawing) | the as-drawn bushing's length limits (replaces NAS77A4-015 entirely) | 2 |
 | 5 | 208510-007 VPA ASSEMBLY | the 8.66/8.71 spherical bearing width — no bearing balloon in DETAIL X because it is internal to the actuator | 3 |
-| 6 | 215175-001/-002 TANGENTIAL LINK MOUNT | whether the 4.06 flange belongs here rather than on 215197 (F14) | 2 |
+| 6 | 215175-001/-002 TANGENTIAL LINK MOUNT | whether the 4.06 flange belongs here rather than on the pitch plate, now 215735 (F14) | 2 |
 | 7 | ~~NAS77 (plain bushing)~~ — **READ 2026-08-13** (`spec_pile_gap_join`). It was in `data/inbox/specs/` all along: `JB_NAS77.pdf` and the NAS77 page of both RBC plain-bearing catalogues. | **Answered, in the negative.** NAS77 is the **flanged** series (the straight/plain one is NAS76, the page before it); the as-drawn part is a `BUSHING, PLAIN`; and the dash decode printed on the page — *"Length in .010 increments (ex: -025 = .25 in.)"* — makes `NAS77A4-015` **.150 in** long, not the .1875 in this stack folds. Its length tolerance is `L ±.005 in`, not the ±.002 in that 4.71/4.81 mm implies. So the workbook's part number does not describe this bushing, and reading the standard cannot source element 1 — see F13. | ~~4~~ — **done** |
 
 **Traced, for contrast:** one element — the NAS6404U13D grip, `.812 ±.010 in`
 off `NAS6403-NAS6420 Rev 4.pdf` sheet 3. Nothing on this joint is traced to a
-*part drawing*; 215197's contribution is `inferred` at best (F15).
+*part drawing*; 215735's contribution is `inferred` at best (F15) — and as of
+2026-09-16 it is `inferred` against a wider field than before, three candidate
+callouts rather than two.
 
 **This stack: 1 traced / 3 inferred / 2 untraced out of 6 element instances.**
 Across all three seeded stacks: **5 of 26 `traced`**, 12 `inferred`, 9

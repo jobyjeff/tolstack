@@ -522,17 +522,26 @@ def test_pitch_link_cotter_hole_position_is_traced_and_carries_no_material_condi
 
 
 def test_pitch_link_pitch_plate_lug_is_the_5X_group_not_the_3X_or_1X(pitch_link, tan_link):
-    """215197 carries three distinct 4.06 callouts. Only the COUNT ties one to a
-    joint: 5X for the five pitch links (five blades), 3X for the three
-    tangential links, 1X for the VPA. Matching on 4.06 alone gets you nowhere."""
+    """The pitch plate drawing carries several distinct 4.06 callouts. Only the
+    COUNT ties one to a joint: 5X for the five pitch links (five blades), 3X for
+    the three tangential links, and the un-counted ones on sheet 1 for the VPA.
+    Matching on 4.06 alone gets you nowhere.
+
+    Re-cited 2026-09-16 (handoff citation_identity_correctness) from the PRELIM
+    215197 A.1 fixture to the RELEASED plate, 215735 rev A -- a different part
+    number, whose sheet 2 prints these same two groups at these same addresses.
+    No value moved. What did move on the released plate is the un-counted group:
+    215197 sheet 1 printed ONE 4.06 +-0.10, 215735-A sheet 1 prints two (D5 and
+    D6), which is why the sentence above no longer says "1X"."""
     mine = pitch_link.element("pitch_plate_flange")
     theirs = tan_link.element("pitch_plate_flange")
     assert mine.nominal == theirs.nominal == 4.06
-    assert (mine.min, mine.max) == (3.96, 4.16)                    # 215197 sh2 D10 "5X 4.06 +-0.10"
-    assert (theirs.min, theirs.max) == (3.98, 4.14)                # 215197 sh2 B4  "3X 4.06 +-0.08"
+    assert (mine.min, mine.max) == (3.96, 4.16)                    # 215735-A sh2 D10 "5X 4.06 +-0.10"
+    assert (theirs.min, theirs.max) == (3.98, 4.14)                # 215735-A sh2 B4  "3X 4.06 +-0.08"
     assert mine.source_ref.callout == "5X 4.06 ±0.10"
-    assert (mine.source_ref.document, mine.source_ref.sheet, mine.source_ref.zone) == (
-        "215197", 2, "D10",
+    assert (mine.source_ref.document, mine.source_ref.revision,
+            mine.source_ref.sheet, mine.source_ref.zone) == (
+        "215735", "A", 2, "D10",
     )
     assert mine.source_ref.confidence == "traced"
 
@@ -1317,6 +1326,29 @@ def test_a_source_ref_refuses_a_kind_outside_the_vocabulary():
         SourceRef.from_dict({"kind": "drawing ", "document": "217755"})
 
 
+#: Cited drawing-checker runs whose read-only status is **not** settled by a
+#: timestamp, each with the argument that stands in for one. Written by run id
+#: rather than by rule so the list cannot quietly grow, and paired both ways by
+#: the test below -- an unlisted postdating run fails, and a listed run nobody
+#: cites fails too.
+_RUNS_CLEARED_WITHOUT_A_TIMESTAMP = {
+    "20260813_180734": (
+        "215735-A, run 1 of 2. Postdates pitch_link_stack's first commit by 9 "
+        "days, so 'it predates us' is unavailable. Cleared instead by "
+        "drawing-checker's own record: run_meta.json says purpose 'eager', its "
+        "eager-publish policy wrote it, and tolstack has no write path into "
+        "that repo -- weaker than arithmetic on a commit date, and with no "
+        "enforcement behind it (ISSUE_20260804_drawing_checker_readonly_check_"
+        "has_no_teeth.md)."
+    ),
+    "20260819_153213": (
+        "215735-A, run 2 of 2. Same argument, same weakness; 15 days after the "
+        "commit. Both runs record the same source sha256 in their run_meta.json "
+        "inputs, which is what makes 'which export' a unique answer here."
+    ),
+}
+
+
 def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     """**The invariant, verified rather than asserted** -- the first time.
 
@@ -1349,18 +1381,42 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     three 215197 runs, which is real bite and not a vacuous pass; the gap is
     filed as ``ISSUE_20260915_the_joint_assembly_export_is_prose_so_its_runs_have_no_ts.md``.
 
-    **The root-commit claim survives, on a different run.** It was written
-    against ``20260803_145243`` and was dropped with it during
-    ``pitch_link_known_bands``; ``review/pitch_link_known_bands`` pointed out
-    that its *subject* had not gone away. ``20260730_133912``
-    (``2026-07-30T20:39:33.291499Z``) also predates the root commit, so the
-    strongest form of the invariant -- *a cited run predates this repo's
-    existence, so this repo cannot have produced it* -- is still checkable here,
-    and is checked below.
+    **Changed 2026-09-16** (``citation_identity_correctness``): ``pitch_plate_flange``
+    was re-cited from the PRELIM 215197 fixture to the RELEASED plate 215735-A,
+    and **the three 215197 runs left with it**. The two 215735-A runs that
+    replaced them -- ``20260813_180734`` (2026-08-14T01:07:56Z) and
+    ``20260819_153213`` (2026-08-19T22:32:36Z) -- **postdate** both constants
+    below, so for this stack the timestamp proof is gone: nothing element-level
+    here predates the session any more, and with it the root-commit form went
+    too (``20260730_133912`` was the last holder and is no longer cited here).
+
+    **So what does this test claim now, and how can it still fail?** Not that
+    every cited run predates the session -- two demonstrably do not. It claims
+    that **every cited run is cleared, and by a named argument**: by timestamp
+    where the timestamp settles it, and otherwise by appearing in
+    :data:`_RUNS_CLEARED_WITHOUT_A_TIMESTAMP` with the reason written down. A
+    run that is neither predating nor listed fails here, which is the finding
+    this test exists to surface. The exemption is deliberately by run id and
+    not by rule, so it cannot quietly grow.
+
+    **The argument the two exempted runs rest on is weaker, and saying which is
+    the point.** "It predates us, so we cannot have produced it" is proof. What
+    stands in for it here is drawing-checker's own record: both runs carry
+    ``"purpose": "eager"`` in their ``run_meta.json`` -- that repo's own
+    eager-publish policy wrote them, not a request from here -- and tolstack has
+    no write path into it. That is evidence about another repo's behaviour, not
+    arithmetic on a commit date, and
+    ``ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth.md`` is the
+    standing record that it has no enforcement behind it. The strongest form of
+    the invariant has NOT disappeared from the repo -- it moved to the two
+    stacks that still cite pre-root runs, and
+    ``test_the_strongest_read_only_claim_still_has_a_subject`` below is where it
+    is now checked. What was lost here specifically -- this test's own name no
+    longer describes its subject, and several live documents name it -- is filed
+    as ``ISSUE_20260916_the_readonly_invariant_test_name_outlived_its_claim.md``.
     """
     # git -C C:\workspace\tolstack log --format='%h %ad' --date=iso-strict
     PITCH_LINK_FIRST_COMMIT = datetime(2026, 8, 4, 22, 42, 57, tzinfo=timezone.utc)  # d6829f2
-    TOLSTACK_ROOT_COMMIT = datetime(2026, 8, 3, 23, 5, 8, tzinfo=timezone.utc)       # e7bd996
 
     stack = load_stack(STACKS_DIR / "stack_pitch_link_to_pitch_plate.json")
     cited = {
@@ -1369,15 +1425,21 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
         for run in (element.source_ref.export.runs if element.source_ref.export else ())
     }
     assert cited, "no run cited at all -- this invariant would pass vacuously"
+    # The 215735-A export, which is the only element-level one left.
+    assert set(cited) == {"20260813_180734", "20260819_153213"}
     for run_id, ts in cited.items():
-        assert ts < PITCH_LINK_FIRST_COMMIT, (
-            f"run {run_id} ({ts.isoformat()}) postdates the session's first commit -- "
-            f"it may be this repo's own write into a read-only dependency"
+        if ts < PITCH_LINK_FIRST_COMMIT:
+            continue
+        assert run_id in _RUNS_CLEARED_WITHOUT_A_TIMESTAMP, (
+            f"run {run_id} ({ts.isoformat()}) postdates the session's first commit "
+            f"and no reason is recorded for citing it anyway -- it may be this "
+            f"repo's own write into a read-only dependency"
         )
-    # The 215197 export, which is the only element-level one left.
-    assert set(cited) == {"20260409_170546", "20260409_172341", "20260730_133912"}
-    # The stronger claim, repointed: this run existed before this repo did.
-    assert cited["20260730_133912"] < TOLSTACK_ROOT_COMMIT
+    # A reason recorded for a run nobody cites is the other way this row goes
+    # stale, and it is the direction that fails silently.
+    assert set(_RUNS_CLEARED_WITHOUT_A_TIMESTAMP) <= set(cited), (
+        "a run is exempted here that this stack no longer cites -- delete the row"
+    )
 
     # And the run the review could not attribute is still cited by this stack,
     # at joint level. Losing the citation entirely would be a different defect
@@ -1385,6 +1447,46 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     raw = json.loads(
         (STACKS_DIR / "stack_pitch_link_to_pitch_plate.json").read_text(encoding="utf-8"))
     assert "20260804_114000" in raw["joint"]["assembly_export"]
+
+
+def test_the_strongest_read_only_claim_still_has_a_subject():
+    """*A cited run existed before this repo did, so this repo cannot have
+    produced it.* The strongest form of the read-only invariant, checked across
+    every stack rather than in one of them.
+
+    Written 2026-09-16 (``citation_identity_correctness``). It used to live in
+    the test above, resting on ``20260730_133912``; re-citing the pitch plate to
+    215735-A took that run out of the pitch-link stack, and the form would have
+    died with it if it were only ever checked there. It was not only there: the
+    tan-link and VPA stacks each cite four 2026-JUL runs that predate tolstack's
+    root commit outright. So the claim moves rather than weakens -- and it is
+    now checked where its subjects actually are, which is what stops the next
+    re-cite from emptying it unnoticed.
+
+    Fails if the last pre-root citation goes: a repo whose every cited run
+    postdates it has to make the read-only argument some other way, and should
+    be told so rather than quietly losing the strongest one it had.
+    """
+    TOLSTACK_ROOT_COMMIT = datetime(2026, 8, 3, 23, 5, 8, tzinfo=timezone.utc)   # e7bd996
+
+    pre_root = {}
+    for path in sorted(STACKS_DIR.glob("stack_*.json")):
+        for element in load_stack(path).elements:
+            export = element.source_ref.export
+            for run in (export.runs if export else ()):
+                if datetime.fromisoformat(run.ts) < TOLSTACK_ROOT_COMMIT:
+                    pre_root.setdefault(run.run_id, set()).add(path.name)
+    assert pre_root, (
+        "no cited run predates this repo's root commit any more -- the strongest "
+        "form of the read-only invariant has lost its subject everywhere, and "
+        "nothing else in this suite would have said so"
+    )
+    # Named, so the set emptying one citation at a time is visible as it happens
+    # rather than at the moment the last one goes.
+    assert set(pre_root) == {"20260723_163810", "20260727_153847",
+                             "20260730_131903", "20260730_132230"}
+    assert {name for names in pre_root.values() for name in names} == {
+        "stack_tan_link_to_pitch_plate.json", "stack_vpa_output_to_pitch_plate.json"}
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
@@ -2159,13 +2261,22 @@ def test_the_coverage_set_assertions_go_red_on_a_derivation_pointed_nowhere(tmp_
 
 
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
-    """215197 is the one part drawing this repo holds for these joints, and
-    exactly one element traces to it. Everything else is a fastener-library gap."""
+    """215735 is the one part drawing this repo holds for these joints, and
+    exactly one element traces to it. Everything else is a fastener-library gap.
+
+    It became a drawing this repo *holds* on 2026-09-16
+    (citation_identity_correctness): until then this value cited 215197 A.1, a
+    PRELIM export living in drawing-checker's test fixtures, and the sentence
+    above was false as written. The released plate is 215735-A, copied into
+    data/inbox/drawings/ and cited from there."""
     traced = [e.id for e in tan_link.elements if e.source_ref.confidence == "traced"]
     assert "pitch_plate_flange" in traced
     ref = tan_link.element("pitch_plate_flange").source_ref
-    assert (ref.document, ref.sheet, ref.zone) == ("215197", 2, "B4")
+    assert (ref.document, ref.revision, ref.sheet, ref.zone) == ("215735", "A", 2, "B4")
     assert ref.callout == "3X 4.06 ±0.08"
+    # Cited repo-relative, so it resolves against this repo's own data root and
+    # not a path into the read-only upstream.
+    assert ref.export.pdf == "data/inbox/drawings/215735-A.pdf"
 
 
 def test_hardware_entry_values_source_counts_match_the_description():

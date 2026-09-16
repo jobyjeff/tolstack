@@ -69,6 +69,62 @@ Get-ChildItem $dst -Filter *.pdf | ForEach-Object {
 }
 ```
 
+## Copied 2026-09-16 — the released pitch plate
+
+Copied by handoff `citation_identity_correctness`, which re-cited the three
+grip stacks' 4.06 mm lug thickness off the `[PRELIM 2025-MAY-22] 215197 A.1`
+export — a file that lives in **drawing-checker's test fixtures**, is over a
+year older than the assembly export, and is not the released design. The
+2026-09-15 audit (`docs/tolerance_stacks/AUDIT_20260915_full_pass.md`) found
+that the released plate is a **different part number**: find 1 = `215735-001`
+*PITCH PLATE, PROPELLER, CW* and find 4 = `215735-002` *PITCH PLATE, PROPELLER,
+CCW* of the 215177 PITCH PLATE ASSEMBLY's own parts list (drawing-checker run
+`20260813_180719_215177-A`). So this is not 215197 at a newer revision; it is
+the drawing 215197 was superseded by.
+
+Which part it is was read off the **title block**, not inferred from the part
+number.
+
+| file | drawing | rev | nomenclature (title block) | sha256 | bytes |
+|---|---|---|---|---|---|
+| `215735-A.pdf` | 215735 | A | PITCH PLATE, PROPELLER | `a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004` | 522,823 |
+
+`MATURITY STATE: Released`, `ENGINEERING CHANGE NOTICE ECN-215735-A`, release
+date from the title block **01/JUL/2025**, CAGE code 6VX14, 2 sheets — sheet 1
+`(SHT. DESC): OVERVIEW`, sheet 2 `(SHT. DESC): PART DETAILS`. **Sheet 2 carries
+the only named view on either sheet, `SECTION A-A`**; sheet 1 carries none.
+
+sha256 verified identical on both sides after the copy. Two drawing-checker runs
+consumed this same file and both record this sha256 in their `run_meta.json`
+inputs, so "which export" has a unique answer here:
+`20260813_180734_215735-A` (ts `2026-08-14T01:07:56.112994+00:00`) and
+`20260819_153213_215735-A` (ts `2026-08-19T22:32:36.201417+00:00`). Both record
+`"purpose": "eager"` — drawing-checker's own publish policy wrote them, not a
+request from this repo.
+
+The three 4.06 callouts, re-read here 2026-09-16 and **not** carried across from
+215197's addresses:
+
+| callout | sheet | zone | cited by |
+|---|---|---|---|
+| `3X 4.06 ±0.08` | 2 (`SECTION A-A`) | B4 | `stack_tan_link_to_pitch_plate::pitch_plate_flange` |
+| `5X 4.06 ±0.10` | 2 (`SECTION A-A`) | D10 | `stack_pitch_link_to_pitch_plate::pitch_plate_flange`, `stack_vpa_output_to_pitch_plate::pitch_flange_thickness` |
+| `4.06 ±0.10` ×2 | 1 | D5 and D6 | — (the VPA element's unresolved alternatives) |
+
+Two differences from 215197 A.1 worth knowing before comparing the sheets. Both
+position frames lost their diameter symbol: the PRELIM printed `⌖⌀0.2 A B C` on
+the 3X and 5X groups, the released sheet prints `⌖0.2 A B C`. And sheet 1 gained
+a second `4.06 ±0.10`, at zone D6, where 215197 printed `8.80 ±0.10`.
+
+Re-copy:
+
+```powershell
+$src = "C:\workspace\drawing-checker\data\inbox\drawings"
+$dst = "C:\workspace\tolstack\data\inbox\drawings"
+Copy-Item "$src\215735-A.pdf" "$dst\215735-A.pdf"
+"{0}  {1}" -f (Get-FileHash "$dst\215735-A.pdf" -Algorithm SHA256).Hash, "215735-A.pdf"
+```
+
 ## Reading these
 
 They have a **text layer** — unlike the photocopied standards in

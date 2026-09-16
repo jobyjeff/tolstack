@@ -15,7 +15,7 @@ Source: `260729_sample_tol_stack.xlsx`, sheet `grip length tols old`, rows 6–5
 |---|---|
 | Assembly | 217755 PROPULSION ASSEMBLY, PROPELLER rev A.1 |
 | Location | sheet 4, **DETAIL B** (scale 2:1), printed zone I6 — Jeff: "top-right corner" ✔ |
-| Pitch plate | 215197 PITCH PLATE, PROPELLER (inside 215177-001 PITCH PLATE ASSEMBLY, balloon 31) |
+| Pitch plate | 215735 PITCH PLATE, PROPELLER (inside 215177-001 PITCH PLATE ASSEMBLY, balloon 31) — re-cited 2026-09-16 from the PRELIM 215197; see element 6 |
 | Link | 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY, qty 3 |
 | Fastener as drawn | NAS6403U14D `.190-32 × .875" GRIP` (balloon 35, qty 3) |
 | Washer as drawn | NAS1149V0332H `.032"` (balloon 32) |
@@ -87,7 +87,7 @@ Scope is **grip length only**. Diameter/hole fits are deliberately out of scope
 | 3 | flange bushing flange thickness | bushing | 1.5750 | 1.4478 | 1.5748 | **JB_NAS77.pdf (F .062 +.000/−.005)** | inferred |
 | 4 | straight bushing | bushing | 4.7620 | 4.6300 | 4.7600 | 217755 sh4 DETAIL B (214820-002) | inferred |
 | 5 | spherical bearing width | bearing | 11.1000 | 11.0500 | 11.1000 | **RBC catalog p20, MS14103-3 row, column W** | inferred |
-| 6 | pitch plate flange thickness | clamped_member | 4.0600 | 3.9800 | 4.1400 | **215197 sh2 zone B4** | **traced** |
+| 6 | pitch plate flange thickness | clamped_member | 4.0600 | 3.9800 | 4.1400 | **215735-A sh2 zone B4** | **traced** |
 | 7 | washer thickness (thin, .032 in) | washer | 0.8128 | 0.7112 | 0.9144 | workbook E11 | untraced |
 | 8 | washer thickness (thick, .063 in) | washer | 1.6002 | 1.4478 | 1.7526 | workbook E12 | untraced |
 | 9 | thread transition allowance | allowance | 1.5875 | 0.0000 | 1.5875 | workbook E22 | untraced |
@@ -332,10 +332,22 @@ This list is the answer to "what must the fastener library ingest first".
 
 **Traced, for contrast:** three elements.
 
-1. The **pitch plate flange**, `3X 4.06 ±0.08` on 215197 sheet 2 zone B4
-   (SECTION A-A), carrying ⌖⌀0.2 A B C and ⊥0.05 F, 3X INDIVIDUALLY. The `3X`
+1. The **pitch plate flange**, `3X 4.06 ±0.08` on **215735-A** sheet 2 zone B4
+   (SECTION A-A), carrying ⌖0.2 A B C and ⊥0.05 F, 3X INDIVIDUALLY. The `3X`
    matches the three tangential links. This is still the only value on this
-   stack traced to a **part drawing**.
+   stack traced to a **part drawing** — and since 2026-09-16 it is the only one
+   traced to a part drawing this repo actually **holds**.
+
+   > **2026-09-16 — re-cited to the released plate** (`citation_identity_correctness`).
+   > Re-cited 2026-09-16 (handoff `citation_identity_correctness`) from the `[PRELIM 2025-MAY-22]` 215197 A.1 fixture to the RELEASED plate, **215735 rev A** (`data/inbox/drawings/215735-A.pdf`, sha256 `a06526c2…`, `MATURITY STATE: Released`, `DRAWING RELEASE DATE 01/JUL/2025`). No value, band or confidence moved. Two things did move and neither is a value. The part
+   > number: the released plate is **215735-001/-002**, find 1 and find 4 of the
+   > 215177 PITCH PLATE ASSEMBLY parts list, not 215197. And one GD&T frame: the
+   > PRELIM printed **⌖⌀0.2 A B C**, the released sheet prints **⌖0.2 A B C**
+   > without the diameter symbol — a change to the position control, verified on
+   > the rendered frames of both exports, not only in their text layers. The
+   > zone is unchanged at B4, re-read rather than carried across; the callout
+   > straddles the B4/B5 boundary on both exports (`4.06` prints in B5, `±0.08`
+   > in B4) and B4 is the half the crop builder corroborates.
 2. The **-14 fastener grip**, `.875 ±.010 in`, `NAS6403-NAS6420 Rev 4.pdf`
    sheet 3, row *Grip Dash No. 14*, band from the printed column header
    `Grip ±.010`. Added 2026-08-06 — see the provenance update above.
