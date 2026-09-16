@@ -1,9 +1,18 @@
 {
   "_recorded": "2026-09-15, handoff viewer_reference_crops_in_context",
-  "_source": "drawing-checker run 20260803_145243_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER -- 217755_A_balloons.json (the parts-list rows and the sheet-4 DETAIL B balloons) and 217755_A_p01.json (the parts-list table's tight bbox). Both gitignored over there, hence the copy.",
-  "_why": "The bushing/washer parts-list citations are located by their own BALLOON, which is drawing-checker's native-PDF geometry. A test that read the run directly would be green only in the main checkout.",
+  "_source": "drawing-checker run 20260803_145243_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER -- 217755_A_balloons.json (the find-32 and find-34 parts-list rows and the sheet-4 DETAIL B balloons) and 217755_A_p01.json (the parts-list table's tight bbox). The find-13 NAS1149V0332H row is recorded from a DIFFERENT export of the same drawing -- run 20260819_110144_217755_A.1_PROPULSION_ASSEMBLY,_PROPELLER (217755_A_balloons.json, array index 12; the find-32 row is index 31 there and is identical to the one recorded here) -- because the AUG-03 export extracted only one NAS1149V0332H row and so cannot exhibit the part-number collision at all. The AUG-19 export is also the one the rotor washer's citation actually names. All gitignored over there, hence the copy.",
+  "_why": "The bushing/washer parts-list citations are located by their own BALLOON, which is drawing-checker's native-PDF geometry. A test that read the run directly would be green only in the main checkout. Every row here is RECORDED from an export, never hand-written: the find-13 row exists so the two real rows that collide on the part number NAS1149V0332H are both present, in the array order the AUG-19 export wrote them (13 before 32), which is the order under which keying by part number alone happens to return the right answer.",
   "pl_page": 1,
   "parts_list": [
+    {
+      "find_no": 13,
+      "part_number": "NAS1149V0332H",
+      "nomenclature": "WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\" 1.000\" LONG",
+      "qty": 15,
+      "qty_raw": "15",
+      "qty_alt": 15,
+      "qty_alt_raw": "15"
+    },
     {
       "find_no": 32,
       "part_number": "NAS1149V0332H",

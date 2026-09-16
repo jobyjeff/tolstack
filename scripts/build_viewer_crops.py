@@ -228,6 +228,15 @@ PARTS_LIST_BLOCK_HEADER = "FIND"
 # Trimmed off each side of a block so the neighbouring block's rule does not
 # appear in the crop.
 PARTS_LIST_BLOCK_INSET_PT = 3.0
+#: How a citation's own callout states which parts-list ROW it means. A parts
+#: list row is identified by ``(part_number, find_no)``, not by part number
+#: alone -- 217755 prints ``NAS1149V0332H`` twice, as find 13 and as find 32 --
+#: and every parts-list callout in this repo carries the find number in its
+#: prose: ``"… (find 32, qty 9 across the assembly; balloon at SECTION T-T)"``.
+#: This is the citation side of the tie ``parts_list_row_rect`` breaks on the
+#: printed page, and it is a module-level constant rather than an inline
+#: literal for the reason every field vocabulary here is.
+CALLOUT_FIND_NO_RE = re.compile(r"\bfind\s+(\d+)\b", re.IGNORECASE)
 
 # Kinds that name no page of any document, so no crop can exist for them.
 NO_DOCUMENT_KINDS = {
@@ -821,13 +830,43 @@ def candidate_part_numbers(source_ref: Dict[str, Any],
 
 def parts_list_row_for(balloons: Dict[str, Any], source_ref: Dict[str, Any],
                        hardware_ref: Optional[str]) -> Optional[Dict[str, Any]]:
-    """The parts-list row this citation names, by exact part-number equality."""
-    rows = balloons.get("parts_list") or []
-    by_number = {str(row.get("part_number") or ""): row for row in rows}
+    """The parts-list row this citation names, by exact part-number equality
+    **and** by the find number the citation states.
+
+    A parts-list row is a ``(part_number, find_no)`` pair, so a part number
+    alone does not identify one: 217755's parts list carries ``NAS1149V0332H``
+    as both find 13 and find 32, two real rows for two different washers of the
+    same part number. Keyed on the part number alone, one of the two is simply
+    deleted -- whichever the export happened to write first -- and the survivor
+    is then answered for a citation naming the other, silently and with full
+    ``verified_match`` confidence, under the cited element's own name.
+
+    So the find number the citation prints in its own callout
+    (:data:`CALLOUT_FIND_NO_RE`) narrows the match, which is the citation-side
+    form of the tie-break :func:`parts_list_row_rect` performs against the
+    ``FIND`` column printed on the page. A tie that survives is **refused**
+    -- ``None``, never the last row written -- the way that function refuses:
+    :func:`balloon_answer`'s contract makes a ``None`` here place the crop
+    exactly as it did before, so refusing can only ever lose a located crop,
+    never move one onto the wrong row.
+    """
+    rows = [row for row in (balloons.get("parts_list") or [])
+            if row.get("find_no") is not None]
+    by_number: Dict[str, List[Dict[str, Any]]] = {}
+    for row in rows:
+        by_number.setdefault(str(row.get("part_number") or ""), []).append(row)
+    cited = CALLOUT_FIND_NO_RE.search(
+        str((source_ref or {}).get("callout") or ""))
+    cited_find_no = int(cited.group(1)) if cited else None
     for candidate in candidate_part_numbers(source_ref, hardware_ref):
-        row = by_number.get(candidate)
-        if row and row.get("find_no") is not None:
-            return row
+        matched = by_number.get(candidate) or []
+        if len(matched) > 1 and cited_find_no is not None:
+            matched = [row for row in matched
+                       if int(row["find_no"]) == cited_find_no]
+        if len(matched) == 1:
+            return matched[0]
+        if len(matched) > 1:
+            return None
     return None
 
 
