@@ -24,23 +24,23 @@
   "parts": [
     {
       "id": "bolt_nas6403u13h",
-      "name": "NAS6403U13H bolt, .1900-32, .812 grip",
-      "note": "Per the referenced fastener element's source_ref, NAS6403-NAS6420 Rev 4 sheet 3 dash 13."
+      "name": "NAS6403U13H hex-head bolt",
+      "note": "Hex head, 6Al-4V, .1900-32 thread, .812 in grip. A standard part: its grip comes from NAS6403-NAS6420 Rev 4 sheet 3, dash 13."
     },
     {
       "id": "straight_bushing_214820_002",
-      "name": "214820-002 BUSHING, PLAIN, ALUMINUM BRONZE, .1900 in ID X .1875 in LONG",
+      "name": "214820-002 plain bushing",
       "drawing": "214820-002",
-      "note": "Per the referenced element's source_ref, balloon find 34 in 217755 sheet 4 DETAIL B."
+      "note": "Plain bushing, aluminium bronze, .1900 in ID X .1875 in long. Balloon find 34 in DETAIL B of 217755 sheet 4."
     },
     {
       "id": "spherical_bearing_tan_link",
-      "name": "spherical bearing, internal to 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY",
-      "note": "No balloon in DETAIL B; the referenced element's source_ref notes it is internal to the tangential-link subassembly (find 24, qty 3), and its width is untraced."
+      "name": "spherical bearing",
+      "note": "Internal to the tangential-link subassembly, 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY (find 24, qty 3), so it has no balloon of its own in DETAIL B. Its width is untraced."
     },
     {
       "id": "flanged_bushing_tan_link",
-      "name": "flanged bushing (flange + barrel) -- part identity NOT ESTABLISHED",
+      "name": "flanged bushing",
       "note": "Candidate as-drawn part 214936-002 (BUSHING, PLAIN, COUNTERSUNK, .1900 in ID), balloned on 217755 sheet 5 DETAIL F, per the referenced elements' own source_ref notes -- NOT DETAIL B, so this is a candidate, not an established identity. Both the flange and the barrel dimensions (and the chamfer at the barrel's end) are modelled on this ONE part, since the stack's own elements name them together as one flanged bushing's two features."
     }
   ],

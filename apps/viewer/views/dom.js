@@ -58,6 +58,32 @@
     return node;
   };
 
+  // A small closed-by-default disclosure: `<details><summary>…`, with the body
+  // returned beside the box so a caller appends into it.
+  //
+  //   var d = VA.disclosure("How this crop was matched", "cropprov");
+  //   d.body.appendChild(…);  root.appendChild(d.box);
+  //
+  // A real <details>, not a class-toggling div: the open/close behaviour, the
+  // keyboard handling and the marker are the browser's, which is both less code
+  // and the one form that still works with JS disabled. The page already uses
+  // one for the topology's joint block (views/stack.js's VA.jointBlock).
+  //
+  // What belongs in one (2026-09-15, Jeff): a fact that is TRUE and worth
+  // keeping and is not what the reader came for. The crop's matching
+  // provenance is the case that produced this helper — "this restates the
+  // concise line above it in jargon". What does NOT belong in one is anything
+  // a reader needs to act on, and anything absent: a disclosure is a fold, not
+  // a place to hide a gap.
+  VA.disclosure = function (summaryText, baseClass) {
+    var box = VA.el("details", baseClass);
+    box.appendChild(VA.el("summary", baseClass ? baseClass + "__summary" : null,
+      summaryText));
+    var body = VA.el("div", baseClass ? baseClass + "__body" : null);
+    box.appendChild(body);
+    return { box: box, body: body };
+  };
+
   // A paragraph of provenance prose: clamped, click to expand, full text on
   // hover. Shared by views/stack.js (a material's note and CINDAS request) and
   // views/detail.js (an export's own note) — kept in one place so a selector for

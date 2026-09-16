@@ -317,14 +317,14 @@
     established: {
       loud: false,
       headline: function (x) {
-        return "export established: " + (VA.baseName(x.pdf) || "(names no file)");
+        return "Read from " + (VA.baseName(x.pdf) || "(the citation names no file)");
       },
     },
     unestablished: {
       loud: true,
       headline: function () {
-        return "EXPORT UNESTABLISHED — which file this value was read off cannot " +
-          "be identified";
+        return "FILE NOT IDENTIFIED — which file this value was read from " +
+          "cannot be established";
       },
     },
   };
@@ -334,8 +334,8 @@
   // been through yet. 26 of 48 live citations are here, and four of them are
   // `traced` — so this state is not a synonym for "untraced value" either.
   VA.NO_EXPORT_TEXT =
-    "no export block — this citation names no exported file, so nothing here " +
-    "identifies the bytes the value was read off";
+    "This citation names no file, so nothing here says which copy of the " +
+    "document the value was read from.";
 
   // --- identity_rule: the citation that names no export AND IS RIGHT NOT TO ---
   //
@@ -360,10 +360,10 @@
   // because that is what it is a sibling of — not an alarm.
   VA.IDENTITY_RULES = {
     spec_pile_filename: {
-      headline: "Spec-pile document: identity by filename (append-only pile)",
-      detail: "no export block is missing here — data/inbox/specs/ is " +
-        "append-only, so nothing is renamed or written over and the filename " +
-        "above IS the identity of the bytes",
+      headline: "A standard-spec document, identified by its filename",
+      detail: "nothing is missing here: the standard-spec library is only " +
+        "ever added to — never renamed, never written over — so the filename " +
+        "above IS which file this was read from",
     },
   };
 
@@ -374,9 +374,9 @@
   // views/stack.js (the compact row's chip, the only export fact still legible
   // there) and views/detail.js (the full block, moved out of the row).
   VA.EXPORT_CHIP_TEXT = {
-    unestablished: "EXPORT UNESTABLISHED",
-    unlabelled: "EXPORT STATUS UNKNOWN",
-    identity_unlabelled: "IDENTITY RULE UNKNOWN",
+    unestablished: "FILE NOT IDENTIFIED",
+    unlabelled: "FILE STATUS UNKNOWN",
+    identity_unlabelled: "SOURCE RULE UNKNOWN",
   };
 
   // An identity rule the viewer has never heard of. Same treatment as an
@@ -407,16 +407,23 @@
     return parts[parts.length - 1] || null;
   };
 
-  // Whether a sha256 is RECORDED, and its first 12 — never "verified". The
-  // viewer cannot hash a file, so the only honest claim it can make about an
-  // export's sha is that the stack wrote one down. The VERIFIED/NOT-VERIFIED
-  // language belongs to the crop hover, where a script really did compare bytes
-  // (VA.cropShaText).
+  // Whether a checksum is RECORDED — never "verified". The viewer cannot hash
+  // a file, so the only honest claim it can make is that the stack wrote one
+  // down. The VERIFIED/NOT-VERIFIED language belongs to the crop provenance,
+  // where a script really did compare bytes (VA.cropShaText).
+  //
+  // It said "sha256 recorded (a1b2c3d4e5f6…)" until 2026-09-15, twelve hex
+  // digits included. Jeff's standing web-copy rule retired both halves: the
+  // algorithm's name is an internal detail, and a truncated hash is not
+  // something a reader can do anything with. What a reader needs is the one
+  // fact — this file is pinned to its exact bytes, or it is identified by name
+  // only — and the digest itself is in the citation in the stack file for
+  // anyone checking it.
   VA.exportShaText = function (exportBlock) {
     var sha = exportBlock && exportBlock.sha256;
     return sha
-      ? "sha256 recorded (" + String(sha).slice(0, 12) + "…)"
-      : "NO sha256 recorded — the file is identified by name only";
+      ? "pinned to this exact file, by checksum"
+      : "NO checksum recorded — the file is identified by name only";
   };
 
   // The run ids out of `export.runs`, whose entries are `{run_id, ts}`. Runs are
@@ -788,26 +795,51 @@
     return base + "/run/" + encodeURIComponent(cropEntry.run_dir);
   };
 
-  // A file:// URL for the source PDF. Works because the app itself is served
-  // from file://; from an http origin Chrome refuses the navigation, which is
-  // why the plain path is always rendered beside the link.
+  // A file:// URL for the source PDF. Pure string work — it says nothing about
+  // whether the link can be FOLLOWED; VA.localFileUrl below is the one callers
+  // want.
   VA.fileUrl = function (absPath) {
     if (!absPath) return null;
     var normalised = String(absPath).replace(/\\/g, "/");
     return "file:///" + normalised.replace(/^\/+/, "");
   };
 
+  // The link a view should render for a source PDF, or **null where this
+  // origin cannot follow one** — see VA.originOpensLocalFiles
+  // (storage/adapter.js) for the measurement and for why the answer turns on
+  // the origin rather than on the path. A view renders nothing at all in the
+  // null case: a dead control that looks live is worse than an absent one, and
+  // it is what Jeff hit on 2026-09-15.
+  //
+  // The protocol is read from the page when the caller does not name one, so a
+  // view keeps its one-argument call and every test can drive both origins
+  // without a browser. A page with no `location` at all (the node fast tier's
+  // DOM shim) reads as "cannot follow", the same strictest-answer default
+  // VA.isLocalPage takes.
+  VA.localFileUrl = function (absPath, protocol) {
+    var origin = protocol === undefined
+      ? (typeof window !== "undefined" && window.location &&
+         window.location.protocol) || ""
+      : protocol;
+    if (!VA.originOpensLocalFiles(origin)) return null;
+    return VA.fileUrl(absPath);
+  };
+
   // Whether the bytes that were cropped are the bytes the citation names. Three
   // states, and collapsing any two of them is the bug this file had: a crop of a
   // *guessed* export looks perfectly correct on screen, so "verified" is the one
-  // fact a hover cannot leave out. `false` and `null` are different answers —
-  // `false` is a rule that had a sha to check and could not, `null` is a rule
-  // with no sha available at all (the spec pile is append-only, so a filename is
-  // its identity).
+  // fact this line cannot leave out. `false` and `null` are different answers —
+  // `false` is a rule that had a checksum to check and could not, `null` is a
+  // rule with no checksum available at all (the spec pile is append-only, so a
+  // filename is its identity).
+  //
+  // "sha256" left the wording on 2026-09-15 (handoff viewer_component_names_
+  // and_reference_copy): the algorithm's name is an internal detail no reader
+  // of this page can act on, and the three claims read the same without it.
   VA.cropShaText = function (cropEntry) {
-    if (cropEntry.sha256_verified === true) return "sha256 VERIFIED";
-    if (cropEntry.sha256_verified === false) return "sha256 NOT verified";
-    return "no sha256 to verify";
+    if (cropEntry.sha256_verified === true) return "checked against the citation, byte for byte";
+    if (cropEntry.sha256_verified === false) return "NOT checked against the citation";
+    return "no checksum on record to check against";
   };
 
   // Every value `scripts/build_viewer_crops.py` can write into `resolved_by`,

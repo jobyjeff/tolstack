@@ -17,16 +17,21 @@
     if (!row) {
       root.appendChild(VA.el("p", "muted",
         "Select an element in the table on the left to see its full sourcing " +
-        "here — the callout as printed, the citation note in full, which export " +
-        "the bytes were read off, and the drawing crop."));
+        "here — the callout as printed, the citation note in full, which file " +
+        "the value was read from, and the drawing crop."));
       return root;
     }
     var element = row.element;
     var derived = row.derived;
 
+    // The element's NAME, with its id on the heading's hover title rather
+    // than printed beside it (2026-09-15, the same rule the hover cards and
+    // the topology preview pane now follow): an id is a deep-link handle, not
+    // a label.
     var head = VA.el("div", "detail__head");
-    head.appendChild(VA.el("h3", null, element.name));
-    head.appendChild(VA.el("code", "muted", element.id));
+    var heading = VA.el("h3", null, element.name);
+    heading.setAttribute("title", element.id);
+    head.appendChild(heading);
     root.appendChild(head);
 
     var chips = VA.el("div", "detail__chips");
@@ -103,7 +108,9 @@
     if (p.state === "established" && opts.config !== undefined) {
       box.appendChild(VA.exportRunsLine(opts.config, opts.exportBlock, opts.cropEntry));
     }
-    if (p.pdf) box.appendChild(VA.el("div", "el-export__path", p.pdf));
+    // The absolute workstation path used to print here. Removed 2026-09-15
+    // (Jeff): "full workstation file paths — never rendered when the link
+    // works". The headline above already names the file a reader recognises.
     if (p.note) box.appendChild(VA.clampedNote("el-export__note", p.note));
     return box;
   };
@@ -116,8 +123,8 @@
     var links = VA.exportRunLinks(config, exportBlock, cropEntry);
     if (!links.length) {
       line.appendChild(VA.el("span", "muted",
-        "no drawing-checker run has consumed this export — the value was read " +
-        "straight off the file, so the sha256 is the whole of its identity"));
+        "no drawing-checker run has used this file — the value was read " +
+        "straight off it, so its checksum is the whole of its identity"));
       return line;
     }
     line.appendChild(VA.el("span", "muted", "drawing-checker runs: "));
@@ -133,9 +140,9 @@
         line.appendChild(a);
       } else {
         var span = VA.el("span", "el-export__runid", link.run_id);
-        span.setAttribute("title", "no link: an export carries a run ID and " +
-          "drawing-checker addresses a run by its DIRECTORY name, which is the id " +
-          "plus the drawing. This page will not guess one.");
+        span.setAttribute("title", "no link: drawing-checker addresses a run " +
+          "by a longer name than the id recorded here, and this page will not " +
+          "guess the rest of it.");
         line.appendChild(span);
       }
     });
@@ -153,7 +160,7 @@
     box.appendChild(VA.el("h4", null, "Drawing crop"));
     if (entry.status !== "resolved") {
       box.appendChild(VA.el("div", "detail__crop-reason",
-        entry.reason || unresolvedHeadline(entry.status)));
+        entry.reason || VA.cropUnresolvedHeadline(entry.status)));
       return box;
     }
     if (cropImage && cropImage.url) {
@@ -168,39 +175,16 @@
       box.appendChild(img);
     } else {
       box.appendChild(VA.el("div", "detail__crop-reason",
-        "crops.json points at " + entry.png + ", which is not on disk — the crop " +
-        "index is stale; re-run the crop script"));
+        VA.CROP_IMAGE_MISSING_TEXT));
     }
-    box.appendChild(VA.el("div", "detail__crop-head",
-      entry.pdf_name + " · sheet " + entry.page));
-    box.appendChild(VA.el("div", "detail__crop-prov", VA.cropProvenanceLine(entry)));
-
-    var links = VA.el("div", "detail__crop-links");
-    var runUrl = VA.runUrl(config, entry);
-    if (runUrl) {
-      links.appendChild(anchor(runUrl, "open run in drawing-checker",
-        "the local web UI — " + (config && config.drawingCheckerWebui) +
-        " must be serving"));
-    }
-    var fileUrl = VA.fileUrl(entry.pdf);
-    if (fileUrl) links.appendChild(anchor(fileUrl, "open the PDF"));
-    box.appendChild(links);
-    box.appendChild(VA.el("div", "detail__crop-path", entry.pdf));
+    // The reference, the links and the folded matching provenance are ONE
+    // builder now (VA.cropReference, views/crop.js) — this pane, the hover
+    // cards, the topology preview pane and the plain popover all showed the
+    // same three lines in slightly different words, which is the drift a
+    // shared builder exists to stop. It also brought two fixes with it: the
+    // "open the PDF" link renders only where this origin can follow it, and
+    // the absolute path is gone.
+    VA.cropReference(box, entry, config, "detail__crop");
     return box;
-  }
-
-  function unresolvedHeadline(status) {
-    if (status === "not-built") return "the crop projection has not been built";
-    if (status === "no-entry") return "crops.json has no entry for this element";
-    return "crop unresolvable";
-  }
-
-  function anchor(href, text, title) {
-    var node = VA.el("a", "detail__crop-link", text);
-    node.setAttribute("href", href);
-    node.setAttribute("target", "_blank");
-    node.setAttribute("rel", "noopener");
-    if (title) node.setAttribute("title", title);
-    return node;
   }
 })(window.ViewerApp = window.ViewerApp || {});

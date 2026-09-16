@@ -468,11 +468,15 @@
     // perfectly correct on screen, so a hover that cannot distinguish verified
     // from guessed is worse than no hover
     // (ISSUE_20260806_viewer_does_not_label_the_source_ref_export_rule).
-    await test("cropProvenanceLine names the rule, the export and the sha verdict", function () {
+    await test("cropProvenanceLine names the rule, the file and the check verdict", function () {
       var line = VA.cropProvenanceLine(CROPS.by_stack.demo_joint.plate);
       has(line, "read from the export this citation names");
       has(line, "215197 A.1.pdf");
-      has(line, "sha256 VERIFIED");
+      has(line, "checked against the citation, byte for byte");
+      // No algorithm name anywhere a reader reads (viewer_component_names_and_
+      // reference_copy, 2026-09-15): "sha256" is an internal detail nobody on
+      // this page can act on, and the three verdicts read the same without it.
+      ok(line.indexOf("sha256") === -1, "no algorithm name in rendered copy: " + line);
       has(line, "cited zone D10");
       // The matched needle is named, not just "found": "4.06" corroborates far
       // less than the whole callout would, and the line must let a reader see
@@ -481,16 +485,16 @@
     });
 
     // `false` and `null` are different answers and must not read the same: one
-    // is a rule that had a sha and could not check it, the other a rule with no
-    // sha to check (the append-only spec pile).
-    await test("cropProvenanceLine keeps the three sha states distinct", function () {
+    // is a rule that had a checksum and could not check it, the other a rule
+    // with no checksum to check (the append-only spec pile).
+    await test("cropProvenanceLine keeps the three check states distinct", function () {
       var base = { status: "resolved", resolved_by: "source_ref_export",
                    pdf_name: "x.pdf", located_by: "sheet_full", note: "whole sheet" };
-      has(VA.cropProvenanceLine(base), "no sha256 to verify");
+      has(VA.cropProvenanceLine(base), "no checksum on record to check against");
       base.sha256_verified = false;
-      has(VA.cropProvenanceLine(base), "sha256 NOT verified");
+      has(VA.cropProvenanceLine(base), "NOT checked against the citation");
       base.sha256_verified = true;
-      has(VA.cropProvenanceLine(base), "sha256 VERIFIED");
+      has(VA.cropProvenanceLine(base), "checked against the citation, byte for byte");
       has(VA.cropProvenanceLine({
         status: "resolved", resolved_by: "spec_pile",
         pdf_name: "NAS6403-NAS6420 Rev 4.pdf", sha256_verified: null,
@@ -1306,17 +1310,22 @@
     // crop hover, where build_viewer_crops.py really did compare bytes — and
     // "recorded" reading as "verified" is the same collapse VA.cropShaText exists
     // to prevent one layer up.
-    await test("an export's sha is RECORDED, never described as verified", function () {
+    await test("an export's checksum is RECORDED, never described as verified", function () {
       var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
-      has(line, "sha256 recorded (a1b2c3d4e5f6…)");
+      has(line, "pinned to this exact file, by checksum");
       ok(line.indexOf("VERIFIED") === -1, "the viewer verifies nothing: " + line);
-      has(VA.exportShaText({ status: "established" }), "NO sha256 recorded");
+      has(VA.exportShaText({ status: "established" }), "NO checksum recorded");
+      // Neither the algorithm's name nor the digest itself: twelve hex digits
+      // are not something a reader of this page can do anything with, and the
+      // digest is in the stack file for anyone checking it (2026-09-15).
+      ok(line.indexOf("sha256") === -1, "no algorithm name: " + line);
+      ok(line.indexOf("a1b2c3d4e5f6") === -1, "no digest digits: " + line);
     });
 
-    await test("an established export names the file, the sha and the runs", function () {
+    await test("an established export names the file, the checksum and the runs", function () {
       var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
       // The BASENAME, because the live paths are absolute and 90 characters long.
-      has(line, "export established: 215197.pdf");
+      has(line, "Read from 215197.pdf");
       has(line, "drawing-checker runs: 20260804_114000_x");
       // An export no run ever consumed says so — 15 of the 22 live established
       // CITATIONS are in that state (6 of the 9 distinct exports they name), and
@@ -1328,12 +1337,13 @@
 
     await test("an unestablished export leads with the why, not with the file", function () {
       var line = VA.exportProvenanceLine(DEMO.stack.elements[1].source_ref);
-      has(line, "EXPORT UNESTABLISHED");
+      has(line, "FILE NOT IDENTIFIED");
       has(line, "none hashes to the one this .032\" was read off");
-      // No sha clause at all: an unestablished export carries no sha by
-      // construction (SourceExport raises if it does), so "NO sha256 recorded"
-      // would read as a second, separate failing when it is the same one.
-      ok(line.indexOf("sha256") === -1, "no sha clause on an unestablished export");
+      // No checksum clause at all: an unestablished export carries no checksum
+      // by construction (SourceExport raises if it does), so "NO checksum
+      // recorded" would read as a second, separate failing when it is the same
+      // one.
+      ok(line.indexOf("checksum") === -1, "no checksum clause on an unestablished export");
     });
 
     // The link treatment is REUSED from the crop popover rather than invented,
@@ -1387,13 +1397,20 @@
       ok(!note.onclick, "the panel's note is not clamped, so it needs no toggle");
     });
 
-    await test("the panel header names the element and its confidence", function () {
+    await test("the panel header names the element and its confidence, and puts " +
+      "its id on hover rather than on the page", function () {
       var root = render(function (r) {
         VA.renderDetail(r, DEMO, "washer", CROPS, null, VA.CONFIG);
       });
       has(root.textContent, "washer thickness");
-      has(all(root, "code")[0].textContent, "washer");
       has(all(root, "span.conf--inferred")[0].textContent, "inferred");
+      // 2026-09-15: the id used to print beside the name in a <code> chip.
+      // It is a deep-link handle, not a label -- it rides the heading's hover
+      // title now, and nothing a reader reads carries it.
+      var heading = all(root, "h3")[0];
+      eq(heading.getAttribute("title"), "washer");
+      ok(root.textContent.indexOf("washer thickness") !== -1);
+      eq(all(root, "code").length, 0);
     });
 
     await test("the crop renders inline in the panel when it has resolved", function () {
@@ -1452,13 +1469,17 @@
       });
       var box = all(root, "div.el-export--established");
       eq(box.length, 1);
-      has(box[0].textContent, "export established: 215197.pdf");
-      has(box[0].textContent, "sha256 recorded");
+      has(box[0].textContent, "Read from 215197.pdf");
+      has(box[0].textContent, "pinned to this exact file");
       has(box[0].textContent, "20260804_114000_x");
-      // The absolute path beside the basename, for the same reason the crop
-      // popover prints it: a file:// link only navigates from a file:// page, and
-      // copy-paste is the fallback that always works.
-      has(all(root, "div.el-export__path")[0].textContent, "C:/workspace/demo/215197.pdf");
+      // The absolute path used to print beside the basename as the fallback
+      // for a file:// link that could not navigate. Gone 2026-09-15 (Jeff:
+      // "full workstation file paths -- never rendered when the link works"),
+      // and the link now renders only where the origin CAN follow it, so the
+      // fallback has nothing left to fall back from.
+      eq(all(root, "div.el-export__path").length, 0);
+      ok(root.textContent.indexOf("C:/workspace/demo/215197.pdf") === -1,
+         "no absolute workstation path in rendered output");
       // The export's own note is clamped like the citation's used to be, and does
       // NOT reuse its class — a selector for one must never pick up the other.
       var note = all(root, "div.el-export__note")[0];
@@ -1481,10 +1502,10 @@
         // chip beside the confidence chip, on the washer's row and no other.
         var chips = all(rowsRoot, "span.chip--export-unestablished");
         eq(chips.length, 1);
-        has(chips[0].textContent, "EXPORT UNESTABLISHED");
+        has(chips[0].textContent, "FILE NOT IDENTIFIED");
         var rows = all(rowsRoot, "tr.el-row");
-        has(rows[1].textContent, "EXPORT UNESTABLISHED");
-        ok(rows[0].textContent.indexOf("EXPORT UNESTABLISHED") === -1,
+        has(rows[1].textContent, "FILE NOT IDENTIFIED");
+        ok(rows[0].textContent.indexOf("FILE NOT IDENTIFIED") === -1,
            "the established row is not tarred with it");
 
         var detailRoot = render(function (r) {
@@ -1493,7 +1514,7 @@
         var box = all(detailRoot, "div.el-export--unestablished");
         eq(box.length, 1);
         ok(box[0].className.indexOf("el-export--loud") !== -1, "must be loud");
-        has(box[0].textContent, "EXPORT UNESTABLISHED");
+        has(box[0].textContent, "FILE NOT IDENTIFIED");
         // The reason, unclamped and not behind a hover: it was reachable only
         // through a crop popover before, and hiding it behind a second click here
         // would reproduce that defect one notch down.
@@ -1511,7 +1532,7 @@
         VA.renderDetail(r, DEMO, "washer", null, null, VA.CONFIG);
       });
       has(all(root, "div.el-export__why")[0].textContent, "none hashes to the one");
-      has(root.textContent, "EXPORT UNESTABLISHED");
+      has(root.textContent, "FILE NOT IDENTIFIED");
     });
 
     await test("a citation with no export block says so rather than nothing", function () {
@@ -1520,7 +1541,7 @@
       });
       var box = all(root, "div.el-export--none");
       eq(box.length, 1);
-      has(box[0].textContent, "names no exported file");
+      has(box[0].textContent, "names no file");
       // Not loud, and no chip: see the comment on the state in views/stack.js.
       ok(box[0].className.indexOf("--loud") === -1);
     });
@@ -1554,8 +1575,7 @@
       var grip = DEMO.stack.elements[3].source_ref;
       var p = VA.exportProvenance(grip, "spec_pile_filename");
       eq(p.state, "identity_rule");
-      eq(p.headline,
-         "Spec-pile document: identity by filename (append-only pile)");
+      eq(p.headline, "A standard-spec document, identified by its filename");
       // Not loud: this says the bytes ARE identified, by a rule this repo argued
       // for. It is a sibling of `established`, not of `unestablished`.
       eq(p.loud, false);
@@ -1592,9 +1612,9 @@
       function () {
         var line = VA.exportProvenanceLine(DEMO.stack.elements[3].source_ref,
                                            "spec_pile_filename");
-        has(line, "identity by filename");
-        has(line, "append-only");
-        ok(line.indexOf("names no exported file") === -1,
+        has(line, "identified by its filename");
+        has(line, "only ever added to");
+        ok(line.indexOf("names no file") === -1,
            "the no-export sentence must be replaced, not appended to: " + line);
       });
 
@@ -1605,7 +1625,7 @@
       eq(all(rowsRoot, "span.chip--export-identity_rule").length, 0);
       var rows = all(rowsRoot, "tr.el-row");
       has(rows[3].textContent, "fastener grip (spec pile)");
-      ok(rows[3].textContent.indexOf("names no exported file") === -1,
+      ok(rows[3].textContent.indexOf("names no file") === -1,
          "the four spec citations must stop reading as 'nothing identifies this'");
 
       // The argument for the state, in full, in the panel — unclamped and not
@@ -1615,8 +1635,8 @@
       });
       var box = all(root, "div.el-export--identity_rule");
       eq(box.length, 1);
-      has(box[0].textContent, "identity by filename (append-only pile)");
-      has(all(root, "div.el-export__detail")[0].textContent, "append-only");
+      has(box[0].textContent, "identified by its filename");
+      has(all(root, "div.el-export__detail")[0].textContent, "only ever added to");
       ok(box[0].className.indexOf("--loud") === -1, "not an alarm");
     });
 
@@ -1626,7 +1646,7 @@
         poisoned.elements[3].identity_rule = "sha_of_pile";
         var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
         has(all(rowsRoot, "span.chip--export-identity_unlabelled")[0].textContent,
-            "IDENTITY RULE UNKNOWN");
+            "SOURCE RULE UNKNOWN");
         // Its own chip class and its own wording: calling an unknown identity rule
         // "EXPORT STATUS UNKNOWN" would send a reader looking for a field this
         // citation does not have.
@@ -1662,7 +1682,7 @@
         poisoned.stack.elements[0].source_ref.export = { status: "provisional" };
         var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
         has(all(rowsRoot, "span.chip--export-unlabelled")[0].textContent,
-            "EXPORT STATUS UNKNOWN");
+            "FILE STATUS UNKNOWN");
         // The unestablished chip's class is NOT reused for it: the two states are
         // different facts and a stylesheet must be able to tell them apart, even
         // though today they share one loud rule. The washer's is untouched by
@@ -1811,9 +1831,13 @@
       // measured at its final size before the PNG decodes.
       eq(all(root, "img")[0].style.aspectRatio, "800 / 600");
       has(root.textContent, "sheet 2");
-      has(root.textContent, "C:/workspace/demo/215197.pdf");
-      // No run behind this one, so no run link — only the PDF.
+      // No run behind this one, so no run link — only the PDF, and only
+      // because the fast tier's shim reports a file:// origin (see the
+      // origin-capability cases below). The absolute path that used to print
+      // beside it is gone: never rendered when the link works (2026-09-15).
       eq(all(root, "a").length, 1);
+      ok(root.textContent.indexOf("C:/workspace/demo/215197.pdf") === -1,
+         "no absolute workstation path in the popover");
     });
 
     await test("a run-resolved popover links to the drawing-checker run page", function () {
@@ -1829,7 +1853,10 @@
       eq(hrefs.length, 2);
       has(hrefs[0], "/run/20260804_114000_x");
       has(hrefs[1], "file:///C:/x.pdf");
-      has(root.textContent, "sha256 VERIFIED");
+      // Behind the fold now, but still said (VA.CROP_PROVENANCE_SUMMARY).
+      has(root.textContent, VA.CROP_PROVENANCE_SUMMARY);
+      has(root.textContent, "checked against the citation, byte for byte");
+      eq(all(root, "details.provfold").length, 1);
     });
 
     await test("an unresolvable popover shows the reason and offers no image", function () {
@@ -1846,12 +1873,20 @@
       has(root.className, "croppop--unresolvable");
     });
 
-    await test("a not-built popover offers the command instead of a reason", function () {
+    // 2026-09-15: it used to print the rebuild COMMAND here, as a <code> block
+    // for the reader to copy into a terminal. "Never render terminal commands
+    // in a web UI for the user to copy/paste" is a standing rule, and hover
+    // chrome is the worst possible carrier for one. The state is still stated;
+    // only the command went, and the banner remains the one surface that
+    // offers a rebuild (as a button, where the origin can service it).
+    await test("a not-built popover states the state and offers NO command", function () {
       var root = render(function (r) {
         VA.renderCrop(r, VA.cropFor(null, "s", "e"), null, VA.CONFIG);
       });
       has(root.textContent, "has not been built");
-      has(root.textContent, "build_viewer_crops.py");
+      ok(root.textContent.indexOf("build_viewer_crops.py") === -1,
+         "no terminal command in hover chrome: " + root.textContent);
+      eq(all(root, "code.croppop__cmd").length, 0);
     });
 
     await test("a resolved entry whose PNG vanished says the index is stale", function () {
@@ -2233,8 +2268,14 @@
         eq(plan.rows.map(function (r) { return r.id; }), TOPO_EDGE_ORDER);
         plan.rows.forEach(function (r, i) { eq(r.gridRow, i); });
         eq(plan.groups.length, 6);
+        // The part's NAME, not its id (VA.componentLabel, 2026-09-15).
         eq(plan.groups.map(function (g) { return g.label; }),
-          ["base", "post", "arm", VA.GAP_COMPONENT_LABEL, "strut", "post"]);
+          ["base plate", "post", "arm", VA.GAP_COMPONENT_LABEL,
+           "parallel strut", "post"]);
+        // The id is still what the group is keyed by -- it is the handle every
+        // lookup and every deep link uses, and only the LABEL changed.
+        eq(plan.groups.map(function (g) { return g.part; }),
+          ["base", "post", "arm", null, "strut", "post"]);
         plan.groups.forEach(function (g) { eq(g.count, 1); });
         // A leader's boundary is the count of edge rows the walk emitted
         // before its node — the seam between the row above and the row below.
@@ -2350,7 +2391,9 @@
         var mini = miniTopo(false);
         var plan = VA.gridPlan(mini.layout, mini);
         eq(plan.groups.length, 1);
-        eq(plan.groups[0].label, "p");
+        // The part's NAME, keyed by its id (VA.componentLabel, 2026-09-15).
+        eq(plan.groups[0].part, "p");
+        eq(plan.groups[0].label, "one part");
         eq(plan.groups[0].count, 2);
         eq(plan.leaders, []);   // n0/n1/n2 all sit inside part p
 
@@ -2360,7 +2403,7 @@
         var cells = all(root, "td.tvcell--component");
         eq(cells.length, 1);
         eq(cells[0].getAttribute("rowspan"), "2");
-        eq(cells[0].textContent, "p");
+        eq(cells[0].textContent, "one part");
         eq(all(root, "path.rail__leader").length, 0);
       });
 
@@ -2372,7 +2415,7 @@
                                      // serialisation)
         var plan = VA.gridPlan(mini.layout, mini);
         eq(plan.groups.map(function (g) { return g.label + ":" + g.count; }),
-          ["p:1", "p:1"]);
+          ["one part:1", "one part:1"]);
         eq(plan.leaders.map(function (l) { return l.id + ":" + l.boundary; }),
           ["n1:1"]);
       });
@@ -2620,8 +2663,8 @@
            { zoneScale: 99 }).zoneScale, VA.JOG_ZONE_SCALE.max);
       });
 
-    await test("elementDisplayLabel drops only a leading repeat of the " +
-      "component's own name, and never blanks a cell", function () {
+    await test("elementDisplayLabel drops the leading words the component cell " +
+      "already carries, and never blanks a cell", function () {
         // Jeff's case, verbatim: under component `blade_root`, three rows all
         // opened with "blade-root".
         eq(VA.elementDisplayLabel("blade-root clocking holes to the hub", "blade_root"),
@@ -2635,13 +2678,83 @@
         // No repeat at all: unchanged, character for character.
         eq(VA.elementDisplayLabel("hub bore to the pin", "blade_root"),
            "hub bore to the pin");
-        // A label that is ONLY its component's name keeps it -- an empty
+        // A label that is ONLY its component's words keeps them -- an empty
         // element cell would be a worse lie than a repetitive one.
         eq(VA.elementDisplayLabel("blade-root", "blade_root"), "blade-root");
         // A gap group has no part, so there is nothing to match against.
         eq(VA.elementDisplayLabel("shank out", null), "shank out");
         eq(VA.elementDisplayLabel("shank out", ""), "shank out");
         eq(VA.elementDisplayLabel(null, "hub"), "");
+        // The part ROW is what the grid passes now, and the words matched are
+        // the ones the merged cell PRINTS -- its label, never its id or its
+        // drawing number. The rule's whole justification is "the cell beside
+        // it already says this", so a string the cell does not show must not
+        // license a drop.
+        eq(VA.elementDisplayLabel("bushing flange thickness",
+           { id: "flanged_bushing_unidentified", name: "part not identified" }),
+           "bushing flange thickness");
+        eq(VA.elementDisplayLabel("plain bushing length",
+           { id: "bushing_214820_002", name: "214820-002 plain bushing" }),
+           "length");
+        // Only LEADING words, never a word inside a phrase: this is why the
+        // rule consumes a run off the front rather than deleting every
+        // occurrence. "bolt point" is the tip of the bolt, not a repeat.
+        eq(VA.elementDisplayLabel("cotter-hole centreline to bolt point",
+           { id: "bolt_nas6403u11d", name: "NAS6403U11D hex-head bolt" }),
+           "cotter-hole centreline to bolt point");
+      });
+
+    // Jeff, 2026-09-15: "the element column can just say 'grip length' (for
+    // the bolt) or 'length' for the plain bushing. The component's description
+    // and part number don't need to be repeated in every column." A clause
+    // that only restates the component, or only restates the row's own value,
+    // goes -- with its separator, so what is left reads as written.
+    await test("elementDisplayLabel drops a clause that only restates the " +
+      "component or the row's own value, keeping every other clause verbatim",
+      function () {
+        var bolt = { id: "bolt_nas6403u11d", name: "NAS6403U11D hex-head bolt" };
+        var bushing = { id: "bushing_214820_002", name: "214820-002 plain bushing" };
+        var washer = { id: "washer_nas1149v0332h", name: "NAS1149V0332H flat washer" };
+        var plate = { id: "pitch_plate_215197", name: "215197 pitch plate" };
+
+        // The four live pitch-link rows, which is what Jeff was reading.
+        eq(VA.elementDisplayLabel("fastener grip, NAS6403U11D (.688 in)", bolt),
+           "fastener grip");
+        eq(VA.elementDisplayLabel("plain bushing length (214820-002)", bushing),
+           "length");
+        eq(VA.elementDisplayLabel("washer thickness, NAS1149V0332H (.032 in)", washer),
+           "thickness");
+        eq(VA.elementDisplayLabel("pitch plate lug thickness (5X group)", plate),
+           "lug thickness (5X group)");
+        // A middle clause dropped leaves the ones around it joined as authored.
+        eq(VA.elementDisplayLabel(
+           "NAS6403U11D overall length, head bearing face to point (1.011 in)", bolt),
+           "overall length, head bearing face to point");
+
+        // A clause survives unless EVERY token in it is already-said. These
+        // three are the ones that made a blanket word-removal unsafe.
+        eq(VA.elementDisplayLabel("hub flange (A datum) to deck",
+           { id: "hub", name: "propeller hub" }), "flange (A datum) to deck");
+        eq(VA.elementDisplayLabel("cotter-hole centreline to bolt point (dimension M)",
+           bolt), "cotter-hole centreline to bolt point (dimension M)");
+        // A dash number is not the family's name: the nine rotor-fastener rows
+        // are separated by nothing else, so the rule must not eat it.
+        eq(VA.elementDisplayLabel("NAS6403U2H grip length (.125 in) -- shortest of nine options",
+           { id: "fastener_family", name: "NAS6403 grip-selection family" }),
+           "NAS6403U2H grip length -- shortest of nine options");
+        // Units are a module-level vocabulary, not inline literals.
+        ok(VA.LABEL_UNIT_WORDS.indexOf("in") !== -1);
+        ok(VA.LABEL_UNIT_WORDS.indexOf("mm") !== -1);
+        // Nothing is ever reworded or reordered: every character of the output
+        // is a character of the input, in the input's order.
+        var input = "pitch plate lug thickness (5X group)";
+        var out = VA.elementDisplayLabel(input, plate);
+        var at = 0;
+        out.split("").forEach(function (ch) {
+          at = input.indexOf(ch, at);
+          ok(at !== -1, "output character " + JSON.stringify(ch) + " is not the input's");
+          at += 1;
+        });
       });
 
     // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) -------
@@ -4187,8 +4300,13 @@
         // One merged cell per group, each spanning its own count.
         var cells = all(root, "td.tvcell--component");
         eq(cells.length, 6);
+        // Human names, never part ids (Jeff, 2026-09-15: "2nd line
+        // bolt_nas6403u11d appears to be some type of internal id that is
+        // meaningless to user ... replace these with a concise human friendly
+        // name").
         eq(cells.map(function (c) { return c.textContent; }),
-          ["base", "post", "arm", VA.GAP_COMPONENT_LABEL, "strut", "post"]);
+          ["base plate", "post", "arm", VA.GAP_COMPONENT_LABEL,
+           "parallel strut", "post"]);
       });
 
     await test("the value cell is decomposed into nominal / min / max columns, " +
@@ -4484,7 +4602,7 @@
       });
 
     await test("renderHoverCard: an edge card shows the crop block, the " +
-      "citation line and the crop-key claim", function () {
+      "citation line and its part in words", function () {
         var edge = VA.topologyIndex(TOPO).edges.base_thickness;
         var card = VA.edgeCard(TOPO, edge, TOPOCROPS);
         var images = {};
@@ -4495,7 +4613,18 @@
         has(root.className, "hovercard--edge");
         eq(all(root, "img").length, 1);
         has(root.textContent, "cited at:");
-        has(root.textContent, "from stack `demo_joint`, element `plate`");
+        // The part in a reader's words. `card.part` is still the id -- it is
+        // what the annotate deep link carries -- and the card prints
+        // `partLabel` (2026-09-15).
+        eq(card.part, "base");
+        eq(card.partLabel, "base plate");
+        has(root.textContent, "a dimension of base plate");
+        ok(root.textContent.indexOf("a dimension of base") !== -1);
+        // The crop-KEY line went with the same pass: it printed which of the
+        // crop index's two key spaces addressed this crop, in the ids of a
+        // stack and an element, above a picture that names its own document.
+        ok(root.textContent.indexOf("from stack `demo_joint`") === -1,
+           "no crop-key plumbing in a hover card: " + root.textContent);
         has(root.textContent, "215197 A.1.pdf");
         // The close button is the popover's own.
         eq(all(root, "button.croppop__close").length, 1);
@@ -4559,7 +4688,7 @@
         });
         has(root.className, "hovercard--citation");
         has(root.textContent, "215197 · rev A.1 · sheet 2");
-        has(root.textContent, "export established");
+        has(root.textContent, "Read from 215197.pdf");
         eq(all(root, ".el-export").length, 1);
         eq(all(root, "img").length, 1);
         // The run ids print through the same one runs-line builder the right
@@ -5093,8 +5222,14 @@
         });
         has(root.textContent, "base / post seat");
         has(root.textContent, "mating_surface");
-        has(root.textContent, "base ⇔ post");
+        // The parts' NAMES (VA.nodeSideLabels, 2026-09-15) -- this pane
+        // printed their ids until then, which is the one thing it said that a
+        // reader had no way to read.
+        has(root.textContent, "base plate ⇔ post");
         has(root.textContent, "An interface is a location, not a value");
+        // And the node's own id is on the heading's hover title, not printed.
+        eq(all(root, "h3")[0].getAttribute("title"), "base_post_seat");
+        eq(all(root, "code").length, 0);
       });
 
     await test("the preview pane shows a dimension as transcribed, with its " +
@@ -5107,7 +5242,10 @@
         has(root.textContent, "215197");
         has(root.textContent, "3.98");
         eq(all(root, "div.el-export--established").length, 1);
-        has(root.textContent, "sha256 recorded");
+        has(root.textContent, "pinned to this exact file");
+        // The part and both interfaces in their own names, not their ids.
+        has(root.textContent, "a dimension of base plate");
+        has(root.textContent, "base datum face → base / post seat");
       });
 
     await test("an untraced dimension says so in the pane, not only on the row",
@@ -5208,7 +5346,7 @@
         eq(all(root, "div.detail__annotate").length, 0);
         eq(/3D/.test(root.textContent), false);
         // The gap itself is still stated -- only the dead link went away.
-        has(root.textContent, "This dimension carries no source_ref at all");
+        has(root.textContent, "This dimension cites nothing at all");
       });
 
     await test("the pane explains a missing crop rather than reporting a stale " +
@@ -5222,7 +5360,7 @@
         });
         eq(all(inline, "div.detail__crop--no-key").length, 1);
         has(inline.textContent, "No crop index covers it");
-        has(inline.textContent, "no source_ref at all");
+        has(inline.textContent, "cites nothing at all");
 
         var derived = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
@@ -5706,7 +5844,7 @@
         eq(edgeRow.getAttribute("title"), edge.name);
         // The merged component cell is grouping, not an edge label — the
         // toggle never touches it.
-        eq(edgeRow.querySelector("td.tvcell--component").textContent, "base");
+        eq(edgeRow.querySelector("td.tvcell--component").textContent, "base plate");
 
         // A row the projection cannot resolve still states its own diagnostic
         // regardless of mode -- that text is never redundant and must not be
