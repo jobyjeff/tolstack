@@ -904,6 +904,56 @@ supplies an `untraced` figure), but the ones that do will be honestly cited. A
 gap with no number is a perfectly good result — record what is missing and what
 document would supply it. Do not fill a hole to make the stack look finished.
 
+> ### AMENDMENT 2026-09-15 — the placeholder policy
+>
+> *(handoff `pitch_link_known_bands`. Jeff's ruling, quoted for the record:
+> **"it's ok to use unverified numbers as placeholders, but they need to be very
+> loudly identified as unverified/incomplete. Current design omits them entirely
+> and then fails silently which is worst of both worlds."**)*
+>
+> **The pitch-link no-workbook experiment concluded on 2026-09-15, by operator
+> verdict.** `pitch_link_to_pitch_plate` was built to hold zero
+> `kind: "workbook"` citations — Jeff's founding note said *"there will be no
+> excel sheet to cheat off of"* — and the table above generalised that into a
+> rule for every from-scratch stack. It cost what it was meant to cost and then
+> some: the 214820-002 bushing and the NAS1149V0332 washer folded **zero-width**
+> for six weeks, and Jeff found them in the viewer — *"the tolerance stack notes
+> zero width band (4.7625+/-0?) but I just opened the drawing and it's very
+> clearly 4.76 +0/-.13. The last row (washer) also shows zero band which Im
+> certain is incorrect."* The workbook's 4.63/4.76 agreed with the drawing to the
+> digit.
+>
+> So the rule is now:
+>
+> - **A value recorded with provenance MAY be applied to a stack element.**
+>   "With provenance" means a named artifact a reader can go and check — a
+>   workbook cell, a catalog entry, an operator's statement of what a drawing
+>   says. It does **not** mean verified.
+> - **Its true confidence is carried and displayed.** A value whose only support
+>   is "the source says so" is `untraced`, and `untraced` is still permitted only
+>   as an explicitly-listed gap (Step 6, item 7 — the ranked list, with the
+>   document that closes it). The `confidence` field is what the viewer badges
+>   and what every other consumer switches on; a value applied with a better word
+>   than it deserves is worse than one omitted.
+> - **The citation names the artifact the number came from, not a respectable
+>   neighbour.** If the band came from a workbook, `kind` is `workbook`. The
+>   `214820-002` row above is still the worked example of laundering, and it is
+>   about the *shape* of the citation, not about whether the number turned out to
+>   be right — which, here, it did.
+> - **The same part+feature carries the same band in every stack that uses it.**
+>   This is the rule the old ban made impossible: a transcription stack was
+>   obliged to fold a band a from-scratch stack was forbidden, so one part read
+>   `4.63/4.76` on one screen and `±0` on another, correctly, by design. A
+>   divergence is now a defect; pin it with a cross-stack, value-level test
+>   naming the stacks (`test_one_part_and_feature_folds_one_band_in_every_stack_
+>   that_uses_it`), and record any you are out of scope to fix as a listed
+>   divergence rather than an exemption.
+>
+> **Untouched:** the prohibition on inventing a value from training-data recall.
+> A placeholder still needs a named source; it just no longer needs a verified
+> one. `kind: "workbook"` appearing zero times is no longer the test of a
+> from-scratch stack — everything else in the table above still is.
+
 ## Step 5c — when an element cannot be sourced at all
 
 Step 5b says a gap with no number is a perfectly good *result*. This says how to
@@ -950,18 +1000,63 @@ over the members you do have, so the shortfall *is* the missing value:
 
 `pitch_link_to_pitch_plate` is the worked example. Its link-eye width is in no
 document this repo holds, so no element exists for it, and
-`shank_out__11_sourced_only` reports **−8.1939 … −7.4859 mm** — a deficit that
+`shank_out__11_sourced_only` reports **−8.4280 … −7.3868 mm** — a deficit that
 *is* the required eye width. One document flips the check. The binding
-requirement is **8.1939 mm** (grip at max, sourced column at min); the first
-draft of that worksheet and the check's own `guidance` quoted the favourable end,
-7.4859 mm, as "worst case", understating the requirement by 0.708 mm — a reader
-who then sourced a 7.6 mm eye would have concluded the joint passed. Every folded
-value was correct and every test was green; the error was entirely in the
-sentence. `test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end`
-now pins it.
+requirement is **8.4280 mm** (grip at max, sourced column at min); the first
+draft of that worksheet and the check's own `guidance` quoted the favourable end
+as "worst case", understating the requirement by 0.708 mm — a reader who then
+sourced a 7.6 mm eye would have concluded the joint passed. Every folded value
+was correct and every test was green; the error was entirely in the sentence.
+`test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end` now
+pins it.
+
+> **Numbers refreshed 2026-09-15** (`pitch_link_known_bands`). This paragraph
+> read **−8.1939 … −7.4859 mm** with a binding requirement of **8.1939 mm**, and
+> named 7.4859 mm as the favourable end the first draft misquoted. Two of the
+> three terms in that column stopped folding zero-width, so all three moved; the
+> 0.708 mm understatement is the *2026-08-04* figure and is left as written,
+> because it is the size of the original defect and not a current quantity. The
+> shape of the lesson is unchanged, and the refresh is a small demonstration of
+> it: the binding end moved by 0.234 mm and the favourable end by 0.099 mm in the
+> opposite direction, so a reader who had memorised "about 7.5 to 8.2" would now
+> be wrong at both ends.
 
 A check with a hole in it, **declared in the schema**, beats a check with a guess
 in it.
+
+> ### AMENDMENT 2026-09-15 — "never create a placeholder element" is rescinded
+> ### where a sourced-but-unverified value exists
+>
+> *(handoff `pitch_link_known_bands`, the Step 5b amendment's other half. Same
+> ruling: **"it's ok to use unverified numbers as placeholders, but they need to
+> be very loudly identified as unverified/incomplete. Current design omits them
+> entirely and then fails silently which is worst of both worlds."**)*
+>
+> This step opens *"Never create a placeholder element."* That sentence was
+> written for the case it names — an element with **no number anywhere** — and
+> for that case nothing changes. It was being read one case wider, as licence to
+> omit a member whenever the only number available was unverified, and the
+> omission then rode into the checks as `excluded_terms`, where it reads as *"no
+> document gives this"* rather than *"a document gives this and we declined it"*.
+> Those are different claims and only one of them was true.
+>
+> **The two shapes, and which one applies:**
+>
+> | what exists for the member | shape |
+> |---|---|
+> | a number with a named source, unverified | **include the member**, with that value, marked `untraced`, listed as a ranked gap. The check stays `complete: true` if nothing else is missing. |
+> | no number anywhere | **omit it**, `complete: false`, name it in `excluded_terms` — everything above this amendment, unchanged. |
+>
+> `pitch_link_to_pitch_plate` is still the worked example of the second shape:
+> its link-eye width is in no document and no workbook, so no element exists for
+> it, and the deficit *is* the requirement. Two of its other members moved to the
+> first shape on 2026-09-15 and its checks kept `complete: false` for the eye
+> alone — which is the distinction this amendment is about, visible in one file.
+>
+> **Two things this does not license.** A placeholder still needs a named source,
+> so training-data recall is as forbidden as it ever was; and adding a member is
+> a change to the model, so it belongs to a handoff that says so, not to a pass
+> that was editing values nearby.
 
 ## Step 6 — write the worksheet
 

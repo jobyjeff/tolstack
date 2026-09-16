@@ -26,7 +26,7 @@
         "pitch-link eye / spherical bearing width -- no document"
       ],
       "criterion": ">= 0",
-      "guidance": "Head-to-cotter-hole minus the sourced clamped column. What is left over must cover the pitch-link eye PLUS the nut's thread-start-to-castellation distance; both are unsourced, so this is a budget, not a verdict on the joint. It passes with 11.1435 mm worst case available. It cannot settle the joint: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the referenced stack's notes."
+      "guidance": "Head-to-cotter-hole minus the sourced clamped column. What is left over must cover the pitch-link eye PLUS the nut's thread-start-to-castellation distance; both are unsourced, so this is a budget, not a verdict on the joint. It passes with 11.0444 mm worst case available (11.1435 until 2026-09-15, when the referenced stack's bushing and washer gained their bands). It cannot settle the joint: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the referenced stack's notes."
     }
   ],
   "provenance": {

@@ -36,7 +36,7 @@
       "in_pile": false,
       "pile_filename": null,
       "closes": ["NAS1149V0332"],
-      "unblocks": "The .032 in flat-washer thickness band, currently a ZERO-WIDTH BAND in the pitch_link stack. The parts list has dropped even the MIN qualifier.",
+      "unblocks": "The .032 in flat-washer thickness band. This row read 'currently a ZERO-WIDTH BAND in the pitch_link stack' until 2026-09-15 (handoff pitch_link_known_bands): that stack now folds the 260729 workbook's +/-.004 in (cells E11/F11) at confidence `untraced`, as does tan_link_to_pitch_plate. So the band is no longer missing, it is UNVERIFIED -- one workbook, no corroboration, and the parts list has dropped even the MIN qualifier that used to half-agree with it. Acquiring NAS1149 is still what closes this.",
       "stacks": ["pitch_link", "tan_link"],
       "note": "Also the washer whose thickness bounds the JPS00094 5.5.3.a three-washer shim remedy, so it now has a second consumer."
     },
@@ -58,7 +58,7 @@
       "in_pile": false,
       "pile_filename": null,
       "closes": ["214820-002"],
-      "unblocks": "Length band -- zero-width in the pitch_link stack; slice 1 used untraced workbook limits (4.63/4.76).",
+      "unblocks": "Length band. This row read 'zero-width in the pitch_link stack; slice 1 used untraced workbook limits (4.63/4.76)' until 2026-09-15 (handoff pitch_link_known_bands): Jeff opened the part drawing, read `4.76 +0.00/-0.13` off SECTION A-A, and those workbook limits turned out to be right to the digit. The pitch_link stack now folds 4.63/4.76 at confidence `untraced`, cited to his reading. The DRAWING is still not in this repo -- operator-confirmed is not acquired, and nothing here can be re-read without asking him again -- so this row stays open and its priority is unchanged.",
       "stacks": ["pitch_link", "tan_link"]
     },
     {

@@ -180,15 +180,15 @@ def test_pitch_link_shank_out_matches_the_pinned_ground_truth(pitch_link):
     """Same numbers ``test_tolerance_stack.py`` pins, seen through the projection."""
     check = check_by_id(pitch_link, "shank_out__11_sourced_only")
     assert check["verdict"] == "fail"
-    assert check["worst_case_min"] == pytest.approx(-8.1939, abs=TOL)
-    assert check["worst_case_max"] == pytest.approx(-7.4859, abs=TOL)
-    assert check["nominal"] == pytest.approx(-7.8399, abs=TOL)
+    assert check["worst_case_min"] == pytest.approx(-8.4280, abs=TOL)
+    assert check["worst_case_max"] == pytest.approx(-7.3868, abs=TOL)
+    assert check["nominal"] == pytest.approx(-7.8424, abs=TOL)
 
 
 def test_pitch_link_cotter_hole_budget_passes(pitch_link):
     check = check_by_id(pitch_link, "cotter_hole_clear_of_sourced_stack")
     assert check["verdict"] == "pass"
-    assert check["worst_case_min"] == pytest.approx(11.1435, abs=TOL)
+    assert check["worst_case_min"] == pytest.approx(11.0444, abs=TOL)
 
 
 def test_thread_region_T_path_reproduces_the_standards_own_T_ref(pitch_link):
@@ -200,19 +200,43 @@ def test_thread_region_T_path_reproduces_the_standards_own_T_ref(pitch_link):
 
 
 def test_pitch_link_provenance_counts_match_its_worksheet(pitch_link):
-    """The worksheet claims 4 traced / 2 inferred / 0 untraced out of 6."""
+    """The worksheet claims 4 traced / 0 inferred / 2 untraced out of 6.
+
+    It claimed 4 / 2 / 0 until 2026-09-15 (``pitch_link_known_bands``), when the
+    bushing and washer gained their bands: the elements did not change in number,
+    two of them moved column, and the traced count did not move at all.
+    """
     assert pitch_link["provenance_counts"] == {
         "traced": 4,
-        "inferred": 2,
-        "untraced": 0,
+        "inferred": 0,
+        "untraced": 2,
         "no_source_ref": 0,
     }
 
 
-def test_zero_width_bands_are_flagged(pitch_link):
-    flagged = {e["id"] for e in pitch_link["elements"] if e["zero_width"]}
-    assert flagged == {"bushing_214820", "washer_nas1149v0332"}
-    assert pitch_link["zero_width_count"] == 2
+def test_the_unverified_bands_reach_the_viewer_as_untraced_not_as_zero_width(pitch_link):
+    """What the viewer's badges have to key on after 2026-09-15.
+
+    This stack had **two** zero-width elements and **no** untraced one, so
+    ``zero_width`` was the only marker distinguishing "we have no idea" from "we
+    read this off a drawing". Jeff's ruling put real bands on both -- one from
+    his own reading of a drawing that is not in this repo, one from a workbook
+    cell -- so ``zero_width`` is now empty everywhere here and ``confidence`` is
+    carrying the whole signal. A projection that dropped the confidence word
+    would leave the viewer showing two ordinary-looking bands, which is exactly
+    the silent failure the ruling was about.
+    """
+    assert [e["id"] for e in pitch_link["elements"] if e["zero_width"]] == []
+    assert pitch_link["zero_width_count"] == 0
+
+    unverified = {
+        e["id"] for e in pitch_link["elements"] if e["confidence"] == "untraced"}
+    assert unverified == {"bushing_214820", "washer_nas1149v0332"}
+    # And where each band came from survives the trip, because "untraced" alone
+    # does not tell a reader which document to go and get.
+    kinds = {e["id"]: e["kind"] for e in pitch_link["elements"]}
+    assert kinds["bushing_214820"] == "drawing"
+    assert kinds["washer_nas1149v0332"] == "workbook"
 
 
 def test_both_pitch_link_checks_reach_the_viewer_as_budget_scope(pitch_link):
@@ -626,11 +650,15 @@ def test_worst_confidence_takes_the_weakest_input(projection):
     check = check_by_id(tan_link, "shank_out__14_thick")
     assert check["worst_confidence"] == "untraced"
     assert check["input_confidence"]["untraced"] >= 1
-    # pitch_link has no untraced element at all, so its weakest is `inferred`.
-    assert check_by_id(
+    # pitch_link's weakest was `inferred` until 2026-09-15 -- it had no untraced
+    # element at all, because it refused every band it could not trace. It now
+    # folds two, so this check is only as sourced as an operator's screenshot.
+    pitch = check_by_id(
         by_id(projection, "pitch_link_to_pitch_plate"),
         "shank_out__11_sourced_only",
-    )["worst_confidence"] == "inferred"
+    )
+    assert pitch["worst_confidence"] == "untraced"
+    assert pitch["input_confidence"]["untraced"] == 2
 
 
 def test_worst_confidence_ranks_a_missing_citation_below_untraced():
@@ -640,9 +668,20 @@ def test_worst_confidence_ranks_a_missing_citation_below_untraced():
     assert bvp.worst_confidence({}) is None
 
 
-def test_checks_carry_their_zero_width_inputs(pitch_link):
-    check = check_by_id(pitch_link, "shank_out__11_sourced_only")
-    assert set(check["zero_width_inputs"]) == {"bushing_214820", "washer_nas1149v0332"}
+def test_checks_carry_their_zero_width_inputs(pitch_link, projection):
+    """The field still exists and still does its job; this stack stopped being
+    the one that exercises it on 2026-09-15 (``pitch_link_known_bands``), when
+    both its zero-width elements gained a band. ``rotor_fastener_length`` is the
+    live example now -- moving the assertion there rather than deleting it,
+    because a field nothing tests is a field that quietly stops being emitted.
+    """
+    assert check_by_id(
+        pitch_link, "shank_out__11_sourced_only")["zero_width_inputs"] == []
+
+    rotor = by_id(projection, "rotor_fastener_length")
+    check = check_by_id(rotor, "grip_budget__u2h")
+    assert set(check["zero_width_inputs"]) == {
+        "washer_ms21299c3", "washer_nas1149v0332_tt"}
 
 
 def test_element_terms_expand_nested_paths(pitch_link):
