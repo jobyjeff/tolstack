@@ -1551,68 +1551,196 @@
     return internal;
   };
 
-  // The label a component group's merged cell prints. The part id, not the
-  // long prose name — the name rides on the cell's hover title instead
-  // (componentTitle below). A gap has no part and says what it is in the
-  // words the old per-row part cell already used.
+  // The label a component group's merged cell prints: the part's own HUMAN
+  // NAME. It printed the part id until 2026-09-15 (`bolt_nas6403u11d`), with
+  // the name demoted to hover, because a live part name ran to eighty
+  // characters and would not fit a 150px cell. The 2026-09-14 title pass took
+  // that reason away for titles, and this handoff took it away for part names
+  // too -- every live `name` is now a short noun phrase (Jeff: "replace these
+  // with a concise human friendly name (NAS6403U11D Shoulder Bolt is fine)").
+  //
+  // An id is not a label. It is a deep-link handle and a debugging aid, and it
+  // is rendered nowhere a reader looks now: not the merged cell, not the
+  // preview pane's heading, not a hover card's heading, not an interface's
+  // side list. A part with no `name` at all falls back to its id rather than
+  // to an empty cell -- absent is absent, but a blank component column would
+  // be a worse lie than a raw id.
+  //
+  // A gap has no part and says what it is in the words the old per-row part
+  // cell already used.
   VA.GAP_COMPONENT_LABEL = "— across a clearance —";
+
+  VA.componentLabel = function (part) {
+    if (!part) return VA.GAP_COMPONENT_LABEL;
+    return part.name || part.id;
+  };
 
   VA.componentTitle = function (part) {
     if (!part) return "a gap: its two interfaces share no part";
-    var text = part.name || part.id;
+    var text = VA.componentLabel(part);
     if (part.drawing) text += " · drawing " + part.drawing;
     return text;
   };
 
-  // --- the element cell drops its own component's name ---------------------
+  // --- the element cell drops what the rest of the row already says --------
   //
   // Jeff, 2026-09-14: "nearly every row in the 'element' column starts with
   // the same phrase as the 'component' column to the left, which then robs a
   // bunch of the limited space, and then the meaningful content gets
   // truncated" -- under component `blade_root`, three rows all rendered
-  // "blade-root clocking holes to th...". The prefix is saying, in the
-  // narrowest column on the page, exactly what the merged cell immediately
-  // left of it already says once for the whole group.
+  // "blade-root clocking holes to th...". And again on 2026-09-15, wider:
+  // "the element column can just say 'grip length' (for the bolt) or 'length'
+  // for the plain bushing. The component's description and part number don't
+  // need to be repeated in every column."
+  //
+  // So two reductions, not one, and both are ONE FACT SAID ONCE PER ROW:
+  //
+  //   1. a whole CLAUSE that only restates the component (", NAS6403U11D",
+  //      "(214820-002)") or only restates the row's own value ("(.688 in)" --
+  //      the row has three number columns) is dropped, with its separator;
+  //   2. then any LEADING WORDS the component cell already carries are
+  //      dropped off the front ("plain bushing length" -> "length").
   //
   // DISPLAY ONLY. This never touches the document, the projection or any
   // value: the full label still rides on the cell's own hover title and is
-  // what the detail pane prints, so nothing a reader can cite has been
-  // shortened. A label that does not open with its component's name comes
-  // back unchanged, and a label that is ONLY its component's name comes back
-  // unchanged too -- an empty element cell would be a worse lie than a
-  // repetitive one.
+  // what the preview pane prints, so nothing a reader can cite has been
+  // shortened. Nothing is reworded or reordered either -- every character of
+  // the output is a character of the input, in the input's order, which is
+  // what lets this be applied to authored prose without becoming an author.
+  // (Whether the authored `name` fields should themselves be shortened is
+  // ISSUE_20260914_element_and_edge_names_are_not_under_the_title_rule.md --
+  // an authoring question this display rule deliberately does not pre-empt.)
   //
-  // The match is on WORDS, case- and separator-insensitive, so `blade_root`
-  // (what the merged cell prints) catches "blade-root clocking holes" and
-  // "Blade Root seat" alike, and never catches a word that merely starts the
-  // same way ("blade_root" must not eat "blade_rooting_torque"). It is made
-  // against the component cell's own text -- the part id -- because that is
-  // the repetition being removed; a part's prose `name` lives on the cell's
-  // hover card and was never in the element column to begin with.
+  // Guards, each one a case off the five live topologies:
+  //   * a label with nothing to drop comes back unchanged, character for
+  //     character (pinned in apps/viewer/tests.js by walking the output's
+  //     characters against the input's, on the fixture and on every live row);
+  //   * a label that is ONLY its component's words comes back unchanged -- an
+  //     empty element cell would be a worse lie than a repetitive one;
+  //   * only LEADING words are dropped by rule 2, never words inside a
+  //     phrase: "cotter-hole centreline to bolt point", under a component
+  //     whose name contains "bolt", must not become "... to point";
+  //   * a clause is dropped only when EVERY token in it is already-said, so
+  //     "(A datum)", "(5X group)" and "(dimension M)" all survive;
+  //   * the component's words match whole and case/separator-insensitively,
+  //     so `NAS6403 grip-selection family` never eats `NAS6403U2H` -- the
+  //     dash number is the only thing separating that topology's nine rows
+  //     from each other.
   function labelWords(text) {
     return String(text === null || text === undefined ? "" : text)
-      .toLowerCase().split(/[\s\-_]+/).filter(Boolean);
+      .toLowerCase().split(/[\s\-_/,;:()[\]]+/).filter(Boolean);
   }
 
-  VA.elementDisplayLabel = function (label, componentLabel) {
+  // A unit says nothing the row's own number columns do not. A module-level
+  // vocabulary, never inline literals (repo rule): these words are read by
+  // the clause test below and by the test that pins the rule.
+  VA.LABEL_UNIT_WORDS = Object.freeze(["in", "in.", "inch", "inches",
+    "mm", "deg", "degree", "degrees", "rad", "radians"]);
+
+  function isNumberWord(word) {
+    return /^[+\-±]?[0-9]*\.?[0-9]+$/.test(word);
+  }
+
+  // The words the component cell to the left of this row actually PRINTS --
+  // its label and nothing else. Not the id and not the drawing: the whole
+  // justification for dropping a word is "the cell beside it already says
+  // this", so matching against a string the cell does not show would drop
+  // words the reader never saw twice ("bushing flange thickness" under a cell
+  // reading "part not identified", whose id happens to be
+  // `flanged_bushing_unidentified`). Accepts the projected part row, or a
+  // bare string -- which is the part id, the cell's own text until this
+  // handoff, and still what a caller with only an id on hand can pass.
+  function componentWords(part) {
+    if (!part) return [];
+    return labelWords(typeof part === "string" ? part : VA.componentLabel(part));
+  }
+
+  // The label split into (separator, clause) segments, on commas, semicolons,
+  // dashes, middots and bracketed groups. Concatenating every segment
+  // reproduces the input exactly -- which is what lets one clause be dropped
+  // without rewriting the ones around it, and a separator therefore travels
+  // with the clause that FOLLOWS it.
+  function labelSegments(text) {
+    var segments = [];
+    var re = /(\s*(?:,|;|--|—|·)\s*)|(\([^)]*\)|\[[^\]]*\])/g;
+    var sep = "";
+    var buf = "";
+    var at = 0;
+    var m;
+    var flush = function (nextSep) {
+      if (buf) segments.push({ sep: sep, text: buf });
+      sep = nextSep;
+      buf = "";
+    };
+    while ((m = re.exec(text)) !== null) {
+      buf += text.slice(at, m.index);
+      at = re.lastIndex;
+      if (m[1] !== undefined) {
+        flush(m[1]);
+        continue;
+      }
+      // A bracketed group is a clause of its own; the whitespace in front of
+      // it becomes that clause's separator, so dropping it takes the space.
+      var lead = /\s*$/.exec(buf)[0];
+      buf = buf.slice(0, buf.length - lead.length);
+      flush(lead);
+      buf = m[2];
+      flush("");
+    }
+    buf += text.slice(at);
+    flush("");
+    return segments;
+  }
+
+  VA.elementDisplayLabel = function (label, part) {
     var text = String(label === null || label === undefined ? "" : label);
-    var component = labelWords(componentLabel);
-    if (!component.length) return text;
-    var words = labelWords(text);
-    if (words.length <= component.length) return text;
-    for (var i = 0; i < component.length; i++) {
-      if (words[i] !== component[i]) return text;
+    var component = componentWords(part);
+    var said = {};
+    component.forEach(function (word) { said[word] = true; });
+
+    // 1. the clauses that say nothing the rest of the row does not.
+    var kept = labelSegments(text).filter(function (segment) {
+      var words = labelWords(segment.text);
+      if (!words.length) return true;
+      return !words.every(function (word) {
+        return said[word] === true || isNumberWord(word) ||
+          VA.LABEL_UNIT_WORDS.indexOf(word) !== -1;
+      });
+    });
+    var out = kept.map(function (segment, index) {
+      return (index === 0 ? "" : segment.sep) + segment.text;
+    }).join("").trim();
+    if (!out) return text;
+
+    // 2. the leading words the component cell already carries.
+    //
+    // Consumed greedily word by word, but a cut is only TAKEN where it lands
+    // on a whitespace boundary or where the run has covered the component's
+    // whole name. That second clause is what keeps `blade_root` off
+    // "blade_rooting torque" -- one hyphen- or underscore-joined token is one
+    // word to a reader, so cutting inside one is only safe when the thing cut
+    // off is unmistakably the component's own name and not the front half of a
+    // longer word. (The first clause is what lets "blade-root clocking holes"
+    // lose both its words under a component cell reading "blade root".)
+    if (!component.length) return out;
+    var wanted = component.length;
+    var covered = {};
+    var coveredCount = 0;
+    var cut = 0;                 // characters consumed by the best cut so far
+    var at = 0;
+    for (;;) {
+      var head = /^[\s\-_/]*([^\s\-_/,;:()[\]]+)/.exec(out.slice(at));
+      if (!head) break;
+      var word = head[1].toLowerCase();
+      if (said[word] !== true) break;
+      at += head[0].length;
+      if (covered[word] !== true) { covered[word] = true; coveredCount += 1; }
+      var boundary = at >= out.length || /^\s/.test(out.slice(at));
+      if (!boundary && coveredCount < wanted) continue;
+      // Never leave the cell empty: a repetitive label beats a blank one.
+      if (labelWords(out.slice(at)).length) cut = at;
     }
-    // Consume exactly that many words off the ORIGINAL string, so whatever
-    // separators and capitalisation the rest of the label uses survive.
-    var rest = text;
-    for (var j = 0; j < component.length; j++) {
-      var m = /^[\s\-_]*[^\s\-_]+/.exec(rest);
-      if (!m) return text;
-      rest = rest.slice(m[0].length);
-    }
-    rest = rest.replace(/^[\s\-_]+/, "");
-    return rest || text;
+    return cut ? out.slice(cut).replace(/^[\s\-_/]+/, "") || out : out;
   };
 
   // The whole plan of the merged-row grid, from one serialisation (a
@@ -1670,10 +1798,11 @@
       var breakHere = rows.length === 0 || part !== prevPart ||
         pendingBoundaryNode !== null;
       if (breakHere) {
+        var partRow = part === null ? null : partsById[part] || { id: part };
         groups.push({
           part: part,
-          label: part === null ? VA.GAP_COMPONENT_LABEL : String(part),
-          title: VA.componentTitle(part === null ? null : partsById[part] || { id: part }),
+          label: VA.componentLabel(partRow),
+          title: VA.componentTitle(partRow),
           start: rows.length,
           count: 0,
         });
@@ -2140,6 +2269,13 @@
       title: edge.name,
       id: edge.id,
       part: edge.part || null,
+      // The part in a reader's words, never its id (VA.componentLabel). `part`
+      // above stays the id: it is what the annotate deep link carries and what
+      // a test addresses a row by, and those are not reading surfaces.
+      partLabel: edge.part
+        ? VA.componentLabel(VA.topologyIndex(topoProj).parts[edge.part] ||
+            { id: edge.part })
+        : null,
       confidence: edge.confidence,
       citation: (edge.dimension && edge.dimension.source_ref) || null,
       crops: [],
@@ -2174,6 +2310,79 @@
     return card;
   };
 
+  // --- what a part with no drawing of its own is sourced FROM ---------------
+  //
+  // Jeff, 2026-09-15, on the component card for a COTS fastener: "'no drawing
+  // recorded for this part' on a COTS fastener -- wrong and meaningless; say
+  // what's true: it's a standard part whose dimensions come from the NAS
+  // sheet, e.g. 'standard part -- dimensions from NAS6403-NAS6420 Rev 4,
+  // sheet 3'."
+  //
+  // He is right that the old sentence was wrong, and the reason is worth
+  // keeping: `drawing` is a part's SOURCE-CONTROL identity, and a standard
+  // part legitimately has none. What it has instead is a standard sheet, and
+  // the card can derive WHICH from what the part's own rows already cite --
+  // nothing new is authored, nothing is matched by filename, and a part whose
+  // rows cite nothing gets no line at all rather than a placeholder.
+  //
+  // The one citation `kind` (SOURCE_REF_KINDS, tolerance_stack/stack.py) that
+  // means "an industry standard sheet rather than a Joby drawing" -- which is
+  // what licenses the words "standard part". A module-level constant, never an
+  // inline literal (repo rule).
+  VA.SPEC_CITATION_KIND = "spec";
+
+  // The documents a part's OWN dimensions are cited from, one row per
+  // document, first-seen order, with the distinct sheets each was read on.
+  VA.partReferences = function (topoProj, partId) {
+    var byDocument = {};
+    var order = [];
+    ((topoProj && topoProj.edges) || []).forEach(function (edge) {
+      if (edge.part !== partId) return;
+      var ref = edge.dimension && edge.dimension.source_ref;
+      if (!ref || !ref.document) return;
+      var document = String(ref.document);
+      if (!byDocument[document]) {
+        byDocument[document] = { document: document, kinds: [], sheets: [] };
+        order.push(document);
+      }
+      var row = byDocument[document];
+      if (ref.kind && row.kinds.indexOf(ref.kind) === -1) row.kinds.push(ref.kind);
+      if (ref.sheet !== null && ref.sheet !== undefined &&
+          row.sheets.indexOf(ref.sheet) === -1) {
+        row.sheets.push(ref.sheet);
+      }
+      return;
+    });
+    return order.map(function (document) { return byDocument[document]; });
+  };
+
+  // One reference, in a reader's words: "NAS6403-NAS6420 Rev 4.pdf · sheet 3".
+  //
+  // No revision. It is not an oversight: the live NAS citation's `revision` is
+  // "Rev 4 (sheet 1 rev 4, sheet 2 rev 2, sheet 3 NEW, sheet 4 rev 2)" -- a
+  // four-clause per-sheet note, and printing it here would put back exactly
+  // the wall of text this pass removed. The document's own name carries the
+  // revision a reader needs to find the file, and the FULL citation (revision,
+  // view, zone and all) is on the row's own citation, one click away in the
+  // preview pane.
+  VA.referenceText = function (reference) {
+    if (!reference) return "";
+    var bits = [reference.document];
+    if (reference.sheets.length) {
+      // Sheet ORDER, not citation order: a reader looking for these pages
+      // wants them in the order they are in the document. A sheet is normally
+      // a number and occasionally a string ("A"), so this sorts numerically
+      // where it can and lexically where it cannot.
+      var sheets = reference.sheets.slice().sort(function (a, b) {
+        var na = Number(a), nb = Number(b);
+        if (isFinite(na) && isFinite(nb)) return na - nb;
+        return String(a) < String(b) ? -1 : (String(a) > String(b) ? 1 : 0);
+      });
+      bits.push((sheets.length > 1 ? "sheets " : "sheet ") + sheets.join(", "));
+    }
+    return bits.join(" · ");
+  };
+
   // The component card, for the grid's merged component cell: the part's own
   // identity (name, drawing, note) plus a thumbnail DERIVED from what exists
   // — the resolved crop of one of its OWN edges' tolerance annotations, which
@@ -2193,12 +2402,25 @@
         thumbs.push({ edgeId: edge.id, edgeName: edge.name, entry: entry });
       }
     });
+    var references = VA.partReferences(topoProj, partId);
     return {
       kind: "component",
-      title: part.name || part.id,
+      title: VA.componentLabel(part),
       id: part.id,
       drawing: part.drawing || null,
       revision: part.revision || null,
+      // Where a part with no drawing of its own gets its dimensions, and
+      // whether that makes it a STANDARD part: every document its rows cite
+      // is a standard sheet. Both empty/false for a part that has a drawing —
+      // that drawing IS the reference, and the card prints it instead.
+      references: part.drawing ? [] : references,
+      standardPart: !part.drawing && references.length > 0 &&
+        references.every(function (reference) {
+          return reference.kinds.length > 0 &&
+            reference.kinds.every(function (kind) {
+              return kind === VA.SPEC_CITATION_KIND;
+            });
+        }),
       note: part.note || null,
       thumbs: thumbs,
       // "view this part in 3D" only where there IS a 3D model of it: with two
@@ -2214,19 +2436,37 @@
   // it is named rather than skipped -- and named in the grid's own words.
   VA.CLEARANCE_SIDE_LABEL = "a clearance";
 
-  // The same sides, ID-form: the words a surface that has no room for a part's
-  // prose name prints for a node's sides. The node CARD labels each side with
-  // the part's own component-card title, because it pairs the label with that
-  // part's thumbnail; the grid's merged cell and the preview pane print the
-  // part id instead (VA.GAP_COMPONENT_LABEL's own reasoning -- a live part
-  // name runs to eighty characters). Two label styles, ONE derivation: both
-  // read VA.nodeAdjacentParts, so the surfaces cannot disagree about WHICH
-  // sides a node has -- which is exactly what they used to do (handoff
-  // surfaces_that_state_something_false: the pane printed the node's authored
-  // `parts` here and 10 of the 46 live nodes disagreed with their own card).
-  VA.nodeSideIds = function (topoProj, nodeId) {
+  // An interface in a reader's words. Same rule as VA.componentLabel: the
+  // authored name, and the id only where a projection names a node the graph
+  // does not declare -- which is a diagnostic, not a label.
+  VA.nodeLabel = function (topoProj, nodeId) {
+    var node = VA.topologyIndex(topoProj).nodes[nodeId];
+    return (node && node.name) || String(nodeId);
+  };
+
+  // The words the preview pane prints for a node's sides. ONE label style
+  // now, and ONE derivation: this returns the same `VA.componentLabel` text
+  // the grid's merged cell and the node card's side list print, off the same
+  // `VA.nodeAdjacentParts` adjacency, so no two surfaces can disagree about
+  // either WHICH sides a node has or what to call them.
+  //
+  // It returned part IDS until 2026-09-15 -- and was named `nodeSideIds` for
+  // it -- because a live part name ran to eighty characters and a pane heading
+  // had no room for two of them. The names are short noun phrases now
+  // (VA.componentLabel), and an id is not a label: see that function.
+  //
+  // (The adjacency half of this is handoff surfaces_that_state_something_
+  // false: the pane printed the node's AUTHORED `parts` here, and live nodes
+  // disagreed with their own hover card, because a node against a `gap` edge
+  // has a clearance for a side and an authored parts list cannot name one.
+  // How MANY is a contested number owned elsewhere -- ISSUE_20260915_the_
+  // viewer_readmes_10_of_46_node_divergence_count_is_unguarded_and_counts_
+  // the_wrong_thing.md -- so it is not restated here.)
+  VA.nodeSideLabels = function (topoProj, nodeId) {
+    var parts = VA.topologyIndex(topoProj).parts;
     return (VA.nodeAdjacentParts(topoProj)[nodeId] || []).map(function (part) {
-      return part === null ? VA.CLEARANCE_SIDE_LABEL : part;
+      if (part === null) return VA.CLEARANCE_SIDE_LABEL;
+      return VA.componentLabel(parts[part] || { id: part });
     });
   };
 

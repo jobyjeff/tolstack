@@ -58,11 +58,21 @@
   // both sides belong here once both are cropped); each entry renders its own
   // crop block, an unresolved one renders its reason, and an edge with no
   // crop key states which fact that is rather than showing a placeholder.
-  function edgeCard(root, card, images, config, annotate) {
+  // Every card's heading: the thing's own NAME, and its id nowhere a reader
+  // reads. The id used to sit beside the name in a <code> chip on all three
+  // cards; since 2026-09-15 it rides the heading's hover title instead, which
+  // keeps it available for a deep link or a debugging session without printing
+  // internal plumbing over the name of the part in front of you.
+  function cardHead(card) {
     var head = VA.el("div", "hovercard__head");
-    head.appendChild(VA.el("h4", null, card.title));
-    head.appendChild(VA.el("code", "muted", card.id));
-    root.appendChild(head);
+    var title = VA.el("h4", null, card.title);
+    if (card.id) title.setAttribute("title", card.id);
+    head.appendChild(title);
+    return head;
+  }
+
+  function edgeCard(root, card, images, config, annotate) {
+    root.appendChild(cardHead(card));
 
     var chips = VA.el("div", "hovercard__chips");
     chips.appendChild(VA.chip(VA.confidenceClass(card.confidence),
@@ -70,16 +80,18 @@
         : (VA.CONFIDENCE_LABEL[card.confidence] || card.confidence)));
     root.appendChild(chips);
     root.appendChild(VA.el("div", "hovercard__where",
-      card.part ? "a dimension of " + card.part : "across a clearance"));
+      card.partLabel ? "a dimension of " + card.partLabel : "across a clearance"));
 
     if (card.citation) {
       root.appendChild(VA.el("div", "hovercard__cited",
         "cited at: " + VA.citationWhere(card.citation)));
     }
 
+    // The crop KEY line is gone (2026-09-15): it printed which of the crop
+    // index's two key spaces addressed this crop, in the ids of a stack and an
+    // element -- internal plumbing, in internal ids, above a picture that
+    // names its own document on the line below it.
     card.crops.forEach(function (crop) {
-      root.appendChild(VA.el("div", "hovercard__cropkey muted",
-        VA.cropKeyText(crop.key)));
       root.appendChild(cropOrReason(crop.entry, images, config));
     });
     if (card.noCropReason) {
@@ -103,17 +115,21 @@
 
   // --- the component card: what the merged cell's part IS --------------------
   function componentCard(root, card, images, config, annotate) {
-    var head = VA.el("div", "hovercard__head");
-    head.appendChild(VA.el("h4", null, card.title));
-    head.appendChild(VA.el("code", "muted", card.id));
-    root.appendChild(head);
+    root.appendChild(cardHead(card));
 
+    // What identifies this part. A Joby part has a DRAWING; a standard part
+    // legitimately has none and is identified instead by the standard sheet
+    // its dimensions come off (VA.partReferences), which is what this line
+    // says now. It said "no drawing recorded for this part" until 2026-09-15
+    // -- true of the field and wrong about the part: nothing is missing when a
+    // NAS bolt has no Joby drawing. A part with neither gets no line at all.
     if (card.drawing) {
       root.appendChild(VA.el("div", "hovercard__where",
         "drawing " + card.drawing + (card.revision ? " rev " + card.revision : "")));
-    } else {
-      root.appendChild(VA.el("div", "hovercard__where muted",
-        "no drawing recorded for this part"));
+    } else if (card.references.length) {
+      root.appendChild(VA.el("div", "hovercard__where",
+        (card.standardPart ? "standard part — dimensions from " : "dimensions from ") +
+        card.references.map(VA.referenceText).join("; ")));
     }
     if (card.note) root.appendChild(VA.clampedNote("hovercard__note", card.note));
 
@@ -134,7 +150,7 @@
     if (card.annotateParams) {
       root.appendChild(annotateLine(card.annotateParams, annotate,
         "view this part in 3D →",
-        "opens the 3D annotation surface with " + card.id + " isolated"));
+        "opens the 3D annotation surface with " + card.title + " on its own"));
     }
   }
 
@@ -148,10 +164,7 @@
   // LABEL) rather than skipped. A side with no resolvable crop renders no
   // image slot at all.
   function nodeCard(root, card, images, config) {
-    var head = VA.el("div", "hovercard__head");
-    head.appendChild(VA.el("h4", null, card.title));
-    head.appendChild(VA.el("code", "muted", card.id));
-    root.appendChild(head);
+    root.appendChild(cardHead(card));
 
     var chips = VA.el("div", "hovercard__chips");
     chips.appendChild(VA.chip("chip--kind", card.nodeKind));
