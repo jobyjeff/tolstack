@@ -1532,44 +1532,61 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       "not just its own dashes",
       hoverCoverage && hoverCoverage.every((id) => id === "tip_to_strut_end"));
 
-    // Study selection, through the nav tree. Since viewer_study_respine_
-    // animation this RE-SPINES: the study's chain becomes the layout, so the
-    // page lands in chain mode rather than on the walk with a highlight.
+    // Study selection, through the nav tree. Since viewer_respine_whole_walk
+    // this is an EMPHASIS change, not a view switch: the rails stay the whole
+    // walk, the non-members dim, the leaders retarget onto the chain and the
+    // grid drops to the chain's rows.
+    const railShape = () => page.evaluate(() => ({
+      dots: document.querySelectorAll("svg.tv__rails circle.rail__dot").length,
+      bars: document.querySelectorAll("svg.tv__rails line.rail__bar").length,
+      rails: document.querySelectorAll("svg.tv__rails line.rail").length,
+      links: document.querySelectorAll("svg.tv__rails path.rail__link").length,
+      leaders: [...document.querySelectorAll("svg.tv__rails path.rail__leaderhit")]
+        .map((n) => n.getAttribute("data-leader-id")),
+    }));
+    const walkShape = await railShape();
+    const walkRows = await page.locator("tr.tvrow").count();
     await page.locator(navRow("study", "demo_strut_branch")).click();
-    await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
+    await page.waitForSelector(".chip--total", { timeout: 5000 });
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
-    push("selecting a study re-spines the page onto its chain",
-      /Showing: study chain/.test(await page.locator("#layout-toggle").textContent()));
+    const litShape = await railShape();
+    push("selecting a study hides nothing: every dot, bar, rail and link the " +
+      "walk drew is still on screen",
+      litShape.dots === walkShape.dots && litShape.bars === walkShape.bars &&
+      litShape.rails === walkShape.rails && litShape.links === walkShape.links);
+    if (litShape.dots !== walkShape.dots || litShape.bars !== walkShape.bars) {
+      console.log("    walk " + JSON.stringify(walkShape) +
+                  " vs study " + JSON.stringify(litShape));
+    }
+    push("the leaders point at the chain and at nothing else",
+      litShape.leaders.length > 0 &&
+      litShape.leaders.length < walkShape.leaders.length &&
+      litShape.leaders.every((id) => walkShape.leaders.includes(id)));
     const chained = await correspondence();
-    push("the chain layout corresponds too — including a leader that points " +
-      "below the whole grid", chained.drift.length === 0);
+    push("the emphasized walk corresponds too — every leader on its own dot " +
+      "and its own seam", chained.drift.length === 0);
     if (chained.drift.length) console.log("    drift: " + chained.drift.slice(0, 5).join(" | "));
-    push("a chain is one rail, one row per contribution",
-      await page.locator("svg.tv__rails circle.rail__dot").count() ===
-      chained.rows + 1 &&
-      await page.locator("svg.tv__rails line.rail__bar").count() === chained.rows);
+    push("the grid is exactly the chain, and shorter than the walk's table",
+      chained.rows === 3 && chained.rows < walkRows);
+    const dimmedBar = await page.locator("svg.tv__rails line.rail__bar--off")
+      .first().evaluate((n) => parseFloat(getComputedStyle(n).opacity));
+    push("a non-member is actually dimmed, not just classed", dimmedBar < 0.9);
     push("the totals render as chips in the slim strip",
       await page.locator(".chip--total").count() === 5);
     await page.locator(".tvtotals__more summary").click();
     push("the totals say where the numbers came from, behind the Details toggle",
       /This page adds nothing up/.test(await page.locator("#totals").textContent()));
 
-    // And the whole walk, with the chain marked on it, is one click away --
-    // the layout the study click used to land on.
-    await page.locator("#layout-toggle").click();
+    // Deselecting is the same transition run backwards: the walk gets its
+    // leaders and its own table back.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
-    push("whole-topology mode says so", /Showing: whole topology/
-      .test(await page.locator("#layout-toggle").textContent()));
-    push("it marks the study's chain and dims the rest",
-      await page.locator("tr.tvrow--on").count() > 0 &&
-      await page.locator("tr.tvrow--off").count() > 0);
-    const dimmed = await page.locator("tr.tvrow--off").first()
-      .evaluate((n) => parseFloat(getComputedStyle(n).opacity));
-    push("an off-chain row is actually dimmed, not just classed", dimmed < 0.9);
-    push("the whole walk corresponds with a study selected too",
-      (await correspondence()).drift.length === 0);
+    push("deselecting restores the walk's own leaders and rows",
+      JSON.stringify(await railShape()) === JSON.stringify(walkShape) &&
+      await page.locator("tr.tvrow").count() === walkRows &&
+      await page.locator("svg.tv__rails line.rail__bar--off").count() === 0);
 
     // A study that refuses to sum shows the refusal, with its next step.
     await page.locator(navRow("study", "demo_ambiguous")).click();
@@ -1579,40 +1596,41 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /The selection reaches a fork/.test(refusal) &&
       /still unused/.test(refusal) &&
       await page.locator(".chip--total").count() === 0);
-    push("chain mode is unavailable for a study that does not sum",
-      await page.locator("#layout-toggle").isDisabled());
 
-    // ...and the other half of that rule, which is the LAYOUT the refusing
-    // study lands on: `onNavStudy`'s `chainable(studyId) ? "chain" :
-    // "topology"` false branch (topology_app.js). Nothing observed it in any
-    // tier until 2026-09-15 — mutating the line to `state.layoutMode =
-    // "chain";` shipped green everywhere (ISSUE_20260915_a_refusing_study_
-    // staying_on_the_walk_is_unwitnessed_in_every_tier), and the page it
-    // produces reads "Showing: study chain" over the whole walk, with the
-    // toggle DISABLED so the reader cannot correct the label.
+    // ...and the other half of that rule: a refusing study has no chain, so
+    // it must leave the walk at FULL emphasis rather than dimming everything
+    // or emptying the table. This used to be `onNavStudy`'s `chainable()`
+    // false branch and was unwitnessed in every tier until 2026-09-15
+    // (ISSUE_20260915_a_refusing_study_staying_on_the_walk_is_unwitnessed_
+    // in_every_tier); it is now the single `marking` test in
+    // views/topology.js, and this is what watches it.
     //
-    // Arrived at FROM chain mode on purpose. The refusal click above is
-    // reached from the walk, where the false branch and no branch at all are
-    // the same state — which is exactly why the mutation was invisible. So:
-    // put the page on a chain first, assert it got there, then click the
-    // refusing study and require the walk back.
-    const walkRows = await page.evaluate(() => {
-      const VA = window.ViewerApp;
-      return VA.findTopology(VA.demoTopologyFixture().topologies, "demo_mechanism")
-        .edges.length;
-    });
+    // Arrived at FROM a summing study on purpose. Reached from the walk, a
+    // refusal and no selection at all are the same picture — which is
+    // exactly why the old mutation was invisible.
     await page.locator(navRow("study", "demo_strut_branch")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
-    push("the anchor: a study that sums really is on its chain first",
-      /Showing: study chain/.test(await page.locator("#layout-toggle").textContent()));
+    push("the anchor: a study that sums really is emphasized first",
+      await page.locator("svg.tv__rails line.rail__bar--off").count() > 0);
     await page.locator(navRow("study", "demo_ambiguous")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
-    push("a refusing study drops back onto the whole-topology walk rather " +
-      "than claiming a chain it has not got",
-      /Showing: whole topology/.test(await page.locator("#layout-toggle").textContent()) &&
-      await page.locator("tr.tvrow").count() === walkRows);
+    push("a refusing study leaves the walk exactly as it was rather than " +
+      "emphasizing a chain it has not got",
+      await page.locator("svg.tv__rails line.rail__bar--off").count() === 0 &&
+      await page.locator("svg.tv__rails line.rail__bar--on").count() === 0 &&
+      await page.locator("tr.tvrow").count() === walkRows &&
+      JSON.stringify(await railShape()) === JSON.stringify(walkShape));
+
+    // Back to the deselected walk for the rest of this suite. A refusing
+    // study and no selection draw the same page (that is the check above), so
+    // this changes nothing a reader would see -- but it does keep the blocks
+    // below measuring a page whose STATE is the one they describe, rather
+    // than one that merely looks like it.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
 
     // The legend dialog: a help affordance, not layout — closed by default,
     // opens on a real click, and does not affect the DAG pane's own box.
@@ -1942,7 +1960,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
             missing.length === 0);
           if (missing.length) console.log(`    missing: ${missing.join(", ")}`);
           push(`[real] ${study.id} numbers every contribution`,
-            await page.locator("tr.tvrow--on").count() >= study.result.chain.length);
+            await page.locator("tr.tvrow").count() === study.result.chain.length);
         }
       }
 
@@ -2300,13 +2318,16 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       /needs a rebuild/.test(await page.locator("#banner").textContent()));
 
     await page.locator(navRow("study", "demo_base_to_tip")).click();
-    await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
-    // Back onto the whole walk: selecting a study re-spines onto its chain
-    // now (viewer_study_respine_animation), and every contract in this
-    // function is about the height the WHOLE serialisation demands of the
-    // page -- a 7-row chain would fit a viewport that its 12-row walk does
-    // not, which is the case being tested.
-    await page.locator("#layout-toggle").click();
+    await page.waitForSelector(".chip--total", { timeout: 5000 });
+    await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
+      null, { timeout: 5000 });
+    // Deselect: the DAG's own extent no longer changes with a study
+    // (viewer_respine_whole_walk -- the rails are always the whole walk), but
+    // the GRID beside it does, and the contracts below are about the height
+    // the whole serialisation demands of the page. Clicking the topology row
+    // puts the table back too, so the two blocks are measured in the state
+    // the rest of this function describes.
+    await page.locator(navRow("topology", "demo_mechanism")).click();
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
 
@@ -2415,11 +2436,12 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       const okStudy = pitch && pitch.studies.find((s) => s.status === "ok");
       if (okStudy) {
         await page.locator(navRow("study", okStudy.id)).click();
-        await page.waitForSelector("tr.tvrow--on", { timeout: 5000 });
-        // Back onto the walk, same reason as the mock block above: the
-        // height contracts are about pitch_system's 45 slots, and a study
-        // re-spine shows a 21-slot chain instead.
-        await page.locator("#layout-toggle").click();
+        await page.waitForSelector(".chip--total", { timeout: 5000 });
+        await page.waitForFunction(
+          () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
+        // Deselect, same reason as the mock block above: the height
+        // contracts are about the whole serialisation's own table.
+        await page.locator(navRow("topology", "pitch_system")).click();
         await page.waitForFunction(
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
       }
@@ -2959,7 +2981,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       await page.goto(url + "/apps/viewer/topology.html" +
         "?topology=pitch_system&study=pitch_system_gas_spring_branch",
         { waitUntil: "load" });
-      await page.waitForSelector("tr.tvrow--on", { timeout: 15000 });
+      await page.waitForSelector(".chip--total", { timeout: 15000 });
       push("[real] a deep link opens the named study selected, over the real " +
         "served transport",
         /pitch_system_gas_spring_branch/
@@ -3447,7 +3469,7 @@ async function testDeepLinks(browser, url, label) {
     await page.goto(url +
       "/topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip",
       { waitUntil: "load" });
-    await page.waitForSelector("tr.tvrow--on", { timeout: 15000 });
+    await page.waitForSelector(".chip--total", { timeout: 15000 });
     push("a topology+study link opens with the study selected",
       /demo_base_to_tip/.test(await page.locator("#totals").textContent()) &&
       await page.locator(".chip--total").count() === 5);
@@ -3837,10 +3859,11 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     if (chained.drift.length) {
       console.log("    drift: " + chained.drift.slice(0, 5).join(" | "));
     }
-    push("[real] and the page IS in chain mode — which is what re-spining is",
-      /Showing: study chain/
-        .test(await page.locator("#layout-toggle").textContent()) &&
-      chained.rows === study.result.chain.length);
+    push("[real] and the page IS emphasized on the study — the grid is its " +
+      "chain, on rails that still carry the whole walk",
+      chained.rows === study.result.chain.length &&
+      await page.locator("svg.tv__rails line.rail__bar").count() ===
+        pitch.edges.length);
 
     // (3). Both directions, in every length mode. `edgeLengthMode` is
     // in-session state and survives a selection, so the modes are cycled
@@ -4068,13 +4091,15 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
 
     await page.locator(studyRow).click();
     await settled();
-    await page.locator("#layout-toggle").click();
-    const toggleFrame = await catchFrame();
-    push("[real] and so does the toolbar's own layout toggle — the same " +
-      "re-serialisation asked for by hand", !!toggleFrame);
+    await page.locator(walkRow).click();
+    const byNavFrame = await catchFrame();
+    push("[real] and so does DEselecting — the nav's topology row is the " +
+      "only other way to re-serialise this page now that the toolbar's " +
+      "layout toggle is gone", !!byNavFrame);
     await settled();
-    push("[real] the toggle landed on the whole walk", /Showing: whole topology/
-      .test(await page.locator("#layout-toggle").textContent()));
+    push("[real] deselecting landed on the un-emphasized walk",
+      await page.locator("svg.tv__rails line.rail__bar--off").count() === 0 &&
+      await page.locator("tr.tvrow").count() === pitch.edges.length);
 
     // A paint that is not one of the transition's own frames has to STOP it:
     // a transition renders from the ctx it started with, so a frame landing

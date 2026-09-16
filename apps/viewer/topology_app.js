@@ -27,12 +27,12 @@
     mode: "topology",
 
     topologyId: null,
-    // null = no study; the whole topology is shown with nothing highlighted.
+    // null = no study; the whole topology is shown at full emphasis. A study
+    // does NOT change which layout is drawn -- there is only one, the walk
+    // (viewer_respine_whole_walk, 2026-09-15) -- it changes which of the
+    // walk's elements are emphasized, which leaders are drawn and which rows
+    // the grid beside them holds. The retired `layoutMode` used to live here.
     studyId: null,
-    // "topology" (the depth-first walk of the whole graph) or "chain" (only the
-    // selected study's edges, in the order the sum runs). Both layouts come out
-    // of the projection; this only says which one to draw.
-    layoutMode: "topology",
     // "comfortable" (26px rows) or "compact" (16px) — a display preference,
     // not a fact about a topology or a study, so selectTopology() never resets
     // it. See VA.ROW_DENSITIES (topology.js).
@@ -391,7 +391,6 @@
     // happens to exist in both would show the wrong element under the right
     // name.
     state.studyId = null;
-    state.layoutMode = "topology";
     state.selection = null;
     state.detailImage = null;
   }
@@ -476,36 +475,29 @@
 
   function onNavTopology(topologyId) {
     selectTopology(topologyId);
-    // Deselecting a study is the respine run backwards -- the chain gives the
-    // spine back to the whole walk (viewer_study_respine_animation). Same
-    // topology, so there is a previous store to animate from; a click that
-    // switches to a DIFFERENT topology is a different graph, and respine()
-    // falls through to a plain paint for it.
+    // Deselecting a study is the respine run backwards -- the whole walk gets
+    // its leaders and its full emphasis back (viewer_study_respine_animation).
+    // Same topology, so there is a previous store to animate from; a click
+    // that switches to a DIFFERENT topology is a different graph, and
+    // respine() falls through to a plain paint for it.
     navigate(respine);
   }
 
   function onNavStudy(topologyId, studyId) {
     if (state.topologyId !== topologyId) selectTopology(topologyId);
     state.studyId = studyId || null;
-    // Selecting a study RE-SPINES (viewer_study_respine_animation, from the
-    // viewer-arcs brief's decision 5): the study's chain becomes the
-    // right-justified linear run and the grid re-orders to the order the sum
-    // runs in -- the layout the toolbar's toggle has always offered, now the
-    // default for a study that sums. A study that REFUSED has no chain to lay
-    // out (the error is the result), so it stays on the whole-topology walk,
-    // which is the same condition the toggle disables itself for.
-    state.layoutMode = chainable(studyId) ? "chain" : "topology";
+    // Selecting a study RE-SPINES (viewer_study_respine_animation), and since
+    // viewer_respine_whole_walk a respine is no longer a view switch: the
+    // rails keep every node and edge of the walk, the non-members dim, the
+    // leaders retarget onto the chain and the grid drops to the chain's rows.
+    // The transition the animator runs is therefore the leaders' jog zone
+    // narrowing and the two blocks re-centring, not a second layout sliding
+    // in over the first. A study that REFUSED has no chain, so it leaves the
+    // walk exactly as it was -- and that is the same condition
+    // views/topology.js's `marking` tests, not a second rule here.
     state.selection = null;
     state.detailImage = null;
     navigate(respine);
-  }
-
-  // Whether a study has a chain to lay out at all -- the one condition the
-  // chain layout has ever had (views/topology.js's layoutFor, and the
-  // toolbar's own disabled test).
-  function chainable(studyId) {
-    var study = studyId ? VA.findStudy(currentTopology(), studyId) : null;
-    return !!(study && study.status === "ok" && study.layout);
   }
 
   function onNavStack(stackId) {
@@ -1114,7 +1106,7 @@
         // VA.cropReference (viewer_component_names_and_reference_copy) it
         // needs the drawing-checker base URL like every other crop surface.
         config: VA.CONFIG,
-        layoutMode: state.layoutMode, selection: state.selection,
+        selection: state.selection,
         detailImage: state.detailImage, edgeValueOnly: state.edgeValueOnly,
         edgeLengthMode: state.edgeLengthMode,
         // The two leader-legibility preferences (viewer_leader_grid_
@@ -1140,13 +1132,6 @@
         onAttach3d: launchAnnotate,
       };
       VA.renderTopoToolbar(nodes.toolbar, state, topoProj, {
-        // The same re-serialisation the nav's study click makes, asked for
-        // by hand -- so it animates the same way (viewer_study_respine_
-        // animation). rewind()'s scroll reset rides along inside respine().
-        onLayoutMode: function () {
-          state.layoutMode = state.layoutMode === "chain" ? "topology" : "chain";
-          respine();
-        },
         // Density changes how tall the rows already on screen are, not WHICH
         // rows are on screen — so a plain render(), not rewind(): see
         // rewind's own comment for why that distinction matters.
@@ -1251,12 +1236,12 @@
   //
   // A rewind() whose pane paint is a TRANSITION rather than a repaint: the
   // store the outgoing paint drew from is captured here, before anything is
-  // re-rendered, and paint() hands it to VA.animateTopoPane. Only the two
-  // controls that change WHICH serialisation is on screen come through here
-  // (picking or dropping a study in the nav, and the toolbar's layout
-  // toggle); everything else -- density, length mode, leader style, a resize
-  // drag -- changes how the SAME rows are drawn and has always been a plain
-  // render.
+  // re-rendered, and paint() hands it to VA.animateTopoPane. Only the control
+  // that changes WHICH serialisation is on screen comes through here --
+  // picking or dropping a study in the nav, which since
+  // viewer_respine_whole_walk is the only one there is; everything else --
+  // density, length mode, leader style, a resize drag -- changes how the SAME
+  // rows are drawn and has always been a plain render.
   //
   // VA.lastTopoRender is the store the LAST pane paint drew from, which
   // during a transition is that transition's own last frame: interrupting a
@@ -1266,14 +1251,13 @@
   var respineHandle = null;
   var paintedSerialisation = null;
 
-  // Which serialisation is on screen: the topology, the study and which of
-  // the two layouts. A respine is only a TRANSITION when one of those three
-  // actually changed -- clicking the nav row of the topology already open is
-  // a no-op, and animating a no-op would lay a fading ghost of the page over
-  // the identical page for a quarter of a second.
+  // Which serialisation is on screen: the mode, the topology and the study.
+  // A respine is only a TRANSITION when one of those actually changed --
+  // clicking the nav row of the topology already open is a no-op, and
+  // animating a no-op would lay a fading ghost of the page over the identical
+  // page for a quarter of a second.
   function serialisation() {
-    return [state.mode, state.topologyId, state.studyId,
-            state.layoutMode].join(" / ");
+    return [state.mode, state.topologyId, state.studyId].join(" / ");
   }
 
   function respine() {

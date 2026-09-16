@@ -143,7 +143,7 @@ semantics change as **breaking**, and change this section with it.
 | param | opens |
 |---|---|
 | `topology=<id>` | topology mode, that topology |
-| `study=<id>` | …with that study selected (chain highlighted, totals in the strip). Requires `topology`. |
+| `study=<id>` | …with that study emphasized on the walk (chain lit, the rest dimmed, the grid on the chain's rows, totals in the strip). Requires `topology`. |
 | `edge=<id>` | …with that edge selected in the detail pane. Requires `topology`. |
 | `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
 | `stack=<id>` | stack mode — the elements table — on that stack. Resolves against the projection, not the nav, so it still reaches a stack a topology re-expresses (which has no row of its own). |
@@ -472,8 +472,9 @@ Three shapes come out of it, and all three are in the projection:
 The L1 grip stack draws as **two rails that rejoin**, not one, and that is the
 truth about it: every interface has exactly two edges — the five clamped members
 in series, the bolt's grip running parallel to them, and the derived `shank_out`
-gap closing the ring. The single-rail case is its *study*, which is what
-"Showing: study chain" draws.
+gap closing the ring. Its *study* is a single chain through that ring, and the
+page shows that by lighting the chain on the two rails rather than by redrawing
+them as one — see "Selecting a study emphasizes the walk" below.
 
 ### The colours: there is no lane palette, and that is deliberate
 
@@ -611,16 +612,35 @@ crash.
 
 ### Studies
 
-Picking a study **re-spines the page onto that study's chain**: the rows become
-`StudyResult.chain` — one rail, right-justified, in the order the sum runs —
-each numbered with its place in that sum, with its own signed and scaled
-contribution printed and the totals at the bottom. "Showing: whole topology"
-puts the walk back, with the chain highlighted on it and everything else
-dimmed; a study that refuses to sum has no chain to lay out and stays on the
-walk, which is the same condition that button disables itself for.
+Picking a study **emphasizes its chain on the walk**. The DAG does not change
+shape: every node and every edge of the document stays on screen, the chain's
+bars and dots light, the rest dim, and a **leader is drawn only where it points
+at a chain node** — so the part boundaries the study does not cross simply have
+no line, which is the loudest of the three signals. The grid beside it drops to
+the chain's own rows, in **walk order**, each numbered with its place in the sum
+(`#`), with its signed and scaled contribution printed and the totals at the
+bottom. A study that refuses to sum has no chain, so it leaves the walk at full
+emphasis — the error is the result.
 
-The re-spine is **animated** — see "Selecting a study re-spines the DAG"
-below.
+There is **no layout toggle**, and there is no second layout for it to pick.
+Until 2026-09-15 selecting a study swapped the DAG for `StudyResult.chain` laid
+out on its own — one rail, in the order the sum runs — with "Showing: whole
+topology" to put the walk back. Jeff, reviewing it: *"When you click a
+study/stack, the entire dag/model should still be visible. It should be fairly
+obvious that there are no leader lines pointing to certain elements."* And the
+report was about **inconsistency** as much as about hiding: two of
+`pitch_link_to_pitch_plate`'s studies dropped rows while the third's chain
+covered nearly everything, so the same control read as three different
+behaviours. One layout, varying emphasis, is the answer to both.
+
+`study.layout` is still in the projection and still built by
+`scripts/build_topology_projection.py` — nothing about the data changed, only
+which serialisation this page draws. The viewer no longer reads it; the
+respine's own column machinery is now exercised against it synthetically (see
+below).
+
+The change of emphasis is **animated** — see "Selecting a study re-spines the
+DAG" below.
 
 **A study that refuses to sum is a result, not an error.** `BranchAmbiguity`,
 `BrokenChain`, `CycleDetected` and `UnitMismatch` each render as a block carrying
@@ -903,12 +923,29 @@ ever re-renders (no scroll rewind).
 ### Selecting a study re-spines the DAG, and that is a movement
 
 Jeff, on the shipped arcs: *"I asked for this before (including smooth
-animation when the dag rearranges itself)."* So the three controls that change
-**which serialisation** is on screen — picking a study in the nav, dropping it
-again, and the toolbar's own layout toggle — render the pane as a transition
-rather than a repaint. Nothing else does: density, length mode, leader style
-and the two drag widths all change how the *same* rows are drawn, and have
-always been a plain render.
+animation when the dag rearranges itself)."* So the two clicks that change
+**which serialisation** is on screen — picking a study in the nav and dropping
+it again — render the pane as a transition rather than a repaint. Nothing else
+does: density, length mode, leader style and the two drag widths all change how
+the *same* rows are drawn, and have always been a plain render. (There used to
+be a third: the toolbar's layout toggle, retired with the second layout it
+picked between.)
+
+**What actually moves, since the walk stopped being swapped out.** The rails do
+not: both frames are the same walk, so every column, every rail and every dot's
+`y` is identical on the two sides and `VA.respineX` returns a zero column
+shift. What is left is real, and measured per study on the live corpus. Taking
+`pitch_system`'s `gas_spring_branch`:
+
+* the **jog zone narrows** as leaders drop, and the pane width with it — the
+  pane goes **316 → 250px**;
+* the **grid block travels**, because a shorter table re-centres against a DAG
+  of unchanged height — `gridOffset` goes **299 → 143px**;
+* the grid **cross-fades** between two different row sets, as it always did.
+
+Every committed study moves at least one of those, which the `[real]` tier
+asserts study by study — a quarter-second of nothing would be worse than no
+animation at all.
 
 `VA.tweenPositions(from, to, e)` interpolates one position store into another
 and hands the result to the two geometry passes unchanged, which is why there
@@ -986,14 +1023,19 @@ things are worth knowing about it:
   count, which the two serialisations also disagree about, so the 234px slide
   over-shot the rails' true 180px travel and drew even the spine left of where
   it had just been;
-* **the rows a chain drops cannot be drawn from the target layout**, because
+* **the rows a study drops cannot be drawn from the target layout**, because
   they are not in it. So the outgoing paint is kept — the real nodes, moved
   into an inert overlay — and faded out while the incoming one moves into
-  place. The grid cross-fades with it rather than moving, because two tables in
-  different orders and of different lengths cannot be lined up; the DAG beside
-  it does not, because its surviving marks start exactly where they were.
-  Rows and interfaces the transition *adds* fade in at their own settled
-  position.
+  place. The grid cross-fades with it rather than moving, because two tables of
+  different lengths cannot be lined up; the DAG beside it does not, because its
+  marks start exactly where they were.
+
+  The per-element fade `VA.tweenAlpha` drives is a **second** mechanism, and
+  since 2026-09-15 nothing a reader can click reaches it: both sides of a
+  respine are now the same walk, so the position store's key set is identical
+  and no DAG element is ever added or dropped. It is kept, and tested
+  synthetically, for the same reason the shared-column link fade is — the
+  guarantee is about any two serialisations, not about the corpus.
 
 **The animation is presentation and nothing else.** Its last frame is a plain
 render with no tween and no ghost, so the settled page is the page a render

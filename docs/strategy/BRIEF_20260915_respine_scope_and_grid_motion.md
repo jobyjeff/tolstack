@@ -9,6 +9,21 @@
 > respine_tween_fidelity_round2). Item 2 (grid row motion / FLIP) stays
 > open — re-decide it against the new whole-walk-DAG + chain-subset-grid
 > semantics, after the geometry brief.**
+>
+> **ITEM 1 LANDED 2026-09-15** (`viewer_respine_whole_walk`). The DAG is
+> always the topology's walk; a study lights its chain, dims the rest, drops
+> every leader that does not point at a chain node, and subsets the grid to
+> the chain's rows **in walk order** (the sum's order is the `#` column — a
+> re-ordered table under a DAG that did not move would cross every leader on
+> the page). The layout toggle is gone. What item 2 now has to be decided
+> against: the surviving-row set is a walk-order SUBSET of the same table
+> rather than a different table, so a FLIP is at last arithmetically
+> possible — every surviving row keeps its relative order and only its index
+> changes. The obstacle the brief names is untouched: the grid's fixed pitch
+> is still what the leaders' grid-side seams are computed from
+> (`gridOffset + boundary × rowHeight`), and `boundary` is an index into
+> the SUBSET now, so a FLIP that moves rows individually has to say what a
+> leader points at mid-flight.
 
 > Routed here by the triage sweep of 2026-09-14/15 from two issues about
 > `viewer_study_respine_animation`. Both are "the shipped behaviour is one

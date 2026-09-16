@@ -93,3 +93,40 @@ write-up did not have: the `located_by` failure is the **value-guard** tier, not
 the shape tier, so the drift now also lands in the guard whose whole purpose is
 to catch a producer the page has not been taught about — indistinguishable, from
 inside one worktree, from a real untaught value.
+
+---
+
+> **Fourth instance, 2026-09-16, and it costs the whole mutation-witness tier**
+> (review of `viewer_respine_whole_walk`). Exactly the shape above —
+> `handoff/viewer_reference_crops_in_context` @ `d16db3b` rebuilt the shared
+> `crops.json` at `06:45:16`, one minute after this review's own rebuild of
+> `results.json` / `topologies.json` from the merged tree, and the same three
+> failures came back (`the fixture's crop shapes still match the builder's`,
+> `no live value is one the viewer has no branch for` with
+> `located_by = "balloon_view"`, and `no rendered surface ... prints an
+> internal id` naming `crops.json`). Confirmed external: a `git archive` of
+> `integration` itself runs **392/395** with the identical three, so nothing
+> on any review branch can be green while that worktree is live.
+>
+> **The new part is the amplification.** `scripts/run_mutation_witness_tests.mjs`
+> requires a green clean run before it will apply a mutation, so a red `[real]`
+> tier does not cost three checks — it costs **every fast-tier entry in the
+> registry**: the run reported `11/26 declared mutations witnessed`, with nine
+> entries `SKIPPED: the tier is already red with NO mutation applied` and the
+> rest listed as `NOT WITNESSED`. That is a wall of apparent broken guards
+> produced entirely by a sibling session's write, and it is the state in which
+> a *real* un-witnessed guard stops being noticeable — the same argument
+> `ISSUE_20260915_card_layout_mutation_aborts_its_suite_before_the_check_it_
+> declares.md` makes about one permanent miss, at fifteen times the size.
+>
+> Two workarounds measured here, both cheap, neither a fix:
+> a scratch `--repo` root holding the two projections the merged tree built
+> plus the *matching* `crops.json` and junctions to the real `crops/`,
+> `meshes/`, `inbox/` and `docs/` runs **399/400** (the one residual is the old
+> crops index naming two PNGs the sibling's rebuild deleted); and the three
+> witnesses this review declared are all **mock**-tier checks, so mutating them
+> by hand and running `run_tests.cjs` with **no** `--repo` verified all three
+> RED on their own declared check at `320 -> 317/320`. The second is the
+> general escape: a fast-tier entry whose check does not read `data/` does not
+> need a green `[real]` tier to be witnessed, and the runner's all-or-nothing
+> gate does not know that.

@@ -550,7 +550,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       layout guard (the room cap subsumed its witness), the unpublished banner's
       "and nothing else" half (one-word mutation ships fast tier 260/260 and
       browser tier 17/17), `chainable()`'s false branch (`layoutMode = "chain"`
-      unconditionally -- every tier green), the compact-density correspondence
+      unconditionally -- every tier green; `chainable()` and `layoutMode` were
+      both deleted by `viewer_respine_whole_walk` on 2026-09-15 and the
+      contract now lives on `views/topology.js`'s `marking`, so do not go
+      looking for either name), the compact-density correspondence
       check (passes at comfortable density too), and `state.leaderStyle`
       persistence (asserted in two shipped docs, observable by no tier). See
       `docs/sessions/HANDOFF_20260914_guard_mutation_witness_tier.md`, which
@@ -2566,7 +2569,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       exactly what it does not enumerate. So: diff the author's mutation list
       against their own diff's new conditionals, and mutate every predicate
       the list does not name. `ISSUE_20260915_a_refusing_study_staying_on_the_
-      walk_is_unwitnessed_in_every_tier.md`.
+      walk_is_unwitnessed_in_every_tier.md`. (That line is gone --
+      `viewer_respine_whole_walk` retired `layoutMode` and `chainable()` on
+      2026-09-15; its mutation entry is re-pointed at
+      `views/topology.js`'s `marking`. The example stands; the code does not.)
       **Second sighting 2026-09-15 (`annotate_hosted_page_posture`), and the
       un-witnessed half was in the handoff, not invented:** deliverable 1 had
       two halves -- the hosted page *shows* nothing about the bind workflow,
@@ -2776,6 +2782,42 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       upstream source, not by eye. Whenever a diff touches a line containing a
       `\u`-escape sentinel, byte-diff that line specifically rather than
       trusting a visual or line-based diff.
+- [ ] **A helper whose parameter list a diff NARROWED, with its call sites
+      still passing the old arity -- JavaScript drops the extra argument and
+      the loop around it goes vacuous.** New 2026-09-15
+      (`viewer_respine_whole_walk`, should-fix, fixed inline).
+      `tests.js`'s `[real] a respine of every summing study of every topology
+      settles on the fresh render's own geometry ... in every length mode`
+      builds its contexts through a local `ctxFor`, which the diff correctly
+      narrowed from `(topoProj, study, layoutMode, mode)` to
+      `(topoProj, study, mode)` when `layoutMode` was retired -- and left both
+      calls as `ctxFor(topoProj, null, "topology", mode)` /
+      `ctxFor(topoProj, study, "chain", mode)`. So `edgeLengthMode` became the
+      literal `"topology"` / `"chain"`, both of which fall back to uniform, and
+      the `["uniform", "tolerance", "absolute"].forEach` ran the SAME mode three
+      times. `378/378`, exit 0, and the `cycles >= 12` anti-vacuity assertion
+      still passed because it counts iterations, not distinct modes. Restoring
+      the two arguments keeps it green, so this was pure coverage loss. Two
+      moves: whenever a diff removes a parameter, **grep every call of that
+      function and count the arguments** (no linter here will), and treat a
+      `forEach` over a mode/flag list as unexercised until one assertion reads
+      something the mode changes.
+- [ ] **A retired behaviour's justification prose is a claim about a tree you
+      still have -- replay it, don't read it.** New 2026-09-15
+      (`viewer_respine_whole_walk`), the counterfactual entry's historical
+      member: the fix is right, and the README's new paragraph explains it with
+      *"two of `pitch_link_to_pitch_plate`'s studies dropped rows while the
+      third's chain covered nearly everything"*, restating the handoff's own
+      item 3. Neither of the two states the pre-change page could be in
+      produces that: `git archive`-ing the branch base and probing it through
+      the fast `[real]` tier gives chain mode = all three studies dropped rows
+      (8 -> 5 / 4 / 2) and nothing dimmed in any of them, and topology mode
+      (the deep-link path) = no rows dropped and 3 / 4 / 6 dimmed, with
+      `thread_region_t` the *most* reduced in both. When a diff retires a
+      behaviour and writes down what was wrong with it, that sentence is
+      checkable in one `git archive` plus one probe --
+      `ISSUE_20260915_the_readmes_inconsistency_premise_for_the_whole_walk_
+      change_does_not_reproduce.md`.
 - [ ] **A "per row" replay that substitutes a STUB for the row's own collector
       is one assertion written N times.** New 2026-09-15
       (`viewer_value_guard_rows_and_replays`, nit — the shape was prescribed by
