@@ -642,11 +642,11 @@ def load_hardware(path: Path) -> Dict[str, Any]:
     a register this code cannot read, and reading ``entries`` off it anyway
     yields the *same* empty list -- which on the DAG page's "What's missing"
     panel is not silence but a positive claim that nothing is missing, over the
-    43 of 98 live gap rows that are ``hardware_entry``. So it raises, exactly as
-    ``build_viewer_projection.build()`` already does against the same constant
-    for the same file (added 2026-09-16; ``load_hardware`` shipped 2026-09-15
-    with no schema check at all, so the classic view refused a file its sibling
-    quietly projected an empty gap list from).
+    ``hardware_entry`` rows -- the largest single kind in that list. So it
+    raises, exactly as ``build_viewer_projection.build()`` already does against
+    the same constant for the same file (added 2026-09-16; ``load_hardware``
+    shipped 2026-09-15 with no schema check at all, so the classic view refused
+    a file its sibling quietly projected an empty gap list from).
     """
     if not path.is_file():
         return {"entries": []}

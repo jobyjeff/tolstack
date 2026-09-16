@@ -4,6 +4,29 @@ Four values the Python tier published and did not pin: a verdict domain, a
 margin, a register schema, and a run id living in prose. All four landed. Six
 mutations planted, all six reddened, all six reverted.
 
+> **Correction, `review/python_value_and_schema_pins`, 2026-09-16 — two counts
+> in this lesson, neither of which changes a result.**
+>
+> * **Seven plants, not six.** The sentence above and the heading *"The six
+>   mutation plants"* both undercount the section they introduce: it documents
+>   **A, B, C, D, E, F and G**, and D is itself two rounds (D1 schema-only, D2
+>   schema + key rename). All of them were re-run independently in review and
+>   every guard reddened as recorded; only the tally is wrong. The handoff's bar
+>   was "four minimum, five counting deliverable 1's second one," so the real
+>   number clears it by more than the stated one did.
+> * **Four stale figures, not three.** *"Three of this handoff's four quoted
+>   figures were stale"* contradicts the table below it, which lists four rows
+>   and opens *"Four figures … none correct now."* Four is right; what is true of
+>   only three of them is the clause that follows — the baseline went stale
+>   because `integration` moved under a batch merge, not because it was quoted
+>   forward out of an issue.
+>
+> Everything else in this lesson was re-derived in review and holds: the
+> baseline (`1 failed, 1162 passed, 1 skipped`), the final
+> (`1 failed, 1172 passed, 1 skipped`, +10), the 37 authored criteria
+> (19 + 18, all `">= 0"`), the 104 / 53 gap rows, both PDF `sha256` values and
+> all four run `ts` values against drawing-checker's own `run_meta.json`.
+
 ---
 
 ## The baseline the handoff states is not the baseline that exists

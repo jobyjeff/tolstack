@@ -3090,11 +3090,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a wrong `schema`, the new `build_topology_projection.load_hardware()`
       reads `entries` off whatever JSON is there. Tolerating an **absent**
       register is argued and documented; tolerating a **present but
-      unreadable** one silently turns 43 of 98 live gap rows into "nothing is
-      missing" on the one page whose job is to say what is. When a diff adds a
+      unreadable** one silently turns every `hardware_entry` gap row -- the
+      largest single kind in that list -- into "nothing is missing" on the one
+      page whose job is to say what is. When a diff adds a
       second reader for an existing file, diff the two loaders' refusals, not
       just their happy paths.
       (`ISSUE_20260915_topology_builder_drops_the_hardware_register_schema_check`.)
+      **Closed 2026-09-16** by `python_value_and_schema_pins`, which gave
+      `load_hardware` the same `SCHEMA_HARDWARE` gate and a test pinning it; the
+      entry stays for the *shape*. Two notes from that review: the counts this
+      entry and the issue both quoted (43 of 98) were already stale when the fix
+      landed -- they are 53 of 104 today -- which is why neither this entry nor
+      the code's docstring states them any more; and the register is
+      `docs/tolerance_stacks/hardware_entries.json`, **tracked**, not the
+      gitignored `data/` path the issue and the handoff both named.
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
       and checks are the same signed term list. And `fold()` reads `min`/`max`
@@ -3727,6 +3736,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       file is already being read.
       `ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_not_the_
       call_site.md`.
+
+- [ ] **A structured sibling added beside a prose field, paired on PRESENCE
+      and not on CONTENT.** New 2026-09-16 (`python_value_and_schema_pins`).
+      `joint.assembly_export_ref` (a real `SourceExport`, runs with their `ts`)
+      was added beside the prose `joint.assembly_export` that
+      `build_viewer_crops._RUN_ID_RE` still parses, deliberately additive and
+      with neither derived from the other. The new pairing test asserts only
+      that a joint carrying one key carries the other; nothing asserts the two
+      **name the same runs**. Measured in review: editing one run id inside
+      `stack_rotor_fastener_length.json`'s structured block so it disagrees with
+      the sentence three lines above it leaves the suite fully green. Whenever a
+      migration keeps the old carrier "for now", ask *what fails when the two
+      copies disagree?* -- presence-pairing answers "nothing", and the pin the
+      author does write tends to be a single hand-named id on the one stack they
+      were thinking about (here, `20260804_114000` on the pitch link only).
+      `ISSUE_20260916_the_joint_export_prose_and_structured_run_ids_are_paired_
+      on_presence_only.md`.
 
 ## Writing the review
 
