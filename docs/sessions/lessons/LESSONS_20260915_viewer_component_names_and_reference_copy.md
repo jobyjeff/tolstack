@@ -239,6 +239,13 @@ wrong.
   `stacks[].checks[]: the projection writes [margin]` when run against the
   *shared* `results.json` — that field is `viewer_study_verdicts_and_gaps`'s,
   mid-flight. Building `results.json` from this tree clears it.
+* **One bug this pass introduced and a test did not catch.** `views/detail.js`
+  passed `"detail__crop"` to the shared `VA.cropReference` where it wants the
+  separator too, so the stack pane's reference line and links rendered as
+  `detail__crophead` / `detail__croplinks` -- unstyled. Every assertion on
+  that block reads `textContent`, which is right for copy and blind to this.
+  Found reading my own diff. If you factor a renderer out across surfaces in
+  this repo, the class prefixes are the part no test is watching.
 * **The banner still says "sha256-verified"** in its crop scoreboard
   (`VA.shaCountsText`), and the stack-mode elements table still carries several
   of the phrasings this pass retired elsewhere. Both are outside this handoff's
@@ -252,7 +259,7 @@ wrong.
 | `node apps/viewer/run_tests.cjs` | 373/373 (299 + 74 new; the `[real]` tier runs off this worktree's own projection) |
 | `venv-win/Scripts/python.exe -m pytest -q` | 1091 passed / 1 failed — the failure is master's (§7) |
 | `node scripts/run_viewer_browser_tests.mjs --repo <this worktree>` | **19/19 suites**, both origins; `[suite]` 293/293 on each, `[topology]` 179/179 on each |
-| `node scripts/run_mutation_witness_tests.mjs --repo <this worktree>` | see the report |
+| `node scripts/run_mutation_witness_tests.mjs --repo <this worktree>` | **16/16 declared mutations witnessed** (12 pre-existing + this pass's 4) |
 
 Four guards mutation-checked, each reddening a **named** test rather than
 the suite: printing the part id (17 tests redden; the declared witness is the
