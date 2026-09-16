@@ -493,7 +493,13 @@
     { cls: "min", label: "min", width: 80 },
     { cls: "max", label: "max", width: 80 },
     { cls: "contribution", label: "contribution", width: 200 },
-    { cls: "chips", label: "sourcing", width: 200 },
+    // 260, not the 200 it was until viewer_study_verdicts_and_gaps: this cell
+    // clips rather than wraps (`.tvcell__chipswrap`, topology.css — a <tr>'s
+    // height is a floor, so a wrapped chip would grow the row off its leader's
+    // seam), and the row's loud "what is wrong with this number" badges now sit
+    // in it ahead of the citation chip. At 200 a badged row clipped its own
+    // citation chip, which is the trigger for the citation card.
+    { cls: "chips", label: "sourcing", width: 260 },
     { cls: "crop", label: "crop", width: 110 },
   ];
 
@@ -1004,6 +1010,18 @@
 
     var chips = chipsCell("chips");
     if (edge) {
+      // What this row has to admit about itself, FIRST and loud
+      // (viewer_study_verdicts_and_gaps, deliverable 2): a study-level badge
+      // that cannot be traced to its rows sends the reader hunting through 43
+      // of them. Everyday words — the confidence chip beside it keeps the
+      // repo's own vocabulary and is the citation card's trigger; this says
+      // the same thing in the words a reader brought with them. It is also
+      // where the old "zero-width band" chip went: two chips on one row saying
+      // one thing in two vocabularies is the redundancy, not the loudness.
+      VA.edgeAttention(edge).forEach(function (flag) {
+        chips.wrap.appendChild(
+          VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
+      });
       var confChip = VA.chip(VA.confidenceClass(edge.confidence),
         edge.confidence === null ? "no value"
           : (VA.CONFIDENCE_LABEL[edge.confidence] || edge.confidence));
@@ -1033,10 +1051,6 @@
       if (edge.value_source === "derived") {
         chips.wrap.appendChild(VA.chip("chip--derived", "DERIVED",
           VA.VALUE_SOURCES.derived.title));
-      }
-      if (edge.zero_width) {
-        chips.wrap.appendChild(VA.chip("chip--zero-width", "zero-width band",
-          "min == max: every interval this feeds is a LOWER bound on the real spread."));
       }
       if (edge.transform && edge.transform.kind !== "identity") {
         chips.wrap.appendChild(VA.chip("chip--transform", edge.transform.kind,
@@ -1124,14 +1138,17 @@
   // sentence and any notes still exist, behind a same-line "Details" toggle,
   // so nothing is dropped — only what is ALWAYS on screen shrinks.
   //
-  // NOT here: a study's own authored `checks` (verdict vs. criterion) —
-  // deliverable 4's third piece, and the one this page cannot wire yet.
-  // `topoProj.joint` and `topoProj.worksheet_file` (project_topology,
-  // topology_schema_v1) reach the page above (renderTopoJoint) and through
-  // topology_app.js's worksheet toggle; a study's own `checks` never reaches
-  // the projection at all — `project_study()` has no `checks` key, tracked in
-  // `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`. This
-  // strip prints totals, never a verdict, until that field exists.
+  // A study's own authored `checks` — the verdict, and by how much — ARE here
+  // since viewer_study_verdicts_and_gaps (2026-09-15). They reach the page the
+  // same way `topoProj.joint` and `topoProj.worksheet_file` do: as a projection
+  // field. `project_study()` gained its `checks` key on 2026-09-09
+  // (topology_projection_emits_study_checks, closing
+  // `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`), and
+  // for six days after that the field existed and nothing read it — the comment
+  // that used to sit here said the opposite, which is how a stale comment costs
+  // more than no comment. The margin beside the verdict is CheckResult.margin,
+  // computed in Python against the check's own criterion; this strip still adds
+  // nothing up.
   VA.renderTopoTotals = function (root, topoProj, study, index) {
     VA.clear(root);
     root.className = "tvtotals";
@@ -1140,9 +1157,14 @@
         "Pick a study to see a path highlighted on the rails and its totals here. " +
         "A study is a HUMAN-lassoed chain: this page reports where the forks are " +
         "and never chooses one."));
+      // The gap panel is a fact about the TOPOLOGY, not about the selected
+      // study, so it is on screen before one is picked — which is also the
+      // state a reader arrives in.
+      root.appendChild(gapsPanel(topoProj));
       return root;
     }
 
+    var verdict = VA.studyVerdict(study);
     var strip = VA.el("div", "tvtotals__strip");
     strip.appendChild(VA.el("span", "tvtotals__title", study.title));
     strip.appendChild(VA.el("code", "muted", study.id));
@@ -1153,9 +1175,17 @@
     if (study.status !== "ok") {
       root.appendChild(strip);
       root.appendChild(errorBlock(study));
+      root.appendChild(gapsPanel(topoProj));
       return root;
     }
 
+    var attention = VA.studyAttention(study, index);
+    // The verdict leads the strip: it is the one thing a reader came for, and
+    // it used to be the one thing this page never said.
+    strip.appendChild(verdictChip(verdict));
+    attention.badges.forEach(function (flag) {
+      strip.appendChild(VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
+    });
     var worst = VA.studyWorstConfidence(study, index);
     strip.appendChild(VA.chip("chip--kind", study.result.chain.length + " contributions"));
     strip.appendChild(VA.chip("chip--kind", study.result.units));
@@ -1171,6 +1201,13 @@
     });
     root.appendChild(strip);
 
+    root.appendChild(verdictBlock(verdict, attention));
+
+    var warning = VA.zeroWidthWarning(attention);
+    if (warning) {
+      root.appendChild(VA.el("p", "tvwarn tvwarn--lower-bound", warning));
+    }
+
     var more = VA.el("details", "tvtotals__more");
     more.appendChild(VA.el("summary", null, "Details"));
     more.appendChild(VA.el("p", "muted tvtotals__rule",
@@ -1181,8 +1218,124 @@
       more.appendChild(VA.el("p", "tvtotals__note", note));
     });
     root.appendChild(more);
+    root.appendChild(gapsPanel(topoProj));
     return root;
   };
+
+  // The rollup badge, in one shape for all five states — a verdict word, the
+  // two states a verdict cannot express, and the unknown-word fallback. Never
+  // blank: a study with no recorded criterion says so, because a blank badge
+  // and a passing one look identical at a glance, which is the reading this
+  // whole block exists to stop.
+  function verdictChip(verdict) {
+    if (!verdict) return VA.el("span", "muted", "");
+    var chip = VA.chip("tvverdict tvverdict--" + verdict.state,
+      verdict.word, verdict.title);
+    if (verdict.incomplete) chip.className += " tvverdict--qualified";
+    return chip;
+  }
+
+  // Under the strip: what the verdict means, by how much, and — where the chain
+  // is knowingly short a term — what is missing, in words, ABOVE the number. An
+  // unqualified verdict on an incomplete chain is the exact lie this repo
+  // exists to avoid, so the qualification is not a footnote and not a hover.
+  function verdictBlock(verdict, attention) {
+    var box = VA.el("div", "tvverdicts");
+    if (!verdict) return box;
+    if (verdict.state === "none") {
+      box.appendChild(VA.el("p", "tvverdicts__none",
+        "No pass/fail criterion has been recorded for this study yet — the " +
+        "totals above are its answer, and whether that answer is good enough " +
+        "is not written down anywhere this page can read."));
+      return box;
+    }
+    verdict.checks.forEach(function (row) {
+      var card = VA.el("div", "tvverdict-card" +
+        (row.incomplete ? " tvverdict-card--qualified" : ""));
+      var head = VA.el("div", "tvverdict-card__head");
+      head.appendChild(VA.chip("tvverdict tvverdict--" + row.verdict,
+        row.verdict, row.title));
+      head.appendChild(VA.el("span", "tvverdict-card__says", row.says));
+      head.appendChild(VA.el("span", "tvverdict-card__margin", row.marginText));
+      card.appendChild(head);
+      card.appendChild(VA.el("div", "tvverdict-card__label", row.label));
+      if (row.incomplete) {
+        var missingBox = VA.el("div", "tvverdict-card__missing");
+        missingBox.appendChild(VA.el("p", "tvverdict-card__missinghead",
+          "This answer does not include everything the joint needs, so it is a " +
+          "budget for what is missing rather than a verdict on the hardware. " +
+          "Missing:"));
+        var list = VA.el("ul", "tvverdict-card__missinglist");
+        row.excludedTerms.forEach(function (term) {
+          list.appendChild(VA.el("li", null, term));
+        });
+        missingBox.appendChild(list);
+        card.appendChild(missingBox);
+      }
+      if (row.guidance) {
+        var more = VA.el("details", "tvverdict-card__more");
+        more.appendChild(VA.el("summary", null, "Why"));
+        more.appendChild(VA.el("p", null, row.guidance));
+        card.appendChild(more);
+      }
+      box.appendChild(card);
+    });
+    if (attention && attention.unverified.length) {
+      box.appendChild(VA.el("p", "tvwarn tvwarn--unverified",
+        attention.unverified.length +
+        (attention.unverified.length === 1 ? " dimension" : " dimensions") +
+        " in this chain " +
+        (attention.unverified.length === 1 ? "is" : "are") +
+        " unverified — nothing readable stands behind " +
+        (attention.unverified.length === 1 ? "it" : "them") + ": " +
+        attention.unverified.join("; ") + "."));
+    }
+    return box;
+  }
+
+  // "What's missing" for the whole topology (deliverable 4). Grouped, collapsed,
+  // and counted in the summary line: pitch_system carries 38 gap rows, and 38
+  // lines always-open is a wall nobody reads — but a count in a heading is a
+  // number a reader can act on. Every row's words come from the projection; the
+  // heading and the way out come from VA.GAP_KINDS.
+  function gapsPanel(topoProj) {
+    var panel = VA.el("section", "tvgaps");
+    var groups = VA.topologyGapGroups(topoProj);
+    if (!groups.length) {
+      panel.appendChild(VA.el("p", "muted tvgaps__none",
+        "Nothing is recorded as missing for this assembly."));
+      return panel;
+    }
+    var total = groups.reduce(function (n, group) { return n + group.gaps.length; }, 0);
+    var box = VA.el("details", "tvgaps__box");
+    var summary = VA.el("summary", "tvgaps__summary");
+    summary.appendChild(VA.el("span", "tvgaps__summarytext", "What's missing"));
+    summary.appendChild(VA.chip("tvflag tvflag--incomplete", String(total)));
+    box.appendChild(summary);
+    groups.forEach(function (group) {
+      var section = VA.el("div", "tvgaps__group");
+      var head = VA.el("h4", "tvgaps__heading",
+        group.heading + " (" + group.gaps.length + ")");
+      section.appendChild(head);
+      section.appendChild(VA.el("p", "muted tvgaps__closes", group.closes));
+      var list = VA.el("ul", "tvgaps__list");
+      group.gaps.forEach(function (gap) {
+        var item = VA.el("li", "tvgaps__item");
+        if (gap.edge_name) {
+          item.appendChild(VA.el("span", "tvgaps__where", gap.edge_name));
+        } else if (gap.hardware_id) {
+          item.appendChild(VA.el("span", "tvgaps__where", gap.hardware_id));
+        }
+        item.appendChild(VA.el("span", "tvgaps__text",
+          gap.edge_name && gap.edge_name === gap.text ? "" : gap.text));
+        list.appendChild(item);
+      });
+      section.appendChild(list);
+      box.appendChild(section);
+    });
+    panel.appendChild(box);
+    return panel;
+  }
 
   // A study that raises is a RESULT. The message is the exception's own, written
   // for a human author; the headline and the advice come from VA.STUDY_ERRORS.

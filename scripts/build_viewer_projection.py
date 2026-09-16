@@ -157,6 +157,24 @@ def rounded(interval: Dict[str, float]) -> Dict[str, float]:
     return {k: round(v, INTERVAL_DECIMALS) for k, v in interval.items()}
 
 
+def rounded_check(outcome: Any) -> Dict[str, Any]:
+    """A :class:`CheckResult` as the projection carries it: its own dict, with
+    every derived float rounded for display.
+
+    One function, called by both builders (``build_topology_projection`` imports
+    it) and by the tests that assert a projected check equals the ``CheckResult``
+    it came from, so "field for field" stays a true statement rather than one
+    with a rounding exception written out in three places. ``margin`` is here
+    rather than inside ``rounded`` because it is a field of the *check*, not of
+    the interval -- it is the distance to the criterion, and only the check
+    knows the criterion.
+    """
+    row = outcome.as_dict()
+    row.update(rounded(outcome.interval.as_dict()))
+    row["margin"] = round(outcome.margin, INTERVAL_DECIMALS)
+    return row
+
+
 #: "There is no citation here at all" -- **minted by this projection, never
 #: authored**, and that is why it lives here rather than in
 #: ``tolerance_stack.stack.CONFIDENCES``. A confidence answers *how well is this
@@ -562,9 +580,7 @@ def project_stack(
     # file's array is empty and the loader put the real one here. Authored stacks
     # are unaffected -- load_stack() sets stack.checks from the file.
     for spec in stack.checks:
-        outcome = stack.check(spec["check_id"])
-        result = outcome.as_dict()
-        result.update(rounded(outcome.interval.as_dict()))
+        result = rounded_check(stack.check(spec["check_id"]))
         rows = term_elements(stack, spec["terms"])
         counts = count_confidence([stack.element(r["element_id"]) for r in rows])
         result.update(

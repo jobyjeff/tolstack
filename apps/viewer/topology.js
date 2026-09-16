@@ -303,6 +303,235 @@
     return null;
   };
 
+  // --- does it pass, by how much, and what is missing -----------------------
+  //
+  // Everything below is a LOOKUP over fields the projection already carries.
+  // Nothing here compares a tolerance or computes a margin: the verdict came
+  // out of CheckResult.verdict and the margin out of CheckResult.margin, both
+  // in Python, both against the check's own criterion. This file decides which
+  // words go beside them.
+  //
+  // Until 2026-09-15 the DAG page rendered none of it — a study's verdict was
+  // reachable only through the nested "classic view" of the one stack a
+  // topology also covers, and a study with no covered stack had nowhere at all
+  // to state whether it passed. Jeff's review put it plainly: "None of the
+  // tolerance stacks in the entire page appear to have any kind of roll up that
+  // shows whether the stack passes or fails, or by how much margin."
+
+  // The three things that make a study's answer less than it looks, in the
+  // everyday words Jeff asked for (2026-09-15): no schema field names, no file
+  // paths, nothing a reader has to have read this repo to parse. `loud` is the
+  // whole point — the failure mode being fixed is a page that "omits them
+  // entirely and then fails silently, which is worst of both worlds", so these
+  // are badges, not footnotes.
+  VA.ATTENTION = {
+    unverified: {
+      text: "unverified",
+      title: "Nothing readable stands behind this number — it traces to no " +
+        "drawing or datasheet, or carries no citation at all.",
+    },
+    no_tolerance: {
+      text: "no tolerance recorded",
+      title: "A value with no plus/minus behind it. The spread it feeds is a " +
+        "LOWER bound on the real one, never the real one.",
+    },
+    incomplete: {
+      text: "incomplete",
+      title: "A dimension the joint needs is missing from this chain, so the " +
+        "verdict is about the model, not about the hardware.",
+    },
+  };
+
+  function badge(key) {
+    return { key: key, text: VA.ATTENTION[key].text, title: VA.ATTENTION[key].title };
+  }
+
+  // What ONE row of the grid has to admit about itself. At most two, in
+  // severity order: a number nothing stands behind first, then a number whose
+  // band nobody wrote down. Both are facts the projection already carries per
+  // edge (`confidence`, `zero_width`).
+  VA.edgeAttention = function (edge) {
+    var badges = [];
+    if (!edge) return badges;
+    if (VA.needsAnnotation(edge.confidence)) badges.push(badge("unverified"));
+    if (edge.zero_width) badges.push(badge("no_tolerance"));
+    return badges;
+  };
+
+  // The same question asked of a whole study, plus WHICH rows earned each
+  // answer — a badge that cannot name its rows sends the reader hunting, which
+  // is the subtler half of the same failure.
+  //
+  // The chain is walked through the topology's own edge index rather than read
+  // off the contributions, because confidence and zero-width are properties of
+  // the EDGE and a contribution carries neither.
+  VA.studyAttention = function (study, index) {
+    var chain = (study && study.result && study.result.chain) || [];
+    var out = { unverified: [], noTolerance: [], excluded: [], badges: [] };
+    chain.forEach(function (row) {
+      var edge = index && index.edges ? index.edges[row.edge] : null;
+      if (!edge) return;
+      if (VA.needsAnnotation(edge.confidence)) out.unverified.push(edge.name);
+      if (edge.zero_width) out.noTolerance.push(edge.name);
+    });
+    ((study && study.checks) || []).forEach(function (check) {
+      (check.excluded_terms || []).forEach(function (term) {
+        if (out.excluded.indexOf(term) === -1) out.excluded.push(term);
+      });
+    });
+    if (out.unverified.length) out.badges.push(badge("unverified"));
+    if (out.noTolerance.length) out.badges.push(badge("no_tolerance"));
+    if (out.excluded.length) out.badges.push(badge("incomplete"));
+    return out;
+  };
+
+  // The lower-bound sentence, or null where no row in the chain earned it
+  // (deliverable 3). Plain words, and it NAMES the rows: "two of them" leaves a
+  // reader scrolling a 43-row grid looking for which two.
+  VA.zeroWidthWarning = function (attention) {
+    var rows = (attention && attention.noTolerance) || [];
+    if (!rows.length) return null;
+    return rows.length + (rows.length === 1 ? " dimension" : " dimensions") +
+      " in this chain " + (rows.length === 1 ? "has" : "have") +
+      " no tolerance recorded, so the worst-case spread below is a LOWER " +
+      "bound, not the real one: " + rows.join("; ") + ".";
+  };
+
+  // One check, as the strip renders it. `margin` is `CheckResult.margin` — the
+  // signed worst-case distance to the criterion, computed in Python beside the
+  // verdict it agrees with — printed verbatim, sign and all. There is no
+  // absolute value taken and no comparison made here; "by how much" is a number
+  // this file received, not one it worked out.
+  VA.studyCheckRow = function (check) {
+    var known = VA.VERDICTS[check && check.verdict];
+    var scope = VA.VERDICT_SCOPES[check && check.verdict_scope];
+    return {
+      checkId: check.check_id,
+      label: check.label,
+      verdict: check.verdict,
+      says: known ? known.says : VA.unlabelledVerdictText(check.verdict),
+      title: known ? known.title : VA.unlabelledVerdictText(check.verdict),
+      // "margin +11.1435 mm at worst case" — the words a reader asked for
+      // ("or by how much margin"), against the number Python signed.
+      marginText: "margin " + (typeof check.margin === "number"
+        ? (check.margin > 0 ? "+" : "") + VA.fmt(check.margin)
+        : "—") + " " + check.units + " at worst case",
+      criterion: check.criterion,
+      incomplete: check.complete === false,
+      scopeChip: scope ? scope.chip : "SCOPE UNKNOWN",
+      scopeTitle: scope ? scope.title
+        : VA.unlabelledVerdictScopeText(check && check.verdict_scope),
+      excludedTerms: (check.excluded_terms || []).slice(),
+      guidance: check.guidance || null,
+    };
+  };
+
+  // The one-badge answer for a study, for the nav row and the head of the
+  // totals strip. `state` is a verdict word, or one of the two states a verdict
+  // cannot express:
+  //
+  //   "none"   no pass/fail criterion has been recorded for this study yet.
+  //            Six of the live studies are here, and rendering them blank is
+  //            what made the page look like it had no verdicts at all.
+  //   "error"  the study does not sum (BranchAmbiguity and friends). Its own
+  //            error block says why; this only keeps the badge honest.
+  VA.studyVerdict = function (study) {
+    if (!study) return null;
+    if (study.status !== "ok") {
+      return { state: "error", word: "does not sum", says: null,
+               title: "This study raises rather than summing — see the study " +
+                 "itself for which fork or which missing edge stopped it.",
+               incomplete: false, checks: [] };
+    }
+    var checks = (study.checks || []).map(VA.studyCheckRow);
+    if (!checks.length) {
+      return { state: "none", word: "no pass/fail criterion recorded yet",
+               says: null,
+               title: "This study sums, and nobody has yet written down what " +
+                 "the total has to be for the joint to be acceptable. The " +
+                 "totals below are the answer; whether they are good enough " +
+                 "is not recorded.",
+               incomplete: false, checks: [] };
+    }
+    var worst = VA.worstVerdict(study.checks);
+    var lead = checks.filter(function (row) { return row.verdict === worst; })[0]
+      || checks[0];
+    return {
+      state: worst || "unknown",
+      word: lead.verdict,
+      says: lead.says,
+      title: lead.title,
+      marginText: lead.marginText,
+      // Never a bare verdict where a term is missing: "fail" on an incomplete
+      // chain is true of the model and false of the hardware, and that is the
+      // one misreading this repo exists to prevent.
+      incomplete: checks.some(function (row) { return row.incomplete; }),
+      checks: checks,
+    };
+  };
+
+  // --- what is missing ------------------------------------------------------
+
+  // What each kind of gap IS and what would close it, in plain words. The
+  // hand-copy of scripts/build_topology_projection.py's TOPOLOGY_GAP_KINDS,
+  // paired word for word by tests/test_topology_projection.py — the projection
+  // writes the kind and the text, this table writes the heading and the way
+  // out, and neither side restates the other.
+  VA.GAP_KINDS = {
+    excluded_from_model: {
+      heading: "Left out of the chain",
+      closes: "Find a document that gives this dimension, add it to the chain, " +
+        "and the verdict above stops being a budget and becomes an answer " +
+        "about the joint.",
+    },
+    unverified_value: {
+      heading: "Numbers with nothing behind them",
+      closes: "Find the drawing callout or datasheet line that states the " +
+        "dimension, and cite it on the row.",
+    },
+    no_tolerance_recorded: {
+      heading: "Dimensions with no tolerance",
+      closes: "Find the plus/minus on the drawing. Until then every spread " +
+        "these feed is a lower bound.",
+    },
+    hardware_entry: {
+      heading: "Open questions about the hardware",
+      closes: "Each is a question recorded against a part when it was " +
+        "transcribed; closing one takes a source for what it asks about.",
+    },
+  };
+
+  VA.unlabelledGapKindText = function (kind) {
+    return "This page has no words for a gap of kind " +
+      JSON.stringify(kind === undefined ? null : kind) +
+      ", so what it is and what would close it are NOT shown here.";
+  };
+
+  // The gap list, grouped by kind in VA.GAP_KINDS' own order — worst first,
+  // the same rule the builder orders its rows by — so the panel reads as four
+  // answerable questions rather than as 38 lines. A kind with no rows is not a
+  // group; a kind this page has never heard of gets a loud one of its own
+  // rather than being dropped.
+  VA.topologyGapGroups = function (topoProj) {
+    var gaps = (topoProj && topoProj.gaps) || [];
+    var order = Object.keys(VA.GAP_KINDS);
+    var byKind = {};
+    gaps.forEach(function (gap) {
+      (byKind[gap.kind] = byKind[gap.kind] || []).push(gap);
+      if (order.indexOf(gap.kind) === -1) order.push(gap.kind);
+    });
+    return order.filter(function (kind) { return byKind[kind]; })
+      .map(function (kind) {
+        var known = VA.GAP_KINDS[kind];
+        return {
+          kind: kind,
+          heading: known ? known.heading : "Gaps this page cannot describe",
+          closes: known ? known.closes : VA.unlabelledGapKindText(kind),
+          gaps: byKind[kind],
+        };
+      });
+  };
+
   // --- the rail geometry ---------------------------------------------------
 
   //: Row height, column pitch and the left margin, in CSS pixels. One object so
@@ -1735,6 +1964,10 @@
       var coveredStacks = VA.topologyCoveredStackIds(t)
         .map(function (id) { return stacksById[id]; })
         .filter(Boolean);
+      // One index per topology, not one per study: VA.studyAttention resolves
+      // each chain row to its edge, and rebuilding the index inside the map
+      // would walk this topology's edges once per study.
+      var index = VA.topologyIndex(t);
       return {
         id: t.id,
         title: t.title,
@@ -1744,7 +1977,14 @@
         description: t.description || null,
         studies: (t.studies || []).map(function (s) {
           return { id: s.id, title: s.title, status: s.status,
-                   description: s.description || null };
+                   description: s.description || null,
+                   // Does it pass, and is there anything about the answer a
+                   // reader must not miss — on the rail itself, so the shape of
+                   // the whole document is readable without clicking through
+                   // twenty studies one at a time
+                   // (viewer_study_verdicts_and_gaps, deliverable 1).
+                   verdict: VA.studyVerdict(s),
+                   attention: VA.studyAttention(s, index) };
         }),
         coveredStacks: coveredStacks,
       };

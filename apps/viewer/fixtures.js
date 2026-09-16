@@ -185,6 +185,15 @@
             // tolerance_stack.fold() in Python. Two spellings of the same
             // structure is what the real projection carries, so the fixture
             // carries it too.
+            //
+            // Each projected check's `margin` (added 2026-09-15,
+            // viewer_study_verdicts_and_gaps) is a DERIVED field, not a fifth
+            // hand-picked number: CheckResult.margin is the signed worst-case
+            // distance to the criterion, and for `">= 0"` — the only criterion
+            // this repo supports, and the criterion of all four checks in this
+            // file — that distance is `worst_case_min`. Each one below is the
+            // `worst_case_min` three lines under it, which is what the builder
+            // would have written.
             paths: [{
               id: "clamped", label: "clamped column", workbook_cells: null,
               terms: [{ element: "plate" }, { element: "washer" }],
@@ -253,6 +262,7 @@
               check_id: "clearance", label: "clearance over the clamped column",
               configuration: { fastener: "demo bolt" }, criterion: ">= 0", units: "mm",
               verdict: "pass", guidance: "A complete check, for contrast.",
+              margin: 0.9272,
               nominal: 1.1272, worst_case_min: 0.9272, worst_case_max: 1.3272,
               worst_case_half: 0.2, rss_center: 1.1272, rss_half: 0.141421,
               rss_min: 0.985779, rss_max: 1.268621,
@@ -268,6 +278,7 @@
               check_id: "shank_out", label: "shank out",
               configuration: {},
               criterion: ">= 0", units: "mm", verdict: "fail",
+              margin: -3.3272,
               guidance: "Read the magnitude as the eye width the joint requires.",
               nominal: -3.1272, worst_case_min: -3.3272, worst_case_max: -2.9272,
               worst_case_half: 0.2, rss_center: -3.1272, rss_half: 0.141421,
@@ -638,6 +649,7 @@
               configuration: { chain: "seat", stage: "hub_to_sleeve", temperature: "hot",
                                temperature_c: "72", stiffness_ratio: "0.8" },
               criterion: ">= 0", units: "mm", verdict: "marginal",
+              margin: -0.034024,
               guidance: "Interference, positive = interfering. The worst-case " +
                 "minimum is the loosest corner and is the binding one.",
               nominal: 0.00601, worst_case_min: -0.034024, worst_case_max: 0.046044,
@@ -667,6 +679,7 @@
                                temperature: "hot", temperature_c: "72",
                                stiffness_ratio: "1", sensitivity: "true" },
               criterion: ">= 0", units: "mm", verdict: "marginal",
+              margin: -0.007073,
               guidance: "NOT A RESULT. k = 1 means the sleeve absorbs all of stage " +
                 "1's interference, so its own free size drops out of the term list.",
               nominal: 0.027961, worst_case_min: -0.007073, worst_case_max: 0.062996,

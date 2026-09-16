@@ -74,8 +74,18 @@
       var active = inThisTopology && state.studyId === s.id;
       var srow = VA.el("div", "navtree__row navtree__row--study" +
         (active ? " navtree__row--on" : "") +
-        (s.status === "error" ? " navtree__row--warn" : ""),
-        (s.status === "error" ? "⚠ " : "") + s.title);
+        (s.status === "error" ? " navtree__row--warn" : ""));
+      srow.appendChild(VA.el("span", "navtree__label",
+        (s.status === "error" ? "⚠ " : "") + s.title));
+      // The verdict, on the rail (viewer_study_verdicts_and_gaps, 2026-09-15).
+      // Every study wears one, including the ones with no criterion recorded:
+      // the rail is where a reader sees the shape of a whole document at once,
+      // and a row that stays silent about whether its study passes reads as a
+      // row whose study passed. The badge is never bare where the chain is
+      // short a term — VA.studyVerdict's `incomplete` puts "incomplete" beside
+      // it, because "fail" on an incomplete chain is true of the model and
+      // false of the hardware.
+      srow.appendChild(studyBadges(s));
       setTooltip(srow, s.description, null);
       srow.setAttribute("data-nav-kind", "study");
       srow.setAttribute("data-nav-id", s.id);
@@ -100,6 +110,29 @@
     });
     if (children.childNodes.length) li.appendChild(children);
     return li;
+  }
+
+  // The study row's chips: the verdict, then every flag the study earned. The
+  // verdict badge carries its own qualification as a style (`--qualified`)
+  // rather than as a fourth chip; the WORD "incomplete" still arrives, from the
+  // attention flags, so a reader sees the qualification and not only a tint.
+  //
+  // A study with no criterion recorded says "no criterion" rather than nothing:
+  // a silent row on a rail of verdicts reads as a row that passed, which is the
+  // misreading this whole badge exists to stop.
+  function studyBadges(s) {
+    var chips = VA.el("div", "navtree__chips");
+    var verdict = s.verdict;
+    if (verdict) {
+      var chip = VA.chip("tvverdict tvverdict--" + verdict.state,
+        verdict.state === "none" ? "no criterion" : verdict.word, verdict.title);
+      if (verdict.incomplete) chip.className += " tvverdict--qualified";
+      chips.appendChild(chip);
+    }
+    ((s.attention && s.attention.badges) || []).forEach(function (flag) {
+      chips.appendChild(VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
+    });
+    return chips;
   }
 
   function stackItem(stackProj, state, handlers) {

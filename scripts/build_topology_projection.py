@@ -77,7 +77,15 @@ import projection_provenance as prov  # noqa: E402
 # ("Every confidence value this projection can write, weakest last") -- reused
 # here rather than re-listed, so a third copy can't drift from the other two the
 # way `docs/prompts/REVIEW_AGENT.md`'s vocabulary-drift log warns about.
-from build_viewer_projection import count_confidence, worst_confidence  # noqa: E402
+# `stack_gaps` is imported for the same reason (since viewer_study_verdicts_and_
+# gaps, 2026-09-15): a term a check excludes is the same gap whether a stack or a
+# topology is what puts it on screen, so the derivation is called, not copied.
+from build_viewer_projection import (  # noqa: E402
+    count_confidence,
+    rounded_check,
+    stack_gaps,
+    worst_confidence,
+)
 # The rule 1/2 "would this ever crop" predicate lives in build_viewer_crops.py
 # so the two scripts share one copy of it (`_croppable` below is a thin local
 # name for it) -- see that module's own `croppable` docstring. Importing it
@@ -141,6 +149,45 @@ LINK_KINDS = ("branch", "close")
 #: a word because the three states read differently -- a ``derived`` gap has no
 #: value on purpose and must not render as a missing one.
 VALUE_SOURCES = ("inline", "stack_ref", "derived")
+
+#: What a topology's ``gaps`` row can be -- *what is missing*, as four kinds a
+#: reader acts on differently. ``apps/viewer/topology.js``'s ``VA.GAP_KINDS`` is
+#: the hand-copy (it holds the heading and the "what would close it" sentence
+#: each kind earns), paired word for word by ``tests/test_topology_projection.py``.
+#:
+#: The first two are :func:`build_viewer_projection.stack_gaps`' own kinds,
+#: reused by **calling it** rather than re-deriving them, so a stack's gap list
+#: and the topology's cannot disagree about a term the model excludes. The last
+#: two are the ones only a topology can see, because they are facts about its
+#: EDGES rather than about a check:
+#:
+#: * ``unverified_value`` -- the edge's citation is ``untraced`` (a workbook cell
+#:   or an assumption, tracing to no document) or there is no citation at all.
+#:   The two are one gap to a reader: nothing behind this number can be read.
+#: * ``no_tolerance_recorded`` -- ``min == max``. The value is sourced; the
+#:   *band* is not, so every interval it feeds is a lower bound.
+#:
+#: Why a topology-level list at all, when the excluded terms live on a study's
+#: check: the DAG page's reader is looking at a topology, and a gap that is only
+#: reachable by selecting the one study whose check happens to name it is a gap
+#: nobody finds (the 2026-09-15 review's finding, one level up).
+TOPOLOGY_GAP_KINDS = (
+    "excluded_from_model",
+    "hardware_entry",
+    "unverified_value",
+    "no_tolerance_recorded",
+)
+
+#: The hardware register, beside the stack documents whose elements cite it
+#: (``docs/tolerance_stacks/hardware_entries.json``). Resolved relative to the
+#: topologies dir's parent, so a fixture tree can carry its own the way it
+#: already carries its own mesh alias table.
+HARDWARE_NAME = "hardware_entries.json"
+
+#: The confidences that mean *nothing readable stands behind this number*. The
+#: viewer's ``VA.needsAnnotation`` is the same pair for the same reason; it is
+#: named here so :func:`topology_gaps` does not spell two literals inline.
+UNVERIFIED_CONFIDENCES = ("untraced", "no_source_ref")
 
 #: What a part's ``mesh`` block says, and the whole of it. **Every projected part
 #: carries this block**, so an absent key never has to mean anything: ``installed``
@@ -579,6 +626,20 @@ def load_mesh_aliases(topologies_dir: Path) -> List[Dict[str, str]]:
     return list(raw.get("aliases") or [])
 
 
+def load_hardware(path: Path) -> Dict[str, Any]:
+    """The hardware register, or an empty one where there is no file.
+
+    Empty, not absent: :func:`topology_gaps` reads ``entries`` unconditionally,
+    and the register is an *input to the gap list*, never a gate on building the
+    projection at all -- a tree without one is a tree whose topologies have no
+    hardware-entry gaps, which is a true thing to project.
+    """
+    if not path.is_file():
+        return {"entries": []}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return {"entries": list(raw.get("entries") or [])}
+
+
 def resolve_mesh(meshes: Sequence[Dict[str, str]], identifier: Optional[str],
                  aliases: Sequence[Dict[str, str]]) -> Optional[Dict[str, str]]:
     """``apps/annotate/commands.js``'s ``AA.resolveMeshIdentifier``, in Python."""
@@ -690,9 +751,7 @@ def project_study_check(topology: Topology, study: Study,
     chain ``traverse()`` already built -- so the confidence scoreboard is read
     off the chain's own contributions instead of a term list.
     """
-    outcome = check_study(topology, study, spec["check_id"])
-    result = outcome.as_dict()
-    result.update(rounded(outcome.interval.as_dict()))
+    result = rounded_check(check_study(topology, study, spec["check_id"]))
     counts = count_confidence([c.dimension for c in chain])
     result.update(
         {
@@ -805,10 +864,98 @@ def project_part(part: Any, meshes: Sequence[Dict[str, str]],
     return row
 
 
+def gap_row(kind: str, text: str, hardware_id: Optional[str] = None,
+            edge: Optional[str] = None, edge_name: Optional[str] = None
+            ) -> Dict[str, Any]:
+    """One ``gaps`` row, every key present.
+
+    A uniform shape, zeros and ``None``s included, for the reason
+    :func:`count_confidence` gives for its own: a key that appears only on some
+    rows is a key the page has to guess at, and "absent" and "not applicable"
+    stop being tellable apart.
+    """
+    return {"kind": kind, "text": text, "hardware_id": hardware_id,
+            "edge": edge, "edge_name": edge_name}
+
+
+def topology_gaps(topology: Topology, studies: Sequence[Dict[str, Any]],
+                  hardware: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """*What is missing* for one topology -- the DAG page's gap list.
+
+    Four kinds (:data:`TOPOLOGY_GAP_KINDS`), in the order a reader needs them:
+    a term the model excludes outright is the most consequential and comes
+    first, exactly as ``stack_gaps`` orders its own two.
+
+    **The excluded terms and the hardware rows are `stack_gaps`' output**, from
+    the studies' own projected checks. Two lookups find the hardware entries,
+    unioned and de-duplicated, because either alone has a real hole:
+
+    * ``stack_gaps`` matches an entry's ``used_by`` prefix against the id it is
+      given -- here the *topology's* id, which is also the covered stack's id for
+      every topology that re-expresses one. A topology that covers no stack
+      (``pitch_system``) matches nothing this way, and that is correct for a
+      ``used_by`` list keyed by stack.
+    * ...which is why the edges are asked too: an entry named by a
+      ``hardware_ref`` on an edge of THIS topology is hardware on this page,
+      whatever any ``used_by`` list says. This is the lookup that survives a
+      topology whose id is not a stack id.
+
+    No prose is scraped and no gap is invented: every row here is a field the
+    document or the check already carries.
+    """
+    checks = [c for study in studies for c in (study.get("checks") or [])]
+    from_stack = stack_gaps(checks, topology.id, hardware)
+    excluded = [gap_row("excluded_from_model", g["text"])
+                for g in from_stack if g["kind"] == "excluded_from_model"]
+
+    hardware_rows: List[Dict[str, Any]] = []
+    seen_hardware = set()
+    for gap in from_stack:
+        if gap["kind"] != "hardware_entry":
+            continue
+        seen_hardware.add((gap["hardware_id"], gap["text"]))
+        hardware_rows.append(
+            gap_row("hardware_entry", gap["text"], hardware_id=gap["hardware_id"]))
+
+    refs = []
+    for edge in topology.edges:
+        ref = getattr(edge.dimension, "hardware_ref", None) if edge.dimension else None
+        if ref and ref not in refs:
+            refs.append(ref)
+    for entry in hardware.get("entries", []):
+        if entry.get("id") not in refs:
+            continue
+        for text in entry.get("gaps") or []:
+            if (entry.get("id"), text) in seen_hardware:
+                continue
+            seen_hardware.add((entry.get("id"), text))
+            hardware_rows.append(
+                gap_row("hardware_entry", text, hardware_id=entry.get("id")))
+
+    unverified = []
+    no_band = []
+    for edge in topology.edges:
+        dimension = edge.dimension
+        if dimension is None:
+            # A `derived` gap edge carries no value ON PURPOSE -- it is the
+            # quantity a study computes. Reporting it as an unsourced dimension
+            # would invert its meaning, which is the same trap VA.VALUE_SOURCES
+            # documents on the rendering side.
+            continue
+        if confidence_of(dimension) in UNVERIFIED_CONFIDENCES:
+            unverified.append(gap_row("unverified_value", edge.name,
+                                      edge=edge.id, edge_name=edge.name))
+        if dimension.min == dimension.max:
+            no_band.append(gap_row("no_tolerance_recorded", edge.name,
+                                   edge=edge.id, edge_name=edge.name))
+    return excluded + unverified + no_band + hardware_rows
+
+
 def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
                      studies: Sequence[Tuple[Path, Dict[str, Any], Study]],
                      meshes: Sequence[Dict[str, str]] = (),
                      aliases: Sequence[Dict[str, str]] = (),
+                     hardware: Optional[Dict[str, Any]] = None,
                      ) -> Dict[str, Any]:
     branch_nodes = topology.branch_nodes()
     counts: Dict[str, int] = {}
@@ -817,6 +964,7 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         if confidence is not None:
             counts[confidence] = counts.get(confidence, 0) + 1
     worksheet, worksheet_source = worksheet_for(path, raw)
+    study_rows = [project_study(topology, s, p, r) for p, r, s in studies]
     return {
         "id": topology.id,
         "title": topology.title,
@@ -843,7 +991,11 @@ def project_topology(path: Path, raw: Dict[str, Any], topology: Topology,
         "layout": serialize_topology(topology).as_dict(),
         "confidence_counts": counts,
         "notes": list(topology.notes),
-        "studies": [project_study(topology, s, p, r) for p, r, s in studies],
+        "studies": study_rows,
+        # What is missing, as structured rows rather than as prose only the
+        # worksheet carries (see `topology_gaps`). Studies first: the excluded
+        # terms come off their projected checks.
+        "gaps": topology_gaps(topology, study_rows, hardware or {"entries": []}),
     }
 
 
@@ -860,12 +1012,20 @@ BUILT_BY = "scripts/build_topology_projection.py"
 
 def build(topologies_dir: Path,
           provenance: Optional[Dict[str, Any]] = None,
-          meshes_dir: Optional[Path] = None) -> Dict[str, Any]:
+          meshes_dir: Optional[Path] = None,
+          hardware_path: Optional[Path] = None) -> Dict[str, Any]:
     """The whole projection. ``meshes_dir`` is the data root's ``meshes/``.
 
     ``None`` (the default, and what a test that does not care passes) means **no
     mesh is installed**, and every part says so -- never "unknown". The CLI hands
     it ``<data-root>/meshes``; a test hands it a fixture tree.
+
+    ``hardware_path`` is the ``hardware_entries.json`` whose per-entry ``gaps``
+    feed :func:`topology_gaps`. It defaults to the **topologies dir's own**
+    sibling stacks dir, so a fixture tree carries its own table exactly the way
+    it already carries its own alias table -- and a tree with no such file
+    projects no hardware gaps rather than reaching into the repo behind the
+    fixture's back.
     """
     topologies: List[Tuple[Path, Dict[str, Any], Topology]] = []
     for path in sorted(topologies_dir.glob("topology_*.json")):
@@ -892,6 +1052,9 @@ def build(topologies_dir: Path,
 
     meshes = installed_meshes(meshes_dir)
     aliases = load_mesh_aliases(topologies_dir)
+    hardware = load_hardware(
+        hardware_path if hardware_path is not None
+        else topologies_dir.parent / STACKS_DIR.name / HARDWARE_NAME)
 
     return {
         "schema": SCHEMA_PROJECTION,
@@ -905,7 +1068,7 @@ def build(topologies_dir: Path,
         "study_statuses": list(STUDY_STATUSES),
         "topologies": [
             project_topology(path, raw, topology, studies.get(topology.id, []),
-                             meshes, aliases)
+                             meshes, aliases, hardware)
             for path, raw, topology in topologies
         ],
         "orphan_studies": orphans,

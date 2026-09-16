@@ -539,9 +539,12 @@ def test_the_l1_studys_projected_check_matches_check_study_field_for_field(
     topology = topologies["vpa_output_to_pitch_plate"]
     study = load_study(REPO_ROOT / "docs" / "topologies"
                         / "study_vpa_output_shank_out.json")
-    expected = check_study(topology, study, "worst_case_shank_out")
-    expected_row = expected.as_dict()
-    expected_row.update(B.rounded(expected.interval.as_dict()))
+    # `rounded_check` is the builder's OWN display rule, imported rather than
+    # re-spelled (it rounds the interval and `margin` alike, since
+    # viewer_study_verdicts_and_gaps): re-writing the rounding here is how "field
+    # for field" would quietly stop being field for field the next time the
+    # projection rounds something new.
+    expected_row = B.rounded_check(check_study(topology, study, "worst_case_shank_out"))
 
     row = projected(projection, "vpa_output_to_pitch_plate")
     projected_study = next(s for s in row["studies"]

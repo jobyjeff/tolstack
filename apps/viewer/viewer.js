@@ -153,9 +153,61 @@
     }).catch(function () { return false; });
   };
 
+  // What a verdict MEANS, in the words a reader who has never opened this repo
+  // would use. The verdict word alone answers "did it pass"; `says` answers the
+  // question underneath it, which is the one a reviewer actually has ("can I
+  // build this?"). One table rather than three sentences scattered through the
+  // views, and a total function with a loud fallback for the same reason
+  // VA.VERDICT_SCOPES is one: a fourth verdict must gain a branch on screen, not
+  // arrive silently.
+  //
+  // Paired against tolerance_stack/stack.py's VERDICTS by
+  // tests/test_js_python_vocabulary.py: one definition in Python, one rendering
+  // here.
+  VA.VERDICTS = {
+    pass: {
+      says: "every build clears it",
+      title: "The worst case still satisfies the criterion, so no build of " +
+        "this joint violates it.",
+    },
+    marginal: {
+      says: "clears on average, not in the worst case",
+      title: "Nominal satisfies the criterion and the worst case does not. No " +
+        "single build is guaranteed — this joint needs selection at assembly, " +
+        "not a clean analytical answer.",
+    },
+    fail: {
+      says: "does not clear, even on average",
+      title: "Neither the worst case nor nominal satisfies the criterion.",
+    },
+  };
+
   VA.verdictClass = function (verdict) {
-    return "verdict--" + (["pass", "marginal", "fail"].indexOf(verdict) === -1
-      ? "unknown" : verdict);
+    return "verdict--" + (VA.VERDICTS[verdict] ? verdict : "unknown");
+  };
+
+  // What a verdict this viewer has never heard of must say. Names the value, and
+  // is LOUD, for the reason VA.unlabelledVerdictScopeText is: falling through to
+  // silence would render an unknown verdict as though the page had considered it.
+  VA.unlabelledVerdictText = function (verdict) {
+    return "verdict " + JSON.stringify(verdict === undefined ? null : verdict) +
+      ", which this viewer has no branch for — what it means is NOT shown here";
+  };
+
+  // The worst verdict among a study's checks, weakest wins — the same rule
+  // VA.studyWorstConfidence applies to citations, and for the same reason: a
+  // study with one failing check has a failing answer, whatever the other one
+  // says. A lookup over an enumerated field in the order Python ranked it
+  // (VERDICTS, worst last); nothing is compared, added or re-derived.
+  VA.worstVerdict = function (checks) {
+    var words = Object.keys(VA.VERDICTS);
+    var worst = null;
+    (checks || []).forEach(function (check) {
+      var rank = words.indexOf(check && check.verdict);
+      if (rank === -1) return;
+      if (worst === null || rank > words.indexOf(worst)) worst = check.verdict;
+    });
+    return worst;
   };
 
   // What a verdict is a verdict ABOUT. The projection derives it from the
