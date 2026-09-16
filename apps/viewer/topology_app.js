@@ -2,7 +2,7 @@
 // (formerly app.js, now deleted — index.html redirects here): most stacks in
 // docs/tolerance_stacks/ have no topology re-expressing them (VA.looseStacks,
 // topology.js), so this file has to be able to show a system EITHER way —
-// rails + grid for one that has a topology, the classic elements table
+// rails + grid for one that has a topology, the elements table
 // (views/stack.js, unchanged) for one that does not — not just the DAG.
 //
 // Same shape as the file it replaced: state at the top, one `render()`, and
@@ -17,7 +17,7 @@
     connection: VA.STATE.DISCONNECTED,
     topologies: null,
     // The stacks projection (results.json) — read for the loose-stack nav and
-    // for the classic stack view, never for anything the DAG renders.
+    // for the stack view, never for anything the DAG renders.
     stacksResults: null,
     crops: null,
 
@@ -424,6 +424,55 @@
   // separate selects never had to handle — they only ever offered studies of
   // the topology already picked.
 
+  // No click may leave the page wedged (deliverable 1,
+  // viewer_nav_wedge_and_classic_retirement). Every nav handler moves `state`
+  // FIRST and then awaits a worksheet read, so a rejected read with no catch
+  // strands the page in the state it just moved to with no repaint at all --
+  // the picture on screen is the node you clicked away from, the nav's
+  // highlight is nowhere, and the only way out is F5. That is the same bug
+  // shape as the 2026-09-09 silently-empty-DAG incident (render()'s own
+  // comment names it), which was fixed for onReload and not here.
+  //
+  // So: whatever happens to the read, the page repaints. The paint is the
+  // handler's own (a respine transition, or a plain render in stack mode) on
+  // success, and always a plain render on failure -- animating INTO an error
+  // would be a quarter-second of the page pretending the click worked.
+  //
+  // `state.worksheetText` is cleared rather than left alone, for the same
+  // reason the banner is written: loadWorksheet() only ASSIGNS on success, so
+  // the previous node's worksheet would otherwise still be sitting in the
+  // dialog under this node's title.
+  //
+  // The read is called from INSIDE the try, not handed in as a promise: an
+  // adapter whose readText throws before it ever returns one (a null adapter,
+  // an unready handle -- VA.requireReady throws) would otherwise unwind
+  // straight out of the click handler, which is the wedge this exists to stop,
+  // reached by a different door.
+  function navigate(paint) {
+    var pending;
+    try {
+      pending = loadWorksheet();
+    } catch (err) {
+      navFailed(err);
+      return;
+    }
+    pending.then(function () {
+      // A read that worked retires the banner a previous failure wrote. The
+      // banner has no dismiss control, so an error left standing after the
+      // page has demonstrably recovered is a sentence the reader cannot get
+      // rid of -- and it would be sitting over a node it was never about.
+      // Same rule as gesture() and the banner's own onReload.
+      state.error = null;
+      paint();
+    }, navFailed);
+  }
+
+  function navFailed(err) {
+    state.worksheetText = null;
+    state.error = String(err && err.message || err);
+    render();
+  }
+
   function onNavTopology(topologyId) {
     selectTopology(topologyId);
     // Deselecting a study is the respine run backwards -- the whole walk gets
@@ -431,7 +480,7 @@
     // Same topology, so there is a previous store to animate from; a click
     // that switches to a DIFFERENT topology is a different graph, and
     // respine() falls through to a plain paint for it.
-    loadWorksheet().then(respine);
+    navigate(respine);
   }
 
   function onNavStudy(topologyId, studyId) {
@@ -448,13 +497,13 @@
     // views/topology.js's `marking` tests, not a second rule here.
     state.selection = null;
     state.detailImage = null;
-    loadWorksheet().then(respine);
+    navigate(respine);
   }
 
   function onNavStack(stackId) {
     selectStack(stackId);
     hideCrop();
-    loadWorksheet().then(render);
+    navigate(render);
   }
 
   // The one DOM write row density needs: VA.applyRowDensity (topology.js,
@@ -483,9 +532,21 @@
   // own `worksheet_for`, the same two-rule convention) -- so which projection
   // to read it off is the only thing that depends on mode (deliverable 4,
   // viewer_v2_single_nav).
+  //
+  // In topology mode that is VA.worksheetSubject rather than the topology
+  // itself: since the nested stack row went away there is nowhere else to
+  // reach a converted stack's own authored sheet from, and three of the four
+  // have one (viewer_nav_wedge_and_classic_retirement). One function, read by
+  // both the fetch below and the toggle in paint(), so the button and the
+  // dialog can never disagree about which sheet the page is offering.
+  function worksheetSubject() {
+    return state.mode === "topology"
+      ? VA.worksheetSubject(currentTopology(), state.stacksResults)
+      : currentStack();
+  }
+
   function loadWorksheet() {
-    var subject = state.mode === "topology" ? currentTopology() : currentStack();
-    var segments = VA.worksheetSegments(subject);
+    var segments = VA.worksheetSegments(worksheetSubject());
     if (!segments) {
       state.worksheetText = null;
       return Promise.resolve();
@@ -1013,8 +1074,11 @@
     // offered there. The worksheet is offered wherever the SELECTED node
     // carries one -- a topology's own `worksheet_file` (deliverable 4) reads
     // through the identical field a stack's does, so the same toggle serves
-    // both; a topology with none (most studies' own stacks have one instead)
-    // hides it exactly as a worksheet-less stack always did. Close whichever
+    // both -- and a topology that declares none falls back to the sheet of a
+    // stack it re-expresses (VA.worksheetSubject), which is the only route to
+    // three authored worksheets since the nested stack row was retired. A
+    // subject with none either way hides the toggle exactly as a
+    // worksheet-less stack always did. Close whichever
     // dialog no longer has anything to show: switching modes or nodes with one
     // open is a real path (click a nav row while reading either) and a stale
     // dialog sitting open would be confusing about which page it is even
@@ -1027,9 +1091,8 @@
     // memory, node-fs) is read as fully capable.
     var canReadWorksheets = !adapter || typeof adapter.capabilities !== "function" ||
       adapter.capabilities().worksheets !== false;
-    var hasWorksheet = canReadWorksheets && (showTopology
-      ? !!(topoProj && topoProj.worksheet_file)
-      : !!(stackProj && stackProj.worksheet_file));
+    var sheet = worksheetSubject();
+    var hasWorksheet = canReadWorksheets && !!(sheet && sheet.worksheet_file);
     nodes.legendToggle.style.display = showTopology ? "" : "none";
     nodes.worksheetToggle.style.display = hasWorksheet ? "" : "none";
     if (!showTopology && nodes.legendDialog.open) nodes.legendDialog.close();
@@ -1130,8 +1193,7 @@
         state.crops, state.detailImage, VA.CONFIG);
     }
 
-    VA.renderWorksheet(nodes.worksheet, showTopology ? topoProj : stackProj,
-      state.worksheetText);
+    VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);
 
     // What this paint put on screen, for the no-op guard in respine() above.
     // A transition's own frames do not come through paint(), so this stays
@@ -1140,11 +1202,17 @@
   }
 
   // The one nav (deliverable 1, viewer_v2_single_nav): every topology with its
-  // studies as children (and, nested under it, any stack it also covers —
-  // VA.navTree, topology.js), and every classic-only stack as a leaf of the
-  // same tree. Replaces both the TOPOLOGY/STUDY <select> pickers and the flat
-  // stack rail (the retired views/list.js) at once; views/nav.js does the
-  // rendering, this is only the three clicks it can make.
+  // studies as children, and every stack no topology re-expresses as a leaf of
+  // the same tree (VA.navTree, topology.js). Replaces both the TOPOLOGY/STUDY
+  // <select> pickers and the flat stack rail (the retired views/list.js) at
+  // once; views/nav.js does the rendering, this is only the three clicks it can
+  // make.
+  //
+  // Still three handlers, not two, with no stack child rows left to click
+  // (viewer_nav_wedge_and_classic_retirement): onNavStack serves the leaves —
+  // the stacks no topology re-expresses — and an inbound deep link at
+  // `?stack=<id>`, which resolves against the projection rather than the nav
+  // and so still reaches a covered stack the rail no longer offers.
   function renderNav() {
     if (state.connection !== VA.STATE.READY) {
       VA.clear(nodes.navtree);

@@ -68,8 +68,8 @@ body.tv-resizing { cursor: col-resize; user-select: none; }
 
 /* --- the single nav tree (viewer_v2_single_nav, 2026-09-08) -------------
    Replaces the TOPOLOGY/STUDY <select> pickers AND the flat stack rail at
-   once: one topology's studies (and any stack it also covers) as children,
-   every classic-only stack as a leaf of the same tree. views/nav.js.
+   once: one topology's studies as children, and every stack no topology
+   re-expresses as a leaf of the same tree. views/nav.js.
 
    The one independent scroll region left on the page (full-page-scroll,
    viewer_error_surface_and_layout, 2026-09-09): everything else now
@@ -454,7 +454,7 @@ body { display: flex; flex-direction: column; }
   display: flex; gap: 4px; flex-wrap: nowrap; align-items: center;
   height: var(--tv-row); overflow: hidden;
 }
-/* The shared `.crop-trigger` (style.css) is sized for the classic table's
+/* The shared `.crop-trigger` (style.css) is sized for the stack view's
    taller, block-stacked sourcing cell — `margin-top: 6px` alone is most of
    why a crop-key'd row was drawn taller than its own `rowHeight`, since a
    real <tr>'s inline `height` is a floor, not a cap, and nothing here clips
@@ -514,12 +514,15 @@ body { display: flex; flex-direction: column; }
 .tverror__message { margin: 6px 0; white-space: pre-wrap; }
 .tverror__advice { margin: 6px 0 0; color: var(--muted); }
 
-/* --- the classic stack view ----------------------------------------------
+/* --- the stack view ------------------------------------------------------
    Absorbed from the retired stack viewer (deliverable 3 of
    viewer_consolidation): most stacks in docs/tolerance_stacks/ have no
    topology re-expressing them (VA.looseStacks), so this page still needs
    somewhere to show them, unchanged. Reached from the nav tree now
-   (.navtree, above), not a separate flat rail. */
+   (.navtree, above), not a separate flat rail. It is not a second kind of
+   page and nothing on screen says it is (deliverable 4,
+   viewer_nav_wedge_and_classic_retirement): from a reader's seat there is one
+   viewer, and some entries simply have no DAG. */
 
 /* A flex ITEM of `.tv__main`'s column, not `.center`'s — same shape
    `.tv__scroll` above now is (full-page-scroll, viewer_error_surface_and_
@@ -663,7 +666,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    worst of both worlds". So these are the loudest marks on the page after the
    provenance palette itself, and they deliberately reuse it rather than
    inventing a fourth colour axis: a verdict is pass/marginal/fail green, amber,
-   red (`.verdict--*`, style.css, the classic view's own), and a flag is drawn
+   red (`.verdict--*`, style.css, the stack view's own), and a flag is drawn
    in the colour of the thing it is about — an unverified number in the untraced
    red, a missing tolerance in the zero-width blue, an incomplete chain in the
    inferred amber (the same amber `.chip--budget` already uses for exactly this
@@ -685,7 +688,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 }
 /* A verdict on a chain that is knowingly short a term. The hatch is the same
    "this is a budget, not an answer" mark `.check--budget` (style.css) puts on
-   the classic view's card, shrunk to a chip: a FAIL here is true of the model
+   the stack view's card, shrunk to a chip: a FAIL here is true of the model
    and false of the hardware, and the badge must not read like a clean one. */
 .tvverdict--qualified {
   outline: 2px dashed var(--inferred); outline-offset: 1px;

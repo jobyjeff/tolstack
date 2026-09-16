@@ -39,13 +39,13 @@ venv-win\Scripts\python.exe -m pytest -q
 
 ## Reviewing a stack or a topology
 
-Double-click **`apps/viewer/topology.html`** — one page for both. Most stacks in
-`docs/tolerance_stacks/` have no topology re-expressing them (a topology is extra
-authoring, not a free side effect of having a stack), so the left rail lists them
-and picking one renders the classic view: every element with its folds, checks,
-verdicts, notes and gaps, coloured by provenance, with the drawing region behind
-each citation one hover away. A system that **does** have a topology
-(`docs/topologies/`) picks from the dropdown instead: a vertical git-graph of the
+Double-click **`apps/viewer/topology.html`** — one page for both, one left rail
+listing every system once. A stack with no topology re-expressing it (a topology
+is extra authoring, not a free side effect of having a stack) renders as its
+elements table: every element with its folds, checks, verdicts, notes and gaps,
+coloured by provenance, with the drawing region behind each citation one hover
+away. A system that **does** have a topology (`docs/topologies/`) is offered as
+that topology instead: a vertical git-graph of the
 mechanism (interfaces are dots, dimensions are the rail segments between them),
 the grid of those elements with every row locked to its rail mark and — since
 2026-09-04 — a `#` / element / part / **nominal / min / max** / contribution /

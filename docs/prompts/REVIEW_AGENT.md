@@ -2575,6 +2575,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       hand here (wiring moved back above the hosted early-return -> 17/18, the
       right sub-check), then declared as a second entry in review -- which is
       the cheap move the tier exists for, five strings, not an issue.
+      **Third sighting 2026-09-15 (`viewer_nav_wedge_and_classic_retirement`),
+      and it moves where you read the contracts from: the new function's own
+      COMMENT, not the handoff.** `topology_app.js`'s `navigate()` states three
+      in four paragraphs -- the rejection arm, retiring a stale banner on a read
+      that works, and clearing `state.worksheetText` so the previous node's
+      prose does not sit in the dialog under this node's title -- plus a fourth
+      about calling the read from inside the `try`. The declared entry covers
+      the first; the second reddens the browser tier anyway; the third and
+      fourth are **100% green in all three tiers when deleted** (measured:
+      308/308, 382/382, 20/20), and the third is reachable and wrong-on-screen,
+      because `paint()` decides the toggle from the projection's
+      `worksheet_file` and `views/worksheet.js` prints the new subject's path
+      over the old subject's body. So: **enumerate the contracts out of the
+      diff's own prose, one per paragraph, and mutate each** -- a handoff's
+      deliverable list is the coarser of the two inventories and the comment is
+      the one the author wrote while thinking.
+      (`ISSUE_20260915_navigates_stale_worksheet_clear_and_sync_throw_door_are_unwitnessed.md`.)
 - [ ] **An interpolator claimed to be the identity at its far end — check the
       KEY SETS, not the values at the shared keys.** Same handoff.
       `VA.tweenPositions(from, to, 1)` was tested by
@@ -2810,6 +2827,43 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       tar -x -C <scratch>` — app source comes from wherever the runner lives,
       data comes from `--repo`, so a base comparison costs one command and no
       worktree.
+
+- [ ] **A scratch `--repo` / `--data-root` root under the session scratchpad
+      blows Windows MAX_PATH, and the symptom is a projection with ZERO
+      installed meshes and exit 0.** New 2026-09-15
+      (`viewer_nav_wedge_and_classic_retirement`). The scratch-root harness two
+      entries above is the right move when a live sibling owns the shared
+      projection -- but the agent scratchpad path is ~150 characters before you
+      add `data/meshes/<64-char sha>/provenance.json`, which lands past 260.
+      `installed_meshes()` skips a mesh dir whose sidecar is not
+      `is_file()` **by design** ("an unnamed mesh cannot be claimed as any
+      part"), so the long path is indistinguishable from an unnamed mesh:
+      `build_topology_projection.py` prints `0/N parts with an installed mesh`
+      for every topology and exits 0, and the `[real]` tier then fails two mesh
+      tests whose own message says *"rebuild the topology projection against
+      the main checkout's data/meshes"* -- pointing at the one cause it is not.
+      Put the scratch root somewhere short (`%TEMP%/tsrev`) and **check the
+      mesh count before you read any `[real]` result**:
+      `installed_meshes(Path(root)/"data"/"meshes")` should be 24+, and the
+      builder's per-topology line should not say `0/`.
+- [ ] **Retiring a route invalidates prose in OTHER tracks' issues and briefs,
+      which no doc-scan guard reads.** New 2026-09-15
+      (`viewer_nav_wedge_and_classic_retirement`). Removing the nested
+      covered-stack nav row also removed the **mechanism a live strategy brief
+      named as one of the two options it asks someone to choose between**:
+      `BRIEF_20260911_viewer_3d_and_card_content_reach.md` §1 and its triaged
+      issue both argue from "(covered-stack nesting)" and "Most real stacks are
+      loose today" -- and loose stacks went from a majority to **2 of 7** in the
+      same commit. `docs/issues/`, `docs/strategy/` and `docs/sessions/` are out
+      of scope for every count and phrase scan this repo owns, deliberately, as
+      dated history -- but a `status: triaged` issue with a `strategy:` pointer
+      is not history, it is an input to a decision nobody has made yet. So when
+      work retires a route or a rendering: `git grep` the retired mechanism's
+      own nouns across `docs/issues/` and `docs/strategy/` as well as the live
+      docs, and check every `status: open|triaged` hit. File rather than fix --
+      the correction changes what a decision is about, which is the other
+      track's call.
+      (`ISSUE_20260915_the_3d_reach_brief_still_argues_from_covered_stack_nesting_and_a_loose_majority.md`.)
 
 ## Architectural errors to check
 
