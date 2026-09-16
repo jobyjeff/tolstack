@@ -36,11 +36,17 @@ What it does **not** give you, and I expected it to:
   a crop whose citation named no printed zone.
 * **Parts-list rows have no bbox anywhere.** `parts_list` is values only, and
   the page JSON's `zones.parts_list` gives the table's bbox and nothing finer.
-  So the row is located by searching the page text for the part number
-  *inside that table bbox* and requiring exactly one hit, and the band's left
-  and right edges come from the printed `FIND` column headers — a Joby parts
-  list prints as several side-by-side blocks, and a band across the whole table
-  carries two unrelated rows' columns.
+  So the row is located by searching the page text for the part number *inside
+  that table bbox*, and the band's left and right edges come from the printed
+  `FIND` column headers — a Joby parts list prints as several side-by-side
+  blocks, and a band across the whole table carries two unrelated rows'
+  columns. **One part number can be two rows**, which I did not expect: the
+  2026-AUG-19 export lists `NAS1149V0332H` as *both* find 13 and find 32, and
+  `MS21299C3` appears in two column blocks. Requiring a unique hit therefore
+  left two of the four live balloon crops with no companion at all, silently.
+  The tie is broken the way a reader breaks it — by the number printed in the
+  `FIND` column to the left of the part number, on the same row — and a tie
+  that survives *that* is still refused rather than guessed at.
 * **215197 has no `*_balloons.json` at all** (it is a part drawing). Its newest
   run does have `regions_page_2.json` with a `drawing_view` region labelled
   `SECTION A-A` — but it is **vision output** with a `confidence` field, in zone

@@ -1137,14 +1137,39 @@ def test_the_parts_list_row_band_is_the_cited_rows_own_column_block(balloon_fixt
     assert band[2] < balloon_fixture["parts_list_table_rect"][2]
 
 
-def test_a_part_number_that_is_not_unique_in_the_table_yields_no_row():
-    """Two hits is two rows, and this function will not pick one."""
+def test_one_part_number_on_two_rows_is_resolved_by_its_find_number():
+    """217755's parts list carries ``NAS1149V0332H`` as BOTH find 13 and find
+    32, and the citation is about one of them. The tie is broken the way a
+    reader breaks it -- by the number printed in the ``FIND`` column to the left
+    of the part number, on the same row. Two of the four live balloon crops had
+    no parts-list companion at all until this rule existed."""
+    table = (0.0, 0.0, 800.0, 1600.0)
+    page = RecordedPage((0.0, 0.0, 800.0, 1600.0), hits={
+        "X-1": [(60.0, 100.0, 110.0, 116.0), (60.0, 300.0, 110.0, 316.0)],
+        "13": [(10.0, 100.0, 22.0, 116.0)],
+        "32": [(10.0, 300.0, 22.0, 316.0)],
+        bvc.PARTS_LIST_BLOCK_HEADER: [(8.0, 1580.0, 30.0, 1596.0)],
+    })
+    band, hit = bvc.parts_list_row_rect(page, table, "X-1", 32)
+    assert hit == (60.0, 300.0, 110.0, 316.0)
+    assert band[1] == 300.0 - bvc.PARTS_LIST_CONTEXT_PT
+    # The other find number picks the other row, which is the whole point.
+    assert bvc.parts_list_row_rect(page, table, "X-1", 13)[1][1] == 100.0
+
+
+def test_a_part_number_on_two_rows_with_no_find_number_yields_no_row():
+    """Two hits is two rows, and this function will not pick one -- not by
+    taking the first, and not by taking the one nearest anything."""
     table = (0.0, 0.0, 800.0, 1600.0)
     page = RecordedPage((0.0, 0.0, 800.0, 1600.0), hits={
         "X-1": [(10.0, 100.0, 60.0, 116.0), (10.0, 300.0, 60.0, 316.0)],
     })
     assert bvc.parts_list_row_rect(page, table, "X-1") is None
     assert bvc.parts_list_row_rect(page, table, "not-on-the-sheet") is None
+    # A find number that is printed on NEITHER row leaves it unresolved too:
+    # the tie-break has to actually break the tie, not narrow it to zero and
+    # then fall back to guessing.
+    assert bvc.parts_list_row_rect(page, table, "X-1", 99) is None
 
 
 # --- case 2: the datasheet crop, with the used cell boxed -------------------

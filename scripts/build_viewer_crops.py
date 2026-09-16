@@ -903,27 +903,49 @@ def parts_list_table_rect(dc_root: Path, run_dir_name: Optional[str],
     return None
 
 
-def parts_list_row_rect(page, table_rect: Sequence[float], part_number: str
+def parts_list_row_rect(page, table_rect: Sequence[float], part_number: str,
+                        find_no: Optional[int] = None
                         ) -> Optional[Tuple[Tuple[float, ...], Tuple[float, ...]]]:
     """``(band, hit)``: the row band to crop and the part number's own rect.
 
-    The part number must occur **exactly once** inside the table -- two hits is
-    two rows and this function will not pick one. The band spans the printed
-    column block the hit sits in, delimited by the ``FIND`` headers
-    (:data:`PARTS_LIST_BLOCK_HEADER`): a Joby parts list prints as several
-    side-by-side blocks, so a band across the whole table would carry two
-    unrelated rows' worth of columns. :data:`PARTS_LIST_CONTEXT_PT` of
+    The band spans the printed column block the hit sits in, delimited by the
+    ``FIND`` headers (:data:`PARTS_LIST_BLOCK_HEADER`): a Joby parts list prints
+    as several side-by-side blocks, so a band across the whole table would carry
+    two unrelated rows' worth of columns. :data:`PARTS_LIST_CONTEXT_PT` of
     neighbouring rows is kept above and below, so the crop reads as a parts list
     and not as one floating line of text.
+
+    One part number can occupy **more than one row**: 217755's parts list
+    carries ``NAS1149V0332H`` as both find 13 and find 32, and the citation is
+    about one of them. So when several rows match, ``find_no`` breaks the tie
+    the way a reader would -- by the number printed in the ``FIND`` column to
+    the left of the part number, on the same row -- and a tie that survives
+    that is left unresolved rather than guessed at. ``None`` when the part
+    number is not on the sheet, or when which row it means cannot be answered.
     """
     hits = [tuple(float(v) for v in h) for h in page.search_for(part_number)
             if center_in(table_rect, h)]
+    if not hits:
+        return None
+    headers = sorted(float(h[0]) for h in page.search_for(PARTS_LIST_BLOCK_HEADER))
+
+    def block_of(hit):
+        left = max([x for x in headers if x <= hit[0] + 1.0], default=table_rect[0])
+        right = min([x for x in headers if x > left + 1.0], default=table_rect[2])
+        return left, right
+
+    if len(hits) > 1 and find_no is not None:
+        printed = [tuple(float(v) for v in h)
+                   for h in page.search_for(str(find_no))
+                   if center_in(table_rect, h)]
+        hits = [hit for hit in hits if any(
+            block_of(hit)[0] - 1.0 <= found[0] < hit[0]
+            and found[1] <= (hit[1] + hit[3]) / 2 <= found[3]
+            for found in printed)]
     if len(hits) != 1:
         return None
     hit = hits[0]
-    headers = sorted(float(h[0]) for h in page.search_for(PARTS_LIST_BLOCK_HEADER))
-    left = max([x for x in headers if x <= hit[0] + 1.0], default=table_rect[0])
-    right = min([x for x in headers if x > left + 1.0], default=table_rect[2])
+    left, right = block_of(hit)
     band = (left - PARTS_LIST_BLOCK_INSET_PT,
             hit[1] - PARTS_LIST_CONTEXT_PT,
             right - PARTS_LIST_BLOCK_INSET_PT,
@@ -1491,7 +1513,8 @@ def parts_list_companion(doc, page, balloon, dc_root, run_dir_name, crops_dir,
     if table is None:
         return None
     sheet = doc[int(pl_page) - 1]
-    found = parts_list_row_rect(sheet, table, balloon["part_number"])
+    found = parts_list_row_rect(sheet, table, balloon["part_number"],
+                                balloon["find_no"])
     if found is None:
         return None
     band, hit = found
