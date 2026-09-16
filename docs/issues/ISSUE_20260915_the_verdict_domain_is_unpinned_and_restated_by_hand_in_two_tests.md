@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: tolerance_stack
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
 handoff: docs/sessions/HANDOFF_20260916_python_value_and_schema_pins.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `python_value_and_schema_pins` moved to completed/; not independently verified.
 ---
 
 # `VERDICTS` was minted to end the inline copies, and the two inline copies are in the tests

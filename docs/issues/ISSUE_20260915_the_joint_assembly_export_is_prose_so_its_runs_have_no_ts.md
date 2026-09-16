@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tolerance_stacks
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_pitch_link_known_bands.md
 handoff: docs/sessions/HANDOFF_20260916_python_value_and_schema_pins.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `python_value_and_schema_pins` moved to completed/; not independently verified.
 ---
 
 # `joint.assembly_export` is a prose string, so the runs it names carry no `ts` and the read-only invariant cannot check them
