@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260916_citation_identity_correctness.md
 reviewer: agent (review/citation_identity_correctness)
 date: 2026-09-16
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE
+blockers: 0 (1 raised and resolved in round 2)
 ---
 
 # REVIEW 2026-09-16 — citation_identity_correctness
@@ -15,7 +15,9 @@ Merge base `f414499`; the only thing `integration` had moved underneath it was
 `70241ce` (a board file), so the merge was trivial and conflict-free — the green
 suite below is the real merged tree.
 
-**Not merged into `integration`.** One blocker.
+**Round 1: REQUEST CHANGES, one blocker. Round 2 (`f358cb9`): APPROVE and
+merged into `integration`.** The round-1 findings and evidence are kept below
+unchanged; round 2 is appended at the end.
 
 The work is careful and, on its central claims, correct: everything the three
 deliverables actually *cite* reproduced independently, down to the workbook
@@ -413,3 +415,105 @@ Two things about this review worth knowing next time you are here:
   error in this work was on the *old* export; every claim about the new one was
   exact. The author re-read 215735-A meticulously and read 215197 A.1 once, for
   comparison, and that asymmetry is where the blocker lives.
+
+
+---
+
+# Round 2 — `f358cb9`, APPROVE
+
+One rework commit, `f358cb9`, on a clean tactical worktree. Merged into
+`review/citation_identity_correctness` at `30c52d1`; suite re-run by me on the
+merged tree: **1161 passed, 1 failed, 1 skipped** — +2 over round 1, exactly the
+two new guards, and the failure and skip are the same pre-existing red and the
+same worktree-only skip documented above.
+
+**Verified first: the rework touched no citation.** Diffed every re-cited
+element's `nominal`/`min`/`max`/`lmc`/`mmc`/`plus_minus` and its `source_ref`
+`kind`/`document`/`revision`/`sheet`/`zone`/`view`/`callout`/`cell`/`confidence`/`export`
+across `d2d6191..HEAD` for all four: **note-only, all four.** So round 1's
+verification of the citations, the crops, the workbook cells and the ratio still
+stands unaltered.
+
+### F1 — resolved, and the author found a better lesson than the finding
+
+The `8.80` succession claim is withdrawn from all five live artifacts and
+replaced with what both documents measurably print. `git grep 8.80` over the
+branch now returns only the lesson's correction blockquote and one dated
+`PROVENANCE.md` amendment row (see the nit).
+
+The author went back to the document rather than just deleting the sentence, and
+came back with a detail round 1 had not measured: the second sheet-1 callout
+**straddles**, its `4.06` in D6 and its `±0.10` in D5. I re-resolved all four
+sheet-1 tokens to confirm — `4.06`→D6, `±0.10`→D5, and the first callout wholly
+in D5. Correct.
+
+**The root cause, which I reproduced.** The lesson diagnoses the claim as coming
+off `page.get_text("text", clip=Rect(...))`. Reproduced on the PRELIM: clipping
+4 pt into the `18.80` token returns `8.80`, while the neighbouring `10.68` comes
+back whole — so the truncation is invisible in the output — and the same clip
+sweeps in D7's contents. That is a sharper and more transferable finding than
+the one I filed, it explains both halves of the error at once, and it is now the
+core of the overlay entry rather than my weaker "re-read the old export too".
+
+### F2 — fixed, and guarded
+
+`revision: "A"` in both topology files. Beyond the fix, `tests/test_topology.py::test_a_topology_parts_drawing_and_revision_are_a_pair_something_cites`
+now pairs every topology part's `(drawing, revision)` against the
+`(document, revision)` pairs something in the repo actually cites, with a
+curated `TOPOLOGY_PART_REVISIONS` holding the subject so the check cannot go
+green by the last `revision` field being dropped.
+
+**Observed failing:** restoring `revision: "A.1"` on `pitch_plate_215197` reds
+it, naming the right file and part — *"states ('215735', 'A.1'), which no
+element or edge cites"*. The third registry row
+(`topology_pitch_system.json::gas_spring_mount_213668_002` → `213668-002 A.1`)
+is genuine: that topology has an edge citing exactly that pair. The deliberate
+looseness — *some* citation names the pair, rather than inventing a part→element
+link — is the right call and is argued in the docstring.
+
+### F3 — fixed, and the fix demonstrates the hole
+
+`from_scratch_stacks_folding_a_workbook_band()` derives the candidate set
+(`transcribed_from is None`, banded element, `values_source.kind == "workbook"`)
+and `test_every_from_scratch_stack_folding_a_workbook_band_is_covered_by_the_guard`
+pairs it against the registry both ways. `transcribed_from is None` is the right
+scope test and the docstring says why the three transcribed stacks are correctly
+excluded.
+
+**Observed failing:** deleting the `rotor_fastener_length` row reds it with the
+unlisted stack named. The mutation also demonstrates the finding itself —
+`test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry` **still
+passed** with the row gone, because a missing key generates no test. That is the
+hole, shown rather than asserted.
+
+### Nits from round 1
+
+All three addressed, and correctly: the lesson's stamp column is now labelled
+`head_sha (first 12)` with a note that the projections carry no `sha12` field;
+the 3-vs-4 replay discrepancy is explained (whole-file vs body-only revert, both
+honest); the worksheet's "unchanged since" wording is reworded. The fourth —
+`parts_list_row_for`'s two open doors — is now documented in the function's own
+docstring, with the deliberate one distinguished from the incidental one. That is
+better than where I left it: the next agent in that function reads it there, not
+in a review report.
+
+### One new nit
+
+`PROVENANCE.md:76` (the `WORKSHEET_vpa_output_to_pitch_plate.md` row) still
+states the withdrawn claim in its own voice — *"(sheet 1 zone D6, where 215197
+printed `8.80 ±0.10`)"* — before the clause recording that it was corrected. The
+correction is in the same cell so nothing is misleading on a full read, and
+`PROVENANCE.md` is dated history by convention, but a skim reads the
+parenthetical as fact. Worth one word (*"…where the amendment claimed 215197
+printed…"*). Not held against the merge.
+
+### Verdict
+
+**APPROVE.** Blocker resolved and independently re-measured; both should-fixes
+fixed *and* guarded, with each guard watched failing on the exact defect it was
+written for; no citation moved in the rework. Merged into `integration` and
+pushed.
+
+The overlay's F1 entry was rewritten around the author's clip-truncation root
+cause — that is the entry a future reviewer here will actually get value from,
+and it came out of the rework, not out of round 1.

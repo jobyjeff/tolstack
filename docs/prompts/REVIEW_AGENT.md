@@ -3006,6 +3006,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       neighbourhood** — `build_viewer_crops.page_native_grid` +
       `zone_cell(cols, rows, "D6")` answers it in three lines, over both PDFs,
       and is how this one was caught.
+      **The root cause is worth more than the finding** (author's own
+      diagnosis, reproduced in review): the claim came off
+      `page.get_text("text", clip=Rect(...))`, and **a clip truncates a word
+      whose box straddles the clip edge** -- cutting 4 pt into `18.80` returns
+      `8.80`, while the neighbouring `10.68` comes back whole, so nothing in the
+      output looks wrong. The same clip swept in the adjacent zone's contents
+      and they were attributed to the cited one. So: a clipped text extract is
+      for *looking*; **`get_text("words")` plus the zone reader is for anything
+      you are going to write down.** Suspect a clip behind any quoted callout
+      whose leading digit or sign looks one character short.
 - [ ] **A re-cite moved `document` and `name` and left `revision` behind.** Same
       handoff, should-fix. `topology_{pitch_link,vpa_output}_to_pitch_plate.json`
       each have exactly one `parts[]` entry carrying a `revision`, and both kept
