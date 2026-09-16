@@ -187,6 +187,54 @@
       "tier": "fast",
       "suite": null,
       "expect_red": "[real] every untraced edge whose part HAS a mesh offers a working annotate-this link, wherever the mesh set has reached"
+    },
+    {
+      "id": "respine-unfolds-out-of-the-rail-it-interrupted",
+      "contract": "A column a respine ADDS is drawn collapsed onto the OUTGOING FRAME'S LEFTMOST RAIL and unfolds out of it -- which is why rails carry no opacity of their own, and which has to hold from a transition frame as well as from a settled one.",
+      "issue": "docs/issues/ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_nowhere.md",
+      "note": "The mutation is the pre-2026-09-15 behaviour exactly: clamp the drawn column index at 0 rather than at the outgoing frame's own leftmost index. A SETTLED outgoing frame always has a rail at drawn 0, so every guard that starts from one stays green; the witness has to interrupt a transition at e = 0.5, where the spine sits at drawn 4.5 with nothing to its left.",
+      "file": "apps/viewer/topology.js",
+      "find": "      floor: from.floor > 0 ? from.floor : 0,",
+      "replace": "      floor: 0,",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "a respine interrupting a respine unfolds out of a rail the frame it interrupted really drew — not out of drawn column 0, which a frame caught mid-unfold has nothing on"
+    },
+    {
+      "id": "a-link-a-respine-adds-fades-in",
+      "contract": "A link belongs to a PAIR of columns and cannot be in the store's keyed alpha map, so it carries an opacity of its own: a link a respine adds between two columns BOTH serialisations have fades in instead of appearing whole on rails that never move.",
+      "issue": "docs/issues/ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_has_no_fade.md",
+      "note": "Unobservable in the committed corpus and deliberately witnessed synthetically: all 21 study chains are linear (columns 1, links []), so every link a respine adds today arrives on a column the respine also adds and the unfold covers it. The mutation is the pre-fix behaviour -- every drawn link opaque at every e.",
+      "file": "apps/viewer/topology.js",
+      "find": "      out[link.key] = prev + (1 - prev) * t;",
+      "replace": "      out[link.key] = 1;",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "a link a respine ADDS between two columns BOTH serialisations have fades in — the column unfold cannot cover it, because neither column is one the transition adds"
+    },
+    {
+      "id": "the-view-puts-a-links-fade-on-the-path",
+      "contract": "The link opacity the geometry computes reaches the DOM: railsSvg draws each fan-out and loop closure through fadeLink, so a link the respine adds wears its own inline opacity and a settled frame wears none.",
+      "issue": "docs/issues/ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_has_no_fade.md",
+      "note": "The other half of a-link-a-respine-adds-fades-in: that entry breaks the number, this one breaks the wiring. VA.linkOpacity staying correct while the view stops reading it is the exact shape of a guard that quietly witnesses nothing.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      svg.appendChild(fadeLink(VA.svg(\"path\",\n        \"rail__link rail__link--\" + link.kind, { d: link.d }), link.key));",
+      "replace": "      svg.appendChild(VA.svg(\"path\",\n        \"rail__link rail__link--\" + link.kind, { d: link.d }));",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "the rendered frame carries a link's fade on the drawn path, and a settled frame carries none"
+    },
+    {
+      "id": "sticky-rails-hold-a-scrolled-dag",
+      "contract": ".tv__rails { position: sticky; left: 0 } holds the DAG against the pane's VISIBLE left edge, so a reader who scrolls the grid sideways keeps their rails beside the rows those rails align with.",
+      "issue": "docs/issues/ISSUE_20260915_the_sticky_rails_stop_sticking_once_the_grid_is_scrolled_past_the_dags_own_width.md",
+      "note": "Browser tier only, and it has to be: the DOM shim has no layout to scroll. Every other respine check in either tier runs at scrollLeft 0, where the claim holds of a pane with no sticky at all -- which is why testRespine's scrolled arm sets scrollLeft before measuring. The arm also pins the LIMIT (the sticky runs out of containing block past paneWidth - dagWidth) in a second sub-check, which the issue above tracks.",
+      "file": "apps/viewer/topology.css",
+      "find": "  flex: none; display: block; position: sticky; left: 0; z-index: 1;",
+      "replace": "  flex: none; display: block; position: static; left: 0; z-index: 1;",
+      "tier": "browser",
+      "suite": "topology file:// respine",
+      "expect_red": "[real] scrolled sideways, the DAG stays pinned to the pane's VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a scrolled reader's rails beside their own rows"
     }
   ]
 }

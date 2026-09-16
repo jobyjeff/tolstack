@@ -918,6 +918,47 @@
     return a === undefined ? 1 : a;
   };
 
+  // How opaque each LINK of a frame is -- the one drawn thing the keyed store
+  // above cannot answer for, and the one the column unfold cannot cover
+  // either.
+  //
+  // A link belongs to a PAIR of columns, so it is not a keyed row and cannot
+  // be in the store's alpha map. Where the two serialisations differ by their
+  // COLUMN COUNT that costs nothing: a link a respine adds arrives on a column
+  // the respine also adds, and the unfold (VA.respineX) draws it on top of a
+  // rail the outgoing frame really drew. A link on a column BOTH sides have is
+  // the case with nothing behind it -- a loop closure present in one
+  // serialisation and not in the other would be drawn at full opacity from the
+  // first frame, on a rail that never moves
+  // (ISSUE_20260915_a_rail_or_link_a_respine_adds_on_a_surviving_column_has_
+  // no_fade). So a link carries an opacity of its own, keyed on VA.linkKey --
+  // its two ENDS' elements, the same element-by-element pairing the store uses
+  // for a row.
+  //
+  //   links  this frame's drawn links (VA.railGeometry's, each with a `key`)
+  //   from   the alphas the PREVIOUS paint drew, `{ key: alpha }` -- this
+  //          function's own output, recorded by the render. Absent means no
+  //          transition: everything is opaque.
+  //   e      the eased fraction.
+  //
+  // A link the previous frame did not draw starts at 0 and reaches 1 at e = 1;
+  // one it drew part-way in continues from exactly that, so an interrupted
+  // respine does not restart a fade or snap it to full. Rails need no
+  // equivalent: a rail belongs to a column, every column both serialisations
+  // have has a rail on both sides, and the only rails a respine adds are the
+  // ones the unfold already covers.
+  VA.linkOpacity = function (links, from, e) {
+    var t = !(e > 0) ? 0 : (e > 1 ? 1 : e);
+    var out = {};
+    (links || []).forEach(function (link) {
+      if (!from) { out[link.key] = 1; return; }
+      var prev = from[link.key];
+      if (!(prev >= 0)) prev = 0;
+      out[link.key] = prev + (1 - prev) * t;
+    });
+    return out;
+  };
+
   // The horizontal part of a respine: an interpolation of the DRAWN LAYOUT,
   // not a slide of the finished picture.
   //
@@ -931,19 +972,36 @@
   // What the two frames DO agree about is depth from the spine: both are
   // right-justified (viewer_dag_spine_layout), so the mainline is the last
   // column of either and a fork sits the same number of columns in from it on
-  // both sides. So the thing to interpolate is the COLUMN COUNT. At `e` the
-  // frame is drawn with lerp(fromColumns, toColumns) columns' worth of
-  // spread, which puts every surviving rail exactly where the outgoing frame
-  // drew it at e = 0 and exactly where a fresh render draws it at e = 1, and
-  // UNFOLDS the columns a respine adds out of the spine rather than sliding
-  // them in from a place they never were.
+  // both sides. So a column is PAIRED BY DEPTH and its drawn index is
+  // interpolated between the two ends of that pairing -- exactly what
+  // VA.tweenPositions does for a row's y, one level down from the element the
+  // store keys on. Every surviving rail is therefore drawn precisely where
+  // the outgoing frame drew it at e = 0 and precisely where a fresh render
+  // draws it at e = 1, and a column the respine ADDS (one whose depth the
+  // outgoing frame had no rail at) UNFOLDS out of the OUTGOING FRAME'S
+  // LEFTMOST RAIL rather than arriving from a place it never was.
   //
-  //   columnShift  how many columns' worth of spread this frame is short of
-  //                the target's (negative when the target is the narrower
-  //                one). A drawn column index is max(0, column -
-  //                columnShift), and the clamp is what collapses a
-  //                not-yet-unfolded column onto the leftmost rail instead of
-  //                drawing it left of the pane.
+  //   columnShift  how many columns' worth of spread the OUTGOING frame was
+  //                short of the target's (negative when the target is the
+  //                narrower one). It does not decay with `t`: the decay is in
+  //                the interpolation VA.drawnColumn does, which is the one
+  //                place a drawn column index is computed.
+  //   floor        the outgoing frame's LEFTMOST drawn column index, which is
+  //                the rail a column it had no rail for unfolds out of. It is
+  //                what makes the unfold claim hold from a TRANSITION frame
+  //                and not only from a settled one. Assuming 0 instead --
+  //                which every settled frame does have a rail at, and a frame
+  //                caught mid-unfold does not -- was the defect: interrupting
+  //                a select of a 1-column chain out of a 10-column walk at
+  //                e = 0.5 left the spine at drawn index 4.5 with nothing to
+  //                its left, and the deselect's own first frame popped nine
+  //                rails in at x = 15..85 where the frame it continued from
+  //                had drawn nothing at all
+  //                (ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_
+  //                from_nowhere).
+  //   t            the clamped, already-eased fraction, because the
+  //                interpolation above is per column rather than one shift
+  //                applied to all of them.
   //   width        the SVG's own width this frame, which is the grid's left
   //                edge: lerp(fromWidth, toWidth). The jog zone's width is a
   //                function of the LEADER count, which the two serialisations
@@ -961,9 +1019,12 @@
   // behind the pane's edge
   // (ISSUE_20260915_a_respine_cannot_interpolate_x_so_the_whole_block_slides).
   //
-  // `from` is the previous paint's own `{ columns, width }` -- fractional
-  // mid-flight, because VA.lastTopoRender records what a frame DREW, so a
-  // respine interrupting a respine continues from the picture on screen.
+  // `from` is the previous paint's own `{ columns, width, floor }` --
+  // fractional mid-flight, because VA.lastTopoRender records what a frame
+  // DREW, so a respine interrupting a respine continues from the picture on
+  // screen. A `from` with no `floor` (a settled frame, or a caller that
+  // predates it) reads as 0, which is what a settled frame's leftmost drawn
+  // column index always is.
   VA.respineX = function (layout, plan, metrics, from, e, zoneScale) {
     metrics = metrics || VA.RAIL_METRICS;
     if (!from || !(from.columns > 0) || !(from.width > 0)) return null;
@@ -971,16 +1032,36 @@
     if (!(zone.columns > 0) || !(zone.width > 0)) return null;
     var t = !(e > 0) ? 0 : (e > 1 ? 1 : e);
     return {
-      columnShift: (1 - t) * (zone.columns - from.columns),
+      columnShift: zone.columns - from.columns,
+      floor: from.floor > 0 ? from.floor : 0,
+      t: t,
       width: zone.width + (1 - t) * (from.width - zone.width),
     };
+  };
+
+  // The drawn column index a layout column lands on this frame: between the
+  // index the OUTGOING frame drew that column's depth at -- its own leftmost
+  // rail, for a depth it had no rail at -- and the index the target draws it
+  // at, which is the column itself.
+  //
+  // One expression, so there is one place a drawn column index is computed
+  // and one place it can be wrong. It is monotone in `t` per column by
+  // construction, which is the property that keeps an unfold from reading as
+  // a wobble: a rail moves one way for the whole flight, even when the fold
+  // point it leaves is itself travelling (an interrupted respine's is).
+  // Exported because the render has to record the leftmost index it actually
+  // drew (VA.lastTopoRender.floor, the next frame's `from.floor`).
+  VA.drawnColumn = function (column, x) {
+    if (!x) return column;
+    return (1 - x.t) * Math.max(x.floor, column - x.columnShift) +
+      x.t * column;
   };
 
   // A drawn column's x. Total, so every geometry site reads one function
   // whether a transition is running or not -- a rail, its marks and either
   // end of a link that touches it cannot end up drawn at different x's.
   function columnX(column, metrics, x) {
-    return VA.railX(x ? Math.max(0, column - x.columnShift) : column, metrics);
+    return VA.railX(VA.drawnColumn(column, x), metrics);
   }
 
   // --- the spine on the right (viewer_dag_spine_layout, 2026-09-14) -------
@@ -1121,6 +1202,7 @@
         kind: link.kind,
         row: link.row,
         toRow: link.to_row,
+        key: VA.linkKey(layout, link),
         d: link.kind === "branch"
           ? branchPath(link, metrics, slotY, x)
           : closePath(link, metrics, slotY, x),
@@ -1128,6 +1210,40 @@
     });
     return out;
   };
+
+  // A link's identity across the two serialisations, for the one question a
+  // column index cannot answer: did the OTHER frame draw this link?
+  //
+  // Built out of the ELEMENTS at the link's two ends, because a column index
+  // is not comparable between a walk and a chain (VA.respineX says why) while
+  // a node or an edge id is the same element on both sides -- the same pairing
+  // VA.tweenPositions makes for a row.
+  //
+  // A `close` link's two ends are two different rows -- the closing edge, and
+  // the node it lands back on -- so those two elements name it outright. A
+  // `branch` link's are NOT: its `row` and `to_row` are the same fork row, and
+  // a fork that opens two branches emits two links differing only in
+  // `to_column`. What tells those apart is where each one LANDS, so the second
+  // half of a branch's key is the first row on the new column below the fork.
+  VA.linkKey = function (layout, link) {
+    var rows = (layout && layout.rows) || [];
+    var tail = link.kind === "branch"
+      ? firstRowOnColumn(rows, link.to_column, link.row)
+      : rows[link.to_row];
+    return "link|" + link.kind + "|" + rowElementKey(rows[link.row]) +
+      "|" + rowElementKey(tail);
+  };
+
+  function rowElementKey(row) {
+    return row ? slotKey(row.kind, row.id) : "?";
+  }
+
+  function firstRowOnColumn(rows, column, after) {
+    for (var i = after + 1; i < rows.length; i++) {
+      if (rows[i] && rows[i].column === column) return rows[i];
+    }
+    return null;
+  }
 
   // A fan-out at a fork: out of the node's dot, across to the new column, down
   // into the rail that starts there. Half a row tall, like git log's — and a
