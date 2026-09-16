@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: high
-status: open
+status: resolved
 area: docs/strategy
 reporter: agent
+resolution: reworded the claim to drop the byte-identity assertion (1f62803); the guard is green (10 passed) and the full suite on merged master is 1155 passed; supersedes the eight duplicate issues named in the body.
 ---
 
 # The byte-identity guard is red on master, from a 2026-09-15 triage brief
@@ -62,6 +63,25 @@ one rather than to add a ninth voice to it:
 Eight duplicates is itself the more interesting defect: a red trunk guard with
 no issue *on trunk* is invisible to the next session, which then rediscovers it
 and files again. Whoever fixes the one line of prose should close all nine.
+
+## Resolution (2026-09-16)
+
+Fixed in `1f62803`. The sentence asserted byte identity about a **behaviour**,
+which is not a property bytes can carry — the author was reaching for
+provenance they did not have and named a handoff instead of a verification. The
+claim actually being made is that `topology_app.js`'s `chooseAdapter` call is
+unchanged, so the prose now says exactly that:
+
+> ...`apps/viewer/`'s `topology_app.js` deliberately does not, so the viewer's
+> behaviour is **unchanged from** what `viewer_transport_honest_hosted` shipped.
+
+No verification pointer was added, because none was needed once the claim
+stopped overreaching. `tests/test_provenance.py` is green (10 passed), and the
+2026-09-16 batch merge of `integration` into `master` (129 commits, merge
+`2ccec0f`) then ran **1155 passed, 0 failed, 0 skipped**.
+
+This issue supersedes the eight duplicates listed above — all eight describe
+this one failure and all eight are closed by this one-line prose fix.
 
 **Repro.**
 
