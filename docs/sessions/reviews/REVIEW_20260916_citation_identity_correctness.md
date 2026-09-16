@@ -567,8 +567,7 @@ supplies the *projection*, not the modules. A directory junction fixes it
 without touching the main checkout:
 
 ```
-cmd /c "mklink /J node_modules C:\workspace	olstack
-ode_modules"
+cmd /c "mklink /J node_modules C:\workspace\tolstack\node_modules"
 ```
 
 Removed afterwards. The runner's new "the tier was red before the mutation, so
