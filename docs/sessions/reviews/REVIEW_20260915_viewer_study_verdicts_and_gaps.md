@@ -224,3 +224,21 @@ the three seeded slice-1 stacks. Unchanged by this work.
   it with `audience: strategy`
   (`ISSUE_20260915_topology_page_hides_its_own_numbers_behind_a_horizontal_scroll.md`)
   and I agree that is a layout trade, not a bug fix.
+
+## The integration merge
+
+`integration` moved while this handoff was in flight — `f629942` (where this
+review branch was cut) → `fd27d4c`, eight commits, the landing of
+`respine_tween_fidelity_round2` plus two `sync: merge master` commits. Both
+sides touched `apps/viewer/topology.js` and `apps/viewer/views/topology.js` and
+**the merge was clean** — no conflict, nothing for me to resolve, so no
+resolution judgement is hiding inside the green below. All three tiers re-run on
+the merged result:
+
+* pytest **886 passed / 1 failed / 1 skipped** (the same pre-existing red)
+* viewer fast tier **371/371** (up from 367: `respine_tween_fidelity_round2`
+  added four)
+* viewer browser tier **19/19 checks**, 288/288 in the shim suite over both
+  `file://` and http, including the new scrolled-respine sub-checks
+
+Then `integration` fast-forwarded to `review/viewer_study_verdicts_and_gaps`.
