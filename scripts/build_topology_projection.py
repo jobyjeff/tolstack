@@ -92,6 +92,7 @@ from build_viewer_projection import (  # noqa: E402
 # does not pull in PyMuPDF: `fitz` is imported lazily, only inside
 # `build_viewer_crops._crop_from_citation`/`render`/`main`.
 from build_viewer_crops import croppable as _croppable  # noqa: E402
+from tolerance_stack.stack import SCHEMA_HARDWARE  # noqa: E402
 from tolerance_stack.topology import (  # noqa: E402
     Contribution,
     Edge,
@@ -633,10 +634,28 @@ def load_hardware(path: Path) -> Dict[str, Any]:
     and the register is an *input to the gap list*, never a gate on building the
     projection at all -- a tree without one is a tree whose topologies have no
     hardware-entry gaps, which is a true thing to project.
+
+    **Absent is tolerated; present-but-wrong-schema is not**, and the asymmetry
+    is the whole of this function's judgement. A missing file is a fixture tree
+    honestly carrying no register, so "no hardware-entry gaps" is a true
+    statement about it. A file that has been renamed, re-schema'd or replaced is
+    a register this code cannot read, and reading ``entries`` off it anyway
+    yields the *same* empty list -- which on the DAG page's "What's missing"
+    panel is not silence but a positive claim that nothing is missing, over the
+    43 of 98 live gap rows that are ``hardware_entry``. So it raises, exactly as
+    ``build_viewer_projection.build()`` already does against the same constant
+    for the same file (added 2026-09-16; ``load_hardware`` shipped 2026-09-15
+    with no schema check at all, so the classic view refused a file its sibling
+    quietly projected an empty gap list from).
     """
     if not path.is_file():
         return {"entries": []}
     raw = json.loads(path.read_text(encoding="utf-8"))
+    if raw.get("schema") != SCHEMA_HARDWARE:
+        raise ValueError(
+            f"{path}: expected schema {SCHEMA_HARDWARE!r}, "
+            f"got {raw.get('schema')!r}"
+        )
     return {"entries": list(raw.get("entries") or [])}
 
 
