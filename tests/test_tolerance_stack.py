@@ -2967,6 +2967,70 @@ WORKBOOK_BACKED_CITATIONS = {
 }
 
 
+def from_scratch_stacks_folding_a_workbook_band() -> dict:
+    """Derived: every from-scratch stack with at least one banded element whose
+    ``hardware_ref`` resolves to a ``values_source.kind == "workbook"`` entry.
+
+    The scope :data:`WORKBOOK_BACKED_BANDS` is curated *against*. A curated
+    registry states the expected answer outside the files being checked, which
+    is what stops an edit redefining the guard -- but on its own it is a set
+    keyed by whatever somebody remembered to list, which is this handoff's own
+    subject one level up from the dedup key. So the candidates are computed
+    here and paired against the registry below: a third such stack fails,
+    loudly, instead of riding past unparametrized. (Review finding F3,
+    2026-09-16.)
+
+    "From scratch" is ``provenance.transcribed_from is None`` -- SOP Step 5b's
+    own test, and the reason ``tan_link``, ``tan_link_take2`` and ``vpa_output``
+    are correctly out of scope even though they too reach workbook-sourced
+    entries: they ARE workbook transcriptions, and the ban is on a from-scratch
+    stack borrowing one.
+    """
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    entries = {e["id"]: e for e in data["entries"]}
+    found = {}
+    for filename in ALL_STACK_FILES:
+        raw = json.loads((STACKS_DIR / filename).read_text(encoding="utf-8"))
+        if (raw.get("provenance") or {}).get("transcribed_from") is not None:
+            continue
+        stack = load_stack(STACKS_DIR / filename)
+        banded = {
+            element.id for element in stack.elements
+            if element.hardware_ref
+            and element.min != element.max
+            and (entries[element.hardware_ref]["values_source"] or {}).get("kind")
+            == "workbook"
+        }
+        if banded:
+            found[stack.id] = banded
+    return found
+
+
+def test_every_from_scratch_stack_folding_a_workbook_band_is_covered_by_the_guard():
+    """The registry the guard below parametrizes over is the whole scope, not
+    the part somebody remembered.
+
+    This is the non-vacuity half moved outside the parametrize: a
+    ``@parametrize`` over a dict cannot notice a stack missing FROM that dict,
+    because the missing case generates no test at all. Fails when a third
+    from-scratch stack folds a workbook-derived band, and equally when a listed
+    one stops -- both want the curated expectations re-read rather than
+    silently re-scoped.
+    """
+    derived = from_scratch_stacks_folding_a_workbook_band()
+    assert derived == WORKBOOK_BACKED_BANDS, (
+        "the from-scratch stacks folding a workbook-derived band are not the "
+        "ones WORKBOOK_BACKED_BANDS lists -- add or remove the row, and its "
+        "WORKBOOK_BACKED_CITATIONS counterpart, rather than leaving a stack "
+        "the laundering guard never runs on")
+    assert set(WORKBOOK_BACKED_CITATIONS) == set(WORKBOOK_BACKED_BANDS)
+    for stack_id, elements in WORKBOOK_BACKED_BANDS.items():
+        assert set(WORKBOOK_BACKED_CITATIONS[stack_id]) == elements, (
+            f"{stack_id}: every element folding a workbook-derived band needs "
+            f"its citation pinned, or the strengthening half of the guard "
+            f"skips it")
+
+
 @pytest.mark.parametrize("stack_id", sorted(WORKBOOK_BACKED_BANDS))
 def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(stack_id):
     """SOP Step 5b's workbook ban is TRANSITIVE, and `values_source` is what

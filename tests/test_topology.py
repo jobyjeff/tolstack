@@ -1890,3 +1890,78 @@ def test_check_study_expresses_a_check_with_no_external_limit():
     expected = summarize(topology, study)
     assert result.interval.as_dict() == expected.interval.as_dict()
     assert result.units == expected.units
+
+
+# --- a topology part's drawing identity, paired against the citations --------
+
+
+#: Topology ``parts[]`` entries that state a drawing REVISION, and the revision
+#: each must state. Curated, so the guard below cannot quietly stop having a
+#: subject: ``revision`` is optional on a part and most parts omit it, so a
+#: derived-only check would go green the moment the last one was dropped.
+TOPOLOGY_PART_REVISIONS = {
+    ("topology_pitch_link_to_pitch_plate.json", "pitch_plate_215197"):
+        ("215735", "A"),
+    ("topology_vpa_output_to_pitch_plate.json", "pitch_flange_215197"):
+        ("215735", "A"),
+    ("topology_pitch_system.json", "gas_spring_mount_213668_002"):
+        ("213668-002", "A.1"),
+}
+
+
+def test_a_topology_parts_drawing_and_revision_are_a_pair_something_cites():
+    """A topology part's ``drawing``/``revision`` is what the viewer RENDERS,
+    and nothing paired it against the citations it is carried over from.
+
+    Written 2026-09-16 (``citation_identity_correctness``, review finding F2)
+    after exactly that gap bit. Re-citing the pitch plate moved three elements
+    from 215197 A.1 to 215735 A and correctly moved both topology parts'
+    ``name`` and ``drawing`` -- and left ``revision: "A.1"`` behind on both,
+    describing a revision of 215735 that does not exist. The same object's own
+    ``note`` said "215735 A sheet 2" two clauses later, so the note and the
+    field disagreed and the field, which is the one a reader sees, was wrong.
+    Nothing failed. The handoff's restating inventory enumerated ``name``,
+    ``drawing``, ``note`` and ``provenance.part_identity``; a carrier field it
+    did not list is exactly the kind that survives a rename.
+
+    The pairing is deliberately loose -- *some* citation in the repo names this
+    ``(document, revision)`` pair -- rather than "the element this part was
+    carried over from", because a topology part declares no element and
+    inventing that link here would be the guess this repo exists not to make.
+    Loose is still enough: it catches a part left on a revision of a document
+    nobody cites, which is the whole failure above.
+    """
+    cited = set()
+    for path in sorted(STACKS_DIR.glob("stack_*.json")):
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        for element in raw.get("elements", []):
+            ref = element.get("source_ref") or {}
+            if ref.get("document") and ref.get("revision"):
+                cited.add((str(ref["document"]), str(ref["revision"])))
+    for path in sorted(TOPOLOGIES_DIR.glob("topology_*.json")):
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        for edge in raw.get("edges", []):
+            ref = ((edge.get("dimension") or {}).get("source_ref")) or {}
+            if ref.get("document") and ref.get("revision"):
+                cited.add((str(ref["document"]), str(ref["revision"])))
+    assert cited, "no citation names a document AND a revision -- vacuous"
+
+    found, wrong = {}, []
+    for path in sorted(TOPOLOGIES_DIR.glob("topology_*.json")):
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        for part in raw.get("parts", []):
+            if not part.get("revision"):
+                continue
+            pair = (str(part.get("drawing") or ""), str(part["revision"]))
+            found[(path.name, part["id"])] = pair
+            if pair not in cited:
+                wrong.append(f"  {path.name}:{part['id']} states {pair}, which "
+                             f"no element or edge cites")
+    assert not wrong, (
+        "a topology part names a drawing revision nothing in this repo cites "
+        "-- the field the viewer renders has drifted from the citations it was "
+        "carried over from:\n" + "\n".join(wrong))
+
+    # Non-vacuity, and the half that catches the opposite drift: a part losing
+    # its revision, or a new one appearing unclassified, both want a human.
+    assert found == TOPOLOGY_PART_REVISIONS

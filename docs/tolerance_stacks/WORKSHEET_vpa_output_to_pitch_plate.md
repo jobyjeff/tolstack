@@ -209,11 +209,18 @@ callout; nothing in the workbook says.
 > | sheet 2 zone B4, SECTION A-A | `3X 4.06 ±0.08` | ⌖0.2 A B C, ⊥0.05 F, 3X INDIVIDUALLY | same, minus the ⌀ on the position frame |
 > | sheet 2 zone D10, SECTION A-A | `5X 4.06 ±0.10` | ⌖0.2 A B C, ⊥0.05 G, 5X INDIVIDUALLY | same, minus the ⌀ |
 > | sheet 1 zone D5 | `4.06 ±0.10` | ⌖0.2 A B C, datum D | same |
-> | sheet 1 zone D6 | `4.06 ±0.10` | — | **new**; 215197 printed `8.80 ±0.10` here |
+> | sheet 1 zone D6 | `4.06 ±0.10` | — | **new**; 215197 A.1's zone D6 is empty |
 >
-> So "one of two ±0.10 features" is now **one of three**: the released plate has
-> a further feature that came to 4.06, immediately beside the sheet-1 callout
-> this joint's qty already argued for. The citation was NOT re-pointed at it —
+> So "one of two ±0.10 features" is now **one of three**: the released plate
+> prints a further `4.06 ±0.10` immediately beside the sheet-1 callout this
+> joint's qty already argued for. **What that new callout dimensions is not
+> established here, and it is not a re-dimensioned version of anything the
+> PRELIM printed in that cell** — 215197 A.1's sheet 1 zone D6 is empty, and
+> sheet 1 was re-laid out between the exports (`10.68 ±0.10` and the surviving
+> `4.06` both moved, `52.00`/`187.99` became `57.10`/`189.13`, and the PRELIM's
+> `18.80 ±0.10` at zone D7 is absent from 215735-A altogether). Measured
+> word-level with `build_viewer_crops.page_native_grid` + `zone_cell`, on both
+> documents. The citation was NOT re-pointed at it —
 > choosing which printed callout a value means is a feature-identity decision
 > and nothing in the released drawing makes it — so this element still cites
 > sheet 2 zone D10 and still reads `inferred`. This finding is *less* resolved

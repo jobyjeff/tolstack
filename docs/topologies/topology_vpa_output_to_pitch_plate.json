@@ -37,7 +37,7 @@
       "id": "pitch_flange_215197",
       "name": "215735 pitch flange",
       "drawing": "215735",
-      "revision": "A.1",
+      "revision": "A",
       "note": "Carried over from the referenced element, ambiguity included: 215735 prints THREE 4.06 +/-0.10 callouts -- the 5X group at sheet 2 zone D10 and two more on sheet 1 (zones D5 and D6) -- and the citation behind this thickness says the tolerance alone cannot decide between them, AND that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than the pitch plate 215177-001, so the pitch plate may be the wrong part entirely. Named here as a part because the topology needs a lane for this thickness to be a dimension OF; the drawing number is the referenced element's claim, not a new one. Re-cited 2026-09-16 (citation_identity_correctness) from the PRELIM 215197 A.1 to the RELEASED plate 215735 rev A. THE PART ID DID NOT MOVE: this part is still the part id pitch_flange_215197 here and in every deep link that reaches it -- docs/strategy/BRIEF_20260916_link_name_authority.md."
     },
     {

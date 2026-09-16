@@ -140,7 +140,9 @@ the identification is by elimination plus four corroborations, and it is
    > **215735 rev A** unchanged — sheet 2 prints the same `3X` and `5X` groups at
    > the same zones, so the count argument is untouched. The `1X` half of the
    > sentence is the part that aged: 215735-A sheet 1 prints **two** `4.06 ±0.10`
-   > callouts (zones D5 and D6), where 215197 printed one and an `8.80 ±0.10`.
+   > callouts (zones D5 and D6), where 215197 A.1 printed one, at D5. The
+   > PRELIM's zone D6 is **empty**; what the released sheet's second callout
+   > dimensions is not established here.
    > That widens the VPA group; it does not touch the 5X/3X distinction this
    > elimination turns on.
 
