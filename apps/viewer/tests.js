@@ -6414,6 +6414,64 @@
         return cropEntriesIn(c).filter(function (e) { return e.status === "resolved"; });
       }
 
+      // One vocabulary, one list. `worksheet_source` is written by BOTH viewer
+      // builders (`scripts/build_viewer_projection.py`'s `worksheet_for` and
+      // `scripts/build_topology_projection.py`'s, the same two rules
+      // deliberately not shared because each builder is stdlib-only and
+      // self-contained), so it is guarded twice below — once per projection —
+      // and two rows keeping two copies of one list is the drift this repo
+      // names as its most-repeated defect. The real home for it is a
+      // `VA.WORKSHEET_SOURCES` that `views/worksheet.js` itself reads; that is
+      // ISSUE_20260915_worksheet_source_vocabulary_has_no_va_constant, out of
+      // this handoff's file scope.
+      var WORKSHEET_SOURCES = ["declared", "by_name", null];
+
+      // The reporting loop behind every value guard in this file, stack-side
+      // and topology-side. It has TWO arms and they catch different things: an
+      // unknown value, and a collector that finds NOTHING. The second arm is
+      // what `parts[].mesh.installed` was enrolled for — a boolean's own
+      // two-value set cannot notice an absent block — and it is the arm a bite
+      // test forgets, because a row that accepts everything is the obvious
+      // failure and a row whose collector went blind is not.
+      //
+      // `crops` is passed through for the stack-side rows that read
+      // `crops.json`; the topology rows take one argument and ignore it.
+      function unexplainedValues(guards, projection, crops) {
+        var unexplained = [];
+        guards.forEach(function (guard) {
+          var values = distinct(guard.values(projection, crops));
+          if (!values.length) {
+            unexplained.push(guard.field + ": no live value found — either the " +
+              "collector in tests.js is wrong or the builder stopped writing it");
+            return;
+          }
+          values.forEach(function (value) {
+            if (!guard.known(value)) {
+              unexplained.push(guard.field + " = " + JSON.stringify(value) +
+                " is in the live projection and the viewer has no branch for " +
+                "it. Branch table: " + guard.branch);
+            }
+          });
+        });
+        return unexplained;
+      }
+
+      // Each row's empty-collector arm, replayed: the row's own
+      // `field`/`branch`/`known` with its collector blinded, so the claim is
+      // about the rows this file actually ships rather than about one
+      // synthetic guard. Shared by both bite tests.
+      function replayBlindCollectors(guards, projection, crops) {
+        guards.forEach(function (guard) {
+          var report = unexplainedValues([{
+            field: guard.field, branch: guard.branch, known: guard.known,
+            values: function () { return []; },
+          }], projection, crops);
+          eq(report.length, 1, guard.field + ": a blind collector went " +
+            "unreported, so this row cannot notice the builder dropping the field");
+          has(report[0], "no live value found", guard.field);
+        });
+      }
+
       var VALUE_GUARDS = [
         { field: "source_ref.confidence and elements[].confidence",
           branch: "VA.CONFIDENCES, through VA.confidenceClass",
@@ -6484,7 +6542,7 @@
           branch: "views/worksheet.js — only `declared` earns the 'one worksheet " +
             "may cover several stacks' note; `by_name` and null are the silent " +
             "default, correctly",
-          known: inList(["declared", "by_name", null]),
+          known: inList(WORKSHEET_SOURCES),
           values: function (r) {
             return stacksIn(r).map(function (s) { return s.worksheet_source; });
           } },
@@ -6555,37 +6613,27 @@
       ];
 
       await test("[real] no live value is one the viewer has no branch for", function () {
-        var unexplained = [];
-        VALUE_GUARDS.forEach(function (guard) {
-          var values = distinct(guard.values(realResults, realCrops));
-          if (!values.length) {
-            unexplained.push(guard.field + ": no live value found — either the " +
-              "collector in tests.js is wrong or the builder stopped writing it");
-            return;
-          }
-          values.forEach(function (value) {
-            if (!guard.known(value)) {
-              unexplained.push(guard.field + " = " + JSON.stringify(value) +
-                " is in the live projection and the viewer has no branch for it. " +
-                "Branch table: " + guard.branch);
-            }
-          });
-        });
-        eq(unexplained, [], "teach the viewer these values — or fix the builder " +
-          "that emitted them");
+        eq(unexplainedValues(VALUE_GUARDS, realResults, realCrops), [],
+          "teach the viewer these values — or fix the builder that emitted them");
       });
 
       // A guard that cannot fail is documentation. This is exactly the half the
       // original bug got past: VA.CROP_RULES was a real branch table and nothing
       // compared the live values against it, so a rule the script had deleted sat
       // in the fixture for four days looking handled.
-      await test("[real] each value guard bites when fed a value nothing can explain",
-        function () {
+      await test("[real] each value guard bites when fed a value nothing can " +
+        "explain, and on finding no value at all", function () {
           var toothless = VALUE_GUARDS.filter(function (guard) {
             return guard.known(SENTINEL);
           }).map(function (guard) { return guard.field; });
           eq(toothless, [], "these guards accept any value at all, so they are " +
             "not guards");
+
+          // The other arm, replayed per row. Without it, a renamed key in
+          // build_viewer_projection.py or a reshaped crops.json would take a
+          // collector blind and the table would report ": no live value found"
+          // at runtime with nothing here proving that report ever fires.
+          replayBlindCollectors(VALUE_GUARDS, realResults, realCrops);
         });
 
       await test("[real] an unresolvable citation carries a reason, never a blank", function () {
@@ -8238,6 +8286,9 @@
         function topoParts(p) {
           return flat(topoRows(p).map(function (t) { return t.parts; }));
         }
+        function topoStudyChecks(p) {
+          return flat(topoStudies(p).map(function (s) { return s.checks || []; }));
+        }
         function topoLayouts(p) {
           return topoRows(p).map(function (t) { return t.layout; }).concat(
             topoStudies(p).map(function (s) { return s.layout; }).filter(Boolean));
@@ -8380,33 +8431,113 @@
                 return part.mesh ? part.mesh.installed : undefined;
               });
             } },
+          // Added 2026-09-15 (viewer_value_guard_rows_and_replays) out of the
+          // audit row 9 asked for: four more fields the page branches on that
+          // this table did not list. Two of them predate the audit window
+          // (5679129, 2026-09-01) -- they are not drift, they are the class
+          // having been incomplete from the day it was written.
+          { field: "topologies[].worksheet_source",
+            branch: "views/worksheet.js — only `declared` earns the 'one " +
+              "worksheet may cover several documents' note; `by_name` and null " +
+              "are the silent default, correctly. The topology page reaches it " +
+              "through topology_app.js's VA.renderWorksheet, so this is the " +
+              "SAME branch the stack-side row guards, over the other " +
+              "projection: the stack table runs against realResults only and " +
+              "never sees this copy of the field",
+            known: inList(WORKSHEET_SOURCES),
+            values: function (p) {
+              return topoRows(p).map(function (t) { return t.worksheet_source; });
+            } },
+          { field: "edges[].zero_width",
+            branch: "views/topology.js's row class (.tvrow--zero-width) and " +
+              "detail chip, and topology.js's `no_tolerance` badge. FALSY is " +
+              "the silent arm, the mesh.installed shape again: an absent field " +
+              "withholds the chip with nothing said, and a zero-width band is " +
+              "a claim about a LOWER BOUND on the real spread — the chip a " +
+              "reader can least afford to lose quietly",
+            known: function (v) { return v === true || v === false; },
+            values: function (p) {
+              return topoEdges(p).map(function (e) { return e.zero_width; });
+            } },
+          { field: "nodes[].branch",
+            branch: "views/topology.js's BRANCH POINT chip, whose title is the " +
+              "page's only explanation of BranchAmbiguity. Falsy is the silent " +
+              "arm: an absent field drops the chip and the node reads as an " +
+              "ordinary interface",
+            known: function (v) { return v === true || v === false; },
+            values: function (p) {
+              return topoNodes(p).map(function (n) { return n.branch; });
+            } },
+          { field: "layout.rows[].branch (node rows)",
+            branch: "topology.js's `branch: !!row.branch` -> the rail dot's " +
+              "class (.rail__dot--branch) and its larger radius. The SECOND of " +
+              "the two projection fields the builder writes the same fork mark " +
+              "into (build_topology_projection.py says so where it computes " +
+              "them), so guarding one is not guarding the other. Collected " +
+              "over NODE rows only: an edge row carries no `branch` key at all, " +
+              "by design",
+            known: function (v) { return v === true || v === false; },
+            values: function (p) {
+              return topoLayoutRows(p).filter(function (r) {
+                return r.kind === "node";
+              }).map(function (r) { return r.branch; });
+            } },
+          // The audit that added the four rows above ALSO reported
+          // `studies[].checks[]`'s three vocabularies as "emitted since
+          // 2026-09-09 (391dc7c) and rendered nowhere, so a row would guard an
+          // unrendered field". That was true when it was measured and stopped
+          // being true days later: viewer_study_verdicts_and_gaps (2026-09-15)
+          // put the verdict strip on this page, and the fields the strip reads
+          // are branched here now. So two of the three are rows, and the third
+          // is not — which is the whole point of measuring per field rather
+          // than per commit.
+          { field: "studies[].checks[].verdict",
+            branch: "VA.VERDICTS, through VA.studyCheckRow and VA.studyVerdict " +
+              "— the topology page's own reader, not the stack view's " +
+              "VA.verdictClass. The fallback is LOUD " +
+              "(VA.unlabelledVerdictText), so an unknown verdict does not read " +
+              "as a considered one; this row is what makes it a test failure " +
+              "rather than a reader's discovery. Same field as the stack-side " +
+              "row, over the other projection — that table runs against " +
+              "realResults only",
+            known: function (v) { return !!VA.VERDICTS[v]; },
+            values: function (p) {
+              return topoStudyChecks(p).map(function (c) { return c.verdict; });
+            } },
+          { field: "studies[].checks[].verdict_scope",
+            branch: "VA.VERDICT_SCOPES, through VA.studyCheckRow — `joint` " +
+              "raises no chip and `budget` raises BUDGET, and an unknown scope " +
+              "gets the loud SCOPE UNKNOWN chip. The reachable case is a STALE " +
+              "projection rather than a new word, which is exactly what a " +
+              "guard over the live file catches",
+            known: function (v) { return !!VA.VERDICT_SCOPES[v]; },
+            values: function (p) {
+              return topoStudyChecks(p).map(function (c) { return c.verdict_scope; });
+            } },
+          // --- Deliberately NOT rows, and why -----------------------------
+          //
+          // Recorded here rather than in a lesson because this list is what
+          // the next person asking "is this field covered?" reads, and the
+          // audit that produced these findings would otherwise be re-derived
+          // from scratch.
+          //
+          // `studies[].checks[].worst_confidence` — the third of that strip's
+          // vocabularies, emitted with the other two and still read by NOTHING
+          // on this page (grep: views/stack.js is the only reader, and it
+          // reads the results projection's copy, which the stack-side
+          // `checks[].worst_confidence and paths[].worst_confidence` row
+          // guards). A row here would guard an unrendered field. WHOEVER PUTS
+          // A WEAKEST-INPUT CHIP ON THE STUDY STRIP: VA.CONFIDENCES arrives
+          // with it and wants a row here the same day.
+          //
+          // `studies[].error.type` — VA.STUDY_ERRORS is a real branch table
+          // with a LOUD fallback (VA.unlabelledStudyErrorText), unlike the
+          // silent default arms above, and no live study carries an error, so
+          // a row would trip the empty-collector arm on every run,
+          // permanently. It is paired to Python by
+          // tests/test_topology_projection.py (VA.STUDY_ERRORS vs. the
+          // exception set) instead. Not a gap.
         ];
-
-        // The reporting loop, lifted out of the test below so the bite test
-        // can replay it. It has TWO arms and they catch different things: an
-        // unknown value, and a collector that finds NOTHING. The second arm is
-        // the one `parts[].mesh.installed` was enrolled for -- a boolean's own
-        // two-value set cannot notice an absent block -- and until it was
-        // replayed here it was the one arm nothing exercised.
-        function unexplainedValues(guards, projection) {
-          var unexplained = [];
-          guards.forEach(function (guard) {
-            var values = distinct(guard.values(projection));
-            if (!values.length) {
-              unexplained.push(guard.field + ": no live value found — either " +
-                "the collector is wrong or the builder stopped writing it");
-              return;
-            }
-            values.forEach(function (value) {
-              if (!guard.known(value)) {
-                unexplained.push(guard.field + " = " + JSON.stringify(value) +
-                  " is in the live projection and the page has no branch for " +
-                  "it. Branch table: " + guard.branch);
-              }
-            });
-          });
-          return unexplained;
-        }
 
         await test("[real] no live topology value is one the page cannot render",
           function () {
@@ -8421,21 +8552,7 @@
             }).map(function (guard) { return guard.field; });
             eq(toothless, [], "these guards accept any value at all");
 
-            // The second arm, replayed per row: a collector that comes back
-            // empty is REPORTED, not passed over. Replayed against each real
-            // row (its own `field`/`branch`/`known`, collector blinded) rather
-            // than against one synthetic guard, so the claim is about the rows
-            // this file actually ships.
-            TOPO_VALUE_GUARDS.forEach(function (guard) {
-              var report = unexplainedValues([{
-                field: guard.field, branch: guard.branch, known: guard.known,
-                values: function () { return []; },
-              }], realTopologies);
-              eq(report.length, 1, guard.field + ": a blind collector went " +
-                "unreported, so this row cannot notice the builder dropping " +
-                "the field");
-              has(report[0], "no live value found", guard.field);
-            });
+            replayBlindCollectors(TOPO_VALUE_GUARDS, realTopologies);
           });
       }
 
