@@ -199,6 +199,14 @@ untouched and still guarded). Every `untraced` instance is a listed gap
 - Issues filed by the handoff: all three carry correct frontmatter and
   `found_by:` (not `handoff:`).
 
+## Second integration move, mid-review
+
+`integration` moved again while this review ran (49a935f → 744af70,
+`viewer_respine_whole_walk` completed). Merged into the review branch with no
+conflict; every tier re-run on the twice-merged tree: pytest 1130/1/1 (same
+pre-existing red), JS fast+`[real]` **400/400**, browser **20/20**,
+mutation-witness **25/26** (same known `card-layout-out-of-flow` miss, filed).
+
 ## For the next reviewer
 
 - The pitch-plate lug citations still name the PRELIM 215197 fixture inside
