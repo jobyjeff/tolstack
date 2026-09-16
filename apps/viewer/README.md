@@ -243,7 +243,7 @@ carriers).
   a location, not a value, and the card says so. **The preview pane the same
   dot's click fills names the same derived sides** (`VA.nodeSideIds`, the id
   form of the one adjacency) — it printed the authored `parts` list until
-  handoff `surfaces_that_state_something_false`, which is 10 of the 46 live
+  handoff `surfaces_that_state_something_false`, which is 17 of the 46 live
   nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the classic elements table's sourcing cell).
