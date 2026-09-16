@@ -277,6 +277,15 @@ node scripts/run_mutation_witness_tests.mjs --only sticky-rails-hold-a-scrolled-
   reddens: [real] scrolled sideways, the DAG stays pinned to the pane's VISIBLE left edge — …
 ```
 
+The **whole** tier was re-run against this branch as well --
+`node scripts/run_mutation_witness_tests.mjs --repo C:\workspace	olstack`,
+**37/37 declared mutations witnessed** -- and every one of the 37 `find`
+strings still matches its file exactly once after the last tidy. Worth knowing
+if you write your own check of that: the JSON's `find` strings use `
+` and the
+files on disk are CRLF, so a naive `split(find)` reports 10 false mismatches.
+The runner normalises; your one-liner will not.
+
 Its `expect_red` check kept its name verbatim for exactly this reason. Its
 **`note`** is now stale — it still describes the limit this change removed —
 and that file is owned elsewhere, so:

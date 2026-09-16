@@ -753,7 +753,7 @@
         var grip = resizeGrip("col", "Drag to widen this column.", ctx,
           { kind: "column", cls: c.cls });
         columnGrips.push({ grip: grip, boundary: boundary });
-        lanes.push(gripLane(grip, 0));
+        lanes.push(gripLane(grip));
       }
       tr.appendChild(th);
     });
@@ -776,7 +776,7 @@
     // itself sticky, so it is a fixed distance from the pane's visible left
     // edge at every scroll (VA.jogGripInset).
     jogGrip.style.left = VA.jogGripInset(railWidth, paneWidth) + "px";
-    lanes.push(gripLane(jogGrip, 0));
+    lanes.push(gripLane(jogGrip));
     lanes.forEach(function (lane) { head.appendChild(lane); });
     // The column grips are the ones a SCROLL moves, so unlike the jog grip's
     // sticky inset theirs is re-written as the pane scrolls. Hung on the node
@@ -815,8 +815,8 @@
   // a grip left out there is a control the reader can see the effect of and
   // never reach. Clamped, it stops naming its seam exactly; unclamped, it
   // stops being a control at all. `2 * width` keeps it one grip clear of the
-  // ELEMENT grip's own right-hand pin (`.tvgrip--col { right: 0 }`) so the two
-  // never land on the same pixel.
+  // ELEMENT grip's own right-hand pin (VA.columnGripLeft's own clamp, which
+  // lands at `paneWidth - width`) so the two never land on the same pixel.
   //
   // 0 for `paneWidth` means "nothing laid out to clamp against" -- the DOM
   // shim the fast tier renders into, which reports no widths at all.
@@ -844,12 +844,13 @@
   };
 
   // A grip's lane: an inert overlay spanning the header's whole scroll width,
-  // holding exactly one grip in normal flow (sticky needs that) at `left` px
-  // of margin. One lane per grip -- see `.tv__griplane`, topology.css, for why
-  // they are not shared.
-  function gripLane(grip, marginLeft) {
+  // holding exactly one grip. Both grips carry an inline `left` -- a sticky
+  // inset for the jog one, a written scrollport coordinate for a column's --
+  // so the lane contributes nothing but the box those are measured in. One
+  // lane per grip: see `.tv__griplane`, topology.css, for why they are not
+  // shared.
+  function gripLane(grip) {
     var lane = VA.el("div", "tv__griplane");
-    if (marginLeft) grip.style.marginLeft = marginLeft + "px";
     lane.appendChild(grip);
     return lane;
   }
