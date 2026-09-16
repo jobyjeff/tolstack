@@ -2437,6 +2437,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       under test is not that. Ask **which frame is the outgoing one here --
       settled, or in flight?** for every interpolation claim; the two
       endpoints are the easy cases and the interrupt is a third state.
+      Fixed 2026-09-15 (`respine_tween_fidelity_round2`): the outgoing frame
+      records its **leftmost** drawn column index as well as the spine's, so
+      the unfold holds from a transition frame, and that guard now pairs the
+      whole drawn rail set beside the two scalars. Note what did *not* shrink
+      — `VA.respineX` returns four numbers now instead of two, which makes it
+      easier to pick two of them and call it a picture, not harder.
       `ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_
       nowhere.md`.
 - [ ] **A handoff's own "confirm the current count before X" instruction is

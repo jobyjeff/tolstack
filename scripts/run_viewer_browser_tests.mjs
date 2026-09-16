@@ -3218,7 +3218,15 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
           headShift: head.style.transform,
           svgWidth: parseFloat(svg.getAttribute("width")),
           headPad: parseFloat(head.style.paddingLeft),
+          // The pane's own sideways scroll, and the two numbers that say
+          // where its right-hand end is. Since VA.respineX the SVG is drawn
+          // at the interpolated width, so `scrollWidth` CHANGES mid-flight
+          // and a browser clamps `scrollLeft` when it shrinks -- which is
+          // only observable with the pane actually scrolled (the scrolled arm
+          // below).
           scrollLeft: live.scrollLeft,
+          scrollWidth: live.scrollWidth,
+          clientWidth: live.clientWidth,
           drawn: marks.length,
           // Relative to the pane's own left edge, and to the grid's.
           dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
@@ -3425,6 +3433,139 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     if (deselectFrame && !(deselectFrame.dagLeft >= -1)) {
       console.log("    deselect leftmost drawn box: " + deselectFrame.dagLeft);
     }
+    await settled();
+
+    // (4). The same respine with the pane SCROLLED SIDEWAYS. This arm is
+    // browser-tier only, and not for want of trying elsewhere: neither the
+    // fixture tier nor the DOM shim it runs in has a layout, so there is no
+    // overflow to scroll and `scrollLeft` is a number nobody can move. Every
+    // other respine check in both tiers runs at horizontal scroll zero, and
+    // the two claims that makes trivially true are exactly the two this arm
+    // exists for (ISSUE_20260915_the_respine_is_unwitnessed_with_the_pane_
+    // scrolled_sideways):
+    //
+    //   * `.tv__rails { position: sticky; left: 0 }` should keep the DAG
+    //     pinned to the pane's VISIBLE left edge for the whole transition --
+    //     which is what makes "nothing is drawn left of the pane" mean
+    //     anything to a scrolled reader. At scrollLeft 0 it holds of a pane
+    //     with no sticky on it at all;
+    //   * since VA.respineX the SVG is drawn at the interpolated width, so
+    //     the pane's CONTENT width now changes during a transition, and a
+    //     browser clamps `scrollLeft` when content shrinks. A reader at the
+    //     right end of the grid is the one who would feel it.
+    //
+    // The subject is the real pitch_system, whose walk is the corpus's widest
+    // DAG and whose chain is one column: the biggest shrink there is.
+    // The same boxes catchFrame takes, off a SETTLED pane, after scrolling it
+    // sideways. `where` is "end" (as far right as the pane goes), "sticky"
+    // (as far as the room the DAG leaves beside it), a number, or null.
+    const paneBoxes = (where) => page.evaluate((target) => {
+      const live = Array.from(document.querySelectorAll(".tv__hscroll"))
+        .filter((n) => !n.closest("div.tv__ghost"))[0];
+      const svg = live.querySelector("svg.tv__rails");
+      const dagWidth = svg.getBoundingClientRect().width;
+      if (target === "end") live.scrollLeft = live.scrollWidth;
+      else if (target === "sticky") live.scrollLeft = live.clientWidth - dagWidth - 20;
+      else if (typeof target === "number") live.scrollLeft = target;
+      const rows = live.querySelector("div.tv__rows");
+      const pane = live.getBoundingClientRect();
+      const grid = rows.getBoundingClientRect();
+      const marks = Array.from(svg.querySelectorAll(
+        "line.rail, line.rail__bar, circle.rail__dot, path.rail__link, " +
+        "path.rail__leader")).map((n) => n.getBoundingClientRect());
+      return {
+        scrollLeft: live.scrollLeft, scrollWidth: live.scrollWidth,
+        clientWidth: live.clientWidth, dagWidth: dagWidth, drawn: marks.length,
+        dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
+        dagPastGrid: Math.max(...marks.map((b) => b.right - grid.left)),
+      };
+    }, where === undefined ? null : where);
+    await page.locator(walkRow).click();
+    await settled();
+    const scrolledWalk = await paneBoxes("end");
+    push("[real] the pane really does overflow sideways here, so the arm " +
+      "below is not measuring a pane that cannot scroll",
+      scrolledWalk.scrollLeft > 0 &&
+      scrolledWalk.scrollLeft === scrolledWalk.scrollWidth - scrolledWalk.clientWidth);
+    if (!(scrolledWalk.scrollLeft > 0)) {
+      console.log("    pane content " + scrolledWalk.scrollWidth +
+        "px in a " + scrolledWalk.clientWidth + "px pane: nothing to scroll");
+    }
+    // The sticky claim, and this is the only place in either tier where it is
+    // worth anything: `.tv__rails { position: sticky; left: 0 }` holds the
+    // DAG against the pane's VISIBLE left edge, and at scrollLeft 0 that is
+    // true of a pane with no sticky on it at all.
+    //
+    // It holds -- but not for the whole scroll, which is the thing nothing
+    // measured. A sticky box is bounded by its CONTAINING BLOCK, and here
+    // that is `.tv__body`, which is the pane's own width rather than its
+    // content's: the grid table overflows out of `.tv__rows` instead of
+    // widening the flex row. So the SVG can be pushed right by at most
+    // (paneWidth - dagWidth), and a reader who scrolls further than that
+    // drags the DAG back off the left edge -- 41.5px of it, at this viewport,
+    // on the real pitch_system
+    // (ISSUE_20260915_the_sticky_rails_stop_sticking_once_the_grid_is_
+    // scrolled_past_the_dags_own_width). Both halves are pinned, so the fix
+    // turns the second check red rather than leaving a stale claim behind.
+    const stickyWalk = await paneBoxes("sticky");
+    push("[real] scrolled sideways, the DAG stays pinned to the pane's " +
+      "VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a " +
+      "scrolled reader's rails beside their own rows",
+      stickyWalk.scrollLeft > 0 && stickyWalk.drawn > 20 &&
+      stickyWalk.dagLeft >= -1);
+    if (!(stickyWalk.dagLeft >= -1)) {
+      console.log("    at scrollLeft " + stickyWalk.scrollLeft +
+        " the leftmost drawn box is " + stickyWalk.dagLeft +
+        "px from the pane's left edge");
+    }
+    push("[real] but only as far as the room the DAG leaves beside it: past " +
+      "that the sticky runs out of containing block and the rails slide off " +
+      "the pane's left edge",
+      scrolledWalk.scrollLeft > scrolledWalk.clientWidth - scrolledWalk.dagWidth &&
+      scrolledWalk.dagLeft < -1);
+    console.log("    sticky holds to scrollLeft " +
+      (scrolledWalk.clientWidth - scrolledWalk.dagWidth) + " of " +
+      scrolledWalk.scrollLeft + "; at the far end the DAG is " +
+      scrolledWalk.dagLeft + "px from the pane's left edge");
+    // And the respine out of that scrolled pane. The question the issue asked
+    // was whether the browser's scrollLeft CLAMP is felt as a sideways jump
+    // when the DAG shrinks 316 -> 82px under a reader parked at the right
+    // end. Measured, it never gets that far: VA.renderTopoPane clears the
+    // pane and builds a fresh `.tv__hscroll`, which starts at 0, so the
+    // reader's sideways scroll is gone on the FIRST frame and there is no
+    // scroll left for the clamp to act on. That is not the respine's doing --
+    // every render of this pane does it, density and length mode included --
+    // so it is filed rather than fixed here
+    // (ISSUE_20260915_every_topology_pane_render_throws_away_the_readers_
+    // sideways_scroll). This check states what the build actually does, so
+    // the day that issue is fixed it goes red and this claim gets rewritten
+    // rather than quietly outliving the behaviour it describes.
+    await page.locator(studyRow).click();
+    const scrolledFrame = await catchFrame();
+    push("[real] a respine rebuilds the pane, so a scrolled reader is at the " +
+      "left edge from the first frame — the scrollLeft clamp the shrinking " +
+      "DAG would otherwise cause is never reached",
+      !!scrolledFrame && scrolledFrame.scrollLeft === 0);
+    if (scrolledFrame) {
+      push("[real] and the frame in flight is drawn inside the pane from " +
+        "there, exactly as the unscrolled arms measured",
+        scrolledFrame.drawn > 20 && scrolledFrame.dagLeft >= -1 &&
+        scrolledFrame.dagPastGrid <= 1);
+    }
+    await settled();
+    const afterScroll = await paneBoxes(false);
+    push("[real] and it settles at the left edge on a pane the respine made " +
+      "narrower, with the DAG still inside it",
+      afterScroll.scrollLeft === 0 &&
+      afterScroll.scrollWidth < scrolledWalk.scrollWidth &&
+      afterScroll.dagLeft >= -1);
+    console.log("    scrolled respine: scrollLeft " + scrolledWalk.scrollLeft +
+      " -> " + (scrolledFrame ? scrolledFrame.scrollLeft : "?") + " -> " +
+      afterScroll.scrollLeft + " (pane content " + scrolledWalk.scrollWidth +
+      " -> " + afterScroll.scrollWidth + "px)");
+    // Back to the walk for the blocks below, which measure a pane at
+    // horizontal zero -- where the respine above has already left it.
+    await page.locator(walkRow).click();
     await settled();
 
     await page.locator(studyRow).click();
