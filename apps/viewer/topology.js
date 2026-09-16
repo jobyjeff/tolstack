@@ -312,9 +312,10 @@
   // words go beside them.
   //
   // Until 2026-09-15 the DAG page rendered none of it — a study's verdict was
-  // reachable only through the nested "classic view" of the one stack a
-  // topology also covers, and a study with no covered stack had nowhere at all
-  // to state whether it passed. Jeff's review put it plainly: "None of the
+  // reachable only through a nested "classic view" row for the one stack a
+  // topology also covers (a row since removed, and this is why:
+  // viewer_nav_wedge_and_classic_retirement), and a study with no covered
+  // stack had nowhere at all to state whether it passed. Jeff's review put it plainly: "None of the
   // tolerance stacks in the entire page appear to have any kind of roll up that
   // shows whether the stack passes or fails, or by how much margin."
 
@@ -2025,7 +2026,7 @@
     return seg.join(" ");
   }
 
-  // --- loose stacks: what the topology page absorbs the stack viewer for ---
+  // --- loose stacks: the systems this page shows as a table, not a graph ---
   //
   // Most stacks in docs/tolerance_stacks/ have no topology document at all —
   // topology is opt-in per system, and re-expressing a stack as a graph is
@@ -2034,17 +2035,22 @@
   // also has to offer every stack NO topology re-expresses, rendered exactly
   // as the stack viewer rendered it (views/stack.js, unchanged).
   //
-  // Which stacks those are is read off the data already on hand, not a new
+  // A stack a topology DOES re-express is offered as that topology, and
+  // nowhere else (viewer_nav_wedge_and_classic_retirement, 2026-09-15): the
+  // graph states every verdict, gap, excluded term and missing tolerance the
+  // table stated, so a second entry for the same joint is a second notation
+  // for the same facts. views/nav.js's own header carries the case.
+  //
+  // Which stacks are covered is read off the data already on hand, not a new
   // field: an edge that re-expresses a stack element carries `crop_key`
-  // (`{stack, element}`), and that IS the linkage — the one committed L1 stack
-  // covered by a topology is exactly the one every one of its edges' crop_keys
-  // names. No schema change, no second source of truth.
+  // (`{stack, element}`), and that IS the linkage — a stack covered by a
+  // topology is exactly the one every one of its edges' crop_keys names. No
+  // schema change, no second source of truth.
   //
   // The stack ids ONE topology's own edges re-express, first-seen order, no
-  // duplicates. Shared by VA.stacksCoveredByTopology (a flat "is this stack
-  // covered by ANY topology" map) and VA.navTree (which needs to know covered
-  // BY WHICH topology, to nest the stack under it) so the `crop_key.stack`
-  // extraction lives in exactly one place.
+  // duplicates. The per-topology shape is what the flat "is this stack covered
+  // by ANY topology" map (VA.stacksCoveredByTopology) is folded from, so the
+  // `crop_key.stack` extraction lives in exactly one place.
   VA.topologyCoveredStackIds = function (topology) {
     var seen = {};
     var ids = [];
@@ -2066,24 +2072,74 @@
     return covered;
   };
 
+  // Stacks the page does not offer, and what replaced each one. A superseded
+  // first pass is kept on disk forever — it is history, and it is the document
+  // the take that replaced it was read against — but a rail where every other
+  // entry is live work is not where it belongs, and two near-identical titles
+  // one above the other is a reader's problem, not an archive's
+  // (viewer_nav_wedge_and_classic_retirement, 2026-09-15).
+  //
+  // A map rather than a list, and a module-level constant rather than an id
+  // spelled at a call site: the value names the artifact that supersedes the
+  // key, so the claim is checkable — tests/test_topology_conversions.py's
+  // coverage section pins that every successor named here really exists.
+  //
+  // `tan_link_to_pitch_plate` (take 1) is the only entry. It has no topology
+  // and never will: its checks mix a `path` term with individually-signed
+  // elements, which docs/DAG_TOPOLOGY.md fences rather than converts (the
+  // fence itself is pinned by test_tan_link_to_pitch_plate_take_1_has_no_
+  // topology), so take 2 is the only reachable form of that joint.
+  VA.SUPERSEDED_STACKS = {
+    tan_link_to_pitch_plate: "tan_link_to_pitch_plate_take2",
+  };
+
+  // Every stack the page offers as a table: no topology re-expresses it, and
+  // nothing supersedes it. `hasOwnProperty` rather than a truthiness test — a
+  // stack id that collided with an Object.prototype member would otherwise
+  // read as superseded and vanish from the nav with no trace of why.
   VA.looseStacks = function (topologies, results) {
     var covered = VA.stacksCoveredByTopology(topologies);
     return ((results && results.stacks) || []).filter(function (s) {
-      return !covered[s.id];
+      return !covered[s.id] &&
+        !Object.prototype.hasOwnProperty.call(VA.SUPERSEDED_STACKS, s.id);
     });
   };
 
-  // --- the single nav tree: one topology -> its studies (+ any stack it also
-  // covers, nested rather than hidden) -> and every classic-only stack as a
-  // leaf of the same tree (viewer_v2_single_nav, 2026-09-08). views/nav.js
-  // renders this; nothing here touches the DOM.
+  // Which projection's worksheet a topology's page offers: the topology's own
+  // if it declares one, otherwise the worksheet of a stack it re-expresses
+  // (deliverable 2, viewer_nav_wedge_and_classic_retirement).
+  //
+  // This exists BECAUSE the nested stack row is gone. Three of the four
+  // converted stacks carry an authored WORKSHEET_*.md and their topologies
+  // declare none -- the naming convention pairs `stack_X.json` with
+  // `WORKSHEET_X.md`, and a topology is a different file name -- so the only
+  // way to those three sheets was the row that has just been removed. Dropping
+  // it without this would have made authored prose silently unreachable, which
+  // is the one thing the row was genuinely still good for.
+  //
+  // Nothing is derived and nothing is copied: it returns a projection, and
+  // views/worksheet.js reads `worksheet_file`/`worksheet_source` off whichever
+  // one it is handed. A topology with neither comes back as itself, so the
+  // pane's "no worksheet for this" branch is reached exactly as before.
+  VA.worksheetSubject = function (topology, results) {
+    if (!topology) return null;
+    if (topology.worksheet_file) return topology;
+    var ids = VA.topologyCoveredStackIds(topology);
+    for (var i = 0; i < ids.length; i++) {
+      var stackProj = VA.findStack(results, ids[i]);
+      if (stackProj && stackProj.worksheet_file) return stackProj;
+    }
+    return topology;
+  };
+
+  // --- the single nav tree: one topology -> its studies, and every stack no
+  // topology re-expresses as a leaf of the same tree (viewer_v2_single_nav,
+  // 2026-09-08). One system, one entry: a topology carries no stack child rows
+  // (viewer_nav_wedge_and_classic_retirement, 2026-09-15 — views/nav.js's
+  // header has the case). views/nav.js renders this; nothing here touches the
+  // DOM.
   VA.navTree = function (topologies, results) {
-    var stacksById = {};
-    ((results && results.stacks) || []).forEach(function (s) { stacksById[s.id] = s; });
     var topoNodes = ((topologies && topologies.topologies) || []).map(function (t) {
-      var coveredStacks = VA.topologyCoveredStackIds(t)
-        .map(function (id) { return stacksById[id]; })
-        .filter(Boolean);
       // One index per topology, not one per study: VA.studyAttention resolves
       // each chain row to its edge, and rebuilding the index inside the map
       // would walk this topology's edges once per study.
@@ -2106,7 +2162,6 @@
                    verdict: VA.studyVerdict(s),
                    attention: VA.studyAttention(s, index) };
         }),
-        coveredStacks: coveredStacks,
       };
     });
     return { topologies: topoNodes, looseStacks: VA.looseStacks(topologies, results) };

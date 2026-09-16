@@ -22,16 +22,29 @@ own lesson). See ``docs/sessions/lessons/LESSONS_20260908_linear_stack_conversio
 from __future__ import annotations
 
 import json
+import re
+import sys
 from pathlib import Path
 
 import pytest
 
-from tolerance_stack import load_stack
-from tolerance_stack.topology import check_study, load_study, load_topology, summarize
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+
+import build_topology_projection as TB  # noqa: E402
+import build_viewer_projection as VB  # noqa: E402
+
+from tolerance_stack import load_stack  # noqa: E402
+from tolerance_stack.topology import (  # noqa: E402
+    check_study,
+    load_study,
+    load_topology,
+    summarize,
+)
+
 TOPOLOGIES_DIR = REPO_ROOT / "docs" / "topologies"
 STACKS_DIR = REPO_ROOT / "docs" / "tolerance_stacks"
+VIEWER_TOPOLOGY_JS = REPO_ROOT / "apps" / "viewer" / "topology.js"
 
 
 # --------------------------------------------------------------------------- #
@@ -185,7 +198,7 @@ def test_a_converted_topology_copies_no_value(topology_stem, stack_stem):
 
 
 # --------------------------------------------------------------------------- #
-# 3. tan_link_to_pitch_plate (take 1) stays classic-rendered                  #
+# 3. tan_link_to_pitch_plate (take 1) gets no topology, and no nav row        #
 # --------------------------------------------------------------------------- #
 
 def test_tan_link_to_pitch_plate_take_1_has_no_topology():
@@ -196,8 +209,206 @@ def test_tan_link_to_pitch_plate_take_1_has_no_topology():
     which `docs/DAG_TOPOLOGY.md` fences rather than builds a topology
     equivalent for. This asserts the fence actually held: no
     `topology_tan_link_to_pitch_plate.json` (without `_take2`) exists.
+
+    Since handoff ``viewer_nav_wedge_and_classic_retirement`` (2026-09-15) the
+    take-1 document is also off the viewer's nav rail -- superseded by take 2,
+    kept on disk as history. The document staying is what keeps this test from
+    being vacuous, and ``VA.SUPERSEDED_STACKS`` (paired below) is what keeps
+    "superseded" from meaning "quietly deleted".
     """
     assert not (TOPOLOGIES_DIR / "topology_tan_link_to_pitch_plate.json").exists()
     assert (STACKS_DIR / "stack_tan_link_to_pitch_plate.json").exists(), (
-        "the take-1 stack itself must still be the classic-rendered source "
-        "of truth -- this test would be vacuous if it had been removed")
+        "the take-1 stack document must still be on disk -- it is the source "
+        "take 2 was read against, and this test would be vacuous without it")
+
+
+# --------------------------------------------------------------------------- #
+# 4. what the nav dropped, and what a reader loses by it: nothing             #
+# --------------------------------------------------------------------------- #
+#
+# ``viewer_nav_wedge_and_classic_retirement`` (2026-09-15) removed the nested
+# "classic view" row every topology carried for the stack it re-expresses.
+# Jeff's review: "Why is this still here? I had you completely delete that
+# page, and now it's sneaking back into this page."
+#
+# That row was kept alive for a reason, and the reason is a checkable claim
+# rather than a judgement: the elements table was the only place a stack's
+# verdicts, gaps and excluded terms could be read
+# (``LESSONS_20260904_viewer_consolidation.md`` section 1) until
+# ``viewer_study_verdicts_and_gaps`` put all of it on the graph. So this
+# section pins the claim the removal RESTS on -- every statement the table made
+# about a covered stack is on its topology too. If a later edit to either
+# builder breaks that, the nav row was load-bearing after all, and this fails
+# rather than a reader silently losing a gap list.
+
+
+@pytest.fixture(scope="module")
+def projections() -> tuple[dict, dict]:
+    """The two viewer projections, built from the committed documents.
+
+    Built rather than read from ``data/projections/viewer/``: that directory is
+    gitignored, exists only in the main checkout and is shared by every
+    worktree, so a test reading it would be testing whichever tree last ran the
+    scripts (``test_topology_projection.py``'s own fixture, same reason).
+    """
+    provenance = {
+        "schema": "joby.tolerance_stack/projection_provenance/v0",
+        "built_at": "2026-09-15T00:00:00+00:00",
+        "built_by": "tests/test_topology_conversions.py",
+        "branch": "test", "head_sha": "0" * 40, "dirty": False,
+    }
+    stacks = VB.build(STACKS_DIR, STACKS_DIR / "hardware_entries.json",
+                      provenance=provenance)
+    topologies = TB.build(TOPOLOGIES_DIR, provenance=provenance)
+    return stacks, topologies
+
+
+def covered_pairs(projections: tuple[dict, dict]) -> list[tuple[dict, dict]]:
+    """``(stack projection, topology projection)`` for every covered stack.
+
+    Covered is read exactly the way the viewer reads it
+    (``VA.stacksCoveredByTopology``, apps/viewer/topology.js): an edge that
+    re-expresses a stack element carries ``crop_key.stack``, and that IS the
+    linkage -- no schema field says "this stack has a topology".
+    """
+    stacks, topologies = projections
+    by_id = {s["id"]: s for s in stacks["stacks"]}
+    pairs = []
+    for topology in topologies["topologies"]:
+        seen = []
+        for edge in topology.get("edges", []):
+            stack_id = (edge.get("crop_key") or {}).get("stack")
+            if stack_id and stack_id not in seen:
+                seen.append(stack_id)
+        for stack_id in seen:
+            assert stack_id in by_id, (
+                f"{topology['id']} names stack {stack_id!r} in a crop_key and "
+                f"no stack projection has that id")
+            pairs.append((by_id[stack_id], topology))
+    return pairs
+
+
+def test_a_stack_is_covered_by_at_most_one_topology(projections):
+    """Anti-vacuity, and the assumption every test below quantifies over."""
+    pairs = covered_pairs(projections)
+    assert len(pairs) >= 4, (
+        f"expected the four live conversions, found {len(pairs)} -- if a "
+        f"conversion was removed, the removal is what needs reviewing")
+    ids = [stack["id"] for stack, _ in pairs]
+    assert len(ids) == len(set(ids)), f"a stack covered twice over: {ids}"
+
+
+def test_every_gap_a_covered_stack_states_is_stated_by_its_topology(projections):
+    """The gap list, which the elements table used to be the only home for.
+
+    Compared on the gap ``text`` -- the sentence a reader actually reads. The
+    topology carries MORE (one row per unverified or zero-width edge, which a
+    stack states as a chip on the row instead), and that is fine; what must not
+    happen is a transcription note reaching only the table.
+    """
+    for stack, topology in covered_pairs(projections):
+        assert stack.get("gaps"), (
+            f"{stack['id']} states no gaps at all -- this comparison would be "
+            f"vacuous, so either the stack lost its gap list or the builder did")
+        theirs = {gap["text"] for gap in topology.get("gaps", [])}
+        missing = [gap for gap in stack.get("gaps", [])
+                   if gap["text"] not in theirs]
+        assert not missing, (
+            f"{stack['id']} states {len(missing)} gap(s) its topology "
+            f"{topology['id']} does not, and the nav no longer offers the "
+            f"elements table that stated them:\n" +
+            "\n".join(f"  [{g['kind']}] {g['text'][:120]}" for g in missing))
+
+
+def test_every_check_a_covered_stack_publishes_is_published_by_its_topology(
+        projections):
+    """The verdict, its criterion and what the chain left out, per check.
+
+    Four fields rather than the whole dict: the two projections wrap a check in
+    different envelopes (a stack's is per-path, a topology's per-study), and
+    what a reader must not lose is *which* check, *what it required*, *whether
+    it passed* and *what was excluded from the answer* -- the last because an
+    unqualified verdict on a chain knowingly short a term is the exact lie this
+    repo exists to prevent.
+    """
+    def identity(check: dict) -> tuple:
+        return (check.get("label"), check.get("verdict"), check.get("criterion"),
+                tuple(check.get("excluded_terms") or ()))
+
+    for stack, topology in covered_pairs(projections):
+        assert stack.get("checks"), (
+            f"{stack['id']} publishes no checks at all -- a covered stack with "
+            f"nothing to compare makes this test vacuous")
+        theirs = {
+            identity(check)
+            for study in topology.get("studies", [])
+            for check in (study.get("checks") or [])
+        }
+        missing = [check for check in stack.get("checks", [])
+                   if identity(check) not in theirs]
+        assert not missing, (
+            f"{stack['id']} publishes {len(missing)} check(s) no study of "
+            f"{topology['id']} publishes:\n" +
+            "\n".join(f"  {c.get('label')} ({c.get('verdict')})"
+                       for c in missing))
+
+
+def test_every_missing_tolerance_a_covered_stack_flags_is_a_gap_row(projections):
+    """The zero-width warnings, which the table drew as a dashed row.
+
+    The graph says it in words instead (``no_tolerance_recorded``, rendered as
+    "no tolerance recorded"), so the two counts must agree -- a stack flagging
+    two bands against a topology listing one is a reader losing one.
+    """
+    for stack, topology in covered_pairs(projections):
+        rows = [gap for gap in topology.get("gaps", [])
+                if gap["kind"] == "no_tolerance_recorded"]
+        assert len(rows) == stack["zero_width_count"], (
+            f"{stack['id']} flags {stack['zero_width_count']} element(s) with "
+            f"no tolerance recorded; {topology['id']} lists {len(rows)} gap "
+            f"row(s) for them")
+
+
+def superseded_stacks() -> dict:
+    """``VA.SUPERSEDED_STACKS`` (apps/viewer/topology.js), key -> value.
+
+    Read out of the JS rather than restated here: a copy of the table in this
+    file would agree with itself forever.
+    """
+    source = VIEWER_TOPOLOGY_JS.read_text(encoding="utf-8")
+    match = re.search(r"VA\.SUPERSEDED_STACKS\s*=\s*\{(.*?)\};", source, re.S)
+    assert match, (
+        "no `VA.SUPERSEDED_STACKS = {` table in apps/viewer/topology.js -- if "
+        "it was renamed, this pairing is meaningless until the name here is "
+        "updated")
+    body = re.sub(r"//[^\n]*", "", match.group(1))
+    pairs = re.findall(r"""["']?([A-Za-z0-9_]+)["']?\s*:\s*["']([^"']+)["']""",
+                       body)
+    assert pairs, (
+        "the table parsed as empty -- an empty table agrees with everything")
+    return dict(pairs)
+
+
+def test_every_superseded_stack_the_viewer_hides_is_real_and_so_is_its_successor():
+    """What "superseded" is allowed to mean: replaced, not deleted.
+
+    A row vanishing from the nav is cheap to write and hard to notice, so the
+    table that does it names the replacement, and this checks the whole claim
+    against the documents: the hidden stack is still committed (history is
+    kept), it really has no topology (or hiding it would hide a graph too), and
+    the artifact named as its successor really exists in both forms.
+    """
+    for hidden, successor in superseded_stacks().items():
+        assert (STACKS_DIR / f"stack_{hidden}.json").exists(), (
+            f"the viewer hides stack {hidden!r} as superseded, but no "
+            f"stack_{hidden}.json is committed -- hiding a document that is "
+            f"gone is hiding nothing, and the table is stale")
+        assert not (TOPOLOGIES_DIR / f"topology_{hidden}.json").exists(), (
+            f"{hidden!r} is hidden from the nav as superseded, yet it HAS a "
+            f"topology -- hiding it would drop a graph from the page")
+        assert (STACKS_DIR / f"stack_{successor}.json").exists(), (
+            f"{hidden!r} is hidden in favour of {successor!r}, which is not a "
+            f"committed stack")
+        assert (TOPOLOGIES_DIR / f"topology_{successor}.json").exists(), (
+            f"{hidden!r} is hidden in favour of {successor!r}, which has no "
+            f"topology -- the reader would be left with neither")

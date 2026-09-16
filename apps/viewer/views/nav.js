@@ -1,27 +1,29 @@
 // The single left-rail nav (viewer_v2_single_nav, 2026-09-08): one tree,
 // replacing both the TOPOLOGY/STUDY <select> pickers (views/topology.js's old
 // renderTopoPicker) and the flat stack rail (the retired views/list.js) at
-// once. Every topology lists its studies as children; every classic-only
-// stack (no topology re-expresses it) is a leaf of the same tree. Selecting
-// any node drives the whole page — see topology_app.js's onNavTopology /
-// onNavStudy / onNavStack.
+// once. Every topology lists its studies as children; a stack no topology
+// re-expresses is a leaf of the same tree. Selecting any node drives the whole
+// page — see topology_app.js's onNavTopology / onNavStudy / onNavStack.
 //
-// The one stack a topology ALSO re-expresses is not a second top-level leaf:
-// it is nested as a child of the topology it belongs to (VA.navTree's
-// `coveredStacks`, topology.js) — the tree-shaped form of the same "extra
-// pointer, never a removal" rule the flat list's markCoveredStacks chip used.
-// Nothing is hidden or duplicated, and the same joint as a table is one click
-// under the topology it also is.
+// A stack a topology DOES re-express has no row of its own
+// (viewer_nav_wedge_and_classic_retirement, 2026-09-15). It used to get one:
+// nested under its topology, chipped "classic view", rendering the elements
+// table beside the graph. The reason that existed is spent.
+// LESSONS_20260904_viewer_consolidation.md §1 found a stack's own verdict had
+// no field in the topology projection at all, so the elements table was the
+// only place on this whole page a verdict could be read — true until the
+// field landed (2026-09-09) and this page rendered it (2026-09-15,
+// viewer_study_verdicts_and_gaps), along with every gap, excluded term and
+// missing-tolerance warning the table carried. That the graph now states all
+// of it is not an argument in a comment: it is paired stack-against-topology,
+// row for row, by tests/test_topology_conversions.py's coverage section.
 //
-// The ORIGINAL reason for that nesting is spent, and saying so here is the
-// point: LESSONS_20260904_viewer_consolidation.md §1 found that a stack's own
-// verdict had no field in the topology projection at all, so the classic view
-// was the only place on the whole page a verdict could be read. That held
-// until 2026-09-09 (the field) and 2026-09-15 (this page rendering it,
-// viewer_study_verdicts_and_gaps). The nesting survives on its own merits —
-// an element table, the paths and the worksheet are all still stack-only —
-// and the handoff after this one (viewer_nav_wedge_and_classic_retirement) is
-// where whether it survives AT ALL gets decided.
+// So one system is one entry, and a reader is never offered the same joint
+// twice in two notations. Jeff's 2026-09-15 review is the whole of the case:
+// "Why is this still here? I had you completely delete that page, and now
+// it's sneaking back into this page." Some entries simply have no DAG (the
+// two thermal-fit stacks); those are the leaves, rendered as plain stack
+// pages, and nothing on the rail labels them as a different kind of page.
 //
 // Titles are short noun phrases (stack_title_style_pass, 2026-09-14 — the rule
 // is docs/SOP_TOLERANCE_STACK.md's "Titling an artifact"), so the rail scans
@@ -97,20 +99,6 @@
       srow.setAttribute("data-nav-id", s.id);
       srow.setAttribute("data-topology-id", t.id);
       srow.onclick = function () { handlers.onStudy(t.id, s.id); };
-      children.appendChild(VA.el("li", "navtree__item", srow));
-    });
-    (t.coveredStacks || []).forEach(function (stackProj) {
-      var active = state.mode === "stack" && state.selectedStackId === stackProj.id;
-      var srow = VA.el("div", "navtree__row navtree__row--stack" +
-        (active ? " navtree__row--on" : ""));
-      srow.appendChild(VA.el("span", "navtree__label", stackProj.title));
-      srow.appendChild(VA.chip("chip--kind", "classic view",
-        "the same joint as a table: its elements one per row, with its paths " +
-        "and its worksheet beside them"));
-      setTooltip(srow, stackProj.description, null);
-      srow.setAttribute("data-nav-kind", "stack");
-      srow.setAttribute("data-nav-id", stackProj.id);
-      srow.onclick = function () { handlers.onStack(stackProj.id); };
       children.appendChild(VA.el("li", "navtree__item", srow));
     });
     if (children.childNodes.length) li.appendChild(children);

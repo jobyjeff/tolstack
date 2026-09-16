@@ -14,7 +14,7 @@
 //      real navigation too, checked the same way.
 //   2. topology.html?mock=1 really renders BOTH modes: the topology mode (see
 //      #4) and, since handoff viewer_consolidation retired the separate stack
-//      viewer into this same page, the classic elements-table mode reached by
+//      viewer into this same page, the elements-table mode reached by
 //      clicking a leaf in the ONE nav tree (viewer_v2_single_nav) — an
 //      untraced row that is visibly filled, an unestablished export block that
 //      is visibly filled, a budget-scope check, and the gap list — asserted
@@ -454,13 +454,22 @@ function navRow(kind, id) {
   return `[data-nav-kind="${kind}"][data-nav-id="${String(id).replace(/"/g, '\\"')}"]`;
 }
 
-// --- the classic elements table, reached through the ONE nav tree ----------
+// --- the elements table, reached through the ONE nav tree ------------------
 //
-// Reached by clicking a stack leaf (VA.looseStacks, or a topology's own
-// covered-stack child) in the nav, not by its own page any more — index.html
-// is a redirect stub (checked separately, testIndexRedirects). Every assertion
-// below is unchanged from the retired stack viewer's own browser test:
-// views/stack.js and views/detail.js did not move, only what boots them did.
+// Reached by clicking a stack leaf (VA.looseStacks) in the nav, not by its own
+// page any more — index.html is a redirect stub (checked separately,
+// testIndexRedirects). Every assertion below is unchanged from the retired
+// stack viewer's own browser test: views/stack.js and views/detail.js did not
+// move, only what boots them did.
+//
+// A LEAF is the only way in now (viewer_nav_wedge_and_classic_retirement,
+// 2026-09-15). This suite used to enter through `demo_joint`, the stack the
+// demo mechanism re-expresses, which the nav nested under its topology behind
+// a "classic view" chip; that row is gone, because the graph states everything
+// the table did. So the way in is the leaf the fixture carries for exactly this
+// — `demo_joint_standalone`, the same rich stack under an id no crop_key names,
+// which is the shape the real repo is in: two thermal-fit stacks with no
+// topology, and every other stack re-expressed as one.
 async function testTheApp(browser, url, label) {
   const page = await browser.newPage();
   const errors = [];
@@ -472,22 +481,21 @@ async function testTheApp(browser, url, label) {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector('[data-nav-kind="stack"]', { timeout: 15000 });
 
-    // Both the stack a topology covers (demo_joint, nested under its topology
-    // in the tree) and the one that stands in for every stack that has none
-    // (demo_joint_standalone, a top-level leaf) — deliverable 1's nav lists
-    // every stack, not just the loose ones (views/nav.js's own comment says
-    // why: a covered stack's own check verdict lives nowhere else).
-    push("the nav lists every stack, covered or not",
-      await page.locator('[data-nav-kind="stack"]').count() === 2);
-    push("the one a topology covers carries the pointer to it",
-      await page.locator(".chip--kind", { hasText: "classic view" }).count() === 1);
+    // One stack row, not two: the fixture holds `demo_joint` (which the demo
+    // mechanism re-expresses) and `demo_joint_standalone` (which nothing does),
+    // and only the second is an entry. One system, one entry.
+    push("the nav lists exactly the stacks no topology re-expresses",
+      await page.locator('[data-nav-kind="stack"]').count() === 1);
+    push("and says nothing about a classic view anywhere on the page",
+      !(await page.evaluate(() =>
+        document.body.textContent.toLowerCase().includes("classic"))));
 
     // Switch from the default topology mode into stack mode — a real click,
     // which is the one thing this test tier exists to exercise.
-    await page.locator(navRow("stack", "demo_joint")).click();
+    await page.locator(navRow("stack", "demo_joint_standalone")).click();
     await page.waitForSelector("tr.el-row", { timeout: 15000 });
     push("picking the stack marks its nav row and hides the toolbar",
-      await page.locator(navRow("stack", "demo_joint")).evaluate(
+      await page.locator(navRow("stack", "demo_joint_standalone")).evaluate(
         (n) => n.className.indexOf("navtree__row--on") !== -1) &&
       await page.locator("#toolbar").evaluate((n) => getComputedStyle(n).display) === "none");
 
@@ -1569,13 +1577,26 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       !(await page.locator("#legend-dialog").evaluate((n) => n.open)));
 
     // The demo mechanism's own joint is `{}` (it spans four parts, no single
-    // physical joint) and it declares no worksheet — the "stays silent" half
-    // of deliverable 4 (viewer_v2_single_nav), on the fixture the rest of
-    // this suite already loaded.
+    // physical joint) — the "stays silent" half of deliverable 4
+    // (viewer_v2_single_nav), on the fixture the rest of this suite already
+    // loaded.
     push("a topology with no joint block says so rather than fabricating one",
       /no joint block/.test(await page.locator("#topojoint").textContent()));
-    push("a topology with no worksheet_file hides the worksheet toggle",
-      !(await page.locator("#worksheet-toggle").isVisible()));
+    // It declares no worksheet either, and until
+    // viewer_nav_wedge_and_classic_retirement that hid the toggle. It now
+    // offers the sheet of the stack it re-expresses (`demo_joint`,
+    // VA.worksheetSubject): retiring that stack's own nav row left this page as
+    // the only route to an authored sheet, which is true of three of the four
+    // real conversions too. The dialog names the file it is showing, so a
+    // reader is never left wondering whose sheet they are reading.
+    await page.locator("#worksheet-toggle").click();
+    await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+    const sheet = await page.locator("#worksheet-dialog").textContent();
+    push("a topology with no worksheet of its own offers the one its covered " +
+      "stack authored, and names it", /WORKSHEET_demo_joint\.md/.test(sheet));
+    push("and renders that sheet's own body, not an empty pane",
+      /Demo worksheet/.test(sheet));
+    await page.locator("#worksheet-close").click();
 
     // Edge-length scaling (viewer_edge_length_scaling): cycle the toolbar's
     // mode button through all three stops. At each: the bars measure what the
@@ -2458,6 +2479,271 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       push(`[real, non-mock] ${topology.id} renders all ${expected} edge rows ` +
         "through the real load()+render() pipeline", rowCount === expected);
     }
+
+    const failed = checks.filter((c) => !c.cond);
+    const ok = failed.length === 0 && errors.length === 0;
+    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok };
+  } catch (err) {
+    console.log(`[${label}] ERROR: ${err.message}`);
+    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+    return { label, ok: false };
+  } finally {
+    await page.close();
+  }
+}
+
+// --- no click may wedge the page (viewer_nav_wedge_and_classic_retirement) --
+//
+// Jeff's 2026-09-15 review, second half: "when you click on a classic view, the
+// page gets wedged on that item and can't unstick unless you do a page
+// refresh." The cause was one missing `.catch`. All three nav handlers move
+// `state` FIRST and then await a worksheet read (`loadWorksheet().then(...)`),
+// so a rejected read never reached a repaint: the page kept the picture of the
+// node you clicked away from, the rail's highlight never moved, and every
+// later click did the same thing again. Nothing threw where a user could see
+// it -- it was an unhandled rejection in the console, which is the same shape
+// as the 2026-09-09 silently-empty-DAG incident that got `onReload` its catch
+// and left these three without one.
+//
+// So this suite is not "does the error look right". It is: click EVERY row of
+// the real nav, twice over, and require that the page went somewhere.
+//
+//   1. worksheet reads REJECTING -- an FSA grant revoked mid-session, or an
+//      origin that errors on the docs path. (Note which shape this is NOT:
+//      drawing-checker's sibling-data-mount reaches no `docs/` at all, so
+//      there `readText` resolves null and the toggle is simply not offered --
+//      no rejection, which is pass 2's case and is honest on its own. The
+//      failing read is the one nothing rendered.)
+//   2. the same rows with reads RESOLVING, where no banner may appear at all.
+//
+// The wedge detector is the rail's own highlight: `navtree__row--on` moves
+// only when renderNav runs, and renderNav runs only from a paint. A row that
+// never lights up is a click that painted nothing, which is the bug, whatever
+// the rest of the page looks like.
+async function testNavNeverWedges(browser, url, label, realProjection, realResults, realCrops) {
+  if (!realProjection || !realResults) {
+    console.log(`[${label}] SKIP: topologies.json/results.json not built under ` +
+      "the target repo (fresh clone) -- build them, or pass --repo <main checkout>");
+    return { label, ok: true };
+  }
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  try {
+    await page.goto(url + "/topology.html", { waitUntil: "load" });
+    await page.evaluate(() => {
+      window.__REJECTIONS__ = [];
+      window.addEventListener("unhandledrejection", (ev) => {
+        window.__REJECTIONS__.push(String((ev.reason && ev.reason.stack) || ev.reason));
+      });
+    });
+
+    // The real boot path with a fake adapter, exactly as the non-mock suite
+    // above does it -- plus one switch on `readText`, which is the only method
+    // a nav click awaits.
+    await page.evaluate(({ topologies, results, crops }) => {
+      const VA = window.ViewerApp;
+      window.__WORKSHEETS_FAIL__ = true;
+      const Fake = function () {
+        const memory = new VA.MemoryAdapter({
+          startState: VA.STATE.READY, topologies, results, crops, images: {}, texts: {},
+        });
+        const real = memory.readText.bind(memory);
+        memory.readText = function (segments) {
+          if (window.__WORKSHEETS_FAIL__) {
+            return Promise.reject(new Error("this origin cannot reach the worksheet"));
+          }
+          return real(segments);
+        };
+        return memory;
+      };
+      Fake.isSupported = () => true;
+      VA.FsaAdapter = Fake;
+      VA.bootTopology();
+    }, { topologies: realProjection, results: realResults, crops: realCrops });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+
+    // Every clickable row of the live rail, in the order a reader meets them,
+    // tagged with whether clicking it READS anything. `loadWorksheet()` reads
+    // only where the selected subject declares a `worksheet_file` -- and a node
+    // with none resolves without touching the adapter at all. Only the reading
+    // rows can see a failed read, so only they are required to say so;
+    // requiring a banner on the others would be requiring the page to invent an
+    // error.
+    //
+    // The subject is `VA.worksheetSubject`'s, replayed here off the same two
+    // projections: a topology's own sheet, or failing that the sheet of a stack
+    // it re-expresses (a study row inherits its topology's either way). A
+    // deliberate second implementation of a five-line rule -- the point is to
+    // discover which rows really hit the adapter, and asking the page under
+    // test would agree with whatever it does.
+    const sheetless = new Set();
+    for (const stack of realResults.stacks) {
+      if (!stack.worksheet_file) sheetless.add(stack.id);
+    }
+    const withWorksheet = new Set();
+    for (const topology of realProjection.topologies) {
+      const covered = (topology.edges || [])
+        .map((edge) => edge.crop_key && edge.crop_key.stack)
+        .filter((id) => id && !sheetless.has(id));
+      if (topology.worksheet_file || covered.length) {
+        withWorksheet.add("topology:" + topology.id);
+      }
+    }
+    for (const stack of realResults.stacks) {
+      if (stack.worksheet_file) withWorksheet.add("stack:" + stack.id);
+    }
+    const rows = (await page.evaluate(() =>
+      Array.prototype.map.call(
+        document.querySelectorAll("#navtree [data-nav-kind]"),
+        (row) => ({ kind: row.getAttribute("data-nav-kind"),
+                    id: row.getAttribute("data-nav-id"),
+                    topologyId: row.getAttribute("data-topology-id") }))
+    )).map((row) => Object.assign(row, {
+      reads: withWorksheet.has(
+        row.kind === "study" ? "topology:" + row.topologyId : row.kind + ":" + row.id),
+    }));
+    push("the rail offers rows to click at all", rows.length >= 20);
+    push("some of those rows really do read a worksheet, so the failing " +
+      "transport is exercised at all",
+      rows.filter((row) => row.reads).length >= 3);
+
+    // Pass 1: every read rejects. Each click must still land -- the row lights
+    // up, the pane it implies is on screen, and the banner says what happened.
+    const wedged = [];
+    const unbannered = [];
+    const blank = [];
+    for (const row of rows) {
+      await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
+      try {
+        await page.waitForSelector(
+          `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
+      } catch {
+        wedged.push(`${row.kind}:${row.id}`);
+        continue;
+      }
+      const seen = await page.evaluate(() => ({
+        banner: (document.querySelector(".banner__error") || {}).textContent || "",
+        rails: document.querySelectorAll("tr.tvrow").length,
+        elements: document.querySelectorAll("#stackview table.eltable").length,
+      }));
+      if (row.reads && !seen.banner.trim()) unbannered.push(`${row.kind}:${row.id}`);
+      if (!row.reads && seen.banner.trim()) unbannered.push(`${row.kind}:${row.id} (nothing to read, yet it raised one)`);
+      const painted = row.kind === "stack" ? seen.elements >= 1 : seen.rails >= 1;
+      if (!painted) blank.push(`${row.kind}:${row.id}`);
+    }
+    push("no click leaves the page wedged: every row still moves the rail's " +
+      "highlight when the worksheet read fails", wedged.length === 0);
+    console.log(`    (${rows.length} rows clicked, ` +
+      `${rows.filter((row) => row.reads).length} of them reading)`);
+    if (wedged.length) console.log(`    wedged on: ${wedged.join(", ")}`);
+    push("a failed worksheet read says so in the banner rather than failing " +
+      "silently, and a node with no worksheet raises nothing",
+      unbannered.length === 0);
+    if (unbannered.length) console.log(`    wrong banner state on: ${unbannered.join(", ")}`);
+    push("the page the click asked for is on screen even though the read " +
+      "failed", blank.length === 0);
+    if (blank.length) console.log(`    nothing painted for: ${blank.join(", ")}`);
+
+    // Recovery, with no user action and no reload: the next read that works
+    // retires the banner. A message that outlives what it was about is a
+    // sentence about the wrong node, and the banner has no dismiss control.
+    const reader = rows.find((row) => row.reads);
+    let cleared = false;
+    try {
+      await page.locator(`#navtree ${navRow(reader.kind, reader.id)}`).click();
+      await page.waitForSelector(".banner__error", { timeout: 4000 });
+      await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = false; });
+      await page.locator(`#navtree ${navRow(reader.kind, reader.id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow(reader.kind, reader.id)}.navtree__row--on`, { timeout: 4000 });
+      cleared = (await page.locator(".banner__error").count()) === 0;
+    } catch {
+      // Swallowed on purpose. A wedged page never raises the banner this waits
+      // for, and a timeout thrown from here would take the whole suite down as
+      // an ERROR -- which carries no check name, so the mutation-witness tier
+      // reports it as a MISS rather than as the red it is
+      // (scripts/mutation_witnesses.json, "ONE THING AN ENTRY CANNOT DECLARE").
+      await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = false; });
+    }
+    push("a read that works clears the banner a failed one wrote", cleared);
+
+    // Pass 2: reads resolving. Same rows, and now no banner may appear at all
+    // -- the containment must not be paying for itself with a false alarm.
+    const noisy = [];
+    for (const row of rows) {
+      await page.locator(`#navtree ${navRow(row.kind, row.id)}`).click();
+      try {
+        await page.waitForSelector(
+          `#navtree ${navRow(row.kind, row.id)}.navtree__row--on`, { timeout: 4000 });
+      } catch {
+        wedged.push(`${row.kind}:${row.id} (reads working)`);
+        continue;
+      }
+      if (await page.locator(".banner__error").count()) noisy.push(`${row.kind}:${row.id}`);
+    }
+    push("every row lands with no error banner at all when the reads work",
+      noisy.length === 0 && wedged.length === 0);
+    if (noisy.length) console.log(`    banner raised on: ${noisy.join(", ")}`);
+
+    // The other half of deliverable 2, end to end: the sheet a converted
+    // stack authored is still ONE CLICK away, on its topology's page, now that
+    // the stack's own row is gone. Over this seam `texts` is empty, so the
+    // dialog cannot show the markdown -- what it must show is that it is
+    // offering the STACK's sheet, by name, and it must offer the button at all.
+    let fallback = null;
+    for (const topology of realProjection.topologies) {
+      if (topology.worksheet_file) continue;
+      const covered = (topology.edges || [])
+        .map((edge) => edge.crop_key && edge.crop_key.stack).filter(Boolean);
+      const stack = realResults.stacks.find(
+        (s) => covered.includes(s.id) && s.worksheet_file);
+      if (stack) { fallback = { topology, stack }; break; }
+    }
+    push("the live projection has a converted stack whose sheet only its " +
+      "topology's page can reach", fallback !== null);
+    if (fallback) {
+      await page.locator(`#navtree ${navRow("topology", fallback.topology.id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow("topology", fallback.topology.id)}.navtree__row--on`,
+        { timeout: 4000 });
+      push("a topology that declares no worksheet still offers the one its " +
+        "stack authored", await page.locator("#worksheet-toggle").isVisible());
+      await page.locator("#worksheet-toggle").click();
+      await page.waitForSelector("#worksheet-dialog[open]", { timeout: 5000 });
+      push("and the dialog names that stack's own sheet, not a neighbour's",
+        (await page.locator("#worksheet-dialog").textContent())
+          .includes(fallback.stack.worksheet_file));
+      await page.locator("#worksheet-close").click();
+    }
+
+    // The retirement, on the live rail (deliverable 2 and 4): a stack a
+    // topology re-expresses has no row, and the word is gone from the page.
+    const covered = [];
+    for (const topology of realProjection.topologies) {
+      for (const edge of topology.edges || []) {
+        const id = edge.crop_key && edge.crop_key.stack;
+        if (id && !covered.includes(id)) covered.push(id);
+      }
+    }
+    push("the live projection really does re-express some stacks as graphs",
+      covered.length >= 4);
+    push("no row anywhere on the rail says \"classic\"",
+      !(await page.evaluate(() =>
+        document.getElementById("navtree").textContent.toLowerCase().includes("classic"))));
+    const offered = rows.filter((row) => row.kind === "stack").map((row) => row.id);
+    push("every stack row the rail offers is one no topology re-expresses",
+      covered.every((id) => !offered.includes(id)));
+
+    const rejections = await page.evaluate(() => window.__REJECTIONS__);
+    push("no unhandled promise rejection from any nav click",
+      rejections.length === 0);
+    if (rejections.length) console.log(`    rejections: ${rejections.join(" | ")}`);
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
@@ -3798,6 +4084,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       ["render crash shows the banner", (label) =>
         testRenderCrash(browser, fileBase, label)],
       ["real render path (non-mock)", (label) => testRealDataRenderPath(
+        browser, fileBase, label, topologies, realResults, crops)],
+      ["no nav click wedges the page", (label) => testNavNeverWedges(
         browser, fileBase, label, topologies, realResults, crops)],
       ["served mode (repo-root static server)", (label) => testServedModeBoot(
         browser, repoRootBaseUrl, label, topologies, stopRepoRootServer)],
