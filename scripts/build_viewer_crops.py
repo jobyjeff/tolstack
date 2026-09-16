@@ -60,14 +60,27 @@ resolves through that space unchanged (``scripts/build_topology_projection.py``'
 ``crop_key``), and nothing about the stack scan below reads from or writes to
 a topology document at all.
 
-Where the crop is taken (in order):
+Where the crop is taken (in order; :func:`locate` is the one place the order is
+written, and says at each step why it sits where it does):
 
+* **the item's own balloon**, when the citation names a part the run's
+  ``*_balloons.json`` places on the cited sheet (:func:`balloon_answer`). This
+  beats the cited zone deliberately: a parts-list citation's zone is the zone of
+  the view's *caption*, which is not where the item is -- the bushing's crop
+  showed DETAIL B with balloon 34, the one the citation is about, off the top
+  edge -- and a caption's printed zone is not even stable between exports of one
+  revision (the pitch_link worksheet's finding F4). Such a crop also carries a
+  second image, the parts-list row for that item
+  (:func:`parts_list_companion`), because a balloon on its own is a number in a
+  circle.
 * **the cited zone**, if ``zone`` is set and the sheet's printed border grid is
   legible: the cited cell padded by ``--zone-pad`` cells. The citation is a zone
   citation, so the zone is what gets shown. The locator also records whether the
   callout's own text was found *inside* that cell -- corroboration, not a
   requirement (a parts-list nomenclature is cited at the balloon, and lives on
-  the parts-list sheet).
+  the parts-list sheet). When it *was* found, the rect is widened to whatever
+  the callout's leader reaches (:func:`attachment_rect`), so a dimension is
+  shown on the feature it dimensions rather than floating in space.
 * **a declared crop region**, when the resolved PDF lives in
   ``data/inbox/specs/`` and ``docs/spec_library/crop_regions.json`` declares a
   region for the cited sheet that this citation matches. A pile citation names a
@@ -77,12 +90,32 @@ Where the crop is taken (in order):
   ``tolerance_stack/spec_crop_regions.py`` owns the matching rules, and the rule
   applies whichever rule above named the document, because the region is a fact
   about the *bytes in the pile* rather than about how the citation reached them.
+  Where that sheet also declares a **page context**, the context is the crop and
+  the region becomes a highlight box inside it: a row band alone was "just four
+  numbers with no context for what they mean" (Jeff, 2026-09-15), because it
+  carries neither the column headers nor the figure the columns refer to.
 * **the callout text**, if none of the above and a needle derived from the
-  callout matches exactly once on the page.
+  callout matches exactly once on the page -- widened along its leader, same as
+  a corroborated zone.
+* **the sheet's declared page context**, when the page has one and nothing above
+  placed the crop: coarse, so it loses to a unique text match, but it is a rect
+  a human recorded and it beats the whole sheet. Nothing is highlighted, which
+  is the honest answer -- no region matched, and which row was meant is not
+  declared.
 * **the whole sheet** otherwise, with the reason recorded (a scanned standard
   with no text layer, which is what ``NAS6403-NAS6420 Rev 4.pdf`` is, lands
   here -- and for a pile document the reason also says why no declared region
   applied, because "record one" is the action that fixes it).
+
+Every entry also carries the **boxes worth drawing over the crop**
+(``highlights``), each as a rect in points *and* as fractions of the crop, so
+the viewer can position an overlay without knowing what scale the PNG was
+rendered at. Their two-word vocabulary is :data:`HIGHLIGHT_KINDS` and it is the
+whole visual distinction the viewer draws: a box round something **found** on
+the page is solid, a box round a rect somebody merely **declared** -- a
+registry region, or a cited zone the callout text was not in -- is dashed. That
+keeps "the crop is the citation, not a match" a property of the picture rather
+than of a sentence beside it.
 
 Output (wipe-and-rebuild; owns only its own files, ``results.json`` is
 ``build_viewer_projection.py``'s)::

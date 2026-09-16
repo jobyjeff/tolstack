@@ -1970,15 +1970,18 @@
       // against something else and points somewhere else.
       var frames = all(root, "div.cropfig");
       eq(frames.length, 1);
-      eq(frames[0].childNodes.filter(function (n) {
-        return n.tagName === "IMG";
-      }).length, 1);
-      ok(frames[0].childNodes.indexOf(boxes[0]) !== -1,
+      eq(all(frames[0], "img").length, 1);
+      // Read through parentNode, not by indexing childNodes: in a real browser
+      // childNodes is a NodeList with no `filter` or `indexOf`, and the node
+      // shim's array-shaped one hid that until the browser tier ran.
+      ok(boxes[0].parentNode === frames[0],
          "the box is a child of the frame the picture is in");
       // And the frame carries the crop's own ratio, which is what lets a
       // surface cap a crop's height WITHOUT letterboxing the picture inside
       // its element -- an inset picture and a percentage overlay disagree.
-      eq(all(root, "div.cropfig")[0].style["--crop-ratio"], "0.8774");
+      // getPropertyValue, for the same reason: a real CSSStyleDeclaration does
+      // not expose a custom property as a plain key.
+      eq(frames[0].style.getPropertyValue("--crop-ratio"), "0.8774");
     });
 
     await test("a declared region is DASHED and a found match is SOLID -- the " +

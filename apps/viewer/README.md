@@ -640,6 +640,45 @@ behind it) or a derived gap (no value to cite). A citation of kind
 `assumed` says outright that there is no document behind it to crop — which is
 much of the pitch system.
 
+### Every crop says where on it to look, and how sure that is
+
+(`viewer_reference_crops_in_context`, 2026-09-15.) A crop used to be the whole
+answer: the rect was the claim, and a rect too tight to read was indistinguishable
+from a rect that was wrong. Each crop now comes with the **boxes worth looking
+at**, and each surface that shows a crop draws them over the picture — the
+popover, the hover cards and both preview panes, through one builder
+(`VA.cropFigure`).
+
+Two kinds, and the difference is the point:
+
+- **solid** — the citation's own callout text, or the balloon carrying its find
+  number, was *found* at this rect on this page;
+- **dashed** — somebody *declared* this rect (a spec-sheet crop region), or the
+  citation named this printed zone and nothing on the page corroborated it.
+
+That second one is a real state and a common one: a parts-list nomenclature is
+cited at a balloon and printed on the parts-list sheet, so its zone never
+corroborates. It used to be a clause in the folded provenance line; it is now
+the border style of the box, because the picture is what a reader looks at.
+
+The overlay is DOM, positioned in **percentages** of the image (`crops.json`
+carries each box as a fraction of the crop as well as in PDF points), not pixels
+burnt into the PNG: one crop is laid out at four different widths across this
+page, and pixels are right at one of them. A surface that wants to cap a crop's
+height caps its **width** instead, off the `--crop-ratio` the builder sets — an
+`object-fit: contain` image is inset inside its element, and a percentage
+overlay would then point into the letterbox.
+
+Two things a crop can also carry:
+
+- **a second image.** A crop framed on a balloon shows a number in a circle, so
+  it comes with the **parts-list row** for that item — find number, part number,
+  nomenclature, quantity — with the part number boxed.
+- **a link called by the drawing.** Where the crop resolved through a
+  drawing-checker run, the click-through reads *"215197 rev A.1"*, not "open
+  run": a run is an internal artifact, and its id told a reader nothing about
+  which drawing they were about to open.
+
 ### Row/leader correspondence is the claim, so it is measured
 
 A grid row, its rail bar and the leaders around it describe the same graph — but
