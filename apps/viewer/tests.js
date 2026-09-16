@@ -5608,17 +5608,66 @@
 
     // --- the single nav tree (viewer_v2_single_nav, 2026-09-08) -------------
 
-    await test("VA.navTree nests a topology's studies and any stack it also " +
-      "covers, and lists every classic-only stack as a leaf", function () {
+    // One system, one entry (viewer_nav_wedge_and_classic_retirement,
+    // 2026-09-15): a topology's children are its studies and nothing else. The
+    // stack it re-expresses used to be nested under it as a "classic view" row
+    // -- and clicking one was the wedge Jeff reported. It is the same joint in
+    // another notation, and the graph now states every verdict, gap, excluded
+    // term and missing tolerance the table did (paired row for row by
+    // tests/test_topology_conversions.py).
+    await test("VA.navTree nests a topology's studies and nothing else, and " +
+      "lists every stack no topology re-expresses as a leaf", function () {
         var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
         eq(tree.topologies.length, TOPOFIX.topologies.length);
         var demoMechanism = tree.topologies[0];
         eq(demoMechanism.id, TOPO.id);
         eq(demoMechanism.studies.length, TOPO.studies.length);
-        eq(demoMechanism.coveredStacks.length, 1);
-        eq(demoMechanism.coveredStacks[0].id, "demo_joint");
+        eq(demoMechanism.coveredStacks, undefined,
+           "a covered stack must not come back as a child of its topology");
         eq(tree.looseStacks.length, 1);
         eq(tree.looseStacks[0].id, "stack_rotor_fastener_length");
+      });
+
+    // The covered stack is still IN the projection and still renders (a
+    // ?stack= deep link reaches it); what it no longer has is a row.
+    await test("the nav offers no row at all for a stack a topology " +
+      "re-expresses, and says nothing about a classic view", function () {
+        var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
+        var root = render(function (r) {
+          VA.renderNavTree(r, tree, { mode: "topology", topologyId: TOPO.id }, {});
+        });
+        var ids = all(root, ".navtree__row").map(function (row) {
+          return row.getAttribute("data-nav-id");
+        });
+        eq(ids.indexOf("demo_joint"), -1,
+           "a covered stack must have no row of its own");
+        ok(ids.indexOf("stack_rotor_fastener_length") !== -1,
+           "a stack no topology re-expresses is still a leaf");
+        eq(root.textContent.toLowerCase().indexOf("classic"), -1,
+           "no surface says \"classic\" anywhere (deliverable 4)");
+      });
+
+    // A superseded first pass keeps its JSON forever and loses its row: the
+    // rail is live work, and two near-identical titles one above the other is
+    // a reader's problem. The real entry is exercised rather than a synthetic
+    // one, so the constant itself is under test and not a copy of it.
+    await test("a stack VA.SUPERSEDED_STACKS names is offered nowhere in " +
+      "the nav, and its successor is", function () {
+        var superseded = Object.keys(VA.SUPERSEDED_STACKS);
+        ok(superseded.length >= 1, "the table must not be empty");
+        var stacks = superseded.map(function (id) {
+          return { id: id, title: "superseded: " + id };
+        });
+        superseded.forEach(function (id) {
+          stacks.push({ id: VA.SUPERSEDED_STACKS[id], title: "the take that replaced it" });
+        });
+        var tree = VA.navTree(null, { stacks: stacks });
+        var offered = tree.looseStacks.map(function (s) { return s.id; });
+        superseded.forEach(function (id) {
+          eq(offered.indexOf(id), -1, id + " must not be on the rail");
+          ok(offered.indexOf(VA.SUPERSEDED_STACKS[id]) !== -1,
+             "the take that replaced " + id + " must be");
+        });
       });
 
     await test("VA.navTree tolerates missing projections", function () {
@@ -5627,8 +5676,8 @@
       eq(VA.navTree(TOPOFIX, null).topologies[0].studies.length, TOPO.studies.length);
     });
 
-    await test("the nav tree renders every topology, its studies, its " +
-      "covered stack and every loose stack, and marks the active node",
+    await test("the nav tree renders every topology, its studies and every " +
+      "loose stack, and marks the active node",
       function () {
         var tree = VA.navTree(TOPOFIX, LOOSE_RESULTS);
         var root = render(function (r) {
@@ -5637,7 +5686,6 @@
         });
         has(root.textContent, "⚠ ");
         has(root.textContent, "no topology re-expresses this");
-        has(root.textContent, "classic view");
         var active = all(root, ".navtree__row--on");
         eq(active.length, 1);
         has(active[0].textContent, "⚠");
@@ -5698,9 +5746,6 @@
             description: "Hub A datum to blade OML, in degrees." },
           { id: "s2", title: "Bare study", status: "ok", description: null },
         ],
-        coveredStacks: [
-          { id: "k1", title: "Described stack", description: "Built with no source workbook." },
-        ],
       }],
       looseStacks: [
         { id: "k2", title: "Described loose stack", description: "A loose stack's own one-liner." },
@@ -5720,7 +5765,6 @@
         has(byId.t1, "The long qualification the title shed.");
         eq(byId.s1, "Hub A datum to blade OML, in degrees.");
         eq(byId.s2, null);
-        eq(byId.k1, "Built with no source workbook.");
         eq(byId.k2, "A loose stack's own one-liner.");
         eq(byId.k3, null);
       });
@@ -7849,6 +7893,74 @@
             ok(all(root, ".tvverdict--pass").length >= 1, "a passing study");
             ok(all(root, ".tvverdict--none").length >= 1,
                "a study with no criterion recorded");
+          });
+
+        // The whole rail, against the live repo (deliverable 2 and 3,
+        // viewer_nav_wedge_and_classic_retirement). Every row a reader can
+        // click, counted: one per topology, one per study, and a leaf for each
+        // stack that has no topology and nothing superseding it. The four
+        // stacks a topology re-expresses have no row, take 1 of the tangential
+        // link has no row, and the two thermal-fit stacks -- real deliverables
+        // with no graph by design -- do.
+        await test("[real] the live nav offers one entry per system: every " +
+          "topology, no covered stack, no superseded stack, both thermal " +
+          "stacks", function () {
+            var tree = VA.navTree(realTopologies, realResults);
+            var root = render(function (r) {
+              VA.renderNavTree(r, tree, { mode: "topology" }, {
+                onTopology: function () {}, onStudy: function () {},
+                onStack: function () {},
+              });
+            });
+            var byKind = {};
+            all(root, ".navtree__row").forEach(function (row) {
+              var kind = row.getAttribute("data-nav-kind");
+              (byKind[kind] = byKind[kind] || []).push(row.getAttribute("data-nav-id"));
+            });
+            eq((byKind.topology || []).length, liveTopos.length);
+
+            var covered = VA.stacksCoveredByTopology(realTopologies);
+            ok(Object.keys(covered).length >= 4,
+               "expected the live conversions, got " + Object.keys(covered).length);
+            var offered = byKind.stack || [];
+            Object.keys(covered).forEach(function (id) {
+              eq(offered.indexOf(id), -1,
+                 id + " is re-expressed as a topology and must have no row");
+            });
+            Object.keys(VA.SUPERSEDED_STACKS).forEach(function (id) {
+              ok(VA.findStack(realResults, id),
+                 id + " must still be in the projection -- only its row is gone");
+              eq(offered.indexOf(id), -1, id + " is superseded and must have no row");
+            });
+            // The leaves, by name: a stack with no graph is still a deliverable
+            // and must stay one click away.
+            ["hub_bearing_thermal_fit_m1", "hub_bearing_thermal_fit_m2"]
+              .forEach(function (id) {
+                ok(offered.indexOf(id) !== -1, id + " must be reachable");
+              });
+            eq(offered.length, 2,
+               "the live leaves are exactly the two thermal-fit stacks, got " +
+               offered.join(", "));
+            eq(root.textContent.toLowerCase().indexOf("classic"), -1,
+               "no row says \"classic\" (deliverable 4)");
+          });
+
+        // Every leaf really does render as a page, which is the other half of
+        // "reachable": a row that paints nothing is not an entry.
+        await test("[real] every stack the rail offers renders its own page",
+          function () {
+            var offered = VA.navTree(realTopologies, realResults).looseStacks;
+            eq(offered.length, 2);
+            offered.forEach(function (stackProj) {
+              var root = render(function (r) {
+                VA.renderStack(r, stackProj, realCrops, {});
+              });
+              has(root.textContent, stackProj.title);
+              ok(all(root, "table.eltable").length >= 1,
+                 stackProj.id + " must render its elements table");
+              eq(root.textContent.toLowerCase().indexOf("classic"), -1,
+                 stackProj.id + " must not be labelled a classic view");
+            });
           });
 
         await test("[real] a row whose number has nothing behind it says so in " +

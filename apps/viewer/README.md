@@ -2,12 +2,12 @@
 
 **Review a stack or a topology without opening a `.json`.** One page,
 `topology.html`, one left-rail nav tree: every topology with its studies as
-children, and every stack as a leaf — a classic-only stack (most of them; a
-topology is extra authoring, not a free side effect of having a stack) at the
-top level, the one stack a topology also re-expresses nested under that
-topology instead. Picking a topology or a study draws the rail diagram + grid;
-picking a stack renders the classic elements table — folds, checks with
-verdicts, notes and gaps, coloured by where each value came from. Either way,
+children, and every stack no topology re-expresses as a leaf beside them.
+**One system, one entry** — a stack a topology *does* re-express is offered as
+that topology and nowhere else, because the graph states everything the table
+did. Picking a topology or a study draws the rail diagram + grid; picking a
+leaf renders the elements table — folds, checks with verdicts, notes and gaps,
+coloured by where each value came from. Either way,
 clicking a row opens its full sourcing (citation, export provenance, drawing
 crop) in the pane on the right, and every crop-bearing row also carries a
 hover/click thumbnail trigger right there in the grid.
@@ -125,8 +125,8 @@ tree instead*, or merge it in here first. `--allow-older-tree` overrides it,
 loudly, for the one legitimate case — a deliberate rebuild from an older tree.
 
 No folder grant handy? `topology.html?mock=1` renders a seeded demo — a
-mechanism plus the nav tree's own demo classic-only stack — that exercises
-every provenance state. Nothing touches disk.
+mechanism plus a demo stack no topology re-expresses — that exercises every
+provenance state. Nothing touches disk.
 
 ## Deep links in — the URL contract
 
@@ -146,7 +146,7 @@ semantics change as **breaking**, and change this section with it.
 | `study=<id>` | …with that study selected (chain highlighted, totals in the strip). Requires `topology`. |
 | `edge=<id>` | …with that edge selected in the detail pane. Requires `topology`. |
 | `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
-| `stack=<id>` | stack mode — the classic elements table — on that stack |
+| `stack=<id>` | stack mode — the elements table — on that stack. Resolves against the projection, not the nav, so it still reaches a stack a topology re-expresses (which has no row of its own). |
 | `element=<id>` | …with that element's row selected and its sourcing in the right pane. Requires `stack`. |
 
 The rules a consumer can rely on:
@@ -246,7 +246,7 @@ carriers).
   handoff `surfaces_that_state_something_false`, which is 10 of the 46 live
   nodes answering differently hovered and clicked.
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
-  topology grid's chips cell and the classic elements table's sourcing cell).
+  topology grid's chips cell and the elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
   full, the export/identity block (`VA.exportBlockNode`, the same builder the
   right pane uses, run links included) and the crop of the cited sheet where
@@ -297,46 +297,59 @@ projection.
 
 The left rail (`#navtree`, `views/nav.js`) is a single tree, not a picker plus
 a separate stack rail: every topology lists its studies as children, and every
-stack is a leaf. Clicking a topology or a study draws the rail diagram + grid
-(topology mode); clicking a stack switches the centre pane to the classic
-elements/paths/checks/gaps view (`views/stack.js`, stack mode) instead. The
-active node is the one thing driving the page — there is no second "which mode
-am I in" state to keep in sync with it.
+stack no topology re-expresses is a leaf beside them. Clicking a topology or a
+study draws the rail diagram + grid (topology mode); clicking a leaf switches
+the centre pane to the elements/paths/checks/gaps view (`views/stack.js`, stack
+mode) instead. The active node is the one thing driving the page — there is no
+second "which mode am I in" state to keep in sync with it.
 
-Most stacks have no topology re-expressing them — a topology is extra
-authoring for a mechanism-shaped question, not a free side effect of having a
-stack, and today only `stack_vpa_output_to_pitch_plate.json` does
-(`topology_vpa_output_to_pitch_plate.json`, the L1 proof). Those classic-only
-stacks are top-level leaves of the tree; the one stack a topology also
-re-expresses is nested as a child of that topology instead, alongside its
-studies, rather than being a second top-level leaf — but it is still there,
-one click under the topology it also is, and not merged into or hidden by it:
-it holds the stack's own element table, its paths and its worksheet, none of
-which a topology re-expresses. (Until 2026-09-15 the reason given here was that
-a study's own `checks` had no field in the topology projection at all and a
-verdict was therefore reachable *only* through this nested view. That stopped
-being true in two steps — `topology_projection_emits_study_checks` added the
-field on 2026-09-09, and `viewer_study_verdicts_and_gaps` made the DAG page
-render it on 2026-09-15 — so the asymmetry this sentence described is gone, and
-with it the argument that rested on it.) `VA.navTree` (`topology.js`) computes which stack
-that is by reading the linkage already on hand — an edge that re-expresses a
-stack element carries `crop_key: {stack, element}`, and that IS the "this
-stack has a topology" fact, so nothing new is authored to say so.
+A topology is extra authoring for a mechanism-shaped question, not a free side
+effect of having a stack, so some stacks have one and some do not — and what
+the rail offers is **one entry per system either way**. A stack a topology
+re-expresses has no row: it is the same joint in another notation, and the
+graph states every verdict, gap, excluded term and missing tolerance the table
+stated (`tests/test_topology_conversions.py` pins that claim document by
+document, so it fails rather than a reader quietly losing a gap list). A stack
+*superseded* by a later take has no row either — `VA.SUPERSEDED_STACKS`
+(`topology.js`) names the take that replaced it, and the same test checks both
+documents really exist; the JSON is never deleted, it just stops being a rail
+entry. Which stacks are re-expressed is read off the linkage already on hand:
+an edge that re-expresses a stack element carries
+`crop_key: {stack, element}`, and that IS the "this stack has a topology" fact,
+so nothing new is authored to say so (`VA.navTree`, `topology.js`).
+
+> **History:** until 2026-09-15 a re-expressed stack *was* offered, nested
+> under its topology behind a "classic view" chip, because a study's own
+> `checks` had no field in the topology projection and a verdict was reachable
+> *only* through that nested table. The field landed on 2026-09-09
+> (`topology_projection_emits_study_checks`) and the DAG page rendered it on
+> 2026-09-15 (`viewer_study_verdicts_and_gaps`), leaving a second entry for the
+> same joint with no argument behind it — and a wedge behind the click, which
+> is what Jeff's review of that day reported. Handoff
+> `viewer_nav_wedge_and_classic_retirement` removed the row and contained the
+> wedge.
+
+**No click can leave the page without a repaint.** Each of the three handlers
+(`onNavTopology` / `onNavStudy` / `onNavStack`, `topology_app.js`) moves the
+state and then awaits a worksheet read, and all three go through `navigate()`:
+on a failed read the banner says so and the page still paints the node that was
+clicked; on a read that works the banner a previous failure wrote is retired.
+Before that, a rejected read reached no paint at all — the rail's highlight
+never moved and the only way out was F5.
 
 ## The topology mode
 
 The third archetype's surface — read `docs/DAG_TOPOLOGY.md` first; this section
 is only about how it is drawn. A topology or a study, picked from the nav tree
-("The one nav" above), draws this; a stack picked from the same tree (most
-stacks — no topology re-expresses them) switches to the classic elements table
-instead. Building it:
+("The one nav" above), draws this; a leaf picked from the same tree (a stack
+no topology re-expresses) switches to the elements table instead. Building it:
 
 ```powershell
 venv-win\Scripts\python.exe scripts\build_topology_projection.py
 ```
 
 Then reload the page. (`topology.html?mock=1` runs a demo mechanism with no
-disk access, exactly like the classic view's own demo.)
+disk access, exactly like the stack view's own demo.)
 
 ### The row model: edge rows, merged components, and leader lines
 
@@ -377,8 +390,8 @@ The grid itself is a real `<table>` (since 2026-09-04, handoff
 look like one — a rectangular selection of it pastes into Excel as columns, cell
 for cell, which only genuine table markup does. The values are `nominal` /
 `min` / `max`, three columns, printed exactly as transcribed (`VA.fmt`: no
-`toFixed`, no band derived from the limits — the same rule the classic elements
-table follows). Column widths live on a shared `<colgroup>`
+`toFixed`, no band derived from the limits — the same rule the elements table
+follows). Column widths live on a shared `<colgroup>`
 (`views/topology.js`'s `COLUMNS`), one array driving both the head table and the
 body table so the two cannot silently disagree about how wide a column is.
 
@@ -393,7 +406,7 @@ topology's id can equal a stack's, so the spaces cannot merge — the real
 is fetched (`ensureThumbImages`, topology_app.js) the trigger *is* the
 thumbnail, the actual crop of the tolerance annotation inline on the row;
 before that, or for a crop that cannot resolve, it is the same stateful text
-button the classic elements table has always had. Hover, focus or click opens
+button the elements table has always had. Hover, focus or click opens
 the **edge hover card** ("Hover reference cards" above) — the crop body plus
 the citation line and the deep links out. An edge with no `crop_key` — a
 workbook/assumed inline dimension, or a derived gap — gets nothing at all,
@@ -739,7 +752,7 @@ The toolbar's fourth button (`#edge-length-toggle`, `state.edgeLengthMode`,
 `VA.EDGE_LENGTH_MODES` in `topology.js`) cycles how much vertical extent a
 dimension bar gets:
 
-* **uniform** — the default and the classic rendering: every slot is one
+* **uniform** — the default, and the original rendering: every slot is one
   `rowHeight`.
 * **tolerance width** — a bar's length ∝ its dimension's band (`max − min`,
   falling back to `2 × plus_minus` where min/max are absent).
@@ -1430,7 +1443,7 @@ apps/viewer/
 
 The stylesheet was inline in `index.html` until 2026-08-31 and has been a linked
 file since, because the DAG mode needs the same colour system, the same chips
-and the same right-hand pane the classic mode does — and now, since the two
+and the same right-hand pane stack mode does — and now, since the two
 modes are one page, `style.css` is simply the whole app's stylesheet
 (`topology.css` on top of it for the DAG-specific rules). A `<link>` is safe from
 `file://`; an ES module import is not, which is the constraint this whole app is
