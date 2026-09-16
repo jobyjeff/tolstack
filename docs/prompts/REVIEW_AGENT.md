@@ -1814,6 +1814,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       and when it comes back equal, ask what else the sentence was propping up.
       All three corrected inline and `test_reuse_is_what_this_invariant_guards`
       added (the smallest graph that does reuse).
+      **Second sighting 2026-09-16 (review of `stack_fable_audit`), and this
+      variant HAS a source to recount against — the diff's own completed
+      model.** The wide-bearing counterfactual "~3.3 mm inside the column" was
+      computed mid-investigation, before the flange member went in, and shipped
+      in five places beside a test that pins the completed column's figure,
+      **4.8324** — same commit, same author, argument direction unaffected. A
+      "with X instead of Y" figure in an argument is a fold over the shipped
+      model: recompute it against the term list as committed, not as it stood
+      when the reasoning was first worked out, and expect the diff that ADDS a
+      member to invalidate every counterfactual written before it.
 - [ ] **The handoff fixed the one guarded copy of a count and missed every
       unguarded one.** Third sighting of the "grep the repo for the other copies"
       entry above (2026-09-01, `dag_viewer_poc`) and the direction is now
@@ -2734,6 +2744,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       for column alignment — a pin copied out of the worksheet will not match.
       The old pin happened to have no trailing zero, which is why this had never
       surfaced.
+      **Second sighting 2026-09-16 (`stack_fable_audit`), and it widens the
+      grep past `tests.js`: `apps/viewer/README.md`'s derived totals are now
+      regex-paired against the live projection by `[real]` tests** (the spine
+      leader-vs-rail crossings sentence, and "17 of the 46 live nodes"), so a
+      diff that changes a topology's SHAPE — not just a value — moves them. The
+      tactical author fixed the crossings total (92 → 96) and could not see the
+      live-node pairing at all, because it landed on `integration` after the
+      branch was cut: the review merge is where 46 vs 48 first failed. When a
+      data handoff adds or removes nodes/edges, re-run the `[real]` tier
+      **after** the integration merge and expect a README-digit pairing among
+      the reds — it is the anchor-fires-at-merge-time entry, for doc pairings.
 - [ ] **A "not vacuous" assertion that tests a set the value could never be
       in.** New 2026-09-15 (`pitch_link_known_bands`), and it is the
       guard-that-cannot-fail shape hiding inside the *replay* rather than the

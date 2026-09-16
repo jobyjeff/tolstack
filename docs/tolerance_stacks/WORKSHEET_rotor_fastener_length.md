@@ -268,13 +268,16 @@ Counting **element instances in this stack**:
 > carrying a zero-width band** because no document gives one.
 
 The three seeded slice-1 stacks alone still score **5 of 26** element
-instances `traced` (3 `inferred`, 18 `untraced`) — unchanged by this stack,
-which touches none of them. Across all seven stacks now in this repo (the
-three seeded, `pitch_link`, and this one, plus the two
-`hub_bearing_thermal_fit` stacks): **30 of 59 element instances are `traced`**
-(9 `inferred`, 20 `untraced`) — see `docs/SOP_TOLERANCE_STACK.md`, "The traced
-ratio", for the single definition, and
-`tests\debug_report_tolerance_stacks.py --ratio` to reproduce.
+instances `traced` (12 `inferred`, 9 `untraced` since 2026-09-15's
+`stack_fable_audit` re-cited their bearing and flanged-bushing values to the
+RBC catalogs; the split read `"3 inferred, 18 untraced"` when this worksheet
+was written) — unchanged in its numerator by this stack, which touches none of
+them. Across all seven stacks now in this repo (the three seeded,
+`pitch_link`, and this one, plus the two `hub_bearing_thermal_fit` stacks):
+**30 of 61 element instances are `traced`** (17 `inferred`, 14 `untraced`;
+`"30 of 59"` before the pitch-link joint gained its eye and flange members) —
+see `docs/SOP_TOLERANCE_STACK.md`, "The traced ratio", for the single
+definition, and `tests\debug_report_tolerance_stacks.py --ratio` to reproduce.
 
 - **The high traced count here is a reason to audit harder, not to relax** —
   nine of the eleven element instances are one document (`NAS6403-NAS6420 Rev

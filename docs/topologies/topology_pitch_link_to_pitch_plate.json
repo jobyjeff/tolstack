@@ -2,7 +2,7 @@
   "schema": "joby.tolerance_stack/topology/v0",
   "id": "pitch_link_to_pitch_plate",
   "title": "Pitch link to pitch plate grip length",
-  "description": "The grip-length joint as a graph: 4 parts, 7 interfaces, 8 edges. It adds no value and no citation of its own -- if a number here looks wrong, the stack file is where it is wrong.",
+  "description": "The grip-length joint as a graph: 6 parts, 9 interfaces, 10 edges. It adds no value and no citation of its own -- if a number here looks wrong, the stack file is where it is wrong.",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",
@@ -18,8 +18,8 @@
     "design_reference": "docs/sessions/active/HANDOFF_20260908_linear_stack_conversions.md, deliverable 1",
     "re_expresses": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
     "values": "NONE are copied. Every edge carries a `dimension_ref` into the stack file above, resolved at load time by tolerance_stack.topology.load_topology, so this document cannot drift away from the numbers that stack publishes. Every value's citation and confidence is whatever that element already carries -- this topology adds no source_ref of its own to any value and closes no gap the stack has open.",
-    "structure": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim, exactly as topology_vpa_output_to_pitch_plate.json's structure note describes for the L1 proof. The stack's own notes give the axial order from the bolt head: bushing, [pitch-link eye -- MISSING], pitch-plate lug, washer; this topology reads that order literally and does NOT insert an interface for the missing pitch-link eye -- there is no element to hang one on, and inventing a placeholder node/edge for an unsourced member would be exactly the kind of invention the repo's one rule forbids. The bolt's own fastener dimensions (grip, overall length, cotter-hole-to-point) are read as edges sharing additional interfaces beyond the clamped stack's own (the bolt's point, and the cotter-hole centreline), which is what turns this graph into more than L1's single grounded loop: the clamped-stack/grip loop (closing at the derived `shank_out` gap) and the length/grip/thread-region loop (closing at the derived `thread_region` edge), which share the bolt-head interface.",
-    "part_identity": "The bolt (NAS6403U11D), the pitch-plate lug (215197) and the washer (NAS1149V0332H) are named on the stack's own citations. The plain bushing (214820-002) is likewise named by the stack's parts-list citation. No part identity is invented here that the referenced stack does not already claim."
+    "structure": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim, exactly as topology_vpa_output_to_pitch_plate.json's structure note describes for the L1 proof. The stack's axial order from the bolt head, complete since 2026-09-15 (handoff stack_fable_audit): bushing, pitch-link eye, flanged-bushing flange, pitch-plate lug, washer. Until that date the eye had no element to hang an interface on and the flange was not known to exist, so this topology omitted both and said so here; the stack modelling both (the eye as a loudly-marked placeholder) is what lets this graph carry them without inventing anything the stack does not claim. The bolt's own fastener dimensions (grip, overall length, cotter-hole-to-point) are read as edges sharing additional interfaces beyond the clamped stack's own (the bolt's point, and the cotter-hole centreline), which is what turns this graph into more than L1's single grounded loop: the clamped-stack/grip loop (closing at the derived `shank_out` gap) and the length/grip/thread-region loop (closing at the derived `thread_region` edge), which share the bolt-head interface.",
+    "part_identity": "The bolt (NAS6403U11D), the pitch-plate lug (215197) and the washer (NAS1149V0332H) are named on the stack's own citations. The plain bushing (214820-002) is likewise named by the stack's parts-list citation. The pitch link (213862-002) and the flanged bushing (NAS77A3-015A) are named on the stack's 2026-09-15 identifications (216231 A.1 and 215177-A parts lists respectively); the spherical bearing inside the link is the stack's own loudly-marked UNCONFIRMED candidate (MS14101-3). No part identity is invented here that the referenced stack does not already claim."
   },
   "parts": [
     {
@@ -44,6 +44,16 @@
       "id": "washer_nas1149v0332h",
       "name": "NAS1149V0332H flat washer",
       "note": "Flat washer, 6Al-4V, .203 x .438 x .032 in, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4 (find 32, qty 9 across the assembly)."
+    },
+    {
+      "id": "spherical_bearing_pitch_link",
+      "name": "pitch-link spherical bearing (unconfirmed)",
+      "note": "Added 2026-09-15 (handoff stack_fable_audit) with the stack's own pitch_link_eye element; the name restyled to the reader-facing convention during review (the 2026-09-15 copy pass landed in parallel). Internal to the 213862-002 PITCH LINK ASSEMBLY (216231 A.1 parts list, item 24, qty 5); which bearing it swages -- MS14101-3 (narrow, the modelled placeholder) or MS14103-3 (wide) -- is stated by no document in reach and is the referenced element's ranked gap 1. No balloon in DETAIL B: the bearing arrives inside the link assembly, same pattern as the tan-link and VPA bearings."
+    },
+    {
+      "id": "flanged_bushing_nas77a3_015a",
+      "name": "NAS77A3-015A flanged bushing",
+      "note": "Added 2026-09-15 (handoff stack_fable_audit); the name restyled to the reader-facing convention during review. Per the 215177-A parts-list nomenclature: BUSHING, FLANGED, PRESS FIT, ALUMINUM BRONZE, ALUMINUM COATED, .1900 in ID. Press-fit into the pitch plate assembly (215177-A parts list find 2, qty 8 = 3 tangential-link + 5 pitch-link lugs), which is why DETAIL B balloons no flanged bushing. Only its FLANGE is an edge here: the barrel sits inside the plate bore, parallel to the lug, and the referenced stack has no bore-depth path -- unlike the tan-link take-2 topology, which models the barrel and its chamfer for that stack's bore path."
     }
   ],
   "nodes": [
@@ -55,11 +65,25 @@
       "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, and that is the definition the grip dimensions here are cited to."
     },
     {
-      "id": "bushing_pitch_plate_face",
-      "name": "plain bushing face toward the pitch-plate lug",
-      "parts": ["bushing_214820_002", "pitch_plate_215197"],
+      "id": "bushing_eye_face",
+      "name": "plain bushing face against the pitch-link eye (spherical bearing ball)",
+      "parts": ["bushing_214820_002", "spherical_bearing_pitch_link"],
       "kind": "mating_surface",
-      "note": "A reading, not a claim of physical adjacency: the stack's own notes place the pitch-link eye / spherical bearing between the bushing and the pitch-plate lug, and that member is UNSOURCED (no document in this repo gives it). This interface reproduces the stack's own arithmetic, which simply omits the missing member from the sum -- it does not assert the bushing and the lug actually touch. See the two checks' `excluded_terms` for the same omission, stated the stack's way."
+      "note": "Replaced `bushing_pitch_plate_face` on 2026-09-15 (handoff stack_fable_audit): that interface was a reading that reproduced the stack's then-incomplete arithmetic (the eye was omitted for want of any source) and its own note said it did not assert the bushing and the lug actually touch. They do not -- the eye and the flange sit between, same architecture as the tan-link joint."
+    },
+    {
+      "id": "eye_flange_face",
+      "name": "pitch-link eye face against the flanged bushing's flange",
+      "parts": ["spherical_bearing_pitch_link", "flanged_bushing_nas77a3_015a"],
+      "kind": "mating_surface",
+      "note": "Added 2026-09-15 (stack_fable_audit); mirrors the tan-link take-2 topology's bearing_flanged_bushing_face."
+    },
+    {
+      "id": "flange_lug_face",
+      "name": "flanged bushing flange face against the pitch-plate lug",
+      "parts": ["flanged_bushing_nas77a3_015a", "pitch_plate_215197"],
+      "kind": "mating_surface",
+      "note": "Added 2026-09-15 (stack_fable_audit). The flange bears on the lug face; the bushing's barrel passes into the lug's bore (not modelled -- no bore-depth path in the referenced stack)."
     },
     {
       "id": "pitch_plate_washer_face",
@@ -103,18 +127,44 @@
       "kind": "structural",
       "part": "bushing_214820_002",
       "from": "head_bearing_face",
-      "to": "bushing_pitch_plate_face",
+      "to": "bushing_eye_face",
       "dimension_ref": {
         "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
         "element": "bushing_214820"
       }
     },
     {
+      "id": "pitch_link_eye",
+      "name": "pitch-link eye: spherical bearing ball width (bearing identity UNCONFIRMED)",
+      "kind": "structural",
+      "part": "spherical_bearing_pitch_link",
+      "from": "bushing_eye_face",
+      "to": "eye_flange_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "pitch_link_eye"
+      },
+      "note": "Added 2026-09-15 (stack_fable_audit). The referenced element is the repo's loudest placeholder -- MS14101-3's catalog band, `untraced`, awaiting the 213862-002 drawing -- and this edge inherits every caveat on it."
+    },
+    {
+      "id": "flange_bushing_flange",
+      "name": "flanged bushing flange thickness (NAS77A3-015A)",
+      "kind": "structural",
+      "part": "flanged_bushing_nas77a3_015a",
+      "from": "eye_flange_face",
+      "to": "flange_lug_face",
+      "dimension_ref": {
+        "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
+        "element": "flange_bushing_flange"
+      },
+      "note": "Added 2026-09-15 (stack_fable_audit)."
+    },
+    {
       "id": "pitch_plate_flange",
       "name": "pitch plate lug thickness (5X group)",
       "kind": "structural",
       "part": "pitch_plate_215197",
-      "from": "bushing_pitch_plate_face",
+      "from": "flange_lug_face",
       "to": "pitch_plate_washer_face",
       "dimension_ref": {
         "stack": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
@@ -191,8 +241,8 @@
   ],
   "notes": [
     "This document adds no value, no citation and no confidence claim of its own. If a number here looks wrong, the stack file docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json is where it is wrong.",
-    "The graph: 4 parts, 7 interfaces, 8 edges, 3 branch points, 2 grounded loops (the clamped-stack/grip loop, and the length/grip/thread-region loop), 1 gap edge (`shank_out`; `thread_region` is derived but structural, since both its ends are on the bolt).",
-    "The pitch-link eye / spherical bearing -- the joint's own MISSING member -- is not modelled as a node or an edge, exactly as the stack's own checks record it in `excluded_terms`. This topology does not invent an interface for it.",
-    "OPEN, for a future reviewer, exactly as topology_vpa_output_to_pitch_plate.json flags the same kind of question: this topology asserts an axial order for the clamped members (bushing, pitch-plate lug, washer, head-side first) taken from the stack's own element order and notes. The sum does not depend on it -- a chain sum is invariant to ordering -- but a reader looking at the rail diagram will read it as physical."
+    "The graph: 6 parts, 9 interfaces, 10 edges, 3 branch points, 2 grounded loops (the clamped-stack/grip loop, and the length/grip/thread-region loop), 1 gap edge (`shank_out`; `thread_region` is derived but structural, since both its ends are on the bolt).",
+    "Until 2026-09-15 this graph was smaller: the pitch-link eye and the flanged-bushing flange were the joint's missing members, recorded in the checks' `excluded_terms` rather than modelled -- handoff stack_fable_audit added both to the stack (the eye as a loudly-marked placeholder) and this topology followed.",
+    "OPEN, for a future reviewer, exactly as topology_vpa_output_to_pitch_plate.json flags the same kind of question: this topology asserts an axial order for the clamped members (bushing, eye, flange, pitch-plate lug, washer, head-side first) taken from the stack's own element order and notes. The sum does not depend on it -- a chain sum is invariant to ordering -- but a reader looking at the rail diagram will read it as physical."
   ]
 }

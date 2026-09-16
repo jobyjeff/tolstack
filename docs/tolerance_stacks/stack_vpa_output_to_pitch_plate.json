@@ -58,7 +58,7 @@
         "sheet": "grip length tols old",
         "cell": "E64",
         "confidence": "untraced",
-        "note": "No bearing balloon in DETAIL X -- internal to 208510-007 VARIABLE PITCH ACTUATOR ASSEMBLY (balloon 1). The workbook's comment column names MS21299C4K on this row, but that part is a countersunk washer (see column_I_caveat)."
+        "note": "No bearing balloon in DETAIL X -- internal to 208510-007 VARIABLE PITCH ACTUATOR ASSEMBLY (balloon 1). The workbook's comment column names MS21299C4K on this row, but that part is a countersunk washer (see column_I_caveat). CANDIDATE IDENTITY, RECORDED NOT CLAIMED (2026-09-15, handoff stack_fable_audit): the modelled band 8.66/8.71 mm equals the RBC catalog's MS14101-4 ball width (.343 in, +.000/-.002 -- the NARROW series' .250-bore row, PDF page 21 of RBC_Aerospace_Plain_Bearings_Web.pdf) to the digit. A value matching is not a feature matching (SOP trap 11), no parts list this repo can read names the VPA rod end's bearing, and the VPA is not one of the two link types Jeff's 2026-09-15 note assigned bearings to -- so the element stays `kind: workbook` / `untraced`, and confirming the rod-end bearing part number is on the operator queue. If it IS MS14101-4, this element becomes re-citable exactly the way the tan-link bearing was."
       }
     },
     {
@@ -70,13 +70,24 @@
       "max": 1.5748,
       "lmc": 1.4478,
       "mmc": 1.5748,
-      "note": "0.062 in -0.005/-0. Identical treatment to the tan-link stack's flange.",
+      "hardware_ref": "NAS77A4-015A",
+      "note": "0.062 in +.000/-.005. Identical treatment to the tan-link stack's flange. RE-CITED 2026-09-15 (handoff stack_fable_audit): the part is NAS77A4-015A -- the .250-bore flanged bushing press-fit in the pitch plate assembly -- and the band is the NAS77 page's F column. This also resolves the workbook's loose I62 label: 'NAS77A4-015' was hung on the block header next to the STRAIGHT-bushing row it does not describe (that part is Joby 214943-002, and the -015 length decode rules the label out for it, decided 2026-08-13); the flanged bushing is the row the label actually belongs to.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E65",
-        "confidence": "untraced"
+        "kind": "spec",
+        "document": "JB_NAS77.pdf",
+        "sheet": 1,
+        "view": "NAS77 UNLINED FLANGED BUSHINGS -- dimensions table",
+        "cell": "row NAS77A4-xxx, column F",
+        "callout": "F .062, column header '+.000, -.005 / +.00, -.13'",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/JB_NAS77.pdf",
+          "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop."
+        },
+        "confidence": "inferred",
+        "note": "RE-CITED 2026-09-15 (handoff stack_fable_audit); WAS `kind: workbook` cell E65, `untraced`. The band is printed in the cited page; which part sits in this joint is the 215177-A PITCH PLATE ASSEMBLY parts list's evidence -- find 3 = NAS77A4-015A, qty 1, 'BUSHING, FLANGED, PRESS FIT ... ALUMINUM COATED, .2500\" ID' (drawing-checker run 20260813_180719, ts 2026-08-14T01:07:33Z), the one .250-bore flanged bushing in the plate matching the one VPA lug. `inferred`, not `traced`, for the same two reasons as the tan-link flange: the lug assignment is a count argument, and the trailing 'A' coated variant is not decoded on the page."
       }
     },
     {

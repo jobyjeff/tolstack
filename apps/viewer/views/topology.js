@@ -1521,7 +1521,7 @@
     // reader had no way to read.
     //
     // It printed `node.parts` until handoff surfaces_that_state_something_
-    // false, and on 17 of the 46 live nodes the same dot answered differently
+    // false, and on 17 of the 48 live nodes the same dot answered differently
     // hovered and clicked. (17 is the STRING count, which is what "answered
     // differently" means; 10 is the smaller count of nodes that differ as a
     // SET. The other 7 name the same two parts in the opposite order --

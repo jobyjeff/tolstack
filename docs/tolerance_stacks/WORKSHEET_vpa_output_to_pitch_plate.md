@@ -37,11 +37,28 @@ Every balloon in DETAIL X is qty 1 — a single joint, unlike the tan-link's 3×
 >
 > No arithmetic below changed — `check_result` is produced, not stored.
 
+> **Provenance update, 2026-09-15** (handoff `stack_fable_audit`). One citation
+> changed and one candidate identity was recorded without a change; again no
+> arithmetic below moved.
+> - **Element 3** (bushing flange thickness) is now `inferred` off
+>   `JB_NAS77.pdf`'s F column (`.062 +.000/−.005` — the workbook's 1.4478/1.5748
+>   to the digit): the part is **NAS77A4-015A**, the .250-bore flanged bushing
+>   press-fit in the 215177 pitch plate assembly (its parts list, find 3,
+>   qty 1 — drawing-checker run `20260813_180719`). This also settles where the
+>   workbook's loose `NAS77A4-015` label at I62 belonged: to the flange rows,
+>   not to the straight-bushing row F13 rightly refused it for.
+> - **Element 2** (spherical bearing) is **unchanged** — `untraced`, workbook
+>   E64 — but its 8.66/8.71 band equals the RBC catalog's **MS14101-4** ball
+>   width (narrow series, .250 bore, `W = .343 in / 8.71 mm, +.000/−.002`) to
+>   the digit. Recorded as a candidate, not claimed (SOP trap 11: a value
+>   matching is not a feature matching; nothing in reach names the VPA rod
+>   end's bearing). The rod-end bearing part number is on the operator queue.
+
 | # | element | role | nominal | min | max | source | conf |
 |---|---------|------|---------|-----|-----|--------|------|
 | 1 | straight bushing | bushing | 4.7620 | 4.7100 | 4.8100 | workbook E63 | untraced |
-| 2 | spherical bearing width | bearing | 8.7100 | 8.6600 | 8.7100 | workbook E64 | untraced |
-| 3 | bushing flange thickness | bushing | 1.5750 | 1.4478 | 1.5748 | workbook E65 | untraced |
+| 2 | spherical bearing width | bearing | 8.7100 | 8.6600 | 8.7100 | workbook E64 (candidate: MS14101-4, unconfirmed) | untraced |
+| 3 | bushing flange thickness | bushing | 1.5750 | 1.4478 | 1.5748 | **JB_NAS77.pdf, row NAS77A4-xxx, column F** | inferred |
 | 4 | pitch flange thickness | clamped_member | 4.0600 | 3.9600 | 4.1600 | 215197 sh2 zone D10 | inferred |
 | 5 | under head chamfer washer | washer | 1.6002 | 1.4478 | 1.7526 | 217755 sh5 DETAIL X (MS21299C4K) | inferred |
 | 6 | fastener grip (.812 in) | fastener | 20.6248 | 20.3708 | 20.8788 | **NAS6403-NAS6420 Rev 4.pdf sh3, row *Grip Dash No. 13*, NAS6404 column** | **traced** |
@@ -208,10 +225,16 @@ say so rather than pretend a clean answer exists."* Slice 1's answer: it says so
 off `NAS6403-NAS6420 Rev 4.pdf` sheet 3. Nothing on this joint is traced to a
 *part drawing*; 215197's contribution is `inferred` at best (F15).
 
-**This stack: 1 traced / 2 inferred / 3 untraced out of 6 element instances.**
-Across all three seeded stacks: **5 of 26 `traced`**, 3 `inferred`, 18
+**This stack: 1 traced / 3 inferred / 2 untraced out of 6 element instances.**
+Across all three seeded stacks: **5 of 26 `traced`**, 12 `inferred`, 9
 `untraced`. The definition lives in `docs/SOP_TOLERANCE_STACK.md` ("The traced
 ratio"); reproduce with `tests\debug_report_tolerance_stacks.py --ratio`.
+
+> **Moved, 2026-09-15** (handoff `stack_fable_audit`), from *"1 traced /
+> 2 inferred / 3 untraced"* here and a seeded split of *"3 inferred, 18
+> untraced"*: element 3 went `untraced` → `inferred` on the NAS77 page (see the
+> provenance update above the element table), and the two tan-link stacks took
+> eight matching moves. No value and no check result moved.
 
 > **Moved, 2026-08-10** (handoff `fastener_citations_and_confidence`). The
 > three-stack figure above was 3 of 26 (7 `inferred`, 16 `untraced`). **Nothing

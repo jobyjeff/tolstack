@@ -58,13 +58,35 @@ Scope is **grip length only**. Diameter/hole fits are deliberately out of scope
 > allowance with an 8.2 mm one on no better authority. It stays the most
 > pessimistic term in the shank-out checks and stays a listed gap.
 
+> **Provenance update, 2026-09-15** (handoff `stack_fable_audit`). Four more
+> citations changed — elements 1, 2, 3 and 5, all `untraced` workbook cells
+> since founding — and again no arithmetic below moved: every band was already
+> the catalog's, to the digit, because the workbook was transcribing the
+> catalogs all along.
+> **Elements 1–3** (the flanged bushing's barrel, chamfer and flange): the part
+> is **NAS77A3-015A**, press-fit into the 215177 pitch plate assembly (its own
+> parts list, find 2, qty 8 = 3+5 lugs — drawing-checker run `20260813_180719`),
+> which is why DETAIL B balloons no flanged bushing and why gap 4's candidate
+> 214936-002 (a countersunk bushing at DETAIL F) was the wrong part. The NAS77
+> page in the pile (`JB_NAS77.pdf`) prints all three bands: `L ±.005` with
+> `-015 = .150 in`, `I.D. .025–.035 × 45°` chamfer, `F .062 +.000/−.005`. All
+> three now `inferred` (the band is printed; the qty-8 share-out and the
+> coated-variant suffix are the residual inference).
+> **Element 5** (spherical bearing): **MS14103-3**, wide series — the
+> 212956-005-A drawing was extracted by drawing-checker on 2026-09-04 (run
+> `20260904_184233`) and its parts list holds one MS14103-3 (wide) and one
+> MS14101-3 (narrow), one per eye. The RBC catalog's wide-series row prints the
+> ball width `W = .437 in / 11.10 mm, +.000/−.002` — the workbook's 11.05/11.1
+> to the digit. `inferred`: which eye faces the pitch plate is stated nowhere,
+> but the band match plus the −13/−14 grip selection both say the wide one.
+
 | # | element | role | nominal | min | max | source | conf |
 |---|---------|------|---------|-----|-----|--------|------|
-| 1 | flange bushing L thickness | bushing | 3.8100 | 3.6830 | 3.9370 | workbook E14 | untraced |
-| 2 | bushing chamfer size | relief | 0.7620 | 0.6350 | 0.8890 | workbook E15 | untraced |
-| 3 | flange bushing flange thickness | bushing | 1.5750 | 1.4478 | 1.5748 | workbook E9 | untraced |
+| 1 | flange bushing L thickness | bushing | 3.8100 | 3.6830 | 3.9370 | **JB_NAS77.pdf (L ±.005, dash −015)** | inferred |
+| 2 | bushing chamfer size | relief | 0.7620 | 0.6350 | 0.8890 | **JB_NAS77.pdf (I.D. chamfer .025–.035)** | inferred |
+| 3 | flange bushing flange thickness | bushing | 1.5750 | 1.4478 | 1.5748 | **JB_NAS77.pdf (F .062 +.000/−.005)** | inferred |
 | 4 | straight bushing | bushing | 4.7620 | 4.6300 | 4.7600 | 217755 sh4 DETAIL B (214820-002) | inferred |
-| 5 | spherical bearing width | bearing | 11.1000 | 11.0500 | 11.1000 | workbook E8 | untraced |
+| 5 | spherical bearing width | bearing | 11.1000 | 11.0500 | 11.1000 | **RBC catalog p20, MS14103-3 row, column W** | inferred |
 | 6 | pitch plate flange thickness | clamped_member | 4.0600 | 3.9800 | 4.1400 | **215197 sh2 zone B4** | **traced** |
 | 7 | washer thickness (thin, .032 in) | washer | 0.8128 | 0.7112 | 0.9144 | workbook E11 | untraced |
 | 8 | washer thickness (thick, .063 in) | washer | 1.6002 | 1.4478 | 1.7526 | workbook E12 | untraced |
@@ -302,9 +324,9 @@ This list is the answer to "what must the fastener library ingest first".
 | 1 | ~~**NAS6403** (.190-32 hex bolt)~~ — **CLOSED for grip 2026-08-10.** `NAS6403-NAS6420 Rev 4.pdf` is in `data/inbox/specs/`. Sheet 3 gives grip and length per dash number, sheet 1 gives `M` (cotter-hole position) and `T (Ref)`. Elements 10 and 11 (`fastener_grip_13`, `fastener_grip_14`) both now trace their `.812`/`.875 ±.010` to sheet 3. | **Still open, and NAS6403 does not close it:** the thread run-out length behind `thread_transition`. Sheet 1 dimensions grip and length and gives their difference as `T (Ref)` = .323 in — the whole thread region, not the run-out inside it — and sheet 2 note (b) makes `T` a reference dimension. Sheet 1's `X`/`Y` are locking-element regions in thread pitches (sheet 2 notes (g), (h)), not run-outs. The document that closes it is **MIL-S-8879**, the thread spec sheet 1 invokes for UNJF-3A, and it is not in the pile. | 2 |
 | 2 | ~~**MS9363** slotted/castellated nut~~ — **CLOSED as an acquisition 2026-08-05; row corrected 2026-08-13** (`spec_pile_gap_join`). `MS9363 Rev C.pdf` has been in `data/inbox/specs/` since the day after this row was written. | ~~castellation slot count + depth~~ — printed on sheet 1 TABLE I row `-09` (`S = .073/.088 in` slot width, `6 PLACES` on the slot pattern, depth `H − G` from `.178/.198` and `.084/.104`), at spec-library subject `MS9363-09`. **The check that governs this joint is still not answerable, and no document will make it so:** it needs the thread-start-to-castellation phase, and MS9363 requirement 10 relates slots only to each other and to the thread PD axis. Procedural remedy per JPS00094 §5.9.7. | ~~1~~ — **not an intake item** |
 | 3 | **NAS1149** flat washer | thickness tolerance for `washer_thin`, which is `untraced` as of 2026-08-10 (it was `inferred`, on a `kind: workbook` citation whose own note ended *"the +/-.004 is untraced"*). Parts list says `.032" MIN`; the workbook models `.032 ±.004`. These disagree, and only the standard settles it. | 2 |
-| 4 | 214936-002 BUSHING, PLAIN, COUNTERSUNK (Joby part drawing) | flange 0.062", L 0.150", chamfer 0.025–0.035" — elements 1–3, all currently untraced. Candidate part; it balloons in sheet 5 DETAIL F, not DETAIL B. | 2 |
-| 5 | 214820-002 bushing (Joby part drawing) | the 4.63/4.76 length limits (only the .1875" nominal is on the assembly) | 3 |
-| 6 | 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY | the 11.05/11.1 spherical bearing width — no bearing is ballooned in DETAIL B because it is internal to this subassembly | 3 |
+| 4 | ~~214936-002 BUSHING, PLAIN, COUNTERSUNK (Joby part drawing)~~ — **CLOSED 2026-09-15** (`stack_fable_audit`), by a different document than the row asked for: the flanged bushing is **NAS77A3-015A** (215177-A parts list, find 2, qty 8), the candidate was the wrong part (DETAIL F is a different joint), and the NAS77 page already in the pile prints all three bands | ~~flange 0.062", L 0.150", chamfer 0.025–0.035"~~ — elements 1–3 now `inferred` off `JB_NAS77.pdf`; the residual is the coated-variant ('A' suffix) question on the hardware entry | ~~2~~ — closed |
+| 5 | 214820-002 bushing (Joby part drawing) | the 4.63/4.76 length limits (only the .1875" nominal is on the assembly). Operator-corroborated 2026-09-15 — Jeff read `4.76 +0/−0.13` off SECTION A-A — but the PDF is still not here | 3 |
+| 6 | ~~212956-005 PITCH ANTI ROTATION LINK ASSEMBLY~~ — **CLOSED 2026-09-15** (`stack_fable_audit`): the drawing has been in drawing-checker since 2026-09-04 (run `20260904_184233`) and its parts list names both eye bearings | ~~the 11.05/11.1 spherical bearing width~~ — element 5 now `inferred` off the RBC catalog's MS14103-3 row; the residual (which eye faces the pitch plate) is on the hardware entry's gap list | ~~3~~ — closed |
 | 7 | MS24665 cotter pin | hole fit (diameter and length are already on the parts list) | 3 |
 | 8 | NAS1149V0363 (.063 washer) | whether it exists in the current design at all | 3 |
 
@@ -323,15 +345,28 @@ This list is the answer to "what must the fastener library ingest first".
    and is ballooned on no sheet at all (F9), so the parts list was the only
    place it appeared and it still never printed a band.
 
-One element is *inferred*: the 214820-002 bushing, from the assembly parts list
-— present and nominally consistent, band from the workbook, which is exactly
-what `inferred` is for.
+Five elements are *inferred*: the 214820-002 bushing, from the assembly parts
+list — present and nominally consistent, band from the workbook, which is
+exactly what `inferred` is for — and, since 2026-09-15, the flanged-bushing
+trio and the spherical bearing, whose bands are printed in the RBC catalogs but
+whose part-to-joint bindings rest on count and adjacency arguments (see the
+provenance update above the element table).
 
-**This stack: 3 traced / 1 inferred / 7 untraced out of 11 element instances.**
-Across all three seeded stacks: **5 of 26 `traced`**, 3 `inferred`, 18
+**This stack: 3 traced / 5 inferred / 3 untraced out of 11 element instances.**
+Across all three seeded stacks: **5 of 26 `traced`**, 12 `inferred`, 9
 `untraced`. The ratio's definition lives in `docs/SOP_TOLERANCE_STACK.md`
 ("The traced ratio"); reproduce it with
 `tests\debug_report_tolerance_stacks.py --ratio` rather than reading it here.
+
+> **Moved, 2026-09-15** (handoff `stack_fable_audit`), from *"3 traced /
+> 1 inferred / 7 untraced"* on this stack and a seeded split of *"3 inferred,
+> 18 untraced"*: the four catalog re-citations above (elements 1, 2, 3, 5) each
+> went `untraced` → `inferred`. Take 2 took the same four moves and is now
+> **1 traced / 4 inferred / 4 untraced of 9** (from *"1 / 0 / 8"*). The traced
+> numerators did not move — the catalogs print the bands, but which lug and
+> which eye each part occupies is still a count argument, and `inferred` is the
+> word for that. No element value changed and no check result in this worksheet
+> moved.
 
 > **Correction, 2026-08-06.** This section used to end *"One element traced out
 > of eleven is the real headline of this slice"*, and the repo-wide figure was

@@ -50,12 +50,24 @@
       "max": 11.1,
       "lmc": 11.05,
       "mmc": 11.1,
+      "hardware_ref": "MS14103-3",
+      "note": "RE-CITED 2026-09-15 (handoff stack_fable_audit) to the same RBC catalog row as take 1's spherical_bearing -- take 2 is a restatement of take 1, so the same bearing carries the same provenance shape in both stacks. The workbook's E40/G40/H40 repeat E8/G8/H8 identically.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E40",
-        "confidence": "untraced"
+        "kind": "spec",
+        "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+        "sheet": 22,
+        "view": "MS14102 & MS14103 SELF-LUBRICATED SPHERICAL BEARING, WIDE -- dimensions table",
+        "cell": "row -03, column W",
+        "callout": "-03 | W .437 / 11.10 | column header 'W +.000, -.002 / +.00, -.05'",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/RBC_Aerospace_Plain_Bearings_Web.pdf",
+          "sha256": "a2bfa011d54e6c1ce632a5ad6f24e0da1694694d43cd10a099f03935456f3036",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop. `sheet` is the PDF page (printed page 20)."
+        },
+        "confidence": "inferred",
+        "note": "Same row, same reading and same which-eye caveat as tan_link_to_pitch_plate:spherical_bearing -- see that element for the full identity chain (MS14103-3 via the 212956-005-A parts-list extraction, run 20260904_184233). WAS `kind: workbook` cell E40, `untraced`."
       }
     },
     {
@@ -67,13 +79,24 @@
       "max": 1.5748,
       "lmc": 1.4478,
       "mmc": 1.5748,
-      "note": "Workbook comment on this row: 'does not include chamfer' -- the chamfer is a separate subtracted element below.",
+      "hardware_ref": "NAS77A3-015A",
+      "note": "Workbook comment on this row: 'does not include chamfer' -- the chamfer is a separate subtracted element below. RE-CITED 2026-09-15 (handoff stack_fable_audit) to the NAS77 page's F column, same as take 1.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E41",
-        "confidence": "untraced"
+        "kind": "spec",
+        "document": "JB_NAS77.pdf",
+        "sheet": 1,
+        "view": "NAS77 UNLINED FLANGED BUSHINGS -- dimensions table",
+        "cell": "row NAS77A3-xxx, column F",
+        "callout": "F .062, column header '+.000, -.005 / +.00, -.13'",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/JB_NAS77.pdf",
+          "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop."
+        },
+        "confidence": "inferred",
+        "note": "Same row, same reading and same part-identity chain as tan_link_to_pitch_plate:flange_bushing_flange (NAS77A3-015A via the 215177-A parts list, run 20260813_180719). WAS `kind: workbook` cell E41, `untraced`."
       }
     },
     {
@@ -85,12 +108,24 @@
       "max": 3.937,
       "lmc": 3.683,
       "mmc": 3.937,
+      "hardware_ref": "NAS77A3-015A",
+      "note": "RE-CITED 2026-09-15 (handoff stack_fable_audit) to the NAS77 page's L tolerance and dash decode, same as take 1.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E42",
-        "confidence": "untraced"
+        "kind": "spec",
+        "document": "JB_NAS77.pdf",
+        "sheet": 1,
+        "view": "NAS77 UNLINED FLANGED BUSHINGS -- figure + dash decode",
+        "cell": "figure 'L ±.005'; footnote 'xxx: Length in .010 increments (ex: -025 = .25 in.)'",
+        "callout": "L ±.005, dash -015 = .150 in",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/JB_NAS77.pdf",
+          "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop."
+        },
+        "confidence": "inferred",
+        "note": "Same reading and same part-identity chain as tan_link_to_pitch_plate:flange_bushing_L. WAS `kind: workbook` cell E42, `untraced`."
       }
     },
     {
@@ -102,12 +137,24 @@
       "max": 0.889,
       "lmc": 0.889,
       "mmc": 0.635,
+      "hardware_ref": "NAS77A3-015A",
+      "note": "RE-CITED 2026-09-15 (handoff stack_fable_audit) to the NAS77 page's I.D. chamfer note, same as take 1. Nominal is the computed midpoint; the page states limits only.",
       "source_ref": {
-        "kind": "workbook",
-        "document": "260729_sample_tol_stack.xlsx",
-        "sheet": "grip length tols old",
-        "cell": "E43",
-        "confidence": "untraced"
+        "kind": "spec",
+        "document": "JB_NAS77.pdf",
+        "sheet": 1,
+        "view": "NAS77 UNLINED FLANGED BUSHINGS -- figure",
+        "cell": "figure note at the I.D. chamfer leader",
+        "callout": "I.D. .025 -- .035 x 45° CHAMFER BOTH ENDS (SEE NOTE 6)",
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/JB_NAS77.pdf",
+          "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop."
+        },
+        "confidence": "inferred",
+        "note": "Same reading, same both-ends caveat and same part-identity chain as tan_link_to_pitch_plate:bushing_chamfer. WAS `kind: workbook` cell E43, `untraced`."
       }
     },
     {
