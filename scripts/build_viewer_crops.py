@@ -849,6 +849,16 @@ def parts_list_row_for(balloons: Dict[str, Any], source_ref: Dict[str, Any],
     :func:`balloon_answer`'s contract makes a ``None`` here place the crop
     exactly as it did before, so refusing can only ever lose a located crop,
     never move one onto the wrong row.
+
+    **Two doors this deliberately leaves open**, neither reachable on today's
+    data and both worth knowing before extending this. A cited find number that
+    matches *none* of a collision's rows falls through to the next candidate
+    part number rather than refusing outright; and a part number matching
+    exactly **one** row is returned without checking that row against a cited
+    find number that disagrees with it. The second is the deliberate one -- it
+    mirrors :func:`parts_list_row_rect`, which also breaks the tie only when
+    there is a tie, and narrowing unconditionally would cost a crop in the
+    no-collision case, which is every live case but one.
     """
     rows = [row for row in (balloons.get("parts_list") or [])
             if row.get("find_no") is not None]

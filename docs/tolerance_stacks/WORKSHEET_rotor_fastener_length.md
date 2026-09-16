@@ -192,9 +192,10 @@ worst-case half of `0.1016 + 0.254 = 0.3556 mm`.
 Reading the table (magnitudes, i.e. `−nominal`/`−WC min`): dash **U2H** can
 accommodate at most **0.7620 mm** (nominal) / **1.1176 mm** (worst case) of
 combined balancing-mass + receiving-structure thickness before shank-out goes
-negative; dash **U10H** can accommodate up to **13.4620 mm** / **13.8176 mm**. The
-nominals are unchanged since 2026-09-16 and both worst cases grew by exactly
-0.1016 mm, which is the NAS1149V0332H band's half-width arriving.
+negative; dash **U10H** can accommodate up to **13.4620 mm** / **13.8176 mm**.
+The 2026-09-16 band change left both nominals exactly where they were and grew
+both worst cases by 0.1016 mm, which is the NAS1149V0332H band's half-width
+arriving.
 **The nine numbers strictly widen from U2H to U10H** — this is the
 reverse-engineered answer this exercise was seeded to produce: once the real
 balancing-mass thickness and the receiving structure's engagement thickness

@@ -111,10 +111,23 @@ The three 4.06 callouts, re-read here 2026-09-16 and **not** carried across from
 | `5X 4.06 ±0.10` | 2 (`SECTION A-A`) | D10 | `stack_pitch_link_to_pitch_plate::pitch_plate_flange`, `stack_vpa_output_to_pitch_plate::pitch_flange_thickness` |
 | `4.06 ±0.10` ×2 | 1 | D5 and D6 | — (the VPA element's unresolved alternatives) |
 
-Two differences from 215197 A.1 worth knowing before comparing the sheets. Both
-position frames lost their diameter symbol: the PRELIM printed `⌖⌀0.2 A B C` on
-the 3X and 5X groups, the released sheet prints `⌖0.2 A B C`. And sheet 1 gained
-a second `4.06 ±0.10`, at zone D6, where 215197 printed `8.80 ±0.10`.
+Two differences from 215197 A.1 worth knowing before comparing the sheets, both
+measured word-level with `build_viewer_crops.page_native_grid` + `zone_cell` on
+each document rather than read off a clipped text extract.
+
+**Both position frames lost their diameter symbol.** The PRELIM printed
+`⌖⌀0.2 A B C` on the 3X and 5X groups; the released sheet prints `⌖0.2 A B C`.
+No value moves with it.
+
+**Sheet 1 prints a second `4.06 ±0.10`.** 215197 A.1 sheet 1 printed one, wholly
+inside zone D5. 215735-A sheet 1 prints two: the D5 one, and a second whose
+`4.06` sits in zone **D6** (its `±0.10` falls in D5 — another straddle). That is
+all that is established. **215197 A.1's sheet 1 zone D6 is empty**, and sheet 1
+was re-laid out between the exports, so the new callout cannot be matched to a
+predecessor: `10.68 ±0.10` survives at D7 but moved, the surviving `4.06` moved,
+`52.00`/`187.99` became `57.10`/`189.13`, and the PRELIM's `18.80 ±0.10` (zone
+D7, beside that `10.68`) does not appear anywhere on 215735-A. Which feature the
+new D6 callout dimensions is **not** answered by either document's text layer.
 
 Re-copy:
 

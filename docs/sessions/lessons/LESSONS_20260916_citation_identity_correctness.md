@@ -47,7 +47,10 @@ E         {'qty_raw': '9'} != {'qty_raw': '15'}
 E         {'nomenclature': '... .032"'} != {'nomenclature': '... .032" 1.000" LONG'}
 ```
 (4 failed on the pre-fix `build_viewer_crops.py`, 77 passed after — the module
-was 73/73 before the four new guards.)
+was 73/73 before the four new guards. That 4 is a **whole-file** revert, which
+also removes `CALLOUT_FIND_NO_RE`; revert only the function body and you get 3,
+because the fourth test reads the constant directly. Both replays are honest —
+say which one you ran.)
 
 If you are writing the guard for one of the other three sightings: **assert the
 invariance, not the answer.** An order-dependent key passes an answer assertion
@@ -97,7 +100,7 @@ on both PDFs, that is not what happened:
 | `3X 4.06 ±0.08` | sh2 B4/B5, SECTION A-A | **same** |
 | `5X 4.06 ±0.10` | sh2 D10, SECTION A-A | **same** |
 | `4.06 ±0.10` | sh1 D5 | sh1 D5 |
-| `4.06 ±0.10` | — (215197 prints `8.80 ±0.10` here) | sh1 **D6** — new |
+| `4.06 ±0.10` | — (215197's sh1 D6 is **empty**) | sh1 **D6** — new |
 
 The VPA element does not cite the sheet-1 callout. Its `source_ref` says
 `sheet: 2, zone: "D10", callout: "5X 4.06 ±0.10"` — the same address the
@@ -110,10 +113,43 @@ table row and the prose disagree and the prose is right.
 different printed callout is a feature-identity decision, not a currency one,
 and nothing on the released drawing decides it. What I did instead: record that
 the field got **wider**, not narrower — three candidates now, not two, because
-a feature that was `8.80 ±0.10` on the PRELIM is `4.06 ±0.10` on the released
-plate, printed immediately beside the sheet-1 callout the joint's qty-1 already
-argued for. That element is `inferred` and stays `inferred`; it is now inferred
-against a worse field.
+the released plate prints a further `4.06 ±0.10` immediately beside the sheet-1
+callout the joint's qty-1 already argued for. That element is `inferred` and
+stays `inferred`; it is now inferred against a worse field.
+
+> **Corrected 2026-09-16, after review (F1).** The three paragraphs above
+> originally said the new D6 callout sat "where 215197 printed `8.80 ±0.10`",
+> and drew from it that *a feature that was `8.80 ±0.10` on the PRELIM is
+> `4.06 ±0.10` on the released plate*. **None of that is true, and it was
+> replicated into five live artifacts** — both stack `source_ref` notes, both
+> worksheets and the tracked `data/inbox/drawings/PROVENANCE.md` — before the
+> reviewer caught it. Measured word-level on both documents:
+>
+> - **215197 A.1 sheet 1 zone D6 is empty.** No words in the cell.
+> - **There is no `8.80` token in either document.** The PRELIM's token is
+>   `18.80 ±0.10`, at zone **D7**, beside the `10.68 ±0.10` that survives on the
+>   released sheet. It appears nowhere on 215735-A.
+> - Sheet 1 was re-laid out between exports (`10.68` and the surviving `4.06`
+>   both moved; `52.00`/`187.99` became `57.10`/`189.13`), so no succession can
+>   be read off position either.
+>
+> **How I produced it, because the mechanism is the transferable part.** I read
+> the neighbourhood with `page.get_text('text', clip=Rect(x0-260, …))` and took
+> the tokens out of the returned string. **A clip truncates a word whose box
+> straddles the clip edge** — `18.80` came back as `8.80` — and the clip also
+> swept in D7's contents while I attributed them to D6. Neither failure is
+> visible in the output; it reads as a clean extract. `page.get_text('words')`
+> does not truncate, and `build_viewer_crops.page_native_grid` + `zone_cell`
+> answers "which zone" in three lines over any PDF. **Use the word list and the
+> zone reader for any claim you are going to write down**; the clip is for
+> looking, not for quoting.
+>
+> The general form, which the reviewer stated better than I will: **a
+> citation-currency handoff has two documents to re-read, not one.** Every
+> error in this work was on the *superseded* export. I re-read 215735-A
+> meticulously because it was the deliverable, and read 215197 A.1 once, in
+> passing, for comparison — and that asymmetry is exactly where the blocker
+> landed. The old document is not context; it is the other half of the claim.
 
 ### Two other measured differences nobody had written down
 
@@ -207,6 +243,30 @@ each such element names an artifact that actually prints its band. The
 non-vacuity half is kept and is now per-stack. A rule with one instance that
 grows a second and is checked on neither is how this class survives.
 
+> **Extended again 2026-09-16, after review (F3).** A curated registry is
+> itself a key that can be narrower than the thing it identifies — this
+> handoff's own subject, one level up — and a `@parametrize` over a dict
+> **cannot notice a stack missing from that dict**, because the missing case
+> generates no test at all. So the candidate set is now *derived*
+> (`from_scratch_stacks_folding_a_workbook_band()`: stacks with
+> `transcribed_from is None` holding a banded element whose `hardware_ref`
+> resolves to a `workbook` `values_source`) and paired against the registry in
+> `test_every_from_scratch_stack_folding_a_workbook_band_is_covered_by_the_guard`.
+> A third such stack now fails loudly instead of riding past unparametrized.
+> Watched failing by deleting the `rotor_fastener_length` row.
+>
+> The same shape produced review finding **F2**, and got the same treatment:
+> both topology parts kept `revision: "A.1"` while their `drawing` moved to
+> `215735`, because the handoff's restating inventory enumerated `name`,
+> `drawing`, `note` and `provenance.part_identity` and not `revision` — a
+> **carrier field a rename inventory did not list**. Corrected to `"A"`, and
+> `tests/test_topology.py::test_a_topology_parts_drawing_and_revision_are_a_pair_something_cites`
+> now pairs every topology part's `(drawing, revision)` against the
+> `(document, revision)` pairs something in the repo actually cites. Watched
+> failing by restoring `A.1`. The pairing is deliberately loose — *some*
+> citation names this pair — because a topology part declares no element, and
+> inventing that link would be the guess this repo exists not to make.
+
 `KNOWN_BAND_DIVERGENCES` is now **empty**, and the comment in it says that is
 the statement rather than a leftover. Every part in `SHARED_BANDS` folds one
 band in every stack that uses it, with no exception recorded anywhere — first
@@ -223,14 +283,16 @@ powershell -ExecutionPolicy Bypass -File C:\workspace\tolstack\scripts\rebuild_p
 Ran once, from the main checkout, no `--allow-older-tree`. All three stamps
 agree:
 
-| projection | branch | sha12 | dirty | behind_trunk |
+| projection | branch | `head_sha` (first 12) | dirty | behind_trunk |
 |---|---|---|---|---|
 | `topologies.json` | master | `70241cece1ce` | False | 0 |
 | `results.json` | master | `70241cece1ce` | False | 0 |
 | `crops.json` | master | `70241cece1ce` | False | 0 |
 
 (Was `master @ 9c25aff9fe55`, built 08:55:25Z; the gate allowed the overwrite
-because that commit is an ancestor of `70241ce`.)
+because that commit is an ancestor of `70241ce`. The column is the script's
+`sha12=` output, which it computes from `head_sha`; the projections carry no
+`sha12` field of their own, so grep for `head_sha`.)
 
 **But read those stamps.** `70241ce` is `master`. It does **not** contain this
 handoff's three commits. Deliverable 4's premise — *"deliverables 2 and 3 both
@@ -292,7 +354,7 @@ design — its node-fs tier has no projection to read.)
 ## 5. Suite arithmetic, and a pre-existing red
 
 `venv-win/Scripts/python.exe -m pytest -q` from the worktree:
-**1159 passed, 1 failed, 1 skipped**.
+**1161 passed, 1 failed, 1 skipped**.
 
 Reconciling against the handoff's baseline of 1155 passed / 0 failed / 0
 skipped (measured on `master`, in the main checkout):
@@ -303,7 +365,9 @@ skipped (measured on `master`, in the main checkout):
 | + 4 | the parts-list-row-identity guards in `tests/test_viewer_crops.py` (73 → 77) |
 | + 1 | `test_the_strongest_read_only_claim_still_has_a_subject` |
 | + 1 | the anti-laundering guard, parametrized 1 → 2 |
-| **= 1161** | = 1159 passed + 1 failed + 1 skipped |
+| + 1 | `test_a_topology_parts_drawing_and_revision_are_a_pair_something_cites` (review F2) |
+| + 1 | `test_every_from_scratch_stack_folding_a_workbook_band_is_covered_by_the_guard` (review F3) |
+| **= 1163** | = 1161 passed + 1 failed + 1 skipped |
 
 (One test was **renamed**, not added:
 `test_rotor_fastener_has_no_workbook_source_and_declares_its_zero_width_bands`
