@@ -432,6 +432,33 @@ check("this app holds no terminal command for a banner to render", () => {
   }
 });
 
+check("loadAll's no-projection branch renders that constant, not a sentence of its own", () => {
+  // The two checks above certify the CONSTANT and the CONFIG supply route.
+  // Neither pairs the constant to the one surface that renders it, so both
+  // stay green through the cheapest possible return of the original defect:
+  // a bare string literal typed straight into setBanner() at the call site,
+  // one character CHEAPER to write than the AA.CONFIG.rebuild concatenation
+  // was. Measured -- app.js's no-projection branch restored to the
+  // pre-handoff shape with the command inlined, and this tier returned
+  // 65/65 (ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_
+  // _not_the_call_site).
+  //
+  // The RENDERED banner text is the assertion this wants and is out of
+  // reach: no tier reaches the connected-folder-with-no-projection state,
+  // which needs a real File System Access grant. The call site is not out
+  // of reach, and is read statically for the same reason the check above
+  // is -- app.js is an ES module that touches document and WebGL at load.
+  //
+  // The general shape, worth carrying: a guard on a named constant
+  // certifies the constant, never that the surface still reads it. Lifting
+  // copy into a constant so a testable tier can see it is exactly what
+  // moves the assertion away from the defect.
+  const appSource = fs.readFileSync(path.join(here, "app.js"), "utf8");
+  if (!appSource.includes("setBanner(AA.NO_PROJECTION_NOTICE")) {
+    throw new Error("loadAll()'s no-projection banner no longer renders AA.NO_PROJECTION_NOTICE");
+  }
+});
+
 check("index.html loads the shared decision before this app's own adapter", () => {
   // app.js cannot be booted in this sandbox (ES module, `document`, WebGL --
   // see the verb-table check below for the same constraint), so the one thing
