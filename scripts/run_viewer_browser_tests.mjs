@@ -1239,6 +1239,41 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     };
   }, triggerSel);
 
+  // The highlight overlay's COORDINATE FRAME, on a card, in a real browser --
+  // the one thing no other tier can look at.
+  //
+  // views/crop.js's `highlightBox` writes `left`/`top`/`width`/`height` as
+  // percentages of `.cropfig`, so every box on a crop is only ever as right as
+  // the assumption that the figure's box IS the picture. A hover card caps its
+  // crop by WIDTH for exactly that reason (style.css, `.hovercard .cropblock
+  // .cropfig`); the `max-height: 260px; object-fit: contain` rule it replaced
+  // capped the height and let the picture inset itself inside an element that
+  // kept the full width, which leaves every highlight pointing into the
+  // letterbox rather than at the cell it names. The fast tier has no geometry
+  // at all, and nothing else in this file opens a card on a crop that carries
+  // a highlight, so the revert is invisible everywhere else.
+  const cropOverlay = () => page.evaluate(() => {
+    const fig = document.querySelector(".hovercard .cropblock .cropfig");
+    const img = fig && fig.querySelector("img.croppop__img");
+    if (!fig || !img) return null;
+    const box = (r) => ({ left: r.left, top: r.top, right: r.right,
+                          bottom: r.bottom, width: r.width, height: r.height });
+    return {
+      img: box(img.getBoundingClientRect()),
+      // The crop's own width/height, as the figure carries it for the cap's
+      // sake -- read from the custom property rather than from the PNG, so
+      // the measurement does not wait on a decode.
+      ratio: parseFloat(getComputedStyle(fig).getPropertyValue("--crop-ratio")),
+      // The width the figure would have taken with no cap at all. Uncapped,
+      // the picture would be this over the ratio tall; if that is not more
+      // than the 260px cap then the cap did nothing here and the contract
+      // below is vacuous.
+      blockWidth: fig.parentElement.getBoundingClientRect().width,
+      highlights: Array.from(fig.querySelectorAll(".crophl"))
+        .map((n) => box(n.getBoundingClientRect())),
+    };
+  });
+
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -1398,6 +1433,35 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       beforeCard.pane === withCard.pane);
     push("leaders still land on their dots and seams with a card open",
       (await correspondence()).drift.length === 0);
+
+    // --- the highlight overlay points at the crop, not past it -------------
+    //
+    // Same open card, measured rather than read. Two tripwires first, because
+    // this contract is only falsifiable where a box exists to mis-place and
+    // where the width cap actually bit.
+    const overlay = await cropOverlay();
+    push("the open card's crop carries a highlight box to measure, and the " +
+      "figure knows the crop's own shape",
+      overlay !== null && overlay.highlights.length >= 1 &&
+      overlay.ratio > 0);
+    push("the card's 260px crop cap really bites here — uncapped this crop " +
+      "would be taller than the cap",
+      overlay.blockWidth / overlay.ratio > 260 &&
+      Math.abs(overlay.img.height - 260) <= 1.5);
+    // The letterbox, stated as the thing a reader would see: the element the
+    // overlay is positioned against still has the crop's own proportions, so
+    // the percentages land on the picture. `object-fit: contain` under a
+    // height cap gives the element the block's full width and the cap's
+    // height, and this ratio is the first thing that stops being true.
+    push("the crop's element IS the picture — its box still carries the " +
+      "crop's own aspect ratio, so a percentage lands where it reads",
+      Math.abs(overlay.img.width / overlay.img.height - overlay.ratio) <
+        overlay.ratio * 0.02);
+    push("every highlight box on the card lands inside the crop image it " +
+      "points into",
+      overlay.highlights.every((h) =>
+        h.left >= overlay.img.left - 0.5 && h.right <= overlay.img.right + 0.5 &&
+        h.top >= overlay.img.top - 0.5 && h.bottom <= overlay.img.bottom + 0.5));
 
     // The room cap (viewer_popover_clamp_and_rebuild_terminal_state): this
     // card fits neither below its trigger nor above it, and before the cap it
@@ -2721,10 +2785,20 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
 
     await page.evaluate(({ topologies, results, crops }) => {
       const VA = window.ViewerApp;
+      window.__CROP_FETCHES__ = [];
       const Fake = function () {
-        return new VA.MemoryAdapter({
+        const memory = new VA.MemoryAdapter({
           startState: VA.STATE.READY, topologies, results, crops, images: {}, texts: {},
         });
+        // Which PNGs the app ASKED for, which is the half no other tier can
+        // see: every fast-tier crop test hands the renderer its own `images`
+        // map, so the fetch list itself has nothing standing on it.
+        const real = memory.readCropImage.bind(memory);
+        memory.readCropImage = function (png) {
+          window.__CROP_FETCHES__.push(png);
+          return real(png);
+        };
+        return memory;
       };
       Fake.isSupported = () => true;
       VA.FsaAdapter = Fake;
@@ -2744,6 +2818,75 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       push(`[real, non-mock] ${topology.id} renders all ${expected} edge rows ` +
         "through the real load()+render() pipeline", rowCount === expected);
     }
+
+    // --- a balloon crop's SECOND image is fetched alongside the first -------
+    //
+    // `loadDetailImage` (topology_app.js) fetches a LIST, not one blob,
+    // because a balloon crop names its parts-list row as a `companion` and a
+    // companion that arrived a paint later would flash "image not on disk"
+    // under "Parts list, sheet 1" on every selection. Nothing watched the
+    // list: dropping the companion term from it left the fast tier at 407/407
+    // and this file at 20/20 on 2026-09-16, and the only symptom was the
+    // missing-image line on all four live balloon crops. It cannot be watched
+    // in the fast tier at all -- topology_app.js is not in run_tests.cjs's
+    // file list, and the DOM shim cannot boot the page -- so the fetch list is
+    // read here, off the adapter the app actually called.
+    const companionRows = await page.evaluate(({ topologies, crops }) => {
+      const VA = window.ViewerApp;
+      const found = [];
+      for (const topology of topologies.topologies) {
+        for (const edge of topology.edges) {
+          const entry = VA.cropForKey(crops, edge.crop_key);
+          if (entry && entry.status === "resolved" && entry.png &&
+              entry.companion && entry.companion.png) {
+            found.push({ topology: topology.id, edge: edge.id,
+                         png: entry.png, companion: entry.companion.png });
+          }
+        }
+      }
+      return found;
+    }, { topologies: realProjection, crops: realCrops });
+    // The fixture precondition, asserted before what it certifies. TWO rows,
+    // because the two fetchers cannot be told apart on one: `imageCache` is
+    // shared, so whichever of them runs first is the only one that reaches
+    // the adapter for that PNG.
+    push("two live topology rows still reach balloon crops that name a " +
+      "parts-list companion — one per fetcher below", companionRows.length >= 2);
+    const [paneRow, cardRow] = companionRows;
+    let fetched = [];
+    if (paneRow && cardRow) {
+      // The PANE's fetcher: selecting a row is what runs loadDetailImage.
+      const row = `tr.tvrow[data-id="${paneRow.edge}"]`;
+      await page.locator(navRow("topology", paneRow.topology)).click();
+      await page.waitForSelector(row, { timeout: 5000 });
+      await page.locator(row).click();
+      await page.waitForFunction(
+        (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
+        paneRow.companion, { timeout: 5000 }).catch(() => {});
+      // ...and the CARD's, which is a different list builder (`cardPngs`) with
+      // the same companion term in it: hovering the row's own crop trigger.
+      const trigger = `tr.tvrow[data-id="${cardRow.edge}"] button.crop-trigger`;
+      await page.locator(navRow("topology", cardRow.topology)).click();
+      await page.waitForSelector(trigger, { timeout: 5000 });
+      await page.locator(trigger).hover();
+      await page.waitForSelector(".hovercard--edge",
+        { state: "visible", timeout: 5000 });
+      await page.waitForFunction(
+        (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
+        cardRow.companion, { timeout: 5000 }).catch(() => {});
+      await page.keyboard.press("Escape");
+      fetched = await page.evaluate(() => window.__CROP_FETCHES__ || []);
+    }
+    push("the open topology's own crop images are fetched",
+      !!paneRow && fetched.indexOf(paneRow.png) !== -1);
+    push("selecting a balloon crop's row fetches its parts-list companion " +
+      "too, so the PANE's second image is there with the first rather than " +
+      "a paint later",
+      !!paneRow && fetched.indexOf(paneRow.companion) !== -1);
+    push("opening a balloon crop's hover CARD fetches its parts-list " +
+      "companion too — the card's list is built separately and carries the " +
+      "same second image",
+      !!cardRow && fetched.indexOf(cardRow.companion) !== -1);
 
     return reportSuite(label, checks, errors);
   } catch (err) {
