@@ -50,7 +50,7 @@ your note gave MS14101-3 / MS14103-3 as the candidates; (b) the sibling link
 212956-005 carries one of each per its own extracted parts list, and the
 workbook's 11.05/11.10 at the 3-place joint consumes the wide one to the
 digit; (c) decisive — the drawing-selected −11 bolt closes only against the
-narrow width. With the wide one the shank ends ~3.3 mm inside the column and
+narrow width. With the wide one the shank ends ~4.8 mm inside the column and
 the cotter hole lands **inside the clamped stack**: an unassemblable joint.
 The old budget arithmetic cross-checks the new pass: the eye-plus-flange
 minimum (7.09 + 1.4478 = 8.5378) clears the old binding requirement (8.4280)
@@ -86,7 +86,9 @@ element folding a shared part it cannot classify.
 Check coverage: every one of the 21 studies now either carries a check or a
 `no_checks_reason` naming why no criterion is citable (a new schema field,
 enforced by test). The five that lacked both were the two blade-angle studies
-(their criteria live on their byte-identical end-stop twins), the two
+(their criteria live on their byte-identical end-stop twins — an identity
+`test_an_end_stop_study_s_selection_and_transforms_equal_its_source_study`
+checks, selection and transforms both), the two
 millimetre studies (no in-repo document states a millimetre limit), and the
 thread-region cross-check (a reference dimension a criterion would dress as a
 requirement). *(The handoff said "6 of 19 studies carry `checks: []`"; the

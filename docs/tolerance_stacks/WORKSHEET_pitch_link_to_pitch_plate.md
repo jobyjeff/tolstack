@@ -42,7 +42,7 @@ Covers `stack_pitch_link_to_pitch_plate.json`. All values in **mm**.
 >   its bearing. Jeff's two candidates are MS14101-3 (narrow, 7.14) and
 >   MS14103-3 (wide, 11.10); the narrow one is folded because the
 >   drawing-selected −11 bolt **cannot close against the wide one** (shank
->   ~3.3 mm short of the washer face at nominal, cotter hole inside the clamped
+>   ~4.8 mm short of the washer face at nominal, cotter hole inside the clamped
 >   stack), because the sibling link 212956-005 carries one of each per its own
 >   extracted parts list, and because 11.10 is demonstrably consumed by the
 >   3-place joint. The 213862-002 drawing confirms or refutes it — gap 1,

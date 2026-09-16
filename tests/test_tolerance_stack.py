@@ -620,7 +620,7 @@ def test_pitch_link_shank_out_is_complete_and_passes_thinly(pitch_link):
     # The wide-bearing counterfactual, pinned because it is the quantitative
     # argument for the narrow placeholder: MS14103-3's 11.05/11.10 in the eye
     # would push the cotter hole INSIDE the clamped stack (see the cotter test)
-    # and leave the shank ~3.3 mm short of the washer face at nominal.
+    # and leave the shank ~4.8 mm short of the washer face at nominal.
     wide_nominal_shank_out = (column.nominal - 7.14 + 11.10) - grip.nominal
     assert wide_nominal_shank_out == pytest.approx(4.8324, abs=TOL)
 
