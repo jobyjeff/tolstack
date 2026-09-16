@@ -6080,20 +6080,23 @@
         ok(pitch, "pitch_link_to_pitch_plate must be there");
       });
 
-      await test("[real] the pitch-link stack renders its two budget-scope checks", function () {
+      await test("[real] the pitch-link stack renders one budget and one joint-scope check", function () {
+        // Two budget checks until 2026-09-15 (`stack_fable_audit`): the eye and
+        // flange members completed the shank-out column, so only the cotter
+        // budget still carries an excluded term -- the MS9363-09 nut side.
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
         var budget = all(root, "article.check--budget");
-        eq(budget.length, 2);
-        // The live migration off the `-- INCOMPLETE:` label suffix: the schema
-        // field is what raises the stripe now, so the shout is gone from the
-        // label and the excluded term is on the card instead.
-        has(budget[0].textContent, "spherical bearing");
+        eq(budget.length, 1);
+        has(budget[0].textContent, "MS9363-09");
         eq(root.textContent.indexOf("INCOMPLETE:"), -1);
       });
 
-      await test("[real] gap 1 — the unsourced bearing width — is visible", function () {
+      await test("[real] the excluded nut side is visible as a gap", function () {
+        // Was "gap 1 -- the unsourced bearing width": the eye is an ELEMENT
+        // now (a loudly-marked placeholder), so the excluded-from-model gap
+        // that survives is the cotter budget's nut side.
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
-        has(all(root, "li.gap")[0].textContent, "spherical bearing");
+        has(all(root, "li.gap")[0].textContent, "MS9363-09");
       });
 
       await test("[real] the zero-width flag reaches the page", function () {
@@ -6109,13 +6112,14 @@
         eq(all(root, "tr.el-row--zero-width").length, 2);
       });
 
-      await test("[real] the pitch-link stack's two unverified bands render untraced, not zero-width", function () {
+      await test("[real] the pitch-link stack's three unverified bands render untraced, not zero-width", function () {
         // The other half of the same change, and the half Jeff's 2026-09-15
         // ruling is actually about: a band nobody in this repo can re-check has
         // to LOOK different from one they can. `zero_width` used to carry that
         // signal on this stack and now carries nothing here, so the confidence
         // class carries it alone -- and a badge keyed on `zero_width` would show
-        // the reader nothing at all.
+        // the reader nothing at all. Three rows since `stack_fable_audit`
+        // added the eye placeholder (MS14101-3, bearing identity unconfirmed).
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
         eq(all(root, "tr.el-row--zero-width").length, 0);
         // One class per selector: the DOM shim's matcher handles "tag", ".class"
@@ -6124,17 +6128,19 @@
         var untraced = all(root, "tr.conf--untraced").filter(function (tr) {
           return hasClass(tr, "el-row");
         });
-        eq(untraced.length, 2);
+        eq(untraced.length, 3);
         has(untraced[0].textContent, "bushing_214820");     // 214820-002 drawing, read by an operator
-        has(untraced[1].textContent, "washer_nas1149v0332"); // 260729 workbook E11/F11
+        has(untraced[1].textContent, "pitch_link_eye");     // RBC catalog band, bearing identity open
+        has(untraced[2].textContent, "washer_nas1149v0332"); // 260729 workbook E11/F11
       });
 
       await test("[real] the folded numbers reach the page verbatim", function () {
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
-        // `-8.428`, not `-8.4280`: VA.fmt is String(n) and prints the projection
+        // `0.1098`, not `0.10980`: VA.fmt is String(n) and prints the projection
         // number verbatim, so a trailing zero a document writes for alignment is
-        // not on the page. Was `-8.1939` until 2026-09-15.
-        has(root.textContent, "-8.428");    // shank_out worst-case min
+        // not on the page. Was `-8.1939`, then `-8.428`, until the audit's two
+        // members flipped the shank-out check to a thin joint-scoped pass.
+        has(root.textContent, "0.1098");    // shank_out worst-case min (the thin margin)
         has(root.textContent, "17.4752");   // the traced NAS6403 grip nominal, unmoved
       });
 
@@ -6900,9 +6906,13 @@
       });
 
       await test("[real] the slice-1 stacks show their untraced elements loudly", function () {
+        // >= 6 until 2026-09-15 (`stack_fable_audit`): four of tan_link's
+        // untraced rows were re-cited to the RBC catalogs at `inferred`, so the
+        // stack's honest untraced remainder is the two washers and the
+        // thread-transition allowance.
         var tan = VA.findStack(realResults, "tan_link_to_pitch_plate");
         var root = render(function (r) { VA.renderStack(r, tan, realCrops, {}); });
-        ok(all(root, "tr.conf--untraced").length >= 6,
+        ok(all(root, "tr.conf--untraced").length >= 3,
            "expected the workbook-sourced elements to be flagged untraced");
       });
 
@@ -7768,24 +7778,22 @@
               }).textContent;
             };
 
-            // FAIL, with the margin, and the word "margin" beside it: the two
-            // halves of Jeff's sentence.
+            // PASS with a THIN margin, and the word "margin" beside it: the two
+            // halves of Jeff's sentence. This study read `fail` /
+            // `margin -8.428` (and `-8.1939` before that) until 2026-09-15's
+            // `stack_fable_audit` completed the clamped column -- the old fail
+            // was a budget artifact of the missing eye and flange members.
+            // `VA.fmt` is `String(n)`, so the page prints 0.1098 verbatim.
             var out = shown("pitch_link_shank_out");
-            has(out, "fail");
-            // -8.428 / +11.0444, not -8.1939 / +11.1435: those were this
-            // stack's numbers until `pitch_link_known_bands` gave its bushing
-            // and washer real bands, and the two branches met for the first
-            // time in the integration merge (resolved during
-            // `review/pitch_link_known_bands`). `VA.fmt` is `String(n)`, so the
-            // page prints -8.428, never the worksheet's aligned -8.4280.
-            has(out, "margin -8.428 mm at worst case");
-            has(out, VA.VERDICTS.fail.says);
+            has(out, "pass");
+            has(out, "margin +0.1098 mm at worst case");
+            has(out, VA.VERDICTS.pass.says);
 
-            // PASS, same shape, on the same page -- so a reader can tell the two
-            // studies apart without opening either.
+            // PASS, same shape, on the same page. +2.3296, not +11.0444: the
+            // completed column consumed most of the old budget.
             var clear = shown("pitch_link_cotter_hole_clearance");
             has(clear, "pass");
-            has(clear, "margin +11.0444 mm at worst case");
+            has(clear, "margin +2.3296 mm at worst case");
             has(clear, VA.VERDICTS.pass.says);
 
             // And the third: a study that sums and has no criterion recorded.
@@ -7799,8 +7807,12 @@
 
         await test("[real] an incomplete check states what is missing ABOVE its " +
           "number, and its verdict is visibly qualified", function () {
+            // Repointed 2026-09-15 (`stack_fable_audit`) from the shank-out
+            // study, whose check completed when the eye and flange members went
+            // in; the cotter budget is the live incomplete specimen now, and
+            // what it excludes is the MS9363-09 nut side.
             var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
-            var study = VA.findStudy(topo, "pitch_link_shank_out");
+            var study = VA.findStudy(topo, "pitch_link_cotter_hole_clearance");
             var root = render(function (r) {
               VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
             });
@@ -7809,7 +7821,7 @@
             has(root.textContent, "budget for what is missing");
             // The term itself, in the words the check wrote -- not a field name
             // and not a count.
-            has(root.textContent, "spherical bearing width");
+            has(root.textContent, "MS9363-09 nut height");
             eq(all(root, ".tvverdict-card--qualified").length, 1);
             ok(all(root, ".tvverdict--qualified").length >= 1,
                "the rollup badge wears the qualification too");
@@ -7867,15 +7879,18 @@
             has(root.textContent, "unverified");
           });
 
-        await test("[real] the missing spherical bearing is visible on the page " +
+        await test("[real] the excluded nut side is visible on the page " +
           "without opening any JSON", function () {
+            // Was "the missing spherical bearing ..." until 2026-09-15: the eye
+            // is modelled now (a loudly-marked placeholder), so the surviving
+            // excluded-from-model row is the cotter budget's MS9363-09 side.
             var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
             // With NO study selected -- the state a reader arrives in.
             var root = render(function (r) {
               VA.renderTopoTotals(r, topo, null, VA.topologyIndex(topo));
             });
             has(root.textContent, "What's missing");
-            has(root.textContent, "spherical bearing width");
+            has(root.textContent, "MS9363-09 nut height");
             has(root.textContent, VA.GAP_KINDS.excluded_from_model.heading);
           });
 
