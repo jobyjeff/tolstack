@@ -1000,15 +1000,26 @@ over the members you do have, so the shortfall *is* the missing value:
 
 `pitch_link_to_pitch_plate` is the worked example. Its link-eye width is in no
 document this repo holds, so no element exists for it, and
-`shank_out__11_sourced_only` reports **−8.1939 … −7.4859 mm** — a deficit that
+`shank_out__11_sourced_only` reports **−8.4280 … −7.3868 mm** — a deficit that
 *is* the required eye width. One document flips the check. The binding
-requirement is **8.1939 mm** (grip at max, sourced column at min); the first
-draft of that worksheet and the check's own `guidance` quoted the favourable end,
-7.4859 mm, as "worst case", understating the requirement by 0.708 mm — a reader
-who then sourced a 7.6 mm eye would have concluded the joint passed. Every folded
-value was correct and every test was green; the error was entirely in the
-sentence. `test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end`
-now pins it.
+requirement is **8.4280 mm** (grip at max, sourced column at min); the first
+draft of that worksheet and the check's own `guidance` quoted the favourable end
+as "worst case", understating the requirement by 0.708 mm — a reader who then
+sourced a 7.6 mm eye would have concluded the joint passed. Every folded value
+was correct and every test was green; the error was entirely in the sentence.
+`test_pitch_link_the_binding_link_eye_requirement_is_the_worst_case_end` now
+pins it.
+
+> **Numbers refreshed 2026-09-15** (`pitch_link_known_bands`). This paragraph
+> read **−8.1939 … −7.4859 mm** with a binding requirement of **8.1939 mm**, and
+> named 7.4859 mm as the favourable end the first draft misquoted. Two of the
+> three terms in that column stopped folding zero-width, so all three moved; the
+> 0.708 mm understatement is the *2026-08-04* figure and is left as written,
+> because it is the size of the original defect and not a current quantity. The
+> shape of the lesson is unchanged, and the refresh is a small demonstration of
+> it: the binding end moved by 0.234 mm and the favourable end by 0.099 mm in the
+> opposite direction, so a reader who had memorised "about 7.5 to 8.2" would now
+> be wrong at both ends.
 
 A check with a hole in it, **declared in the schema**, beats a check with a guess
 in it.
