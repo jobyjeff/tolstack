@@ -264,6 +264,47 @@ added three fast-tier entries and confirmed each alone:
   told so. Both halves of each sentence checked, per the overlay's own
   "historicized the noun clause but left the imperative" entry.
 
+## The second integration merge — two conflicts, and a full re-verification
+
+`integration` moved from `916b448` to `4294bfc` while this review was running
+(two reviews landed: `viewer_value_guard_rows_and_replays` and
+`viewer_component_names_and_reference_copy`, plus two `master` syncs). Merged
+it in; **two conflicts, both resolved under the carve-out** — integration's
+side for what moved underneath, the handoff's side for the work under review:
+
+- **`apps/viewer/topology_app.js`, the topology ctx literal.** `integration`
+  added `config: VA.CONFIG` (the preview pane now renders crop links through
+  the shared `VA.cropReference` and needs the drawing-checker base URL); this
+  handoff deleted `layoutMode: state.layoutMode` from the same two lines.
+  Resolution: config in, `layoutMode` out. Both intents survive; the only
+  `layoutMode` left in the file is the comment recording its retirement.
+- **`docs/prompts/REVIEW_AGENT.md`, the tail of "Recurring bugs to check".**
+  Two reviews appended entries at the same insertion point. Kept all four.
+  (One of `viewer_value_guard_rows_and_replays`' entries is *"a green
+  `run_tests.cjs --repo` can be red five minutes later for reasons that are
+  nobody's"* — a concurrent rebuild mid-run. My own 374/378 had the same
+  symptom and a different, repeatable cause: a projection stamped by a tree
+  that predated `pitch_link_known_bands`. Worth knowing that the two look
+  identical and only one of them re-runs green — read the stamp, don't re-run
+  and hope.)
+
+Rebuilt both projections again on the merged tree (`integration` had moved
+`docs/topologies/*.json` under the component-names work, so `nodes`/`parts`/
+`topology` legitimately changed; `results.json` came back identical apart from
+`built_at`). Then re-ran everything:
+
+| tier | post-merge |
+|---|---|
+| `pytest -q` | **1093 passed, 1 skipped, 1 failed** (the same byte-identity red) |
+| `run_tests.cjs` (mock only) | **314/314** |
+| `run_tests.cjs --repo …` | **391/391** |
+| `run_viewer_browser_tests.mjs --repo …` | **19/19 suites**; `topology` 177/177, `topology respine` 39/39 |
+| `run_mutation_witness_tests.mjs --repo …` | **24/25 witnessed** (the miss is still only `card-layout-out-of-flow`) |
+
+Nothing in the merge touched a geometric witness — `topology respine` is 39/39
+both before and after, and all three of this review's new fast-tier entries are
+still witnessed on the merged tree.
+
 ## For the next reviewer
 
 - `brief item 2` (grid row motion / FLIP) is now decidable against a
