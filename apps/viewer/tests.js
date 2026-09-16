@@ -232,6 +232,47 @@
       ok(!VA.isBudgetScope({}));
     });
 
+    // The severity ranking, pinned as BEHAVIOUR. VA.worstVerdict reads
+    // "worst last" off the insertion order of the VA.VERDICTS object literal,
+    // so that order IS the rule -- and nothing else checks it. The Python/JS
+    // pairing in tests/test_js_python_vocabulary.py compares the two
+    // vocabularies as SETS, so every permutation of the three keys is green
+    // there; reordering VA.VERDICTS to `fail, marginal, pass` (plausible: both
+    // alphabetical and "worst first", matching the CSS block below it) leaves
+    // the whole suite green while every rollup badge reports the BEST verdict
+    // instead of the worst. Two live pitch-system studies are marginal + pass,
+    // so they would read PASS on the nav rail -- the exact misreading the
+    // rollup was added to prevent
+    // (ISSUE_20260915_worst_verdict_ranks_by_an_unguarded_object_key_order).
+    // Assert the ordering, never the key order: a guard on the constant is not
+    // a guard on the behaviour that reads it.
+    await test("worstVerdict ranks fail over marginal over pass, whatever order " +
+      "the checks arrive in", function () {
+      function worst(words) {
+        return VA.worstVerdict(words.map(function (v) { return { verdict: v }; }));
+      }
+      // Every pair, both ways round, so the total order is pinned and no
+      // single swap in VA.VERDICTS survives.
+      eq(worst(["pass", "marginal"]), "marginal");
+      eq(worst(["marginal", "pass"]), "marginal");
+      eq(worst(["marginal", "fail"]), "fail");
+      eq(worst(["fail", "marginal"]), "fail");
+      eq(worst(["pass", "fail"]), "fail");
+      eq(worst(["fail", "pass"]), "fail");
+      eq(worst(["pass", "marginal", "fail"]), "fail");
+      // A single check is its own worst; no checks is null, NOT a verdict.
+      eq(worst(["pass"]), "pass");
+      eq(worst(["marginal"]), "marginal");
+      eq(worst([]), null);
+      eq(VA.worstVerdict(null), null);
+      // A word this viewer has no branch for is ignored rather than ranked --
+      // it must not outrank a real verdict by landing at indexOf -1 or beyond.
+      eq(worst(["blocked"]), null);
+      eq(worst(["blocked", "pass"]), "pass");
+      eq(worst(["marginal", "blocked"]), "marginal");
+      eq(VA.worstVerdict([{}, { verdict: null }, { verdict: "pass" }]), "pass");
+    });
+
     await test("summaryChips scoreboards the stack and flags both soft spots", function () {
       var texts = VA.summaryChips(DEMO).map(function (c) { return c.text; });
       eq(texts, ["2 traced", "1 inferred", "1 UNTRACED",
