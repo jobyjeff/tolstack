@@ -596,8 +596,24 @@ async function testTheApp(browser, url, label) {
     await page.locator("#stackview button.crop-trigger--resolved").first().click();
     await page.waitForSelector(".croppop--resolved", { state: "visible", timeout: 5000 });
     push("the resolved popover is visible", await page.locator(".croppop").isVisible());
-    push("the popover shows the source PDF path",
-      /215197/.test(await page.locator(".croppop__path").textContent()));
+    // The REFERENCE, which is what a reader came for -- and not the absolute
+    // workstation path, which used to print beneath it and went on 2026-09-15
+    // ("full workstation file paths -- never rendered when the link works").
+    push("the popover names the document and sheet",
+      /215197/.test(await page.locator(".croppop__head").textContent()));
+    push("the popover renders no workstation path",
+      await page.locator(".croppop__path").count() === 0 &&
+      !/C:[\/]/.test(await page.locator(".croppop").textContent()));
+    // The matching provenance is still said, behind one small disclosure --
+    // closed by default, which is the whole point of folding it.
+    push("the crop's matching provenance is folded away, not deleted",
+      await page.locator(".croppop details.provfold").count() === 1 &&
+      !(await page.locator(".croppop details.provfold").evaluate((n) => n.open)));
+    push("opening the fold shows how the crop was matched", await (async () => {
+      await page.locator(".croppop details.provfold summary").click();
+      return /read from the export this citation names/
+        .test(await page.locator(".croppop details.provfold").textContent());
+    })());
     push("the popover offers a click-through to the reference",
       await page.locator(".croppop__link").count() >= 1);
 
@@ -1186,10 +1202,14 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
     push("the thumbnail trigger opens the edge hover card with the crop body",
       await page.locator(".croppop").isVisible() &&
-      /215197/.test(await page.locator(".croppop__path").textContent()) &&
+      /215197/.test(await page.locator(".croppop__head").textContent()) &&
       /cited at:/.test(await page.locator(".croppop").textContent()) &&
-      /from stack `demo_joint`, element `plate`/
-        .test(await page.locator(".croppop").textContent()));
+      // The part in a reader's words. This asserted the crop KEY here until
+      // 2026-09-15 ("from stack `demo_joint`, element `plate`") -- which of the
+      // crop index's two key spaces answered, in the ids of a stack and an
+      // element, above a picture that names its own document.
+      /a dimension of base plate/.test(await page.locator(".croppop").textContent()) &&
+      !/from stack `demo_joint`/.test(await page.locator(".croppop").textContent()));
     // Cards are hover-only chrome: opening one must not disturb the layout
     // contracts — the document's own height, the DAG pane's box and the leader
     // correspondence are all measured with the card OPEN.
@@ -2052,6 +2072,77 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       push("[real] an L1 edge shows the stack element's own citation",
         /NAS6403-NAS6420 Rev 4\.pdf/.test(detail) && /NAS6404U13D/.test(detail));
     }
+
+    // --- the preview pane's own divider (viewer_component_names_and_
+    //     reference_copy, 2026-09-15) -------------------------------------
+    //
+    // Jeff: "the right preview pane is resizable. It's too narrow." Three
+    // claims a DOM shim cannot make: that a real pointer drag on the divider
+    // widens the pane, that the DAG beside it gives up the width rather than
+    // overflowing, and that a RELOAD gets the width back. The last one is the
+    // interesting one -- it is the only preference on this page that persists,
+    // so a reload is the whole test.
+    const paneWidth = () => page.evaluate(() => ({
+      pane: document.getElementById("detail").getBoundingClientRect().width,
+      main: document.querySelector(".tv__main").getBoundingClientRect().width,
+      stored: window.localStorage.getItem("tolstack.viewer.detailWidth"),
+    }));
+
+    const divider = page.locator("#detail-divider");
+    push("the preview pane carries a full-height drag divider",
+      await divider.count() === 1);
+    const dividerBox = await divider.boundingBox();
+    const beforePane = await paneWidth();
+    // Full height of the flex row, not a grip inside a header: a reader must
+    // be able to grab the seam anywhere down it.
+    push("the divider spans the panes it sits between",
+      dividerBox.height > 300);
+    // Drag LEFT to widen -- the pane is on the right of its divider, and
+    // getting that sign backwards is the likeliest mistake in the feature.
+    await page.mouse.move(dividerBox.x + dividerBox.width / 2,
+                          dividerBox.y + 120);
+    await page.mouse.down();
+    await page.mouse.move(dividerBox.x + dividerBox.width / 2 - 160,
+                          dividerBox.y + 120, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(120);
+    const afterPane = await paneWidth();
+    push("dragging the divider LEFT widens the preview pane",
+      afterPane.pane > beforePane.pane + 120);
+    push("and the centre pane gave up the width rather than overflowing",
+      afterPane.main < beforePane.main - 120 &&
+      (await page.evaluate(() =>
+        document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)));
+    push("the drag wrote the width down when the pointer came up",
+      Number(afterPane.stored) === Math.round(afterPane.pane));
+    push("leaders still land on their dots and seams beside a wider pane",
+      (await correspondence()).drift.length === 0);
+
+    // The keyboard path, which needs no pointer at all: the divider is
+    // focusable and the arrow keys nudge it.
+    await divider.focus();
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(80);
+    const nudged = await paneWidth();
+    push("the arrow keys nudge the divider without a pointer",
+      nudged.pane < afterPane.pane - 4 &&
+      Number(nudged.stored) === Math.round(nudged.pane));
+    push("and the divider keeps its focus across the re-render the nudge caused",
+      await page.evaluate(() => document.activeElement &&
+        document.activeElement.id === "detail-divider"));
+
+    // THE claim. A reload constructs the page from scratch; nothing but
+    // localStorage carries the width across it.
+    await page.reload();
+    await page.waitForSelector(".tvtable", { timeout: 15000 });
+    const reloaded = await paneWidth();
+    push("a reload gets the remembered pane width back",
+      Math.abs(reloaded.pane - nudged.pane) < 2);
+    // And it is the ONLY preference that does: the diagram settings are back
+    // to their defaults, which is the asymmetry the README argues for.
+    push("the diagram's own preferences did NOT persist with it",
+      /comfortable/i.test(await page.locator("#density-toggle").textContent()));
+    await page.evaluate(() => window.localStorage.removeItem("tolstack.viewer.detailWidth"));
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;

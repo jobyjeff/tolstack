@@ -619,12 +619,18 @@
   //   unresolvable  — the citation could not be pinned to a page, with a reason
   //   not-built     — crops.json is absent; nobody has run the crop script
   //   no-entry      — crops.json exists but says nothing about this element
-  //                   (it predates the element — i.e. it is stale)
+  //                   (it predates the element — i.e. it is out of date)
+  //
+  // The `reason` of each is RENDERED, on four surfaces, so it is written for a
+  // reader and not for whoever maintains the index: no artifact filename, no
+  // field name, and above all no command to type (2026-09-15, the standing
+  // web-copy rules). What the reader needs from these four is which of them
+  // applies; what to DO about it is the banner's, once, for the whole page.
   VA.cropFor = function (cropsIndex, stackId, elementId) {
     if (!cropsIndex) {
       return {
         status: "not-built",
-        reason: "the crop projection has not been built",
+        reason: "no drawing crops have been prepared yet.",
       };
     }
     var byStack = cropsIndex.by_stack || {};
@@ -632,8 +638,8 @@
     if (!entry) {
       return {
         status: "no-entry",
-        reason: "crops.json has no entry for this element — it is older than " +
-          "the stack; re-run the crop script",
+        reason: "the prepared crops are older than this stack and do not " +
+          "cover this element yet.",
       };
     }
     return entry;
@@ -658,7 +664,7 @@
     if (!cropKey) {
       return {
         status: "no-entry",
-        reason: "this edge carries no crop key — nothing addresses the crop index",
+        reason: "nothing addresses a drawing crop for this row.",
       };
     }
     if (cropKey.stack) {
@@ -667,15 +673,14 @@
     if (!cropKey.topology) {
       return {
         status: "unresolvable",
-        reason: "crop_key " + JSON.stringify(cropKey) + " is a shape this " +
-          "viewer has no branch for — scripts/build_topology_projection.py's " +
-          "crop_key and VA.cropForKey have drifted",
+        reason: "this row addresses a drawing crop in a way this page has no " +
+          "branch for: " + JSON.stringify(cropKey),
       };
     }
     if (!cropsIndex) {
       return {
         status: "not-built",
-        reason: "the crop projection has not been built",
+        reason: "no drawing crops have been prepared yet.",
       };
     }
     var byTopology = cropsIndex.by_topology || {};
@@ -683,8 +688,8 @@
     if (!entry) {
       return {
         status: "no-entry",
-        reason: "crops.json has no entry for this edge — it is older than " +
-          "the topology; re-run the crop script",
+        reason: "the prepared crops are older than this topology and do not " +
+          "cover this row yet.",
       };
     }
     return entry;
@@ -812,15 +817,22 @@
   // it is what Jeff hit on 2026-09-15.
   //
   // The protocol is read from the page when the caller does not name one, so a
-  // view keeps its one-argument call and every test can drive both origins
-  // without a browser. A page with no `location` at all (the node fast tier's
-  // DOM shim) reads as "cannot follow", the same strictest-answer default
-  // VA.isLocalPage takes.
+  // view keeps its one-argument call. A page with no `location` at all (the
+  // node fast tier's DOM shim) reads as "cannot follow", the same
+  // strictest-answer default VA.isLocalPage takes.
+  //
+  // It goes through this one function rather than reading `window.location`
+  // inline, and that indirection is the test seam: assigning to
+  // `location.protocol` in a real browser NAVIGATES the page, so a test
+  // driving the served case has to replace this instead. (tests.js runs in
+  // Chrome too, through test.html — the fast tier is not the only reader.)
+  VA.pageProtocol = function () {
+    return (typeof window !== "undefined" && window.location &&
+      window.location.protocol) || "";
+  };
+
   VA.localFileUrl = function (absPath, protocol) {
-    var origin = protocol === undefined
-      ? (typeof window !== "undefined" && window.location &&
-         window.location.protocol) || ""
-      : protocol;
+    var origin = protocol === undefined ? VA.pageProtocol() : protocol;
     if (!VA.originOpensLocalFiles(origin)) return null;
     return VA.fileUrl(absPath);
   };

@@ -874,6 +874,51 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`test_the_vocabulary_pairing_can_fail`) rather than re-deriving the diff by
       hand — that is the one thing left for you: whether a *sentence about a rule*
       (not a word list) drifted, which no vocabulary-vs-constant pairing can see.
+- [ ] **A web surface saying something only its author can read.** New
+      2026-09-15 (`viewer_component_names_and_reference_copy`), off Jeff's own
+      review of the live pitch-link topology — and it is the same class of
+      defect as a drifted vocabulary, one layer out: the words were correct
+      about the *schema* and useless to the *reader*. What he found, in one
+      sitting, on one page:
+      an internal id printed as a part's name in the main table
+      (`bolt_nas6403u11d`); a merged cell's component description and part
+      number repeated in every row's element cell beside it; "no drawing
+      recorded for this part" on a COTS fastener, which is true of the field
+      and false about the part; `source_ref`, `crop_key` and `sha256` in body
+      copy; absolute workstation paths (`C:/workspace/tolstack/data/...`)
+      rendered beside a link; a rebuild **command** rendered in a hover
+      popover for the reader to copy into a terminal; and a link that did
+      nothing at all when clicked. So, whenever a diff touches `apps/viewer/`,
+      `apps/annotate/` or any other web surface, read the **rendered strings**
+      and check each of these:
+      (a) **No internal id, field name or artifact filename in anything a
+      reader reads.** An id is a deep-link handle and a debugging aid; put it
+      on a hover title if it must exist at all. The guards are
+      `apps/viewer/tests.js`'s two banned-string walks (one over the fixture,
+      one over every live topology) and
+      `tests/test_topology_prose_for_a_reader.py` over the authored documents
+      — extend them rather than writing a third.
+      (b) **One fact once per row.** Two adjacent cells repeating the same
+      phrase is not a copy nit: it is what pushes the meaningful half of a
+      label off the end of a column (`VA.elementDisplayLabel`, display only —
+      a document is never edited to fix a layout).
+      (c) **Say what is true, not which field is empty.** "No drawing
+      recorded" describes the schema; "standard part — dimensions from
+      NAS6403-NAS6420 Rev 4 · sheet 3" describes the part. Where neither
+      exists, render **nothing** — never a sentence about an absence.
+      (d) **A control the current origin cannot service must not render.**
+      The broken "open the PDF" link was not a bad URL: Chrome refuses *every*
+      navigation from an http(s) page to a `file:` URL, so on the
+      drawing-checker-served origin the click silently did nothing (measured
+      both ways, `VA.originOpensLocalFiles`). Ask of any affordance: which
+      transports can actually service this, and does it disappear on the
+      others?
+      (e) **Never a terminal command, and never a workstation path.** Wire the
+      action to a button or degrade to plain words. The banner is this repo's
+      one sanctioned exception and states it once for the whole page.
+      (f) **Provenance a reader did not ask for goes behind a disclosure, not
+      into the reading flow** (`VA.disclosure`) — and a disclosure is a fold,
+      never a place to hide a gap.
 - [ ] **Documents cited from a worktree that cannot see them.** `data/` is
       gitignored, so `data/inbox/specs/` in a worktree holds one tracked
       `README.md` and nothing else — the pile (several dozen files, and growing;

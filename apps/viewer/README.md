@@ -476,7 +476,24 @@ has twelve parts, which is past any categorical palette's cap regardless. So:
 * the selected study's path is the accent, and that is a binary, so it needs no
   palette.
 
-Part identity is carried as text, on the row and in the preview pane.
+Part identity is carried as text, on the row and in the preview pane -- as
+the part's **name**, never its id. It printed the id until 2026-09-15, with the
+name demoted to hover, because a live part name ran to eighty characters and
+would not fit a 150px cell; Jeff read the result and said what it was: *"2nd
+line `bolt_nas6403u11d` appears to be some type of internal id that is
+meaningless to user. Actually just realized this is what's used in the main
+table -- replace these with a concise human friendly name (NAS6403U11D Shoulder
+Bolt is fine)."* Every part `name` in `docs/topologies/` is a short noun phrase
+now (`VA.componentLabel`), with what it shed demoted into `note`, and an id is
+rendered nowhere a reader reads: not the merged cell, not a pane heading, not a
+card heading, not an interface's side list. It rides a heading's hover title,
+which is where a deep link or a debugging session can still reach it.
+
+Guarded from both sides, because the strings live in two places: the documents
+by `tests/test_topology_prose_for_a_reader.py` (which also pins the four
+pitch-link names by value) and the rendering by two banned-string walks in
+`apps/viewer/tests.js` -- one over the fixture, one over every live topology's
+grid, preview panes and hover cards.
 
 ### Reading the leaders: bands, two styles, and two widths you can drag
 
@@ -522,17 +539,45 @@ measured in every combination of them.
   a second source would come apart on the first drag). Widening is the only
   relief valve on offer: cell content still clips rather than wrapping, because
   a `<tr>`'s height is a floor and not a cap.
-* **The element label drops its own component's name** where it repeats it —
-  under component `blade_root`, rows that all read "blade-root clocking holes
-  to th…" now read "clocking holes to the …". Display only: the full label is
-  the cell's hover text and is what the preview pane prints. A label that does
-  not open with its component's name, or that *is* its component's name, renders
-  unchanged.
+* **The element label drops whatever the rest of the row already says.** Two
+  reductions, both of them *one fact said once per row*
+  (`VA.elementDisplayLabel`): the component cell's own words come off the front
+  — under component `blade_root`, rows that all read "blade-root clocking holes
+  to th…" now read "clocking holes to the …" — and a whole **clause** that only
+  restates the component or the row's own value is dropped with its separator,
+  so "fastener grip, NAS6403U11D (.688 in)" reads *fastener grip* beside a cell
+  saying "NAS6403U11D hex-head bolt" and three number columns. Jeff's own
+  example: *"the element column can just say 'grip length' (for the bolt) or
+  'length' for the plain bushing. The component's description and part number
+  don't need to be repeated in every column."*
 
-Neither resize persists across a reload, which is the same answer density and
-the length modes give — the page is opened from `file://` as often as it is
-served, and one preference that outlived a reload while four others did not
-would be the surprise.
+  Display only, and never a rewrite: every character of the output is a
+  character of the input in the input's order (pinned by walking the two,
+  on the fixture and on every live row), the full label is the cell's hover
+  text, and the preview pane prints it whole. A label with nothing to drop
+  comes back unchanged; one that is *only* its component's words keeps them,
+  because a blank cell would be a worse lie than a repetitive one. Whether the
+  authored `name` fields should themselves be shortened is a separate,
+  undecided authoring question
+  (`docs/issues/ISSUE_20260914_element_and_edge_names_are_not_under_the_title_rule.md`).
+
+**The preview pane on the right is draggable too, and it is the one preference
+on this page that survives a reload.** A full-height divider on its left edge
+(`#detail-divider`), dragged or nudged with the arrow keys, clamped by
+`VA.TOPO_PANE_WIDTH`, remembered in `localStorage` under one key
+(`VA.PANE_WIDTH_KEY`). Jeff asked for both halves — *"the right preview pane is
+resizable. It's too narrow"* — so its default width went up with the drag: a
+resizable pane that still opens too narrow is half a fix.
+
+The other four preferences (density, the two leader settings, the jog zone's
+width) still do **not** persist, and that asymmetry is deliberate rather than
+an oversight. They are ways of reading the *diagram*, and a stored pixel width
+for a jog zone crushes one topology's lanes while barely moving another's; a
+pane width is a property of the window, means the same thing on every topology
+and in both modes, and is the one Jeff noticed was wrong. Every access is
+wrapped either way — a `file://` page's `localStorage` is per-path at best and
+throws outright in some configurations, and a preference is never worth a
+crash.
 
 ### Studies
 
@@ -563,9 +608,12 @@ pair `crops.json`'s `by_stack` is keyed by. An **inline** edge with a croppable
 citation gets a `{topology, edge}` key into the separate `by_topology` space
 instead (see "The row model" above for why the two spaces cannot merge). The
 pane runs either through `VA.cropForKey`, so the resolved / unresolvable /
-not-built / stale-index quartet is unchanged, and `VA.cropKeyText` states which
-claim the key is making — "this edge IS that stack element" vs "the crop is of
-this edge's own citation".
+not-built / stale-index quartet is unchanged. Which of the two spaces answered
+is **not** rendered: `VA.cropKeyText` states the claim ("this edge IS that
+stack element" vs "the crop is of this edge's own citation") and printed it
+above the picture until 2026-09-15, in the ids of a stack and an element —
+internal plumbing, in internal ids, over an image that names its own document
+on the line below. It is still the string a test reads.
 
 An edge with no key is **not** a stale index and must not read like one. It says
 which of the two it is: a workbook/assumed dimension (no croppable document
@@ -1065,10 +1113,10 @@ pane, beneath its citation:
 
 | state | what the block says |
 |---|---|
-| `established` | *export established: `X.pdf`* · **sha256 recorded** (first 12) · the drawing-checker runs that consumed it, or *no run has consumed this export*. The sha **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
-| `unestablished` | **filled magenta, on the row's chip AND on the panel's block**: *EXPORT UNESTABLISHED — which file this value was read off cannot be identified*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
-| no `export` key | *no export block — this citation names no exported file, so nothing here identifies the bytes the value was read off*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
-| no `export` key, `identity_rule: "spec_pile_filename"` | *Spec-pile document: identity by filename (append-only pile)*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
+| `established` | *Read from `X.pdf`* · **pinned to this exact file, by checksum** · the drawing-checker runs that consumed it, or *no run has consumed this export*. The checksum **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
+| `unestablished` | **filled magenta, on the row's chip AND on the panel's block**: *FILE NOT IDENTIFIED — which file this value was read from cannot be established*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
+| no `export` key | *This citation names no file, so nothing here says which copy of the document the value was read from*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
+| no `export` key, `identity_rule: "spec_pile_filename"` | *A standard-spec document, identified by its filename*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
 | anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. An identity rule the viewer has no branch for is loud the same way, through `VA.IDENTITY_RULES`. |
 
 ### The spec-pile exception
@@ -1099,9 +1147,13 @@ column"**, the collapsed legend above the elements table.
 
 Two deliberate limits:
 
-* the block says a sha is **recorded**, never *verified*. The viewer cannot hash a
-  file, so that is the only honest claim available to it; `sha256 VERIFIED`
-  belongs to the crop hover below, where a script really did compare bytes.
+* the block says the file is **pinned by checksum**, never *verified*. The
+  viewer cannot hash a file, so that is the only honest claim available to it;
+  *checked against the citation, byte for byte* belongs to the crop's own
+  provenance below, where a script really did compare bytes. Neither line names
+  the algorithm or prints the digest any more (2026-09-15): twelve hex digits
+  are not something a reader of this page can do anything with, and the digest
+  is in the stack file for anyone checking it.
 * a run id is a **link** only where the element's own crop resolved through that
   run. An export carries a run *id* (`20260803_145243`); drawing-checker addresses
   a run by its *directory* name (the id plus the drawing), which only the crop
@@ -1157,15 +1209,58 @@ cell keeps them apart:
 
 Each element has a **drawing crop** button, kept on the compact row alongside
 the crop-trigger's own hover behaviour: hover, focus or click it (✕, `Esc`
-or an outside click closes it). The popover shows the pre-rendered crop, *how it
-was placed*, and click-throughs: the drawing-checker run page when a run is
-behind the citation (needs `cmd /c serve.bat` in that repo — see
-`config.js`), plus the source PDF as a `file://` link and as a copyable path.
+or an outside click closes it). The popover shows the pre-rendered crop and
+then **the reference, and nothing else** — "NAS6403-NAS6420 Rev 4.pdf · sheet
+3" — with the click-throughs beside it: the drawing-checker run page when a
+run is behind the citation (needs `cmd /c serve.bat` in that repo — see
+`config.js`), plus the source PDF, **only where this origin can open one**.
 
 Selecting the row does the same thing without a hover: the right pane fetches
-and renders the same crop **inline**, with the same placement text and the same
-links, so the image is visible the whole time the row is selected rather than
-only while the pointer sits on the trigger.
+and renders the same crop **inline**, through the same one builder
+(`VA.cropReference`), so the image is visible the whole time the row is selected
+rather than only while the pointer sits on the trigger. All four surfaces that
+show a resolved crop go through that builder — this popover, the hover cards
+and both preview panes — because they printed the same three lines in three
+slightly different orders before, which is the drift a shared builder exists to
+stop.
+
+**Two things left these surfaces on 2026-09-15**, both of them things Jeff read
+and none of them a loss of a fact a reader wanted:
+
+* *the always-rendered absolute path* (`C:/workspace/tolstack/data/...`). It was
+  the fallback for a link that could not navigate — Jeff: "full workstation
+  file paths — never rendered when the link works" — and the link now renders
+  only where it does work, so the fallback has nothing left to fall back from.
+* *the matching provenance, into a fold.* Which rule pinned the file, whether
+  the bytes were checked, which region of the sheet was taken: all still said,
+  all now behind one small disclosure (`VA.disclosure`, "How this crop was
+  matched"). In the open it restated the concise line above it in jargon. A
+  disclosure is a fold, never a place to hide a gap — an unresolved crop still
+  states its reason in the open.
+
+### "Open the PDF" only renders where the origin can follow it
+
+The link did nothing at all when clicked from the drawing-checker-served
+origin, and the reason is not the URL: **Chrome refuses every navigation from
+an http(s) page to a `file:` URL.** Measured 2026-09-15 with this repo's own
+browser tier, both transports, the real crop entry:
+
+| origin | click |
+|---|---|
+| `file://` | opens the PDF — new tab and same tab alike |
+| `http://` | nothing happens. Console: *Not allowed to load local resource* |
+
+So the fix is not a better path, and it is not an explanation beside a dead
+control either: `VA.originOpensLocalFiles` (storage/adapter.js, beside
+`chooseTransport`, because what an origin can do is a property of the *origin*)
+answers the question once, `VA.localFileUrl` returns null, and the affordance
+is simply **absent** on a served page. That is the standing rule — if a feature
+is absent from a build, show nothing about it — applied to a transport
+capability rather than to a build flag. The reference line is unaffected: it
+names the document in words on any origin, which is what a reader came for.
+
+Note this is **not** `VA.isLocalPage`'s question. A loopback server is local to
+the reader — same machine, same disk — and still cannot open a local file.
 
 `crops.json` reports four different answers and the difference matters:
 
@@ -1173,8 +1268,8 @@ only while the pointer sits on the trigger.
 |---|---|
 | `resolved` | there's a crop |
 | `unresolvable` | the citation could not be pinned to a page **without guessing** — a finding about the stack, with the reason |
-| `not-built` | nobody has run `build_viewer_crops.py` — a chore, and the popover shows the command |
-| `no-entry` | `crops.json` predates this element, i.e. it's stale |
+| `not-built` | nobody has run `build_viewer_crops.py` — a chore. The popover used to print the **command**, as a `<code>` block for the reader to copy into a terminal; removed 2026-09-15, because a terminal command in a web UI is against a standing rule and hover chrome is the worst possible carrier for one. The state is still stated; the banner is where a rebuild is offered, once, as a button where the origin can service it. |
+| `no-entry` | `crops.json` predates this element, i.e. it's out of date |
 
 A resolved popover then says **which rule** pinned the document and **whether
 the bytes were verified** — a crop of a *guessed* export looks perfectly correct
@@ -1182,8 +1277,8 @@ on screen, so this is the fact the hover exists for:
 
 | `resolved_by` | what the popover says |
 |---|---|
-| `source_ref_export` | *read from the export this citation names, `X.pdf` — sha256 VERIFIED*. The rule every export-resolved crop in the repo uses; the sha is mandatory under it, so a crop can only exist if the bytes matched. |
-| `spec_pile` | *from `data/inbox/specs/` by filename — no sha256 to verify*. The pile is append-only, so a filename **is** the identity; there is no sha to check and the line says so rather than implying one passed. |
+| `source_ref_export` | *read from the export this citation names, `X.pdf` — checked against the citation, byte for byte*. The rule every export-resolved crop in the repo uses; the checksum is mandatory under it, so a crop can only exist if the bytes matched. |
+| `spec_pile` | *from `data/inbox/specs/` by filename — no checksum on record to check against*. The pile is append-only, so a filename **is** the identity; there is nothing to check and the line says so rather than implying a check passed. |
 | `joint_export_run` | *LEGACY RULE: export pinned by the joint block, not by this citation*. Still in the crop script for a stack written before 2026-08-06 (no `source_ref.export`, `document` == `joint.assembly_drawing`, and a `joint.assembly_export` naming a drawing-checker run). No stack in the repo reaches it today. |
 | anything else | *resolved by `"X"`, a rule this viewer has no label for* — loud, and `VA.unlabelledCropRules()` puts it in the banner too. `provenance.sources_used`, deleted from the crop script on 2026-08-06, gets exactly this treatment: a branch for a value nothing can carry reads as "this case is handled". |
 

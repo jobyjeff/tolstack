@@ -52,7 +52,7 @@
       "name": "bolt-head bearing face against the plain bushing",
       "parts": ["bolt_nas6403u11d", "bushing_214820_002"],
       "kind": "mating_surface",
-      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, per the referenced fastener elements' source_ref."
+      "note": "Where the grip is measured from: NAS6403-NAS6420 Rev 4 sheet 2 note (a) defines grip as underside of head to the end of the full cylindrical shank, and that is the definition the grip dimensions here are cited to."
     },
     {
       "id": "bushing_pitch_plate_face",
@@ -93,7 +93,7 @@
       "name": "cotter-pin hole centreline",
       "parts": ["bolt_nas6403u11d"],
       "kind": "datum_feature",
-      "note": "NAS6403-NAS6420 Rev 4 sheet 1, dimension M, read off the figure per the referenced element's own source_ref note."
+      "note": "Located by dimension M on NAS6403-NAS6420 Rev 4 sheet 1, read off the figure."
     }
   ],
   "edges": [

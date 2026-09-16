@@ -1263,7 +1263,9 @@
   // an authoring question this display rule deliberately does not pre-empt.)
   //
   // Guards, each one a case off the five live topologies:
-  //   * a label with nothing to drop comes back byte-identical;
+  //   * a label with nothing to drop comes back unchanged, character for
+  //     character (pinned in apps/viewer/tests.js by walking the output's
+  //     characters against the input's, on the fixture and on every live row);
   //   * a label that is ONLY its component's words comes back unchanged -- an
   //     empty element cell would be a worse lie than a repetitive one;
   //   * only LEADING words are dropped by rule 2, never words inside a
@@ -2007,8 +2009,16 @@
     if (!reference) return "";
     var bits = [reference.document];
     if (reference.sheets.length) {
-      bits.push((reference.sheets.length > 1 ? "sheets " : "sheet ") +
-        reference.sheets.join(", "));
+      // Sheet ORDER, not citation order: a reader looking for these pages
+      // wants them in the order they are in the document. A sheet is normally
+      // a number and occasionally a string ("A"), so this sorts numerically
+      // where it can and lexically where it cannot.
+      var sheets = reference.sheets.slice().sort(function (a, b) {
+        var na = Number(a), nb = Number(b);
+        if (isFinite(na) && isFinite(nb)) return na - nb;
+        return String(a) < String(b) ? -1 : (String(a) > String(b) ? 1 : 0);
+      });
+      bits.push((sheets.length > 1 ? "sheets " : "sheet ") + sheets.join(", "));
     }
     return bits.join(" · ");
   };

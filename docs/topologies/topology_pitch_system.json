@@ -116,7 +116,7 @@
       "id": "vpa_208510_007",
       "name": "208510-007 variable pitch actuator",
       "drawing": "208510-007",
-      "note": "Balloon 1 in 217755 sheet 5 DETAIL X, per the source_ref on `spherical_bearing` in docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json. Modelled as the actuator body: the part the piston travels in and that carries the end-stop feature."
+      "note": "Balloon 1 in 217755 sheet 5 DETAIL X, as cited by the spherical-bearing width in the VPA-output stack. Modelled as the actuator body: the part the piston travels in and that carries the end-stop feature."
     },
     {
       "id": "vpa_piston",
@@ -127,7 +127,7 @@
       "id": "pitch_plate_215177_001",
       "name": "215177-001 pitch plate",
       "drawing": "215177-001",
-      "note": "Named in the source_ref on `pitch_flange_thickness` in docs/tolerance_stacks/stack_vpa_output_to_pitch_plate.json, which records that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than this part at that joint. Carried forward as an open question, not resolved here."
+      "note": "Named by the pitch-flange thickness citation in the VPA-output stack, which records that DETAIL X balloons the TANGENTIAL LINK MOUNT 215175-002 rather than this part at that joint. Carried forward as an open question, not resolved here."
     },
     {
       "id": "pitch_link",
@@ -165,7 +165,7 @@
       "id": "tan_link_mount_215175_002",
       "name": "215175-002 tangential link mount",
       "drawing": "215175-002",
-      "note": "Named in the source_ref on `pitch_flange_thickness` in the VPA-output stack (balloon 72 in DETAIL X). In this topology it is the structure between the hub top deck and the gas-spring mount, per the source sheet's rows 42/45/57."
+      "note": "Named by the pitch-flange thickness citation in the VPA-output stack (balloon 72 in DETAIL X). In this topology it is the structure between the hub top deck and the gas-spring mount, per the source sheet's rows 42/45/57."
     },
     {
       "id": "hydraulic_brake",
@@ -217,7 +217,7 @@
       "name": "piston rod end into the pitch plate -- the pitch plate connection",
       "parts": ["vpa_piston", "pitch_plate_215177_001"],
       "kind": "mating_surface",
-      "note": "The brief's 'pitch plate connection', and the branch point where the load path divides. It is also the joint that docs/topologies/topology_vpa_output_to_pitch_plate.json models axially in millimetres -- one interface, two topologies, at two different levels of the same system. Joining them is a later handoff's decision, not assumed here."
+      "note": "The brief's 'pitch plate connection', and the branch point where the load path divides. It is also the joint the VPA-output topology models axially in millimetres -- one interface, two topologies, at two different levels of the same system. Joining them is a later handoff's decision, not assumed here."
     },
     {
       "id": "pitch_plate_link_hole",

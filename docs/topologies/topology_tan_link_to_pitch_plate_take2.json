@@ -41,7 +41,7 @@
     {
       "id": "flanged_bushing_tan_link",
       "name": "flanged bushing",
-      "note": "Candidate as-drawn part 214936-002 (BUSHING, PLAIN, COUNTERSUNK, .1900 in ID), balloned on 217755 sheet 5 DETAIL F, per the referenced elements' own source_ref notes -- NOT DETAIL B, so this is a candidate, not an established identity. Both the flange and the barrel dimensions (and the chamfer at the barrel's end) are modelled on this ONE part, since the stack's own elements name them together as one flanged bushing's two features."
+      "note": "Candidate as-drawn part 214936-002 (BUSHING, PLAIN, COUNTERSUNK, .1900 in ID), balloned on 217755 sheet 5 DETAIL F, as the flange and barrel citations record -- NOT DETAIL B, so this is a candidate, not an established identity. Both the flange and the barrel dimensions (and the chamfer at the barrel's end) are modelled on this ONE part, since the stack's own elements name them together as one flanged bushing's two features."
     }
   ],
   "nodes": [

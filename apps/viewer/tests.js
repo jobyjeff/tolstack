@@ -425,7 +425,7 @@
         eq(VA.cropForKey(null, { topology: "t", edge: "e" }).status, "not-built");
         var stale = VA.cropForKey(CROPS, { topology: "demo_mechanism", edge: "new_edge" });
         eq(stale.status, "no-entry");
-        has(stale.reason, "older than the topology");
+        has(stale.reason, "older than this topology");
         var noTopo = VA.cropForKey(CROPS, { topology: "never_built", edge: "e" });
         eq(noTopo.status, "no-entry");
       });
@@ -1454,7 +1454,7 @@
           VA.renderDetail(r, DEMO, "plate", null, null, VA.CONFIG);
         });
         has(all(notBuilt, "div.detail__crop-reason")[0].textContent,
-            "has not been built");
+            "no drawing crops have been prepared yet");
       });
 
     // --- source_ref.export, in the right pane ---------------------------------
@@ -1821,11 +1821,25 @@
 
     // --- crop popover -------------------------------------------------------
 
-    await test("a resolved popover shows the image, the sheet and both links", function () {
+    // The PDF link only renders where the ORIGIN can follow one
+    // (VA.originOpensLocalFiles), and this file runs on both: under file://
+    // from test.html and over http from the browser tier's own server. So the
+    // origin is named rather than inherited -- it is an input to what the
+    // popover renders, and a test that inherits it passes on one transport and
+    // fails on the other, which is exactly what happened on 2026-09-15.
+    await test("a resolved popover on a file:// page shows the image, the " +
+      "sheet and the PDF link", function () {
       var entry = CROPS.by_stack.demo_joint.plate;
-      var root = render(function (r) {
-        VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
-      });
+      var realProtocol = VA.pageProtocol;
+      VA.pageProtocol = function () { return "file:"; };
+      var root;
+      try {
+        root = render(function (r) {
+          VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+        });
+      } finally {
+        VA.pageProtocol = realProtocol;
+      }
       eq(all(root, "img").length, 1);
       // The height is reserved from crops.json's pixel size, so the popover is
       // measured at its final size before the PNG decodes.
@@ -1840,15 +1854,25 @@
          "no absolute workstation path in the popover");
     });
 
-    await test("a run-resolved popover links to the drawing-checker run page", function () {
-      var root = render(function (r) {
-        VA.renderCrop(r, {
-          status: "resolved", png: "crops/x.png", pdf: "C:/x.pdf", pdf_name: "x.pdf",
-          page: 4, resolved_by: "joint_export_run", run_dir: "20260804_114000_x",
-          sha256_verified: true, located_by: "zone_cell", cited_zone: "H3",
-          callout_text_in_zone: true,
-        }, { url: "blob:x" }, VA.CONFIG);
-      });
+    await test("a run-resolved popover links to the drawing-checker run page",
+      function () {
+      // Same reason as above: the PDF half of this turns on the origin, and
+      // the run half does not.
+      var realProtocol = VA.pageProtocol;
+      VA.pageProtocol = function () { return "file:"; };
+      var root;
+      try {
+        root = render(function (r) {
+          VA.renderCrop(r, {
+            status: "resolved", png: "crops/x.png", pdf: "C:/x.pdf", pdf_name: "x.pdf",
+            page: 4, resolved_by: "joint_export_run", run_dir: "20260804_114000_x",
+            sha256_verified: true, located_by: "zone_cell", cited_zone: "H3",
+            callout_text_in_zone: true,
+          }, { url: "blob:x" }, VA.CONFIG);
+        });
+      } finally {
+        VA.pageProtocol = realProtocol;
+      }
       var hrefs = all(root, "a").map(function (a) { return a.getAttribute("href"); });
       eq(hrefs.length, 2);
       has(hrefs[0], "/run/20260804_114000_x");
@@ -1883,7 +1907,7 @@
       var root = render(function (r) {
         VA.renderCrop(r, VA.cropFor(null, "s", "e"), null, VA.CONFIG);
       });
-      has(root.textContent, "has not been built");
+      has(root.textContent, "no drawing crops have been prepared yet");
       ok(root.textContent.indexOf("build_viewer_crops.py") === -1,
          "no terminal command in hover chrome: " + root.textContent);
       eq(all(root, "code.croppop__cmd").length, 0);
@@ -2755,6 +2779,345 @@
           ok(at !== -1, "output character " + JSON.stringify(ch) + " is not the input's");
           at += 1;
         });
+      });
+
+    // --- names, references and the copy rules (viewer_component_names_and_
+    //     reference_copy, 2026-09-15) ---------------------------------------
+    //
+    // Jeff's review of the live pitch-link topology, five items. The ones that
+    // are claims about RENDERED TEXT are pinned at the value level, because
+    // that is the only tier that can read what a reader reads: a class-name
+    // check passes straight through a wrong sentence.
+
+    // Every string this page must never print, with what each one IS. Not a
+    // style preference -- each is a class of thing a reader cannot act on, and
+    // each had a live instance on 2026-09-15. Shared with the [real] tier
+    // below, which runs the same list over every live topology; internal IDS
+    // are per-topology and are checked there against each topology's own.
+    var BANNED_IN_RENDERED_TEXT = [
+      ["sha256", "an algorithm's name -- nothing a reader can act on"],
+      ["source_ref", "a field name out of the schema"],
+      ["crop_key", "a field name out of the schema"],
+      ["crops.json", "an internal artifact's filename"],
+      ["C:/", "an absolute workstation path"],
+      ["C:\\", "an absolute workstation path, the other way round"],
+      ["build_viewer_crops.py", "a terminal command for the reader to type"],
+      ["venv-win", "a terminal command for the reader to type"],
+    ];
+
+    // The nodes that print a DOCUMENT's own prose, word for word: a citation's
+    // note, a callout as printed, an export's recorded `why`. The ban above is
+    // on the VIEWER's words, not on the record's -- trimming a stack's own
+    // written argument because it names a field would be editing the record,
+    // which this page exists not to do. So these are subtracted before the
+    // scan, and the list is short and named on purpose: a new class here is a
+    // new excuse, and it should have to be argued for in a diff.
+    var VERBATIM_PROSE_CLASSES = [
+      "div.detail__note", "div.detail__callout",
+      "div.hovercard__note", "div.hovercard__notefull", "div.hovercard__callout",
+      "div.el-export__note", "div.el-export__why",
+    ];
+
+    // Everything on a surface that the VIEWER wrote -- the rendered text with
+    // the verbatim-prose nodes' own text removed.
+    function viewerAuthoredText(root) {
+      var text = root.textContent;
+      VERBATIM_PROSE_CLASSES.forEach(function (selector) {
+        all(root, selector).forEach(function (node) {
+          var quoted = node.textContent;
+          if (quoted) text = text.split(quoted).join(" ");
+        });
+      });
+      return text;
+    }
+
+    function bannedIn(text, where) {
+      BANNED_IN_RENDERED_TEXT.forEach(function (pair) {
+        ok(String(text).indexOf(pair[0]) === -1,
+           where + " renders " + JSON.stringify(pair[0]) + " (" + pair[1] +
+           "): " + text);
+      });
+    }
+
+    await test("the component label is the part's own name, and an id is what " +
+      "it is keyed by -- never what is printed", function () {
+        var index = VA.topologyIndex(TOPO);
+        eq(VA.componentLabel(index.parts.base), "base plate");
+        eq(VA.componentLabel(index.parts.strut), "parallel strut");
+        // A part with no name at all falls back to its id rather than to an
+        // empty cell: absent is absent, but a blank component column would be
+        // a worse lie than a raw id.
+        eq(VA.componentLabel({ id: "only_an_id" }), "only_an_id");
+        // A gap is not a part and says what it is.
+        eq(VA.componentLabel(null), VA.GAP_COMPONENT_LABEL);
+        // An interface, same rule.
+        eq(VA.nodeLabel(TOPO, "base_post_seat"), "base / post seat");
+        eq(VA.nodeLabel(TOPO, "not_a_node"), "not_a_node");
+      });
+
+    await test("an interface's sides, the grid's merged cell and a node card " +
+      "all name a part the SAME way, off one derivation", function () {
+        eq(VA.nodeSideLabels(TOPO, "base_post_seat"), ["base plate", "post"]);
+        // A clearance is a real side and is named, not skipped.
+        ok(VA.nodeSideLabels(TOPO, "strut_end")
+            .indexOf(VA.CLEARANCE_SIDE_LABEL) !== -1);
+        // The same strings the node card labels its sides with -- ONE label
+        // style now, where there used to be two (ids in the pane, names on the
+        // card) and the two could disagree.
+        var card = VA.nodeCard(TOPO, "base_post_seat", TOPOCROPS);
+        eq(card.sides.map(function (s) { return s.label; }),
+           VA.nodeSideLabels(TOPO, "base_post_seat"));
+        // And the same string the grid prints for the group.
+        var plan = VA.gridPlan(TOPO.layout, TOPO);
+        eq(plan.groups[0].label, VA.componentLabel(VA.topologyIndex(TOPO).parts.base));
+      });
+
+    await test("partReferences derives which documents a part's own dimensions " +
+      "are cited from, and referenceText says it in a reader's words", function () {
+        var refs = VA.partReferences(TOPO, "base");
+        eq(refs.length, 1);
+        eq(refs[0].document, "215197");
+        eq(refs[0].kinds, ["drawing"]);
+        eq(refs[0].sheets, [2]);
+        eq(VA.referenceText(refs[0]), "215197 · sheet 2");
+        // Sheets in the DOCUMENT's order, deduplicated, plural only when
+        // there is more than one. (The live NAS bolt cites sheet 3 twice and
+        // sheet 1 once, which is where the dedupe and the sort come from.)
+        eq(VA.referenceText({ document: "NAS.pdf", kinds: ["spec"], sheets: [3, 1] }),
+           "NAS.pdf · sheets 1, 3");
+        // A citation with no sheet names the document alone rather than
+        // inventing a page number.
+        eq(VA.referenceText({ document: "NAS.pdf", kinds: ["spec"], sheets: [] }),
+           "NAS.pdf");
+        // No revision, deliberately: the live NAS citation's is a four-clause
+        // per-sheet note, and printing it here would put back the wall of text
+        // this pass removed. See VA.referenceText's own comment.
+        ok(VA.referenceText({ document: "NAS.pdf", revision: "Rev 4 (sheet 1 rev 4)",
+          kinds: ["spec"], sheets: [3] }).indexOf("Rev 4 (sheet 1") === -1);
+        // A part no row of which cites anything gets nothing to render.
+        eq(VA.partReferences(TOPO, "no_such_part"), []);
+        eq(VA.referenceText(null), "");
+      });
+
+    // THE ITEM. Jeff: "'no drawing recorded for this part' on a COTS fastener
+    // -- wrong and meaningless; say what's true: it's a standard part whose
+    // dimensions come from the NAS sheet."
+    await test("a part with no drawing is identified by the document its own " +
+      "dimensions come off, not by the field it does not have", function () {
+        // `strut` carries no `drawing` and its one dimension cites a SPEC
+        // document -- the COTS-fastener shape exactly.
+        var card = VA.componentCard(TOPO, "strut", TOPOCROPS);
+        eq(card.drawing, null);
+        eq(card.standardPart, true);
+        eq(card.references.map(VA.referenceText), ["STRUT-DATASHEET.pdf"]);
+        var root = render(function (r) {
+          VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+        });
+        has(root.textContent, "standard part — dimensions from STRUT-DATASHEET.pdf");
+        ok(root.textContent.indexOf("no drawing recorded") === -1,
+           "the sentence that was wrong about the part: " + root.textContent);
+
+        // "standard part" is licensed by the citation KIND, not by the absence
+        // of a drawing: `post` also has no drawing, and its dimension is cited
+        // to a parts list, so the card names the document without calling the
+        // part standard.
+        var fromPartsList = VA.componentCard(TOPO, "post", TOPOCROPS);
+        eq(fromPartsList.standardPart, false);
+        eq(fromPartsList.references.map(VA.referenceText), ["217755 · sheet 1"]);
+        var listed = render(function (r) {
+          VA.renderHoverCard(r, fromPartsList, {}, VA.CONFIG, null);
+        });
+        has(listed.textContent, "dimensions from 217755 · sheet 1");
+        ok(listed.textContent.indexOf("standard part") === -1);
+
+        // A part that HAS a drawing prints the drawing -- that drawing IS the
+        // reference, and the card carries no second one.
+        var withDrawing = VA.componentCard(TOPO, "base", TOPOCROPS);
+        eq(withDrawing.references, []);
+        eq(withDrawing.standardPart, false);
+        var drawn = render(function (r) {
+          VA.renderHoverCard(r, withDrawing, {}, VA.CONFIG, null);
+        });
+        has(drawn.textContent, "drawing 215197");
+        ok(drawn.textContent.indexOf("dimensions from") === -1);
+
+        // A part with NEITHER says nothing at all, rather than inventing a
+        // sentence about an absence.
+        var bare = { id: "t", parts: [{ id: "z", name: "zed" }], nodes: [], edges: [] };
+        var neither = VA.componentCard(bare, "z", null);
+        eq(neither.drawing, null);
+        eq(neither.references, []);
+        eq(neither.standardPart, false);
+        var quiet = render(function (r) {
+          VA.renderHoverCard(r, neither, {}, VA.CONFIG, null);
+        });
+        eq(all(quiet, "div.hovercard__where").length, 0);
+      });
+
+    // ITEM 4, the measured half. The link did nothing when clicked, and the
+    // reason is the ORIGIN: Chrome refuses every navigation from an http(s)
+    // page to a file: URL. Measured 2026-09-15 with this repo's own browser
+    // tier, both transports, the real crop entry -- file:// opened the PDF in
+    // a new tab AND in the same tab; http opened nothing at all and logged
+    // "Not allowed to load local resource".
+    await test("a local-file link renders only where the origin can follow it",
+      function () {
+        eq(VA.originOpensLocalFiles("file:"), true);
+        eq(VA.originOpensLocalFiles("http:"), false);
+        eq(VA.originOpensLocalFiles("https:"), false);
+        // The strictest answer for anything unstated, the same default
+        // VA.isLocalPage takes -- a control is never acquired by accident.
+        eq(VA.originOpensLocalFiles(undefined), false);
+        eq(VA.originOpensLocalFiles(""), false);
+        // NOT the same question as VA.isLocalPage: a loopback server is local
+        // to the reader and still cannot open a local file.
+        eq(VA.isLocalPage("http:", "127.0.0.1"), true);
+        eq(VA.originOpensLocalFiles("http:"), false);
+
+        eq(VA.localFileUrl("C:/x/y.pdf", "file:"), "file:///C:/x/y.pdf");
+        eq(VA.localFileUrl("C:/x/y.pdf", "http:"), null);
+        eq(VA.localFileUrl(null, "file:"), null);
+        // VA.fileUrl itself is unchanged and still pure: it builds the URL and
+        // says nothing about whether it can be followed.
+        eq(VA.fileUrl("C:\\x\\y.pdf"), "file:///C:/x/y.pdf");
+
+        // And it reaches the rendered crop: the link where the origin can
+        // service it, NOTHING where it cannot -- not a disabled control and
+        // not an explanation of a link the reader cannot use.
+        //
+        // VA.pageProtocol is replaced rather than window.location.protocol
+        // assigned: this file runs in Chrome too (test.html), where assigning
+        // to location.protocol navigates the page.
+        var entry = CROPS.by_stack.demo_joint.plate;
+        var realProtocol = VA.pageProtocol;
+        try {
+          VA.pageProtocol = function () { return "http:"; };
+          var hosted = render(function (r) {
+            VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+          });
+          eq(all(hosted, "a").length, 0);
+          ok(hosted.textContent.indexOf("open the PDF") === -1,
+             "a control this origin cannot service is absent, not explained");
+          // The reference itself is unaffected -- it is what a reader came
+          // for, and it names the document in words on any origin.
+          has(hosted.textContent, entry.pdf_name);
+          VA.pageProtocol = function () { return "file:"; };
+          var local = render(function (r) {
+            VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+          });
+          eq(all(local, "a").length, 1);
+          has(all(local, "a")[0].getAttribute("href"), "file:///");
+        } finally {
+          VA.pageProtocol = realProtocol;
+        }
+      });
+
+    // ITEM 3's own guard, at the fixture tier: over every surface this session
+    // owns, none of the banned classes of string appears.
+    await test("no rendered topology surface prints an internal id, a field " +
+      "name, a checksum or a workstation path", function () {
+        var surfaces = [["the grid", render(function (r) {
+          VA.renderTopoPane(r, topoCtx());
+        })]];
+        (TOPO.nodes || []).forEach(function (node) {
+          surfaces.push(["the pane on node " + node.id, render(function (r) {
+            VA.renderTopoDetail(r, topoCtx({
+              selection: { kind: "node", id: node.id } }));
+          })]);
+          surfaces.push(["the card on node " + node.id, render(function (r) {
+            VA.renderHoverCard(r, VA.nodeCard(TOPO, node.id, TOPOCROPS), {},
+              VA.CONFIG, null);
+          })]);
+        });
+        (TOPO.edges || []).forEach(function (edge) {
+          surfaces.push(["the pane on edge " + edge.id, render(function (r) {
+            VA.renderTopoDetail(r, topoCtx({
+              selection: { kind: "edge", id: edge.id } }));
+          })]);
+          surfaces.push(["the card on edge " + edge.id, render(function (r) {
+            VA.renderHoverCard(r, VA.edgeCard(TOPO, edge, TOPOCROPS), {},
+              VA.CONFIG, null);
+          })]);
+        });
+        (TOPO.parts || []).forEach(function (part) {
+          surfaces.push(["the card on part " + part.id, render(function (r) {
+            VA.renderHoverCard(r, VA.componentCard(TOPO, part.id, TOPOCROPS), {},
+              VA.CONFIG, null);
+          })]);
+        });
+
+        var ids = (TOPO.parts || []).map(function (p) { return p.id; })
+          .concat((TOPO.nodes || []).map(function (n) { return n.id; }));
+        surfaces.forEach(function (pair) {
+          bannedIn(pair[1].textContent, pair[0]);
+          ids.forEach(function (id) {
+            // An id that happens also to BE a phrase a human would write is no
+            // evidence of anything (`post`, `arm`); only ids with a separator
+            // in them are unambiguously machine-shaped.
+            if (id.indexOf("_") === -1) return;
+            ok(pair[1].textContent.indexOf(id) === -1,
+               pair[0] + " prints the internal id `" + id + "`: " +
+               pair[1].textContent);
+          });
+        });
+        ok(surfaces.length > 20, "the walk must not be vacuous");
+      });
+
+    // ITEM 5. The pane's width, and the one preference on this page that
+    // outlives the session.
+    await test("the preview pane's width clamps, and a drag on its divider " +
+      "widens it by moving LEFT", function () {
+        eq(VA.clampPaneWidth(600), 600);
+        eq(VA.clampPaneWidth(10), VA.TOPO_PANE_WIDTH.min);
+        eq(VA.clampPaneWidth(99999), VA.TOPO_PANE_WIDTH.max);
+        eq(VA.clampPaneWidth("560"), 560);
+        eq(VA.clampPaneWidth(560.4), 560);
+        eq(VA.clampPaneWidth("wide"), VA.TOPO_PANE_WIDTH.min);
+        // The sign. The pane is RIGHT of its divider, so dragging LEFT (a
+        // negative dx) makes it wider -- getting this backwards is the
+        // likeliest mistake in the whole feature, which is why the arithmetic
+        // is in the pure layer and not in the pointer handler.
+        eq(VA.paneWidthAfterDrag(560, -40), 600);
+        eq(VA.paneWidthAfterDrag(560, 40), 520);
+        eq(VA.paneWidthAfterDrag(VA.TOPO_PANE_WIDTH.min, 400),
+           VA.TOPO_PANE_WIDTH.min);
+        ok(VA.TOPO_PANE_WIDTH.min < VA.TOPO_PANE_WIDTH.max);
+      });
+
+    await test("the pane width is remembered, under one key, and a storage " +
+      "that cannot answer is never a crash", function () {
+        var store = {
+          data: {},
+          getItem: function (k) {
+            return Object.prototype.hasOwnProperty.call(this.data, k)
+              ? this.data[k] : null;
+          },
+          setItem: function (k, v) { this.data[k] = String(v); },
+        };
+        eq(VA.readStoredPaneWidth(store), null);   // nothing stored yet
+        VA.writeStoredPaneWidth(store, 640);
+        eq(store.data[VA.PANE_WIDTH_KEY], "640");
+        eq(VA.readStoredPaneWidth(store), 640);
+        // Clamped on the way IN as well as out, so a hand-edited value or one
+        // stored on a much wider screen cannot produce an unusable pane.
+        VA.writeStoredPaneWidth(store, 99999);
+        eq(VA.readStoredPaneWidth(store), VA.TOPO_PANE_WIDTH.max);
+        store.data[VA.PANE_WIDTH_KEY] = "not a number";
+        eq(VA.readStoredPaneWidth(store), null);
+        store.data[VA.PANE_WIDTH_KEY] = "";
+        eq(VA.readStoredPaneWidth(store), null);
+
+        // A file:// page's localStorage is per-path at best and throws
+        // outright in some configurations, and a preference is never worth a
+        // crash. Both directions swallow it, and so does having no store.
+        var hostile = {
+          getItem: function () { throw new Error("SecurityError"); },
+          setItem: function () { throw new Error("SecurityError"); },
+        };
+        eq(VA.readStoredPaneWidth(hostile), null);
+        VA.writeStoredPaneWidth(hostile, 600);     // must not throw
+        eq(VA.readStoredPaneWidth(null), null);
+        VA.writeStoredPaneWidth(null, 600);        // must not throw
       });
 
     // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) -------
@@ -5395,7 +5758,7 @@
             selection: { kind: "edge", id: "strut_length" } }));
         });
         eq(all(stale, "div.detail__crop--no-entry").length, 1);
-        has(stale.textContent, "it is older than");
+        has(stale.textContent, "older than this stack");
       });
 
     await test("the pane shows a selected edge's place in the study's sum",
@@ -6021,14 +6384,16 @@
             has(line, entry.pdf_name, where);
             // Under this rule the sha is mandatory and always checked, so a live
             // entry that is not verified is a finding, not a display case.
-            eq(entry.sha256_verified, true, where + " must be sha-verified");
-            has(line, "sha256 VERIFIED", where);
+            eq(entry.sha256_verified, true, where + " must be checksum-verified");
+            has(line, "checked against the citation, byte for byte", where);
           });
-          // And it reaches the popover, not just the string function.
+          // And it reaches the popover, not just the string function --
+          // behind the fold, which is where it lives since 2026-09-15.
           var root = render(function (r) {
             VA.renderCrop(r, entries[0][2], { url: "blob:x" }, VA.CONFIG);
           });
-          has(root.textContent, "sha256 VERIFIED");
+          has(root.textContent, VA.CROP_PROVENANCE_SUMMARY);
+          has(root.textContent, "checked against the citation, byte for byte");
           has(root.textContent, entries[0][2].pdf_name);
         });
 
@@ -6543,7 +6908,8 @@
             VA.renderDetail(r, pair[0], pair[1].id, realCrops, null, VA.CONFIG);
           }).textContent;
           has(text, p.pdfName, where + " must name the export file");
-          has(text, "sha256 recorded", where + " must say a sha is on record");
+          has(text, "pinned to this exact file", where +
+              " must say a checksum is on record");
           // Under `established` a sha256 is mandatory (SourceExport raises
           // without one), so a live export with none is a finding, not a display
           // case.
@@ -6663,10 +7029,10 @@
             });
             var box = all(root, "div.el-export--identity_rule");
             eq(box.length, 1, where);
-            has(box[0].textContent, "identity by filename (append-only pile)", where);
+            has(box[0].textContent, "identified by its filename", where);
             // The row the issue was filed about: `traced` beside "nothing here
             // identifies the bytes". That pair must no longer be reachable here.
-            ok(box[0].textContent.indexOf("names no exported file") === -1,
+            ok(box[0].textContent.indexOf("names no file") === -1,
                where + " still reads as a gap");
           });
         });
@@ -7027,13 +7393,16 @@
             eq(plan.leaders.length, 16);
             eq(plan.groups.length, 18);
             // The walk's first run: three hub dimensions merged across their
-            // two internal interfaces.
-            eq(plan.groups[0].label, "hub");
+            // two internal interfaces. The label is the part's NAME
+            // (VA.componentLabel); `part` is still the id it is keyed by.
+            eq(plan.groups[0].part, "hub");
+            eq(plan.groups[0].label, "propeller hub");
             eq(plan.groups[0].count, 3);
             // The loop-closing hub edges at the walk's tail merge too — four
             // consecutive hub rows with no boundary node between them.
             var last = plan.groups[plan.groups.length - 1];
-            eq(last.label, "hub");
+            eq(last.part, "hub");
+            eq(last.label, "propeller hub");
             eq(last.count, 4);
             // The DEPTH-FIRST walk revisits parts on later branches, so "one
             // merged row per part" is per contiguous RUN: hub appears as 2
@@ -7201,11 +7570,15 @@
             }).length, 3);
             // And a row whose label does NOT repeat its component is
             // untouched, so this is a trim and not a rewrite.
+            // "piston length" under a cell reading "actuator piston (output
+            // rod end)" is the same repeat one column over, and loses its
+            // leading word for the same reason -- with the full label on
+            // hover, which is what makes this a trim and not a rewrite.
             var pistonLength = cells.filter(function (c) {
-              return c.textContent === "piston length";
+              return c.textContent === "length" &&
+                c.getAttribute("title") === "piston length";
             });
             eq(pistonLength.length, 1);
-            eq(pistonLength[0].getAttribute("title"), null);
             ok(index.edges, "the index is built");
           });
 
@@ -7846,6 +8219,11 @@
               (topoProj.nodes || []).forEach(function (node) {
                 nodes += 1;
                 var card = VA.nodeCard(topoProj, node.id, realCrops);
+                // Both surfaces print the part's NAME now (2026-09-15) --
+                // one label style, one derivation. The card's own side label
+                // IS the string, so this compares what a reader sees rather
+                // than re-deriving it.
+                var sideLabels = card.sides.map(function (side) { return side.label; });
                 var sideIds = card.sides.map(function (side) {
                   return side.part === null ? VA.CLEARANCE_SIDE_LABEL : side.part;
                 });
@@ -7858,7 +8236,7 @@
                   });
                 });
                 eq(pane.querySelector("div.detail__where").textContent,
-                  "on " + sideIds.join(" ⇔ "),
+                  "on " + sideLabels.join(" ⇔ "),
                   topoProj.id + "/" + node.id + ": the hover card and the " +
                   "preview pane disagree about this node's sides");
 
@@ -7914,6 +8292,223 @@
             });
             ok(croppable > 0, "no live edge resolves a crop, so the thumbnail " +
               "half of the bar card went unexercised");
+          });
+
+        // --- [real] names and copy on the live topologies -------------------
+        //
+        // (viewer_component_names_and_reference_copy, 2026-09-15.) The two
+        // claims the fixture tier cannot make: that what is rendered off the
+        // LIVE projection is the part's own name, and that no live authored
+        // string smuggles a banned class of text onto a surface.
+        //
+        // These pin the RULE against whatever projection is on disk rather
+        // than a table of today's labels, and that is deliberate: the labels
+        // themselves are authored, and the one place they are pinned by value
+        // is tests/test_topology_part_names.py, which reads the documents in
+        // THIS tree. A [real] test pinning them here would instead pin the
+        // shared projection's build, which any concurrently-active worktree
+        // can move (ISSUE_20260914_two_active_handoffs_each_turn_the_others_
+        // real_tier_red).
+
+        await test("[real] every merged component cell on every live topology " +
+          "is its part's own NAME, and no cell is a part id", function () {
+            var cells = 0, topologies = 0;
+            liveTopos.forEach(function (topoProj) {
+              var index = VA.topologyIndex(topoProj);
+              var plan = VA.gridPlan(VA.spineRight(topoProj.layout), topoProj);
+              var root = render(function (r) {
+                VA.renderTopoPane(r, {
+                  topoProj: topoProj, study: null, crops: realCrops,
+                  layoutMode: "topology", selection: null,
+                  onSelect: function () {},
+                });
+              });
+              var rendered = all(root, "td.tvcell--component");
+              eq(rendered.length, plan.groups.length, topoProj.id);
+              plan.groups.forEach(function (group, i) {
+                var where = topoProj.id + "/group " + i;
+                if (group.part === null) {
+                  eq(rendered[i].textContent, VA.GAP_COMPONENT_LABEL, where);
+                  return;
+                }
+                var part = index.parts[group.part];
+                ok(part, where + ": the group names a part the topology declares");
+                eq(rendered[i].textContent, part.name, where +
+                  ": the merged cell must print the part's own name");
+                ok(rendered[i].textContent !== group.part, where +
+                  ": the merged cell is printing the part ID `" + group.part +
+                  "`, which is what Jeff's 2026-09-15 review was about");
+                cells += 1;
+              });
+              topologies += 1;
+            });
+            eq(topologies, liveTopos.length);
+            ok(cells > 30, "the walk must not be vacuous: " + cells + " cells");
+          });
+
+        // Jeff's own two examples, stated as the SHAPE they are examples of:
+        // the element column carries the feature and nothing the row says
+        // elsewhere. Pinned over every live row rather than the two he named,
+        // because the rule is what has to hold.
+        await test("[real] no element cell repeats its component's words or " +
+          "its own value, and nothing a cell drops is lost", function () {
+            var trimmed = 0, untouched = 0;
+            liveTopos.forEach(function (topoProj) {
+              var index = VA.topologyIndex(topoProj);
+              var plan = VA.gridPlan(VA.spineRight(topoProj.layout), topoProj);
+              var root = render(function (r) {
+                VA.renderTopoPane(r, {
+                  topoProj: topoProj, study: null, crops: realCrops,
+                  layoutMode: "topology", selection: null,
+                  onSelect: function () {},
+                });
+              });
+              var cells = all(root, "td.tvcell--name");
+              eq(cells.length, plan.rows.length, topoProj.id);
+              plan.rows.forEach(function (planRow, i) {
+                var edge = index.edges[planRow.id];
+                if (!edge) return;
+                var cell = cells[i];
+                var where = topoProj.id + "/" + planRow.id;
+                ok(cell.textContent.length > 0, where + ": never blank");
+                if (cell.textContent === edge.name) {
+                  eq(cell.getAttribute("title"), null, where +
+                    ": an untrimmed cell needs no hover title");
+                  untouched += 1;
+                  return;
+                }
+                // Nothing is lost: the full label is one hover away, and the
+                // preview pane prints it whole.
+                eq(cell.getAttribute("title"), edge.name, where +
+                  ": a trimmed cell carries the full label on hover");
+                // And nothing was reworded: every character of the cell is a
+                // character of the authored name, in order.
+                var at = 0;
+                cell.textContent.split("").forEach(function (ch) {
+                  at = edge.name.indexOf(ch, at);
+                  ok(at !== -1, where + ": the cell is not a substring-" +
+                    "composition of the authored name: " + cell.textContent);
+                  at += 1;
+                });
+                trimmed += 1;
+              });
+            });
+            ok(trimmed > 20, "most live rows repeat something: " + trimmed);
+            ok(untouched > 0, "a row with nothing to drop must come back " +
+              "unchanged, or this is a rewrite and not a trim");
+          });
+
+        await test("[real] no rendered surface of any live topology prints an " +
+          "internal id, a field name, a checksum or a workstation path",
+          function () {
+            var surfaces = 0;
+            liveTopos.forEach(function (topoProj) {
+              var ids = (topoProj.parts || []).map(function (p) { return p.id; })
+                .concat((topoProj.nodes || []).map(function (n) { return n.id; }))
+                .concat((topoProj.edges || []).map(function (e) { return e.id; }))
+                // A one-word id is a word a human would write ("hub",
+                // "post"); only ids with a separator are unambiguously
+                // machine-shaped, and those are the ones Jeff read as
+                // meaningless.
+                .filter(function (id) { return id.indexOf("_") !== -1; });
+              var ctx = function (selection) {
+                return {
+                  topoProj: topoProj, study: null, crops: realCrops,
+                  config: VA.CONFIG, layoutMode: "topology", detailImage: null,
+                  selection: selection, onSelect: function () {},
+                };
+              };
+              var check = function (where, root) {
+                var text = viewerAuthoredText(root);
+                bannedIn(text, where);
+                ids.forEach(function (id) {
+                  ok(text.indexOf(id) === -1,
+                     where + " prints the internal id `" + id + "`: " + text);
+                });
+                surfaces += 1;
+              };
+              check(topoProj.id + " grid", render(function (r) {
+                VA.renderTopoPane(r, ctx(null));
+              }));
+              (topoProj.nodes || []).forEach(function (node) {
+                check(topoProj.id + " pane on " + node.id, render(function (r) {
+                  VA.renderTopoDetail(r, ctx({ kind: "node", id: node.id }));
+                }));
+                check(topoProj.id + " card on " + node.id, render(function (r) {
+                  VA.renderHoverCard(r, VA.nodeCard(topoProj, node.id, realCrops),
+                    {}, VA.CONFIG, null);
+                }));
+              });
+              (topoProj.edges || []).forEach(function (edge) {
+                check(topoProj.id + " pane on " + edge.id, render(function (r) {
+                  VA.renderTopoDetail(r, ctx({ kind: "edge", id: edge.id }));
+                }));
+                check(topoProj.id + " card on " + edge.id, render(function (r) {
+                  VA.renderHoverCard(r, VA.edgeCard(topoProj, edge, realCrops),
+                    {}, VA.CONFIG, null);
+                }));
+              });
+              (topoProj.parts || []).forEach(function (part) {
+                check(topoProj.id + " card on " + part.id, render(function (r) {
+                  VA.renderHoverCard(r,
+                    VA.componentCard(topoProj, part.id, realCrops), {},
+                    VA.CONFIG, null);
+                }));
+              });
+            });
+            ok(surfaces > 200, "the walk must not be vacuous: " + surfaces);
+          });
+
+        // The other half of Jeff's first bullet: a COTS fastener's card used
+        // to say "no drawing recorded for this part", which is true of the
+        // field and wrong about the part.
+        await test("[real] every live part with no drawing names the document " +
+          "its own dimensions come off, or says nothing at all", function () {
+            var standard = 0, drawn = 0, silent = 0;
+            liveTopos.forEach(function (topoProj) {
+              (topoProj.parts || []).forEach(function (part) {
+                var card = VA.componentCard(topoProj, part.id, realCrops);
+                var root = render(function (r) {
+                  VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+                });
+                var where = topoProj.id + "/" + part.id;
+                ok(root.textContent.indexOf("no drawing recorded") === -1,
+                   where + " still says a field is empty rather than what is true");
+                if (card.drawing) {
+                  has(root.textContent, "drawing " + card.drawing, where);
+                  eq(card.references, [], where +
+                    ": a part with a drawing needs no second reference");
+                  drawn += 1;
+                  return;
+                }
+                if (!card.references.length) {
+                  eq(all(root, "div.hovercard__where").length, 0, where +
+                    ": a part with neither says nothing, not a sentence about " +
+                    "an absence");
+                  silent += 1;
+                  return;
+                }
+                card.references.forEach(function (reference) {
+                  has(root.textContent, VA.referenceText(reference), where);
+                });
+                if (card.standardPart) {
+                  has(root.textContent, "standard part — dimensions from", where);
+                  standard += 1;
+                } else {
+                  has(root.textContent, "dimensions from", where);
+                  ok(root.textContent.indexOf("standard part") === -1, where +
+                     ": 'standard part' is licensed by a spec citation, not by " +
+                     "the absence of a drawing");
+                }
+              });
+            });
+            // All three branches live, or the walk proves nothing. The
+            // standard-part branch is the one Jeff filed: the NAS bolts.
+            ok(standard > 0, "no live part is sourced only to a standard sheet, " +
+              "so the sentence Jeff asked for went unexercised");
+            ok(drawn > 0, "no live part carries a drawing");
+            ok(silent > 0, "no live part has neither a drawing nor a citation, " +
+              "so the say-nothing branch went unexercised");
           });
 
         // --- [real] the topology fixture, against the real shapes -------------
