@@ -2490,6 +2490,47 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a suite can carry no declared witness at all (the clean run comes back
       RED and the entry is reported `SKIPPED`). When a review's evidence is a
       full run, spot-check the one suite the work touched with `--only` too.
+- [ ] **A STACK-DATA change is a viewer-test change, and `pytest -q` is
+      structurally blind to it.** New 2026-09-15 (`pitch_link_known_bands`) —
+      the first time a pure data handoff broke the JS `[real]` tier, and the
+      author's `pytest -q` could not have told them. `tests/test_viewer_js_suite.py`
+      runs the JS runner **without** `--repo`, so from a worktree the node-fs
+      tier reports itself skipped and pytest records a `skip`, deliberately
+      ("a red suite that means 'you are in a worktree' trains people to ignore
+      red suites"). Meanwhile `apps/viewer/tests.js`'s `[real]` block pins live
+      stack numbers and live projection flags by hand — `has(root.textContent,
+      "-8.1939")` and `eq(all(root, "tr.el-row--zero-width").length, 2)` both
+      named `pitch_link_to_pitch_plate` and both went red the moment two of its
+      elements gained a band. **So: whenever a diff changes a value, a band, a
+      `confidence` or a `zero_width` in `docs/tolerance_stacks/`, grep
+      `apps/viewer/tests.js` for the moved number and for the stack id before
+      you judge the suite green**, then rebuild the projections and run
+      `node apps/viewer/run_tests.cjs --repo <root>` yourself. Two traps in the
+      fix: a `[real]` pin whose stack stopped exercising the field should be
+      **repointed at a stack that still does** (the Python twin,
+      `test_checks_carry_their_zero_width_inputs`, was correctly moved to
+      `rotor_fastener_length`) rather than flipped to assert `0` under a name
+      that promises 2; and if the shared projection is owned by a live sibling
+      worktree, build all three into a scratch `--data-root` seeded from a copy
+      of the real one instead of reaching for `--allow-older-tree` — a partial
+      scratch root (no `docs/`, no `meshes/`, no `data/inbox/`) manufactures
+      four extra failures that are yours, not the branch's.
+- [ ] **A "not vacuous" assertion that tests a set the value could never be
+      in.** New 2026-09-15 (`pitch_link_known_bands`), and it is the
+      guard-that-cannot-fail shape hiding inside the *replay* rather than the
+      guard. `test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it`
+      closes with `assert ("pitch_link_to_pitch_plate", "bushing_214820") not in
+      seen_divergences` under the comment *"Not vacuous: the pairing has to be
+      seeing the stacks that matter"* — but `seen_divergences` only ever
+      receives members of the one-row `KNOWN_BAND_DIVERGENCES`, so the assertion
+      is true by construction. Measured: typo the `SHARED_BANDS` part number and
+      the test stays **green** while checking nothing about the part the handoff
+      was written for. The test to apply: *what does this assertion read that
+      the loop wrote?* A non-vacuity replay has to assert on something the
+      **matching branch** populated (`matched[part].add(stack.id)`), never on
+      absence from an allowlist. Watch for its sibling too: a curated key tuple
+      whose second element is never used in the match (`(part, feature)` matched
+      on `part` alone) is decoration that reads as precision.
 
 ## Architectural errors to check
 
