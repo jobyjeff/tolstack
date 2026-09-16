@@ -60,6 +60,25 @@ function assertEqual(actual, expected, msg) {
   if (a !== e) throw new Error(`${msg || "mismatch"}: got ${a}, expected ${e}`);
 }
 
+// Jeff's standing web-UI rule, recorded across every repo's web surface: a
+// terminal command is NEVER rendered for a user to copy. apps/viewer/tests.js
+// states it as an assertion on the TEXT rather than the absence of one known
+// string, so a NEW way of leaking one in later still fails -- same shape here,
+// and shared by every sentence this app can put on its banner. A vocabulary
+// like this is a module-level constant, never an inline literal (CLAUDE.md).
+const COMMANDISH = [".py", "venv-win", "python", "\\", "scripts/"];
+
+function assertNoCommandOrPath(text, what) {
+  if (typeof text !== "string" || text.length === 0) {
+    throw new Error(`${what} is not a non-empty string: ${JSON.stringify(text)}`);
+  }
+  for (const banned of COMMANDISH) {
+    if (text.includes(banned)) {
+      throw new Error(`${what} names ${JSON.stringify(banned)}: ${text}`);
+    }
+  }
+}
+
 function assertThrows(fn, msg) {
   try {
     fn();
@@ -374,11 +393,42 @@ check("the hosted notice offers no control, no path and no command", () => {
   // copy. A reader off-machine has no move here, so the sentence states the
   // fact and stops.
   const notice = AA.HOSTED_NOTICE;
-  assertEqual(typeof notice === "string" && notice.length > 0, true);
-  for (const banned of ["Connect", "connect", "\\", "python", "http"]) {
+  assertNoCommandOrPath(notice, "the hosted notice");
+  // ...and, this sentence only: no offer of the control it stands in for, and
+  // no URL to go and try instead.
+  for (const banned of ["Connect", "connect", "http"]) {
     if (notice.includes(banned)) {
       throw new Error(`the hosted notice mentions ${JSON.stringify(banned)}: ${notice}`);
     }
+  }
+});
+
+check("the no-projection banner is plain words, with nothing to paste", () => {
+  // The other sentence this app says instead of offering a way forward
+  // (ISSUE_20260915_annotate_banner_renders_a_terminal_command_for_the_user_
+  // to_copy). It used to read "Build it: " with an interpreter and a
+  // backslash path concatenated on. A button would be better and needs a
+  // transport this app has not got, so plain words are the honest interim --
+  // what is asserted here is only that they stay plain.
+  assertNoCommandOrPath(AA.NO_PROJECTION_NOTICE, "the no-projection notice");
+});
+
+check("this app holds no terminal command for a banner to render", () => {
+  // The copy is half of it; the SUPPLY is the other half. The defect was a
+  // concatenation at the call site -- AA.CONFIG.rebuild held two build
+  // commands as strings and loadAll() pasted one of them onto the banner --
+  // so a check on the sentence alone would pass again the moment somebody
+  // re-added "Build it: " + a command. Nothing on this page can run one, so
+  // the app carries none at all.
+  if (AA.CONFIG.rebuild !== undefined) {
+    throw new Error("AA.CONFIG.rebuild is back -- a command string this app could render");
+  }
+  // Read STATICALLY, for the same reason the index.html check above is:
+  // app.js is an ES module that touches document and WebGL at load time and
+  // cannot be booted in this sandbox.
+  const appSource = fs.readFileSync(path.join(here, "app.js"), "utf8");
+  if (appSource.includes("CONFIG.rebuild")) {
+    throw new Error("app.js reads CONFIG.rebuild -- the banner concatenation is back");
   }
 });
 

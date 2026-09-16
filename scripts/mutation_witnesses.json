@@ -189,6 +189,30 @@
       "expect_red": "[real] every untraced edge whose part HAS a mesh offers a working annotate-this link, wherever the mesh set has reached"
     },
     {
+      "id": "hosted-annotate-withholds-the-bind-workspace",
+      "contract": "A hosted annotate page says annotating is unavailable and then shows nothing that instructs it -- no bind hint, no pickers, no parts panel, no empty 3D pane and no dev console.",
+      "issue": "docs/issues/ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_reader_to_bind_a_face.md",
+      "note": "Every sub-check that existed before this one reads the TOP BAR -- the banner sentence, the Connect button, the transport line, the origin itself and the pageerror list -- and not one of them looks below it. The banner was already honest while the page under it told the reader to click a face in a 3D view that does not exist on that origin, so a mutation that puts the workspace back leaves all six of them green (measured in review 2026-09-15: 12/18, and the six reds are exactly the six sub-checks added with this entry).",
+      "file": "apps/annotate/app.js",
+      "find": "    el.workspace.style.display = \"none\";",
+      "replace": "    el.workspace.style.display = \"\";",
+      "tier": "browser",
+      "suite": "annotate hosted posture (no folder grant off-machine)",
+      "expect_red": "the bind instruction is gone -- it named a 3D view this origin does not have"
+    },
+    {
+      "id": "hosted-annotate-never-wires-the-control-it-withholds",
+      "contract": "A control the hosted branch withholds is never wired either -- hiding what a reader can see while leaving a live handler behind it is a second defect, not the same one.",
+      "issue": "docs/issues/ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_reader_to_bind_a_face.md",
+      "note": "Added in REVIEW (2026-09-15), not by the handoff. Moving main()'s whole wiring block below the hosted early-return is the second half of that handoff's deliverable 1 -- the dev console was the one control that was live as well as visible -- and it shipped with no declared witness. This mutation wires the console back up INSIDE the hosted branch: withheld and live, the exact shape the move exists to make unreachable. Observed failing by hand before it was declared. The sibling entry's mutation does not redden this sub-check and this one does not redden the sibling's, which is why both are declared.",
+      "file": "apps/annotate/app.js",
+      "find": "    el.workspace.style.display = \"none\";",
+      "replace": "    el.workspace.style.display = \"none\";\n    el.consoleRun.onclick = runConsoleCommand;\n    el.consoleInput.onkeydown = (ev) => { if (ev.key === \"Enter\") runConsoleCommand(); };",
+      "tier": "browser",
+      "suite": "annotate hosted posture (no folder grant off-machine)",
+      "expect_red": "and it was never wired -- no live handler behind the withheld control"
+    },
+    {
       "id": "respine-unfolds-out-of-the-rail-it-interrupted",
       "contract": "A column a respine ADDS is drawn collapsed onto the OUTGOING FRAME'S LEFTMOST RAIL and unfolds out of it -- which is why rails carry no opacity of their own, and which has to hold from a transition frame as well as from a settled one.",
       "issue": "docs/issues/ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_nowhere.md",

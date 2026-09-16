@@ -15,7 +15,11 @@
   </div>
   <div id="banner" class="banner"></div>
 
-  <main class="an">
+  <!-- The bind workspace, in one container ON PURPOSE: it is the whole of
+       what this app can do, so a page that has just said it cannot annotate
+       withholds it in one place (app.js's hosted branch) rather than hiding
+       eight elements and forgetting the ninth. -->
+  <main class="an" id="workspace">
     <aside class="an__rail">
       <label class="an__label">topology</label>
       <select id="topology-select"></select>

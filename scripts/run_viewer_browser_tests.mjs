@@ -2871,6 +2871,18 @@ async function testAnnotateFlyout(browser, fileBase, label) {
 async function testAnnotateHostedPosture(browser, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
+  // "Is this element on the page at all?" -- NOT locator.isVisible(), which
+  // answers "does it have a non-empty box" and calls an empty <ul> or an
+  // empty <select> invisible. Both are legitimately zero-height on the
+  // loopback page before a folder is granted, and that page is the
+  // discriminating half of every withholding check below, so the question has
+  // to be the one actually being asked: offsetParent is null for an element
+  // inside a display:none subtree and non-null for an empty one that still
+  // renders.
+  const rendered = (page, selector) => page.evaluate((sel) => {
+    const node = document.querySelector(sel);
+    return !!node && node.offsetParent !== null;
+  }, selector);
   const server = await startRepoRootServer();
   const { port } = server.address();
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
@@ -2898,6 +2910,45 @@ async function testAnnotateHostedPosture(browser, label) {
     push("the honest notice is not an error thrown on the way to it",
       errors.length === 0);
 
+    // --- and nothing else on the page instructs an action it has ruled out --
+    //
+    // (handoff annotate_hosted_page_posture, ISSUE_20260915_the_hosted_
+    // annotate_page_still_instructs_the_reader_to_bind_a_face.) The banner was
+    // made honest first and the page under it did not move with it, so the
+    // page said "annotating is not available here" and, two inches below, told
+    // the reader how to annotate. Every check above looks for something ABSENT
+    // from the SENTENCE; these look at the page, element by element, because
+    // the whole point is that a true sentence is not enough on its own.
+    //
+    // Element by element rather than one assertion on the container that
+    // actually gets hidden, on purpose: the contract is about what a reader
+    // can see, so it survives the workspace being withheld a different way
+    // later (per column, or removed from the DOM) and still fails if one
+    // column is forgotten.
+    push("the bind instruction is gone -- it named a 3D view this origin does not have",
+      !(await rendered(page, "#detail")));
+    push("no topology picker is offered for data this page cannot load",
+      !(await rendered(page, "#topology-select")));
+    push("nor a study picker",
+      !(await rendered(page, "#study-select")));
+    push("no element list or parts panel either",
+      !(await rendered(page, "#element-list")) &&
+      !(await rendered(page, "#parts-panel")));
+    push("there is no 3D pane standing empty where the hint pointed",
+      !(await rendered(page, "#canvas-host")) &&
+      await page.locator("canvas").count() === 0);
+    // The console is the one that was WIRED, not merely visible -- main() bound
+    // its click and Enter handlers before the hosted early-return, so a hosted
+    // reader had a live command line into an app with no storage behind it. A
+    // hidden-but-live control is a different defect from a misleading hint, so
+    // both halves are asserted: withheld, and never wired in the first place.
+    push("the dev console is not shown",
+      !(await rendered(page, "#console-input")) &&
+      !(await rendered(page, "#console-run")));
+    push("and it was never wired -- no live handler behind the withheld control",
+      await page.evaluate(() => document.querySelector("#console-run").onclick === null &&
+        document.querySelector("#console-input").onkeydown === null));
+
     // --- local: the same URL from the machine holding the repo --------------
     // Unchanged by this handoff and it must stay that way: drawing-checker
     // serves this app from 127.0.0.1:8000 in dev, and the folder grant is the
@@ -2912,6 +2963,24 @@ async function testAnnotateHostedPosture(browser, label) {
       /Connect folder|File System Access/.test(localBanner));
     push("and it does NOT show the hosted notice",
       !/not available on this site/.test(localBanner));
+    // The discriminating half of the withholding above: on the origin that CAN
+    // annotate, the whole workspace is there and the console is live, before a
+    // folder has even been granted. Without this, "hide everything, always"
+    // would pass every one of the hosted checks.
+    push("the same page on loopback still has the full bind workspace",
+      await rendered(page, "#detail") &&
+      await rendered(page, "#topology-select") &&
+      await rendered(page, "#study-select") &&
+      await rendered(page, "#element-list") &&
+      await rendered(page, "#parts-panel") &&
+      await rendered(page, "#canvas-host") &&
+      await rendered(page, "#console-input") &&
+      await rendered(page, "#console-run"));
+    push("and the 3D view the bind instruction names really is there",
+      await page.locator("#canvas-host canvas").count() === 1);
+    push("and its dev console is wired there",
+      await page.evaluate(() => document.querySelector("#console-run").onclick !== null &&
+        document.querySelector("#console-input").onkeydown !== null));
 
     const failed = checks.filter((c) => !c.cond);
     const ok = failed.length === 0 && errors.length === 0;
