@@ -154,6 +154,22 @@ red independently while I was working
 which arrived on `integration` at `596aae0`), so there is nothing here for
 triage to de-duplicate — I filed none.
 
+**The "run it in both checkouts" half, and why it cannot be run as written
+today.** The main checkout is on `master` (`bb3a5aa`), which trunk-lags
+`integration` by design, so a `pytest -q` there is a statement about `master`
+and not about the tree I merged. For the record it reports **2 failed, 879
+passed**: the byte-identity one above, plus `test_viewer_js_suite_is_green`
+failing on `[real] the two zero-width bands are flagged  0 !== 2` and three
+fixture-shape checks — `pitch_link_known_bands`' and
+`projection_field_guard_rows`' signatures, both already on `integration` and
+neither on `master`, read against a shared projection built from a far newer
+tree. Nothing there is attributable to this branch, which touches no stack
+datum, no fixture and no builder. What the both-checkouts check is actually
+*for* — a data-dependent difference that a gitignored-empty worktree hides — I
+covered instead by running the `[real]` and browser tiers against a **complete**
+copy of the real `data/` (`inbox/`, `meshes/`, `runs/`, `projections/`) with the
+projections rebuilt from this tree.
+
 ## Findings
 
 ### Should-fix (both filed; neither blocks)
