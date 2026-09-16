@@ -9,6 +9,18 @@ found_by: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
 
 # `card-layout-out-of-flow` goes red on the wrong check, so the mutation tier reports 17/18 forever
 
+> **Duplicate — added in review, 2026-09-15
+> (`review/viewer_value_guard_rows_and_replays`).** Filed independently the
+> same day as
+> `ISSUE_20260915_the_card_layout_out_of_flow_mutation_witness_stopped_witnessing_on_integration.md`
+> (`viewer_component_names_and_reference_copy`), which reports the same
+> `NOT WITNESSED: card-layout-out-of-flow` against a larger tier (21/22, after
+> that handoff declared four more mutations). Reproduced here in review with
+> `--only card-layout`. Cross-referenced rather than deleted: this filing is
+> the one that names the **mechanism** — the mutation breaks the page badly
+> enough that a hover times out upstream of the declared sub-check, so the
+> tier goes red on the wrong thing. Dispose of both together.
+
 Found as the **baseline** state of this branch. `scripts/run_mutation_witness_tests.mjs`
 was out of this handoff's scope; it is filed rather than fixed.
 

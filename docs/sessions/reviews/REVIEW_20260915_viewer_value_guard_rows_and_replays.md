@@ -11,26 +11,32 @@ blockers: 0
 
 Four deliverables, all four delivered, one of them knowingly larger than the
 handoff asked for and right to be. Every guard in the diff was broken by hand
-and watched fail. **APPROVE**, 0 blockers, 1 should-fix filed as an issue,
-3 nits.
+and watched fail. **APPROVE**, 0 blockers, 3 nits. The one should-fix I found
+was removed by a sibling handoff that landed on `integration` mid-review, so it
+is recorded below rather than filed.
 
 ## What I verified, and how
 
 Merged `handoff/viewer_value_guard_rows_and_replays` into
-`review/viewer_value_guard_rows_and_replays` (merge commit, no conflicts) and
-ran every tier from this worktree.
+`review/viewer_value_guard_rows_and_replays` (clean), then `integration` on top
+of that (one conflict — see "The integration merge" below), and ran every tier
+from this worktree. The numbers below are the **post-merge** run; the guard
+mutations in the sections that follow were all re-run against the merged tree.
 
 | tier | result |
 |---|---|
-| `venv-win/Scripts/python.exe -m pytest -q` | **887 passed, 1 failed, 1 skipped** — the one red is the pre-existing `test_provenance.py::test_every_byte_identity_claim_in_a_live_file_names_its_verification`, on a strategy brief this branch does not touch |
-| `node apps/viewer/run_tests.cjs` (fixture tier) | **302/302**, node-fs tier SKIP as designed |
-| `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack` | **373/373** |
-| `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack` | **19/19 browser checks**, both in-page suites 288/288 (`file://` and http) |
+| `venv-win/Scripts/python.exe -m pytest -q` | **1093 passed, 1 failed, 1 skipped** — the one red is the pre-existing `test_provenance.py::test_every_byte_identity_claim_in_a_live_file_names_its_verification`, on a strategy brief this branch does not touch |
+| `node apps/viewer/run_tests.cjs` (fixture tier) | **311/311**, node-fs tier SKIP as designed |
+| `node apps/viewer/run_tests.cjs --repo C:\workspace\tolstack` | **385/386** — the one red is `[real] the pitch system's grouping is the leader rule at work…`, red on `integration` alone (reproduced against `git archive integration apps`), filed as `ISSUE_20260915_the_shared_projection_predates_the_shortened_part_names_so_a_real_test_is_red_on_integration.md`. Before the integration merge this branch was **373/373** |
+| `node scripts/run_viewer_browser_tests.mjs --repo C:\workspace\tolstack` | **19/19 browser checks**, both in-page suites 297/297 (`file://` and http) |
 | `node scripts/run_mutation_witness_tests.mjs --repo … --only card-layout` | NOT WITNESSED — reproduces the issue the author filed; nothing in the diff touches a mutated file |
 
+Every guard mutation below was re-run on the merged tree and reddens there too.
+
 The lesson's pytest count (886 passed) is right for its own base; the extra
-pass is `tests/test_tolerance_stack.py` et al. arriving with the integration
-merge. Every other number in the lesson re-derives correctly (below).
+pass was `tests/test_tolerance_stack.py` et al. arriving with the first
+integration state I measured (887); the second integration merge took it to
+1093. Every other number in the lesson re-derives correctly (below).
 
 ### Deliverable 1 — the new `TOPO_VALUE_GUARDS` rows
 
@@ -137,18 +143,25 @@ my experiments (`git status` clean).
 
 ## Findings
 
-### Should-fix (filed, not fixed)
+### Should-fix — raised, then overtaken by the integration merge
 
-**S1. A third copy of the node-divergence count, in `apps/viewer/topology.js`.**
-`VA.nodeSideIds`' preamble (`apps/viewer/topology.js:2226`) still reads *"the
-pane printed the node's authored `parts` here and **10 of the 46** live nodes
-disagreed with their own card"* — the same membership number under the same
-string-flavoured wording the other two sites just had corrected, and unpaired.
-The handoff named `apps/viewer/topology.js` do-not-touch, so this is scope, not
-an omission; but APPROVE ends the handoff's ownership of it, so it is filed as
-`ISSUE_20260915_a_third_copy_of_the_node_divergence_count_sits_in_topology_js.md`.
+**S1. A third copy of the node-divergence count, in `apps/viewer/topology.js`
+— resolved by the merge, not by a filing.** At the branch's own base,
+`VA.nodeSideIds`' preamble still read *"the pane printed the node's authored
+`parts` here and **10 of the 46** live nodes disagreed with their own card"* —
+the same membership number under the same string-flavoured wording the other
+two sites had just had corrected, and unpaired. The handoff named
+`apps/viewer/topology.js` do-not-touch, so it was scope rather than an
+omission. Before I could file it, `integration` moved:
+`viewer_component_names_and_reference_copy` renamed that function to
+`VA.nodeSideLabels` and **removed both digits**, replacing them with a pointer
+at the issue this handoff resolves. So the finding no longer exists in the
+merged tree and the issue I had drafted was deleted rather than committed.
+See "the semantic conflict" below for the one line of it I did fix.
+
 Second sighting of the overlay's *"The handoff enumerated the sites of a prose
-claim — so grep for the one it missed"* entry (no overlay edit needed).
+claim — so grep for the one it missed"* entry (no overlay edit needed): the
+grep was right, the sibling handoff just got there first.
 
 ### Nits
 
@@ -169,15 +182,18 @@ fixture tier and the browser-tier `--repo` run; §6 reports only pytest. Both ar
 green (302/302 and 19/19 / 288+288) — measured in this review and recorded in
 the table above rather than by editing the author's lesson.
 
-**N3. The baseline-red issue is the fifth filing of one red.** Five sessions
-have now each filed `test_every_byte_identity_claim_…` independently. The new
-one is the only filing that identifies the sentence as a *figure of speech about
-behaviour*, so I cross-referenced rather than deleted: a duplicate blockquote
-naming all five now sits at the top of
-`ISSUE_20260915_a_strategy_briefs_byte_for_byte_figure_of_speech_reddens_the_provenance_guard.md`.
-Second sighting of the overlay's "two handoffs from one triage sweep file the
-same issue" entry, at five-fold scale; the fix is a triage disposition, not an
-agent behaviour change.
+**N3. Two of the three issues the author filed are duplicates — of filings that
+did not exist when they wrote them.** `test_every_byte_identity_claim_…` has now
+been filed **six** times, once per session that ran while the red stood; and
+`card-layout-out-of-flow` was filed twice the same day, the second time by
+`viewer_component_names_and_reference_copy` against a larger tier (21/22 rather
+than 17/18). Both of the author's filings carry something the other filings do
+not — the figure-of-speech reading of the brief's sentence, and the *mechanism*
+by which the mutation reddens the wrong sub-check — so I cross-referenced rather
+than deleted, with a duplicate blockquote at the top of each naming every
+sibling and which one to keep. Second sighting of the overlay's "two handoffs
+from one triage sweep file the same issue" entry, now at six-fold scale; the fix
+is a triage disposition, not an agent behaviour change.
 
 ### Not findings, recorded so the next reviewer doesn't re-derive them
 
@@ -202,6 +218,38 @@ agent behaviour change.
 - `gaps[].kind` still has no `TOPO_VALUE_GUARDS` row; that is
   `ISSUE_20260915_the_new_gap_kind_field_has_no_topo_value_guard_row.md` (open,
   low), not this handoff's four named fields.
+
+## The integration merge, and what its resolution chose
+
+`integration` moved twice while I reviewed (`916b448` → `d16db3b`, carrying
+`viewer_component_names_and_reference_copy`), so the finishing merge went
+through `git merge integration` into the review branch first. One textual
+conflict and one semantic one, both in the node-sides copy:
+
+- **`apps/viewer/README.md`, hover-card bullet — textual.** Integration
+  rewrote the sentence to introduce `VA.nodeSideLabels` (one label style where
+  there were two) and deliberately **kept `10`**, adding *"a count whose own
+  wording is contested and owned elsewhere"* plus the issue link. This branch
+  fixes that exact count to `17` and pairs it. Resolution: integration's new
+  `VA.nodeSideLabels` sentence, this branch's `17 of the 46 live nodes
+  answering differently hovered and clicked`, and the "contested / owned
+  elsewhere" clause dropped — the contest is what this handoff settles, and
+  the clause would have pointed at an issue about to be marked resolved. The
+  paired regex still matches the merged wording (verified by re-running).
+- **`apps/viewer/topology.js:2452-2464` — semantic, and the one line I fixed.**
+  `VA.nodeSideLabels`' preamble arrived from integration saying *"How MANY is a
+  contested number owned elsewhere -- ISSUE_20260915_the_viewer_readmes_10_of_
+  46_node_divergence_count…"*. Correct on integration, wrong the moment this
+  branch merges. Rewritten to say the number is settled, is stated in exactly
+  two places, and is re-derived by the `[real]` test — keeping integration's
+  discipline of *not* restating it there. This is the merge's own semantic
+  conflict, not an unrelated edit under cover of one.
+- `apps/viewer/tests.js` auto-merged cleanly and coherently: integration's
+  version of the node test now derives `sideIds` from `card.sides[].part` (the
+  card is the surface, and `VA.nodeSideIds` no longer exists) while this
+  branch's two counts and five doc assertions sit on top of it. Same
+  adjacency, same numbers — 17 / 10 / 7 / 46 still hold, and all four digit
+  mutations were re-run on the merged tree.
 
 ## For the next reviewer
 

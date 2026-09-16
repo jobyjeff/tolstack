@@ -2459,9 +2459,11 @@
   // false: the pane printed the node's AUTHORED `parts` here, and live nodes
   // disagreed with their own hover card, because a node against a `gap` edge
   // has a clearance for a side and an authored parts list cannot name one.
-  // How MANY is a contested number owned elsewhere -- ISSUE_20260915_the_
-  // viewer_readmes_10_of_46_node_divergence_count_is_unguarded_and_counts_
-  // the_wrong_thing.md -- so it is not restated here.)
+  // How MANY was contested and is settled (handoff viewer_value_guard_rows_
+  // and_replays, 2026-09-15): it is stated in exactly two places, views/
+  // topology.js's renderNodeDetail comment and apps/viewer/README.md, and both
+  // are re-derived from the live projection by tests.js's "[real] every live
+  // dot answers the SAME on hover and on click". So it is not restated here.)
   VA.nodeSideLabels = function (topoProj, nodeId) {
     var parts = VA.topologyIndex(topoProj).parts;
     return (VA.nodeAdjacentParts(topoProj)[nodeId] || []).map(function (part) {

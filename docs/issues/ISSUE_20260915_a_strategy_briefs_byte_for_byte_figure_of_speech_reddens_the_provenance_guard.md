@@ -10,16 +10,17 @@ found_by: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
 # `docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md` reddens `test_every_byte_identity_claim_in_a_live_file_names_its_verification`
 
 > **Duplicate — added in review, 2026-09-15
-> (`review/viewer_value_guard_rows_and_replays`).** This is the **fifth**
+> (`review/viewer_value_guard_rows_and_replays`).** This is the **sixth**
 > filing of one baseline red, one per session that ran while it stood:
 > `ISSUE_20260915_byte_identity_guard_red_on_the_origin_posture_brief.md` (high),
 > `..._byte_identity_guard_reds_the_suite_on_a_triage_authored_brief.md`,
 > `..._strategy_brief_byte_identity_claim_fails_the_provenance_guard.md`,
-> `..._byte_identity_claim_in_origin_posture_brief_names_no_verification.md`
+> `..._byte_identity_claim_in_origin_posture_brief_names_no_verification.md`,
+> `..._a_strategy_briefs_byte_for_byte_claim_reddens_the_suite_on_master.md`
 > and this one. Cross-referenced rather than deleted: this is the only filing
 > that identifies the text as a **figure of speech about behaviour** rather
 > than a provenance claim, which is the argument for weakening the sentence
-> instead of naming a verification. Dispose of all five together; the `high`
+> instead of naming a verification. Dispose of all six together; the `high`
 > filing is the one to keep.
 
 Found as the **baseline** state of this branch, before any edit: the suite is
