@@ -305,6 +305,54 @@ Nothing in the merge touched a geometric witness — `topology respine` is 39/39
 both before and after, and all three of this review's new fast-tier entries are
 still witnessed on the merged tree.
 
+## …and a third move, which is where the shared `data/` bit
+
+`integration` moved again before the fast-forward, to `49a935f`
+(`viewer_nav_wedge_and_classic_retirement` landed). **One conflict**, in
+`topology_app.js`'s `onNavTopology`: that handoff replaced
+`loadWorksheet().then(respine)` with its own `navigate(respine)` route, and this
+handoff had rewritten the comment above it. Resolution: integration's mechanism,
+the handoff's comment. `onNavStudy` auto-merged to the same shape.
+
+| tier | after the third merge |
+|---|---|
+| `pytest -q` | **1098 passed, 1 skipped, 1 failed** (the same byte-identity red) |
+| `run_tests.cjs` (mock only) | **320/320** |
+| `run_viewer_browser_tests.mjs --repo …` | **20/20 suites**; `topology` 178/178, `topology respine` 39/39 |
+| `run_tests.cjs --repo C:/workspace/tolstack` | **397/400** — *not this branch's*, see below |
+| `run_mutation_witness_tests.mjs --repo …` | **11/26** — the same cause |
+
+**The three `[real]` failures belong to a live sibling worktree, not to this
+work.** `crops.json`'s stamp is `handoff/viewer_reference_crops_in_context` @
+`d16db3b`, `built_at 06:45:16` — one minute after my own rebuild of the other
+two — and it carries fields (`companion`, `context_label`, `drawing_no`,
+`drawing_revision`, `find_no`, `highlights`) and a `located_by: "balloon_view"`
+that no merged code has been taught. Attributed by `git archive`-ing
+`integration` itself into a scratch tree: **392/395, the identical three**. So
+nothing on any branch can be green while that worktree is live. Printed all
+three provenance stamps before reading any `[real]` result, per the overlay.
+
+That also explains the mutation tier's 11/26: the runner requires a green clean
+run before applying a mutation, so a red `[real]` tier costs **every** fast-tier
+entry, not three checks — nine `SKIPPED: the tier is already red with NO
+mutation applied` and the rest `NOT WITNESSED`. Extended
+`ISSUE_20260914_two_active_handoffs_each_turn_the_others_real_tier_red.md` with
+this fourth instance and the amplification, which the earlier three did not
+have.
+
+Two measurements so the merge is not being taken on trust:
+
+- a scratch `--repo` root with the merged tree's `results.json`/`topologies.json`,
+  the **matching** `crops.json`, and junctions to the real `crops/`, `meshes/`,
+  `inbox/` and to this worktree's `docs/` runs **399/400** — the one residual is
+  the old crops index naming two PNGs the sibling's rebuild deleted;
+- all three of this review's declared witnesses are **mock**-tier checks, so
+  they do not need `data/` at all. Mutated each by hand on the post-merge tree
+  and ran `run_tests.cjs` with **no** `--repo`: each goes **320 → 317/320 red on
+  its own declared `expect_red` check**. The refusal witness
+  (`refusing-study-stays-on-the-walk`) was witnessed by the runner on the
+  previous two merges and its suite is 178/178 here.
+
 ## For the next reviewer
 
 - `brief item 2` (grid row motion / FLIP) is now decidable against a
