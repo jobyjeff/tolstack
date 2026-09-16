@@ -193,6 +193,25 @@ in the grid checks — i.e. every other suite that addresses this pane.
 `testAnnotateFlyout` was the one that skipped it. The fix is this file's own
 established idiom, not a new mechanism.
 
+> **Correction, 2026-09-16 (`review/js_guards_and_suite_isolation`).** The
+> reference count above is **16**, not 14, and the breakdown's third term is
+> wrong. Re-derived on `integration`'s copy of
+> `scripts/run_viewer_browser_tests.mjs` (`git show integration:…`): the file
+> holds **16 lines / 17 occurrences** of `tweening` before this branch. Of
+> those, **12 are the settle-wait predicate** `!…lastTopoRender.tweening` —
+> eleven direct `waitForFunction` calls (seven in `testTheTopologyPage`, four
+> in `testHeightBudget`) plus the `settled()` helper in `testRespine`, which is
+> the first two terms above and they are exactly right. The third term is
+> **four, not two**, and all four are inside `testRespine` rather than "the
+> grid checks": `catchFrame()`'s `last.tweening && ghost`, the mid-flight
+> catcher's `VA.lastTopoRender.tweening &&`, and the `tweening:` read and
+> `interrupted.tweening === false` assertion beside it — mid-flight *catchers*,
+> not waits. 11 + 1 + 4 = 16. Nothing the paragraph concludes changes: every
+> other suite that addresses this pane does wait on the predicate, and
+> `testAnnotateFlyout` was the one that skipped it. See the matching correction
+> in `ISSUE_20260916_three_new_guards_have_no_mutation_witness_entry.md`, whose
+> "15 other call sites" is the same count a third way.
+
 The file:// half's `await page.waitForTimeout(300)` is kept — it is genuinely
 for the annotate-mount probe's re-render, not the transition — but the respine
 is now waited out explicitly beside it. **300 > 260 is the only reason that

@@ -2749,6 +2749,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a suite can carry no declared witness at all (the clean run comes back
       RED and the entry is reported `SKIPPED`). When a review's evidence is a
       full run, spot-check the one suite the work touched with `--only` too.
+      **Cause found and fixed 2026-09-16** (`js_guards_and_suite_isolation`),
+      and the general rule is worth more than the instance: it was not order
+      dependence or shared state but `VA.animateTopoPane`'s cross-fade, which
+      re-parents the outgoing paint into an inert `div.tv__ghost` for
+      `VA.RESPINE.duration` (260 ms). Mid-transition the document holds **two**
+      `.tv__hscroll` panes, so every edge in both serialisations has two
+      `tr.tvrow` with the same `data-id`. Any browser-tier block that addresses
+      `tr.tvrow[data-id=…]` after a nav click must first wait
+      `!ViewerApp.lastTopoRender.tweening` — 12 other call sites in that file
+      already did; this suite was the one that did not. Two traps when you see
+      this shape again: a ghost-**excluding** locator also makes the suite pass
+      and is the wrong fix (it finds its one live row on a permanently stuck
+      pane and passes over a real bug), and "unique `data-id`" was never this
+      page's invariant anyway — `line.rail__barhit` shares each edge's
+      `data-id` with its `tr.tvrow` in the settled state.
 - [ ] **A STACK-DATA change is a viewer-test change, and `pytest -q` is
       structurally blind to it.** New 2026-09-15 (`pitch_link_known_bands`) —
       the first time a pure data handoff broke the JS `[real]` tier, and the
@@ -3791,6 +3806,23 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       were thinking about (here, `20260804_114000` on the pitch link only).
       `ISSUE_20260916_the_joint_export_prose_and_structured_run_ids_are_paired_
       on_presence_only.md`.
+
+- [ ] **A swallow-and-report wait helper, `push`ed at one call site and called
+      for its side effect at another.** New 2026-09-16
+      (`js_guards_and_suite_isolation`, low). The browser tier's idiom for a
+      wait that must be *attributable* is to catch the timeout and return a
+      boolean, because a thrown timeout takes the suite down as an unnamed
+      `ERROR` — a MISS to the mutation tier, not a red
+      (`scripts/mutation_witnesses.json`, "ONE THING AN ENTRY CANNOT DECLARE").
+      The helper only delivers that if **every** caller pushes the result:
+      `testAnnotateFlyout`'s `paneSettled()` is pushed in the mounted half and
+      called bare in the `file://` half three lines before the same
+      `tr.tvrow[data-id=…]` click, so that half fails in exactly the unnamed way
+      the helper's own comment says must not happen. Grep every call of a
+      helper that *returns* a verdict instead of throwing one, and check each
+      one's result actually reaches a check name.
+      `ISSUE_20260916_the_annotate_flyout_settle_wait_is_named_in_one_half_and_
+      discarded_in_the_other.md`.
 
 ## Writing the review
 

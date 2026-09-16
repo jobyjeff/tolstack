@@ -118,3 +118,39 @@ named suite, so that is harmless as declared; it does mean the mutation is not
 narrowly scoped to the guard it witnesses, and a tighter one (leaving the tween
 to settle but re-appending the ghost on the settled frame) would be a better
 entry if someone wants to write it.
+
+> **Correction, 2026-09-16 (`review/js_guards_and_suite_isolation`).** It is
+> **12** other call sites, not 15. Re-derived on `integration`'s copy of
+> `scripts/run_viewer_browser_tests.mjs`: 12 lines hold the settle-wait
+> predicate `!…lastTopoRender.tweening` — eleven direct `waitForFunction` calls
+> (seven in `testTheTopologyPage`, four in `testHeightBudget`) plus
+> `testRespine`'s `settled()` helper — and those are the ones a never-ending
+> tween hangs. The file's other four `tweening` references are mid-flight
+> catchers and assertions inside `testRespine`, which the mutation breaks
+> differently (they wait *for* `tweening`, so they pass and the assertion after
+> them fails). 16 references in total, on 16 lines. The caveat's conclusion is
+> unchanged — the mutation is broad, touching 4 suite functions / 5 of the 20
+> suite instances, and a narrower one would be a better entry.
+
+## Reviewer note, 2026-09-16 — the CRLF question above is settled: yes
+
+The caveat on entry 1 asks whoever lands these to confirm
+`scripts/run_mutation_witness_tests.mjs` normalises line endings before
+trusting a multi-line `find` on CRLF `apps/viewer/viewer.js`. **It does.**
+`const lf = (text) => text.replace(/\r\n/g, "\n")` at
+`scripts/run_mutation_witness_tests.mjs:249` is applied on both sides of the
+question: line 255 writes `lf(before).replace(mutation.find, …)` into the
+shadow tree, and line 263's anchor-rot counter reads `lf(readFileSync(…))`
+before `split(mutation.find)`. So entry 1's `find` resolves in the runner for
+the same reason it resolves under `Path.read_text` in pytest, and no
+single-line rewrite is needed.
+
+Verified in review by replaying the repo's own pairing helpers against all
+three entries: keys match `REQUIRED_KEYS`, every `tier` is in `TIERS`, every
+`find` resolves to exactly 1 place in its `file` under `source_of()`, every
+`expect_red` to exactly 1 place in its `CHECK_SOURCE` file under
+`joined_source()`, and entry 3's `suite` is a key
+`suite_registry_keys()` dispatches on. (Two of the three `expect_red` strings
+count 0 under plain `source_of` and 1 under `joined_source` — they are split
+across a `" + "` seam in the check name, which is exactly what that helper
+exists for, so this is correct, not a near miss.)
