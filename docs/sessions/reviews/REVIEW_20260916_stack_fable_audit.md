@@ -207,6 +207,23 @@ conflict; every tier re-run on the twice-merged tree: pytest 1130/1/1 (same
 pre-existing red), JS fast+`[real]` **400/400**, browser **20/20**,
 mutation-witness **25/26** (same known `card-layout-out-of-flow` miss, filed).
 
+## Shared projections after integration (integrator's rebuild)
+
+`results.json` and `topologies.json` in the main checkout were rebuilt from
+this tree after the merge. `crops.json` was **left alone, deliberately**: the
+gate refused (correctly) because the live sibling worktree
+`viewer_reference_crops_in_context` stamped it at 07:17Z from a tree this one
+does not contain, and `--allow-older-tree` against a live session's projection
+is exactly what the gate exists to refuse. Consequence, expected and
+documented (`ISSUE_20260914_two_active_handoffs_each_turn_the_others_real_
+tier_red.md`): a main-checkout `[real]` run reads 397/400, and all three
+failures name crop-derived surfaces — they belong to the sibling's in-flight
+crops schema, not to this branch, whose own-tree run is 400/400 against a
+scratch root. The sibling's review reconciles crops when it lands.
+
+The end-of-review drawing-checker snapshot diff (06:54Z → 07:39Z, 5997
+entries) is **EMPTY** — this review wrote nothing there either.
+
 ## For the next reviewer
 
 - The pitch-plate lug citations still name the PRELIM 215197 fixture inside
