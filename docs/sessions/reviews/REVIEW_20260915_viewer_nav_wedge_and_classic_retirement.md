@@ -110,7 +110,7 @@ retirement, or a test assertion *name*. **No rendered string anywhere says
 "classic"**, and three tests assert its absence — from the nav, from a leaf's
 page, and from `document.body` in the browser tier.
 
-### Tests, on the merged tree (handoff + `integration` at `dfa0431`)
+### Tests, on the merged tree (handoff + `integration` at `97a0b83`)
 
 | tier | result |
 | --- | --- |
@@ -123,14 +123,16 @@ page, and from `document.body` in the browser tier.
 The one failure is pre-existing and not this branch's:
 `test_every_byte_identity_claim_in_a_live_file_names_its_verification`, on a
 sentence in `docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md`.
-Confirmed red on `integration` itself, and **already filed five times** by five
+Confirmed red on `integration` itself, and **already filed six times** by six
 sessions (`ISSUE_20260915_byte_for_byte_claim_in_a_strategy_brief_…`,
 `…_byte_identity_claim_in_origin_posture_brief_names_no_verification`,
 `…_byte_identity_guard_red_on_the_origin_posture_brief`,
 `…_byte_identity_guard_reds_the_suite_on_a_triage_authored_brief`,
-`…_strategy_brief_byte_identity_claim_fails_the_provenance_guard`). **This
-handoff correctly filed no sixth** and named an existing one in its lesson.
-Triage should close four of the five.
+`…_strategy_brief_byte_identity_claim_fails_the_provenance_guard`, and
+`…_a_strategy_briefs_byte_for_byte_figure_of_speech_reddens_the_provenance_guard`,
+which arrived on `integration` during this review). **This handoff correctly
+filed no seventh** and named an existing one in its lesson; nor did I. Triage
+should close five of the six.
 
 **The `[real]` tier needed a scratch root, and the reason is worth recording.**
 The shared `data/projections/viewer/` is stamped
@@ -145,8 +147,12 @@ That is **not** this branch: `integration`'s own
 `docs/topologies/*.json`, and the on-disk projection predates it. Rebuilt
 `results.json` and `topologies.json` into a private scratch root seeded from a
 copy of the real `data/` — 395/395 and 20/20 there. Nothing shared was written;
-the shared projection's mtimes and `built_at` are untouched, and
-`git status` in the main checkout is clean.
+the shared projection's mtimes and `built_at` are untouched, and `git status` in
+the main checkout is clean. A sibling review filed this same shared-projection
+red independently while I was working
+(`ISSUE_20260915_the_shared_projection_predates_the_shortened_part_names_so_a_real_test_is_red_on_integration.md`,
+which arrived on `integration` at `596aae0`), so there is nothing here for
+triage to de-duplicate — I filed none.
 
 ## Findings
 
@@ -215,9 +221,12 @@ the shared projection's mtimes and `built_at` are untouched, and
 
 ## Merge and conflict resolution
 
-`git merge handoff/…` into the review branch was clean. Merging the **moved**
-`integration` (`dfa0431`, which landed `viewer_component_names_and_reference_copy`
-mid-review) conflicted in **`scripts/mutation_witnesses.json`** only.
+`integration` moved **twice** during this review; the suite was re-run in full
+after each.
+
+`git merge handoff/…` into the review branch was clean. Merging the first moved
+`integration` (`dfa0431`, which landed `viewer_component_names_and_reference_copy`)
+conflicted in **`scripts/mutation_witnesses.json`** only.
 
 - **Both sides append to the tail of the same array.** The handoff added
   `nav-click-never-wedges`; `integration` added
