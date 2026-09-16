@@ -32,13 +32,17 @@ number below is against a scratch root (`C:/tsrev`, seeded from a copy of the
 main checkout's `data/`, then all three projections rebuilt from the merged tree
 — crops from drawing-checker's venv, which has PyMuPDF).
 
-| tier | merged review branch | handoff tip | `integration` |
+| tier | review branch at `f8ac4db` | handoff tip | `integration` at `744af70` |
 |---|---|---|---|
 | `pytest -q` | **1121 passed, 1 skipped, 1 failed** | 1116 / 1 / 1 | 1098 / 1 / 1 |
 | `run_tests.cjs` (fast) | 327/327 | 318/318 | — |
 | `run_tests.cjs --repo` | **407/407** (real tier ran) | — | — |
 | `run_viewer_browser_tests.mjs --repo` | **20/20** (313/313 both origins) | — | — |
 | `run_mutation_witness_tests.mjs --repo` | 25/26 | — | 0/1 on the same entry |
+
+(These are the figures for the first merge — the handoff onto the `integration`
+of the time. `integration` moved again afterwards and everything was re-run;
+"After the integration merge", below, carries the shipping numbers.)
 
 The one red is `test_every_byte_identity_claim_in_a_live_file_names_its_verification`,
 **pre-existing on `integration`** (measured there directly) and named in the
@@ -132,12 +136,19 @@ a `traced` label.
 **Check 7, the ratio, re-derived by me** with
 `tests/debug_report_tolerance_stacks.py --ratio` on the merged tree:
 
-> **5 traced / 3 inferred / 18 untraced, out of 26 element instances** across the
-> three seeded slice-1 stacks; **30 traced / 7 inferred / 22 untraced out of 59**
+> **5 traced / 12 inferred / 9 untraced, out of 26 element instances** across the
+> three seeded slice-1 stacks; **30 traced / 17 inferred / 14 untraced out of 61**
 > across all stacks.
 
 Unchanged by this handoff, as it must be — placement is not identity and cannot
 make a value traced, which `ARCHITECTURE.md`'s new paragraph restates correctly.
+The figures above are the **merged** tree's (see "After the integration merge"):
+they moved during this review because `stack_fable_audit` landed on
+`integration` and re-cited 9 seeded instances `untraced` → `inferred`. Before
+that merge the same command reported `5 / 3 / 18 of 26` and `30 / 7 / 22 of 59`,
+which is what the first pass of this report quoted. Neither figure is this
+handoff's doing; both were re-derived with the one computing command rather than
+copied.
 
 ## Findings
 
@@ -223,6 +234,29 @@ that stayed green could not be declared, because no check goes red on them; that
 is what finding 2 is for. I also added `W` to the sheet-1 context's
 lettered-dimension list, which reads as exhaustive and omitted a dimension that
 is in the rect.
+
+## After the integration merge
+
+`integration` moved again while I was writing this up (`739f845`, carrying
+`stack_fable_audit` and three sibling issues). Merged into the review branch —
+**clean, no conflicts** — and everything above re-verified on the result
+(`27a9db0`), because that handoff changed stack and topology **data**, which the
+checklist is explicit is a viewer-test change that `pytest -q` alone is
+structurally blind to:
+
+- `pytest -q`: **1153 passed, 1 skipped**, same single pre-existing red, same
+  one-item list.
+- all three projections rebuilt from the merged tree into the scratch root;
+  crops now resolve **46 of 61** stack citations (was 35 of 59 — the audit added
+  citations) and 6 of 24 topology ones, **42 sha256-verified, 0 mismatched**.
+- fast **327/327**; `--repo C:/tsrev` **407/407**; browser **20/20**; mutation
+  **26/27**, the one NOT WITNESSED being `card-layout-out-of-flow` again and my
+  new `crop-carries-the-boxes-worth-looking-at` witnessed.
+- the four balloon crops are still the same four, still on the find numbers their
+  citations name (60, 32, 34, 29), and no citation has fallen through to
+  `page_context` (0 live instances — that branch is reachable only when a sheet
+  declares a context and no region matches, which no live citation does today).
+- the traced ratio moved; see check 7 above, where both figures are recorded.
 
 ## For the next reviewer
 
