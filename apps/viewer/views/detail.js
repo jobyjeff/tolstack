@@ -184,7 +184,10 @@
     // shared builder exists to stop. It also brought two fixes with it: the
     // "open the PDF" link renders only where this origin can follow it, and
     // the absolute path is gone.
-    VA.cropReference(box, entry, config, "detail__crop");
+    // The prefix carries its own separator (see VA.cropReference): this pane's
+    // classes are `detail__crop-head` / `-links`, one hyphen, not the
+    // double-underscore the popover uses.
+    VA.cropReference(box, entry, config, "detail__crop-");
     return box;
   }
 })(window.ViewerApp = window.ViewerApp || {});

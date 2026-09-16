@@ -251,7 +251,32 @@ wrong.
 | --- | --- |
 | `node apps/viewer/run_tests.cjs` | 373/373 (299 + 74 new; the `[real]` tier runs off this worktree's own projection) |
 | `venv-win/Scripts/python.exe -m pytest -q` | 1091 passed / 1 failed — the failure is master's (§7) |
-| `node scripts/run_viewer_browser_tests.mjs --repo <this worktree>` | see the report; the pane divider, the folded provenance and the origin rule are all measured there |
+| `node scripts/run_viewer_browser_tests.mjs --repo <this worktree>` | **19/19 suites**, both origins; `[suite]` 293/293 on each, `[topology]` 179/179 on each |
+| `node scripts/run_mutation_witness_tests.mjs --repo <this worktree>` | see the report |
+
+Four guards mutation-checked, each reddening a **named** test rather than
+the suite: printing the part id (17 tests redden; the declared witness is the
+fixture-tier statement of the rule, so it needs no projection), dropping the
+origin gate on the PDF link, re-adding the absolute path to the shared crop
+block, and flipping the pane drag's sign. Checked by hand first, then
+**declared in `scripts/mutation_witnesses.json`** so they are checked on every
+run of that tier rather than once by me -- which is the whole argument of the
+tier `guard_mutation_witness_tier` built, and this pass produced two more
+instances of exactly the failure it was built for (§5, and the 8 browser
+checks above).
+
+The four entries carry `issue: null`, which is the honest value: they came out
+of a review, not out of a filed bug. `test_the_issue_each_entry_cites_is_in_the
+_tree` would otherwise have to accept a `docs/sessions/active/` path, and that
+path moves to `completed/` at Complete -- so citing a live handoff there is a
+guaranteed future red. The pointer is in each entry's `note` instead.
+
+**Eight browser-tier checks had to change**, and every one of them is worth
+reading as a statement about this pass rather than as churn: three asserted
+the absolute path or the crop-key claim that went; two asserted the old
+export wording; one asserted a click-through unconditionally when it is now
+origin-dependent; and two clicked `td.tvcell--component` filtered on
+`/^base$/` — the part's **id**, which is the whole complaint.
 
 ## Environment notes
 

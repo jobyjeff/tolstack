@@ -6692,9 +6692,10 @@
             return resolvedCrops(c).map(function (e) { return e.located_by; });
           } },
         { field: "crop entry status",
-          branch: "VA.cropFor + unresolvedHeadline in views/crop.js + the " +
-            ".croppop--* rules in index.html. `unresolvable` is the DEFAULT arm, " +
-            "so a new status renders as 'Crop unresolvable' — a lie, not a gap",
+          branch: "VA.cropFor + VA.cropUnresolvedHeadline in views/crop.js + " +
+            "the .croppop--* rules in index.html. `unresolvable` is the " +
+            "DEFAULT arm, so a new status renders as \"this citation could not " +
+            "be pinned to a page\" — a lie, not a gap",
           known: inList(["resolved", "unresolvable", "not-built", "no-entry"]),
           values: function (r, c) {
             return cropEntriesIn(c).map(function (e) { return e.status; });

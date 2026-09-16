@@ -2920,7 +2920,9 @@ async function testAnnotateFlyout(browser, fileBase, label) {
     // nothing at all: the card still renders its identity, minus a link that
     // would have dead-ended in the annotator's empty state.
     await page.locator("#flyout-close").click();
-    await page.locator("td.tvcell--component").filter({ hasText: /^base$/ })
+    // The merged cell prints the part's NAME, not its id, since 2026-09-15
+    // (VA.componentLabel) -- `base` was the id and is nowhere a reader reads.
+    await page.locator("td.tvcell--component").filter({ hasText: /^base plate$/ })
       .first().click();
     await page.waitForSelector("#croppop button.hovercard__3d", { timeout: 5000 });
     push("a component card's 3D affordance is a flyout button, not a new-tab link",
@@ -2971,7 +2973,9 @@ async function testAnnotateFlyout(browser, fileBase, label) {
     push("under file:// the edge pane keeps the annotate-this link",
       await page.locator("a.detail__annotate-link").count() === 1 &&
       await page.locator("button.detail__annotate-btn").count() === 0);
-    await page.locator("td.tvcell--component").filter({ hasText: /^base$/ })
+    // The merged cell prints the part's NAME, not its id, since 2026-09-15
+    // (VA.componentLabel) -- `base` was the id and is nowhere a reader reads.
+    await page.locator("td.tvcell--component").filter({ hasText: /^base plate$/ })
       .first().click();
     await page.waitForSelector("#croppop a.hovercard__3d", { timeout: 5000 });
     push("under file:// a card's 3D affordance stays the plain new-tab link",

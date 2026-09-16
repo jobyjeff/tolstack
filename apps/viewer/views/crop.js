@@ -127,12 +127,18 @@
     return root;
   };
 
-  // Shared with views/cards.js: an unresolved state's one-line headline. The
-  // four states are VA.cropFor's, and the wording is the popover's original.
+  // Shared with views/cards.js and views/detail.js: an unresolved state's
+  // one-line headline. The four states are VA.cropFor's.
+  //
+  // Reworded 2026-09-15 with the rest of this surface: it said "the crop
+  // projection has not been built" and "the crop index is stale", and a
+  // reader of this page has no way to know what a projection or an index is
+  // here. Each still says which of the distinct "no crop" facts applies --
+  // that is the whole reason there are three of them rather than one.
   VA.cropUnresolvedHeadline = function (status) {
-    if (status === "not-built") return "No crop — the crop projection has not been built";
-    if (status === "no-entry") return "No crop — the crop index is stale";
-    return "Crop unresolvable";
+    if (status === "not-built") return "No crop — none have been prepared yet";
+    if (status === "no-entry") return "No crop — the prepared crops are out of date";
+    return "No crop — this citation could not be pinned to a page";
   };
 
   function anchor(href, text, title) {
