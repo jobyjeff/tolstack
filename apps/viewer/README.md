@@ -241,10 +241,15 @@ carriers).
   crop-bearing row gets no thumbnail and no slot — the component card's rule,
   unchanged. There is never a crop *of the interface itself*: an interface is
   a location, not a value, and the card says so. **The preview pane the same
-  dot's click fills names the same derived sides** (`VA.nodeSideIds`, the id
-  form of the one adjacency) — it printed the authored `parts` list until
-  handoff `surfaces_that_state_something_false`, which is 10 of the 46 live
-  nodes answering differently hovered and clicked.
+  dot's click fills names the same derived sides** — and, since 2026-09-15,
+  names them the same WAY: `VA.nodeSideLabels` returns the part's own
+  `VA.componentLabel` text, so there is one label style where there were two
+  (ids in the pane, names on the card) and the two can no longer read
+  differently about the same interface. The pane printed the authored `parts`
+  list until handoff `surfaces_that_state_something_false`, which is 10 of the
+  46 live nodes answering differently hovered and clicked — a count whose own
+  wording is contested and owned elsewhere
+  (`docs/issues/ISSUE_20260915_the_viewer_readmes_10_of_46_node_divergence_count_is_unguarded_and_counts_the_wrong_thing.md`).
 - **Citation card** — on the sourcing confidence chip, in **both** modes (the
   topology grid's chips cell and the classic elements table's sourcing cell).
   The spec-sheet reference: the where-ref, the callout as printed, the note in
@@ -256,8 +261,10 @@ Outbound deep links from cards: the drawing-checker **run** page wherever a
 crop resolved through a run (`/run/<run_dir>`, `VA.runUrl` — the immutable
 per-version URL; the evergreen `/container/<id>` needs a container id nothing
 in the projections carries yet, a recorded gap), the source PDF as `file://`
-link + copyable path (for a spec-pile crop that path IS the spec pile), and
-the annotator (`../annotate/index.html?…`, the existing relative shape).
+link — **only on a `file://` origin**, where a `file:` navigation can actually
+happen (see "Open the PDF only renders where the origin can follow it" below;
+the copyable path that used to sit beside it is gone) — and the annotator
+(`../annotate/index.html?…`, the existing relative shape).
 
 ### The stale-pair alarm never prints a command (`viewer_rebuild_affordance`)
 
@@ -565,9 +572,17 @@ measured in every combination of them.
 on this page that survives a reload.** A full-height divider on its left edge
 (`#detail-divider`), dragged or nudged with the arrow keys, clamped by
 `VA.TOPO_PANE_WIDTH`, remembered in `localStorage` under one key
-(`VA.PANE_WIDTH_KEY`). Jeff asked for both halves — *"the right preview pane is
-resizable. It's too narrow"* — so its default width went up with the drag: a
-resizable pane that still opens too narrow is half a fix.
+(`VA.PANE_WIDTH_KEY`).
+
+Its **default** width did not change, and that is a measured decision rather
+than a reading of the ask. It went to 560px with the drag and came straight
+back: the centre pane is then 133px narrower, the grid's content overflows it
+horizontally either way (fixed-width head table, no inner scrollport by
+design), and a widened jog zone put its own drag grip *underneath* the preview
+pane, where a pointer reaches the pane and not the grip. The browser tier
+caught it on `pitch_system` at 1600px wide. A reader can still reach that state
+by dragging this pane open, so the interaction is filed rather than papered
+over: `docs/issues/ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md`.
 
 The other four preferences (density, the two leader settings, the jog zone's
 width) still do **not** persist, and that asymmetry is deliberate rather than

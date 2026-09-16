@@ -554,11 +554,20 @@ body { display: flex; flex-direction: column; }
    remembered width is written as an INLINE width over this rule, and a page
    with nothing remembered sets no inline width at all rather than restating
    this number in JS. (The bounds a drag is clamped to have their own one
-   place: VA.TOPO_PANE_WIDTH, views/topology.js.) Raised from 430px on
-   2026-09-15 with the drag itself -- a resizable pane that still opens too
-   narrow is half a fix. */
+   place: VA.TOPO_PANE_WIDTH, views/topology.js.)
+
+   It went to 560px on 2026-09-15 with the drag and came straight back, which
+   is worth recording rather than quietly reverting: at 560 the centre pane is
+   133px narrower, and the grid's content overflows it horizontally either way
+   (the head table is fixed-width and this page has no inner scrollport by
+   design) -- so a widened jog zone put its own drag grip UNDERNEATH this pane,
+   where a pointer reaches the pane and not the grip. The browser tier caught
+   it on pitch_system at 1600px wide with the zone at 5.5x. A reader can still
+   reach that state by dragging this pane open, so the interaction is filed
+   rather than fixed here:
+   ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md. */
 .tv .detail {
-  width: 560px; flex: none; overflow: visible; align-self: stretch;
+  width: 430px; flex: none; overflow: visible; align-self: stretch;
   /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:
      calc(100vh - 47px); overflow: auto` (style.css:365-368) assumes the pane
      starts 47px below the viewport top and owns its own scrollport — true for

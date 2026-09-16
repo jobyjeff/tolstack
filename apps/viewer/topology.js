@@ -2076,30 +2076,32 @@
   // it is named rather than skipped -- and named in the grid's own words.
   VA.CLEARANCE_SIDE_LABEL = "a clearance";
 
+  // An interface in a reader's words. Same rule as VA.componentLabel: the
+  // authored name, and the id only where a projection names a node the graph
+  // does not declare -- which is a diagnostic, not a label.
+  VA.nodeLabel = function (topoProj, nodeId) {
+    var node = VA.topologyIndex(topoProj).nodes[nodeId];
+    return (node && node.name) || String(nodeId);
+  };
+
   // The words the preview pane prints for a node's sides. ONE label style
   // now, and ONE derivation: this returns the same `VA.componentLabel` text
   // the grid's merged cell and the node card's side list print, off the same
   // `VA.nodeAdjacentParts` adjacency, so no two surfaces can disagree about
   // either WHICH sides a node has or what to call them.
   //
-  // It returned part IDS until 2026-09-15, because a live part name ran to
-  // eighty characters and a pane heading had no room for two of them. The
-  // names are short noun phrases now (VA.componentLabel), and an id is not a
-  // label -- see that function.
+  // It returned part IDS until 2026-09-15 -- and was named `nodeSideIds` for
+  // it -- because a live part name ran to eighty characters and a pane heading
+  // had no room for two of them. The names are short noun phrases now
+  // (VA.componentLabel), and an id is not a label: see that function.
   //
   // (The adjacency half of this is handoff surfaces_that_state_something_
-  // false: the pane printed the node's AUTHORED `parts` here, and 10 of the
-  // 46 live nodes disagreed with their own hover card, because a node against
-  // a `gap` edge has a clearance for a side and an authored parts list cannot
-  // name one.)
-  // An interface in a reader's words. Same rule as VA.componentLabel: the
-  // authored name, the id only where a projection names a node the graph
-  // does not declare (which is a diagnostic, not a label).
-  VA.nodeLabel = function (topoProj, nodeId) {
-    var node = VA.topologyIndex(topoProj).nodes[nodeId];
-    return (node && node.name) || String(nodeId);
-  };
-
+  // false: the pane printed the node's AUTHORED `parts` here, and live nodes
+  // disagreed with their own hover card, because a node against a `gap` edge
+  // has a clearance for a side and an authored parts list cannot name one.
+  // How MANY is a contested number owned elsewhere -- ISSUE_20260915_the_
+  // viewer_readmes_10_of_46_node_divergence_count_is_unguarded_and_counts_
+  // the_wrong_thing.md -- so it is not restated here.)
   VA.nodeSideLabels = function (topoProj, nodeId) {
     var parts = VA.topologyIndex(topoProj).parts;
     return (VA.nodeAdjacentParts(topoProj)[nodeId] || []).map(function (part) {

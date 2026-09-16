@@ -535,9 +535,10 @@ async function testTheApp(browser, url, label) {
     push("the selected row is visibly marked",
       await page.locator("tr.el-row--selected").count() === 1);
     await page.waitForSelector(".detail__crop-img", { timeout: 5000 });
-    push("an established export names its file and its sha in the right pane",
-      /export established/.test(await page.locator(".el-export--established").textContent()) &&
-      /sha256 recorded/.test(await page.locator(".el-export--established").textContent()));
+    push("an established export names its file and its checksum in the right pane",
+      /Read from 215197\.pdf/.test(await page.locator(".el-export--established").textContent()) &&
+      /pinned to this exact file, by checksum/
+        .test(await page.locator(".el-export--established").textContent()));
     push("the crop renders inline in the right pane, not only behind a hover",
       await page.locator(".detail__crop-img").count() === 1);
 
@@ -566,7 +567,7 @@ async function testTheApp(browser, url, label) {
     const identity = page.locator(".el-export--identity_rule");
     push("the spec-pile row states its identity rule",
       await identity.count() === 1 &&
-      /identity by filename \(append-only pile\)/.test(await identity.textContent()));
+      /identified by its filename/.test(await identity.textContent()));
     const identitySpine = await identity.first()
       .evaluate((n) => getComputedStyle(n).borderLeftColor);
     push("the spec-pile spine is not the no-export grey",
@@ -614,8 +615,18 @@ async function testTheApp(browser, url, label) {
       return /read from the export this citation names/
         .test(await page.locator(".croppop details.provfold").textContent());
     })());
-    push("the popover offers a click-through to the reference",
-      await page.locator(".croppop__link").count() >= 1);
+    // ORIGIN-DEPENDENT, and that is the feature: the only click-through this
+    // crop has is the PDF (no drawing-checker run is behind it), and Chrome
+    // refuses a `file:` navigation from an http(s) page -- so on a served
+    // origin there is nothing to offer and nothing is rendered, rather than a
+    // control that does nothing (VA.originOpensLocalFiles). Measured
+    // 2026-09-15; this check asserted >= 1 unconditionally and passed only
+    // under file://.
+    const opensLocalFiles = await page.evaluate(
+      () => window.ViewerApp.originOpensLocalFiles(window.location.protocol));
+    push(`the popover offers a click-through where this origin can follow one ` +
+      `(${opensLocalFiles ? "file://, so yes" : "served, so nothing at all"})`,
+      (await page.locator(".croppop__link").count() >= 1) === opensLocalFiles);
 
     // Escape closes it — and it has to, because an open popover overlays the
     // rows underneath (Playwright's "intercepts pointer events" is the reader's
@@ -950,6 +961,25 @@ const CARD_LAYOUT_VIEWPORT = { width: 1600, height: 700 };
 // popover_again, and the comment on the block that uses it. Same width as the
 // other two, so nothing reflows horizontally when the suite switches.
 const CARD_SCROLL_VIEWPORT = { width: 1600, height: 560 };
+// ...and a FOURTH, for the ROOM CAP's own tripwire: the cap can only be
+// observed where the card wants more height than either side of its trigger
+// can give it, and on 2026-09-15 the card stopped being tall enough for
+// CARD_LAYOUT_VIEWPORT to produce that. The edge card lost about 60px that day
+// (viewer_component_names_and_reference_copy): the crop-key line, the absolute
+// path and the open provenance line all left it, the last of the three into a
+// closed disclosure. Measured on `?mock=1` for base_thickness' grid trigger,
+// 1600 wide, card content 442px throughout:
+//
+//   height 700 -> trigger at 459.5, room above 443.5: the card FITS. No cap,
+//                 nothing scrolls, and the contracts below are vacuous.
+//   height 440 -> trigger at 413.5, room above 397.5: capped to 397.5 with
+//                 442px of content inside it. 44px of margin, which is what
+//                 keeps this from going vacuous again on a one-line change.
+//
+// Shortening the window rather than lengthening the card is the remedy the
+// tripwire's own comment names, and it is the honest one: the card is shorter
+// because it says less, and it says less on purpose.
+const CARD_CAP_VIEWPORT = { width: 1600, height: 440 };
 // The one trigger every card-layout contract below is measured on: the demo
 // mechanism's one resolved crop, whose edge card is the tall one.
 const CARD_TRIGGER = "tr.tvrow[data-id='base_thickness'] button.crop-trigger";
@@ -1193,7 +1223,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // out of flow it cannot. Measured 2026-09-11: 700 -> 889 with `.croppop`
     // back on `position: absolute` and `position()` back on scroll offsets,
     // 700 -> 700 as shipped.
-    await page.setViewportSize(CARD_LAYOUT_VIEWPORT);
+    await page.setViewportSize(CARD_CAP_VIEWPORT);
+    await page.waitForTimeout(450);
     const beforeCard = await cardLayout();
     // hover, not click: a click also SELECTS the row (its normal job), and the
     // detail pane repopulating is legitimate layout movement that would drown
@@ -1329,8 +1360,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.locator("tr.tvrow[data-id='base_thickness'] span.cardtrig").hover();
     await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
     const citationText = await page.locator(".croppop").textContent();
-    push("the confidence chip opens the citation card with the export block",
-      /215197/.test(citationText) && /export established/.test(citationText));
+    push("the confidence chip opens the citation card with the file it was read from",
+      /215197/.test(citationText) && /Read from 215197\.pdf/.test(citationText));
     await page.keyboard.press("Escape");
 
     // The component card, from the merged component cell: part identity plus
@@ -1969,6 +2000,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
       // reset them -- the rule density and the length modes already follow.
       const zone = () => page.evaluate(ZONE_IN_PAGE);
+      // The clamp's own ceiling, read from the app rather than written here:
+      // a zone already AT it cannot widen, and a drag that cannot widen is
+      // not a broken drag (VA.JOG_ZONE_SCALE, topology.js).
+      const VA_JOG_MAX = await page.evaluate(() => window.ViewerApp.JOG_ZONE_SCALE.max);
       const before = await zone();
       // Not asserted to be 1: the mock block above dragged it, and the app's
       // state module survives the fixture swap and re-boot this tier does --
@@ -1985,9 +2020,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       await page.mouse.up();
       await page.waitForTimeout(80);
       const dragged = await zone();
-      push("[real] pitch_system's jog zone drags open, leaders still on their " +
-        "dots and seams",
-        dragged.scale > 1.5 && dragged.svg > before.svg + 100 &&
+      // Three claims, three named checks (split 2026-09-15): as one `&&` this
+      // reported a bare FAIL and gave no way to tell a drag that did not take
+      // from a correspondence that broke -- which cost a session an hour of
+      // probe scripts. The numbers are in each name.
+      push(`[real] pitch_system's jog zone drags open (scale ${before.scale.toFixed(2)} ` +
+        `-> ${dragged.scale.toFixed(2)}, ceiling ${VA_JOG_MAX})`,
+        dragged.scale > 1.5 && dragged.scale > before.scale);
+      push(`[real] and the SVG really widened with it (${before.svg} -> ${dragged.svg}px)`,
+        dragged.svg > before.svg + 100);
+      push("[real] leaders still land on their dots and seams in the widened zone",
         (await correspondence()).drift.length === 0);
 
       // The leader STYLE is the third preference in that rule, and it is the
@@ -2656,9 +2698,15 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
         await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 15000 });
         const cardText = await page.locator(".croppop").textContent();
         push("[real] hovering the edge shows the crop card with the real image " +
-          "and the topology-space claim",
+          "and the document it is a crop OF",
           await page.locator(".hovercard--edge img.croppop__img").count() === 1 &&
-          /authored in topology `pitch_system`/.test(cardText));
+          // The reference, in a reader's words. This asserted the crop-KEY
+          // claim here until 2026-09-15 ("authored in topology
+          // `pitch_system`") -- which of the crop index's two key spaces
+          // answered, in the topology's id, above a picture that names its
+          // own document on the line below.
+          /\.pdf · sheet \d/.test(cardText) &&
+          !/authored in topology/.test(cardText));
         await page.keyboard.press("Escape");
 
         // The DoD's own sentence, on the real graph (viewer_dag_hover_cards):
