@@ -2742,9 +2742,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
         or an `index.html` `.gap--*` / `.croppop--*` block, **re-read the matching
         `inList` by hand**; nothing pairs them.
       Also check the companion test `[real] each value guard bites when fed a value
-      nothing can explain` still covers every row — a guard whose `known` accepts
-      anything is documentation, which is precisely the state `VA.CROP_RULES` was in
-      for the four days the original bug shipped. And know the tier's reach: it
+      nothing can explain, and on finding no value at all` still covers every row —
+      a guard whose `known` accepts anything is documentation, which is precisely
+      the state `VA.CROP_RULES` was in for the four days the original bug shipped.
+      That test replays **both** arms of the shared `unexplainedValues` per row
+      (2026-09-15, `viewer_value_guard_rows_and_replays`): the unknown value, and
+      the **collector that comes back empty**, which is the arm a renamed builder
+      key or a reshaped `crops.json` trips and the one a bite test forgets. The
+      topology table's companion is the same shape and the same helper.
+      And know the tier's reach: it
       reads **live data only**, so a value that exists only in `fixtures.js`
       (`values_status: "not_transcribed"`, `export.status: "unestablished"`) is
       unguarded by it by construction.
