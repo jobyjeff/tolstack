@@ -8189,7 +8189,7 @@
         await test("[real] every live dot answers the SAME on hover and on " +
           "click, and no live node declares a part it is not incident on",
           function () {
-            var divergedFromDeclared = 0, nodes = 0;
+            var divergedFromDeclared = 0, divergedAsSet = 0, nodes = 0;
             realTopologies.topologies.forEach(function (topoProj) {
               (topoProj.nodes || []).forEach(function (node) {
                 nodes += 1;
@@ -8224,8 +8224,20 @@
                     "`, which no edge incident on it carries: an authoring " +
                     "error in the topology document, not a display bug");
                 });
+                // TWO counts, because two different claims get made about
+                // this. `divergedFromDeclared` is the STRING count — what the
+                // reader of the pane actually sees change — and it counts the
+                // same two parts in the opposite order as a difference, which
+                // it is. `divergedAsSet` is the smaller MEMBERSHIP count. The
+                // documents used to print the second under the first's
+                // wording; keeping both here is what lets each sentence be
+                // paired to the number it is really making a claim about.
                 if ((node.parts || []).join("|") !== sideIds.join("|")) {
                   divergedFromDeclared += 1;
+                }
+                if ((node.parts || []).slice().sort().join("|") !==
+                    sideIds.slice().sort().join("|")) {
+                  divergedAsSet += 1;
                 }
               });
             });
@@ -8236,6 +8248,53 @@
               "from its derived sides, so the divergence this test exists for " +
               "went unexercised");
             ok(nodes > 0, "no live nodes at all — rebuild topologies.json");
+
+            // The published digits, paired. `17` and `46` are properties of
+            // data/projections/viewer/topologies.json: add a node or a gap
+            // edge and both documents go stale in silence unless something
+            // re-derives them. Third sighting on apps/viewer/README.md in two
+            // weeks, and the pattern copied here is its own — the spine/fit/
+            // centring pairing three tests down regexes the sentence out of
+            // VIEWER_SRC.readText and asserts against the live projection.
+            //
+            // The noun is pinned too, not just the digit: the README's `10`
+            // was a membership count printed under a string claim, so a
+            // pairing that only checked "some number" would have passed it.
+            var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+            ok(src, "VIEWER_SRC must be injected for the doc pairing");
+
+            var readme = src.readText("README.md");
+            ok(readme, "apps/viewer/README.md must be readable");
+            var hovered =
+              /which is (\d+) of the\s+(\d+) live\s+nodes answering differently hovered and clicked/
+                .exec(readme);
+            ok(hovered, "expected the README's hover-card divergence sentence");
+            eq(Number(hovered[1]), divergedFromDeclared,
+               "README's count of nodes answering differently hovered and " +
+               "clicked — that wording is the STRING count, not the membership one");
+            eq(Number(hovered[2]), nodes, "README's live node total");
+
+            // The same sentence's copy in the code, which is where the next
+            // person editing renderNodeDetail reads it.
+            var view = src.readText("views/topology.js");
+            ok(view, "apps/viewer/views/topology.js must be readable");
+            var commented =
+              /on (\d+) of the (\d+) live nodes the same dot answered differently/
+                .exec(view);
+            ok(commented, "expected renderNodeDetail's divergence comment");
+            eq(Number(commented[1]), divergedFromDeclared,
+               "renderNodeDetail's comment must state the same number as the " +
+               "README, under the same noun");
+            eq(Number(commented[2]), nodes, "renderNodeDetail's live node total");
+            var asSet = /(\d+) is the smaller count of nodes that differ as a/
+              .exec(view);
+            ok(asSet, "expected renderNodeDetail's membership-count aside");
+            eq(Number(asSet[1]), divergedAsSet,
+               "renderNodeDetail's membership count");
+            var reordered = /The other (\d+) name the same two parts/.exec(view);
+            ok(reordered, "expected renderNodeDetail's same-set-different-order aside");
+            eq(Number(reordered[1]), divergedFromDeclared - divergedAsSet,
+               "renderNodeDetail's count of same-set, different-order nodes");
           });
 
         await test("[real] a live bar's card is the same card its grid trigger " +
