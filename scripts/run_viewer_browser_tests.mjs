@@ -3462,12 +3462,57 @@ async function testAnnotateFlyout(browser, fileBase, label) {
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  // The respine transition, waited out -- the same wait every other suite
+  // that addresses this pane already uses, and the one wait this suite was
+  // missing. Selecting a study re-serialises the pane, and
+  // VA.animateTopoPane cross-fades to it by RE-PARENTING the outgoing paint
+  // into an inert `div.tv__ghost` overlay for VA.RESPINE.duration (260 ms,
+  // apps/viewer/topology.js). For that window the document holds TWO
+  // `.tv__hscroll` panes, so every edge present in both serialisations has
+  // two `tr.tvrow` carrying the same `data-id`, and a bare
+  // `tr.tvrow[data-id=...]` locator is a strict-mode violation.
+  //
+  // That is arithmetic, not flake. Measured on this suite: the study click
+  // lands at page time 264 ms and the `arm_pin_to_tip` click at 459 ms --
+  // about 200 ms into a 260 ms transition. Whether a run is red is only
+  // whether the six Playwright actions between those two take more or less
+  // than 260 ms, which is the whole of why this suite was green in a full
+  // run and red on its own
+  // (ISSUE_20260915_annotate_flyout_suite_is_red_alone_and_green_in_a_full_run).
+  // Nothing is shared between suites and nothing renders twice.
+  //
+  // NOT a fixed timeout, and NOT a ghost-excluding locator. The ghost is
+  // the state to wait out, so wait on the page's own record of it: a pane
+  // that never settles then FAILS here, where a locator scoped past the
+  // ghost would have found its one live row and passed straight over it.
+  //
+  // Swallowed and reported rather than thrown, the same choice the embedded
+  // annotator's banner wait below makes and for the same reason: a timeout
+  // thrown from here takes the suite down as an ERROR, which carries no
+  // check name, so the mutation-witness tier reads it as a MISS instead of
+  // the red it is (scripts/mutation_witnesses.json, "ONE THING AN ENTRY
+  // CANNOT DECLARE"). A pane that never settles has to fail with a name on
+  // it.
+  const paneSettled = async () => {
+    try {
+      await page.waitForFunction(
+        () => window.ViewerApp && window.ViewerApp.lastTopoRender &&
+              !window.ViewerApp.lastTopoRender.tweening,
+        null, { timeout: 10000 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
   try {
     // --- mounted: the sibling annotate app is served beside the viewer ------
     await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("#study-3d", { timeout: 15000 });
+    push("the study's respine transition settles before any of its rows " +
+      "are addressed -- no ghost of the walk still holds a second copy of them",
+      await paneSettled());
     push("the probe upgrades the study affordance to the View-in-3D button",
       await page.locator("#study-3d").count() === 1 &&
       await page.locator("#toolbar a").count() === 0);
@@ -3586,7 +3631,13 @@ async function testAnnotateFlyout(browser, fileBase, label) {
     await page.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     await page.locator(navRow("study", "demo_base_to_tip")).click();
-    await page.waitForTimeout(300); // the probe resolves false immediately; give render a beat
+    await paneSettled();
+    // The respine is waited out above. This beat is for the OTHER thing the
+    // click starts -- the annotate-mount probe, which resolves false at once
+    // under file:// and re-renders the toolbar when it lands. It was never a
+    // stand-in for the transition: 300 ms happens to clear the 260 ms
+    // duration, which is the only reason THIS half never failed.
+    await page.waitForTimeout(300);
     push("under file:// the study affordance stays the pre-flyout link",
       await page.locator("#study-3d").count() === 0 &&
       await page.locator("#toolbar a").count() === 1);
