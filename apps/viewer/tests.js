@@ -67,6 +67,24 @@
       return (" " + String(raw || "") + " ").indexOf(" " + cls + " ") !== -1;
     }
 
+    // Every class in a crop block that joined VA.cropReference's `classPrefix`
+    // straight onto its suffix with nothing between them. Module-level beside
+    // hasClass because BOTH panes that pass a prefix are guarded with it, and
+    // they are 5,000 lines apart.
+    function unseparatedPrefixes(root) {
+      return all(root, "*").map(function (node) {
+        var raw = node.getAttribute("class");
+        if (raw === null || raw === undefined) raw = node.className;
+        if (raw && typeof raw === "object") raw = raw.baseVal;
+        return String(raw || "");
+      }).join(" ").split(/\s+/).filter(function (cls) {
+        // `detail__crop`, `detail__crop--resolved` and `detail__crop-head` are
+        // all right; `detail__crophead` is the defect, and a letter straight
+        // after the prefix is exactly what tells them apart.
+        return /^detail__crop[a-z]/.test(cls);
+      });
+    }
+
     // --- formatting: the no-second-arithmetic rule -------------------------
 
     await test("fmt prints a projection number verbatim, with no rounding", function () {
@@ -1445,6 +1463,41 @@
       eq(img[0].style.aspectRatio, "800 / 600");
       has(root.textContent, "sheet 2");
       has(root.textContent, "read from the export this citation names");
+    });
+
+    // --- VA.cropReference's `classPrefix`, the argument with no shape --------
+    //
+    // The prefix carries its own SEPARATOR: "croppop__" for the popover and
+    // the hover cards, "detail__crop-" for this pane and the topology preview
+    // pane. Four surfaces, three call sites, and one character is the whole
+    // difference between a styled block and an unstyled one -- which is a bug
+    // viewer_component_names_and_reference_copy shipped once and caught by
+    // eye, `detail__crop` rendering `detail__crophead` and `detail__croplinks`.
+    // Replayed in review on 2026-09-15 with that one character removed again:
+    // the fast tier passed 386/386 and the browser tier 33/33, because every
+    // assertion on this block reads `textContent`, which is exactly right for
+    // copy and exactly blind to this.
+    //
+    // The negative half is what makes it bite: the block still renders, still
+    // says the same words, and still has the same children -- only their class
+    // names moved.
+    //
+    // The negative half is also written as a SWEEP rather than as two named
+    // selectors, and that is not neatness. `VA.cropReference` appends its links
+    // row only when there is a link to put in it, and whether there is depends
+    // on the ORIGIN (VA.localFileUrl withholds a file:// link from a served
+    // page) -- so `div.detail__crop-links` is legitimately absent over http,
+    // and this suite runs in both. What is true at every origin is that no
+    // class in the block may join the prefix to its suffix with nothing
+    // between them.
+    await test("the stack pane's crop block carries THIS pane's class prefix, " +
+      "separator and all", function () {
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "plate", CROPS, { url: "blob:x" }, VA.CONFIG);
+      });
+      eq(all(root, "div.detail__crop-head").length, 1);
+      eq(unseparatedPrefixes(root), [],
+         "the prefix lost its separator: the block renders unstyled");
     });
 
     await test("the panel names which of the four crop states applies when there is no image",
@@ -6463,6 +6516,22 @@
         has(stale.textContent, "older than this stack");
       });
 
+    // The second of VA.cropReference's two `detail__crop-` call sites -- the
+    // stack pane's is beside its own crop test. Same contract, asserted per
+    // surface rather than once, because the prefix is passed per call site and
+    // a wrong one on either pane is invisible to the other's test.
+    await test("the topology preview pane's crop block carries THIS pane's " +
+      "class prefix, separator and all", function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "base_thickness" },
+            detailImage: { url: "blob:x", name: "x.png" } }));
+        });
+        eq(all(root, "div.detail__crop-head").length, 1);
+        eq(unseparatedPrefixes(root), [],
+           "the prefix lost its separator: the block renders unstyled");
+      });
+
     await test("the pane shows a selected edge's place in the study's sum",
       function () {
         var root = render(function (r) {
@@ -7424,6 +7493,34 @@
         return cropEntriesIn(c).filter(function (e) { return e.status === "resolved"; });
       }
 
+      // Every crop entry of BOTH of the index's key spaces, `by_stack` and
+      // `by_topology`. Deliberately NOT a broadening of `cropEntriesIn`
+      // above, which walks `by_stack` only: three rows already read their live
+      // value sets through that function, and widening it to close this row's
+      // gap would widen theirs as an invisible side effect. `highlights[]` is
+      // written on both maps by one builder, so the guard that watches it has
+      // to see both.
+      function everyCropEntryIn(c) {
+        return flat([(c && c.by_stack) || {}, (c && c.by_topology) || {}]
+          .map(function (space) {
+            return flat(Object.keys(space).map(function (outerId) {
+              return Object.keys(space[outerId]).map(function (innerId) {
+                return space[outerId][innerId];
+              });
+            }));
+          }));
+      }
+
+      // ...and every box on them: the crop's own, plus the parts-list
+      // companion's, which is a second image with its own `highlights[]`
+      // written by the same builder through the same `highlight()`.
+      function cropHighlightsIn(c) {
+        return flat(everyCropEntryIn(c).map(function (e) {
+          return (e.highlights || []).concat(
+            (e.companion && e.companion.highlights) || []);
+        }));
+      }
+
       // One vocabulary, one list. `worksheet_source` is written by BOTH viewer
       // builders (`scripts/build_viewer_projection.py`'s `worksheet_for` and
       // `scripts/build_topology_projection.py`'s, the same two rules
@@ -7549,6 +7646,36 @@
           values: function (r, c) {
             return cropEntriesIn(c).map(function (e) { return e.status; });
           } },
+        // Added 2026-09-16 (viewer_unwitnessed_surface_guards). `highlights[]`
+        // arrived on 2026-09-15 and every rendered claim about WHERE ON A CROP
+        // TO LOOK now rides on it, with nothing in any live-data guard
+        // watching it: every highlight assertion in this file is fixture-tier,
+        // against entries the test itself builds.
+        //
+        // The arm that needs a guard is the SILENT one, and it is this repo's
+        // twice-bitten shape (VA.VERDICT_SCOPES' missing loud fallback,
+        // partMeshFact's absent `mesh` block): VA.cropHighlights returns []
+        // for an entry with no `highlights`, and filters out any box whose
+        // `frac` is not four numbers. A builder that stopped writing either
+        // makes every overlay on every surface vanish, and the page then reads
+        // as an honest "nothing on this sheet was marked" -- correct for a
+        // whole-sheet crop, a lie for a datasheet crop, and no tier can tell
+        // them apart. The empty-collector arm below is what fires on it.
+        //
+        // The other direction is already covered and needs nothing here:
+        // tests/test_js_python_vocabulary.py pairs VA.CROP_HIGHLIGHT_KINDS
+        // against the importable HIGHLIGHT_KINDS, and `highlight()` refuses a
+        // kind outside it, so a NEW WORD cannot reach crops.json unannounced.
+        { field: "crop entry highlights[].kind, crop and companion alike",
+          branch: "VA.CROP_HIGHLIGHT_KINDS, through views/crop.js's " +
+            "highlightBox — an unknown kind still draws the rect and reads as " +
+            "the weaker claim (.crophl--unlabelled), which is the honest arm. " +
+            "This row is the field going ABSENT, where the drawn claim goes " +
+            "with it and nothing says so",
+          known: function (v) { return !!VA.CROP_HIGHLIGHT_KINDS[v]; },
+          values: function (r, c) {
+            return cropHighlightsIn(c).map(function (h) { return h.kind; });
+          } },
         { field: "stacks[].worksheet_source",
           branch: "views/worksheet.js — only `declared` earns the 'one worksheet " +
             "may cover several stacks' note; `by_name` and null are the silent " +
@@ -7645,6 +7772,47 @@
           // collector blind and the table would report ": no live value found"
           // at runtime with nothing here proving that report ever fires.
           replayBlindCollectors(VALUE_GUARDS, realResults, realCrops);
+        });
+
+      // The value guard above watches the WORD; this watches the BOX. They
+      // fail on different things: a `frac` that stopped being four numbers
+      // leaves every `kind` in the index intact and readable, and
+      // VA.cropHighlights quietly drops the box anyway -- so the page loses
+      // the whole overlay and the guard above sees nothing wrong. Rendering a
+      // live entry is the only thing that notices.
+      await test("[real] a live crop really draws the boxes its own index " +
+        "says are worth looking at", function () {
+          var marked = everyCropEntryIn(realCrops).filter(function (e) {
+            return e.status === "resolved" && (e.highlights || []).length;
+          });
+          // Anti-vacuity, first: the day the builder stops marking anything,
+          // this says so instead of rendering nothing and passing.
+          ok(marked.length >= 4, "the live crop index marks " + marked.length +
+             " crops — nothing left to render a box for");
+          var drawn = 0, kinds = {};
+          marked.forEach(function (entry) {
+            var root = render(function (r) {
+              VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+            });
+            var boxes = all(root, "div.crophl");
+            eq(boxes.length, (entry.highlights || []).length,
+               entry.png + ": the index marks " + entry.highlights.length +
+               " rect(s) and the page drew " + boxes.length);
+            boxes.forEach(function (box) {
+              drawn++;
+              ok(/%$/.test(box.style.width) && /%$/.test(box.style.left),
+                 entry.png + ": a box is positioned in something other than " +
+                 "percentages of the picture");
+            });
+            entry.highlights.forEach(function (h) { kinds[h.kind] = true; });
+          });
+          ok(drawn >= marked.length, "every marked crop drew at least one box");
+          // Both words the builder can write are live, so both render paths
+          // (solid and dashed) are exercised by the loop above rather than
+          // only the one that happens to come first.
+          eq(Object.keys(kinds).sort(), Object.keys(VA.CROP_HIGHLIGHT_KINDS).sort(),
+             "the live index no longer exercises every highlight kind the " +
+             "page has a branch for");
         });
 
       await test("[real] an unresolvable citation carries a reason, never a blank", function () {
@@ -7955,6 +8123,16 @@
         var liveTopos = realTopologies.topologies || [];
         var livePitch = VA.findTopology(realTopologies, "pitch_system");
         var liveL1 = VA.findTopology(realTopologies, "vpa_output_to_pitch_plate");
+        // The only live topology with a zero-width edge on it, which is why the
+        // "no tolerance recorded" badge needs its own handle rather than
+        // extending the unverified test: `pitch_system` has none, and the two
+        // kinds do not co-occur on any one topology
+        // (viewer_study_verdicts_and_gaps' lesson, §3). Measured 2026-09-16:
+        // 2 of this topology's 12 edges, and 0 on each of the other four --
+        // including `pitch_link_to_pitch_plate`, which
+        // ISSUE_20260915_the_grids_no_tolerance_badge_is_unguarded_in_every_tier
+        // credits with 2.
+        var liveRotor = VA.findTopology(realTopologies, "rotor_fastener_length");
 
         await test("[real] both MVP topologies are in the projection", function () {
           ok(liveL1, "the L1 grip stack must be there");
@@ -8958,8 +9136,25 @@
             eq(warn.length, 1);
             has(warn[0].textContent, "no tolerance recorded");
             has(warn[0].textContent, "LOWER bound");
-            has(warn[0].textContent, "MS21299C3");
-            has(warn[0].textContent, "NAS1149V0332H");
+            // The rows it names, DERIVED from the chain rather than spelled
+            // out. Two were spelled out until 2026-09-16, and one of them
+            // stopped being zero-width the day `5ce16f3` gave the
+            // NAS1149V0332H washer the band its two siblings already fold --
+            // which this check went on claiming, invisibly, until the shared
+            // projection was rebuilt (ISSUE_20260916_a_real_check_still_pins_
+            // the_zero_width_washer_the_rotor_citation_fix_removed).
+            var index = VA.topologyIndex(topo);
+            var zeroWidth = ((study.result && study.result.chain) || [])
+              .map(function (row) { return index.edges[row.edge]; })
+              .filter(function (edge) { return edge && edge.zero_width; });
+            ok(zeroWidth.length >= 1, "this study's chain no longer holds a " +
+               "zero-width row, so the warning it is named for cannot appear " +
+               "and this test measures nothing");
+            zeroWidth.forEach(function (edge) {
+              has(warn[0].textContent, edge.name);
+            });
+            has(warn[0].textContent, zeroWidth.length + (
+              zeroWidth.length === 1 ? " dimension" : " dimensions"));
           });
 
         // And the other half of the same move: the stack that USED to raise the
@@ -9127,6 +9322,34 @@
             eq(flagged.length, unverified.length,
                "one badge per unverified row, no more and no fewer");
             has(root.textContent, VA.ATTENTION.unverified.text);
+          });
+
+        // The OTHER half of VA.edgeAttention, and it had nothing standing on
+        // it: viewer_study_verdicts_and_gaps gave these rows their own loud
+        // badge and in the same change removed the `chip--zero-width` chip
+        // that used to mark them. Measured 2026-09-16 by deleting the
+        // `edge.zero_width` line from VA.edgeAttention: 367/367 passed, and
+        // the zero-width marking simply left the grid in every tier.
+        await test("[real] a row whose number has no plus/minus behind it says " +
+          "so in the grid too", function () {
+            var zeroWidth = liveRotor.edges.filter(function (e) {
+              return e.zero_width;
+            });
+            // Its own fixture precondition: the day this topology loses its
+            // zero-width edges, this says so rather than passing vacuously on
+            // a grid with nothing to badge.
+            ok(zeroWidth.length >= 1,
+               "rotor_fastener_length is the only live topology with a " +
+               "zero-width edge — with none, this test measures nothing");
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: liveRotor, study: null, crops: realCrops,
+                selection: null, onSelect: function () {},
+              });
+            });
+            eq(all(root, ".tvflag--no_tolerance").length, zeroWidth.length,
+               "one badge per zero-width row, no more and no fewer");
+            has(root.textContent, VA.ATTENTION.no_tolerance.text);
           });
 
         await test("[real] selecting a study marks its chain on the real rails",
@@ -9910,6 +10133,9 @@
           return topoEdges(p).map(function (e) { return e.dimension; })
             .filter(Boolean);
         }
+        function topoGaps(p) {
+          return flat(topoRows(p).map(function (t) { return t.gaps || []; }));
+        }
 
         var TOPO_SHAPES = [
           { name: "topologies (top level)", collect: function (p) { return [p]; } },
@@ -10115,6 +10341,33 @@
             known: function (v) { return !!VA.VERDICT_SCOPES[v]; },
             values: function (p) {
               return topoStudyChecks(p).map(function (c) { return c.verdict_scope; });
+            } },
+          // Added 2026-09-16 (viewer_unwitnessed_surface_guards). The field
+          // name is spelled out in full on purpose: the STACK projection's
+          // table has a `gaps[].kind` row of its own over a DIFFERENT
+          // projection with a different, shorter vocabulary
+          // (`excluded_from_model`, `hardware_entry`), and the two must not be
+          // read as copies of each other or "fixed" into agreement.
+          //
+          // This row does not close an open hole, and the issue that asked
+          // for it is honest about why it is `low`: the field is already
+          // covered twice over -- tests/test_topology_projection.py's
+          // JS_PAIRINGS pairs VA.GAP_KINDS' keys against the builder's
+          // TOPOLOGY_GAP_KINDS word for word (the EARLIER signal, firing the
+          // moment Python's tuple changes and before any data moves), and a
+          // [real] test above walks every live gap row. What it does is put
+          // `kind` in the same live-data sweep as every other enumerated field
+          // of this projection, reported the same way, so the answer to "is
+          // this field covered?" stops depending on knowing about two other
+          // tests.
+          { field: "topologies[].gaps[].kind",
+            branch: "VA.GAP_KINDS, through VA.topologyGapGroups — all four kinds " +
+              "have a branch and an unknown one is LOUD " +
+              "(VA.unlabelledGapKindText), so the reachable case here is a " +
+              "STALE projection rather than a new word",
+            known: function (v) { return !!VA.GAP_KINDS[v]; },
+            values: function (p) {
+              return topoGaps(p).map(function (g) { return g.kind; });
             } },
           // --- Deliberately NOT rows, and why -----------------------------
           //

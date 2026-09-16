@@ -3082,6 +3082,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       belongs in it and is not?** Derive the candidate set and assert it equals
       the keys, keeping the curated values as the expectations.
 
+- [ ] **An issue filed AND fixed on the same branch, left `status: open` with
+      "close it when this reaches `integration`" in its prose — that
+      instruction is addressed to YOU and nothing else will ever read it.**
+      New 2026-09-16 (`viewer_unwitnessed_surface_guards`). A tactical agent
+      repaired a stale `[real]` pin that was red at its own merge-base (it
+      disabled all 18 `fast`-tier mutation entries, so it was on the critical
+      path, not adjacent to it), filed
+      `ISSUE_20260916_a_real_check_still_pins_the_zero_width_washer_the_rotor_citation_fix_removed.md`
+      for the record — correctly — and closed it with *"Leave this issue open
+      until that branch reaches `integration`; close it then."* Nothing
+      schedules that: the file carries `found_by:` (right for a filing) and
+      **`found_by` gets no dispatch auto-resolution** — only `handoff:`, written
+      at triage, does, and adding `handoff:` here would be the anti-pattern the
+      frontmatter contract spells out. So the issue would sit `open` on the
+      board describing a defect that no longer exists, and a sweep would stage
+      a handoff for it. **On APPROVE, grep the merged tree's `docs/issues/` for
+      issues the branch itself fixes and set them `status: resolved` in your
+      own integration commit** — it is a disposition, which is yours as the
+      merge gate, and it is the mirror image of the "file it before you write
+      APPROVE" rule for what you *didn't* fix.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New

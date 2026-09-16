@@ -1239,6 +1239,41 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     };
   }, triggerSel);
 
+  // The highlight overlay's COORDINATE FRAME, on a card, in a real browser --
+  // the one thing no other tier can look at.
+  //
+  // views/crop.js's `highlightBox` writes `left`/`top`/`width`/`height` as
+  // percentages of `.cropfig`, so every box on a crop is only ever as right as
+  // the assumption that the figure's box IS the picture. A hover card caps its
+  // crop by WIDTH for exactly that reason (style.css, `.hovercard .cropblock
+  // .cropfig`); the `max-height: 260px; object-fit: contain` rule it replaced
+  // capped the height and let the picture inset itself inside an element that
+  // kept the full width, which leaves every highlight pointing into the
+  // letterbox rather than at the cell it names. The fast tier has no geometry
+  // at all, and nothing else in this file opens a card on a crop that carries
+  // a highlight, so the revert is invisible everywhere else.
+  const cropOverlay = () => page.evaluate(() => {
+    const fig = document.querySelector(".hovercard .cropblock .cropfig");
+    const img = fig && fig.querySelector("img.croppop__img");
+    if (!fig || !img) return null;
+    const box = (r) => ({ left: r.left, top: r.top, right: r.right,
+                          bottom: r.bottom, width: r.width, height: r.height });
+    return {
+      img: box(img.getBoundingClientRect()),
+      // The crop's own width/height, as the figure carries it for the cap's
+      // sake -- read from the custom property rather than from the PNG, so
+      // the measurement does not wait on a decode.
+      ratio: parseFloat(getComputedStyle(fig).getPropertyValue("--crop-ratio")),
+      // The width the figure would have taken with no cap at all. Uncapped,
+      // the picture would be this over the ratio tall; if that is not more
+      // than the 260px cap then the cap did nothing here and the contract
+      // below is vacuous.
+      blockWidth: fig.parentElement.getBoundingClientRect().width,
+      highlights: Array.from(fig.querySelectorAll(".crophl"))
+        .map((n) => box(n.getBoundingClientRect())),
+    };
+  });
+
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -1398,6 +1433,35 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       beforeCard.pane === withCard.pane);
     push("leaders still land on their dots and seams with a card open",
       (await correspondence()).drift.length === 0);
+
+    // --- the highlight overlay points at the crop, not past it -------------
+    //
+    // Same open card, measured rather than read. Two tripwires first, because
+    // this contract is only falsifiable where a box exists to mis-place and
+    // where the width cap actually bit.
+    const overlay = await cropOverlay();
+    push("the open card's crop carries a highlight box to measure, and the " +
+      "figure knows the crop's own shape",
+      overlay !== null && overlay.highlights.length >= 1 &&
+      overlay.ratio > 0);
+    push("the card's 260px crop cap really bites here — uncapped this crop " +
+      "would be taller than the cap",
+      overlay.blockWidth / overlay.ratio > 260 &&
+      Math.abs(overlay.img.height - 260) <= 1.5);
+    // The letterbox, stated as the thing a reader would see: the element the
+    // overlay is positioned against still has the crop's own proportions, so
+    // the percentages land on the picture. `object-fit: contain` under a
+    // height cap gives the element the block's full width and the cap's
+    // height, and this ratio is the first thing that stops being true.
+    push("the crop's element IS the picture — its box still carries the " +
+      "crop's own aspect ratio, so a percentage lands where it reads",
+      Math.abs(overlay.img.width / overlay.img.height - overlay.ratio) <
+        overlay.ratio * 0.02);
+    push("every highlight box on the card lands inside the crop image it " +
+      "points into",
+      overlay.highlights.every((h) =>
+        h.left >= overlay.img.left - 0.5 && h.right <= overlay.img.right + 0.5 &&
+        h.top >= overlay.img.top - 0.5 && h.bottom <= overlay.img.bottom + 0.5));
 
     // The room cap (viewer_popover_clamp_and_rebuild_terminal_state): this
     // card fits neither below its trigger nor above it, and before the cap it
@@ -2721,10 +2785,20 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
 
     await page.evaluate(({ topologies, results, crops }) => {
       const VA = window.ViewerApp;
+      window.__CROP_FETCHES__ = [];
       const Fake = function () {
-        return new VA.MemoryAdapter({
+        const memory = new VA.MemoryAdapter({
           startState: VA.STATE.READY, topologies, results, crops, images: {}, texts: {},
         });
+        // Which PNGs the app ASKED for, which is the half no other tier can
+        // see: every fast-tier crop test hands the renderer its own `images`
+        // map, so the fetch list itself has nothing standing on it.
+        const real = memory.readCropImage.bind(memory);
+        memory.readCropImage = function (png) {
+          window.__CROP_FETCHES__.push(png);
+          return real(png);
+        };
+        return memory;
       };
       Fake.isSupported = () => true;
       VA.FsaAdapter = Fake;
@@ -2744,6 +2818,75 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       push(`[real, non-mock] ${topology.id} renders all ${expected} edge rows ` +
         "through the real load()+render() pipeline", rowCount === expected);
     }
+
+    // --- a balloon crop's SECOND image is fetched alongside the first -------
+    //
+    // `loadDetailImage` (topology_app.js) fetches a LIST, not one blob,
+    // because a balloon crop names its parts-list row as a `companion` and a
+    // companion that arrived a paint later would flash "image not on disk"
+    // under "Parts list, sheet 1" on every selection. Nothing watched the
+    // list: dropping the companion term from it left the fast tier at 407/407
+    // and this file at 20/20 on 2026-09-16, and the only symptom was the
+    // missing-image line on all four live balloon crops. It cannot be watched
+    // in the fast tier at all -- topology_app.js is not in run_tests.cjs's
+    // file list, and the DOM shim cannot boot the page -- so the fetch list is
+    // read here, off the adapter the app actually called.
+    const companionRows = await page.evaluate(({ topologies, crops }) => {
+      const VA = window.ViewerApp;
+      const found = [];
+      for (const topology of topologies.topologies) {
+        for (const edge of topology.edges) {
+          const entry = VA.cropForKey(crops, edge.crop_key);
+          if (entry && entry.status === "resolved" && entry.png &&
+              entry.companion && entry.companion.png) {
+            found.push({ topology: topology.id, edge: edge.id,
+                         png: entry.png, companion: entry.companion.png });
+          }
+        }
+      }
+      return found;
+    }, { topologies: realProjection, crops: realCrops });
+    // The fixture precondition, asserted before what it certifies. TWO rows,
+    // because the two fetchers cannot be told apart on one: `imageCache` is
+    // shared, so whichever of them runs first is the only one that reaches
+    // the adapter for that PNG.
+    push("two live topology rows still reach balloon crops that name a " +
+      "parts-list companion — one per fetcher below", companionRows.length >= 2);
+    const [paneRow, cardRow] = companionRows;
+    let fetched = [];
+    if (paneRow && cardRow) {
+      // The PANE's fetcher: selecting a row is what runs loadDetailImage.
+      const row = `tr.tvrow[data-id="${paneRow.edge}"]`;
+      await page.locator(navRow("topology", paneRow.topology)).click();
+      await page.waitForSelector(row, { timeout: 5000 });
+      await page.locator(row).click();
+      await page.waitForFunction(
+        (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
+        paneRow.companion, { timeout: 5000 }).catch(() => {});
+      // ...and the CARD's, which is a different list builder (`cardPngs`) with
+      // the same companion term in it: hovering the row's own crop trigger.
+      const trigger = `tr.tvrow[data-id="${cardRow.edge}"] button.crop-trigger`;
+      await page.locator(navRow("topology", cardRow.topology)).click();
+      await page.waitForSelector(trigger, { timeout: 5000 });
+      await page.locator(trigger).hover();
+      await page.waitForSelector(".hovercard--edge",
+        { state: "visible", timeout: 5000 });
+      await page.waitForFunction(
+        (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
+        cardRow.companion, { timeout: 5000 }).catch(() => {});
+      await page.keyboard.press("Escape");
+      fetched = await page.evaluate(() => window.__CROP_FETCHES__ || []);
+    }
+    push("the open topology's own crop images are fetched",
+      !!paneRow && fetched.indexOf(paneRow.png) !== -1);
+    push("selecting a balloon crop's row fetches its parts-list companion " +
+      "too, so the PANE's second image is there with the first rather than " +
+      "a paint later",
+      !!paneRow && fetched.indexOf(paneRow.companion) !== -1);
+    push("opening a balloon crop's hover CARD fetches its parts-list " +
+      "companion too — the card's list is built separately and carries the " +
+      "same second image",
+      !!cardRow && fetched.indexOf(cardRow.companion) !== -1);
 
     return reportSuite(label, checks, errors);
   } catch (err) {
@@ -2815,6 +2958,14 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
         memory.readText = function (segments) {
           if (window.__WORKSHEETS_FAIL__) {
             return Promise.reject(new Error("this origin cannot reach the worksheet"));
+          }
+          // A stand-in for prose the previous node's read really returned:
+          // this seam's `texts` is empty, so a SUCCESSFUL read resolves null
+          // and `state.worksheetText` is never anything a later node could
+          // inherit. The stale-worksheet block below is the only thing that
+          // sets it, and it clears it again immediately.
+          if (window.__WORKSHEET_MARKER__) {
+            return Promise.resolve(window.__WORKSHEET_MARKER__);
           }
           return real(segments);
         };
@@ -2907,6 +3058,80 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     push("the page the click asked for is on screen even though the read " +
       "failed", blank.length === 0);
     if (blank.length) console.log(`    nothing painted for: ${blank.join(", ")}`);
+
+    // --- the stale worksheet, which is navFailed's OTHER contract ----------
+    //
+    // `navFailed` clears `state.worksheetText` because `loadWorksheet()` only
+    // ASSIGNS on success -- so without the clear, the previous node's markdown
+    // is still in the dialog under this node's title. It is reachable and
+    // observable, and nothing watched it: measured 2026-09-16, deleting
+    // `state.worksheetText = null;` left the fast tier at 308/308, the
+    // node-fs tier at 382/382 and this file at 20/20.
+    //
+    // `paint()` computes `hasWorksheet` from `sheet.worksheet_file` -- the
+    // projection, not the text -- so the toggle is still offered after a
+    // failed read, and views/worksheet.js then renders `.worksheet__path` from
+    // the NEW subject and `.worksheet__body` from `state.worksheetText`: the
+    // OLD node's prose. The "could not be read from the connected folder"
+    // branch the line exists to reach is skipped entirely.
+    //
+    // Two reading rows, because the defect is one node's prose surviving onto
+    // another, and the whole thing is bracketed so pass 1's state is handed to
+    // the recovery block below exactly as it found it.
+    const readers = rows.filter((row) => row.reads);
+    const openSheet = async () => {
+      if (!(await page.locator("#worksheet-toggle").isVisible())) return null;
+      await page.locator("#worksheet-toggle").click();
+      await page.waitForSelector("#worksheet-dialog[open]", { timeout: 4000 });
+      const seen = await page.evaluate(() => ({
+        bodies: document.querySelectorAll(".worksheet__body").length,
+        text: (document.querySelector("#worksheet-dialog") || {}).textContent || "",
+        heading: ((document.querySelector(".worksheet__body h1") || {})
+          .textContent || ""),
+        path: ((document.querySelector(".worksheet__path") || {})
+          .textContent || ""),
+      }));
+      await page.keyboard.press("Escape");
+      return seen;
+    };
+    const STALE_MARKER = "a previous node's worksheet";
+    let afterRead = null, afterFailedRead = null;
+    if (readers.length >= 2) {
+      await page.evaluate((marker) => {
+        window.__WORKSHEET_MARKER__ = "# " + marker + "\n\nits prose.\n";
+        window.__WORKSHEETS_FAIL__ = false;
+      }, STALE_MARKER);
+      await page.locator(`#navtree ${navRow(readers[0].kind, readers[0].id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow(readers[0].kind, readers[0].id)}.navtree__row--on`,
+        { timeout: 4000 });
+      afterRead = await openSheet();
+      await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = true; });
+      await page.locator(`#navtree ${navRow(readers[1].kind, readers[1].id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow(readers[1].kind, readers[1].id)}.navtree__row--on`,
+        { timeout: 4000 });
+      afterFailedRead = await openSheet();
+      await page.evaluate(() => { delete window.__WORKSHEET_MARKER__; });
+    }
+    // The tripwire, asserted before what it certifies: a read that WORKED has
+    // to have put prose in the dialog, or there is nothing for the next node
+    // to inherit and the contract below is vacuous.
+    push("a worksheet read that works puts that node's own prose in the " +
+      "dialog — the thing the next node could inherit",
+      afterRead !== null && afterRead.bodies === 1 &&
+      afterRead.heading.indexOf(STALE_MARKER) !== -1);
+    push("a node whose worksheet read FAILED shows the sentence saying so, " +
+      "never the previous node's prose under this node's title",
+      afterFailedRead !== null &&
+      afterFailedRead.text.indexOf("could not be read from the connected " +
+        "folder") !== -1 &&
+      afterFailedRead.bodies === 0 &&
+      afterFailedRead.text.indexOf(STALE_MARKER) === -1);
+    if (afterFailedRead && afterFailedRead.bodies) {
+      console.log(`    stale sheet: "${afterFailedRead.heading}" under ` +
+        `"${afterFailedRead.path}"`);
+    }
 
     // Recovery, with no user action and no reload: the next read that works
     // retires the banner. A message that outlives what it was about is a
@@ -4329,8 +4554,44 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         `${SUITES.length} suites — THIS IS NOT A FULL RUN\n`);
     }
 
+    // The registry key IS the label a suite prints -- that is the whole point
+    // of single-sourcing it (mutation_witness_tier_repair): a filter can be
+    // copied straight off a failing line, and every `suite` in
+    // scripts/mutation_witnesses.json is a whole copy of one of these keys.
+    // What replaced the four in-body `const label = "..."` copies is now ONE
+    // ARGUMENT, and nothing observed it: measured 2026-09-16, dropping it from
+    // this call left every tier green and printed `[undefined] 2/2 sub-checks
+    // passed: PASS`. Even the mutation tier keeps working, because `--only`
+    // filters on the registry key rather than on the printed line -- the
+    // damage is silent by construction. The pytest pairing cannot see it
+    // either: it compares the witness table's `suite` values against the keys
+    // read out of THIS source, which is a different question from whether a
+    // suite prints the key it was handed.
+    //
+    // This is not a string compared to itself. The key comes from the registry
+    // and `result.label` comes from whatever the suite body decided to put in
+    // its return value -- two different paths that only agree while the
+    // argument is actually threaded through.
+    // The sub-check NAME is a constant and the specifics go on their own line
+    // above it, which is the shape every suite in this file already uses for a
+    // failure that has details. It is also load-bearing: the mutation-witness
+    // tier matches an entry's `expect_red` against the whole printed name, and
+    // tests/test_mutation_witnesses.py requires that name to appear verbatim
+    // in this source -- an interpolated label would satisfy neither.
     const results = [];
-    for (const [label, runSuiteFn] of chosen) results.push(await runSuiteFn(label));
+    for (const [label, runSuiteFn] of chosen) {
+      const result = await runSuiteFn(label);
+      if (!result || result.label !== label) {
+        console.log(`    dispatched as ${JSON.stringify(label)}, reported ` +
+          `itself as ${JSON.stringify(result && result.label)}`);
+        console.log("    FAIL sub-check: " +
+          "every suite prints the registry key it was dispatched under — a " +
+          "--only filter is copied straight off that line, and every `suite` " +
+          "in scripts/mutation_witnesses.json is a whole copy of one");
+        if (result) result.ok = false;
+      }
+      results.push(result || { label, ok: false });
+    }
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser ` +
