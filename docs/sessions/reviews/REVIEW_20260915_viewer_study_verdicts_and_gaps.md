@@ -241,4 +241,10 @@ the merged result:
 * viewer browser tier **19/19 checks**, 288/288 in the shim suite over both
   `file://` and http, including the new scrolled-respine sub-checks
 
-Then `integration` fast-forwarded to `review/viewer_study_verdicts_and_gaps`.
+`integration` then moved a **second** time mid-merge (`302fe52`, the
+`annotate_hosted_page_posture` review landing), so this was done twice: merge
+`integration` in, re-run all three tiers, fast-forward. Both merges were clean.
+Final figures on the twice-merged tree: pytest **886 / 1 / 1**, fast tier
+**371/371**, browser tier **19/19** (the annotate hosted-posture suite grew
+8 -> 18 sub-checks in the interim). Then `integration` fast-forwarded to
+`review/viewer_study_verdicts_and_gaps`.
