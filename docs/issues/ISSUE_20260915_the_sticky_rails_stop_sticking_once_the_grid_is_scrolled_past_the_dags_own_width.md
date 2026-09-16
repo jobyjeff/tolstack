@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_respine_tween_fidelity_round2.md
+handoff: docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md
 ---
 
 # The sticky rails stop sticking once the grid is scrolled past the DAG's own width

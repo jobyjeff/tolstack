@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/topology
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
+strategy: docs/strategy/BRIEF_20260916_topology_page_number_reach.md
 ---
 
 # The DAG page's folded totals and its sourcing column are both off-screen at 1600px

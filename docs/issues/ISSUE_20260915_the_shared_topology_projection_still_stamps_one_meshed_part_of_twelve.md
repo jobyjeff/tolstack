@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: resolved
 area: viewer / projections
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_extracted_mesh_alias_rows.md
+resolution: Fixed by the 2026-09-16 batch-merge projection rebuild (scripts/rebuild_projections.ps1 on merged master): data/projections/viewer/topologies.json (master @ 9c25aff9fe55, built 2026-09-16T08:55:24Z) now carries 31 parts[].mesh blocks of which exactly 12 are installed: true -- re-derived and matching the twelve part ids this issue named -- and the three count-free `[real]` 3D-affordance tests pass unedited (407/407, 0 skips, with apps/viewer/tests.js unmodified), so no test edit was needed.
 ---
 
 # The shared topology projection still stamps one meshed part, and the alias table now resolves twelve

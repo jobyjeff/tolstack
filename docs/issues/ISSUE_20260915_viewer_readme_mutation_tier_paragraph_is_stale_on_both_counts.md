@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: docs/viewer-readme
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_mutation_witness_tier_repair.md
+handoff: docs/sessions/HANDOFF_20260916_doc_facts_and_projection_stamps.md
 ---
 
 # `apps/viewer/README.md`'s mutation-tier paragraph restates a count nothing pairs, and still presents `--repo` as the only way to run the tier

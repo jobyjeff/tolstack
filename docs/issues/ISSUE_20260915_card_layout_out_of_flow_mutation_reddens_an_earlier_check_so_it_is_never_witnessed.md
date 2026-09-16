@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tests/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
+handoff: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
 ---
 
 # `card-layout-out-of-flow` goes red on the wrong check, so the mutation tier reports 17/18 forever

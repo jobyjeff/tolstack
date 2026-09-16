@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: ARCHITECTURE.md, docs/ANNOTATION_SURFACE.md
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_extracted_mesh_alias_rows.md
+handoff: docs/sessions/HANDOFF_20260916_doc_facts_and_projection_stamps.md
 ---
 
 # `ARCHITECTURE.md` still says every mesh is `stepgeom.tessellate` output hand-copied from a per-part STEP — true for 2 of 24

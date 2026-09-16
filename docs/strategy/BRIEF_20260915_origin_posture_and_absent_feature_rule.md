@@ -106,3 +106,85 @@ gives no guidance once the same page is capable for one visitor and not another.
   work is mostly transport, this is mostly policy.
 - `docs/sessions/HANDOFF_20260915_annotate_hosted_page_posture.md` — the
   already-decided annotate-side fixes, staged and fenced.
+
+## 2026-09-16 triage sweep — a fourth case: the discriminator is the reader's BROWSER
+
+Routed here by the triage sweep of 2026-09-16 rather than into a brief of its
+own, because it is this brief's question with a third discriminator rather than
+a new question. Triage deliberately did not design the answer.
+
+Source issue:
+`docs/issues/ISSUE_20260915_a_browser_with_no_fsa_gets_the_full_bind_workspace_under_a_dead_end_sentence.md`
+(bug, med, `audience: strategy`), filed out of
+`docs/sessions/reviews/REVIEW_20260915_annotate_hosted_page_posture.md`.
+
+`main()` in `apps/annotate/app.js` has a **second** dead-end branch beside the
+hosted one that `annotate_hosted_page_posture` fixed on 2026-09-15 (withhold
+`#workspace` in the hosted branch, move the control wiring below it). The second
+is **a local page in a browser with no File System Access API**
+(`if (!picked.adapter)`). It was outside that handoff's fence — measured against
+the hosted origin only — and did not move with it. The banner is honest;
+everything under it is the unmodified bind workspace.
+
+Measured in the review, 2026-09-15: real Chrome, repo-root static server on
+`127.0.0.1`, `showDirectoryPicker` deleted in an init script — the state Firefox
+and Safari are in **permanently**:
+
+```
+banner: This browser has no File System Access API -- the annotate surface needs
+        Chrome or Edge, served over http(s) (not file://). Try ?mock=1 for a demo
+        with no folder grant.
+  #detail rendered:  true
+  #detail text:      "Pick an element on the left, then click a face in the 3D view to bind it."
+  console wired:     true
+  canvases in #canvas-host: 1
+```
+
+So the same contradicted hint as the hosted case (a sentence saying annotation
+is unavailable, above a pane telling the reader to click a face in a 3D view), a
+live dev console into an app with no storage behind it, and — unlike the hosted
+case — a real, empty 3D canvas that was paid a WebGL context for.
+
+**Why it is a distinct instance of the same question, not a restatement of
+items 1–3.** Those three discriminate on the *origin* (hosted vs local) and on
+the reader's *claim on the repo* (loopback). This one discriminates on the
+reader's **browser**, and it is the one case where the standing rule and the
+honest answer may genuinely diverge, for a reason the other three do not have:
+**`?mock=1` is a real way forward.** A hosted reader has nothing to be offered;
+a Firefox reader sitting on their own repo has a demo of the surface one query
+parameter away, and the banner already names it — so today the page says the
+words and then shows the dead workspace instead of the demo. "Absent shows
+nothing" and "offer the reader the thing that would work" point in opposite
+directions here; neither of items 1–3 forces that choice.
+
+A second sub-question this case adds, which is item 1's argument arriving from
+the other side: the hosted fix withholds the workspace **and** the wiring, but
+this branch has already paid for a WebGL context on a canvas that can never bind
+anything. If the answer is "withhold", whether the 3D view is withheld too — or
+kept because *looking* is legitimate, which is exactly item 1's
+hosted-reader-wants-to-look case — has to be answered here as well.
+
+**What this adds to "What the decomposition will need to say", above:** the one
+predicate for "can this reader do the write this surface offers?" now has three
+discriminators (origin, repo claim, browser capability), and the decomposition
+must say whether they collapse into one predicate or are deliberately separate
+rules — and whether the answer for each is to **withhold** the surface, to
+**substitute** the thing that does work (`?mock=1`), or to **state** the limit
+and show nothing. Today the annotator does the third for the wrong-browser
+reader and the first for the hosted one, which is two answers to one question
+and is the thing to make deliberate or remove.
+
+### One thing to fix regardless of the policy call
+
+`scripts/run_viewer_browser_tests.mjs`'s `testAnnotateHostedPosture` asserts its
+loopback half against `/Connect folder|File System Access/` — **either state
+satisfies it** — and then asserts that the full workspace renders. Today the test
+browser has FSA, so it measures the ordinary pre-grant page, where showing the
+workspace is correct (a grant is one click away). If the test browser ever lost
+FSA, the same sub-checks would be **pinning this defect in place**. Splitting the
+wait so the loopback half asserts which of the two states it is in has no policy
+content and can be staged before any of this is decided; it needs an owner named
+when this brief decomposes, or a small standalone handoff sooner.
+`docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md` is **not** it
+— that handoff owns only `testRespine`'s scrolled arm and the jog-zone block in
+that file, and is told `apps/annotate/` is not its own.

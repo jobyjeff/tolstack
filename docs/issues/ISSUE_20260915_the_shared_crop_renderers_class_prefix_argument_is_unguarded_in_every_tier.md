@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
+handoff: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
 ---
 
 # `VA.cropReference`'s `classPrefix` argument is unguarded: pass the wrong one and all three tiers stay green

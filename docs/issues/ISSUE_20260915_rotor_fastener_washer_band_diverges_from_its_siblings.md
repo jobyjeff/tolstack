@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: tolerance_stacks
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_pitch_link_known_bands.md
+handoff: docs/sessions/HANDOFF_20260916_citation_identity_correctness.md
 ---
 
 # `rotor_fastener_length`'s NAS1149V0332 washer still folds a zero-width band while every sibling folds ±0.004 in

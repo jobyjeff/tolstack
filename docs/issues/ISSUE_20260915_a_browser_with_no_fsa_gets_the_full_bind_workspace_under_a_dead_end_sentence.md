@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
 audience: strategy
 found_by: docs/sessions/reviews/REVIEW_20260915_annotate_hosted_page_posture.md
+strategy: docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md
 ---
 
 # A loopback page in a browser with no File System Access API still shows the whole bind workspace under a sentence saying it cannot annotate

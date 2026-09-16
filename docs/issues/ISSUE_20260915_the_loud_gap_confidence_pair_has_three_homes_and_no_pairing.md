@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: viewer/vocabularies
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
+handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
 ---
 
 # "The two loud gap confidences" is now stated in three places, none paired to another

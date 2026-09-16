@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: resolved
 area: viewer / projections
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
+resolution: Fixed by the 2026-09-16 batch-merge projection rebuild (scripts/rebuild_projections.ps1 on merged master): data/projections/viewer/topologies.json now stamps branch=master head_sha=9c25aff9fe55 dirty=false built 2026-09-16T08:55:24Z, its pitch_system part `hub` carries the short name "propeller hub", and `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` reports the named `[real]` grouping/leader-rule test PASS at 407/407 with zero skips.
 ---
 
 # `[real] the pitch system's grouping is the leader rule at work…` is red on `integration`: the shared projection predates the shortened part names

@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
+handoff: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
 ---
 
 # `card-layout-out-of-flow` stopped witnessing somewhere on `integration`, and the mutation tier is 21/22

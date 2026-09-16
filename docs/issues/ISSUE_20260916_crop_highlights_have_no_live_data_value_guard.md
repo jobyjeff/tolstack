@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/viewer/tests
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260915_viewer_reference_crops_in_context.md
+handoff: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
 ---
 
 # `highlights[]` joined no `VALUE_GUARDS` table, and a malformed box is dropped in silence

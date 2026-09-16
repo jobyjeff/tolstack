@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/nav
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_nav_wedge_and_classic_retirement.md
+handoff: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
 ---
 
 # Two of `navigate()`'s three contracts are unwitnessed in every tier

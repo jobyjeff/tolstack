@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260915_viewer_reference_crops_in_context.md
+handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
 ---
 
 # The crop link stopped saying "open run"; the same pane still prints three bare run ids as link text

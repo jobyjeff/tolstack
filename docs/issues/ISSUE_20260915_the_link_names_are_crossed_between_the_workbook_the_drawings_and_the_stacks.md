@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tolerance_stacks
 audience: strategy
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20260915_stack_fable_audit.md
+strategy: docs/strategy/BRIEF_20260916_link_name_authority.md
 ---
 
 # The link names are crossed between the workbook, the drawings and the stacks

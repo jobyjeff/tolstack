@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: viewer/copy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_nav_wedge_and_classic_retirement.md
+handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
 ---
 
 # The stack view still says "zero-width band" where the DAG page says "no tolerance recorded"

@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: tolerance_stacks
 reporter: agent
 found_by: docs/sessions/active/HANDOFF_20260915_stack_fable_audit.md
+handoff: docs/sessions/HANDOFF_20260916_citation_identity_correctness.md
 ---
 
 # The pitch-plate lug citations name the PRELIM 215197; the released plate is 215735-001/-002

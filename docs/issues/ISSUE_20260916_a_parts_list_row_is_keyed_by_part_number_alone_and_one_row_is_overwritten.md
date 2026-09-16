@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
 area: scripts/build_viewer_crops
 reporter: agent
 found_by: docs/sessions/reviews/REVIEW_20260915_viewer_reference_crops_in_context.md
+handoff: docs/sessions/HANDOFF_20260916_citation_identity_correctness.md
 ---
 
 # A balloon crop picks its parts-list row by part number alone, so one of two real rows is silently overwritten

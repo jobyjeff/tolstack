@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
+handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
 ---
 
 # "dimensions from <workbook>" reads as sourcing on parts whose every value is `untraced` and on the gap list

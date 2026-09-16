@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: viewer/docs
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_respine_whole_walk.md
+handoff: docs/sessions/HANDOFF_20260916_doc_facts_and_projection_stamps.md
 ---
 
 # `apps/viewer/README.md`'s "two studies dropped rows, the third covered nearly everything" is not a state the pre-change page could be in
