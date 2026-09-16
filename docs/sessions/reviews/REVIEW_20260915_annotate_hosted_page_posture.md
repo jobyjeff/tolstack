@@ -233,6 +233,30 @@ dead_end_sentence.md`.
   (kept, not deleted: it is the only one carrying the `high` argument). **Triage:
   fix the one clause, close all three.**
 
+## `integration` moved mid-review — the conflict, and what re-running proved
+
+`respine_tween_fidelity_round2` landed between the first merge and the verdict
+(`f629942` → `fd27d4c`), touching **three** of the files this handoff touches:
+`scripts/mutation_witnesses.json`, `scripts/run_viewer_browser_tests.mjs` and
+`docs/prompts/REVIEW_AGENT.md`. Only the first conflicted.
+
+- **Both sides of the conflict are appends to one array.** Ours: the two
+  `hosted-annotate-*` entries. Theirs: `respine-unfolds-out-of-the-rail-it-
+  interrupted`, `a-link-a-respine-adds-fades-in`,
+  `the-view-puts-a-links-fade-on-the-path`, `sticky-rails-hold-a-scrolled-dag`.
+  Neither side edits an entry the other wrote, so **the resolution keeps all
+  six** — nothing to choose between. Verified structurally rather than by eye:
+  18 entries, ids unique, `json.loads` clean. The other two files auto-merged
+  into disjoint regions (new suite functions vs. new sub-checks inside
+  `testAnnotateHostedPosture`; appended checklist entries at different
+  headings).
+- **Everything re-run on the merged tree**, per the "a textually clean merge can
+  still kill a geometric witness" entry: `pytest` 884/1 skipped/1 failed (the
+  same standing red), annotate fast tier 65/65, browser tier **19/19** —
+  `[topology file:// respine]` now 39/39 and `[suite]` 288/288 with the sibling's
+  work in, `[annotate hosted posture]` still 18/18 — and both annotate witness
+  entries still **2/2 witnessed** against the merged app.
+
 ## For the next reviewer
 
 Three overlay entries were extended from this review, all as second sightings
