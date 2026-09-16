@@ -4554,8 +4554,44 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         `${SUITES.length} suites — THIS IS NOT A FULL RUN\n`);
     }
 
+    // The registry key IS the label a suite prints -- that is the whole point
+    // of single-sourcing it (mutation_witness_tier_repair): a filter can be
+    // copied straight off a failing line, and every `suite` in
+    // scripts/mutation_witnesses.json is a whole copy of one of these keys.
+    // What replaced the four in-body `const label = "..."` copies is now ONE
+    // ARGUMENT, and nothing observed it: measured 2026-09-16, dropping it from
+    // this call left every tier green and printed `[undefined] 2/2 sub-checks
+    // passed: PASS`. Even the mutation tier keeps working, because `--only`
+    // filters on the registry key rather than on the printed line -- the
+    // damage is silent by construction. The pytest pairing cannot see it
+    // either: it compares the witness table's `suite` values against the keys
+    // read out of THIS source, which is a different question from whether a
+    // suite prints the key it was handed.
+    //
+    // This is not a string compared to itself. The key comes from the registry
+    // and `result.label` comes from whatever the suite body decided to put in
+    // its return value -- two different paths that only agree while the
+    // argument is actually threaded through.
+    // The sub-check NAME is a constant and the specifics go on their own line
+    // above it, which is the shape every suite in this file already uses for a
+    // failure that has details. It is also load-bearing: the mutation-witness
+    // tier matches an entry's `expect_red` against the whole printed name, and
+    // tests/test_mutation_witnesses.py requires that name to appear verbatim
+    // in this source -- an interpolated label would satisfy neither.
     const results = [];
-    for (const [label, runSuiteFn] of chosen) results.push(await runSuiteFn(label));
+    for (const [label, runSuiteFn] of chosen) {
+      const result = await runSuiteFn(label);
+      if (!result || result.label !== label) {
+        console.log(`    dispatched as ${JSON.stringify(label)}, reported ` +
+          `itself as ${JSON.stringify(result && result.label)}`);
+        console.log("    FAIL sub-check: " +
+          "every suite prints the registry key it was dispatched under — a " +
+          "--only filter is copied straight off that line, and every `suite` " +
+          "in scripts/mutation_witnesses.json is a whole copy of one");
+        if (result) result.ok = false;
+      }
+      results.push(result || { label, ok: false });
+    }
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser ` +

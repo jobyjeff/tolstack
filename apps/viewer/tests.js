@@ -10095,6 +10095,9 @@
           return topoEdges(p).map(function (e) { return e.dimension; })
             .filter(Boolean);
         }
+        function topoGaps(p) {
+          return flat(topoRows(p).map(function (t) { return t.gaps || []; }));
+        }
 
         var TOPO_SHAPES = [
           { name: "topologies (top level)", collect: function (p) { return [p]; } },
@@ -10300,6 +10303,33 @@
             known: function (v) { return !!VA.VERDICT_SCOPES[v]; },
             values: function (p) {
               return topoStudyChecks(p).map(function (c) { return c.verdict_scope; });
+            } },
+          // Added 2026-09-16 (viewer_unwitnessed_surface_guards). The field
+          // name is spelled out in full on purpose: the STACK projection's
+          // table has a `gaps[].kind` row of its own over a DIFFERENT
+          // projection with a different, shorter vocabulary
+          // (`excluded_from_model`, `hardware_entry`), and the two must not be
+          // read as copies of each other or "fixed" into agreement.
+          //
+          // This row does not close an open hole, and the issue that asked
+          // for it is honest about why it is `low`: the field is already
+          // covered twice over -- tests/test_topology_projection.py's
+          // JS_PAIRINGS pairs VA.GAP_KINDS' keys against the builder's
+          // TOPOLOGY_GAP_KINDS word for word (the EARLIER signal, firing the
+          // moment Python's tuple changes and before any data moves), and a
+          // [real] test above walks every live gap row. What it does is put
+          // `kind` in the same live-data sweep as every other enumerated field
+          // of this projection, reported the same way, so the answer to "is
+          // this field covered?" stops depending on knowing about two other
+          // tests.
+          { field: "topologies[].gaps[].kind",
+            branch: "VA.GAP_KINDS, through VA.topologyGapGroups — all four kinds " +
+              "have a branch and an unknown one is LOUD " +
+              "(VA.unlabelledGapKindText), so the reachable case here is a " +
+              "STALE projection rather than a new word",
+            known: function (v) { return !!VA.GAP_KINDS[v]; },
+            values: function (p) {
+              return topoGaps(p).map(function (g) { return g.kind; });
             } },
           // --- Deliberately NOT rows, and why -----------------------------
           //
