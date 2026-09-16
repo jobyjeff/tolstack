@@ -31,7 +31,7 @@
       "id": "bushing_214820_002",
       "name": "214820-002 plain bushing",
       "drawing": "214820-002",
-      "note": "Plain bushing, aluminium bronze, .1900 in ID X .1875 in long, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4. Drawing 214820-002 itself is not in this repo, so the length is transcribed from the assembly parts list and its band is on the gap list."
+      "note": "Plain bushing, aluminium bronze, .1900 in ID X .1875 in long, per the 217755 parts-list nomenclature. Ballooned 8X in DETAIL B of 217755 sheet 4. Drawing 214820-002 itself is not in this repo, so nothing here can re-read the 4.76 +0.00/-0.13 length the operator read off it, and it stays on the gap list."
     },
     {
       "id": "pitch_plate_215197",

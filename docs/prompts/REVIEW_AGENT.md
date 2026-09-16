@@ -984,6 +984,35 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (f) **Provenance a reader did not ask for goes behind a disclosure, not
       into the reading flow** (`VA.disclosure`) — and a disclosure is a fold,
       never a place to hide a gap.
+- [ ] **A test that is ALREADY red names a list, and the diff added to it.**
+      New 2026-09-15 (`viewer_component_names_and_reference_copy`, fixed in
+      review). `tests/test_provenance.py::test_every_byte_identity_claim_…`
+      was red on master for a strategy brief's sake, and the author filed that
+      correctly -- but the test reports *every* unbacked claim, and the branch
+      had quietly added two of its own (`apps/viewer/README.md`, the new
+      "checked against the citation, byte for byte" wording quoted into prose
+      with nothing naming the comparison in the same block). `1 failed` reads
+      identically at one item and at three, so a known-red test is a mask
+      exactly the width of its own assertion message. **Read the failure's
+      item list against the diff, never the pass/fail tally** -- and prefer
+      `pytest <nodeid>` on the known-red test to eyeballing the summary line.
+      The same question applies to any aggregating guard this repo has (the
+      doc scans, the vocabulary pairings, the module inventory): *which rows
+      does it name today, and which of them are mine?*
+- [ ] **Single-sourcing a RENDERER hands the class prefix to the callee, and
+      no tier reads a class prefix.** New 2026-09-15 (same handoff; the bug
+      the author found by eye and shipped a fix for without a guard --
+      `ISSUE_20260915_the_shared_crop_renderers_class_prefix_argument_is_
+      unguarded_in_every_tier.md`). `VA.cropReference(box, entry, config,
+      classPrefix)` serves four surfaces and the prefix carries its own
+      separator (`"croppop__"` vs `"detail__crop-"`), so passing
+      `"detail__crop"` renders `detail__crophead` -- unstyled, and measured
+      green at 386/386 fast and 33/33 browser in review. Every assertion on
+      those blocks reads `textContent`, which is right for copy and blind to
+      this. When a diff factors a renderer out across surfaces, ask **what
+      does each caller pass that only CSS can see**, and require one selector
+      assertion per call site. Sibling of "Single-sourcing replaced N hand
+      copies with ONE argument -- now mutate the argument", one layer down.
 - [ ] **Documents cited from a worktree that cannot see them.** `data/` is
       gitignored, so `data/inbox/specs/` in a worktree holds one tracked
       `README.md` and nothing else — the pile (several dozen files, and growing;
@@ -2496,6 +2525,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       grows a parameter — the symptom is a witness reading *some other*
       trigger's box and passing or failing for the wrong reason (it reported
       the grid trigger's 418.5–444.5 for a rail bar until the tail was fixed).
+      **Second sighting 2026-09-15 (`viewer_component_names_and_reference_copy`),
+      and it names the tier the entry above leaves out: run
+      `run_mutation_witness_tests.mjs` after the integration merge too.** The
+      handoff branch witnessed 16/16 and the merged tree 21/22 --
+      `card-layout-out-of-flow` no longer reddens on its declared sub-check.
+      Bisected by `git archive <rev>` into scratch trees: witnessed at the
+      merge-base, at the handoff tip, and at `0573826`; NOT witnessed from
+      `afcbbb4` onward, the *review* merge that brought three sibling handoffs
+      onto one line. Each of the three was green alone, so nobody could see it,
+      and a review merge is the one place the mutation tier is not re-run.
+      `ISSUE_20260915_the_card_layout_out_of_flow_mutation_witness_stopped_
+      witnessing_on_integration.md`. The tell is the same one this block keeps
+      producing: the tier goes red as `ERROR: locator.hover: Timeout`, a
+      symptom with no name attached, rather than on the check that owns the
+      claim.
 - [ ] **The deliverable is mutation-tested and the guard the author added on
       their OWN initiative is not.** New 2026-09-15
       (`viewer_study_respine_animation`, should-fix). A model tactical sweep:

@@ -1199,7 +1199,10 @@ Two deliberate limits:
 * the block says the file is **pinned by checksum**, never *verified*. The
   viewer cannot hash a file, so that is the only honest claim available to it;
   *checked against the citation, byte for byte* belongs to the crop's own
-  provenance below, where a script really did compare bytes. Neither line names
+  provenance below, where a script really did compare bytes -- that line is the
+  crop entry's own `sha256_verified`, written by `scripts/build_viewer_crops.py`
+  after it compared the file's digest with the citation's, and it is the only
+  byte-for-byte claim on this page that anything checked. Neither line names
   the algorithm or prints the digest any more (2026-09-15): twelve hex digits
   are not something a reader of this page can do anything with, and the digest
   is in the stack file for anyone checking it.
@@ -1326,7 +1329,7 @@ on screen, so this is the fact the hover exists for:
 
 | `resolved_by` | what the popover says |
 |---|---|
-| `source_ref_export` | *read from the export this citation names, `X.pdf` — checked against the citation, byte for byte*. The rule every export-resolved crop in the repo uses; the checksum is mandatory under it, so a crop can only exist if the bytes matched. |
+| `source_ref_export` | *read from the export this citation names, `X.pdf` — checked against the citation, byte for byte*. The rule every export-resolved crop in the repo uses; the checksum is mandatory under it, so a crop can only exist if the bytes matched -- the comparison is `scripts/build_viewer_crops.py`'s, recorded as the entry's `sha256_verified`. |
 | `spec_pile` | *from `data/inbox/specs/` by filename — no checksum on record to check against*. The pile is append-only, so a filename **is** the identity; there is nothing to check and the line says so rather than implying a check passed. |
 | `joint_export_run` | *LEGACY RULE: export pinned by the joint block, not by this citation*. Still in the crop script for a stack written before 2026-08-06 (no `source_ref.export`, `document` == `joint.assembly_drawing`, and a `joint.assembly_export` naming a drawing-checker run). No stack in the repo reaches it today. |
 | anything else | *resolved by `"X"`, a rule this viewer has no label for* — loud, and `VA.unlabelledCropRules()` puts it in the banner too. `provenance.sources_used`, deleted from the crop script on 2026-08-06, gets exactly this treatment: a branch for a value nothing can carry reads as "this case is handled". |

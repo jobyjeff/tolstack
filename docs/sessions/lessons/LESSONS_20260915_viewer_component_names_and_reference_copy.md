@@ -235,6 +235,20 @@ wrong.
   (`ISSUE_20260915_a_strategy_briefs_byte_for_byte_claim_reddens_the_suite_on_master.md`)
   rather than fixed, because the `annotate_hosted_page_posture` handoff went
   active on master working from that very brief.
+
+  > **CORRECTION 2026-09-15 (review).** True of the brief, and not the whole
+  > list. That test names every unbacked claim it finds, and on this branch it
+  > found **three**: the brief, plus `apps/viewer/README.md:1201` and `:1329` --
+  > both of them *this pass's own* new wording, "checked against the citation,
+  > byte for byte", quoted into the README with nothing naming the comparison
+  > in the same block. The rendered string in `viewer.js` escapes only because
+  > `sha256_verified` happens to sit on the same line. Because the test was
+  > already red for master's reason, the branch's two additions cost nothing
+  > visible and the one-line pytest tally read the same either way. Fixed in
+  > review (both README blocks now name `sha256_verified` and the script that
+  > writes it); the brief's line is still open under the issue above. The
+  > general shape is now a checklist entry: a pre-existing red test masks a new
+  > failure of the same test, so read WHICH items it lists, not the count.
 * **`[real] every fixture shape still matches the builder's`** reports
   `stacks[].checks[]: the projection writes [margin]` when run against the
   *shared* `results.json` — that field is `viewer_study_verdicts_and_gaps`'s,
