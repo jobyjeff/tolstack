@@ -333,11 +333,12 @@ function reportSuite(label, checks, errors = []) {
 function reportAbortedSuite(label, checks, errors, err) {
   const failed = checks.filter((c) => !c.cond);
   console.log(`[${label}] ABORTED after ${checks.length} sub-checks, ` +
-    `${failed.length} of them already FAILED: FAIL`);
+    `${failed.length} of them already FAILED`);
   printCollectedFailures(failed, errors);
   console.log(`[${label}] ERROR: ${err.message}`);
   return { label, ok: false };
 }
+
 // The banner's whole deliverable (viewer_rebuild_affordance, 2026-09-10): no
 // rebuild command ever renders again, in either mode, and a live endpoint
 // drives a real click through to a reload -- and, since

@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
+resolution: fixed 2026-09-16 by handoff `mutation_witness_tier_reaches_its_checks`; one defect with two sibling filings -- disposition written on ISSUE_20260915_card_layout_out_of_flow_mutation_reddens_an_earlier_check_so_it_is_never_witnessed.
 area: viewer/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_respine_whole_walk.md
@@ -80,3 +81,28 @@ in which a *real* regression in one of the other 17 stops being noticeable.
 
 The third option changes what is guaranteed, so this wants a decision rather
 than a patch.
+
+## Resolved 2026-09-16 -- `mutation_witness_tier_reaches_its_checks`
+
+Fixed. One defect, filed independently by three sessions on 2026-09-15; the
+disposition is written once, on
+`ISSUE_20260915_card_layout_out_of_flow_mutation_reddens_an_earlier_check_so_it_is_never_witnessed`.
+
+In short: `card-layout-out-of-flow` is WITNESSED by name with the mutation
+unchanged. The timing-out hover was **the declared check's own hover**, one
+line above it -- not the later "one edge, two triggers, ONE card" hover and not
+anything 150 lines earlier, so the declared check was never reached at all.
+Under `absolute` the mispositioned card lands **on** its trigger, and
+`locator.hover()` refuses to act on an occluded element;
+`hoverIgnoringOcclusion` drives the pointer there directly instead.
+
+This filing's own contributions to the fix, which the others did not carry:
+
+- it established the failure was **pre-existing on the branch base**, not
+  introduced by the session that found it, which is what let triage treat the
+  three filings as one thing;
+- it argued against dismissing the card defensively in the harness, because a
+  card intercepting pointer events *is* the defect. That argument was right and
+  is what the fix respects: nothing dismisses anything, and the concession is
+  made in how the pointer is driven rather than in what the page is allowed to
+  do.
