@@ -7431,6 +7431,160 @@
             has(root.textContent, "shank_out");  // the derived gap it closes
           });
 
+        // --- the verdict, the margin and what is missing ----------------------
+        //
+        // viewer_study_verdicts_and_gaps (2026-09-15), from Jeff's review of
+        // this page: "None of the tolerance stacks in the entire page appear to
+        // have any kind of roll up that shows whether the stack passes or fails,
+        // or by how much margin." The data had been in the projection since
+        // 2026-09-09 and nothing read it, so these are value-level: they pin the
+        // rendered STRINGS against the live projection's own numbers, not the
+        // presence of an element.
+
+        await test("[real] the pitch-link studies render their verdicts and " +
+          "their margins, including the study that has no criterion at all",
+          function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            ok(topo, "the pitch-link topology must be in the projection");
+            var index = VA.topologyIndex(topo);
+            var shown = function (studyId) {
+              return render(function (r) {
+                VA.renderTopoTotals(r, topo, VA.findStudy(topo, studyId), index);
+              }).textContent;
+            };
+
+            // FAIL, with the margin, and the word "margin" beside it: the two
+            // halves of Jeff's sentence.
+            var out = shown("pitch_link_shank_out");
+            has(out, "fail");
+            has(out, "margin -8.1939 mm at worst case");
+            has(out, VA.VERDICTS.fail.says);
+
+            // PASS, same shape, on the same page -- so a reader can tell the two
+            // studies apart without opening either.
+            var clear = shown("pitch_link_cotter_hole_clearance");
+            has(clear, "pass");
+            has(clear, "margin +11.1435 mm at worst case");
+            has(clear, VA.VERDICTS.pass.says);
+
+            // And the third: a study that sums and has no criterion recorded.
+            // Rendering this one blank is what made the whole page look as
+            // though it held no verdicts.
+            var none = shown("pitch_link_thread_region_t");
+            has(none, "No pass/fail criterion has been recorded for this study yet");
+            eq(none.indexOf("margin "), -1,
+               "a study with no criterion must not print a margin");
+          });
+
+        await test("[real] an incomplete check states what is missing ABOVE its " +
+          "number, and its verdict is visibly qualified", function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var study = VA.findStudy(topo, "pitch_link_shank_out");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
+            });
+            eq(study.checks[0].complete, false,
+               "this claim rests on the live check really being incomplete");
+            has(root.textContent, "budget for what is missing");
+            // The term itself, in the words the check wrote -- not a field name
+            // and not a count.
+            has(root.textContent, "spherical bearing width");
+            eq(all(root, ".tvverdict-card--qualified").length, 1);
+            ok(all(root, ".tvverdict--qualified").length >= 1,
+               "the rollup badge wears the qualification too");
+          });
+
+        await test("[real] the shank-out study warns that its spread is a lower " +
+          "bound, and names the rows that make it one", function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            var study = VA.findStudy(topo, "pitch_link_shank_out");
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
+            });
+            var warn = all(root, ".tvwarn--lower-bound");
+            eq(warn.length, 1);
+            has(warn[0].textContent, "no tolerance recorded");
+            has(warn[0].textContent, "LOWER bound");
+            has(warn[0].textContent, "plain bushing length");
+            has(warn[0].textContent, "washer thickness");
+          });
+
+        await test("[real] the missing spherical bearing is visible on the page " +
+          "without opening any JSON", function () {
+            var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
+            // With NO study selected -- the state a reader arrives in.
+            var root = render(function (r) {
+              VA.renderTopoTotals(r, topo, null, VA.topologyIndex(topo));
+            });
+            has(root.textContent, "What's missing");
+            has(root.textContent, "spherical bearing width");
+            has(root.textContent, VA.GAP_KINDS.excluded_from_model.heading);
+          });
+
+        await test("[real] every live gap row is one this page has words for, " +
+          "and every kind the builder writes is used somewhere", function () {
+            var kinds = {};
+            liveTopos.forEach(function (topoProj) {
+              (topoProj.gaps || []).forEach(function (gap) {
+                kinds[gap.kind] = (kinds[gap.kind] || 0) + 1;
+                ok(VA.GAP_KINDS[gap.kind],
+                   topoProj.id + " writes gap kind " + JSON.stringify(gap.kind) +
+                   " and this page has no words for it");
+                ok(gap.text, topoProj.id + ": a gap row with no words in it");
+              });
+            });
+            // Anti-vacuity: the loop above passes trivially over an empty
+            // projection, and all four kinds have live rows today.
+            eq(Object.keys(VA.GAP_KINDS).filter(function (k) { return !kinds[k]; }),
+               [], "a kind with no live row -- the loop above stops checking it");
+          });
+
+        await test("[real] every study wears a verdict badge on the nav rail, " +
+          "and not one of them is blank", function () {
+            var tree = VA.navTree(realTopologies, null);
+            var root = render(function (r) {
+              VA.renderNavTree(r, tree, { mode: "topology" }, {
+                onTopology: function () {}, onStudy: function () {},
+                onStack: function () {},
+              });
+            });
+            var rows = all(root, ".navtree__row--study");
+            var studies = liveTopos.reduce(function (n, t) {
+              return n + (t.studies || []).length;
+            }, 0);
+            eq(rows.length, studies);
+            ok(studies >= 20, "expected the live study count, got " + studies);
+            var blank = rows.filter(function (row) {
+              return all(row, ".tvverdict").length !== 1;
+            });
+            eq(blank.length, 0,
+               "a study row with no verdict badge reads as a study that passed");
+            // And the three states are all really on screen, so the assertion
+            // above is not satisfied by one word repeated 21 times.
+            ok(all(root, ".tvverdict--fail").length >= 1, "a failing study");
+            ok(all(root, ".tvverdict--pass").length >= 1, "a passing study");
+            ok(all(root, ".tvverdict--none").length >= 1,
+               "a study with no criterion recorded");
+          });
+
+        await test("[real] a row whose number has nothing behind it says so in " +
+          "the grid, in the words a reader brought with them", function () {
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: livePitch, study: null, crops: realCrops,
+                layoutMode: "topology", selection: null, onSelect: function () {},
+              });
+            });
+            var flagged = all(root, ".tvflag--unverified");
+            var unverified = livePitch.edges.filter(function (e) {
+              return VA.needsAnnotation(e.confidence);
+            });
+            ok(unverified.length >= 1, "pitch_system has unverified edges");
+            eq(flagged.length, unverified.length,
+               "one badge per unverified row, no more and no fewer");
+            has(root.textContent, VA.ATTENTION.unverified.text);
+          });
+
         await test("[real] selecting a study marks its chain on the real rails",
           function () {
             var study = VA.findStudy(livePitch, "pitch_system_blade_angle_worst");

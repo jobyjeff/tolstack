@@ -92,6 +92,21 @@
         parallel path binds is a mechanics question this tool does not answer and
         must not learn to — see <code>docs/DAG_TOPOLOGY.md</code>, "Not a
         solver".</li>
+      <li><b>Every study says whether it passes, and by how much.</b> The badge
+        on the nav rail and at the head of the totals is the verdict; the margin
+        beside it is how far the worst case is from the criterion, signed. A
+        study nobody has yet written a criterion for says exactly that rather
+        than staying blank. Where a badge is outlined in amber, a dimension the
+        joint needs is missing from the chain — the verdict is then true of the
+        model and not of the hardware, and what is missing is named underneath
+        it.</li>
+      <li><b>A loud badge is a number you should not trust yet.</b>
+        <b>unverified</b> means nothing readable stands behind it;
+        <b>no tolerance recorded</b> means the value is sourced but its
+        plus/minus is not, so every spread it feeds is a lower bound. Badges
+        appear on the row that earned them and again on the study that sums it.
+        <b>What's missing</b>, under the totals, is the same story for the whole
+        assembly, with what would close each gap.</li>
       <li><b>Selecting a study</b> highlights its chain, numbers each row with its
         place in the sum, prints each edge's own signed and scaled contribution,
         and puts the totals in the footer below. Every one of those numbers came

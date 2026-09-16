@@ -67,6 +67,20 @@ SCHEMA_CHECK = "joby.tolerance_stack/check_result/v0"
 #: renderings, not three copies).
 VERDICT_SCOPES = ("joint", "budget")
 
+#: What a check's ``verdict`` can be, worst last. :meth:`CheckResult.verdict`
+#: is the one place a member of this tuple is chosen, and
+#: ``tests/test_tolerance_stack.py`` pins that it can return nothing else.
+#:
+#: Named here rather than left as three literals in that method because the
+#: viewer now branches on all three -- ``apps/viewer/viewer.js``'s
+#: ``VA.VERDICTS``, which carries the sentence each verdict earns on screen and
+#: is paired against this tuple by ``tests/test_js_python_vocabulary.py``. A
+#: fourth verdict is a thing this repo has deliberately refused twice
+#: (:class:`CheckResult`, "``verdict``'s domain is untouched"); if one ever
+#: arrives, the page must gain a branch rather than silently render it as
+#: unknown.
+VERDICTS = ("pass", "marginal", "fail")
+
 
 # ---------------------------------------------------------------------------
 # Source references
@@ -647,6 +661,30 @@ class CheckResult:
             return "marginal"
         return "fail"
 
+    @property
+    def margin(self) -> float:
+        """*By how much*, in :attr:`units`: the signed worst-case distance to
+        the criterion.
+
+        The companion to :attr:`verdict`, and here rather than in a renderer for
+        one reason: the criterion is what turns an interval into a distance, and
+        a viewer that computed this would be reading ``">= 0"`` and doing
+        arithmetic -- a second place a sign can be wrong, about the one number a
+        reader acts on. Positive is slack, negative is shortfall, and the sign
+        agrees with :attr:`verdict` by construction, because both are the same
+        comparison written once.
+
+        For ``">= 0"`` -- the only criterion this class supports, and the
+        ``NotImplementedError`` above is the same gate -- the distance to the
+        criterion IS ``interval.min``. That equality is a property of *this*
+        criterion, not a licence to read ``worst_case_min`` and call it a
+        margin: a criterion of ``">= 3"`` would make them differ, and this
+        property is the one line that would move.
+        """
+        if self.criterion != ">= 0":
+            raise NotImplementedError(f"criterion {self.criterion!r} not supported")
+        return self.interval.min - 0.0
+
     def as_dict(self) -> Dict[str, Any]:
         return {
             "schema": SCHEMA_CHECK,
@@ -656,6 +694,11 @@ class CheckResult:
             "criterion": self.criterion,
             "units": self.units,
             "verdict": self.verdict,
+            # The verdict and BY HOW MUCH, side by side: a reader asked both
+            # questions long before either reached a screen, and shipping only
+            # the word left every renderer to re-derive the number from the
+            # criterion (see `margin`).
+            "margin": self.margin,
             # Both the authored field and the flag derived from it: a consumer
             # that renders reads `verdict_scope`, a consumer that validates
             # reads `complete`, and neither has to know the other's rule.
