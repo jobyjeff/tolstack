@@ -8102,6 +8102,16 @@
         var liveTopos = realTopologies.topologies || [];
         var livePitch = VA.findTopology(realTopologies, "pitch_system");
         var liveL1 = VA.findTopology(realTopologies, "vpa_output_to_pitch_plate");
+        // The only live topology with a zero-width edge on it, which is why the
+        // "no tolerance recorded" badge needs its own handle rather than
+        // extending the unverified test: `pitch_system` has none, and the two
+        // kinds do not co-occur on any one topology
+        // (viewer_study_verdicts_and_gaps' lesson, §3). Measured 2026-09-16:
+        // 2 of this topology's 12 edges, and 0 on each of the other four --
+        // including `pitch_link_to_pitch_plate`, which
+        // ISSUE_20260915_the_grids_no_tolerance_badge_is_unguarded_in_every_tier
+        // credits with 2.
+        var liveRotor = VA.findTopology(realTopologies, "rotor_fastener_length");
 
         await test("[real] both MVP topologies are in the projection", function () {
           ok(liveL1, "the L1 grip stack must be there");
@@ -9274,6 +9284,34 @@
             eq(flagged.length, unverified.length,
                "one badge per unverified row, no more and no fewer");
             has(root.textContent, VA.ATTENTION.unverified.text);
+          });
+
+        // The OTHER half of VA.edgeAttention, and it had nothing standing on
+        // it: viewer_study_verdicts_and_gaps gave these rows their own loud
+        // badge and in the same change removed the `chip--zero-width` chip
+        // that used to mark them. Measured 2026-09-16 by deleting the
+        // `edge.zero_width` line from VA.edgeAttention: 367/367 passed, and
+        // the zero-width marking simply left the grid in every tier.
+        await test("[real] a row whose number has no plus/minus behind it says " +
+          "so in the grid too", function () {
+            var zeroWidth = liveRotor.edges.filter(function (e) {
+              return e.zero_width;
+            });
+            // Its own fixture precondition: the day this topology loses its
+            // zero-width edges, this says so rather than passing vacuously on
+            // a grid with nothing to badge.
+            ok(zeroWidth.length >= 1,
+               "rotor_fastener_length is the only live topology with a " +
+               "zero-width edge — with none, this test measures nothing");
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: liveRotor, study: null, crops: realCrops,
+                selection: null, onSelect: function () {},
+              });
+            });
+            eq(all(root, ".tvflag--no_tolerance").length, zeroWidth.length,
+               "one badge per zero-width row, no more and no fewer");
+            has(root.textContent, VA.ATTENTION.no_tolerance.text);
           });
 
         await test("[real] selecting a study marks its chain on the real rails",
