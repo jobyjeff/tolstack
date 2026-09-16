@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260914_projection_field_guard_rows.md
 handoff: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `viewer_value_guard_rows_and_replays` moved to completed/; not independently verified.
 ---
 
 # The stack-side `VALUE_GUARDS` bite test replays only one of the reporting loop's two arms
