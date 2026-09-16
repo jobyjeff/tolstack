@@ -14,6 +14,12 @@
 (function (VA) {
   "use strict";
 
+  // The one class every crop image on every surface carries. The four
+  // surfaces keep their own class for the surrounding blocks (see
+  // VA.cropReference's `classPrefix`), but the picture itself is one element
+  // with one rule, because the highlight overlay is positioned against it.
+  var IMG_CLASS = "croppop__img";
+
   // The resolved crop's body, shared by this popover, the hover cards and both
   // preview panes: the image (height reserved from the crop index's own pixel
   // size, so the box is measured at its final size before the PNG decodes),
@@ -30,22 +36,99 @@
   //     kind of internal detail the standing web-copy rule bans.
   //   * "re-run the crop script" on a missing PNG. An instruction to type a
   //     command, in a web UI, which that rule bans outright.
-  VA.cropBlock = function (entry, image, config) {
+  VA.cropBlock = function (entry, image, config, images) {
     var box = VA.el("div", "cropblock");
-    if (image && image.url) {
-      var img = VA.el("img", "croppop__img");
-      img.setAttribute("src", image.url);
-      img.setAttribute("alt", "crop of " + entry.pdf_name + " sheet " + entry.page);
-      if (entry.width && entry.height) {
-        img.style.aspectRatio = entry.width + " / " + entry.height;
-      }
-      box.appendChild(img);
-    } else {
-      box.appendChild(VA.el("p", "croppop__reason", VA.CROP_IMAGE_MISSING_TEXT));
-    }
+    box.appendChild(VA.cropFigure(entry, image, IMG_CLASS));
+    var companion = VA.companionFigure(entry, images);
+    if (companion) box.appendChild(companion);
     VA.cropReference(box, entry, config);
     return box;
   };
+
+  // The image and the boxes drawn on it — ONE builder for every surface that
+  // shows a crop, for the same reason VA.cropReference is one: the popover, the
+  // hover cards and both preview panes each had their own copy of the `<img>`
+  // three lines long, and the overlay has to sit in exactly the same coordinate
+  // frame as the picture on all four or it points at the wrong thing.
+  //
+  // The overlay is DOM, not pixels burnt into the PNG. Three reasons, and the
+  // first is the one that decided it: a box drawn in the image is drawn at one
+  // size forever, while these images are laid out at four different widths;
+  // `highlights[].frac` is a fraction of the crop, so a positioned box is right
+  // at every one of them. Second, the verified/declared distinction is then a
+  // CSS rule rather than two render paths in the crop builder. Third, it is
+  // structurally what drawing-checker's own run viewer does — geometry plus a
+  // switchable treatment over the page — so the two surfaces stay recognisable
+  // to a reader moving between them.
+  VA.cropFigure = function (entry, image, className) {
+    var frame = VA.el("div", "cropfig");
+    if (!(image && image.url)) {
+      frame.appendChild(VA.el("p", "croppop__reason", VA.CROP_IMAGE_MISSING_TEXT));
+      return frame;
+    }
+    var img = VA.el("img", className || IMG_CLASS);
+    img.setAttribute("src", image.url);
+    img.setAttribute("alt", "crop of " + entry.pdf_name + " sheet " + entry.page);
+    // Height reserved from the crop index's own pixel size, so the box is
+    // measured at its final size before the PNG decodes — and so the overlay,
+    // which is positioned against this element, never lands on a zero-height
+    // box. `--crop-ratio` is the same fact as a plain number, for the one CSS
+    // rule that needs it: a surface wanting to cap a crop's HEIGHT caps its
+    // width instead, because `object-fit: contain` insets the picture inside
+    // its element and a percentage overlay would then point at the letterbox.
+    if (entry.width && entry.height) {
+      img.style.aspectRatio = entry.width + " / " + entry.height;
+      frame.style.setProperty("--crop-ratio",
+        String(Math.round((entry.width / entry.height) * 10000) / 10000));
+    }
+    frame.appendChild(img);
+    VA.cropHighlights(entry).forEach(function (highlight) {
+      frame.appendChild(highlightBox(highlight));
+    });
+    return frame;
+  };
+
+  // The cited item's parts-list row, beside the crop that shows its balloon. A
+  // balloon crop shows a number in a circle; this is the line that says the
+  // number is a bushing, and which one.
+  VA.companionFigure = function (entry, images) {
+    var companion = entry && entry.companion;
+    if (!companion || !companion.png) return null;
+    var image = images ? images[companion.png] : null;
+    var box = VA.el("div", "cropcompanion");
+    box.appendChild(VA.cropFigure(
+      { pdf_name: entry.pdf_name, page: companion.page,
+        width: companion.width, height: companion.height,
+        highlights: companion.highlights },
+      image, IMG_CLASS));
+    box.appendChild(VA.el("div", "cropcompanion__head", companion.label));
+    return box;
+  };
+
+  function highlightBox(highlight) {
+    var kind = VA.CROP_HIGHLIGHT_KINDS[highlight.kind];
+    var node = VA.el("div", "crophl crophl--" +
+      (kind ? highlight.kind : "unlabelled") +
+      (kind && kind.solid ? " crophl--solid" : " crophl--dashed"));
+    // width/height are the SPAN, not the far edge. Rounded, because
+    // `(0.215 - 0.2) * 100` is `1.4999999999999987` in binary floating point
+    // and a style attribute full of that is noise in every screenshot and
+    // every DOM diff -- four decimals of a percentage is a sub-pixel at any
+    // size these images are laid out at.
+    var frac = highlight.frac;
+    node.style.left = pct(frac[0]);
+    node.style.top = pct(frac[1]);
+    node.style.width = pct(frac[2] - frac[0]);
+    node.style.height = pct(frac[3] - frac[1]);
+    node.setAttribute("title", kind
+      ? kind.text(highlight.label)
+      : VA.unlabelledHighlightText(highlight.kind));
+    return node;
+  }
+
+  function pct(fraction) {
+    return (Math.round(fraction * 1000000) / 10000) + "%";
+  }
 
   // The reference a reader came for, plus the two click-throughs, plus the
   // matching provenance behind one small disclosure. ONE builder for all four
@@ -67,8 +150,15 @@
     var links = VA.el("div", base + "links");
     var runUrl = VA.runUrl(config, entry);
     if (runUrl) {
-      links.appendChild(anchor(runUrl, "open run in drawing-checker",
-        "the local web UI — " + (config && config.drawingCheckerWebui) +
+      // The link SAYS the drawing, not the machinery: "215197 rev A.1". It said
+      // "open run in drawing-checker" until 2026-09-15, which named an internal
+      // artifact ("run") in user-facing copy and told a reader nothing about
+      // which drawing they were about to open. VA.drawingLinkText returns null
+      // when the entry does not carry both facts, and only then does the old
+      // wording stand in.
+      links.appendChild(anchor(runUrl,
+        VA.drawingLinkText(entry) || "open the drawing in drawing-checker",
+        "opens in drawing-checker — " + (config && config.drawingCheckerWebui) +
         " must be serving"));
     }
     // Only where this origin can actually follow it (VA.localFileUrl): on a
@@ -97,7 +187,7 @@
   VA.CROP_IMAGE_MISSING_TEXT =
     "This crop's image is not on disk — the crop index is out of date.";
 
-  VA.renderCrop = function (root, entry, image, config, onClose) {
+  VA.renderCrop = function (root, entry, image, config, onClose, images) {
     VA.clear(root);
     root.className = "croppop croppop--" + entry.status;
 
@@ -123,7 +213,7 @@
       return root;
     }
 
-    root.appendChild(VA.cropBlock(entry, image, config));
+    root.appendChild(VA.cropBlock(entry, image, config, images));
     return root;
   };
 

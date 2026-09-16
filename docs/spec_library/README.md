@@ -121,6 +121,22 @@ A region is placement, not identity: it does not make a value traced, does not
 change which bytes the citation was read from, and a citation that matches no
 region keeps the whole-sheet crop it already had.
 
+**And record the sheet's context once, with `--context`.** A region on its own
+crops to the region, which for a table row is a strip of four numbers with no
+column headers and no figure above them — right rect, unreadable evidence. A
+page context is the wider rect the crop is taken from (the whole table with its
+headers; on a sheet that has one, the figure the lettered columns refer to),
+inside which the matched region is drawn as a box. Same flags, minus `--match`,
+and one per sheet:
+
+```
+scripts\record_spec_crop_region.py --context --document "<file>.pdf" --page N --rect X0 Y0 X1 Y1 --label "<what to call it>" --shows "<what is in the rect>" --recorded YYYY-MM-DD --recorded-by "<you>" --preview <where>.png
+```
+
+Every region on a sheet has to fall inside that sheet's context, or it would be
+highlighted off the edge of the crop; `tests/test_viewer_crops.py` checks that
+for the sheets this repo cites.
+
 ## Every extracted value is reviewed like a stack
 
 The second-agent review (dispatch review flow) checks values against the

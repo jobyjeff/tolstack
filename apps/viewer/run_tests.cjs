@@ -30,7 +30,16 @@ function makeDocument() {
     this.tagName = (tag || "").toUpperCase();
     this.childNodes = [];
     this.attributes = {};
-    this.style = {};
+    // A plain bag, plus the two custom-property methods a real CSSStyleDeclaration
+    // has: VA.cropFigure sets `--crop-ratio` on a crop's frame, and a `style`
+    // object without setProperty throws rather than recording it. Stored under
+    // the property's own name so a test can read it back the way it was written.
+    this.style = {
+      setProperty: function (name, value) { this[name] = value; },
+      getPropertyValue: function (name) {
+        return this[name] === undefined ? "" : this[name];
+      },
+    };
     this._className = "";
     this._text = "";
     this._html = null;

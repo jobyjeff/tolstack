@@ -1,6 +1,6 @@
 """The viewer's status tables, paired with the Python enumerations they copy.
 
-Eight vocabularies are **defined in Python and hand-copied into JavaScript**:
+Nine vocabularies are **defined in Python and hand-copied into JavaScript**:
 
 ===============================================  ==================================
  Python (the definition)                          JavaScript (the copy)
@@ -12,6 +12,7 @@ Eight vocabularies are **defined in Python and hand-copied into JavaScript**:
  ``scripts/build_viewer_crops.py``
  the ``located_by`` literals in ``locate()``,     ``VA.CROP_PLACEMENTS``
  same file
+ ``HIGHLIGHT_KINDS``, same file                   ``VA.CROP_HIGHLIGHT_KINDS``
  ``VERDICT_SCOPES``, ``tolerance_stack/stack``    ``VA.VERDICT_SCOPES``
  ``VERDICTS``, same file                          ``VA.VERDICTS``
  what ``identity_rule_of_ref`` returns in         ``VA.IDENTITY_RULES``
@@ -111,6 +112,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 VIEWER_JS = REPO_ROOT / "apps" / "viewer" / "viewer.js"
 THERMAL_PY = REPO_ROOT / "tolerance_stack" / "thermal.py"
 CROPS_SCRIPT = REPO_ROOT / "scripts" / "build_viewer_crops.py"
+
+# HIGHLIGHT_KINDS is importable -- it is a module-level constant, not a set of
+# literals in a branch -- so it is read by import rather than by AST, the way
+# EXPORT_STATUSES and VERDICTS are. `scripts/` is not a package, hence the path
+# insert, which is what build_viewer_crops does for its own siblings.
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from build_viewer_crops import HIGHLIGHT_KINDS  # noqa: E402
 PROJECTION_SCRIPT = REPO_ROOT / "scripts" / "build_viewer_projection.py"
 
 
@@ -547,6 +555,17 @@ PAIRINGS = (
     # here like its three siblings.
     ("CROP_PLACEMENTS", js_object_keys, python_crop_placements,
      "scripts/build_viewer_crops.py: the `located_by` literals in locate()"),
+    # Added 2026-09-15 (viewer_reference_crops_in_context). Unlike its two
+    # siblings above there IS an enumeration to import: the crop builder's
+    # `highlight()` refuses a kind outside HIGHLIGHT_KINDS, so a new word cannot
+    # reach crops.json without passing through the constant. What that does NOT
+    # stop is the JS copy drifting, and the drift is silent in the worst way: a
+    # kind with no branch in VA.CROP_HIGHLIGHT_KINDS renders as the
+    # `unlabelled` treatment, which is the visual language for "whether this
+    # rect was FOUND on the page or only declared is unknown" -- on a surface
+    # whose entire job is to tell those two apart.
+    ("CROP_HIGHLIGHT_KINDS", js_object_keys, lambda: tuple(HIGHLIGHT_KINDS),
+     "scripts/build_viewer_crops.py: HIGHLIGHT_KINDS"),
     # Added 2026-08-13 (check_completeness_schema). This one is a live-data blind
     # spot of the same family and worse: `budget` had zero live instances until
     # that handoff migrated the pitch-link stack in the same commit, and the

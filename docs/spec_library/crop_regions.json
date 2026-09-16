@@ -6,7 +6,38 @@
     "Declared configuration, never fuzzy matching -- the docs/topologies/part_mesh_aliases.json precedent. Nothing here is found by searching a page: somebody rendered the sheet, looked at it, and recorded the rect with scripts/record_spec_crop_region.py. Each entry's `shows` is its evidence, in the same sense a stack element's source_ref is: a region that claims to be the cited row and is not is a wrong number wearing the right format.",
     "`rect` is [x0, y0, x1, y1] in PDF points, origin top-left -- the PyMuPDF convention, and the same one crops.json reports as rect_pt.",
     "`match` is the citation text a region answers to, tested against the where-ref fields named by tolerance_stack.spec_crop_regions.WHERE_REF_FIELDS plus the element's hardware_ref. Longest declared match wins; a tie between two regions is ambiguous and crops nothing; a page carrying exactly one region uses it. A citation that matches nothing keeps the whole-sheet crop it would have had anyway -- nothing is invented.",
-    "Consumed by scripts/build_viewer_crops.py for any citation whose resolved PDF lives in data/inbox/specs/, whichever rule named the document (spec_pile by filename, or a source_ref.export that points into the pile). The crop entry records the region it used as located_by: \"declared_region\". Shape and live matching are pinned by tests/test_spec_crop_regions.py."
+    "Consumed by scripts/build_viewer_crops.py for any citation whose resolved PDF lives in data/inbox/specs/, whichever rule named the document (spec_pile by filename, or a source_ref.export that points into the pile). The crop entry records the region it used as located_by: \"declared_region\". Shape and live matching are pinned by tests/test_spec_crop_regions.py.",
+    "`contexts` (2026-09-15, handoff viewer_reference_crops_in_context) are the other half of the same idea: a region says which rect the cited row is, a context says which rect the sheet is CROPPED to, and where a page declares one the region becomes a highlight box inside it rather than the crop itself. Jeff on the row-band crops this file's first twelve entries produced: 'is just four numbers with no context for what they mean'. A context is per (document, sheet), at most one, and the crop entry records it as `context_label` beside the `declared_region` placement it already had."
+  ],
+  "contexts": [
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 3,
+      "label": "Sheet 3, the whole grip/length table with its headers",
+      "rect": [
+        82.0,
+        76.0,
+        540.0,
+        598.0
+      ],
+      "shows": "Sheet 3 from the top border of the grip/length table down through its closing note: the stub columns 'Grip Dash No.' and 'Grip +/-.010', the spanning headers 'LENGTH +/-.015 (See Note Below)' and 'BASIC NUMBER AND THREAD SIZE', the fourteen basic-number columns from 'NAS6403 .1900-32' to 'NAS6420 1.2500-12', all 96 grip-dash rows, and the note 'Nominal grip dimension equals grip dash number times .0625 ... Nominal length equals nominal grip plus T (see Sheet 1).' Sheet 3 carries no figure -- the bolt figure is on sheet 1. Rect read off a 3x render on 2026-09-15 and checked against the declared row bands, which all fall inside it.",
+      "recorded": "2026-09-15",
+      "recorded_by": "handoff viewer_reference_crops_in_context"
+    },
+    {
+      "document": "NAS6403-NAS6420 Rev 4.pdf",
+      "page": 1,
+      "label": "Sheet 1, the bolt figure above its dimension table",
+      "rect": [
+        82.0,
+        76.0,
+        548.0,
+        469.0
+      ],
+      "shows": "Sheet 1 from below the standard's masthead down to the bottom rule of the first dimension table: the side-elevation figure of the bolt with its lettered dimensions (C, H, J, Length, Grip, T, M, X, Y, U, R, D, E, TD and the note leaders for the drilled shank and the locking element), the head-on and point-on views beside it, and under them the dimension table's column headers (BASIC NUMBER, Nom Thread Size, C, D Dia unplated/plated-before/plated-after, E Dia Min, H, J, K Dia, M, N, P, R Rad, T (Ref), TD) with every basic-number row from NAS6403 to NAS6420. This is the figure the lettered columns refer to, which is what a reader of a bare row cannot see. Rect read off a 3x render on 2026-09-15; the declared NAS6403 row band falls inside it.",
+      "recorded": "2026-09-15",
+      "recorded_by": "handoff viewer_reference_crops_in_context"
+    }
   ],
   "regions": [
     {

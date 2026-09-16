@@ -245,7 +245,10 @@
   // popover follows, because "no crop" is never one fact.
   function cropOrReason(entry, images, config) {
     if (entry && entry.status === "resolved") {
-      return VA.cropBlock(entry, images ? images[entry.png] : null, config);
+      // `images` goes through as well as the one PNG: a balloon crop carries a
+      // parts-list row companion, which is a second image out of the same map.
+      return VA.cropBlock(entry, images ? images[entry.png] : null, config,
+                          images);
     }
     var box = VA.el("div", "hovercard__noresolve");
     box.appendChild(VA.el("div", "croppop__head",

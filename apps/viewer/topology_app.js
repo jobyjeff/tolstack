@@ -575,15 +575,31 @@
       entry = VA.cropFor(state.crops, stackProj.id, state.selectedElementId);
     }
     if (entry.status !== "resolved" || !entry.png) return Promise.resolve();
-    if (Object.prototype.hasOwnProperty.call(imageCache, entry.png)) {
-      state.detailImage = imageCache[entry.png];
-      return Promise.resolve();
+    // A balloon crop names a SECOND image, its parts-list row (the crop index's
+    // `companion`), so the pane's fetch is a list rather than one blob. It is
+    // awaited alongside the crop: a companion that arrived a paint later would
+    // show the pane's "image not on disk" line for an instant on every
+    // selection.
+    var pngs = [entry.png];
+    if (entry.companion && entry.companion.png) pngs.push(entry.companion.png);
+    return Promise.all(pngs.map(cacheCropImage)).then(function () {
+      state.detailImage = imageCache[entry.png] || null;
+    });
+  }
+
+  // One PNG into `imageCache`, at most once. A fetch that fails caches `null`,
+  // which is the same thing the surfaces read as "no image" — never a retry
+  // loop on every repaint.
+  function cacheCropImage(png) {
+    if (Object.prototype.hasOwnProperty.call(imageCache, png)) {
+      return Promise.resolve(imageCache[png]);
     }
-    return adapter.readCropImage(entry.png).then(function (image) {
-      imageCache[entry.png] = image;
-      state.detailImage = image;
+    return adapter.readCropImage(png).then(function (image) {
+      imageCache[png] = image;
+      return image;
     }).catch(function () {
-      imageCache[entry.png] = null;
+      imageCache[png] = null;
+      return null;
     });
   }
 
@@ -599,7 +615,7 @@
     openedAt = new Date().getTime();
     var paint = function (image) {
       if (openTrigger !== trigger) return;   // a later hover won the race
-      VA.renderCrop(nodes.crop, entry, image, VA.CONFIG, hideCrop);
+      VA.renderCrop(nodes.crop, entry, image, VA.CONFIG, hideCrop, imageCache);
       // display first, then measure: offsetHeight is 0 while display is none.
       nodes.crop.style.display = "block";
       position(nodes.crop, trigger);
@@ -619,12 +635,14 @@
     // Paint the frame immediately so the popover never feels laggy, then swap
     // the image in when the blob resolves.
     paint(null);
-    adapter.readCropImage(entry.png).then(function (image) {
-      imageCache[entry.png] = image;
-      paint(image);
-    }).catch(function () {
-      imageCache[entry.png] = null;
-      paint(null);
+    // The companion (a balloon crop's parts-list row) is fetched alongside, and
+    // each arrival repaints — the same "paint once, repaint as PNGs land" shape
+    // showCard below uses, and for the same reason: this popover can name two
+    // images now.
+    var pngs = [entry.png];
+    if (entry.companion && entry.companion.png) pngs.push(entry.companion.png);
+    pngs.forEach(function (png) {
+      cacheCropImage(png).then(function () { paint(imageCache[entry.png]); });
     });
   }
 
@@ -644,10 +662,10 @@
   function cardPngs(card) {
     var pngs = [];
     var add = function (entry) {
-      if (entry && entry.status === "resolved" && entry.png &&
-          pngs.indexOf(entry.png) === -1) {
-        pngs.push(entry.png);
-      }
+      if (!entry || entry.status !== "resolved") return;
+      [entry.png, entry.companion && entry.companion.png].forEach(function (png) {
+        if (png && pngs.indexOf(png) === -1) pngs.push(png);
+      });
     };
     (card.crops || []).forEach(function (crop) { add(crop.entry); });
     (card.thumbs || []).forEach(function (thumb) { add(thumb.entry); });
@@ -1190,7 +1208,7 @@
         selectedElementId: state.selectedElementId,
       });
       VA.renderDetail(nodes.detail, stackProj, state.selectedElementId,
-        state.crops, state.detailImage, VA.CONFIG);
+        state.crops, state.detailImage, VA.CONFIG, imageCache);
     }
 
     VA.renderWorksheet(nodes.worksheet, sheet, state.worksheetText);

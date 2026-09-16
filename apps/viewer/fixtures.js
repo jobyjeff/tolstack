@@ -364,8 +364,23 @@
               // the builder writes both keys on every entry: "no region" and
               // "built before regions existed" must not look the same.
               region_label: null, region_match: null,
+              // Null for the same reason region_label is: the builder writes
+              // every key on every entry, so "this crop names no page context /
+              // no find number" and "this index predates them" cannot look the
+              // same to a reader. `drawing_no`/`drawing_revision` are what the
+              // link into drawing-checker is CALLED, and are written only where
+              // a run exists to link to -- this entry has none.
+              context_label: null, find_no: null,
+              drawing_no: null, drawing_revision: null, companion: null,
               note: "printed zone D10 padded by 1 cell(s)",
               rect_pt: [0, 0, 100, 100],
+              // The boxes drawn over the crop, as fractions of it. This one
+              // corroborated (`callout_text_in_zone: true`), so the box is a
+              // `verified_match` and the viewer draws it SOLID.
+              highlights: [{
+                kind: "verified_match", label: "4.06",
+                rect_pt: [40, 30, 60, 40], frac: [0.4, 0.3, 0.6, 0.4],
+              }],
             },
             washer: {
               status: "unresolvable", png: null,
@@ -405,9 +420,15 @@
               sha256_verified: true, located_by: "sheet_full", needle: null,
               cited_zone: null, zone_grid: "read", callout_text_in_zone: null,
               region_label: null, region_match: null,
+              context_label: null, find_no: null,
+              drawing_no: null, drawing_revision: null, companion: null,
               note: "whole sheet -- no zone cited and the callout text " +
                 "matches zero or many places",
               rect_pt: [0, 0, 100, 100],
+              // A whole-sheet crop marks nothing, and says so with an empty
+              // list rather than by omitting the key: nothing on this sheet was
+              // located, which is a statement, not a gap in the index.
+              highlights: [],
             },
             post_bushing_offset: {
               status: "unresolvable", png: null,

@@ -6,7 +6,7 @@
 (function (VA) {
   "use strict";
 
-  VA.renderDetail = function (root, stackProj, selectedElementId, cropsIndex, cropImage, config) {
+  VA.renderDetail = function (root, stackProj, selectedElementId, cropsIndex, cropImage, config, images) {
     VA.clear(root);
     root.className = "detail";
     if (!stackProj) {
@@ -63,7 +63,7 @@
     var exportBlock = exportProvenanceBlock(stackProj, row, cropsIndex, config);
     if (exportBlock) root.appendChild(exportBlock);
 
-    root.appendChild(cropSection(stackProj, element, cropsIndex, cropImage, config));
+    root.appendChild(cropSection(stackProj, element, cropsIndex, cropImage, config, images));
 
     return root;
   };
@@ -154,7 +154,7 @@
   // The four states are VA.cropFor's (see viewer.js): only `resolved` has an
   // image to show; the other three say which of the four distinct "no crop"
   // facts applies, the same wording the hover popover used.
-  function cropSection(stackProj, element, cropsIndex, cropImage, config) {
+  function cropSection(stackProj, element, cropsIndex, cropImage, config, images) {
     var entry = VA.cropFor(cropsIndex, stackProj.id, element.id);
     var box = VA.el("div", "detail__crop detail__crop--" + entry.status);
     box.appendChild(VA.el("h4", null, "Drawing crop"));
@@ -163,20 +163,14 @@
         entry.reason || VA.cropUnresolvedHeadline(entry.status)));
       return box;
     }
-    if (cropImage && cropImage.url) {
-      var img = VA.el("img", "detail__crop-img");
-      img.setAttribute("src", cropImage.url);
-      img.setAttribute("alt", "crop of " + entry.pdf_name + " sheet " + entry.page);
-      // Reserve the height from crops.json's own pixel size, same reason the
-      // hover popover does: measuring the box before the PNG decodes.
-      if (entry.width && entry.height) {
-        img.style.aspectRatio = entry.width + " / " + entry.height;
-      }
-      box.appendChild(img);
-    } else {
-      box.appendChild(VA.el("div", "detail__crop-reason",
-        VA.CROP_IMAGE_MISSING_TEXT));
-    }
+    // The image, the boxes drawn over it and the parts-list companion all come
+    // from the ONE shared builder (VA.cropFigure, views/crop.js) — this pane
+    // kept its own copy of the `<img>` until 2026-09-15, and an overlay
+    // positioned against a second copy is an overlay that can drift out of
+    // frame on one surface only.
+    box.appendChild(VA.cropFigure(entry, cropImage, "detail__crop-img"));
+    var companion = VA.companionFigure(entry, images);
+    if (companion) box.appendChild(companion);
     // The reference, the links and the folded matching provenance are ONE
     // builder now (VA.cropReference, views/crop.js) — this pane, the hover
     // cards, the topology preview pane and the plain popover all showed the
