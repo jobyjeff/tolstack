@@ -9,6 +9,20 @@ found_by: docs/sessions/HANDOFF_20260915_annotate_hosted_page_posture.md
 
 # `tests/test_provenance.py` is red on trunk: the origin-posture brief asserts byte-identity and names nothing that checks it
 
+> **Duplicate — added in review, 2026-09-15.** This is the **third** filing of
+> the same standing red, and both siblings were already in `docs/issues/` at
+> this handoff's own branch point (`f629942`), so unlike the 2026-09-15 pair
+> this one was visible from the tactical worktree:
+> `ISSUE_20260915_byte_for_byte_claim_in_a_strategy_brief_reddens_pytest_on_integration.md`
+> (filed by `mutation_witness_tier_repair`, `med`) and
+> `ISSUE_20260915_byte_identity_guard_reds_the_suite_on_a_triage_authored_brief.md`
+> (filed by `extracted_mesh_alias_rows`, `med`). All three name the same clause,
+> `BRIEF_20260915_origin_posture_and_absent_feature_rule.md:62`. **Triage: fix
+> once and close all three.** Kept rather than deleted only because this one
+> carries the `high` argument the other two do not — one prose clause reddening
+> every pytest run in every worktree — so whichever survives should carry that
+> priority.
+
 `venv-win/Scripts/python.exe -m pytest -q` from a worktree cut from
 `integration` on 2026-09-15:
 

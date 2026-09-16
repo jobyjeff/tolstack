@@ -31,7 +31,7 @@ Element by element, the reasoning that converged there:
 **One node rather than seven `display:none`s** because a per-element hide list
 is a list a later column can be added to without being added to — which is the
 shape of this bug, `surfaces_that_state_something_false` having hidden three
-elements and not the eighth. An emptied three-column grid is also still three
+elements and not the eight below them. An emptied three-column grid is also still three
 columns of nothing, so hiding the columns individually buys nothing over hiding
 their parent. And **hidden, not removed**: nothing here is latched (the
 transport decision is recomputed on every load), so a reload on a loopback
