@@ -540,6 +540,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       state is right; a *rule* stated for the app is a claim about all of them.
       (`ISSUE_20260915_a_browser_with_no_fsa_gets_the_full_bind_workspace_
       under_a_dead_end_sentence.md`, routed to the origin-posture brief.)
+- [ ] **A runner that reports THAT something failed without reporting WHICH
+      check failed.** Promoted by the 2026-09-16 triage sweep. Distinct from the
+      entry below: that one is a guard that has stopped biting, this one is a
+      guard that bit and whose verdict was thrown away on the way out.
+      `scripts/run_viewer_browser_tests.mjs` accumulates `FAIL sub-check:` names
+      through a ~1180-line `try` and prints them only at the end; **any** throw
+      inside jumps to a `catch` that prints one `[topology file://] ERROR:` line
+      and silently discards every name already collected. So the tier's
+      `NOT WITNESSED: <entry>` line names the entry but not the reason, and
+      "the tier never reached the witness" is indistinguishable from "the
+      witness cannot see the difference" — two defects with different fixes and
+      one message.
+      **Measured cost: three separate sessions filed the same
+      `card-layout-out-of-flow` defect in one day**, each diagnosing it
+      differently from the same output
+      (`ISSUE_20260915_card_layout_mutation_aborts_its_suite_before_the_check_
+      it_declares.md`, `..._card_layout_out_of_flow_mutation_reddens_an_earlier_
+      check_so_it_is_never_witnessed.md`, `..._the_card_layout_out_of_flow_
+      mutation_witness_stopped_witnessing_on_integration.md`; all three routed
+      to `HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md`). Two of
+      the three then asserted a mechanism — "aborts ~150 lines before the check"
+      — that the line numbers contradict (declared check pushed at 1358, the
+      timing-out hover at 1414, i.e. 56 lines *after*).
+      **The one-line question: if this stage failed right now, would anything be
+      printed that NAMES what failed?** Not "would it go red" — whether the
+      *name* survives the path out. Ask it of every `catch`, every `finally`,
+      every early return that reports, and every exit code that stands in for
+      more than one outcome. Same shape is live in drawing-checker
+      (`ISSUE_20260915_deploy_runner_discards_the_gates_summary_on_a_pass.md`,
+      `..._hover_runner_step_4b_vanishes_when_its_own_locator_misses.md`,
+      `..._deploy_log_resolve_uses_one_exit_code_for_a_miss_and_a_crash.md`), so
+      it is a cross-repo class, not a local nit.
 - [ ] **A guard that no longer witnesses what it claims, and says nothing about
       it.** The witness is coupled to an incidental property of the app; the app
       then changes *correctly* and the guard silently stops biting. Nothing goes
