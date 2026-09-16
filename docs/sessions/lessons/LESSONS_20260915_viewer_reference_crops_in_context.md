@@ -219,6 +219,15 @@ rather than fixed here — it is one sentence in someone else's brief. Everythin
 else is green: 1115 passed, 1 skipped, plus 318/318 in the JS fast tier and
 19/19 browser checks (304/304 in the suite on **both** `file://` and `http`).
 
+> **Correction, review 2026-09-16.** `1115 passed` was exact at the commit that
+> wrote this paragraph (`65e5c11`, re-measured); the *shipping* branch tip
+> `61bb137` reports **1116 passed, 1 skipped** — that commit added two tests and
+> edited this file without moving the count. On the merged review branch, where
+> `integration` has since advanced, it is **1121 passed, 1 skipped**, with the
+> same single pre-existing red. The JS figure reproduces (318/318 at the tip,
+> 327/327 merged; 407/407 with `--repo` against a projection set built from the
+> merged tree).
+
 ## 8. Decisions made that the handoff did not ask about
 
 * **Grid thumbnails get no overlay.** The topology grid's crop-trigger
@@ -230,14 +239,29 @@ else is green: 1115 passed, 1 skipped, plus 318/318 in the JS fast tier and
   both have a branch in `VA.CROP_PLACEMENTS` — that table exists precisely
   because a fifth value with no branch drops the whole "where on the sheet"
   clause in silence. `HIGHLIGHT_KINDS` joined `tests/test_js_python_vocabulary.py`'s
-  `PAIRINGS` for the same reason, and it is the first row there that reads an
-  importable constant rather than scraping literals out of an AST.
+  `PAIRINGS` for the same reason, and it reads an importable constant rather
+  than scraping literals out of an AST.
+  > **Correction, review 2026-09-16.** This bullet said *"the first row there
+  > that reads an importable constant"*. It is the fourth: `EXPORT_STATUSES`,
+  > `VERDICT_SCOPES` and `VERDICTS` are all `lambda: tuple(<imported name>)`
+  > rows already, which the new row's own comment in that file says
+  > ("the way `EXPORT_STATUSES` and `VERDICTS` are"). What *is* new is that a
+  > `build_viewer_crops` constant is importable at all from a test — the two
+  > sibling crop rows scrape `locate()`'s literals.
 * **`rect_pt` is now the CLAMPED rect.** `render` has always intersected the
   crop rect with the page, so a rect hanging off the sheet was reported as
   something wider than the image actually written. That mattered the moment
   highlight fractions began being measured against it — a fraction computed
   against an unclamped rect is wrong by the overhang. Two live crops clamp
   today (a balloon+zone union at the top edge of 217755 sheet 8).
+  > **Correction, review 2026-09-16.** Measured by instrumenting `clamp_to` and
+  > rebuilding both crop spaces against a copy of the live data: **three** crops
+  > clamp by more than 0.01 pt, and the balloon+zone union among them is on
+  > **sheet 4**, not sheet 8 — `tan_link_to_pitch_plate:straight_bushing`,
+  > `[1326.21, -24.57, 1899.19, 527.91] -> [1326.21, 0.0, ...]`. The other two
+  > are zone-cell crops on the topology side (`pitch_system:piston_length`,
+  > right and bottom; `pitch_system:gas_spring_body_height`, right). Neither
+  > sheet-8 balloon crop clamps. The point the bullet makes is unaffected.
 * **Tracked fixtures, not live reads.** `tests/fixtures/viewer_crops/` holds the
   geometry the three cases are pinned against, recorded off the real export and
   the real run, each file carrying where it came from and why it is a copy:

@@ -9,6 +9,21 @@ found_by: docs/sessions/HANDOFF_20260915_viewer_reference_crops_in_context.md
 
 # `pytest -q` is red on `integration` before any handoff touches it: an unbacked byte-identity claim in a strategy brief
 
+> **Cross-reference added in review, 2026-09-16.** This is the **seventh** filing
+> of the same red. Six siblings were already in `docs/issues/` at this branch's
+> own merge-base (`d16db3b`), so `ls docs/issues/` in the tactical worktree would
+> have shown them:
+> `ISSUE_20260915_a_strategy_briefs_byte_for_byte_claim_reddens_the_suite_on_master.md`,
+> `ISSUE_20260915_byte_for_byte_claim_in_a_strategy_brief_reddens_pytest_on_integration.md`,
+> `ISSUE_20260915_byte_identity_claim_in_origin_posture_brief_names_no_verification.md`,
+> `ISSUE_20260915_byte_identity_guard_red_on_the_origin_posture_brief.md`,
+> `ISSUE_20260915_byte_identity_guard_reds_the_suite_on_a_triage_authored_brief.md`,
+> `ISSUE_20260915_strategy_brief_byte_identity_claim_fails_the_provenance_guard.md`
+> (plus `..._a_strategy_briefs_byte_for_byte_figure_of_speech_...`, which landed
+> on `integration` after the branch point). **Triage should close all seven as
+> one.** Kept rather than deleted because this one carries the clearest repro and
+> the `df21a4a` attribution; nothing here is new against the six above.
+
 `tests/test_provenance.py::test_every_byte_identity_claim_in_a_live_file_names_its_verification`
 fails on a clean checkout of `integration`. It is not caused by any handoff
 branch — it was red at the first command of this session, before a single file

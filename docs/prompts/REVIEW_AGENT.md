@@ -2865,6 +2865,77 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       track's call.
       (`ISSUE_20260915_the_3d_reach_brief_still_argues_from_covered_stack_nesting_and_a_loose_majority.md`.)
 
+- [ ] **A deliverable whose whole point is GEOMETRIC, pinned only where it is a
+      pure function or a hand-fed renderer.** New 2026-09-16
+      (`viewer_reference_crops_in_context`, three should-fixes of one shape).
+      The handoff's claim was "a box over the right part of the picture"; the
+      tests build their own crop entry and assert the box's `style.left` in
+      percent, which is right and is not the claim. Four one-line reverts stayed
+      **1121 pytest / 407 fast / 20 browser** green: the hover card's
+      `max-width: calc(260px * var(--crop-ratio))` put back to
+      `max-height: 260px; object-fit: contain` (the overlay then points into the
+      letterbox — the exact defect the lesson credits the browser tier with
+      catching), `companion = None` and `"drawing_no": None` in
+      `_crop_from_citation`, and the three companion-prefetch terms in
+      `topology_app.js`. The tell each time: the assertion is fed the field
+      rather than reading what a producer wrote. Ask, per deliverable, **which
+      edit undoes it, and which tier is even capable of seeing that edit** —
+      for a percentage overlay the answer is only a browser-tier client-rect
+      comparison, and for a builder field only a wiring test through the `fitz`
+      stand-in (`test_crop_element_crops_a_pile_citation_to_its_declared_region`
+      is the shape to copy; `fitz` is imported lazily on purpose).
+      `ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md`.
+- [ ] **A new crop/projection field that renders a CLAIM, with no
+      `VALUE_GUARDS` row and a silent drop on the way in.** Same handoff.
+      `crops.json`'s `highlights[]` carries the solid-vs-dashed
+      found-vs-declared distinction — the whole visual language — and
+      `VA.cropHighlights` filters out any box whose `frac` is not four numbers,
+      returning `[]`, which renders identically to an honest "nothing here was
+      marked". No `[real]` assertion reads a live crop's boxes at all (grep
+      `crophl|companion|highlights|drawing_no` below `tests.js:7036`: nothing).
+      The *vocabulary* was covered from the other side and well —
+      `HIGHLIGHT_KINDS` is importable, `highlight()` refuses a word outside it,
+      and `test_js_python_vocabulary.py` pairs it (verified: renaming the JS key
+      reddens that row) — which is exactly what makes the **absent/malformed**
+      direction easy to call covered. Two different questions; ask both.
+      `ISSUE_20260916_crop_highlights_have_no_live_data_value_guard.md`.
+- [ ] **A `{key: row for row in rows}` over another repo's list, where the key
+      is narrower than the row.** New 2026-09-16, and the cheapest instance of
+      the canonical identity-key check this repo has produced.
+      `parts_list_row_for` keys drawing-checker's `parts_list` by
+      `part_number`; the 2026-AUG-19 217755 export carries `NAS1149V0332H` at
+      **find 13 and find 32** (two different parts), so a dict comprehension
+      keeps whichever is last and the crop's balloon, its companion row and its
+      solid *"found on the page: balloon N"* highlight are all decided by JSON
+      row order. Right today by luck; `list(reversed(rows))` flips it to the
+      wrong item with nothing red. The disambiguator was in the data the whole
+      time — every live citation's callout ends `"(find 34)"` / `"(find 32, …)"`
+      — and the sibling function one screen down already breaks the same tie by
+      find number. **Demand the collision test that plants two rows and then
+      reverses their order**; a round-trip over today's data passes either way.
+      `ISSUE_20260916_a_parts_list_row_is_keyed_by_part_number_alone_and_one_row_is_overwritten.md`.
+- [ ] **A `shows` / evidence string is an inventory sentence — recount every
+      figure in it against the render.** New 2026-09-16, the stale-count family
+      landing in `docs/spec_library/crop_regions.json`. The two new page
+      contexts are correct rects (checked by rendering both), and the sheet-3
+      entry's `shows` — the field this repo treats the way it treats a
+      `source_ref` — said *"the fourteen basic-number columns"* (there are
+      **13**; the NAS series skips odd numbers above 6410) and *"all 96
+      grip-dash rows"* (there are **64**; 96 is the highest dash NUMBER). Every
+      other clause in the same sentence was exact, which is what makes this
+      class survive. Render the rect and count; both fixed inline.
+- [ ] **Seven issues, one red.** New 2026-09-16 and the duplicate-filing entry's
+      terminal form: `docs/issues/` now holds **seven** filings of the single
+      `test_every_byte_identity_claim_…` failure, one per handoff that ran the
+      suite between 2026-09-15 and 2026-09-16, all `area: docs/strategy`, all
+      saying the same thing. **Six of them were already in this handoff's own
+      merge-base tree.** So the branch-point excuse is spent: before accepting an
+      issue about a condition that is not specific to the diff,
+      `ls docs/issues/ | grep <the noun>` in the MERGED tree, and where siblings
+      exist, cross-reference the newest into them and say in the report that
+      triage should close them as one. Filing an eighth costs a triage sweep more
+      than the red costs a session.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New

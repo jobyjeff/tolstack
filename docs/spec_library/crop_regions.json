@@ -20,7 +20,7 @@
         540.0,
         598.0
       ],
-      "shows": "Sheet 3 from the top border of the grip/length table down through its closing note: the stub columns 'Grip Dash No.' and 'Grip +/-.010', the spanning headers 'LENGTH +/-.015 (See Note Below)' and 'BASIC NUMBER AND THREAD SIZE', the fourteen basic-number columns from 'NAS6403 .1900-32' to 'NAS6420 1.2500-12', all 96 grip-dash rows, and the note 'Nominal grip dimension equals grip dash number times .0625 ... Nominal length equals nominal grip plus T (see Sheet 1).' Sheet 3 carries no figure -- the bolt figure is on sheet 1. Rect read off a 3x render on 2026-09-15 and checked against the declared row bands, which all fall inside it.",
+      "shows": "Sheet 3 from the top border of the grip/length table down through its closing note: the stub columns 'Grip Dash No.' and 'Grip +/-.010', the spanning headers 'LENGTH +/-.015 (See Note Below)' and 'BASIC NUMBER AND THREAD SIZE', the thirteen basic-number columns from 'NAS6403 .1900-32' to 'NAS6420 1.2500-12' (the NAS series skips the odd numbers above 6410), all 64 grip-dash rows (1-32 individually, then even 34-96 -- 96 is the highest dash NUMBER, not the row count), and the note 'Nominal grip dimension equals grip dash number times .0625 ... Nominal length equals nominal grip plus T (see Sheet 1).' Sheet 3 carries no figure -- the bolt figure is on sheet 1. Rect read off a 3x render on 2026-09-15 and checked against the declared row bands, which all fall inside it.",
       "recorded": "2026-09-15",
       "recorded_by": "handoff viewer_reference_crops_in_context"
     },
@@ -34,7 +34,7 @@
         548.0,
         469.0
       ],
-      "shows": "Sheet 1 from below the standard's masthead down to the bottom rule of the first dimension table: the side-elevation figure of the bolt with its lettered dimensions (C, H, J, Length, Grip, T, M, X, Y, U, R, D, E, TD and the note leaders for the drilled shank and the locking element), the head-on and point-on views beside it, and under them the dimension table's column headers (BASIC NUMBER, Nom Thread Size, C, D Dia unplated/plated-before/plated-after, E Dia Min, H, J, K Dia, M, N, P, R Rad, T (Ref), TD) with every basic-number row from NAS6403 to NAS6420. This is the figure the lettered columns refer to, which is what a reader of a bare row cannot see. Rect read off a 3x render on 2026-09-15; the declared NAS6403 row band falls inside it.",
+      "shows": "Sheet 1 from below the standard's masthead down to the bottom rule of the first dimension table: the side-elevation figure of the bolt with its lettered dimensions (C, W, H, J, Length, Grip, T, M, X, Y, U, R, D, E, TD and the note leaders for the drilled shank and the locking element), the head-on and point-on views beside it, and under them the dimension table's column headers (BASIC NUMBER, Nom Thread Size, C, D Dia unplated/plated-before/plated-after, E Dia Min, H, J, K Dia, M, N, P, R Rad, T (Ref), TD) with every basic-number row from NAS6403 to NAS6420. This is the figure the lettered columns refer to, which is what a reader of a bare row cannot see. Rect read off a 3x render on 2026-09-15; the declared NAS6403 row band falls inside it.",
       "recorded": "2026-09-15",
       "recorded_by": "handoff viewer_reference_crops_in_context"
     }
