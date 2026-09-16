@@ -59,7 +59,7 @@ gives no guidance once the same page is capable for one visitor and not another.
    differently about one origin **by construction**: `VA.isLocalPage` returns the
    strictest answer (`file://` only) to a caller that passes no hostname;
    `apps/annotate/` passes its hostname, and `apps/viewer/`'s `topology_app.js`
-   deliberately does not, so the viewer's behaviour is byte-for-byte what
+   deliberately does not, so the viewer's behaviour is unchanged from what
    `viewer_transport_honest_hosted` shipped. That asymmetry is defensible — the
    viewer's legitimate local page *is* `file://`, since it is built to run by
    double-click — but it is two apps answering differently about one origin, and
