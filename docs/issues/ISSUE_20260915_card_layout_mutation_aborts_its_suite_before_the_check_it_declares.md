@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_respine_whole_walk.md
 handoff: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `mutation_witness_tier_reaches_its_checks` moved to completed/; not independently verified.
 ---
 
 # `card-layout-out-of-flow` is NOT WITNESSED again — its mutation aborts the suite 150 lines before the check it declares

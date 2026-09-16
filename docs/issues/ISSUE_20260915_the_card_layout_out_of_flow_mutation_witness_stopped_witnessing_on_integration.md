@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
 handoff: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `mutation_witness_tier_reaches_its_checks` moved to completed/; not independently verified.
 ---
 
 # `card-layout-out-of-flow` stopped witnessing somewhere on `integration`, and the mutation tier is 21/22

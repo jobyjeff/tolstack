@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: tests/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
 handoff: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `mutation_witness_tier_reaches_its_checks` moved to completed/; not independently verified.
 ---
 
 # `card-layout-out-of-flow` goes red on the wrong check, so the mutation tier reports 17/18 forever

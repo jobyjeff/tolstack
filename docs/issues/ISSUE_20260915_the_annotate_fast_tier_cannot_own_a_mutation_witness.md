@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: scripts/mutation-witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_annotate_hosted_page_posture.md
 handoff: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `mutation_witness_tier_reaches_its_checks` moved to completed/; not independently verified.
 ---
 
 # A guard in `apps/annotate/run_tests.cjs` cannot be declared in `mutation_witnesses.json` at all
