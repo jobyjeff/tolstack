@@ -25,7 +25,7 @@ from tolerance_stack import (
     ExportRun, SourceExport, SourceRef, StackDefinition, StackElement, Term, fold,
     load_stack,
 )
-from tolerance_stack.stack import EXPORT_STATUSES
+from tolerance_stack.stack import EXPORT_STATUSES, VERDICTS
 
 from tests.test_js_python_vocabulary import python_values_statuses
 
@@ -240,7 +240,7 @@ def test_an_incomplete_check_is_budget_scoped_and_its_verdict_domain_is_unchange
     """
     got = _check(complete=False, excluded_terms=["link eye width -- no document"])
     assert got.verdict_scope == "budget"
-    assert got.verdict in ("pass", "marginal", "fail")
+    assert got.verdict in VERDICTS
     assert got.verdict_scope in VERDICT_SCOPES
 
 
@@ -308,7 +308,173 @@ def test_the_check_result_dict_carries_the_field_and_the_derived_scope():
     assert got["complete"] is False
     assert got["excluded_terms"] == ["the eye -- no document"]
     assert got["verdict_scope"] == "budget"
-    assert got["verdict"] in ("pass", "marginal", "fail")
+    assert got["verdict"] in VERDICTS
+
+
+def test_every_verdict_a_check_can_reach_is_a_member_of_the_vocabulary():
+    """The pin ``VERDICTS``' own docstring claimed and did not have.
+
+    Until 2026-09-16 the only membership assertions were the two above, each
+    over a single constructed check that happens to land on ``pass`` -- so the
+    "domain" they were said to pin was one word wide, and both hand-spelled the
+    three words instead of reading the tuple. A fourth verdict added to
+    :meth:`CheckResult.verdict` would have sailed past them.
+
+    Three constructed intervals are enough and no data is needed:
+    :meth:`CheckResult.verdict` reads only ``interval.min`` and
+    ``interval.nominal``. All three words are live in the repo anyway -- the
+    topology projection carries 4 ``pass``, 3 ``marginal`` and 11 ``fail`` --
+    so this is the vocabulary as the repo actually uses it, not a hypothetical.
+
+    Both directions, which is what makes the constant and the method one thing:
+
+    * every word this method can return is in ``VERDICTS`` -- add a fourth
+      return value and this reddens;
+    * every word in ``VERDICTS`` is reachable -- rename or drop a member and the
+      set comparison reddens rather than the tuple quietly disagreeing with the
+      method.
+    """
+    corners = {
+        # why it lands where it does -> (nominal, min, max)
+        "worst case satisfies the criterion": (1.0, 0.5, 1.5),
+        "nominal satisfies it, worst case does not": (1.0, -0.5, 1.5),
+        "nominal does not satisfy it either": (-1.0, -2.0, 0.5),
+    }
+    reached = set()
+    for why, (nominal, lo, hi) in corners.items():
+        got = _check(interval=fold([Term(_el("e", nominal, lo, hi))]))
+        assert got.verdict in VERDICTS, f"{why}: {got.verdict!r} is outside VERDICTS"
+        reached.add(got.verdict)
+    assert reached == set(VERDICTS), (
+        f"the verdicts a check can reach are {sorted(reached)}; VERDICTS says "
+        f"{sorted(VERDICTS)} -- one of the two has moved without the other")
+
+
+# ---------------------------------------------------------------------------
+# `CheckResult.margin` -- the number, not just the word
+# ---------------------------------------------------------------------------
+
+
+def test_a_checks_margin_is_the_binding_corner_and_not_the_permissive_one(pitch_link):
+    """*By how much*, pinned at a value -- which nothing in ``tests/`` did.
+
+    ``margin`` is in ``as_dict()``, both projections carry it and the DAG page
+    prints it beside every verdict, and until 2026-09-16 no Python test asserted
+    one. ``review/viewer_study_verdicts_and_gaps`` measured the hole directly:
+    changing the body from ``interval.min`` to ``interval.max`` -- the most
+    permissive corner of the interval instead of the binding one -- left that
+    day's suite green but for one unrelated, pre-existing failure.
+
+    The existing net could not see it, for two reasons worth knowing before
+    editing this:
+
+    * ``test_the_l1_studys_projected_check_matches_check_study_field_for_field``
+      (``tests/test_topology_projection.py``) builds its expectation with the
+      builder's own ``rounded_check(...)``, so it compares the projection
+      against the code that produced it -- right for the rounding rule, blind to
+      a wrong margin rule; and
+    * the only pin on a margin *value* anywhere was a rendered-string assertion
+      in the JS ``[real]`` tier, which reads the *built projection file* and so
+      fires only after somebody manually re-runs
+      ``scripts/build_topology_projection.py`` -- one artifact and one language
+      away from the rule.
+
+    Which end of a budget check's interval is the requirement is a question this
+    repo has already got wrong once in prose, by 0.708 mm, with every folded
+    value correct and every test green (``docs/prompts/REVIEW_AGENT.md``,
+    mandatory check 2).
+    """
+    # Both live pitch-link checks, at the values the DAG page publishes:
+    # `apps/viewer/tests.js` asserts "margin +0.1098 mm at worst case" and
+    # "margin +2.3296 mm at worst case" against the built projection.
+    published = {
+        "shank_out__11_sourced_only": 0.1098,
+        "cotter_hole_clear_of_sourced_stack": 2.3296,
+    }
+    for check_id, expected in published.items():
+        got = pitch_link.check(check_id)
+        assert got.margin == pytest.approx(got.interval.min, abs=TOL)
+        assert got.margin == pytest.approx(expected, abs=1e-4), (
+            f"{check_id}: margin is {got.margin}, and the page publishes "
+            f"{expected}")
+        # Anti-vacuity, and the whole point: on these checks the permissive
+        # corner is a DIFFERENT number, so reading it would be visible here.
+        assert got.interval.max != pytest.approx(got.interval.min, abs=TOL)
+
+
+def test_a_marginal_checks_margin_is_negative_even_though_nominal_passes():
+    """The sign, where the two corners straddle the criterion.
+
+    The live pitch-link checks both pass, so their two corners are both positive
+    and only the *value* distinguishes them. This is the case where reading the
+    permissive corner would flip the sign outright: a check the repo calls
+    ``marginal`` -- nominal satisfies the criterion, worst case does not --
+    must report a shortfall, not slack, or the word and the number on the same
+    row contradict each other.
+    """
+    got = _check(interval=fold([Term(_el("e", 1.0, -0.5, 1.5))]))
+    assert got.verdict == "marginal"
+    assert got.margin == pytest.approx(-0.5, abs=TOL)
+    assert got.margin < 0, (
+        "a marginal check reported slack -- the verdict and the margin are "
+        "supposed to be the same comparison written once")
+
+
+def test_verdict_and_margin_both_refuse_a_criterion_neither_implements():
+    """The gate both properties carry, and that neither had a test for.
+
+    ``">= 0"`` is the only criterion ``CheckResult`` implements -- it is the
+    dataclass default, ``docs/SOP_TOLERANCE_STACK.md``'s "Verdicts" section
+    states it flatly, and every criterion authored in this repo's JSON is that
+    string (pinned by the test below, so this gate is not guarding empty space).
+    Both ``verdict`` and ``margin`` raise on anything else, and they must raise
+    *together*: a criterion of ``">= 3"`` would make ``margin`` and
+    ``interval.min`` differ, so gating only one of the two would publish a
+    number computed by the wrong rule beside a word that refused to be computed.
+    """
+    for criterion in (">= 3", "> 0", ">=0", "<= 0", ""):
+        got = _check(criterion=criterion)
+        with pytest.raises(NotImplementedError, match="not supported"):
+            got.verdict
+        with pytest.raises(NotImplementedError, match="not supported"):
+            got.margin
+    # And the supported one does not raise, from both properties.
+    supported = _check(criterion=">= 0")
+    assert supported.verdict in VERDICTS
+    assert isinstance(supported.margin, float)
+
+
+def test_every_authored_criterion_is_one_the_check_result_implements():
+    """Anti-vacuity for the gate above: the refusal guards live authoring.
+
+    There is no ``CRITERIA`` constant -- the criterion vocabulary is a dataclass
+    default, plus a ``NotImplementedError`` in two properties, plus one flat
+    sentence in ``docs/SOP_TOLERANCE_STACK.md``'s "Verdicts" section. So this is
+    where *"every authored criterion is one the code supports"* gets checked,
+    and a document authoring ``">= 3"`` fails here rather than raising at render
+    time.
+
+    Both authoring surfaces, not just the stacks: a study in ``docs/topologies/``
+    carries its own ``criterion`` on the same ``checks`` key and rides the same
+    two properties, and the studies are where most of them are. Both are
+    asserted to have contributed, so a glob that stops matching fails here
+    rather than turning the loop below into a pass over nothing.
+    """
+    authored = []
+    for directory in (STACKS_DIR, STACKS_DIR.parent / "topologies"):
+        for path in sorted(directory.glob("*.json")):
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            for block in raw.get("checks") or []:
+                if isinstance(block, dict) and "criterion" in block:
+                    authored.append((directory.name, path.name,
+                                     block.get("check_id"), block["criterion"]))
+    wrong = [a for a in authored if a[3] != ">= 0"]
+    assert wrong == [], (
+        "documents author a criterion CheckResult.verdict/.margin refuse: "
+        + "; ".join(f"{f}:{cid} says {crit!r}" for _, f, cid, crit in wrong))
+    assert {a[0] for a in authored} == {"tolerance_stacks", "topologies"}, (
+        "one of the two authoring surfaces contributed no criterion at all -- "
+        "the assertion above just passed over nothing")
 
 
 # ---------------------------------------------------------------------------
