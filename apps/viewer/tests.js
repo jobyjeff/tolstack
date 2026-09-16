@@ -9136,8 +9136,25 @@
             eq(warn.length, 1);
             has(warn[0].textContent, "no tolerance recorded");
             has(warn[0].textContent, "LOWER bound");
-            has(warn[0].textContent, "MS21299C3");
-            has(warn[0].textContent, "NAS1149V0332H");
+            // The rows it names, DERIVED from the chain rather than spelled
+            // out. Two were spelled out until 2026-09-16, and one of them
+            // stopped being zero-width the day `5ce16f3` gave the
+            // NAS1149V0332H washer the band its two siblings already fold --
+            // which this check went on claiming, invisibly, until the shared
+            // projection was rebuilt (ISSUE_20260916_a_real_check_still_pins_
+            // the_zero_width_washer_the_rotor_citation_fix_removed).
+            var index = VA.topologyIndex(topo);
+            var zeroWidth = ((study.result && study.result.chain) || [])
+              .map(function (row) { return index.edges[row.edge]; })
+              .filter(function (edge) { return edge && edge.zero_width; });
+            ok(zeroWidth.length >= 1, "this study's chain no longer holds a " +
+               "zero-width row, so the warning it is named for cannot appear " +
+               "and this test measures nothing");
+            zeroWidth.forEach(function (edge) {
+              has(warn[0].textContent, edge.name);
+            });
+            has(warn[0].textContent, zeroWidth.length + (
+              zeroWidth.length === 1 ? " dimension" : " dimensions"));
           });
 
         // And the other half of the same move: the stack that USED to raise the

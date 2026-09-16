@@ -57,17 +57,24 @@ copied over the worktree's), so it is not the finding session's doing. The live
 distribution today is `rotor_fastener_length` **1** zero-width edge of 12, every
 other topology 0.
 
-## What the fix probably is, and the one judgement in it
+## Fixed on the finding session's branch, not yet on `integration`
 
-Delete the `NAS1149V0332H` line. The surrounding assertions (`warn.length === 1`,
-`"no tolerance recorded"`, `"LOWER bound"`, `"MS21299C3"`) all still hold and
-still bite.
+Fixed in `handoff/viewer_unwitnessed_surface_guards` rather than left for
+triage, because it is not cosmetic: a red fast tier makes
+`node scripts/run_mutation_witness_tests.mjs` report **every** `fast`-tier
+entry as NOT WITNESSED ("the tier was red before the mutation, so nothing was
+proved") -- 18 of the 37 declared mutations on 2026-09-16, including four the
+finding handoff's own definition of done requires to be WITNESSED. One stale
+pin therefore disables the whole fast half of the mutation tier.
 
-The judgement worth a moment: the check's name promises it "names the rows that
-make it one", plural. With one zero-width row left in the corpus, a count-for-count
-form — one named row per zero-width edge in the chain, derived from the
-projection rather than spelled out — would keep that promise and would not go
-stale the next time a band is found. The same handoff's
+The repair does not re-spell the surviving row. It derives the named rows from
+the study's own chain -- every zero-width edge's `name` must appear in the
+warning, and the count must match -- which is the form
 `[real] a row whose number has no plus/minus behind it says so in the grid too`
-(added 2026-09-16) is written that way and survived this projection rebuild
-unchanged.
+uses, and which survived this projection rebuild unchanged. A fixture
+precondition goes with it, so the day the chain holds no zero-width row the
+check says so instead of passing vacuously.
+
+`node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` is 411/411 after
+it. **Leave this issue open until that branch reaches `integration`**; close it
+then.
