@@ -2,7 +2,7 @@
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_link_shank_out",
   "title": "Shank out",
-  "description": "Fastener grip against the sourced clamped stack. The pitch-link eye is an excluded term.",
+  "description": "Fastener grip against the complete clamped stack, the eye riding as a loudly-marked placeholder.",
   "topology": "pitch_link_to_pitch_plate",
   "from": "shank_full_dia_end",
   "to": "washer_far_face",
@@ -10,6 +10,8 @@
   "selection": [
     "fastener_grip",
     "bushing_214820",
+    "pitch_link_eye",
+    "flange_bushing_flange",
     "pitch_plate_flange",
     "washer_nas1149v0332"
   ],
@@ -21,12 +23,8 @@
         "fastener": "NAS6403U11D (.688 in grip)",
         "washer": "NAS1149V0332H (.032 in)"
       },
-      "complete": false,
-      "excluded_terms": [
-        "pitch-link eye / spherical bearing width -- no document"
-      ],
       "criterion": ">= 0",
-      "guidance": "clamped column minus grip. Negative means the end of the full cylindrical shank sits proud of the nut bearing face, so the nut would engage incomplete threads -- which JPS00094 Rev C section 5.5.5 forbids outright ('The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank'). This check carries `complete: false`: the pitch-link eye is missing from the column, so its verdict is scoped to the budget, not to the joint, and the verdict below is not a design conclusion. Read the magnitude instead -- it is the pitch-link eye width the joint REQUIRES. The BINDING requirement is the worst-case end: eye >= 8.4280 mm (grip at max 17.7292 against the column at min 9.3012) to pass worst case, and >= 7.8424 mm to pass at nominal, so an eye between 7.8424 and 8.4280 mm makes this check `marginal`. The other worst-case end, 7.3868 mm (grip at min against the column at max), is the value below which the check fails even in the most favourable combination -- it is NOT the requirement. Sourcing that one number flips this check. These three numbers were 8.1939 / 7.8399 / 7.4859 until 2026-09-15 (handoff pitch_link_known_bands), when the referenced stack's bushing and washer stopped folding zero-width; this guidance is a copy of that stack's own, kept in step by hand."
+      "guidance": "clamped column minus grip. Negative means the end of the full cylindrical shank sits proud of the nut bearing face, so the nut would engage incomplete threads -- which JPS00094 Rev C section 5.5.5 forbids outright ('The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank'). COMPLETE SINCE 2026-09-15 (handoff stack_fable_audit): the pitch-link eye and the NAS77A3-015A flange, this column's two missing members, are now terms, so the verdict speaks for the modelled joint -- but THREE of the five column terms are unverified (the eye a loudly-marked placeholder whose bearing identity needs the 213862-002 drawing, the bushing an operator reading, the washer a workbook band), so read the verdict with `worst_confidence: untraced` in view. It PASSES worst case by 0.1098 mm (column at min 17.8390 against grip at max 17.7292) -- a thin margin that a wrong placeholder erases: if the eye were the WIDE MS14103-3 (11.05/11.10) the check would read +4.0 mm and the cotter-hole check would go negative, which is one of the reasons the narrow bearing is the credible candidate. This guidance is a copy of the referenced stack's own, kept in step by hand."
     }
   ],
   "provenance": {
@@ -35,7 +33,8 @@
     "pinned_by": "tests/test_topology_conversions.py -- every field of the folded interval must equal that check's, exactly."
   },
   "notes": [
-    "The selection is a lasso, not a path: traverse() re-orders it. The chain walks `fastener_grip` AGAINST its authored orientation (shank_full_dia_end -> head_bearing_face, sign -1) then the three clamped edges WITH their authored orientation (sign +1 each), so the total is `clamped_stack_sourced - fastener_grip` -- the same sign convention the referenced check's own term list uses (path term default +1, `bolt_grip_11` sign -1). No sign is authored anywhere in this file; both come off the graph.",
-    "This study reproduces stack path `clamped_stack_sourced` (bushing + pitch-plate lug + washer) as a strict subset of its own selection -- the three clamped edges alone, walked head-to-tail, are exactly that path's own term list."
+    "The selection is a lasso, not a path: traverse() re-orders it. The chain walks `fastener_grip` AGAINST its authored orientation (shank_full_dia_end -> head_bearing_face, sign -1) then the five clamped edges WITH their authored orientation (sign +1 each), so the total is `clamped_stack_sourced - fastener_grip` -- the same sign convention the referenced check's own term list uses (path term default +1, `bolt_grip_11` sign -1). No sign is authored anywhere in this file; both come off the graph.",
+    "This study reproduces stack path `clamped_stack_sourced` (bushing + eye + flange + pitch-plate lug + washer) as a strict subset of its own selection -- the five clamped edges alone, walked head-to-tail, are exactly that path's own term list.",
+    "Its description said 'The pitch-link eye is an excluded term' until 2026-09-15 (stack_fable_audit); the eye is a term now, a loudly-marked placeholder -- see the edge and the referenced element."
   ]
 }

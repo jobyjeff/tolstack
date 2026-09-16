@@ -2,7 +2,7 @@
   "schema": "joby.tolerance_stack/stack_definition/v0",
   "id": "pitch_link_to_pitch_plate",
   "title": "Pitch link to pitch plate grip length",
-  "description": "Built from scratch against the drawings and the NAS standards. Two of its six elements carry a band no document in this repo can be re-read for, applied 2026-09-15 by operator ruling and marked untraced rather than omitted.",
+  "description": "Built from scratch against the drawings and the NAS standards. Three of its eight elements carry an unverified band -- two applied 2026-09-15 by operator ruling, and the eye a loudly-marked catalog placeholder whose bearing identity awaits the 213862-002 drawing.",
   "units": "mm",
   "joint": {
     "assembly_drawing": "217755",
@@ -24,10 +24,10 @@
       {"find_no": 33, "part_number": "MS9363-09", "qty": 11, "balloon": "8X in DETAIL B", "role": "NUT, SLOTTED, HEXAGON, SHEAR -- retention"},
       {"find_no": 36, "part_number": "MS24665-153", "qty": 11, "balloon": "8X in DETAIL B", "role": "PIN, COTTER (SPLIT) -- retention"}
     ],
-    "clamped": "The bolt clamps, in order from its head: the 214820-002 bushing, the pitch-link eye (unsourced -- see gaps), the 4.06 mm pitch-plate lug, and the NAS1149V0332H washer. Retention is the MS9363-09 slotted nut with an MS24665-153 cotter pin through the drilled shank ('D' suffix, NAS6403 sheet 2 CODE block).",
+    "clamped": "The bolt clamps, in order from its head: the 214820-002 bushing, the pitch-link eye (modelled since 2026-09-15 as the MS14101-3 ball width, a loudly-marked placeholder -- see that element), the NAS77A3-015A flanged bushing's flange (press-fit in the plate assembly, added 2026-09-15), the 4.06 mm pitch-plate lug, and the NAS1149V0332H washer. Retention is the MS9363-09 slotted nut with an MS24665-153 cotter pin through the drilled shank ('D' suffix, NAS6403 sheet 2 CODE block).",
     "question": "Does the NAS6403U11D (.688 in grip) work in this joint -- i.e. does the end of its full cylindrical shank clear the nut bearing face (JPS00094 Rev C section 5.5.5), and does its cotter hole sit clear of the clamped stack?",
     "scope": "Grip length only, and only along the bolt axis. Out of scope, deliberately: diameter and hole fits (simple two-component fits); bushing-to-bore interference (JPS00176); the pitch link's own internal stack; the joint at the other end of the pitch link; torque and preload.",
-    "identification_note": "No part in the 217755 parts list is named 'pitch link'. This joint is identified as Jeff's 'pitch link to pitch plate' by elimination and corroboration, not by nomenclature: (1) his note says the joint is visible in the same view as the tangential-link joint, and DETAIL B contains exactly two grip stacks; (2) slice 1 claimed the 3X / -14 stack as the tangential link, matching 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY at qty 3; (3) this one is 5 places, the propeller has FIVE blades (217755 sheet 2 FRONT VIEW), and one pitch link per blade gives five; (4) the pitch plate part drawing 215197 carries a distinct 5X 4.06 +/-0.10 flange group, separate from the 3X +/-0.08 (tangential) and 1X +/-0.10 (VPA) groups. The link part number itself is gap 1."
+    "identification_note": "No part in the 217755 parts list is named 'pitch link'. This joint is identified as Jeff's 'pitch link to pitch plate' by elimination and corroboration, not by nomenclature: (1) his note says the joint is visible in the same view as the tangential-link joint, and DETAIL B contains exactly two grip stacks; (2) slice 1 claimed the 3X / -14 stack as the tangential link, matching 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY at qty 3; (3) this one is 5 places, the propeller has FIVE blades (217755 sheet 2 FRONT VIEW), and one pitch link per blade gives five; (4) the pitch plate part drawing 215197 carries a distinct 5X 4.06 +/-0.10 flange group, separate from the 3X +/-0.08 (tangential) and 1X +/-0.10 (VPA) groups. The link part number -- gap 1 from founding until 2026-09-15 -- is 213862-002 PITCH LINK ASSEMBLY, PROPELLER: item 24, qty 5, of the 216231 A.1 HUB AND BLADE ASSEMBLY parts list (`data/inbox/specs/[2025-OCT-9 FOR SNS101-M1 BUILD] 216231 A.1.pdf`), the qty matching this joint's five places where 212956-005's three cannot. Its own drawing, which would name its bearing, is not in any repo this session can read -- the eye element's placeholder marker and the operator queue both point at it."
   },
   "provenance": {
     "transcribed_from": null,
@@ -37,9 +37,13 @@
       "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf -- sheets 1, 2, 3 (scan, no text layer; read by vision)",
       "data/inbox/specs/JPS00094 Process Specification -- Installation of Bolts and Nuts.pdf Rev C 05/Sep/2024 -- pages 3 and 7 of 14 (criteria only, no dimensions)",
       "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf -- sheet 2 SECTION A-A (read-only)",
-      "C:/workspace/drawing-checker/data/runs/20260803_145243_217755_A.1_.../217755_A_balloons.json and the 2026-AUG-3 PDF (read-only)"
+      "C:/workspace/drawing-checker/data/runs/20260803_145243_217755_A.1_.../217755_A_balloons.json and the 2026-AUG-3 PDF (read-only)",
+      "data/inbox/specs/RBC_Aerospace_Plain_Bearings_Web.pdf -- PDF pages 21/22, the MS14101/MS14103 spherical-bearing tables (added 2026-09-15, stack_fable_audit)",
+      "data/inbox/specs/JB_NAS77.pdf -- the NAS77 flanged-bushing page (added 2026-09-15, stack_fable_audit)",
+      "data/inbox/specs/[2025-OCT-9 FOR SNS101-M1 BUILD] 216231 A.1.pdf -- the hub-and-blade parts list naming 213862-002 (added 2026-09-15, stack_fable_audit)",
+      "C:/workspace/drawing-checker/data/runs/20260904_184233_212956-005-A and .../20260813_180719_215177-A (read-only; part-identity evidence for the eye and the flanged bushing)"
     ],
-    "not_used": "RESOLVED 2026-09-15 (handoff pitch_link_known_bands). This field used to say that the 214820-002 bushing length band (4.63/4.76) and the NAS1149V0332 thickness band (+/-.004 in) sitting in hardware_entries.json were NOT adopted here, because both are slice-1 transcriptions of the 260729 workbook. Both are adopted now, and the two elements no longer carry a zero-width band, so no interval in this stack is a lower bound on that account any more. What is still not used: nothing. The pitch-link eye / spherical bearing remains ABSENT rather than unused -- no source of any kind gives its width, so there is no number here to adopt or refuse, and it stays gap 1 and an excluded term on both checks."
+    "not_used": "RESOLVED 2026-09-15 (handoff pitch_link_known_bands), EXTENDED the same day (handoff stack_fable_audit). This field used to say that the 214820-002 bushing length band (4.63/4.76) and the NAS1149V0332 thickness band (+/-.004 in) sitting in hardware_entries.json were NOT adopted here, because both are slice-1 transcriptions of the 260729 workbook. Both are adopted now, and no element carries a zero-width band. The pitch-link eye, ABSENT from founding until 2026-09-15 because no source gave its width, is now MODELLED: the RBC catalog in the spec pile prints ball widths for both candidate bearings (MS14101-3 narrow, MS14103-3 wide), Jeff's 2026-09-15 note supplied the two part numbers, and the element folds the NARROW band as a loudly-marked placeholder -- see `pitch_link_eye` for why narrow and what confirms it. What is still not used: the MS14103-3 wide band, refused for this joint because the drawing-selected -11 bolt cannot close against it (the refusal reasoning is on the element and in the worksheet)."
   },
   "elements": [
     {
@@ -71,6 +75,74 @@
         },
         "confidence": "untraced",
         "note": "OPERATOR-CONFIRMED, NOT TRACED, and the distinction is the point. `traced` in this repo means a reader of THIS repo can re-find the value on a named export; this one cannot be re-found here at all. Its support is 'Jeff opened the drawing and read it out', corroborated by workbook cells G7/H7 -- transcribed by a different session, from a different artifact, months earlier -- landing on the same 4.63/4.76. That is strong corroboration and still not a trace, so the field says `untraced` and gap 3 lists it, which is the only condition on which this repo permits the word. Source (1) in the note above -- the 217755 sh4 zone H3 DETAIL B parts-list row, find 34, qty 8 = 3 tangential-link places + 5 here -- supports this bushing's PRESENCE in the joint and the .1875 in reading, and nothing else; it gives no tolerance, which is why it is no longer this element's source_ref. Note the stored nominal is 4.76, not that row's 4.7625. As of 2026-09-15 NO element in this file cites 217755 -- this bushing and the washer were the only two -- so a reader looking for a sibling citation will not find one: `joint.assembly_export` is where that drawing and its export are named now, and it is what the crop builder reads. Acquiring the 214820-002 PDF into data/inbox/specs/ is the only thing that makes this `traced`."
+      }
+    },
+    {
+      "id": "pitch_link_eye",
+      "name": "pitch-link eye: spherical bearing ball width (bearing identity UNCONFIRMED)",
+      "role": "bearing",
+      "nominal": 7.14,
+      "min": 7.09,
+      "max": 7.14,
+      "lmc": 7.09,
+      "mmc": 7.14,
+      "plus_minus": null,
+      "hardware_ref": "MS14101-3",
+      "note": "PLACEHOLDER, SAID LOUDLY -- WHICH BEARING THIS IS IS UNCONFIRMED. Added 2026-09-15 (handoff stack_fable_audit) under the SOP Step 5c amendment: a member with a sourced-but-unverified value is included and marked, never omitted to fail silently. The value is MS14101-3's ball width, 7.14 +0.00/-0.05 mm (.281 +.000/-.002 in), printed in the RBC catalog in the spec pile -- the NUMBER is re-readable in-repo; what is not confirmed is that MS14101-3 is the bearing in THIS link. The chain that picks narrow over wide: (1) Jeff's 2026-09-15 operator note names MS14101-3 and MS14103-3 as the two link-bearing part numbers; (2) the link assembly at this 5-place joint is 213862-002 (216231 A.1 parts list, item 24, qty 5), whose own drawing -- the document that would print the bearing find -- is not in reach; (3) the drawing-selected NAS6403U11D (.688 in grip) closes against this clamped column ONLY with the narrow width: with the wide 11.10 the full-diameter shank would end ~3.3 mm inside the column and the cotter hole would land inside the clamped stack, an unassemblable joint; (4) the sibling link 212956-005 (the 3-place joint) carries one narrow + one wide per its own extracted parts list, and the workbook's 11.05/11.10 at that joint consumes the wide one. One-sided band, nominal IS the max (catalog basic .281 with +.000/-.002), additive member so mmc -> max. Gap 1: the 213862-002 drawing confirms or refutes this; it is on the operator queue.",
+      "source_ref": {
+        "kind": "spec",
+        "document": "RBC_Aerospace_Plain_Bearings_Web.pdf",
+        "revision": null,
+        "sheet": 21,
+        "zone": null,
+        "view": "MS14104 & MS14101 SELF-LUBRICATED SPHERICAL BEARING, NARROW -- dimensions table",
+        "cell": "row -03, column W",
+        "callout": "-03 | W .281 / 7.14 | column header 'W +.000, -.002 / +.00, -.05'",
+        "element_id": null,
+        "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/RBC_Aerospace_Plain_Bearings_Web.pdf",
+          "sha256": "a2bfa011d54e6c1ce632a5ad6f24e0da1694694d43cd10a099f03935456f3036",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only, so the filename identifies the bytes; sha256 recorded so a re-drop cannot be silently substituted. `sheet` is the PDF page (printed page 19). No drawing-checker run consumes a spec."
+        },
+        "confidence": "untraced",
+        "note": "UNTRACED BECAUSE THE PART IDENTITY IS THE WEAK LINK, not the number. The cited page prints this band for MS14101-3, and a reader of this repo can re-find it -- but no document here states that MS14101-3 is the bearing in the 213862-002 pitch link, and the two candidate bearings differ by 3.96 mm of width, so a wrong identity is a wrong value. That is below the `inferred` bar the VPA stack's pitch_flange_thickness set (there, both candidate features carried the SAME band, so the value survived the ambiguity; here it would not). W is the BALL width -- the clamped inner ring -- read off the table figure, where the W arrow spans the ball and H the narrower outer race. Listed as ranked gap 1; the 213862-002 PITCH LINK ASSEMBLY drawing closes it."
+      }
+    },
+    {
+      "id": "flange_bushing_flange",
+      "name": "flanged bushing flange thickness (NAS77A3-015A)",
+      "role": "bushing",
+      "nominal": 1.5748,
+      "min": 1.4478,
+      "max": 1.5748,
+      "lmc": 1.4478,
+      "mmc": 1.5748,
+      "plus_minus": null,
+      "hardware_ref": "NAS77A3-015A",
+      "note": "Added 2026-09-15 (handoff stack_fable_audit): the member the tan-link stacks always carried and this stack omitted. .062 +.000/-.005 in, printed on the NAS77 page in the spec pile; one-sided band, nominal IS the max, additive member so mmc -> max. The part is press-fit into the pitch plate assembly (215177-A parts list find 2, qty 8 = the plate's 3 tangential-link + 5 pitch-link lugs), which is why 217755 DETAIL B balloons no flanged bushing -- it arrives inside find 31/74. Nominal is stored as .062 x 25.4 = 1.5748 exactly (the catalog's own form); the tan-link stacks store the 260729 workbook's hand-typed 1.575 for the same feature, and the 0.0002 mm disagreement is information, not an error -- the cross-stack guard pairs BANDS only. The barrel (flange_bushing_L in the tan-link stacks) is NOT modelled here: it sits inside the plate bore, parallel to the lug, and this stack has no bore-depth path -- same modelling boundary the VPA stack has always had.",
+      "source_ref": {
+        "kind": "spec",
+        "document": "JB_NAS77.pdf",
+        "revision": null,
+        "sheet": 1,
+        "zone": null,
+        "view": "NAS77 UNLINED FLANGED BUSHINGS -- figure + dimensions table",
+        "cell": "row NAS77A3-xxx, column F",
+        "callout": "F .062, column header '+.000, -.005 / +.00, -.13'",
+        "element_id": null,
+        "run_id": null,
+        "export": {
+          "status": "established",
+          "pdf": "data/inbox/specs/JB_NAS77.pdf",
+          "sha256": "b6c5b021c58f9e051c706453c4c10ff1fcb44bc245a7c41ab8d376cc805027b2",
+          "runs": [],
+          "note": "data/inbox/specs/ is append-only; sha256 recorded against a silent re-drop. JB_NAS77.pdf is the one-page extract of the 2008 RBC catalogue's printed p98. No drawing-checker run consumes a spec."
+        },
+        "confidence": "inferred",
+        "note": "The band is printed in the cited page; which part sits in this joint is the 215177-A PITCH PLATE ASSEMBLY parts list's evidence (find 2 = NAS77A3-015A, qty 8, 'BUSHING, FLANGED, PRESS FIT ... ALUMINUM COATED, .1900\" ID' -- drawing-checker run 20260813_180719, ts 2026-08-14T01:07:33Z), with the qty-8 = 3+5 lug split inferred the same way 214820-002's is. `inferred`, not `traced`, for two stated reasons: the 3+5 share-out is a count argument, not a printed statement, and the as-drawn part's trailing 'A' (aluminum coated) is a variant the catalog page does not decode, so whether the coating rides on top of the printed F limits is open. Same page, same row and same band as the tan-link stacks' flange_bushing_flange -- one part, one band, every stack (SOP Step 5b, 2026-09-15 amendment)."
       }
     },
     {
@@ -245,13 +317,16 @@
   "paths": [
     {
       "id": "clamped_stack_sourced",
-      "label": "clamped column, sourced members only (bushing + pitch-plate lug + washer) -- EXCLUDES the unsourced pitch-link eye",
+      "label": "clamped column, all five members (bushing + eye + flange + pitch-plate lug + washer)",
       "workbook_cells": null,
       "terms": [
         {"element": "bushing_214820"},
+        {"element": "pitch_link_eye"},
+        {"element": "flange_bushing_flange"},
         {"element": "pitch_plate_flange"},
         {"element": "washer_nas1149v0332"}
-      ]
+      ],
+      "note": "The id keeps its founding name for link stability (studies, projections and tests address it); the '_sourced' suffix dates from when the eye was omitted for want of any source. Since 2026-09-15 (stack_fable_audit) every physical member is present -- the eye as a loudly-marked placeholder -- so the label, not the id, says what the column now is."
     },
     {
       "id": "head_to_cotter_hole",
@@ -280,13 +355,9 @@
         "fastener": "NAS6403U11D (.688 in grip)",
         "washer": "NAS1149V0332H (.032 in)"
       },
-      "complete": false,
-      "excluded_terms": [
-        "pitch-link eye / spherical bearing width -- no document"
-      ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "clamped column minus grip. Negative means the end of the full cylindrical shank sits proud of the nut bearing face, so the nut would engage incomplete threads -- which JPS00094 Rev C section 5.5.5 forbids outright ('The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank'). This check carries `complete: false`: the pitch-link eye is missing from the column, so its verdict is scoped to the budget, not to the joint, and the verdict below is not a design conclusion. Read the magnitude instead -- it is the pitch-link eye width the joint REQUIRES. The BINDING requirement is the worst-case end: eye >= 8.4280 mm (grip at max 17.7292 against the column at min 9.3012) to pass worst case, and >= 7.8424 mm to pass at nominal, so an eye between 7.8424 and 8.4280 mm makes this check `marginal`. The other worst-case end, 7.3868 mm (grip at min against the column at max), is the value below which the check fails even in the most favourable combination -- it is NOT the requirement. Sourcing that one number flips this check. These three numbers WIDENED on 2026-09-15 (handoff pitch_link_known_bands) when the bushing and washer bands were applied: the binding requirement moved 8.1939 -> 8.4280 and the marginal window from 0.354 mm wide to 0.586 mm. Two of the three terms in the column are `untraced`, so the requirement is only as good as a workbook cell and an operator's screenshot.",
+      "guidance": "clamped column minus grip. Negative means the end of the full cylindrical shank sits proud of the nut bearing face, so the nut would engage incomplete threads -- which JPS00094 Rev C section 5.5.5 forbids outright ('The nut, nutplate, insert, part body, etc., shall not engage any incomplete threads of the bolt shank'). COMPLETE SINCE 2026-09-15 (handoff stack_fable_audit): the pitch-link eye and the NAS77A3-015A flange, this column's two missing members, are now terms, so the verdict speaks for the modelled joint -- but THREE of the five column terms are unverified (the eye a loudly-marked placeholder whose bearing identity needs the 213862-002 drawing, the bushing an operator reading, the washer a workbook band), so read the verdict with `worst_confidence: untraced` in view. It PASSES worst case by 0.1098 mm (column at min 17.8390 against grip at max 17.7292) -- a thin margin that a wrong placeholder erases: if the eye were the WIDE MS14103-3 (11.05/11.10) the check would read +4.0 mm and the cotter-hole check would go negative, which is one of the reasons the narrow bearing is the credible candidate. Until 2026-09-15 this check was a BUDGET (the eye was excluded for want of any source) and its magnitude read as the eye width the joint requires: >= 8.4280 mm worst case -- a requirement the MS14101-3 ball width (7.09/7.14) does NOT meet on its own; the flange member found the missing 1.45-1.57 mm, which is exactly why a member-completeness sweep and not a value fix was what this joint needed.",
       "terms": [
         {"path": "clamped_stack_sourced"},
         {"element": "bolt_grip_11", "sign": -1}
@@ -301,11 +372,11 @@
       },
       "complete": false,
       "excluded_terms": [
-        "pitch-link eye / spherical bearing width -- no document"
+        "MS9363-09 nut height and thread-start-to-castellation distance -- the height is printed in MS9363 Rev C (spec-library subject MS9363-09, H = .178/.198 in) but deliberately not folded, because the quantity that decides cotter installability is the castellation PHASE, which no document controls (JPS00094 5.9.7's washer-swap procedure is the remedy); folding the height alone would dress an unanswerable alignment question as a linear one"
       ],
       "criterion": ">= 0",
       "workbook_cells": null,
-      "guidance": "Head-to-cotter-hole minus the sourced clamped column. What is left over must cover the pitch-link eye PLUS the nut's thread-start-to-castellation distance; both are unsourced, so this is a budget, not a verdict on the joint. It passes with 11.0444 mm worst case available (11.1435 before the 2026-09-15 bands were applied). It cannot settle the joint: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the notes and the worksheet.",
+      "guidance": "Head-to-cotter-hole minus the clamped column. Since 2026-09-15 (handoff stack_fable_audit) the column is all five members -- the eye rides in as the loudly-marked MS14101-3 placeholder -- so what is left over must cover only the nut side: the MS9363-09's height up to a castellation slot, which stays excluded (see excluded_terms) because the slot-to-thread-start phase is uncontrolled by any document. It passes with 2.3296 mm worst case available (nominal 3.1662, max 4.3098); an MS9363-09 at its max height (5.0292 mm) does NOT fit inside the worst-case budget, which is the castellation/washer-selection story again, not a new finding. Before the eye and flange were terms this budget read 11.0444 mm worst case and had to cover the eye too. It cannot settle the joint either way: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the notes and the worksheet. Note the wide-bearing counterfactual: with MS14103-3 in the eye this budget's worst case would be NEGATIVE (-1.63 mm), i.e. the cotter hole inside the clamped stack -- independent corroboration that the narrow bearing is the credible candidate.",
       "terms": [
         {"path": "head_to_cotter_hole"},
         {"path": "clamped_stack_sourced", "sign": -1}
@@ -314,11 +385,11 @@
   ],
   "notes": [
     "BUILT FROM SCRATCH. No source workbook exists for this joint, so there is no re-derivation section in the worksheet, no `workbook_cells` on any path or check, and no `[NOT IN WORKBOOK]` markers -- every check here is original. What is NO LONGER true, as of 2026-09-15: `kind: \"workbook\"` appeared zero times, and now appears exactly once (`washer_nas1149v0332`). SOP Step 5b's amendment of the same date is what permits it -- a sourced-but-unverified value may be applied with its true confidence carried and displayed, and the same part+feature must carry the same band in every stack that uses it. See `provenance.source_note`.",
-    "THE STACK IS INCOMPLETE AND SAYS SO. The pitch-link eye / spherical bearing width is not in any document available here, so it is NOT modelled as an element with invented or recalled numbers -- it is a named gap, and the two checks are written so that the missing value appears as an explicit budget. Nothing in this file was filled from memory.",
-    "NO ZERO-WIDTH BAND REMAINS, AND TWO BANDS ARE UNVERIFIED. Until 2026-09-15 `bushing_214820` and `washer_nas1149v0332` carried min == max == nominal, which made every interval here a LOWER bound on the true spread. Jeff opened the 214820-002 drawing, found a real 4.76 +0.00/-0.13 where the viewer was showing +/-0, and ruled that a sourced-but-unverified number belongs in the stack loudly rather than omitted silently. Both now carry their band and both carry `confidence: \"untraced\"`, which is what a reader and the viewer must key on: the intervals are no longer lower bounds, and they are no longer re-checkable inside this repo either. Their sources -- an operator's screenshot of a drawing that is not here, and a cell in a workbook that is -- are named in each element's notes and remain ranked gaps 3 and 4.",
-    "ONE ASYMMETRIC BAND, AND IT MOVES THE RSS CENTRE OFF THE NOMINAL. `bushing_214820` is 4.76 +0.00/-0.13: its nominal IS its max, so its midpoint (4.695) is not its nominal. `fold()` combines half-ranges in quadrature about the MIDPOINT, so from 2026-09-15 `rss_center != nominal` on `clamped_stack_sourced` (9.5678 vs 9.6328) and on both checks, by exactly the 0.065 mm half-offset of that one element. This stack's notes and worksheet previously said the re-centering artefact did not occur here; it does now. It is an artefact of the fold model, not a second opinion about the joint -- verdicts never read RSS (`CheckResult.verdict` cannot see it), and the worst-case columns are unaffected.",
-    "NO INVERTING ELEMENT EXISTS HERE. Every element is an additive external length or a hole location; there is no chamfer, relief or counterbore, so `max == mmc` on all five elements that carry lmc/mmc (three until 2026-09-15, when the bushing and washer gained bands and with them a material condition), and `cotter_hole_from_point` carries neither, because it is a location and 'most material' has no meaning for where a hole sits. That is not the naive-MMC-mapping smell the review checklist warns about -- it is the absence of a subtracted material feature. The only negative signs in this file are on whole-element/whole-path subtractions.",
+    "EVERY PHYSICAL MEMBER IS MODELLED, AND THREE OF THE FIVE COLUMN TERMS ARE UNVERIFIED. From founding to 2026-09-15 the pitch-link eye was not an element (no document gave its width) and the flanged bushing was not either (its part identity was unknown); both checks carried the omissions as `excluded_terms` and read as budgets. Handoff stack_fable_audit added both: the flange from the NAS77 page in the spec pile with identity from the 215177-A pitch-plate-assembly parts list (`inferred`), and the eye as a LOUDLY-MARKED PLACEHOLDER -- the MS14101-3 ball width off the RBC catalog, `untraced` because no document confirms which of Jeff's two candidate bearings the 213862-002 pitch link carries. Nothing in this file was filled from memory; every number has a named, re-readable page behind it, and the open identity question is ranked gap 1.",
+    "NO ZERO-WIDTH BAND REMAINS, AND THREE BANDS ARE UNVERIFIED. `bushing_214820` and `washer_nas1149v0332` carry their 2026-09-15 operator-ruling bands (see pitch_link_known_bands); `pitch_link_eye` carries the catalog band of an unconfirmed bearing. All three carry `confidence: \"untraced\"`, which is what a reader and the viewer must key on: the intervals are not re-checkable against a design-controlling document inside this repo. Their sources are named in each element's notes and remain ranked gaps 1, 3 and 4.",
+    "THREE ASYMMETRIC BANDS MOVE THE RSS CENTRE OFF THE NOMINAL. `bushing_214820` (4.76 +0.00/-0.13), `pitch_link_eye` (7.14 +0.00/-0.05) and `flange_bushing_flange` (1.5748 +0.0000/-0.1270) each have nominal == max, and `fold()` combines half-ranges in quadrature about the MIDPOINT, so `rss_center` sits 0.1535 mm below `nominal` on `clamped_stack_sourced` and on both checks -- the sum of the three half-offsets (0.065 + 0.025 + 0.0635). It is an artefact of the fold model, not a second opinion about the joint -- verdicts never read RSS (`CheckResult.verdict` cannot see it), and the worst-case columns are unaffected.",
+    "NO INVERTING ELEMENT EXISTS HERE. Every element is an additive external length or a hole location; there is no chamfer, relief or counterbore, so `max == mmc` on all seven elements that carry lmc/mmc, and `cotter_hole_from_point` carries neither, because it is a location and 'most material' has no meaning for where a hole sits. That is not the naive-MMC-mapping smell the review checklist warns about -- it is the absence of a subtracted material feature. (The flanged bushing's I.D. chamfer, the one subtracted feature its part carries, is deliberately not modelled here: it belongs to a bore-depth path this stack does not have -- see the tan-link stacks, which do.) The only negative signs in this file are on whole-element/whole-path subtractions.",
     "QUANTISED GRIP -- THE MODEL DOES NOT SETTLE THIS JOINT. Retention is MS9363-09 (NUT, SLOTTED, HEXAGON, SHEAR) plus MS24665-153 cotter pin through the drilled shank. The governing constraint is whether a castellation slot lines up with the bolt's cotter hole, which quantises acceptable grip into discrete workable values instead of bounding it in a continuous interval. JPS00094 Rev C section 5.9.7 states the remedy in as many words -- 'If the hole and nut castellation do not align, change/add a washer or a different nut, and try again' with a footnote that 'Different nuts likely have different manufactured thread-start to castellation-hole spacing' -- and section 5.5.3.a caps the remedy at three washers per fastener. So this is assembly-time selection by specification, and no grip interval computed here can replace it. The two documents that would close it: MS9363 (slot count and depth) and the nut height; the bolt side is already closed by NAS6403 sheet 1 M = .174/.154.",
-    "Element order is the physical order from the bolt head: bushing, [pitch-link eye -- MISSING], pitch-plate lug, washer; the three fastener dimensions follow. Only the path term lists are load-bearing for the arithmetic."
+    "Element order is the physical order from the bolt head: bushing, pitch-link eye, flanged-bushing flange, pitch-plate lug, washer; the three fastener dimensions follow. Only the path term lists are load-bearing for the arithmetic."
   ]
 }

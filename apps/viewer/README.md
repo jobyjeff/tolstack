@@ -441,7 +441,7 @@ the mirror is a bijection, so rail continuity, column reuse and the
 one-dashed-curve-per-cycle invariant all survive it untouched. What it buys is
 the leaders: the spine carries most of them, and every rail that used to stand
 between a spine node and its row is now on the far side of it. Over the five
-committed topologies, leader-vs-rail crossings went **92 → 43**, four of the
+committed topologies, leader-vs-rail crossings went **96 → 43**, four of the
 five to zero; on `pitch_system` its eight spine leaders went 43 → 0 (the
 mechanism's own branch leaders pick some up in exchange, which is why that one
 topology's total only moves 47 → 43).

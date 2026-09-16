@@ -190,21 +190,31 @@ def test_path_row_matches_fold_exactly():
 
 
 def test_check_row_matches_fold_and_stays_visibly_not_clean():
-    """The pitch-link stack's headline check: incomplete, budget-scoped, fails.
+    """A gap-bearing check must stay visibly not-clean in the export: verdict,
+    completeness and the excluded term must all survive into it.
 
-    This is the "gap-bearing stack is visibly not-clean" requirement: verdict,
-    completeness and the excluded term must all survive into the export.
+    Until 2026-09-15 (``stack_fable_audit``) the shank-out check was the
+    specimen (incomplete, budget-scoped, fail-by-construction); its column is
+    complete now, so the cotter budget -- still excluding the MS9363-09 nut
+    side -- carries this assertion, and the shank-out row is checked for the
+    complementary claim: a completed check exports as joint-scoped.
     """
     stack = load_stack(PITCH_LINK)
     rows = {r["id"]: r for r in E.fold_rows_for_stack(stack) if r["row_kind"] == "check"}
-    result = stack.check("shank_out__11_sourced_only")
-    row = rows["shank_out__11_sourced_only"]
-    assert row["verdict"] == result.verdict == "fail"
+
+    result = stack.check("cotter_hole_clear_of_sourced_stack")
+    row = rows["cotter_hole_clear_of_sourced_stack"]
+    assert row["verdict"] == result.verdict == "pass"
     assert row["verdict_scope"] == "budget"
     assert row["complete"] is False
-    assert "pitch-link eye" in row["excluded_terms"]
+    assert "MS9363-09" in row["excluded_terms"]
     for key, value in result.interval.as_dict().items():
         assert row[key] == value, key
+
+    shank = rows["shank_out__11_sourced_only"]
+    assert shank["verdict"] == "pass"
+    assert shank["verdict_scope"] == "joint"
+    assert shank["complete"] is True
 
 
 # ---------------------------------------------------------------------------

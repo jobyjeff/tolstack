@@ -49,12 +49,16 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TOPOLOGY_DIR = REPO_ROOT / "docs" / "topologies"
 
-#: The four parts Jeff was reading, pinned by value. This is the one place in
-#: the suite that says what a component cell reads for them; the JS tiers pin
-#: that the cell prints ``name`` and nothing else.
+#: The four parts Jeff was reading, pinned by value, plus the two members
+#: `stack_fable_audit` added to the same joint on the same day (restyled to
+#: this convention when the two branches met in review). This is the one place
+#: in the suite that says what a component cell reads for them; the JS tiers
+#: pin that the cell prints ``name`` and nothing else.
 PITCH_LINK_PART_NAMES = {
     "bolt_nas6403u11d": "NAS6403U11D hex-head bolt",
     "bushing_214820_002": "214820-002 plain bushing",
+    "spherical_bearing_pitch_link": "pitch-link spherical bearing (unconfirmed)",
+    "flanged_bushing_nas77a3_015a": "NAS77A3-015A flanged bushing",
     "pitch_plate_215197": "215197 pitch plate",
     "washer_nas1149v0332h": "NAS1149V0332H flat washer",
 }

@@ -177,18 +177,22 @@ def test_hardware_entries_are_carried_verbatim(projection):
 
 
 def test_pitch_link_shank_out_matches_the_pinned_ground_truth(pitch_link):
-    """Same numbers ``test_tolerance_stack.py`` pins, seen through the projection."""
+    """Same numbers ``test_tolerance_stack.py`` pins, seen through the projection.
+
+    ``pass`` since 2026-09-15 (``stack_fable_audit``): the clamped column is
+    complete -- the eye rides as the loudly-marked MS14101-3 placeholder -- so
+    the old budget ``fail`` became a thin joint-scoped pass."""
     check = check_by_id(pitch_link, "shank_out__11_sourced_only")
-    assert check["verdict"] == "fail"
-    assert check["worst_case_min"] == pytest.approx(-8.4280, abs=TOL)
-    assert check["worst_case_max"] == pytest.approx(-7.3868, abs=TOL)
-    assert check["nominal"] == pytest.approx(-7.8424, abs=TOL)
+    assert check["verdict"] == "pass"
+    assert check["worst_case_min"] == pytest.approx(0.1098, abs=TOL)
+    assert check["worst_case_max"] == pytest.approx(1.3280, abs=TOL)
+    assert check["nominal"] == pytest.approx(0.8724, abs=TOL)
 
 
 def test_pitch_link_cotter_hole_budget_passes(pitch_link):
     check = check_by_id(pitch_link, "cotter_hole_clear_of_sourced_stack")
     assert check["verdict"] == "pass"
-    assert check["worst_case_min"] == pytest.approx(11.0444, abs=TOL)
+    assert check["worst_case_min"] == pytest.approx(2.3296, abs=TOL)
 
 
 def test_thread_region_T_path_reproduces_the_standards_own_T_ref(pitch_link):
@@ -200,16 +204,17 @@ def test_thread_region_T_path_reproduces_the_standards_own_T_ref(pitch_link):
 
 
 def test_pitch_link_provenance_counts_match_its_worksheet(pitch_link):
-    """The worksheet claims 4 traced / 0 inferred / 2 untraced out of 6.
+    """The worksheet claims 4 traced / 1 inferred / 3 untraced out of 8.
 
-    It claimed 4 / 2 / 0 until 2026-09-15 (``pitch_link_known_bands``), when the
-    bushing and washer gained their bands: the elements did not change in number,
-    two of them moved column, and the traced count did not move at all.
+    It claimed 4 / 2 / 0 out of 6 until 2026-09-15 (``pitch_link_known_bands``,
+    which moved two to untraced), then 4 / 0 / 2 the same day until
+    ``stack_fable_audit`` added the joint's two missing members -- the eye
+    (untraced placeholder) and the NAS77A3-015A flange (inferred).
     """
     assert pitch_link["provenance_counts"] == {
         "traced": 4,
-        "inferred": 0,
-        "untraced": 2,
+        "inferred": 1,
+        "untraced": 3,
         "no_source_ref": 0,
     }
 
@@ -231,27 +236,33 @@ def test_the_unverified_bands_reach_the_viewer_as_untraced_not_as_zero_width(pit
 
     unverified = {
         e["id"] for e in pitch_link["elements"] if e["confidence"] == "untraced"}
-    assert unverified == {"bushing_214820", "washer_nas1149v0332"}
+    # Three since 2026-09-15 (`stack_fable_audit`): the eye joined as the
+    # loudly-marked catalog placeholder.
+    assert unverified == {"bushing_214820", "washer_nas1149v0332", "pitch_link_eye"}
     # And where each band came from survives the trip, because "untraced" alone
     # does not tell a reader which document to go and get.
     kinds = {e["id"]: e["kind"] for e in pitch_link["elements"]}
     assert kinds["bushing_214820"] == "drawing"
     assert kinds["washer_nas1149v0332"] == "workbook"
+    assert kinds["pitch_link_eye"] == "spec"
 
 
-def test_both_pitch_link_checks_reach_the_viewer_as_budget_scope(pitch_link):
-    """The live migration, at value level: the two checks that used to shout
-    ``-- INCOMPLETE:`` in their labels now carry the schema fields, and the
-    projection hands the viewer all three -- the authored flag, the terms it
-    names, and the scope derived from it."""
-    assert [c["verdict_scope"] for c in pitch_link["checks"]] == ["budget", "budget"]
-    assert [c["complete"] for c in pitch_link["checks"]] == [False, False]
+def test_both_pitch_link_checks_reach_the_viewer_with_their_own_scope(pitch_link):
+    """The schema fields ride through per check, and since 2026-09-15
+    (``stack_fable_audit``) the two checks differ: the shank-out check's column
+    is complete (joint scope), while the cotter budget still excludes the
+    MS9363-09 nut side (budget scope) -- so this stack now exercises BOTH
+    branches of the scope derivation in one file."""
+    assert [c["verdict_scope"] for c in pitch_link["checks"]] == ["joint", "budget"]
+    assert [c["complete"] for c in pitch_link["checks"]] == [True, False]
+    shank, cotter = pitch_link["checks"]
+    assert shank["excluded_terms"] == []
+    assert len(cotter["excluded_terms"]) == 1
+    assert "MS9363-09" in cotter["excluded_terms"][0]
     for check in pitch_link["checks"]:
-        assert check["excluded_terms"] == [
-            "pitch-link eye / spherical bearing width -- no document"]
         assert "INCOMPLETE" not in check["label"]
     # verdict's domain is untouched -- the whole point of a second field.
-    assert [c["verdict"] for c in pitch_link["checks"]] == ["fail", "pass"]
+    assert [c["verdict"] for c in pitch_link["checks"]] == ["pass", "pass"]
 
 
 def test_a_complete_check_is_joint_scoped_and_names_nothing_excluded(projection):
@@ -652,13 +663,15 @@ def test_worst_confidence_takes_the_weakest_input(projection):
     assert check["input_confidence"]["untraced"] >= 1
     # pitch_link's weakest was `inferred` until 2026-09-15 -- it had no untraced
     # element at all, because it refused every band it could not trace. It now
-    # folds two, so this check is only as sourced as an operator's screenshot.
+    # folds three (`stack_fable_audit` added the eye placeholder to the two
+    # `pitch_link_known_bands` applied), so this check is only as sourced as an
+    # operator's screenshot and an unconfirmed catalog identity.
     pitch = check_by_id(
         by_id(projection, "pitch_link_to_pitch_plate"),
         "shank_out__11_sourced_only",
     )
     assert pitch["worst_confidence"] == "untraced"
-    assert pitch["input_confidence"]["untraced"] == 2
+    assert pitch["input_confidence"]["untraced"] == 3
 
 
 def test_worst_confidence_ranks_a_missing_citation_below_untraced():
@@ -695,6 +708,8 @@ def test_element_terms_expand_nested_paths(pitch_link):
     check = check_by_id(pitch_link, "shank_out__11_sourced_only")
     assert check["element_terms"] == [
         {"element_id": "bushing_214820", "sign": 1, "coefficient": 1.0},
+        {"element_id": "pitch_link_eye", "sign": 1, "coefficient": 1.0},
+        {"element_id": "flange_bushing_flange", "sign": 1, "coefficient": 1.0},
         {"element_id": "pitch_plate_flange", "sign": 1, "coefficient": 1.0},
         {"element_id": "washer_nas1149v0332", "sign": 1, "coefficient": 1.0},
         {"element_id": "bolt_grip_11", "sign": -1, "coefficient": 1.0},
@@ -704,16 +719,17 @@ def test_element_terms_expand_nested_paths(pitch_link):
 # --- gaps -----------------------------------------------------------------
 
 
-def test_the_excluded_link_eye_is_the_first_gap(pitch_link):
-    """Gap 1 of the worksheet -- the term that was refused rather than invented."""
-    first = pitch_link["gaps"][0]
-    assert first["kind"] == "excluded_from_model"
-    assert "spherical bearing" in first["text"]
+def test_the_excluded_nut_side_is_a_gap(pitch_link):
+    """The one remaining excluded term after 2026-09-15 (``stack_fable_audit``).
 
-
-def test_excluded_terms_are_deduped_across_checks(pitch_link):
+    The link eye was this stack's excluded-from-model gap from founding; it is
+    an ELEMENT now (a loudly-marked placeholder), so what the checks exclude is
+    only the MS9363-09 nut side of the cotter budget."""
     excluded = [g for g in pitch_link["gaps"] if g["kind"] == "excluded_from_model"]
-    assert len(excluded) == 1  # both checks exclude the same thing
+    assert len(excluded) == 1  # only the cotter check excludes anything now
+    assert "MS9363-09" in excluded[0]["text"]
+    assert not any("spherical bearing width -- no document" in g["text"]
+                   for g in pitch_link["gaps"])
 
 
 def test_hardware_gaps_reach_the_stack_that_uses_the_entry(pitch_link):

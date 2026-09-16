@@ -2,13 +2,15 @@
   "schema": "joby.tolerance_stack/study/v0",
   "id": "pitch_link_cotter_hole_clearance",
   "title": "Cotter hole clearance",
-  "description": "Cotter hole clear of the sourced clamped stack. The pitch-link eye and the nut geometry are excluded terms.",
+  "description": "Cotter hole clear of the complete clamped stack. The MS9363-09 nut side is the excluded term.",
   "topology": "pitch_link_to_pitch_plate",
   "from": "washer_far_face",
   "to": "cotter_hole_centerline",
   "selection": [
     "washer_nas1149v0332",
     "pitch_plate_flange",
+    "flange_bushing_flange",
+    "pitch_link_eye",
     "bushing_214820",
     "bolt_length_11",
     "cotter_hole_from_point"
@@ -19,14 +21,14 @@
       "label": "cotter hole clear of the clamped column",
       "configuration": {
         "fastener": "NAS6403U11D (.688 in grip, drilled shank)",
-        "nut": "MS9363-09 slotted -- height and castellation geometry unsourced"
+        "nut": "MS9363-09 slotted -- height printed in MS9363 Rev C; castellation phase uncontrolled"
       },
       "complete": false,
       "excluded_terms": [
-        "pitch-link eye / spherical bearing width -- no document"
+        "MS9363-09 nut height and thread-start-to-castellation distance -- the height is printed in MS9363 Rev C (spec-library subject MS9363-09, H = .178/.198 in) but deliberately not folded, because the quantity that decides cotter installability is the castellation PHASE, which no document controls (JPS00094 5.9.7's washer-swap procedure is the remedy); folding the height alone would dress an unanswerable alignment question as a linear one"
       ],
       "criterion": ">= 0",
-      "guidance": "Head-to-cotter-hole minus the sourced clamped column. What is left over must cover the pitch-link eye PLUS the nut's thread-start-to-castellation distance; both are unsourced, so this is a budget, not a verdict on the joint. It passes with 11.0444 mm worst case available (11.1435 until 2026-09-15, when the referenced stack's bushing and washer gained their bands). It cannot settle the joint: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the referenced stack's notes."
+      "guidance": "Head-to-cotter-hole minus the clamped column. Since 2026-09-15 (handoff stack_fable_audit) the column is all five members -- the eye rides in as the loudly-marked MS14101-3 placeholder -- so what is left over must cover only the nut side: the MS9363-09's height up to a castellation slot, which stays excluded (see excluded_terms) because the slot-to-thread-start phase is uncontrolled by any document. It passes with 2.3296 mm worst case available (nominal 3.1662, max 4.3098); an MS9363-09 at its max height (5.0292 mm) does NOT fit inside the worst-case budget, which is the castellation/washer-selection story again, not a new finding. It cannot settle the joint either way: with a slotted nut and a cotter pin the constraint is slot-vs-hole ALIGNMENT, which quantises acceptable grip -- see the referenced stack's notes. This guidance is a copy of the stack's own, kept in step by hand."
     }
   ],
   "provenance": {

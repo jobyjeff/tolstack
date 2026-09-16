@@ -11,6 +11,7 @@
     "fastener_grip",
     "bolt_length_11"
   ],
+  "no_checks_reason": "A provenance cross-check, not a design quantity: the referenced stack deliberately carries no check over its thread_region_T path either. T is a REFERENCE dimension (NAS6403 sheet 2 note (b): 'for design purposes only, not an inspection requirement'), so a criterion over it would dress a reference dimension as a requirement -- the same refusal the thermal stacks make for their uncited interference-fraction target. The quantity's value is pinned by tests (it must equal the sheet-1 T (Ref) = .323 in), which is the check it actually needs.",
   "provenance": {
     "authored_by": "handoff linear_stack_conversions, 2026-09-08",
     "equivalent_to": "path `thread_region_T` of docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json (bolt_length_11 minus bolt_grip_11), which that stack's own notes call 'a provenance cross-check, not a design quantity' -- it happens to equal NAS6403's T (Ref).",

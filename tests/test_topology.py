@@ -127,6 +127,37 @@ def test_every_committed_study_resolves_and_sums(path):
     assert result.units
 
 
+@pytest.mark.parametrize("path", study_files(), ids=lambda p: p.stem)
+def test_every_study_has_checks_or_says_why_not(path):
+    """Check coverage, made a property of the file rather than of a sweep.
+
+    The 2026-09-15 full-pass audit (handoff ``stack_fable_audit``) found five
+    studies with no ``checks`` entry and no recorded reason -- each reason
+    existed, scattered through ``notes`` or nowhere, which is invisible to a
+    scan. ``no_checks_reason`` is the additive field that carries it: a real
+    sentence naming why no criterion is citable (or why the criterion lives on
+    a twin study), never a placeholder. Exactly one of the two must be present:
+    a study with checks AND a no-checks reason is contradicting itself, and a
+    study with neither is the silent gap the audit was asked to end.
+
+    Raw JSON on purpose: ``Study.from_dict`` drops unknown fields, so the
+    loader cannot see this one -- the file is the contract.
+    """
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    checks = raw.get("checks") or []
+    reason = (raw.get("no_checks_reason") or "").strip()
+    if checks:
+        assert not reason, (
+            f"{path.name} carries {len(checks)} check(s) AND a no_checks_reason "
+            f"-- one of the two is stale; delete the reason or the checks")
+    else:
+        assert len(reason) >= 40, (
+            f"{path.name} has no checks and no substantive no_checks_reason. "
+            f"Either author a check whose criterion is citable in-repo, or "
+            f"record why there is none yet (docs/DAG_TOPOLOGY.md, 'A study "
+            f"with no checks says why').")
+
+
 # --------------------------------------------------------------------------- #
 # 1. the L1 value proof                                                       #
 # --------------------------------------------------------------------------- #

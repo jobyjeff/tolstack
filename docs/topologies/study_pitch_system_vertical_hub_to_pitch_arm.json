@@ -16,6 +16,7 @@
     "pitch_plate_flange_to_link_hole",
     "pitch_link_length"
   ],
+  "no_checks_reason": "No document in this repo states a millimetre criterion at the pitch-arm link hole. The citable criteria for this topology are angular (S461-607's +/-0.5 deg blade-to-blade limit, the S461-241/S461-516 derived stop margin) and apply downstream of the linear-rotary coupling, in the blade-angle and end-stop studies; this study deliberately stops at the interface BEFORE that coupling, so applying an angular limit here would need exactly the transform crossing it exists to avoid. A millimetre limit invented to fill the slot would have no source. Recorded 2026-09-15 (stack_fable_audit, check-coverage sweep).",
   "provenance": {
     "authored_by": "handoff dag_topology_format, 2026-08-31",
     "branch_choices": "Three of this chain's nodes are branch points and this study crosses all three having made a choice at each: at the hub A datum it takes the hub's own flange-to-flange dimension rather than either the blade-root or the ring-gear seat; at the hub top deck it takes the actuator mount rather than the tangential-link-mount or brake-mount seats; at the pitch plate connection it takes the pitch-link hole rather than the gas-spring bushing or the brake attachment. Those are engineering choices, made here by a human, and traverse() would have refused to make any of them.",
