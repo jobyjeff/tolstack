@@ -6,6 +6,34 @@ unchanged; a third tier word so the annotate runner can own a witness.
 
 ---
 
+## 0. What was measured
+
+All from this worktree, `--repo C:/workspace/tolstack` where the tier takes it:
+
+| | |
+|---|---|
+| `run_mutation_witness_tests.mjs` | **29/29 declared mutations witnessed** (27 entries before, +2 added, none retired) |
+| `run_viewer_browser_tests.mjs` | **20/20** browser checks, `topology file://` at 179/179 |
+| `apps/viewer/run_tests.cjs` | **407/407** |
+| `apps/annotate/run_tests.cjs` | **65/65** |
+| `pytest -q` | **1154 passed, 1 failed, 1 skipped** |
+
+I did not re-run the full 27-entry tier before fixing anything -- the one miss 
+was reproduced directly with `--only card-layout` (0/1), which is the same 
+evidence at a twentieth of the wall clock. The handoff's expected pre-fix 
+26/27 is therefore quoted, not measured here.
+
+The one pytest failure is **pre-existing at this branch's base** and unrelated
+to anything here -- `test_no_live_document_states_an_unguarded_hardware_entry_count`
+reads *"the other three do not have"* in a 2026-09-16 strategy brief as a
+hardware-entry count. My diff touches four files, none of them the brief, the
+test, or `hardware_entries.json`. Filed as
+`ISSUE_20260916_hardware_count_guard_matches_the_other_three_in_unrelated_prose.md`
+(`high`). Against the handoff's stated 1155-passed baseline the arithmetic is
+exact: 1154 + 1 = 1155, no test gained or lost.
+
+---
+
 ## 1. Which hover timed out — and the answer is neither candidate
 
 The handoff's lead (labelled a suggestion, correctly) was that the timing-out
@@ -131,7 +159,28 @@ distinguish *the mutation is too broad* from *the harness will not look*.
 
 **After** (mutation unchanged):
 
-<!-- AFTER_VERBOSE -->
+```
+--- card-layout-out-of-flow
+  clean run of browser / topology file://... green
+  mutated run... WITNESSED
+  apps/viewer/style.css: display: none; position: fixed; z-index: 20; width: 540px;
+  reddens: an open card is placed in the WINDOW's frame, not the document's -- it still sits against its trigger with the page scrolled
+    | --only "topology file://": running 2 of 20 suites -- THIS IS NOT A FULL RUN
+    |
+    | [topology file://] 178/179 sub-checks passed: FAIL
+    |     FAIL sub-check: an open card is placed in the WINDOW's frame, not the document's -- it still sits against its trigger with the page scrolled
+    | [topology file:// respine] 39/39 sub-checks passed: PASS
+    |
+    | 1/2 browser checks passed (--only "topology file://")
+    | FAILED: topology file://
+
+1/1 declared mutations witnessed
+```
+
+(`--verbose`, so the tier's own output is shown.) **178 of 179, one named red,
+and it is the declared one.** No `ERROR` line, no second sub-check, no aborted
+suite -- the mutation now fails an assertion rather than the harness, which is
+the state the entry always claimed and could not reach.
 
 ## 4. The two NOT-WITNESSED reasons, at the summary line
 
@@ -218,16 +267,16 @@ it has to be shadowed.
 
 ## 6. Fourteen copies of one discarded result
 
-The reporting defect was not in one suite. Fourteen suites each carried a
-byte-identical copy of the four-line reporting block, each beside a `catch` that
-printed `err.message` and dropped every already-collected failure name on the
-floor. Those names are the *only* machine-readable surface of that runner
+The reporting defect was not in one suite. Fourteen suites each carried a copy
+of the same four-line reporting block -- ten byte-identical, three without the
+`errors` lines, one using `suite` rather than `label` as its parameter name --
+each beside a `catch` that printed `err.message` and dropped every
+already-collected failure name on the floor. Those names are the *only* machine-readable surface of that runner
 (`BROWSER_FAIL = /^ {4}FAIL sub-check: (.+)$/`), so on the error path the
 mutation tier was structurally unable to attribute anything.
 
-One `reportSuite` / `reportAbortedSuite` pair now serves all fourteen (net −37
-lines). Three variants existed and all three collapse: with `errors`, without
-`errors`, and one using `suite` as the label parameter. `runSuite` — which reads
+One `reportSuite` / `reportAbortedSuite` pair now serves all fourteen: 121 lines
+deleted for 84 added, helper and its comment block included. `runSuite` -- which reads
 `window.__TEST_RESULTS__` and prints `FAIL <name>` rather than
 `FAIL sub-check: <name>` — is deliberately left alone; it is a different output
 contract.
