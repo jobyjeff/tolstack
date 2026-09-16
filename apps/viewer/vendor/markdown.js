@@ -90,24 +90,29 @@
   // Recursively build a (possibly nested) list from a run of list-item lines.
   // items: [{ indent, tag, content }]. Returns { html, next } where next is the
   // index of the first item not consumed at this indent level.
-  function buildList(items, start) {
+  //
+  // `floor` bounds the run: it extends while items[i].indent > floor (top call
+  // omits it, i.e. -1 — no ancestor). The level's own indent is the MINIMUM
+  // indent within that run, not items[start].indent: a tight list whose first
+  // item carries one stray leading space (indent 1) while its siblings sit at
+  // indent 0 must still resolve to base level 0, or the first item's inflated
+  // "indent" would wrongly read as the level and strand its siblings below it.
+  function buildList(items, start, floor) {
+    if (floor === undefined) floor = -1;
+    var end = start;
+    while (end < items.length && items[end].indent > floor) end++;
     var indent = items[start].indent;
+    for (var k = start + 1; k < end; k++) {
+      if (items[k].indent < indent) indent = items[k].indent;
+    }
     var tag = items[start].tag;
     var out = "<" + tag + ">";
     var i = start;
-    while (i < items.length && items[i].indent >= indent) {
-      if (items[i].indent > indent) {
-        // Deeper than the current level with no sibling to hang it off: nest it
-        // as its own list (defensive — normal nesting is handled below).
-        var orphan = buildList(items, i);
-        out += orphan.html;
-        i = orphan.next;
-        continue;
-      }
+    while (i < end) {
       out += "<li>" + inline(items[i].content);
       i++;
-      if (i < items.length && items[i].indent > indent) {
-        var child = buildList(items, i);
+      if (i < end && items[i].indent > indent) {
+        var child = buildList(items, i, indent);
         out += child.html;
         i = child.next;
       }
@@ -224,26 +229,5 @@
   // Render an escaped-and-transformed HTML string from markdown source.
   NA.renderMarkdown = function (src) {
     return renderBlocks(escapeHtml(src == null ? "" : src).split(/\r?\n/));
-  };
-
-  // Plain-text one-liner for collapsed summaries: the first non-empty line with
-  // its markdown syntax stripped (so a heading "# Title" shows as "Title", not a
-  // literal "#"). Not for innerHTML — callers assign it via textContent.
-  NA.summaryLine = function (text) {
-    var line = NA.firstLine(text);
-    if (line === "(empty note)") return line;
-    return line
-      .replace(/^\s{0,3}(#{1,6})\s+/, "")          // heading marker
-      .replace(/^\s*>\s?/, "")                     // blockquote marker (firstLine is raw)
-      .replace(/^\s*([-*+]|\d+[.)])\s+/, "")       // list marker
-      .replace(/!\[([^\]]*)\]\([^)\s]+\)/g, "$1")   // image → alt
-      .replace(/\[([^\]]+)\]\([^)\s]+\)/g, "$1")     // link → label
-      .replace(/`([^`]+)`/g, "$1")                  // inline code
-      .replace(/\*\*([^*]+)\*\*/g, "$1")            // bold
-      .replace(/__([^_]+)__/g, "$1")
-      .replace(/~~([^~]+)~~/g, "$1")                // strike
-      .replace(/\*([^*]+)\*/g, "$1")               // italic
-      .replace(/_([^_]+)_/g, "$1")
-      .trim() || "(empty note)";
   };
 })(window.ViewerApp = window.ViewerApp || {});

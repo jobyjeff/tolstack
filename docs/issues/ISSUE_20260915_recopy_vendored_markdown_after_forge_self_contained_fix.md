@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: apps/viewer/vendor
 reporter: agent
 found_by: forge/docs/sessions/HANDOFF_20260914_markdown_vendor_self_contained.md
 handoff: docs/sessions/HANDOFF_20260915_vendor_markdown_recopy.md
+resolution: handoff completed 2026-09-15 -- closed automatically by dispatch when handoff `vendor_markdown_recopy` moved to completed/; not independently verified.
 ---
 
 # Re-copy vendor/markdown.js from forge after markdown_vendor_self_contained
