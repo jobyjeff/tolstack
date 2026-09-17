@@ -4276,9 +4276,14 @@ async function testAnnotateFlyout(browser, fileBase, label) {
 //      tier that can load this app at all, so "the parts panel lists one mesh
 //      instead of every installed one" is checkable here and nowhere else.
 //   2. The pick tint really comes off. The bug was that `state.currentPick`
-//      and the orange in the colour buffer disagreed, and the colour buffer
-//      exists only in a real GL context. `window.__scene.highlightedFace()`
-//      (app.js, the autotest convention) is the observable.
+//      and the orange in the COLOUR BUFFER disagreed, and that buffer exists
+//      only in a real GL context. Read through `window.__scene` (app.js, the
+//      autotest convention), and read as the buffer --
+//      `geometry.attributes.color` against `userData.baseColors` -- NOT as
+//      `scene.highlightedFace()`, which reports `_lastPick` and is therefore
+//      the bookkeeping half of the very pair under test. The first version of
+//      this suite read the flag and the mutation-witness runner caught it
+//      passing over a mesh that was still orange.
 //   3. A click into EMPTY SPACE clears it -- a real pointer into the canvas,
 //      through the real raycaster, which is the gesture Jeff performed
 //      ("I accidentally clicked a face").
