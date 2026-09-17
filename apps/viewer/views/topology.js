@@ -1755,8 +1755,8 @@
       : VA.chip("chip--unlabelled", edge.value_source,
                 VA.valueSourceText(edge.value_source)));
     if (edge.zero_width) {
-      chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
-        "min == max: every interval this feeds is a LOWER bound on the real spread."));
+      chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
+        VA.ATTENTION.no_tolerance.title));
     }
     root.appendChild(chips);
 

@@ -275,8 +275,17 @@
 
     await test("summaryChips scoreboards the stack and flags both soft spots", function () {
       var texts = VA.summaryChips(DEMO).map(function (c) { return c.text; });
+      // The summary chip says the SAME fact in the SAME words as the DAG page's
+      // badge and the element row's chip -- one vocabulary, out of VA.ATTENTION
+      // (ISSUE_20260915_the_stack_view_still_says_zero_width_band_...). Pinned
+      // as the rendered sentence, not as a class name: a class-name check
+      // passes straight through a wrong word, which is how this one survived.
       eq(texts, ["2 traced", "1 inferred", "1 UNTRACED",
-                 "1 zero-width band", "1 budget-scope check"]);
+                 "1 element with no tolerance recorded", "1 budget-scope check"]);
+      // ...and the plural arm, which no fixture stack reaches.
+      eq(VA.summaryChips({ provenance_counts: {}, zero_width_count: 2 })
+         .map(function (c) { return c.text; }),
+         ["2 elements with no tolerance recorded"]);
     });
 
     await test("summaryChips says the checks are generated and counts the probes", function () {
@@ -313,7 +322,25 @@
     await test("citationWhere reads like drawing-checker's Where column", function () {
       eq(VA.citationWhere(DEMO.stack.elements[0].source_ref),
          "215197 · rev A.1 · sheet 2 · SECTION A-A · zone D10");
-      eq(VA.citationWhere(null), "no source_ref");
+      // "Rev 4" in the title block is transcribed as "Rev 4", so the label and
+      // the value collided and the line read `rev Rev 4` on the live NAS
+      // citation (ISSUE_20260915_the_citation_where_line_prints_rev_rev_4_...).
+      // Never prefix a label a value already carries -- and keep the label
+      // where it is the only thing saying what the digits are.
+      eq(VA.citationWhere({ document: "NAS6403-NAS6420 Rev 4.pdf",
+                            revision: "Rev 4 (sheet 1 rev 4, sheet 2 rev 2)",
+                            sheet: 3 }),
+         "NAS6403-NAS6420 Rev 4.pdf · Rev 4 (sheet 1 rev 4, sheet 2 rev 2) · sheet 3");
+      eq(VA.citationWhere({ document: "215197", revision: "A.1" }),
+         "215197 · rev A.1");
+      // Case-insensitive, and anchored: "revised 2026" is not the label said
+      // twice, and a "rev" clause deeper in the string is part of the note.
+      eq(VA.revisionText("REV C"), "REV C");
+      eq(VA.revisionText("revised 2026"), "rev revised 2026");
+      eq(VA.revisionText("A (sheet 2 rev 2)"), "rev A (sheet 2 rev 2)");
+      // No citation at all says so in a reader's words. It said "no source_ref"
+      // -- a schema field name on a rendered surface -- until 2026-09-16.
+      eq(VA.citationWhere(null), "no citation");
     });
 
     // --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) --
@@ -1056,11 +1083,20 @@
       has(untraced[0].textContent, "UNTRACED");
     });
 
-    await test("a zero-width band is marked on the row and on min/max", function () {
+    await test("an element with no tolerance recorded is marked on the row and " +
+      "on min/max, in the DAG page's own words", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      // The classes are the colour system's and deliberately keep their names --
+      // nothing reads them as words.
       eq(all(root, "tr.el-row--zero-width").length, 1);
       eq(all(root, "td.num--zero-width").length, 2);
-      ok(all(root, ".chip--zero-width").length >= 1);
+      var chips = all(all(root, "tr.el-row--zero-width")[0], ".chip--zero-width");
+      eq(chips.length, 1);
+      eq(chips[0].textContent, VA.ATTENTION.no_tolerance.text);
+      eq(chips[0].getAttribute("title"), VA.ATTENTION.no_tolerance.title);
+      // ...and the cells a reader compares carry the same sentence.
+      eq(all(root, "td.num--zero-width")[0].getAttribute("title"),
+         VA.ATTENTION.no_tolerance.title);
     });
 
     await test("element values are printed exactly as authored", function () {
@@ -1291,7 +1327,19 @@
       has(note.textContent, "stack_demo_fit.json");
       // The escape hatch out of the browser: the command that prints the same
       // term table, so the surface is checkable and not just believable.
-      has(note.textContent, "debug_report_thermal_fit.py");
+      // NOT the command. Jeff's web-UI rule is binding across every repo's web
+      // surface -- never render a terminal command for the user to copy/paste --
+      // and this paragraph rendered one, `venv-win\\Scripts\\python.exe ...`,
+      // on the live M1 thermal stack. It was invisible to the banned-string
+      // guard, which has banned "venv-win" by name since the day it was written
+      // but had no walk that reached a stack-side surface (2026-09-16).
+      ok(note.textContent.indexOf("debug_report_thermal_fit.py") === -1,
+         "no terminal command in the rendered note: " + note.textContent);
+      ok(note.textContent.indexOf("venv-win") === -1,
+         "no interpreter path either: " + note.textContent);
+      // The fact the command carried is kept, in words: the table is
+      // reproducible outside the browser.
+      has(note.textContent, "printed outside the browser");
       // An authored stack gets no such note.
       var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
       eq(all(plain, ".check__note").length, 0);
@@ -1405,13 +1453,33 @@
       var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
       // The BASENAME, because the live paths are absolute and 90 characters long.
       has(line, "Read from 215197.pdf");
-      has(line, "drawing-checker runs: 20260804_114000_x");
+      // How many times and how recently -- never the run id, which is an
+      // internal artifact's address (ISSUE_20260916_the_element_pane_still_
+      // prints_bare_drawing_checker_run_ids_as_link_text). Both the rendered
+      // line and this text view-model read the one builder, so they cannot
+      // describe one export in two vocabularies.
+      has(line, "read by drawing-checker once, on 4 Aug 2026");
+      ok(line.indexOf("20260804_114000_x") === -1, "no run id in the line: " + line);
+      eq(VA.exportRunsText({ status: "established", runs: [
+           { run_id: "a", ts: "2026-07-23T16:38:10+00:00" },
+           { run_id: "b", ts: "2026-07-30T20:21:09+00:00" }] }),
+         "read by drawing-checker 2 times, most recently 30 Jul 2026");
+      // A run entry with no usable date still counts, and claims no day.
+      eq(VA.exportRunsText({ runs: [{ run_id: "not-a-run-id" }] }),
+         "read by drawing-checker once");
+      // The date is read off the front of the recorded string, never through
+      // Date -- a timezone must not move the day.
+      eq(VA.isoDateText("2026-07-30T20:21:09.210383+00:00"), "30 Jul 2026");
+      eq(VA.isoDateText("2026-01-05"), "5 Jan 2026");
+      eq(VA.isoDateText("last Tuesday"), null);
+      eq(VA.isoDateText(null), null);
+      eq(VA.isoDateText("2026-13-01"), null);
       // An export no run ever consumed says so — 15 of the 22 live established
       // CITATIONS are in that state (6 of the 9 distinct exports they name), and
       // a blank would read as a missing record rather than an empty one.
       has(VA.exportProvenanceLine({
         export: { status: "established", pdf: "C:/x/y.pdf", sha256: "ab", runs: [] },
-      }), "no drawing-checker run has consumed this export");
+      }), VA.EXPORT_NO_RUNS_TEXT);
     });
 
     await test("an unestablished export leads with the why, not with the file", function () {
@@ -1585,7 +1653,13 @@
       eq(box.length, 1);
       has(box[0].textContent, "Read from 215197.pdf");
       has(box[0].textContent, "pinned to this exact file");
-      has(box[0].textContent, "20260804_114000_x");
+      // The run's own id is on the hover, not in the line -- and the fixture's
+      // crop resolved through the export rather than a run, so there is nothing
+      // to link here and the summary carries no title either.
+      has(box[0].textContent, "read by drawing-checker once, on 4 Aug 2026");
+      ok(box[0].textContent.indexOf("20260804_114000_x") === -1,
+         "no run id in the rendered line: " + box[0].textContent);
+      eq(all(root, "a.el-export__runlink").length, 0);
       // The absolute path used to print beside the basename as the fallback
       // for a file:// link that could not navigate. Gone 2026-09-15 (Jeff:
       // "full workstation file paths -- never rendered when the link works"),
@@ -1877,7 +1951,7 @@
       has(desig[0].textContent, "designation from: DEMO-1 · rev A · sheet 1 · NOTES · zone D9");
       has(rows[0].textContent, "PRODUCE FROM DEMO ALUMINIUM T7451");
       // A material with no designation_source says so rather than showing a blank.
-      has(desig[2].textContent, "no source_ref");
+      has(desig[2].textContent, "no citation");
       // The outstanding ask for a real value, where one is recorded.
       var requests = all(root, "div.mat-row__request");
       eq(requests.length, 2, "the stainless records no CINDAS request");
@@ -3102,7 +3176,54 @@
       ["C:\\", "an absolute workstation path, the other way round"],
       ["build_viewer_crops.py", "a terminal command for the reader to type"],
       ["venv-win", "a terminal command for the reader to type"],
+      // SHAPES, not literals (2026-09-16, reader_facing_copy_and_vocabulary
+      // item 7). The eight above are the eight instances that existed on
+      // 2026-09-15; a literal can only ever catch the strings someone has
+      // already written down. A shape catches the ones nobody has written yet,
+      // and that is not hypothetical here: VA.exportRunsLine printed four bare
+      // run ids -- `20260723_163810` and three more -- straight past this list
+      // for as long as it has existed, because no literal in it spells a run
+      // id and nothing could (ISSUE_20260916_the_element_pane_still_prints_
+      // bare_drawing_checker_run_ids_as_link_text).
+      [/\b\d{8}_\d{6}\b/,
+       "a drawing-checker run id -- an internal artifact's address, and a " +
+       "shape, so an id nobody has written yet is caught too"],
+      [/\b[0-9a-f]{24,}\b/,
+       "a checksum's own digits -- twelve hex characters are not something a " +
+       "reader of this page can do anything with"],
     ];
+
+    // Every FIELD NAME the schema uses, read out of the projection itself
+    // rather than listed here -- the same rule the id walks follow, one level
+    // up. Two of the eight literals above (`source_ref`, `crop_key`) are field
+    // names someone hit and wrote down; this is the general form, and it needs
+    // no maintenance when the schema grows a field.
+    //
+    // Keys with a separator in them ONLY, for exactly the reason the id walks
+    // skip a one-word id: `sheet`, `note`, `document`, `revision` and `zone`
+    // are all schema keys AND words a human would write, and `sheet 3` is the
+    // right thing for a citation line to say.
+    function schemaFieldNames(projection) {
+      var names = {}, values = {};
+      (function walk(value) {
+        if (typeof value === "string") { values[value] = true; return; }
+        if (!value || typeof value !== "object") return;
+        if (Array.isArray(value)) { value.forEach(walk); return; }
+        Object.keys(value).forEach(function (key) {
+          if (key.indexOf("_") !== -1) names[key] = true;
+          walk(value[key]);
+        });
+      })(projection);
+      // A word the schema uses as a VALUE somewhere is data, and the page is
+      // entitled to print it. `thermal_fit` is the live example and the reason
+      // this subtraction exists: it is an `archetype` value a stack page says
+      // out loud, and it is also a KEY, because the projection carries an
+      // archetype-keyed map. Without this the guard reports the sentence
+      // `The archetype "thermal_fit" builds them` as schema jargon, which it
+      // plainly is not -- and a guard that cries wolf on a correct sentence
+      // gets an allowlist entry, then two, then deleted.
+      return Object.keys(names).filter(function (name) { return !values[name]; });
+    }
 
     // The nodes that print a DOCUMENT's own prose, word for word: a citation's
     // note, a callout as printed, an export's recorded `why`. The ban above is
@@ -3115,26 +3236,150 @@
       "div.detail__note", "div.detail__callout",
       "div.hovercard__note", "div.hovercard__notefull", "div.hovercard__callout",
       "div.el-export__note", "div.el-export__why",
+      // The stack-side surfaces, enrolled 2026-09-16 when the walk below
+      // reached them. Every one of these is the RECORD speaking, not the page:
+      // an element row's citation note and callout as printed (a material
+      // entry's own note reuses the same two classes), and a worksheet, which
+      // is authored markdown read live off disk. `el-row__srcnote` in particular
+      // carries live prose naming `20260730_133912` to argue an export's
+      // identity -- true, useful, and not the viewer's words to trim.
+      "div.el-row__srcnote", "div.el-row__callout",
+      "div.worksheet__body",
+      // ...and the four places the stack page prints the RECORD: a stack's own
+      // notes, a derived gap's text, a hardware or material entry's recorded
+      // gap, and a check's authored guidance. Every one of these is authored in
+      // the stack JSON and rendered whole on purpose.
+      "li.notelist__note", "span.gap__text", "li.el-gaps__text",
+      "p.check__guidance", "dd.kv__value", "tr.el-note--record",
     ];
 
     // Everything on a surface that the VIEWER wrote -- the rendered text with
-    // the verbatim-prose nodes' own text removed.
+    // the verbatim-prose SUBTREES left out.
+    //
+    // A walk, not a substring subtraction. It subtracted each verbatim node's
+    // text out of the whole page's text until 2026-09-16, which is safe only
+    // while every enrolled class holds a paragraph: the stack page's free-form
+    // blocks render one-character values ("A", the assembly revision), and
+    // removing every "A" from the page turned "PARTS-LIST" into "P RTS-LIST"
+    // and the guard's own failure messages into nonsense. Skipping the node is
+    // the same intent without the collateral.
+    //
+    // Model-independent on purpose: the node tier keeps an element's text on
+    // the element, a browser keeps it in child text nodes, and descending only
+    // where there are children reads both the same way.
     function viewerAuthoredText(root) {
-      var text = root.textContent;
+      var skip = [];
       VERBATIM_PROSE_CLASSES.forEach(function (selector) {
-        all(root, selector).forEach(function (node) {
-          var quoted = node.textContent;
-          if (quoted) text = text.split(quoted).join(" ");
-        });
+        skip = skip.concat(all(root, selector));
       });
-      return text;
+      function walk(node) {
+        if (skip.indexOf(node) !== -1) return "";
+        var kids = node.childNodes
+          ? Array.prototype.slice.call(node.childNodes) : [];
+        if (!kids.length) return String(node.textContent || "");
+        return kids.map(walk).join(" ");
+      }
+      return walk(root);
     }
 
+    // A banned entry is a literal OR a shape; both report the string actually
+    // found, never the pattern, because "renders /\\b\\d{8}_\\d{6}\\b/" tells a
+    // reader nothing about which id is on their page.
     function bannedIn(text, where) {
       BANNED_IN_RENDERED_TEXT.forEach(function (pair) {
-        ok(String(text).indexOf(pair[0]) === -1,
-           where + " renders " + JSON.stringify(pair[0]) + " (" + pair[1] +
+        var found = typeof pair[0] === "string"
+          ? (String(text).indexOf(pair[0]) === -1 ? null : pair[0])
+          : (String(text).match(pair[0]) || [null])[0];
+        ok(found === null,
+           where + " renders " + JSON.stringify(found) + " (" + pair[1] +
            "): " + text);
+      });
+    }
+
+    // Every STACK-side surface that renders reader-facing text, for one stack
+    // projection. Named here rather than inside either tier's test so the
+    // fixture walk and the [real] walk cannot drift into covering different
+    // surfaces -- which is how the topology walks and the stack walks came to
+    // be two different guards in the first place.
+    //
+    // This half of the viewer had NO walk at all until 2026-09-16. Both
+    // existing walks enumerate topology surfaces (grid, node/edge panes, hover
+    // cards); `views/stack.js`, `views/detail.js`, `views/worksheet.js` and
+    // VA.summaryChips were reachable by no guard, which is why VA.exportRunsLine
+    // printed four bare run ids on the element pane for a month
+    // (reader_facing_copy_and_vocabulary item 7).
+    function stackSurfaces(stackProj, crops) {
+      var where = stackProj.id + " ";
+      var surfaces = [[where + "stack page", render(function (r) {
+        VA.renderStack(r, stackProj, crops, {});
+      })]];
+      // The header chips are a view-model, not DOM -- render them into one so
+      // the same scan reads them. A chip's `title` is rendered text too: it is
+      // the only explanation of the chip a reader ever gets.
+      surfaces.push([where + "summary chips", render(function (r) {
+        VA.summaryChips(stackProj).forEach(function (chip) {
+          r.appendChild(VA.chip("chip--scan", chip.text, chip.title || null));
+        });
+      })]);
+      surfaces.push([where + "worksheet pane", render(function (r) {
+        VA.renderWorksheet(r, stackProj, null);
+      })]);
+      ((stackProj.stack || {}).elements || []).forEach(function (element) {
+        surfaces.push([where + "element pane on " + element.id,
+          render(function (r) {
+            VA.renderDetail(r, stackProj, element.id, crops, null, VA.CONFIG);
+          })]);
+        if (element.source_ref) {
+          surfaces.push([where + "citation card on " + element.id,
+            render(function (r) {
+              VA.renderHoverCard(r, VA.citationCard(element.source_ref, null, null),
+                {}, VA.CONFIG, null);
+            })]);
+        }
+      });
+      return surfaces;
+    }
+
+    // A WHOLE WORD, not a substring: the stack page prints every element's own
+    // id beside its name on purpose (a reviewer finds the row in the JSON by
+    // it), and `bushing_flange_thickness` contains the schema key
+    // `flange_thickness`. `_` counts as part of a word here, which is what
+    // makes an id with a separator either side of the key a miss and the key
+    // standing alone a hit.
+    //
+    // Spelled out rather than as a word-boundary escape, on purpose. This
+    // guard shipped for an hour as `new RegExp("\\b" + name + "\\b")` with one
+    // backslash instead of two, and JS reads `"\b"` as U+0008 BACKSPACE -- so
+    // the pattern was `<backspace>name<backspace>`, the scan matched nothing
+    // ever, and every surface passed. Nothing in the suite could tell that from
+    // a clean tree. What told it was planting a positive and watching the guard
+    // NOT fire, which is the whole argument for planting one.
+    var WORD_CHARACTER = /[A-Za-z0-9_$]/;
+    function wholeWordIn(text, word) {
+      for (var at = text.indexOf(word); at !== -1;
+           at = text.indexOf(word, at + 1)) {
+        var end = at + word.length;
+        if ((at === 0 || !WORD_CHARACTER.test(text.charAt(at - 1))) &&
+            (end >= text.length || !WORD_CHARACTER.test(text.charAt(end)))) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // The banned list, the schema's own field names, and a set of ids, over one
+    // surface's viewer-authored text. One function so a new surface cannot be
+    // enrolled in three quarters of the guard.
+    function surfaceIsClean(root, where, fieldNames, ids) {
+      var text = viewerAuthoredText(root);
+      bannedIn(text, where);
+      (fieldNames || []).forEach(function (name) {
+        ok(!wholeWordIn(text, name),
+           where + " renders the schema field name `" + name + "`: " + text);
+      });
+      (ids || []).forEach(function (id) {
+        ok(text.indexOf(id) === -1,
+           where + " prints the internal id `" + id + "`: " + text);
       });
     }
 
@@ -3345,21 +3590,42 @@
           })]);
         });
 
+        // An id that happens also to BE a phrase a human would write is no
+        // evidence of anything (`post`, `arm`); only ids with a separator in
+        // them are unambiguously machine-shaped.
         var ids = (TOPO.parts || []).map(function (p) { return p.id; })
-          .concat((TOPO.nodes || []).map(function (n) { return n.id; }));
+          .concat((TOPO.nodes || []).map(function (n) { return n.id; }))
+          .filter(function (id) { return id.indexOf("_") !== -1; });
+        var fields = schemaFieldNames(TOPO);
+        ok(fields.length > 5, "the field-name scan must not be vacuous: " + fields);
         surfaces.forEach(function (pair) {
-          bannedIn(pair[1].textContent, pair[0]);
-          ids.forEach(function (id) {
-            // An id that happens also to BE a phrase a human would write is no
-            // evidence of anything (`post`, `arm`); only ids with a separator
-            // in them are unambiguously machine-shaped.
-            if (id.indexOf("_") === -1) return;
-            ok(pair[1].textContent.indexOf(id) === -1,
-               pair[0] + " prints the internal id `" + id + "`: " +
-               pair[1].textContent);
-          });
+          surfaceIsClean(pair[1], pair[0], fields, ids);
         });
         ok(surfaces.length > 20, "the walk must not be vacuous");
+      });
+
+    // The OTHER half of the viewer, which had no walk of any kind until
+    // 2026-09-16. Same three scans, same helpers, over the stack-side
+    // renderers: the element table, the header chips, the worksheet pane, the
+    // element pane and the citation card.
+    await test("no rendered stack surface prints an internal id, a field name, " +
+      "a checksum or a workstation path", function () {
+        var surfaces = [];
+        [DEMO, GEN].forEach(function (stackProj) {
+          surfaces = surfaces.concat(stackSurfaces(stackProj, CROPS));
+        });
+        var fields = schemaFieldNames({ stacks: [DEMO, GEN] });
+        ok(fields.length > 5, "the field-name scan must not be vacuous: " + fields);
+        surfaces.forEach(function (pair) {
+          // No id list here: a stack's element ids ARE printed, on purpose --
+          // views/stack.js puts each one in a <code> beside the element's name
+          // so a reviewer can find the row in the JSON. That is a deliberate
+          // affordance on this surface and not the class of thing this walk
+          // exists to catch, which is why the ids argument is the topology
+          // walks' and not this one's.
+          surfaceIsClean(pair[1], pair[0], fields, null);
+        });
+        ok(surfaces.length > 10, "the walk must not be vacuous: " + surfaces.length);
       });
 
     // ITEM 5. The pane's width, and the one preference on this page that
@@ -5822,7 +6088,7 @@
         // The run ids print through the same one runs-line builder the right
         // pane uses (VA.exportRunsLine) — linked only where the crop resolved
         // through that run, plain text otherwise.
-        has(root.textContent, "drawing-checker runs:");
+        has(root.textContent, "read by drawing-checker");
       });
 
     await test("renderHoverCard says a card kind it has no branch for out loud",
@@ -6397,9 +6663,16 @@
         var root = render(function (r) { VA.renderTopoJoint(r, withJoint); });
         eq(all(root, "details.sv__joint").length, 1);
         Object.keys(joint).forEach(function (key) {
-          has(root.textContent, key);
+          // The KEY AS A LABEL, not as a schema field name: a free-form block
+          // is rendered key by key, so `assembly_drawing` was a definition-list
+          // term on the live L1 topology until 2026-09-16. VA.fieldLabel drops
+          // the separator and changes nothing else, which is why this asserts
+          // the transform rather than a hand-written expansion.
+          has(root.textContent, VA.fieldLabel(key));
           has(root.textContent, String(joint[key]));
         });
+        ok(root.textContent.indexOf("assembly_drawing") === -1,
+           "no raw schema key in the rendered block: " + root.textContent);
       });
 
     await test("a topology with no joint (it spans more than one physical " +
@@ -6566,7 +6839,7 @@
             selection: { kind: "edge", id: "arm_pin_to_tip" } }));
         });
         has(root.textContent, "No document backs this number");
-        has(root.textContent, "zero-width band");
+        has(root.textContent, VA.ATTENTION.no_tolerance.text);
         has(root.textContent, "linear_to_rotary");
       });
 
@@ -7714,17 +7987,24 @@
         }));
       }
 
-      // One vocabulary, one list. `worksheet_source` is written by BOTH viewer
+      // One vocabulary, one home. `worksheet_source` is written by BOTH viewer
       // builders (`scripts/build_viewer_projection.py`'s `worksheet_for` and
       // `scripts/build_topology_projection.py`'s, the same two rules
       // deliberately not shared because each builder is stdlib-only and
-      // self-contained), so it is guarded twice below — once per projection —
-      // and two rows keeping two copies of one list is the drift this repo
-      // names as its most-repeated defect. The real home for it is a
-      // `VA.WORKSHEET_SOURCES` that `views/worksheet.js` itself reads; that is
-      // ISSUE_20260915_worksheet_source_vocabulary_has_no_va_constant, out of
-      // this handoff's file scope.
-      var WORKSHEET_SOURCES = ["declared", "by_name", null];
+      // self-contained), so it is guarded twice below — once per projection.
+      // Both rows read `VA.WORKSHEET_SOURCES` directly, which is the strong
+      // form of this guard: the table they check is the one the renderer
+      // branches on, so a value the page has no branch for cannot pass here.
+      // A local copy of the list lived here until 2026-09-16 and was the
+      // vocabulary's only named home (ISSUE_20260915_worksheet_source_
+      // vocabulary_has_no_va_constant).
+      //
+      // `null` is looked up as the string "null" for the same reason the table
+      // spells it that way: a JS property key is coerced to a string.
+      function knownWorksheetSource(value) {
+        return Object.prototype.hasOwnProperty.call(
+          VA.WORKSHEET_SOURCES, String(value));
+      }
 
       // The reporting loop behind every value guard in this file, stack-side
       // and topology-side. It has TWO arms and they catch different things: an
@@ -7873,7 +8153,7 @@
           branch: "views/worksheet.js — only `declared` earns the 'one worksheet " +
             "may cover several stacks' note; `by_name` and null are the silent " +
             "default, correctly",
-          known: inList(WORKSHEET_SOURCES),
+          known: knownWorksheetSource,
           values: function (r) {
             return stacksIn(r).map(function (s) { return s.worksheet_source; });
           } },
@@ -8084,6 +8364,22 @@
 
       // --- [real] source_ref.export, against the live citations ---------------
 
+      await test("[real] no rendered stack surface of any live stack prints an " +
+        "internal id, a field name, a checksum or a workstation path",
+        function () {
+          var fields = schemaFieldNames(realResults);
+          ok(fields.length > 20,
+             "the field-name scan must not be vacuous: " + fields.length);
+          var surfaces = 0;
+          realResults.stacks.forEach(function (stackProj) {
+            stackSurfaces(stackProj, realCrops).forEach(function (pair) {
+              surfaceIsClean(pair[1], pair[0], fields, null);
+              surfaces += 1;
+            });
+          });
+          ok(surfaces > 50, "the walk must not be vacuous: " + surfaces);
+        });
+
       function liveCitations() {
         var out = [];
         realResults.stacks.forEach(function (stackProj) {
@@ -8115,8 +8411,22 @@
           // without one), so a live export with none is a finding, not a display
           // case.
           ok(pair[1].source_ref.export.sha256, where + " must carry a sha256");
+          // The pane says WHAT drawing-checker did with the file, and never a
+          // run id: it printed four bare ids on
+          // `tan_link_to_pitch_plate:straight_bushing` until 2026-09-16.
+          has(text, VA.exportRunsText(pair[1].source_ref.export),
+              where + " must summarise its drawing-checker history");
+          // Scoped to the line itself, not to the pane: an export's own `why`
+          // is the RECORD's prose and several live ones argue their identity by
+          // naming a run ("...20260730_133912's 215197_A_p01.json records..."),
+          // which this page renders verbatim on purpose.
+          var runsLine = all(render(function (r) {
+            VA.renderDetail(r, pair[0], pair[1].id, realCrops, null, VA.CONFIG);
+          }), "div.el-export__runs")[0];
           p.runIds.forEach(function (runId) {
-            has(text, runId, where + " must name run " + runId);
+            ok(runsLine.textContent.indexOf(runId) === -1,
+               where + " prints the internal run id `" + runId + "`: " +
+               runsLine.textContent);
           });
         });
       });
@@ -10189,13 +10499,9 @@
                   selection: selection, onSelect: function () {},
                 };
               };
+              var fields = schemaFieldNames(topoProj);
               var check = function (where, root) {
-                var text = viewerAuthoredText(root);
-                bannedIn(text, where);
-                ids.forEach(function (id) {
-                  ok(text.indexOf(id) === -1,
-                     where + " prints the internal id `" + id + "`: " + text);
-                });
+                surfaceIsClean(root, where, fields, ids);
                 surfaces += 1;
               };
               check(topoProj.id + " grid", render(function (r) {
@@ -10465,7 +10771,7 @@
               "SAME branch the stack-side row guards, over the other " +
               "projection: the stack table runs against realResults only and " +
               "never sees this copy of the field",
-            known: inList(WORKSHEET_SOURCES),
+            known: knownWorksheetSource,
             values: function (p) {
               return topoRows(p).map(function (t) { return t.worksheet_source; });
             } },

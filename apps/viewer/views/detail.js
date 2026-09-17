@@ -44,8 +44,8 @@
         "CTE and where the CTE came from"));
     }
     if (derived.zero_width) {
-      chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
-        "min == max: every interval this feeds is a LOWER bound on the real spread."));
+      chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
+        VA.ATTENTION.no_tolerance.title));
     }
     root.appendChild(chips);
 
@@ -115,37 +115,43 @@
     return box;
   };
 
-  // The run ids, linked where this page can honestly address the run — see
-  // VA.exportRunLinks for why that is only ever the one the element's own crop
-  // resolved through.
+  // What drawing-checker has done with this file, and the one click-through
+  // this page can honestly offer.
+  //
+  // It printed the raw run ids as the link text until 2026-09-16 — four of them
+  // on `tan_link_to_pitch_plate:straight_bushing`, e.g. `20260723_163810` — and
+  // an id is an internal artifact's address that tells a reader nothing about
+  // what they are about to open. The crop popover two inches above had already
+  // made exactly this move (views/crop.js, VA.drawingLinkText): name the
+  // DRAWING, not the machinery. So the line says how many times and how
+  // recently, the link says which drawing, and the ids stay on the hover —
+  // where someone with a drawing-checker shell can still read them, and where
+  // the reason at most one run is ever linkable is written down.
   VA.exportRunsLine = function (config, exportBlock, cropEntry) {
     var line = VA.el("div", "el-export__runs");
     var links = VA.exportRunLinks(config, exportBlock, cropEntry);
+    var summary = VA.el("span", "muted", VA.exportRunsText(exportBlock));
     if (!links.length) {
-      line.appendChild(VA.el("span", "muted",
-        "no drawing-checker run has used this file — the value was read " +
-        "straight off it, so its checksum is the whole of its identity"));
+      line.appendChild(summary);
       return line;
     }
-    line.appendChild(VA.el("span", "muted", "drawing-checker runs: "));
-    links.forEach(function (link, index) {
-      if (index) line.appendChild(VA.el("span", "muted", ", "));
-      if (link.url) {
-        var a = VA.el("a", "el-export__runlink", link.run_id);
-        a.setAttribute("href", link.url);
-        a.setAttribute("target", "_blank");
-        a.setAttribute("rel", "noopener");
-        a.setAttribute("title", "this run's page in drawing-checker's local web UI — " +
-          (config && config.drawingCheckerWebui) + " must be serving");
-        line.appendChild(a);
-      } else {
-        var span = VA.el("span", "el-export__runid", link.run_id);
-        span.setAttribute("title", "no link: drawing-checker addresses a run " +
-          "by a longer name than the id recorded here, and this page will not " +
-          "guess the rest of it.");
-        line.appendChild(span);
-      }
-    });
+    summary.setAttribute("title", VA.exportRunsTitle(exportBlock));
+    line.appendChild(summary);
+    // At most one — VA.exportRunLinks only resolves the run the element's own
+    // crop came through, and inventing a URL for the rest from an id prefix
+    // would be the same class of mistake as a crop of a guessed export.
+    var linked = links.filter(function (link) { return link.url; })[0];
+    if (linked) {
+      line.appendChild(VA.el("span", "muted", " — "));
+      var a = VA.el("a", "el-export__runlink",
+        VA.drawingLinkText(cropEntry) || "open the drawing in drawing-checker");
+      a.setAttribute("href", linked.url);
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener");
+      a.setAttribute("title", "opens in drawing-checker — " +
+        (config && config.drawingCheckerWebui) + " must be serving");
+      line.appendChild(a);
+    }
     return line;
   };
 
