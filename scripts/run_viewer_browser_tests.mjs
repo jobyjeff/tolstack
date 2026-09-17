@@ -4828,13 +4828,6 @@ async function testAnnotateHostedPosture(browser, label) {
   }
 }
 
-// --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) ----
-//
-// The URL params documented in apps/viewer/README.md, driven through a REAL
-// navigation — the thing the fast tier's resolveDeepLink tests cannot do is
-// prove that boot() actually reads location.search and that the selection
-// lands on screen. Over ?mock=1 so it runs with no data built; the served-mode
-// suite drives the same contract against the real projection with no seam.
 // --- the crop lightbox (crop_lightbox_zoom_viewer, 2026-09-16) -------------
 //
 // Jeff: "thumbnail is too small to be legible… Maybe a button in the thumbnail
@@ -5139,6 +5132,13 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
   }
 }
 
+// --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) ----
+//
+// The URL params documented in apps/viewer/README.md, driven through a REAL
+// navigation — the thing the fast tier's resolveDeepLink tests cannot do is
+// prove that boot() actually reads location.search and that the selection
+// lands on screen. Over ?mock=1 so it runs with no data built; the served-mode
+// suite drives the same contract against the real projection with no seam.
 async function testDeepLinks(browser, url, label) {
   const page = await browser.newPage();
   const errors = [];

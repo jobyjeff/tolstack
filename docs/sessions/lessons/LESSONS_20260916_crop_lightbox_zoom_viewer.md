@@ -42,7 +42,13 @@ files, the browser tier, one hand-run probe, three issues, and this lesson with
 its six screenshots.
 
 The two `suite file://` / `suite http` passes read **352/352** each after this
-work. I did not re-measure that particular number at the branch point, so do
+work.
+
+> **Correction, 2026-09-17 (review).** 353/353 each on the shipped tree.
+> 352 was measured before `54e5e9f` added the sixteenth fast-tier check
+> (the companion entry in the lightbox); the table's 437 → 453 above is
+> post-`54e5e9f` and is right. Re-measured on the merged tree:
+> `[suite file://] 353/353`, `[suite http] 353/353`, 22/22 suites. I did not re-measure that particular number at the branch point, so do
 not read a delta off the previous lesson's 315 — the browser total and the node
 total differ anyway (the `[real]` node-fs tests are not registered at all in a
 browser), and the fast tier's 437 → 453 is the number I measured both ends of.

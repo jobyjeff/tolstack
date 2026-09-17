@@ -1743,7 +1743,13 @@ apps/viewer/
                       style.css, beside the crop rules they extend)
   test.html           browser test page; publishes window.__TEST_RESULTS__
   config.js           paths, the drawing-checker webui base, rebuild commands
-  viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
+  viewer.js           pure view-model logic — no DOM, no IO, and no
+                      arithmetic on a projection's numbers; the crop
+                      lightbox's view (VA.lightboxFitSize / ZoomAt /
+                      Pan / Clamp / Point / Transform) is the declared
+                      exception here, and it is the same class as
+                      topology.js's below — screen pixels only, never a
+                      printed number and never a verdict
   topology.js         the same, for the topology mode: its vocabularies, the
                       rail GEOMETRY (row index -> pixels; the columns are the
                       projection's, mirrored right-justified by VA.spineRight),

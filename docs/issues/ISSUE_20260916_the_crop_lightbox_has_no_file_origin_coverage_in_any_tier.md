@@ -11,7 +11,7 @@ found_by: docs/sessions/HANDOFF_20260916_crop_lightbox_zoom_viewer.md
 
 `apps/viewer/views/lightbox.js` shipped 2026-09-16 with a fast-tier suite
 (16 checks, `apps/viewer/tests.js`) and a browser suite
-(`crop lightbox (launch, zoom, pan on the live crops)`, 16 sub-checks). The
+(`crop lightbox (launch, zoom, pan on the live crops)`, 17 sub-checks). The
 browser suite runs over **http only**, against a repo-root static server, and
 for a reason: the launch affordance exists only on a crop figure that HAS an
 image, and `?mock=1` — the only dataset the `file://` suites drive — carries no

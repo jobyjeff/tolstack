@@ -173,9 +173,12 @@
        thumbnail that lets you launch it into a separate, full size viewer …
        that allows you to zoom/pan?"
 
-       The fourth <dialog> on this page and the only MODAL one, because a
-       zoom/pan surface wants the wheel and the keyboard to itself, and because
-       Escape is then the browser's own dismiss. A backdrop click is NOT one --
+       The fourth <dialog> on this page. It is shown modally -- as the legend
+       and worksheet dialogs above already are (topology_app.js calls
+       showModal() on both; only #annotate-flyout is non-modal) -- and here
+       the modality is load-bearing rather than incidental, because a zoom/pan
+       surface wants the wheel and the keyboard to itself, and because Escape
+       is then the browser's own dismiss. A backdrop click is NOT one --
        measured on Chrome 152, a modal <dialog> stays open on a click outside
        it -- so the head's X is the pointer's way out and is not optional.
        Empty and static here, for the same two reasons the dividers above are:

@@ -514,7 +514,9 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .cropfig__launch:hover { border-color: var(--accent); color: var(--accent); }
 
 /* --- the crop lightbox ----------------------------------------------------
-   The fourth <dialog> on this page (topology.html) and the only modal one.
+   The fourth <dialog> on this page (topology.html), and the third shown
+   modally -- the legend and worksheet dialogs are too; only the annotator
+   flyout is not.
    Near-full-viewport on purpose: the complaint this surface answers is
    legibility, so the picture gets everything the head and the caption do not.
 

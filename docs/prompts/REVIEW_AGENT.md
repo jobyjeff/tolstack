@@ -2966,6 +2966,25 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       stand-in (`test_crop_element_crops_a_pile_citation_to_its_declared_region`
       is the shape to copy; `fitz` is imported lazily on purpose).
       `ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md`.
+      **Second sighting 2026-09-17 (`crop_lightbox_zoom_viewer`), and it names
+      the mechanism: the INVARIANCE that makes the design right is what blinds
+      every check over it.** A `.crophl` is a percentage of `.cropfig`, so the
+      box's rect *as a fraction of the picture's own box* is correct whatever
+      size, position or border the frame ends up with -- which is the feature's
+      central claim and is why the browser suite's three `frac` comparisons
+      (fit, zoomed, panned) cannot see the frame at all. Three of the four
+      geometric wiring lines therefore delete green in every tier: the
+      fit-to-stage sizing (`figure.style.width/height` in `apply()` -- the crop
+      then renders at its natural 1374x1566 in an 846px stage and the drag is
+      declined at fit, so the reader sees the top half and cannot pan),
+      `VA.lightboxClamp`'s call (fit stops centring, a drag runs unbounded), and
+      `.lightbox .crophl`'s hairline border (a 16px amber frame at 8x). Only
+      `transform-origin: 0 0` reddens. The sub-check *named* for the first one
+      asserts `handle.view().scale === 1` -- a view-store read under the name
+      "the whole crop on screen". So: **when a percentage overlay's own
+      correctness is scale-invariant, ask what pins the FRAME**, and demand one
+      assertion comparing the picture's box to the stage's.
+      `ISSUE_20260917_the_crop_lightboxs_fit_clamp_and_hairline_are_unwitnessed_in_every_tier.md`.
 - [ ] **A new crop/projection field that renders a CLAIM, with no
       `VALUE_GUARDS` row and a silent drop on the way in.** Same handoff.
       `crops.json`'s `highlights[]` carries the solid-vs-dashed
@@ -3341,6 +3360,42 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       expect the answer to be a **reversed invariant** rather than a bigger
       number: "position: fixed cannot reflow the pane" and "adjacent to the
       pane's contents" could not both hold on one edge of one window.
+
+- [ ] **A superlative about the page's own tree, written from the surface you
+      just added -- and the COUNT beside it is exact, which is what carries
+      it.** New 2026-09-17 (`crop_lightbox_zoom_viewer`, fixed inline).
+      `#crop-lightbox`'s comment said *"the fourth `<dialog>` on this page and
+      the only MODAL one"* in three places (`topology.html`, `style.css`,
+      `views/lightbox.js`). Fourth is right; `topology_app.js` `showModal()`s
+      `#legend-dialog` and `#worksheet-dialog` too, so it is the **third**
+      modal one -- only `#annotate-flyout` is not. One command settles it
+      (`grep -n "showModal" apps/viewer/*.js apps/viewer/views/*.js`), and the
+      author's own lesson in the same commit is about having believed an
+      unmeasured comment on these same two dialogs. So grep for the
+      **mechanism** (`showModal`, `addEventListener`, the call), never for the
+      noun the superlative is about, and read "the only / the first / the one"
+      as a claim about every sibling.
+- [ ] **An issue that names "the mutation each guard should redden on" is a
+      PREDICTION -- replay each one before triage inherits it.** Same handoff.
+      The author filed three paste-ready witness entries with an
+      `expect_red` sub-check named for each. Two reproduce exactly; the third
+      (drop the frame's pixel sizing, expect the `frac` check to fail) leaves
+      **453/453 fast and 17/17 browser** green, so the entry would have been
+      declared against a check that cannot fail on it -- and the real
+      consequence was worse than the predicted one. The issue itself said each
+      had to be watched reddening first, which is the right instinct and is
+      not the same as having done it. A named-but-unreplayed `expect_red` is
+      the "guard that has never been seen red" one step earlier in the
+      pipeline; cost of checking is one `git archive` plus one `--only` run.
+- [ ] **A ~300-line function appended to a file, landing between the header
+      comment and the function it belongs to.** Same handoff, fixed inline:
+      the new browser suite went in directly under
+      *"--- the inbound deep-link contract ..."*, leaving that six-line header
+      orphaned above the lightbox block and `testDeepLinks` with none. Nothing
+      fails; the next reader attributes the paragraph to the wrong suite.
+      Whenever a diff adds a whole function to an existing file, read the
+      three lines immediately above the insertion point and the three
+      immediately below the addition.
 
 ## Architectural errors to check
 

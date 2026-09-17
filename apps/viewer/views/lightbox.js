@@ -19,9 +19,12 @@
 //      opens, and that card's figure carries the button (see the README).
 //   2. **A `<dialog>`, shown modally.** The page already hosts three
 //      (`#legend-dialog`, `#worksheet-dialog`, `#annotate-flyout`); this is the
-//      fourth and the only modal one that needs to be, because a zoom/pan
-//      surface wants the wheel and the keyboard to itself, and the top layer is
-//      what keeps it off the page's layout entirely. Escape is then the
+//      fourth. Two of those three are modal already (topology_app.js
+//      showModal()s the legend and the worksheet; the flyout is the one that
+//      is not), so what is new here is not modality but that the modality is
+//      load-bearing: a zoom/pan surface wants the wheel and the keyboard to
+//      itself, and the top layer is what keeps it off the page's layout
+//      entirely. Escape is then the
 //      browser's own dismiss and we write none of it.
 //
 //      A BACKDROP CLICK IS NOT A DISMISS, measured rather than assumed: Chrome

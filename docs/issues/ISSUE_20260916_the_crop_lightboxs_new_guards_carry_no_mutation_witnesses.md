@@ -1,8 +1,8 @@
 ---
 type: chore
-priority: low
+priority: med
 status: open
-area: viewer/tests
+area: scripts/mutation-witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_crop_lightbox_zoom_viewer.md
 ---
@@ -51,3 +51,43 @@ witnesses; this is the filing so the gap has an owner after it closes.
 Each has to be planted, watched reddening and reverted before the entry is
 declared — a declared witness that has never been seen red is worse than none,
 because it reads as coverage.
+
+---
+
+## Review addendum, 2026-09-17 (`review/crop_lightbox_zoom_viewer`)
+
+Three changes, all measured on the merged tree.
+
+**`priority` low → med and `area` → `scripts/mutation-witnesses`, to group
+with its two same-day siblings**, which state the same gap for two other
+handoffs at `med`:
+`ISSUE_20260916_three_new_guards_have_no_mutation_witness_entry.md` and
+`ISSUE_20260916_the_reader_facing_copy_guards_have_no_mutation_witness_entry.md`.
+Both were already in this handoff's own merge-base tree (`a3e8b4f`), so this
+is a third filing of one shape rather than a discovery — not a duplicate (each
+names different guards), but triage should stage them as one enrolment pass.
+
+**Prediction 3 above does not reproduce.** Dropping the `figure.style.width` /
+`figure.style.height` writes from `apply()` leaves the browser suite
+**17/17 PASS** and the fast tier **453/453** — the `frac` check compares the
+box against the *picture's own* box, and both are still the frame, so it
+cannot see a frame that is no longer fitted. What actually happens is worse
+than the prediction: at `scale: 1` the crop renders at its natural
+1374×1566 in an 846px-tall stage, so the reader sees the top half of the
+sheet and cannot pan out of it (the drag is declined at fit). That is now
+filed on its own, with the other two unwitnessed lines, as
+`ISSUE_20260917_the_crop_lightboxs_fit_clamp_and_hairline_are_unwitnessed_in_every_tier.md`
+— those three need an **assertion written first**, which is a different job
+from declaring a witness for a guard that already bites.
+
+**Predictions 1 and 2 do reproduce**, verified by planting each in a
+`git archive` scratch tree:
+
+* `transform-origin: 0 0` → `50% 50%`: browser 16/17, red on exactly the named
+  sub-check (*what was under the pointer is still under the pointer after the
+  zoom*).
+* the launcher's `frame.appendChild(launchButton(...))` deleted: fast tier
+  450/453, red on the two parity walks and on the no-op click check.
+
+So two of the three are paste-ready as written; the third's `expect_red` would
+have been declared against a check that cannot fail on it.
