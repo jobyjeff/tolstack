@@ -1201,9 +1201,10 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | amber `inferred` | a reading or an argument sits between the document and the value |
 | **filled red `UNTRACED`** | no document backs it. Filled, plus a row tint — an untraced value has to survive being skimmed |
 | **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all (code: `no_source_ref`) |
-| **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below |
+| **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below. **On the right pane's block only** since 2026-09-16 — the elements table's own copy of it rolled into the row's one alert badge (next row) |
 | **filled magenta `CTE NOT TRANSCRIBED`** | a material whose `values_status` says nobody has read the CTE off a source |
-| dashed blue `no tolerance recorded` | a value with no plus/minus behind it, so every interval it feeds is a **lower bound** on the real spread, never the real one. A separate axis from confidence, not a fourth confidence. It read `zero-width band` until 2026-09-16 on four of the five surfaces that state it while the DAG page said `no tolerance recorded` about the same element; all five read `VA.ATTENTION.no_tolerance` now, and the CSS class names (`chip--zero-width`, `num--zero-width`, `el-row--zero-width`, `tvrow--zero-width`) and the projection field `zero_width_count` deliberately keep the old word — nothing reads them as words |
+| outlined amber `⚠` | **the elements table's one alert badge** (`flyout_resize_annotator_filter_and_deselect`, 2026-09-16). Jeff: *"roll all the alert badges into one single alert badge… Mouse over the icon has a popup that lists out the actual alerts."* One badge per row however many alerts it carries; the words are unchanged (`VA.rowAlerts` reads `VA.ATTENTION` and `VA.EXPORT_CHIP_TEXT`) and moved into the hover card, which also shows each alert's *why* — a sentence the chips only ever carried as a native tooltip. Outlined rather than filled because it is the only alert marker on the row and so competes with nothing. A row with nothing to admit shows **nothing** |
+| dashed blue `no tolerance recorded` | a value with no plus/minus behind it, so every interval it feeds is a **lower bound** on the real spread, never the real one. Still rendered as a chip in the right pane and on the DAG grid; on the elements table it is one of the two alerts the badge above carries. A separate axis from confidence, not a fourth confidence. It read `zero-width band` until 2026-09-16 on four of the five surfaces that state it while the DAG page said `no tolerance recorded` about the same element; all five read `VA.ATTENTION.no_tolerance` now, and the CSS class names (`chip--zero-width`, `num--zero-width`, `el-row--zero-width`, `tvrow--zero-width`) and the projection field `zero_width_count` deliberately keep the old word — nothing reads them as words |
 | striped card + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are printed on the card, directly under the numbers they are a budget for. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose |
 | dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |
 | blue `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above) |
@@ -1306,8 +1307,14 @@ cannot deliver.
 ## Selecting an element
 
 The elements table shows only a confidence chip, a kind chip, a short one-line
-where-ref, and (for the states that cannot wait) a loud export/identity chip —
-that is the whole compact row. Click anywhere on a row to select it: the row
+where-ref, and — on the rows that have something to admit — one outlined ⚠
+**alert badge**, whose hover card lists the alerts in full with the reason
+behind each. That is the whole compact row. Until 2026-09-16 the last of those
+was instead up to two filled all-caps chips shouting from the row itself (a
+loud export/identity chip and a `no tolerance recorded` chip, both at once on
+the one row that carries both), which is the loudness Jeff asked to have rolled
+up; the words did not change, only where they are read. Click anywhere on a row
+to select it: the row
 gets a visible outline, and the pane on the right (`views/detail.js`) fills in
 with everything the row does not have space for — the callout as printed, the
 citation's own note in full (not clamped), the export-provenance block below,
@@ -1326,7 +1333,7 @@ pane, beneath its citation:
 | state | what the block says |
 |---|---|
 | `established` | *Read from `X.pdf`* · **pinned to this exact file, by checksum** · *read by drawing-checker N times, most recently `<date>`*, or `VA.EXPORT_NO_RUNS_TEXT` when no run has used the file. The checksum **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
-| `unestablished` | **filled magenta, on the row's chip AND on the panel's block**: *FILE NOT IDENTIFIED — which file this value was read from cannot be established*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
+| `unestablished` | **filled magenta on the panel's block**: *FILE NOT IDENTIFIED — which file this value was read from cannot be established*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. From the ROW it is one of the alerts behind the ⚠ badge, in the same words and with that same `why`; the row's own filled chip (`.chip--export-unestablished`) is retired and rendered by no production path — `apps/viewer/style.css` keeps the rule, and says why. |
 | no `export` key | *This citation names no file, so nothing here says which copy of the document the value was read from*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
 | no `export` key, `identity_rule: "spec_pile_filename"` | *A standard-spec document, identified by its filename*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
 | anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. An identity rule the viewer has no branch for is loud the same way, through `VA.IDENTITY_RULES`. |

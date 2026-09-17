@@ -922,11 +922,18 @@ check("elementAlerts returns a LIST -- none for a bound row, one per alerting " 
   assertEqual(AA.elementAlerts(undefined), []);
 });
 
-check("the three fixture edges cover all three alerting states plus none, so " +
-  "the badge is exercised over every branch", () => {
+check("the three fixture edges are three different binding states -- two that " +
+  "alert and one that is silent", () => {
   // Anti-vacuity for the rail: the mock topology is what ?mock=1 renders and
   // what the browser tier screenshots, so it has to actually contain a bound
   // row (no badge), an unbound one and an owner-not-in-set one.
+  //
+  // NOT "every branch", which is what this check claimed until review:
+  // AA.BINDING_STATE_ALERTS has THREE alerting states and the fixture reaches
+  // two. `needs_re_confirmation` needs a staleness map, which no fixture
+  // carries, so it is covered by elementAlerts' own unit check above and not
+  // here. (Same class as this branch's own "a check whose claim was wider than
+  // the node it read".)
   const states = FILTER_TOPO.studies[0].selection.map((edgeId) => {
     const record = AA.findBindingRecord(AA.FIXTURES.featureIdentityProjection,
       AA.topologyEdgeKey(FILTER_TOPO.id, edgeId));

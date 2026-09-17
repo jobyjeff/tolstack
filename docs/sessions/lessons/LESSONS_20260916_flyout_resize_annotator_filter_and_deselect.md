@@ -26,11 +26,12 @@ it — the previous two lessons say the same thing about the same test).
 C:/workspace/tolstack` → **81/81** (66 at start).
 `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` →
 **21/21 suites** (20 at start; the new one is `annotate rail filter + face
-deselect`, 30 sub-checks). The annotator's two suites went from 37 sub-checks
-to 87 between them: `annotate flyout` 19 → 39, the new rail suite 30, and
-`annotate hosted posture` untouched at 18. `app file://`/`app http` went 37 →
-39 each, where the source column's consolidation is measured. `node scripts/run_mutation_witness_tests.mjs --repo
-C:/workspace/tolstack` → **51/51**, eight of them added here.
+deselect`). The three annotate-facing suites went from 37 sub-checks to 93
+between them: `annotate flyout` 19 → 45, the new rail suite 30, and `annotate
+hosted posture` untouched at 18. `app file://`/`app http` went 37 → 39 each,
+where the source column's consolidation is measured. `node scripts/run_mutation_witness_tests.mjs --repo
+C:/workspace/tolstack` → **54/54**, eleven of them added here (eight in the
+first pass, three more for the adjacency rework in §2).
 
 > **Note on the worktree.** `npm install` in the worktree root first or the
 > browser tier will not start: Node resolves bare specifiers from the running
@@ -58,50 +59,98 @@ Nothing was a stale-build sighting this time. All five were real.
 
 ---
 
-## 2. The flyout's clamp: the first version reserved the wrong thing
+## 2. Adjacency: three goes at the clamp, and the page has to yield
 
 The handoff asked for the panel to be resizable with "the DAG … visible beside
-it (that adjacency is the point)". A clamp with a pixel max cannot promise that
-— at `FLYOUT_WIDTH.max` on a 1280px window the panel leaves 80px of page — so
-`VA.clampFlyoutWidth` takes a measured width and holds a `reserve` back from it.
+it (that adjacency is the point)". **That claim was false in the first
+hand-back, and the guard written for it was green over a diagram that was 100%
+covered.** It is worth reading as three separate mistakes, because each looked
+like the fix for the previous one.
 
-**The first version measured the reserve against the VIEWPORT, and that is
-wrong in a way that looked right and passed its own test.** The right-hand edge
-of this page is the 560px preview pane. Reserving 420px of *window* handed the
-reader back 420px of *pane* and covered the diagram completely. Measured in
-Chrome at 1600px with the panel dragged to 1100: `#topopane` laid out at
-300..1038 and **every pixel of it was underneath the panel**. The browser check
-guarding it passed, because it compared the DAG's own box against the flyout's
-width — and `position: fixed` means that box never moves however wide the panel
-gets. A covered diagram and an adjacent one are indistinguishable from the
-layout tree; you have to compute the overlap.
+### What was measured, wrongly, twice
 
-What it measures now (`topology_app.js`'s `roomBesideFlyout`) is
-**`#topopane`'s own right edge** — everything left of it is coverable (nav rail,
-diagram, grid), everything right of it is the preview pane and its seam. Not
-`window - paneWidth`: that is off by the divider between them, and at 1600px it
-reserved 300 and left 298px of DAG showing, which is the kind of two-pixel lie a
-guard then gets written around. Stack mode (no DAG pane rendered) falls back to
-`window - pane`; no layout at all falls back to the px max, never to zero — a
-clamp that read an absent measurement as "no room" would pin the panel at `min`
-for ever.
+1. **The VIEWPORT.** The right-hand edge of this page is the 560px preview
+   pane, so reserving 420px of *window* handed the reader back 420px of *pane*.
+2. **`#topopane`.** Caught by me, and the correction was in the right
+   direction and still wrong. What the second version reserved was a strip of
+   the DAG's **scrollport**.
 
-**The consequence to know about: the stylesheet's width is now a wish, not a
-promise.** `topology.css` still declares `min(760px, 55vw)` and is still the one
-place the default lives, but `launchAnnotate` clamps the *measured* width on
-every open. At 1600px with the pane at its own default that trims 760 → **738**,
-because 1038 − 300 is all there is. The clamp runs **after** `dialog.show()`,
-which is not a detail: a closed `<dialog>` is `display: none`, so measuring
-first reads 0 and opens the first launch at `FLYOUT_WIDTH.min`. The clamped
-width is deliberately **not** remembered — a width the layout imposed is not a
-preference the reader expressed.
+**The drawing is not its scrollport, and that is the whole blocker** (review,
+2026-09-16). The DAG is one `svg.tv__rails`; `#topopane` is the horizontal
+scrollport it sits in. Measured across **all 21 live studies**, the drawing is
+**90–262px wide** and pinned at the pane's left edge, so its right edge never
+passes **x=562** — while this panel's own floor (`FLYOUT_WIDTH.min`) is **560**.
+At every width a reader could reach, on every live study, the graph was
+entirely underneath the panel.
 
-**Honest limit, and Jeff should see it.** At 1600px the 300px strip that
-survives shows the grid's columns, not the rails: the diagram sits at the LEFT
-of `#topopane`, which is the end the panel covers. `.tv__hscroll` is how a
-reader brings the rails into the strip, and a wider window leaves more of them.
-`min` is 560 (the annotator's own three-column grid plus canvas), so a panel
-narrow enough to clear the diagram entirely is not a panel you can annotate in.
+The guard passed because it measured *partial* overlap — `dag.right −
+max(dag.left, panel.right) >= reserve` — and `#topopane` is 738px wide, so
+only its left end was under the panel. 325px of "clearance", 0px of diagram.
+My own §2 had already written down *"a covered diagram and an adjacent one are
+indistinguishable from the layout tree; you have to compute the overlap"* and
+then computed it against the wrong box.
+
+**And the mitigation this lesson claimed does not exist.** The first draft said
+"`.tv__hscroll` is how a reader brings the rails into the strip". It is not:
+`.tv__rails` is `position: sticky; left: 0` inside that scrollport — by design,
+`views/topology.js` says why — so it stays pinned at the pane's left edge while
+the grid columns move under it. Measured on `pitch_system_blade_angle_worst`:
+the box is `300..562` at `scrollLeft: 0` **and** at `scrollLeft: 742`. There is
+no scroll position that rescues it, and there never can be.
+
+### What it took to actually deliver it
+
+**The page yields the room rather than being covered.** While the panel is open,
+`.tv` (with the topbar and banner) starts at the panel's right edge and the nav
+rail stands down — `body.flyout-open`, driven by a `--flyout-width` custom
+property that `applyFlyoutWidth` rewrites on every frame of a drag.
+
+**That reverses a decision this file used to argue at length**, and the reversal
+is the interesting part. `topology.css` said: *"position: fixed takes it out of
+flow entirely: opening it cannot shrink or reflow the DAG pane by
+construction."* True, and right — **for a right-docked panel**, where what lay
+underneath was the preview pane and nothing was lost. Moved to the left edge,
+that same invariant is exactly what makes the panel useless. *Adjacent to the
+DAG* and *cannot reflow the DAG pane* cannot both hold on one edge of one
+window. The premise changed when the dock did; the CSS header now carries the
+argument rather than the conclusion.
+
+The nav rail standing down is Jeff's own licence (*"It would be ok if it
+covered up the left side select menu since you shouldn't need both at the same
+time"*) and it is where the room comes from: leaving it in place would cost
+300px of the very space this hands the graph, and the annotator has its own
+topology and study pickers anyway. The preview pane stays — it does not have
+to go, which is the arithmetic worth writing down: panel floor 560 + widest
+drawing 262 + seam 7 + preview pane 560 = **1389 ≤ 1600**.
+
+**And the clamp measures the drawing now.** `graphNeed()` reads
+`svg.tv__rails`; `VA.clampFlyoutWidth(px, room, keep)` takes that as `keep`,
+floored at `FLYOUT_WIDTH.reserve` (320 — `VA.TOPO_PANE_WIDTH.min`, the
+narrowest column this page already treats as readable) for pages that draw no
+graph at all. A future topology with a wider diagram narrows the panel by
+itself, with no constant to edit.
+
+Measured after, at 1600px on the widest live study: panel `0..713`, drawing
+`713..975` **wholly clear**; dragged to the floor, panel `0..560` and drawing
+`560..822`. Closing puts the nav rail, the pane's box and the drawing's box back
+exactly.
+
+### Two things that are easy to get wrong in this area
+
+* **The clamp runs AFTER `dialog.show()`.** A closed `<dialog>` is `display:
+  none`, so measuring first reads 0 and opens the first launch at
+  `FLYOUT_WIDTH.min` instead of at the width the stylesheet asked for. The
+  stylesheet's `min(760px, 55vw)` is still the one place the default lives — it
+  is a *wish* the clamp trims (to 713 at that geometry), and the trimmed value
+  is deliberately **not** remembered, because a width the layout imposed is not
+  a preference a reader expressed.
+* **The page-shift class comes off in the dialog's own `close` event**, not in
+  the ✕ button's handler. `.close()` is reachable from anywhere that holds the
+  element, and a page left shifted with no panel on it is a layout with no way
+  back. That event is **queued**, so it lands one task after a click returns:
+  any check or probe that reads the layout immediately after clicking Close
+  sees the page still shifted and reports a regression that is not there. Wait
+  for the class to go, don't sample.
 
 ---
 
@@ -333,6 +382,25 @@ The previous session's lesson says "write a new guard's mutation *before*
 believing the guard". This session is the same lesson again, from the other end:
 I wrote the mutations after, and three of eight were bluffing.
 
+**And a fourth was bluffing that no mutation could have caught** — the
+adjacency guard of §2, which the reviewer found by driving the page instead of
+reading the diff. It is the same shape as the three above (a proxy in place of
+the claim: the scrollport for the drawing) with one difference that matters: it
+had **no witness at all**, and could not have had one, because the mutation
+tier only ever exercises checks that somebody declared an entry for. There is
+one now — `flyout-yield-short-of-the-drawing`, which shifts the page 300px
+short so the scrollport is partly clear and the drawing is wholly under, and
+which the old partial-overlap formula passes. Three entries cover that area now
+where zero did.
+
+**The rule this leaves behind**, and it is the one worth carrying forward: when
+a deliverable's claim is *"X is still visible"*, the guard has to measure **the
+thing drawn**, not the box it is drawn in — and it has to measure *fully clear*
+rather than *some overlap*, because a container is always wider than its
+contents and partial clearance of the container is compatible with total
+coverage of the content. `docs/prompts/REVIEW_AGENT.md` has it as a Recurring
+bug now.
+
 ---
 
 ## 8. Still to do
@@ -350,10 +418,11 @@ I wrote the mutations after, and three of eight were bluffing.
 * **`ISSUE_20260916_the_mock_annotator_mesh_is_edge_on_to_its_own_default_camera`**
   — small, and it has a pinned blast radius (the fixture's `centroid_native`
   appears in its bound event too, which several annotate-tier checks read).
-* The probe runs at `?mock=1` throughout, so the rail shots are the fixture's
-  three elements and one synthetic mesh rather than Jeff's live topologies.
-  That is not the mock seam being lazy: File System Access cannot be granted
-  from an automated browser at all, so there is no version of this probe that
-  reaches the real bindings. Everything it shows is layout, copy and colour,
-  which the fixture exercises fully; the numbers are pinned against the live
-  projections by the tiers.
+* The probe's RAIL shots run at `?mock=1` and cannot do otherwise: File System
+  Access cannot be granted from an automated browser at all, so no version of
+  this probe reaches the real bindings. The fixture's three elements cover all
+  three binding states, which is what those shots are about. The FLYOUT shots
+  are live data (§2 is why: a screenshot of the mock's 78px drawing would prove
+  nothing about a real one), and so is the `[real]` leg of the flyout suite —
+  added because at 78px the clamp's floor wins and the measurement is never
+  exercised, which is the discrimination gap the review named.
