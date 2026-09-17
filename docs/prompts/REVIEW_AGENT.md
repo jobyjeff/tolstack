@@ -2143,7 +2143,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       same trap pointed the other way, since it could only ever pass wrongly.
       **The rule that separates a sound wait from those three:** a selector is
       worth waiting on only if the render that satisfies the assertion is what
-      puts it in the DOM. `tr.tvrow`, `.banner__built`, `.hovercard--edge`,
+      puts it in the DOM. `tr.tvrow`, `details.banner__source`
+      (`.banner__built` until 2026-09-16, when `viewer_hover_deslop_and_banner_
+      purge` folded that node inside a **closed** `<details>` — a
+      `{ state: "visible" }` wait on a node inside one waits forever, while
+      `textContent` reads it fine, so only the visibility waits broke),
+      `.hovercard--edge`,
       `.croppop--resolved` are render products — one synchronous renderer
       clears the node, sets the class and fills it, so the class cannot exist
       on an empty node — whereas `#banner` is *static markup* in both
@@ -3223,6 +3228,49 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the value half of every free-form authored block, which is exactly where
       a workstation path gets authored
       (`ISSUE_20260916_the_free_form_block_value_exemption_hides_the_values_from_every_scan.md`).
+- [ ] **A CSS-ONLY deliverable, pinned by a hand-run probe.** New 2026-09-16
+      (`viewer_hover_deslop_and_banner_purge`, blocker) — the "one line from
+      being silently reverted" entry above, in the one file no tier reads for
+      values. Deliverable 5 was a 430→560px pane default plus a divider made
+      visible at rest with a grip mark; reverting **all three** edits in a
+      scratch tree (`width: 430px`, `background: transparent`, delete
+      `.tv__divider::after`) left **430/430 fast and 20/20 browser** green, and
+      `pytest` never opens a `.css`. The only thing that noticed was
+      `tests/debug_hover_deslop.mjs`'s `pane.width >= 560`, and a hand-run
+      probe is not a pin. The tell in the diff: the deliverable's whole
+      footprint is `apps/viewer/*.css` and the new tests are all about JS. A
+      *default* also needs its own check even where a *drag* is tested —
+      the existing loop drags **to** 560 and says nothing about arriving there.
+- [ ] **A deferred/held action that re-reads the SAME input on expiry, so it
+      re-arms instead of firing.** New 2026-09-16
+      (`viewer_hover_deslop_and_banner_purge`, blocker). `topology_app.js`'s
+      hover-intent `defer()` holds a competing trigger while the pointer is
+      travelling toward the open card, and its timer calls `held.run()` — which
+      re-enters `showCard` → `defer()`. `pointerWas`/`pointerAt` are written
+      **only by `mousemove`**, so a pointer that has *stopped* still carries
+      the vector it crossed on, the corridor test says "still approaching", and
+      the trigger is deferred again with no bound. Measured with a real mouse:
+      the held card had not appeared after **4.4 s** (`HOVER_INTENT_MS` is 260)
+      and arrived only on a 3px nudge that changed the vector — the exact
+      failure the design comment says the design was chosen to avoid. **The
+      question to ask of any grace period: what does the expiry path read, and
+      can that input still be stale when it fires?** And check the tier covers
+      the expiry, not just the two sides of it: a check that moves the pointer
+      *into* the card before the timer is testing the drop path, not the fire
+      path.
+- [ ] **A hand-run probe that re-calls the app's boot function registers the
+      app's `document` listeners TWICE, and module state that remembers a
+      previous value dies.** New 2026-09-16, found while reproducing the entry
+      above. `tests/debug_*.mjs` install fixtures and then call
+      `VA.bootTopology()` again; each boot adds another `document`
+      `mousemove` listener, both write the same module variables, and the
+      second one sets `pointerWas = pointerAt` — so `pointerWas === pointerAt`
+      after every move and every "where was the pointer one move ago" feature
+      is silently off. A probe's reading of such a feature is a reading of the
+      probe. The fix shape when you need real data under one boot: serve a
+      patched `topology_fixtures.js` (append an override of
+      `VA.demoTopologyFixture`) from the probe's own static server instead of
+      re-booting.
 
 ## Architectural errors to check
 
