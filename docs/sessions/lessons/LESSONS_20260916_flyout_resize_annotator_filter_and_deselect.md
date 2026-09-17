@@ -10,7 +10,10 @@ node tests/debug_flyout_and_alerts.mjs --repo C:/workspace/tolstack \
 ```
 
 a hand-run probe (never a tier), committed for the same reason the previous
-three sessions' were. Seven PNGs beside this file.
+three sessions' were. The PNGs sit beside this file, one per `shot()` call in
+that probe -- deliberately not counted here, because nothing pairs a number in
+this sentence against the probe and the first draft of it said seven when there
+were eight.
 
 **Counts.** `venv-win/Scripts/python.exe -m pytest -q` → **1192 passed, 1
 failed, 1 skipped**; the one failure is
