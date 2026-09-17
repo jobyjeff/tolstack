@@ -27,6 +27,7 @@ note), against `--repo C:/workspace/tolstack`:
 | `apps/viewer/run_tests.cjs` | **437/437** | matches (431 at base — confirmed against the previous handoff's lesson) |
 | `apps/annotate/run_tests.cjs` | **81/81** | matches |
 | `scripts/run_viewer_browser_tests.mjs` | **21/21 suites** | matches; sub-counts match too (`app file://` 39, `annotate flyout` 39, the new `annotate rail filter + face deselect` 30, `annotate hosted posture` 18) |
+| `scripts/run_mutation_witness_tests.mjs` | **51/51 declared mutations witnessed** | matches; all eight new witnesses bite, checked individually in the run log |
 
 The one red pytest is
 `test_no_live_document_states_an_unguarded_hardware_entry_count`, tripping on
@@ -89,9 +90,11 @@ the drawing.
 "`.tv__hscroll` is how a reader brings the rails into the strip". Measured on
 `pitch_system_blade_angle_worst`: `.tv__hscroll` does scroll (scrollWidth 1480,
 clientWidth 738), but the rails SVG's box stays at x=300..562 at
-`scrollLeft: 0` **and** at `scrollLeft: 742` — the rails are pinned, and only
-the grid columns move. There is no scroll position that brings the diagram out
-from under the panel.
+`scrollLeft: 0` **and** at `scrollLeft: 742`. That is by design and
+`views/topology.js:303-310` says so — `.tv__rails` is `position: sticky;
+left: 0` inside the scrollport precisely so the rail stays pinned at the pane's
+left edge while the grid columns move under it. There is no scroll position
+that brings the diagram out from under the panel, and there never can be.
 
 **And DoD item (a) is therefore not met.** The handoff asks for a screenshot of
 "the flyout LEFT-docked beside the *visible DAG*, resized wide". Shots 1, 2a and
@@ -111,6 +114,12 @@ call. What is *not* optional either way: the guard and the probe must measure
 the drawing (`svg.tv__rails`), not its scrollport, and the fixture has to be
 able to discriminate (at `?mock=1` a 78px DAG can never survive a 560px panel,
 so a mock-only check is structurally silent).
+
+**The mutation tier does not cover this and could not have.**
+`flyout-reserves-a-strip-of-graph` witnesses the *fast-tier* check, and that
+check is about the clamp's arithmetic (`room − reserve`), which is correct as
+arithmetic. Nothing declares a witness for the browser-tier sub-check that
+names adjacency — which is the one making the claim that is false.
 
 ## Should-fix
 
