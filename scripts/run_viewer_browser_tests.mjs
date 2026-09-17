@@ -4381,11 +4381,18 @@ async function testAnnotateRail(browser, label) {
     push("...and the parts panel to the parts that element names -- the panel " +
       "that was scoped by nothing at all before",
       await parts().count() === 1);
-    const scopeText = await page.locator("#rail-filter").textContent();
+    const scopeText = await page.locator(".an__filter-note").textContent();
     push("the rail says what it is scoped to, by the element's own name",
       /Showing only/.test(scopeText || "") &&
       /Demo untraced edge/.test(scopeText || ""));
-    push("...and names no id, file or param in doing it",
+    // Scoped to the NOTE, not to the whole bar, because the claim is only true
+    // of the note: the bar's gap line ("No installed 3D part for: …") does name
+    // a part id, and correctly -- on this surface a part id is the author's own
+    // vocabulary (it is what `isolate=` takes and what they will tessellate
+    // next), the same posture setSceneEmptyState already takes. A check whose
+    // claim is wider than what it reads is the kind that gets "fixed" by
+    // deleting the useful half.
+    push("...and the element is named, not identified: no id, file or param",
       !/demo_edge_untraced|index\.html|topology=/.test(scopeText || ""));
 
     // The control that lifts it, which exists only while there is something to
