@@ -1130,6 +1130,14 @@ async function main() {
     readMeshManifest: (sha) => state.storage.readMeshManifest(sha),
     readMeshBuffer: (sha, name) => state.storage.readMeshBuffer(sha, name),
   });
+  // The autotest convention again (window.__lastTrace, window.__autotestResults
+  // above): a READ-ONLY handle on the scene, so a harness can ask what is
+  // actually tinted. Nothing in this app reads it, and it is not a second way
+  // to drive the scene -- every mutation still goes through AA.exec. It exists
+  // because the pick tint lives in a WebGL colour buffer: `scene.
+  // highlightedFace()` is the only observable for "the orange came off", which
+  // is the entire deliverable of the deselect work and was un-checkable before.
+  window.__scene = state.scene;
   // Every click in the 3D view is one of the two verbs, chosen by the pure
   // AA.planPickToggle (deliverable 3): a click into empty space and a click
   // back onto the already-picked face both DESELECT, anything else selects.

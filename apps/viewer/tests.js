@@ -4141,18 +4141,17 @@
 
     await test("two alerts on one row make ONE badge, and the card behind it " +
       "lists both with their why", function () {
-        // A row that is both zero-width AND unestablished -- the case the old
-        // presentation showed as two filled all-caps chips side by side, which
-        // is the loudness being fixed.
-        var both = JSON.parse(JSON.stringify(DEMO));
-        var idx = 0;
-        both.elements[idx].zero_width = true;
-        both.stack.elements[idx].source_ref.export = {
-          status: "unestablished",
-          why: "there is no exported PDF of this sheet, so the bytes cannot be named",
-        };
+        // The washer is both zero-width AND unestablished in the fixture as
+        // shipped -- the case the old presentation showed as two filled
+        // all-caps chips side by side, which is the loudness being fixed. Taken
+        // from the fixture rather than poisoned into it, so the check cannot
+        // drift away from what ?mock=1 actually renders.
+        var both = DEMO;
+        var idx = 1;
         var alerts = VA.rowAlerts(both.stack.elements[idx], both.elements[idx]);
         eq(alerts.length, 2);
+        eq(alerts.map(function (a) { return a.kind; }).join("+"),
+           "zero-width+export-unestablished");
 
         var shown = [];
         var rowsRoot = render(function (r) {
@@ -4178,7 +4177,7 @@
         has(card.textContent, VA.ATTENTION.no_tolerance.text);
         has(card.textContent, VA.ATTENTION.no_tolerance.title);
         has(card.textContent, VA.EXPORT_CHIP_TEXT.unestablished);
-        has(card.textContent, "the bytes cannot be named");
+        has(card.textContent, "none hashes to the one");
         // ...and the badge itself carries them too, for a render with no card
         // machinery at all (the shim, a view called without handlers): the
         // information is never ONLY in a hover.
