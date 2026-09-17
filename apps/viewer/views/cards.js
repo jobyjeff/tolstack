@@ -336,14 +336,20 @@
     if (card.callout) root.appendChild(VA.el("div", "hovercard__callout", card.callout));
     noteBlock(root, card.note, source);
 
-    // The export/identity narrative. Folded where it is quiet — 48 of the 48
-    // live citations are `established` or have no export block, and on those
-    // it is four lines saying the value came off the bytes it claims, which is
-    // the expected case. A LOUD state (VA.exportProvenance's own flag: an
-    // unestablished export, a status or identity rule this viewer cannot
-    // explain) stays in the OPEN, because that one is a finding about the
-    // value and folding a finding away is the one thing this disclosure must
-    // never do.
+    // The export/identity narrative. Folded where it is QUIET — an
+    // `established` export or no export block at all, which is what nearly
+    // every live citation carries, and on those it is four lines saying the
+    // value came off the bytes it claims. (No count here on purpose: the
+    // number that used to be written in this comment was wrong in both halves
+    // and nothing paired it against the projection. How many is a question for
+    // the live data, not for a comment.)
+    //
+    // A LOUD state (VA.exportProvenance's own flag: an unestablished export, a
+    // status or identity rule this viewer cannot explain) stays in the OPEN,
+    // because that one is a finding about the value and folding a finding away
+    // is the one thing this disclosure must never do. It is not hypothetical —
+    // it is `pitch_link_to_pitch_plate/bushing_214820`, whose drawing is not in
+    // this repo at all.
     if (card.provenance) {
       var block = VA.exportBlockNode(card.provenance, {
         config: config,

@@ -505,6 +505,78 @@
       "tier": "browser",
       "suite": "index redirect file://",
       "expect_red": "every suite prints the registry key it was dispatched under — a --only filter is copied straight off that line, and every `suite` in scripts/mutation_witnesses.json is a whole copy of one"
+    },
+    {
+      "id": "pane-default-width",
+      "contract": "The topology preview pane opens at 560px -- the width Jeff asked for on 2026-09-15 and again on 2026-09-16 (\"it's too narrow\"). The number lives in exactly one place, `.tv .detail`'s own rule, because a remembered width is written as an inline style over it.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Blocker 2 of that review. The whole of deliverable 5 is three CSS declarations, and the reviewer undid it in a scratch tree -- width back to 430px, the divider's hairline back to transparent, the grip rule deleted -- for 430/430 fast and 20/20 browser. Nothing anywhere went red. The hand-run probe tests/debug_hover_deslop.mjs does assert the width, but no tier ever executes it, so it cannot be the pin. The browser tier's own drag loop drags TO 560 and says nothing about the default. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/topology.css",
+      "find": "  width: 560px; flex: none; overflow: visible; align-self: stretch;",
+      "replace": "  width: 430px; flex: none; overflow: visible; align-self: stretch;",
+      "tier": "browser",
+      "suite": "topology http",
+      "expect_red": "the preview pane's default is the widened 560px, not the 430px Jeff called too narrow"
+    },
+    {
+      "id": "pane-divider-visible-at-rest",
+      "contract": "The preview pane's drag divider is visible without the pointer on it: a hairline in --line, the same register the grid's own column grips have always had.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "The other half of blocker 2. It was `background: transparent` until :hover, so the one control that answers \"the pane is too narrow\" announced itself only to a reader who already knew where to put the pointer -- an affordance that is invisible is not an affordance. The sibling `::after` grip mark is pinned by the check named beside this one; this entry is the seam itself, because the two are separate declarations and reverting either alone is silent. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/topology.css",
+      "find": "  width: 1px; background: var(--line);\n}\n.tv__divider:hover::before",
+      "replace": "  width: 1px; background: transparent;\n}\n.tv__divider:hover::before",
+      "tier": "browser",
+      "suite": "topology http",
+      "expect_red": "the pane's divider is visible at rest, not only under the pointer"
+    },
+    {
+      "id": "hover-deferral-expires",
+      "contract": "A trigger held back by the hover-intent corridor opens after VA.HOVER_INTENT_MS if the pointer never reaches the open card. A deferral is a DELAY; the design's own words are \"never one that never arrives\".",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Blocker 1 of that review, and the reason this entry exists rather than trust: the expiry re-enters showCard/showCrop, which calls straight back into defer(), and pointerWas/pointerAt are written ONLY by mousemove -- so a reader who crossed the trigger and then held still still carried the vector that aimed at the open card and the same trigger was held again, without bound. Measured at 4.4 seconds and still going, ending only because the pointer twitched 3px. The `expiring` token is what makes the re-entrant call bypass the corridor exactly once. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (expiring === trigger) {\n      expiring = null;\n      return false;\n    }",
+      "replace": "    /* mutated: the expiry re-consults the same stale vector it was armed from */",
+      "tier": "browser",
+      "suite": "topology http",
+      "expect_red": "a held trigger the pointer STOPS on opens after the grace period — a deferral is a delay, never a card that never arrives"
+    },
+    {
+      "id": "open-card-under-the-pointer-never-moves",
+      "contract": "An open popover with the reader's pointer on it is never re-placed when one of its images settles. position() flips a card above its trigger when it no longer fits below, and a flip under the pointer is the other half of what Jeff reported as the popup disappearing.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Should-fix 4 of that review: with both guards deleted -- i.e. the pre-branch behaviour restored -- fast stayed 430/430 and browser 20/20, so half of deliverable 4 had no pin at all. The same review found the substantive half: showCrop and showCard re-run their own paint() as each PNG blob resolves, and that path (the FIRST hover of every card, the common case) called position() unconditionally; both now go through replace(). The check observes whether position() RAN, by nudging the `top` it unconditionally rewrites, rather than waiting for a layout where the placement's answer happens to differ. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (!VA.popoverShouldMove(pointerAt, cardBox(),\n                              nodes.crop.offsetHeight, placedHeight)) return;",
+      "replace": "    /* mutated: an open card is re-placed under the reader's pointer */",
+      "tier": "browser",
+      "suite": "topology http",
+      "expect_red": "a card with the pointer on it is not re-placed when one of its images settles"
+    },
+    {
+      "id": "banner-shows-no-prose-at-rest",
+      "contract": "A READY banner is one closed \"Data source\" fold and a Reload button, and nothing else -- no build stamp, no crop-rule rollup, no provenance line standing in front of a reader who came to read a stack.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Jeff, 2026-09-16: \"These 5 lines at the top of the page are meaningless to the user. Delete.\" Pinned by the bar's ordered child list rather than by the absence of five particular strings, so a SIXTH stamp added later fails too -- which the absence check would not. The fast tier owns it because the banner's shape needs no browser; the alarm's own place outside the fold has its own check beside it. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/views/banner.js",
+      "find": "      source(root, state, labels);",
+      "replace": "      source(root, state, labels);\n      root.appendChild(VA.el(\"span\", \"banner__built\", VA.builtLine(state.results, state.crops, state.projection)));",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "a READY banner shows no line of prose at all — one Reload button, one closed fold, and nothing else"
+    },
+    {
+      "id": "suppressed-drawing-line-keeps-its-noun",
+      "contract": "A component card whose HEADING already carries the drawing number drops the number from its drawing line -- and never the noun with it. The line says \"drawing rev A\", never a bare \"rev A\".",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Should-fix 5 of REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md. The de-duplication shipped returning the bare revision, so three live parts (pitch_link_to_pitch_plate/pitch_plate_215197, vpa_output_to_pitch_plate/pitch_flange_215197, pitch_system/gas_spring_mount_213668_002) rendered a where-line whose entire content was \"rev A\" -- a revision modifying nothing, on the surface this pass exists to de-slop. The witness needs a part named after its own drawing AND carrying a revision; the owning test counts those itself and fails if the live data stops providing one.",
+      "file": "apps/viewer/topology.js",
+      "find": "      return rev ? \"drawing \" + rev : null;",
+      "replace": "      return rev;",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "[real] every live part with no drawing names the document its own dimensions come off, or says nothing at all"
     }
   ]
 }

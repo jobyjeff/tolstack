@@ -1312,6 +1312,54 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       first.rows > 0 && first.leaders === 5 && first.drift.length === 0);
     if (first.drift.length) console.log("    drift: " + first.drift.slice(0, 5).join(" | "));
 
+    // --- the preview pane's DEFAULT, and a divider a reader can find --------
+    //
+    // (deliverable 5, viewer_hover_deslop_and_banner_purge, 2026-09-16.)
+    // Asserted here, early, and asserted at all because the whole deliverable
+    // is three CSS declarations: reverting `.tv .detail`'s width to 430px and
+    // putting `.tv__divider::before` back to `transparent` undid it in full
+    // with every tier still green (review, measured). A deliverable nothing
+    // would notice being reverted is a deliverable with no pin.
+    //
+    // It must run BEFORE anything drags the pane: a remembered width is
+    // written as an inline style over the stylesheet's rule, and this is a
+    // reading of the RULE.
+    const paneAtRest = await page.evaluate(() => {
+      const detail = document.querySelector("#detail");
+      const divider = document.querySelector("#detail-divider");
+      let remembered = null;
+      try {
+        remembered = window.localStorage.getItem(window.ViewerApp.PANE_WIDTH_KEY);
+      } catch { remembered = null; }
+      return {
+        width: detail.getBoundingClientRect().width,
+        inlineWidth: detail.style.width,
+        remembered,
+        hairline: getComputedStyle(divider, "::before").backgroundColor,
+        grip: getComputedStyle(divider, "::after").backgroundImage,
+        gripPosition: getComputedStyle(divider, "::after").position,
+        max: window.ViewerApp.TOPO_PANE_WIDTH.max,
+      };
+    });
+    // The tripwire, before what it certifies: with a width remembered or an
+    // inline style set, the number below would be a reading of a drag from
+    // some earlier check rather than of the stylesheet.
+    push("nothing is remembered and nothing is inline, so the pane's width " +
+      "here IS the stylesheet's default",
+      paneAtRest.remembered === null && paneAtRest.inlineWidth === "");
+    push("the preview pane's default is the widened 560px, not the 430px " +
+      "Jeff called too narrow",
+      Math.abs(paneAtRest.width - 560) <= 1);
+    // The divider announces itself at rest. Both halves: the seam, which was
+    // `transparent` until hover and so invisible to anyone who did not already
+    // know it was there, and the grip mark that says the seam is a HANDLE.
+    push("the pane's divider is visible at rest, not only under the pointer",
+      paneAtRest.hairline !== "rgba(0, 0, 0, 0)" &&
+      paneAtRest.hairline !== "transparent");
+    push("...and carries a grip mark, held in the viewport by sticky so a " +
+      "long study does not scroll it away",
+      paneAtRest.grip !== "none" && paneAtRest.gripPosition === "sticky");
+
     // 3) scrolled, they stay tied together — rails, leaders and rows share one
     //    scrollport (the page's own, since full-page scroll).
     await page.evaluate(() => window.scrollTo(0, 120));
@@ -1629,46 +1677,153 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // the shared #croppop node at itself. This is the only tier that can see
     // it: the corridor is computed from real mousemove coordinates.
     //
-    // The card open here is the COMPONENT card, and the competing trigger
-    // opens the EDGE card, so "the card survived" is a class check rather than
-    // a text diff.
+    // EVERY move below is a real `page.mouse.move`, and every `mouseenter` is
+    // the browser's own. The first version of this block dispatched the
+    // competing `mouseenter` synthetically while the pointer sat elsewhere,
+    // and that could not reach the EXPIRY path at all — the expiry only
+    // honours a held trigger the pointer is still ON, so the one case the
+    // design promises to handle ("a card that arrives a quarter-second late,
+    // never one that never arrives") went unmeasured and was broken. Review
+    // measured 4.4 seconds and counting, 2026-09-16.
+    //
+    // THE GEOMETRY, and it is chosen rather than incidental: the citation card
+    // opens from the row's confidence chip and is placed BELOW that row, wide
+    // enough to sit under the row's own crop trigger. So the crop trigger is
+    // ~20px directly above the open card — a pointer landing on it from above
+    // is aiming straight into the card, and a pointer landing on it from the
+    // RIGHT (level with the row) is not. Two approaches, one trigger, no
+    // synthetic events. The tripwire below asserts that layout before anything
+    // stands on it.
     const intentMs = await page.evaluate(() => window.ViewerApp.HOVER_INTENT_MS);
-    const approach = await page.evaluate(() => {
-      const card = document.querySelector("#croppop").getBoundingClientRect();
+    const CHIP_TRIGGER = "tr.tvrow[data-id='base_thickness'] span.cardtrig";
+    const boxes = () => page.evaluate((sel) => {
+      const pop = document.querySelector("#croppop");
+      const open = pop && getComputedStyle(pop).display !== "none";
+      const card = open ? pop.getBoundingClientRect() : null;
+      const trig = document.querySelector(sel).getBoundingClientRect();
       return {
-        mid: [card.left + card.width / 2, card.top + card.height / 2],
-        left: card.left, top: card.top,
+        card: card ? { left: card.left, top: card.top, right: card.right,
+                       bottom: card.bottom } : null,
+        trigger: { cx: trig.left + trig.width / 2, cy: trig.top + trig.height / 2,
+                   top: trig.top, bottom: trig.bottom, right: trig.right },
       };
-    });
-    // Two REAL moves along the line to the card, so the page has a movement
-    // vector to read (one move gives a position and no direction, and the
-    // corridor test refuses to guess a direction).
-    await page.mouse.move(approach.mid[0], approach.mid[1] - 90);
-    await page.mouse.move(approach.mid[0], approach.mid[1] - 45);
-    // ...and the trigger the pointer crosses, firing exactly the event the
-    // browser fires for it.
-    await page.locator(CARD_TRIGGER).dispatchEvent("mouseenter");
+    }, CARD_TRIGGER);
+
+    await dismissCard(page);
+    await page.locator(CHIP_TRIGGER).hover();
+    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    const lay = await boxes();
+    push("the citation card opens BELOW its row and under the row's own crop " +
+      "trigger — the layout the two approaches below are only distinguishable " +
+      "in",
+      lay.card !== null && lay.card.top > lay.trigger.bottom &&
+      lay.card.top - lay.trigger.bottom < 40 &&
+      lay.trigger.cx > lay.card.left && lay.trigger.cx < lay.card.right);
+
+    // APPROACH 1 — down onto the crop trigger, which aims into the card.
+    //
+    // `{ steps }` is load-bearing, not tidiness. The browser dispatches
+    // `mouseenter` on the element being entered BEFORE the `mousemove` at the
+    // new coordinates, so a single-jump move fires the enter while the page
+    // still holds the position it jumped FROM — and the corridor is then
+    // computed off a stale vector. A real mouse emits a move every few
+    // milliseconds, so in a reader's hand the two positions either side of the
+    // enter are millimetres apart and on the approach line; stepping is how a
+    // synthetic pointer reproduces that rather than an artefact of teleporting.
+    await page.mouse.move(lay.trigger.cx, lay.trigger.top - 40);
+    await page.mouse.move(lay.trigger.cx, lay.trigger.cy, { steps: 12 });
     push("a trigger crossed while the pointer is heading for the open card " +
       "does not steal it",
-      await page.locator(".hovercard--component").count() === 1 &&
+      await page.locator(".hovercard--citation").count() === 1 &&
       await page.locator(".hovercard--edge").count() === 0);
-    // The pointer arrives. The held trigger must never open, now or after its
-    // grace period: the reader got where they were going.
-    await page.mouse.move(approach.mid[0], approach.mid[1]);
-    await page.waitForTimeout(intentMs + 200);
-    push("...and it still does not, once the pointer has arrived and the " +
-      "grace period has run out",
-      await page.locator(".hovercard--component").count() === 1 &&
+
+    // THE EXPIRY. The pointer stops on that trigger and never reaches the
+    // card — a deliberate hover, not a crossing — so the held open has to
+    // happen after all. This is the promise the code makes in as many words
+    // ("never one that never arrives"); without this check it is a claim.
+    await page.waitForTimeout(intentMs + 250);
+    push("a held trigger the pointer STOPS on opens after the grace period — " +
+      "a deferral is a delay, never a card that never arrives",
+      await page.locator(".hovercard--edge").count() === 1);
+
+    // ARRIVAL WINS. Same approach, but this time the pointer keeps going and
+    // reaches the card: the trigger it crossed must never open, then or later.
+    await dismissCard(page);
+    await page.locator(CHIP_TRIGGER).hover();
+    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    const lay2 = await boxes();
+    await page.mouse.move(lay2.trigger.cx, lay2.trigger.top - 40);
+    await page.mouse.move(lay2.trigger.cx, lay2.trigger.cy, { steps: 12 });
+    await page.mouse.move(lay2.trigger.cx, lay2.card.top + 60, { steps: 12 });
+    await page.waitForTimeout(intentMs + 250);
+    push("...and it does NOT open when the pointer arrives at the card " +
+      "instead — the reader got where they were going",
+      await page.locator(".hovercard--citation").count() === 1 &&
+      await page.locator(".hovercard--edge").count() === 0 &&
       await page.locator(".croppop").isVisible());
-    // The other half, and the reason this is a corridor and not a blanket
-    // grace period: a pointer moving AWAY from the open card is a reader who
-    // wants the other card, and they get it immediately.
-    await page.mouse.move(approach.left - 120, approach.top - 40);
-    await page.mouse.move(approach.left - 240, approach.top - 80);
-    await page.locator(CARD_TRIGGER).dispatchEvent("mouseenter");
+
+    // APPROACH 2 — onto the same trigger from the RIGHT, level with its own
+    // row, which aims past the card rather than into it. This is the reason
+    // the guard is a corridor and not a blanket grace period: a reader who
+    // wants the other card gets it at once, with no delay at all.
+    await page.mouse.move(lay2.trigger.right + 260, lay2.trigger.cy);
+    await page.mouse.move(lay2.trigger.cx, lay2.trigger.cy, { steps: 12 });
     push("a trigger hovered while the pointer is moving AWAY from the open " +
       "card opens at once — the guard is intent, not a dead period",
       await page.locator(".hovercard--edge").count() === 1);
+
+    // --- an open card under the pointer is never re-placed (deliverable 4b) -
+    //
+    // `position()` flips a card above its trigger when it no longer fits
+    // below, so a re-place that runs on every settling PNG can move the box
+    // out from under a pointer already on its way to it.
+    //
+    // Observed as "did `position()` RUN", not as "did the answer change":
+    // `position()` unconditionally rewrites `style.top`, so nudging that by a
+    // few pixels and seeing whether it comes back is a direct reading of the
+    // guard, in every layout, without needing a configuration where the
+    // placement's answer happens to differ. The second half is the tripwire
+    // for the first.
+    //
+    // FOUR pixels, and upward, for a reason that cost a red run: the guard
+    // reads the card's box as it is AT THAT MOMENT, so a probe that shoves the
+    // box far enough to slide out from under the pointer destroys its own
+    // precondition and the guard correctly declines to hold. A nudge has to be
+    // smaller than the pointer's clearance inside the card.
+    const NUDGE = 4;
+    const replaced = () => page.evaluate((nudge) => {
+      const pop = document.querySelector("#croppop");
+      const img = pop.querySelector("img");
+      if (!img) return null;
+      // Grow the box too, so the "it is exactly the height it was measured at"
+      // guard is not the one doing the work. Downward, so the top does not
+      // move and the pointer stays where it is relative to the box.
+      const spacer = document.createElement("div");
+      spacer.style.height = "300px";
+      pop.appendChild(spacer);
+      const nudged = Math.round(pop.getBoundingClientRect().top) - nudge;
+      pop.style.top = nudged + "px";
+      img.dispatchEvent(new Event("load"));
+      const after = pop.style.top;
+      spacer.remove();
+      return { nudged: nudged + "px", top: after };
+    }, NUDGE);
+
+    await dismissCard(page);
+    await page.locator(CARD_TRIGGER).hover();
+    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+    const held = await boxes();
+    await page.mouse.move(held.trigger.cx, held.card.top + 60);
+    const onCard = await replaced();
+    push("a card with the pointer on it is not re-placed when one of its " +
+      "images settles", onCard !== null && onCard.top === onCard.nudged);
+    // ...and it IS re-placed with the pointer away, or the check above passes
+    // on a page where nothing would have re-placed it anyway.
+    await page.mouse.move(8, 8);
+    const offCard = await replaced();
+    push("...and it IS re-placed with the pointer off it — the guard is the " +
+      "pointer, not an inert code path",
+      offCard !== null && offCard.top !== offCard.nudged);
     await dismissCard(page);
 
     // --- the DAG's own hover surfaces (viewer_dag_hover_cards) --------------

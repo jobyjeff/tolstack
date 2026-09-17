@@ -64,7 +64,8 @@ action.
 
 The banner says which transport is live — a served page reads *"Served over
 HTTP — no folder grant needed"*, inside the **Data source** fold (see below);
-FSA mode is unchanged, the connect/granted flow already says so. Neither transport offers a control it cannot service
+FSA mode is unchanged, the connect/granted flow already says so. Neither
+transport offers a control it cannot service
 (`adapter.capabilities()`, never the adapter's class): the one real capability
 gap is that drawing-checker's own mount cannot reach `docs/` at all (only the
 viewer app and its projection dir are mounted), so a worksheet is unavailable
@@ -99,17 +100,18 @@ venv-win/Scripts/python.exe scripts\build_topology_projection.py
 4. Open the page, click **Connect folder**, pick the **tolstack repo root**
    (`C:\workspace\tolstack`), grant **read**. The banner turns into a **Reload**
    button and one closed **Data source** fold, and nothing else. Open the fold
-   and it holds the build lines: *results built … · crops built … (26 resolved —
-   22 sha256-verified, 4 with no sha to check; 22 unresolvable)*, then *crops by
-   rule: source_ref_export 22 · spec_pile 4*, then which tree wrote each of the
-   two files. A resolved count on its own says nothing about whether anything was
-   **checked**, which is the whole difference between a crop of the export a
-   citation names and a crop of a file that happens to share its name — so the
-   verification counts sit beside it, out of `crops.json`'s own `summary`.
+   and it holds the build lines: *results built … · crops built … (26
+   resolved — 22 sha256-verified, 4 with no sha to check; 22 unresolvable)*,
+   then *crops by rule: source_ref_export 22 · spec_pile 4*, then which tree
+   wrote each of the two files. A resolved count on its own says nothing about
+   whether anything was **checked**, which is the whole difference between a
+   crop of the export a citation names and a crop of a file that happens to
+   share its name — so the verification counts sit beside it, out of
+   `crops.json`'s own `summary`.
 
-   Those five rows were always visible until 2026-09-16, when Jeff asked for them
-   to go: *"These 5 lines at the top of the page are meaningless to the user.
-   Delete."* They are **folded, not deleted** — the reader who came to read a
+   Those five rows were always visible until 2026-09-16, when Jeff asked for
+   them to go: *"These 5 lines at the top of the page are meaningless to the
+   user. Delete."* They are **folded, not deleted** — the reader who came to read a
    stack never sees them, and the reader investigating a suspect projection is
    one click away. What still shouts on its own is the **stale-pair alarm**
    below, which fires only when the two stamps provably disagree; that one is a

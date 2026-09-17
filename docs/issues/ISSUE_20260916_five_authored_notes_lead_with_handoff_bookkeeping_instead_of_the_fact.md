@@ -40,8 +40,10 @@ this handoff's do-not-touch list, and because reordering a record's own prose is
 an authoring decision with a ground-truth test standing behind every value in
 the file — it wants the session that owns those documents, not a viewer pass.
 
-A second, larger question sits behind it and is worth asking once rather than
-five times: should a topology document carry a short `description` field
-distinct from `note`, so the viewer has something to show in the open that was
-*written* to be shown in the open? Today `note` is doing both jobs and
-`VA.leadSentence` is guessing where one ends.
+A second, larger question sits behind this one — should a topology document
+carry a short `description` distinct from `note` at all? — and it is **its own
+issue**, because it is a schema decision for a strategy agent rather than five
+prose reorders for a tactical one:
+`ISSUE_20260916_a_topology_note_does_two_jobs_and_the_viewer_guesses_where_one_ends.md`.
+Reordering the five leads in the table above does not depend on answering it,
+and answering it would not reorder them.

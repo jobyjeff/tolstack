@@ -320,9 +320,9 @@
             "drawing": "215197",
             "revision": null,
             // Two sentences on purpose (2026-09-16): the hover card shows a
-            // note is lead sentence in the open and the whole of it inside the
+            // note's lead sentence in the open and the whole of it inside the
             // Data source fold, and a one-sentence note cannot tell the two
-            // placements apart. Live parts notes read exactly like this one --
+            // placements apart. Live parts' notes read exactly like this one --
             // a description, then the sourcing narrative behind it.
             "note": "A demo base plate, machined from plate stock. Its 4.06 " +
               "thickness is the only dimension this fixture cites; every other " +

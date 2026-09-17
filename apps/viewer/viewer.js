@@ -1425,6 +1425,23 @@
     return span[0] * Math.sqrt(dx * dx + dy * dy) <= VA.HOVER_INTENT_REACH;
   };
 
+  // Should an OPEN popover be re-placed now that one of its images has
+  // settled? Pure, so the fast tier can pin both halves without a browser;
+  // topology_app.js's `replace()` is the wiring and does nothing else.
+  //
+  // Two guards, and the first is the one that matters. A card under the
+  // reader's pointer is a card IN USE: `position()` flips a card above its
+  // trigger when it no longer fits below, and a flip under the pointer is the
+  // other half of what Jeff reported as the popup disappearing. The second
+  // skips the gesture entirely when the box is exactly the height it was last
+  // measured at, which is the normal case -- VA.cropFigure reserves each
+  // image's height from the crop index's own pixel size before the decode, so
+  // a settled PNG usually changes nothing at all.
+  VA.popoverShouldMove = function (pointer, box, height, placed) {
+    if (VA.pointerInside(pointer, box)) return false;
+    return Math.abs((height || 0) - (placed || 0)) > 1;
+  };
+
   // One axis of the slab test: narrow `[tmin, tmax]` (in units of the movement
   // vector) to the stretch of the ray inside this axis's pair of edges, or
   // null where the two do not overlap at all. A zero component means the ray

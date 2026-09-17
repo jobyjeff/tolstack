@@ -2549,13 +2549,21 @@
   // Where the title does not carry it (a part named "propeller hub" off
   // drawing 212966-006) the full line stands, unchanged.
   //
+  // The word "drawing" survives the suppression, and it has to: without it the
+  // component card printed a line whose entire content was "rev A" -- a
+  // revision modifying nothing, on the surface this pass exists to de-slop
+  // (review, 2026-09-16; three live parts render it). The number is what is
+  // dropped, never the noun.
+  //
   // Takes the three fields rather than a card, so a node card's SIDE -- which
   // carries the same three under different names -- gets the same answer as
   // the component card for the same part.
   VA.componentDrawingText = function (title, drawing, revision) {
     if (!drawing) return null;
     var rev = revision ? VA.revisionText(revision) : null;
-    if (String(title || "").indexOf(String(drawing)) !== -1) return rev;
+    if (String(title || "").indexOf(String(drawing)) !== -1) {
+      return rev ? "drawing " + rev : null;
+    }
     return "drawing " + drawing + (rev ? " " + rev : "");
   };
 
