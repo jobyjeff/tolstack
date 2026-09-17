@@ -63,6 +63,17 @@
    the cursor must not revert the instant the pointer leaves the 7px grip, and
    a drag across a table is otherwise a text selection. */
 body.tv-resizing { cursor: col-resize; user-select: none; }
+/* ...and while a drag is in flight the annotator panel's iframe is transparent
+   to the pointer. This is not a nicety, it is what makes the flyout's own
+   divider work at all: pointer events over a cross-document iframe are
+   delivered to THAT document, so a drag that started on the seam and moved
+   left over the 3D panel stopped reaching this page entirely -- measured, one
+   `pointermove` seen by the parent document across a whole 8-step drag, and
+   the panel never moved. The two other drags on this page never met it because
+   neither the grid nor the preview pane embeds a document.
+   `body.tv-resizing` is already set for the duration of every gesture
+   (topology_app.js's onResizeStart), so this rule needs no new state. */
+body.tv-resizing .flyout__frame { pointer-events: none; }
 
 .tvpick__mode { white-space: nowrap; }
 
@@ -727,16 +738,26 @@ body { display: flex; flex-direction: column; }
 /* --- the annotator flyout (study_3d_flyout) --------------------------------
    The same "structurally cannot steal layout" family as the two dialogs
    below, with one difference: it opens NON-modally (dialog.show(), no top
-   layer needed) and position: fixed pins it to the viewport's right edge, so
-   the page stays fully clickable beside it -- "attach to 3D" on another row
-   re-drives the open panel. position: fixed takes it out of flow entirely:
-   opening it cannot shrink or reflow the DAG pane by construction. */
+   layer needed) and position: fixed pins it to a viewport edge, so the page
+   stays fully clickable beside it -- "attach to 3D" on another row re-drives
+   the open panel. position: fixed takes it out of flow entirely: opening it
+   cannot shrink or reflow the DAG pane by construction, and closing it
+   restores whatever it covered with no "put it back" path to get wrong.
+
+   LEFT-docked since 2026-09-16, and the reason is adjacency (Jeff: "I
+   actually want the 3d flyout on the left side, adjacent to the DAG. It would
+   be ok if it covered up the left side select menu since you shouldn't need
+   both at the same time"). It was pinned to the RIGHT edge until then, which
+   put the 3D panel and the graph at opposite ends of the window with the whole
+   grid between them -- the two things a reader is comparing. Covering the nav
+   rail is the accepted cost: `.navtree` above declares no z-index, so this
+   sits over it, and it comes back untouched on close. */
 dialog#annotate-flyout {
-  position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0;
+  position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0;
   width: min(760px, 55vw); height: 100vh; max-height: 100vh;
   background: var(--panel); color: var(--ink);
-  border: none; border-left: 1px solid var(--line);
-  box-shadow: -12px 0 32px rgba(0, 0, 0, .45);
+  border: none; border-right: 1px solid var(--line);
+  box-shadow: 12px 0 32px rgba(0, 0, 0, .45);
   z-index: 40; /* over the crop popover's plane, under nothing */
 }
 dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
@@ -744,7 +765,51 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line);
 }
-.flyout__head h2 { margin: 0; font-size: 14px; }
+.flyout__head h2 { margin: 0; font-size: 14px; flex: 1; }
+/* Out to the whole annotator in its own tab (Jeff: "There can be a separate
+   link that opens the full viewer (with the full fledged menus etc) in a
+   separate tab/page"). A plain <a target="_blank">, carrying the same params
+   the panel booted with -- the same href VA.annotateLink builds for every
+   other route into that app. */
+.flyout__fullpage {
+  color: var(--accent); font-size: 12px; text-decoration: none; white-space: nowrap;
+}
+.flyout__fullpage:hover, .flyout__fullpage:focus { text-decoration: underline; }
+/* The flyout's own drag divider, on the edge away from the dock -- so the
+   panel grows INTO the page rather than off the screen. Deliberately the same
+   control as the preview pane's `.tv__divider` above: same 7px hit area, same
+   hairline-at-rest turning accent on hover, same three-dot grip mark, because
+   it is the same gesture on the same page and a reader who has learned one
+   seam has learned this one. Absolutely positioned inside the dialog rather
+   than sitting in its flex column: a divider that took part in the layout
+   would push the iframe in by its own width, and the 3px overhang is what
+   makes the seam grabbable from the page side too. */
+.flyout__divider {
+  position: absolute; top: 0; bottom: 0; right: -3px; width: 7px;
+  cursor: col-resize; z-index: 1;
+  background: none; border: none; padding: 0;
+}
+.flyout__divider::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 3px;
+  width: 1px; background: var(--line);
+}
+.flyout__divider:hover::before, .flyout__divider:focus::before { background: var(--accent); }
+/* Centred, not sticky -- unlike `.tv__divider`'s mark. This divider's box is
+   the flyout's own height (100vh, never the document's), so 50% IS the middle
+   of the reader's window. */
+.flyout__divider::after {
+  content: ""; display: block; position: absolute; top: 50%;
+  transform: translateY(-50%);
+  width: 5px; height: 23px; margin: 0 1px;
+  background-image: radial-gradient(circle at center,
+    var(--muted) 1.1px, transparent 1.3px);
+  background-size: 5px 7px; background-position: center;
+}
+.flyout__divider:hover::after, .flyout__divider:focus::after {
+  background-image: radial-gradient(circle at center,
+    var(--accent) 1.3px, transparent 1.5px);
+}
+.flyout__divider:focus { outline: none; }
 .flyout__frame { flex: 1; width: 100%; border: none; background: #1b1e22; }
 
 /* --- the legend and worksheet dialogs ------------------------------------

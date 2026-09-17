@@ -582,14 +582,71 @@ async function testTheApp(browser, url, label) {
       await page.locator("tr.el-row--zero-width").count() === 1 &&
       await page.locator("td.num--zero-width").count() === 2);
 
-    // The loud export/identity chip is the one fact the compact row still
+    // The loud export/identity fact is the one thing the compact row still
     // carries about the export — everything else moved to the right pane,
     // reached by clicking the row (deliverables 2 and 3 of viewer_consolidation).
-    const exportChipColor = await page.locator(".chip--export-unestablished").first()
-      .evaluate((n) => getComputedStyle(n).backgroundColor);
-    push("the unestablished-export chip is filled, not transparent, on the row",
-      exportChipColor && exportChipColor !== "rgba(0, 0, 0, 0)" &&
-      exportChipColor !== "transparent");
+    //
+    // Since flyout_resize_annotator_filter_and_deselect it rides on the row's
+    // ONE consolidated alert badge rather than a filled all-caps chip of its
+    // own (Jeff: "roll all the alert badges into one single alert badge"), and
+    // BOTH halves of that trade are CSS claims only a layout engine can check:
+    // the badge has to be quieter than the filled chip it replaced (no fill)
+    // and still findable (a real border, in the attention colour, not the
+    // neutral chip outline).
+    const badge = page.locator("#stackview .chip--alert");
+    const badgeStyle = await badge.first().evaluate((n) => {
+      const cs = getComputedStyle(n);
+      const neighbour = getComputedStyle(n.parentNode.querySelector(".chip--kind")
+        || n.parentNode.firstElementChild);
+      return {
+        background: cs.backgroundColor,
+        border: cs.borderTopColor,
+        weight: cs.fontWeight,
+        neighbourBorder: neighbour.borderTopColor,
+      };
+    });
+    push("the row's alert badge is NOT filled — the loudness Jeff named is gone",
+      badgeStyle.background === "rgba(0, 0, 0, 0)" ||
+      badgeStyle.background === "transparent");
+    push("...but it is still findable: a real border, and not the neutral one " +
+      "its neighbour chip wears",
+      badgeStyle.border && badgeStyle.border !== "rgba(0, 0, 0, 0)" &&
+      badgeStyle.border !== badgeStyle.neighbourBorder);
+
+    // ONE row in this fixture has something to admit and it has TWO things —
+    // the washer is zero-width AND unestablished, which is exactly the case
+    // the old presentation showed as two filled all-caps chips side by side.
+    // The other three rows show NOTHING, which is the standing rule, so the
+    // count is the assertion.
+    push("one badge on the one row that has something to admit, and none on " +
+      "the other three",
+      await badge.count() === 1 &&
+      await page.locator("#stackview tr.el-row").count() === 4);
+
+    // The words, on a REAL hover: this is the half a DOM shim is blind to, and
+    // the whole bargain of the consolidation is that nothing was deleted. The
+    // card also carries the `why`, which was only ever a native tooltip on the
+    // chip this badge replaced — so folding the chip away REVEALED a sentence
+    // rather than hiding one.
+    const washerBadge = page.locator("#stackview tr.el-row").nth(1)
+      .locator(".chip--alert");
+    await washerBadge.hover();
+    await page.waitForSelector(".hovercard--alerts", { timeout: 5000 });
+    const alertCard = await page.locator(".hovercard--alerts").textContent();
+    push("hovering the badge opens a card naming the alert in the words the " +
+      "row used to shout",
+      /FILE NOT IDENTIFIED/.test(alertCard));
+    push("...and the card carries the why, which the old chip only had as a " +
+      "native tooltip",
+      /none hashes to the one/.test(alertCard));
+    push("the card names WHICH row it belongs to — the badge is one glyph, so " +
+      "the card is the first place a reader can tell",
+      /washer/i.test(alertCard));
+    push("...and the row's OTHER alert too: two chips became one badge and one " +
+      "card with two items, which is the whole trade",
+      /no tolerance recorded/.test(alertCard) &&
+      await page.locator(".hovercard--alerts li.hovercard__alert").count() === 2);
+    await page.keyboard.press("Escape");
 
     // Select the plate (established export, and the one fixture crop that
     // resolves) — a real click, which the DOM shim cannot exercise, and the
@@ -3916,6 +3973,167 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       paneBefore.x === paneAfter.x && paneBefore.y === paneAfter.y &&
       paneBefore.width === paneAfter.width && paneBefore.height === paneAfter.height);
 
+    // --- LEFT-docked, adjacent to the DAG, and resizable (handoff
+    // flyout_resize_annotator_filter_and_deselect, deliverable 1) -----------
+    //
+    // Jeff: "I actually want the 3d flyout on the left side, adjacent to the
+    // DAG. It would be ok if it covered up the left side select menu since you
+    // shouldn't need both at the same time." Every claim below is a LAYOUT
+    // claim -- which edge it is pinned to, what it covers, what stays visible
+    // beside it, where the drag seam is -- and a layout engine is the only
+    // thing that can check any of them. A class-name check would pass straight
+    // through an `inset` typo that put the panel back on the right.
+    const flyoutBox = async () => page.locator("#annotate-flyout").boundingBox();
+    const win = await page.evaluate(() => ({
+      w: window.innerWidth, h: window.innerHeight,
+    }));
+    const docked = await flyoutBox();
+    push("the flyout is pinned to the LEFT edge, not the right",
+      docked && docked.x === 0 && docked.width < win.w);
+    // The whole point of moving it: the graph and the 3D panel are readable at
+    // the same time. "Adjacent" is measured, and measured as UNCOVERED -- the
+    // first version of this check compared the DAG's laid-out box against the
+    // flyout's width and passed while the panel sat on top of the whole
+    // diagram, because `position: fixed` means the DAG's own box never moves.
+    // What has to be true is that a strip of it is not underneath.
+    const dagBeside = await page.locator("#topopane").boundingBox();
+    const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
+    const uncoveredDag = () => page.evaluate(() => {
+      const dag = document.querySelector("#topopane").getBoundingClientRect();
+      const panel = document.querySelector("#annotate-flyout").getBoundingClientRect();
+      return Math.max(0, dag.right - Math.max(dag.left, panel.right));
+    });
+    push("the DAG is still visible BESIDE it -- adjacency is the deliverable, " +
+      "and the strip left uncovered is at least the reserve",
+      await uncoveredDag() >= reserve);
+    // And the accepted cost, stated as a check so it is a decision rather than
+    // an accident: the nav rail is underneath.
+    const navCovered = await page.locator("#navtree").boundingBox();
+    push("it covers the nav rail, which Jeff said was fine",
+      navCovered && navCovered.x < docked.width);
+
+    // The drag seam, on the edge AWAY from the dock -- so the panel grows into
+    // the page rather than off the screen.
+    const grip = await page.locator("#flyout-divider").boundingBox();
+    push("its drag divider sits on the flyout's RIGHT edge",
+      grip && Math.abs((grip.x + grip.width / 2) - docked.width) <= 4);
+    const gripMark = await page.locator("#flyout-divider")
+      .evaluate((n) => getComputedStyle(n, "::after").backgroundImage);
+    push("the divider shows a grip mark at rest, so nothing has to be " +
+      "explained in words",
+      gripMark && gripMark !== "none");
+
+    // Real pointer drags on it. At this viewport (1600px, the preview pane at
+    // its 560px default) the panel opens already AT its clamp, so "rightwards
+    // widens" is measured from a narrowed start -- drag left first, then right.
+    // The sign is the thing under test: this panel is left of its seam, the
+    // opposite of the preview pane's divider on the same page, and a
+    // copy-paste between the two is the likeliest mistake in either.
+    const dragBy = async (dx) => {
+      const seam = await page.locator("#flyout-divider").boundingBox();
+      await page.mouse.move(seam.x + seam.width / 2, seam.y + 300);
+      await page.mouse.down();
+      await page.mouse.move(seam.x + seam.width / 2 + dx, seam.y + 300, { steps: 8 });
+      await page.mouse.up();
+      return (await flyoutBox()).width;
+    };
+    const narrowed = await dragBy(-200);
+    push("dragging the divider LEFT narrows the flyout",
+      narrowed < docked.width - 100);
+    const widened = await dragBy(160);
+    push("dragging the divider RIGHT widens the flyout (the pane's divider " +
+      "runs the other way)",
+      widened > narrowed + 100);
+    push("...and the flyout is still pinned to the left edge while it grows",
+      (await flyoutBox()).x === 0);
+    const dagAfterDrag = await page.locator("#topopane").boundingBox();
+    push("resizing the flyout still moves the DAG pane by nothing -- it is a " +
+      "position: fixed dialog, so this cannot reflow the page",
+      dagAfterDrag && dagAfterDrag.x === dagBeside.x &&
+      dagAfterDrag.width === dagBeside.width);
+
+    // The keyboard path, so the resize needs no pointer at all.
+    await page.locator("#flyout-divider").focus();
+    await page.keyboard.press("ArrowLeft");
+    const nudged = (await flyoutBox()).width;
+    push("the arrow keys nudge the divider without a pointer", nudged < widened);
+    await page.keyboard.down("Shift");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.up("Shift");
+    const coarse = (await flyoutBox()).width;
+    push("...and shift makes it a coarse step",
+      widened - nudged < nudged - coarse);
+
+    // A drag cannot cover the graph whatever the reader does. Dragged clean off
+    // the right edge of the window, a strip of DAG still has to survive.
+    await dragBy(win.w + 2000);
+    push("dragged past the window edge, the flyout still leaves a strip of " +
+      "DAG to be adjacent TO",
+      await uncoveredDag() >= reserve);
+
+    // The width is remembered across a reload -- the same contract the preview
+    // pane's has, under its own key. Narrowed first, so the number being
+    // round-tripped is one a reader chose AND one the open-time clamp will
+    // accept unchanged; a width sitting at the clamp would round-trip even if
+    // nothing were stored at all, which is a check that cannot fail.
+    const remembered = await dragBy(-180);
+    push("the remembered width is well inside the clamp, so the round-trip " +
+      "below is a real one", remembered < coarse - 100);
+    const storedKey = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY);
+    push("the width is written to localStorage under the flyout's own key",
+      String(await page.evaluate((k) => window.localStorage.getItem(k), storedKey))
+        === String(Math.round(remembered)));
+    await page.reload({ waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForSelector("#study-3d", { timeout: 15000 });
+    // The respine again, waited out for the same reason the first one is (see
+    // this suite's header): the reload re-enters the study, and the rows
+    // addressed further down would otherwise be doubled by the outgoing
+    // paint's ghost.
+    push("the reloaded study's respine settles too", await paneSettled());
+    await page.locator("#study-3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    push("...and a reload opens the panel at the remembered width",
+      Math.abs((await flyoutBox()).width - remembered) <= 1);
+    await page.evaluate((k) => window.localStorage.removeItem(k), storedKey);
+
+    // Closing restores what it covered. Automatic, by construction -- nothing
+    // is latched and nothing was moved -- but the deliverable says so in as
+    // many words, so it is measured rather than argued.
+    const navWhileOpen = await page.locator("#navtree").evaluate(
+      (n) => n.getBoundingClientRect().left);
+    await page.locator("#flyout-close").click();
+    push("closing the flyout gives the nav rail back, untouched",
+      !(await page.locator("#annotate-flyout").evaluate((n) => n.open)) &&
+      await page.locator("#navtree").isVisible() &&
+      await page.locator("#navtree").evaluate(
+        (n) => n.getBoundingClientRect().left) === navWhileOpen);
+
+    // --- out to the whole annotator (deliverable 4) ------------------------
+    //
+    // Jeff: "There can be a separate link that opens the full viewer (with the
+    // full fledged menus etc) in a separate tab/page." Not clicked: a real
+    // target="_blank" navigation would open a tab this suite then has to chase.
+    // What matters is that it carries the SAME params the panel booted with,
+    // which is the thing that can silently rot -- it is set per launch, so a
+    // re-drive from another row must re-point it.
+    await page.locator("#study-3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    const fullpage = page.locator("#flyout-fullpage");
+    const studyHref = await fullpage.getAttribute("href");
+    push("the flyout head carries a plain new-tab link out to the full page",
+      await fullpage.count() === 1 &&
+      await fullpage.getAttribute("target") === "_blank" &&
+      await fullpage.getAttribute("rel") === "noopener" &&
+      /Open full page/.test((await fullpage.textContent()) || ""));
+    push("...pointed at the same url the panel booted with",
+      studyHref === frameSrc);
+    // House rule: no internal file or module name in user-facing copy.
+    push("its label names no file, module or param",
+      !/index\.html|annotate\.js|topology=|\?/.test(
+        (await fullpage.textContent()) || ""));
+
     // The iframe is the real annotate app, same-origin, no mock: it boots to
     // its own pre-connect banner (FSA cannot be granted from Playwright), and
     // the deep-link queue note proves the trace params were understood.
@@ -4038,6 +4256,310 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       await page.locator("#croppop button.hovercard__3d").count() === 0 &&
       await page.locator("#croppop a.hovercard__3d").getAttribute("target") === "_blank");
 
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+// --- the annotator's rail: scoped to one element, and a face that can be
+// deselected (handoff flyout_resize_annotator_filter_and_deselect, 2 and 3) ---
+//
+// What only a real browser can prove about these two:
+//
+//   1. The rail really IS filtered. Both panels are rendered from live state
+//      by app.js (an ES module, three.js, a WebGL context) -- there is no shim
+//      tier that can load this app at all, so "the parts panel lists one mesh
+//      instead of every installed one" is checkable here and nowhere else.
+//   2. The pick tint really comes off. The bug was that `state.currentPick`
+//      and the orange in the COLOUR BUFFER disagreed, and that buffer exists
+//      only in a real GL context. Read through `window.__scene` (app.js, the
+//      autotest convention), and read as the buffer --
+//      `geometry.attributes.color` against `userData.baseColors` -- NOT as
+//      `scene.highlightedFace()`, which reports `_lastPick` and is therefore
+//      the bookkeeping half of the very pair under test. The first version of
+//      this suite read the flag and the mutation-witness runner caught it
+//      passing over a mesh that was still orange.
+//   3. A click into EMPTY SPACE clears it -- a real pointer into the canvas,
+//      through the real raycaster, which is the gesture Jeff performed
+//      ("I accidentally clicked a face").
+//
+// ?mock=1 throughout: FSA cannot be granted from an automated browser, and the
+// mock fixture is built for this (one bound edge, one unbound, one
+// owner-not-in-set, one installed mesh, one raycastable triangle).
+async function testAnnotateRail(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const rows = () => page.locator("#element-list li.el-row");
+  const parts = () => page.locator("#parts-panel li.part-row");
+  try {
+    // --- unfiltered: what the rail has always shown ------------------------
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    const allRows = await rows().count();
+    const allParts = await parts().count();
+    push("unfiltered, the rail lists the whole study and every installed mesh",
+      allRows === 3 && allParts === 1);
+    push("...and says nothing about filtering, because nothing is filtered",
+      !(await page.locator("#rail-filter").isVisible()));
+
+    // --- one alert badge per row, details on hover (deliverable 5) ---------
+    //
+    // The rail printed the raw state VALUE on each row until 2026-09-16 --
+    // `owner_not_in_set`, underscores and all, on a surface a reader reads.
+    const badges = page.locator("#element-list .alertbadge");
+    push("two of the three rows have something to admit, and each wears ONE " +
+      "badge; the bound row wears none",
+      await badges.count() === 2);
+    const rowText = await page.locator("#element-list").textContent();
+    push("no row prints a schema value any more",
+      !/owner_not_in_set|needs_re_confirmation/.test(rowText || ""));
+    // The colour signal Jeff asked to KEEP on the row, asserted as computed
+    // style: a class-name check would pass through a stylesheet typo, and the
+    // colour is now the row's only at-a-glance state marker.
+    const stripes = await page.locator("#element-list li.el-row").evaluateAll(
+      (nodes) => nodes.map((n) => getComputedStyle(n).borderLeftColor));
+    push("each row still carries its state as a colour, and the three states " +
+      "are three different colours",
+      new Set(stripes).size === 3);
+    // ...and none of them is the UNSTYLED fallback. Distinctness alone cannot
+    // see a per-state rule going missing: `.el-row`'s own neutral border is a
+    // fourth colour, so a state that lost its rule stays distinct from the
+    // other two while saying nothing. Measured against a clone stripped of its
+    // state class rather than against a hard-coded hex, so the stylesheet stays
+    // the one place that colour lives. (The mutation-witness runner found this:
+    // neutralising one state's rule left the check above green.)
+    const unstyled = await page.evaluate(() => {
+      const row = document.querySelector("#element-list li.el-row");
+      const clone = row.cloneNode(false);
+      clone.className = "el-row";
+      row.parentNode.appendChild(clone);
+      const colour = getComputedStyle(clone).borderLeftColor;
+      clone.remove();
+      return colour;
+    });
+    push("...and no state has quietly fallen back to the unstyled border",
+      stripes.every((colour) => colour !== unstyled));
+
+    await badges.first().hover();
+    await page.waitForSelector("#alert-pop", { state: "visible", timeout: 5000 });
+    const popText = await page.locator("#alert-pop").textContent();
+    push("hovering the badge opens a popup that says the alert in everyday words",
+      /No face is bound/.test(popText || ""));
+    push("...and the popup carries no schema value either",
+      !/unbound|_/.test(popText || ""));
+    const popBox = await page.locator("#alert-pop").boundingBox();
+    const railBox = await page.locator(".an__rail").boundingBox();
+    // The reason the popup is one shared position:fixed node instead of a
+    // child of the row: the rail is a scrollport, so an in-row popup would be
+    // clipped to its width. Measured, because that is a layout claim.
+    push("the popup escapes the rail's scrollport rather than being clipped " +
+      "inside it",
+      popBox && railBox && popBox.x + popBox.width > railBox.x + railBox.width);
+
+    // --- the rail scoped to ONE element (deliverable 2) --------------------
+    //
+    // The deep link's own shape, which is also the flyout's: arrive AT an
+    // element. Jeff: "it should also auto-filter the left side menu to just
+    // the features that are in the element (node or edge) it was entered from."
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+      { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    push("arriving at an edge scopes the element list to that one element",
+      await rows().count() === 1);
+    // NOTE, because it decides which check owns this guard: the mock fixture
+    // installs exactly ONE mesh, so "filtered to 1" and "unfiltered, 1" are the
+    // same number and this check cannot on its own tell a working filter from a
+    // missing one. The discriminating case is the no-installed-mesh edge below
+    // (1 -> 0), which is what `parts-panel-honours-the-element-scope` declares
+    // as its witness. Kept anyway: it is the shape a reader of this suite
+    // expects to see asserted, and it fails if the panel empties wrongly.
+    push("...and the parts panel to the parts that element names -- the panel " +
+      "that was scoped by nothing at all before",
+      await parts().count() === 1);
+    const scopeText = await page.locator(".an__filter-note").textContent();
+    push("the rail says what it is scoped to, by the element's own name",
+      /Showing only/.test(scopeText || "") &&
+      /Demo untraced edge/.test(scopeText || ""));
+    // Scoped to the NOTE, not to the whole bar, because the claim is only true
+    // of the note: the bar's gap line ("No installed 3D part for: …") does name
+    // a part id, and correctly -- on this surface a part id is the author's own
+    // vocabulary (it is what `isolate=` takes and what they will tessellate
+    // next), the same posture setSceneEmptyState already takes. A check whose
+    // claim is wider than what it reads is the kind that gets "fixed" by
+    // deleting the useful half.
+    push("...and the element is named, not identified: no id, file or param",
+      !/demo_edge_untraced|index\.html|topology=/.test(scopeText || ""));
+
+    // The control that lifts it, which exists only while there is something to
+    // lift (standing rule: an absent feature shows NOTHING).
+    await page.locator("#rail-filter .an__filter-clear").click();
+    push("Show all lifts the filter -- both panels come back",
+      await rows().count() === allRows && await parts().count() === allParts);
+    push("...and the scope bar goes away with it",
+      !(await page.locator("#rail-filter").isVisible()));
+
+    // The honest-absence case: an element whose part has no installed mesh.
+    // An empty parts panel with no reason for it would be the silent drop this
+    // repo keeps paying for.
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_no_owner",
+      { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    push("an element whose part has no installed mesh filters the parts panel " +
+      "to nothing AND says why",
+      await parts().count() === 0 &&
+      /No installed 3D part for/.test(
+        (await page.locator("#rail-filter").textContent()) || ""));
+
+    // --- a face can be deselected (deliverable 3) --------------------------
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced" +
+      "&isolate=demo_triangle", { waitUntil: "load" });
+    await page.waitForSelector("#parts-panel li.part-row", { timeout: 15000 });
+    const sha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
+
+    // IS THE MESH ACTUALLY TINTED -- read off the live colour attribute, not
+    // off `scene.highlightedFace()`. That distinction is the whole guard and I
+    // got it wrong first: `highlightedFace()` reports `_lastPick`, which is
+    // BOOKKEEPING, and the bug being fixed was precisely the bookkeeping and
+    // the colour buffer disagreeing. The mutation-witness runner caught it --
+    // deleting `restoreColors` from `clearHighlight` left the flag being
+    // cleared, so the check stayed green over a mesh that was still orange.
+    const tinted = () => page.evaluate((s) => {
+      const mesh = window.__scene.parts.get(s);
+      const live = mesh.geometry.attributes.color.array;
+      const base = mesh.userData.baseColors;
+      for (let i = 0; i < base.length; i++) {
+        if (live[i] !== base[i]) return true;
+      }
+      return false;
+    }, sha);
+
+    push("the mesh starts at its own colours", !(await tinted()));
+    await page.evaluate((s) => window.AnnotateApp.exec(["select-face", s, "0"]), sha);
+    const picked = await page.evaluate(() => window.__scene.highlightedFace());
+    push("select-face tints the face -- in the colour buffer, not just in the " +
+      "pick state",
+      await tinted() && picked && picked.faceId === 0 && picked.sha256 === sha);
+    push("...and the detail pane says which face is picked",
+      /Picked: part/.test((await page.locator("#detail").textContent()) || ""));
+
+    // THE BUG, and the verb that fixes it. Before this handoff the pick state
+    // cleared and the orange stayed: `restoreColors` was reachable only from
+    // inside `highlightFace`, on its way to tinting the NEXT face.
+    await page.evaluate(() => window.AnnotateApp.exec(["deselect"]));
+    push("deselect puts the mesh back to its own colours -- the tint, not just " +
+      "the pick state, which is the pair that used to disagree",
+      !(await tinted()) &&
+      (await page.evaluate(() => window.__scene.highlightedFace())) === null);
+    push("...and the detail pane agrees it is unpicked",
+      /No face picked yet/.test((await page.locator("#detail").textContent()) || ""));
+
+    // A REAL pointer into the geometry, and then back onto the same face: the
+    // toggle. Two pieces of setup, both of them about the FIXTURE and neither
+    // about the app:
+    //
+    //   1. ORBIT first. The mock mesh is one triangle in the z = 0 plane, and
+    //      `frameParts`' default placement looks at it along -Y with up = +Z --
+    //      exactly edge-on, so it renders as a hairline and a ray aimed at its
+    //      centroid GRAZES it: measured, `pick()` at the projected centroid
+    //      answers true or false depending on whether the y coordinate comes
+    //      out as 0 or as 1.3e-16. That is a degenerate target, not a broken
+    //      pick, so the camera is moved to face the triangle first -- which is
+    //      also what a reader does with the mouse before clicking anything.
+    //      (The mock mesh being invisible at rest is its own small defect:
+    //      ISSUE_20260916_the_mock_annotator_mesh_is_edge_on_to_its_own_
+    //      default_camera.)
+    //   2. Where the face is on screen is COMPUTED, not hunted for. At ~51
+    //      units off a 1-unit triangle it lands about 0.05 NDC across, so a
+    //      grid walk coarse enough to be fast misses it and one fine enough to
+    //      find it is ~900k raycasts. `Vector3.project` is three.js's, reached
+    //      off a vector already on the mesh (this page has no THREE global to
+    //      import), and the aim is CONFIRMED with the scene's own raycaster
+    //      before anything is clicked -- otherwise a bad aim would report
+    //      itself as "deselect is broken".
+    const hit = await page.evaluate((s) => {
+      const scene = window.__scene;
+      const mesh = scene.parts.get(s);
+      const box = mesh.geometry.boundingBox;
+      const cx = (box.min.x + box.max.x) / 2 + mesh.position.x;
+      const cy = (box.min.y + box.max.y) / 2 + mesh.position.y;
+      const cz = (box.min.z + box.max.z) / 2 + mesh.position.z;
+      scene.camera.position.set(cx, cy, cz + 40);
+      scene.camera.lookAt(cx, cy, cz);
+      scene.controls.target.set(cx, cy, cz);
+      scene.controls.update();
+      scene.camera.updateMatrixWorld(true);
+
+      const centroid = mesh.userData.manifest.faces[0].centroid_native;
+      const point = mesh.position.clone();
+      point.set(centroid[0] + mesh.position.x,
+                centroid[1] + mesh.position.y,
+                centroid[2] + mesh.position.z);
+      point.project(scene.camera);
+      if (!scene.pick(point.x, point.y)) return null;
+      const rect = document.querySelector("#canvas-host canvas").getBoundingClientRect();
+      return {
+        x: rect.left + ((point.x + 1) / 2) * rect.width,
+        y: rect.top + ((1 - point.y) / 2) * rect.height,
+      };
+    }, sha);
+    push("the tier can find the triangle on screen, so the clicks below are " +
+      "real ones on real geometry", hit !== null);
+    if (hit) {
+      await page.mouse.click(hit.x, hit.y);
+      push("a real click on the face tints it",
+        await tinted() &&
+        (await page.evaluate(() => window.__scene.highlightedFace())) !== null);
+      await page.mouse.click(hit.x, hit.y);
+      push("clicking the SAME face again toggles it off -- Jeff's own gesture " +
+        "after a mis-click",
+        !(await tinted()) &&
+        (await page.evaluate(() => window.__scene.highlightedFace())) === null);
+
+      // ...and a click into empty space. The canvas corner: the raycaster
+      // returns null there, which used to clear the pick and leave the orange.
+      await page.mouse.click(hit.x, hit.y);
+      const canvasBox = await page.locator("#canvas-host canvas").boundingBox();
+      await page.mouse.click(canvasBox.x + 6, canvasBox.y + 6);
+      push("a click into empty space clears the tint as well as the pick",
+        !(await tinted()) &&
+        (await page.evaluate(() => window.__scene.highlightedFace())) === null &&
+        /No face picked yet/.test((await page.locator("#detail").textContent()) || ""));
+    }
+
+    // The element row's own clear path, which had none either. This page
+    // arrived through `goto`, so its one row is ALREADY selected -- which is
+    // the state a reader reaches from the flyout and the state that had no way
+    // out of it.
+    push("arriving through a deep link leaves the element selected",
+      await page.locator("#element-list li.el-row.selected").count() === 1);
+    await page.locator("#element-list li.el-row").first().click();
+    push("clicking the SELECTED row deselects it",
+      await page.locator("#element-list li.el-row.selected").count() === 0);
+    await page.locator("#element-list li.el-row").first().click();
+    push("...and clicking it again selects it -- the row is a toggle, not a " +
+      "one-way door",
+      await page.locator("#element-list li.el-row.selected").count() === 1);
+
+    // ...and the alert badge inside a row must not be a second way to select:
+    // it is a disclosure.
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    await page.locator("#element-list .alertbadge").first().click();
+    push("clicking the alert badge opens its popup and does NOT select the row",
+      await page.locator("#alert-pop").isVisible() &&
+      await page.locator("#element-list li.el-row.selected").count() === 0);
+
+    push("no page error anywhere in the run", errors.length === 0);
     return reportSuite(label, checks, errors);
   } catch (err) {
     return reportAbortedSuite(label, checks, errors, err);
@@ -4998,6 +5520,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testRebuildAffordance(browser, label)],
       ["annotate flyout (repo-root mount + file:// degradation)", (label) =>
         testAnnotateFlyout(browser, fileBase, label)],
+      ["annotate rail filter + face deselect", (label) =>
+        testAnnotateRail(browser, label)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>
         testAnnotateHostedPosture(browser, label)],
     ];

@@ -284,22 +284,22 @@
         "the material this element's feature is cut in — see Materials below " +
         "for its CTE and where the CTE came from"));
     }
-    if (derived.zero_width) {
-      chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
-        VA.ATTENTION.no_tolerance.title));
-    }
-    // A chip only for the states that must be legible from the ROW, at a glance,
-    // across a thirty-row table: `unestablished`, and a status or identity rule
-    // this viewer cannot explain. `established`, "no export block" and the
-    // spec-pile identity rule get no chip — they are 48 of the 48 live citations
-    // between them, and a chip on every row is a chip nobody reads. Every state
-    // in full is in the right pane now (click the row).
-    var exportView = VA.exportProvenance(element.source_ref, derived.identity_rule);
-    if (exportView && exportView.loud) {
-      chips.appendChild(VA.chip("chip--export-" + exportView.state,
-        VA.EXPORT_CHIP_TEXT[exportView.state] || "EXPORT STATUS UNKNOWN",
-        exportView.headline + (exportView.why ? " — " + exportView.why : "")));
-    }
+    // ONE badge for everything this row has to admit, with the words on hover
+    // (deliverable 5, flyout_resize_annotator_filter_and_deselect). Until
+    // 2026-09-16 the two alerts below were two filled all-caps chips shouting
+    // from the row itself — "no tolerance recorded" beside "FILE NOT
+    // IDENTIFIED" — which is the loudness Jeff named. They still say the same
+    // words (VA.rowAlerts reads VA.ATTENTION and VA.EXPORT_CHIP_TEXT; nothing
+    // is reworded and nothing is dropped), just one row of type quieter and
+    // one hover away.
+    //
+    // Which alerts must be legible from the ROW at all is the same judgement it
+    // has always been: `established`, "no export block" and the spec-pile
+    // identity rule are quiet because nearly every live citation carries one of
+    // them, and a chip on every row is a chip nobody reads. Every state in full
+    // is in the right pane (click the row) as well as in this popup.
+    var alerts = VA.rowAlerts(element, derived);
+    if (alerts.length) chips.appendChild(alertBadge(alerts, element, handlers));
     cell.appendChild(chips);
     var where = VA.el("div", "el-row__where el-row__where--compact",
       VA.citationWhere(element.source_ref));
@@ -307,6 +307,36 @@
     cell.appendChild(where);
     cell.appendChild(cropTrigger(stackProj, element, cropsIndex, handlers));
     return cell;
+  }
+
+  // The row's consolidated alert badge: one icon, the alerts on hover.
+  //
+  // A `cardtrig` over the page's own popover, exactly like the confidence chip
+  // beside it — same trigger class, same tabindex, same three openers
+  // (mouseenter / focus / click), so it inherits the hover-intent corridor, the
+  // placement, Escape and the outside-click close rather than growing a second
+  // popup mechanism on this page. The `title` is not a duplicate of the popup:
+  // it is what the badge says when the page is rendered with no card machinery
+  // at all (the fast tier's DOM shim, a view called without handlers), so the
+  // information is never only in a hover.
+  function alertBadge(alerts, element, handlers) {
+    var badge = VA.el("span", "chip chip--alert", VA.ALERT_ICON);
+    badge.setAttribute("title", alerts.map(function (alert) {
+      return alert.text + (alert.why ? " — " + alert.why : "");
+    }).join("\n"));
+    // `cardtrig` is claimed only where a card can actually be shown, the same
+    // gate the confidence chip above applies to itself: a trigger cue on a
+    // badge that opens nothing is a promise the page cannot keep.
+    if (!handlers.onCardShow) return badge;
+    badge.className += " cardtrig";
+    badge.setAttribute("tabindex", "0");
+    var show = function () {
+      handlers.onCardShow(VA.alertsCard(element.name || element.id, alerts), badge);
+    };
+    badge.onmouseenter = show;
+    badge.onfocus = show;
+    badge.onclick = show;
+    return badge;
   }
 
   // The hover target. Carries its crop entry on the node so the app can show the

@@ -1185,10 +1185,17 @@
       // nothing reads them as words.
       eq(all(root, "tr.el-row--zero-width").length, 1);
       eq(all(root, "td.num--zero-width").length, 2);
-      var chips = all(all(root, "tr.el-row--zero-width")[0], ".chip--zero-width");
-      eq(chips.length, 1);
-      eq(chips[0].textContent, VA.ATTENTION.no_tolerance.text);
-      eq(chips[0].getAttribute("title"), VA.ATTENTION.no_tolerance.title);
+      // Since flyout_resize_annotator_filter_and_deselect the row's WORDS are
+      // on one consolidated alert badge rather than a chip of their own -- the
+      // word is unchanged and still VA.ATTENTION's, which is what this pins.
+      var badges = all(all(root, "tr.el-row--zero-width")[0], ".chip--alert");
+      eq(badges.length, 1);
+      eq(badges[0].textContent, VA.ALERT_ICON);
+      has(badges[0].getAttribute("title"), VA.ATTENTION.no_tolerance.text);
+      has(badges[0].getAttribute("title"), VA.ATTENTION.no_tolerance.title);
+      // ...and no row that has nothing to admit wears one.
+      ok(all(root, "tr.el-row").length > all(root, ".chip--alert").length,
+         "a row with no alerts shows no badge");
       // ...and the cells a reader compares carry the same sentence.
       eq(all(root, "td.num--zero-width")[0].getAttribute("title"),
          VA.ATTENTION.no_tolerance.title);
@@ -1383,8 +1390,13 @@
         });
         // All four demo elements carry a source_ref (even the assumed one — an
         // `assumed` citation is still a citation to card), so all four
-        // confidence chips are triggers.
-        var chips = all(root, "span.cardtrig");
+        // confidence chips are triggers. The consolidated alert badges are
+        // triggers too (same class, same popover), so they are excluded by
+        // class here rather than by counting: this check is about the
+        // CITATION trigger.
+        var chips = all(root, "span.cardtrig").filter(function (node) {
+          return node.className.indexOf("chip--alert") === -1;
+        });
         eq(chips.length, 4);
         chips[0].onmouseenter();
         eq(shown.length, 1);
@@ -1799,14 +1811,16 @@
     await test("an unestablished export is loud on the row, and its why is in the panel",
       function () {
         var rowsRoot = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-        // Legible from the ROW, which is the question the handoff asks: a filled
-        // chip beside the confidence chip, on the washer's row and no other.
-        var chips = all(rowsRoot, "span.chip--export-unestablished");
-        eq(chips.length, 1);
-        has(chips[0].textContent, "FILE NOT IDENTIFIED");
+        // Legible from the ROW, which is the question the handoff asks --
+        // since flyout_resize_annotator_filter_and_deselect through the row's
+        // one consolidated alert badge rather than a filled chip of its own,
+        // on the washer's row and no other. The WORD is unchanged.
+        var badges = all(rowsRoot, "span.chip--alert");
+        eq(badges.length, 1);
+        has(badges[0].getAttribute("title"), VA.EXPORT_CHIP_TEXT.unestablished);
         var rows = all(rowsRoot, "tr.el-row");
-        has(rows[1].textContent, "FILE NOT IDENTIFIED");
-        ok(rows[0].textContent.indexOf("FILE NOT IDENTIFIED") === -1,
+        eq(all(rows[1], "span.chip--alert").length, 1);
+        eq(all(rows[0], "span.chip--alert").length, 0,
            "the established row is not tarred with it");
 
         var detailRoot = render(function (r) {
@@ -1946,12 +1960,22 @@
         var poisoned = JSON.parse(JSON.stringify(DEMO));
         poisoned.elements[3].identity_rule = "sha_of_pile";
         var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
-        has(all(rowsRoot, "span.chip--export-identity_unlabelled")[0].textContent,
-            "SOURCE RULE UNKNOWN");
-        // Its own chip class and its own wording: calling an unknown identity rule
-        // "EXPORT STATUS UNKNOWN" would send a reader looking for a field this
-        // citation does not have.
-        eq(all(rowsRoot, "span.chip--export-unlabelled").length, 0);
+        // Its own wording, read off the row's consolidated alert badge:
+        // calling an unknown identity rule "EXPORT STATUS UNKNOWN" would send
+        // a reader looking for a field this citation does not have. Pinned
+        // through VA.rowAlerts' `kind` too, so the two states stay
+        // distinguishable to a stylesheet and to this check.
+        var alerts = VA.rowAlerts(poisoned.stack.elements[3],
+          poisoned.elements[3]);
+        eq(alerts.length, 1);
+        eq(alerts[0].kind, "export-identity_unlabelled");
+        has(alerts[0].text, VA.EXPORT_CHIP_TEXT.identity_unlabelled);
+        ok(alerts[0].text.indexOf(VA.EXPORT_CHIP_TEXT.unlabelled) === -1);
+        var gripRow = all(rowsRoot, "tr.el-row").filter(function (tr) {
+          return tr.textContent.indexOf("grip") !== -1;
+        })[0];
+        has(all(gripRow, "span.chip--alert")[0].getAttribute("title"),
+            VA.EXPORT_CHIP_TEXT.identity_unlabelled);
 
         var root = render(function (r) {
           VA.renderDetail(r, poisoned, "grip", CROPS, null, VA.CONFIG);
@@ -1982,13 +2006,19 @@
         var poisoned = JSON.parse(JSON.stringify(DEMO));
         poisoned.stack.elements[0].source_ref.export = { status: "provisional" };
         var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
-        has(all(rowsRoot, "span.chip--export-unlabelled")[0].textContent,
-            "FILE STATUS UNKNOWN");
-        // The unestablished chip's class is NOT reused for it: the two states are
-        // different facts and a stylesheet must be able to tell them apart, even
-        // though today they share one loud rule. The washer's is untouched by
-        // this poisoning and still reads unestablished.
-        eq(all(rowsRoot, "span.chip--export-unestablished").length, 1);
+        // Two rows carry an alert badge now (the poisoned plate, the washer),
+        // and the two states keep their own `kind` on VA.rowAlerts -- the
+        // unestablished one is NOT reused for an unlabelled status, because
+        // the two are different facts a stylesheet must be able to tell apart.
+        eq(all(rowsRoot, "span.chip--alert").length, 2);
+        var plate = VA.rowAlerts(poisoned.stack.elements[0], poisoned.elements[0]);
+        eq(plate.length, 1);
+        eq(plate[0].kind, "export-unlabelled");
+        has(plate[0].text, VA.EXPORT_CHIP_TEXT.unlabelled);
+        var washer = VA.rowAlerts(poisoned.stack.elements[1], poisoned.elements[1]);
+        eq(washer.filter(function (a) {
+          return a.kind === "export-unestablished";
+        }).length, 1);
 
         var root = render(function (r) {
           VA.renderDetail(r, poisoned, "plate", CROPS, null, VA.CONFIG);
@@ -3966,6 +3996,233 @@
         VA.writeStoredPaneWidth(hostile, 600);     // must not throw
         eq(VA.readStoredPaneWidth(null), null);
         VA.writeStoredPaneWidth(null, 600);        // must not throw
+      });
+
+    // --- the annotator flyout's width (flyout_resize_annotator_filter_and_
+    // deselect, deliverable 1) ------------------------------------------------
+    //
+    // The flyout docks LEFT now, adjacent to the DAG (Jeff: "I actually want
+    // the 3d flyout on the left side, adjacent to the DAG"), and is dragged by
+    // a divider on its RIGHT edge -- so its drag sign is the opposite of the
+    // preview pane's. Both live in the pure layer for exactly this reason:
+    // there are now two of them, inverted, on one page.
+
+    await test("the flyout's width clamps, and a drag on its divider widens " +
+      "it by moving RIGHT -- the opposite sign to the preview pane's",
+      function () {
+        var WIDE = 3000;   // room enough that `max` is the binding cap
+        eq(VA.clampFlyoutWidth(700, WIDE), 700);
+        eq(VA.clampFlyoutWidth(10, WIDE), VA.FLYOUT_WIDTH.min);
+        eq(VA.clampFlyoutWidth(99999, WIDE), VA.FLYOUT_WIDTH.max);
+        eq(VA.clampFlyoutWidth("760", WIDE), 760);
+        eq(VA.clampFlyoutWidth(760.4, WIDE), 760);
+        eq(VA.clampFlyoutWidth("wide", WIDE), VA.FLYOUT_WIDTH.min);
+        ok(VA.FLYOUT_WIDTH.min < VA.FLYOUT_WIDTH.max);
+
+        // THE SIGN, and the whole reason this arithmetic is not in the pointer
+        // handler: the flyout is LEFT of its divider, so dragging RIGHT (a
+        // positive dx) makes it wider. VA.paneWidthAfterDrag, three tests up,
+        // is the same line with the other sign -- a copy-paste between the two
+        // fails exactly here.
+        eq(VA.flyoutWidthAfterDrag(760, 40, WIDE), 800);
+        eq(VA.flyoutWidthAfterDrag(760, -40, WIDE), 720);
+        eq(VA.flyoutWidthAfterDrag(VA.FLYOUT_WIDTH.min, -400, WIDE),
+           VA.FLYOUT_WIDTH.min);
+        eq(VA.paneWidthAfterDrag(760, 40), 720);   // ...and it is NOT this one
+      });
+
+    await test("a drag on the flyout can never cover the DAG entirely -- the " +
+      "room left BESIDE THE PREVIEW PANE, not a pixel constant, is what " +
+      "bounds it", function () {
+        // Adjacency IS the deliverable ("the DAG must remain visible beside
+        // it"), and a px-only max cannot deliver it: at VA.FLYOUT_WIDTH.max on
+        // a 1280px window the panel would leave 80px. So the reserve is
+        // measured against the live room, every gesture.
+        var room1040 = VA.clampFlyoutWidth(99999, 1040);
+        eq(room1040, 1040 - VA.FLYOUT_WIDTH.reserve);
+        ok(room1040 < VA.FLYOUT_WIDTH.max,
+           "with 1040px to divide, the reserve binds before the px max does");
+        ok(1040 - room1040 >= VA.FLYOUT_WIDTH.reserve,
+           "the uncovered strip is at least the reserve");
+
+        // 1040 is not an arbitrary number: it is a 1600px window less the
+        // preview pane's own 560px default, which is the geometry the FIRST
+        // version of this clamp got wrong. It reserved 420px of VIEWPORT,
+        // which handed the reader back 420px of PANE and covered the diagram
+        // completely -- measured in the browser with the panel at 1100px, the
+        // DAG laid out at 300..1038 and every pixel of it underneath. What the
+        // reserve protects has to be the graph, so what it is measured against
+        // has to exclude the pane.
+        ok(VA.clampFlyoutWidth(99999, 1600) > VA.clampFlyoutWidth(99999, 1040),
+           "more room beside the pane means more room for the panel");
+
+        // The degenerate window, and the one case where the reserve loses: so
+        // little room that honouring it would leave a panel too small to
+        // annotate in. A covered graph beats an unusable panel, and the floor
+        // is stated rather than emergent.
+        eq(VA.clampFlyoutWidth(99999, 600), VA.FLYOUT_WIDTH.min);
+        ok(VA.FLYOUT_WIDTH.min > VA.FLYOUT_WIDTH.reserve,
+           "which is only reachable because min exceeds the reserve");
+
+        // No layout to measure (the DOM shim, a pre-layout call, a closed
+        // dialog) falls back to the px max rather than to zero -- a clamp that
+        // read an absent measurement as "no room" would pin the panel at `min`
+        // forever.
+        eq(VA.clampFlyoutWidth(99999, 0), VA.FLYOUT_WIDTH.max);
+        eq(VA.clampFlyoutWidth(99999, undefined), VA.FLYOUT_WIDTH.max);
+      });
+
+    await test("the flyout width is remembered under its OWN key, beside the " +
+      "pane's, and neither read disturbs the other", function () {
+        var store = {
+          data: {},
+          getItem: function (k) {
+            return Object.prototype.hasOwnProperty.call(this.data, k)
+              ? this.data[k] : null;
+          },
+          setItem: function (k, v) { this.data[k] = String(v); },
+        };
+        var WIDE = 3000;
+        ok(VA.FLYOUT_WIDTH_KEY !== VA.PANE_WIDTH_KEY,
+           "two independent controls, two keys");
+        eq(VA.readStoredFlyoutWidth(store, WIDE), null);
+        VA.writeStoredFlyoutWidth(store, 900, WIDE);
+        eq(store.data[VA.FLYOUT_WIDTH_KEY], "900");
+        // ...and the write clamps too, so a width stored while the window was
+        // wide cannot be read back as a covered graph later.
+        VA.writeStoredFlyoutWidth(store, 900, 1040);
+        eq(store.data[VA.FLYOUT_WIDTH_KEY], String(1040 - VA.FLYOUT_WIDTH.reserve));
+        VA.writeStoredFlyoutWidth(store, 900, WIDE);
+        eq(VA.readStoredFlyoutWidth(store, WIDE), 900);
+        // Widening the flyout said nothing about the pane, and vice versa.
+        eq(VA.readStoredPaneWidth(store), null);
+        VA.writeStoredPaneWidth(store, 640);
+        eq(VA.readStoredFlyoutWidth(store, WIDE), 900);
+
+        // Clamped on the way IN as well as out, and against the CURRENT
+        // room -- a width remembered on a 3000px screen must not cover the
+        // graph on a 1280px one.
+        eq(VA.readStoredFlyoutWidth(store, 1040), 1040 - VA.FLYOUT_WIDTH.reserve);
+        store.data[VA.FLYOUT_WIDTH_KEY] = "not a number";
+        eq(VA.readStoredFlyoutWidth(store, WIDE), null);
+        store.data[VA.FLYOUT_WIDTH_KEY] = "";
+        eq(VA.readStoredFlyoutWidth(store, WIDE), null);
+
+        var hostile = {
+          getItem: function () { throw new Error("SecurityError"); },
+          setItem: function () { throw new Error("SecurityError"); },
+        };
+        eq(VA.readStoredFlyoutWidth(hostile, WIDE), null);
+        VA.writeStoredFlyoutWidth(hostile, 900, WIDE);   // must not throw
+        eq(VA.readStoredFlyoutWidth(null, WIDE), null);
+        VA.writeStoredFlyoutWidth(null, 900, WIDE);      // must not throw
+      });
+
+    // --- one alert badge per row (deliverable 5) -----------------------------
+    //
+    // Jeff: "roll all the alert badges into one single alert badge (something
+    // like a triangle ! icon). Mouse over the icon has a popup that lists out
+    // the actual alerts." The words are NOT changed by that -- VA.rowAlerts
+    // reads VA.ATTENTION and VA.EXPORT_CHIP_TEXT and never restates them --
+    // and nothing is deleted: what was shouted from the row is now one icon
+    // plus a card that also carries the `why` the chip only had as a tooltip.
+
+    await test("VA.rowAlerts reads the row's alerts out of the tables that " +
+      "already own those words, and a clean row has none", function () {
+        // The demo stack on purpose: one row with no tolerance recorded
+        // (zero_width), one with an unestablished export, and two with
+        // neither.
+        var alerts = DEMO.elements.map(function (derived, i) {
+          return VA.rowAlerts(DEMO.stack.elements[i], derived);
+        });
+        var loud = alerts.filter(function (list) { return list.length > 0; });
+        ok(loud.length > 0 && loud.length < alerts.length,
+           "the fixture must have both kinds of row for this to mean anything");
+
+        var words = [].concat.apply([], alerts).map(function (a) { return a.text; });
+        // Every word came out of a table, never out of this function.
+        var known = [VA.ATTENTION.no_tolerance.text]
+          .concat(Object.keys(VA.EXPORT_CHIP_TEXT).map(function (k) {
+            return VA.EXPORT_CHIP_TEXT[k];
+          }));
+        words.forEach(function (word) {
+          ok(known.indexOf(word) !== -1, "unowned alert wording: " + word);
+        });
+        // ...and each alert carries the sentence that used to be only a
+        // tooltip, so consolidating the chips revealed the why rather than
+        // hiding the word.
+        [].concat.apply([], alerts).forEach(function (alert) {
+          ok(alert.why && alert.why.length > 20, "each alert states its why");
+          ok(alert.kind, "each alert is distinguishable by kind: " + alert.text);
+        });
+      });
+
+    await test("two alerts on one row make ONE badge, and the card behind it " +
+      "lists both with their why", function () {
+        // The washer is both zero-width AND unestablished in the fixture as
+        // shipped -- the case the old presentation showed as two filled
+        // all-caps chips side by side, which is the loudness being fixed. Taken
+        // from the fixture rather than poisoned into it, so the check cannot
+        // drift away from what ?mock=1 actually renders.
+        var both = DEMO;
+        var idx = 1;
+        var alerts = VA.rowAlerts(both.stack.elements[idx], both.elements[idx]);
+        eq(alerts.length, 2);
+        eq(alerts.map(function (a) { return a.kind; }).join("+"),
+           "zero-width+export-unestablished");
+
+        var shown = [];
+        var rowsRoot = render(function (r) {
+          VA.renderStack(r, both, CROPS, {
+            onCardShow: function (card, trigger) { shown.push([card, trigger]); },
+          });
+        });
+        var row = all(rowsRoot, "tr.el-row")[idx];
+        // ONE badge, not two chips.
+        var badges = all(row, "span.chip--alert");
+        eq(badges.length, 1);
+        eq(badges[0].textContent, VA.ALERT_ICON);
+
+        badges[0].onmouseenter();
+        eq(shown.length, 1);
+        eq(shown[0][0].kind, "alerts");
+        eq(shown[0][0].alerts.length, 2);
+        var card = render(function (r) {
+          VA.renderHoverCard(r, shown[0][0], {}, VA.CONFIG, null);
+        });
+        eq(all(card, "li.hovercard__alert").length, 2);
+        // Both words, and both reasons, reachable -- nothing was deleted.
+        has(card.textContent, VA.ATTENTION.no_tolerance.text);
+        has(card.textContent, VA.ATTENTION.no_tolerance.title);
+        has(card.textContent, VA.EXPORT_CHIP_TEXT.unestablished);
+        has(card.textContent, "none hashes to the one");
+        // ...and the badge itself carries them too, for a render with no card
+        // machinery at all (the shim, a view called without handlers): the
+        // information is never ONLY in a hover.
+        var bare = render(function (r) { VA.renderStack(r, both, CROPS, {}); });
+        var bareBadge = all(all(bare, "tr.el-row")[idx], "span.chip--alert")[0];
+        has(bareBadge.getAttribute("title"), VA.ATTENTION.no_tolerance.text);
+        has(bareBadge.getAttribute("title"), VA.EXPORT_CHIP_TEXT.unestablished);
+        eq(bareBadge.className.indexOf("cardtrig"), -1);
+      });
+
+    await test("an alerts card with one alert renders one item and names the " +
+      "row it belongs to", function () {
+        // The badge is one glyph, so the card is the first place a reader can
+        // see WHICH row they hovered.
+        var card = render(function (r) {
+          VA.renderHoverCard(r, VA.alertsCard("plate thickness", [{
+            kind: "zero-width",
+            text: VA.ATTENTION.no_tolerance.text,
+            why: VA.ATTENTION.no_tolerance.title,
+          }]), {}, VA.CONFIG, null);
+        });
+        eq(all(card, "li.hovercard__alert").length, 1);
+        has(card.textContent, "plate thickness");
+        has(card.textContent, "Needs attention");
+        // No fold: this whole card is a list of gaps, and views/dom.js's rule
+        // is that an absence is never put behind a disclosure.
+        eq(all(card, "details.hovercard__source").length, 0);
       });
 
     // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) -------
@@ -8878,9 +9135,16 @@
             why: "no PDF export of " + row.document + " exists, so the bytes this " +
               "value was read off cannot be identified",
           };
-          // ...and from the row alone, beside the confidence chip.
+          // ...and from the row alone, beside the confidence chip -- on the
+          // row's one consolidated alert badge since
+          // flyout_resize_annotator_filter_and_deselect, carrying the
+          // unchanged word.
           var rowsRoot = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
-          eq(all(rowsRoot, "span.chip--export-unestablished").length, 1);
+          var loud = all(rowsRoot, "span.chip--alert").filter(function (node) {
+            return node.getAttribute("title")
+              .indexOf(VA.EXPORT_CHIP_TEXT.unestablished) !== -1;
+          });
+          eq(loud.length, 1, row.stack + ":" + row.element);
 
           var root = render(function (r) {
             VA.renderDetail(r, stackProj, row.element, realCrops, null, VA.CONFIG);
