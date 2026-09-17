@@ -4326,6 +4326,24 @@ async function testAnnotateRail(browser, label) {
     push("each row still carries its state as a colour, and the three states " +
       "are three different colours",
       new Set(stripes).size === 3);
+    // ...and none of them is the UNSTYLED fallback. Distinctness alone cannot
+    // see a per-state rule going missing: `.el-row`'s own neutral border is a
+    // fourth colour, so a state that lost its rule stays distinct from the
+    // other two while saying nothing. Measured against a clone stripped of its
+    // state class rather than against a hard-coded hex, so the stylesheet stays
+    // the one place that colour lives. (The mutation-witness runner found this:
+    // neutralising one state's rule left the check above green.)
+    const unstyled = await page.evaluate(() => {
+      const row = document.querySelector("#element-list li.el-row");
+      const clone = row.cloneNode(false);
+      clone.className = "el-row";
+      row.parentNode.appendChild(clone);
+      const colour = getComputedStyle(clone).borderLeftColor;
+      clone.remove();
+      return colour;
+    });
+    push("...and no state has quietly fallen back to the unstyled border",
+      stripes.every((colour) => colour !== unstyled));
 
     await badges.first().hover();
     await page.waitForSelector("#alert-pop", { state: "visible", timeout: 5000 });
@@ -4353,6 +4371,13 @@ async function testAnnotateRail(browser, label) {
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
     push("arriving at an edge scopes the element list to that one element",
       await rows().count() === 1);
+    // NOTE, because it decides which check owns this guard: the mock fixture
+    // installs exactly ONE mesh, so "filtered to 1" and "unfiltered, 1" are the
+    // same number and this check cannot on its own tell a working filter from a
+    // missing one. The discriminating case is the no-installed-mesh edge below
+    // (1 -> 0), which is what `parts-panel-honours-the-element-scope` declares
+    // as its witness. Kept anyway: it is the shape a reader of this suite
+    // expects to see asserted, and it fails if the panel empties wrongly.
     push("...and the parts panel to the parts that element names -- the panel " +
       "that was scoped by nothing at all before",
       await parts().count() === 1);
@@ -4389,10 +4414,29 @@ async function testAnnotateRail(browser, label) {
     await page.waitForSelector("#parts-panel li.part-row", { timeout: 15000 });
     const sha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
 
+    // IS THE MESH ACTUALLY TINTED -- read off the live colour attribute, not
+    // off `scene.highlightedFace()`. That distinction is the whole guard and I
+    // got it wrong first: `highlightedFace()` reports `_lastPick`, which is
+    // BOOKKEEPING, and the bug being fixed was precisely the bookkeeping and
+    // the colour buffer disagreeing. The mutation-witness runner caught it --
+    // deleting `restoreColors` from `clearHighlight` left the flag being
+    // cleared, so the check stayed green over a mesh that was still orange.
+    const tinted = () => page.evaluate((s) => {
+      const mesh = window.__scene.parts.get(s);
+      const live = mesh.geometry.attributes.color.array;
+      const base = mesh.userData.baseColors;
+      for (let i = 0; i < base.length; i++) {
+        if (live[i] !== base[i]) return true;
+      }
+      return false;
+    }, sha);
+
+    push("the mesh starts at its own colours", !(await tinted()));
     await page.evaluate((s) => window.AnnotateApp.exec(["select-face", s, "0"]), sha);
     const picked = await page.evaluate(() => window.__scene.highlightedFace());
-    push("select-face tints the face",
-      picked && picked.faceId === 0 && picked.sha256 === sha);
+    push("select-face tints the face -- in the colour buffer, not just in the " +
+      "pick state",
+      await tinted() && picked && picked.faceId === 0 && picked.sha256 === sha);
     push("...and the detail pane says which face is picked",
       /Picked: part/.test((await page.locator("#detail").textContent()) || ""));
 
@@ -4400,8 +4444,9 @@ async function testAnnotateRail(browser, label) {
     // cleared and the orange stayed: `restoreColors` was reachable only from
     // inside `highlightFace`, on its way to tinting the NEXT face.
     await page.evaluate(() => window.AnnotateApp.exec(["deselect"]));
-    push("deselect takes the tint off, not just the pick -- the two facts that " +
-      "used to disagree",
+    push("deselect puts the mesh back to its own colours -- the tint, not just " +
+      "the pick state, which is the pair that used to disagree",
+      !(await tinted()) &&
       (await page.evaluate(() => window.__scene.highlightedFace())) === null);
     push("...and the detail pane agrees it is unpicked",
       /No face picked yet/.test((await page.locator("#detail").textContent()) || ""));
@@ -4459,11 +4504,13 @@ async function testAnnotateRail(browser, label) {
       "real ones on real geometry", hit !== null);
     if (hit) {
       await page.mouse.click(hit.x, hit.y);
-      push("a real click on the face picks it",
+      push("a real click on the face tints it",
+        await tinted() &&
         (await page.evaluate(() => window.__scene.highlightedFace())) !== null);
       await page.mouse.click(hit.x, hit.y);
       push("clicking the SAME face again toggles it off -- Jeff's own gesture " +
         "after a mis-click",
+        !(await tinted()) &&
         (await page.evaluate(() => window.__scene.highlightedFace())) === null);
 
       // ...and a click into empty space. The canvas corner: the raycaster
@@ -4472,6 +4519,7 @@ async function testAnnotateRail(browser, label) {
       const canvasBox = await page.locator("#canvas-host canvas").boundingBox();
       await page.mouse.click(canvasBox.x + 6, canvasBox.y + 6);
       push("a click into empty space clears the tint as well as the pick",
+        !(await tinted()) &&
         (await page.evaluate(() => window.__scene.highlightedFace())) === null &&
         /No face picked yet/.test((await page.locator("#detail").textContent()) || ""));
     }

@@ -290,6 +290,42 @@ style — with a paired check ("...but it is still findable") so the fix for
 
 ---
 
+## 7a. The mutation runner found three of my own guards checking the wrong thing
+
+Eight witnesses were declared and **three of the eight did not bite**, all three
+because the check they named was measuring a proxy rather than the claim. Every
+one of them was green on the clean tree and green on the mutated tree, which is
+the worst shape a guard has. Worth reading as three separate mistakes:
+
+1. **The deselect guard read the BOOKKEEPING, not the tint.** It asserted
+   `scene.highlightedFace() === null` — and `highlightedFace()` reports
+   `_lastPick`. Deleting `restoreColors` from `clearHighlight` leaves
+   `_lastPick = null` and the mesh orange, which is *the exact bug this whole
+   deliverable exists to fix*, and the check waved it through. It reads the live
+   `geometry.attributes.color` array against `userData.baseColors` now. The
+   lesson generalises: when the defect is "two representations of one fact
+   disagree", a guard that reads either one of them is not a guard.
+
+2. **The parts-panel guard could not discriminate, because the fixture has one
+   mesh.** "Filtered to 1 part" and "unfiltered, 1 part" are the same number, so
+   the check passes over a filter that does nothing. The discriminating case is
+   the no-installed-mesh edge (1 → 0), which the suite already had; the witness
+   points at that one, and the call site now says in as many words why the
+   obvious check is not the owner.
+
+3. **Distinctness could not see a rule going missing.** "Three states, three
+   different colours" survives one state falling back to `.el-row`'s own
+   neutral border, because the neutral is a *fourth* colour — so the row stays
+   distinct from its neighbours while saying nothing about its state. There is
+   a second check now, comparing each stripe against a clone stripped of its
+   state class, so the fallback is measured rather than assumed absent.
+
+The previous session's lesson says "write a new guard's mutation *before*
+believing the guard". This session is the same lesson again, from the other end:
+I wrote the mutations after, and three of eight were bluffing.
+
+---
+
 ## 8. Still to do
 
 * **`ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud`**

@@ -618,25 +618,25 @@
       "id": "deselect-clears-the-tint-not-just-the-pick",
       "contract": "Deselecting a face puts its colours back. The pick state and the orange in the colour buffer are ONE fact, and the bug this closed was exactly them disagreeing.",
       "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
-      "note": "Jeff: \"I accidentally clicked a face ... but there's no way to deselect a surface.\" The mutation restores the pre-handoff behaviour precisely -- forget the pick, leave the tint -- which is invisible to everything except a real GL context, so this entry can only be owned by the browser tier. `window.__scene.highlightedFace()` is the observable it reads.",
+      "note": "Jeff: \"I accidentally clicked a face ... but there's no way to deselect a surface.\" The mutation restores the pre-handoff behaviour precisely -- forget the pick, leave the tint -- which is invisible to everything except a real GL context, so this entry can only be owned by the browser tier. `window.__scene.highlightedFace()` is the observable it reads. This entry earned its keep immediately: the first version of the guard read `scene.highlightedFace()`, which reports `_lastPick` -- the BOOKKEEPING -- so the mutation cleared the flag, left the mesh orange, and the check stayed green. It reads the live colour attribute against `userData.baseColors` now, which is the claim.",
       "file": "apps/annotate/scene.js",
       "find": "    this.restoreColors(last.sha256);\n    this._lastPick = null;",
       "replace": "    this._lastPick = null;",
       "tier": "browser",
       "suite": "annotate rail filter + face deselect",
-      "expect_red": "deselect takes the tint off, not just the pick -- the two facts that used to disagree"
+      "expect_red": "deselect puts the mesh back to its own colours -- the tint, not just the pick state, which is the pair that used to disagree"
     },
     {
       "id": "parts-panel-honours-the-element-scope",
       "contract": "A rail scoped to one element scopes BOTH its panels. The parts panel was the half that was filtered by nothing at all.",
       "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
-      "note": "cmdTrace/cmdGoto already scoped the ELEMENT list to a study before this handoff; renderPartsPanel walked state.meshList regardless, so entering the flyout from one element still listed every installed mesh in the repo beside it. The mutation is that exact previous line. There is no shim tier for this app (ES module, three.js, a WebGL context), so the browser tier is the only place it can be witnessed.",
+      "note": "cmdTrace/cmdGoto already scoped the ELEMENT list to a study before this handoff; renderPartsPanel walked state.meshList regardless, so entering the flyout from one element still listed every installed mesh in the repo beside it. The mutation is that exact previous line. There is no shim tier for this app (ES module, three.js, a WebGL context), so the browser tier is the only place it can be witnessed. The declared check is the no-installed-mesh one (1 part -> 0) and not the obvious 'filtered to one part', because the mock fixture installs exactly ONE mesh: filtered-to-1 and unfiltered-1 are the same number, so that check cannot discriminate. The suite says so at the call site.",
       "file": "apps/annotate/app.js",
       "find": "  if (!state.panelFilter) return state.meshList;",
       "replace": "  return state.meshList;\n  if (!state.panelFilter) return state.meshList;",
       "tier": "browser",
       "suite": "annotate rail filter + face deselect",
-      "expect_red": "...and the parts panel to the parts that element names -- the panel that was scoped by nothing at all before"
+      "expect_red": "an element whose part has no installed mesh filters the parts panel to nothing AND says why"
     },
     {
       "id": "alert-badge-is-not-filled",
@@ -654,13 +654,13 @@
       "id": "element-row-keeps-its-state-colour",
       "contract": "Rolling the annotator rail's words into one hover badge did NOT take the colour off the row: each binding state is still distinguishable at a glance, without hovering anything.",
       "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
-      "note": "Jeff asked to \"keep the *color* signal on the row\" while collapsing the words, so the colour moved from a word-bearing badge to the row's own left border. That makes a deleted CSS rule a silent loss of the at-a-glance signal -- the rows would still render, still be clickable, and simply stop saying anything. The mutation neutralises one state's colour; the check compares all three, so it cannot be satisfied by a stylesheet that colours them all the same.",
+      "note": "Jeff asked to \"keep the *color* signal on the row\" while collapsing the words, so the colour moved from a word-bearing badge to the row's own left border. That makes a deleted CSS rule a silent loss of the at-a-glance signal -- the rows would still render, still be clickable, and simply stop saying anything. The mutation neutralises one state's colour; the check compares all three, so it cannot be satisfied by a stylesheet that colours them all the same. The witness is a state falling back to `.el-row`'s own neutral border, and the DISTINCTNESS check cannot see that -- the neutral is a fourth colour, so a state that lost its rule stays distinct from the other two while saying nothing. Found by this runner; the suite gained a check that compares each stripe against a clone stripped of its state class.",
       "file": "apps/annotate/style.css",
       "find": ".el-row--owner_not_in_set { border-left-color: #d6a15b; }",
       "replace": ".el-row--owner_not_in_set { border-left-color: #4a515a; }",
       "tier": "browser",
       "suite": "annotate rail filter + face deselect",
-      "expect_red": "each row still carries its state as a colour, and the three states are three different colours"
+      "expect_red": "...and no state has quietly fallen back to the unstyled border"
     },
     {
       "id": "flyout-drag-survives-its-own-iframe",

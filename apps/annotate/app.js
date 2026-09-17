@@ -308,10 +308,9 @@ function cmdDeselect(target) {
 // and a deep link that arrives with none then run the same line.
 function cmdFilterElement(target) {
   if (!target) {
-    state.panelFilter = null;
+    clearPanelFilter();
     renderElementList();
     renderPartsPanel();
-    renderRailFilter();
     return null;
   }
   if (!state.currentTopology) {
@@ -477,9 +476,11 @@ function selectStudy(studyId) {
   renderElementList();
 }
 
-// The scope, dropped, with the bar that announces it. Separate from
-// cmdFilterElement's no-argument branch because these callers are mid-way
-// through their own render and must not re-render the panels twice.
+// The scope, dropped, with the bar that announces it -- and NOT the two panels,
+// which is why this is a function rather than two lines inside the verb:
+// selectTopology/selectStudy call it mid-way through their own render and must
+// not repaint the panels twice, while `filter-element` with no argument adds
+// those two repaints on top of it.
 function clearPanelFilter() {
   state.panelFilter = null;
   renderRailFilter();

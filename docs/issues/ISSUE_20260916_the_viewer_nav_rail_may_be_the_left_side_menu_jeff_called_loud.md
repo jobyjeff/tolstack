@@ -85,6 +85,24 @@ for it. The two directions are genuinely different products:
 
 Either way it wants one sentence from Jeff about which rail he was looking at.
 
+## A second instance of the same question, in the same page
+
+The **materials table's** source column still carries a filled all-caps chip of
+exactly the kind the elements table just lost: `CTE NOT TRANSCRIBED` /
+`VALUES_STATUS UNKNOWN` (`views/stack.js`'s `materialSourcingCell`, over
+`VA.valuesProvenance`, styled by the `.chip--values-*` half of the same
+stylesheet rule the retired `.chip--export-*` selectors sit in). It is
+always-visible, in a source column, and loud — which is the literal description
+in Jeff's sentence.
+
+It was left alone deliberately: the handoff enumerated the two rails by file and
+line, this is a third table, and its vocabulary is its own (`CTE NOT
+TRANSCRIBED` is not in `VA.EXPORT_CHIP_TEXT`, so consolidating it means deciding
+where those words live as well as how they are shown). Mechanically it is the
+cheap one of the two in this issue — `VA.rowAlerts` would grow a
+`values.loud` branch and the card renderer needs nothing — but it is the same
+"which rails should be quiet?" decision, so it waits on the same answer.
+
 ## Where the pieces are
 
 * `apps/viewer/views/nav.js` — `studyBadges`, `stackItem`'s `VA.summaryChips` loop

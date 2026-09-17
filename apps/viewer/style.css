@@ -160,7 +160,19 @@ main { display: flex; align-items: flex-start; gap: 0; }
    cannot be identified. It has to be legible from the row across a thirty-row
    table, not only from the block underneath. Same treatment for a CTE nobody
    transcribed and for a status this viewer cannot explain — a state we cannot
-   name is not a state we may render quietly. */
+   name is not a state we may render quietly.
+
+   The `.chip--values-*` half is LIVE: the materials table still shouts a CTE
+   nobody transcribed from its own row (views/stack.js's
+   materialSourcingCell). The three `.chip--export-*` selectors are not, since
+   2026-09-16: the elements table rolled them into one `.chip--alert` badge
+   with the words on hover (flyout_resize_annotator_filter_and_deselect, Jeff's
+   "roll all the alert badges into one single alert badge"). They are kept, not
+   deleted, for two reasons — this is what that treatment looked like, beside
+   the sibling that still uses it, and tests/debug_flyout_and_alerts.mjs
+   reconstructs the previous row through these exact classes to shoot the
+   before/after pair. Deleting them would make that shot silently render
+   unstyled chips rather than fail. */
 .chip--export-unestablished, .chip--export-unlabelled,
 .chip--export-identity_unlabelled,
 .chip--values-not_transcribed, .chip--values-unlabelled {
