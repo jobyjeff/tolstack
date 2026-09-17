@@ -1717,7 +1717,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // Measured 2026-09-16: green five runs out of five in isolation, red inside
     // a full mutation-witness run, which is the worst shape a guard can have.
     // Three awaited moves plus a drain make the two positions either side of
-    // the crossing deterministic: both on the approach line, 6px apart.
+    // the crossing deterministic: both already PROCESSED by the page, both on
+    // the approach line, and the nearer one a short hop from the target.
     const approachFrom = async (fromX, fromY, x, y) => {
       for (const t of [0.4, 0.7, 0.9]) {
         await page.mouse.move(Math.round(fromX + (x - fromX) * t),
