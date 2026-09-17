@@ -1455,6 +1455,20 @@ and both preview panes — because they printed the same three lines in three
 slightly different orders before, which is the drift a shared builder exists to
 stop.
 
+**Two things left these surfaces on 2026-09-15**, both of them things Jeff read
+and none of them a loss of a fact a reader wanted:
+
+* *the always-rendered absolute path* (`C:/workspace/tolstack/data/...`). It was
+  the fallback for a link that could not navigate — Jeff: "full workstation
+  file paths — never rendered when the link works" — and the link now renders
+  only where it does work, so the fallback has nothing left to fall back from.
+* *the matching provenance, into a fold.* Which rule pinned the file, whether
+  the bytes were checked, which region of the sheet was taken: all still said,
+  all now behind one small disclosure (`VA.disclosure`, "How this crop was
+  matched"). In the open it restated the concise line above it in jargon. A
+  disclosure is a fold, never a place to hide a gap — an unresolved crop still
+  states its reason in the open.
+
 ### Any crop opens at full size, zoomable (2026-09-16)
 
 Jeff: *"selection box style sources (hilighted cells in the datasheet tables
@@ -1497,20 +1511,6 @@ its element, and a percentage overlay then points into the letterbox. And the
 highlight's **border width** is divided back out by the current scale
 (`--lightbox-scale`), because a 2px edge at 8× is a 16px amber frame across the
 cell the reader zoomed in to read.
-
-**Two things left these surfaces on 2026-09-15**, both of them things Jeff read
-and none of them a loss of a fact a reader wanted:
-
-* *the always-rendered absolute path* (`C:/workspace/tolstack/data/...`). It was
-  the fallback for a link that could not navigate — Jeff: "full workstation
-  file paths — never rendered when the link works" — and the link now renders
-  only where it does work, so the fallback has nothing left to fall back from.
-* *the matching provenance, into a fold.* Which rule pinned the file, whether
-  the bytes were checked, which region of the sheet was taken: all still said,
-  all now behind one small disclosure (`VA.disclosure`, "How this crop was
-  matched"). In the open it restated the concise line above it in jargon. A
-  disclosure is a fold, never a place to hide a gap — an unresolved crop still
-  states its reason in the open.
 
 ### "Open the PDF" only renders where the origin can follow it
 
