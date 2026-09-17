@@ -15,8 +15,9 @@ session's was: the screenshots are worthless without a way to re-take them.
 
 **Counts.** `venv-win/Scripts/python.exe -m pytest -q` → **1192 passed, 1
 failed, 1 skipped**. `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`
-→ **419/419** (417 at session start). `node scripts/run_viewer_browser_tests.mjs
---repo C:/workspace/tolstack` → **20/20**.
+→ **422/422** (417 at session start; 419 before the review rework, 422 after).
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` →
+**20/20**.
 
 The one failure is `test_no_live_document_states_an_unguarded_hardware_entry_count`
 and it is **red on master before this branch existed** — a strategy brief's prose
@@ -110,6 +111,38 @@ to mean the same thing in all three. The hover carries
 marks the document. A card that called a document clean because one of its four
 rows was traced would overclaim, and the direction this repo errs in is the
 other one. No live part cites one document at two confidences today.
+
+**It was pinned by nothing, and that was the review's blocker.** The reviewer
+planted the obvious mutation — deleting the qualifier clause from
+`VA.referenceText` — and took **419/419 fast, 20/20 browser, 1192 pytest
+passes**. The whole of item 2 was one line from being silently reverted.
+
+*Why it slipped past an author who pinned everything else at the value level,
+which is the transferable part:* `VA.referenceText` already had three
+value-level tests, and **every one of them built a reference object with no
+`unverified` key**. So the new conditional arm was dead in every test and live
+on every real page. A new arm on a shared helper needs its own case; an
+existing test that happens to call the helper does not become one just because
+it exercises the helper. The `[real]` guard could not help either — the handoff
+says explicitly that *both* design options pass under it, which is exactly what
+makes such a guard useless as a pin on the choice between them.
+
+Now pinned on all three limbs, each watched failing:
+
+| limb | where | plant that bites it |
+|---|---|---|
+| the **string** | `VA.referenceText`'s qualifier clause | delete the clause → 3 tests, both tiers |
+| the **producer** | `VA.partReferences`' per-document `unverified` flag | `if (false) row.unverified = true` → the same 3 |
+| the **hover** | `views/cards.js`'s `title` wiring | `if (false)` on the `some()` → 2 of the 3 |
+
+The fixture tier carries the positive (`arm`, one untraced workbook row), the
+negative (`base`, traced) and the *not-loud-enough* case (`post`, `inferred` —
+the qualifier must not creep onto a real reading of a real document). The
+per-document tie-break is asserted directly at the value level, because no live
+part cites one document at two confidences. And `[real]` asserts the mixed case
+on `pitch_system | hub` — derived by scanning every live part for one, and
+`ok(mixed.length > 0)` so a re-citation that removes the last mixed part is a
+finding rather than a silent pass.
 
 **The `standardPart` branch is untouched, and that leaves one honest wart.**
 The handoff fenced Jeff's own wording and I kept it verbatim — but the qualifier
@@ -350,6 +383,7 @@ reverted), not estimated:
 |---|---|---|---|
 | `no rendered stack surface prints an internal id, …` (fixture) | **22** | 50 | 0 |
 | `[real] no rendered stack surface of any live stack prints …` | **143** | 141 | 0 |
+| every `VERBATIM_PROSE_CLASSES` selector resolves on a live stack surface | 15 of 16 selectors (see below) | — | 0 |
 | `no rendered topology surface prints …` (fixture, pre-existing) | **29** | 39 | 0 |
 | `[real] no rendered surface of any live topology prints …` (pre-existing) | **252** | 141 | 0 |
 
@@ -364,7 +398,10 @@ scanned, 32 `VA.<NAME>` tables read, 3 chains found, 0 flagged.** The three are
 reason the rule is "a subset of a table's members" rather than "any two
 literals".
 
-419/419, 20/20, 1192 pytest passes.
+**422/422**, 20/20, 1192 pytest passes. (419/419 before the review rework added
+three tests; the two walk counts above are unchanged by it — the fixture stack
+walk still builds 22 surfaces and the `[real]` one 143, re-measured after the
+worksheet pane started rendering real markdown.)
 
 ### The planted positives — and the one that earned its keep
 
@@ -460,6 +497,92 @@ A junction, not a copy; gitignored, so it never reaches the branch. Worth a line
 in `CLAUDE.md` if another session hits it — I did not add one, because I am not
 certain a junction is the shape the repo wants rather than `npm install` in the
 worktree.
+
+---
+
+---
+
+## The review rework (2026-09-16, `REVIEW_…_reader_facing_copy_and_vocabulary.md`)
+
+REQUEST CHANGES, one blocker and two should-fixes. All of it landed; the
+blocker is written up under item 2 above, where the next reader will look for
+it. The rest:
+
+**`apps/viewer/README.md` described three strings the viewer no longer renders**
+— the chip legend's `zero-width band` / `min == max`, the `established` export
+row's *"the drawing-checker runs that consumed it"*, and the run-id bullet's
+*"a run id is a link only where…"*. All three fixed, and the surviving
+*argument* in the third (a URL built from a prefix would be a guess) kept — it
+is the sentence around it that was stale, not the reasoning.
+
+**Nothing pairs that README against the strings**, which is why all three went
+green. I did not build that pairing: the reviewer bounded the rework to
+findings 1–3, and a README-to-constant pairing is a real piece of design (the
+enumerated-state doc guard in `tests/test_tolerance_stack.py` is the precedent
+and it pairs *state names*, not rendered sentences). **It is the residual gap
+in this class** and the reason a viewer copy change is now a Recurring-bugs
+entry in `docs/prompts/REVIEW_AGENT.md`.
+
+**A stale comment** in `VA.exportProvenance` still said `VA.citationWhere`
+returns `"no source_ref"`. Fixed.
+
+### Two of the three nits, and the one I left
+
+* **A dead exemption.** `div.worksheet__body` was enrolled in
+  `VERBATIM_PROSE_CLASSES` and matched **zero** nodes, because `stackSurfaces()`
+  rendered the worksheet pane with `null` markdown and a null renders no body.
+  It renders real markdown now, and a standing guard asserts every exemption
+  selector resolves on a live stack surface — an exemption that matches nothing
+  exempts nothing.
+
+  **With one limit I could not remove, stated because a green result here
+  overreads easily.** The body is written with `innerHTML`, and the node tier's
+  DOM shim keeps innerHTML in its own field rather than as child text — so the
+  body's text is not in `textContent` in this tier at all, exempted or not.
+  Measured: deleting the selector from `VERBATIM_PROSE_CLASSES` still takes
+  **422/422**. So that one plant does *not* bite, the enrollment is load-bearing
+  only where this same file runs against a real DOM
+  (`apps/viewer/test.html`), and the guard asserts the selector **resolves**,
+  not that its text is being excluded. The other 15 selectors are text-level
+  live: `dd.kv__value` 433, `li.el-gaps__text` 125, `span.gap__text` 91,
+  `div.el-export__note` 84, `tr.el-note--record` 60, `div.detail__note` 57,
+  `div.hovercard__notefull` 57, `div.detail__callout` 51,
+  `div.hovercard__callout` 51, `p.check__guidance` 51, `li.notelist__note` 35,
+  `div.el-row__srcnote` 10, `div.el-row__callout` 4, `div.el-export__why` 2,
+  and `div.hovercard__note` on the topology surfaces rather than these.
+
+* **`lastDate` was the last *parseable* date, not the last run's.** The filter
+  ran before the last element was taken, so an export whose final run carried no
+  `ts` and no date-shaped id reported the **previous** run's day as "most
+  recently" — a wrong date stated confidently, which is worse than the clause
+  being absent. It reads the last run's own day now and drops the clause when
+  that run cannot say. Both orderings are pinned, so this is a claim about the
+  last run and not about "any run being undated".
+
+* **`dd.kv__value` exempts 433 nodes** — the value half of every free-form
+  authored block — and the reviewer notes that is the single most likely place
+  for a workstation path or a checksum to be *authored*. **Left as is, and the
+  trade is worth writing down rather than quietly narrowing.** The exemption
+  exists because a live joint block says *"not read for this stack — see
+  identification_note"*, which names a field on purpose and is the record
+  speaking. A two-tier exemption — exempt these values from the field-name scan
+  but keep them under the banned literals and shapes — is the better shape and I
+  did not build it, because it splits a list whose single meaning ("the ban is on
+  the viewer's words, never the record's") is the thing that makes it arguable.
+  Whoever wants it should decide that question first. Today: the free-form
+  blocks are scanned for their **labels** and not their **values**.
+
+### Plants re-run after the rework
+
+| plant | what it breaks | result |
+|---|---|---|
+| **A** | re-print the run ids in `VA.exportRunsLine` | 418/422 |
+| **B** | `VA.fieldLabel(key)` → `key` in `kvList` | 419/422 |
+| **C** | `VA.needsAnnotation` back to two inline literals | pytest: 1 failed, 19 passed |
+| **F** *(the reviewer's blocker)* | delete the qualifier from `VA.referenceText` | **419/422** — was 419/419 green before the rework |
+| **G** | `VA.partReferences` stops setting the flag | 419/422 |
+| **H** | `views/cards.js` stops setting the `title` | 420/422 |
+| **I** | drop `div.worksheet__body` from the exemptions | **422/422 — does not bite**, and why is above |
 
 ---
 

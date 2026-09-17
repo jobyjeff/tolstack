@@ -1467,6 +1467,24 @@
       // A run entry with no usable date still counts, and claims no day.
       eq(VA.exportRunsText({ runs: [{ run_id: "not-a-run-id" }] }),
          "read by drawing-checker once");
+      // ...and the mixed case, which is the one a filter-then-take-last gets
+      // WRONG rather than silent: the LAST run is the dateless one, so "most
+      // recently" has no day to name and the sentence stops. Reporting the
+      // previous run's day here would be a wrong date stated confidently.
+      eq(VA.exportRunsText({ runs: [
+           { run_id: "a", ts: "2026-07-23T16:38:10+00:00" },
+           { run_id: "later-but-undated" }] }),
+         "read by drawing-checker 2 times");
+      // The other way round, so this is a claim about the LAST run and not
+      // about "any run being undated".
+      eq(VA.exportRunsText({ runs: [
+           { run_id: "undated" },
+           { run_id: "b", ts: "2026-07-30T20:21:09+00:00" }] }),
+         "read by drawing-checker 2 times, most recently 30 Jul 2026");
+      // A run with no `ts` falls back to its own id's date prefix, which is
+      // where the shape `20260730_131903` is read as a day.
+      eq(VA.exportRunsText({ runs: [{ run_id: "20260730_131903" }] }),
+         "read by drawing-checker once, on 30 Jul 2026");
       // The date is read off the front of the recorded string, never through
       // Date -- a timezone must not move the day.
       eq(VA.isoDateText("2026-07-30T20:21:09.210383+00:00"), "30 Jul 2026");
@@ -3308,6 +3326,11 @@
     // VA.summaryChips were reachable by no guard, which is why VA.exportRunsLine
     // printed four bare run ids on the element pane for a month
     // (reader_facing_copy_and_vocabulary item 7).
+    // A worksheet's own markdown: the RECORD's words, rendered whole. Both
+    // strings in it are ones the viewer itself may never print.
+    var WORKSHEET_PROSE = "## Sourcing\n\nThe `source_ref` on row 3 was read " +
+      "off C:/workspace/drawing-checker/data/inbox/drawings/215197.pdf.\n";
+
     function stackSurfaces(stackProj, crops) {
       var where = stackProj.id + " ";
       var surfaces = [[where + "stack page", render(function (r) {
@@ -3321,8 +3344,27 @@
           r.appendChild(VA.chip("chip--scan", chip.text, chip.title || null));
         });
       })]);
+      // With MARKDOWN, not null: a null renders the could-not-be-read notice and
+      // no body at all, so `div.worksheet__body` matched zero nodes on every
+      // surface this walk built -- an exemption that exempts nothing, reading as
+      // coverage that is not there (caught in
+      // review/reader_facing_copy_and_vocabulary).
+      //
+      // ONE HONEST LIMIT, because the fix is smaller than it looks. The body is
+      // written with `innerHTML`, and the node tier's DOM shim keeps innerHTML
+      // in its own field rather than as child text -- so the body's text is not
+      // in `textContent` here at ALL, exempted or not. Deleting the selector
+      // from VERBATIM_PROSE_CLASSES takes this tier fully green; measured. What
+      // the markdown buys is that the selector now matches a real node, so the
+      // enrollment is a live statement rather than a dead one, and the guard
+      // below can say so. The exemption is load-bearing where this same file
+      // runs against a real DOM (apps/viewer/test.html), which is the tier that
+      // would otherwise scan a worksheet's own prose as if the page had written
+      // it. The prose below carries the two things a worksheet legitimately
+      // says and the page never may -- a schema field name and an absolute
+      // workstation path -- so that tier fails loudly rather than quietly.
       surfaces.push([where + "worksheet pane", render(function (r) {
-        VA.renderWorksheet(r, stackProj, null);
+        VA.renderWorksheet(r, stackProj, WORKSHEET_PROSE);
       })]);
       ((stackProj.stack || {}).elements || []).forEach(function (element) {
         surfaces.push([where + "element pane on " + element.id,
@@ -3441,6 +3483,99 @@
         // A part no row of which cites anything gets nothing to render.
         eq(VA.partReferences(TOPO, "no_such_part"), []);
         eq(VA.referenceText(null), "");
+      });
+
+    // ITEM 2 (ISSUE_20260915_the_component_card_says_dimensions_from_for_a_part_
+    // whose_every_value_is_untraced), pinned at the value level on BOTH halves:
+    // the producer that sets the flag and the string that states it.
+    //
+    // It was pinned by nothing at all until review/reader_facing_copy_and_
+    // vocabulary planted the obvious mutation -- deleting the qualifier clause
+    // from VA.referenceText -- and took 419/419 fast, 20/20 browser and 1192
+    // pytest passes with it gone. The reason it slipped: every reference object
+    // the three tests above build has no `unverified` key, so the conditional
+    // arm was dead in every test and live on every real page. A new arm on a
+    // shared helper needs its own case; an existing test that happens to call
+    // the helper does not become one.
+    await test("a document whose numbers have nothing behind them says so, and " +
+      "one whose numbers are traced does not", function () {
+        // THE STRING. The word is VA.ATTENTION's, so this asserts the rendered
+        // sentence rather than re-spelling it -- a reader meets the same word on
+        // the grid row and the "what is missing" panel.
+        eq(VA.referenceText({ document: "demo.xlsx", kinds: ["workbook"],
+                              sheets: [], unverified: true }),
+           "demo.xlsx (" + VA.ATTENTION.unverified.text + ")");
+        eq(VA.referenceText({ document: "demo.xlsx", kinds: ["workbook"],
+                              sheets: [7], unverified: true }),
+           "demo.xlsx · sheet 7 (" + VA.ATTENTION.unverified.text + ")");
+        // ...and the negative, both ways an object can fail to claim it: the
+        // flag false, and the key absent entirely (which is what every OTHER
+        // test in this file passes, and why the arm went unwitnessed).
+        eq(VA.referenceText({ document: "215197", kinds: ["drawing"],
+                              sheets: [2], unverified: false }),
+           "215197 · sheet 2");
+        eq(VA.referenceText({ document: "215197", kinds: ["drawing"], sheets: [2] }),
+           "215197 · sheet 2");
+
+        // THE PRODUCER. `arm`'s one row is untraced off a workbook; `base`'s is
+        // traced to a drawing. VA.partReferences reads the EDGE's confidence
+        // (the projection's derived field), not the citation's, which is the
+        // same thing VA.needsAnnotation is given everywhere else.
+        var armRefs = VA.partReferences(TOPO, "arm");
+        eq(armRefs.length, 1);
+        eq(armRefs[0].document, "demo.xlsx");
+        eq(armRefs[0].unverified, true);
+        var baseRefs = VA.partReferences(TOPO, "base");
+        eq(baseRefs[0].unverified, false);
+        // `post`'s row is `inferred` -- a real reading of a real document, and
+        // NOT one of the two loud states. The qualifier must not creep onto it:
+        // the claim is "nothing readable stands behind this", not "this is less
+        // than perfect".
+        eq(VA.partReferences(TOPO, "post")[0].unverified, false);
+
+        // The per-DOCUMENT tie-break, which no live part exercises and which the
+        // lesson can only argue in prose otherwise: ANY unverified row marks the
+        // document. A card that called a document clean because one of its rows
+        // was traced would overclaim.
+        var mixed = VA.partReferences({
+          edges: [
+            { part: "p", confidence: "traced",
+              dimension: { source_ref: { document: "D", kind: "drawing", sheet: 1 } } },
+            { part: "p", confidence: "untraced",
+              dimension: { source_ref: { document: "D", kind: "drawing", sheet: 2 } } },
+          ],
+        }, "p");
+        eq(mixed.length, 1);
+        eq(mixed[0].unverified, true);
+        eq(VA.referenceText(mixed[0]),
+           "D · sheets 1, 2 (" + VA.ATTENTION.unverified.text + ")");
+      });
+
+    await test("the component card states a document's sourcing in the words " +
+      "that document has earned, and hovers the reason", function () {
+        // The unqualified branch over an untraced workbook -- the exact shape
+        // the issue was filed for. The card carries NO confidence chip, so this
+        // line is the only provenance its reader gets.
+        var arm = render(function (r) {
+          VA.renderHoverCard(r, VA.componentCard(TOPO, "arm", TOPOCROPS), {},
+            VA.CONFIG, null);
+        });
+        var where = all(arm, "div.hovercard__where")[0];
+        eq(where.textContent,
+           "dimensions from demo.xlsx (" + VA.ATTENTION.unverified.text + ")");
+        // The word alone is terse on a card a reader may be meeting it on; the
+        // sentence behind it is VA.ATTENTION's too, not a second wording.
+        eq(where.getAttribute("title"), VA.ATTENTION.unverified.title);
+
+        // ...and a part whose one document IS a real reading gets the plain
+        // sentence and no hover, so the qualifier stays legible by being rare.
+        var post = render(function (r) {
+          VA.renderHoverCard(r, VA.componentCard(TOPO, "post", TOPOCROPS), {},
+            VA.CONFIG, null);
+        });
+        var postWhere = all(post, "div.hovercard__where")[0];
+        eq(postWhere.textContent, "dimensions from 217755 · sheet 1");
+        eq(postWhere.getAttribute("title"), null);
       });
 
     // THE ITEM. Jeff: "'no drawing recorded for this part' on a COTS fastener
@@ -8378,6 +8513,37 @@
             });
           });
           ok(surfaces > 50, "the walk must not be vacuous: " + surfaces);
+          // Every exemption earns its place on live data, not only on fixtures.
+          // A selector matching nothing is not a safe exemption, it is a claim
+          // about coverage that is not there -- `div.worksheet__body` was
+          // exactly that until review/reader_facing_copy_and_vocabulary found
+          // it, because this walk rendered the worksheet pane with null
+          // markdown and a null renders no body.
+          //
+          // This asserts the selector RESOLVES, which is the failure mode that
+          // was live; it does not assert the node carries text this tier can
+          // see. `div.worksheet__body` is the one that cannot -- see
+          // stackSurfaces' own note -- and the distinction is worth knowing
+          // before reading a green result here as full coverage.
+          var exempted = {};
+          realResults.stacks.forEach(function (stackProj) {
+            stackSurfaces(stackProj, realCrops).forEach(function (pair) {
+              VERBATIM_PROSE_CLASSES.forEach(function (selector) {
+                exempted[selector] =
+                  (exempted[selector] || 0) + all(pair[1], selector).length;
+              });
+            });
+          });
+          // `div.hovercard__note` is a TOPOLOGY surface's node (a part card's
+          // own note) and is matched by the fixture walk, not by this one --
+          // named here so its zero reads as scope rather than as rot.
+          VERBATIM_PROSE_CLASSES.forEach(function (selector) {
+            if (selector === "div.hovercard__note") return;
+            ok(exempted[selector] > 0, "the verbatim-prose exemption " +
+               selector + " matches nothing on any live stack surface -- an " +
+               "exemption that matches nothing exempts nothing, and reads as " +
+               "coverage that is not there");
+          });
         });
 
       function liveCitations() {
@@ -10586,6 +10752,70 @@
             ok(drawn > 0, "no live part carries a drawing");
             ok(silent > 0, "no live part has neither a drawing nor a citation, " +
               "so the say-nothing branch went unexercised");
+          });
+
+        // ITEM 2's live case, and the one the PER-DOCUMENT design exists for.
+        //
+        // `pitch_system | hub` is the only live part citing a traced drawing
+        // AND an untraced workbook. One qualifier on the whole line is wrong
+        // about one of the two whichever way it falls -- which is why the flag
+        // is collected per document and not per part. Nothing but this
+        // assertion stands on that: at the fixture tier no part is mixed, and
+        // the walk above passes under either design (the handoff says so).
+        await test("[real] a part sourced to both a drawing and a workbook " +
+          "qualifies the workbook and leaves the drawing alone", function () {
+            var mixed = [];
+            liveTopos.forEach(function (topoProj) {
+              (topoProj.parts || []).forEach(function (part) {
+                var references = VA.partReferences(topoProj, part.id);
+                if (part.drawing || references.length < 2) return;
+                var unverified = references.filter(function (reference) {
+                  return reference.unverified;
+                });
+                if (!unverified.length || unverified.length === references.length) {
+                  return;
+                }
+                mixed.push([topoProj.id + " | " + part.id, part.id, topoProj]);
+              });
+            });
+            // Derived, not hard-coded -- but named, because a projection that
+            // stops carrying a mixed part has lost the only live witness this
+            // design has, and that is a finding rather than a silent pass.
+            ok(mixed.length > 0, "no live part cites both a verified and an " +
+              "unverified document, so the per-document qualifier is unwitnessed " +
+              "on real data -- check whether a re-citation removed the case " +
+              "before relaxing this");
+            has(mixed.map(function (row) { return row[0]; }).join(", "),
+                "pitch_system | hub");
+
+            mixed.forEach(function (row) {
+              var root = render(function (r) {
+                VA.renderHoverCard(r, VA.componentCard(row[2], row[1], realCrops),
+                  {}, VA.CONFIG, null);
+              });
+              var where = all(root, "div.hovercard__where")[0];
+              // Every document says for itself. Asserted through
+              // VA.referenceText rather than against a spelled-out sentence, so
+              // this cannot drift from the string the other tier pins -- and
+              // referenceText carries the qualifier, so "the traced drawing is
+              // NOT qualified" is asserted by the same line that asserts the
+              // workbook is.
+              var references = VA.partReferences(row[2], row[1]);
+              references.forEach(function (reference) {
+                has(where.textContent, VA.referenceText(reference), row[0]);
+              });
+              // ...and the count, which is what catches a qualifier that leaked
+              // onto the whole line instead of one document: as many
+              // occurrences of the word as there are unverified documents, no
+              // more.
+              var qualifier = "(" + VA.ATTENTION.unverified.text + ")";
+              eq(where.textContent.split(qualifier).length - 1,
+                 references.filter(function (r) { return r.unverified; }).length,
+                 row[0] + ": one qualifier per unverified document, no more");
+              // ...and the hover, which is the only place the word is explained.
+              eq(where.getAttribute("title"), VA.ATTENTION.unverified.title,
+                 row[0] + ": a line carrying the qualifier explains it");
+            });
           });
 
         // --- [real] the topology fixture, against the real shapes -------------
