@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
 handoff: docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `topology_grid_scroll_and_grips` moved to completed/; not independently verified.
 ---
 
 # A wide preview pane can slide over the grid's own drag grips, and a pointer reaches the pane instead
