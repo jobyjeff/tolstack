@@ -5,10 +5,40 @@
    this surface has its own vocabulary (bound/unbound/owner-not-in-set/
    needs-re-confirmation), not confidence. */
 
+:root {
+  /* THE TYPE SCALE. The same six steps apps/viewer/style.css declares, by COPY
+     and not by import: the two apps deliberately share no stylesheet (see the
+     header above), so what keeps the two blocks equal is
+     tests/test_app_type_scale.py, which compares them name for name and value
+     for value and refuses a bare px font-size in either app. The roles are
+     written out once, over there and in docs/DESIGN_TYPE_AND_COLOUR.md; they
+     are not restated here.
+
+     Until 2026-09-17 this stylesheet declared no base size at all, so `body`
+     inherited the browser's 16px and the element rail -- a list of element
+     names -- was the LARGEST type on the page, larger than the app's own title,
+     while its labels sat at 11px and the detail pane at 13px. Three sizes, no
+     scale, and the hierarchy upside down. */
+  --t-micro: 11px;
+  --t-meta:  12px;
+  --t-dense: 13px;
+  --t-body:  14px;
+  --t-title: 16px;
+  --t-page:  18px;
+  /* Dark native controls. The <select>s in the rail and the text inputs in the
+     bind forms were rendered by the platform in its LIGHT default -- white
+     boxes with black text, the brightest things in a dark app, in the one app
+     of the two that has form controls at all. One declaration on the root does
+     the whole page, including the parts panel's checkboxes and the scrollbars,
+     which is why the explicit rules below only have to set what the platform
+     does not: the border and the radius. */
+  color-scheme: dark;
+}
+
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font: var(--t-body)/1.5 "Segoe UI", system-ui, sans-serif;
   background: #1b1e22;
   color: #e8e8e8;
 }
@@ -21,8 +51,8 @@ body {
   background: #24282e;
   border-bottom: 1px solid #33383f;
 }
-.topbar h1 { font-size: 16px; margin: 0; }
-.topbar .sub { color: #9aa1ab; font-size: 12px; }
+.topbar h1 { font-size: var(--t-page); margin: 0; }
+.topbar .sub { color: #9aa1ab; font-size: var(--t-meta); }
 .topbar__spacer { flex: 1; }
 .topbar button, .an__console button, .parts-panel button, .bind-form button, .owner-not-in-set-form button {
   background: #3a4048;
@@ -31,14 +61,25 @@ body {
   border-radius: 4px;
   padding: 6px 12px;
   cursor: pointer;
+  font: inherit;
+  /* Sized to its own label, not to whatever column it sits in. `Run` is a flex
+     item of `.an__console`'s column and stretched to the whole console width --
+     an 800px button for a three-letter action (2026-09-17). The two form
+     buttons opt back into full width explicitly at the foot of this file,
+     because there a full-width button IS the submit affordance. */
+  align-self: flex-start;
 }
 
 .banner {
   padding: 6px 16px;
-  font-size: 13px;
+  font-size: var(--t-dense);
   color: #cfd3d8;
 }
-.banner--ok { color: #7bc47f; }
+/* A successful boot is not an alert, so it is not coloured like one: "loaded 1
+   topology" was the same green this app uses for `bound`, in the one line that
+   is always on screen (2026-09-17). Warn and error keep their colour -- they
+   are states. */
+.banner--ok { color: #9aa1ab; }
 .banner--warn { color: #d6b45b; }
 .banner--error { color: #d65b5b; }
 
@@ -53,7 +94,12 @@ body {
   overflow-y: auto;
   border-right: 1px solid #33383f;
 }
-.an__label { display: block; font-size: 11px; color: #9aa1ab; margin-top: 8px; }
+.an__label { display: block; font-size: var(--t-micro); color: #9aa1ab; margin-top: 8px; }
+.an__rail select, .bind-form select, .bind-form input,
+.owner-not-in-set-form input, .an__console input {
+  border: 1px solid #4a515a; border-radius: 4px; padding: 4px 6px;
+  font: inherit;
+}
 .an__rail select { width: 100%; margin-bottom: 4px; }
 
 /* The rail's scope bar (flyout_resize_annotator_filter_and_deselect,
@@ -61,18 +107,19 @@ body {
    by clicking through from one element, so it is a label, not an alarm. */
 .an__filter {
   margin: 8px 0 0; padding: 6px 8px; border-radius: 4px;
-  background: #24282e; border: 1px solid #33383f; font-size: 12px;
+  background: #24282e; border: 1px solid #33383f; font-size: var(--t-meta);
 }
 .an__filter-note { color: #cfd3d8; }
 .an__filter-clear {
   display: block; margin-top: 6px; width: 100%;
   background: #3a4048; color: #e8e8e8; border: 1px solid #4a515a;
-  border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;
+  border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: var(--t-meta);
 }
 .an__filter-gap { margin-top: 6px; color: #d6b45b; line-height: 1.4; }
 
 .element-list { list-style: none; padding: 0; margin: 10px 0 0; }
 .el-row {
+  font-size: var(--t-dense);
   padding: 6px 8px;
   border-radius: 4px;
   margin-bottom: 4px;
@@ -102,7 +149,7 @@ body {
    (deliverable 5). A row with nothing wrong renders no badge at all, so there
    is no quiet variant of this to style. */
 .alertbadge {
-  flex: none; cursor: help; font-size: 12px; line-height: 1;
+  flex: none; cursor: help; font-size: var(--t-meta); line-height: 1;
   color: #d6b45b; padding: 2px 4px; border-radius: 3px;
 }
 .alertbadge:hover, .alertbadge:focus {
@@ -116,7 +163,7 @@ body {
   background: #24282e; color: #e8e8e8;
   border: 1px solid #4a515a; border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
-  padding: 8px 10px; font-size: 12px; line-height: 1.45;
+  padding: 8px 10px; font-size: var(--t-meta); line-height: 1.45;
 }
 .alertpop ul { list-style: none; margin: 0; padding: 0; }
 .alertpop li + li { margin-top: 6px; }
@@ -131,7 +178,13 @@ body {
   display: flex; align-items: center; justify-content: center;
   text-align: center; padding: 24px;
   color: #d6b45b; background: rgba(27, 30, 34, 0.9);
-  font-size: 13px; line-height: 1.5;
+  /* Body size, and CENTRED on purpose -- the one place in either app where
+     centred text survived this pass. The house rule forbids centred PROSE; a
+     one-sentence notice placed in the middle of an otherwise empty canvas, to
+     say why the canvas is empty, is a label on a void and reads as one. There
+     is also nothing to left-align it against: the box it sits in is the canvas,
+     and the canvas has no text. */
+  font-size: var(--t-body); line-height: 1.5;
 }
 
 .an__console {
@@ -144,14 +197,14 @@ body {
   border-radius: 4px; padding: 4px 8px; font-family: monospace;
 }
 .an__console pre {
-  margin: 0; font-size: 11px; color: #9aa1ab; overflow-y: auto; flex: 1;
+  margin: 0; font-size: var(--t-meta); color: #9aa1ab; overflow-y: auto; flex: 1;
   white-space: pre-wrap;
 }
 
 .parts-panel { list-style: none; padding: 0; margin: 10px 0 0; }
 .part-row {
   display: flex; align-items: center; gap: 6px;
-  padding: 4px 0; font-size: 12px;
+  padding: 4px 0; font-size: var(--t-meta);
 }
 .part-row__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -159,23 +212,47 @@ body {
   padding: 12px;
   overflow-y: auto;
   border-left: 1px solid #33383f;
-  font-size: 13px;
+  font-size: var(--t-dense);
   line-height: 1.5;
 }
-.an__detail h3 { margin-top: 0; }
+/* The detail pane's title: the element's name. Explicit, because the browser's
+   own `h3` default is 1.17em of whatever it inherits -- which made it 15.2px
+   here, a size on no scale, arrived at by accident. */
+.an__detail h3 {
+  margin: 0 0 8px; font-size: var(--t-title); font-weight: 600; color: #e8e8e8;
+}
+/* Whose face this element already has, and why a binding here will not supply
+   a value. A SPINE and a wash since 2026-09-17, where it was a filled dark-red
+   panel with pink text: it is the pane's most important sentence and it is
+   still the only coloured one, but it is information a reader acts on, not an
+   error they caused -- and a filled red block is the loudest thing this app can
+   draw. Same shape the viewer gives its own chain-level warnings
+   (`.tvwarn--unverified`), so a reader who has learned one has learned this. */
 .precedence-note {
-  background: #4d2323;
-  color: #f0b3b3;
-  padding: 8px;
-  border-radius: 4px;
+  margin: 0 0 10px;
+  border-left: 3px solid #d65b5b;
+  background: rgba(214, 91, 91, .12);
+  color: #e8e8e8;
+  padding: 6px 10px;
+  border-radius: 0 4px 4px 0;
 }
 .read-only-note { color: #d6b45b; }
+/* Whether a face has been picked. Grey: with no pick it is an ABSENCE, and with
+   one it is context for the form below it -- secondary either way, and it was
+   reading as the pane's headline because it was the only unstyled paragraph in
+   a pane where everything else is coloured. */
+.an__pick { color: #9aa1ab; }
 
 .bind-form, .owner-not-in-set-form {
   border-top: 1px solid #33383f;
   margin-top: 10px;
   padding-top: 10px;
 }
-.bind-form label, .owner-not-in-set-form label { display: block; font-size: 11px; color: #9aa1ab; margin-top: 6px; }
+.bind-form label, .owner-not-in-set-form label { display: block; font-size: var(--t-micro); color: #9aa1ab; margin-top: 6px; }
 .bind-form select, .bind-form input, .owner-not-in-set-form input { width: 100%; margin-bottom: 4px; }
-.bind-form button, .owner-not-in-set-form button { margin-top: 6px; width: 100%; }
+/* Full width, deliberately, against the `align-self: flex-start` the shared
+   button rule sets: here the button IS the form's submit and spanning the
+   form is what says so. */
+.bind-form button, .owner-not-in-set-form button {
+  margin-top: 6px; width: 100%; align-self: stretch;
+}

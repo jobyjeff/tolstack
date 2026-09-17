@@ -99,16 +99,25 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 .navtree__item { margin-bottom: 2px; }
 .navtree__row {
   display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
-  padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: var(--t-dense);
 }
 .navtree__row:hover { background: #20242c; }
 .navtree__row--on { background: #202634; outline: 1px solid var(--accent); }
 .navtree__row--topology { font-weight: 600; }
-.navtree__row--study { font-size: 12px; }
+/* A study's and a stack's own name is the STRUCTURE of this menu, so it reads
+   at the dense data size rather than a step below it (design_pass_typography,
+   2026-09-17). It was 12px under a row of 10px filled badges, which is the
+   "secondary info smaller-and-bolder" inversion the house rules name: the
+   badges were the biggest-feeling thing in a 300px rail and the names a reader
+   navigates by were the quietest. */
+.navtree__row--study { font-size: var(--t-dense); }
 .navtree__row--warn { color: var(--inferred); }
-.navtree__row--stack { font-size: 12px; }
+.navtree__row--stack { font-size: var(--t-dense); }
 .navtree__label { flex: 1 1 auto; min-width: 0; }
-.navtree__id { color: var(--accent); font-size: 11px; }
+/* A topology's own id: metadata under its name, so grey. It was the accent,
+   which put the selection colour on every topology row at rest -- the one
+   colour this page uses to mean "this, and not the others". */
+.navtree__id { color: var(--muted); font-size: var(--t-micro); }
 .navtree__chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; flex-basis: 100%; }
 
 /* --- the toolbar: layout mode, row density, annotate — display preference,
@@ -117,6 +126,23 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 .tv__toolbar {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel2);
+}
+
+/* Quiet controls (design_pass_typography, 2026-09-17). These five are display
+   PREFERENCES -- row density, labelled rows, bar lengths, leader style, the 3D
+   launch -- and each one names its own current setting, so the strip is five
+   filled grey slabs sitting above the diagram a reader came to look at. Flat
+   and borderless at rest, with the affordance arriving on hover and on
+   focus-visible: the keyboard half is not decoration, since a border that only
+   appears under a pointer leaves a reader tabbing through invisible controls.
+   `button.ghost`'s own fill (style.css) is what this overrides, and only here
+   -- the topbar's and the banner's ghost buttons are ACTIONS and keep it. */
+.tv__toolbar button.ghost {
+  background: none; border: 1px solid transparent; color: var(--muted);
+}
+.tv__toolbar button.ghost:hover,
+.tv__toolbar button.ghost:focus-visible {
+  background: #363b45; border-color: var(--line); color: var(--ink);
 }
 
 /* The joint block's mount (deliverable 4): horizontal inset matches the
@@ -217,7 +243,7 @@ body { display: flex; flex-direction: column; }
   display: flex; position: sticky; top: 0; z-index: 2;
   width: max-content; min-width: 100%;
   background: var(--panel); border-bottom: 1px solid var(--line);
-  color: var(--muted); font-size: 11px; text-transform: uppercase;
+  color: var(--muted); font-size: var(--t-micro); text-transform: uppercase;
   letter-spacing: .04em; height: 26px; line-height: 25px;
 }
 .tv__body { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
@@ -441,7 +467,7 @@ body { display: flex; flex-direction: column; }
 .tvrow--band-a { background-color: var(--tv-band-a); }
 .tvrow--band-b { background-color: var(--tv-band-b); }
 .tvrow:hover { background-color: #20242c; }
-.tvrow--edge { font-size: 13px; }
+.tvrow--edge { font-size: var(--t-dense); }
 /* A component group's first row: the seam a leader points at. box-shadow, not
    border-top — a cell border participates in the table's row-height sizing
    (this file's own collapsed-border lesson, above) and a shadow never does,
@@ -462,7 +488,7 @@ body { display: flex; flex-direction: column; }
 .tvrow--derived { font-style: italic; }
 .tvrow--closes .tvcell--name::after {
   content: " ↰ closes back to an interface above";
-  color: var(--muted); font-size: 11px;
+  color: var(--muted); font-size: var(--t-micro);
 }
 
 .tvcell {
@@ -481,16 +507,24 @@ body { display: flex; flex-direction: column; }
 /* The merged component column (viewer_leader_line_grid): one cell per
    contiguous same-part run, rowspanned over its tolerance sub-rows. Top-
    aligned so the label sits at the seam its leader points at. */
+/* Monospaced until 2026-09-17, which said "code" about a column holding
+   "propeller hub", "pitch link", "blade root" and "— across a clearance —".
+   The part NUMBERS that share the column ("208510-007 variable pitch actuator")
+   were the argument for it, and `tabular-nums` keeps those aligned without
+   spending a whole column's legibility on them: at 11px the proportional face
+   fits noticeably more of a long part name before `.tvcell`'s ellipsis, which
+   is the complaint this column has drawn twice. */
 .tvcell--component {
-  color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace;
+  color: var(--muted); font-size: var(--t-micro);
+  font-variant-numeric: tabular-nums;
   vertical-align: top; cursor: default;
 }
 .tvcell--ord {
   text-align: right; color: var(--accent);
-  font-family: ui-monospace, monospace; font-size: 11px;
+  font-family: ui-monospace, monospace; font-size: var(--t-micro);
 }
-.tvcell--nominal, .tvcell--min, .tvcell--max { font-size: 12px; }
-.tvcell--contribution { font-size: 12px; }
+.tvcell--nominal, .tvcell--min, .tvcell--max { font-size: var(--t-meta); }
+.tvcell--contribution { font-size: var(--t-meta); }
 /* The ELEMENT column is the resizable one (viewer_leader_grid_legibility).
    Jeff: "the descriptions get truncated and there's no way to see the entire
    text without clicking and expanding the preview." Widening is the ONLY
@@ -545,18 +579,26 @@ body { display: flex; flex-direction: column; }
    (The trigger lives in the crop column now — viewer_leader_line_grid — but
    the sizing constraint is the same one.) */
 .tvcell--crop .crop-trigger {
-  margin-top: 0; padding: 1px 6px; font-size: 10px; line-height: 1.3;
+  margin-top: 0; padding: 1px 6px; font-size: var(--t-micro); line-height: 1.2;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tvcell--crop .crop-trigger.crop-trigger--thumb { padding: 0; }
 .tvrow__weight { color: var(--accent); margin-right: 4px; }
 
+/* The grid's own chips. Outlined, all of them, under the one fill rule at the
+   head of style.css's chip block: a filled background belongs to provenance at
+   its two worst states and to a verdict, and none of these five is either.
+   `DERIVED` and `BRANCH POINT` were filled and 700 until 2026-09-17 -- both are
+   structural facts about a row, and a row states several of them at once. */
 .chip--gap { color: var(--zero); border-color: var(--zero); }
-.chip--derived { color: #0b1020; background: var(--zero); border-color: var(--zero); font-weight: 700; }
-.chip--branch { color: var(--accent); border-color: var(--accent); font-weight: 700; }
-.chip--transform { color: var(--accent); border-color: var(--accent); font-family: ui-monospace, monospace; }
+.chip--derived { color: var(--zero); border-color: var(--zero); font-weight: 600; }
+.chip--branch { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.chip--transform { color: var(--muted); border-color: var(--line); font-family: ui-monospace, monospace; }
 .chip--source { color: var(--muted); }
-.chip--unlabelled { color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700; }
+/* A value_source this build has no word for. Outlined like the rest, and the
+   claim is not weakened: it is the only magenta thing on a row that has no
+   citation chip of its own to carry the colour. */
+.chip--unlabelled { color: var(--nocite); border-color: var(--nocite); font-weight: 600; }
 
 /* --- the totals footer: a slim, always-visible strip --------------------
    Demoted from a 260px panel (deliverable 2, viewer_v2_single_nav): the
@@ -578,11 +620,11 @@ body { display: flex; flex-direction: column; }
 .tvtotals__span { white-space: nowrap; }
 .chip--total { font-family: ui-monospace, monospace; }
 .tvtotals__more { margin: 0 0 4px; }
-.tvtotals__more summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.tvtotals__more summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
 .tvtotals__rule { margin: 6px 0 0; }
 .tvtotals__note {
   margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--line);
-  color: var(--ink); font-size: 13px;
+  color: var(--ink); font-size: var(--t-dense);
 }
 
 /* A study that refuses to sum is a RESULT, and it gets the space of one. */
@@ -592,7 +634,7 @@ body { display: flex; flex-direction: column; }
 }
 .tverror__head { font-weight: 700; color: var(--inferred); }
 .tverror__type {
-  font-size: 12px; color: var(--muted); font-family: ui-monospace, monospace;
+  font-size: var(--t-meta); color: var(--muted); font-family: ui-monospace, monospace;
 }
 .tverror__message { margin: 6px 0; white-space: pre-wrap; }
 .tverror__advice { margin: 6px 0 0; color: var(--muted); }
@@ -706,18 +748,28 @@ body { display: flex; flex-direction: column; }
   position: static; max-height: none;
 }
 .detail__values { margin: 8px 0; }
-.detail__valrow { display: flex; gap: 10px; font-size: 13px; }
+.detail__valrow { display: flex; gap: 10px; font-size: var(--t-dense); }
 .detail__vallabel { width: 110px; flex: none; color: var(--muted); }
 .detail__valnum { font-variant-numeric: tabular-nums; }
 .detail__transform {
-  margin: 8px 0; color: var(--muted); font-size: 12px;
+  margin: 8px 0; color: var(--muted); font-size: var(--t-meta);
   font-family: ui-monospace, monospace;
 }
+/* A 3px SPINE in the accent, not a 1px ring around the whole box (2026-09-17).
+   The accent is right here -- this block is the SELECTED study's own reading of
+   the edge, and the selected study's path is what the accent means on this page
+   -- but a full ring is a box drawn inside a pane that is already a box, and it
+   was reading as the loudest thing in the pane. The tinted background says
+   "this is a block"; the spine says which block. */
 .detail__contribution {
-  margin: 10px 0; padding: 8px 10px; border: 1px solid var(--accent);
-  border-radius: 6px; background: #1b2028;
+  margin: 10px 0; padding: 8px 10px 8px 12px;
+  border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+  background: #1b2028;
 }
-.detail__contribution h4 { margin: 0 0 6px; font-size: 13px; }
+.detail__contribution h4 {
+  margin: 0 0 6px; font-size: var(--t-meta); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); font-weight: 600;
+}
 .detail__citation { margin-top: 10px; }
 .detail__untraced { color: var(--untraced); font-weight: 600; margin-top: 4px; }
 .detail__crop--no-key { opacity: .85; }
@@ -775,14 +827,14 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line);
 }
-.flyout__head h2 { margin: 0; font-size: 14px; flex: 1; }
+.flyout__head h2 { margin: 0; font-size: var(--t-body); flex: 1; }
 /* Out to the whole annotator in its own tab (Jeff: "There can be a separate
    link that opens the full viewer (with the full fledged menus etc) in a
    separate tab/page"). A plain <a target="_blank">, carrying the same params
    the panel booted with -- the same href VA.annotateLink builds for every
    other route into that app. */
 .flyout__fullpage {
-  color: var(--accent); font-size: 12px; text-decoration: none; white-space: nowrap;
+  color: var(--accent); font-size: var(--t-meta); text-decoration: none; white-space: nowrap;
 }
 .flyout__fullpage:hover, .flyout__fullpage:focus { text-decoration: underline; }
 /* The flyout's own drag divider, on the edge away from the dock -- so the
@@ -851,10 +903,16 @@ body.flyout-open .navtree { display: none; }
    and opening the worksheet can no longer compete with the DAG pane for
    height — a dialog sits in the browser's top layer, entirely outside
    `.tv`'s box model. */
+/* Body size, not the dense data size, since 2026-09-17: these two dialogs are
+   the only surfaces on this page that are nothing but PROSE -- ten explanatory
+   bullets and a whole worksheet -- and prose reads at body size. The 640px cap
+   was chosen against 13px and lands at roughly 100 characters a line, past the
+   90 the house rule allows; at body size the same width is about 90, so the
+   measure is fixed by the step rather than by a second number. */
 dialog#legend-dialog, dialog#worksheet-dialog {
   background: var(--panel); color: var(--ink); border: 1px solid var(--line);
   border-radius: 10px; padding: 16px 20px; width: 90vw; max-width: 640px;
-  max-height: 80vh; overflow: auto; font-size: 13px;
+  max-height: 80vh; overflow: auto; font-size: var(--t-body);
 }
 dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   background: rgba(0, 0, 0, .55);
@@ -863,7 +921,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 12px; margin-bottom: 10px;
 }
-.tv__legend-head h2, .worksheet-dialog__head h2 { margin: 0; font-size: 16px; }
+.tv__legend-head h2, .worksheet-dialog__head h2 { margin: 0; font-size: var(--t-title); }
 #legend-dialog ul { margin: 0; padding-left: 20px; }
 #legend-dialog li { margin-bottom: 8px; }
 #worksheet-dialog { width: 90vw; max-width: 900px; }
@@ -886,8 +944,8 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    `--error` are states a verdict cannot express, and they are styled to read as
    "there is no answer here" rather than as a quiet pass. */
 .tvverdict {
-  font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
-  font-size: 11px; padding: 2px 9px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  font-size: var(--t-micro); padding: 2px 9px;
 }
 .tvverdict--pass { color: #fff; background: var(--pass); border-color: var(--pass); }
 .tvverdict--marginal { color: #0b1020; background: var(--marginal); border-color: var(--marginal); }
@@ -904,12 +962,38 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   outline: 2px dashed var(--inferred); outline-offset: 1px;
 }
 
-/* The attention flags. Filled for the same reason `.conf--untraced` is: these
-   have to survive a glance across a 43-row grid and a 20-study nav rail. */
-.tvflag { font-weight: 700; font-size: 10px; text-transform: uppercase; }
-.tvflag--unverified { color: #fff; background: var(--untraced); border-color: var(--untraced); }
-.tvflag--no_tolerance { color: #0b1020; background: var(--zero); border-color: var(--zero); }
-.tvflag--incomplete { color: #0b1020; background: var(--inferred); border-color: var(--inferred); }
+/* The attention flags. OUTLINED since 2026-09-17 (design_pass_typography),
+   where they were filled, 10px and 700 -- and this is a re-tuning of the
+   2026-09-15 decision above, not a reversal of it.
+   Jeff, 2026-09-16: "Left side menu is now impressively 'loud'… Styling for
+   the alert text themselves can then be a bit less obnoxious/overwhelming."
+   What stands: a flag is never omitted, it keeps the colour of the thing it is
+   about, and it keeps its uppercase (it is a tiny label, which is the one place
+   the house rule allows all-caps).
+   What changed is only the weight, the size and the fill:
+     * NOT FILLED. A filled badge is the loudest mark this app has, and it was
+       spent three times on one nav row -- measured on `pitch_system`, 61 filled
+       marks in a 300px rail at rest, against 20 study names. Three of anything
+       loudest is a budget spent into nothing: the reader sees a red wall and
+       reads neither the flag nor the name. Filled is now reserved for the two
+       marks that earn it -- an untraced value (`.chip.conf--untraced`) and a
+       verdict, which is the answer;
+     * 11px, not 10px, and 600, not 700. Smaller-and-bolder is how this rail
+       said "secondary"; the flags are now the same micro size as every other
+       tiny label in both apps, and the emphasis they need comes from their
+       colour and their outline instead of from a third axis.
+   A flag still survives a glance -- a red outlined pill on a grey row is the
+   only coloured thing on it. It just no longer survives at the cost of the row
+   it sits on. Consolidating the three into ONE badge is a separate, open
+   question and deliberately not done here:
+   ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud. */
+.tvflag {
+  font-weight: 600; font-size: var(--t-micro); text-transform: uppercase;
+  letter-spacing: .04em; background: none;
+}
+.tvflag--unverified { color: var(--untraced); border-color: var(--untraced); }
+.tvflag--no_tolerance { color: var(--zero); border-color: var(--zero); }
+.tvflag--incomplete { color: var(--inferred); border-color: var(--inferred); }
 
 /* The per-check block under the totals strip: verdict, what it means, and by
    how much — then, where the chain is short a term, WHAT is missing, above the
@@ -931,17 +1015,28 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvverdict-card__head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .tvverdict-card__says { font-weight: 600; }
 .tvverdict-card__margin { font-family: ui-monospace, monospace; color: var(--accent); }
-.tvverdict-card__label { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.tvverdict-card__label { margin-top: 4px; color: var(--muted); font-size: var(--t-dense); }
 .tvverdict-card__missing { margin-top: 8px; }
-.tvverdict-card__missinghead { margin: 0; font-size: 13px; }
+.tvverdict-card__missinghead { margin: 0; font-size: var(--t-dense); }
 .tvverdict-card__missinglist { margin: 4px 0 0; padding-left: 20px; }
 .tvverdict-card__more { margin-top: 6px; }
-.tvverdict-card__more summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.tvverdict-card__more summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
+
+/* A MEASURE on every run of prose the totals block stacks (2026-09-17). This
+   block sits under a grid that is as wide as the window allows, so its
+   sentences inherited that width: at 1600px with the preview pane open, a
+   `.tvgaps__item` ran about 110 characters and `pitch_system` shows 38 of them
+   at once. `ch` rather than px for the reason `.worksheet__body`'s cap uses it:
+   the rule the house states is a character count. Left-aligned and capped, not
+   centred -- a centred paragraph is the other half of that rule. */
+.tvgaps__item, .tvverdicts__none, .tvverdict-card__label, .tvtotals__rule,
+.tvtotals__note, .tvwarn, .tverror__message, .tverror__advice,
+.tvgaps__closes { max-width: 84ch; }
 
 /* The two chain-level warnings. Not `.muted`: a lower bound presented quietly
    is a number a reader takes at face value. */
 .tvwarn {
-  margin: 6px 0; padding: 6px 10px; border-radius: 0 6px 6px 0; font-size: 13px;
+  margin: 6px 0; padding: 6px 10px; border-radius: 0 6px 6px 0; font-size: var(--t-dense);
 }
 .tvwarn--lower-bound {
   border-left: 3px solid var(--zero); background: rgba(122, 167, 214, .12);
@@ -961,10 +1056,10 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   font-weight: 600; padding: 4px 0;
 }
 .tvgaps__group { margin: 10px 0 0; padding-left: 10px; border-left: 2px solid var(--line); }
-.tvgaps__heading { margin: 0; font-size: 13px; }
-.tvgaps__closes { margin: 2px 0 4px; font-size: 12px; }
+.tvgaps__heading { margin: 0; font-size: var(--t-dense); }
+.tvgaps__closes { margin: 2px 0 4px; font-size: var(--t-meta); }
 .tvgaps__list { margin: 0; padding-left: 18px; }
-.tvgaps__item { font-size: 13px; margin-bottom: 3px; }
+.tvgaps__item { font-size: var(--t-dense); margin-bottom: 3px; }
 .tvgaps__where { color: var(--accent); margin-right: 6px; }
 
 /* The study-level flags, on their own line under the strip. They wrap; the

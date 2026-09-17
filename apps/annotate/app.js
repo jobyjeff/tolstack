@@ -677,6 +677,9 @@ function renderDetail() {
   }
 
   const pickP = document.createElement("p");
+  // A class so the stylesheet can say what this line is: secondary either way
+  // (design_pass_typography). Styling only -- the words are unchanged.
+  pickP.className = "an__pick";
   pickP.textContent = state.currentPick
     ? "Picked: part " + state.currentPick.sha256.slice(0, 12) + "…, face " + state.currentPick.faceId
     : "No face picked yet -- click a face in the 3D view.";

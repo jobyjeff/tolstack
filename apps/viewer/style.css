@@ -10,6 +10,23 @@
    deliberately NOT a categorical palette so they cannot compete with them.
    apps/viewer/topology.css holds that page's own rules. */
 :root {
+  /* THE TYPE SCALE (design_pass_typography, 2026-09-17), and its one home.
+     Six steps, each with a job; a seventh step is not a design decision, it is
+     a rule that got written without checking what was already there, which is
+     how this file came to declare nine sizes (10..18px) for six kinds of text.
+     docs/DESIGN_TYPE_AND_COLOUR.md explains the roles and states no numbers of
+     its own; tests/test_app_type_scale.py pairs every stylesheet in both apps
+     against THESE declarations and refuses a bare px font-size anywhere, so
+     the scale cannot be widened by accident. apps/annotate/style.css declares
+     the same six -- deliberately by copy and not by import, because the two
+     apps share no stylesheet on purpose (see that file's header), and the test
+     is what keeps the copies equal. */
+  --t-micro: 11px;   /* a tiny label: a column header, a chip, an id */
+  --t-meta:  12px;   /* metadata, a caption, a fold's summary, a section label */
+  --t-dense: 13px;   /* a data row -- tighter than prose, still scannable */
+  --t-body:  14px;   /* body, and every run of real prose */
+  --t-title: 16px;   /* the title of a pane or a dialog */
+  --t-page:  18px;   /* the page's own name, once */
   --bg: #16181d; --panel: #1e2128; --panel2: #12141a; --ink: #e6e8ec;
   --muted: #9aa1ac; --accent: #6ea8fe; --on: #2b6cb0; --line: #2b2f38;
   /* The provenance palette. These three are the whole point of the app, so
@@ -36,13 +53,27 @@ html { scrollbar-color: var(--muted) var(--panel2); scrollbar-width: thin; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
-  font: 14px/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
+  font: var(--t-body)/1.5 system-ui, -apple-system, Segoe UI, sans-serif;
 }
 code, .num { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
-h1 { font-size: 18px; margin: 0; }
-h2 { font-size: 17px; margin: 0 0 4px; }
-h3 { font-size: 15px; margin: 22px 0 8px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
-.muted { color: var(--muted); font-size: 13px; }
+h1 { font-size: var(--t-page); margin: 0; }
+h2 { font-size: var(--t-title); margin: 0 0 4px; }
+/* `h3` is a SECTION LABEL, not a heading a reader stops at: "Elements",
+   "Materials", "Paths", "Checks", "Gaps", "Notes" (views/stack.js). So it is a
+   tiny uppercase label with room above it and nothing else -- the 22px margin
+   is what separates the sections, not a size step and not a rule (whitespace
+   before chrome). It was 15px ALL-CAPS until 2026-09-17, which is the one
+   treatment the house rule names outright: all-caps is for tiny labels, and at
+   15px it also had to shout down the table beneath it.
+
+   The SAME `h3` element carries the preview pane's element name, which is the
+   opposite kind of thing -- a title, and sentence-long -- so that one has its
+   own rule (`.detail__head h3`, below) rather than both sharing a compromise. */
+h3 {
+  font-size: var(--t-meta); margin: 22px 0 8px; letter-spacing: .06em;
+  font-weight: 600; text-transform: uppercase; color: var(--muted);
+}
+.muted { color: var(--muted); font-size: var(--t-dense); }
 a { color: var(--accent); }
 
 .topbar {
@@ -50,7 +81,7 @@ a { color: var(--accent); }
   padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
   position: sticky; top: 0; z-index: 5;
 }
-.topbar .sub { color: var(--muted); font-size: 12px; }
+.topbar .sub { color: var(--muted); font-size: var(--t-meta); }
 .topbar__spacer { flex: 1; }
 
 button {
@@ -61,7 +92,7 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 
 .banner {
   padding: 8px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-  border-bottom: 1px solid var(--line); background: var(--panel2); font-size: 13px;
+  border-bottom: 1px solid var(--line); background: var(--panel2); font-size: var(--t-dense);
 }
 .banner--disconnected { border-bottom-color: var(--accent); }
 .banner--needs-regrant { border-bottom-color: var(--inferred); }
@@ -71,7 +102,7 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 .banner--unpublished { border-bottom-color: var(--line); }
 .banner__action { margin-left: auto; }
 .banner__error { flex-basis: 100%; color: var(--untraced); }
-.banner__crash-hint { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+.banner__crash-hint { flex-basis: 100%; color: var(--muted); font-size: var(--t-meta); }
 .banner__built { color: var(--muted); font-variant-numeric: tabular-nums; }
 /* The one fold on the bar (viewer_hover_deslop_and_banner_purge, 2026-09-16):
    five rows of build stamps became one closed <details> wearing the same word
@@ -80,27 +111,27 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
    the bar's first line with the Reload button, not a row of its own, and a
    full-width row is exactly what it stopped being. The body opens beneath as
    a full-width row all the same, because the lines inside it are long. */
-.banner__source { color: var(--muted); font-size: 12px; }
+.banner__source { color: var(--muted); font-size: var(--t-meta); }
 .banner__source__summary { cursor: pointer; list-style: none; }
 .banner__source__summary::-webkit-details-marker { display: none; }
 .banner__source__summary::before { content: "▸  "; }
 .banner__source[open] .banner__source__summary::before { content: "▾  "; }
 .banner__source[open] { flex-basis: 100%; }
 .banner__source__body { margin: 4px 0 2px; }
-.banner__transport { color: var(--muted); font-size: 12px; }
+.banner__transport { color: var(--muted); font-size: var(--t-meta); }
 .banner__missing { flex-basis: 100%; border-left: 3px solid var(--inferred); padding: 6px 10px; }
 /* Which tree built each projection. Quiet by default — it is context, not an
    alarm — but the alarm above it is loud, because a projection built from a
    superseded branch looked exactly like a current one for six hours. */
 .banner__provenance {
-  flex-basis: 100%; color: var(--muted); font-size: 12px;
+  flex-basis: 100%; color: var(--muted); font-size: var(--t-meta);
   font-variant-numeric: tabular-nums; word-break: break-all;
 }
 /* Which RULE resolved each crop. Same quiet register as the tree line — it
    is the answer to "why did the resolved count change", read after the
    counts, not instead of them. */
 .banner__crop-rules {
-  flex-basis: 100%; color: var(--muted); font-size: 12px;
+  flex-basis: 100%; color: var(--muted); font-size: var(--t-meta);
   font-variant-numeric: tabular-nums;
 }
 .banner__stale {
@@ -115,7 +146,7 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
    against the standing rule twice over. */
 .banner__cmd {
   display: inline-block; margin-top: 5px; background: var(--bg);
-  padding: 3px 7px; border-radius: 4px; font-size: 12px; color: var(--ink);
+  padding: 3px 7px; border-radius: 4px; font-size: var(--t-meta); color: var(--ink);
 }
 .banner__rebuild {
   margin-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
@@ -131,29 +162,84 @@ main { display: flex; align-items: flex-start; gap: 0; }
    still to reuse. */
 .sv__chips { display: flex; flex-wrap: wrap; gap: 4px; }
 
-/* --- chips ----------------------------------------------------------- */
+/* --- chips -----------------------------------------------------------
+   ONE RULE ABOUT FILL, settled 2026-09-17 (design_pass_typography) and the
+   thing to read before adding a chip: a FILLED chip -- a background of its own
+   -- is reserved for exactly two claims, and every other chip is outlined in
+   its own hue.
+
+     1. PROVENANCE at its two worst states: `.chip.conf--untraced` and
+        `.chip.conf--no_source_ref`. Nothing being invented is the reason this
+        repo exists, so these are the app's loudest mark by design.
+     2. THE ANSWER: a verdict (`.verdict--*` here, `.tvverdict--*` in
+        topology.css). A verdict is what the reader came for, not an alarm
+        about it.
+
+   Everything else is a QUALIFIER of one of those two -- a budget scope, a
+   sensitivity probe, a values status, an attention flag -- and a qualifier
+   rendered as loudly as the thing it qualifies leaves a reader unable to tell
+   which is which. Measured before this pass, on `pitch_system`: 61 filled
+   marks in the 300px nav rail and 50 in one stack view, which is the state
+   Jeff's note describes ("impressively 'loud'"). Emphasis is a budget; two
+   claims spend it.
+
+   The one deliberate exception is marked where it sits: the dead
+   `.chip--export-*` selectors below are a RECORD of a retired treatment and
+   are not re-tuned. */
 .chip {
-  font-size: 11px; padding: 1px 7px; border-radius: 10px;
+  font-size: var(--t-micro); padding: 1px 7px; border-radius: 10px;
   border: 1px solid var(--line); white-space: nowrap;
 }
-.conf--traced   { color: var(--traced);   border-color: var(--traced); }
-.conf--inferred { color: var(--inferred); border-color: var(--inferred); }
+/* SCOPED TO `.chip` since 2026-09-17 (design_pass_typography), and the scope
+   is the fix rather than tidiness. `VA.confidenceClass()` returns one of these
+   four names and FOUR kinds of element wear the result: a chip
+   (`span.chip conf--*`), a table row (`tr.el-row conf--*`, `tr.mat-row`,
+   `tr.tvrow--edge`), and an SVG bar (`line.rail__bar conf--*`, which takes its
+   `stroke` from topology.css and has no text at all). Unscoped, the two filled
+   rules below handed every CELL of an untraced row `color: #fff` and
+   `font-weight: 700` by inheritance -- measured on `pitch_system`, 8 of the
+   grid's first 10 rows, and both of the materials table's, rendered entirely
+   in 700-weight white. Nothing asked for that: `font-weight: 700` was written
+   for a 11px pill and arrived on an 11-column row of numbers.
+
+   The row's provenance is not lost by scoping, because it was never carried by
+   the text: a row says what it is three other ways -- the 3px spine in
+   `td:first-child`, the background tint, and the confidence chip in its own
+   source column. What it gains is a readable weight for the DATA, which is the
+   only thing on the row a reader came for. */
+.chip.conf--traced   { color: var(--traced);   border-color: var(--traced); }
+.chip.conf--inferred { color: var(--inferred); border-color: var(--inferred); }
 /* untraced / no-citation are FILLED, not outlined: an untraced value has to
-   be impossible to miss at a glance across a 30-row table. */
-.conf--untraced { color: #fff; background: var(--untraced); border-color: var(--untraced); font-weight: 700; }
-.conf--no_source_ref { color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700; }
-.conf--unknown { color: var(--muted); }
+   be impossible to miss at a glance across a 30-row table. These two and the
+   verdict badge are the ONLY filled marks left in the app after 2026-09-17 --
+   provenance and the answer -- which is what makes them findable. */
+.chip.conf--untraced { color: #fff; background: var(--untraced); border-color: var(--untraced); font-weight: 700; }
+.chip.conf--no_source_ref { color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700; }
+.chip.conf--unknown { color: var(--muted); }
 .chip--kind { color: var(--muted); font-family: ui-monospace, monospace; }
 .chip--zero-width { color: var(--zero); border-color: var(--zero); border-style: dashed; }
-.chip--budget { color: #0b1020; background: var(--inferred); border-color: var(--inferred); font-weight: 700; }
-.chip--material { color: var(--accent); border-color: var(--accent); font-family: ui-monospace, monospace; }
+.chip--budget { color: var(--inferred); border-color: var(--inferred); font-weight: 600; }
+/* Both were accent-coloured until 2026-09-17 and neither is a state: a
+   material KEY and "authored in the topology" are metadata, and metadata is
+   grey (the house rule). The accent is spent on exactly two things on these
+   pages -- what is selected, and the selected study's path -- and a chip
+   sitting beside an UNTRACED badge wearing the selection colour was the third
+   claimant. The key keeps its monospace: `AL_7050_T7451` is an id. */
+.chip--material { color: var(--muted); font-family: ui-monospace, monospace; }
 .chip--corner { color: var(--muted); border-style: dashed; }
-.chip--generated { color: var(--accent); border-color: var(--accent); }
-.chip--sensitivity { color: #0b1020; background: var(--marginal); border-color: var(--marginal); font-weight: 700; }
+.chip--generated { color: var(--muted); }
+/* A probe's "NOT A RESULT" and a check's budget scope both QUALIFY the
+   verdict badge they sit beside, so they are outlined where the verdict is
+   filled -- the same relationship `.tvverdict--qualified` (topology.css)
+   already draws with a dashed outline around a filled badge. */
+.chip--sensitivity { color: var(--marginal); border-color: var(--marginal); font-weight: 600; }
 /* A weighted term is monospaced so "+ 2.0010712 × sleeve_wall" lines up
    against its neighbours — the digits are the reason the chip exists. */
 .chip--weighted { font-family: ui-monospace, monospace; }
-.chip--gap-excluded_from_model { color: #fff; background: var(--untraced); border-color: var(--untraced); }
+/* A gap item's own kind marker. Outlined: it labels a line in a list that is
+   ALREADY entirely about what is missing, so a filled red pill on every
+   entry says nothing the list does not. */
+.chip--gap-excluded_from_model { color: var(--untraced); border-color: var(--untraced); }
 .chip--gap-hardware_entry { color: var(--muted); }
 /* FILLED, like an untraced value, and for the same reason: an unestablished
    export is the stack saying outright that the bytes behind this number
@@ -162,21 +248,36 @@ main { display: flex; align-items: flex-start; gap: 0; }
    transcribed and for a status this viewer cannot explain — a state we cannot
    name is not a state we may render quietly.
 
-   The `.chip--values-*` half is LIVE: the materials table still shouts a CTE
-   nobody transcribed from its own row (views/stack.js's
-   materialSourcingCell). The three `.chip--export-*` selectors are not, since
-   2026-09-16: the elements table rolled them into one `.chip--alert` badge
-   with the words on hover (flyout_resize_annotator_filter_and_deselect, Jeff's
-   "roll all the alert badges into one single alert badge"). They are kept, not
-   deleted, for two reasons — this is what that treatment looked like, beside
-   the sibling that still uses it, and tests/debug_flyout_and_alerts.mjs
-   reconstructs the previous row through these exact classes to shoot the
-   before/after pair. Deleting them would make that shot silently render
-   unstyled chips rather than fail. */
+   SPLIT IN TWO on 2026-09-17, because the two halves are no longer the same
+   kind of thing.
+
+   The three `.chip--export-*` selectors are DEAD, since 2026-09-16: the
+   elements table rolled them into one `.chip--alert` badge with the words on
+   hover (flyout_resize_annotator_filter_and_deselect, Jeff's "roll all the
+   alert badges into one single alert badge"). They are kept, not deleted,
+   because this is what that treatment looked like, and because
+   tests/debug_flyout_and_alerts.mjs reconstructs the previous row through
+   these exact classes to shoot its before/after pair -- deleting them would
+   make that shot silently render unstyled chips rather than fail. For the same
+   reason they are NOT re-tuned by this typography pass: their whole job is to
+   still render what the old row rendered, and an outlined version of them
+   would quietly rewrite the "before" half of a committed screenshot. */
 .chip--export-unestablished, .chip--export-unlabelled,
-.chip--export-identity_unlabelled,
-.chip--values-not_transcribed, .chip--values-unlabelled {
+.chip--export-identity_unlabelled {
   color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700;
+}
+/* ...and the `.chip--values-*` half is LIVE and IS re-tuned: the materials
+   table still states a CTE nobody transcribed from its own always-visible
+   source column (views/stack.js's materialSourcingCell), which is the literal
+   surface Jeff's sentence names -- "especially the ones in the source column
+   that are always visible". Outlined, not filled, for the rule above: the
+   confidence chip immediately beside it is already the filled magenta mark,
+   and one row was carrying that mark twice. Whether these words should be
+   rolled into the alert badge the elements table now uses is the open design
+   question, not this pass's:
+   ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud. */
+.chip--values-not_transcribed, .chip--values-unlabelled {
+  color: var(--nocite); border-color: var(--nocite); font-weight: 600;
 }
 .verdict { font-weight: 700; text-transform: uppercase; }
 .verdict--pass { color: #fff; background: var(--pass); border-color: var(--pass); }
@@ -196,23 +297,28 @@ main { display: flex; align-items: flex-start; gap: 0; }
    pointer events". `overflow-x: auto` gives the excess somewhere to go that
    does not require narrowing every column. */
 .stackview { padding: 14px 18px 20px; min-width: 0; overflow-x: auto; }
-.sv__meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; margin-bottom: 6px; }
+.sv__meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--t-meta); margin-bottom: 6px; }
 .sv__joint { margin: 12px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
 .sv__joint summary { cursor: pointer; color: var(--muted); }
 /* The sourcing rules, collapsed. Same affordance as the joint block, one size
    down: a reader needs the rule once, and a rule stated only in a lesson is a
    rule the next reader re-derives from a row that looks alarming. */
-.sv__legend { margin: 6px 0 10px; font-size: 12px; color: var(--muted); }
+.sv__legend { margin: 6px 0 10px; font-size: var(--t-meta); color: var(--muted); }
 .sv__legend summary { cursor: pointer; }
 .sv__legend li { margin: 4px 0; }
-.kv { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 3px 14px; margin: 8px 0 2px; font-size: 13px; }
-.kv dt { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
+.kv { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 3px 14px; margin: 8px 0 2px; font-size: var(--t-dense); }
+/* A LABEL, in words: `.kv dt` holds VA.fieldLabel(key), which humanises
+   `identification_note` into "identification note". Monospaced until
+   2026-09-17, which said "this is code" about the one half of the pair that
+   is not -- the VALUE beside it is the record's own text and keeps its
+   face. */
+.kv dt { color: var(--muted); font-size: var(--t-meta); }
 .kv dd { margin: 0; }
 .kv--tight { margin: 8px 0; }
 .plainlist { margin: 0; padding-left: 18px; }
 
-table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px;
+table { border-collapse: collapse; width: 100%; font-size: var(--t-dense); }
+th { text-align: left; color: var(--muted); font-weight: 600; font-size: var(--t-micro);
      text-transform: uppercase; border-bottom: 1px solid var(--line); padding: 4px 8px; }
 td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line); }
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -238,7 +344,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .el-row--zero-width .num--zero-width {
   color: var(--zero); border-bottom: 1px dashed var(--zero);
 }
-.el-row__name code { display: block; font-size: 11px; }
+.el-row__name code { display: block; font-size: var(--t-micro); color: var(--muted); }
 /* Grid-like rows: a fixed, compact source column instead of the multi-line
    composite cell this replaced (chips + where + callout + note + export
    block + crop trigger, up to 340px wide and tall enough to make the table
@@ -249,20 +355,20 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .el-row--selected { outline: 2px solid var(--accent); outline-offset: -1px; }
 .el-row__source { max-width: 260px; }
 .el-row__chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
-.el-row__where { font-size: 12px; color: var(--ink); }
+.el-row__where { font-size: var(--t-meta); color: var(--ink); }
 /* The one-line form used only by the elements table's compact cell — the
    materials table's `.el-row__where` (designation source) still wraps in
    full, so the ellipsis is a modifier, not the base rule. */
 .el-row__where--compact {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.el-row__callout { font-size: 12px; color: var(--muted); font-family: ui-monospace, monospace; margin-top: 3px; }
+.el-row__callout { font-size: var(--t-meta); color: var(--muted); font-family: ui-monospace, monospace; margin-top: 3px; }
 /* Clamped by default (click to expand) — see views/stack.js. Three of these
    now: the citation's own note, the export's, and a material's CINDAS
    request. Separate class names on purpose, so a selector for one never
    picks up another; one rule, because they read as one kind of thing. */
 .el-row__srcnote, .el-export__note, .mat-row__request {
-  font-size: 12px; color: var(--muted); margin-top: 3px; cursor: pointer;
+  font-size: var(--t-meta); color: var(--muted); margin-top: 3px; cursor: pointer;
   max-height: 4.6em; overflow: hidden; border-left: 2px solid var(--line); padding-left: 6px;
 }
 .el-row__srcnote--open, .el-export__note--open,
@@ -274,7 +380,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    reader consults, not an alarm. `--loud` inverts that — see the chip rules
    above for why. */
 .el-export {
-  margin-top: 5px; padding: 4px 0 2px 7px; font-size: 12px;
+  margin-top: 5px; padding: 4px 0 2px 7px; font-size: var(--t-meta);
   border-left: 2px solid var(--line);
 }
 .el-export--established { border-left-color: var(--traced); }
@@ -309,26 +415,26 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 /* The soak ranges a scalar CTE is APPLIED over, under the range the source
    quoted it for. Accent-coloured because the pair is the comparison, and the
    viewer states both without deciding whether one covers the other. */
-.mat-row__applied { color: var(--accent); font-size: 11px; margin-top: 2px; }
-.mat-row__values { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.mat-row__applied { color: var(--accent); font-size: var(--t-micro); margin-top: 2px; }
+.mat-row__values { color: var(--muted); font-size: var(--t-meta); margin-top: 3px; }
 .mat-row__values--loud { color: var(--nocite); font-weight: 600; }
 .mat-row__libref {
-  color: var(--accent); font-size: 12px; font-family: ui-monospace, monospace;
+  color: var(--accent); font-size: var(--t-meta); font-family: ui-monospace, monospace;
   margin-top: 3px;
 }
-.mat-row__desig { color: var(--ink); font-size: 12px; margin-top: 5px; }
-.el-note td { color: var(--muted); font-size: 12px; padding-top: 0; border-bottom: 1px solid var(--line); }
+.mat-row__desig { color: var(--ink); font-size: var(--t-meta); margin-top: 5px; }
+.el-note td { color: var(--muted); font-size: var(--t-meta); padding-top: 0; border-bottom: 1px solid var(--line); }
 .el-note--gap td { color: var(--inferred); }
 .el-gaps summary { cursor: pointer; }
 .el-gaps ul { margin: 4px 0 2px; }
 
-.crop-trigger { margin-top: 6px; font-size: 12px; padding: 3px 9px; background: var(--on); color: #fff; }
+.crop-trigger { margin-top: 6px; font-size: var(--t-meta); padding: 3px 9px; background: var(--on); color: #fff; }
 .crop-trigger--unresolvable, .crop-trigger--not-built, .crop-trigger--no-entry {
   background: transparent; color: var(--muted); border: 1px dashed var(--line);
 }
 
 .fold-row__label code { color: var(--accent); }
-.fold-note td { color: var(--zero); font-size: 12px; padding-top: 0; }
+.fold-note td { color: var(--zero); font-size: var(--t-meta); padding-top: 0; }
 
 .check {
   background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line);
@@ -339,7 +445,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    terms print directly under the numbers they are a budget for. */
 .check--budget { border-left-color: var(--inferred);
   background: repeating-linear-gradient(135deg, var(--panel), var(--panel) 10px, #23242a 10px, #23242a 20px); }
-.check__excluded { margin: 6px 0 0; font-size: 12px; display: flex; gap: 6px;
+.check__excluded { margin: 6px 0 0; font-size: var(--t-meta); display: flex; gap: 6px;
   flex-wrap: wrap; align-items: baseline; }
 .check__excludedlabel { color: var(--inferred); font-weight: 700;
   text-transform: uppercase; letter-spacing: .04em; }
@@ -348,24 +454,36 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    aside beside the cards that are, however loud its verdict chip is. */
 .check--sensitivity { border-left-color: var(--marginal); border-style: dashed;
   opacity: .88; }
-.check__note { font-size: 12px; color: var(--accent); border: 1px dashed var(--accent);
+.check__note { font-size: var(--t-meta); color: var(--accent); border: 1px dashed var(--accent);
   border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
 .check__corner { display: flex; gap: 5px; flex-wrap: wrap; margin: 4px 0 6px; }
 .check__head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.check__id { margin-left: auto; color: var(--muted); font-size: 12px; }
+.check__id { margin-left: auto; color: var(--muted); font-size: var(--t-meta); }
 .check__label { margin: 6px 0; font-weight: 600; }
 .check__numbers { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; }
 .check__num { display: flex; flex-direction: column; }
-.check__numlabel { font-size: 10px; text-transform: uppercase; color: var(--muted); }
+.check__numlabel {
+  font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted);
+}
 .check__numvalue { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-.check__warn { color: var(--zero); font-size: 12px; margin: 4px 0; }
+.check__warn { color: var(--zero); font-size: var(--t-meta); margin: 4px 0; }
 .check__inputs { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
-.check__guidance { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+.check__guidance { font-size: var(--t-dense); color: var(--muted); margin: 8px 0 0; }
+
+/* A MEASURE on the stack view's prose (design_pass_typography, 2026-09-17).
+   `.stackview` is as wide as the window leaves it, so every sentence in it
+   inherited that width -- a check's guidance, a gap's text, a note. Capped in
+   `ch`, because the cap the house rule states is a character count. The TABLES
+   are deliberately not capped: a column of numbers narrowed to 84 characters
+   is worse than a long line. */
+.check__guidance, .gap__text, .notelist li, .sv__legend li, .el-note td,
+.check__warn, .check__note { max-width: 84ch; }
 
 .gaplist, .notelist { margin: 0; padding-left: 0; list-style: none; }
 .gaplist li, .notelist li {
   background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  padding: 8px 10px; margin-bottom: 6px; font-size: 13px;
+  padding: 8px 10px; margin-bottom: 6px; font-size: var(--t-dense);
 }
 .gap--excluded_from_model { border-left: 3px solid var(--untraced); }
 .gap__text { margin-left: 8px; }
@@ -378,10 +496,20 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    <details>, so opening it can never shrink the DAG pane; `.worksheet` below
    is the content padding shared by both eras. */
 .worksheet { padding: 4px 0 16px; }
-.worksheet__path { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; margin-bottom: 8px; }
-.worksheet__note { color: var(--muted); font-size: 11px; margin: -4px 0 8px; }
-.worksheet__body { font-size: 13px; overflow-wrap: anywhere; }
-.worksheet__body table { font-size: 12px; }
+.worksheet__path { color: var(--muted); font-size: var(--t-meta); font-family: ui-monospace, monospace; margin-bottom: 8px; }
+.worksheet__note { color: var(--muted); font-size: var(--t-meta); margin: -4px 0 8px; }
+/* The worksheet is the only surface in either app that renders a whole
+   DOCUMENT, so it reads at body size with a measure rather than at the
+   dense size the data rows use. `max-width` in `ch` and not px: the cap the
+   house rule states is a character count, and `ch` is the one unit that
+   stays a character count when the size changes. Tables, code blocks and
+   images are exempt below -- a measure is for prose, and a column of
+   numbers clipped to 80ch is worse than a long line. */
+.worksheet__body { font-size: var(--t-body); overflow-wrap: anywhere; }
+.worksheet__body > p, .worksheet__body li, .worksheet__body blockquote {
+  max-width: 82ch;
+}
+.worksheet__body table { font-size: var(--t-meta); }
 .worksheet__body th, .worksheet__body td { border: 1px solid var(--line); padding: 3px 7px; }
 .worksheet__body code { background: var(--bg); padding: 1px 4px; border-radius: 3px; }
 .worksheet__body pre { background: var(--bg); padding: 8px; border-radius: 6px; overflow: auto; }
@@ -396,10 +524,18 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .detail {
   width: 520px; flex: none; border-left: 1px solid var(--line); background: var(--panel2);
   padding: 12px 16px 60px; position: sticky; top: 47px;
-  max-height: calc(100vh - 47px); overflow: auto; font-size: 13px;
+  max-height: calc(100vh - 47px); overflow: auto; font-size: var(--t-dense);
 }
 .detail__head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-.detail__head h3 { margin: 0; }
+/* The pane's TITLE, and the other job the `h3` element does here (see the
+   base rule at the top of this file): an element's name, sentence-long, in
+   sentence case. It was rendered ALL-CAPS at 15px by the base rule until
+   2026-09-17 -- "HUB LOWER BEARING FLANGE (A DATUM) TO TOP BEARING FLANGE",
+   which is a sentence shouted, not a label. */
+.detail__head h3 {
+  margin: 0; font-size: var(--t-title); font-weight: 600; color: var(--ink);
+  text-transform: none; letter-spacing: normal;
+}
 .detail__chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
 .detail__where { color: var(--ink); margin-bottom: 6px; }
 .detail__callout {
@@ -409,13 +545,13 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    citation's full written argument is supposed to live, not a preview of it. */
 .detail__note {
   margin-bottom: 10px; padding-left: 8px; border-left: 2px solid var(--line);
-  color: var(--ink);
+  color: var(--ink); max-width: 72ch;
 }
 .detail__crop { margin-top: 10px; }
 .detail__crop-img { display: block; width: 100%; background: #fff; border-radius: 4px; }
 .detail__crop-head { font-weight: 600; margin-top: 6px; }
-.detail__crop-reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
-.detail__crop-links { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.detail__crop-reason { color: var(--muted); font-size: var(--t-meta); margin: 4px 0; }
+.detail__crop-links { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--t-dense); }
 
 /* --- the folded provenance (VA.disclosure, views/dom.js) --------------
    ONE rule for every surface that folds something away, which today is the
@@ -424,13 +560,13 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    inside it is a fact a reader checks rather than reads. */
 .provfold { margin: 4px 0; }
 .provfold__summary {
-  cursor: pointer; color: var(--muted); font-size: 12px; list-style: none;
+  cursor: pointer; color: var(--muted); font-size: var(--t-meta); list-style: none;
 }
 .provfold__summary::-webkit-details-marker { display: none; }
 .provfold__summary::before { content: "▸  "; }
 .provfold[open] .provfold__summary::before { content: "▾  "; }
 .provfold__body {
-  color: var(--muted); font-size: 12px; margin: 3px 0 0 12px;
+  color: var(--muted); font-size: var(--t-meta); margin: 3px 0 0 12px;
   overflow-wrap: anywhere;
 }
 /* --- crop popover ---------------------------------------------------- */
@@ -442,15 +578,21 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .croppop {
   display: none; position: fixed; z-index: 20; width: 540px;
   max-height: calc(100vh - 24px); overflow-y: auto;
-  background: var(--panel); border: 1px solid var(--accent); border-radius: 8px;
+  /* `--line`, not `--accent`, since 2026-09-17: the shadow is what lifts this
+     off the page (and it is a big one), so the border only has to draw the
+     card's edge. An accent ring is the third thing on the page claiming the
+     selection colour, and it was the loudest -- it surrounds the whole card.
+     The amber variants below still read as exceptions, and read as them more
+     clearly now that the default is not itself coloured. */
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
   padding: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
 }
 .croppop--unresolvable, .croppop--not-built, .croppop--no-entry { border-color: var(--inferred); width: 400px; }
 .croppop__close { float: right; background: #363b45; color: var(--ink); padding: 1px 8px; margin-left: 6px; }
 .croppop__img { display: block; width: 100%; background: #fff; border-radius: 4px; }
 .croppop__head { font-weight: 600; margin-top: 6px; }
-.croppop__reason { color: var(--muted); font-size: 12px; margin: 4px 0; }
-.croppop__links { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.croppop__reason { color: var(--muted); font-size: var(--t-meta); margin: 4px 0; }
+.croppop__links { display: flex; gap: 12px; flex-wrap: wrap; font-size: var(--t-dense); }
 
 /* --- highlight boxes over a crop (viewer_reference_crops_in_context) -------
    crops.json carries, per crop, the rects worth pointing at as FRACTIONS of
@@ -488,7 +630,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 
 /* A crop's second image: the parts-list row for the item its balloon marks. */
 .cropcompanion { margin-top: 8px; }
-.cropcompanion__head { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.cropcompanion__head { color: var(--muted); font-size: var(--t-meta); margin-top: 2px; }
 
 /* --- the launch affordance on every crop (crop_lightbox_zoom_viewer) -------
    Jeff, 2026-09-16: "thumbnail is too small to be legible… Maybe a button in
@@ -506,7 +648,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
   opacity: 0; transition: opacity .12s ease-out;
   background: rgba(22, 24, 29, .82); color: var(--ink);
   border: 1px solid var(--line); border-radius: 4px;
-  padding: 1px 6px; font-size: 13px; line-height: 1.2; cursor: zoom-in;
+  padding: 1px 6px; font-size: var(--t-dense); line-height: 1.2; cursor: zoom-in;
 }
 .cropfig:hover .cropfig__launch,
 .cropfig__launch:focus,
@@ -589,7 +731,7 @@ body.lightbox-dragging .lightbox__stage--pannable { cursor: grabbing; }
    same VA.cropReference every other surface uses. Its class prefix is
    `lightbox__cap-`, NOT `lightbox__` -- that would make the where-line a
    `.lightbox__head` and hand it the head ROW's flex rule above. */
-.lightbox__foot { margin-top: 6px; font-size: 13px; }
+.lightbox__foot { margin-top: 6px; font-size: var(--t-dense); }
 .lightbox__cap-head { font-weight: 600; }
 .lightbox__cap-links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
 /* A modal <dialog> makes the page behind it inert but does not reliably stop
@@ -607,24 +749,24 @@ body.lightbox-open { overflow: hidden; }
 .hovercard--node { width: 460px; }
 /* The not-to-scale line a floored bar's card carries in place of the native
    title the card absorbed (viewer_dag_hover_cards). */
-.hovercard__rendernote { font-size: 12px; margin: 4px 0 0; }
-.hovercard__head h4 { margin: 0 0 2px; font-size: 14px; }
-.hovercard__head code { font-size: 11px; }
+.hovercard__rendernote { font-size: var(--t-meta); margin: 4px 0 0; }
+.hovercard__head h4 { margin: 0 0 2px; font-size: var(--t-body); }
+.hovercard__head code { font-size: var(--t-micro); }
 .hovercard__chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
-.hovercard__where { font-size: 13px; margin: 2px 0; }
-.hovercard__cited, .hovercard__cropkey { color: var(--muted); font-size: 12px; margin: 4px 0 2px; }
+.hovercard__where { font-size: var(--t-dense); margin: 2px 0; }
+.hovercard__cited, .hovercard__cropkey { color: var(--muted); font-size: var(--t-meta); margin: 4px 0 2px; }
 .hovercard__callout {
-  font-family: ui-monospace, monospace; font-size: 12px; background: #262a32;
+  font-family: ui-monospace, monospace; font-size: var(--t-meta); background: #262a32;
   border-radius: 4px; padding: 4px 6px; margin: 4px 0; overflow-wrap: anywhere;
 }
-.hovercard__notefull { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.hovercard__notefull { color: var(--muted); font-size: var(--t-meta); margin: 4px 0; }
 /* The ONE fold a card carries (views/cards.js's sourceFold): the record's note
    in full, the export/identity narrative and each crop's matching provenance,
    under the same word the banner's own fold wears. Quiet, and last in the
    card. */
 .hovercard__source { margin: 8px 0 0; }
 .hovercard__source__summary {
-  cursor: pointer; color: var(--muted); font-size: 12px; list-style: none;
+  cursor: pointer; color: var(--muted); font-size: var(--t-meta); list-style: none;
 }
 .hovercard__source__summary::-webkit-details-marker { display: none; }
 .hovercard__source__summary::before { content: "▸  "; }
@@ -632,11 +774,11 @@ body.lightbox-open { overflow: hidden; }
 .hovercard__source__body {
   margin: 4px 0 0; padding-left: 8px; border-left: 2px solid var(--line);
 }
-.hovercard__cropprov { color: var(--muted); font-size: 12px; margin: 4px 0; }
-.hovercard__note { color: var(--muted); font-size: 12px; margin: 4px 0;
+.hovercard__cropprov { color: var(--muted); font-size: var(--t-meta); margin: 4px 0; }
+.hovercard__note { color: var(--muted); font-size: var(--t-meta); margin: 4px 0;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .hovercard__note--open { display: block; -webkit-line-clamp: unset; overflow: visible; }
-.hovercard__links { margin-top: 6px; font-size: 13px; }
+.hovercard__links { margin-top: 6px; font-size: var(--t-dense); }
 /* The card's 3D affordance is a LINK where the annotator is not served beside
    this page and a flyout BUTTON where it is (annotate_affordances_flyout_and_
    mesh_gating) — the same two carriers the detail pane has. They must read as
@@ -682,9 +824,9 @@ body.lightbox-open { overflow: hidden; }
 .hovercard__alert + .hovercard__alert {
   margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
 }
-.hovercard__alertwhat { font-size: 13px; font-weight: 700; color: var(--inferred); }
-.hovercard__alertwhy { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.hovercard__alertwhat { font-size: var(--t-dense); font-weight: 700; color: var(--inferred); }
+.hovercard__alertwhy { font-size: var(--t-meta); color: var(--muted); margin-top: 2px; }
 
 /* An inbound deep link that asked for something this data does not contain:
    one plain-words line, amber — a fact about the link, not a rebuild alarm. */
-.banner__notice { color: var(--inferred); font-size: 13px; margin-top: 4px; }
+.banner__notice { color: var(--inferred); font-size: var(--t-dense); margin-top: 4px; }
