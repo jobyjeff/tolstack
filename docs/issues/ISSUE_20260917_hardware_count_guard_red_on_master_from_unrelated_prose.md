@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 handoff: docs/sessions/HANDOFF_20260917_prose_guards_scope_out_strategy_briefs.md
 area: tests/doc-guards
 reporter: agent
+resolution: handoff completed 2026-09-17 -- closed automatically by dispatch when handoff `prose_guards_scope_out_strategy_briefs` moved to completed/; not independently verified.
 ---
 
 # The hardware-entry count guard is red on `master`, from a false positive on "the other three do not have"
