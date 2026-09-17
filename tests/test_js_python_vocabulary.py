@@ -963,13 +963,22 @@ def js_literal_chains(text: str) -> list[tuple[int, str, tuple[str, ...]]]:
     return chains
 
 
-#: Every file the viewer serves, minus its own test file. ``tests.js`` is excluded
-#: because a test legitimately spells a vocabulary out -- that is what pinning a
-#: value at the value level IS -- and because the guards in it read the ``VA``
-#: tables directly anyway.
+#: Every file the viewer serves, minus the three that exist to spell things out.
+#: ``tests.js`` is excluded because a test legitimately writes a vocabulary out --
+#: that is what pinning a value at the value level IS -- and because the guards in
+#: it read the ``VA`` tables directly anyway; the two fixture files are data, and a
+#: fixture's job is to carry literal values.
+#:
+#: ``storage/`` IS included even though no vocabulary lives there today: an adapter
+#: that grew a branch on ``worksheet_source`` or ``confidence`` is exactly the kind
+#: of copy this scan exists to find, and leaving a directory out is how a guard
+#: stops covering the file someone puts the next one in. It costs one live finding
+#: that is correctly ignored (``part === "" || part === "."``, which matches no
+#: table).
 def viewer_sources() -> list[Path]:
     viewer = REPO_ROOT / "apps" / "viewer"
-    paths = sorted(viewer.glob("*.js")) + sorted((viewer / "views").glob("*.js"))
+    paths = (sorted(viewer.glob("*.js")) + sorted((viewer / "views").glob("*.js"))
+             + sorted((viewer / "storage").glob("*.js")))
     return [p for p in paths
             if p.name not in {"tests.js", "fixtures.js", "topology_fixtures.js"}]
 
