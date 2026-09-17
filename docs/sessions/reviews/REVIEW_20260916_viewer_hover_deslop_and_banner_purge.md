@@ -9,10 +9,12 @@ blockers: 0
 
 # REVIEW 2026-09-16 — viewer_hover_deslop_and_banner_purge
 
-> **Two passes.** The first pass (below) was **REQUEST CHANGES** on 2 blockers.
-> The rework closed both; the **second pass at the end of this file is the
-> APPROVE**, and the frontmatter carries that verdict. Read the first pass for
-> what the findings were and the second for what was done and re-measured.
+> **Three passes.** The first pass (below) was **REQUEST CHANGES** on 2
+> blockers. The rework closed both (second pass); two further commits then
+> fixed a load-dependent flake in the check that pins blocker 1, re-verified in
+> the third pass. The frontmatter carries the final **APPROVE**. Read the first
+> pass for what the findings were, the second for what was done, and the third
+> for what the flake was and why it changes what the green run proves.
 
 Merged `handoff/viewer_hover_deslop_and_banner_purge` into
 `review/viewer_hover_deslop_and_banner_purge` (**fast-forward, no conflict**;
@@ -384,3 +386,69 @@ probe-destroys-its-own-precondition trap. The author also self-reported a guard
 they had shipped that could not fail — a `\b` eaten into a literal backspace by
 a non-raw Python patch string, caught by the mutation runner, not by reading —
 which is exactly the posture this checklist exists to produce.
+
+---
+
+# Third pass — 2026-09-16, the flake fix
+
+Two more commits landed after the APPROVE above was written (`d9afbf6`,
+`b61f287`), so it was re-verified rather than merged on the strength of the
+earlier run. **Verdict unchanged: APPROVE.** Merged fast-forward into this
+branch; no product code changed — the browser tier's pointer gesture and the
+lesson only.
+
+## What it fixes, and why it matters more than a flake usually does
+
+`{ steps: 12 }` was **not** enough, and the author caught it: Chrome
+**coalesces** mousemove under load, so an interpolated move can leave the page
+holding only the position it started from — and the corridor is then computed
+off a vector pointing wherever the pointer came from. Their measurement:
+**green five runs out of five in isolation, red inside a full mutation-witness
+run.** Green on an idle machine and red on a loaded one is the worst shape a
+guard can have, and it was found only because the mutation runner refuses to
+credit an entry whose tier was already red — the runner earning its keep
+sideways.
+
+`approachFrom()` replaces it: three **separately awaited** moves down the
+approach line, an 80ms drain so the page has processed them, then the single
+step that crosses into the trigger. Both positions either side of the crossing
+are then deterministic and both on the approach line. Three 250ms card-settle
+waits were added too, so the box the tripwire reads and the box the approach
+aims at are the same box.
+
+This also indicts my own second-pass evidence, which is worth saying plainly:
+the 20/20 and 43/43 I reported were taken on the pre-fix harness and simply did
+not hit the flake. Re-measured on the fixed one, deliberately under load:
+
+| check | result |
+|---|---|
+| `run_tests.cjs --repo` | **431/431** |
+| `run_viewer_browser_tests.mjs --repo`, run concurrently with a mutation run | **20/20**; in-page 332/332 ×2, topology 201/201 ×2 |
+| `run_mutation_witness_tests.mjs --only hover-deferral-expires`, run concurrently with the full browser tier | clean baseline **green**, mutated run **WITNESSED** on the declared check |
+
+The bare `waitForTimeout` count in that file goes 35 → 39. Not raised as a
+finding: bare drains are the established idiom in this runner, and a pointer
+drain has nothing observable to anchor to. The three 250ms card settles *could*
+be anchored (wait for the card's `img`), and that is the only thing I would
+change here — noted for whoever next touches the block, not worth a loopback.
+
+## Fixed inline this pass (both stated)
+
+1. The reworked lesson's Counts paragraph read **331/331** for the in-page
+   suite; measured **332/332** on three independent runs now. Dated correction
+   blockquote rather than a silent edit. The 431, 201 and 43 beside it were each
+   re-derived and are right.
+2. *"**Three** details that cost red runs"* heads **four** bullets — the flake
+   fix added the coalescing one and left the count. Now "Four". Same class as
+   the correction above and the reason the canonical checklist says to re-derive
+   a lesson's arithmetic: the count was right when written and the edit under it
+   was correct, which is exactly how these survive review.
+
+## And a correction to my own overlay entry
+
+The entry I added in the second pass credited `{ steps: 12 }` with reproducing
+a real mouse — the same mistake the author's first fix made, written into the
+checklist the next reviewer reads. It now records the coalescing fact, the
+idle-green/loaded-red signature, what *is* deterministic, and a corollary I had
+not been applying myself: **run the browser tier concurrently with something
+heavy before believing a new pointer-path check.**

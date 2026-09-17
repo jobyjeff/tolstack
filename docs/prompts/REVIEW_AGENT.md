@@ -3293,10 +3293,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       single-jump `page.mouse.move(x, y)` fires the enter while the page still
       holds the position it jumped *from* -- and any handler that asks "where
       was the pointer one move ago" reads a vector from somewhere else
-      entirely. `{ steps: 12 }` reproduces what a real mouse does. Cheaper tell,
-      same family: a synthetic `dispatchEvent("mouseenter")` fired while the
-      real pointer sits elsewhere cannot reach any code that asks where the
-      pointer IS.
+      entirely. **And `{ steps: N }` does not fix it**, which is the part that
+      nearly shipped twice: Chrome **coalesces** mousemove under load, so an
+      interpolated move can leave the page holding only the position it started
+      from. That version was green five runs out of five in isolation and red
+      inside a full mutation-witness run -- green on an idle machine, red on a
+      loaded one, which is the worst shape a guard can have. What is
+      deterministic: **separately awaited** moves down the approach line, a
+      short drain so the page has processed them, and only then the step that
+      crosses into the target (`approachFrom()` in the topology suite). Cheaper
+      tell, same family: a synthetic `dispatchEvent("mouseenter")` fired while
+      the real pointer sits elsewhere cannot reach any code that asks where the
+      pointer IS. Corollary for a reviewer: **run the browser tier concurrently
+      with something heavy** before believing a new pointer-path check.
 - [ ] **A probe that perturbs state to observe a guard can destroy the guard's
       own precondition.** Same handoff. Observing "did `position()` run" by
       nudging the card and seeing whether it snaps back is the right idea --

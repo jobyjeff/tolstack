@@ -122,7 +122,7 @@ held trigger is correct. Two true checks either side of an untested middle read
 as coverage.
 
 **The browser tier can see this and nothing else can, and it now does it with a
-real pointer end to end.** Three details that cost red runs and are worth
+real pointer end to end.** Four details that cost red runs and are worth
 knowing before touching that block:
 
 * **`mouseenter` is dispatched BEFORE the `mousemove` at the new coordinates.**
