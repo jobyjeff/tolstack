@@ -9,7 +9,7 @@ found_by: docs/sessions/HANDOFF_20260916_crop_lightbox_zoom_viewer.md
 
 # The crop lightbox's guards are undeclared in the mutation-witness tier
 
-`crop_lightbox_zoom_viewer` (2026-09-16) added 15 fast-tier checks and one
+`crop_lightbox_zoom_viewer` (2026-09-16) added 16 fast-tier checks and one
 browser suite and declared **no** entries in `scripts/mutation_witnesses.json`.
 The tier still reports 54/54, so nothing is red — the guards are simply outside
 the set of claims that have been shown to bite. The handoff did not ask for

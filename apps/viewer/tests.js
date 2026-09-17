@@ -2565,6 +2565,30 @@
            "the lightbox shows the where-line and the links, nothing longer");
       });
 
+    await test("a balloon crop's parts-list companion opens in the lightbox " +
+      "too, on the partial entry the companion figure is built from",
+      function () {
+        // The companion's entry is SYNTHESISED (VA.companionFigure): it
+        // carries the sheet and the rects and no `pdf`, no `run_dir`, no
+        // drawing number. So the caption names the document and offers no
+        // click-throughs, which is honest -- and the point of the check is
+        // that a partial entry renders rather than throwing on a field that
+        // is not there.
+        var companion = balloonEntry().companion;
+        var root = render(function (r) {
+          VA.renderLightbox(r, {
+            pdf_name: "217755 A.1.pdf", page: companion.page,
+            width: companion.width, height: companion.height,
+            highlights: companion.highlights,
+          }, { url: "blob:pl" }, VA.CONFIG);
+        });
+        eq(all(root, "img").length, 1);
+        eq(all(root, "div.crophl").length, 1);
+        has(all(root, "div.lightbox__cap-head")[0].textContent,
+            "217755 A.1.pdf · sheet 1");
+        eq(all(root, "a").length, 0);
+      });
+
     await test("the lightbox's controls are the three it declares, plus a " +
       "close — and each one moves the view", function () {
         var handle = null;
