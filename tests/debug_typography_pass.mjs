@@ -301,6 +301,30 @@ try {
   const matTable = await tableAround(page, "#stackview tr.mat-row");
   say(`materials table: ${await page.locator("#stackview tr.mat-row").count()} rows`);
   await shot(page, "9_stack_materials_table", { clip: pad(matTable) });
+
+  // ...and the worksheet, which is the other long-prose surface and the only
+  // one in either app that renders a whole DOCUMENT. Stack mode only, which is
+  // why it is shot here rather than beside the legend: topology_app.js hides
+  // the topbar button outside it.
+  await page.locator("#worksheet-toggle").click();
+  await page.waitForSelector("#worksheet-dialog[open]", { timeout: 10000 });
+  await page.waitForFunction(() => {
+    const body = document.querySelector("#worksheet .worksheet__body");
+    return !!(body && body.textContent.trim());
+  }, null, { timeout: 15000 });
+  // NOT parkPointer(): its first act is Escape, which is a modal <dialog>'s own
+  // dismiss -- the first take of this shot was the page behind a worksheet the
+  // probe had just closed. The pointer and the focus ring still have to go.
+  await page.mouse.move(2, 2);
+  await page.evaluate(() => {
+    if (document.activeElement && document.activeElement.blur) {
+      document.activeElement.blur();
+    }
+  });
+  const ws = await typeCensus(page, "#worksheet");
+  say(`worksheet dialog: ${ws.textNodes} text-bearing elements across sizes ` +
+      `${ws.sizes.join(", ")}`);
+  await shot(page, "13_worksheet_dialog");
   await page.close();
 
   // --- the annotator (mock: FSA needs a gesture no browser can supply) ------

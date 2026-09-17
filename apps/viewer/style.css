@@ -27,6 +27,16 @@
   --t-body:  14px;   /* body, and every run of real prose */
   --t-title: 16px;   /* the title of a pane or a dialog */
   --t-page:  18px;   /* the page's own name, once */
+  /* THE MEASURE: how wide a run of prose may get before a reader loses the
+     line. The house rule states it as a character count (~45-90), so it is
+     written in `ch` -- the one unit that stays a character count when the type
+     size changes. 72ch and not 90: `ch` is the width of a "0", which in a
+     proportional face is wider than the average letter, so 72ch lands at about
+     80 rendered characters at both sizes prose is set in here (measured: 1ch is
+     7.0px at --t-dense and 7.5px at --t-body). Used by every prose rule in both
+     this file and topology.css; the TABLES never take it, because a column of
+     numbers narrowed to a measure is worse than a long line. */
+  --measure: 72ch;
   --bg: #16181d; --panel: #1e2128; --panel2: #12141a; --ink: #e6e8ec;
   --muted: #9aa1ac; --accent: #6ea8fe; --on: #2b6cb0; --line: #2b2f38;
   /* The provenance palette. These three are the whole point of the app, so
@@ -73,6 +83,12 @@ h3 {
   font-size: var(--t-meta); margin: 22px 0 8px; letter-spacing: .06em;
   font-weight: 600; text-transform: uppercase; color: var(--muted);
 }
+/* A SUB-BLOCK heading inside a pane or a card: "Drawing crop", "Citation",
+   "Needs attention", a gap group's own name. Declared rather than left to the
+   browser, which sizes `h4` at 1em and margins it at 1.33em -- a UA default is
+   not a decision, and it was the last piece of type in either app arrived at
+   that way. */
+h4 { font-size: var(--t-body); margin: 12px 0 4px; font-weight: 600; }
 .muted { color: var(--muted); font-size: var(--t-dense); }
 a { color: var(--accent); }
 
@@ -474,11 +490,11 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 /* A MEASURE on the stack view's prose (design_pass_typography, 2026-09-17).
    `.stackview` is as wide as the window leaves it, so every sentence in it
    inherited that width -- a check's guidance, a gap's text, a note. Capped in
-   `ch`, because the cap the house rule states is a character count. The TABLES
-   are deliberately not capped: a column of numbers narrowed to 84 characters
-   is worse than a long line. */
+   `--measure` (declared at the top of this file, with why it is in `ch`). The
+   TABLES are deliberately not capped: a column of numbers narrowed to a
+   measure is worse than a long line. */
 .check__guidance, .gap__text, .notelist li, .sv__legend li, .el-note td,
-.check__warn, .check__note { max-width: 84ch; }
+.check__warn, .check__note { max-width: var(--measure); }
 
 .gaplist, .notelist { margin: 0; padding-left: 0; list-style: none; }
 .gaplist li, .notelist li {
@@ -500,14 +516,25 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .worksheet__note { color: var(--muted); font-size: var(--t-meta); margin: -4px 0 8px; }
 /* The worksheet is the only surface in either app that renders a whole
    DOCUMENT, so it reads at body size with a measure rather than at the
-   dense size the data rows use. `max-width` in `ch` and not px: the cap the
-   house rule states is a character count, and `ch` is the one unit that
-   stays a character count when the size changes. Tables, code blocks and
-   images are exempt below -- a measure is for prose, and a column of
-   numbers clipped to 80ch is worse than a long line. */
+   dense size the data rows use. The cap is
+   `--measure`, declared at the top of this file. Tables, code blocks and
+   images are exempt below -- a measure is for prose. */
 .worksheet__body { font-size: var(--t-body); overflow-wrap: anywhere; }
 .worksheet__body > p, .worksheet__body li, .worksheet__body blockquote {
-  max-width: 82ch;
+  max-width: var(--measure);
+}
+/* A worksheet's OWN headings, and they are real headings -- the live
+   WORKSHEET_hub_bearing_thermal_fit.md renders 1 h1, 11 h2 and 26 h3. So `h3`
+   here must NOT be the app's section LABEL (the base rule at the top of this
+   file): a document's third-level heading set as a 12px uppercase grey chip
+   would leave the one surface in either app that renders a whole document with
+   no readable structure below its `##`s. Sizes come off the same scale, one
+   step apart, and the weight and the room above them do the rest. */
+.worksheet__body h1 { font-size: var(--t-page); margin: 18px 0 8px; }
+.worksheet__body h2 { font-size: var(--t-title); margin: 18px 0 6px; }
+.worksheet__body h3 {
+  font-size: var(--t-body); margin: 14px 0 4px; font-weight: 600;
+  text-transform: none; letter-spacing: normal; color: var(--ink);
 }
 .worksheet__body table { font-size: var(--t-meta); }
 .worksheet__body th, .worksheet__body td { border: 1px solid var(--line); padding: 3px 7px; }
@@ -545,7 +572,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    citation's full written argument is supposed to live, not a preview of it. */
 .detail__note {
   margin-bottom: 10px; padding-left: 8px; border-left: 2px solid var(--line);
-  color: var(--ink); max-width: 72ch;
+  color: var(--ink); max-width: var(--measure);
 }
 .detail__crop { margin-top: 10px; }
 .detail__crop-img { display: block; width: 100%; background: #fff; border-radius: 4px; }

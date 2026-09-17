@@ -923,7 +923,9 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 }
 .tv__legend-head h2, .worksheet-dialog__head h2 { margin: 0; font-size: var(--t-title); }
 #legend-dialog ul { margin: 0; padding-left: 20px; }
-#legend-dialog li { margin-bottom: 8px; }
+/* The app's longest prose, so the measure applies here too: the dialog's own
+   640px cap is a BOX width and a bullet fills it. */
+#legend-dialog li { margin-bottom: 8px; max-width: var(--measure); }
 #worksheet-dialog { width: 90vw; max-width: 900px; }
 
 /* --- verdicts, attention flags and the gap panel -------------------------
@@ -944,8 +946,8 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    `--error` are states a verdict cannot express, and they are styled to read as
    "there is no answer here" rather than as a quiet pass. */
 .tvverdict {
-  font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-  font-size: var(--t-micro); padding: 2px 9px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
+  font-size: var(--t-micro); padding: 2px 7px;
 }
 .tvverdict--pass { color: #fff; background: var(--pass); border-color: var(--pass); }
 .tvverdict--marginal { color: #0b1020; background: var(--marginal); border-color: var(--marginal); }
@@ -986,10 +988,18 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    only coloured thing on it. It just no longer survives at the cost of the row
    it sits on. Consolidating the three into ONE badge is a separate, open
    question and deliberately not done here:
-   ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud. */
+   ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud.
+
+   The padding is tighter than `.chip`'s own and there is no extra tracking,
+   both to buy back the width the step from 10px to 11px costs: a study
+   carrying a verdict and two flags has to fit them on one line in a 300px
+   rail, and two lines of badges under a name is the row's structure broken a
+   different way. Measured on the live nav: 12 of 28 rows wrapped their chips
+   before this pass and 12 wrap after it, so the step up in size cost no row
+   its line. */
 .tvflag {
   font-weight: 600; font-size: var(--t-micro); text-transform: uppercase;
-  letter-spacing: .04em; background: none;
+  background: none; padding: 1px 5px;
 }
 .tvflag--unverified { color: var(--untraced); border-color: var(--untraced); }
 .tvflag--no_tolerance { color: var(--zero); border-color: var(--zero); }
@@ -1026,12 +1036,12 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    block sits under a grid that is as wide as the window allows, so its
    sentences inherited that width: at 1600px with the preview pane open, a
    `.tvgaps__item` ran about 110 characters and `pitch_system` shows 38 of them
-   at once. `ch` rather than px for the reason `.worksheet__body`'s cap uses it:
-   the rule the house states is a character count. Left-aligned and capped, not
-   centred -- a centred paragraph is the other half of that rule. */
+   at once. `--measure` is the cap and style.css declares it once. Left-aligned
+   and capped, not centred -- a centred paragraph is the other half of the same
+   house rule. */
 .tvgaps__item, .tvverdicts__none, .tvverdict-card__label, .tvtotals__rule,
 .tvtotals__note, .tvwarn, .tverror__message, .tverror__advice,
-.tvgaps__closes { max-width: 84ch; }
+.tvgaps__closes { max-width: var(--measure); }
 
 /* The two chain-level warnings. Not `.muted`: a lower bound presented quietly
    is a number a reader takes at face value. */
