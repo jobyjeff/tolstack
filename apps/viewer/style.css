@@ -490,6 +490,101 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .cropcompanion { margin-top: 8px; }
 .cropcompanion__head { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
+/* --- the launch affordance on every crop (crop_lightbox_zoom_viewer) -------
+   Jeff, 2026-09-16: "thumbnail is too small to be legible… Maybe a button in
+   the thumbnail that lets you launch it into a separate, full size viewer
+   (either a popup or separate page) that allows you to zoom/pan?"
+
+   Quiet until the figure is hovered, and ALSO on `:focus-visible` — the
+   keyboard half is not decoration: `opacity: 0` leaves a button in the tab
+   order, so without the focus rule a reader tabbing to it would be operating
+   an invisible control. It sits over the picture's top-right corner rather
+   than under the caption because there is one per FIGURE and a card can show
+   two, and a button beside the caption could only ever mean one of them. */
+.cropfig__launch {
+  position: absolute; top: 4px; right: 4px; z-index: 1;
+  opacity: 0; transition: opacity .12s ease-out;
+  background: rgba(22, 24, 29, .82); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 4px;
+  padding: 1px 6px; font-size: 13px; line-height: 1.2; cursor: zoom-in;
+}
+.cropfig:hover .cropfig__launch,
+.cropfig__launch:focus,
+.cropfig__launch:focus-visible { opacity: 1; }
+.cropfig__launch:hover { border-color: var(--accent); color: var(--accent); }
+
+/* --- the crop lightbox ----------------------------------------------------
+   The fourth <dialog> on this page (topology.html) and the only modal one.
+   Near-full-viewport on purpose: the complaint this surface answers is
+   legibility, so the picture gets everything the head and the caption do not.
+
+   Its rules live HERE rather than in topology.css, beside the two page
+   dialogs, because everything in it is a CROP rule — the frame, the overlay
+   and the caption are the same builders every other surface renders, and the
+   one thing that is new (the transformed stage) only makes sense next to
+   `.cropfig` above. */
+dialog#crop-lightbox {
+  width: 96vw; height: 92vh; max-width: none; max-height: none; padding: 8px;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--accent); border-radius: 10px;
+}
+dialog#crop-lightbox::backdrop { background: rgba(0, 0, 0, .72); }
+dialog#crop-lightbox[open] { display: flex; flex-direction: column; }
+.lightbox__head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 6px;
+}
+.lightbox__zoom { display: flex; gap: 6px; }
+.lightbox__btn {
+  background: #363b45; color: var(--ink); border: 1px solid var(--line);
+  border-radius: 4px; padding: 1px 10px; font: inherit; cursor: pointer;
+  min-width: 30px;
+}
+.lightbox__btn:hover { border-color: var(--accent); color: var(--accent); }
+.lightbox__close {
+  background: #363b45; color: var(--ink); border: 1px solid var(--line);
+  border-radius: 4px; padding: 1px 8px; font: inherit; cursor: pointer;
+}
+/* The window the crop is seen through. `overflow: hidden` is what makes a
+   zoomed crop a viewport rather than a page that grew, and
+   `overscroll-behavior: contain` stops a wheel gesture that runs out of
+   anything to do here from being handed to the document — the other half of
+   "no scroll bleed" being `body.lightbox-open` below. */
+.lightbox__stage {
+  position: relative; flex: 1; min-height: 0; overflow: hidden;
+  overscroll-behavior: contain; background: #0f1115; border-radius: 6px;
+  touch-action: none;
+}
+/* Only above fit, because only then is there anything to pan
+   (views/lightbox.js declines the gesture at fit for the same reason). */
+.lightbox__stage--pannable { cursor: grab; }
+body.lightbox-dragging .lightbox__stage--pannable { cursor: grabbing; }
+/* The ONE transformed element: `transform-origin: 0 0` is load-bearing, since
+   the pure layer's anchors are measured from the stage's top-left corner and
+   a centred origin would silently offset every zoom by half the stage. */
+.lightbox__pan {
+  position: absolute; inset: 0; transform-origin: 0 0; will-change: transform;
+}
+/* The frame is sized in PIXELS by views/lightbox.js (VA.lightboxFitSize) and
+   the picture fills it exactly. Not a height cap with `object-fit: contain`,
+   which insets the picture inside its element and leaves the percentage
+   overlay pointing into the letterbox — the trap the hover card's own
+   `--crop-ratio` rule above records. */
+.lightbox .cropfig { position: absolute; top: 0; left: 0; }
+.lightbox .cropfig > img { width: 100%; height: 100%; display: block; }
+/* The caption: the crop's own where-line and its two click-throughs, from the
+   same VA.cropReference every other surface uses. Its class prefix is
+   `lightbox__cap-`, NOT `lightbox__` -- that would make the where-line a
+   `.lightbox__head` and hand it the head ROW's flex rule above. */
+.lightbox__foot { margin-top: 6px; font-size: 13px; }
+.lightbox__cap-head { font-weight: 600; }
+.lightbox__cap-links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
+/* A modal <dialog> makes the page behind it inert but does not reliably stop
+   it scrolling, and a wheel that zooms the crop while the grid scrolls
+   underneath is the bleed this closes. Reversed by the dialog's own `close`
+   event, which is the one seam every dismissal goes through. */
+body.lightbox-open { overflow: hidden; }
+
 /* --- hover reference cards (viewer_hover_cards_and_deep_links) --------- */
 /* Rendered into the SAME positioned #croppop node as the crop popover, so
    they inherit its absolute positioning and can never disturb the page's

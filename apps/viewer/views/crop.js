@@ -66,7 +66,10 @@
   // structurally what drawing-checker's own run viewer does — geometry plus a
   // switchable treatment over the page — so the two surfaces stay recognisable
   // to a reader moving between them.
-  VA.cropFigure = function (entry, image, className) {
+  // `opts.omitLaunch` is the lightbox's own (views/lightbox.js): that surface
+  // renders this same builder at full size, so a button there offering to open
+  // it again is a control that does nothing. Nobody else passes anything.
+  VA.cropFigure = function (entry, image, className, opts) {
     var frame = VA.el("div", "cropfig");
     if (!(image && image.url)) {
       frame.appendChild(VA.el("p", "croppop__reason", VA.CROP_IMAGE_MISSING_TEXT));
@@ -91,8 +94,39 @@
     VA.cropHighlights(entry).forEach(function (highlight) {
       frame.appendChild(highlightBox(highlight));
     });
+    if (!(opts && opts.omitLaunch)) frame.appendChild(launchButton(entry, image));
     return frame;
   };
+
+  // The one launch affordance for every crop on the page
+  // (crop_lightbox_zoom_viewer, 2026-09-16). Jeff: "thumbnail is too small to
+  // be legible… Maybe a button in the thumbnail that lets you launch it into a
+  // separate, full size viewer … that allows you to zoom/pan?"
+  //
+  // It is HERE, in the shared builder, rather than on each surface, for the
+  // same reason the `<img>` and the overlay are: the plain popover, the hover
+  // cards, both preview panes and a balloon crop's parts-list companion are
+  // all this function, so one button covers five surfaces and cannot be
+  // missing from a sixth. It rides the picture it opens, so a card showing two
+  // crops offers two launchers and each opens its own.
+  //
+  // A real <button>, quiet until the figure is hovered or the button itself is
+  // focused (style.css): a crop is a picture first, and the reader who wants
+  // it bigger is the one already looking at it. Keyboard reach is the focus
+  // half of that rule and is not a nicety -- an affordance only a pointer can
+  // find is an affordance half the page cannot use.
+  function launchButton(entry, image) {
+    var button = VA.el("button", "cropfig__launch", VA.CROP_LAUNCH_TEXT);
+    button.setAttribute("title", VA.CROP_LAUNCH_TITLE);
+    button.setAttribute("aria-label", VA.CROP_LAUNCH_TITLE);
+    button.onclick = function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      // Absent on a page that has no lightbox dialog -- then this is a no-op
+      // rather than a throw. See VA.openCropLightbox's own header.
+      if (VA.openCropLightbox) VA.openCropLightbox(entry, image);
+    };
+    return button;
+  }
 
   // The cited item's parts-list row, beside the crop that shows its balloon. A
   // balloon crop shows a number in a circle; this is the line that says the
@@ -204,6 +238,12 @@
   VA.CROP_PROVENANCE_SUMMARY = "How this crop was matched";
   VA.CROP_IMAGE_MISSING_TEXT =
     "This crop's image is not on disk — the crop index is out of date.";
+  // The launch affordance's glyph and the only words it ever says. A glyph
+  // plus a title, the same shape `.croppop__close` uses -- the picture is
+  // what the reader is looking at, and a labelled button across it would be
+  // the loudest thing in a hover card.
+  VA.CROP_LAUNCH_TEXT = "⤢";
+  VA.CROP_LAUNCH_TITLE = "open at full size — zoom and pan";
 
   VA.renderCrop = function (root, entry, image, config, onClose, images) {
     VA.clear(root);

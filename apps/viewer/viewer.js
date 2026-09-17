@@ -1513,6 +1513,155 @@
     return lo <= hi ? [lo, hi] : null;
   }
 
+  // --- the crop lightbox's view: zoom, pan, and where a point of the picture
+  // lands (crop_lightbox_zoom_viewer) --------------------------------------
+  //
+  // Jeff, 2026-09-16: "thumbnail is too small to be legible… Maybe a button in
+  // the thumbnail that lets you launch it into a separate, full size viewer
+  // (either a popup or separate page) that allows you to zoom/pan?"
+  //
+  // The mechanism is ONE CSS transform on a wrapper around the crop's own
+  // frame, and that is the choice the whole surface turns on: a `.crophl`
+  // highlight box is positioned in PERCENTAGES of that frame (views/crop.js),
+  // so scaling an ancestor scales the picture and the boxes drawn on it in the
+  // same step. There is no second coordinate system to keep in step and no
+  // arithmetic anywhere that turns a `frac` into a pixel — which is exactly
+  // what zooming the <img> alone, or re-laying the boxes out per zoom step,
+  // would have introduced.
+  //
+  // `scale: 1` is FIT — the whole crop on screen — not one image pixel per
+  // screen pixel. VA.lightboxFitSize is what makes that true, and it is here
+  // rather than in CSS for a measured reason: capping a crop's height in CSS
+  // means `object-fit: contain`, which insets the picture inside its element,
+  // and a percentage overlay then points into the letterbox rather than at the
+  // rect (the hover card's own `--crop-ratio` rule, style.css, exists because
+  // of that same trap). Sizing the FRAME to the fitted box instead leaves the
+  // picture filling its element exactly, which is the one arrangement in which
+  // the overlay is right at every zoom level.
+  VA.LIGHTBOX_ZOOM = { min: 1, max: 8, step: 1.5 };
+
+  // The view a freshly-opened lightbox starts in. A function, not a shared
+  // object: every caller mutates nothing, but a module-level literal handed
+  // out three times is one accidental assignment away from a zoom level that
+  // survives a close.
+  VA.lightboxFit = function () {
+    return { scale: 1, x: 0, y: 0 };
+  };
+
+  // The crop's fitted size inside the stage: the larger box that still fits
+  // both ways, at the crop's own aspect ratio. `null` where there is nothing
+  // to measure (the DOM shim has no layout), which the caller reads as "leave
+  // the stylesheet's own sizing standing" rather than as zero.
+  VA.lightboxFitSize = function (crop, stage) {
+    var cw = Number(crop && crop.width) || 0;
+    var ch = Number(crop && crop.height) || 0;
+    var sw = Number(stage && stage.width) || 0;
+    var sh = Number(stage && stage.height) || 0;
+    if (cw <= 0 || ch <= 0 || sw <= 0 || sh <= 0) return null;
+    var k = Math.min(sw / cw, sh / ch);
+    return { width: cw * k, height: ch * k };
+  };
+
+  // Zoom by `factor`, keeping whatever is under `anchor` exactly where it is.
+  // `anchor` is in STAGE coordinates — the untransformed box the wrapper
+  // occupies — which is what a wheel event gives after subtracting the stage's
+  // own origin.
+  //
+  // The anchor is the whole reason this is arithmetic rather than a class
+  // toggle. Zooming about the stage's ORIGIN walks whatever the reader was
+  // looking at off the edge, so a reader who has just found the highlighted
+  // cell has to pan it back by hand at every step — which is the complaint
+  // this surface exists to answer, reintroduced one level in.
+  VA.lightboxZoomAt = function (view, factor, anchor) {
+    var from = view || VA.lightboxFit();
+    var scale = Math.min(VA.LIGHTBOX_ZOOM.max,
+      Math.max(VA.LIGHTBOX_ZOOM.min, from.scale * (Number(factor) || 1)));
+    if (scale === from.scale) return { scale: scale, x: from.x, y: from.y };
+    var at = anchor || { x: 0, y: 0 };
+    var ratio = scale / from.scale;
+    return {
+      scale: scale,
+      x: at.x - (at.x - from.x) * ratio,
+      y: at.y - (at.y - from.y) * ratio,
+    };
+  };
+
+  // A drag, in stage pixels. The scale is untouched: a pan is a translation
+  // and nothing else, which is why it is a separate function from the zoom
+  // rather than a flag on it.
+  VA.lightboxPan = function (view, dx, dy) {
+    var from = view || VA.lightboxFit();
+    return {
+      scale: from.scale,
+      x: from.x + (Number(dx) || 0),
+      y: from.y + (Number(dy) || 0),
+    };
+  };
+
+  // The one rule that keeps the picture reachable: an axis on which the
+  // scaled crop is SMALLER than the stage is centred, and an axis on which it
+  // is larger is held so the stage stays covered — no gap at either edge.
+  //
+  // Centring falls out of the same expression rather than being a separate
+  // step, which is what lets the fit view be a plain `{1, 0, 0}`: at fit the
+  // crop is smaller than the stage on at least one axis and exactly equal on
+  // the other, so clamping IS the centring. And a reader can no longer drag
+  // the crop out of the window and be left with an empty stage — the failure
+  // that would otherwise need the Fit button to be found before the surface
+  // was usable again.
+  //
+  // `content` is the FITTED size (VA.lightboxFitSize), unscaled; the scale is
+  // applied here, once, so no caller holds a second copy of it.
+  VA.lightboxClamp = function (view, content, stage) {
+    var v = view || VA.lightboxFit();
+    if (!content || !stage) return { scale: v.scale, x: v.x, y: v.y };
+    return {
+      scale: v.scale,
+      x: clampAxis(v.x, content.width * v.scale, stage.width),
+      y: clampAxis(v.y, content.height * v.scale, stage.height),
+    };
+  };
+
+  function clampAxis(offset, content, stage) {
+    if (content <= stage) return (stage - content) / 2;
+    return Math.min(0, Math.max(stage - content, offset));
+  }
+
+  // Where a point of the CONTENT lands on the stage under this view. The
+  // content's own frame is the fitted box, so a highlight's top-left is
+  // `frac[0] * fit.width, frac[1] * fit.height` — and this is the function a
+  // test needs to state "the box tracks the picture", because that claim is
+  // exactly "the same transform carries both".
+  VA.lightboxPoint = function (view, point) {
+    var v = view || VA.lightboxFit();
+    return {
+      x: (Number(point && point.x) || 0) * v.scale + v.x,
+      y: (Number(point && point.y) || 0) * v.scale + v.y,
+    };
+  };
+
+  // Rounded for the same reason views/crop.js rounds its percentages: an
+  // unrounded float in a style attribute is noise in every screenshot and
+  // every DOM diff, and a hundredth of a pixel is not a thing any of these
+  // images is laid out to.
+  VA.lightboxTransform = function (view) {
+    var v = view || VA.lightboxFit();
+    return "translate(" + round(v.x, 100) + "px, " + round(v.y, 100) +
+      "px) scale(" + round(v.scale, 10000) + ")";
+  };
+
+  // Which way a wheel notch zooms. Up (a negative deltaY, every platform's
+  // "away from me") zooms IN, which is the direction every map and every
+  // image viewer has taught.
+  VA.lightboxWheelFactor = function (deltaY) {
+    return (Number(deltaY) || 0) < 0
+      ? VA.LIGHTBOX_ZOOM.step : 1 / VA.LIGHTBOX_ZOOM.step;
+  };
+
+  function round(value, places) {
+    return Math.round((Number(value) || 0) * places) / places;
+  }
+
   // --- worksheets ---------------------------------------------------------
 
   VA.worksheetSegments = function (stackProj) {

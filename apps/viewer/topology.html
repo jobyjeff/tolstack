@@ -167,6 +167,20 @@
     <div id="worksheet" class="worksheet"></div>
   </dialog>
 
+  <!-- The crop lightbox (crop_lightbox_zoom_viewer, 2026-09-16): one crop at
+       near-full-viewport with its highlight boxes on it, zoomable and pannable.
+       Jeff: "thumbnail is too small to be legible… Maybe a button in the
+       thumbnail that lets you launch it into a separate, full size viewer …
+       that allows you to zoom/pan?"
+
+       The fourth <dialog> on this page and the only MODAL one, because a
+       zoom/pan surface wants the wheel and the keyboard to itself -- and
+       because Escape and a backdrop click are then the browser's own dismiss.
+       Empty and static here, for the same two reasons the dividers above are:
+       no view owns it, and a re-render of the surface that launched it must not
+       destroy it. views/lightbox.js fills it per launch. -->
+  <dialog id="crop-lightbox" class="lightbox"></dialog>
+
   <!-- Classic scripts (NOT ES modules): the page must run by double-clicking
        from file://, where Chrome CORS-blocks cross-file `import`. index.html
        is a redirect stub now — this is the one page, and it loads every view
@@ -189,6 +203,7 @@
   <script src="./views/stack.js"></script>
   <script src="./views/crop.js"></script>
   <script src="./views/cards.js"></script>
+  <script src="./views/lightbox.js"></script>
   <script src="./views/worksheet.js"></script>
   <script src="./views/detail.js"></script>
   <script src="./views/topology.js"></script>

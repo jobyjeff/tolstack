@@ -2436,6 +2436,302 @@
       has(root.textContent, "Parts list, sheet 1");
     });
 
+    // --- the full-size crop lightbox (crop_lightbox_zoom_viewer) -------------
+    //
+    // Jeff, 2026-09-16: "thumbnail is too small to be legible… Maybe a button
+    // in the thumbnail that lets you launch it into a separate, full size
+    // viewer … that allows you to zoom/pan?"
+    //
+    // Two claims are pinned here and they need two different kinds of check.
+    // The AFFORDANCE is structural — every surface that shows a crop carries
+    // one launcher per picture — and is walked over the surfaces themselves.
+    // The ZOOM is arithmetic, and it is pinned value by value: this tier has no
+    // layout to measure, so "the highlight tracks the picture" is stated as the
+    // invariant it actually is (the box's position WITHIN the picture's box is
+    // the same fraction at every zoom level), and the browser tier measures the
+    // pixels.
+
+    // Every surface that renders a crop, each built the way the app builds it.
+    // Named here rather than inside the test for the same reason the
+    // reader-facing walks are: one launcher per picture is a claim about ALL of
+    // them, and a list inside one test is a list the next surface is not added
+    // to.
+    function cropBearingSurfaces() {
+      var entry = CROPS.by_stack.demo_joint.plate;
+      var balloon = balloonEntry();
+      var images = {
+        "crops/detailb.png": { url: "blob:crop" },
+        "crops/detailb__parts_list.png": { url: "blob:pl" },
+      };
+      return [
+        ["the plain crop popover", 1, render(function (r) {
+          VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+        })],
+        // TWO, and that is the point of putting the button on the FIGURE: a
+        // balloon crop is two pictures (the view with the balloon, and the
+        // parts-list row that says what its number is), and each opens itself.
+        ["the popover on a balloon crop, with its parts-list companion", 2,
+          render(function (r) {
+            VA.renderCrop(r, balloon, images["crops/detailb.png"], VA.CONFIG,
+                          null, images);
+          })],
+        ["the citation hover card", 1, render(function (r) {
+          var byPng = {};
+          byPng[entry.png] = { url: "blob:x" };
+          VA.renderHoverCard(r, VA.citationCard(
+            DEMO.stack.elements[0].source_ref, null, entry),
+            byPng, VA.CONFIG, null);
+        })],
+        ["the stack preview pane", 1, render(function (r) {
+          VA.renderDetail(r, DEMO, DEMO.stack.elements[0].id, CROPS,
+                          { url: "blob:x" }, VA.CONFIG);
+        })],
+      ];
+    }
+
+    await test("every surface that shows a crop carries a launcher, one per " +
+      "picture — because there is one crop builder and the button is on it",
+      function () {
+        var surfaces = cropBearingSurfaces();
+        surfaces.forEach(function (surface) {
+          var figures = all(surface[2], "div.cropfig");
+          var launchers = all(surface[2], "button.cropfig__launch");
+          eq(figures.length, surface[1],
+             surface[0] + " must show " + surface[1] + " picture(s)");
+          eq(launchers.length, surface[1],
+             surface[0] + " must carry one launcher per picture");
+          // On the figure, not beside the caption: a card showing two crops
+          // has two, and a button outside the frame could only mean one.
+          launchers.forEach(function (button) {
+            ok(figures.indexOf(button.parentNode) !== -1,
+               surface[0] + "'s launcher must be a child of the frame the " +
+               "picture is in");
+          });
+          // Words, on hover and for a screen reader. A glyph on its own is
+          // not an affordance anyone can read.
+          has(launchers[0].getAttribute("title"), "full size");
+          eq(launchers[0].getAttribute("aria-label"),
+             launchers[0].getAttribute("title"));
+        });
+        ok(surfaces.length >= 4, "the walk must not be vacuous");
+      });
+
+    await test("a crop whose image is not on disk offers no launcher — there " +
+      "is nothing to open, and an absence is never a disabled control",
+      function () {
+        var root = render(function (r) {
+          VA.renderCrop(r, CROPS.by_stack.demo_joint.plate, null, VA.CONFIG);
+        });
+        has(root.textContent, VA.CROP_IMAGE_MISSING_TEXT);
+        eq(all(root, "button.cropfig__launch").length, 0);
+      });
+
+    await test("clicking a launcher on a page with no lightbox is a no-op, " +
+      "never a throw — the dialog is the page's, not the builder's",
+      function () {
+        var root = render(function (r) {
+          VA.renderCrop(r, CROPS.by_stack.demo_joint.plate, { url: "blob:x" },
+                        VA.CONFIG);
+        });
+        // This tier has no document.getElementById at all, which is the
+        // strongest form of "no dialog". The click must still land.
+        all(root, "button.cropfig__launch")[0].click();
+        ok(true, "the launcher's click returned");
+      });
+
+    await test("the lightbox renders the crop, its boxes and its one " +
+      "where-line — and no second launcher back into itself", function () {
+        var entry = datasheetEntry();
+        var root = render(function (r) {
+          VA.renderLightbox(r, entry, { url: "blob:x" }, VA.CONFIG);
+        });
+        eq(all(root, "div.cropfig").length, 1);
+        eq(all(root, "img").length, 1);
+        eq(all(root, "div.crophl").length, 1);
+        eq(all(root, "button.cropfig__launch").length, 0);
+        // The picture sits inside the ONE transformed wrapper: that is the
+        // whole zoom mechanism, and a frame outside it would not move.
+        var pan = all(root, "div.lightbox__pan")[0];
+        ok(pan && all(pan, "div.cropfig").length === 1,
+           "the crop's frame must be inside the transformed wrapper");
+        // The caption: the document and the sheet, once. Not the head ROW's
+        // class -- `lightbox__` as a prefix would collide with it.
+        has(all(root, "div.lightbox__cap-head")[0].textContent, entry.pdf_name);
+        has(all(root, "div.lightbox__cap-head")[0].textContent, "sheet 3");
+        eq(all(root, "div.lightbox__cap-head").length, 1);
+        // Nothing longer: no provenance fold on this surface.
+        eq(all(root, "details.provfold").length, 0);
+        ok(root.textContent.indexOf(VA.CROP_PROVENANCE_SUMMARY) === -1,
+           "the lightbox shows the where-line and the links, nothing longer");
+      });
+
+    await test("the lightbox's controls are the three it declares, plus a " +
+      "close — and each one moves the view", function () {
+        var handle = null;
+        var root = render(function (r) {
+          handle = VA.renderLightbox(r, datasheetEntry(), { url: "blob:x" },
+                                     VA.CONFIG);
+        });
+        var buttons = all(root, "button.lightbox__btn");
+        eq(buttons.length, VA.LIGHTBOX_CONTROLS.length);
+        eq(buttons.map(function (b) { return b.textContent; }),
+           VA.LIGHTBOX_CONTROLS.map(function (c) { return c.text; }));
+        eq(all(root, "button.lightbox__close").length, 1);
+        eq(handle.view().scale, 1);
+        all(root, "button.lightbox__btn--in")[0].click();
+        eq(handle.view().scale, VA.LIGHTBOX_ZOOM.step);
+        all(root, "button.lightbox__btn--in")[0].click();
+        eq(handle.view().scale, VA.LIGHTBOX_ZOOM.step * VA.LIGHTBOX_ZOOM.step);
+        all(root, "button.lightbox__btn--out")[0].click();
+        eq(handle.view().scale, VA.LIGHTBOX_ZOOM.step);
+        all(root, "button.lightbox__btn--fit")[0].click();
+        eq(handle.view(), { scale: 1, x: 0, y: 0 });
+        // The transform IS the state, written on the one wrapper.
+        all(root, "button.lightbox__btn--in")[0].click();
+        eq(all(root, "div.lightbox__pan")[0].style.transform,
+           VA.lightboxTransform(handle.view()));
+      });
+
+    await test("the close box closes the lightbox, and nothing else claims " +
+      "to", function () {
+        var closed = 0;
+        var root = render(function (r) {
+          VA.renderLightbox(r, datasheetEntry(), { url: "blob:x" }, VA.CONFIG,
+                            function () { closed++; });
+        });
+        all(root, "button.lightbox__close")[0].click();
+        eq(closed, 1);
+        has(all(root, "button.lightbox__close")[0].getAttribute("title"), "Esc");
+      });
+
+    // --- the zoom/pan arithmetic, value by value ----------------------------
+
+    await test("the crop is FITTED to the stage at scale 1 — the whole sheet " +
+      "on screen, at its own aspect ratio, never letterboxed", function () {
+        // Taller than the stage's ratio: the height binds and the width comes
+        // out under the stage's, which is the letterbox axis.
+        eq(VA.lightboxFitSize({ width: 1374, height: 1566 },
+                              { width: 1200, height: 800 }),
+           { width: 1374 * (800 / 1566), height: 800 });
+        // Wider than the stage's ratio: the width binds instead.
+        eq(VA.lightboxFitSize({ width: 1965, height: 254 },
+                              { width: 1200, height: 800 }),
+           { width: 1200, height: 254 * (1200 / 1965) });
+        // Nothing to measure is NULL, not zero: the caller leaves the
+        // stylesheet's own sizing standing rather than writing a guess.
+        eq(VA.lightboxFitSize({ width: 100, height: 100 }, null), null);
+        eq(VA.lightboxFitSize({ width: 100, height: 100 },
+                              { width: 0, height: 0 }), null);
+        eq(VA.lightboxFitSize({}, { width: 100, height: 100 }), null);
+      });
+
+    await test("a highlight box tracks the picture under zoom: its position " +
+      "WITHIN the picture is the same fraction at every scale", function () {
+        var entry = datasheetEntry();
+        var stage = { width: 1200, height: 800 };
+        var fit = VA.lightboxFitSize(entry, stage);
+        var frac = entry.highlights[0].frac;
+        // The highlight's top-left as a point of the CONTENT: the overlay is
+        // a percentage of the frame, and the frame is the fitted box.
+        var point = { x: frac[0] * fit.width, y: frac[1] * fit.height };
+        // Where that point sits inside the picture's own box, under a view.
+        // This is the claim: it must not move, at any scale, after any pan.
+        var within = function (view) {
+          var origin = VA.lightboxPoint(view, { x: 0, y: 0 });
+          var at = VA.lightboxPoint(view, point);
+          return {
+            x: Math.round(((at.x - origin.x) / (fit.width * view.scale)) * 1e6),
+            y: Math.round(((at.y - origin.y) / (fit.height * view.scale)) * 1e6),
+          };
+        };
+        var want = { x: Math.round(frac[0] * 1e6), y: Math.round(frac[1] * 1e6) };
+        var view = VA.lightboxClamp(VA.lightboxFit(), fit, stage);
+        eq(within(view), want, "at fit");
+        view = VA.lightboxClamp(VA.lightboxZoomAt(view, 2, { x: 600, y: 400 }),
+                                fit, stage);
+        eq(view.scale, 2);
+        eq(within(view), want, "zoomed 2x about the stage's centre");
+        view = VA.lightboxClamp(VA.lightboxPan(view, -40, -60), fit, stage);
+        eq(within(view), want, "after a pan");
+        view = VA.lightboxClamp(
+          VA.lightboxZoomAt(view, VA.LIGHTBOX_ZOOM.step, { x: 100, y: 700 }),
+          fit, stage);
+        eq(within(view), want, "zoomed again, about a corner this time");
+      });
+
+    await test("zooming keeps what is under the pointer under the pointer — " +
+      "the anchor, which is why this is arithmetic and not a class toggle",
+      function () {
+        var stage = { width: 1200, height: 800 };
+        var fit = VA.lightboxFitSize({ width: 1374, height: 1566 }, stage);
+        var view = VA.lightboxClamp(VA.lightboxFit(), fit, stage);
+        // The content point under the stage's centre, before the zoom.
+        var anchor = { x: 600, y: 400 };
+        var contentAt = function (v, screen) {
+          return { x: (screen.x - v.x) / v.scale, y: (screen.y - v.y) / v.scale };
+        };
+        var before = contentAt(view, anchor);
+        var zoomed = VA.lightboxClamp(VA.lightboxZoomAt(view, 2, anchor),
+                                      fit, stage);
+        var after = contentAt(zoomed, anchor);
+        eq([Math.round(after.x * 1e4), Math.round(after.y * 1e4)],
+           [Math.round(before.x * 1e4), Math.round(before.y * 1e4)]);
+      });
+
+    await test("the zoom range is bounded at both ends, and 1 is FIT rather " +
+      "than one image pixel per screen pixel", function () {
+        eq(VA.lightboxZoomAt({ scale: 1, x: 0, y: 0 }, 0.5, { x: 0, y: 0 }),
+           { scale: VA.LIGHTBOX_ZOOM.min, x: 0, y: 0 });
+        eq(VA.lightboxZoomAt(
+          { scale: VA.LIGHTBOX_ZOOM.max, x: -10, y: -20 }, 4, { x: 0, y: 0 }),
+           { scale: VA.LIGHTBOX_ZOOM.max, x: -10, y: -20 });
+        eq(VA.lightboxFit(), { scale: VA.LIGHTBOX_ZOOM.min, x: 0, y: 0 });
+        // A fresh object each time, not one shared literal: a zoom level that
+        // outlived a close would be the bug that pattern invites.
+        ok(VA.lightboxFit() !== VA.lightboxFit(), "fit must be a fresh view");
+      });
+
+    await test("the wheel zooms in when it is pushed away, and never the " +
+      "other way", function () {
+        eq(VA.lightboxWheelFactor(-100), VA.LIGHTBOX_ZOOM.step);
+        eq(VA.lightboxWheelFactor(120), 1 / VA.LIGHTBOX_ZOOM.step);
+        eq(VA.lightboxWheelFactor(0), 1 / VA.LIGHTBOX_ZOOM.step);
+      });
+
+    await test("the clamp centres a crop smaller than the stage and covers " +
+      "one larger — so the picture can never be dragged out of the window",
+      function () {
+        var stage = { width: 1200, height: 800 };
+        var content = { width: 600, height: 400 };
+        // Smaller than the stage on both axes: centred, whatever the offset
+        // says. This is also what makes the fit view a plain {1, 0, 0}.
+        eq(VA.lightboxClamp({ scale: 1, x: 5000, y: -5000 }, content, stage),
+           { scale: 1, x: 300, y: 200 });
+        // At 4x it is 2400x1600, larger both ways: held so no gap appears.
+        eq(VA.lightboxClamp({ scale: 4, x: 500, y: 500 }, content, stage),
+           { scale: 4, x: 0, y: 0 });
+        eq(VA.lightboxClamp({ scale: 4, x: -9999, y: -9999 }, content, stage),
+           { scale: 4, x: -1200, y: -800 });
+        // One axis each way, in one view: this crop at 2x is 1200 wide
+        // (exactly the stage) and 1600 tall.
+        eq(VA.lightboxClamp({ scale: 2, x: 40, y: -100 },
+                            { width: 600, height: 800 }, stage),
+           { scale: 2, x: 0, y: -100 });
+        // Nothing to clamp against leaves the view alone rather than zeroing
+        // it -- the DOM shim's answer, and it must not move the picture.
+        eq(VA.lightboxClamp({ scale: 2, x: 40, y: -100 }, null, stage),
+           { scale: 2, x: 40, y: -100 });
+      });
+
+    await test("the transform is rounded, so a style attribute is readable in " +
+      "a screenshot and a DOM diff", function () {
+        eq(VA.lightboxTransform({ scale: 1, x: 0, y: 0 }),
+           "translate(0px, 0px) scale(1)");
+        eq(VA.lightboxTransform({ scale: 1.4999999999999987,
+                                  x: 249.04214559386975, y: -160.5000001 }),
+           "translate(249.04px, -160.5px) scale(1.5)");
+      });
+
     // --- worksheet ----------------------------------------------------------
 
     await test("the worksheet renders markdown, tables included", function () {
@@ -2498,6 +2794,41 @@
               "not layout that reserves a line of height even collapsed");
           has(appJs, "showWorksheet: false",
               "the worksheet must default to closed — moved out of the way, not gone");
+        });
+
+      // The lightbox's own shell (crop_lightbox_zoom_viewer). Read out of the
+      // shipped source for the same reason the two dialogs above are: the
+      // element and the script tag are page wiring, and this file's sandbox
+      // loads neither topology.html nor topology_app.js.
+      //
+      // Three things, and each one is a whole feature if it is missing. No
+      // <dialog> and the launcher opens nothing. No `views/lightbox.js`
+      // <script> and VA.openCropLightbox does not exist, so every launch
+      // button on the page is the no-op the builder's own fallback allows.
+      // And both runners must load the same file list as the page, or the fast
+      // tier passes over a module the browser never gets — which is the exact
+      // shape of the bug the two script-tag lists exist to make visible.
+      await test("the crop lightbox is a <dialog> in the page, and every " +
+        "runner loads the module that fills it", function () {
+          var html = viewerSrc.readText("topology.html");
+          var testHtml = viewerSrc.readText("test.html");
+          var runner = viewerSrc.readText("run_tests.cjs");
+          ok(html && testHtml && runner,
+             "topology.html, test.html and run_tests.cjs must be readable");
+          var at = html.indexOf('id="crop-lightbox"');
+          ok(at !== -1, "expected #crop-lightbox in topology.html");
+          has(html.slice(Math.max(0, at - 60), at), "<dialog",
+              "the lightbox must be a native <dialog> — Escape and a backdrop " +
+              "click are then the browser's own dismiss, and the top layer is " +
+              "what keeps it off the page's layout entirely");
+          has(html, 'src="./views/lightbox.js"',
+              "topology.html must load views/lightbox.js, or every launch " +
+              "button on the page opens nothing");
+          has(testHtml, 'src="./views/lightbox.js"',
+              "test.html must load it too — the browser tier runs this same " +
+              "suite, and a module it cannot see is a suite that skips it");
+          has(runner, '"views/lightbox.js"',
+              "run_tests.cjs must load it too, for the same reason");
         });
 
       await test("index.html is a redirect stub, not a second copy of the app",
@@ -3556,6 +3887,18 @@
                 {}, VA.CONFIG, null);
             })]);
         }
+        // The crop lightbox (crop_lightbox_zoom_viewer), enrolled the day it
+        // was added. Most of what it prints is the shared crop caption, which
+        // this walk already reads on four other surfaces; what is NEW is its
+        // own controls' words, and those are exactly the copy this scan exists
+        // to keep honest.
+        var cropEntry = VA.cropFor(crops, stackProj.id, element.id);
+        if (cropEntry.status === "resolved") {
+          surfaces.push([where + "crop lightbox on " + element.id,
+            render(function (r) {
+              VA.renderLightbox(r, cropEntry, { url: "blob:x" }, VA.CONFIG);
+            })]);
+        }
       });
       return surfaces;
     }
@@ -3915,6 +4258,82 @@
           surfaceIsClean(pair[1], pair[0], fields, ids);
         });
         ok(surfaces.length > 20, "the walk must not be vacuous");
+      });
+
+    // The other half of the launcher walk (crop_lightbox_zoom_viewer). The
+    // stack-side surfaces are enumerated beside the lightbox's own tests
+    // above; these are the topology's, and they are here rather than there
+    // because TOPO/TOPOCROPS only exist in this block.
+    //
+    // The claim is parity, not a count: on EVERY topology surface, the number
+    // of launch buttons equals the number of pictures shown — so a surface
+    // that grows a second crop grows a second launcher, and one that renders a
+    // crop through anything other than the shared builder shows up as a
+    // picture with no way to open it.
+    await test("every topology surface that shows a crop carries one launcher " +
+      "per picture, and the count is parity rather than a constant",
+      function () {
+        var images = {};
+        [TOPOCROPS.by_stack, TOPOCROPS.by_topology].forEach(function (space) {
+          Object.keys(space || {}).forEach(function (outer) {
+            Object.keys(space[outer] || {}).forEach(function (inner) {
+              var entry = space[outer][inner];
+              if (entry && entry.png) images[entry.png] = { url: "blob:x" };
+              if (entry && entry.companion && entry.companion.png) {
+                images[entry.companion.png] = { url: "blob:pl" };
+              }
+            });
+          });
+        });
+        var surfaces = [["the grid", render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ cropImages: images }));
+        })]];
+        (TOPO.edges || []).forEach(function (edge) {
+          surfaces.push(["the card on edge " + edge.id, render(function (r) {
+            VA.renderHoverCard(r, VA.edgeCard(TOPO, edge, TOPOCROPS), images,
+              VA.CONFIG, null);
+          })]);
+          surfaces.push(["the pane on edge " + edge.id, render(function (r) {
+            VA.renderTopoDetail(r, topoCtx({
+              selection: { kind: "edge", id: edge.id },
+              detailImage: { url: "blob:x" },
+            }));
+          })]);
+        });
+        (TOPO.nodes || []).forEach(function (node) {
+          surfaces.push(["the card on node " + node.id, render(function (r) {
+            VA.renderHoverCard(r, VA.nodeCard(TOPO, node.id, TOPOCROPS), images,
+              VA.CONFIG, null);
+          })]);
+        });
+        (TOPO.parts || []).forEach(function (part) {
+          surfaces.push(["the card on part " + part.id, render(function (r) {
+            VA.renderHoverCard(r, VA.componentCard(TOPO, part.id, TOPOCROPS),
+              images, VA.CONFIG, null);
+          })]);
+        });
+        var pictures = 0;
+        surfaces.forEach(function (pair) {
+          // A frame with no picture in it is the not-on-disk state, which
+          // offers nothing — so the pairing is against the IMAGES, not the
+          // frames.
+          var shown = all(pair[1], "div.cropfig").filter(function (frame) {
+            return all(frame, "img").length === 1;
+          });
+          eq(all(pair[1], "button.cropfig__launch").length, shown.length,
+             pair[0] + " must carry one launcher per picture");
+          pictures += shown.length;
+        });
+        ok(pictures >= 3, "the walk must not be vacuous: " + pictures +
+           " pictures over " + surfaces.length + " surfaces");
+        // The grid's inline thumbnail is the one crop image on this page that
+        // is NOT a cropFigure, and it deliberately carries no launcher of its
+        // own: clicking it opens the edge card, whose figure has one. Stated
+        // here so the decision is pinned rather than remembered.
+        var grid = surfaces[0][1];
+        ok(all(grid, "img.tvthumb").length >= 1,
+           "the grid must still render inline thumbnails");
+        eq(all(grid, "button.cropfig__launch").length, 0);
       });
 
     // The OTHER half of the viewer, which had no walk of any kind until
