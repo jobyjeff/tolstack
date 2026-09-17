@@ -35,7 +35,7 @@ drawing-checker session).
 
 ## What I verified
 
-**Four tiers, on the merged tree, re-run after my own inline fixes.**
+**Four tiers, on the merged tree.**
 
 | tier | result |
 |---|---|
@@ -43,6 +43,19 @@ drawing-checker session).
 | `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | **453/453** |
 | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | **22/22 suites** — the new suite 17/17, `suite file://` and `suite http` 353/353 each, `topology` 201/201 ×2 |
 | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | **54/54 witnessed** |
+
+pytest, the fast tier and the browser tier were **re-run after** my own
+inline fixes below and are the figures above. The mutation tier's 54/54 was
+measured on the merged tree **before** them (a ~90-minute run), so instead of
+repeating it whole I checked what those fixes could reach: they touch two
+files that carry witness entries (`apps/viewer/style.css`,
+`scripts/run_viewer_browser_tests.mjs`) and in both cases only comment text,
+no `find` or `expect_red` string. `tests/test_mutation_witnesses.py` — the
+cheap half that reddens on a `find` that no longer resolves — is green in the
+pytest run above, and I re-ran the four entries in those two files
+individually (`card-layout-out-of-flow`, `card-crop-overlay-frame`,
+`suite-prints-the-registry-key-it-was-handed`, `alert-badge-is-not-filled`):
+all four WITNESSED.
 
 The one Python failure is pre-existing and not the branch's:
 `test_no_live_document_states_an_unguarded_hardware_entry_count`, on
@@ -223,6 +236,7 @@ suite has 16 sub-checks**; it has 17. Fixed.
   existing skip idiom, so I have not filed it, but it is the "block gated on a
   projection-derived subject" shape and worth a witness line if the idiom is
   ever tightened.
-* Three tiers were re-run after the inline fixes; the mutation tier was run on
-  the merged tree and reads 54/54, so nothing in the merge killed an existing
-  witness.
+* The mutation tier reads 54/54 on the merged tree, so nothing in the merge
+  killed an existing witness — and note for your own run: it takes ~90 minutes
+  end to end here, while `--only <id>` on the handful of entries a diff can
+  actually reach is a minute each.
