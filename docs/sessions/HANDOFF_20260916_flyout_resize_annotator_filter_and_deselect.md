@@ -4,7 +4,7 @@ depends_on: [viewer_hover_deslop_and_banner_purge]
 model: opus
 ---
 
-# HANDOFF 2026-09-16 — flyout_resize_annotator_filter_and_deselect: resizable 3D flyout, element-scoped left menu, face deselect, full-page link, and one alert badge
+# HANDOFF 2026-09-16 — flyout_resize_annotator_filter_and_deselect: left-docked resizable 3D flyout, element-scoped left menu, face deselect, full-page link, and one alert badge
 
 Source: Jeff's 2026-09-16 forge note `20260916T175137_lj0lgi`, "# 3d flyout"
 section (his screenshot:
@@ -19,21 +19,26 @@ previous handoff just landed; `docs/topologies/*.json`; the bindings inbox
 
 Jeff's builds have hit stale-served-JS repeatedly — **verify each complaint
 against current master first** and record already-fixed items in the lesson
-instead of re-fixing. Known case: he asked to "move the flyout to the right
-side", and on master the flyout is **already right-docked**
-(`topology.css:622`, `inset: 0 0 0 auto`) — confirm it renders that way and
-treat the ask as satisfied unless something disagrees.
+instead of re-fixing.
 
 ## Deliverables
 
-1. **Resizable flyout.** `dialog#annotate-flyout` is fixed
-   `width: min(760px, 55vw)` with no divider. Jeff: "make it resizable (it's
-   too narrow to be useful)." Reuse the preview-pane divider pattern —
-   `wireDetailDivider` / `onResizeStart` / `applyResize`
-   (`topology_app.js:926-995`), pure clamp arithmetic in `views/topology.js`
-   (the `VA.TOPO_PANE_WIDTH` shape), persisted width under its own
-   localStorage key, keyboard nudge included. It resizes from its left edge
-   (the pane is right-docked).
+1. **The flyout docks LEFT, adjacent to the DAG, and is resizable.** Jeff's
+   note said "right side" but he corrected it same day (2026-09-16 follow-up,
+   verbatim): "I actually want the 3d flyout on the left side, adjacent to
+   the DAG. It would be ok if it covered up the left side select menu since
+   you shouldn't need both at the same time." On master
+   `dialog#annotate-flyout` is right-docked at fixed `width: min(760px, 55vw)`
+   (`topology.css:622`, `inset: 0 0 0 auto`) — move it to the left edge
+   (`inset: 0 auto 0 0`-shaped), where it may overlay the nav/select rail;
+   the DAG must remain visible beside it (that adjacency is the point — 3D
+   next to the graph). Then make it resizable from its right edge: reuse the
+   preview-pane divider pattern — `wireDetailDivider` / `onResizeStart` /
+   `applyResize` (`topology_app.js:926-995`), pure clamp arithmetic in
+   `views/topology.js` (the `VA.TOPO_PANE_WIDTH` shape; note the drag-sign
+   inversion flips for a left-docked pane), persisted width under its own
+   localStorage key, keyboard nudge included. Escape/✕ close behavior
+   unchanged, and closing must restore whatever the flyout covered.
 
 2. **The flyout scopes the annotator's left menu to the element it was opened
    from.** Jeff: "it should also auto-filter the left side menu to just the
@@ -95,7 +100,8 @@ treat the ask as satisfied unless something disagrees.
 
 - Verified in a real browser (served mode, live projections at
   `C:\workspace\tolstack\data\projections\viewer\`): screenshots under
-  `docs/sessions/lessons/` of (a) the flyout resized wide next to the DAG,
+  `docs/sessions/lessons/` of (a) the flyout LEFT-docked beside the visible
+  DAG, resized wide,
   (b) the left rail filtered to one element's parts with the "show all"
   control visible, (c) a row with the consolidated alert icon + its hover
   popup open, (d) before/after of the stack source column.
