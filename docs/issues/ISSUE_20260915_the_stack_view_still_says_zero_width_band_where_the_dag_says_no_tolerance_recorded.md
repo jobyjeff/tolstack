@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: viewer/copy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_nav_wedge_and_classic_retirement.md
 handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `reader_facing_copy_and_vocabulary` moved to completed/; not independently verified.
 ---
 
 # The stack view still says "zero-width band" where the DAG page says "no tolerance recorded"

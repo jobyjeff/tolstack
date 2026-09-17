@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
 handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `reader_facing_copy_and_vocabulary` moved to completed/; not independently verified.
 ---
 
 # "dimensions from <workbook>" reads as sourcing on parts whose every value is `untraced` and on the gap list

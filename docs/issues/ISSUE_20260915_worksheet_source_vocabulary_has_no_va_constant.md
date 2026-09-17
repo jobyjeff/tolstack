@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md
 handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `reader_facing_copy_and_vocabulary` moved to completed/; not independently verified.
 ---
 
 # `worksheet_source`'s vocabulary is spelled inline at its branch, with no `VA.WORKSHEET_SOURCES` to read

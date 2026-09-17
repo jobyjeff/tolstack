@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
 handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `reader_facing_copy_and_vocabulary` moved to completed/; not independently verified.
 ---
 
 # The citation where-line reads "rev Rev 4 (sheet 1 rev 4, sheet 2 rev 2, sheet 3 NEW, sheet 4 rev 2)"

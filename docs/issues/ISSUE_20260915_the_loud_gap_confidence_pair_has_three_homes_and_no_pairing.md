@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: viewer/vocabularies
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_study_verdicts_and_gaps.md
 handoff: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
+resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `reader_facing_copy_and_vocabulary` moved to completed/; not independently verified.
 ---
 
 # "The two loud gap confidences" is now stated in three places, none paired to another
