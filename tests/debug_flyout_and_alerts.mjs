@@ -13,14 +13,21 @@
 // static server below serves /data/... from there while every app file comes
 // from THIS tree. Without --shots it only prints what it measured.
 //
-// The pages are driven at ?mock=1. That is a deliberate limit and worth
-// knowing: the FLYOUT's own boot needs ../annotate/ served beside the viewer
-// (a repo-root server, which this is), but the annotator cannot be granted a
-// folder from an automated browser at all -- File System Access needs a user
-// gesture -- so the rail shots are the mock fixture's three elements and one
-// synthetic mesh, not Jeff's live topologies. Everything being shown is
-// layout, copy and colour, which the fixture exercises fully; the numbers are
-// pinned against the live projections by the tiers, not here.
+// WHICH DATA EACH SHOT USES, because it is not one answer:
+//
+//   * the FLYOUT shots are LIVE (`topology.html` with no ?mock=1, reading the
+//     projections under --repo). The claim they carry is "the DAG is visible
+//     beside the panel", and the mock topology's drawing is a 78px stub -- a
+//     screenshot of a stub proves nothing about a real one. They use
+//     `pitch_system`, whose 262px drawing is the widest of the 21 live studies
+//     and so the hardest case.
+//   * the SOURCE-COLUMN shots are ?mock=1, because the demo stack's washer row
+//     is the one carrying both alerts at once, which is what the before/after
+//     pair is about.
+//   * the RAIL shots are ?mock=1 and cannot be otherwise: the annotator needs
+//     a File System Access grant to read anything real, and FSA needs a user
+//     gesture no automated browser can supply. The fixture's three elements
+//     cover all three binding states, which is what those shots show.
 import { chromium } from "playwright-core";
 import { createServer } from "node:http";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
@@ -77,16 +84,37 @@ async function shot(page, name, opts) {
   console.log(`    wrote ${file}`);
 }
 
+// Park the pointer somewhere that triggers nothing, and dismiss anything a
+// gesture left open. Not cosmetic: a drag on the flyout's seam ENDS with the
+// pointer over the DAG, whose rail bars are hover-card triggers, so the first
+// take of shot 2b had a citation card sitting across the diagram the shot
+// exists to show. Escape is the popover's own dismiss (topology_app.js).
+async function parkPointer(page) {
+  await page.keyboard.press("Escape");
+  await page.mouse.move(4, 4);
+  await page.waitForFunction(() => {
+    const pop = document.querySelector("#croppop");
+    return !pop || pop.style.display === "none" || !pop.style.display;
+  }, null, { timeout: 5000 }).catch(() => {});
+}
+
 const server = await startServer();
 const url = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ channel: "chrome" });
 
 try {
-  // --- 1. the flyout, LEFT-docked beside a visible DAG, dragged wide --------
+  // --- 1. the flyout, LEFT-docked beside a VISIBLE DAG, dragged wide --------
+  //
+  // LIVE data, not ?mock=1, and that is the whole point of these three shots:
+  // the handoff asks for "the flyout LEFT-docked beside the visible DAG", the
+  // mock topology's drawing is a 78px stub, and a screenshot of a stub proves
+  // nothing about a real one. `pitch_system` renders the widest of the 21 live
+  // drawings (262px), which is the hardest case for adjacency.
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
-  await page.goto(`${url}/apps/viewer/topology.html?mock=1`, { waitUntil: "load" });
-  await page.waitForSelector("tr.tvrow", { timeout: 20000 });
-  await page.locator('[data-nav-kind="study"][data-nav-id="demo_base_to_tip"]').click();
+  await page.goto(`${url}/apps/viewer/topology.html`, { waitUntil: "load" });
+  await page.waitForSelector('[data-nav-kind="study"]', { timeout: 20000 });
+  await page.locator(
+    '[data-nav-kind="study"][data-nav-id="pitch_system_blade_angle_average"]').click();
   await page.waitForSelector("#study-3d", { timeout: 20000 });
   await page.locator("#study-3d").click();
   await page.waitForSelector("#annotate-flyout[open]", { timeout: 10000 });
@@ -99,20 +127,27 @@ try {
   }, null, { timeout: 20000 });
 
   const box = async (sel) => page.locator(sel).boundingBox();
-  // How much of the DAG pane is NOT under the panel. The number that matters:
-  // the panel is position: fixed, so `#topopane`'s own box never moves however
-  // wide the panel gets, and a check against that box would report a covered
-  // diagram as adjacent.
-  const uncoveredDag = () => page.evaluate(() => {
-    const dag = document.querySelector("#topopane").getBoundingClientRect();
+  // Where the DAG DRAWING is, against the panel. `svg.tv__rails` and NOT
+  // `#topopane`: the pane is the drawing's horizontal scrollport, and a probe
+  // that measured the scrollport is what reported 300px of clearance over a
+  // diagram that was wholly covered (review, 2026-09-16). The drawing is also
+  // `position: sticky; left: 0` inside that scrollport, so no scroll position
+  // can move it -- there is no reading of "uncovered" that a scroll rescues.
+  const railsAt = () => page.evaluate(() => {
+    const svg = document.querySelector("#topopane svg.tv__rails");
     const panel = document.querySelector("#annotate-flyout").getBoundingClientRect();
-    return Math.round(Math.max(0, dag.right - Math.max(dag.left, panel.right)));
+    if (!svg) return null;
+    const r = svg.getBoundingClientRect();
+    return { l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width),
+             clear: r.width > 0 && r.left >= panel.right };
   });
   const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
   const at = { flyout: await box("#annotate-flyout"), dag: await box("#topopane") };
+  const drawn = await railsAt();
   say(`flyout docked at x=${at.flyout.x}, ${at.flyout.width}px wide; the DAG ` +
-      `pane runs x=${at.dag.x}..${Math.round(at.dag.x + at.dag.width)}, with ` +
-      `${await uncoveredDag()}px of it uncovered (the reserve is ${reserve})`);
+      `drawing is ${drawn.w}px at x=${drawn.l}..${drawn.r}, wholly clear of ` +
+      `the panel: ${drawn.clear} (the reserve floor is ${reserve})`);
+  await parkPointer(page);
   await shot(page, "1_flyout_left_docked_default");
 
   // Real pointer drags on the seam. At 1600px with the preview pane at its own
@@ -128,17 +163,29 @@ try {
     return Math.round((await box("#annotate-flyout")).width);
   };
   const narrow = await dragBy(-220);
+  const narrowRails = await railsAt();
   say(`dragged left 220px: ${Math.round(at.flyout.width)} -> ${narrow}px, ` +
-      `${await uncoveredDag()}px of DAG uncovered`);
+      `drawing at x=${narrowRails.l}..${narrowRails.r}, clear: ${narrowRails.clear}`);
+  await parkPointer(page);
   await shot(page, "2a_flyout_narrowed_more_dag");
   const wide = await dragBy(400);
+  const wideRails = await railsAt();
   say(`dragged right 400px: ${narrow} -> ${wide}px (the clamp), ` +
-      `${await uncoveredDag()}px of DAG still uncovered`);
+      `drawing at x=${wideRails.l}..${wideRails.r}, clear: ${wideRails.clear}`);
+  await parkPointer(page);
   await shot(page, "2b_flyout_resized_wide_dag_still_beside_it");
 
-  // Closing restores what it covered -- including the nav rail it was over.
+  // Closing puts the page back -- the nav rail it stood down, and the shift.
+  // WAITED for, not sampled: the class comes off in the dialog's `close`
+  // handler, which runs from a queued task one beat after the click.
   await page.locator("#flyout-close").click();
-  say(`closed: the nav rail is back at x=${(await box("#navtree")).x}`);
+  await page.waitForFunction(() => !document.body.classList.contains("flyout-open"),
+    null, { timeout: 5000 }).catch(() => {});
+  const back = await railsAt();
+  say(`closed: the nav rail is back at x=${(await box("#navtree")).x} and the ` +
+      `drawing is back at x=${back.l}..${back.r}`);
+  await parkPointer(page);
+  await shot(page, "2c_flyout_closed_page_restored");
   await page.evaluate((k) => window.localStorage.removeItem(k),
     await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY));
 
@@ -151,9 +198,10 @@ try {
   // chip--export-* rules never moved), so the reconstruction renders
   // pixel-identically to the previous build -- which is why it is worth having
   // beside the after shot rather than a prose description of it.
-  // A fresh load rather than a mode switch out of the open study: this probe
-  // only wants the elements table, and leaving a respine transition in flight
-  // behind it is how a shot ends up of a half-faded pane.
+  // Back to ?mock=1 for the source column: the demo stack's washer row is the
+  // one that carries BOTH alerts at once, which is exactly the row the
+  // before/after pair is about. A fresh load rather than a mode switch, so no
+  // respine transition is in flight behind the shot.
   await page.goto(`${url}/apps/viewer/topology.html?mock=1`, { waitUntil: "load" });
   await page.waitForSelector("tr.tvrow", { timeout: 20000 });
   await page.locator('[data-nav-kind="stack"][data-nav-id="demo_joint_standalone"]').click();

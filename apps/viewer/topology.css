@@ -736,22 +736,32 @@ body { display: flex; flex-direction: column; }
 .detail__annotate-btn:hover { text-decoration: underline; }
 
 /* --- the annotator flyout (study_3d_flyout) --------------------------------
-   The same "structurally cannot steal layout" family as the two dialogs
-   below, with one difference: it opens NON-modally (dialog.show(), no top
-   layer needed) and position: fixed pins it to a viewport edge, so the page
-   stays fully clickable beside it -- "attach to 3D" on another row re-drives
-   the open panel. position: fixed takes it out of flow entirely: opening it
-   cannot shrink or reflow the DAG pane by construction, and closing it
-   restores whatever it covered with no "put it back" path to get wrong.
+   It opens NON-modally (dialog.show(), no top layer needed) and position:
+   fixed pins it to a viewport edge, so the page beside it stays fully
+   clickable -- "attach to 3D" on another row re-drives the open panel.
 
    LEFT-docked since 2026-09-16, and the reason is adjacency (Jeff: "I
    actually want the 3d flyout on the left side, adjacent to the DAG. It would
    be ok if it covered up the left side select menu since you shouldn't need
    both at the same time"). It was pinned to the RIGHT edge until then, which
    put the 3D panel and the graph at opposite ends of the window with the whole
-   grid between them -- the two things a reader is comparing. Covering the nav
-   rail is the accepted cost: `.navtree` above declares no z-index, so this
-   sits over it, and it comes back untouched on close. */
+   grid between them -- the two things a reader is comparing.
+
+   AND THE PAGE YIELDS THE ROOM RATHER THAN BEING COVERED (`body.flyout-open`
+   below). That reverses, deliberately, what this comment argued until the
+   review of 2026-09-16: "position: fixed takes it out of flow entirely:
+   opening it cannot shrink or reflow the DAG pane by construction". That
+   invariant was right for a RIGHT-docked panel, where the thing underneath was
+   the preview pane and nothing was lost -- and it is exactly what made a
+   left-docked one useless. Measured across all 21 live studies: the DAG
+   drawing (`svg.tv__rails`) is only 90-262px wide and sits at the pane's LEFT
+   edge, so its right edge never passes x=562, while this panel's own floor is
+   560px. At every width a reader can reach, the graph was entirely underneath
+   the panel. Nor could a reader scroll it out: `.tv__rails` is `position:
+   sticky; left: 0` inside `.tv__hscroll` (by design, see above), so at
+   scrollLeft 0 and at scrollLeft 742 its box is the same 300..562.
+   "Adjacent to the DAG" and "cannot reflow the DAG pane" cannot both hold on
+   one edge of one window; adjacency is what Jeff asked for. */
 dialog#annotate-flyout {
   position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0;
   width: min(760px, 55vw); height: 100vh; max-height: 100vh;
@@ -811,6 +821,29 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
 }
 .flyout__divider:focus { outline: none; }
 .flyout__frame { flex: 1; width: 100%; border: none; background: #1b1e22; }
+
+/* --- what the page does while the panel is open ---------------------------
+   `--flyout-width` is written by topology_app.js's applyFlyoutWidth, on every
+   frame of a drag, so these two rules follow the seam live. The class is
+   added on launch and removed by the dialog's own `close` event, which is the
+   ONE seam every close path goes through (the ✕, a `.close()` from anywhere)
+   -- not the button's handler, which would leave the page shifted if anything
+   else ever closed the panel.
+
+   The nav rail stands down rather than being slid right, on Jeff's explicit
+   say-so ("you shouldn't need both at the same time"). Without that it would
+   cost 300px of the very room this is trying to hand the graph, and the panel
+   supersedes it: the annotator has its own topology and study pickers.
+
+   Everything above `.tv` shifts too, so the panel reads as the page's left
+   column rather than as a sheet lying across it. Nothing is latched and
+   nothing is destroyed -- `display: none` and a margin both reverse exactly,
+   which is what makes "closing restores whatever it covered" true by
+   construction rather than by a restore path that can rot. */
+body.flyout-open .topbar,
+body.flyout-open #banner,
+body.flyout-open .tv { margin-left: var(--flyout-width, 0); }
+body.flyout-open .navtree { display: none; }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):

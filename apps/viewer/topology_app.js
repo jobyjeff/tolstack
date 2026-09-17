@@ -187,11 +187,19 @@
     applyPaneWidth();
     wireDetailDivider();
 
-    state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), roomBesideFlyout());
+    state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), roomBesideFlyout(), graphNeed());
     applyFlyoutWidth();
     wireFlyoutDivider();
 
     nodes.flyoutClose.onclick = function () { nodes.flyout.close(); };
+    // The ONE seam every close path goes through. Not the button's handler:
+    // `.close()` is also reachable from anywhere else that holds the element,
+    // and a page left shifted with no panel on it would be a layout with no
+    // way back. `display: none` and a margin both reverse exactly, so this is
+    // the whole of "closing restores whatever it covered".
+    nodes.flyout.addEventListener("close", function () {
+      document.body.classList.remove("flyout-open");
+    });
 
     // Probe for the sibling annotate mount (study_3d_flyout, feature 3) in
     // parallel with the transport probe below — measured, never assumed, and
@@ -1043,23 +1051,31 @@
     if (nodes.flyoutFullpage) {
       nodes.flyoutFullpage.setAttribute("href", VA.annotateLink(params));
     }
+    // The drawing measured BEFORE the page shifts, so `keep` is this study's
+    // own rails width and not a width taken after the pane narrowed under them.
+    var keep = graphNeed();
+
     // show(), not showModal(): the page beside the panel stays clickable, so
     // "attach to 3D" on another row re-drives the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
+    // The page yields the room (topology.css's `body.flyout-open`): `.tv`
+    // starts at the panel's right edge and the nav rail stands down, so the
+    // panel sits BESIDE the graph instead of on top of it. Removed again by
+    // the dialog's own `close` event, wired once at boot.
+    document.body.classList.add("flyout-open");
 
-    // The panel's width, clamped to the room the DAG can spare, EVERY time it
+    // The panel's width, clamped to the room the page can spare, EVERY time it
     // opens -- and AFTER show(), which is not a detail: a closed <dialog> is
     // `display: none`, so flyoutWidthNow() would measure 0 and fall back to
     // VA.FLYOUT_WIDTH.min, opening the first launch at the floor instead of at
     // the width the stylesheet asked for.
     //
     // topology.css declares the width it WANTS; this is what keeps that a wish
-    // rather than a promise the layout cannot keep. At 1600px with the preview
-    // pane at its own 560px default, the stylesheet's 760px leaves the diagram
-    // wholly covered, and the clamp trims it until a strip of graph survives.
-    // Not remembered: a width the layout imposed is not a preference the reader
-    // expressed, so rememberWidth() is deliberately not called here.
-    state.flyoutWidth = VA.clampFlyoutWidth(flyoutWidthNow(), roomBesideFlyout());
+    // rather than a promise the layout cannot keep. Not remembered: a width the
+    // layout imposed is not a preference the reader expressed, so
+    // rememberWidth() is deliberately not called here.
+    state.flyoutWidth = VA.clampFlyoutWidth(flyoutWidthNow(),
+      roomBesideFlyout(), keep);
     applyFlyoutWidth();
   }
 
@@ -1163,23 +1179,42 @@
   // number would be honest only until either one was touched. 0 where there is
   // nothing to measure (the DOM shim), which the clamp reads as "no layout to
   // go on" and answers with its px max.
+  // The width the panel and the page's own content are dividing: the window,
+  // less what sits to the RIGHT of the graph. The nav rail is NOT subtracted --
+  // it stands down while the panel is open (topology.css's `body.flyout-open`),
+  // so its 300px is part of what there is to divide.
+  //
+  // Deliberately reads neither the panel nor the page shift, so there is no
+  // circularity: both terms it does read (the window, the preview pane) are
+  // independent of how wide the panel is.
   function roomBesideFlyout() {
     var room = (typeof window !== "undefined" && window.innerWidth) || 0;
     if (!room) return 0;
-    // The DAG pane's own RIGHT EDGE where the page is showing one: everything
-    // left of it (the nav rail, the diagram, the grid) is coverable and
-    // everything right of it is the preview pane and its divider, so this is
-    // exactly the width the flyout and the graph are dividing. Measuring
-    // `window - pane` instead is off by the seam between them -- at 1600px it
-    // reserved 300 and left 298 of `#topopane` showing, which is the kind of
-    // two-pixel lie a guard then has to be written around.
-    var dag = nodes.pane && nodes.pane.getBoundingClientRect
-      ? nodes.pane.getBoundingClientRect() : null;
-    if (dag && dag.width > 0) return Math.round(dag.right);
-    // Stack mode (the DAG pane is not rendered) or a page that has not laid
-    // out yet: the window less whatever the preview pane is taking.
     var pane = nodes.detail && nodes.detail.offsetWidth;
-    return Math.max(0, room - (typeof pane === "number" && pane > 0 ? pane : 0));
+    var seam = nodes.detailDivider && nodes.detailDivider.offsetWidth;
+    return Math.max(0, room
+      - (typeof pane === "number" && pane > 0 ? pane : 0)
+      - (typeof seam === "number" && seam > 0 ? seam : 0));
+  }
+
+  // How much of that has to be left for the page: the DAG DRAWING's own width.
+  //
+  // `svg.tv__rails` and not `#topopane`, and that distinction is the whole of
+  // the review's blocker (2026-09-16). `#topopane` is the drawing's horizontal
+  // scrollport; the drawing is the SVG pinned at its left edge, 90-262px wide
+  // across the live studies, `position: sticky; left: 0` so no scroll position
+  // can bring it out from under anything. Measuring the scrollport reported
+  // 300px of clearance over a diagram that was 100% covered.
+  //
+  // 0 where nothing is drawn -- stack mode, a pre-layout call -- which
+  // VA.clampFlyoutWidth reads as "nothing measured" and answers with its own
+  // floor.
+  function graphNeed() {
+    var rails = nodes.pane && nodes.pane.querySelector
+      ? nodes.pane.querySelector("svg.tv__rails") : null;
+    var box = rails && rails.getBoundingClientRect
+      ? rails.getBoundingClientRect() : null;
+    return box && box.width > 0 ? Math.round(box.width) : 0;
   }
 
   // The remembered flyout width onto the dialog, or nothing at all -- same
@@ -1188,6 +1223,12 @@
   function applyFlyoutWidth() {
     if (!nodes.flyout || state.flyoutWidth === null) return;
     nodes.flyout.style.width = state.flyoutWidth + "px";
+    // ...and to the stylesheet, which is what shifts the page out from under
+    // the panel (topology.css's `body.flyout-open`). Written here rather than
+    // on open only, so the page follows the seam on every frame of a drag.
+    if (document.body && document.body.style.setProperty) {
+      document.body.style.setProperty("--flyout-width", state.flyoutWidth + "px");
+    }
   }
 
   // What a drag on the flyout's divider measures FROM -- the same three-way
@@ -1236,7 +1277,7 @@
       // The OPPOSITE sign inversion to the pane's, and for the same structural
       // reason: this panel is LEFT of its divider, so dragging right widens it.
       // Both live in the pure layer (VA.flyoutWidthAfterDrag), not here.
-      state.flyoutWidth = VA.flyoutWidthAfterDrag(from.width, dx, roomBesideFlyout());
+      state.flyoutWidth = VA.flyoutWidthAfterDrag(from.width, dx, roomBesideFlyout(), graphNeed());
       applyFlyoutWidth();
     }
   }
@@ -1303,7 +1344,8 @@
     if (spec.kind === "pane" && state.detailWidth !== null) {
       VA.writeStoredPaneWidth(widthStore(), state.detailWidth);
     } else if (spec.kind === "flyout" && state.flyoutWidth !== null) {
-      VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth, roomBesideFlyout());
+      VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth,
+        roomBesideFlyout(), graphNeed());
     }
   }
 
