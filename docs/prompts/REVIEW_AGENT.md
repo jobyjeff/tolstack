@@ -3316,6 +3316,25 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       has. Ask of any mutate-and-observe check: *does my perturbation still
       satisfy the `if` I am testing?*
 
+- [ ] **An "X is still visible beside it" claim measured against the CONTAINER
+      instead of the thing drawn inside it.** New 2026-09-16
+      (`flyout_resize_annotator_filter_and_deselect`). The left-docked
+      annotator flyout's whole point was adjacency -- "the DAG must remain
+      visible beside it" -- and both the clamp (`VA.clampFlyoutWidth`'s
+      `reserve`) and the browser check named for it (`uncoveredDag()`) measure
+      `#topopane`'s right edge. `#topopane` is a horizontal scrollport that
+      also holds the grid table; the DAG itself is one `svg.tv__rails` pinned
+      at the pane's LEFT edge, x=300..562 at worst across all 21 live studies,
+      while the panel's floor (`FLYOUT_WIDTH.min`) is 560. Measured: 300px of
+      pane "uncovered" and **0px of diagram**, check green, on every live
+      study. The lesson had already caught the shallower version of this
+      ("a covered diagram and an adjacent one are indistinguishable from the
+      layout tree; you have to compute the overlap") and then computed the
+      overlap against the wrong box. Ask of any coverage/adjacency check:
+      *which node did I measure, and is the pixel the reader cares about
+      inside it?* -- and check the fixture can discriminate (at `?mock=1` the
+      DAG is 78px wide and can never survive a 560px panel).
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
