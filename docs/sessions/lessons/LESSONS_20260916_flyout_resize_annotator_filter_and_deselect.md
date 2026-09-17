@@ -85,7 +85,7 @@ entirely underneath the panel.
 
 The guard passed because it measured *partial* overlap — `dag.right −
 max(dag.left, panel.right) >= reserve` — and `#topopane` is 738px wide, so
-only its left end was under the panel. 325px of "clearance", 0px of diagram.
+only its left end was under the panel. 300px of "clearance", 0px of diagram.
 My own §2 had already written down *"a covered diagram and an adjacent one are
 indistinguishable from the layout tree; you have to compute the overlap"* and
 then computed it against the wrong box.

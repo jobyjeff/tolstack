@@ -3333,7 +3333,14 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       overlap against the wrong box. Ask of any coverage/adjacency check:
       *which node did I measure, and is the pixel the reader cares about
       inside it?* -- and check the fixture can discriminate (at `?mock=1` the
-      DAG is 78px wide and can never survive a 560px panel).
+      DAG is 78px wide and can never survive a 560px panel). Two further
+      halves from the rework: **measure FULLY CLEAR, not partial overlap** (a
+      container is always wider than its contents, so partial clearance of the
+      container is compatible with total coverage of the content -- the shipped
+      formula was `dag.right - max(dag.left, panel.right) >= reserve`), and
+      expect the answer to be a **reversed invariant** rather than a bigger
+      number: "position: fixed cannot reflow the pane" and "adjacent to the
+      pane's contents" could not both hold on one edge of one window.
 
 ## Architectural errors to check
 

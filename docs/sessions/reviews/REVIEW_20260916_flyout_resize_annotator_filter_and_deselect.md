@@ -3,8 +3,8 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260916_flyout_resize_annotator_filter_and_deselect.md
 reviewer: agent (review/flyout_resize_annotator_filter_and_deselect)
 date: 2026-09-16
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (after one rework round)
+blockers: 0
 ---
 
 # REVIEW 2026-09-16 — flyout_resize_annotator_filter_and_deselect
@@ -47,7 +47,93 @@ I also drove the page myself, in Chrome 152 at 1600×1000 off a repo-root server
 with live `data/` from the main checkout, because deliverable 1's whole claim is
 a layout claim. That measurement is the blocker below.
 
-## Blocker
+## Round 2 — the rework, and the verdict
+
+Three commits came back (`fdda8ac`, `ff0378a`, `2c85129`) and they close
+everything below. Merged into this review branch; `integration` was still at
+`2f4836e` and had not moved, so the finishing merge is a clean fast-forward.
+
+**All five tiers re-run on the reworked tree**, same worktree, same
+`--repo C:/workspace/tolstack`: `pytest -q` **1192 passed / 1 failed** (the
+same pre-existing `hardware_entry_count` red) **/ 1 skipped**;
+`apps/viewer/run_tests.cjs` **437/437**; `apps/annotate/run_tests.cjs`
+**81/81**; the browser runner **21/21 suites** with `annotate flyout` now
+**45/45**; `run_mutation_witness_tests.mjs` **54/54 witnessed**, including all
+three new adjacency witnesses (`flyout-yield-short-of-the-drawing`,
+`flyout-open-yields-the-page`, `flyout-close-restores-the-page`). Every number
+in the rewritten lesson's Counts paragraph reproduces, 19 → 45 and 37 → 93
+included.
+
+### B1 is fixed, and I re-measured it rather than reading the diff
+
+The answer was to reverse the "position: fixed cannot reflow the DAG pane"
+invariant: while the panel is open the page **yields** the room —
+`body.flyout-open` gives `.tv` (plus the topbar and banner) a `margin-left` of
+a live `--flyout-width`, and the nav rail stands down, which is where the
+300px comes from and is what Jeff explicitly authorised. The clamp now takes a
+measured `keep` from `graphNeed()`, which reads `svg.tv__rails`.
+
+Driven myself, live data, repo-root server, **all 21 live studies at
+1600×1000**, opening and closing the flyout on each: every one gives
+`railsLeft == panelRight == 713` with the whole drawing (90–262px) clear, the
+nav rail `display: none` while open, and pane box / drawing box / nav rail
+restored *exactly* on close. **0 failures.** Swept the viewport too —
+2560/1920/1600/1440/1366/1280, at the default width and dragged to the clamp:
+clear at every one (the panel floors at 560 below ~1440 and the drawing still
+sits immediately to its right), and `documentElement.scrollWidth` never
+exceeds `clientWidth`, so the shift buys no horizontal overflow.
+
+The guard is now the claim rather than a proxy: `r.left >= p.right` on the
+drawing, with `visible > 0` beside it against vacuity, plus a `[real]` non-mock
+leg — which matters, because at the mock's 78px drawing the 320px floor always
+wins and the measurement is never exercised. DoD (a) is met: shots 2a and 2b
+show the whole diagram beside the panel, 2b at 2200px where "wide" is actually
+reachable, and 2c is the restored page.
+
+### S1 and all four nits are fixed
+
+`apps/viewer/README.md` corrected in three places and the colour legend gained
+a row for the ⚠ badge; `fixtures.js` now enumerates its three edges;
+the run_tests check renamed to what it asserts, with a note on where
+`needs_re_confirmation` *is* covered; the citation-card header moved back onto
+its own function; the lesson's suite arithmetic re-derived.
+
+### Fixed inline by me (nothing silent)
+
+Four factual corrections, all comment/prose, no behaviour and no test touched —
+re-ran `pytest -q` (unchanged) and both fast tiers (437/437, 81/81) after:
+
+1. `scripts/mutation_witnesses.json` — `flyout-reserves-a-strip-of-graph`'s note
+   pointed at a witness id that does not exist (`flyout-adjacency-measures-the-
+   drawing`); repointed at the entry that actually owns that claim,
+   `flyout-yield-short-of-the-drawing`.
+2. `scripts/mutation_witnesses.json` — `flyout-close-restores-the-page`'s note
+   described a mutation it does not declare ("wires the removal to the BUTTON…
+   the check drives the button"). The declared mutation adds
+   `if (!nodes.flyout.open) return;` *inside* the `close` handler, where `open`
+   is already false — so it kills the handler on every path, the button's
+   included. Note corrected to say that; the mutation itself is untouched and
+   still bites.
+3. Lesson §2 — "325px of 'clearance', 0px of diagram". In the build where the
+   guard passed the panel was 738 wide and `#topopane` ran 300..1038, so the
+   old formula returned **300**. 325 is that formula evaluated against the
+   *new* 713px panel. The probe's own comment already said 300.
+4. `tests/debug_flyout_and_alerts.mjs` — "A 2200px window is Jeff's own screen
+   shape". The one measurement available says otherwise: his own screenshot of
+   this page in the source note
+   (`…/20260916T175137_lj0lgi/paste-20260916T172223.png`) is **1629×1207**.
+   Replaced with the honest caveat — 2200px is wider than his screen, and at
+   ~1630px the clamp binds around 740 where the default already sits, so shot 1
+   is what he actually sees.
+
+One observation, not a finding: the live-data shots carry the page's own
+"Data is older than the latest code — needs a rebuild" banner. That is the
+shared main checkout's projection state, true and correctly reported, and
+rebuilding it is not this handoff's to do.
+
+---
+
+## Round 1 findings (all resolved above)
 
 ### B1. The DAG is never visible beside the flyout, and the check named for it is green over a 100%-covered diagram
 
@@ -209,6 +295,13 @@ instead of the thing drawn inside it."* Two existing entries took a second
 sighting and were deliberately left unedited: the `apps/viewer/README.md` one
 (S1) and the inline-fix-residue one (nit 1).
 
-No issues were filed: the blocker goes back with the branch, and the should-fix
-and the nits go back with it, so nothing here is being left ownerless by an
-APPROVE.
+No issues were filed, and none is needed on APPROVE: the blocker and the
+should-fix were both fixed on the branch, and the four residual nits above were
+fixed inline here. Nothing is being left ownerless.
+
+The rework's own best artifact is lesson §2, now a three-mistake narrative
+(viewport → scrollport → drawing) with the measurements attached and the
+reversed CSS invariant argued rather than asserted. §7a's closing rule — *when
+the claim is "X is still visible", measure the thing drawn, not the box it is
+drawn in, and measure fully clear rather than some overlap* — is the sentence
+worth carrying out of this handoff.

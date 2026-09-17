@@ -171,8 +171,11 @@ try {
   // "Resized WIDE" needs a window where wide is reachable. At 1600px the
   // clamp binds at 713 and the stylesheet's own default already sits there, so
   // dragging right buys nothing and a shot of it would be shot 1 again -- the
-  // review said so. A 2200px window is Jeff's own screen shape and leaves the
-  // clamp at VA.FLYOUT_WIDTH.max, so the panel can actually be opened up.
+  // review said so. A 2200px window leaves the clamp at VA.FLYOUT_WIDTH.max,
+  // so the panel can actually be opened up. Wider than Jeff's own screen,
+  // which is the honest caveat on this shot: his note's screenshot of this
+  // page is 1629px across, and at that width the clamp binds at ~740 and the
+  // default already sits there -- shot 1 is what he sees.
   await page.setViewportSize({ width: 2200, height: 1000 });
   const wide = await dragBy(900);
   const wideRails = await railsAt();
