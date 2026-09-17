@@ -245,9 +245,10 @@ reach that branch so the check cannot go vacuous.
 citations are `established` or have no export block" as its reason for folding
 the export block. Both halves were wrong — the review re-derived 55 rows on the
 topology side (29/25/**1**) and 65 in `results.json` (42/22/**1**) — and the one
-that is loud is `bushing_214820`, the very card §5 above uses as its worked
-example. The code was right; only the number was. It says "nearly every live
-citation" now, with no number, and names the loud case rather than denying it.
+that is loud is `bushing_214820` — the card this section opens with. The code
+was right and the fold is right; only the number was wrong. It says "nearly
+every live citation" now, with no number, and names the loud case rather than
+denying it.
 This is CLAUDE.md's "a quantity written in prose that no test reads from the
 tree is a defect", in a comment, which is where it is easiest to miss.
 
