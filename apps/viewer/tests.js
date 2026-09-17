@@ -3340,6 +3340,33 @@
       return surfaces;
     }
 
+    // A WHOLE WORD, not a substring: the stack page prints every element's own
+    // id beside its name on purpose (a reviewer finds the row in the JSON by
+    // it), and `bushing_flange_thickness` contains the schema key
+    // `flange_thickness`. `_` counts as part of a word here, which is what
+    // makes an id with a separator either side of the key a miss and the key
+    // standing alone a hit.
+    //
+    // Spelled out rather than as a word-boundary escape, on purpose. This
+    // guard shipped for an hour as `new RegExp("\\b" + name + "\\b")` with one
+    // backslash instead of two, and JS reads `"\b"` as U+0008 BACKSPACE -- so
+    // the pattern was `<backspace>name<backspace>`, the scan matched nothing
+    // ever, and every surface passed. Nothing in the suite could tell that from
+    // a clean tree. What told it was planting a positive and watching the guard
+    // NOT fire, which is the whole argument for planting one.
+    var WORD_CHARACTER = /[A-Za-z0-9_$]/;
+    function wholeWordIn(text, word) {
+      for (var at = text.indexOf(word); at !== -1;
+           at = text.indexOf(word, at + 1)) {
+        var end = at + word.length;
+        if ((at === 0 || !WORD_CHARACTER.test(text.charAt(at - 1))) &&
+            (end >= text.length || !WORD_CHARACTER.test(text.charAt(end)))) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     // The banned list, the schema's own field names, and a set of ids, over one
     // surface's viewer-authored text. One function so a new surface cannot be
     // enrolled in three quarters of the guard.
@@ -3347,13 +3374,7 @@
       var text = viewerAuthoredText(root);
       bannedIn(text, where);
       (fieldNames || []).forEach(function (name) {
-        // On a word boundary, not as a substring: the stack page prints every
-        // element's own id beside its name on purpose (a reviewer finds the row
-        // in the JSON by it), and `bushing_flange_thickness` contains the
-        // schema key `flange_thickness`. JS treats `_` as a word character, so
-        // `` is exactly the right fence here -- an id with a separator either
-        // side of the key does not match, and the key standing alone does.
-        ok(!(new RegExp("\b" + name + "\b").test(text)),
+        ok(!wholeWordIn(text, name),
            where + " renders the schema field name `" + name + "`: " + text);
       });
       (ids || []).forEach(function (id) {

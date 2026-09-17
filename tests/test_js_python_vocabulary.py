@@ -1023,14 +1023,24 @@ def test_no_viewer_vocabulary_is_spelled_as_a_comparison_chain():
         for line, expression, literals in js_literal_chains(
                 path.read_text(encoding="utf-8")):
             words = set(literals)
-            for name, keys in sorted(tables.items()):
-                if words <= set(keys):
-                    problems.append(
-                        f"{path.relative_to(REPO_ROOT).as_posix()}:{line}: "
-                        f"`{expression}` is compared against {sorted(words)}, "
-                        f"which VA.{name} already spells"
-                    )
-                    break
+            # An EXACT match first, a superset only if there is none. The chain
+            # `c === "untraced" || c === "no_source_ref"` is a subset of
+            # VA.CONFIDENCES (four words) and exactly VA.UNVERIFIED_CONFIDENCES
+            # (two), and naming the wrong one sends the reader to rewrite the
+            # wrong table.
+            candidates = sorted(
+                (name for name, keys in tables.items() if words <= set(keys)),
+                key=lambda name: (len(tables[name]) != len(words), name),
+            )
+            if candidates:
+                name = candidates[0]
+                exactly = "is exactly" if len(tables[name]) == len(words) \
+                    else "is part of"
+                problems.append(
+                    f"{path.relative_to(REPO_ROOT).as_posix()}:{line}: "
+                    f"`{expression}` is compared against {sorted(words)}, "
+                    f"which {exactly} what VA.{name} spells"
+                )
     assert problems == [], (
         "a vocabulary the viewer already has a table for, spelled again as a "
         "comparison chain. Read the table (VA.needsAnnotation and "
