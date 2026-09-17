@@ -310,14 +310,6 @@
     });
   }
 
-  // --- the citation card: the spec-sheet reference ---------------------------
-  //
-  // The full citation the compact row has no space for — the where-ref, the
-  // callout as printed, the note, the export/identity block (which BYTES back
-  // the value, with the run links where a run is behind them), and the crop of
-  // the cited sheet where one resolved. For a spec citation the crop is the
-  // spec sheet itself, which is what makes this the spec-sheet card the stack
-  // view's right pane already renders — as a hover.
   // --- the row's alerts, listed (flyout_resize_annotator_filter_and_deselect,
   // deliverable 5) -----------------------------------------------------------
   //
@@ -346,6 +338,14 @@
     root.appendChild(list);
   }
 
+  // --- the citation card: the spec-sheet reference ---------------------------
+  //
+  // The full citation the compact row has no space for — the where-ref, the
+  // callout as printed, the note, the export/identity block (which BYTES back
+  // the value, with the run links where a run is behind them), and the crop of
+  // the cited sheet where one resolved. For a spec citation the crop is the
+  // spec sheet itself, which is what makes this the spec-sheet card the stack
+  // view's right pane already renders — as a hover.
   function citationCard(root, card, images, config, source) {
     var head = VA.el("div", "hovercard__head");
     head.appendChild(VA.el("h4", null, "Citation"));

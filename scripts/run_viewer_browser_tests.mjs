@@ -3893,7 +3893,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
 //      renders), and the `trace` deep-link boot really executes end to end
 //      over ?mock=1 -- WebGL scene, ghost + mark-face handlers, the published
 //      window.__lastTrace summary (the autotest convention).
-async function testAnnotateFlyout(browser, fileBase, label) {
+async function testAnnotateFlyout(browser, fileBase, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const server = await startRepoRootServer();
@@ -3957,6 +3957,11 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       await page.locator("#toolbar a").count() === 0);
 
     const paneBefore = await page.locator("#topopane").boundingBox();
+    const railsBefore = await page.evaluate(() => {
+      const svg = document.querySelector("#topopane svg.tv__rails");
+      const r = svg.getBoundingClientRect();
+      return { visible: Math.round(r.width), left: Math.round(r.left) };
+    });
     await page.locator("#study-3d").click();
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
     push("clicking it opens the flyout dialog non-modally",
@@ -3967,50 +3972,71 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       /annotate\/index\.html\?/.test(frameSrc || "") &&
       /trace=1/.test(frameSrc) && /topology=demo_mechanism/.test(frameSrc) &&
       /study=demo_base_to_tip/.test(frameSrc));
-    const paneAfter = await page.locator("#topopane").boundingBox();
-    push("opening the flyout moves the DAG pane by nothing at all",
-      paneBefore && paneAfter &&
-      paneBefore.x === paneAfter.x && paneBefore.y === paneAfter.y &&
-      paneBefore.width === paneAfter.width && paneBefore.height === paneAfter.height);
-
-    // --- LEFT-docked, adjacent to the DAG, and resizable (handoff
+    // --- LEFT-docked, ADJACENT to the DAG, and resizable (handoff
     // flyout_resize_annotator_filter_and_deselect, deliverable 1) -----------
     //
     // Jeff: "I actually want the 3d flyout on the left side, adjacent to the
     // DAG. It would be ok if it covered up the left side select menu since you
     // shouldn't need both at the same time." Every claim below is a LAYOUT
-    // claim -- which edge it is pinned to, what it covers, what stays visible
-    // beside it, where the drag seam is -- and a layout engine is the only
-    // thing that can check any of them. A class-name check would pass straight
-    // through an `inset` typo that put the panel back on the right.
+    // claim and a layout engine is the only thing that can check any of them:
+    // a class-name check would pass straight through an `inset` typo that put
+    // the panel back on the right.
+    //
+    // WHAT "ADJACENT" IS MEASURED AGAINST, and it took a review to get right
+    // (2026-09-16): the DAG **drawing** is one `svg.tv__rails`, and `#topopane`
+    // is its horizontal scrollport. The first version of this block compared
+    // the panel against the SCROLLPORT and passed while the panel sat on top of
+    // 100% of the diagram -- `position: fixed` means the pane's own box never
+    // moves however wide the panel gets, and the drawing is `position: sticky;
+    // left: 0` inside it, so no scroll position can bring it out from
+    // underneath either. Measure the drawing.
     const flyoutBox = async () => page.locator("#annotate-flyout").boundingBox();
     const win = await page.evaluate(() => ({
       w: window.innerWidth, h: window.innerHeight,
     }));
+    // The drawing's own box against the panel's: how much of it is clear, and
+    // whether ALL of it is. `clear` is the deliverable; `visible` is the
+    // anti-vacuity guard beside it, because a page rendering no rails at all
+    // would satisfy "none of it is covered" trivially.
+    const rails = () => page.evaluate(() => {
+      const svg = document.querySelector("#topopane svg.tv__rails");
+      const panel = document.querySelector("#annotate-flyout");
+      if (!svg) return { visible: 0, clear: false };
+      const r = svg.getBoundingClientRect();
+      const p = panel.getBoundingClientRect();
+      return {
+        visible: Math.round(r.width),
+        left: Math.round(r.left),
+        clear: r.width > 0 && r.left >= p.right,
+      };
+    });
     const docked = await flyoutBox();
     push("the flyout is pinned to the LEFT edge, not the right",
       docked && docked.x === 0 && docked.width < win.w);
-    // The whole point of moving it: the graph and the 3D panel are readable at
-    // the same time. "Adjacent" is measured, and measured as UNCOVERED -- the
-    // first version of this check compared the DAG's laid-out box against the
-    // flyout's width and passed while the panel sat on top of the whole
-    // diagram, because `position: fixed` means the DAG's own box never moves.
-    // What has to be true is that a strip of it is not underneath.
-    const dagBeside = await page.locator("#topopane").boundingBox();
+    const railsOpen = await rails();
+    push("the DAG DRAWING is drawn, and entirely clear of the panel -- " +
+      "adjacency is the deliverable and the drawing is the thing that has to " +
+      "survive, not its scrollport",
+      railsOpen.visible > 0 && railsOpen.clear);
+    push("...and it sits to the panel's RIGHT, which is what 'beside' means",
+      railsOpen.left >= docked.width);
+
+    // The page YIELDS the room rather than being covered, which is the
+    // mechanism that makes the above possible at all: `.tv` starts at the
+    // panel's right edge and the nav rail stands down. That reverses the
+    // previous "opening it cannot reflow the DAG pane by construction" claim
+    // deliberately -- see topology.css -- so the pane MOVING is now the
+    // assertion, where it used to be the thing forbidden.
+    const paneAfter = await page.locator("#topopane").boundingBox();
+    push("opening the flyout moves the DAG pane out from under it, rather " +
+      "than leaving it underneath",
+      paneBefore && paneAfter && paneAfter.x >= docked.width &&
+      paneAfter.x > paneBefore.x);
+    push("the nav rail stands down while the panel is open, which Jeff said " +
+      "was fine and is where the room comes from",
+      await page.locator("#navtree").evaluate(
+        (n) => getComputedStyle(n).display) === "none");
     const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
-    const uncoveredDag = () => page.evaluate(() => {
-      const dag = document.querySelector("#topopane").getBoundingClientRect();
-      const panel = document.querySelector("#annotate-flyout").getBoundingClientRect();
-      return Math.max(0, dag.right - Math.max(dag.left, panel.right));
-    });
-    push("the DAG is still visible BESIDE it -- adjacency is the deliverable, " +
-      "and the strip left uncovered is at least the reserve",
-      await uncoveredDag() >= reserve);
-    // And the accepted cost, stated as a check so it is a decision rather than
-    // an accident: the nav rail is underneath.
-    const navCovered = await page.locator("#navtree").boundingBox();
-    push("it covers the nav rail, which Jeff said was fine",
-      navCovered && navCovered.x < docked.width);
 
     // The drag seam, on the edge AWAY from the dock -- so the panel grows into
     // the page rather than off the screen.
@@ -4046,11 +4072,10 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       widened > narrowed + 100);
     push("...and the flyout is still pinned to the left edge while it grows",
       (await flyoutBox()).x === 0);
-    const dagAfterDrag = await page.locator("#topopane").boundingBox();
-    push("resizing the flyout still moves the DAG pane by nothing -- it is a " +
-      "position: fixed dialog, so this cannot reflow the page",
-      dagAfterDrag && dagAfterDrag.x === dagBeside.x &&
-      dagAfterDrag.width === dagBeside.width);
+    const railsWide = await rails();
+    push("the drawing is STILL entirely clear of the panel at the widened " +
+      "width -- the drag cannot buy panel width with diagram",
+      railsWide.visible > 0 && railsWide.clear);
 
     // The keyboard path, so the resize needs no pointer at all.
     await page.locator("#flyout-divider").focus();
@@ -4065,11 +4090,14 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       widened - nudged < nudged - coarse);
 
     // A drag cannot cover the graph whatever the reader does. Dragged clean off
-    // the right edge of the window, a strip of DAG still has to survive.
+    // the right edge of the window, the whole drawing still has to be clear.
     await dragBy(win.w + 2000);
-    push("dragged past the window edge, the flyout still leaves a strip of " +
-      "DAG to be adjacent TO",
-      await uncoveredDag() >= reserve);
+    const railsMaxed = await rails();
+    push("dragged past the window edge, the whole drawing is still clear of " +
+      "the panel",
+      railsMaxed.visible > 0 && railsMaxed.clear);
+    push("...and the page beside the panel is at least the reserve wide",
+      win.w - (await flyoutBox()).width >= reserve);
 
     // The width is remembered across a reload -- the same contract the preview
     // pane's has, under its own key. Narrowed first, so the number being
@@ -4098,17 +4126,30 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       Math.abs((await flyoutBox()).width - remembered) <= 1);
     await page.evaluate((k) => window.localStorage.removeItem(k), storedKey);
 
-    // Closing restores what it covered. Automatic, by construction -- nothing
-    // is latched and nothing was moved -- but the deliverable says so in as
-    // many words, so it is measured rather than argued.
-    const navWhileOpen = await page.locator("#navtree").evaluate(
-      (n) => n.getBoundingClientRect().left);
+    // Closing restores what it displaced -- and now that the page yields room
+    // rather than being covered, "restores" is a real claim with a real way to
+    // get it wrong: a page left shifted with no panel on it. Both mechanisms
+    // reverse exactly (a margin, a `display: none`), and the class that drives
+    // them comes off in the dialog's own `close` handler.
+    //
+    // WAITED FOR, not sampled. `close` is fired from a queued element task, so
+    // it lands one task after the click returns -- read immediately and this
+    // check sees the page still shifted and fails on correct code. (Measured:
+    // that is exactly what the first version of this did, and what a probe
+    // without the wait reported as a regression that was not there.)
     await page.locator("#flyout-close").click();
-    push("closing the flyout gives the nav rail back, untouched",
+    await page.waitForFunction(
+      () => !document.body.classList.contains("flyout-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    const paneClosed = await page.locator("#topopane").boundingBox();
+    const railsClosed = await rails();
+    push("closing the flyout puts the page back exactly -- the nav rail, the " +
+      "DAG pane's box and the drawing's box all as they were",
       !(await page.locator("#annotate-flyout").evaluate((n) => n.open)) &&
       await page.locator("#navtree").isVisible() &&
-      await page.locator("#navtree").evaluate(
-        (n) => n.getBoundingClientRect().left) === navWhileOpen);
+      paneClosed.x === paneBefore.x && paneClosed.width === paneBefore.width &&
+      railsClosed.left === railsBefore.left &&
+      railsClosed.visible === railsBefore.visible);
 
     // --- out to the whole annotator (deliverable 4) ------------------------
     //
@@ -4207,6 +4248,88 @@ async function testAnnotateFlyout(browser, fileBase, label) {
     push("a part with no installed mesh shows NOTHING about 3D on its card",
       await page.locator("#croppop .hovercard__3d").count() === 0 &&
       !/3D/.test(await page.locator("#croppop").textContent()));
+
+    // --- [real] adjacency against a LIVE study's own drawing ----------------
+    //
+    // Everything above runs at ?mock=1, whose DAG drawing is ~78px wide. That
+    // is enough to catch the panel lying on top of the diagram, but it can
+    // never exercise the measurement that decides the clamp: `graphNeed()`
+    // reads `svg.tv__rails`, and at 78px the floor (VA.FLYOUT_WIDTH.reserve,
+    // 320) wins every time, so a mock-only suite is silent about whether the
+    // drawing is measured at all. The review that found this blocker said so
+    // in as many words: "the fixture has to be able to discriminate".
+    //
+    // This leg is non-mock on the SAME repo-root server, so the http transport
+    // finds the live projections under /data/ (served from DATA_REPO, the
+    // worktree escape hatch) and `pitch_system` renders its real 262px
+    // drawing -- the widest of the 21 live studies, measured.
+    //
+    // Skipped honestly, not silently, where the projection is absent: the
+    // [real] convention this file uses everywhere else.
+    if (!topologies) {
+      push("[real] SKIPPED -- no data/projections/viewer/topologies.json " +
+        "(gitignored, main checkout only; pass --repo)", true);
+    } else {
+      await page.goto(url + "/apps/viewer/topology.html", { waitUntil: "load" });
+      await page.waitForSelector('[data-nav-kind="study"]', { timeout: 20000 });
+      const liveStudy = "pitch_system_blade_angle_average";
+      const liveRow = page.locator(navRow("study", liveStudy));
+      if (await liveRow.count() !== 1) {
+        push(`[real] SKIPPED -- the live projection has no study ${liveStudy}`, true);
+      } else {
+        await liveRow.click();
+        push("[real] the live study's respine settles", await paneSettled());
+        await page.waitForSelector("#study-3d", { timeout: 20000 });
+        const liveRailsBefore = await page.evaluate(() => {
+          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          return { w: Math.round(r.width), left: Math.round(r.left) };
+        });
+        // The number the whole blocker turned on: the drawing is a couple of
+        // hundred pixels wide and the panel's own FLOOR is 560, so an
+        // overlaying panel covers it whole at every width a reader can reach.
+        push("[real] the live drawing is narrower than the panel's own floor -- " +
+          "which is why an overlay could never leave any of it showing",
+          liveRailsBefore.w > 0 &&
+          liveRailsBefore.w < await page.evaluate(
+            () => window.ViewerApp.FLYOUT_WIDTH.min));
+        await page.locator("#study-3d").click();
+        await page.waitForSelector("#annotate-flyout[open]", { timeout: 10000 });
+        const livePanel = await page.locator("#annotate-flyout").boundingBox();
+        const liveRails = await page.evaluate(() => {
+          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
+          return { w: Math.round(r.width), left: Math.round(r.left), clear: r.left >= p.right };
+        });
+        push("[real] the whole live drawing is clear of the panel, at its own " +
+          "measured width",
+          liveRails.w === liveRailsBefore.w && liveRails.clear &&
+          liveRails.left >= livePanel.width);
+        // ...and dragged as wide as it will go, still clear. This is the leg
+        // the mock cannot run: at 262px the drawing is under the floor, so
+        // what bounds the panel here is the same arithmetic either way -- but
+        // the WIDTH being fed to it is now a real measurement, and a
+        // graphNeed() that returned 0 or read the wrong node would show up as
+        // a panel that ate the diagram.
+        const seam = await page.locator("#flyout-divider").boundingBox();
+        await page.mouse.move(seam.x + seam.width / 2, seam.y + 300);
+        await page.mouse.down();
+        await page.mouse.move(seam.x + seam.width / 2 + 2000, seam.y + 300, { steps: 10 });
+        await page.mouse.up();
+        const liveMaxed = await page.evaluate(() => {
+          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
+          return { w: Math.round(r.width), clear: r.width > 0 && r.left >= p.right };
+        });
+        push("[real] dragged to the clamp on a live study, the whole drawing " +
+          "is still clear", liveMaxed.clear);
+        await page.locator("#flyout-close").click();
+        await page.waitForFunction(
+          () => !document.body.classList.contains("flyout-open"),
+          null, { timeout: 5000 }).catch(() => {});
+        await page.evaluate((k) => window.localStorage.removeItem(k),
+          await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY));
+      }
+    }
 
     // --- the trace boot itself, end to end over the annotate mock fixture ---
     await page.goto(url + "/apps/annotate/index.html?mock=1&trace=1" +
@@ -5519,7 +5642,7 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       ["rebuild affordance (stub sibling mount)", (label) =>
         testRebuildAffordance(browser, label)],
       ["annotate flyout (repo-root mount + file:// degradation)", (label) =>
-        testAnnotateFlyout(browser, fileBase, label)],
+        testAnnotateFlyout(browser, fileBase, label, topologies)],
       ["annotate rail filter + face deselect", (label) =>
         testAnnotateRail(browser, label)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>

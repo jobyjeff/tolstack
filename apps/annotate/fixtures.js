@@ -1,8 +1,22 @@
 // The ?mock=1 demo dataset -- apps/viewer/fixtures.js's role, scaled down to
-// what this app needs to exercise: one topology with two edges (one already
-// drawing-cited, one not -- the precedence-guard copy needs both to show
-// up), one existing binding, and a single synthetic triangle mesh so the 3D
-// pane has something real to raycast against with no rotorkit dependency.
+// what this app needs to exercise: one topology with THREE edges, one existing
+// binding, and a single synthetic triangle mesh so the 3D pane has something
+// real to raycast against with no rotorkit dependency.
+//
+// Three, and each one earns its place:
+//   * `demo_edge_traced`      already drawing-cited, and unbound -- the
+//                             precedence-guard copy needs a cited edge to show
+//                             up on, and the rail needs an `unbound` row
+//   * `demo_edge_untraced`    uncited and BOUND, with a part that resolves to
+//                             the mesh below, so
+//                             `?topology=demo_system&edge=demo_edge_untraced&isolate=demo_triangle`
+//                             is a real end-to-end deep-link demo
+//   * `demo_edge_no_owner`    `owner_not_in_set`, naming a part with no mesh
+//
+// So the three cover all three binding states at once, which is what the rail's
+// consolidated alert badge is exercised against
+// (flyout_resize_annotator_filter_and_deselect, 2026-09-16) -- and it said "two
+// edges" until then, one file over from where the same stale count was fixed.
 (function (AA) {
   "use strict";
 

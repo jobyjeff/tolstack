@@ -596,8 +596,8 @@
       "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
       "note": "There are now two resize dividers on this page with inverted signs, and a copy-paste between them is the likeliest mistake in either feature. That is exactly why both lines of arithmetic live in the pure layer instead of in the pointer handler: the mutation below is the pane's own line, verbatim.",
       "file": "apps/viewer/views/topology.js",
-      "find": "    return VA.clampFlyoutWidth(startWidth + dx, roomForGraph);",
-      "replace": "    return VA.clampFlyoutWidth(startWidth - dx, roomForGraph);",
+      "find": "    return VA.clampFlyoutWidth(startWidth + dx, room, keep);",
+      "replace": "    return VA.clampFlyoutWidth(startWidth - dx, room, keep);",
       "tier": "fast",
       "suite": null,
       "expect_red": "the flyout's width clamps, and a drag on its divider widens it by moving RIGHT -- the opposite sign to the preview pane's"
@@ -606,13 +606,13 @@
       "id": "flyout-reserves-a-strip-of-graph",
       "contract": "However far it is dragged, the flyout leaves the page a strip to be adjacent TO -- bounded by the current viewport, not by a pixel constant.",
       "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
-      "note": "Adjacency IS the deliverable (\"the DAG must remain visible beside it\"), and a px-only max cannot deliver it: at VA.FLYOUT_WIDTH.max on a 1280px window the panel would leave 80px of page. The mutation is the obvious simplification -- clamp to the window instead of to the window minus the reserve -- which reads as correct and covers the page. The reserve is measured against the room left BESIDE THE PREVIEW PANE, not against the viewport: reserving 420px of window handed the reader back 420px of PANE and covered the diagram completely (measured in Chrome at 1600px with the panel at 1100 -- #topopane at 300..1038, wholly underneath). See the lesson, section 2.",
+      "note": "Adjacency IS the deliverable (\"the DAG must remain visible beside it\"), and a px-only max cannot deliver it: at VA.FLYOUT_WIDTH.max on a 1280px window the panel would leave 80px of page. The mutation is the obvious simplification -- clamp to the window instead of to the window minus the reserve -- which reads as correct and covers the page. The reserve is measured against the room left BESIDE THE PREVIEW PANE, not against the viewport: reserving 420px of window handed the reader back 420px of PANE and covered the diagram completely (measured in Chrome at 1600px with the panel at 1100 -- #topopane at 300..1038, wholly underneath). See the lesson, section 2. Re-anchored 2026-09-16 after review: the clamp now takes a MEASURED `keep` (the drawing's own width) beside the room, so the arithmetic moved one line. The browser-tier claim it used to be mistaken for now has its own entry, `flyout-adjacency-measures-the-drawing`.",
       "file": "apps/viewer/views/topology.js",
-      "find": "      ? Math.min(VA.FLYOUT_WIDTH.max, room - VA.FLYOUT_WIDTH.reserve)",
-      "replace": "      ? Math.min(VA.FLYOUT_WIDTH.max, room)",
+      "find": "      ? Math.min(VA.FLYOUT_WIDTH.max, have - reserve)",
+      "replace": "      ? Math.min(VA.FLYOUT_WIDTH.max, have)",
       "tier": "fast",
       "suite": null,
-      "expect_red": "a drag on the flyout can never cover the DAG entirely -- the room left BESIDE THE PREVIEW PANE, not a pixel constant, is what bounds it"
+      "expect_red": "a drag on the flyout keeps room for THE DRAWING -- what the caller measured, not a pixel constant and not the drawing's scrollport"
     },
     {
       "id": "deselect-clears-the-tint-not-just-the-pick",
@@ -673,6 +673,42 @@
       "tier": "browser",
       "suite": "annotate flyout (repo-root mount + file:// degradation)",
       "expect_red": "dragging the divider LEFT narrows the flyout"
+    },
+    {
+      "id": "flyout-yield-short-of-the-drawing",
+      "contract": "The page yields ENOUGH room, not just some: the whole DAG drawing ends up clear of the panel, never partly under it.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "The discriminating witness for the 2026-09-16 review blocker. The shipped guard measured PARTIAL overlap against the drawing's SCROLLPORT (dag.right - max(dag.left, panel.right) >= reserve) and so was green over a diagram that was 100% covered: `#topopane` is 738px wide and only its left end was under the panel. This mutation shifts the page 300px SHORT -- the nav rail's own width, the obvious off-by-one -- which leaves the scrollport partly clear and the drawing wholly underneath. The old formula passes that; \"the drawing's left edge is at or past the panel's right edge\" does not. Its sibling `flyout-open-yields-the-page` mutates the same declaration to no shift at all, which is the pre-review build; this one is the near miss that looks correct.",
+      "file": "apps/viewer/topology.css",
+      "find": "body.flyout-open .tv { margin-left: var(--flyout-width, 0); }",
+      "replace": "body.flyout-open .tv { margin-left: calc(var(--flyout-width, 0) - 300px); }",
+      "tier": "browser",
+      "suite": "annotate flyout (repo-root mount + file:// degradation)",
+      "expect_red": "...and it sits to the panel's RIGHT, which is what 'beside' means"
+    },
+    {
+      "id": "flyout-open-yields-the-page",
+      "contract": "While the panel is open the page yields the room -- `.tv` starts at the panel's right edge and the nav rail stands down -- which is the only reason the drawing can be beside it at all.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "This reverses, on purpose, what topology.css argued until 2026-09-16 (\"opening it cannot shrink or reflow the DAG pane by construction\"). That invariant was right for a RIGHT-docked panel and is exactly what made a left-docked one useless: the drawing is 90-262px wide at the pane's left edge and the panel's floor is 560. The mutation removes the shift, which is the pre-review build; the drawing then sits under the panel and the adjacency checks go red. Its twin is `flyout-close-restores-the-page`.",
+      "file": "apps/viewer/topology.css",
+      "find": "body.flyout-open .topbar,\nbody.flyout-open #banner,\nbody.flyout-open .tv { margin-left: var(--flyout-width, 0); }",
+      "replace": "body.flyout-open .topbar,\nbody.flyout-open #banner,\nbody.flyout-open .tv { margin-left: 0; }",
+      "tier": "browser",
+      "suite": "annotate flyout (repo-root mount + file:// degradation)",
+      "expect_red": "opening the flyout moves the DAG pane out from under it, rather than leaving it underneath"
+    },
+    {
+      "id": "flyout-close-restores-the-page",
+      "contract": "Closing the panel puts the page back exactly. The shift comes off in the dialog's own `close` handler, which is the one seam every close path goes through.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Now that the page yields room rather than being covered, \"closing restores whatever it covered\" stopped being true by construction and became a real claim with a real way to get it wrong -- a page left shifted with no panel on it. The mutation wires the removal to the BUTTON instead of to the dialog, which is the shape that looks correct and leaves every other close path (`.close()` from anywhere) stranded; the check drives the button, so what actually reddens is the width comparison after a `close()` the button did not make. Kept narrow deliberately: removing the handler altogether would strand the page for the checks that follow and take the suite down as an error rather than a named failure.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.flyout.addEventListener(\"close\", function () {\n      document.body.classList.remove(\"flyout-open\");\n    });",
+      "replace": "    nodes.flyout.addEventListener(\"close\", function () {\n      if (!nodes.flyout.open) return;\n      document.body.classList.remove(\"flyout-open\");\n    });",
+      "tier": "browser",
+      "suite": "annotate flyout (repo-root mount + file:// degradation)",
+      "expect_red": "closing the flyout puts the page back exactly -- the nav rail, the DAG pane's box and the drawing's box all as they were"
     }
   ]
 }
