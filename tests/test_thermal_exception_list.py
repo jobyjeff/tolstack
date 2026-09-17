@@ -528,11 +528,18 @@ RULE_PASSAGE_SOURCES = (
 #: reddens.
 #:
 #: It was 15 from 2026-09-03 until 2026-09-17, when the corpus stopped reading
-#: ``docs/strategy/BRIEF_*.md`` (see :func:`rule_scan_sources`). Two of those 15
-#: were in ``BRIEF_20260826_thermal_never_combines_invariant.md``, the brief that
-#: *asked* whether the rule was absolute. So the number moved because coverage
+#: ``docs/strategy/BRIEF_*.md`` (see :func:`rule_scan_sources`). Follow the
+#: arithmetic, because 15 - 2 is not 14: the *live count* was **16** on
+#: 2026-09-17, not 15 -- ARCHITECTURE.md gained a fifth passage after the floor
+#: was set, so the floor had already drifted one below the count -- and two of
+#: those 16 were in ``BRIEF_20260826_thermal_never_combines_invariant.md``, the
+#: brief that *asked* whether the rule was absolute. 16 - 2 = 14, and 14 is
+#: today's count in **both** checkouts. So the number moved because coverage
 #: moved out of scope on purpose -- not because a passage was deleted, which is
-#: the failure this floor is here to catch.
+#: the failure this floor is here to catch. (Measured during
+#: ``review/prose_guards_scope_out_strategy_briefs``: 15 at ``c95ef61``, 16 at
+#: ``5d5b746``, 14 after. The drift is the standing cost of a floor set *at* the
+#: count -- it re-tightens only when someone re-measures.)
 RULE_STATEMENT_FLOOR = 14
 
 #: Passages carrying :data:`EXCEPTION_ANCHOR` and therefore claiming to state the

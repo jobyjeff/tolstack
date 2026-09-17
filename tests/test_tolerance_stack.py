@@ -2354,10 +2354,21 @@ def claim_scanned_documents(repo_root: Path) -> list[Path]:
     """`live_documents()` minus the triage briefs -- the corpus of the scans that
     recount a claim shape against this repo's data.
 
-    Measured 2026-09-17: 94 live documents at trunk `efa5c4c`, of which 24 are
-    `docs/strategy/BRIEF_*.md`, leaving 70. Nothing else lives under
-    `docs/strategy/` in this walk, and a worktree sees two fewer of each because
-    the `data/` documents are gitignored.
+    Measured 2026-09-17: **92** live documents, of which 24 are
+    `docs/strategy/BRIEF_*.md`, leaving **68**. Nothing else lives under
+    `docs/strategy/` in this walk.
+
+    This read 94/70 "at trunk `efa5c4c`, and a worktree sees two fewer of each
+    because the `data/` documents are gitignored" until
+    `review/prose_guards_scope_out_strategy_briefs` re-derived it. Both halves
+    were wrong and in a way worth knowing: every `data/` document here is
+    *tracked*, so no worktree is missing one, and the two extra files the main
+    checkout reported were `tmp/mutation-witness/apps/{viewer,annotate}/README.md`
+    -- gitignored scratch a 2026-09-16 session left behind. `live_documents()`
+    is a bare `os.walk` that never consults git, so untracked dirt joins this
+    corpus; filed as
+    `docs/issues/ISSUE_20260917_live_documents_walks_gitignored_scratch_in_the_main_checkout.md`.
+    92/68 is the tracked-tree count and is the same in both checkouts.
     """
     return [p for p in live_documents(repo_root)
             if is_claim_scanned(p.relative_to(repo_root).as_posix())]
@@ -2445,10 +2456,9 @@ _LIVE_DOCUMENT_FLOOR = 40
 
 #: Floor for `claim_scanned_documents()`. Its own constant, not a share of the
 #: one above, so the two corpora can move independently -- the whole point of
-#: splitting them. Left at the same **40**: the exclusion took 94 live documents
-#: to 70 on 2026-09-17 (68 in a worktree), so both sets clear this by a wide
-#: margin and lowering either would be lowering a floor that is not being
-#: pressed. The number's job is unchanged -- catch the derivation coming back
+#: splitting them. Left at the same **40**: the exclusion took 92 live documents
+#: to 68 on 2026-09-17, so both sets clear this by a wide margin and lowering
+#: either would be lowering a floor that is not being pressed. The number's job is unchanged -- catch the derivation coming back
 #: empty or a fraction of itself, not fence the corpus's size.
 _CLAIM_SCANNED_DOCUMENT_FLOOR = 40
 

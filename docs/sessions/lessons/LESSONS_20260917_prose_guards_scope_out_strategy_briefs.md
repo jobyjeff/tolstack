@@ -120,6 +120,34 @@ job is to be *loud* when the walk stops seeing a file.
   with the date, so the next author does not read `14` as evidence that something
   was lost.
 
+> **Corrected during `review/prose_guards_scope_out_strategy_briefs`
+> (2026-09-17) — two numbers above are wrong, both re-derived by measurement.**
+>
+> 1. **The corpus sizes are 92 / 68, not 94 / 70, and the reason given for the
+>    worktree delta is wrong.** Every `data/` document in this repo is
+>    *tracked*, so no worktree is missing one. The two extra files the main
+>    checkout reported were
+>    `tmp/mutation-witness/apps/{viewer,annotate}/README.md` — gitignored
+>    scratch a 2026-09-16 session left behind. `live_documents()` is a bare
+>    `os.walk` that never consults git, so untracked dirt joins the claim-scan
+>    corpus in whichever checkout happens to be holding it. The tracked-tree
+>    count is 92 live / 68 claim-scanned and is **the same in both checkouts**;
+>    the handoff's own `efa5c4c` figures inherited the same dirt. Filed as
+>    `docs/issues/ISSUE_20260917_live_documents_walks_gitignored_scratch_in_the_main_checkout.md`,
+>    since it is a second route into exactly the class this handoff closed.
+>    Nothing shipped depends on the number: `_CLAIM_SCANNED_DOCUMENT_FLOOR = 40`
+>    is cleared either way, and the reasoning for the floor is unchanged.
+> 2. **`RULE_STATEMENT_FLOOR` went 16 → 14, not 15 → 14.** "Two of the fifteen"
+>    does not reach 14, and the missing step is that the floor had *drifted*:
+>    the count was 15 when the floor was set at `c95ef61` (2026-09-03), but
+>    ARCHITECTURE.md gained a fifth passage afterwards, so the live count was
+>    **16** at `5d5b746` while the constant still read 15. Two of those 16 were
+>    in the brief, and 16 − 2 = 14 — today's count in both checkouts, which is
+>    what this handoff re-pinned it to. The conclusion stands (coverage moved
+>    out of scope, nothing was deleted); the arithmetic needed the drift to be
+>    stated, because a floor "set *at* the count" only holds until the next
+>    passage lands, and that is the standing cost of this floor's shape.
+
 ## What each witness actually asserts
 
 Every one of the four asserts **both halves**, because either alone proves

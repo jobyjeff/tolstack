@@ -3444,6 +3444,35 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the assertion has to be `getComputedStyle` on a descendant. Sibling
       tokens with live bare rules today: `.tvflag`, `.chip--values-*`.
 
+- [ ] **A doc-scan corpus size measured in the main checkout is measuring the
+      dirt.** New 2026-09-17 (`review/prose_guards_scope_out_strategy_briefs`).
+      `live_documents()` is a bare `os.walk` with a hand-kept
+      `_SKIP_DIR_NAMES`/`_SKIP_REL_DIRS`; it **never consults git**, and `tmp/`
+      is on neither list. Two `tmp/mutation-witness/apps/*/README.md` files a
+      2026-09-16 session left behind made the main checkout report 94 live / 70
+      claim-scanned where the tracked tree is 92 / 68 — and the handoff, the
+      lesson and a new floor's justifying comment all quoted the dirty numbers,
+      with the delta misattributed to "the `data/` documents are gitignored"
+      (every `data/` document here is tracked, so no worktree is missing one).
+      **Re-derive any corpus count yourself in both checkouts and diff the two
+      sets, not just the two integers** — the set difference names the dirt in
+      one line. Tracked as
+      `ISSUE_20260917_live_documents_walks_gitignored_scratch_in_the_main_checkout.md`;
+      until it closes, a mutation-witness copy left in `C:\workspace\tolstack`
+      is inside every claim-shape scan the operator's batch merge runs.
+- [ ] **A floor "set *at* the count" has drifted, so `old_floor − removed` is
+      not the new floor.** Same review. `RULE_STATEMENT_FLOOR` was documented
+      as 15 → 14 with "two of the fifteen were in the brief" — which reaches 13.
+      The missing step: the count was 15 when the floor was set (`c95ef61`,
+      2026-09-03) but ARCHITECTURE.md gained a passage afterwards, so the live
+      count was **16** when the two brief passages left. This repo has several
+      floors deliberately set at the day's count (`assert_coverage_set`'s
+      argument), and each one silently loosens the moment the corpus grows.
+      **Measure the pre-state at the merge-base, not from the constant** — a
+      floor is the last re-measurement, not the current count, and a lesson's
+      subtraction that reconciles only against the constant is arithmetic
+      nobody checked.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
