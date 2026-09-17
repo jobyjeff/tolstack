@@ -27,7 +27,7 @@ four sessions' were.
 | `venv-win/Scripts/python.exe -m pytest -q` | 1192 passed, **1 failed**, 1 skipped | 1192 passed, **1 failed**, 1 skipped |
 | `node apps/viewer/run_tests.cjs --repo …` | 437/437 | **453/453** |
 | `node scripts/run_viewer_browser_tests.mjs --repo …` | 21/21 suites | **22/22 suites** |
-| the new browser suite | — | **16/16 sub-checks** |
+| the new browser suite | — | **17/17 sub-checks** |
 | `node scripts/run_mutation_witness_tests.mjs --repo …` | 54/54 | 54/54 |
 
 The pytest red is **not mine and not new**:
@@ -162,9 +162,10 @@ once.)*
 
 ---
 
-## 4. Two things the browser tier told me were wrong on the first take
+## 4. Three things I believed and the machine did not
 
-Both of my first sub-checks were the *assumption*, not the measurement.
+The first two were sub-checks I wrote as the *assumption* rather than the
+measurement; the third was a fact I inherited from a comment.
 
 1. **"the picture is ≥1.5× wider than the thumbnail" is false, and the feature
    is still right.** A tall datasheet crop fits by its **height**: at
@@ -179,6 +180,34 @@ Both of my first sub-checks were the *assumption*, not the measurement.
    content point under the pointer off the laid-out boxes. The anchor's exact
    arithmetic is pinned value-by-value in the fast tier, where there is no
    clamp to argue with.
+
+### A third thing I believed without measuring, and it was in the repo already
+
+**A backdrop click does not close a modal `<dialog>`.** I wrote "Escape and a
+backdrop click are then the browser's own dismiss" into three places —
+`views/lightbox.js`, `topology.html`, the README — on the strength of
+`topology_app.js`'s existing comment about this page's other two dialogs
+("*an Esc or a backdrop click (either closes a `<dialog>`)*"). Measured on the
+installed Chrome (152.0.7977.83), a bare `showModal()`ed dialog clicked at
+(2, 2):
+
+```
+open after a backdrop click at (2,2): true
+open after Escape: false
+```
+
+Only the `closedby="any"` attribute changes that, and it is newer than the
+browsers this page is written for. So the ✕ is the **only** dismissal a
+pointer-only reader has, which makes it load-bearing rather than decorative —
+the browser suite now clicks it and requires the page's scroll back. The older
+comment that misled me is filed
+(`ISSUE_20260916_the_legend_and_worksheet_dialog_comments_claim_a_backdrop_click_closes_them.md`),
+not fixed here.
+
+The transferable bit is not the browser fact. It is that **a comment in this
+repo is read as a measurement**, and one that is not gets propagated by the
+next author in good faith — which is the whole argument for the tracked
+`CLAUDE.md` and for pairing prose against the tree.
 
 ### And one piece of test-infrastructure knowledge
 
@@ -207,5 +236,7 @@ Measured here; both the probe and the suite wait on the class, not on `open`.
 * `ISSUE_20260916_the_crop_lightboxs_new_guards_carry_no_mutation_witnesses.md`
   — the handoff did not ask for witnesses and none were declared. The three
   guards worth a witness are named in the issue.
+* `ISSUE_20260916_the_legend_and_worksheet_dialog_comments_claim_a_backdrop_click_closes_them.md`
+  — §4's wrong comment, about dialogs this handoff does not own.
 
 Nothing else was deferred.
