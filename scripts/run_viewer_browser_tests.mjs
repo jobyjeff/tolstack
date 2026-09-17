@@ -1696,6 +1696,36 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // stands on it.
     const intentMs = await page.evaluate(() => window.ViewerApp.HOVER_INTENT_MS);
     const CHIP_TRIGGER = "tr.tvrow[data-id='base_thickness'] span.cardtrig";
+
+    // Walk the pointer to `[x, y]` along a straight line from `[fromX, fromY]`,
+    // STOPPING JUST SHORT, letting the page drain, and only then taking the
+    // final step that crosses into the target.
+    //
+    // Every part of that is load-bearing, and the first draft of this block --
+    // one `mouse.move(..., { steps: 12 })` -- was flaky for the want of it. Two
+    // browser facts compound:
+    //
+    //   * `mouseenter` is dispatched on the element being entered BEFORE the
+    //     `mousemove` at the new coordinates, so the corridor is always read
+    //     from the two positions the page had processed BEFORE the crossing;
+    //   * Chrome COALESCES mousemove events under load. A stepped move whose
+    //     interpolated events are coalesced can leave the page holding only the
+    //     position it started from, and the corridor is then computed off a
+    //     vector pointing wherever the pointer came from — which on a loaded
+    //     machine is a different answer from the same code on an idle one.
+    //
+    // Measured 2026-09-16: green five runs out of five in isolation, red inside
+    // a full mutation-witness run, which is the worst shape a guard can have.
+    // Three awaited moves plus a drain make the two positions either side of
+    // the crossing deterministic: both on the approach line, 6px apart.
+    const approachFrom = async (fromX, fromY, x, y) => {
+      for (const t of [0.4, 0.7, 0.9]) {
+        await page.mouse.move(Math.round(fromX + (x - fromX) * t),
+                              Math.round(fromY + (y - fromY) * t));
+      }
+      await page.waitForTimeout(80);
+      await page.mouse.move(x, y);
+    };
     const boxes = () => page.evaluate((sel) => {
       const pop = document.querySelector("#croppop");
       const open = pop && getComputedStyle(pop).display !== "none";
@@ -1712,6 +1742,10 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await dismissCard(page);
     await page.locator(CHIP_TRIGGER).hover();
     await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    // A card paints immediately and REPAINTS as each of its PNGs resolves, and
+    // a repaint can re-place it. Settling first keeps the box the tripwire
+    // reads and the box the approach aims at the same box.
+    await page.waitForTimeout(250);
     const lay = await boxes();
     push("the citation card opens BELOW its row and under the row's own crop " +
       "trigger — the layout the two approaches below are only distinguishable " +
@@ -1721,17 +1755,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       lay.trigger.cx > lay.card.left && lay.trigger.cx < lay.card.right);
 
     // APPROACH 1 — down onto the crop trigger, which aims into the card.
-    //
-    // `{ steps }` is load-bearing, not tidiness. The browser dispatches
-    // `mouseenter` on the element being entered BEFORE the `mousemove` at the
-    // new coordinates, so a single-jump move fires the enter while the page
-    // still holds the position it jumped FROM — and the corridor is then
-    // computed off a stale vector. A real mouse emits a move every few
-    // milliseconds, so in a reader's hand the two positions either side of the
-    // enter are millimetres apart and on the approach line; stepping is how a
-    // synthetic pointer reproduces that rather than an artefact of teleporting.
-    await page.mouse.move(lay.trigger.cx, lay.trigger.top - 40);
-    await page.mouse.move(lay.trigger.cx, lay.trigger.cy, { steps: 12 });
+    await approachFrom(lay.trigger.cx, lay.trigger.top - 60,
+                       lay.trigger.cx, lay.trigger.cy);
     push("a trigger crossed while the pointer is heading for the open card " +
       "does not steal it",
       await page.locator(".hovercard--citation").count() === 1 &&
@@ -1751,10 +1776,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await dismissCard(page);
     await page.locator(CHIP_TRIGGER).hover();
     await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    await page.waitForTimeout(250);
     const lay2 = await boxes();
-    await page.mouse.move(lay2.trigger.cx, lay2.trigger.top - 40);
-    await page.mouse.move(lay2.trigger.cx, lay2.trigger.cy, { steps: 12 });
-    await page.mouse.move(lay2.trigger.cx, lay2.card.top + 60, { steps: 12 });
+    await approachFrom(lay2.trigger.cx, lay2.trigger.top - 60,
+                       lay2.trigger.cx, lay2.trigger.cy);
+    await page.mouse.move(lay2.trigger.cx, lay2.card.top + 60, { steps: 6 });
     await page.waitForTimeout(intentMs + 250);
     push("...and it does NOT open when the pointer arrives at the card " +
       "instead — the reader got where they were going",
@@ -1766,8 +1792,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // row, which aims past the card rather than into it. This is the reason
     // the guard is a corridor and not a blanket grace period: a reader who
     // wants the other card gets it at once, with no delay at all.
-    await page.mouse.move(lay2.trigger.right + 260, lay2.trigger.cy);
-    await page.mouse.move(lay2.trigger.cx, lay2.trigger.cy, { steps: 12 });
+    await approachFrom(lay2.trigger.right + 300, lay2.trigger.cy,
+                       lay2.trigger.cx, lay2.trigger.cy);
     push("a trigger hovered while the pointer is moving AWAY from the open " +
       "card opens at once — the guard is intent, not a dead period",
       await page.locator(".hovercard--edge").count() === 1);
@@ -1812,6 +1838,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await dismissCard(page);
     await page.locator(CARD_TRIGGER).hover();
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+    await page.waitForTimeout(250);
     const held = await boxes();
     await page.mouse.move(held.trigger.cx, held.card.top + 60);
     const onCard = await replaced();
