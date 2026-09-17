@@ -3170,6 +3170,46 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a red the diff did not cause, `ls docs/issues/ | grep <noun>` in the
       MERGED tree, cross-reference, and tell triage to close them as one.
 
+- [ ] **A copy change spelled as a SUFFIX on a shared helper, with the suffix
+      itself pinned nowhere.** New 2026-09-16
+      (`reader_facing_copy_and_vocabulary`, and the one blocker in an otherwise
+      exemplary branch). The rest of that handoff's strings were pinned at the
+      value level; item 2's was not, because it landed as
+      `return bits.join(" · ") + (reference.unverified ? " (" + ... + ")" : "")`
+      on `VA.referenceText` -- the helper already had value-level tests, they
+      all pass an object with no `unverified` flag, and every one of them stayed
+      green when the whole clause was deleted (419/419 fast, 20/20 browser,
+      1192 pytest). The tell is a boolean the *producer* sets
+      (`VA.partReferences`) that no fixture happens to set: the conditional arm
+      is dead in every test and live on every real page. Mutate the rendered
+      string, never the constant it reads -- a constant's tests are usually
+      tautologies against the constant.
+
+- [ ] **A viewer copy change that leaves `apps/viewer/README.md` describing the
+      old string.** New 2026-09-16, same handoff, three rows at once: the chip
+      legend table (`dashed blue zero-width band | min == max; ...`), the
+      export-block state table (*"the drawing-checker runs that consumed it, or
+      no run has consumed this export"*), and the run-id bullet (*"Every other
+      id prints as plain text with a hover saying why"* -- now false end to
+      end). That README documents the rendered wording chip by chip and panel
+      by panel, and **no test pairs it against the strings**, so a copy fix goes
+      green with the documentation of it left wrong. After any `VA.*_TEXT` /
+      `VA.ATTENTION` / chip-label edit, grep the retired string across
+      `apps/viewer/README.md` before you read the diff.
+
+- [ ] **A new `VERBATIM_PROSE_CLASSES` (or any exemption-selector) entry that
+      matches nothing.** New 2026-09-16: `div.worksheet__body` was enrolled in
+      the widened stack walk and matched **0 nodes** across all 165 surfaces,
+      because `stackSurfaces()` calls `VA.renderWorksheet(r, stackProj, null)`
+      and a null markdown renders no body -- so the class is neither scanned nor
+      actually exempted, and the enrollment reads as coverage that is not there.
+      An exemption list is a guard's scope statement: instrument it
+      (`__VP[selector] += all(root, selector).length`) and demand a non-zero
+      count per entry, the same way the walk itself is required to be
+      non-vacuous. Read the *largest* counts while you are there --
+      `dd.kv__value` exempted 451 nodes, the value half of every free-form
+      authored block, which is exactly where a workstation path gets authored.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
