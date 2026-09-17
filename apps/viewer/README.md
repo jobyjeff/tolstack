@@ -1210,12 +1210,12 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | **filled red `UNTRACED`** | no document backs it. Filled, plus a row tint — an untraced value has to survive being skimmed |
 | **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all (code: `no_source_ref`) |
 | **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below. **On the right pane's block only** since 2026-09-16 — the elements table's own copy of it rolled into the row's one alert badge (next row) |
-| **filled magenta `CTE NOT TRANSCRIBED`** | a material whose `values_status` says nobody has read the CTE off a source |
+| outlined magenta `CTE NOT TRANSCRIBED` | a material whose `values_status` says nobody has read the CTE off a source. **Filled** until 2026-09-17, when `design_pass_typography` reserved a fill for provenance's two worst states and for a verdict: the confidence chip beside it in the same source column already carries the filled magenta, and one row was wearing that mark twice (`.chip--values-not_transcribed`) |
 | outlined amber `⚠` | **the elements table's one alert badge** (`flyout_resize_annotator_filter_and_deselect`, 2026-09-16). Jeff: *"roll all the alert badges into one single alert badge… Mouse over the icon has a popup that lists out the actual alerts."* One badge per row however many alerts it carries; the words are unchanged (`VA.rowAlerts` reads `VA.ATTENTION` and `VA.EXPORT_CHIP_TEXT`) and moved into the hover card, which also shows each alert's *why* — a sentence the chips only ever carried as a native tooltip. Outlined rather than filled because it is the only alert marker on the row and so competes with nothing. A row with nothing to admit shows **nothing** |
 | dashed blue `no tolerance recorded` | a value with no plus/minus behind it, so every interval it feeds is a **lower bound** on the real spread, never the real one. Still rendered as a chip in the right pane and on the DAG grid; on the elements table it is one of the two alerts the badge above carries. A separate axis from confidence, not a fourth confidence. It read `zero-width band` until 2026-09-16 on four of the five surfaces that state it while the DAG page said `no tolerance recorded` about the same element; all five read `VA.ATTENTION.no_tolerance` now, and the CSS class names (`chip--zero-width`, `num--zero-width`, `el-row--zero-width`, `tvrow--zero-width`) and the projection field `zero_width_count` deliberately keep the old word — nothing reads them as words |
 | striped card + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are printed on the card, directly under the numbers they are a budget for. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose |
 | dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |
-| blue `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above) |
+| grey `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above). Accent-**blue** until 2026-09-17: "the loader built these" carries no state, and on these pages the accent means selection (`design_pass_typography`; `.chip--generated`) |
 | monospaced weighted chip | a term whose coefficient is not 1: `+ 2.0010712 × sleeve_wall_lower`. Hover says what a coefficient can be |
 
 A path or check also shows the **weakest** confidence among its expanded inputs:
@@ -1420,7 +1420,7 @@ cell keeps them apart:
 
 * **`values_status`** — what kind of record the CTE column is. `inline`: the
   number is the record. `library`: it is a **cross-check** of the projection named
-  in `library_ref`, not the record. `not_transcribed`: **filled magenta** — nobody
+  in `library_ref`, not the record. `not_transcribed`: **outlined magenta** (filled until 2026-09-17) — nobody
   read it off anything, so a number in the column is a placeholder and since
   2026-08-12 the schema lets the entry state none at all — though not one you
   will ever meet here, because a material with no CTE stops its stack loading

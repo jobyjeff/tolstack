@@ -3260,6 +3260,25 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       footprint is `apps/viewer/*.css` and the new tests are all about JS. A
       *default* also needs its own check even where a *drag* is tested —
       the existing loop drags **to** 560 and says nothing about arriving there.
+      **Second sighting 2026-09-17 (`design_pass_typography`), a whole-handoff
+      instance, and it moves the question from "is there a pin" to "does the
+      pin cover a RULE or only the NUMBERS".** That pass shipped a real guard —
+      `tests/test_app_type_scale.py`, observed failing four ways (bare `px`,
+      drifted annotator copy, dropped step name, all-caps above `--t-meta`) —
+      which pins the six-step scale and refuses a literal `font-size`
+      anywhere in either app. It pins nothing else: seven reverts, measured
+      one at a time and then together, all leave pytest at baseline, the fast
+      tier **453/453** and the browser tier **22/22** — the `--measure` caps,
+      the name-column floor, the note clamp, the crop trigger's quieting, the
+      attention flags' fill, the annotator's base size, and the headline fix
+      itself (scoping `.conf--*` to `.chip`). So when a styling handoff hands
+      you a guard, ask **which of its deliverables the guard's assertions are
+      about** — a scale guard reads `:root` and is blind to every selector
+      below it — and reach for the *inheritance* question rather than a
+      selector string, because that is the one assertion that generalises:
+      here, `getComputedStyle` on an untraced row's own `<td>`s, with the
+      row's chip as the non-vacuity witness.
+      `ISSUE_20260917_the_typography_passs_visual_rules_are_unwitnessed_in_every_tier.md`.
 - [ ] **A deferred/held action that re-reads the SAME input on expiry, so it
       re-arms instead of firing.** New 2026-09-16
       (`viewer_hover_deslop_and_banner_purge`, blocker). `topology_app.js`'s
@@ -3396,6 +3415,27 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       Whenever a diff adds a whole function to an existing file, read the
       three lines immediately above the insertion point and the three
       immediately below the addition.
+
+- [ ] **A CSS rule keyed on a VOCABULARY TOKEN alone, whose scope nobody
+      decided.** New 2026-09-17 (`design_pass_typography`, which found it
+      already shipped). `VA.confidenceClass()` returns `conf--traced` /
+      `conf--inferred` / `conf--untraced` / `conf--no_source_ref`, and a token
+      out of a constant gets put on **whatever element needs that vocabulary**
+      — here a `span.chip`, three kinds of `<tr>` (`el-row`, `mat-row`,
+      `tvrow--edge`) and an SVG `line.rail__bar`. `.conf--untraced`'s
+      `color: #fff` and `font-weight: 700`, written for an 11px pill, therefore
+      arrived by **inheritance** on every cell of every untraced row: 8 of the
+      live `pitch_system` grid's first 10 rows and both materials rows rendered
+      entirely in 700-weight white, and the two outlined siblings tinted all
+      eleven columns of a row, numbers included. Nothing was red — the browser
+      tier measures a row's *background* layers, deliberately, and never its
+      text. The fix is `.chip.conf--X`, not `.conf--X`. Two review moves:
+      **grep every bare `^\.<token>--` selector in `apps/*/*.css` against the
+      producer's call sites** (`VA.confidenceClass`, `VA.ATTENTION`,
+      `AA.*` states) and ask which element kinds wear it; and remember the
+      declaration a rule *inherits* is invisible to a selector-based guard, so
+      the assertion has to be `getComputedStyle` on a descendant. Sibling
+      tokens with live bare rules today: `.tvflag`, `.chip--values-*`.
 
 ## Architectural errors to check
 

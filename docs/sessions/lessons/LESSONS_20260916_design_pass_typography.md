@@ -205,9 +205,17 @@ fact, not from memory.
 | tier | result |
 | --- | --- |
 | `pytest -q` | 1198 passed, 1 skipped, **1 pre-existing failure** (above). +6 from the new guard. |
-| `node apps/viewer/run_tests.cjs` | 368/368 |
+| `node apps/viewer/run_tests.cjs` | 368/368 — **the `[real]` tier SKIPPED**; see the correction below |
 | `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | 22/22 checks |
 | `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | 54/54 declared mutations witnessed |
+
+> **Correction (review, 2026-09-17).** The fast-tier row above is the
+> tier-skipped number. `run_tests.cjs` without `--repo` cannot see
+> `data/projections/viewer/` from a worktree, so it reports `SKIP node-fs tier`
+> one line above its total and leaves out 85 `[real]` tests — which is what the
+> handoff's own definition of done attached `--repo C:/workspace/tolstack` to.
+> Re-run in review on the merged tree: **453/453 with the tier running**, and
+> 368/368 without it, so nothing was hiding behind the skip.
 
 No vocabulary constant and no projection field changed — `git diff` touches
 neither `tolerance_stack/`, `scripts/`, `docs/tolerance_stacks/`, nor any

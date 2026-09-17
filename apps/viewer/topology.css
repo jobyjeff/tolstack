@@ -907,8 +907,13 @@ body.flyout-open .navtree { display: none; }
    the only surfaces on this page that are nothing but PROSE -- ten explanatory
    bullets and a whole worksheet -- and prose reads at body size. The 640px cap
    was chosen against 13px and lands at roughly 100 characters a line, past the
-   90 the house rule allows; at body size the same width is about 90, so the
-   measure is fixed by the step rather than by a second number. */
+   90 the house rule allows; at body size the same width is about 97, so the
+   step narrows the line and does not by itself bring it inside the measure --
+   `#legend-dialog li` and `.worksheet__body > p` each take `--measure` below,
+   and that is what fixes it. (Re-measured in review 2026-09-17: 1ch is 7.01px
+   at --t-dense and 7.55px at --t-body, so 640px is 91.3ch / 84.8ch; the
+   ~15% zero-to-average-letter ratio the --measure comment in style.css
+   derives puts those at ~105 and ~97 rendered characters.) */
 dialog#legend-dialog, dialog#worksheet-dialog {
   background: var(--panel); color: var(--ink); border: 1px solid var(--line);
   border-radius: 10px; padding: 16px 20px; width: 90vw; max-width: 640px;
