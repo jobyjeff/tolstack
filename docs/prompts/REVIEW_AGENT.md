@@ -559,10 +559,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       it_declares.md`, `..._card_layout_out_of_flow_mutation_reddens_an_earlier_
       check_so_it_is_never_witnessed.md`, `..._the_card_layout_out_of_flow_
       mutation_witness_stopped_witnessing_on_integration.md`; all three routed
-      to `HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md`). Two of
-      the three then asserted a mechanism — "aborts ~150 lines before the check"
-      — that the line numbers contradict (declared check pushed at 1358, the
-      timing-out hover at 1414, i.e. 56 lines *after*).
+      to `HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md`). All
+      three asserted a *mechanism* and **all three were wrong**, in both
+      directions: two said "aborts ~150 lines before the check"; this entry then
+      said the line numbers contradict them (declared check at 1358, the
+      timing-out hover at 1414, 56 lines *after*) and **that was wrong too** —
+      `CARD_TRIGGER` is the same literal selector as the 1414 hover, so the
+      Playwright call log cannot tell them apart. Settled 2026-09-16 by fixing
+      the reporting and reading the count: `ABORTED after 22 sub-checks, 0 of
+      them already FAILED`, and the declared check is sub-check 23. It was the
+      hover on the line immediately above the check, and nothing had gone red.
+      **Do not diagnose "where did a 1180-line `try` die" from a call log — make
+      the abort line print a count, then read it.**
       **The one-line question: if this stage failed right now, would anything be
       printed that NAMES what failed?** Not "would it go red" — whether the
       *name* survives the path out. Ask it of every `catch`, every `finally`,
@@ -2135,7 +2143,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       same trap pointed the other way, since it could only ever pass wrongly.
       **The rule that separates a sound wait from those three:** a selector is
       worth waiting on only if the render that satisfies the assertion is what
-      puts it in the DOM. `tr.tvrow`, `.banner__built`, `.hovercard--edge`,
+      puts it in the DOM. `tr.tvrow`, `details.banner__source`
+      (`.banner__built` until 2026-09-16, when `viewer_hover_deslop_and_banner_
+      purge` folded that node inside a **closed** `<details>` — a
+      `{ state: "visible" }` wait on a node inside one waits forever, while
+      `textContent` reads it fine, so only the visibility waits broke),
+      `.hovercard--edge`,
       `.croppop--resolved` are render products — one synchronous renderer
       clears the node, sets the class and fills it, so the class cannot exist
       on an empty node — whereas `#banner` is *static markup* in both
@@ -2741,6 +2754,21 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a suite can carry no declared witness at all (the clean run comes back
       RED and the entry is reported `SKIPPED`). When a review's evidence is a
       full run, spot-check the one suite the work touched with `--only` too.
+      **Cause found and fixed 2026-09-16** (`js_guards_and_suite_isolation`),
+      and the general rule is worth more than the instance: it was not order
+      dependence or shared state but `VA.animateTopoPane`'s cross-fade, which
+      re-parents the outgoing paint into an inert `div.tv__ghost` for
+      `VA.RESPINE.duration` (260 ms). Mid-transition the document holds **two**
+      `.tv__hscroll` panes, so every edge in both serialisations has two
+      `tr.tvrow` with the same `data-id`. Any browser-tier block that addresses
+      `tr.tvrow[data-id=…]` after a nav click must first wait
+      `!ViewerApp.lastTopoRender.tweening` — 12 other call sites in that file
+      already did; this suite was the one that did not. Two traps when you see
+      this shape again: a ghost-**excluding** locator also makes the suite pass
+      and is the wrong fix (it finds its one live row on a permanently stuck
+      pane and passes over a real bug), and "unique `data-id`" was never this
+      page's invariant anyway — `line.rail__barhit` shares each edge's
+      `data-id` with its `tr.tvrow` in the settled state.
 - [ ] **A STACK-DATA change is a viewer-test change, and `pytest -q` is
       structurally blind to it.** New 2026-09-15 (`pitch_link_known_bands`) —
       the first time a pure data handoff broke the JS `[real]` tier, and the
@@ -2938,6 +2966,25 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       stand-in (`test_crop_element_crops_a_pile_citation_to_its_declared_region`
       is the shape to copy; `fitz` is imported lazily on purpose).
       `ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md`.
+      **Second sighting 2026-09-17 (`crop_lightbox_zoom_viewer`), and it names
+      the mechanism: the INVARIANCE that makes the design right is what blinds
+      every check over it.** A `.crophl` is a percentage of `.cropfig`, so the
+      box's rect *as a fraction of the picture's own box* is correct whatever
+      size, position or border the frame ends up with -- which is the feature's
+      central claim and is why the browser suite's three `frac` comparisons
+      (fit, zoomed, panned) cannot see the frame at all. Three of the four
+      geometric wiring lines therefore delete green in every tier: the
+      fit-to-stage sizing (`figure.style.width/height` in `apply()` -- the crop
+      then renders at its natural 1374x1566 in an 846px stage and the drag is
+      declined at fit, so the reader sees the top half and cannot pan),
+      `VA.lightboxClamp`'s call (fit stops centring, a drag runs unbounded), and
+      `.lightbox .crophl`'s hairline border (a 16px amber frame at 8x). Only
+      `transform-origin: 0 0` reddens. The sub-check *named* for the first one
+      asserts `handle.view().scale === 1` -- a view-store read under the name
+      "the whole crop on screen". So: **when a percentage overlay's own
+      correctness is scale-invariant, ask what pins the FRAME**, and demand one
+      assertion comparing the picture's box to the stage's.
+      `ISSUE_20260917_the_crop_lightboxs_fit_clamp_and_hairline_are_unwitnessed_in_every_tier.md`.
 - [ ] **A new crop/projection field that renders a CLAIM, with no
       `VALUE_GUARDS` row and a silent drop on the way in.** Same handoff.
       `crops.json`'s `highlights[]` carries the solid-vs-dashed
@@ -2988,6 +3035,407 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       exist, cross-reference the newest into them and say in the report that
       triage should close them as one. Filing an eighth costs a triage sweep more
       than the red costs a session.
+- [ ] **A harness escape hatch's justifying MEASUREMENT names the wrong axis —
+      re-take it inside the helper, not from the call log.** New 2026-09-16
+      (`mutation_witness_tier_reaches_its_checks`). `hoverIgnoringOcclusion`'s
+      note explained its `scrollIntoView` branch with *"at CARD_SCROLL_VIEWPORT
+      … this trigger is ABOVE the window (scrollY 175, trigger off the top), so
+      the reading … has always been at the scroll `scrollIntoView` left
+      behind"*, and the lesson built a "latent hole" on it. Instrumenting the
+      helper: the rect is `{top: 243.5, bottom: 269.5, left: 1502, right: 1604}`
+      at `innerWidth/Height` 1600/560 — **4px off the RIGHT edge**, vertically
+      inside; the pane scrolls horizontally, so `scrollIntoView` moves the pane
+      (left 1502 → 1066) and `window.scrollY` is 175 before *and* after
+      (`scrollHeight - innerHeight` is also 175, so the document is pinned at
+      max and cannot give vertical scroll away). The hole did not exist. Two
+      transferable moves: **(a)** when a comment says "element X was outside the
+      window", ask *which edge*, and get it from
+      `getBoundingClientRect()` + `innerWidth/innerHeight` printed together in
+      one page task — a `didScroll` flag alone tells you the branch ran, not
+      why; **(b)** a document pinned at `scrollY == scrollHeight - innerHeight`
+      makes any "the page did not move" assertion **half vacuous** — mutate it
+      in the direction it *can* move (scroll UP) or it passes for free. Both
+      corrections were written back as blockquotes; the guard itself is real and
+      was observed failing.
+- [ ] **A tier-vocabulary word added to code and paired, then restated a third
+      time in the table's own prose.** Same handoff, and the near-miss worth
+      carrying: `tier` went from two words to three, `TIER_HARNESS` (runner) and
+      `TIERS`/`CHECK_SOURCE` (pytest) were correctly paired by a new test — and
+      `mutation_witnesses.json`'s `about` block then enumerated all three words
+      with per-word descriptions *and* asserted *"written in exactly two
+      places"*. Nothing pairs that block. Whenever a diff widens a vocabulary,
+      grep the declaring data file's own header for the words it just added:
+      the header is the one copy the pairing test cannot see. (The enumeration
+      is legitimate documentation and was kept; *"Those three words"* was fixed
+      inline to *"The tier words themselves"*, because a fourth word tomorrow
+      makes the count false with nothing red. And the same block's shadow-tree
+      sentence **had** gone stale in that very commit, which is what this class
+      predicts.)
+
+- [ ] **A re-cite's prose claim about the SUPERSEDED document, which nothing
+      checks and nobody re-reads.** New 2026-09-16
+      (`citation_identity_correctness`, blocker). The three *new* citations were
+      exact — sha256, sheet, zone, callout, frames, all re-read on 215735-A and
+      all independently reproducible. What was wrong was the sentence comparing
+      the released sheet against the PRELIM: *"215197 printed `8.80 ±0.10`
+      here"*, in five live artifacts including `data/inbox/drawings/PROVENANCE.md`
+      and two `source_ref` notes. Measured: 215197 A.1 sheet 1 zone **D6 is
+      empty**; the token is **`18.80`** and it sits in zone **D7**, beside the
+      `10.68 ±0.10` that survives on the released sheet. So the succession claim
+      ("a feature that was 8.80 is now 4.06, printed beside the callout this
+      joint's qty already argued for") had no support, and it landed in the one
+      open feature-identity question the element hangs on. **Re-read the old
+      export too, and zone-resolve the comparison rather than eyeballing the
+      neighbourhood** — `build_viewer_crops.page_native_grid` +
+      `zone_cell(cols, rows, "D6")` answers it in three lines, over both PDFs,
+      and is how this one was caught.
+      **The root cause is worth more than the finding** (author's own
+      diagnosis, reproduced in review): the claim came off
+      `page.get_text("text", clip=Rect(...))`, and **a clip truncates a word
+      whose box straddles the clip edge** -- cutting 4 pt into `18.80` returns
+      `8.80`, while the neighbouring `10.68` comes back whole, so nothing in the
+      output looks wrong. The same clip swept in the adjacent zone's contents
+      and they were attributed to the cited one. So: a clipped text extract is
+      for *looking*; **`get_text("words")` plus the zone reader is for anything
+      you are going to write down.** Suspect a clip behind any quoted callout
+      whose leading digit or sign looks one character short.
+- [ ] **A re-cite moved `document` and `name` and left `revision` behind.** Same
+      handoff, should-fix. `topology_{pitch_link,vpa_output}_to_pitch_plate.json`
+      each have exactly one `parts[]` entry carrying a `revision`, and both kept
+      `"A.1"` (215197's) while `drawing` became `215735` — whose revision is
+      **A**, as the same object's own `note` says two clauses later. The handoff's
+      restating inventory named `name`, `drawing`, `note` and `part_identity`
+      and not `revision`: the "grep for the one the handoff missed" entry,
+      applied to a re-cite. After any citation move, diff the **whole** carrier
+      object, not the fields the handoff enumerated.
+- [ ] **A curated registry that parametrizes a guard, with nothing pairing it
+      against the set it is supposed to cover.** Same handoff, should-fix.
+      Extending `test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry`
+      from one hard-coded stack to a `WORKBOOK_BACKED_BANDS` dict was the right
+      move and its per-stack non-vacuity half was kept — but a **third**
+      from-scratch stack that folds a workbook-derived band is simply not
+      parametrized, so it is unguarded silently. (Verified complete today: of
+      the four `transcribed_from: null` stacks, only `pitch_link_to_pitch_plate`
+      and `rotor_fastener_length` reach a `values_source.kind == "workbook"`
+      entry.) Ask of any curated expectation dict: **what fails when a new file
+      belongs in it and is not?** Derive the candidate set and assert it equals
+      the keys, keeping the curated values as the expectations.
+
+- [ ] **An issue filed AND fixed on the same branch, left `status: open` with
+      "close it when this reaches `integration`" in its prose — that
+      instruction is addressed to YOU and nothing else will ever read it.**
+      New 2026-09-16 (`viewer_unwitnessed_surface_guards`). A tactical agent
+      repaired a stale `[real]` pin that was red at its own merge-base (it
+      disabled all 18 `fast`-tier mutation entries, so it was on the critical
+      path, not adjacent to it), filed
+      `ISSUE_20260916_a_real_check_still_pins_the_zero_width_washer_the_rotor_citation_fix_removed.md`
+      for the record — correctly — and closed it with *"Leave this issue open
+      until that branch reaches `integration`; close it then."* Nothing
+      schedules that: the file carries `found_by:` (right for a filing) and
+      **`found_by` gets no dispatch auto-resolution** — only `handoff:`, written
+      at triage, does, and adding `handoff:` here would be the anti-pattern the
+      frontmatter contract spells out. So the issue would sit `open` on the
+      board describing a defect that no longer exists, and a sweep would stage
+      a handoff for it. **On APPROVE, grep the merged tree's `docs/issues/` for
+      issues the branch itself fixes and set them `status: resolved` in your
+      own integration commit** — it is a disposition, which is yours as the
+      merge gate, and it is the mirror image of the "file it before you write
+      APPROVE" rule for what you *didn't* fix.
+
+- [ ] **A quantifier+noun doc-scan anchored at "same sentence" is still too
+      loose — pin adjacency, not co-membership.** New 2026-09-16
+      (`doc_facts_and_projection_stamps`, self-caught by the tactical agent,
+      recorded here so the next scan starts tight). A guard meant to catch "N
+      of the declared witnesses" first matched quantifier + noun anywhere in
+      the same sentence, which also fired on the *corrected* sentence itself
+      — "the other two do" (naming the other two test tiers) shares a
+      sentence with "declared witnesses," and "two" is a listed number word.
+      Fixed by anchoring the quantifier directly onto the noun phrase (`` `N
+      of the declared witness` ``, a few-character window) instead of
+      "anywhere in the same sentence." When reviewing a new phrase-plus-noun
+      scan, don't just check it fires on the stale sentence (see the
+      universal "guard observed failing" check) — also feed it the
+      **corrected** sentence and any nearby sentence sharing the same noun or
+      a number word, and confirm it stays quiet on both. A scan proven to
+      fire is not yet proven to fire *only* on the defect.
+
+- [ ] **A control's position moved from LAYOUT-DERIVED to hand-accumulated
+      arithmetic — measure it against the real edge, because no tier does.**
+      New 2026-09-16 (`topology_grid_scroll_and_grips`). The ELEMENT grip used
+      to be `.tvgrip--col { right: 0 }` inside its own `<th>` — the browser put
+      it on the column edge by construction. It is now an absolute `left`
+      written from `railWidth + Σ COLUMNS[i].width` (`VA.columnGripLeft`), and
+      every check on it is *behavioural* (`dragBy` + read the preference back),
+      so a grip drawn 20px off its boundary still drags the column and still
+      passes. Replay: print the grip's `getBoundingClientRect()` beside
+      `th.tvcell--name`'s at several `scrollLeft`s. (Verified exact here —
+      `colRight - thRight = 0.0` at `scrollLeft` 0/100/300/666, and the jog
+      grip's hairline sits on `svg.tv__rails`'s right edge at all of them — but
+      nothing in the repo would have told you.)
+
+- [ ] **A fast-tier test that writes `scrollLeft` (or any layout/hit-test
+      state) is vacuous in the BROWSER half of the same file.**
+      New 2026-09-16 (`topology_grid_scroll_and_grips`), the fourth member of
+      the "fast tier proves nothing here by construction" family. `tests.js`
+      runs in the node DOM shim *and* in `test.html`: the shim keeps whatever is
+      written to it, a real browser silently refuses to scroll the detached,
+      unlaid-out `<div>` the suite renders into — so the same assertion is a
+      real check in one tier and `0 === 0` in the other, and it reports PASS in
+      both. The accepted shape here is a capability probe (`canHoldScroll`) that
+      returns early plus a named browser-tier twin on a laid-out pane; demand
+      both, and confirm the node half actually bites by breaking the behaviour
+      (here: `carriedScroll` → 0 took the fast tier to 333/335).
+
+- [ ] **…and the duplicate-filing entry above reached FOUR on a second noun.**
+      2026-09-16: `docs/issues/` now holds four filings of the
+      `test_no_live_document_states_an_unguarded_hardware_entry_count` false
+      positive as well — two of them already in this handoff's own merge-base
+      tree. Same instruction, and it is cheap: before accepting an issue about
+      a red the diff did not cause, `ls docs/issues/ | grep <noun>` in the
+      MERGED tree, cross-reference, and tell triage to close them as one.
+
+- [ ] **A copy change spelled as a SUFFIX on a shared helper, with the suffix
+      itself pinned nowhere.** New 2026-09-16
+      (`reader_facing_copy_and_vocabulary`, and the one blocker in an otherwise
+      exemplary branch). The rest of that handoff's strings were pinned at the
+      value level; item 2's was not, because it landed as
+      `return bits.join(" · ") + (reference.unverified ? " (" + ... + ")" : "")`
+      on `VA.referenceText` -- the helper already had value-level tests, they
+      all pass an object with no `unverified` flag, and every one of them stayed
+      green when the whole clause was deleted (419/419 fast, 20/20 browser,
+      1192 pytest). The tell is a boolean the *producer* sets
+      (`VA.partReferences`) that no fixture happens to set: the conditional arm
+      is dead in every test and live on every real page. Mutate the rendered
+      string, never the constant it reads -- a constant's tests are usually
+      tautologies against the constant. The fix shape, from the rework that
+      closed it: pin all three limbs separately -- the string, the **producer**
+      that sets the flag, and any hover/`title` wiring -- because deleting the
+      producer and deleting the string are different mutations and a test can
+      catch one without the other.
+
+- [ ] **A viewer copy change that leaves `apps/viewer/README.md` describing the
+      old string.** New 2026-09-16, same handoff, three rows at once: the chip
+      legend table (`dashed blue zero-width band | min == max; ...`), the
+      export-block state table (*"the drawing-checker runs that consumed it, or
+      no run has consumed this export"*), and the run-id bullet (*"Every other
+      id prints as plain text with a hover saying why"* -- now false end to
+      end). That README documents the rendered wording chip by chip and panel
+      by panel, and **no test pairs it against the strings**, so a copy fix goes
+      green with the documentation of it left wrong. After any `VA.*_TEXT` /
+      `VA.ATTENTION` / chip-label edit, grep the retired string across
+      `apps/viewer/README.md` before you read the diff. All three were fixed on
+      the rework; the **pairing still does not exist**
+      (`ISSUE_20260916_nothing_pairs_apps_viewer_readme_against_the_strings_it_documents.md`),
+      so this stays a grep until it does.
+
+- [ ] **A new `VERBATIM_PROSE_CLASSES` (or any exemption-selector) entry that
+      matches nothing.** New 2026-09-16: `div.worksheet__body` was enrolled in
+      the widened stack walk and matched **0 nodes** across all 165 surfaces,
+      because `stackSurfaces()` calls `VA.renderWorksheet(r, stackProj, null)`
+      and a null markdown renders no body -- so the class is neither scanned nor
+      actually exempted, and the enrollment reads as coverage that is not there.
+      An exemption list is a guard's scope statement: instrument it
+      (`__VP[selector] += all(root, selector).length`) and demand a non-zero
+      count per entry, the same way the walk itself is required to be
+      non-vacuous. There IS such a guard now, inside `[real] no rendered stack
+      surface ...` -- so check a new selector is in its scope, and know its
+      stated limit: it asserts the selector **resolves**, not that the node's
+      text was excluded. `div.worksheet__body` is written with `innerHTML`, and
+      the node shim keeps innerHTML out of `textContent`, so dropping that one
+      selector still takes 422/422 and only the browser tier reddens. Read the
+      *largest* counts while you are there -- `dd.kv__value` exempts 433 nodes,
+      the value half of every free-form authored block, which is exactly where
+      a workstation path gets authored
+      (`ISSUE_20260916_the_free_form_block_value_exemption_hides_the_values_from_every_scan.md`).
+- [ ] **A CSS-ONLY deliverable, pinned by a hand-run probe.** New 2026-09-16
+      (`viewer_hover_deslop_and_banner_purge`, blocker) — the "one line from
+      being silently reverted" entry above, in the one file no tier reads for
+      values. Deliverable 5 was a 430→560px pane default plus a divider made
+      visible at rest with a grip mark; reverting **all three** edits in a
+      scratch tree (`width: 430px`, `background: transparent`, delete
+      `.tv__divider::after`) left **430/430 fast and 20/20 browser** green, and
+      `pytest` never opens a `.css`. The only thing that noticed was
+      `tests/debug_hover_deslop.mjs`'s `pane.width >= 560`, and a hand-run
+      probe is not a pin. The tell in the diff: the deliverable's whole
+      footprint is `apps/viewer/*.css` and the new tests are all about JS. A
+      *default* also needs its own check even where a *drag* is tested —
+      the existing loop drags **to** 560 and says nothing about arriving there.
+      **Second sighting 2026-09-17 (`design_pass_typography`), a whole-handoff
+      instance, and it moves the question from "is there a pin" to "does the
+      pin cover a RULE or only the NUMBERS".** That pass shipped a real guard —
+      `tests/test_app_type_scale.py`, observed failing four ways (bare `px`,
+      drifted annotator copy, dropped step name, all-caps above `--t-meta`) —
+      which pins the six-step scale and refuses a literal `font-size`
+      anywhere in either app. It pins nothing else: seven reverts, measured
+      one at a time and then together, all leave pytest at baseline, the fast
+      tier **453/453** and the browser tier **22/22** — the `--measure` caps,
+      the name-column floor, the note clamp, the crop trigger's quieting, the
+      attention flags' fill, the annotator's base size, and the headline fix
+      itself (scoping `.conf--*` to `.chip`). So when a styling handoff hands
+      you a guard, ask **which of its deliverables the guard's assertions are
+      about** — a scale guard reads `:root` and is blind to every selector
+      below it — and reach for the *inheritance* question rather than a
+      selector string, because that is the one assertion that generalises:
+      here, `getComputedStyle` on an untraced row's own `<td>`s, with the
+      row's chip as the non-vacuity witness.
+      `ISSUE_20260917_the_typography_passs_visual_rules_are_unwitnessed_in_every_tier.md`.
+- [ ] **A deferred/held action that re-reads the SAME input on expiry, so it
+      re-arms instead of firing.** New 2026-09-16
+      (`viewer_hover_deslop_and_banner_purge`, blocker). `topology_app.js`'s
+      hover-intent `defer()` holds a competing trigger while the pointer is
+      travelling toward the open card, and its timer calls `held.run()` — which
+      re-enters `showCard` → `defer()`. `pointerWas`/`pointerAt` are written
+      **only by `mousemove`**, so a pointer that has *stopped* still carries
+      the vector it crossed on, the corridor test says "still approaching", and
+      the trigger is deferred again with no bound. Measured with a real mouse:
+      the held card had not appeared after **4.4 s** (`HOVER_INTENT_MS` is 260)
+      and arrived only on a 3px nudge that changed the vector — the exact
+      failure the design comment says the design was chosen to avoid. **The
+      question to ask of any grace period: what does the expiry path read, and
+      can that input still be stale when it fires?** And check the tier covers
+      the expiry, not just the two sides of it: a check that moves the pointer
+      *into* the card before the timer is testing the drop path, not the fire
+      path.
+- [ ] **A hand-run probe that re-calls the app's boot function registers the
+      app's `document` listeners TWICE, and module state that remembers a
+      previous value dies.** New 2026-09-16, found while reproducing the entry
+      above. `tests/debug_*.mjs` install fixtures and then call
+      `VA.bootTopology()` again; each boot adds another `document`
+      `mousemove` listener, both write the same module variables, and the
+      second one sets `pointerWas = pointerAt` — so `pointerWas === pointerAt`
+      after every move and every "where was the pointer one move ago" feature
+      is silently off. A probe's reading of such a feature is a reading of the
+      probe. The fix shape when you need real data under one boot: serve a
+      patched `topology_fixtures.js` (append an override of
+      `VA.demoTopologyFixture`) from the probe's own static server instead of
+      re-booting. (Closed in the rework by dropping a same-coordinates move in
+      the tracker, which makes the duplicate listener harmless *for that
+      listener*; the double boot itself is still there.)
+- [ ] **Two true checks either side of an untested middle read as coverage.**
+      New 2026-09-16 (`viewer_hover_deslop_and_banner_purge`, blocker 1, and
+      the author's own best line about it). A three-state behaviour --
+      *hold* / *drop* / *fire after the grace period* -- shipped with pins on
+      the first two and nothing on the third, which was the one that was
+      broken. Worse, a check *named* for the third ("...and it still does not,
+      once the grace period has run out") measured the **drop** case, because
+      the pointer had been moved into the card before it ran. Nothing in a
+      green run distinguishes two checks from three. So: for any timer, retry,
+      debounce or grace period, **write down its states and point at the check
+      for each one** -- and read what each check actually sets up, not what its
+      name claims. A check whose *name* is the missing case is worse than no
+      check, because it retires the question.
+- [ ] **A browser-tier gesture that TELEPORTS the pointer computes off a stale
+      position.** Same handoff, and why the check above could not reach the case
+      it was named for. Chrome dispatches `mouseenter` on the element being
+      entered **before** the `mousemove` at the new coordinates, so a
+      single-jump `page.mouse.move(x, y)` fires the enter while the page still
+      holds the position it jumped *from* -- and any handler that asks "where
+      was the pointer one move ago" reads a vector from somewhere else
+      entirely. **And `{ steps: N }` does not fix it**, which is the part that
+      nearly shipped twice: Chrome **coalesces** mousemove under load, so an
+      interpolated move can leave the page holding only the position it started
+      from. That version was green five runs out of five in isolation and red
+      inside a full mutation-witness run -- green on an idle machine, red on a
+      loaded one, which is the worst shape a guard can have. What is
+      deterministic: **separately awaited** moves down the approach line, a
+      short drain so the page has processed them, and only then the step that
+      crosses into the target (`approachFrom()` in the topology suite). Cheaper
+      tell, same family: a synthetic `dispatchEvent("mouseenter")` fired while
+      the real pointer sits elsewhere cannot reach any code that asks where the
+      pointer IS. Corollary for a reviewer: **run the browser tier concurrently
+      with something heavy** before believing a new pointer-path check.
+- [ ] **A probe that perturbs state to observe a guard can destroy the guard's
+      own precondition.** Same handoff. Observing "did `position()` run" by
+      nudging the card and seeing whether it snaps back is the right idea --
+      but the first draft shoved `style.left` to 1px, which slid the box out
+      from under the pointer, so the guard ("never move a card the pointer is
+      on") correctly declined to hold and the probe reported a defect that was
+      not there. The nudge has to be smaller than the margin the precondition
+      has. Ask of any mutate-and-observe check: *does my perturbation still
+      satisfy the `if` I am testing?*
+
+- [ ] **An "X is still visible beside it" claim measured against the CONTAINER
+      instead of the thing drawn inside it.** New 2026-09-16
+      (`flyout_resize_annotator_filter_and_deselect`). The left-docked
+      annotator flyout's whole point was adjacency -- "the DAG must remain
+      visible beside it" -- and both the clamp (`VA.clampFlyoutWidth`'s
+      `reserve`) and the browser check named for it (`uncoveredDag()`) measure
+      `#topopane`'s right edge. `#topopane` is a horizontal scrollport that
+      also holds the grid table; the DAG itself is one `svg.tv__rails` pinned
+      at the pane's LEFT edge, x=300..562 at worst across all 21 live studies,
+      while the panel's floor (`FLYOUT_WIDTH.min`) is 560. Measured: 300px of
+      pane "uncovered" and **0px of diagram**, check green, on every live
+      study. The lesson had already caught the shallower version of this
+      ("a covered diagram and an adjacent one are indistinguishable from the
+      layout tree; you have to compute the overlap") and then computed the
+      overlap against the wrong box. Ask of any coverage/adjacency check:
+      *which node did I measure, and is the pixel the reader cares about
+      inside it?* -- and check the fixture can discriminate (at `?mock=1` the
+      DAG is 78px wide and can never survive a 560px panel). Two further
+      halves from the rework: **measure FULLY CLEAR, not partial overlap** (a
+      container is always wider than its contents, so partial clearance of the
+      container is compatible with total coverage of the content -- the shipped
+      formula was `dag.right - max(dag.left, panel.right) >= reserve`), and
+      expect the answer to be a **reversed invariant** rather than a bigger
+      number: "position: fixed cannot reflow the pane" and "adjacent to the
+      pane's contents" could not both hold on one edge of one window.
+
+- [ ] **A superlative about the page's own tree, written from the surface you
+      just added -- and the COUNT beside it is exact, which is what carries
+      it.** New 2026-09-17 (`crop_lightbox_zoom_viewer`, fixed inline).
+      `#crop-lightbox`'s comment said *"the fourth `<dialog>` on this page and
+      the only MODAL one"* in three places (`topology.html`, `style.css`,
+      `views/lightbox.js`). Fourth is right; `topology_app.js` `showModal()`s
+      `#legend-dialog` and `#worksheet-dialog` too, so it is the **third**
+      modal one -- only `#annotate-flyout` is not. One command settles it
+      (`grep -n "showModal" apps/viewer/*.js apps/viewer/views/*.js`), and the
+      author's own lesson in the same commit is about having believed an
+      unmeasured comment on these same two dialogs. So grep for the
+      **mechanism** (`showModal`, `addEventListener`, the call), never for the
+      noun the superlative is about, and read "the only / the first / the one"
+      as a claim about every sibling.
+- [ ] **An issue that names "the mutation each guard should redden on" is a
+      PREDICTION -- replay each one before triage inherits it.** Same handoff.
+      The author filed three paste-ready witness entries with an
+      `expect_red` sub-check named for each. Two reproduce exactly; the third
+      (drop the frame's pixel sizing, expect the `frac` check to fail) leaves
+      **453/453 fast and 17/17 browser** green, so the entry would have been
+      declared against a check that cannot fail on it -- and the real
+      consequence was worse than the predicted one. The issue itself said each
+      had to be watched reddening first, which is the right instinct and is
+      not the same as having done it. A named-but-unreplayed `expect_red` is
+      the "guard that has never been seen red" one step earlier in the
+      pipeline; cost of checking is one `git archive` plus one `--only` run.
+- [ ] **A ~300-line function appended to a file, landing between the header
+      comment and the function it belongs to.** Same handoff, fixed inline:
+      the new browser suite went in directly under
+      *"--- the inbound deep-link contract ..."*, leaving that six-line header
+      orphaned above the lightbox block and `testDeepLinks` with none. Nothing
+      fails; the next reader attributes the paragraph to the wrong suite.
+      Whenever a diff adds a whole function to an existing file, read the
+      three lines immediately above the insertion point and the three
+      immediately below the addition.
+
+- [ ] **A CSS rule keyed on a VOCABULARY TOKEN alone, whose scope nobody
+      decided.** New 2026-09-17 (`design_pass_typography`, which found it
+      already shipped). `VA.confidenceClass()` returns `conf--traced` /
+      `conf--inferred` / `conf--untraced` / `conf--no_source_ref`, and a token
+      out of a constant gets put on **whatever element needs that vocabulary**
+      — here a `span.chip`, three kinds of `<tr>` (`el-row`, `mat-row`,
+      `tvrow--edge`) and an SVG `line.rail__bar`. `.conf--untraced`'s
+      `color: #fff` and `font-weight: 700`, written for an 11px pill, therefore
+      arrived by **inheritance** on every cell of every untraced row: 8 of the
+      live `pitch_system` grid's first 10 rows and both materials rows rendered
+      entirely in 700-weight white, and the two outlined siblings tinted all
+      eleven columns of a row, numbers included. Nothing was red — the browser
+      tier measures a row's *background* layers, deliberately, and never its
+      text. The fix is `.chip.conf--X`, not `.conf--X`. Two review moves:
+      **grep every bare `^\.<token>--` selector in `apps/*/*.css` against the
+      producer's call sites** (`VA.confidenceClass`, `VA.ATTENTION`,
+      `AA.*` states) and ask which element kinds wear it; and remember the
+      declaration a rule *inherits* is invisible to a selector-based guard, so
+      the assertion has to be `getComputedStyle` on a descendant. Sibling
+      tokens with live bare rules today: `.tvflag`, `.chip--values-*`.
 
 ## Architectural errors to check
 
@@ -2997,11 +3445,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       a wrong `schema`, the new `build_topology_projection.load_hardware()`
       reads `entries` off whatever JSON is there. Tolerating an **absent**
       register is argued and documented; tolerating a **present but
-      unreadable** one silently turns 43 of 98 live gap rows into "nothing is
-      missing" on the one page whose job is to say what is. When a diff adds a
+      unreadable** one silently turns every `hardware_entry` gap row -- the
+      largest single kind in that list -- into "nothing is missing" on the one
+      page whose job is to say what is. When a diff adds a
       second reader for an existing file, diff the two loaders' refusals, not
       just their happy paths.
       (`ISSUE_20260915_topology_builder_drops_the_hardware_register_schema_check`.)
+      **Closed 2026-09-16** by `python_value_and_schema_pins`, which gave
+      `load_hardware` the same `SCHEMA_HARDWARE` gate and a test pinning it; the
+      entry stays for the *shape*. Two notes from that review: the counts this
+      entry and the issue both quoted (43 of 98) were already stale when the fix
+      landed -- they are 53 of 104 today -- which is why neither this entry nor
+      the code's docstring states them any more; and the register is
+      `docs/tolerance_stacks/hardware_entries.json`, **tracked**, not the
+      gitignored `data/` path the issue and the handoff both named.
 
 - [ ] **`fold()` is the only arithmetic.** No second code path for checks — paths
       and checks are the same signed term list. And `fold()` reads `min`/`max`
@@ -3634,6 +4091,40 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       file is already being read.
       `ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_not_the_
       call_site.md`.
+
+- [ ] **A structured sibling added beside a prose field, paired on PRESENCE
+      and not on CONTENT.** New 2026-09-16 (`python_value_and_schema_pins`).
+      `joint.assembly_export_ref` (a real `SourceExport`, runs with their `ts`)
+      was added beside the prose `joint.assembly_export` that
+      `build_viewer_crops._RUN_ID_RE` still parses, deliberately additive and
+      with neither derived from the other. The new pairing test asserts only
+      that a joint carrying one key carries the other; nothing asserts the two
+      **name the same runs**. Measured in review: editing one run id inside
+      `stack_rotor_fastener_length.json`'s structured block so it disagrees with
+      the sentence three lines above it leaves the suite fully green. Whenever a
+      migration keeps the old carrier "for now", ask *what fails when the two
+      copies disagree?* -- presence-pairing answers "nothing", and the pin the
+      author does write tends to be a single hand-named id on the one stack they
+      were thinking about (here, `20260804_114000` on the pitch link only).
+      `ISSUE_20260916_the_joint_export_prose_and_structured_run_ids_are_paired_
+      on_presence_only.md`.
+
+- [ ] **A swallow-and-report wait helper, `push`ed at one call site and called
+      for its side effect at another.** New 2026-09-16
+      (`js_guards_and_suite_isolation`, low). The browser tier's idiom for a
+      wait that must be *attributable* is to catch the timeout and return a
+      boolean, because a thrown timeout takes the suite down as an unnamed
+      `ERROR` — a MISS to the mutation tier, not a red
+      (`scripts/mutation_witnesses.json`, "ONE THING AN ENTRY CANNOT DECLARE").
+      The helper only delivers that if **every** caller pushes the result:
+      `testAnnotateFlyout`'s `paneSettled()` is pushed in the mounted half and
+      called bare in the `file://` half three lines before the same
+      `tr.tvrow[data-id=…]` click, so that half fails in exactly the unnamed way
+      the helper's own comment says must not happen. Grep every call of a
+      helper that *returns* a verdict instead of throwing one, and check each
+      one's result actually reaches a check name.
+      `ISSUE_20260916_the_annotate_flyout_settle_wait_is_named_in_one_half_and_
+      discarded_in_the_other.md`.
 
 ## Writing the review
 

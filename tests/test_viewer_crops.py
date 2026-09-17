@@ -817,6 +817,154 @@ def test_a_drawing_citation_is_untouched_by_the_registry(tmp_path, pile, fake_fi
     assert entry["region_label"] is None
 
 
+# --- the WIRING, second seam: what the builder EMITS on a balloon crop ------
+#
+# Same gap as the registry seam above, one deliverable along. Everything the
+# 2026-09-15 crops work added to a balloon crop is tested as a pure function
+# -- ``parts_list_row_rect`` and ``parts_list_row_for`` below, ``with_fracs``,
+# ``highlight`` -- and nothing asserted that ``_crop_from_citation`` CALLS any
+# of them. Measured on 2026-09-16: replacing the ``parts_list_companion(...)``
+# call with ``companion = None`` left tests/test_viewer_crops.py at 73/73, and
+# deliverable 1's second image simply left all four live balloon crops.
+# ``"drawing_no": None`` is the same shape one key down -- ``VA.drawingLinkText``
+# then returns null on every entry and the drawing link falls back to "open the
+# drawing in drawing-checker", the wording that work existed to replace. The JS
+# side is tested against a hand-built entry that carries the field; the Python
+# side wrote it with nothing watching.
+#
+# The stand-in is the same one the registry seam uses: ``fitz`` is imported
+# lazily, so a fake module drives the real entry point, rendering and all. And
+# ``FakePixmap`` reports a size derived from WHICH rect rendered, which is how
+# the parts-list band is told apart from the sheet without a PNG decoder.
+
+BALLOON_RUN_ID = "20260804_114000"
+BALLOON_PART_NO = "214820-002"
+#: Where the part number is printed on the parts-list sheet, and where the one
+#: ``FIND`` block header is -- the two searches ``parts_list_row_rect`` runs.
+BALLOON_ROW_HIT = (60.0, 100.0, 110.0, 116.0)
+BALLOON_FIND_HEADER = (8.0, 800.0, 30.0, 816.0)
+
+
+@pytest.fixture()
+def ballooned_run(tmp_path, monkeypatch):
+    """A drawing-checker run with balloons and a parts-list table, wired up.
+
+    Hands back the ``dc_root`` to pass to :func:`bvc.crop_element` -- the
+    citation resolves by ``joint_export_run`` (rule 3), which is what gives the
+    entry a ``run_dir`` and therefore both a balloon file to read and a drawing
+    link to name.
+    """
+    dc_root = tmp_path / "dc"
+    run = dc_root / "data" / "runs" / f"{BALLOON_RUN_ID}_217755"
+    run.mkdir(parents=True)
+    drawings = dc_root / "data" / "inbox" / "drawings"
+    drawings.mkdir(parents=True)
+    pdf = drawings / "217755.pdf"
+    pdf.write_bytes(b"%PDF-1.4\nthe real export\n")
+    (run / "run_meta.json").write_text(
+        json.dumps({"inputs": [{"name": "217755.pdf",
+                                "sha256": bvc.sha256_of(pdf)}]}),
+        encoding="utf-8")
+    (run / "217755_balloons.json").write_text(json.dumps({
+        "pl_page": 1,
+        "parts_list": [{"part_number": BALLOON_PART_NO, "find_no": 34,
+                        "nomenclature": "BUSHING, PLAIN, ALUMINUM BRONZE"}],
+        "balloons": [{"page": 4, "item_no": 34, "view_id": "DETAIL B",
+                      "bbox_pt": [300.0, 400.0, 320.0, 420.0]}],
+    }), encoding="utf-8")
+    (run / "217755_p01.json").write_text(json.dumps(
+        {"zones": {"parts_list": {"tight_bbox_pt": [0.0, 0.0, 610.56, 842.4]}}}),
+        encoding="utf-8")
+
+    page = FakePage(text="a drawing with a text layer", hits={
+        BALLOON_PART_NO: [BALLOON_ROW_HIT],
+        bvc.PARTS_LIST_BLOCK_HEADER: [BALLOON_FIND_HEADER],
+    })
+    monkeypatch.setitem(sys.modules, "fitz", types.SimpleNamespace(
+        open=lambda _path: FakeDoc(page), Rect=FakeClip,
+        Matrix=lambda zx, zy: (zx, zy)))
+    return dc_root
+
+
+def a_ballooned_element():
+    return {"id": "bushing", "hardware_ref": None, "source_ref": {
+        "kind": "parts_list", "document": "217755", "revision": "A.1",
+        "sheet": 4, "view": "DETAIL B",
+        "callout": f"{BALLOON_PART_NO}  BUSHING, PLAIN, ALUMINUM BRONZE"}}
+
+
+def a_ballooned_stack():
+    return {"id": "a_stack", "joint": {
+        "assembly_drawing": "217755",
+        "assembly_export": f"217755.pdf (drawing-checker run {BALLOON_RUN_ID})"}}
+
+
+def crop_a_ballooned_element(tmp_path, dc_root):
+    return bvc.crop_element(
+        a_ballooned_stack(), a_ballooned_element(), tmp_path / "specs",
+        dc_root, [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry())
+
+
+def test_the_builder_emits_the_parts_list_companion_beside_a_balloon_crop(
+        tmp_path, ballooned_run):
+    entry = crop_a_ballooned_element(tmp_path, ballooned_run)
+    assert entry["status"] == "resolved" and entry["located_by"] == "balloon_view"
+
+    companion = entry["companion"]
+    assert companion is not None, (
+        "the balloon resolved, so the builder must have gone on to render the "
+        "cited item's parts-list row -- the crop's second image"
+    )
+    assert companion["role"] == "parts_list_row"
+    assert companion["find_no"] == 34
+    assert companion["part_number"] == BALLOON_PART_NO
+    # The heading the reader actually sees over the second image, which is the
+    # parts list's OWN sheet and not the sheet the balloon is on.
+    assert companion["label"] == "Parts list, sheet 1"
+    assert companion["page"] == 1
+    assert companion["png"].endswith("__parts_list.png")
+    assert companion["png"] != entry["png"]
+    # The band, not the sheet. FakePixmap's size is derived from the rect that
+    # rendered, so this is the cheap proof that the second render went to the
+    # parts-list row and not to the page again: the band is 16pt of row plus
+    # its context, nothing like 842pt of sheet.
+    assert companion["height"] < entry["height"]
+    assert companion["rect_pt"][1] == pytest.approx(
+        BALLOON_ROW_HIT[1] - bvc.PARTS_LIST_CONTEXT_PT)
+    # ...and the row's own part number is boxed on it, solid: it was FOUND
+    # there, which is what a verified_match means.
+    assert [(h["kind"], h["label"]) for h in companion["highlights"]] == [
+        ("verified_match", BALLOON_PART_NO)]
+
+
+def test_the_builder_carries_the_drawings_own_number_and_revision(
+        tmp_path, ballooned_run):
+    """What the link into drawing-checker is CALLED. ``VA.drawingLinkText``
+    needs both keys off the entry or it returns null and the link goes back to
+    naming the machinery instead of the drawing."""
+    entry = crop_a_ballooned_element(tmp_path, ballooned_run)
+    assert entry["run_dir"] == f"{BALLOON_RUN_ID}_217755"
+    assert entry["drawing_no"] == "217755"
+    assert entry["drawing_revision"] == "A.1"
+
+
+def test_a_citation_with_no_run_to_link_to_names_no_drawing(tmp_path, pile, fake_fitz):
+    """The other arm of the same two lines, and the reason they are conditional:
+    a spec-pile document has no run page to open, and its ``document`` is a
+    filename rather than a drawing number -- labelling one would be a category
+    error, so both keys are written null rather than omitted."""
+    entry = bvc.crop_element(
+        {"id": "a_stack"},
+        {"id": "fastener_grip_13", "hardware_ref": "NAS6403U13H",
+         "source_ref": dict(PILE_CITATION)},
+        pile, tmp_path / "dc", [tmp_path], tmp_path / "crops", {}, crop_args(),
+        scr.CropRegionRegistry(regions=(a_region(),)),
+    )
+    assert entry["run_dir"] is None
+    assert entry["drawing_no"] is None and entry["drawing_revision"] is None
+
+
 # --- the three live cases, pinned value for value --------------------------
 #
 # Handoff ``viewer_reference_crops_in_context`` (2026-09-15), from Jeff's review
@@ -1301,3 +1449,105 @@ def test_a_zero_width_crop_does_not_divide_by_zero():
     boxes = bvc.with_fracs((10.0, 10.0, 10.0, 10.0),
                            [bvc.highlight("verified_match", None, (0, 0, 5, 5))])
     assert boxes[0]["frac"] == [0.0, 0.0, 0.0, 0.0]
+
+
+# --- the parts-list row identity: (part_number, find_no), never part_number --
+# 217755's parts list carries NAS1149V0332H twice -- find 13 (qty 15) and find
+# 32 (qty 9). Keyed by part number alone, one of those two real rows is deleted
+# by whichever the export wrote second, and the survivor is then answered for a
+# citation naming the other. The fixture records BOTH rows, in the array order
+# the 2026-AUG-19 export wrote them.
+
+
+def _colliding_balloons(balloon_fixture, reverse=False):
+    rows = list(balloon_fixture["parts_list"])
+    return {"parts_list": list(reversed(rows)) if reverse else rows,
+            "balloons": balloon_fixture["balloons_sheet4_detail_b"],
+            "pl_page": balloon_fixture["pl_page"]}
+
+
+#: The rotor washer's real citation, verbatim from
+#: ``stack_rotor_fastener_length.json::washer_nas1149v0332_tt``. It names the
+#: row it means -- find 32 -- in its own prose.
+_FIND_32_CITATION = {
+    "kind": "parts_list", "view": "SECTION T-T",
+    "callout": ("NAS1149V0332H  WASHER, FLAT, 6Al-4V, .203\" X .438\" X .032\""
+                "  (find 32, qty 9 across the assembly; balloon at SECTION T-T)"),
+}
+
+
+def test_the_cited_parts_list_row_wins_over_the_one_sharing_its_part_number(
+        balloon_fixture):
+    """Two real rows, one part number. The citation states which row it means,
+    so that is the row -- and the find-13 row's presence does not change the
+    answer."""
+    row = bvc.parts_list_row_for(_colliding_balloons(balloon_fixture),
+                                 _FIND_32_CITATION, "NAS1149V0332")
+    assert row["find_no"] == 32
+    assert row["qty"] == 9
+    # The row that must NOT be answered for this citation. Its only page-8
+    # balloon is in SECTION R-R, and the citation names SECTION T-T -- so the
+    # wrong row here does not fail, it frames the crop on another view of the
+    # cited sheet and titles it "balloon 13" under this element's own name.
+    other = bvc.parts_list_row_for(
+        _colliding_balloons(balloon_fixture),
+        {**_FIND_32_CITATION,
+         "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V  (find 13, qty 15)"},
+        "NAS1149V0332")
+    assert other["find_no"] == 13
+
+
+def test_the_parts_list_row_answer_does_not_depend_on_the_export_row_order(
+        balloon_fixture):
+    """The assertion that catches keying by part number alone. A dict keyed on
+    the part number keeps whichever colliding row was inserted LAST, so the
+    answer is a property of the array order drawing-checker happened to write
+    rather than of the citation. Reversed, this returned find 13."""
+    forward = bvc.parts_list_row_for(_colliding_balloons(balloon_fixture),
+                                     _FIND_32_CITATION, "NAS1149V0332")
+    reversed_ = bvc.parts_list_row_for(
+        _colliding_balloons(balloon_fixture, reverse=True),
+        _FIND_32_CITATION, "NAS1149V0332")
+    assert forward == reversed_
+    assert reversed_["find_no"] == 32
+
+
+def test_two_rows_colliding_with_no_cited_find_number_are_refused_not_guessed(
+        balloon_fixture):
+    """A citation that names the full part number and NO find number cannot
+    say which of the two rows it means, so the answer is a refusal. ``None``
+    here places the crop exactly as it did before (``balloon_answer``'s
+    contract), which is honest; the last row written is not."""
+    balloons = _colliding_balloons(balloon_fixture)
+    ambiguous = {"kind": "parts_list",
+                 "callout": "NAS1149V0332H  WASHER, FLAT, 6Al-4V"}
+    assert bvc.parts_list_row_for(balloons, ambiguous, "NAS1149V0332") is None
+    # ...and reversing the rows does not turn the refusal into an answer.
+    assert bvc.parts_list_row_for(_colliding_balloons(balloon_fixture,
+                                                      reverse=True),
+                                  ambiguous, "NAS1149V0332") is None
+    # A refused row is a refused balloon: no crop is moved onto the wrong item.
+    assert bvc.balloon_answer(balloons, 4, ambiguous, "NAS1149V0332") is None
+    # The uncontested row next to it is unaffected -- refusal is per part
+    # number, not a general loss of nerve.
+    assert bvc.parts_list_row_for(
+        balloons, {"callout": "214820-002  BUSHING"}, "214820-002"
+    )["find_no"] == 34
+
+
+def test_the_cited_find_number_is_read_from_the_callout_by_a_named_pattern():
+    """The find number lives in the callout's prose, and the pattern that reads
+    it is a module-level constant (repo CLAUDE.md: a field vocabulary is never
+    an inline literal). All four live parts-list citations state it."""
+    live_callouts = {
+        "214820-002  BUSHING, PLAIN  (find 34)": 34,
+        _FIND_32_CITATION["callout"]: 32,
+        "MS21299C3  WASHER  (find 60, qty AR; balloon at SECTION T-T)": 60,
+        "NAS1149V0332H  WASHER  (find 29, qty 1)": 29,
+    }
+    for callout, expected in live_callouts.items():
+        match = bvc.CALLOUT_FIND_NO_RE.search(callout)
+        assert match is not None, callout
+        assert int(match.group(1)) == expected
+    # A callout stating none is not a match -- it is the refusal case above.
+    assert bvc.CALLOUT_FIND_NO_RE.search("214820-002  BUSHING, PLAIN") is None

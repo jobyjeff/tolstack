@@ -198,6 +198,107 @@
     };
   };
 
+  // --- the left rail, scoped to ONE element (flyout_resize_annotator_filter_
+  // and_deselect, deliverable 2) ----------------------------------------------
+  //
+  // Jeff: "it should also auto-filter the left side menu to just the features
+  // that are in the element (node or edge) it was entered from." The flyout
+  // boots from one element and the rail listed every element in the study and
+  // every installed mesh in the repo, so a reader arriving from one row had to
+  // find it again in two lists.
+  //
+  // `target` is an edge id or a node id -- both, because both are elements of a
+  // topology (docs/DAG_TOPOLOGY.md: interfaces are nodes, dimensions are edges)
+  // and a card on either can route in here. Edges are looked up first: an id
+  // collision between the two sets would be a data defect, and the edge is what
+  // the deep link's own `edge=` param means.
+  //
+  // Returns what the rail should show, never a rendering:
+  //
+  //   kind          "edge" | "node" | null (nothing in this topology has that id)
+  //   edgeIds       which elements the element list keeps, in document order
+  //   parts         [{ part, sha256 }] -- the parts panel's rows, sha256 null
+  //                 where no installed mesh resolves
+  //   missingParts  the named parts with no installed mesh, as an honest list
+  //
+  // An edge names at most one part (its own `part`); a node names the parts
+  // that meet at it (`parts`, a list) and every edge that touches it. A gap
+  // edge with no part at all filters the element list and leaves the parts
+  // panel with nothing to show -- which is the truth about a gap, and the
+  // caller says so in words rather than silently showing every mesh again.
+  AA.planPanelFilter = function (topology, target, meshes, aliases) {
+    var edges = (topology && topology.edges) || [];
+    var nodes = (topology && topology.nodes) || [];
+    var resolve = function (partIds) {
+      var parts = [];
+      var seen = {};
+      partIds.forEach(function (part) {
+        if (!part || seen[part]) return;
+        seen[part] = true;
+        var mesh = AA.resolveMeshIdentifier(meshes, part, aliases);
+        parts.push({ part: part, sha256: mesh ? mesh.sha256 : null });
+      });
+      return parts;
+    };
+    var plan = function (kind, edgeIds, partIds) {
+      var parts = resolve(partIds);
+      return {
+        target: target || null,
+        kind: kind,
+        edgeIds: edgeIds,
+        parts: parts,
+        missingParts: parts.filter(function (p) { return !p.sha256; })
+          .map(function (p) { return p.part; }),
+      };
+    };
+
+    for (var i = 0; i < edges.length; i++) {
+      if (edges[i].id !== target) continue;
+      return plan("edge", [edges[i].id], [edges[i].part]);
+    }
+    for (var j = 0; j < nodes.length; j++) {
+      if (nodes[j].id !== target) continue;
+      var node = nodes[j];
+      var touching = edges.filter(function (e) {
+        return e.from === node.id || e.to === node.id;
+      });
+      // A node's own `parts` list first, then any part named by an edge that
+      // meets it -- a node with no `parts` field (the mock fixture's topology
+      // has none) still scopes the panel to the parts around it rather than
+      // falling back to every mesh in the repo.
+      return plan("node",
+        touching.map(function (e) { return e.id; }),
+        (node.parts || []).concat(touching.map(function (e) { return e.part; })));
+    }
+    return plan(null, [], []);
+  };
+
+  // --- deselect (deliverable 3) ----------------------------------------------
+  //
+  // Jeff: "I accidentally clicked a face … but there's no way to deselect a
+  // surface." What a `deselect` may clear, as a vocabulary rather than three
+  // inline literals: the face tint and pick, the element-row selection, or
+  // both. "face" is the default because it is the one Jeff hit and because
+  // clearing the element too would take the bind form down with it -- a reader
+  // who mis-clicked a face has not said they are done with the element.
+  AA.DESELECT_TARGETS = ["face", "element", "all"];
+
+  // Pure: what a raycast result means for the pick state. The three surfaces
+  // Jeff asked for are one decision -- a click into empty space (`pick` null)
+  // and a click back onto the already-picked face both CLEAR, and anything else
+  // selects. Here rather than in app.js's onPick so the toggle is checkable
+  // with no WebGL: a face id equality written inside a DOM event handler is a
+  // face id equality nothing can test on this machine (see this app's README on
+  // why real click automation is not run here).
+  AA.planPickToggle = function (currentPick, pick) {
+    if (!pick) return { action: "clear", pick: null };
+    if (currentPick && currentPick.sha256 === pick.sha256 &&
+        currentPick.faceId === pick.faceId) {
+      return { action: "clear", pick: null };
+    }
+    return { action: "select", pick: pick };
+  };
+
   // Pure state transition for `isolate`: given the sha256s already open in
   // the scene and the sha256s that should be visible afterward, returns which
   // ones need a fresh `loadPart` (not open yet), which already-open ones to

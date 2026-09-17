@@ -128,19 +128,29 @@
   </dialog>
 
   <!-- The annotator flyout (study_3d_flyout): a NON-modal <dialog> pinned to
-       the viewport's right edge -- position: fixed, so opening it structurally
-       cannot shrink the DAG pane (the same family as the two dialogs below),
-       while the page beside it stays clickable. Its iframe is created lazily
-       by topology_app.js on the first launch and kept across launches (the
-       annotator's folder grant, loaded meshes and camera survive); it only
-       ever renders where the same-origin probe found ../annotate/ served
-       beside this page -- everywhere else the pre-flyout links remain and
-       this element stays closed and empty. -->
+       the viewport's LEFT edge, adjacent to the DAG (Jeff, 2026-09-16) --
+       position: fixed, so opening it structurally cannot shrink the DAG pane
+       (the same family as the two dialogs below), while the page beside it
+       stays clickable. Its iframe is created lazily by topology_app.js on the
+       first launch and kept across launches (the annotator's folder grant,
+       loaded meshes and camera survive); it only ever renders where the
+       same-origin probe found ../annotate/ served beside this page --
+       everywhere else the pre-flyout links remain and this element stays
+       closed and empty.
+
+       The divider is static markup here for the same two reasons the preview
+       pane's is: a re-render must not destroy the node a drag is in progress
+       on, and no view owns it. -->
   <dialog id="annotate-flyout" class="flyout">
     <div class="flyout__head">
       <h2>3D — annotate</h2>
+      <a id="flyout-fullpage" class="flyout__fullpage" target="_blank" rel="noopener"
+         title="open the whole annotator, with its own menus, in a new tab">Open full page ↗</a>
       <button id="flyout-close" class="ghost">Close</button>
     </div>
+    <div id="flyout-divider" class="flyout__divider" role="separator"
+         aria-orientation="vertical" tabindex="0"
+         title="drag to resize the 3D panel (or use the arrow keys)"></div>
   </dialog>
 
   <!-- The worksheet, moved into a dialog (deliverable 2) so opening it can
@@ -156,6 +166,25 @@
     </div>
     <div id="worksheet" class="worksheet"></div>
   </dialog>
+
+  <!-- The crop lightbox (crop_lightbox_zoom_viewer, 2026-09-16): one crop at
+       near-full-viewport with its highlight boxes on it, zoomable and pannable.
+       Jeff: "thumbnail is too small to be legible… Maybe a button in the
+       thumbnail that lets you launch it into a separate, full size viewer …
+       that allows you to zoom/pan?"
+
+       The fourth <dialog> on this page. It is shown modally -- as the legend
+       and worksheet dialogs above already are (topology_app.js calls
+       showModal() on both; only #annotate-flyout is non-modal) -- and here
+       the modality is load-bearing rather than incidental, because a zoom/pan
+       surface wants the wheel and the keyboard to itself, and because Escape
+       is then the browser's own dismiss. A backdrop click is NOT one --
+       measured on Chrome 152, a modal <dialog> stays open on a click outside
+       it -- so the head's X is the pointer's way out and is not optional.
+       Empty and static here, for the same two reasons the dividers above are:
+       no view owns it, and a re-render of the surface that launched it must not
+       destroy it. views/lightbox.js fills it per launch. -->
+  <dialog id="crop-lightbox" class="lightbox"></dialog>
 
   <!-- Classic scripts (NOT ES modules): the page must run by double-clicking
        from file://, where Chrome CORS-blocks cross-file `import`. index.html
@@ -179,6 +208,7 @@
   <script src="./views/stack.js"></script>
   <script src="./views/crop.js"></script>
   <script src="./views/cards.js"></script>
+  <script src="./views/lightbox.js"></script>
   <script src="./views/worksheet.js"></script>
   <script src="./views/detail.js"></script>
   <script src="./views/topology.js"></script>

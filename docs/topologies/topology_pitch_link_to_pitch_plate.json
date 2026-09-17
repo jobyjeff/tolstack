@@ -19,7 +19,7 @@
     "re_expresses": "docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json",
     "values": "NONE are copied. Every edge carries a `dimension_ref` into the stack file above, resolved at load time by tolerance_stack.topology.load_topology, so this document cannot drift away from the numbers that stack publishes. Every value's citation and confidence is whatever that element already carries -- this topology adds no source_ref of its own to any value and closes no gap the stack has open.",
     "structure": "The nodes and the edge orientation are a READING of the stack's element order and roles, not a sourced claim, exactly as topology_vpa_output_to_pitch_plate.json's structure note describes for the L1 proof. The stack's axial order from the bolt head, complete since 2026-09-15 (handoff stack_fable_audit): bushing, pitch-link eye, flanged-bushing flange, pitch-plate lug, washer. Until that date the eye had no element to hang an interface on and the flange was not known to exist, so this topology omitted both and said so here; the stack modelling both (the eye as a loudly-marked placeholder) is what lets this graph carry them without inventing anything the stack does not claim. The bolt's own fastener dimensions (grip, overall length, cotter-hole-to-point) are read as edges sharing additional interfaces beyond the clamped stack's own (the bolt's point, and the cotter-hole centreline), which is what turns this graph into more than L1's single grounded loop: the clamped-stack/grip loop (closing at the derived `shank_out` gap) and the length/grip/thread-region loop (closing at the derived `thread_region` edge), which share the bolt-head interface.",
-    "part_identity": "The bolt (NAS6403U11D), the pitch-plate lug (215197) and the washer (NAS1149V0332H) are named on the stack's own citations. The plain bushing (214820-002) is likewise named by the stack's parts-list citation. The pitch link (213862-002) and the flanged bushing (NAS77A3-015A) are named on the stack's 2026-09-15 identifications (216231 A.1 and 215177-A parts lists respectively); the spherical bearing inside the link is the stack's own loudly-marked UNCONFIRMED candidate (MS14101-3). No part identity is invented here that the referenced stack does not already claim."
+    "part_identity": "The bolt (NAS6403U11D), the pitch-plate lug (215735) and the washer (NAS1149V0332H) are named on the stack's own citations. The plain bushing (214820-002) is likewise named by the stack's parts-list citation. The pitch link (213862-002) and the flanged bushing (NAS77A3-015A) are named on the stack's 2026-09-15 identifications (216231 A.1 and 215177-A parts lists respectively); the spherical bearing inside the link is the stack's own loudly-marked UNCONFIRMED candidate (MS14101-3). No part identity is invented here that the referenced stack does not already claim."
   },
   "parts": [
     {
@@ -35,10 +35,10 @@
     },
     {
       "id": "pitch_plate_215197",
-      "name": "215197 pitch plate",
-      "drawing": "215197",
-      "revision": "A.1",
-      "note": "The lug thickness cited here is the 5X 4.06 +/-0.10 flange group at zone D10 of 215197 A.1 sheet 2 -- distinct from the 3X group (tangential link) and the 1X group (VPA output) on the same sheet."
+      "name": "215735 pitch plate",
+      "drawing": "215735",
+      "revision": "A",
+      "note": "The lug thickness cited here is the 5X 4.06 +/-0.10 flange group at zone D10 of 215735 A sheet 2 -- distinct from the 3X group (tangential link) on the same sheet, and from the two un-counted 4.06 +/-0.10 callouts on sheet 1 (the VPA output). Re-cited 2026-09-16 (citation_identity_correctness) from the PRELIM 215197 A.1 to the RELEASED plate 215735 rev A; the callout, the zone and the value are unchanged. THE PART ID DID NOT MOVE: this part is still the part id pitch_plate_215197 in this file and in every deep link and annotate key that reaches it, so the id and the name now say different part numbers. Whether to schedule a one-time rename with a redirect layer is open -- docs/strategy/BRIEF_20260916_link_name_authority.md."
     },
     {
       "id": "washer_nas1149v0332h",

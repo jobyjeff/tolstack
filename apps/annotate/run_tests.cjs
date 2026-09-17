@@ -432,6 +432,33 @@ check("this app holds no terminal command for a banner to render", () => {
   }
 });
 
+check("loadAll's no-projection branch renders that constant, not a sentence of its own", () => {
+  // The two checks above certify the CONSTANT and the CONFIG supply route.
+  // Neither pairs the constant to the one surface that renders it, so both
+  // stay green through the cheapest possible return of the original defect:
+  // a bare string literal typed straight into setBanner() at the call site,
+  // one character CHEAPER to write than the AA.CONFIG.rebuild concatenation
+  // was. Measured -- app.js's no-projection branch restored to the
+  // pre-handoff shape with the command inlined, and this tier returned
+  // 65/65 (ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_
+  // _not_the_call_site).
+  //
+  // The RENDERED banner text is the assertion this wants and is out of
+  // reach: no tier reaches the connected-folder-with-no-projection state,
+  // which needs a real File System Access grant. The call site is not out
+  // of reach, and is read statically for the same reason the check above
+  // is -- app.js is an ES module that touches document and WebGL at load.
+  //
+  // The general shape, worth carrying: a guard on a named constant
+  // certifies the constant, never that the surface still reads it. Lifting
+  // copy into a constant so a testable tier can see it is exactly what
+  // moves the assertion away from the defect.
+  const appSource = fs.readFileSync(path.join(here, "app.js"), "utf8");
+  if (!appSource.includes("setBanner(AA.NO_PROJECTION_NOTICE")) {
+    throw new Error("loadAll()'s no-projection banner no longer renders AA.NO_PROJECTION_NOTICE");
+  }
+});
+
 check("index.html loads the shared decision before this app's own adapter", () => {
   // app.js cannot be booted in this sandbox (ES module, `document`, WebGL --
   // see the verb-table check below for the same constraint), so the one thing
@@ -734,6 +761,197 @@ check("planStudyTrace over the mock fixture's own study matches its data end to 
   assertEqual(plan.marks, [{ edgeId: "demo_edge_untraced", sha256: AA.FIXTURES.demoSha, faceId: 0 }]);
   assertEqual(plan.missingParts, ["no_such_part"]);
   assertEqual(plan.unboundEdges, ["demo_edge_traced", "demo_edge_no_owner"]);
+});
+
+// --- planPanelFilter: the left rail scoped to ONE element (handoff
+// flyout_resize_annotator_filter_and_deselect, deliverable 2) ---------------
+//
+// Jeff: "it should also auto-filter the left side menu to just the features
+// that are in the element (node or edge) it was entered from." The gap this
+// closes is specific and was measurable: cmdTrace/cmdGoto already scoped the
+// ELEMENT list to a study, and the PARTS panel was scoped by nothing at all.
+const FILTER_TOPO = AA.FIXTURES.topologyProjection.topologies[0];
+const FILTER_MESHES = [{ sha256: AA.FIXTURES.demoSha, label: "demo", part_id: "demo_triangle" }];
+
+check("planPanelFilter on an edge keeps that one element and resolves its own part", () => {
+  const plan = AA.planPanelFilter(FILTER_TOPO, "demo_edge_untraced", FILTER_MESHES, []);
+  assertEqual(plan.kind, "edge");
+  assertEqual(plan.target, "demo_edge_untraced");
+  assertEqual(plan.edgeIds, ["demo_edge_untraced"]);
+  assertEqual(plan.parts, [{ part: "demo_triangle", sha256: AA.FIXTURES.demoSha }]);
+  assertEqual(plan.missingParts, []);
+});
+
+check("planPanelFilter reports a named part with no installed mesh rather than " +
+  "silently showing every mesh again", () => {
+  // The honest-absence posture the rest of this app takes: the rail says which
+  // part has no 3D, and the parts panel is empty because it IS empty.
+  const plan = AA.planPanelFilter(FILTER_TOPO, "demo_edge_no_owner", FILTER_MESHES, []);
+  assertEqual(plan.kind, "edge");
+  assertEqual(plan.parts, [{ part: "no_such_part", sha256: null }]);
+  assertEqual(plan.missingParts, ["no_such_part"]);
+});
+
+check("planPanelFilter on a gap edge that names no part at all filters the " +
+  "element list and leaves nothing to show in 3D", () => {
+  const plan = AA.planPanelFilter(FILTER_TOPO, "demo_edge_traced", FILTER_MESHES, []);
+  assertEqual(plan.kind, "edge");
+  assertEqual(plan.edgeIds, ["demo_edge_traced"]);
+  assertEqual(plan.parts, []);
+  assertEqual(plan.missingParts, []);
+});
+
+check("planPanelFilter on a NODE keeps every element touching it -- a node is " +
+  "an element of a topology too", () => {
+  // The fixture's nodes are bare ids on the edges' from/to (no `nodes` array),
+  // so this also pins that a topology with no node table still filters.
+  const withNodes = JSON.parse(JSON.stringify(FILTER_TOPO));
+  withNodes.nodes = [{ id: "b", name: "interface b", parts: ["demo_triangle"] }];
+  const plan = AA.planPanelFilter(withNodes, "b", FILTER_MESHES, []);
+  assertEqual(plan.kind, "node");
+  // "b" is the `to` of the traced edge and the `from` of the untraced one.
+  assertEqual(plan.edgeIds, ["demo_edge_traced", "demo_edge_untraced"]);
+  assertEqual(plan.parts, [{ part: "demo_triangle", sha256: AA.FIXTURES.demoSha }]);
+});
+
+check("planPanelFilter on an id nothing in the topology carries reports kind " +
+  "null -- the caller decides how loudly to say so", () => {
+  const plan = AA.planPanelFilter(FILTER_TOPO, "not_a_thing", FILTER_MESHES, []);
+  assertEqual(plan.kind, null);
+  assertEqual(plan.edgeIds, []);
+  assertEqual(plan.parts, []);
+});
+
+check("planPanelFilter resolves a part through the alias table, the same way " +
+  "every other part lookup in this app does", () => {
+  const aliased = JSON.parse(JSON.stringify(FILTER_TOPO));
+  aliased.edges[1].part = "topology_side_name";
+  const plan = AA.planPanelFilter(aliased, "demo_edge_untraced", FILTER_MESHES,
+    [{ topology_part: "topology_side_name", mesh_part_id: "demo_triangle" }]);
+  assertEqual(plan.parts, [{ part: "topology_side_name", sha256: AA.FIXTURES.demoSha }]);
+});
+
+// --- planPickToggle: a face can be DESELECTED (deliverable 3) ---------------
+//
+// Jeff: "I accidentally clicked a face … but there's no way to deselect a
+// surface." Three surfaces, one decision -- a click into empty space and a
+// click back onto the already-picked face both clear. Pure so it can be
+// checked with no WebGL at all (see this file's header on why real click
+// automation is not run on this machine).
+const PICK_A = { sha256: "a".repeat(64), faceId: 3, record: {} };
+const PICK_B = { sha256: "a".repeat(64), faceId: 4, record: {} };
+const PICK_C = { sha256: "b".repeat(64), faceId: 3, record: {} };
+
+check("planPickToggle: a click into empty space clears the pick", () => {
+  assertEqual(AA.planPickToggle(PICK_A, null), { action: "clear", pick: null });
+  // ...and clearing when nothing is picked is still a clear, not an error:
+  // this is the undo of a mis-click.
+  assertEqual(AA.planPickToggle(null, null), { action: "clear", pick: null });
+});
+
+check("planPickToggle: re-clicking the SAME face toggles it off", () => {
+  assertEqual(AA.planPickToggle(PICK_A, { sha256: PICK_A.sha256, faceId: PICK_A.faceId }),
+    { action: "clear", pick: null });
+});
+
+check("planPickToggle: another face on the same part, and the same face id on " +
+  "another part, both SELECT -- the toggle is per (part, face), not per id", () => {
+  assertEqual(AA.planPickToggle(PICK_A, PICK_B).action, "select");
+  assertEqual(AA.planPickToggle(PICK_A, PICK_C).action, "select");
+  assertEqual(AA.planPickToggle(null, PICK_A), { action: "select", pick: PICK_A });
+});
+
+check("DESELECT_TARGETS is a closed set whose FIRST value is the default the " +
+  "UI's own paths use", () => {
+  assertEqual(AA.DESELECT_TARGETS, ["face", "element", "all"]);
+  // "face" first is load-bearing: cmdDeselect defaults to DESELECT_TARGETS[0],
+  // and defaulting to "all" would take the bind form down with a mis-click.
+  assertEqual(AA.DESELECT_TARGETS[0], "face");
+});
+
+// --- one alert badge per row (deliverable 5) --------------------------------
+//
+// Jeff: "roll all the alert badges into one single alert badge (something like
+// a triangle ! icon). Mouse over the icon has a popup that lists out the
+// actual alerts." The row keeps the COLOUR (a class per state, style.css);
+// the words move into this table and out of the badge's text, where they used
+// to be the raw schema value.
+check("every binding state except `bound` has an alert sentence, and `bound` " +
+  "deliberately has none", () => {
+  const states = Object.keys(AA.BINDING_STATES).map((k) => AA.BINDING_STATES[k]);
+  const alerted = Object.keys(AA.BINDING_STATE_ALERTS).sort();
+  const expected = states.filter((s) => s !== AA.BINDING_STATES.BOUND).sort();
+  // The pairing, so a state added to AA.BINDING_STATES without a decision
+  // about whether it is an alert fails HERE rather than rendering a silent row.
+  assertEqual(alerted, expected);
+  if (AA.BINDING_STATE_ALERTS[AA.BINDING_STATES.BOUND] !== undefined) {
+    throw new Error("`bound` must carry no alert -- a row with nothing wrong shows NOTHING");
+  }
+});
+
+check("the alert sentences are everyday words -- no schema value, no " +
+  "underscored identifier, on a surface a reader reads", () => {
+  // This is the defect the consolidation actually fixed: the badge used to
+  // print `needs_re_confirmation` on the row.
+  for (const [state, text] of Object.entries(AA.BINDING_STATE_ALERTS)) {
+    if (text.indexOf(state) !== -1) {
+      throw new Error(`the alert for ${state} prints the state VALUE: ${text}`);
+    }
+    if (/[a-z]_[a-z]/.test(text)) {
+      throw new Error(`the alert for ${state} carries an underscored identifier: ${text}`);
+    }
+    if (text.length < 20) {
+      throw new Error(`the alert for ${state} is too short to be a sentence: ${text}`);
+    }
+  }
+});
+
+check("elementAlerts returns a LIST -- none for a bound row, one per alerting " +
+  "state -- because the badge showing it is one badge either way", () => {
+  assertEqual(AA.elementAlerts(AA.BINDING_STATES.BOUND), []);
+  assertEqual(AA.elementAlerts(AA.BINDING_STATES.UNBOUND), [{
+    state: "unbound", text: AA.BINDING_STATE_ALERTS.unbound,
+  }]);
+  assertEqual(AA.elementAlerts(AA.BINDING_STATES.NEEDS_RECONFIRMATION), [{
+    state: "needs_re_confirmation",
+    text: AA.BINDING_STATE_ALERTS.needs_re_confirmation,
+  }]);
+  // A state this app has never heard of gets no alert rather than an invented
+  // one -- the same posture elementBindingState takes toward an absent record.
+  assertEqual(AA.elementAlerts("something_else"), []);
+  assertEqual(AA.elementAlerts(undefined), []);
+});
+
+check("the three fixture edges are three different binding states -- two that " +
+  "alert and one that is silent", () => {
+  // Anti-vacuity for the rail: the mock topology is what ?mock=1 renders and
+  // what the browser tier screenshots, so it has to actually contain a bound
+  // row (no badge), an unbound one and an owner-not-in-set one.
+  //
+  // NOT "every branch", which is what this check claimed until review:
+  // AA.BINDING_STATE_ALERTS has THREE alerting states and the fixture reaches
+  // two. `needs_re_confirmation` needs a staleness map, which no fixture
+  // carries, so it is covered by elementAlerts' own unit check above and not
+  // here. (Same class as this branch's own "a check whose claim was wider than
+  // the node it read".)
+  const states = FILTER_TOPO.studies[0].selection.map((edgeId) => {
+    const record = AA.findBindingRecord(AA.FIXTURES.featureIdentityProjection,
+      AA.topologyEdgeKey(FILTER_TOPO.id, edgeId));
+    return AA.elementBindingState(record);
+  });
+  assertEqual(states, ["unbound", "bound", "owner_not_in_set"]);
+  const badged = states.filter((st) => AA.elementAlerts(st).length > 0);
+  assertEqual(badged, ["unbound", "owner_not_in_set"]);
+});
+
+check("ALERT_ICON is one glyph and is not a word -- the badge carries no text " +
+  "to read, which is the whole point of the popup", () => {
+  if (Array.from(AA.ALERT_ICON).length !== 1) {
+    throw new Error("expected a single glyph, got " + JSON.stringify(AA.ALERT_ICON));
+  }
+  if (/[a-z]/i.test(AA.ALERT_ICON)) {
+    throw new Error("the badge glyph must not be letters: " + AA.ALERT_ICON);
+  }
 });
 
 // --- [real] the shipped alias table against the installed meshes ------------

@@ -8,6 +8,22 @@
     "assembly_drawing": "217755",
     "assembly_revision": "A.1",
     "assembly_export": "[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf (drawing-checker run 20260804_114000 / 20260803_145243)",
+    "assembly_export_ref": {
+      "status": "established",
+      "pdf": "C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-3] 217755 A.1 PROPULSION ASSEMBLY, PROPELLER.pdf",
+      "sha256": "c6381f204582dc7a87d25664855bbc547b619226997e9fa62697b6d6ea4294d8",
+      "runs": [
+        {
+          "run_id": "20260803_145243",
+          "ts": "2026-08-03T21:53:01.395741+00:00"
+        },
+        {
+          "run_id": "20260804_114000",
+          "ts": "2026-08-04T18:40:27.959980+00:00"
+        }
+      ],
+      "note": "The export named in the prose `assembly_export` beside this, as a SourceExport so its runs carry their `ts`. Established 2026-08-06 by `citation_export_provenance`: data/runs.jsonl and both runs' run_meta.json record this file and this sha256 as their input. It was carried at element level until 2026-09-15, when `pitch_link_known_bands` re-cited the bushing and the washer -- the only two elements holding it -- and left these runs named in prose alone, which has no `ts`. Recovered here from commit 02e5077^ and the sha256 re-verified against the file in drawing-checker's inbox on 2026-09-16 before being written; `washer_nas1149v0332`'s note in this same file quotes the same sha256 independently."
+    },
     "sheet": 4,
     "sheet_description": "SPINDLE CLAMP AND PITCH PLATE",
     "view": "DETAIL B",
@@ -19,7 +35,7 @@
     "parts": [
       {"find_no": 38, "part_number": "NAS6403U11D", "qty": 5, "balloon": "5X in DETAIL B", "role": "bolt, .190-32 x .688 grip, unplated, drilled shank"},
       {"find_no": 34, "part_number": "214820-002", "qty": 8, "balloon": "8X in DETAIL B", "role": "plain bushing, .1900 in ID x .1875 in long (8 = 3 tangential-link places + 5 here)"},
-      {"find_no": 31, "part_number": "215177-001", "qty": 1, "balloon": "in DETAIL B (with 74 = 215177-002 CCW)", "role": "PITCH PLATE ASSEMBLY, PROPELLER, CW -- contains the 215197 pitch plate"},
+      {"find_no": 31, "part_number": "215177-001", "qty": 1, "balloon": "in DETAIL B (with 74 = 215177-002 CCW)", "role": "PITCH PLATE ASSEMBLY, PROPELLER, CW -- contains the 215735 pitch plate"},
       {"find_no": 32, "part_number": "NAS1149V0332H", "qty": 9, "balloon": "8X in DETAIL B", "role": "flat washer, .032 in"},
       {"find_no": 33, "part_number": "MS9363-09", "qty": 11, "balloon": "8X in DETAIL B", "role": "NUT, SLOTTED, HEXAGON, SHEAR -- retention"},
       {"find_no": 36, "part_number": "MS24665-153", "qty": 11, "balloon": "8X in DETAIL B", "role": "PIN, COTTER (SPLIT) -- retention"}
@@ -27,7 +43,7 @@
     "clamped": "The bolt clamps, in order from its head: the 214820-002 bushing, the pitch-link eye (modelled since 2026-09-15 as the MS14101-3 ball width, a loudly-marked placeholder -- see that element), the NAS77A3-015A flanged bushing's flange (press-fit in the plate assembly, added 2026-09-15), the 4.06 mm pitch-plate lug, and the NAS1149V0332H washer. Retention is the MS9363-09 slotted nut with an MS24665-153 cotter pin through the drilled shank ('D' suffix, NAS6403 sheet 2 CODE block).",
     "question": "Does the NAS6403U11D (.688 in grip) work in this joint -- i.e. does the end of its full cylindrical shank clear the nut bearing face (JPS00094 Rev C section 5.5.5), and does its cotter hole sit clear of the clamped stack?",
     "scope": "Grip length only, and only along the bolt axis. Out of scope, deliberately: diameter and hole fits (simple two-component fits); bushing-to-bore interference (JPS00176); the pitch link's own internal stack; the joint at the other end of the pitch link; torque and preload.",
-    "identification_note": "No part in the 217755 parts list is named 'pitch link'. This joint is identified as Jeff's 'pitch link to pitch plate' by elimination and corroboration, not by nomenclature: (1) his note says the joint is visible in the same view as the tangential-link joint, and DETAIL B contains exactly two grip stacks; (2) slice 1 claimed the 3X / -14 stack as the tangential link, matching 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY at qty 3; (3) this one is 5 places, the propeller has FIVE blades (217755 sheet 2 FRONT VIEW), and one pitch link per blade gives five; (4) the pitch plate part drawing 215197 carries a distinct 5X 4.06 +/-0.10 flange group, separate from the 3X +/-0.08 (tangential) and 1X +/-0.10 (VPA) groups. The link part number -- gap 1 from founding until 2026-09-15 -- is 213862-002 PITCH LINK ASSEMBLY, PROPELLER: item 24, qty 5, of the 216231 A.1 HUB AND BLADE ASSEMBLY parts list (`data/inbox/specs/[2025-OCT-9 FOR SNS101-M1 BUILD] 216231 A.1.pdf`), the qty matching this joint's five places where 212956-005's three cannot. Its own drawing, which would name its bearing, is not in any repo this session can read -- the eye element's placeholder marker and the operator queue both point at it."
+    "identification_note": "No part in the 217755 parts list is named 'pitch link'. This joint is identified as Jeff's 'pitch link to pitch plate' by elimination and corroboration, not by nomenclature: (1) his note says the joint is visible in the same view as the tangential-link joint, and DETAIL B contains exactly two grip stacks; (2) slice 1 claimed the 3X / -14 stack as the tangential link, matching 212956-005 PITCH ANTI ROTATION LINK ASSEMBLY at qty 3; (3) this one is 5 places, the propeller has FIVE blades (217755 sheet 2 FRONT VIEW), and one pitch link per blade gives five; (4) the pitch plate part drawing 215197 carries a distinct 5X 4.06 +/-0.10 flange group, separate from the 3X +/-0.08 (tangential) and 1X +/-0.10 (VPA) groups. [2026-09-16, handoff citation_identity_correctness: that reading stands and is recorded as made -- it was made on 215197 A.1, the PRELIM fixture. The released plate is a different part number, 215735 rev A, and its sheet 2 prints the same three groups at the same addresses, so the elimination argument carries over unchanged. The 215735-A sheet 1 now prints TWO 4.06 +/-0.10 callouts rather than one, which widens the VPA group but does not touch the 5X/3X distinction this argument turns on.] The link part number -- gap 1 from founding until 2026-09-15 -- is 213862-002 PITCH LINK ASSEMBLY, PROPELLER: item 24, qty 5, of the 216231 A.1 HUB AND BLADE ASSEMBLY parts list (`data/inbox/specs/[2025-OCT-9 FOR SNS101-M1 BUILD] 216231 A.1.pdf`), the qty matching this joint's five places where 212956-005's three cannot. Its own drawing, which would name its bearing, is not in any repo this session can read -- the eye element's placeholder marker and the operator queue both point at it."
   },
   "provenance": {
     "transcribed_from": null,
@@ -37,6 +53,7 @@
       "data/inbox/specs/NAS6403-NAS6420 Rev 4.pdf -- sheets 1, 2, 3 (scan, no text layer; read by vision)",
       "data/inbox/specs/JPS00094 Process Specification -- Installation of Bolts and Nuts.pdf Rev C 05/Sep/2024 -- pages 3 and 7 of 14 (criteria only, no dimensions)",
       "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf -- sheet 2 SECTION A-A (read-only)",
+      "data/inbox/drawings/215735-A.pdf -- sheet 2 SECTION A-A (the RELEASED pitch plate, 215735 rev A; added 2026-09-16, citation_identity_correctness, and now what pitch_plate_flange cites -- the 215197 line above records the original reading and stays)",
       "C:/workspace/drawing-checker/data/runs/20260803_145243_217755_A.1_.../217755_A_balloons.json and the 2026-AUG-3 PDF (read-only)",
       "data/inbox/specs/RBC_Aerospace_Plain_Bearings_Web.pdf -- PDF pages 21/22, the MS14101/MS14103 spherical-bearing tables (added 2026-09-15, stack_fable_audit)",
       "data/inbox/specs/JB_NAS77.pdf -- the NAS77 flanged-bushing page (added 2026-09-15, stack_fable_audit)",
@@ -159,8 +176,8 @@
       "note": "TRACED, and the only element here whose full tolerance band comes off a part drawing. Additive member: MMC (most material) is the thickest, so mmc -> max.",
       "source_ref": {
         "kind": "drawing",
-        "document": "215197",
-        "revision": "A.1",
+        "document": "215735",
+        "revision": "A",
         "sheet": 2,
         "zone": "D10",
         "view": "SECTION A-A",
@@ -170,17 +187,16 @@
         "run_id": null,
         "export": {
           "status": "established",
-          "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
-          "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
+          "pdf": "data/inbox/drawings/215735-A.pdf",
+          "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
           "runs": [
-            {"run_id": "20260409_170546", "ts": "2026-04-09T17:05:46+00:00"},
-            {"run_id": "20260409_172341", "ts": "2026-04-09T17:23:41+00:00"},
-            {"run_id": "20260730_133912", "ts": "2026-07-30T20:39:33.291499+00:00"}
+            {"run_id": "20260813_180734", "ts": "2026-08-14T01:07:56.112994+00:00"},
+            {"run_id": "20260819_153213", "ts": "2026-08-19T22:32:36.201417+00:00"}
           ],
-          "note": "Established 2026-08-06 by handoff citation_export_provenance. This is the ONLY export of 215197 anywhere in the workspace: all three drawing-checker runs of it record this same sha256 in data/runs.jsonl, 20260730_133912's 215197_A_p01.json records source_pdf '[PRELIM 2025-MAY-22] 215197 A.1.pdf', and no other 215197 PDF exists in drawing-checker's inbox or fixtures. Unlike 217755 (six exports on disk), 'which export' has a unique answer here."
+          "note": "Established 2026-09-16 by handoff citation_identity_correctness, which re-cited this value from the PRELIM 215197 fixture to the RELEASED plate. 215735-A is copied into this repo's own inbox (data/inbox/drawings/PROVENANCE.md, 'Copied 2026-09-16'), sha256 verified identical on both sides. Both drawing-checker runs of it -- 20260813_180734_215735-A and 20260819_153213_215735-A -- record this same sha256 in their run_meta.json inputs, and no other 215735 PDF exists in drawing-checker's inbox or fixtures, so 'which export' has a unique answer here."
         },
         "confidence": "traced",
-        "note": "215197 PITCH PLATE, PROPELLER, [PRELIM 2025-MAY-22] export held at drawing-checker/tests/fixtures/drawings/. Carries positional ⌖⌀0.2 A B C and perpendicularity ⊥0.05 G, annotated 5X INDIVIDUALLY. The 5X count is what ties this callout to this joint. Do NOT confuse with the 3X 4.06 ±0.08 group at sheet 2 zone B4 (tangential links, slice 1) or the 1X 4.06 ±0.10 at sheet 1 zone D5 (VPA output)."
+        "note": "215735 PITCH PLATE, PROPELLER, rev A, MATURITY STATE: Released, DRAWING RELEASE DATE 01/JUL/2025; sheet 2 is SHT. DESC 'PART DETAILS' and carries the sheet's only view, SECTION A-A. Carries positional ⌖0.2 A B C and perpendicularity ⊥0.05 G, annotated 5X INDIVIDUALLY. One frame did change between the PRELIM and the released plate and it is recorded here rather than smoothed over: 215197 A.1 printed ⌖⌀0.2 A B C, a DIAMETRAL position zone, and 215735-A prints ⌖0.2 A B C without the ⌀ (both verified 2026-09-16 on the rendered frames, not only in the text layer). That is a change to the position control, not to this thickness dimension, so no value here moves -- but a reader comparing the two sheets should know which symbol each carries. The 5X count is what ties this callout to this joint. Do NOT confuse with the 3X 4.06 ±0.08 group at sheet 2 zone B4 (tangential links, slice 1), or with the TWO 4.06 ±0.10 callouts on sheet 1 (zones D5 and D6; 215197 A.1 printed only one there, at D5 -- its zone D6 is empty, and what the released sheet's D6 callout dimensions is not established here). Re-cited 2026-09-16 from 215197 A.1 sheet 2 zone D10 (the [PRELIM 2025-MAY-22] fixture): same value, same tolerance, same frames, same printed zone, released part number."
       }
     },
     {

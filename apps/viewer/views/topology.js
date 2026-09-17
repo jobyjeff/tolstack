@@ -164,6 +164,11 @@
   // scrollport, so there is nothing to synchronise and nothing to drift.
 
   VA.renderTopoPane = function (root, ctx) {
+    // The reader's own sideways scroll, read BEFORE the pane it lives on is
+    // destroyed (ISSUE_20260915_every_topology_pane_render_throws_away_the_
+    // readers_sideways_scroll). See carriedScroll for why this is the first
+    // line of the function and not a detail of the append below.
+    var carried = carriedScroll(root, ctx.topoProj, ctx.tween);
     VA.clear(root);
     root.className = "tv__scroll";
     var topoProj = ctx.topoProj;
@@ -304,7 +309,14 @@
     // rail has nothing to stick within, and a wide row simply bleeds into
     // whatever sits to the pane's right.
     var hscroll = VA.el("div", "tv__hscroll");
-    var head = header(leaderGeo, ctx);
+    // How much of the pane the reader can actually see -- the window the two
+    // drag grips are clamped into (VA.jogGripInset). Measured off the emptied
+    // pane, the same box and the same moment `paneBudget` above reads for the
+    // vertical axis; 0 in the DOM shim, which reports no widths and needs no
+    // clamp.
+    var paneWidth = (root && typeof root.clientWidth === "number")
+      ? root.clientWidth : 0;
+    var head = header(leaderGeo, ctx, paneWidth);
     hscroll.appendChild(head);
     var body = VA.el("div", "tv__body");
     body.appendChild(railsSvg(geometry, leaderGeo, index, chain, chainNodes,
@@ -324,6 +336,23 @@
     body.appendChild(rows);
     hscroll.appendChild(body);
     root.appendChild(hscroll);
+    // ...and the reader's sideways scroll back onto the pane that replaced the
+    // one they scrolled. Written after the append, so the browser has a laid-
+    // out content width to CLAMP it against -- which is the whole behaviour a
+    // reader parked at the right-hand end of a grid that just got narrower
+    // wants, and the reason this is a restore rather than a stored preference.
+    if (carried) hscroll.scrollLeft = carried;
+    // The one grip whose boundary scrolls, kept over that boundary as the
+    // reader scrolls (VA.columnGripLeft). The listener is on the node this
+    // render just built, so the next render drops it with the node -- there is
+    // nothing to unwire and nothing to leak.
+    if (head.placeColumnGrips) {
+      var place = function () {
+        head.placeColumnGrips(hscroll.scrollLeft, hscroll.clientWidth);
+      };
+      hscroll.onscroll = place;
+      if (carried) place();
+    }
     // The outgoing paint, fading out underneath: the rows a study re-lay
     // DROPS are not in the target serialisation at all, so there is nothing
     // in this layout to draw them from. See VA.animateTopoPane for why the
@@ -331,9 +360,59 @@
     if (tween && tween.ghost) {
       tween.ghost.style.opacity = String(1 - tween.e);
       root.appendChild(tween.ghost);
+      // The ghost shows the SAME horizontal window as the live frame over it.
+      // Its `.tv__hscroll` is `overflow: hidden` (topology.css) but is still a
+      // scroll container, and re-parenting a node out of the document resets
+      // its scroll to 0 -- so without this the cross-fade is two different
+      // slices of the same table laid on each other, which reads as the text
+      // doubling rather than as one table resolving into another. Taken from
+      // the LIVE pane after its own clamp, not from `carried`: the outgoing
+      // paint is the wider one, so only the live pane knows which window the
+      // reader is actually being shown.
+      var ghostPane = tween.ghost.querySelector
+        ? tween.ghost.querySelector(".tv__hscroll") : null;
+      if (ghostPane) {
+        ghostPane.scrollLeft = typeof hscroll.scrollLeft === "number"
+          ? hscroll.scrollLeft : carried;
+      }
     }
     return root;
   };
+
+  // The horizontal scroll this render inherits, or 0 for a render that should
+  // start at the left edge.
+  //
+  // `VA.renderTopoPane` opens with `VA.clear(root)` and builds a fresh
+  // `.tv__hscroll` every call, and a fresh element's `scrollLeft` is 0 -- so
+  // before this the reader's sideways position was not clamped, it was
+  // DISCARDED, by every render this page does: both leader preferences, the
+  // density toggle, the length mode, both resize drags and all sixteen frames
+  // of a respine. Measured on the real pitch_system at 1600x1000, a reader
+  // parked at the right-hand end (scrollLeft 666 of 666) was at the left edge
+  // on the FIRST frame of a study click and still there when it settled.
+  //
+  // Two judgements live here.
+  //
+  //   * A DIFFERENT topology starts at the left edge. Two walks share no
+  //     horizontal extent -- a column count, a jog zone measured against a
+  //     different leader count, a different grid width -- so carrying a
+  //     position across is carrying a number, not a place. Same topology, any
+  //     serialisation of it, keeps it.
+  //   * Mid-respine the outgoing pane is not in `root` any more:
+  //     VA.animateTopoPane calls ghostOf BEFORE the first frame, which
+  //     re-parents `.tv__hscroll` into the (detached) ghost and drops its
+  //     scroll with it. ghostOf reads the number off first and leaves it on
+  //     the ghost, which is where the first frame finds it; every frame after
+  //     that reads the live pane this function built, already clamped.
+  function carriedScroll(root, topoProj, tween) {
+    if (!topoProj || !VA.lastTopoRender ||
+        VA.lastTopoRender.topologyId !== topoProj.id) return 0;
+    var live = (root && root.querySelector)
+      ? root.querySelector(".tv__hscroll") : null;
+    var n = live ? live.scrollLeft
+                 : (tween && tween.ghost ? tween.ghost.paneScrollLeft : 0);
+    return typeof n === "number" && n > 0 ? n : 0;
+  }
 
   // --- the respine animator (viewer_study_respine_animation) ---------------
   //
@@ -439,6 +518,11 @@
     if (head) head.style.display = "none";
     var ghost = VA.el("div", "tv__ghost");
     ghost.setAttribute("aria-hidden", "true");
+    // The sideways scroll the outgoing pane was carrying, read HERE or not at
+    // all: the append below takes this node out of the document, which resets
+    // its scroll to 0. carriedScroll (above) is the one reader -- the first
+    // frame of the transition has no live pane left to read.
+    ghost.paneScrollLeft = typeof live.scrollLeft === "number" ? live.scrollLeft : 0;
     ghost.appendChild(live);
     return ghost;
   }
@@ -587,23 +671,114 @@
   // reads as "no preference stored" — the stylesheet's width.
   VA.PANE_WIDTH_KEY = "tolstack.viewer.detailWidth";
 
-  VA.readStoredPaneWidth = function (store) {
+  // Both directions of a remembered width, over any key and any clamp. Two
+  // widths are remembered on this page now (the preview pane, the annotator
+  // flyout) and every wrapper below is one line, so the try/catch discipline
+  // and the "an unreadable value reads as no preference" rule live in exactly
+  // one place rather than once per control.
+  function readStoredWidth(store, key, clamp) {
     try {
-      var raw = store && store.getItem(VA.PANE_WIDTH_KEY);
+      var raw = store && store.getItem(key);
       if (raw === null || raw === undefined || raw === "") return null;
       var n = Number(raw);
-      return isFinite(n) ? VA.clampPaneWidth(n) : null;
+      return isFinite(n) ? clamp(n) : null;
     } catch (err) {
       return null;
     }
-  };
+  }
 
-  VA.writeStoredPaneWidth = function (store, px) {
+  function writeStoredWidth(store, key, clamp, px) {
     try {
-      if (store) store.setItem(VA.PANE_WIDTH_KEY, String(VA.clampPaneWidth(px)));
+      if (store) store.setItem(key, String(clamp(px)));
     } catch (err) {
       // A browser that refuses to store it still resizes for this session.
     }
+  }
+
+  VA.readStoredPaneWidth = function (store) {
+    return readStoredWidth(store, VA.PANE_WIDTH_KEY, VA.clampPaneWidth);
+  };
+
+  VA.writeStoredPaneWidth = function (store, px) {
+    writeStoredWidth(store, VA.PANE_WIDTH_KEY, VA.clampPaneWidth, px);
+  };
+
+  // --- the annotator flyout's width (Jeff, 2026-09-16) ----------------------
+  //
+  // "I actually want the 3d flyout on the left side, adjacent to the DAG. It
+  // would be ok if it covered up the left side select menu since you shouldn't
+  // need both at the same time." Adjacency is the requirement: the 3D panel and
+  // the graph have to be readable at the same time, so this width has one bound
+  // the preview pane's does not -- a strip of the page underneath must stay
+  // uncovered whatever the window is.
+  //
+  // `min` is the annotator's own three-column grid (260 + 320 of chrome either
+  // side of its canvas, apps/annotate/style.css) plus enough canvas to orbit in.
+  // `max` bounds a drag on a wide screen.
+  //
+  // `reserve` is the FLOOR for what is left beside the panel, used when the
+  // caller can measure nothing to keep (stack mode, which draws no graph; a
+  // pre-layout call). 320px because that is the narrowest column this page
+  // already treats as readable -- VA.TOPO_PANE_WIDTH.min, the preview pane's
+  // own floor.
+  //
+  // What is normally kept is MEASURED, and measuring the right thing took two
+  // goes. First it was the viewport, which handed the reader back preview pane;
+  // then it was `#topopane`, which is the graph's SCROLLPORT and not the graph
+  // -- and that is the version a review caught (2026-09-16), because it
+  // reported 300px of clearance over a diagram that was 100% covered. The DAG
+  // drawing is one `svg.tv__rails`, it is 90-262px wide across all 21 live
+  // studies, it sits at the pane's left edge, and it is `position: sticky;
+  // left: 0` so no scroll position can move it out from under anything. It is
+  // the drawing that has to survive, so it is the drawing the caller measures.
+  VA.FLYOUT_WIDTH = { min: 560, max: 1200, reserve: 320 };
+
+  // `room` is the width the panel and the page's own content are dividing --
+  // the viewport less what sits to the RIGHT of the graph (the preview pane and
+  // its divider), since the nav rail stands down while the panel is open.
+  // `keep` is what must be left of that for the page: the drawing's own
+  // measured width, floored at `reserve`. Both are the caller's measurements
+  // (topology_app.js's roomBesideFlyout / graphNeed) because they are live
+  // layout facts and this layer measures nothing; an absent or zero `room`
+  // reads as "no layout to go on" and falls back to the px max rather than to
+  // `min`, and an absent `keep` falls back to `reserve`.
+  VA.clampFlyoutWidth = function (px, room, keep) {
+    var n = Math.round(Number(px));
+    if (!isFinite(n)) return VA.FLYOUT_WIDTH.min;
+    var have = Math.round(Number(room));
+    var wanted = Math.round(Number(keep));
+    var reserve = Math.max(VA.FLYOUT_WIDTH.reserve,
+      isFinite(wanted) && wanted > 0 ? wanted : 0);
+    var cap = isFinite(have) && have > 0
+      ? Math.min(VA.FLYOUT_WIDTH.max, have - reserve)
+      : VA.FLYOUT_WIDTH.max;
+    return Math.min(Math.max(cap, VA.FLYOUT_WIDTH.min),
+      Math.max(VA.FLYOUT_WIDTH.min, n));
+  };
+
+  // The width a drag lands on. The flyout is LEFT of its divider, so dragging
+  // right (positive dx) makes it wider -- the opposite sign to
+  // VA.paneWidthAfterDrag, whose pane sits on the right of its own divider.
+  // That inversion is the likeliest mistake in either feature, so it is here,
+  // in one pure line a test can check with no pointer, in both cases.
+  VA.flyoutWidthAfterDrag = function (startWidth, dx, room, keep) {
+    return VA.clampFlyoutWidth(startWidth + dx, room, keep);
+  };
+
+  // Its own key, beside the pane's: the two controls are independent and a
+  // reader who widens one has said nothing about the other.
+  VA.FLYOUT_WIDTH_KEY = "tolstack.viewer.flyoutWidth";
+
+  VA.readStoredFlyoutWidth = function (store, room, keep) {
+    return readStoredWidth(store, VA.FLYOUT_WIDTH_KEY, function (n) {
+      return VA.clampFlyoutWidth(n, room, keep);
+    });
+  };
+
+  VA.writeStoredFlyoutWidth = function (store, px, room, keep) {
+    writeStoredWidth(store, VA.FLYOUT_WIDTH_KEY, function (n) {
+      return VA.clampFlyoutWidth(n, room, keep);
+    }, px);
   };
 
   VA.topoColumn = function (cls) {
@@ -645,7 +820,7 @@
   // cell of them, so the offset has to be applied by hand and read from the same
   // geometry the SVG was drawn from. Real <th> cells (deliverable 2): a screen
   // reader and a copy-paste both get an actual header, not a styled div.
-  function header(leaderGeo, ctx) {
+  function header(leaderGeo, ctx, paneWidth) {
     var railWidth = leaderGeo.width;
     var head = VA.el("div", "tv__head");
     head.style.paddingLeft = railWidth + "px";
@@ -653,22 +828,34 @@
     table.style.width = tableWidth() + "px";
     table.appendChild(colgroup());
     var tr = VA.el("tr");
+    // The grid's left edge is the SVG's right edge, so a column's boundary in
+    // the SCROLLPORT'S own coordinates is the rail width plus every column
+    // before it. Accumulated here rather than measured off the DOM: the
+    // header is being built, there is nothing laid out to measure, and this
+    // is the same COLUMNS array the <col> widths come from.
+    var boundary = railWidth;
+    var lanes = [];
+    var columnGrips = [];
     COLUMNS.forEach(function (c) {
       var th = VA.el("th", "tvcell tvcell--" + c.cls, c.label);
+      boundary += c.width;
       if (c.resizable) {
         th.className += " tvcell--resizable";
-        th.appendChild(resizeGrip("col", "Drag to widen this column.", ctx,
-          { kind: "column", cls: c.cls }));
+        var grip = resizeGrip("col", "Drag to widen this column.", ctx,
+          { kind: "column", cls: c.cls });
+        columnGrips.push({ grip: grip, boundary: boundary });
+        lanes.push(gripLane(grip));
       }
       tr.appendChild(th);
     });
     table.appendChild(VA.el("thead", null, tr));
     head.appendChild(table);
     // The jog zone's own grip, on the seam between the SVG and the grid --
-    // the boundary a reader would grab anyway. Absolutely positioned so it
-    // adds no width of its own: a grip that took layout space would push
-    // itself in between a leader's last segment and the grid's first column,
-    // and that hand-off is the one place on this page with no seam to align.
+    // the boundary a reader would grab anyway. It takes no layout width (see
+    // `.tvgrip` / `.tv__griplane`, topology.css): a grip that took space would
+    // push itself in between a leader's last segment and the grid's first
+    // column, and that hand-off is the one place on this page with no seam to
+    // align.
     //
     // `naturalZone` rides along because the drag is measured in pixels and
     // the preference is held as a multiple of it -- without it the app shell
@@ -676,9 +863,87 @@
     var jogGrip = resizeGrip("jog",
       "Drag to spread the leader lines out.", ctx,
       { kind: "jog", naturalZone: leaderGeo.naturalZone });
-    jogGrip.style.left = (railWidth - 3) + "px";
-    head.appendChild(jogGrip);
+    // A sticky INSET, not a content coordinate: the seam this grip marks is
+    // itself sticky, so it is a fixed distance from the pane's visible left
+    // edge at every scroll (VA.jogGripInset).
+    jogGrip.style.left = VA.jogGripInset(railWidth, paneWidth) + "px";
+    lanes.push(gripLane(jogGrip));
+    lanes.forEach(function (lane) { head.appendChild(lane); });
+    // The column grips are the ones a SCROLL moves, so unlike the jog grip's
+    // sticky inset theirs is re-written as the pane scrolls. Hung on the node
+    // rather than wired here: the pane the scroll event comes from is built by
+    // renderTopoPane, one level up, and dies with the next render along with
+    // this closure.
+    head.placeColumnGrips = function (scrollLeft, visibleWidth) {
+      columnGrips.forEach(function (entry) {
+        entry.grip.style.left =
+          VA.columnGripLeft(entry.boundary, scrollLeft, visibleWidth) + "px";
+      });
+    };
+    head.placeColumnGrips(0, paneWidth);
     return head;
+  }
+
+  // The grip's own pixels, shared with `.tvgrip`'s width in topology.css and
+  // paired against it by a test: the inset arithmetic below is in JS and the
+  // hairline it has to line up with is in CSS, which is exactly the two-places
+  // shape this file already refuses for column widths. `half` is where the
+  // hairline sits inside the grip (`.tvgrip::before`'s own `left`), so a grip
+  // centred on a boundary is that boundary less `half`.
+  VA.TOPO_GRIP = { width: 7, half: 3 };
+
+  // Where the jog grip sits, measured from the pane's VISIBLE left edge.
+  //
+  // Normally the seam: `.tv__rails` is `position: sticky; left: 0`, so the
+  // SVG's right edge is `railWidth` from that edge whatever the horizontal
+  // scroll is, and a grip pinned at the same inset rides it exactly.
+  //
+  // Clamped when the DAG is wider than the pane shows, which a reader reaches
+  // by dragging the preview pane open (at VA.TOPO_PANE_WIDTH.max the grid gets
+  // ~298px, narrower than pitch_system's own 316px DAG) or by dragging the jog
+  // zone out. There the seam is off the pane's right edge and no scroll brings
+  // it back -- the rails are sticky, so they do not move out of the way -- and
+  // a grip left out there is a control the reader can see the effect of and
+  // never reach. Clamped, it stops naming its seam exactly; unclamped, it
+  // stops being a control at all. `2 * width` keeps it one grip clear of the
+  // ELEMENT grip's own right-hand pin (VA.columnGripLeft's own clamp, which
+  // lands at `paneWidth - width`) so the two never land on the same pixel.
+  //
+  // 0 for `paneWidth` means "nothing laid out to clamp against" -- the DOM
+  // shim the fast tier renders into, which reports no widths at all.
+  VA.jogGripInset = function (railWidth, paneWidth) {
+    var seam = railWidth - VA.TOPO_GRIP.half;
+    if (!paneWidth || paneWidth <= 0) return seam;
+    return Math.max(0, Math.min(seam, paneWidth - 2 * VA.TOPO_GRIP.width));
+  };
+
+  // Where a resizable column's grip sits, in the SCROLLPORT'S own coordinates
+  // -- `boundary` is that column's right edge, rails included.
+  //
+  // Not an inset, unlike the jog grip's: this boundary is a column edge and
+  // really does scroll, so the grip rides it while it is on screen (the value
+  // is then just the boundary, and the browser scrolls the grip with the
+  // content for free) and pins to the pane's right edge past that. The pin is
+  // what a reader who has widened the preview pane or the ELEMENT column
+  // itself needs: the column's own edge can be a thousand pixels right of
+  // anything on screen, and a grip out there is a control with no way in.
+  VA.columnGripLeft = function (boundary, scrollLeft, visibleWidth) {
+    var natural = boundary - VA.TOPO_GRIP.width;
+    if (!visibleWidth || visibleWidth <= 0) return natural;
+    return Math.min(natural,
+      (scrollLeft || 0) + visibleWidth - VA.TOPO_GRIP.width);
+  };
+
+  // A grip's lane: an inert overlay spanning the header's whole scroll width,
+  // holding exactly one grip. Both grips carry an inline `left` -- a sticky
+  // inset for the jog one, a written scrollport coordinate for a column's --
+  // so the lane contributes nothing but the box those are measured in. One
+  // lane per grip: see `.tv__griplane`, topology.css, for why they are not
+  // shared.
+  function gripLane(grip) {
+    var lane = VA.el("div", "tv__griplane");
+    lane.appendChild(grip);
+    return lane;
   }
 
   // --- the two drag affordances (viewer_leader_grid_legibility) ------------
@@ -1581,8 +1846,8 @@
       : VA.chip("chip--unlabelled", edge.value_source,
                 VA.valueSourceText(edge.value_source)));
     if (edge.zero_width) {
-      chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
-        "min == max: every interval this feeds is a LOWER bound on the real spread."));
+      chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
+        VA.ATTENTION.no_tolerance.title));
     }
     root.appendChild(chips);
 

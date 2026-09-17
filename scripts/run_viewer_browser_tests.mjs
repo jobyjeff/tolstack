@@ -282,6 +282,63 @@ function startSiblingMountServer({ matchCrops, rebuildCapable, terminalState }) 
   });
 }
 
+// --- how a suite reports, on BOTH paths out of it --------------------------
+//
+// Every suite here is one long `try` that collects `checks` (a name and a
+// condition per sub-check) plus `errors` (uncaught page errors), and ends by
+// printing the count and then the NAME of each sub-check that failed. Those
+// names are the whole machine-readable surface of this runner: the
+// mutation-witness tier parses them and nothing else out of this output
+// (`scripts/run_mutation_witness_tests.mjs`, `BROWSER_FAIL`), because an
+// entry there claims one named guard reddens and not that the suite went red.
+//
+// WHICH IS WHY THE ERROR PATH PRINTS THEM TOO, and that is what this pair of
+// functions exists to stop anyone from forgetting again. Fourteen copies of
+// the reporting block used to sit at the bottom of fourteen suites, each
+// beside a `catch` that printed `err.message` and DISCARDED every failure
+// already collected. So a mutation that reddens a check early and then breaks
+// a hover fifty lines further down reported as "the tier went red, but not on
+// the declared check" — the tier's way of saying *I cannot attribute this* —
+// when in fact the declared check had been reached, had failed, and its name
+// was sitting in an array nobody printed. Three sessions filed that as three
+// separate defects on 2026-09-15 (ISSUE_20260915_card_layout_out_of_flow_
+// mutation_reddens_an_earlier_check_so_it_is_never_witnessed and its two
+// siblings).
+//
+// The two results are independent and both get said: the sub-checks that ran
+// are real findings, and the abort is a second finding on top of them. What
+// is NOT done here is teaching anything to treat a bare abort as a named red
+// — a suite that dies before its first `push` still prints no names, and the
+// mutation tier still reports that as unattributable, which is correct.
+function printCollectedFailures(failed, errors) {
+  for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
+  if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
+}
+
+/** The normal way out: every sub-check ran. */
+function reportSuite(label, checks, errors = []) {
+  const failed = checks.filter((c) => !c.cond);
+  const ok = failed.length === 0 && errors.length === 0;
+  console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
+  printCollectedFailures(failed, errors);
+  return { label, ok };
+}
+
+/**
+ * The other way out: something threw, so the sub-checks BELOW the throw never
+ * ran. The ones above it did, and are reported before the exception, because
+ * a named failure is the specific result and a 30-second hover timeout with a
+ * 60-line call log is the noisy one.
+ */
+function reportAbortedSuite(label, checks, errors, err) {
+  const failed = checks.filter((c) => !c.cond);
+  console.log(`[${label}] ABORTED after ${checks.length} sub-checks, ` +
+    `${failed.length} of them already FAILED`);
+  printCollectedFailures(failed, errors);
+  console.log(`[${label}] ERROR: ${err.message}`);
+  return { label, ok: false };
+}
+
 // The banner's whole deliverable (viewer_rebuild_affordance, 2026-09-10): no
 // rebuild command ever renders again, in either mode, and a live endpoint
 // drives a real click through to a reload -- and, since
@@ -376,21 +433,19 @@ async function testRebuildAffordance(browser, label) {
       // waiting on `#banner` resolves on the static element before any render
       // and would let this absence check PASS on a boot that never banner'd at
       // all -- the 200ms sleep was the only thing standing behind it.
-      // `.banner__built` exists only in a connected banner's own paint, which
+      // `.banner__source` exists only in a connected banner's own paint, which
       // is the same paint provenance() would have put `.banner__stale` in.
-      await page.waitForSelector(".banner__built", { timeout: 15000 });
+      // It was `.banner__built` until 2026-09-16, when that line moved INSIDE
+      // this fold -- and a `{ state: "visible" }` wait on a node inside a
+      // closed <details> waits forever.
+      await page.waitForSelector("details.banner__source", { timeout: 15000 });
       push("fresh (matching) provenance shows no stale banner",
         await page.locator(".banner__stale").count() === 0);
     });
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    return { label, ok };
+    return reportSuite(label, checks);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, [], err);
   }
 }
 
@@ -527,14 +582,71 @@ async function testTheApp(browser, url, label) {
       await page.locator("tr.el-row--zero-width").count() === 1 &&
       await page.locator("td.num--zero-width").count() === 2);
 
-    // The loud export/identity chip is the one fact the compact row still
+    // The loud export/identity fact is the one thing the compact row still
     // carries about the export — everything else moved to the right pane,
     // reached by clicking the row (deliverables 2 and 3 of viewer_consolidation).
-    const exportChipColor = await page.locator(".chip--export-unestablished").first()
-      .evaluate((n) => getComputedStyle(n).backgroundColor);
-    push("the unestablished-export chip is filled, not transparent, on the row",
-      exportChipColor && exportChipColor !== "rgba(0, 0, 0, 0)" &&
-      exportChipColor !== "transparent");
+    //
+    // Since flyout_resize_annotator_filter_and_deselect it rides on the row's
+    // ONE consolidated alert badge rather than a filled all-caps chip of its
+    // own (Jeff: "roll all the alert badges into one single alert badge"), and
+    // BOTH halves of that trade are CSS claims only a layout engine can check:
+    // the badge has to be quieter than the filled chip it replaced (no fill)
+    // and still findable (a real border, in the attention colour, not the
+    // neutral chip outline).
+    const badge = page.locator("#stackview .chip--alert");
+    const badgeStyle = await badge.first().evaluate((n) => {
+      const cs = getComputedStyle(n);
+      const neighbour = getComputedStyle(n.parentNode.querySelector(".chip--kind")
+        || n.parentNode.firstElementChild);
+      return {
+        background: cs.backgroundColor,
+        border: cs.borderTopColor,
+        weight: cs.fontWeight,
+        neighbourBorder: neighbour.borderTopColor,
+      };
+    });
+    push("the row's alert badge is NOT filled — the loudness Jeff named is gone",
+      badgeStyle.background === "rgba(0, 0, 0, 0)" ||
+      badgeStyle.background === "transparent");
+    push("...but it is still findable: a real border, and not the neutral one " +
+      "its neighbour chip wears",
+      badgeStyle.border && badgeStyle.border !== "rgba(0, 0, 0, 0)" &&
+      badgeStyle.border !== badgeStyle.neighbourBorder);
+
+    // ONE row in this fixture has something to admit and it has TWO things —
+    // the washer is zero-width AND unestablished, which is exactly the case
+    // the old presentation showed as two filled all-caps chips side by side.
+    // The other three rows show NOTHING, which is the standing rule, so the
+    // count is the assertion.
+    push("one badge on the one row that has something to admit, and none on " +
+      "the other three",
+      await badge.count() === 1 &&
+      await page.locator("#stackview tr.el-row").count() === 4);
+
+    // The words, on a REAL hover: this is the half a DOM shim is blind to, and
+    // the whole bargain of the consolidation is that nothing was deleted. The
+    // card also carries the `why`, which was only ever a native tooltip on the
+    // chip this badge replaced — so folding the chip away REVEALED a sentence
+    // rather than hiding one.
+    const washerBadge = page.locator("#stackview tr.el-row").nth(1)
+      .locator(".chip--alert");
+    await washerBadge.hover();
+    await page.waitForSelector(".hovercard--alerts", { timeout: 5000 });
+    const alertCard = await page.locator(".hovercard--alerts").textContent();
+    push("hovering the badge opens a card naming the alert in the words the " +
+      "row used to shout",
+      /FILE NOT IDENTIFIED/.test(alertCard));
+    push("...and the card carries the why, which the old chip only had as a " +
+      "native tooltip",
+      /none hashes to the one/.test(alertCard));
+    push("the card names WHICH row it belongs to — the badge is one glyph, so " +
+      "the card is the first place a reader can tell",
+      /washer/i.test(alertCard));
+    push("...and the row's OTHER alert too: two chips became one badge and one " +
+      "card with two items, which is the whole trade",
+      /no tolerance recorded/.test(alertCard) &&
+      await page.locator(".hovercard--alerts li.hovercard__alert").count() === 2);
+    await page.keyboard.press("Escape");
 
     // Select the plate (established export, and the one fixture crop that
     // resolves) — a real click, which the DOM shim cannot exercise, and the
@@ -668,16 +780,9 @@ async function testTheApp(browser, url, label) {
       await page.locator("#stackview").evaluate((n) => getComputedStyle(n).display) === "none" &&
       await page.locator("tr.tvrow").count() > 0);
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -1073,6 +1178,79 @@ async function hoverRailBar(page, id) {
   throw new Error(`hovering the rail bar ${id} never opened its card — ${seen}`);
 }
 
+// Hover a trigger WITHOUT asking playwright whether anything sits on top of it.
+//
+// `locator.hover()` refuses to act on an OCCLUDED element: it re-checks the hit
+// target, finds something else under the point, and retries until it times out.
+// That is the behaviour you want almost everywhere, and it is exactly wrong for
+// the out-of-flow contract below -- because the mutation that contract exists to
+// catch (`.croppop` back on `position: absolute`,
+// `scripts/mutation_witnesses.json`) places the open card ON TOP OF the trigger
+// it was opened from. The first hover opens the card, the card occludes the
+// trigger, and every retry from then on sees the occlusion and backs off. So the
+// suite died on a 30-second timeout ONE sub-check before the check that names
+// the defect, the mutation-witness tier saw a red it could not attribute, and
+// `card-layout-out-of-flow` read NOT WITNESSED for four days -- filed three
+// times over on 2026-09-15 (ISSUE_20260915_card_layout_out_of_flow_mutation_
+// reddens_an_earlier_check_so_it_is_never_witnessed and its two siblings). A
+// card intercepting its own trigger is the DEFECT, so the harness must not be
+// the thing that refuses to look at it.
+//
+// `page.mouse.move` performs no actionability check at all -- the same escape
+// hatch hoverRailBar takes for a different playwright limitation, with the same
+// one-round-trip discipline for reading the rect. What is NOT given up:
+//
+//   * it will not aim at a point outside the window, which would hover whatever
+//     is really there. It scrolls the element into view first if it has to --
+//     `locator.hover()` did that too, and silently, and it DOES have to here.
+//     Re-measured in review, 2026-09-16, and the axis is not the one this note
+//     first named: at CARD_SCROLL_VIEWPORT the trigger's rect comes back
+//     `{top: 243.5, bottom: 269.5, left: 1502, right: 1604}` against
+//     `innerWidth/innerHeight` 1600/560 -- vertically well inside the window
+//     and **4px off its RIGHT edge**, because the detail pane scrolls
+//     horizontally. So `scrollIntoView` moves the PANE (left 1502 -> 1066) and
+//     leaves `window.scrollY` at 175 before and 175 after: no document scroll
+//     is given away, and the reading IS taken at the scroll the tripwire above
+//     asserts. It returns that scroll anyway, so the caller can pin the
+//     position it measured at rather than assume it -- which is what the
+//     second tripwire below spends it on.
+//   * it still proves the pointer landed: the rect and the in-window test are
+//     read in ONE page task (a locator resolved and then evaluated against is
+//     two, and under file:// a late render between them hands back a detached
+//     node -- hoverRailBar's own note), and the caller waits on the card.
+async function hoverIgnoringOcclusion(page, selector) {
+  const at = await page.evaluate((s) => {
+    const el = document.querySelector(s);
+    if (!el || !el.isConnected) return null;
+    const box = () => {
+      const b = el.getBoundingClientRect();
+      if (!b.width || !b.height) return null;
+      const inWindow = b.top >= 0 && b.left >= 0 &&
+        b.bottom <= window.innerHeight && b.right <= window.innerWidth;
+      return inWindow ? { x: b.left + b.width / 2, y: b.top + b.height / 2 } : null;
+    };
+    let p = box();
+    if (!p) {
+      // "nearest", not hoverRailBar's "center": the MINIMUM scroll that gets
+      // the trigger into the window, which is what locator.hover() did and
+      // what keeps the document as scrolled as it can be. In today's layout it
+      // is `inline` that does the work (the trigger is off the pane's right
+      // edge, not above the window -- see the note above); `block: "nearest"`
+      // is the same discipline held on the axis the reading below depends on,
+      // so a layout change cannot start giving that scroll away silently.
+      el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      p = box();
+    }
+    return p === null ? null : { ...p, scrollY: window.scrollY };
+  }, selector);
+  if (!at) {
+    throw new Error(`hoverIgnoringOcclusion: ${selector} resolves to no element ` +
+      "with a box inside the window, even after scrolling to it");
+  }
+  await page.mouse.move(at.x, at.y);
+  return at;
+}
+
 async function testTheTopologyPage(browser, url, label, realProjection, realCrops) {
   const page = await browser.newPage({ viewport: TOPO_VIEWPORT });
   const errors = [];
@@ -1121,6 +1299,41 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     };
   }, triggerSel);
 
+  // The highlight overlay's COORDINATE FRAME, on a card, in a real browser --
+  // the one thing no other tier can look at.
+  //
+  // views/crop.js's `highlightBox` writes `left`/`top`/`width`/`height` as
+  // percentages of `.cropfig`, so every box on a crop is only ever as right as
+  // the assumption that the figure's box IS the picture. A hover card caps its
+  // crop by WIDTH for exactly that reason (style.css, `.hovercard .cropblock
+  // .cropfig`); the `max-height: 260px; object-fit: contain` rule it replaced
+  // capped the height and let the picture inset itself inside an element that
+  // kept the full width, which leaves every highlight pointing into the
+  // letterbox rather than at the cell it names. The fast tier has no geometry
+  // at all, and nothing else in this file opens a card on a crop that carries
+  // a highlight, so the revert is invisible everywhere else.
+  const cropOverlay = () => page.evaluate(() => {
+    const fig = document.querySelector(".hovercard .cropblock .cropfig");
+    const img = fig && fig.querySelector("img.croppop__img");
+    if (!fig || !img) return null;
+    const box = (r) => ({ left: r.left, top: r.top, right: r.right,
+                          bottom: r.bottom, width: r.width, height: r.height });
+    return {
+      img: box(img.getBoundingClientRect()),
+      // The crop's own width/height, as the figure carries it for the cap's
+      // sake -- read from the custom property rather than from the PNG, so
+      // the measurement does not wait on a decode.
+      ratio: parseFloat(getComputedStyle(fig).getPropertyValue("--crop-ratio")),
+      // The width the figure would have taken with no cap at all. Uncapped,
+      // the picture would be this over the ratio tall; if that is not more
+      // than the 260px cap then the cap did nothing here and the contract
+      // below is vacuous.
+      blockWidth: fig.parentElement.getBoundingClientRect().width,
+      highlights: Array.from(fig.querySelectorAll(".crophl"))
+        .map((n) => box(n.getBoundingClientRect())),
+    };
+  });
+
   try {
     await page.goto(url + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
@@ -1155,6 +1368,54 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("every leader lands on its dot and its seam, every row has its bar",
       first.rows > 0 && first.leaders === 5 && first.drift.length === 0);
     if (first.drift.length) console.log("    drift: " + first.drift.slice(0, 5).join(" | "));
+
+    // --- the preview pane's DEFAULT, and a divider a reader can find --------
+    //
+    // (deliverable 5, viewer_hover_deslop_and_banner_purge, 2026-09-16.)
+    // Asserted here, early, and asserted at all because the whole deliverable
+    // is three CSS declarations: reverting `.tv .detail`'s width to 430px and
+    // putting `.tv__divider::before` back to `transparent` undid it in full
+    // with every tier still green (review, measured). A deliverable nothing
+    // would notice being reverted is a deliverable with no pin.
+    //
+    // It must run BEFORE anything drags the pane: a remembered width is
+    // written as an inline style over the stylesheet's rule, and this is a
+    // reading of the RULE.
+    const paneAtRest = await page.evaluate(() => {
+      const detail = document.querySelector("#detail");
+      const divider = document.querySelector("#detail-divider");
+      let remembered = null;
+      try {
+        remembered = window.localStorage.getItem(window.ViewerApp.PANE_WIDTH_KEY);
+      } catch { remembered = null; }
+      return {
+        width: detail.getBoundingClientRect().width,
+        inlineWidth: detail.style.width,
+        remembered,
+        hairline: getComputedStyle(divider, "::before").backgroundColor,
+        grip: getComputedStyle(divider, "::after").backgroundImage,
+        gripPosition: getComputedStyle(divider, "::after").position,
+        max: window.ViewerApp.TOPO_PANE_WIDTH.max,
+      };
+    });
+    // The tripwire, before what it certifies: with a width remembered or an
+    // inline style set, the number below would be a reading of a drag from
+    // some earlier check rather than of the stylesheet.
+    push("nothing is remembered and nothing is inline, so the pane's width " +
+      "here IS the stylesheet's default",
+      paneAtRest.remembered === null && paneAtRest.inlineWidth === "");
+    push("the preview pane's default is the widened 560px, not the 430px " +
+      "Jeff called too narrow",
+      Math.abs(paneAtRest.width - 560) <= 1);
+    // The divider announces itself at rest. Both halves: the seam, which was
+    // `transparent` until hover and so invisible to anyone who did not already
+    // know it was there, and the grip mark that says the seam is a HANDLE.
+    push("the pane's divider is visible at rest, not only under the pointer",
+      paneAtRest.hairline !== "rgba(0, 0, 0, 0)" &&
+      paneAtRest.hairline !== "transparent");
+    push("...and carries a grip mark, held in the viewport by sticky so a " +
+      "long study does not scroll it away",
+      paneAtRest.grip !== "none" && paneAtRest.gripPosition === "sticky");
 
     // 3) scrolled, they stay tied together — rails, leaders and rows share one
     //    scrollport (the page's own, since full-page scroll).
@@ -1241,8 +1502,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
     push("the thumbnail trigger opens the edge hover card with the crop body",
       await page.locator(".croppop").isVisible() &&
-      /215197/.test(await page.locator(".croppop__head").textContent()) &&
-      /cited at:/.test(await page.locator(".croppop").textContent()) &&
+      // The document, from the card's ONE where-line. It came off
+      // `.croppop__head` -- the crop block's own caption -- until 2026-09-16,
+      // when a card stopped restating its document over the picture
+      // (viewer_hover_deslop_and_banner_purge, deliverable 2).
+      /cited at: .*215197/.test(await page.locator(".hovercard__cited").textContent()) &&
+      await page.locator(".hovercard .cropblock .croppop__head").count() === 0 &&
       // The part in a reader's words. This asserted the crop KEY here until
       // 2026-09-15 ("from stack `demo_joint`, element `plate`") -- which of the
       // crop index's two key spaces answered, in the ids of a stack and an
@@ -1280,6 +1545,35 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       beforeCard.pane === withCard.pane);
     push("leaders still land on their dots and seams with a card open",
       (await correspondence()).drift.length === 0);
+
+    // --- the highlight overlay points at the crop, not past it -------------
+    //
+    // Same open card, measured rather than read. Two tripwires first, because
+    // this contract is only falsifiable where a box exists to mis-place and
+    // where the width cap actually bit.
+    const overlay = await cropOverlay();
+    push("the open card's crop carries a highlight box to measure, and the " +
+      "figure knows the crop's own shape",
+      overlay !== null && overlay.highlights.length >= 1 &&
+      overlay.ratio > 0);
+    push("the card's 260px crop cap really bites here — uncapped this crop " +
+      "would be taller than the cap",
+      overlay.blockWidth / overlay.ratio > 260 &&
+      Math.abs(overlay.img.height - 260) <= 1.5);
+    // The letterbox, stated as the thing a reader would see: the element the
+    // overlay is positioned against still has the crop's own proportions, so
+    // the percentages land on the picture. `object-fit: contain` under a
+    // height cap gives the element the block's full width and the cap's
+    // height, and this ratio is the first thing that stops being true.
+    push("the crop's element IS the picture — its box still carries the " +
+      "crop's own aspect ratio, so a percentage lands where it reads",
+      Math.abs(overlay.img.width / overlay.img.height - overlay.ratio) <
+        overlay.ratio * 0.02);
+    push("every highlight box on the card lands inside the crop image it " +
+      "points into",
+      overlay.highlights.every((h) =>
+        h.left >= overlay.img.left - 0.5 && h.right <= overlay.img.right + 0.5 &&
+        h.top >= overlay.img.top - 0.5 && h.bottom <= overlay.img.bottom + 0.5));
 
     // The room cap (viewer_popover_clamp_and_rebuild_terminal_state): this
     // card fits neither below its trigger nor above it, and before the cap it
@@ -1350,8 +1644,21 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("the document really scrolls at this viewport — the only " +
       "configuration the out-of-flow contract below is falsifiable in",
       scrollFrame.docHeight > scrollFrame.innerHeight && scrollFrame.scrollY >= 24);
-    await page.locator(CARD_TRIGGER).hover();
+    // NOT locator.hover(): hoverIgnoringOcclusion's own note says why at
+    // length -- under the mutation this contract is named for, the card lands
+    // ON its own trigger, and playwright's hover refuses to act on an occluded
+    // element and retries to its 30-second timeout instead. The measurement
+    // below is the thing that has to be REACHED.
+    const aimed = await hoverIgnoringOcclusion(page, CARD_TRIGGER);
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+    // ...and the second half of the tripwire above, on the scroll the reading
+    // is actually taken at rather than the one it was set up at. Getting the
+    // trigger into the window moves the page (it sits above the window once the
+    // document is scrolled to its end), and a card opened back at the top would
+    // be measured in the one configuration where `fixed` and `absolute` agree.
+    const openedAt = await page.evaluate(() => window.scrollY);
+    push("the card was opened with the document still scrolled, and opening " +
+      "it moved the page by nothing", aimed.scrollY >= 24 && openedAt === aimed.scrollY);
     const scrolledCard = await cardLayout();
     const gapBelow = scrolledCard.cardTop - scrolledCard.triggerBottom;
     const gapAbove = scrolledCard.triggerTop - scrolledCard.cardBottom;
@@ -1379,11 +1686,230 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const componentText = await page.locator(".croppop").textContent();
     push("the component cell opens the component card with the derived crop line",
       /base plate/.test(componentText) &&
-      /crop of its `base plate thickness` annotation/.test(componentText));
+      // No backticks: a row's display name is user copy, not an id
+      // (viewer_hover_deslop_and_banner_purge, deliverable 2).
+      /crop of its base plate thickness annotation/.test(componentText) &&
+      !componentText.includes("`"));
     push("the component card deep-links into the annotator isolating the part",
       /isolate=base/.test(await page.locator(".hovercard--component a")
         .last().getAttribute("href")));
-    await page.keyboard.press("Escape");
+
+    // --- ONE fold per card, closed (deliverable 3, 2026-09-16) --------------
+    //
+    // Every long-form thing a card carries -- the record's note in full, the
+    // export/identity narrative, each crop's matching provenance -- is inside
+    // ONE <details>, and it is shut. Counted rather than read: the defect this
+    // replaces was TWO folds on one card (the crop block opened its own), and
+    // a substring check on the summary word cannot see a second one.
+    push("a card carries exactly one disclosure, closed, wearing the same " +
+      "word the banner's fold wears",
+      await page.locator(".hovercard details").count() === 1 &&
+      await page.locator(".hovercard details.hovercard__source").count() === 1 &&
+      !(await page.locator(".hovercard details").first().evaluate((n) => n.open)) &&
+      /Data source/.test(await page.locator(
+        ".hovercard details.hovercard__source > summary").textContent()));
+    // ...and the note itself: the lead sentence in the open, the whole of it
+    // inside the fold. The fixture's `base` part has a multi-sentence note.
+    push("a long note shows its lead sentence in the open and the whole of " +
+      "it in the fold", await (async () => {
+        const lead = await page.locator(".hovercard .hovercard__note").count()
+          ? (await page.locator(".hovercard .hovercard__note").textContent()).trim()
+          : null;
+        const full = await page.locator(
+          ".hovercard .hovercard__source .hovercard__notefull").count()
+          ? (await page.locator(
+              ".hovercard .hovercard__source .hovercard__notefull").textContent()).trim()
+          : null;
+        if (lead === null) return full === null;   // a card with no note at all
+        return full === null
+          ? true                                   // a one-sentence note: open, once
+          : full.startsWith(lead) && full.length > lead.length;
+      })());
+
+    // --- reaching an open card with the mouse (deliverable 4) ---------------
+    //
+    // Jeff: "sometimes the preview pop-up disappears when you try to move the
+    // mouse over it, you have to do it just right." Nothing closes a card on
+    // mouseleave; what happened is that a trigger crossed EN ROUTE re-pointed
+    // the shared #croppop node at itself. This is the only tier that can see
+    // it: the corridor is computed from real mousemove coordinates.
+    //
+    // EVERY move below is a real `page.mouse.move`, and every `mouseenter` is
+    // the browser's own. The first version of this block dispatched the
+    // competing `mouseenter` synthetically while the pointer sat elsewhere,
+    // and that could not reach the EXPIRY path at all — the expiry only
+    // honours a held trigger the pointer is still ON, so the one case the
+    // design promises to handle ("a card that arrives a quarter-second late,
+    // never one that never arrives") went unmeasured and was broken. Review
+    // measured 4.4 seconds and counting, 2026-09-16.
+    //
+    // THE GEOMETRY, and it is chosen rather than incidental: the citation card
+    // opens from the row's confidence chip and is placed BELOW that row, wide
+    // enough to sit under the row's own crop trigger. So the crop trigger is
+    // ~20px directly above the open card — a pointer landing on it from above
+    // is aiming straight into the card, and a pointer landing on it from the
+    // RIGHT (level with the row) is not. Two approaches, one trigger, no
+    // synthetic events. The tripwire below asserts that layout before anything
+    // stands on it.
+    const intentMs = await page.evaluate(() => window.ViewerApp.HOVER_INTENT_MS);
+    const CHIP_TRIGGER = "tr.tvrow[data-id='base_thickness'] span.cardtrig";
+
+    // Walk the pointer to `[x, y]` along a straight line from `[fromX, fromY]`,
+    // STOPPING JUST SHORT, letting the page drain, and only then taking the
+    // final step that crosses into the target.
+    //
+    // Every part of that is load-bearing, and the first draft of this block --
+    // one `mouse.move(..., { steps: 12 })` -- was flaky for the want of it. Two
+    // browser facts compound:
+    //
+    //   * `mouseenter` is dispatched on the element being entered BEFORE the
+    //     `mousemove` at the new coordinates, so the corridor is always read
+    //     from the two positions the page had processed BEFORE the crossing;
+    //   * Chrome COALESCES mousemove events under load. A stepped move whose
+    //     interpolated events are coalesced can leave the page holding only the
+    //     position it started from, and the corridor is then computed off a
+    //     vector pointing wherever the pointer came from — which on a loaded
+    //     machine is a different answer from the same code on an idle one.
+    //
+    // Measured 2026-09-16: green five runs out of five in isolation, red inside
+    // a full mutation-witness run, which is the worst shape a guard can have.
+    // Three awaited moves plus a drain make the two positions either side of
+    // the crossing deterministic: both already PROCESSED by the page, both on
+    // the approach line, and the nearer one a short hop from the target.
+    const approachFrom = async (fromX, fromY, x, y) => {
+      for (const t of [0.4, 0.7, 0.9]) {
+        await page.mouse.move(Math.round(fromX + (x - fromX) * t),
+                              Math.round(fromY + (y - fromY) * t));
+      }
+      await page.waitForTimeout(80);
+      await page.mouse.move(x, y);
+    };
+    const boxes = () => page.evaluate((sel) => {
+      const pop = document.querySelector("#croppop");
+      const open = pop && getComputedStyle(pop).display !== "none";
+      const card = open ? pop.getBoundingClientRect() : null;
+      const trig = document.querySelector(sel).getBoundingClientRect();
+      return {
+        card: card ? { left: card.left, top: card.top, right: card.right,
+                       bottom: card.bottom } : null,
+        trigger: { cx: trig.left + trig.width / 2, cy: trig.top + trig.height / 2,
+                   top: trig.top, bottom: trig.bottom, right: trig.right },
+      };
+    }, CARD_TRIGGER);
+
+    await dismissCard(page);
+    await page.locator(CHIP_TRIGGER).hover();
+    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    // A card paints immediately and REPAINTS as each of its PNGs resolves, and
+    // a repaint can re-place it. Settling first keeps the box the tripwire
+    // reads and the box the approach aims at the same box.
+    await page.waitForTimeout(250);
+    const lay = await boxes();
+    push("the citation card opens BELOW its row and under the row's own crop " +
+      "trigger — the layout the two approaches below are only distinguishable " +
+      "in",
+      lay.card !== null && lay.card.top > lay.trigger.bottom &&
+      lay.card.top - lay.trigger.bottom < 40 &&
+      lay.trigger.cx > lay.card.left && lay.trigger.cx < lay.card.right);
+
+    // APPROACH 1 — down onto the crop trigger, which aims into the card.
+    await approachFrom(lay.trigger.cx, lay.trigger.top - 60,
+                       lay.trigger.cx, lay.trigger.cy);
+    push("a trigger crossed while the pointer is heading for the open card " +
+      "does not steal it",
+      await page.locator(".hovercard--citation").count() === 1 &&
+      await page.locator(".hovercard--edge").count() === 0);
+
+    // THE EXPIRY. The pointer stops on that trigger and never reaches the
+    // card — a deliberate hover, not a crossing — so the held open has to
+    // happen after all. This is the promise the code makes in as many words
+    // ("never one that never arrives"); without this check it is a claim.
+    await page.waitForTimeout(intentMs + 250);
+    push("a held trigger the pointer STOPS on opens after the grace period — " +
+      "a deferral is a delay, never a card that never arrives",
+      await page.locator(".hovercard--edge").count() === 1);
+
+    // ARRIVAL WINS. Same approach, but this time the pointer keeps going and
+    // reaches the card: the trigger it crossed must never open, then or later.
+    await dismissCard(page);
+    await page.locator(CHIP_TRIGGER).hover();
+    await page.waitForSelector(".hovercard--citation", { state: "visible", timeout: 5000 });
+    await page.waitForTimeout(250);
+    const lay2 = await boxes();
+    await approachFrom(lay2.trigger.cx, lay2.trigger.top - 60,
+                       lay2.trigger.cx, lay2.trigger.cy);
+    await page.mouse.move(lay2.trigger.cx, lay2.card.top + 60, { steps: 6 });
+    await page.waitForTimeout(intentMs + 250);
+    push("...and it does NOT open when the pointer arrives at the card " +
+      "instead — the reader got where they were going",
+      await page.locator(".hovercard--citation").count() === 1 &&
+      await page.locator(".hovercard--edge").count() === 0 &&
+      await page.locator(".croppop").isVisible());
+
+    // APPROACH 2 — onto the same trigger from the RIGHT, level with its own
+    // row, which aims past the card rather than into it. This is the reason
+    // the guard is a corridor and not a blanket grace period: a reader who
+    // wants the other card gets it at once, with no delay at all.
+    await approachFrom(lay2.trigger.right + 300, lay2.trigger.cy,
+                       lay2.trigger.cx, lay2.trigger.cy);
+    push("a trigger hovered while the pointer is moving AWAY from the open " +
+      "card opens at once — the guard is intent, not a dead period",
+      await page.locator(".hovercard--edge").count() === 1);
+
+    // --- an open card under the pointer is never re-placed (deliverable 4b) -
+    //
+    // `position()` flips a card above its trigger when it no longer fits
+    // below, so a re-place that runs on every settling PNG can move the box
+    // out from under a pointer already on its way to it.
+    //
+    // Observed as "did `position()` RUN", not as "did the answer change":
+    // `position()` unconditionally rewrites `style.top`, so nudging that by a
+    // few pixels and seeing whether it comes back is a direct reading of the
+    // guard, in every layout, without needing a configuration where the
+    // placement's answer happens to differ. The second half is the tripwire
+    // for the first.
+    //
+    // FOUR pixels, and upward, for a reason that cost a red run: the guard
+    // reads the card's box as it is AT THAT MOMENT, so a probe that shoves the
+    // box far enough to slide out from under the pointer destroys its own
+    // precondition and the guard correctly declines to hold. A nudge has to be
+    // smaller than the pointer's clearance inside the card.
+    const NUDGE = 4;
+    const replaced = () => page.evaluate((nudge) => {
+      const pop = document.querySelector("#croppop");
+      const img = pop.querySelector("img");
+      if (!img) return null;
+      // Grow the box too, so the "it is exactly the height it was measured at"
+      // guard is not the one doing the work. Downward, so the top does not
+      // move and the pointer stays where it is relative to the box.
+      const spacer = document.createElement("div");
+      spacer.style.height = "300px";
+      pop.appendChild(spacer);
+      const nudged = Math.round(pop.getBoundingClientRect().top) - nudge;
+      pop.style.top = nudged + "px";
+      img.dispatchEvent(new Event("load"));
+      const after = pop.style.top;
+      spacer.remove();
+      return { nudged: nudged + "px", top: after };
+    }, NUDGE);
+
+    await dismissCard(page);
+    await page.locator(CARD_TRIGGER).hover();
+    await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
+    await page.waitForTimeout(250);
+    const held = await boxes();
+    await page.mouse.move(held.trigger.cx, held.card.top + 60);
+    const onCard = await replaced();
+    push("a card with the pointer on it is not re-placed when one of its " +
+      "images settles", onCard !== null && onCard.top === onCard.nudged);
+    // ...and it IS re-placed with the pointer away, or the check above passes
+    // on a page where nothing would have re-placed it anyway.
+    await page.mouse.move(8, 8);
+    const offCard = await replaced();
+    push("...and it IS re-placed with the pointer off it — the guard is the " +
+      "pointer, not an inert code path",
+      offCard !== null && offCard.top !== offCard.nudged);
+    await dismissCard(page);
 
     // --- the DAG's own hover surfaces (viewer_dag_hover_cards) --------------
     //
@@ -1436,7 +1962,13 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /mating_surface/.test(nodeCardText));
     push("a boundary dot shows the adjacent part's thumbnail where one " +
       "resolves, and no slot where none does",
-      /crop of its `base plate thickness` annotation/.test(nodeCardText) &&
+      // One line per thumbed side, naming the side and its drawing -- and it
+      // is that side's ONE document statement, so the crop under it renders
+      // no head of its own (deliverable 2, 2026-09-16). The line used to end
+      // "— crop of its `base plate thickness` annotation", which dressed a
+      // display name as an id.
+      /base plate · drawing 215197/.test(nodeCardText) &&
+      await page.locator(".hovercard--node .cropblock .croppop__head").count() === 0 &&
       await page.locator(".hovercard--node img.croppop__img").count() === 1);
     await dismissCard(page);
 
@@ -1478,10 +2010,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // Re-expressed here the way the grid-side block was: the card WANTS more
     // height than either side of its trigger can give it, so its box is
     // exactly the roomier side's room and its content still overflows that
-    // box. Measured at 1600x700 on ?mock=1 for base_thickness' rail bar:
-    // trigger 354.5-378.5, room above 338.5 / below 305.5, card capped to
-    // 338.5 at top 8, scrolling inside itself.
-    await page.setViewportSize(CARD_LAYOUT_VIEWPORT);
+    // box.
+    //
+    // CARD_CAP_VIEWPORT (440px tall), not CARD_LAYOUT_VIEWPORT (700), since
+    // 2026-09-16 -- and the reason is a DELIVERABLE, not a flake. Folding a
+    // card is long-form prose behind one disclosure took ~200px off every edge
+    // card, so at 700px the card fit beside its bar on a served origin (where
+    // there is also no "open the PDF" link to add a line) and this tripwire
+    // went red for being unable to see the defect, which is exactly its job.
+    // It is the same window the grid-side block above measures its own cap in.
+    await page.setViewportSize(CARD_CAP_VIEWPORT);
     const beforeBarCard = await cardLayout(BAR_TRIGGER);
     await hoverBar("base_thickness");
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
@@ -2152,6 +2690,94 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const detail = await page.locator("#detail").textContent();
       push("[real] an L1 edge shows the stack element's own citation",
         /NAS6403-NAS6420 Rev 4\.pdf/.test(detail) && /NAS6404U13D/.test(detail));
+
+      // --- the grips under a widened preview pane ------------------------
+      //
+      // The reader can drag the preview pane over the grid's own controls
+      // (ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_
+      // grips): the grid has no horizontal scrollport of its own -- full-page
+      // scroll, viewer_error_surface_and_layout 2026-09-09 -- so a grip parked
+      // at a content coordinate simply left the pane's visible window, where
+      // `.tv__hscroll`'s overflow-x clips it and a pointer reaches the preview
+      // pane instead. Measured on this projection at 1600x1000 before
+      // topology_grid_scroll_and_grips: at the shipped 430px pane the jog grip
+      // answered and at 560px it did not, and with the ELEMENT column dragged
+      // +220 the ELEMENT grip answered at neither.
+      //
+      // A pointer-down is the whole claim, so this drags each grip for real
+      // and reads the preference back -- a `boundingBox()` would report a
+      // clipped grip's box just as happily as a visible one's, which is
+      // exactly how this went unnoticed.
+      const PANE_MAX = await page.evaluate(() => window.ViewerApp.TOPO_PANE_WIDTH.max);
+      const dragBy = async (selector, dx) => {
+        const box = await page.locator(selector).boundingBox();
+        if (!box) return false;
+        const y = box.y + box.height / 2;
+        await page.mouse.move(box.x + box.width / 2, y);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 + dx, y, { steps: 6 });
+        await page.mouse.up();
+        await page.waitForTimeout(90);
+        return true;
+      };
+      const gripState = () => page.evaluate(() => ({
+        svg: Number(document.querySelector("svg.tv__rails").getAttribute("width")),
+        name: window.ViewerApp.topoColumn("name").width,
+      }));
+      // Each grip dragged out and straight back, so the check leaves the page
+      // on the state it found.
+      const gripsAnswer = async () => {
+        const before = await gripState();
+        await dragBy(".tvgrip--jog", 40);
+        const jogged = await gripState();
+        await dragBy(".tvgrip--jog", -40);
+        await dragBy(".tvgrip--col", 40);
+        const widened = await gripState();
+        await dragBy(".tvgrip--col", -40);
+        return { jog: jogged.svg > before.svg, col: widened.name > before.name };
+      };
+      // The divider is where the reader's own hand is: dragging it LEFT widens
+      // the preview pane and narrows the grid.
+      const setPane = async (target) => {
+        const box = await page.locator("#detail-divider").boundingBox();
+        const now = await page.evaluate(() =>
+          document.getElementById("detail").getBoundingClientRect().width);
+        await page.mouse.move(box.x + box.width / 2, box.y + 120);
+        await page.mouse.down();
+        await page.mouse.move(box.x + box.width / 2 - (target - now), box.y + 120,
+          { steps: 8 });
+        await page.mouse.up();
+        await page.waitForTimeout(140);
+        return page.evaluate(() =>
+          Math.round(document.getElementById("detail").getBoundingClientRect().width));
+      };
+      await page.locator(navRow("topology", "pitch_system")).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const paneAtStart = await page.evaluate(() =>
+        Math.round(document.getElementById("detail").getBoundingClientRect().width));
+      // The ELEMENT column dragged wide first, which is half of the reported
+      // repro and the state its own grip was unreachable in at EVERY pane
+      // width -- its boundary ends up ~550px right of anything on screen.
+      await dragBy(".tvgrip--col", 220);
+      for (const target of [560, PANE_MAX]) {
+        const got = await setPane(target);
+        const answered = await gripsAnswer();
+        push(`[real] with the preview pane dragged to ${got}px, the jog grip ` +
+          `still answers a pointer-down (topology_grid_scroll_and_grips)`,
+          answered.jog);
+        push(`[real] ...and so does the ELEMENT column's, ${
+          got === PANE_MAX ? "at the pane's own maximum" : "220px of column later"}`,
+          answered.col);
+      }
+      await dragBy(".tvgrip--col", -220);
+      await setPane(paneAtStart);
+      push("[real] and the page is back on the pane width it started at, so " +
+        "the divider block below measures what it thinks it does",
+        Math.abs((await page.evaluate(() =>
+          document.getElementById("detail").getBoundingClientRect().width)) -
+          paneAtStart) < 2);
+      await page.evaluate(() =>
+        window.localStorage.removeItem("tolstack.viewer.detailWidth"));
     }
 
     // --- the preview pane's own divider (viewer_component_names_and_
@@ -2225,16 +2851,9 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /comfortable/i.test(await page.locator("#density-toggle").textContent()));
     await page.evaluate(() => window.localStorage.removeItem("tolstack.viewer.detailWidth"));
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -2481,16 +3100,9 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
         (await correspondence()).drift.length === 0);
     }
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -2562,16 +3174,9 @@ async function testRenderCrash(browser, url, label) {
     push("and nothing escaped it as an uncaught page error either",
       errors.length === 0);
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -2611,10 +3216,20 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
 
     await page.evaluate(({ topologies, results, crops }) => {
       const VA = window.ViewerApp;
+      window.__CROP_FETCHES__ = [];
       const Fake = function () {
-        return new VA.MemoryAdapter({
+        const memory = new VA.MemoryAdapter({
           startState: VA.STATE.READY, topologies, results, crops, images: {}, texts: {},
         });
+        // Which PNGs the app ASKED for, which is the half no other tier can
+        // see: every fast-tier crop test hands the renderer its own `images`
+        // map, so the fetch list itself has nothing standing on it.
+        const real = memory.readCropImage.bind(memory);
+        memory.readCropImage = function (png) {
+          window.__CROP_FETCHES__.push(png);
+          return real(png);
+        };
+        return memory;
       };
       Fake.isSupported = () => true;
       VA.FsaAdapter = Fake;
@@ -2635,16 +3250,78 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
         "through the real load()+render() pipeline", rowCount === expected);
     }
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    // --- a balloon crop's SECOND image is fetched alongside the first -------
+    //
+    // `loadDetailImage` (topology_app.js) fetches a LIST, not one blob,
+    // because a balloon crop names its parts-list row as a `companion` and a
+    // companion that arrived a paint later would flash "image not on disk"
+    // under "Parts list, sheet 1" on every selection. Nothing watched the
+    // list: dropping the companion term from it left the fast tier at 407/407
+    // and this file at 20/20 on 2026-09-16, and the only symptom was the
+    // missing-image line on all four live balloon crops. It cannot be watched
+    // in the fast tier at all -- topology_app.js is not in run_tests.cjs's
+    // file list, and the DOM shim cannot boot the page -- so the fetch list is
+    // read here, off the adapter the app actually called.
+    const companionRows = await page.evaluate(({ topologies, crops }) => {
+      const VA = window.ViewerApp;
+      const found = [];
+      for (const topology of topologies.topologies) {
+        for (const edge of topology.edges) {
+          const entry = VA.cropForKey(crops, edge.crop_key);
+          if (entry && entry.status === "resolved" && entry.png &&
+              entry.companion && entry.companion.png) {
+            found.push({ topology: topology.id, edge: edge.id,
+                         png: entry.png, companion: entry.companion.png });
+          }
+        }
+      }
+      return found;
+    }, { topologies: realProjection, crops: realCrops });
+    // The fixture precondition, asserted before what it certifies. TWO rows,
+    // because the two fetchers cannot be told apart on one: `imageCache` is
+    // shared, so whichever of them runs first is the only one that reaches
+    // the adapter for that PNG.
+    push("two live topology rows still reach balloon crops that name a " +
+      "parts-list companion — one per fetcher below", companionRows.length >= 2);
+    const [paneRow, cardRow] = companionRows;
+    let fetched = [];
+    if (paneRow && cardRow) {
+      // The PANE's fetcher: selecting a row is what runs loadDetailImage.
+      const row = `tr.tvrow[data-id="${paneRow.edge}"]`;
+      await page.locator(navRow("topology", paneRow.topology)).click();
+      await page.waitForSelector(row, { timeout: 5000 });
+      await page.locator(row).click();
+      await page.waitForFunction(
+        (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
+        paneRow.companion, { timeout: 5000 }).catch(() => {});
+      // ...and the CARD's, which is a different list builder (`cardPngs`) with
+      // the same companion term in it: hovering the row's own crop trigger.
+      const trigger = `tr.tvrow[data-id="${cardRow.edge}"] button.crop-trigger`;
+      await page.locator(navRow("topology", cardRow.topology)).click();
+      await page.waitForSelector(trigger, { timeout: 5000 });
+      await page.locator(trigger).hover();
+      await page.waitForSelector(".hovercard--edge",
+        { state: "visible", timeout: 5000 });
+      await page.waitForFunction(
+        (png) => (window.__CROP_FETCHES__ || []).indexOf(png) !== -1,
+        cardRow.companion, { timeout: 5000 }).catch(() => {});
+      await page.keyboard.press("Escape");
+      fetched = await page.evaluate(() => window.__CROP_FETCHES__ || []);
+    }
+    push("the open topology's own crop images are fetched",
+      !!paneRow && fetched.indexOf(paneRow.png) !== -1);
+    push("selecting a balloon crop's row fetches its parts-list companion " +
+      "too, so the PANE's second image is there with the first rather than " +
+      "a paint later",
+      !!paneRow && fetched.indexOf(paneRow.companion) !== -1);
+    push("opening a balloon crop's hover CARD fetches its parts-list " +
+      "companion too — the card's list is built separately and carries the " +
+      "same second image",
+      !!cardRow && fetched.indexOf(cardRow.companion) !== -1);
+
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -2712,6 +3389,14 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
         memory.readText = function (segments) {
           if (window.__WORKSHEETS_FAIL__) {
             return Promise.reject(new Error("this origin cannot reach the worksheet"));
+          }
+          // A stand-in for prose the previous node's read really returned:
+          // this seam's `texts` is empty, so a SUCCESSFUL read resolves null
+          // and `state.worksheetText` is never anything a later node could
+          // inherit. The stale-worksheet block below is the only thing that
+          // sets it, and it clears it again immediately.
+          if (window.__WORKSHEET_MARKER__) {
+            return Promise.resolve(window.__WORKSHEET_MARKER__);
           }
           return real(segments);
         };
@@ -2804,6 +3489,80 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
     push("the page the click asked for is on screen even though the read " +
       "failed", blank.length === 0);
     if (blank.length) console.log(`    nothing painted for: ${blank.join(", ")}`);
+
+    // --- the stale worksheet, which is navFailed's OTHER contract ----------
+    //
+    // `navFailed` clears `state.worksheetText` because `loadWorksheet()` only
+    // ASSIGNS on success -- so without the clear, the previous node's markdown
+    // is still in the dialog under this node's title. It is reachable and
+    // observable, and nothing watched it: measured 2026-09-16, deleting
+    // `state.worksheetText = null;` left the fast tier at 308/308, the
+    // node-fs tier at 382/382 and this file at 20/20.
+    //
+    // `paint()` computes `hasWorksheet` from `sheet.worksheet_file` -- the
+    // projection, not the text -- so the toggle is still offered after a
+    // failed read, and views/worksheet.js then renders `.worksheet__path` from
+    // the NEW subject and `.worksheet__body` from `state.worksheetText`: the
+    // OLD node's prose. The "could not be read from the connected folder"
+    // branch the line exists to reach is skipped entirely.
+    //
+    // Two reading rows, because the defect is one node's prose surviving onto
+    // another, and the whole thing is bracketed so pass 1's state is handed to
+    // the recovery block below exactly as it found it.
+    const readers = rows.filter((row) => row.reads);
+    const openSheet = async () => {
+      if (!(await page.locator("#worksheet-toggle").isVisible())) return null;
+      await page.locator("#worksheet-toggle").click();
+      await page.waitForSelector("#worksheet-dialog[open]", { timeout: 4000 });
+      const seen = await page.evaluate(() => ({
+        bodies: document.querySelectorAll(".worksheet__body").length,
+        text: (document.querySelector("#worksheet-dialog") || {}).textContent || "",
+        heading: ((document.querySelector(".worksheet__body h1") || {})
+          .textContent || ""),
+        path: ((document.querySelector(".worksheet__path") || {})
+          .textContent || ""),
+      }));
+      await page.keyboard.press("Escape");
+      return seen;
+    };
+    const STALE_MARKER = "a previous node's worksheet";
+    let afterRead = null, afterFailedRead = null;
+    if (readers.length >= 2) {
+      await page.evaluate((marker) => {
+        window.__WORKSHEET_MARKER__ = "# " + marker + "\n\nits prose.\n";
+        window.__WORKSHEETS_FAIL__ = false;
+      }, STALE_MARKER);
+      await page.locator(`#navtree ${navRow(readers[0].kind, readers[0].id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow(readers[0].kind, readers[0].id)}.navtree__row--on`,
+        { timeout: 4000 });
+      afterRead = await openSheet();
+      await page.evaluate(() => { window.__WORKSHEETS_FAIL__ = true; });
+      await page.locator(`#navtree ${navRow(readers[1].kind, readers[1].id)}`).click();
+      await page.waitForSelector(
+        `#navtree ${navRow(readers[1].kind, readers[1].id)}.navtree__row--on`,
+        { timeout: 4000 });
+      afterFailedRead = await openSheet();
+      await page.evaluate(() => { delete window.__WORKSHEET_MARKER__; });
+    }
+    // The tripwire, asserted before what it certifies: a read that WORKED has
+    // to have put prose in the dialog, or there is nothing for the next node
+    // to inherit and the contract below is vacuous.
+    push("a worksheet read that works puts that node's own prose in the " +
+      "dialog — the thing the next node could inherit",
+      afterRead !== null && afterRead.bodies === 1 &&
+      afterRead.heading.indexOf(STALE_MARKER) !== -1);
+    push("a node whose worksheet read FAILED shows the sentence saying so, " +
+      "never the previous node's prose under this node's title",
+      afterFailedRead !== null &&
+      afterFailedRead.text.indexOf("could not be read from the connected " +
+        "folder") !== -1 &&
+      afterFailedRead.bodies === 0 &&
+      afterFailedRead.text.indexOf(STALE_MARKER) === -1);
+    if (afterFailedRead && afterFailedRead.bodies) {
+      console.log(`    stale sheet: "${afterFailedRead.heading}" under ` +
+        `"${afterFailedRead.path}"`);
+    }
 
     // Recovery, with no user action and no reload: the next read that works
     // retires the banner. A message that outlives what it was about is a
@@ -2900,16 +3659,9 @@ async function testNavNeverWedges(browser, url, label, realProjection, realResul
       rejections.length === 0);
     if (rejections.length) console.log(`    rejections: ${rejections.join(" | ")}`);
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -3008,12 +3760,15 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
         push("[real] hovering the edge shows the crop card with the real image " +
           "and the document it is a crop OF",
           await page.locator(".hovercard--edge img.croppop__img").count() === 1 &&
-          // The reference, in a reader's words. This asserted the crop-KEY
-          // claim here until 2026-09-15 ("authored in topology
-          // `pitch_system`") -- which of the crop index's two key spaces
-          // answered, in the topology's id, above a picture that names its
-          // own document on the line below.
-          /\.pdf · sheet \d/.test(cardText) &&
+          // The reference, in a reader's words, said ONCE. This asserted the
+          // crop-KEY claim until 2026-09-15 ("authored in topology
+          // `pitch_system`"), then the crop block's own "<file>.pdf · sheet N"
+          // head until 2026-09-16 -- which was the document's third printing
+          // on one card. It comes off the citation's where-line now, and the
+          // crop under it carries no caption at all.
+          /cited at: .+ · sheet \d/.test(cardText) &&
+          await page.locator(".hovercard--edge .cropblock .croppop__head")
+            .count() === 0 &&
           !/authored in topology/.test(cardText));
         await page.keyboard.press("Escape");
 
@@ -3071,8 +3826,13 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
           boundary.names.every((name) => realNode.includes(name)));
         // Absent is absent, on real data too: a thumbnail line and an image
         // arrive together or neither does.
+        // Keyed off the caption NODE rather than its wording since 2026-09-16:
+        // a side's line is "<part> · drawing <no>" now, which has no fixed
+        // substring to match on across live parts.
+        const thumbLines = await page.locator(
+          ".hovercard--node .hovercard__cropkey").count();
         push("[real] a node card's thumbnail line and its image arrive together",
-          /crop of its/.test(realNode)
+          thumbLines > 0
             ? await page.locator(".hovercard--node img.croppop__img").count() > 0
             : await page.locator(".hovercard--node img").count() === 0);
         await page.mouse.move(4, 4);
@@ -3111,16 +3871,9 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       }
     }
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -3140,7 +3893,7 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
 //      renders), and the `trace` deep-link boot really executes end to end
 //      over ?mock=1 -- WebGL scene, ghost + mark-face handlers, the published
 //      window.__lastTrace summary (the autotest convention).
-async function testAnnotateFlyout(browser, fileBase, label) {
+async function testAnnotateFlyout(browser, fileBase, label, topologies) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
   const server = await startRepoRootServer();
@@ -3148,17 +3901,67 @@ async function testAnnotateFlyout(browser, fileBase, label) {
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  // The respine transition, waited out -- the same wait every other suite
+  // that addresses this pane already uses, and the one wait this suite was
+  // missing. Selecting a study re-serialises the pane, and
+  // VA.animateTopoPane cross-fades to it by RE-PARENTING the outgoing paint
+  // into an inert `div.tv__ghost` overlay for VA.RESPINE.duration (260 ms,
+  // apps/viewer/topology.js). For that window the document holds TWO
+  // `.tv__hscroll` panes, so every edge present in both serialisations has
+  // two `tr.tvrow` carrying the same `data-id`, and a bare
+  // `tr.tvrow[data-id=...]` locator is a strict-mode violation.
+  //
+  // That is arithmetic, not flake. Measured on this suite: the study click
+  // lands at page time 264 ms and the `arm_pin_to_tip` click at 459 ms --
+  // about 200 ms into a 260 ms transition. Whether a run is red is only
+  // whether the six Playwright actions between those two take more or less
+  // than 260 ms, which is the whole of why this suite was green in a full
+  // run and red on its own
+  // (ISSUE_20260915_annotate_flyout_suite_is_red_alone_and_green_in_a_full_run).
+  // Nothing is shared between suites and nothing renders twice.
+  //
+  // NOT a fixed timeout, and NOT a ghost-excluding locator. The ghost is
+  // the state to wait out, so wait on the page's own record of it: a pane
+  // that never settles then FAILS here, where a locator scoped past the
+  // ghost would have found its one live row and passed straight over it.
+  //
+  // Swallowed and reported rather than thrown, the same choice the embedded
+  // annotator's banner wait below makes and for the same reason: a timeout
+  // thrown from here takes the suite down as an ERROR, which carries no
+  // check name, so the mutation-witness tier reads it as a MISS instead of
+  // the red it is (scripts/mutation_witnesses.json, "ONE THING AN ENTRY
+  // CANNOT DECLARE"). A pane that never settles has to fail with a name on
+  // it.
+  const paneSettled = async () => {
+    try {
+      await page.waitForFunction(
+        () => window.ViewerApp && window.ViewerApp.lastTopoRender &&
+              !window.ViewerApp.lastTopoRender.tweening,
+        null, { timeout: 10000 });
+      return true;
+    } catch {
+      return false;
+    }
+  };
   try {
     // --- mounted: the sibling annotate app is served beside the viewer ------
     await page.goto(url + "/apps/viewer/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     await page.locator(navRow("study", "demo_base_to_tip")).click();
     await page.waitForSelector("#study-3d", { timeout: 15000 });
+    push("the study's respine transition settles before any of its rows " +
+      "are addressed -- no ghost of the walk still holds a second copy of them",
+      await paneSettled());
     push("the probe upgrades the study affordance to the View-in-3D button",
       await page.locator("#study-3d").count() === 1 &&
       await page.locator("#toolbar a").count() === 0);
 
     const paneBefore = await page.locator("#topopane").boundingBox();
+    const railsBefore = await page.evaluate(() => {
+      const svg = document.querySelector("#topopane svg.tv__rails");
+      const r = svg.getBoundingClientRect();
+      return { visible: Math.round(r.width), left: Math.round(r.left) };
+    });
     await page.locator("#study-3d").click();
     await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
     push("clicking it opens the flyout dialog non-modally",
@@ -3169,11 +3972,208 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       /annotate\/index\.html\?/.test(frameSrc || "") &&
       /trace=1/.test(frameSrc) && /topology=demo_mechanism/.test(frameSrc) &&
       /study=demo_base_to_tip/.test(frameSrc));
+    // --- LEFT-docked, ADJACENT to the DAG, and resizable (handoff
+    // flyout_resize_annotator_filter_and_deselect, deliverable 1) -----------
+    //
+    // Jeff: "I actually want the 3d flyout on the left side, adjacent to the
+    // DAG. It would be ok if it covered up the left side select menu since you
+    // shouldn't need both at the same time." Every claim below is a LAYOUT
+    // claim and a layout engine is the only thing that can check any of them:
+    // a class-name check would pass straight through an `inset` typo that put
+    // the panel back on the right.
+    //
+    // WHAT "ADJACENT" IS MEASURED AGAINST, and it took a review to get right
+    // (2026-09-16): the DAG **drawing** is one `svg.tv__rails`, and `#topopane`
+    // is its horizontal scrollport. The first version of this block compared
+    // the panel against the SCROLLPORT and passed while the panel sat on top of
+    // 100% of the diagram -- `position: fixed` means the pane's own box never
+    // moves however wide the panel gets, and the drawing is `position: sticky;
+    // left: 0` inside it, so no scroll position can bring it out from
+    // underneath either. Measure the drawing.
+    const flyoutBox = async () => page.locator("#annotate-flyout").boundingBox();
+    const win = await page.evaluate(() => ({
+      w: window.innerWidth, h: window.innerHeight,
+    }));
+    // The drawing's own box against the panel's: how much of it is clear, and
+    // whether ALL of it is. `clear` is the deliverable; `visible` is the
+    // anti-vacuity guard beside it, because a page rendering no rails at all
+    // would satisfy "none of it is covered" trivially.
+    const rails = () => page.evaluate(() => {
+      const svg = document.querySelector("#topopane svg.tv__rails");
+      const panel = document.querySelector("#annotate-flyout");
+      if (!svg) return { visible: 0, clear: false };
+      const r = svg.getBoundingClientRect();
+      const p = panel.getBoundingClientRect();
+      return {
+        visible: Math.round(r.width),
+        left: Math.round(r.left),
+        clear: r.width > 0 && r.left >= p.right,
+      };
+    });
+    const docked = await flyoutBox();
+    push("the flyout is pinned to the LEFT edge, not the right",
+      docked && docked.x === 0 && docked.width < win.w);
+    const railsOpen = await rails();
+    push("the DAG DRAWING is drawn, and entirely clear of the panel -- " +
+      "adjacency is the deliverable and the drawing is the thing that has to " +
+      "survive, not its scrollport",
+      railsOpen.visible > 0 && railsOpen.clear);
+    push("...and it sits to the panel's RIGHT, which is what 'beside' means",
+      railsOpen.left >= docked.width);
+
+    // The page YIELDS the room rather than being covered, which is the
+    // mechanism that makes the above possible at all: `.tv` starts at the
+    // panel's right edge and the nav rail stands down. That reverses the
+    // previous "opening it cannot reflow the DAG pane by construction" claim
+    // deliberately -- see topology.css -- so the pane MOVING is now the
+    // assertion, where it used to be the thing forbidden.
     const paneAfter = await page.locator("#topopane").boundingBox();
-    push("opening the flyout moves the DAG pane by nothing at all",
-      paneBefore && paneAfter &&
-      paneBefore.x === paneAfter.x && paneBefore.y === paneAfter.y &&
-      paneBefore.width === paneAfter.width && paneBefore.height === paneAfter.height);
+    push("opening the flyout moves the DAG pane out from under it, rather " +
+      "than leaving it underneath",
+      paneBefore && paneAfter && paneAfter.x >= docked.width &&
+      paneAfter.x > paneBefore.x);
+    push("the nav rail stands down while the panel is open, which Jeff said " +
+      "was fine and is where the room comes from",
+      await page.locator("#navtree").evaluate(
+        (n) => getComputedStyle(n).display) === "none");
+    const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
+
+    // The drag seam, on the edge AWAY from the dock -- so the panel grows into
+    // the page rather than off the screen.
+    const grip = await page.locator("#flyout-divider").boundingBox();
+    push("its drag divider sits on the flyout's RIGHT edge",
+      grip && Math.abs((grip.x + grip.width / 2) - docked.width) <= 4);
+    const gripMark = await page.locator("#flyout-divider")
+      .evaluate((n) => getComputedStyle(n, "::after").backgroundImage);
+    push("the divider shows a grip mark at rest, so nothing has to be " +
+      "explained in words",
+      gripMark && gripMark !== "none");
+
+    // Real pointer drags on it. At this viewport (1600px, the preview pane at
+    // its 560px default) the panel opens already AT its clamp, so "rightwards
+    // widens" is measured from a narrowed start -- drag left first, then right.
+    // The sign is the thing under test: this panel is left of its seam, the
+    // opposite of the preview pane's divider on the same page, and a
+    // copy-paste between the two is the likeliest mistake in either.
+    const dragBy = async (dx) => {
+      const seam = await page.locator("#flyout-divider").boundingBox();
+      await page.mouse.move(seam.x + seam.width / 2, seam.y + 300);
+      await page.mouse.down();
+      await page.mouse.move(seam.x + seam.width / 2 + dx, seam.y + 300, { steps: 8 });
+      await page.mouse.up();
+      return (await flyoutBox()).width;
+    };
+    const narrowed = await dragBy(-200);
+    push("dragging the divider LEFT narrows the flyout",
+      narrowed < docked.width - 100);
+    const widened = await dragBy(160);
+    push("dragging the divider RIGHT widens the flyout (the pane's divider " +
+      "runs the other way)",
+      widened > narrowed + 100);
+    push("...and the flyout is still pinned to the left edge while it grows",
+      (await flyoutBox()).x === 0);
+    const railsWide = await rails();
+    push("the drawing is STILL entirely clear of the panel at the widened " +
+      "width -- the drag cannot buy panel width with diagram",
+      railsWide.visible > 0 && railsWide.clear);
+
+    // The keyboard path, so the resize needs no pointer at all.
+    await page.locator("#flyout-divider").focus();
+    await page.keyboard.press("ArrowLeft");
+    const nudged = (await flyoutBox()).width;
+    push("the arrow keys nudge the divider without a pointer", nudged < widened);
+    await page.keyboard.down("Shift");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.up("Shift");
+    const coarse = (await flyoutBox()).width;
+    push("...and shift makes it a coarse step",
+      widened - nudged < nudged - coarse);
+
+    // A drag cannot cover the graph whatever the reader does. Dragged clean off
+    // the right edge of the window, the whole drawing still has to be clear.
+    await dragBy(win.w + 2000);
+    const railsMaxed = await rails();
+    push("dragged past the window edge, the whole drawing is still clear of " +
+      "the panel",
+      railsMaxed.visible > 0 && railsMaxed.clear);
+    push("...and the page beside the panel is at least the reserve wide",
+      win.w - (await flyoutBox()).width >= reserve);
+
+    // The width is remembered across a reload -- the same contract the preview
+    // pane's has, under its own key. Narrowed first, so the number being
+    // round-tripped is one a reader chose AND one the open-time clamp will
+    // accept unchanged; a width sitting at the clamp would round-trip even if
+    // nothing were stored at all, which is a check that cannot fail.
+    const remembered = await dragBy(-180);
+    push("the remembered width is well inside the clamp, so the round-trip " +
+      "below is a real one", remembered < coarse - 100);
+    const storedKey = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY);
+    push("the width is written to localStorage under the flyout's own key",
+      String(await page.evaluate((k) => window.localStorage.getItem(k), storedKey))
+        === String(Math.round(remembered)));
+    await page.reload({ waitUntil: "load" });
+    await page.waitForSelector("tr.tvrow", { timeout: 15000 });
+    await page.locator(navRow("study", "demo_base_to_tip")).click();
+    await page.waitForSelector("#study-3d", { timeout: 15000 });
+    // The respine again, waited out for the same reason the first one is (see
+    // this suite's header): the reload re-enters the study, and the rows
+    // addressed further down would otherwise be doubled by the outgoing
+    // paint's ghost.
+    push("the reloaded study's respine settles too", await paneSettled());
+    await page.locator("#study-3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    push("...and a reload opens the panel at the remembered width",
+      Math.abs((await flyoutBox()).width - remembered) <= 1);
+    await page.evaluate((k) => window.localStorage.removeItem(k), storedKey);
+
+    // Closing restores what it displaced -- and now that the page yields room
+    // rather than being covered, "restores" is a real claim with a real way to
+    // get it wrong: a page left shifted with no panel on it. Both mechanisms
+    // reverse exactly (a margin, a `display: none`), and the class that drives
+    // them comes off in the dialog's own `close` handler.
+    //
+    // WAITED FOR, not sampled. `close` is fired from a queued element task, so
+    // it lands one task after the click returns -- read immediately and this
+    // check sees the page still shifted and fails on correct code. (Measured:
+    // that is exactly what the first version of this did, and what a probe
+    // without the wait reported as a regression that was not there.)
+    await page.locator("#flyout-close").click();
+    await page.waitForFunction(
+      () => !document.body.classList.contains("flyout-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    const paneClosed = await page.locator("#topopane").boundingBox();
+    const railsClosed = await rails();
+    push("closing the flyout puts the page back exactly -- the nav rail, the " +
+      "DAG pane's box and the drawing's box all as they were",
+      !(await page.locator("#annotate-flyout").evaluate((n) => n.open)) &&
+      await page.locator("#navtree").isVisible() &&
+      paneClosed.x === paneBefore.x && paneClosed.width === paneBefore.width &&
+      railsClosed.left === railsBefore.left &&
+      railsClosed.visible === railsBefore.visible);
+
+    // --- out to the whole annotator (deliverable 4) ------------------------
+    //
+    // Jeff: "There can be a separate link that opens the full viewer (with the
+    // full fledged menus etc) in a separate tab/page." Not clicked: a real
+    // target="_blank" navigation would open a tab this suite then has to chase.
+    // What matters is that it carries the SAME params the panel booted with,
+    // which is the thing that can silently rot -- it is set per launch, so a
+    // re-drive from another row must re-point it.
+    await page.locator("#study-3d").click();
+    await page.waitForSelector("#annotate-flyout[open]", { timeout: 5000 });
+    const fullpage = page.locator("#flyout-fullpage");
+    const studyHref = await fullpage.getAttribute("href");
+    push("the flyout head carries a plain new-tab link out to the full page",
+      await fullpage.count() === 1 &&
+      await fullpage.getAttribute("target") === "_blank" &&
+      await fullpage.getAttribute("rel") === "noopener" &&
+      /Open full page/.test((await fullpage.textContent()) || ""));
+    push("...pointed at the same url the panel booted with",
+      studyHref === frameSrc);
+    // House rule: no internal file or module name in user-facing copy.
+    push("its label names no file, module or param",
+      !/index\.html|annotate\.js|topology=|\?/.test(
+        (await fullpage.textContent()) || ""));
 
     // The iframe is the real annotate app, same-origin, no mock: it boots to
     // its own pre-connect banner (FSA cannot be granted from Playwright), and
@@ -3249,6 +4249,88 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       await page.locator("#croppop .hovercard__3d").count() === 0 &&
       !/3D/.test(await page.locator("#croppop").textContent()));
 
+    // --- [real] adjacency against a LIVE study's own drawing ----------------
+    //
+    // Everything above runs at ?mock=1, whose DAG drawing is ~78px wide. That
+    // is enough to catch the panel lying on top of the diagram, but it can
+    // never exercise the measurement that decides the clamp: `graphNeed()`
+    // reads `svg.tv__rails`, and at 78px the floor (VA.FLYOUT_WIDTH.reserve,
+    // 320) wins every time, so a mock-only suite is silent about whether the
+    // drawing is measured at all. The review that found this blocker said so
+    // in as many words: "the fixture has to be able to discriminate".
+    //
+    // This leg is non-mock on the SAME repo-root server, so the http transport
+    // finds the live projections under /data/ (served from DATA_REPO, the
+    // worktree escape hatch) and `pitch_system` renders its real 262px
+    // drawing -- the widest of the 21 live studies, measured.
+    //
+    // Skipped honestly, not silently, where the projection is absent: the
+    // [real] convention this file uses everywhere else.
+    if (!topologies) {
+      push("[real] SKIPPED -- no data/projections/viewer/topologies.json " +
+        "(gitignored, main checkout only; pass --repo)", true);
+    } else {
+      await page.goto(url + "/apps/viewer/topology.html", { waitUntil: "load" });
+      await page.waitForSelector('[data-nav-kind="study"]', { timeout: 20000 });
+      const liveStudy = "pitch_system_blade_angle_average";
+      const liveRow = page.locator(navRow("study", liveStudy));
+      if (await liveRow.count() !== 1) {
+        push(`[real] SKIPPED -- the live projection has no study ${liveStudy}`, true);
+      } else {
+        await liveRow.click();
+        push("[real] the live study's respine settles", await paneSettled());
+        await page.waitForSelector("#study-3d", { timeout: 20000 });
+        const liveRailsBefore = await page.evaluate(() => {
+          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          return { w: Math.round(r.width), left: Math.round(r.left) };
+        });
+        // The number the whole blocker turned on: the drawing is a couple of
+        // hundred pixels wide and the panel's own FLOOR is 560, so an
+        // overlaying panel covers it whole at every width a reader can reach.
+        push("[real] the live drawing is narrower than the panel's own floor -- " +
+          "which is why an overlay could never leave any of it showing",
+          liveRailsBefore.w > 0 &&
+          liveRailsBefore.w < await page.evaluate(
+            () => window.ViewerApp.FLYOUT_WIDTH.min));
+        await page.locator("#study-3d").click();
+        await page.waitForSelector("#annotate-flyout[open]", { timeout: 10000 });
+        const livePanel = await page.locator("#annotate-flyout").boundingBox();
+        const liveRails = await page.evaluate(() => {
+          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
+          return { w: Math.round(r.width), left: Math.round(r.left), clear: r.left >= p.right };
+        });
+        push("[real] the whole live drawing is clear of the panel, at its own " +
+          "measured width",
+          liveRails.w === liveRailsBefore.w && liveRails.clear &&
+          liveRails.left >= livePanel.width);
+        // ...and dragged as wide as it will go, still clear. This is the leg
+        // the mock cannot run: at 262px the drawing is under the floor, so
+        // what bounds the panel here is the same arithmetic either way -- but
+        // the WIDTH being fed to it is now a real measurement, and a
+        // graphNeed() that returned 0 or read the wrong node would show up as
+        // a panel that ate the diagram.
+        const seam = await page.locator("#flyout-divider").boundingBox();
+        await page.mouse.move(seam.x + seam.width / 2, seam.y + 300);
+        await page.mouse.down();
+        await page.mouse.move(seam.x + seam.width / 2 + 2000, seam.y + 300, { steps: 10 });
+        await page.mouse.up();
+        const liveMaxed = await page.evaluate(() => {
+          const r = document.querySelector("#topopane svg.tv__rails").getBoundingClientRect();
+          const p = document.querySelector("#annotate-flyout").getBoundingClientRect();
+          return { w: Math.round(r.width), clear: r.width > 0 && r.left >= p.right };
+        });
+        push("[real] dragged to the clamp on a live study, the whole drawing " +
+          "is still clear", liveMaxed.clear);
+        await page.locator("#flyout-close").click();
+        await page.waitForFunction(
+          () => !document.body.classList.contains("flyout-open"),
+          null, { timeout: 5000 }).catch(() => {});
+        await page.evaluate((k) => window.localStorage.removeItem(k),
+          await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY));
+      }
+    }
+
     // --- the trace boot itself, end to end over the annotate mock fixture ---
     await page.goto(url + "/apps/annotate/index.html?mock=1&trace=1" +
       "&topology=demo_system&study=demo_study", { waitUntil: "load" });
@@ -3272,7 +4354,13 @@ async function testAnnotateFlyout(browser, fileBase, label) {
     await page.goto(fileBase + "/topology.html?mock=1", { waitUntil: "load" });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
     await page.locator(navRow("study", "demo_base_to_tip")).click();
-    await page.waitForTimeout(300); // the probe resolves false immediately; give render a beat
+    await paneSettled();
+    // The respine is waited out above. This beat is for the OTHER thing the
+    // click starts -- the annotate-mount probe, which resolves false at once
+    // under file:// and re-renders the toolbar when it lands. It was never a
+    // stand-in for the transition: 300 ms happens to clear the 260 ms
+    // duration, which is the only reason THIS half never failed.
+    await page.waitForTimeout(300);
     push("under file:// the study affordance stays the pre-flyout link",
       await page.locator("#study-3d").count() === 0 &&
       await page.locator("#toolbar a").count() === 1);
@@ -3291,16 +4379,313 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       await page.locator("#croppop button.hovercard__3d").count() === 0 &&
       await page.locator("#croppop a.hovercard__3d").getAttribute("target") === "_blank");
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+// --- the annotator's rail: scoped to one element, and a face that can be
+// deselected (handoff flyout_resize_annotator_filter_and_deselect, 2 and 3) ---
+//
+// What only a real browser can prove about these two:
+//
+//   1. The rail really IS filtered. Both panels are rendered from live state
+//      by app.js (an ES module, three.js, a WebGL context) -- there is no shim
+//      tier that can load this app at all, so "the parts panel lists one mesh
+//      instead of every installed one" is checkable here and nowhere else.
+//   2. The pick tint really comes off. The bug was that `state.currentPick`
+//      and the orange in the COLOUR BUFFER disagreed, and that buffer exists
+//      only in a real GL context. Read through `window.__scene` (app.js, the
+//      autotest convention), and read as the buffer --
+//      `geometry.attributes.color` against `userData.baseColors` -- NOT as
+//      `scene.highlightedFace()`, which reports `_lastPick` and is therefore
+//      the bookkeeping half of the very pair under test. The first version of
+//      this suite read the flag and the mutation-witness runner caught it
+//      passing over a mesh that was still orange.
+//   3. A click into EMPTY SPACE clears it -- a real pointer into the canvas,
+//      through the real raycaster, which is the gesture Jeff performed
+//      ("I accidentally clicked a face").
+//
+// ?mock=1 throughout: FSA cannot be granted from an automated browser, and the
+// mock fixture is built for this (one bound edge, one unbound, one
+// owner-not-in-set, one installed mesh, one raycastable triangle).
+async function testAnnotateRail(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const rows = () => page.locator("#element-list li.el-row");
+  const parts = () => page.locator("#parts-panel li.part-row");
+  try {
+    // --- unfiltered: what the rail has always shown ------------------------
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    const allRows = await rows().count();
+    const allParts = await parts().count();
+    push("unfiltered, the rail lists the whole study and every installed mesh",
+      allRows === 3 && allParts === 1);
+    push("...and says nothing about filtering, because nothing is filtered",
+      !(await page.locator("#rail-filter").isVisible()));
+
+    // --- one alert badge per row, details on hover (deliverable 5) ---------
+    //
+    // The rail printed the raw state VALUE on each row until 2026-09-16 --
+    // `owner_not_in_set`, underscores and all, on a surface a reader reads.
+    const badges = page.locator("#element-list .alertbadge");
+    push("two of the three rows have something to admit, and each wears ONE " +
+      "badge; the bound row wears none",
+      await badges.count() === 2);
+    const rowText = await page.locator("#element-list").textContent();
+    push("no row prints a schema value any more",
+      !/owner_not_in_set|needs_re_confirmation/.test(rowText || ""));
+    // The colour signal Jeff asked to KEEP on the row, asserted as computed
+    // style: a class-name check would pass through a stylesheet typo, and the
+    // colour is now the row's only at-a-glance state marker.
+    const stripes = await page.locator("#element-list li.el-row").evaluateAll(
+      (nodes) => nodes.map((n) => getComputedStyle(n).borderLeftColor));
+    push("each row still carries its state as a colour, and the three states " +
+      "are three different colours",
+      new Set(stripes).size === 3);
+    // ...and none of them is the UNSTYLED fallback. Distinctness alone cannot
+    // see a per-state rule going missing: `.el-row`'s own neutral border is a
+    // fourth colour, so a state that lost its rule stays distinct from the
+    // other two while saying nothing. Measured against a clone stripped of its
+    // state class rather than against a hard-coded hex, so the stylesheet stays
+    // the one place that colour lives. (The mutation-witness runner found this:
+    // neutralising one state's rule left the check above green.)
+    const unstyled = await page.evaluate(() => {
+      const row = document.querySelector("#element-list li.el-row");
+      const clone = row.cloneNode(false);
+      clone.className = "el-row";
+      row.parentNode.appendChild(clone);
+      const colour = getComputedStyle(clone).borderLeftColor;
+      clone.remove();
+      return colour;
+    });
+    push("...and no state has quietly fallen back to the unstyled border",
+      stripes.every((colour) => colour !== unstyled));
+
+    await badges.first().hover();
+    await page.waitForSelector("#alert-pop", { state: "visible", timeout: 5000 });
+    const popText = await page.locator("#alert-pop").textContent();
+    push("hovering the badge opens a popup that says the alert in everyday words",
+      /No face is bound/.test(popText || ""));
+    push("...and the popup carries no schema value either",
+      !/unbound|_/.test(popText || ""));
+    const popBox = await page.locator("#alert-pop").boundingBox();
+    const railBox = await page.locator(".an__rail").boundingBox();
+    // The reason the popup is one shared position:fixed node instead of a
+    // child of the row: the rail is a scrollport, so an in-row popup would be
+    // clipped to its width. Measured, because that is a layout claim.
+    push("the popup escapes the rail's scrollport rather than being clipped " +
+      "inside it",
+      popBox && railBox && popBox.x + popBox.width > railBox.x + railBox.width);
+
+    // --- the rail scoped to ONE element (deliverable 2) --------------------
+    //
+    // The deep link's own shape, which is also the flyout's: arrive AT an
+    // element. Jeff: "it should also auto-filter the left side menu to just
+    // the features that are in the element (node or edge) it was entered from."
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+      { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    push("arriving at an edge scopes the element list to that one element",
+      await rows().count() === 1);
+    // NOTE, because it decides which check owns this guard: the mock fixture
+    // installs exactly ONE mesh, so "filtered to 1" and "unfiltered, 1" are the
+    // same number and this check cannot on its own tell a working filter from a
+    // missing one. The discriminating case is the no-installed-mesh edge below
+    // (1 -> 0), which is what `parts-panel-honours-the-element-scope` declares
+    // as its witness. Kept anyway: it is the shape a reader of this suite
+    // expects to see asserted, and it fails if the panel empties wrongly.
+    push("...and the parts panel to the parts that element names -- the panel " +
+      "that was scoped by nothing at all before",
+      await parts().count() === 1);
+    const scopeText = await page.locator(".an__filter-note").textContent();
+    push("the rail says what it is scoped to, by the element's own name",
+      /Showing only/.test(scopeText || "") &&
+      /Demo untraced edge/.test(scopeText || ""));
+    // Scoped to the NOTE, not to the whole bar, because the claim is only true
+    // of the note: the bar's gap line ("No installed 3D part for: …") does name
+    // a part id, and correctly -- on this surface a part id is the author's own
+    // vocabulary (it is what `isolate=` takes and what they will tessellate
+    // next), the same posture setSceneEmptyState already takes. A check whose
+    // claim is wider than what it reads is the kind that gets "fixed" by
+    // deleting the useful half.
+    push("...and the element is named, not identified: no id, file or param",
+      !/demo_edge_untraced|index\.html|topology=/.test(scopeText || ""));
+
+    // The control that lifts it, which exists only while there is something to
+    // lift (standing rule: an absent feature shows NOTHING).
+    await page.locator("#rail-filter .an__filter-clear").click();
+    push("Show all lifts the filter -- both panels come back",
+      await rows().count() === allRows && await parts().count() === allParts);
+    push("...and the scope bar goes away with it",
+      !(await page.locator("#rail-filter").isVisible()));
+
+    // The honest-absence case: an element whose part has no installed mesh.
+    // An empty parts panel with no reason for it would be the silent drop this
+    // repo keeps paying for.
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_no_owner",
+      { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    push("an element whose part has no installed mesh filters the parts panel " +
+      "to nothing AND says why",
+      await parts().count() === 0 &&
+      /No installed 3D part for/.test(
+        (await page.locator("#rail-filter").textContent()) || ""));
+
+    // --- a face can be deselected (deliverable 3) --------------------------
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced" +
+      "&isolate=demo_triangle", { waitUntil: "load" });
+    await page.waitForSelector("#parts-panel li.part-row", { timeout: 15000 });
+    const sha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
+
+    // IS THE MESH ACTUALLY TINTED -- read off the live colour attribute, not
+    // off `scene.highlightedFace()`. That distinction is the whole guard and I
+    // got it wrong first: `highlightedFace()` reports `_lastPick`, which is
+    // BOOKKEEPING, and the bug being fixed was precisely the bookkeeping and
+    // the colour buffer disagreeing. The mutation-witness runner caught it --
+    // deleting `restoreColors` from `clearHighlight` left the flag being
+    // cleared, so the check stayed green over a mesh that was still orange.
+    const tinted = () => page.evaluate((s) => {
+      const mesh = window.__scene.parts.get(s);
+      const live = mesh.geometry.attributes.color.array;
+      const base = mesh.userData.baseColors;
+      for (let i = 0; i < base.length; i++) {
+        if (live[i] !== base[i]) return true;
+      }
+      return false;
+    }, sha);
+
+    push("the mesh starts at its own colours", !(await tinted()));
+    await page.evaluate((s) => window.AnnotateApp.exec(["select-face", s, "0"]), sha);
+    const picked = await page.evaluate(() => window.__scene.highlightedFace());
+    push("select-face tints the face -- in the colour buffer, not just in the " +
+      "pick state",
+      await tinted() && picked && picked.faceId === 0 && picked.sha256 === sha);
+    push("...and the detail pane says which face is picked",
+      /Picked: part/.test((await page.locator("#detail").textContent()) || ""));
+
+    // THE BUG, and the verb that fixes it. Before this handoff the pick state
+    // cleared and the orange stayed: `restoreColors` was reachable only from
+    // inside `highlightFace`, on its way to tinting the NEXT face.
+    await page.evaluate(() => window.AnnotateApp.exec(["deselect"]));
+    push("deselect puts the mesh back to its own colours -- the tint, not just " +
+      "the pick state, which is the pair that used to disagree",
+      !(await tinted()) &&
+      (await page.evaluate(() => window.__scene.highlightedFace())) === null);
+    push("...and the detail pane agrees it is unpicked",
+      /No face picked yet/.test((await page.locator("#detail").textContent()) || ""));
+
+    // A REAL pointer into the geometry, and then back onto the same face: the
+    // toggle. Two pieces of setup, both of them about the FIXTURE and neither
+    // about the app:
+    //
+    //   1. ORBIT first. The mock mesh is one triangle in the z = 0 plane, and
+    //      `frameParts`' default placement looks at it along -Y with up = +Z --
+    //      exactly edge-on, so it renders as a hairline and a ray aimed at its
+    //      centroid GRAZES it: measured, `pick()` at the projected centroid
+    //      answers true or false depending on whether the y coordinate comes
+    //      out as 0 or as 1.3e-16. That is a degenerate target, not a broken
+    //      pick, so the camera is moved to face the triangle first -- which is
+    //      also what a reader does with the mouse before clicking anything.
+    //      (The mock mesh being invisible at rest is its own small defect:
+    //      ISSUE_20260916_the_mock_annotator_mesh_is_edge_on_to_its_own_
+    //      default_camera.)
+    //   2. Where the face is on screen is COMPUTED, not hunted for. At ~51
+    //      units off a 1-unit triangle it lands about 0.05 NDC across, so a
+    //      grid walk coarse enough to be fast misses it and one fine enough to
+    //      find it is ~900k raycasts. `Vector3.project` is three.js's, reached
+    //      off a vector already on the mesh (this page has no THREE global to
+    //      import), and the aim is CONFIRMED with the scene's own raycaster
+    //      before anything is clicked -- otherwise a bad aim would report
+    //      itself as "deselect is broken".
+    const hit = await page.evaluate((s) => {
+      const scene = window.__scene;
+      const mesh = scene.parts.get(s);
+      const box = mesh.geometry.boundingBox;
+      const cx = (box.min.x + box.max.x) / 2 + mesh.position.x;
+      const cy = (box.min.y + box.max.y) / 2 + mesh.position.y;
+      const cz = (box.min.z + box.max.z) / 2 + mesh.position.z;
+      scene.camera.position.set(cx, cy, cz + 40);
+      scene.camera.lookAt(cx, cy, cz);
+      scene.controls.target.set(cx, cy, cz);
+      scene.controls.update();
+      scene.camera.updateMatrixWorld(true);
+
+      const centroid = mesh.userData.manifest.faces[0].centroid_native;
+      const point = mesh.position.clone();
+      point.set(centroid[0] + mesh.position.x,
+                centroid[1] + mesh.position.y,
+                centroid[2] + mesh.position.z);
+      point.project(scene.camera);
+      if (!scene.pick(point.x, point.y)) return null;
+      const rect = document.querySelector("#canvas-host canvas").getBoundingClientRect();
+      return {
+        x: rect.left + ((point.x + 1) / 2) * rect.width,
+        y: rect.top + ((1 - point.y) / 2) * rect.height,
+      };
+    }, sha);
+    push("the tier can find the triangle on screen, so the clicks below are " +
+      "real ones on real geometry", hit !== null);
+    if (hit) {
+      await page.mouse.click(hit.x, hit.y);
+      push("a real click on the face tints it",
+        await tinted() &&
+        (await page.evaluate(() => window.__scene.highlightedFace())) !== null);
+      await page.mouse.click(hit.x, hit.y);
+      push("clicking the SAME face again toggles it off -- Jeff's own gesture " +
+        "after a mis-click",
+        !(await tinted()) &&
+        (await page.evaluate(() => window.__scene.highlightedFace())) === null);
+
+      // ...and a click into empty space. The canvas corner: the raycaster
+      // returns null there, which used to clear the pick and leave the orange.
+      await page.mouse.click(hit.x, hit.y);
+      const canvasBox = await page.locator("#canvas-host canvas").boundingBox();
+      await page.mouse.click(canvasBox.x + 6, canvasBox.y + 6);
+      push("a click into empty space clears the tint as well as the pick",
+        !(await tinted()) &&
+        (await page.evaluate(() => window.__scene.highlightedFace())) === null &&
+        /No face picked yet/.test((await page.locator("#detail").textContent()) || ""));
+    }
+
+    // The element row's own clear path, which had none either. This page
+    // arrived through `goto`, so its one row is ALREADY selected -- which is
+    // the state a reader reaches from the flyout and the state that had no way
+    // out of it.
+    push("arriving through a deep link leaves the element selected",
+      await page.locator("#element-list li.el-row.selected").count() === 1);
+    await page.locator("#element-list li.el-row").first().click();
+    push("clicking the SELECTED row deselects it",
+      await page.locator("#element-list li.el-row.selected").count() === 0);
+    await page.locator("#element-list li.el-row").first().click();
+    push("...and clicking it again selects it -- the row is a toggle, not a " +
+      "one-way door",
+      await page.locator("#element-list li.el-row.selected").count() === 1);
+
+    // ...and the alert badge inside a row must not be a second way to select:
+    // it is a disclosure.
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    await page.locator("#element-list .alertbadge").first().click();
+    push("clicking the alert badge opens its popup and does NOT select the row",
+      await page.locator("#alert-pop").isVisible() &&
+      await page.locator("#element-list li.el-row.selected").count() === 0);
+
+    push("no page error anywhere in the run", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
     server.closeAllConnections();
@@ -3433,16 +4818,313 @@ async function testAnnotateHostedPosture(browser, label) {
       await page.evaluate(() => document.querySelector("#console-run").onclick !== null &&
         document.querySelector("#console-input").onkeydown !== null));
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+// --- the crop lightbox (crop_lightbox_zoom_viewer, 2026-09-16) -------------
+//
+// Jeff: "thumbnail is too small to be legible… Maybe a button in the thumbnail
+// that lets you launch it into a separate, full size viewer … that allows you
+// to zoom/pan?"
+//
+// What this proves that the fast tier cannot, and it is the whole reason the
+// feature has a browser suite of its own: the fast tier has NO LAYOUT, so it
+// can only state the zoom claim as arithmetic ("the box's position within the
+// picture is the same fraction at every scale"). Here the fraction is measured
+// off two `getBoundingClientRect()`s and compared against the crop index's own
+// `highlights[].frac` — the number the crop builder wrote. A transform applied
+// to the picture but not to the overlay, a height cap that letterboxes the
+// picture inside its element, an origin at the wrong corner: every one of them
+// is a green fast tier and a wrong picture, and every one of them moves that
+// fraction.
+//
+// SERVED mode over a repo-root static server, never ?mock=1: a launcher only
+// exists on a figure that HAS an image, and the mock adapter carries no PNGs at
+// all. The subject is derived from the live crop index rather than named — the
+// first topology edge whose crop is a `declared_region` on a datasheet table,
+// which is the highlighted-cell case the note was about.
+//
+// Its OWN server, not the shared `repoRootBaseUrl`, and that is not tidiness:
+// the `served mode` suite closes the shared one mid-run on purpose (its
+// mid-session-stop fixture), so a later suite pointed at it gets
+// ERR_CONNECTION_REFUSED and nothing to do with this feature. Measured here
+// first go. `testAnnotateRail` already starts its own for the same reason.
+async function testCropLightbox(browser, label, realProjection, realCrops) {
+  if (!realProjection || !realCrops) {
+    console.log(`[${label}] SKIP: topologies.json/crops.json not built under ` +
+      "the target repo -- build them, or pass --repo <main checkout>");
+    return { label, ok: true };
+  }
+  // The row to drive, and the number its picture must agree with. Derived, so
+  // this suite follows the data rather than pinning an id that a rebuild can
+  // retire.
+  let target = null;
+  for (const topology of realProjection.topologies) {
+    for (const edge of topology.edges || []) {
+      const key = edge.crop_key;
+      if (!key) continue;
+      const space = key.stack
+        ? (realCrops.by_stack || {})[key.stack]
+        : (realCrops.by_topology || {})[key.topology];
+      const entry = space ? space[key.element || key.edge] : null;
+      if (!entry || entry.status !== "resolved" || !entry.png) continue;
+      if (!(entry.highlights || []).length) continue;
+      if (entry.located_by !== "declared_region") continue;
+      target = { topology: topology.id, edge: edge.id, entry };
+      break;
+    }
+    if (target) break;
+  }
+  if (!target) {
+    console.log(`[${label}] SKIP: no live topology row reaches a declared-region ` +
+      "crop with a highlight on it");
+    return { label, ok: true };
+  }
+
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+
+  // Where the first highlight box actually lands on the picture, as a fraction
+  // of the picture's own box -- which is what `highlights[].frac` IS.
+  const measure = () => page.evaluate(() => {
+    const figure = document.querySelector("#crop-lightbox div.cropfig");
+    const img = figure && figure.querySelector("img");
+    const box = figure && figure.querySelector("div.crophl");
+    if (!figure || !img || !box) return null;
+    const i = img.getBoundingClientRect();
+    const b = box.getBoundingClientRect();
+    const handle = window.ViewerApp.openCropLightboxHandle();
+    return {
+      scale: handle ? handle.view().scale : null,
+      image: { width: i.width, height: i.height, left: i.left, top: i.top },
+      frac: [
+        (b.left - i.left) / i.width, (b.top - i.top) / i.height,
+        (b.right - i.left) / i.width, (b.bottom - i.top) / i.height,
+      ],
+    };
+  });
+  // A fraction of a laid-out box against a fraction written by the builder:
+  // the tolerance is sub-pixel at these sizes, not a fudge factor. 0.002 of a
+  // 740px picture is 1.5px, which is what a border and a rounded width cost.
+  const agrees = (got, want) => got && want &&
+    got.every((v, i) => Math.abs(v - want[i]) < 0.002);
+
+  try {
+    await page.goto(`${url}/apps/viewer/topology.html`, { waitUntil: "load" });
+    await page.waitForSelector('[data-nav-kind="topology"]', { timeout: 20000 });
+    await page.locator(navRow("topology", target.topology)).click();
+    const row = `tr.tvrow[data-id="${target.edge}"]`;
+    await page.waitForSelector(row, { timeout: 10000 });
+    await page.locator(row).click();
+
+    // 1. the affordance is really on the page, on the real crop.
+    const paneLauncher = page.locator("#detail button.cropfig__launch");
+    await paneLauncher.waitFor({ timeout: 20000 });
+    push("the preview pane's crop carries the launch affordance", true);
+
+    // 2. and it is a KEYBOARD affordance, not a hover-only one: focusable,
+    // visible once focused (opacity: 0 leaves a button in the tab order, so
+    // the focus rule is what stops it being an invisible control), and Enter
+    // opens it.
+    await paneLauncher.focus();
+    await page.waitForFunction(() => {
+      const button = document.querySelector("#detail button.cropfig__launch");
+      return button && Number(getComputedStyle(button).opacity) > 0.9;
+    }, null, { timeout: 5000 }).catch(() => {});
+    const focused = await page.evaluate(() => {
+      const button = document.querySelector("#detail button.cropfig__launch");
+      return { active: document.activeElement === button,
+               opacity: Number(getComputedStyle(button).opacity) };
+    });
+    push("the launcher takes keyboard focus and becomes visible when it does " +
+      "— an affordance only a pointer can find is half a page unusable",
+      focused.active && focused.opacity > 0.9);
+    await page.keyboard.press("Enter");
+    await page.waitForSelector("#crop-lightbox[open]", { timeout: 10000 });
+    push("Enter on the focused launcher opens the lightbox", true);
+    await page.waitForFunction(() => {
+      const box = document.querySelector("#crop-lightbox div.crophl");
+      return box && box.getBoundingClientRect().width > 0;
+    }, null, { timeout: 10000 });
+
+    // 3. the picture is at FULL SIZE -- bigger than the thumbnail it was
+    // launched from, which is the complaint this whole surface answers.
+    const thumb = await page.locator("#detail div.cropfig img").boundingBox();
+    const fit = await measure();
+    // Both axes, and by AREA rather than by a width factor: a tall datasheet
+    // crop fits by its HEIGHT, so the width gain over a 520px preview pane is
+    // modest while the area gain is not -- the first take of this check
+    // demanded 1.5x on width alone and failed on a picture that had genuinely
+    // more than doubled in area. Measured on the live NAS grip table at
+    // 1600x1000: pane thumbnail 520x593, lightbox 742x846.
+    const grew = fit && thumb &&
+      fit.image.width > thumb.width && fit.image.height > thumb.height &&
+      (fit.image.width * fit.image.height) > (thumb.width * thumb.height) * 1.8;
+    if (!grew && fit && thumb) {
+      console.log(`    thumbnail ${Math.round(thumb.width)}x` +
+        `${Math.round(thumb.height)}, lightbox ` +
+        `${Math.round(fit.image.width)}x${Math.round(fit.image.height)}`);
+    }
+    push("the lightbox's picture is larger than the thumbnail it was " +
+      "launched from, on both axes and by most of an order of magnitude in " +
+      "area — 'too small to be legible' is the complaint this surface " +
+      "answers, so the size is measured and not assumed", grew);
+    push("it opens at FIT, the whole crop on screen, not at some remembered " +
+      "zoom", fit && fit.scale === 1);
+
+    // 4. THE claim: the box lands where the crop index says it does.
+    push("at fit, the highlight box lands exactly on the rect the crop index " +
+      "wrote — measured off the laid-out picture, against " +
+      "`highlights[].frac` itself",
+      agrees(fit && fit.frac, target.entry.highlights[0].frac));
+
+    // 5. ...and it still does after a real wheel zoom.
+    //
+    // The wheel sits at the STAGE's centre, and the reason is the clamp, not
+    // convenience: the anchor is honoured only where honouring it would not
+    // leave blank stage (VA.lightboxClamp, which must win -- a reader cannot
+    // be shown a gap). This crop's highlight is 0.005 of the way across the
+    // sheet, so a zoom anchored on the box itself is clamped hard against the
+    // left edge and the anchor legitimately moves. The first take of this
+    // check measured that as a failure. The anchor's exact arithmetic is
+    // pinned value-by-value in the fast tier; what is measured HERE is that
+    // the wiring honours it where the clamp is not binding.
+    const centre = await page.evaluate(() => {
+      const s = document.querySelector("#crop-lightbox div.lightbox__stage")
+        .getBoundingClientRect();
+      return { x: s.left + s.width / 2, y: s.top + s.height / 2 };
+    });
+    // The point of the PICTURE that sits under the pointer, as a fraction of
+    // the picture -- read off the laid-out boxes, never off the view store.
+    const under = (m) => ({ x: (centre.x - m.image.left) / m.image.width,
+                            y: (centre.y - m.image.top) / m.image.height });
+    const before = under(fit);
+    await page.mouse.move(centre.x, centre.y);
+    for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -120);
+    await page.waitForFunction(() => {
+      const handle = window.ViewerApp.openCropLightboxHandle();
+      return handle && handle.view().scale > 2;
+    }, null, { timeout: 10000 });
+    const zoomed = await measure();
+    push("a wheel over the picture really zooms it — the mechanism is a " +
+      "transform on the wrapper, so this is the picture growing, not a " +
+      "second image",
+      zoomed && zoomed.scale > 2 && zoomed.image.width > fit.image.width * 2);
+    push("zoomed, the highlight box STILL lands on the crop index's own rect " +
+      "— the overlay rides the same transform as the picture and nothing " +
+      "recomputes a `frac` into a pixel",
+      agrees(zoomed && zoomed.frac, target.entry.highlights[0].frac));
+    const after = zoomed && under(zoomed);
+    push("what was under the pointer is still under the pointer after the " +
+      "zoom — zooming about the stage's corner walks whatever the reader is " +
+      "looking at off the edge",
+      after && Math.abs(after.x - before.x) < 0.01 &&
+      Math.abs(after.y - before.y) < 0.01);
+
+    // 6. a drag really pans, and the overlay comes with it.
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.down();
+    await page.mouse.move(centre.x - 180, centre.y - 120, { steps: 8 });
+    await page.mouse.up();
+    const panned = await measure();
+    push("dragging pans the picture", panned &&
+      Math.abs(panned.image.left - zoomed.image.left) > 60);
+    push("panned, the highlight box is still on its rect",
+      agrees(panned && panned.frac, target.entry.highlights[0].frac));
+
+    // 7. no page scroll bleed while it is open, and the page is handed back
+    // exactly as it was on close -- through the dialog's own `close` event,
+    // which is the one seam every dismissal goes through.
+    const whileOpen = await page.evaluate(
+      () => getComputedStyle(document.body).overflow);
+    push("the page behind the lightbox cannot scroll while it is open — a " +
+      "modal <dialog> makes the page inert but does not reliably stop it " +
+      "scrolling", whileOpen === "hidden");
+    await page.keyboard.press("Escape");
+    // Waited for on the body class, not on `open`: Escape drops `open`
+    // synchronously and the `close` event that reverses the page is a queued
+    // task, so reading the class the instant `open` goes false reads it one
+    // task early.
+    await page.waitForFunction(
+      () => !document.querySelector("#crop-lightbox").open &&
+            !document.body.classList.contains("lightbox-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    const afterClose = await page.evaluate(() => ({
+      open: document.querySelector("#crop-lightbox").open,
+      overflow: getComputedStyle(document.body).overflow,
+    }));
+    push("Escape closes it and the page's scroll comes back",
+      !afterClose.open && afterClose.overflow !== "hidden");
+
+    // 8. the GRID's route. Its inline thumbnail is the one crop image on this
+    // page that is not a cropFigure and carries no launcher of its own;
+    // clicking it opens the edge card, and the card's figure is where the
+    // launcher lives. That is the coverage claim the handoff left as a call,
+    // so it is measured rather than asserted in a comment.
+    const trigger = `${row} button.crop-trigger--thumb`;
+    await page.waitForSelector(trigger, { timeout: 15000 });
+    push("the grid's own inline thumbnail carries no launcher — it is not a " +
+      "cropFigure, and clicking it opens the card that is",
+      await page.locator(`${row} button.cropfig__launch`).count() === 0);
+    await page.locator(trigger).click();
+    await page.waitForSelector("#croppop.hovercard--edge",
+      { state: "visible", timeout: 10000 });
+    const cardLauncher = page.locator("#croppop button.cropfig__launch").first();
+    await cardLauncher.waitFor({ timeout: 10000 });
+    await cardLauncher.click();
+    await page.waitForSelector("#crop-lightbox[open]", { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const box = document.querySelector("#crop-lightbox div.crophl");
+      return box && box.getBoundingClientRect().width > 0;
+    }, null, { timeout: 10000 });
+    const fromCard = await measure();
+    push("a hover card's launcher opens the same lightbox, on the same rect " +
+      "— so the grid thumbnail reaches full size in two clicks",
+      agrees(fromCard && fromCard.frac, target.entry.highlights[0].frac));
+
+    // 9. the Fit button gets a lost reader back, and the clamp means there is
+    // nothing to be lost from: at fit the crop is centred whatever the offset.
+    await page.locator("#crop-lightbox button.lightbox__btn--in").click();
+    await page.locator("#crop-lightbox button.lightbox__btn--fit").click();
+    const refit = await measure();
+    push("Fit returns to the whole crop, centred",
+      refit && refit.scale === 1 &&
+      agrees(refit.frac, target.entry.highlights[0].frac));
+
+    // 10. the POINTER's way out. Not redundant with Escape above: a backdrop
+    // click does NOT close a modal <dialog> (measured, Chrome 152 -- only the
+    // `closedby="any"` opt-in changes that), so the ✕ is the only dismissal a
+    // reader who never touches the keyboard has. It goes through the same
+    // `close` event, so the page's scroll must come back with it.
+    await page.locator("#crop-lightbox button.lightbox__close").click();
+    await page.waitForFunction(
+      () => !document.querySelector("#crop-lightbox").open &&
+            !document.body.classList.contains("lightbox-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    const afterX = await page.evaluate(() => ({
+      open: document.querySelector("#crop-lightbox").open,
+      overflow: getComputedStyle(document.body).overflow,
+    }));
+    push("the ✕ closes it too, and hands the page's scroll back — a backdrop " +
+      "click does not close a modal <dialog>, so this is the only dismissal " +
+      "a pointer-only reader has",
+      !afterX.open && afterX.overflow !== "hidden");
+
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
     server.closeAllConnections();
@@ -3508,16 +5190,9 @@ async function testDeepLinks(browser, url, label) {
     push("a mistyped link never raises the needs-a-rebuild alarm",
       await page.locator(".banner__stale").count() === 0);
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok };
+    return reportSuite(label, checks, errors);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -3540,14 +5215,9 @@ async function testIndexRedirects(browser, url, label) {
     await page.waitForSelector('[data-nav-kind], tr.tvrow', { timeout: 15000 });
     push("index.html redirects to topology.html", page.url().includes("topology.html"));
     push("the query string survives the redirect", page.url().includes("mock=1"));
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    return { label, ok };
+    return reportSuite(label, checks);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, [], err);
   } finally {
     await page.close();
   }
@@ -3609,14 +5279,9 @@ async function testHostedUnpublished(browser, realProjection, label) {
         await page.locator(".banner--unpublished").count() === 0);
     }
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0;
-    console.log(`[${label}] ${checks.length - failed.length}/${checks.length} sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    return { label, ok };
+    return reportSuite(label, checks);
   } catch (err) {
-    console.log(`[${label}] ERROR: ${err.message}`);
-    return { label, ok: false };
+    return reportAbortedSuite(label, checks, [], err);
   } finally {
     await page.close();
     server.closeAllConnections();
@@ -3747,6 +5412,10 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
           scrollLeft: live.scrollLeft,
           scrollWidth: live.scrollWidth,
           clientWidth: live.clientWidth,
+          // The ghost's own window, which has to be the live pane's or the
+          // cross-fade doubles the text (topology_grid_scroll_and_grips).
+          ghostScrollLeft: ghost.querySelector(".tv__hscroll")
+            ? ghost.querySelector(".tv__hscroll").scrollLeft : null,
           drawn: marks.length,
           // Relative to the pane's own left edge, and to the grid's.
           dagLeft: Math.min(...marks.map((b) => b.left - pane.left)),
@@ -4017,17 +5686,20 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
     // DAG against the pane's VISIBLE left edge, and at scrollLeft 0 that is
     // true of a pane with no sticky on it at all.
     //
-    // It holds -- but not for the whole scroll, which is the thing nothing
-    // measured. A sticky box is bounded by its CONTAINING BLOCK, and here
-    // that is `.tv__body`, which is the pane's own width rather than its
-    // content's: the grid table overflows out of `.tv__rows` instead of
-    // widening the flex row. So the SVG can be pushed right by at most
-    // (paneWidth - dagWidth), and a reader who scrolls further than that
-    // drags the DAG back off the left edge -- 41.5px of it, at this viewport,
-    // on the real pitch_system
+    // It holds for the WHOLE scroll since topology_grid_scroll_and_grips
+    // (2026-09-16), and until then it did not, which is what these two checks
+    // are for. A sticky box is bounded by its CONTAINING BLOCK, and that is
+    // `.tv__body` -- which used to be the pane's own width rather than its
+    // content's, because the grid table overflowed out of `.tv__rows` instead
+    // of widening the flex row. So the SVG could be pushed right by at most
+    // (paneWidth - dagWidth) = 552 of the real pitch_system's 666, and a
+    // reader who scrolled further dragged the DAG back off the left edge --
+    // 103.5px of it, at this viewport
     // (ISSUE_20260915_the_sticky_rails_stop_sticking_once_the_grid_is_
-    // scrolled_past_the_dags_own_width). Both halves are pinned, so the fix
-    // turns the second check red rather than leaving a stale claim behind.
+    // scrolled_past_the_dags_own_width). `.tv__body { width: max-content }`
+    // is the fix; the second check below is the one that was measuring the
+    // defect and now measures its absence, at the ONE scroll position where
+    // the old shape and the new one disagree most.
     const stickyWalk = await paneBoxes("sticky");
     push("[real] scrolled sideways, the DAG stays pinned to the pane's " +
       "VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a " +
@@ -4039,51 +5711,71 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
         " the leftmost drawn box is " + stickyWalk.dagLeft +
         "px from the pane's left edge");
     }
-    push("[real] but only as far as the room the DAG leaves beside it: past " +
-      "that the sticky runs out of containing block and the rails slide off " +
-      "the pane's left edge",
+    push("[real] and it holds PAST the room the DAG leaves beside it, all " +
+      "the way to the far end — the sticky's containing block is the " +
+      "content's width now, not the pane's (topology_grid_scroll_and_grips)",
       scrolledWalk.scrollLeft > scrolledWalk.clientWidth - scrolledWalk.dagWidth &&
-      scrolledWalk.dagLeft < -1);
-    console.log("    sticky holds to scrollLeft " +
-      (scrolledWalk.clientWidth - scrolledWalk.dagWidth) + " of " +
-      scrolledWalk.scrollLeft + "; at the far end the DAG is " +
-      scrolledWalk.dagLeft + "px from the pane's left edge");
+      scrolledWalk.dagLeft >= -1);
+    console.log("    the DAG leaves " +
+      (scrolledWalk.clientWidth - scrolledWalk.dagWidth) + "px of room beside " +
+      "it and the scroll runs to " + scrolledWalk.scrollLeft +
+      "; at the far end the DAG is " + scrolledWalk.dagLeft +
+      "px from the pane's left edge");
     // And the respine out of that scrolled pane. The question the issue asked
     // was whether the browser's scrollLeft CLAMP is felt as a sideways jump
-    // when the DAG shrinks 316 -> 82px under a reader parked at the right
-    // end. Measured, it never gets that far: VA.renderTopoPane clears the
-    // pane and builds a fresh `.tv__hscroll`, which starts at 0, so the
-    // reader's sideways scroll is gone on the FIRST frame and there is no
-    // scroll left for the clamp to act on. That is not the respine's doing --
-    // every render of this pane does it, density and length mode included --
-    // so it is filed rather than fixed here
+    // when the DAG shrinks under a reader parked at the right end. Until
+    // topology_grid_scroll_and_grips (2026-09-16) it never got that far:
+    // VA.renderTopoPane cleared the pane and built a fresh `.tv__hscroll`,
+    // which starts at 0, so the reader's sideways position was not clamped,
+    // it was DISCARDED -- on the first frame and by every other render of
+    // this pane too, density and length mode included
     // (ISSUE_20260915_every_topology_pane_render_throws_away_the_readers_
-    // sideways_scroll). This check states what the build actually does, so
-    // the day that issue is fixed it goes red and this claim gets rewritten
-    // rather than quietly outliving the behaviour it describes.
+    // sideways_scroll). It is carried now, and the clamp IS the behaviour:
+    // the browser holds the reader as far right as the narrower content
+    // allows. Both halves are checked here -- the carry onto the in-flight
+    // frame, and the clamped landing -- so the arm states what a reader gets
+    // rather than what the renderer happened to leave behind.
+    //
+    // Re-parked first: the sticky measurement above left the pane at
+    // (clientWidth - dagWidth - 20), which is not the far end and would make
+    // "carried, then clamped" unfalsifiable.
+    const parked = await paneBoxes("end");
     await page.locator(studyRow).click();
     const scrolledFrame = await catchFrame();
-    push("[real] a respine rebuilds the pane, so a scrolled reader is at the " +
-      "left edge from the first frame — the scrollLeft clamp the shrinking " +
-      "DAG would otherwise cause is never reached",
-      !!scrolledFrame && scrolledFrame.scrollLeft === 0);
+    push("[real] a respine carries the reader's sideways scroll onto the " +
+      "FIRST frame rather than rebuilding the pane back at the left edge " +
+      "(topology_grid_scroll_and_grips)",
+      !!scrolledFrame && scrolledFrame.scrollLeft > 0 &&
+      scrolledFrame.scrollLeft <= parked.scrollLeft);
     if (scrolledFrame) {
-      push("[real] and the frame in flight is drawn inside the pane from " +
-        "there, exactly as the unscrolled arms measured",
-        scrolledFrame.drawn > 20 && scrolledFrame.dagLeft >= -1 &&
-        scrolledFrame.dagPastGrid <= 1);
+      push("[real] and the ghost under it shows the SAME horizontal window, " +
+        "so the cross-fade is one table resolving into another rather than " +
+        "two slices of it stacked",
+        Math.abs(scrolledFrame.ghostScrollLeft - scrolledFrame.scrollLeft) <= 1);
+      // `dagPastGrid` is deliberately NOT asserted here, unlike the
+      // unscrolled arms: a sticky DAG over a scrolled grid is SUPPOSED to
+      // overlap the columns that have slid under it -- that is what
+      // `.tv__rails`'s own background is for -- so the claim those arms make
+      // at scrollLeft 0 is not a claim about this one.
+      push("[real] and the frame in flight is drawn from the pane's visible " +
+        "left edge, with the grid scrolled under the sticky DAG",
+        scrolledFrame.drawn > 20 && scrolledFrame.dagLeft >= -1);
     }
     await settled();
     const afterScroll = await paneBoxes(false);
-    push("[real] and it settles at the left edge on a pane the respine made " +
-      "narrower, with the DAG still inside it",
-      afterScroll.scrollLeft === 0 &&
-      afterScroll.scrollWidth < scrolledWalk.scrollWidth &&
+    push("[real] and it settles where the reader was, clamped by the browser " +
+      "to the right-hand end of the narrower pane the respine produced",
+      afterScroll.scrollLeft > 0 &&
+      afterScroll.scrollWidth < parked.scrollWidth &&
+      afterScroll.scrollLeft ===
+        Math.min(parked.scrollLeft,
+                 afterScroll.scrollWidth - afterScroll.clientWidth) &&
       afterScroll.dagLeft >= -1);
-    console.log("    scrolled respine: scrollLeft " + scrolledWalk.scrollLeft +
+    console.log("    scrolled respine: scrollLeft " + parked.scrollLeft +
       " -> " + (scrolledFrame ? scrolledFrame.scrollLeft : "?") + " -> " +
-      afterScroll.scrollLeft + " (pane content " + scrolledWalk.scrollWidth +
-      " -> " + afterScroll.scrollWidth + "px)");
+      afterScroll.scrollLeft + " (pane content " + parked.scrollWidth +
+      " -> " + afterScroll.scrollWidth + "px, so the reader's own maximum " +
+      "moved to " + (afterScroll.scrollWidth - afterScroll.clientWidth) + ")");
     // Back to the walk for the blocks below, which measure a pane at
     // horizontal zero -- where the respine above has already left it.
     await page.locator(walkRow).click();
@@ -4172,17 +5864,9 @@ async function testRespine(browser, url, suite, realProjection, realCrops) {
       (await correspondence()).drift.length === 0);
     await page.emulateMedia({ reducedMotion: null });
 
-    const failed = checks.filter((c) => !c.cond);
-    const ok = failed.length === 0 && errors.length === 0;
-    console.log(`[${suite}] ${checks.length - failed.length}/${checks.length} ` +
-      `sub-checks passed: ${ok ? "PASS" : "FAIL"}`);
-    for (const f of failed) console.log(`    FAIL sub-check: ${f.name}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label: suite, ok };
+    return reportSuite(suite, checks, errors);
   } catch (err) {
-    console.log(`[${suite}] ERROR: ${err.message}`);
-    if (errors.length) console.log(`    page errors: ${errors.join(" | ")}`);
-    return { label: suite, ok: false };
+    return reportAbortedSuite(suite, checks, errors, err);
   } finally {
     await page.close();
   }
@@ -4262,9 +5946,13 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
       ["rebuild affordance (stub sibling mount)", (label) =>
         testRebuildAffordance(browser, label)],
       ["annotate flyout (repo-root mount + file:// degradation)", (label) =>
-        testAnnotateFlyout(browser, fileBase, label)],
+        testAnnotateFlyout(browser, fileBase, label, topologies)],
+      ["annotate rail filter + face deselect", (label) =>
+        testAnnotateRail(browser, label)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>
         testAnnotateHostedPosture(browser, label)],
+      ["crop lightbox (launch, zoom, pan on the live crops)", (label) =>
+        testCropLightbox(browser, label, topologies, crops)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
@@ -4279,8 +5967,44 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         `${SUITES.length} suites — THIS IS NOT A FULL RUN\n`);
     }
 
+    // The registry key IS the label a suite prints -- that is the whole point
+    // of single-sourcing it (mutation_witness_tier_repair): a filter can be
+    // copied straight off a failing line, and every `suite` in
+    // scripts/mutation_witnesses.json is a whole copy of one of these keys.
+    // What replaced the four in-body `const label = "..."` copies is now ONE
+    // ARGUMENT, and nothing observed it: measured 2026-09-16, dropping it from
+    // this call left every tier green and printed `[undefined] 2/2 sub-checks
+    // passed: PASS`. Even the mutation tier keeps working, because `--only`
+    // filters on the registry key rather than on the printed line -- the
+    // damage is silent by construction. The pytest pairing cannot see it
+    // either: it compares the witness table's `suite` values against the keys
+    // read out of THIS source, which is a different question from whether a
+    // suite prints the key it was handed.
+    //
+    // This is not a string compared to itself. The key comes from the registry
+    // and `result.label` comes from whatever the suite body decided to put in
+    // its return value -- two different paths that only agree while the
+    // argument is actually threaded through.
+    // The sub-check NAME is a constant and the specifics go on their own line
+    // above it, which is the shape every suite in this file already uses for a
+    // failure that has details. It is also load-bearing: the mutation-witness
+    // tier matches an entry's `expect_red` against the whole printed name, and
+    // tests/test_mutation_witnesses.py requires that name to appear verbatim
+    // in this source -- an interpolated label would satisfy neither.
     const results = [];
-    for (const [label, runSuiteFn] of chosen) results.push(await runSuiteFn(label));
+    for (const [label, runSuiteFn] of chosen) {
+      const result = await runSuiteFn(label);
+      if (!result || result.label !== label) {
+        console.log(`    dispatched as ${JSON.stringify(label)}, reported ` +
+          `itself as ${JSON.stringify(result && result.label)}`);
+        console.log("    FAIL sub-check: " +
+          "every suite prints the registry key it was dispatched under — a " +
+          "--only filter is copied straight off that line, and every `suite` " +
+          "in scripts/mutation_witnesses.json is a whole copy of one");
+        if (result) result.ok = false;
+      }
+      results.push(result || { label, ok: false });
+    }
 
     const failed = results.filter((r) => !r.ok);
     console.log(`\n${results.length - failed.length}/${results.length} browser ` +

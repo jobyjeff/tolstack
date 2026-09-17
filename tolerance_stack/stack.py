@@ -268,6 +268,47 @@ class SourceExport:
         return cls(**known)
 
 
+#: Where a stack's ``joint`` carries its assembly export as a :class:`SourceExport`
+#: -- the machine-readable **sibling** of the prose ``joint.assembly_export``, not
+#: a replacement for it.
+#:
+#: The prose field is a sentence, e.g. ``"[PRELIM 2026-AUG-3] 217755 A.1
+#: PROPULSION ASSEMBLY, PROPELLER.pdf (drawing-checker run 20260804_114000 /
+#: 20260803_145243)"``. That was harmless while the same runs were also cited at
+#: element level, where a ``SourceExport`` carries each run's ``ts``. It stopped
+#: being harmless on 2026-09-15 (``pitch_link_known_bands``): the pitch-link
+#: bushing and washer were re-cited when their bands were applied and took the
+#: only element-level copy of that export with them, leaving two runs named in a
+#: sentence -- **and a sentence has no ``ts``**, so
+#: ``test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit``,
+#: this repo's one place where *"nothing was written into drawing-checker"* is
+#: verified rather than asserted, could no longer reach them.
+#:
+#: **Three states, not two**, which is why this is a key that may be absent
+#: rather than a required field:
+#:
+#: * an ``established`` export -- pdf, ``sha256``, and the runs with their
+#:   timestamps;
+#: * an ``unestablished`` one -- how ``"not read for this stack"`` becomes
+#:   machine-readable, with ``why`` carrying the sentence and
+#:   :class:`SourceExport` enforcing that it names no pdf, sha or run;
+#: * **absent** -- the stack's ``joint`` makes no export claim at all. Three of
+#:   the seven stacks are in this state (they carry ``assembly_drawing`` and a
+#:   sheet/view/zone and no export key), and inventing an ``unestablished``
+#:   block for them would be asserting that somebody looked, which nobody did.
+#:
+#: Additive on purpose. ``scripts/build_viewer_crops.py`` reaches the run ids by
+#: regex out of the prose field, so the sentence stays exactly as authored and
+#: the two fields are paired by a test rather than one being derived from the
+#: other. Retiring the regex is a separate job
+#: (``ISSUE_20260916_the_joint_export_run_id_regex_can_retire_now_that_the_runs_are_structured.md``).
+JOINT_EXPORT_KEY = "assembly_export_ref"
+
+#: The prose sibling of :data:`JOINT_EXPORT_KEY`, named here so the pairing test
+#: and the loader read one definition rather than two string literals.
+JOINT_EXPORT_PROSE_KEY = "assembly_export"
+
+
 #: How well a citation supports the number it is attached to. **This tuple is the
 #: definition** -- it was an end-of-line comment on ``SourceRef.confidence`` until
 #: 2026-08-17, and a comment is not something another module can read, so the
@@ -757,6 +798,36 @@ class StackDefinition:
         self._by_id = {e.id: e for e in self.elements}
         if len(self._by_id) != len(self.elements):
             raise ValueError(f"stack {self.id!r} has duplicate element ids")
+        # Parsed here rather than on first read, so a malformed joint export is
+        # a load error on the file that has it -- the same moment, and the same
+        # validation, an element-level export gets.
+        raw = (self.joint or {}).get(JOINT_EXPORT_KEY)
+        if raw is None:
+            self._assembly_export_ref: Optional[SourceExport] = None
+        elif isinstance(raw, SourceExport):
+            self._assembly_export_ref = raw
+        elif isinstance(raw, dict):
+            try:
+                self._assembly_export_ref = SourceExport.from_dict(raw)
+            except ValueError as exc:
+                raise ValueError(
+                    f"stack {self.id!r}: joint.{JOINT_EXPORT_KEY} is not a valid "
+                    f"export -- {exc}") from None
+        else:
+            raise ValueError(
+                f"stack {self.id!r}: joint.{JOINT_EXPORT_KEY} must be an export "
+                f"object, got {raw!r}")
+
+    @property
+    def assembly_export_ref(self) -> Optional[SourceExport]:
+        """The joint's assembly export as a :class:`SourceExport`, or ``None``.
+
+        ``None`` means the ``joint`` makes no export claim -- the third state
+        described on :data:`JOINT_EXPORT_KEY`, and **not** the same thing as an
+        ``unestablished`` export, which is a claim that somebody looked and could
+        not establish one.
+        """
+        return self._assembly_export_ref
 
     def element(self, element_id: str) -> StackElement:
         try:

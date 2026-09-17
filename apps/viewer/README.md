@@ -63,8 +63,9 @@ starts serving the projections, a plain reload enters served mode with no user
 action.
 
 The banner says which transport is live — a served page reads *"Served over
-HTTP — no folder grant needed"*; FSA mode is unchanged, the connect/granted
-flow already says so. Neither transport offers a control it cannot service
+HTTP — no folder grant needed"*, inside the **Data source** fold (see below);
+FSA mode is unchanged, the connect/granted flow already says so. Neither
+transport offers a control it cannot service
 (`adapter.capabilities()`, never the adapter's class): the one real capability
 gap is that drawing-checker's own mount cannot reach `docs/` at all (only the
 viewer app and its projection dir are mounted), so a worksheet is unavailable
@@ -97,13 +98,24 @@ venv-win/Scripts/python.exe scripts\build_topology_projection.py
 ```
 
 4. Open the page, click **Connect folder**, pick the **tolstack repo root**
-   (`C:\workspace\tolstack`), grant **read**. The banner turns into a build line:
-   *results built … · crops built … (26 resolved — 22 sha256-verified, 4 with no
-   sha to check; 22 unresolvable)*, then *crops by rule: source_ref_export 22 ·
-   spec_pile 4*. A resolved count on its own says nothing about whether anything
-   was **checked**, which is the whole difference between a crop of the export a
-   citation names and a crop of a file that happens to share its name — so the
-   verification counts sit beside it, out of `crops.json`'s own `summary`.
+   (`C:\workspace\tolstack`), grant **read**. The banner turns into a **Reload**
+   button and one closed **Data source** fold, and nothing else. Open the fold
+   and it holds the build lines: *results built … · crops built … (26
+   resolved — 22 sha256-verified, 4 with no sha to check; 22 unresolvable)*,
+   then *crops by rule: source_ref_export 22 · spec_pile 4*, then which tree
+   wrote each of the two files. A resolved count on its own says nothing about
+   whether anything was **checked**, which is the whole difference between a
+   crop of the export a citation names and a crop of a file that happens to
+   share its name — so the verification counts sit beside it, out of
+   `crops.json`'s own `summary`.
+
+   Those five rows were always visible until 2026-09-16, when Jeff asked for
+   them to go: *"These 5 lines at the top of the page are meaningless to the
+   user. Delete."* They are **folded, not deleted** — the reader who came to read a
+   stack never sees them, and the reader investigating a suspect projection is
+   one click away. What still shouts on its own is the **stale-pair alarm**
+   below, which fires only when the two stamps provably disagree; that one is a
+   fact about the data in front of you, and a fold is not where it goes.
 
 All three steps are **wipe-and-rebuild** and each owns its own files, so any can
 be re-run alone. Re-run step 1 after editing a stack JSON; re-run step 2 after a
@@ -193,6 +205,30 @@ the crop popover already used, all **hover-only chrome**: the popover is
 full-page scroll, whole-edge hover, leader alignment — and the browser tier
 measures exactly that (the DAG pane's box with a card open, to the pixel, from
 a grid-side trigger AND from a trigger inside the DAG).
+
+**Two rules decide what a card says** (Jeff's de-slopification note,
+2026-09-16):
+
+1. **One document statement per card.** A card used to print the same drawing
+   three times — its own where-line, then the crop block's head restating it
+   (*"NAS6403-NAS6420 Rev 4.pdf · sheet 3"*), then the matching provenance
+   restating it again in jargon. The where-line is the statement; the picture
+   under it carries no caption naming the file it came from. A part number is
+   likewise never printed on two consecutive lines: where a part is *named*
+   after its own drawing — most of them are — the drawing line says only the
+   revision or nothing at all (`VA.componentDrawingText`), and the citation line
+   drops a document the line above it already named (`VA.citationWhere`'s second
+   argument). Four live edge cards needed that second rule.
+2. **One fold per card, and all the long-form prose is in it.** *"For now just
+   put all the long form text into a collapsible element (data source)."* The
+   record's note in full, the export/identity narrative and each crop's matching
+   provenance go inside one closed **Data source** disclosure — the same word
+   the banner's own fold wears (`VA.DATA_SOURCE_SUMMARY`). What stays in the
+   open is the note's **lead sentence** (`VA.leadSentence` — a prefix of the
+   record or the whole of it, never a rewording) and anything that is an
+   **absence**: a "no crop, because…" reason, a floored bar's not-to-scale
+   note, and a *loud* export state. A disclosure is a fold, not a place to hide
+   a gap.
 
 **One hover surface, not two.** A mark that opens a card no longer carries the
 native `<title>` it used to: the rail bars and the dots hand their tooltip text
@@ -499,6 +535,14 @@ has twelve parts, which is past any categorical palette's cap regardless. So:
 * the selected study's path is the accent, and that is a binary, so it needs no
   palette.
 
+Since 2026-09-17 (`design_pass_typography`) there is one more rule about the
+palette, and it is about **fill** rather than hue: a filled mark -- a background
+of its own -- belongs to provenance at its two worst states and to a verdict,
+and everything else is outlined in its own hue. The reasoning and the type scale
+that came with it are in `docs/DESIGN_TYPE_AND_COLOUR.md`; the numbers are in
+`style.css`'s `:root` and paired against both apps by
+`tests/test_app_type_scale.py`.
+
 Part identity is carried as text, on the row and in the preview pane -- as
 the part's **name**, never its id. It printed the id until 2026-09-15, with the
 name demoted to hover, because a live part name ran to eighty characters and
@@ -562,6 +606,20 @@ measured in every combination of them.
   a second source would come apart on the first drag). Widening is the only
   relief valve on offer: cell content still clips rather than wrapping, because
   a `<tr>`'s height is a floor and not a cap.
+
+  Both are **clamped into the pane's visible window**
+  (`topology_grid_scroll_and_grips`, 2026-09-16), and the two are clamped by
+  different mechanisms because they mark two different kinds of boundary. The
+  jog grip is `position: sticky` at the inset its seam sits at, because that
+  seam is itself sticky — `.tv__rails` holds the SVG's right edge a fixed
+  distance from the pane's *visible* left edge at every horizontal scroll, so
+  a grip at a fixed content coordinate drifted off the seam it names the
+  moment the reader scrolled. The ELEMENT grip rides its own column's edge,
+  which really does scroll, and pins to the pane's right edge past it. Before
+  that, either grip could simply leave the window — `.tv__hscroll`'s
+  `overflow-x` clips there — and a reader who had widened the preview pane,
+  the jog zone or the column itself was pressing on a control the browser had
+  already clipped away.
 * **The element label drops whatever the rest of the row already says.** Two
   reductions, both of them *one fact said once per row*
   (`VA.elementDisplayLabel`): the component cell's own words come off the front
@@ -590,15 +648,36 @@ on this page that survives a reload.** A full-height divider on its left edge
 `VA.TOPO_PANE_WIDTH`, remembered in `localStorage` under one key
 (`VA.PANE_WIDTH_KEY`).
 
-Its **default** width did not change, and that is a measured decision rather
-than a reading of the ask. It went to 560px with the drag and came straight
-back: the centre pane is then 133px narrower, the grid's content overflows it
-horizontally either way (fixed-width head table, no inner scrollport by
-design), and a widened jog zone put its own drag grip *underneath* the preview
-pane, where a pointer reaches the pane and not the grip. The browser tier
-caught it on `pitch_system` at 1600px wide. A reader can still reach that state
-by dragging this pane open, so the interaction is filed rather than papered
-over: `docs/issues/ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md`.
+Its **default** is **560px** since 2026-09-16, and the two-step history is why
+that is a measured number rather than a guess. It went to 560 with the drag on
+2026-09-15 and came straight back the same day: the centre pane is then 133px
+narrower, the grid's content overflows it horizontally either way (fixed-width
+head table, no inner scrollport by design), and a widened jog zone put its own
+drag grip *out of the pane's visible window*, where `.tv__hscroll` clips it and
+a pointer reaches the preview pane instead. The browser tier caught it on
+`pitch_system` at 1600px wide.
+
+That hazard is **fixed** (`topology_grid_scroll_and_grips`, 2026-09-16): both
+grips are clamped into the visible window, and the browser tier drags them for
+real at a 560px pane and at `VA.TOPO_PANE_WIDTH.max`. With it closed, the only
+thing still holding the default at 430px was that Jeff had asked for
+*resizable* and not for *wider* — and he then asked for wider too (*"It's too
+narrow"*, carried forward still open into
+`viewer_hover_deslop_and_banner_purge`). 560 is the width already measured safe
+at the tier's own viewport.
+
+The **maximum** stays at 1000px, declined rather than overlooked: at 1600px a
+1000px pane already leaves the grid ~298px, which `.tvgrip`'s own clamp
+arithmetic is written against, and a reader on a wider screen reaches the same
+width by dragging.
+
+The divider itself is **visible at rest** since the same date — a hairline in
+`--line`, plus a three-dot grip mark held in the middle of the *viewport* by
+`position: sticky` (this page scrolls as one document, so a mark centred in the
+divider's own box would sit halfway down a long study, off screen). It was
+`background: transparent` until hover before that, so the one control that
+answers "it's too narrow" announced itself only to a reader who already knew
+where to put the pointer.
 
 The other four preferences (density, the two leader settings, the jog zone's
 width) still do **not** persist, and that asymmetry is deliberate rather than
@@ -627,11 +706,11 @@ Until 2026-09-15 selecting a study swapped the DAG for `StudyResult.chain` laid
 out on its own — one rail, in the order the sum runs — with "Showing: whole
 topology" to put the walk back. Jeff, reviewing it: *"When you click a
 study/stack, the entire dag/model should still be visible. It should be fairly
-obvious that there are no leader lines pointing to certain elements."* And the
-report was about **inconsistency** as much as about hiding: two of
-`pitch_link_to_pitch_plate`'s studies dropped rows while the third's chain
-covered nearly everything, so the same control read as three different
-behaviours. One layout, varying emphasis, is the answer to both.
+obvious that there are no leader lines pointing to certain elements."* That old
+nav-click behaviour gave a reader no signal at all about what a study excluded
+from the walk: every study dropped its non-chain rows and none of them dimmed
+anything, so there was nothing on screen to notice was missing. One layout,
+varying emphasis, is the fix.
 
 `study.layout` is still in the projection and still built by
 `scripts/build_topology_projection.py` — nothing about the data changed, only
@@ -1130,12 +1209,13 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | amber `inferred` | a reading or an argument sits between the document and the value |
 | **filled red `UNTRACED`** | no document backs it. Filled, plus a row tint — an untraced value has to survive being skimmed |
 | **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all (code: `no_source_ref`) |
-| **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below |
-| **filled magenta `CTE NOT TRANSCRIBED`** | a material whose `values_status` says nobody has read the CTE off a source |
-| dashed blue `zero-width band` | `min == max`; no document gives a tolerance, so every interval it feeds is a **lower bound** on the real spread. A separate axis from confidence, not a fourth confidence |
+| **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below. **On the right pane's block only** since 2026-09-16 — the elements table's own copy of it rolled into the row's one alert badge (next row) |
+| outlined magenta `CTE NOT TRANSCRIBED` | a material whose `values_status` says nobody has read the CTE off a source. **Filled** until 2026-09-17, when `design_pass_typography` reserved a fill for provenance's two worst states and for a verdict: the confidence chip beside it in the same source column already carries the filled magenta, and one row was wearing that mark twice (`.chip--values-not_transcribed`) |
+| outlined amber `⚠` | **the elements table's one alert badge** (`flyout_resize_annotator_filter_and_deselect`, 2026-09-16). Jeff: *"roll all the alert badges into one single alert badge… Mouse over the icon has a popup that lists out the actual alerts."* One badge per row however many alerts it carries; the words are unchanged (`VA.rowAlerts` reads `VA.ATTENTION` and `VA.EXPORT_CHIP_TEXT`) and moved into the hover card, which also shows each alert's *why* — a sentence the chips only ever carried as a native tooltip. Outlined rather than filled because it is the only alert marker on the row and so competes with nothing. A row with nothing to admit shows **nothing** |
+| dashed blue `no tolerance recorded` | a value with no plus/minus behind it, so every interval it feeds is a **lower bound** on the real spread, never the real one. Still rendered as a chip in the right pane and on the DAG grid; on the elements table it is one of the two alerts the badge above carries. A separate axis from confidence, not a fourth confidence. It read `zero-width band` until 2026-09-16 on four of the five surfaces that state it while the DAG page said `no tolerance recorded` about the same element; all five read `VA.ATTENTION.no_tolerance` now, and the CSS class names (`chip--zero-width`, `num--zero-width`, `el-row--zero-width`, `tvrow--zero-width`) and the projection field `zero_width_count` deliberately keep the old word — nothing reads them as words |
 | striped card + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are printed on the card, directly under the numbers they are a budget for. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose |
 | dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |
-| blue `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above) |
+| grey `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above). Accent-**blue** until 2026-09-17: "the loader built these" carries no state, and on these pages the accent means selection (`design_pass_typography`; `.chip--generated`) |
 | monospaced weighted chip | a term whose coefficient is not 1: `+ 2.0010712 × sleeve_wall_lower`. Hover says what a coefficient can be |
 
 A path or check also shows the **weakest** confidence among its expanded inputs:
@@ -1235,8 +1315,14 @@ cannot deliver.
 ## Selecting an element
 
 The elements table shows only a confidence chip, a kind chip, a short one-line
-where-ref, and (for the states that cannot wait) a loud export/identity chip —
-that is the whole compact row. Click anywhere on a row to select it: the row
+where-ref, and — on the rows that have something to admit — one outlined ⚠
+**alert badge**, whose hover card lists the alerts in full with the reason
+behind each. That is the whole compact row. Until 2026-09-16 the last of those
+was instead up to two filled all-caps chips shouting from the row itself (a
+loud export/identity chip and a `no tolerance recorded` chip, both at once on
+the one row that carries both), which is the loudness Jeff asked to have rolled
+up; the words did not change, only where they are read. Click anywhere on a row
+to select it: the row
 gets a visible outline, and the pane on the right (`views/detail.js`) fills in
 with everything the row does not have space for — the callout as printed, the
 citation's own note in full (not clamped), the export-provenance block below,
@@ -1254,8 +1340,8 @@ pane, beneath its citation:
 
 | state | what the block says |
 |---|---|
-| `established` | *Read from `X.pdf`* · **pinned to this exact file, by checksum** · the drawing-checker runs that consumed it, or *no run has consumed this export*. The checksum **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
-| `unestablished` | **filled magenta, on the row's chip AND on the panel's block**: *FILE NOT IDENTIFIED — which file this value was read from cannot be established*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
+| `established` | *Read from `X.pdf`* · **pinned to this exact file, by checksum** · *read by drawing-checker N times, most recently `<date>`*, or `VA.EXPORT_NO_RUNS_TEXT` when no run has used the file. The checksum **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
+| `unestablished` | **filled magenta on the panel's block**: *FILE NOT IDENTIFIED — which file this value was read from cannot be established*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. From the ROW it is one of the alerts behind the ⚠ badge, in the same words and with that same `why`; the row's own filled chip (`.chip--export-unestablished`) is retired and rendered by no production path — `apps/viewer/style.css` keeps the rule, and says why. |
 | no `export` key | *This citation names no file, so nothing here says which copy of the document the value was read from*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
 | no `export` key, `identity_rule: "spec_pile_filename"` | *A standard-spec document, identified by its filename*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
 | anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. An identity rule the viewer has no branch for is loud the same way, through `VA.IDENTITY_RULES`. |
@@ -1298,12 +1384,21 @@ Two deliberate limits:
   the algorithm or prints the digest any more (2026-09-15): twelve hex digits
   are not something a reader of this page can do anything with, and the digest
   is in the stack file for anyone checking it.
-* a run id is a **link** only where the element's own crop resolved through that
-  run. An export carries a run *id* (`20260803_145243`); drawing-checker addresses
-  a run by its *directory* name (the id plus the drawing), which only the crop
-  entry knows. Every other id prints as plain text with a hover saying why —
-  building a URL from a prefix would be a guess, which is the class of mistake
-  this whole surface exists against.
+* the runs line **names no run id at all** (2026-09-16). It says how many times
+  drawing-checker has read the file and how recently, and offers at most one
+  click-through, whose text is the *drawing* and its revision — the treatment the
+  crop popover adopted a day earlier, for the reason a run is an internal
+  artifact and its id tells a reader nothing about what they are about to open.
+  The ids are on the line's hover, where someone with a drawing-checker shell can
+  still read them.
+
+  Why at most one link, and why the ids cannot simply be linked: an export
+  carries a run *id* (`20260803_145243`); drawing-checker addresses a run by its
+  *directory* name (the id plus the drawing), which only the crop entry knows. So
+  only the run the element's own crop resolved through can be addressed at all.
+  Building a URL from a prefix would be a guess, which is the class of mistake
+  this whole surface exists against — that argument is unchanged; it is the ids
+  in the rendered line that went.
 
 The export block renders whether or not a crop resolved, which is the point: until
 2026-08-12 these facts appeared **only** in the crop popover, so a citation whose
@@ -1325,7 +1420,7 @@ cell keeps them apart:
 
 * **`values_status`** — what kind of record the CTE column is. `inline`: the
   number is the record. `library`: it is a **cross-check** of the projection named
-  in `library_ref`, not the record. `not_transcribed`: **filled magenta** — nobody
+  in `library_ref`, not the record. `not_transcribed`: **outlined magenta** (filled until 2026-09-17) — nobody
   read it off anything, so a number in the column is a placeholder and since
   2026-08-12 the schema lets the entry state none at all — though not one you
   will ever meet here, because a material with no CTE stops its stack loading
@@ -1381,6 +1476,50 @@ and none of them a loss of a fact a reader wanted:
   matched"). In the open it restated the concise line above it in jargon. A
   disclosure is a fold, never a place to hide a gap — an unresolved crop still
   states its reason in the open.
+
+### Any crop opens at full size, zoomable (2026-09-16)
+
+Jeff: *"selection box style sources (hilighted cells in the datasheet tables
+etc) are moving in the right direction, but thumbnail is too small to be
+legible… Maybe a button in the thumbnail that lets you launch it into a
+separate, full size viewer (either a popup or separate page) that allows you to
+zoom/pan?"*
+
+Every crop on the page carries a small **⤢** button on the picture itself —
+quiet until the figure is hovered or the button is focused, and a real
+`<button>`, so the keyboard reaches it. It opens the crop near-full-viewport in
+a modal `<dialog>` (`#crop-lightbox`, `views/lightbox.js`) with wheel and
+button zoom, drag pan, and the same **where-line and click-throughs** the card
+shows underneath it — nothing longer. `Esc` or the ✕ closes it; a click on the
+backdrop does **not**, because a modal `<dialog>` stays open on one (measured,
+Chrome 152), which is why the ✕ is there and not optional.
+
+The button is on `VA.cropFigure`, the one builder every crop image on the page
+goes through, which is why it is **one per picture rather than one per
+surface**: the popover, the hover cards, both preview panes and a balloon
+crop's parts-list companion all get it in the same change, and a balloon crop
+offers two — each opening its own picture. The one crop image that is *not* a
+`cropFigure` is the grid's inline `tvthumb`; it carries no launcher of its own
+and does not need one, because clicking a grid thumbnail already opens the edge
+card, whose figure has one.
+
+**Zoom is one CSS transform on a wrapper around the crop's frame**, and that is
+the decision the whole surface turns on: a `.crophl` highlight box is
+positioned in *percentages* of that frame, so scaling an ancestor scales the
+picture and the boxes drawn on it in one step. Nothing converts a `frac` into
+a pixel anywhere, so there is no second coordinate system to drift. The
+arithmetic — fit, zoom about the pointer, pan, and the clamp that keeps the
+picture on screen — is pure (`VA.lightbox*`, `viewer.js`) and pinned value by
+value in the fast tier; the browser tier measures the laid-out `.crophl`
+against `crops.json`'s own `highlights[].frac` at fit, zoomed and panned.
+
+Two smaller decisions worth knowing. `scale: 1` is **fit**, not one image pixel
+per screen pixel, and the frame is sized in pixels to the fitted box rather
+than height-capped with `object-fit: contain` — that insets the picture inside
+its element, and a percentage overlay then points into the letterbox. And the
+highlight's **border width** is divided back out by the current scale
+(`--lightbox-scale`), because a 2px edge at 8× is a 16px amber frame across the
+cell the reader zoomed in to read.
 
 ### "Open the PDF" only renders where the origin can follow it
 
@@ -1509,7 +1648,8 @@ node scripts\run_viewer_browser_tests.mjs               # truth tier (installed 
 node scripts\run_viewer_browser_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
 node scripts\run_viewer_browser_tests.mjs --only "topology height budget"  # one suite
 
-node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack   # mutation-witness tier
+npm run test:mutations                                  # mutation-witness tier
+node scripts\run_mutation_witness_tests.mjs --repo C:\workspace\tolstack   # ...from a worktree
 ```
 
 ### The mutation-witness tier
@@ -1527,12 +1667,15 @@ announce that the coverage left.
 
 `scripts/mutation_witnesses.json` declares, per guard, the exact edit it must
 redden on, the tier that owns it, and the name of the check that must fail.
-`scripts/run_mutation_witness_tests.mjs` copies `apps/` and `scripts/` to a
-shadow tree under `tmp/`, patches the copy, runs the owning tier — clean first,
+`scripts/run_mutation_witness_tests.mjs` copies everything a tier reads — its
+`SHADOWED` list, which is where that set is written down — to a shadow tree
+under `tmp/`, patches the copy, runs the owning tier — clean first,
 which must be green, or nothing the mutation does proves anything — and fails
 unless the **declared** check goes red. It takes `--repo` for the same reason
-the other two do: three of the declared witnesses are `[real]` checks. This
-tree is never written to.
+the other two do: some of the declared witnesses redden `[real]` checks, which
+skip without a projection — no count here, because the table this tier reads
+gains entries faster than any digit written in prose would stay true; the
+runner prints each entry's id as it runs. This tree is never written to.
 
 Adding an entry is meant to be cheaper than filing an issue: copy the nearest
 one and change five strings. If you find a guard that shrugs off a hand
@@ -1600,12 +1743,21 @@ apps/viewer/
   style.css           the SHARED stylesheet — the colour system lives here
   index.html          retired: redirects to topology.html (was the stack viewer)
   topology.html       the ONE viewer's shell (nav, toolbar, the joint block,
-                      three panes, legend + worksheet <dialog>s)
+                      three panes, legend + worksheet + crop-lightbox
+                      <dialog>s)
   topology.css        that page's own rules: the nav tree, the toolbar, the
-                      rails, the grid, the slim totals strip, both dialogs
+                      rails, the grid, the slim totals strip, the legend and
+                      worksheet dialogs (the crop lightbox's rules are in
+                      style.css, beside the crop rules they extend)
   test.html           browser test page; publishes window.__TEST_RESULTS__
   config.js           paths, the drawing-checker webui base, rebuild commands
-  viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
+  viewer.js           pure view-model logic — no DOM, no IO, and no
+                      arithmetic on a projection's numbers; the crop
+                      lightbox's view (VA.lightboxFitSize / ZoomAt /
+                      Pan / Clamp / Point / Transform) is the declared
+                      exception here, and it is the same class as
+                      topology.js's below — screen pixels only, never a
+                      printed number and never a verdict
   topology.js         the same, for the topology mode: its vocabularies, the
                       rail GEOMETRY (row index -> pixels; the columns are the
                       projection's, mirrored right-justified by VA.spineRight),
@@ -1634,8 +1786,8 @@ apps/viewer/
   storage/http.js     served transport — no folder grant, probed at load time
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
-  views/              dom, banner, nav, stack, crop, cards, worksheet, detail,
-                      topology
+  views/              dom, banner, nav, stack, crop, cards, lightbox,
+                      worksheet, detail, topology
   vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```

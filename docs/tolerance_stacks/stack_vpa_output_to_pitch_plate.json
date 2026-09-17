@@ -100,27 +100,26 @@
       "lmc": 3.96,
       "mmc": 4.16,
       "plus_minus": 0.1,
-      "note": "Value + tolerance traced to 215197, but WHICH feature is ambiguous -- see source_ref. This is the clearest example in the workbook of why feature identity, not just value matching, is needed.",
+      "note": "Value + tolerance traced to 215735 (re-cited 2026-09-16 from the PRELIM 215197 fixture; same callout, same address, released part number), but WHICH feature is ambiguous -- see source_ref. This is the clearest example in the workbook of why feature identity, not just value matching, is needed.",
       "source_ref": {
         "kind": "drawing",
-        "document": "215197",
-        "revision": "A.1",
+        "document": "215735",
+        "revision": "A",
         "sheet": 2,
         "zone": "D10",
         "callout": "5X 4.06 ±0.10",
         "export": {
           "status": "established",
-          "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
-          "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
+          "pdf": "data/inbox/drawings/215735-A.pdf",
+          "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
           "runs": [
-            {"run_id": "20260409_170546", "ts": "2026-04-09T17:05:46+00:00"},
-            {"run_id": "20260409_172341", "ts": "2026-04-09T17:23:41+00:00"},
-            {"run_id": "20260730_133912", "ts": "2026-07-30T20:39:33.291499+00:00"}
+            {"run_id": "20260813_180734", "ts": "2026-08-14T01:07:56.112994+00:00"},
+            {"run_id": "20260819_153213", "ts": "2026-08-19T22:32:36.201417+00:00"}
           ],
-          "note": "Established 2026-08-06 by handoff citation_export_provenance. This is the ONLY export of 215197 anywhere in the workspace: all three drawing-checker runs of it record this same sha256 in data/runs.jsonl, 20260730_133912's 215197_A_p01.json records source_pdf '[PRELIM 2025-MAY-22] 215197 A.1.pdf', and no other 215197 PDF exists in drawing-checker's inbox or fixtures. Unlike 217755 (six exports on disk), 'which export' has a unique answer here. This element's own note, unlike its tan_link sibling's, does not name the export it was read on -- so the basis here is uniqueness (there is only one 215197 export for 'sheet 2 zone D10' to refer to), not a written record of the reading."
+          "note": "Established 2026-09-16 by handoff citation_identity_correctness, which re-cited this value from the PRELIM 215197 fixture to the RELEASED plate. 215735-A is copied into this repo's own inbox (data/inbox/drawings/PROVENANCE.md, 'Copied 2026-09-16'), sha256 verified identical on both sides. Both drawing-checker runs of it -- 20260813_180734_215735-A and 20260819_153213_215735-A -- record this same sha256 in their run_meta.json inputs, and no other 215735 PDF exists in drawing-checker's inbox or fixtures, so 'which export' has a unique answer here. This element's own note, unlike its tan_link sibling's, does not record a session reading this address on 215735-A for the value -- the value was read on 215197 and carried across because the callout at this address is unchanged; the basis here is that unchanged address plus uniqueness of the export, not a written record of a fresh reading."
         },
         "confidence": "inferred",
-        "note": "215197 carries TWO 4.06 ±0.10 callouts: '5X 4.06 ±0.10' at sheet 2 zone D10 (perpendicularity 0.05 G, 5X INDIVIDUALLY) and a single '4.06 ±0.10' at sheet 1 zone D5 (positional 0.2 A B C, datum D). The workbook's 3.96/4.16 matches both. This joint is qty 1, which argues for the sheet-1 D5 callout; the tolerance alone cannot decide. Separately, DETAIL X balloons the VPA (1) against the TANGENTIAL LINK MOUNT 215175-002 (72), not the pitch plate 215177-001 -- so 215197 may be the wrong part entirely for this flange."
+        "note": "WHICH feature is still ambiguous, and 215735-A widens it rather than settling it. 215197 A.1 carried TWO 4.06 ±0.10 callouts: '5X 4.06 ±0.10' at sheet 2 zone D10 (⊥0.05 G, 5X INDIVIDUALLY) and a single '4.06 ±0.10' at sheet 1 zone D5 (⌖0.2 A B C, datum D). On 215735-A, measured 2026-09-16, there are THREE: the same 5X group at sheet 2 zone D10, the sheet 1 zone D5 one, AND a second sheet 1 callout whose 4.06 prints at zone D6 (its ±0.10 falls in D5 -- it straddles the boundary). 215197 A.1's sheet 1 zone D6 is EMPTY, and sheet 1 was re-laid out between the two exports, so this is a 4.06 ±0.10 that the PRELIM did not print and NOT a feature whose dimension can be shown to have changed: which feature the released D6 callout dimensions is not established here. The workbook's 3.96/4.16 matches all three. This joint is qty 1, which still argues for a sheet-1 callout rather than the 5X group; the tolerance alone still cannot decide, and there are now two sheet-1 candidates rather than one. The citation stays on the address it has always named -- sheet 2 zone D10 -- because re-pointing it at a different printed callout is a value-identity decision, not a currency one, and nothing in the released drawing decides it. Separately, DETAIL X balloons the VPA (1) against the TANGENTIAL LINK MOUNT 215175-002 (72), not the pitch plate 215177-001 -- so the pitch plate may be the wrong part entirely for this flange, a doubt the re-cite from 215197 to 215735 does not touch."
       }
     },
     {

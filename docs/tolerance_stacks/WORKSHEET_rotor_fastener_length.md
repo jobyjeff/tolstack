@@ -102,15 +102,36 @@ Physical order from the bolt head. `conf` is the result, not decoration.
 | 10 | NAS6403U9H grip (.562 in) | fastener | 14.2748 | 14.0208 | 14.5288 | **NAS6403-NAS6420 Rev 4 sh3, dash 9** | **traced** |
 | 11 | NAS6403U10H grip (.625 in) | fastener | 15.8750 | 15.6210 | 16.1290 | **NAS6403-NAS6420 Rev 4 sh3, dash 10** | **traced** |
 
-### Two elements carry a zero-width band, on purpose
+### One element carries a zero-width band, and one carries an unverified one
 
-Both washers have `min == max == nominal`. **No document in this repo gives a
-tolerance on either.** NAS1149 and MS21299 are both absent from
-`data/inbox/specs/`; `hardware_entries.json` holds a workbook-derived ±.004 in
-band for the NAS1149 washer (untraced, forbidden here by SOP Step 5b) and no
-band at all for MS21299C3 (a brand-new entry, no workbook row exists to
-launder). Consequence: every worst-case interval below is a **lower bound** on
-the true spread.
+**Changed 2026-09-16** (`citation_identity_correctness`). This section read
+*"Two elements carry a zero-width band, on purpose — both washers have
+`min == max == nominal`. No document in this repo gives a tolerance on either.
+NAS1149 and MS21299 are both absent from `data/inbox/specs/`;
+`hardware_entries.json` holds a workbook-derived ±.004 in band for the NAS1149
+washer (untraced, forbidden here by SOP Step 5b) and no band at all for
+MS21299C3 … every worst-case interval below is a lower bound on the true
+spread."* Half of that is now out of date, for a reason outside this stack.
+
+- **NAS1149V0332H** folds **0.7112 / 0.9144 mm** (0.032 ±0.004 in), cited to
+  the 260729 workbook's E11/F11 directly, `kind: "workbook"`,
+  **`confidence: "untraced"`**. Two things changed on 2026-09-15: Jeff ruled
+  that a sourced-but-unverified value belongs in a stack loudly rather than
+  omitted silently, and SOP Step 5b gained the rule that **the same part and
+  feature must carry the same band in every stack that uses it**.
+  `tan_link_to_pitch_plate` and `pitch_link_to_pitch_plate` took this band that
+  day; this stack was out of that handoff's scope, so the divergence was
+  *recorded* rather than fixed and sat in
+  `tests/test_tolerance_stack.py::KNOWN_BAND_DIVERGENCES` until now. NAS1149 is
+  still not in `data/inbox/specs/` — that is exactly what `untraced` says, and
+  **gap 4 stays open** below.
+- **MS21299C3** is still **zero-width**, and honestly so: MS21299 is absent
+  from the pile *and* no workbook row exists for it, so there is nothing to
+  apply. Gap 3 stays open.
+
+So the worst-case intervals below are still a **lower bound** on the true
+spread — one zero-width member is enough for that — but they are no longer as
+low a bound as they were.
 
 ### An optional washer is included by default
 
@@ -124,8 +145,10 @@ as a second configuration.
 ### No inverting element, no castellation
 
 All nine fastener elements are additive external lengths (`max == mmc`); there
-is no chamfer, relief or counterbore in this joint. The two washers carry null
-`lmc`/`mmc`, same convention as the other joints' zero-width washers. Retention
+is no chamfer, relief or counterbore in this joint. MS21299C3 carries null
+`lmc`/`mmc`, the convention for a zero-width washer; NAS1149V0332H carries
+`lmc 0.7112` / `mmc 0.9144` as of 2026-09-16, and it is an **additive** member,
+so MMC (most material) is the thickest and `mmc → max`. Retention
 here is a **blind tapped hole**, not a nut — no MS9363 slotted/castellated nut
 and no MS24665 cotter pin appear at this joint, so the castellated-grip
 quantisation caveat that governs the pitch-link and tangential-link joints
@@ -133,8 +156,11 @@ does not apply here.
 
 ## The sourced clamped-column path
 
-`sourced_clamped_stack` = MS21299C3 + NAS1149V0332H = **2.4130 mm**, zero-width
-(both members are zero-width bands, so the path is too).
+`sourced_clamped_stack` = MS21299C3 + NAS1149V0332H = **2.4130 mm**, min **2.3114**,
+max **2.5146** — a half-width of **±0.1016 mm**, all of it the NAS1149V0332H washer's
+(MS21299C3 is still zero-width). It was zero-width at 2.4130 until 2026-09-16;
+the **nominal did not move**, because the band is symmetric about the
+transcribed nominal.
 
 ## Checks — one budget per grip option
 
@@ -145,26 +171,31 @@ so **every check "fails" by construction**, exactly like
 Read the **magnitude**, not the verdict: it is the combined mass+structure
 thickness this dash can accommodate before the receiving member would engage
 the bolt's incomplete threads (JPS00094 §5.5.5). Nominal, worst case and RSS
-reported together, as the SOP requires; RSS equals worst case exactly here,
-because the sourced column is zero-width and only the fastener term carries a
-real band.
+reported together, as the SOP requires. **RSS no longer equals worst case**: it
+did while the sourced column was zero-width and the fastener term was the only
+one with a real band, and that stopped being true on 2026-09-16. With two banded
+terms the RSS half-width is `sqrt(0.1016² + 0.254²) = 0.2736 mm` against a
+worst-case half of `0.1016 + 0.254 = 0.3556 mm`.
 
 | dash | grip (in) | budget nominal | budget WC min | budget WC max | RSS min | RSS max | verdict |
 |------|-----------|-----------------|----------------|----------------|---------|---------|---------|
-| U2H  | .125 | **−0.7620** | −1.0160 | −0.5080 | −1.0160 | −0.5080 | fail (budget) |
-| U3H  | .188 | −2.3622 | −2.6162 | −2.1082 | −2.6162 | −2.1082 | fail (budget) |
-| U4H  | .250 | −3.9370 | −4.1910 | −3.6830 | −4.1910 | −3.6830 | fail (budget) |
-| U5H  | .312 | −5.5118 | −5.7658 | −5.2578 | −5.7658 | −5.2578 | fail (budget) |
-| U6H  | .375 | −7.1120 | −7.3660 | −6.8580 | −7.3660 | −6.8580 | fail (budget) |
-| U7H  | .438 | −8.7122 | −8.9662 | −8.4582 | −8.9662 | −8.4582 | fail (budget) |
-| U8H  | .500 | −10.2870 | −10.5410 | −10.0330 | −10.5410 | −10.0330 | fail (budget) |
-| U9H  | .562 | −11.8618 | −12.1158 | −11.6078 | −12.1158 | −11.6078 | fail (budget) |
-| U10H | .625 | **−13.4620** | −13.7160 | −13.2080 | −13.7160 | −13.2080 | fail (budget) |
+| U2H  | .125 | **−0.7620** | −1.1176 | −0.4064 | −1.0356 | −0.4884 | fail (budget) |
+| U3H  | .188 | −2.3622 | −2.7178 | −2.0066 | −2.6358 | −2.0886 | fail (budget) |
+| U4H  | .250 | −3.9370 | −4.2926 | −3.5814 | −4.2106 | −3.6634 | fail (budget) |
+| U5H  | .312 | −5.5118 | −5.8674 | −5.1562 | −5.7854 | −5.2382 | fail (budget) |
+| U6H  | .375 | −7.1120 | −7.4676 | −6.7564 | −7.3856 | −6.8384 | fail (budget) |
+| U7H  | .438 | −8.7122 | −9.0678 | −8.3566 | −8.9858 | −8.4386 | fail (budget) |
+| U8H  | .500 | −10.2870 | −10.6426 | −9.9314 | −10.5606 | −10.0134 | fail (budget) |
+| U9H  | .562 | −11.8618 | −12.2174 | −11.5062 | −12.1354 | −11.5882 | fail (budget) |
+| U10H | .625 | **−13.4620** | −13.8176 | −13.1064 | −13.7356 | −13.1884 | fail (budget) |
 
 Reading the table (magnitudes, i.e. `−nominal`/`−WC min`): dash **U2H** can
-accommodate at most **0.762 mm** (nominal) / **1.016 mm** (worst case) of
+accommodate at most **0.7620 mm** (nominal) / **1.1176 mm** (worst case) of
 combined balancing-mass + receiving-structure thickness before shank-out goes
-negative; dash **U10H** can accommodate up to **13.462 mm** / **13.716 mm**.
+negative; dash **U10H** can accommodate up to **13.4620 mm** / **13.8176 mm**.
+The 2026-09-16 band change left both nominals exactly where they were and grew
+both worst cases by 0.1016 mm, which is the NAS1149V0332H band's half-width
+arriving.
 **The nine numbers strictly widen from U2H to U10H** — this is the
 reverse-engineered answer this exercise was seeded to produce: once the real
 balancing-mass thickness and the receiving structure's engagement thickness
@@ -226,7 +257,7 @@ stream.
 | 1 | **216579-002 through -007 (balancing-mass part drawings)** — not in this repo; only weight in grams is printed on 217755's parts list | the actual **thickness** per mass option, and how they stack (note 12's "MAX 80G MASS ADDED PER FASTENER LOCATION" implies more than one may combine). Closes the single biggest gap in this stack — without it, every check is a budget, not a verdict. | **1 — blocks the whole stack** |
 | 2 | **216231-002 HUB AND BLADE ASSEMBLY** (or whichever of the three reference-balloon assemblies at SECTION T-T actually carries the tapped hole) | the receiving structure's engagement thickness, and confirms which of the three assemblies is tapped (F2) | **1 — blocks the whole stack** |
 | 3 | **MS21299** (countersunk washer, absent from `data/inbox/specs/`) | the `.063 in` band on MS21299C3, same gap `MS21299C4K` already carries at the VPA joint | 2 |
-| 4 | **NAS1149** (flat washer, absent from `data/inbox/specs/`) | the `.032 in` band, same gap the pitch-link and tangential-link joints already carry | 2 |
+| 4 | **NAS1149** (flat washer, absent from `data/inbox/specs/`) | **STILL OPEN, reworded 2026-09-16** (`citation_identity_correctness`). It read *"the `.032 in` band, same gap the pitch-link and tangential-link joints already carry"*. The band is no longer unknown — it is **workbook-sourced**: the stack folds the 260729 workbook's ±.004 in (cells E11/F11) at `untraced`, the same treatment the pitch-link worksheet's gap 4 took on 2026-09-15. One artifact, no corroboration, no standard to re-read. **NAS1149 is what closes this row**, and nothing else does. | 2 |
 | 5 | **MIL-S-8879** (thread spec, absent) | the thread run-out length on every NAS6403 dash in this file, same gap the other three 217755 joints already carry | 3 |
 | 6 | **AC43.13-1B_w-chg1.pdf** (in the pile, not opened) | the FAA-side citation for note 24's grip-selection criterion, alongside JPS00094 §5.5 (not opened because JPS00094 already gives the definitional criterion used here) | 3 |
 | 7 | **Jason Ryan's rotor fastener tolerance stack** (Slack screenshot / xlsx, HITL — see the top of this worksheet) | the comparison this whole exercise exists to make | **1 — the comparison itself** |
@@ -256,16 +287,23 @@ When the screenshot (and, if available, the `.xlsx`) lands:
 |---|---|---|
 | balancing-mass thickness | back-calculate a plausible thickness from density and a typical washer-like geometry, for a "representative" mass | no document in this repo gives the actual dimensions, and a computed guess dressed as a value is exactly the invented-number failure mode this SOP exists to prevent. Left as gap 1, expressed as an excluded budget term instead. |
 | receiving-structure thickness | reuse a flange thickness from a neighbouring 217755 joint (e.g. the 4.06 mm pitch-plate lug) | different part, different location, no evidence the two flanges match. Left as gap 2. |
-| MS21299C3 / NAS1149V0332 bands | the workbook-derived ±.004 in / MS21299C4K's ±.006 in bands already in `hardware_entries.json` | both are `kind: workbook`, forbidden in a from-scratch stack (SOP Step 5b). Zero-width bands instead. |
+| ~~MS21299C3 / NAS1149V0332 bands~~ — **half of this reversed 2026-09-16** | the workbook-derived ±.004 in / MS21299C4K's ±.006 in bands already in `hardware_entries.json` | It read *"both are `kind: workbook`, forbidden in a from-scratch stack (SOP Step 5b). Zero-width bands instead."* The ban it invoked was amended on 2026-09-15: a workbook band may be folded, but only wearing `untraced` and only cited to the workbook directly rather than laundered through `hardware_entries.json`. **NAS1149V0332 now folds its ±.004 in on exactly those terms** (`citation_identity_correctness`), which also brings it into line with the two sibling stacks. **MS21299C3 does not**, and the refusal stands for it: there is no workbook row for it to fold — the tempting number was MS21299C4K's ±.006 in, a *different washer*, and borrowing one part's band for another is the invented-number failure mode under a thinner disguise. |
 
 ## The traced / inferred / untraced count
 
 Counting **element instances in this stack**:
 
-> **9 traced / 2 inferred / 0 untraced, out of 11 element instances** — plus
+> **9 traced / 1 inferred / 1 untraced, out of 11 element instances** — plus
 > **2 elements that do not exist because they could not be sourced** (the
-> balancing mass and the receiving-structure thickness), and **2 of the 11
+> balancing mass and the receiving-structure thickness), and **1 of the 11
 > carrying a zero-width band** because no document gives one.
+
+Moved 2026-09-16 (`citation_identity_correctness`), from *9 traced / 2 inferred
+/ 0 untraced* with *2 of the 11* zero-width: `NAS1149V0332H` went `inferred` (a
+parts-list nominal with no band) → `untraced` (a real band whose only support is
+a workbook cell). The numerator did not move and neither did the instance count.
+The **seeded** ratio below is untouched — this stack is not one of the three
+seeded files.
 
 The three seeded slice-1 stacks alone still score **5 of 26** element
 instances `traced` (12 `inferred`, 9 `untraced` since 2026-09-15's

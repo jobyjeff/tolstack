@@ -25,7 +25,12 @@ from tolerance_stack import (
     ExportRun, SourceExport, SourceRef, StackDefinition, StackElement, Term, fold,
     load_stack,
 )
-from tolerance_stack.stack import EXPORT_STATUSES
+from tolerance_stack.stack import (
+    EXPORT_STATUSES,
+    JOINT_EXPORT_KEY,
+    JOINT_EXPORT_PROSE_KEY,
+    VERDICTS,
+)
 
 from tests.test_js_python_vocabulary import python_values_statuses
 
@@ -240,7 +245,7 @@ def test_an_incomplete_check_is_budget_scoped_and_its_verdict_domain_is_unchange
     """
     got = _check(complete=False, excluded_terms=["link eye width -- no document"])
     assert got.verdict_scope == "budget"
-    assert got.verdict in ("pass", "marginal", "fail")
+    assert got.verdict in VERDICTS
     assert got.verdict_scope in VERDICT_SCOPES
 
 
@@ -308,7 +313,173 @@ def test_the_check_result_dict_carries_the_field_and_the_derived_scope():
     assert got["complete"] is False
     assert got["excluded_terms"] == ["the eye -- no document"]
     assert got["verdict_scope"] == "budget"
-    assert got["verdict"] in ("pass", "marginal", "fail")
+    assert got["verdict"] in VERDICTS
+
+
+def test_every_verdict_a_check_can_reach_is_a_member_of_the_vocabulary():
+    """The pin ``VERDICTS``' own docstring claimed and did not have.
+
+    Until 2026-09-16 the only membership assertions were the two above, each
+    over a single constructed check that happens to land on ``pass`` -- so the
+    "domain" they were said to pin was one word wide, and both hand-spelled the
+    three words instead of reading the tuple. A fourth verdict added to
+    :meth:`CheckResult.verdict` would have sailed past them.
+
+    Three constructed intervals are enough and no data is needed:
+    :meth:`CheckResult.verdict` reads only ``interval.min`` and
+    ``interval.nominal``. All three words are live in the repo anyway -- the
+    topology projection carries 4 ``pass``, 3 ``marginal`` and 11 ``fail`` --
+    so this is the vocabulary as the repo actually uses it, not a hypothetical.
+
+    Both directions, which is what makes the constant and the method one thing:
+
+    * every word this method can return is in ``VERDICTS`` -- add a fourth
+      return value and this reddens;
+    * every word in ``VERDICTS`` is reachable -- rename or drop a member and the
+      set comparison reddens rather than the tuple quietly disagreeing with the
+      method.
+    """
+    corners = {
+        # why it lands where it does -> (nominal, min, max)
+        "worst case satisfies the criterion": (1.0, 0.5, 1.5),
+        "nominal satisfies it, worst case does not": (1.0, -0.5, 1.5),
+        "nominal does not satisfy it either": (-1.0, -2.0, 0.5),
+    }
+    reached = set()
+    for why, (nominal, lo, hi) in corners.items():
+        got = _check(interval=fold([Term(_el("e", nominal, lo, hi))]))
+        assert got.verdict in VERDICTS, f"{why}: {got.verdict!r} is outside VERDICTS"
+        reached.add(got.verdict)
+    assert reached == set(VERDICTS), (
+        f"the verdicts a check can reach are {sorted(reached)}; VERDICTS says "
+        f"{sorted(VERDICTS)} -- one of the two has moved without the other")
+
+
+# ---------------------------------------------------------------------------
+# `CheckResult.margin` -- the number, not just the word
+# ---------------------------------------------------------------------------
+
+
+def test_a_checks_margin_is_the_binding_corner_and_not_the_permissive_one(pitch_link):
+    """*By how much*, pinned at a value -- which nothing in ``tests/`` did.
+
+    ``margin`` is in ``as_dict()``, both projections carry it and the DAG page
+    prints it beside every verdict, and until 2026-09-16 no Python test asserted
+    one. ``review/viewer_study_verdicts_and_gaps`` measured the hole directly:
+    changing the body from ``interval.min`` to ``interval.max`` -- the most
+    permissive corner of the interval instead of the binding one -- left that
+    day's suite green but for one unrelated, pre-existing failure.
+
+    The existing net could not see it, for two reasons worth knowing before
+    editing this:
+
+    * ``test_the_l1_studys_projected_check_matches_check_study_field_for_field``
+      (``tests/test_topology_projection.py``) builds its expectation with the
+      builder's own ``rounded_check(...)``, so it compares the projection
+      against the code that produced it -- right for the rounding rule, blind to
+      a wrong margin rule; and
+    * the only pin on a margin *value* anywhere was a rendered-string assertion
+      in the JS ``[real]`` tier, which reads the *built projection file* and so
+      fires only after somebody manually re-runs
+      ``scripts/build_topology_projection.py`` -- one artifact and one language
+      away from the rule.
+
+    Which end of a budget check's interval is the requirement is a question this
+    repo has already got wrong once in prose, by 0.708 mm, with every folded
+    value correct and every test green (``docs/prompts/REVIEW_AGENT.md``,
+    mandatory check 2).
+    """
+    # Both live pitch-link checks, at the values the DAG page publishes:
+    # `apps/viewer/tests.js` asserts "margin +0.1098 mm at worst case" and
+    # "margin +2.3296 mm at worst case" against the built projection.
+    published = {
+        "shank_out__11_sourced_only": 0.1098,
+        "cotter_hole_clear_of_sourced_stack": 2.3296,
+    }
+    for check_id, expected in published.items():
+        got = pitch_link.check(check_id)
+        assert got.margin == pytest.approx(got.interval.min, abs=TOL)
+        assert got.margin == pytest.approx(expected, abs=1e-4), (
+            f"{check_id}: margin is {got.margin}, and the page publishes "
+            f"{expected}")
+        # Anti-vacuity, and the whole point: on these checks the permissive
+        # corner is a DIFFERENT number, so reading it would be visible here.
+        assert got.interval.max != pytest.approx(got.interval.min, abs=TOL)
+
+
+def test_a_marginal_checks_margin_is_negative_even_though_nominal_passes():
+    """The sign, where the two corners straddle the criterion.
+
+    The live pitch-link checks both pass, so their two corners are both positive
+    and only the *value* distinguishes them. This is the case where reading the
+    permissive corner would flip the sign outright: a check the repo calls
+    ``marginal`` -- nominal satisfies the criterion, worst case does not --
+    must report a shortfall, not slack, or the word and the number on the same
+    row contradict each other.
+    """
+    got = _check(interval=fold([Term(_el("e", 1.0, -0.5, 1.5))]))
+    assert got.verdict == "marginal"
+    assert got.margin == pytest.approx(-0.5, abs=TOL)
+    assert got.margin < 0, (
+        "a marginal check reported slack -- the verdict and the margin are "
+        "supposed to be the same comparison written once")
+
+
+def test_verdict_and_margin_both_refuse_a_criterion_neither_implements():
+    """The gate both properties carry, and that neither had a test for.
+
+    ``">= 0"`` is the only criterion ``CheckResult`` implements -- it is the
+    dataclass default, ``docs/SOP_TOLERANCE_STACK.md``'s "Verdicts" section
+    states it flatly, and every criterion authored in this repo's JSON is that
+    string (pinned by the test below, so this gate is not guarding empty space).
+    Both ``verdict`` and ``margin`` raise on anything else, and they must raise
+    *together*: a criterion of ``">= 3"`` would make ``margin`` and
+    ``interval.min`` differ, so gating only one of the two would publish a
+    number computed by the wrong rule beside a word that refused to be computed.
+    """
+    for criterion in (">= 3", "> 0", ">=0", "<= 0", ""):
+        got = _check(criterion=criterion)
+        with pytest.raises(NotImplementedError, match="not supported"):
+            got.verdict
+        with pytest.raises(NotImplementedError, match="not supported"):
+            got.margin
+    # And the supported one does not raise, from both properties.
+    supported = _check(criterion=">= 0")
+    assert supported.verdict in VERDICTS
+    assert isinstance(supported.margin, float)
+
+
+def test_every_authored_criterion_is_one_the_check_result_implements():
+    """Anti-vacuity for the gate above: the refusal guards live authoring.
+
+    There is no ``CRITERIA`` constant -- the criterion vocabulary is a dataclass
+    default, plus a ``NotImplementedError`` in two properties, plus one flat
+    sentence in ``docs/SOP_TOLERANCE_STACK.md``'s "Verdicts" section. So this is
+    where *"every authored criterion is one the code supports"* gets checked,
+    and a document authoring ``">= 3"`` fails here rather than raising at render
+    time.
+
+    Both authoring surfaces, not just the stacks: a study in ``docs/topologies/``
+    carries its own ``criterion`` on the same ``checks`` key and rides the same
+    two properties, and the studies are where most of them are. Both are
+    asserted to have contributed, so a glob that stops matching fails here
+    rather than turning the loop below into a pass over nothing.
+    """
+    authored = []
+    for directory in (STACKS_DIR, STACKS_DIR.parent / "topologies"):
+        for path in sorted(directory.glob("*.json")):
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            for block in raw.get("checks") or []:
+                if isinstance(block, dict) and "criterion" in block:
+                    authored.append((directory.name, path.name,
+                                     block.get("check_id"), block["criterion"]))
+    wrong = [a for a in authored if a[3] != ">= 0"]
+    assert wrong == [], (
+        "documents author a criterion CheckResult.verdict/.margin refuse: "
+        + "; ".join(f"{f}:{cid} says {crit!r}" for _, f, cid, crit in wrong))
+    assert {a[0] for a in authored} == {"tolerance_stacks", "topologies"}, (
+        "one of the two authoring surfaces contributed no criterion at all -- "
+        "the assertion above just passed over nothing")
 
 
 # ---------------------------------------------------------------------------
@@ -522,17 +693,26 @@ def test_pitch_link_cotter_hole_position_is_traced_and_carries_no_material_condi
 
 
 def test_pitch_link_pitch_plate_lug_is_the_5X_group_not_the_3X_or_1X(pitch_link, tan_link):
-    """215197 carries three distinct 4.06 callouts. Only the COUNT ties one to a
-    joint: 5X for the five pitch links (five blades), 3X for the three
-    tangential links, 1X for the VPA. Matching on 4.06 alone gets you nowhere."""
+    """The pitch plate drawing carries several distinct 4.06 callouts. Only the
+    COUNT ties one to a joint: 5X for the five pitch links (five blades), 3X for
+    the three tangential links, and the un-counted ones on sheet 1 for the VPA.
+    Matching on 4.06 alone gets you nowhere.
+
+    Re-cited 2026-09-16 (handoff citation_identity_correctness) from the PRELIM
+    215197 A.1 fixture to the RELEASED plate, 215735 rev A -- a different part
+    number, whose sheet 2 prints these same two groups at these same addresses.
+    No value moved. What did move on the released plate is the un-counted group:
+    215197 sheet 1 printed ONE 4.06 +-0.10, 215735-A sheet 1 prints two (D5 and
+    D6), which is why the sentence above no longer says "1X"."""
     mine = pitch_link.element("pitch_plate_flange")
     theirs = tan_link.element("pitch_plate_flange")
     assert mine.nominal == theirs.nominal == 4.06
-    assert (mine.min, mine.max) == (3.96, 4.16)                    # 215197 sh2 D10 "5X 4.06 +-0.10"
-    assert (theirs.min, theirs.max) == (3.98, 4.14)                # 215197 sh2 B4  "3X 4.06 +-0.08"
+    assert (mine.min, mine.max) == (3.96, 4.16)                    # 215735-A sh2 D10 "5X 4.06 +-0.10"
+    assert (theirs.min, theirs.max) == (3.98, 4.14)                # 215735-A sh2 B4  "3X 4.06 +-0.08"
     assert mine.source_ref.callout == "5X 4.06 ±0.10"
-    assert (mine.source_ref.document, mine.source_ref.sheet, mine.source_ref.zone) == (
-        "215197", 2, "D10",
+    assert (mine.source_ref.document, mine.source_ref.revision,
+            mine.source_ref.sheet, mine.source_ref.zone) == (
+        "215735", "A", 2, "D10",
     )
     assert mine.source_ref.confidence == "traced"
 
@@ -820,8 +1000,15 @@ SHARED_MULTI_FEATURE_BANDS = {
 #: **known divergence**, not an exemption: the test below fails if a listed pair
 #: has quietly come into line (delete the row) or stopped existing.
 KNOWN_BAND_DIVERGENCES = {
-    ("rotor_fastener_length", "washer_nas1149v0332_tt"):
-        "ISSUE_20260915_rotor_fastener_washer_band_diverges_from_its_siblings.md",
+    # Empty since 2026-09-16 (`citation_identity_correctness`), and the empty
+    # dict is the statement rather than a leftover: the one row it held --
+    # ("rotor_fastener_length", "washer_nas1149v0332_tt"), tracked by
+    # ISSUE_20260915_rotor_fastener_washer_band_diverges_from_its_siblings.md --
+    # was deleted when that element took the 0.7112/0.9144 band its two siblings
+    # have folded since 2026-09-15. Deleting it was not a tidy-up: the test below
+    # fails on a row whose divergence has closed. Every part in SHARED_BANDS now
+    # folds one band in every stack that uses it, with no exception recorded
+    # anywhere -- which is the first time that has been true.
 }
 
 
@@ -992,15 +1179,29 @@ def test_rotor_fastener_grip_family_spans_nine_dash_numbers(rotor_fastener):
 
 
 def test_rotor_fastener_sourced_clamped_stack_is_the_two_washers_only(rotor_fastener):
-    """Both washers carry a zero-width band (SOP Step 5b: NAS1149 and MS21299
-    are both absent from data/inbox/specs/), so the path is zero-width too --
-    the balancing mass(es) and the receiving-structure thickness are OMITTED,
-    not folded with an invented number (Step 5c)."""
+    """The two washers, and no invented member: the balancing mass(es) and the
+    receiving-structure thickness are OMITTED rather than folded with a made-up
+    number (SOP Step 5c).
+
+    **The premise inverted on 2026-09-16** (`citation_identity_correctness`).
+    This test used to read "both washers carry a zero-width band ... so the path
+    is zero-width too", and asserted `min == max`. `washer_nas1149v0332_tt` now
+    folds the 260729 workbook's 0.7112/0.9144, the band its two sibling stacks
+    have folded since 2026-09-15 -- so exactly ONE of the two is still
+    zero-width (MS21299 is genuinely absent from data/inbox/specs/ and has no
+    workbook value either) and the path has a real width for the first time.
+    The nominal did not move, which is why it is asserted separately below: a
+    band applied symmetrically about the transcribed nominal must not shift the
+    centre."""
     assert "balancing_mass" not in {e.id for e in rotor_fastener.elements}
     got = rotor_fastener.path("sourced_clamped_stack")
     assert got.nominal == pytest.approx(0.8128 + 1.6002, abs=TOL)  # NAS1149V0332H + MS21299C3
-    assert got.min == got.max == pytest.approx(2.413, abs=TOL)
-    assert got.worst_case_half == pytest.approx(0.0, abs=TOL)
+    assert (got.min, got.max) == (pytest.approx(2.3114, abs=TOL),
+                                  pytest.approx(2.5146, abs=TOL))
+    assert got.worst_case_half == pytest.approx(0.1016, abs=TOL)
+    # One zero-width member left, and it is the one with nothing behind it.
+    zero_width = {e.id for e in rotor_fastener.elements if e.min == e.max}
+    assert zero_width == {"washer_ms21299c3"}
 
 
 def test_rotor_fastener_grip_budgets_span_shortest_to_longest_option(rotor_fastener):
@@ -1020,26 +1221,73 @@ def test_rotor_fastener_grip_budgets_span_shortest_to_longest_option(rotor_faste
     assert magnitudes == sorted(magnitudes)          # strictly widening budget
     assert magnitudes[0] == pytest.approx(0.762, abs=TOL)     # dash 2, smallest
     assert magnitudes[-1] == pytest.approx(13.462, abs=TOL)   # dash 10, largest
-    # worst-case budget (grip MAX vs the zero-width sourced column)
-    assert -checks[0].interval.min == pytest.approx(1.016, abs=TOL)
-    assert -checks[-1].interval.min == pytest.approx(13.716, abs=TOL)
+    # Worst-case budget: grip MAX vs the sourced column's MIN. Moved 2026-09-16
+    # (`citation_identity_correctness`) when the column stopped being zero-width
+    # -- it was 2.413 and is now 2.3114, so every worst-case budget grew by
+    # exactly 0.1016 and the nominals above did not move at all.
+    assert -checks[0].interval.min == pytest.approx(1.1176, abs=TOL)
+    assert -checks[-1].interval.min == pytest.approx(13.8176, abs=TOL)
+    # And the other end tightened by the same amount, which is the half a
+    # one-sided repin would have missed.
+    assert -checks[0].interval.max == pytest.approx(0.4064, abs=TOL)
+    # RSS is no longer worst case. With two banded terms the RSS half-width is
+    # sqrt(0.1016**2 + 0.254**2), not the 0.3556 a zero-width column gave -- a
+    # claim the worksheet used to make in prose, so it is pinned here too.
+    assert checks[0].interval.rss_half == pytest.approx(0.2735664, abs=TOL)
+    assert checks[0].interval.worst_case_half == pytest.approx(0.3556, abs=TOL)
 
 
-def test_rotor_fastener_has_no_workbook_source_and_declares_its_zero_width_bands(rotor_fastener):
-    """SOP Step 5b: no workbook citation anywhere in a from-scratch stack. Both
-    washers are zero-width by declaration, not by omission."""
-    kinds = {e.source_ref.kind for e in rotor_fastener.elements}
-    assert "workbook" not in kinds
+def test_rotor_fastener_carries_its_one_unverified_band_loudly_and_not_as_traced(
+        rotor_fastener):
+    """Exactly one workbook citation in this file, named, `untraced`, with its
+    gap open -- and a later pass that quietly promotes it fails here.
+
+    **The rule this replaces.** Until 2026-09-16 this test was
+    `test_rotor_fastener_has_no_workbook_source_and_declares_its_zero_width_bands`
+    and asserted `"workbook" not in kinds`: SOP Step 5b's original reading, that
+    a from-scratch stack cites no workbook at all, with both washers zero-width
+    "by declaration, not by omission". Jeff's 2026-09-15 ruling replaced it --
+    a sourced-but-unverified value belongs in a stack loudly rather than
+    omitted silently -- and the Step 5b amendment of the same date added the
+    half that forced this file's hand: the same part+feature must carry the same
+    band in every stack that uses it. `pitch_link_known_bands` applied that to
+    two stacks and left this one out of scope; `citation_identity_correctness`
+    closed it.
+
+    **So what is easy to lose now, and is therefore what this guards.** Not the
+    band -- `test_one_part_and_feature_folds_one_band_in_every_stack_that_uses_it`
+    holds that. It is the LOUDNESS. `untraced` is what makes the viewer badge
+    this value and what keeps it on the worksheet's gap list; a later session
+    that reads "well, the workbook agrees with the parts-list nominal" and
+    relabels it `inferred` would silently retire both, with no number changing
+    anywhere. This is the shape
+    `test_pitch_link_carries_its_two_unverified_bands_loudly_and_not_as_traced`
+    guards one stack over, for the same part, for the same reason.
+    """
+    workbook = [e for e in rotor_fastener.elements
+                if e.source_ref.kind == "workbook"]
+    assert [e.id for e in workbook] == ["washer_nas1149v0332_tt"], (
+        "this file holds exactly one workbook citation, deliberately; a second "
+        "one is a decision somebody has to make out loud, not a detail")
+    cited = workbook[0].source_ref
+    assert cited.confidence == "untraced", (
+        "the NAS1149 standard is still not in data/inbox/specs/, so a workbook "
+        "cell is this band's only support -- promoting this label is what makes "
+        "the viewer stop badging it")
+    assert (cited.document, cited.sheet, cited.cell) == (
+        "260729_sample_tol_stack.xlsx", "grip length tols old", "E11/F11")
+    assert cited.export is None          # a spreadsheet is not an export
+    # The other washer is still zero-width, and honestly so: MS21299 is absent
+    # from the pile and has no workbook value either, so there is nothing to
+    # apply. One zero-width element in this file now, not two.
     zero_width = {e.id for e in rotor_fastener.elements if e.min == e.max}
-    assert zero_width == {"washer_ms21299c3", "washer_nas1149v0332_tt"}
-    for eid in zero_width:
-        e = rotor_fastener.element(eid)
-        assert e.source_ref.kind == "parts_list"
-        assert e.source_ref.confidence == "inferred"
+    assert zero_width == {"washer_ms21299c3"}
+    ms21299 = rotor_fastener.element("washer_ms21299c3").source_ref
+    assert (ms21299.kind, ms21299.confidence) == ("parts_list", "inferred")
     confidences = [e.source_ref.confidence for e in rotor_fastener.elements]
     assert confidences.count("traced") == 9
-    assert confidences.count("inferred") == 2
-    assert confidences.count("untraced") == 0
+    assert confidences.count("inferred") == 1
+    assert confidences.count("untraced") == 1
 
 
 def test_rotor_fastener_has_no_castellated_retention(rotor_fastener):
@@ -1213,6 +1461,26 @@ def test_the_export_is_a_sibling_of_the_feature_identity_slot_not_a_filling_in()
             assert ref.element_id is None and ref.run_id is None
 
 
+def cited_exports(stack):
+    """``(where, SourceExport)`` for every export this stack cites, both levels.
+
+    One definition of *cited*, because there are now two places an export can be
+    named and the read-only invariant has to reach both. Element level has been
+    here since ``citation_export_provenance`` (2026-08-06); joint level since
+    2026-09-16, when ``joint.assembly_export_ref`` gave the assembly export a
+    :class:`SourceExport` beside its prose sentence.
+
+    ``where`` is for the failure message only -- the element id, or the literal
+    ``joint`` -- so a test that fails names the block a reader has to open.
+    """
+    found = [(element.id, element.source_ref.export)
+             for element in stack.elements
+             if element.source_ref and element.source_ref.export]
+    if stack.assembly_export_ref is not None:
+        found.append(("joint", stack.assembly_export_ref))
+    return found
+
+
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
 def test_every_cited_run_carries_the_ts_from_its_own_run_meta(filename):
     """A run id is a name; a run id plus its ``ts`` is an identity.
@@ -1226,12 +1494,11 @@ def test_every_cited_run_carries_the_ts_from_its_own_run_meta(filename):
     commit dates instead of an inference about someone else's commit log.
     """
     stack = load_stack(STACKS_DIR / filename)
-    for element in stack.elements:
-        export = element.source_ref.export
-        for run in (export.runs if export else ()):
-            assert run.run_id, f"{stack.id}:{element.id} names a run with no id"
+    for where, export in cited_exports(stack):
+        for run in export.runs:
+            assert run.run_id, f"{stack.id}:{where} names a run with no id"
             assert run.ts, (
-                f"{stack.id}:{element.id} cites run {run.run_id} with no ts -- "
+                f"{stack.id}:{where} cites run {run.run_id} with no ts -- "
                 f"copy it from that run's run_meta.json"
             )
             # Parseable, and tz-aware: a naive stamp cannot be compared with a
@@ -1317,6 +1584,29 @@ def test_a_source_ref_refuses_a_kind_outside_the_vocabulary():
         SourceRef.from_dict({"kind": "drawing ", "document": "217755"})
 
 
+#: Cited drawing-checker runs whose read-only status is **not** settled by a
+#: timestamp, each with the argument that stands in for one. Written by run id
+#: rather than by rule so the list cannot quietly grow, and paired both ways by
+#: the test below -- an unlisted postdating run fails, and a listed run nobody
+#: cites fails too.
+_RUNS_CLEARED_WITHOUT_A_TIMESTAMP = {
+    "20260813_180734": (
+        "215735-A, run 1 of 2. Postdates pitch_link_stack's first commit by 9 "
+        "days, so 'it predates us' is unavailable. Cleared instead by "
+        "drawing-checker's own record: run_meta.json says purpose 'eager', its "
+        "eager-publish policy wrote it, and tolstack has no write path into "
+        "that repo -- weaker than arithmetic on a commit date, and with no "
+        "enforcement behind it (ISSUE_20260804_drawing_checker_readonly_check_"
+        "has_no_teeth.md)."
+    ),
+    "20260819_153213": (
+        "215735-A, run 2 of 2. Same argument, same weakness; 15 days after the "
+        "commit. Both runs record the same source sha256 in their run_meta.json "
+        "inputs, which is what makes 'which export' a unique answer here."
+    ),
+}
+
+
 def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     """**The invariant, verified rather than asserted** -- the first time.
 
@@ -1349,42 +1639,259 @@ def test_the_pitch_link_stacks_cited_runs_predate_that_sessions_first_commit():
     three 215197 runs, which is real bite and not a vacuous pass; the gap is
     filed as ``ISSUE_20260915_the_joint_assembly_export_is_prose_so_its_runs_have_no_ts.md``.
 
-    **The root-commit claim survives, on a different run.** It was written
-    against ``20260803_145243`` and was dropped with it during
-    ``pitch_link_known_bands``; ``review/pitch_link_known_bands`` pointed out
-    that its *subject* had not gone away. ``20260730_133912``
-    (``2026-07-30T20:39:33.291499Z``) also predates the root commit, so the
-    strongest form of the invariant -- *a cited run predates this repo's
-    existence, so this repo cannot have produced it* -- is still checkable here,
-    and is checked below.
+    **Changed 2026-09-16** (``citation_identity_correctness``): ``pitch_plate_flange``
+    was re-cited from the PRELIM 215197 fixture to the RELEASED plate 215735-A,
+    and **the three 215197 runs left with it**. The two 215735-A runs that
+    replaced them -- ``20260813_180734`` (2026-08-14T01:07:56Z) and
+    ``20260819_153213`` (2026-08-19T22:32:36Z) -- **postdate** both constants
+    below, so for this stack the timestamp proof is gone: nothing element-level
+    here predates the session any more, and with it the root-commit form went
+    too (``20260730_133912`` was the last holder and is no longer cited here).
+
+    **So what does this test claim now, and how can it still fail?** Not that
+    every cited run predates the session -- two demonstrably do not. It claims
+    that **every cited run is cleared, and by a named argument**: by timestamp
+    where the timestamp settles it, and otherwise by appearing in
+    :data:`_RUNS_CLEARED_WITHOUT_A_TIMESTAMP` with the reason written down. A
+    run that is neither predating nor listed fails here, which is the finding
+    this test exists to surface. The exemption is deliberately by run id and
+    not by rule, so it cannot quietly grow.
+
+    **Changed 2026-09-16 again** (``python_value_and_schema_pins``): the two
+    217755 runs are back inside this test's reach. ``joint.assembly_export`` is
+    still the prose sentence it always was, and a sentence still has no ``ts``
+    -- what is new is the structured sibling ``joint.assembly_export_ref``, a
+    ``SourceExport`` carrying the same export's ``sha256`` and both runs with
+    their ``run_meta.json`` timestamps, so ``cited_exports`` reaches it the same
+    way it reaches an element's. Both predate ``d6829f2`` by arithmetic and
+    neither needs an exemption, which means the half of this invariant the
+    2026-09-15 re-citation lost is the strong half, and it has come back.
+
+    **The argument the two exempted runs rest on is weaker, and saying which is
+    the point.** "It predates us, so we cannot have produced it" is proof. What
+    stands in for it here is drawing-checker's own record: both runs carry
+    ``"purpose": "eager"`` in their ``run_meta.json`` -- that repo's own
+    eager-publish policy wrote them, not a request from here -- and tolstack has
+    no write path into it. That is evidence about another repo's behaviour, not
+    arithmetic on a commit date, and
+    ``ISSUE_20260804_drawing_checker_readonly_check_has_no_teeth.md`` is the
+    standing record that it has no enforcement behind it. The strongest form of
+    the invariant has NOT disappeared from the repo -- it moved to the two
+    stacks that still cite pre-root runs, and
+    ``test_the_strongest_read_only_claim_still_has_a_subject`` below is where it
+    is now checked. What was lost here specifically -- this test's own name no
+    longer describes its subject, and several live documents name it -- is filed
+    as ``ISSUE_20260916_the_readonly_invariant_test_name_outlived_its_claim.md``.
     """
     # git -C C:\workspace\tolstack log --format='%h %ad' --date=iso-strict
     PITCH_LINK_FIRST_COMMIT = datetime(2026, 8, 4, 22, 42, 57, tzinfo=timezone.utc)  # d6829f2
-    TOLSTACK_ROOT_COMMIT = datetime(2026, 8, 3, 23, 5, 8, tzinfo=timezone.utc)       # e7bd996
 
     stack = load_stack(STACKS_DIR / "stack_pitch_link_to_pitch_plate.json")
     cited = {
         run.run_id: datetime.fromisoformat(run.ts)
-        for element in stack.elements
-        for run in (element.source_ref.export.runs if element.source_ref.export else ())
+        for _, export in cited_exports(stack)
+        for run in export.runs
     }
     assert cited, "no run cited at all -- this invariant would pass vacuously"
+    # Two element-level (the 215735-A export) and two joint-level (the
+    # [PRELIM 2026-AUG-3] 217755 export, structured in 2026-09-16's
+    # `python_value_and_schema_pins`).
+    assert set(cited) == {"20260813_180734", "20260819_153213",
+                          "20260803_145243", "20260804_114000"}
     for run_id, ts in cited.items():
-        assert ts < PITCH_LINK_FIRST_COMMIT, (
-            f"run {run_id} ({ts.isoformat()}) postdates the session's first commit -- "
-            f"it may be this repo's own write into a read-only dependency"
+        if ts < PITCH_LINK_FIRST_COMMIT:
+            continue
+        assert run_id in _RUNS_CLEARED_WITHOUT_A_TIMESTAMP, (
+            f"run {run_id} ({ts.isoformat()}) postdates the session's first commit "
+            f"and no reason is recorded for citing it anyway -- it may be this "
+            f"repo's own write into a read-only dependency"
         )
-    # The 215197 export, which is the only element-level one left.
-    assert set(cited) == {"20260409_170546", "20260409_172341", "20260730_133912"}
-    # The stronger claim, repointed: this run existed before this repo did.
-    assert cited["20260730_133912"] < TOLSTACK_ROOT_COMMIT
+    # A reason recorded for a run nobody cites is the other way this row goes
+    # stale, and it is the direction that fails silently.
+    assert set(_RUNS_CLEARED_WITHOUT_A_TIMESTAMP) <= set(cited), (
+        "a run is exempted here that this stack no longer cites -- delete the row"
+    )
 
-    # And the run the review could not attribute is still cited by this stack,
-    # at joint level. Losing the citation entirely would be a different defect
-    # from losing its timestamp, and only one of the two happened.
+    # And the run the review could not attribute is cited by this stack at
+    # joint level in BOTH forms. The prose sentence is what
+    # `scripts/build_viewer_crops.py` parses with `_RUN_ID_RE`, so it is load
+    # bearing and not decoration; the structured sibling is what put the `ts`
+    # back in `cited` above. Asserting both is what stops the migration from
+    # being undone in either direction.
     raw = json.loads(
         (STACKS_DIR / "stack_pitch_link_to_pitch_plate.json").read_text(encoding="utf-8"))
-    assert "20260804_114000" in raw["joint"]["assembly_export"]
+    assert "20260804_114000" in raw["joint"][JOINT_EXPORT_PROSE_KEY]
+    assert "20260804_114000" in stack.assembly_export_ref.run_ids
+
+
+def test_the_strongest_read_only_claim_still_has_a_subject():
+    """*A cited run existed before this repo did, so this repo cannot have
+    produced it.* The strongest form of the read-only invariant, checked across
+    every stack rather than in one of them.
+
+    Written 2026-09-16 (``citation_identity_correctness``). It used to live in
+    the test above, resting on ``20260730_133912``; re-citing the pitch plate to
+    215735-A took that run out of the pitch-link stack, and the form would have
+    died with it if it were only ever checked there. It was not only there: the
+    tan-link and VPA stacks each cite four 2026-JUL runs that predate tolstack's
+    root commit outright. So the claim moves rather than weakens -- and it is
+    now checked where its subjects actually are, which is what stops the next
+    re-cite from emptying it unnoticed.
+
+    Fails if the last pre-root citation goes: a repo whose every cited run
+    postdates it has to make the read-only argument some other way, and should
+    be told so rather than quietly losing the strongest one it had.
+    """
+    TOLSTACK_ROOT_COMMIT = datetime(2026, 8, 3, 23, 5, 8, tzinfo=timezone.utc)   # e7bd996
+
+    pre_root = {}
+    for path in sorted(STACKS_DIR.glob("stack_*.json")):
+        for _, export in cited_exports(load_stack(path)):
+            for run in export.runs:
+                if datetime.fromisoformat(run.ts) < TOLSTACK_ROOT_COMMIT:
+                    pre_root.setdefault(run.run_id, set()).add(path.name)
+    assert pre_root, (
+        "no cited run predates this repo's root commit any more -- the strongest "
+        "form of the read-only invariant has lost its subject everywhere, and "
+        "nothing else in this suite would have said so"
+    )
+    # Named, so the set emptying one citation at a time is visible as it happens
+    # rather than at the moment the last one goes.
+    #
+    # `20260803_145243` (2026-08-03T21:53:01Z, 72 minutes before `e7bd996`)
+    # rejoined on 2026-09-16 when the pitch-link joint export became structured:
+    # it had been in this repo's citations since founding and was only ever
+    # invisible here because the walk stopped at element level.
+    assert set(pre_root) == {"20260723_163810", "20260727_153847",
+                             "20260730_131903", "20260730_132230",
+                             "20260803_145243"}
+    assert {name for names in pre_root.values() for name in names} == {
+        "stack_pitch_link_to_pitch_plate.json",
+        "stack_tan_link_to_pitch_plate.json",
+        "stack_vpa_output_to_pitch_plate.json"}
+
+
+def test_a_joint_that_names_an_export_in_prose_also_names_it_structurally():
+    """The pairing that makes the 2026-09-16 migration stick.
+
+    ``joint.assembly_export`` is a sentence and ``joint.assembly_export_ref`` is
+    a :class:`SourceExport`; the sentence is what
+    ``scripts/build_viewer_crops.py`` parses for run ids and the block is what
+    carries each run's ``ts``. Neither is derived from the other -- that is the
+    point of the additive shape -- so nothing but this test stops the next stack
+    from writing one and not the other, which is exactly the state the pitch
+    link spent 2026-09-15 to 2026-09-16 in.
+
+    Both directions. A prose field with no block is a run id with no identity in
+    time, which is the defect. A block with no prose field would be a run id the
+    crop builder's regex can no longer see, which is the same defect pointed the
+    other way -- and it is the shape a well-meaning tidy-up would produce.
+    """
+    missing_block, missing_prose = [], []
+    for filename in ALL_STACK_FILES:
+        raw = json.loads((STACKS_DIR / filename).read_text(encoding="utf-8"))
+        joint = raw.get("joint") or {}
+        if JOINT_EXPORT_PROSE_KEY in joint and JOINT_EXPORT_KEY not in joint:
+            missing_block.append(filename)
+        if JOINT_EXPORT_KEY in joint and JOINT_EXPORT_PROSE_KEY not in joint:
+            missing_prose.append(filename)
+    assert missing_block == [], (
+        f"a joint names its assembly export only in prose, so its runs have no "
+        f"ts: {missing_block} -- add {JOINT_EXPORT_KEY} beside it")
+    assert missing_prose == [], (
+        f"a joint dropped the prose {JOINT_EXPORT_PROSE_KEY} that "
+        f"build_viewer_crops.py's _RUN_ID_RE reads: {missing_prose}")
+
+
+def test_the_three_states_of_a_joint_export_are_all_live_and_all_distinct():
+    """Three states, not two -- and the third is **absent**, not a sentinel.
+
+    * ``established`` -- the pitch-link and rotor-fastener joints, each naming
+      the 217755 export they were read from, by ``sha256``, with both
+      drawing-checker runs and their timestamps;
+    * ``unestablished`` -- the two hub-bearing thermal stacks, whose prose said
+      ``"not read for this stack"``. :class:`SourceExport` is what makes that
+      machine-readable, and it enforces the honesty: an ``unestablished`` export
+      that also named a pdf or a sha would raise;
+    * **absent** -- the tan-link pair and the VPA stack, whose ``joint`` carries
+      an ``assembly_drawing`` and a sheet/view/zone and makes no export claim at
+      all. Writing an ``unestablished`` block for these would assert that
+      somebody looked and could not establish one, which is a different and
+      unsupported statement. An absent key is the only honest encoding of "the
+      question was never asked".
+
+    Pinned by name because the three are one field's whole domain and the
+    difference between the last two is the kind of thing a later migration
+    flattens without noticing.
+    """
+    states = {}
+    for filename in ALL_STACK_FILES:
+        export = load_stack(STACKS_DIR / filename).assembly_export_ref
+        states[filename] = export.status if export else None
+
+    assert states == {
+        "stack_pitch_link_to_pitch_plate.json": "established",
+        "stack_rotor_fastener_length.json": "established",
+        "stack_hub_bearing_thermal_fit_m1.json": "unestablished",
+        "stack_hub_bearing_thermal_fit_m2.json": "unestablished",
+        "stack_tan_link_to_pitch_plate.json": None,
+        "stack_tan_link_to_pitch_plate_take2.json": None,
+        "stack_vpa_output_to_pitch_plate.json": None,
+    }
+    # All three states occur, so none of the branches above is dead, and the
+    # two established ones carry what `established` promises.
+    assert set(states.values()) == set(EXPORT_STATUSES) | {None}
+    for filename, status in states.items():
+        export = load_stack(STACKS_DIR / filename).assembly_export_ref
+        if status == "established":
+            assert export.pdf and len(export.sha256) == 64
+            assert export.runs, f"{filename}: an established joint export names no run"
+        elif status == "unestablished":
+            assert export.why and not export.pdf and not export.sha256
+            assert not export.runs
+
+
+def test_a_malformed_joint_export_is_refused_when_the_stack_loads(tmp_path):
+    """At load, not at first read -- the same moment an element-level export is
+    validated, so a stack that would render a wrong citation never constructs.
+
+    The three shapes that matter, and all three are ways an author could write
+    this key while believing it correct: a bare run id (the pre-2026-08-07 shape
+    ``ExportRun`` exists to refuse), an ``unestablished`` export that also names
+    a pdf, and a scalar where an object belongs -- which is what copying the
+    prose sentence into the new key would produce.
+    """
+    base = json.loads(
+        (STACKS_DIR / "stack_tan_link_to_pitch_plate.json").read_text(encoding="utf-8"))
+    assert JOINT_EXPORT_KEY not in base["joint"], "fixture must start with no block"
+
+    def written(block):
+        raw = json.loads(json.dumps(base))
+        raw["joint"][JOINT_EXPORT_KEY] = block
+        path = tmp_path / "stack_fixture.json"
+        path.write_text(json.dumps(raw), encoding="utf-8")
+        return path
+
+    bad_runs = written({
+        "status": "established", "pdf": "d.pdf", "sha256": "a" * 64,
+        "runs": ["20260804_114000"]})
+    with pytest.raises(ValueError, match="bare run id"):
+        load_stack(bad_runs)
+
+    contradictory = written({
+        "status": "unestablished", "why": "not read", "pdf": "d.pdf"})
+    with pytest.raises(ValueError, match="must not name a pdf"):
+        load_stack(contradictory)
+
+    prose_in_the_wrong_key = written(
+        "[PRELIM 2026-AUG-3] 217755 (drawing-checker run 20260804_114000)")
+    with pytest.raises(ValueError, match="must be an export object"):
+        load_stack(prose_in_the_wrong_key)
+
+    # And the well-formed one loads, so the three refusals above are
+    # discriminating rather than refusing the key outright.
+    ok = written({"status": "unestablished", "why": "not read for this stack"})
+    assert load_stack(ok).assembly_export_ref.status == "unestablished"
 
 
 @pytest.mark.parametrize("filename", ALL_STACK_FILES)
@@ -1683,7 +2190,15 @@ def test_the_seeded_traced_ratio_is_the_number_every_document_quotes():
     # (`pitch_link_to_pitch_plate` gained its eye and flange members, one
     # `untraced` placeholder and one `inferred`), and the nine seeded re-cites
     # above moved the columns to 17 inferred / 14 untraced. `traced` still 30.
-    assert every == {"instances": 61, "traced": 30, "inferred": 17, "untraced": 14}
+    # Moved 2026-09-16 (`citation_identity_correctness`): inferred 17 -> 16,
+    # untraced 14 -> 15. `rotor_fastener_length`'s washer_nas1149v0332_tt went
+    # `inferred` (a parts-list nominal with no band) -> `untraced` (the 260729
+    # workbook's band, its only support) -- the same move, for the same part,
+    # that `pitch_link_known_bands` made one stack over. `instances` and
+    # `traced` do not move, and neither does the SEEDED ratio above:
+    # rotor_fastener_length is not one of the three seeded files, so the "5 of
+    # 26" figure the eleven ratio publishers quote is untouched.
+    assert every == {"instances": 61, "traced": 30, "inferred": 16, "untraced": 15}
 
     # Instances, not distinct ids, and not "elements that carry a hardware_ref".
     # Those are the two denominators a reader reaches for by mistake; recording
@@ -2159,13 +2674,22 @@ def test_the_coverage_set_assertions_go_red_on_a_derivation_pointed_nowhere(tmp_
 
 
 def test_the_only_traced_part_drawing_value_is_the_pitch_plate_flange(tan_link):
-    """215197 is the one part drawing this repo holds for these joints, and
-    exactly one element traces to it. Everything else is a fastener-library gap."""
+    """215735 is the one part drawing this repo holds for these joints, and
+    exactly one element traces to it. Everything else is a fastener-library gap.
+
+    It became a drawing this repo *holds* on 2026-09-16
+    (citation_identity_correctness): until then this value cited 215197 A.1, a
+    PRELIM export living in drawing-checker's test fixtures, and the sentence
+    above was false as written. The released plate is 215735-A, copied into
+    data/inbox/drawings/ and cited from there."""
     traced = [e.id for e in tan_link.elements if e.source_ref.confidence == "traced"]
     assert "pitch_plate_flange" in traced
     ref = tan_link.element("pitch_plate_flange").source_ref
-    assert (ref.document, ref.sheet, ref.zone) == ("215197", 2, "B4")
+    assert (ref.document, ref.revision, ref.sheet, ref.zone) == ("215735", "A", 2, "B4")
     assert ref.callout == "3X 4.06 ±0.08"
+    # Cited repo-relative, so it resolves against this repo's own data root and
+    # not a path into the read-only upstream.
+    assert ref.export.pdf == "data/inbox/drawings/215735-A.pdf"
 
 
 def test_hardware_entry_values_source_counts_match_the_description():
@@ -2745,7 +3269,107 @@ def test_every_inline_hardware_entry_cites_where_its_values_came_from():
     assert len(by_kind["parts_list"]) == 1
 
 
-def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_link):
+#: Every from-scratch stack that folds at least one workbook-derived band, and
+#: the elements in it that do. Curated rather than derived, for the same reason
+#: :data:`SHARED_BANDS` is: the expected answer has to be stated outside the
+#: files being checked, so an edit to one of them cannot redefine what the guard
+#: is looking for. It is also the guard's non-vacuity floor -- a stack whose set
+#: comes back different has either acquired a laundering candidate or lost the
+#: one it had, and both want a human.
+#:
+#: ``rotor_fastener_length`` joined on 2026-09-16
+#: (``citation_identity_correctness``), which is why this became a parametrized
+#: test: until then ``pitch_link_to_pitch_plate`` was the only such stack and
+#: the guard was hard-coded to it. A rule with one instance that grows a second
+#: and is checked on neither is how this class of defect survives.
+WORKBOOK_BACKED_BANDS = {
+    "pitch_link_to_pitch_plate": {"bushing_214820", "washer_nas1149v0332"},
+    "rotor_fastener_length": {"washer_nas1149v0332_tt"},
+}
+
+#: For each of those stacks, the citation each workbook-backed element ended up
+#: carrying -- ``(element id) -> (source_ref kind, document)``. This is the half
+#: that says the laundering did not merely move: a band that came from the
+#: workbook has to name the artifact it came from, or name a document that
+#: actually prints it. A parts-list row prints a nominal and never a band, so
+#: ``kind: "parts_list"`` here would be the exact defect.
+WORKBOOK_BACKED_CITATIONS = {
+    "pitch_link_to_pitch_plate": {
+        "bushing_214820": ("drawing", "214820-002"),
+        "washer_nas1149v0332": ("workbook", "260729_sample_tol_stack.xlsx"),
+    },
+    "rotor_fastener_length": {
+        "washer_nas1149v0332_tt": ("workbook", "260729_sample_tol_stack.xlsx"),
+    },
+}
+
+
+def from_scratch_stacks_folding_a_workbook_band() -> dict:
+    """Derived: every from-scratch stack with at least one banded element whose
+    ``hardware_ref`` resolves to a ``values_source.kind == "workbook"`` entry.
+
+    The scope :data:`WORKBOOK_BACKED_BANDS` is curated *against*. A curated
+    registry states the expected answer outside the files being checked, which
+    is what stops an edit redefining the guard -- but on its own it is a set
+    keyed by whatever somebody remembered to list, which is this handoff's own
+    subject one level up from the dedup key. So the candidates are computed
+    here and paired against the registry below: a third such stack fails,
+    loudly, instead of riding past unparametrized. (Review finding F3,
+    2026-09-16.)
+
+    "From scratch" is ``provenance.transcribed_from is None`` -- SOP Step 5b's
+    own test, and the reason ``tan_link``, ``tan_link_take2`` and ``vpa_output``
+    are correctly out of scope even though they too reach workbook-sourced
+    entries: they ARE workbook transcriptions, and the ban is on a from-scratch
+    stack borrowing one.
+    """
+    data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
+    entries = {e["id"]: e for e in data["entries"]}
+    found = {}
+    for filename in ALL_STACK_FILES:
+        raw = json.loads((STACKS_DIR / filename).read_text(encoding="utf-8"))
+        if (raw.get("provenance") or {}).get("transcribed_from") is not None:
+            continue
+        stack = load_stack(STACKS_DIR / filename)
+        banded = {
+            element.id for element in stack.elements
+            if element.hardware_ref
+            and element.min != element.max
+            and (entries[element.hardware_ref]["values_source"] or {}).get("kind")
+            == "workbook"
+        }
+        if banded:
+            found[stack.id] = banded
+    return found
+
+
+def test_every_from_scratch_stack_folding_a_workbook_band_is_covered_by_the_guard():
+    """The registry the guard below parametrizes over is the whole scope, not
+    the part somebody remembered.
+
+    This is the non-vacuity half moved outside the parametrize: a
+    ``@parametrize`` over a dict cannot notice a stack missing FROM that dict,
+    because the missing case generates no test at all. Fails when a third
+    from-scratch stack folds a workbook-derived band, and equally when a listed
+    one stops -- both want the curated expectations re-read rather than
+    silently re-scoped.
+    """
+    derived = from_scratch_stacks_folding_a_workbook_band()
+    assert derived == WORKBOOK_BACKED_BANDS, (
+        "the from-scratch stacks folding a workbook-derived band are not the "
+        "ones WORKBOOK_BACKED_BANDS lists -- add or remove the row, and its "
+        "WORKBOOK_BACKED_CITATIONS counterpart, rather than leaving a stack "
+        "the laundering guard never runs on")
+    assert set(WORKBOOK_BACKED_CITATIONS) == set(WORKBOOK_BACKED_BANDS)
+    for stack_id, elements in WORKBOOK_BACKED_BANDS.items():
+        assert set(WORKBOOK_BACKED_CITATIONS[stack_id]) == elements, (
+            f"{stack_id}: every element folding a workbook-derived band needs "
+            f"its citation pinned, or the strengthening half of the guard "
+            f"skips it")
+
+
+@pytest.mark.parametrize("stack_id", sorted(WORKBOOK_BACKED_BANDS))
+def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(stack_id):
     """SOP Step 5b's workbook ban is TRANSITIVE, and `values_source` is what
     makes it checkable.
 
@@ -2765,10 +3389,11 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
     a citation that shows a drawing, a respectable confidence and zero workbook
     references, and passes every mechanical check in the repo.
     """
+    stack = load_stack(STACKS_DIR / f"stack_{stack_id}.json")
     data = json.loads((STACKS_DIR / "hardware_entries.json").read_text(encoding="utf-8"))
     entries = {e["id"]: e for e in data["entries"]}
     laundered = []
-    for element in pitch_link.elements:
+    for element in stack.elements:
         if not element.hardware_ref:
             continue
         src = entries[element.hardware_ref]["values_source"]
@@ -2781,23 +3406,27 @@ def test_a_from_scratch_stack_takes_no_band_from_a_workbook_sourced_entry(pitch_
         f"may be used (SOP Step 5b, 2026-09-15) but not while claiming support "
         f"it does not have."
     )
-    # And the two that point at workbook-sourced entries are exactly the two
-    # that fold such a band -- i.e. this test is not passing vacuously.
-    refs = {e.id: e.hardware_ref for e in pitch_link.elements if e.hardware_ref}
+    # The elements that point at workbook-sourced entries are exactly the ones
+    # expected to fold such a band -- i.e. this test is not passing vacuously.
+    refs = {e.id: e.hardware_ref for e in stack.elements if e.hardware_ref}
+    banded = {e.id for e in stack.elements if e.min != e.max}
     workbook_backed = {
         eid for eid, ref in refs.items()
         # `or {}` because a not_transcribed entry's values_source is null, and a
         # future hardware_ref to one (MS9363 is the named next document) should
         # fail this test cleanly rather than TypeError out of it.
         if (entries[ref]["values_source"] or {}).get("kind") == "workbook"
+        and eid in banded
     }
-    assert workbook_backed == {"bushing_214820", "washer_nas1149v0332"}
-    # Neither of them still cites the 217755 parts list, which is the citation
-    # that WOULD have laundered the band: the parts-list row gives a nominal and
-    # no tolerance, so pointing at it for a band is pointing at a page that does
-    # not contain the number. Each now names the artifact its band came from.
-    assert pitch_link.element("washer_nas1149v0332").source_ref.kind == "workbook"
-    assert pitch_link.element("bushing_214820").source_ref.document == "214820-002"
+    assert workbook_backed == WORKBOOK_BACKED_BANDS[stack_id]
+    # None of them still cites the 217755 parts list, which is the citation that
+    # WOULD have laundered the band: the parts-list row gives a nominal and no
+    # tolerance, so pointing at it for a band is pointing at a page that does
+    # not contain the number. Each names the artifact its band came from.
+    for eid, (kind, document) in WORKBOOK_BACKED_CITATIONS[stack_id].items():
+        ref = stack.element(eid).source_ref
+        assert (ref.kind, ref.document) == (kind, document)
+        assert ref.kind != "parts_list"
 
 
 def hardware_entry_problems(entry: dict) -> list[str]:

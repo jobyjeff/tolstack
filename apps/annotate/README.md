@@ -20,7 +20,15 @@ that: open a study, open a part, click a face, write one
   the same projection the viewer renders, so this app never re-implements
   `dimension_ref` resolution in JS) and lists a study's elements with their
   current binding state: **bound** / **unbound** / **owner not in set** /
-  **needs re-confirmation**.
+  **needs re-confirmation**. Each row carries its state as a colour and, where
+  the state is one a reader has to act on, a single ⚠ badge whose hover popup
+  says which in everyday words (handoff
+  `flyout_resize_annotator_filter_and_deselect`; it used to print the raw state
+  value on the row). A row with nothing wrong shows nothing.
+- **Scopes the rail to one element** when it is entered from one — the flyout's
+  own case, and any `?edge=` deep link: both panels list that element's own
+  features and parts, and a plain **Show all** control lifts it. The verb is
+  `filter-element`, below.
 - Opens a part's tessellated mesh (`data/meshes/<sha256>/`, lazily — a part's
   geometry loads only when you open it, not the whole set eagerly) and lets
   you click-select a face (raycast + contiguous-vertex-run highlight, reused
@@ -100,8 +108,8 @@ not wired at all rather than wired-but-hidden (handoff
 Nothing is latched: the same URL on a loopback server is the full page below.
 
 No folder handy? `index.html?mock=1` runs a small synthetic demo (one
-topology, two edges, one already bound, one `owner_not_in_set`, a single
-synthetic triangle mesh) — writes are captured in memory, never persisted,
+topology, three edges — one bound, one `owner_not_in_set`, one unbound, so the
+rail shows all three states at once — and a single synthetic triangle mesh) — writes are captured in memory, never persisted,
 and the "Connect folder" button is hidden (mock mode has no transport to
 connect).
 
@@ -130,8 +138,10 @@ tool calls would take.
 | `camera reset` | frames every currently-visible open part |
 | `camera frame <part…>` | frames the named part(s) (or the visible ones, with no args) |
 | `select-face <part> <face_id>` | picks a face by id — the non-mouse equivalent of clicking it |
+| `deselect [face\|element\|all]` | `select-face`'s and `select-edge`'s undo (default `face`): drops the pick AND its tint together, which is the pair that used to disagree. Clearing nothing is not an error — this is the undo of a mis-click |
+| `filter-element [<edge or node id>]` | scopes the left rail — element list *and* parts panel — to one element's own features; with no argument, lifts the filter. `goto` runs it for you when it arrives at an edge |
 | `select-topology <id>` / `select-study <id>` / `select-edge <id>` | the three steps `goto` composes, addressable one at a time |
-| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge |
+| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge — then scopes the rail to that edge (`filter-element`) |
 
 `resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and
 isolate state-transition helpers) and the tokenizer/dispatch registry itself
@@ -274,15 +284,23 @@ validation), `commands.js` (the tokenizer, `CommandLayer.exec` dispatching a
 string or an already-tokenized array to its handler and throwing a
 known-verbs-naming error for an unknown one, `resolveMeshIdentifier`'s
 sha256/part_id/alias resolution precedence — direct match wins, the alias
-table is consulted second, exact-match only — and `planIsolate`'s
-open/show/hide state transition), `exec_queue.js` (a command queued before
+table is consulted second, exact-match only — `planIsolate`'s
+open/show/hide state transition, `planPanelFilter`'s element scope over an
+edge, a node and an id the topology does not carry, and `planPickToggle`'s
+three-way answer to a raycast: empty space clears, the already-picked face
+clears, anything else selects), `exec_queue.js` (a command queued before
 `markLoaded()` runs once the gate opens; `markLoadFailed()` settles the gate
 so a queued command — whether already waiting or arriving after — fails
 loudly naming the load error instead of hanging forever, each assertion
 raced against a bounded timeout since a hang has no other observable
 failure) and `storage/memory.js` (a write is
 captured; a second write to the same filename refuses, append-only;
-`canWrite() === false` refuses a write instead of silently no-op'ing), and
+`canWrite() === false` refuses a write instead of silently no-op'ing), the
+per-row **alert vocabulary** (`AA.BINDING_STATE_ALERTS`' keys paired against
+`AA.BINDING_STATES` minus `bound`, so a state added without a decision about
+whether it is an alert fails here; and each sentence checked for the state's
+own value and for any underscored identifier, because the badge used to print
+the raw value on the row) and
 the **transport decision** (a hosted origin gets no picker and never even
 initialises the FSA adapter — proved with a spy, since there is no File
 System Access API in node; every loopback hostname does get it; `file://`

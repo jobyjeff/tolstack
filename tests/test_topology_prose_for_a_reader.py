@@ -59,7 +59,11 @@ PITCH_LINK_PART_NAMES = {
     "bushing_214820_002": "214820-002 plain bushing",
     "spherical_bearing_pitch_link": "pitch-link spherical bearing (unconfirmed)",
     "flanged_bushing_nas77a3_015a": "NAS77A3-015A flanged bushing",
-    "pitch_plate_215197": "215197 pitch plate",
+    # Id and name disagree on the part number on purpose, since 2026-09-16:
+    # the citation moved to the released plate 215735 and the id did not,
+    # because it is a deep link and an annotate key
+    # (docs/strategy/BRIEF_20260916_link_name_authority.md).
+    "pitch_plate_215197": "215735 pitch plate",
     "washer_nas1149v0332h": "NAS1149V0332H flat washer",
 }
 

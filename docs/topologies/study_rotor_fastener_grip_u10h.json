@@ -25,7 +25,7 @@
         "receiving-structure engagement thickness at the tapped hole -- no part drawing in this repo"
       ],
       "criterion": ">= 0",
-      "guidance": "Same budget shape as grip_budget__u2h -- the LONGEST option, and therefore the largest budget in the family. Nominal budget = 15.875 - 2.413 = 13.462 mm; worst case = 16.129 - 2.413 = 13.716 mm."
+      "guidance": "Same budget shape as grip_budget__u2h. Nominal budget = 15.875 - 2.413 = 13.462 mm; worst case (grip max vs sourced-column min 2.3114 mm) = 16.129 - 2.3114 = 13.8176 mm. This is the LONGEST of the nine options and therefore the largest budget in the family."
     }
   ],
   "provenance": {

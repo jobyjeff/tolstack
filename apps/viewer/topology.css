@@ -63,6 +63,17 @@
    the cursor must not revert the instant the pointer leaves the 7px grip, and
    a drag across a table is otherwise a text selection. */
 body.tv-resizing { cursor: col-resize; user-select: none; }
+/* ...and while a drag is in flight the annotator panel's iframe is transparent
+   to the pointer. This is not a nicety, it is what makes the flyout's own
+   divider work at all: pointer events over a cross-document iframe are
+   delivered to THAT document, so a drag that started on the seam and moved
+   left over the 3D panel stopped reaching this page entirely -- measured, one
+   `pointermove` seen by the parent document across a whole 8-step drag, and
+   the panel never moved. The two other drags on this page never met it because
+   neither the grid nor the preview pane embeds a document.
+   `body.tv-resizing` is already set for the duration of every gesture
+   (topology_app.js's onResizeStart), so this rule needs no new state. */
+body.tv-resizing .flyout__frame { pointer-events: none; }
 
 .tvpick__mode { white-space: nowrap; }
 
@@ -88,16 +99,25 @@ body.tv-resizing { cursor: col-resize; user-select: none; }
 .navtree__item { margin-bottom: 2px; }
 .navtree__row {
   display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
-  padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: var(--t-dense);
 }
 .navtree__row:hover { background: #20242c; }
 .navtree__row--on { background: #202634; outline: 1px solid var(--accent); }
 .navtree__row--topology { font-weight: 600; }
-.navtree__row--study { font-size: 12px; }
+/* A study's and a stack's own name is the STRUCTURE of this menu, so it reads
+   at the dense data size rather than a step below it (design_pass_typography,
+   2026-09-17). It was 12px under a row of 10px filled badges, which is the
+   "secondary info smaller-and-bolder" inversion the house rules name: the
+   badges were the biggest-feeling thing in a 300px rail and the names a reader
+   navigates by were the quietest. */
+.navtree__row--study { font-size: var(--t-dense); }
 .navtree__row--warn { color: var(--inferred); }
-.navtree__row--stack { font-size: 12px; }
+.navtree__row--stack { font-size: var(--t-dense); }
 .navtree__label { flex: 1 1 auto; min-width: 0; }
-.navtree__id { color: var(--accent); font-size: 11px; }
+/* A topology's own id: metadata under its name, so grey. It was the accent,
+   which put the selection colour on every topology row at rest -- the one
+   colour this page uses to mean "this, and not the others". */
+.navtree__id { color: var(--muted); font-size: var(--t-micro); }
 .navtree__chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; flex-basis: 100%; }
 
 /* --- the toolbar: layout mode, row density, annotate — display preference,
@@ -106,6 +126,23 @@ body.tv-resizing { cursor: col-resize; user-select: none; }
 .tv__toolbar {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel2);
+}
+
+/* Quiet controls (design_pass_typography, 2026-09-17). These five are display
+   PREFERENCES -- row density, labelled rows, bar lengths, leader style, the 3D
+   launch -- and each one names its own current setting, so the strip is five
+   filled grey slabs sitting above the diagram a reader came to look at. Flat
+   and borderless at rest, with the affordance arriving on hover and on
+   focus-visible: the keyboard half is not decoration, since a border that only
+   appears under a pointer leaves a reader tabbing through invisible controls.
+   `button.ghost`'s own fill (style.css) is what this overrides, and only here
+   -- the topbar's and the banner's ghost buttons are ACTIONS and keep it. */
+.tv__toolbar button.ghost {
+  background: none; border: 1px solid transparent; color: var(--muted);
+}
+.tv__toolbar button.ghost:hover,
+.tv__toolbar button.ghost:focus-visible {
+  background: #363b45; border-color: var(--line); color: var(--ink);
 }
 
 /* The joint block's mount (deliverable 4): horizontal inset matches the
@@ -181,13 +218,35 @@ body { display: flex; flex-direction: column; }
    `auto` for (the "one visible + one not" interaction rule) never actually
    clips or scrolls vertically in practice. */
 .tv__hscroll { overflow-x: auto; height: max-content; }
+/* `width: max-content` on BOTH of the scrollport's children, and it is load-
+   bearing rather than tidiness (topology_grid_scroll_and_grips, 2026-09-16).
+   A block child of a scroll container is sized to the scrollport, NOT to the
+   content it holds: the head table and the body table are given a fixed inline
+   width off COLUMNS (views/topology.js) and simply overflowed these two boxes,
+   which stayed at the pane's own width. That cost two things, one per box:
+
+     * `.tv__body` is the sticky rails' CONTAINING BLOCK, and a sticky box may
+       not be pushed outside it. At the pane's width the SVG could be held
+       against the visible left edge for only the first (paneWidth - dagWidth)
+       of scroll -- 552 of 666 on the real pitch_system at 1600x1000 -- and
+       then slid off it, 103.5px at the far end, which is exactly the "rails
+       beside rows that point at nothing" the note below says must never
+       happen;
+     * `.tv__head` painted its background and its bottom border across the
+       pane's width only, so a reader scrolled past that stopped having a
+       header band behind the column labels at all.
+
+   `min-width: 100%` is the other half: a topology narrower than the pane must
+   still fill it, or the header band stops short of the pane's right edge in
+   the other direction. */
 .tv__head {
   display: flex; position: sticky; top: 0; z-index: 2;
+  width: max-content; min-width: 100%;
   background: var(--panel); border-bottom: 1px solid var(--line);
-  color: var(--muted); font-size: 11px; text-transform: uppercase;
+  color: var(--muted); font-size: var(--t-micro); text-transform: uppercase;
   letter-spacing: .04em; height: 26px; line-height: 25px;
 }
-.tv__body { display: flex; align-items: flex-start; }
+.tv__body { display: flex; align-items: flex-start; width: max-content; min-width: 100%; }
 /* The rails stay put when the grid is scrolled sideways: a six-column grid is
    wider than the pane, and rails that scrolled off the left would leave the
    rows they align with pointing at nothing. */
@@ -195,6 +254,12 @@ body { display: flex; flex-direction: column; }
   flex: none; display: block; position: sticky; left: 0; z-index: 1;
   background: var(--bg);
 }
+/* Sized to the table it holds, not to the flex line: under `.tv__body`'s
+   `max-content` there is no free space to grow into when the grid is wider
+   than the pane, so the table stops overflowing THIS box and widens the
+   sticky's containing block instead. `flex: 1 1 auto` still fills the line on
+   a topology narrower than the pane, which is what `min-width: 100%` above
+   leaves over. */
 .tv__rows { flex: 1 1 auto; min-width: 0; }
 
 /* The respine's outgoing frame (viewer_study_respine_animation): the previous
@@ -286,17 +351,54 @@ body { display: flex; flex-direction: column; }
 
 /* --- the resize grips (viewer_leader_grid_legibility) --------------------
    Two of them, both in the sticky column header: the jog zone's sits on the
-   seam between the SVG and the grid (positioned inline from the geometry the
-   SVG was drawn at), the ELEMENT column's on that header cell's right edge.
-   Absolutely positioned in both cases, so neither adds a pixel of layout
-   width -- a grip that took space between a leader's last segment and the
-   grid's first column would be the one seam this page has nothing to align
-   against. Visible as a hairline at rest, brighter on hover/focus: enough to
-   find, not enough to read as a column border. */
+   seam between the SVG and the grid, the ELEMENT column's on that header
+   cell's right edge. Neither adds a pixel of layout width -- a grip that took
+   space between a leader's last segment and the grid's first column would be
+   the one seam this page has nothing to align against. Visible as a hairline
+   at rest, brighter on hover/focus: enough to find, not enough to read as a
+   column border.
+
+   CLAMPED INTO THE PANE'S VISIBLE WINDOW since topology_grid_scroll_and_grips
+   (2026-09-16), and that is what makes them reachable at all. Parked at a
+   content coordinate they walked out of that window -- `.tv__hscroll`'s own
+   `overflow-x` clips there -- so a reader who widened the preview pane (or the
+   jog zone, or the ELEMENT column) was left pressing on a grip the browser had
+   already clipped away. Measured on the real pitch_system at 1600x1000, jog
+   zone 5.5x, ELEMENT +220: at the shipped 430px pane the jog grip answered a
+   pointer and at 560px it did not, and the ELEMENT grip answered at neither.
+   The two are clamped by different mechanisms, because they mark two different
+   kinds of boundary:
+
+     * the JOG grip is STICKY, with its `left` written inline from the geometry
+       (views/topology.js's VA.jogGripInset). The seam it marks is itself
+       sticky -- `.tv__rails`'s `position: sticky; left: 0` holds the SVG's
+       right edge exactly `railWidth` from the pane's VISIBLE left edge at
+       every scroll -- so the grip has to be held by the same mechanism or it
+       drifts off the very seam it names the moment the reader scrolls
+       sideways. Sticky also means the browser holds it, frame for frame with
+       the SVG, rather than a scroll handler catching up a frame later;
+     * the ELEMENT grip is ABSOLUTE, with its `left` written per render and
+       per scroll (VA.columnGripLeft). Its boundary is a column edge and really
+       does scroll, so there is no fixed inset to sticky it at: it rides the
+       edge while the edge is on screen and pins to the pane's right edge past
+       that. `position: sticky; right: 0` is the obvious CSS for that and does
+       NOT work here -- measured in Chrome on this page, a sticky box whose
+       natural position is right of the scrollport is left exactly where it is
+       at every scrollLeft, so the grip never came in. Do not "simplify" this
+       back to a right inset without re-measuring it.
+
+   The jog grip's inset is clamped 7px clear of the ELEMENT grip's right-hand
+   pin, so the two cannot land on the same pixel on a pane narrower than the
+   DAG (reachable: the preview pane drags to VA.TOPO_PANE_WIDTH.max = 1000px,
+   which leaves the grid ~298px). `.tvgrip`'s width is paired against
+   VA.TOPO_GRIP by a test in apps/viewer/tests.js -- that arithmetic is in JS
+   and the pixels are here, so the two are one number or they are a bug. */
 .tvgrip {
   position: absolute; top: 0; width: 7px; height: 100%;
   cursor: col-resize; z-index: 3; background: none; border: none; padding: 0;
+  pointer-events: auto;
 }
+.tvgrip--jog { position: sticky; top: auto; }
 .tvgrip::before {
   content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px;
   width: 1px; background: var(--line);
@@ -305,11 +407,18 @@ body { display: flex; flex-direction: column; }
   background: var(--accent); top: 0; bottom: 0;
 }
 .tvgrip:focus { outline: none; }
-/* The column grip hangs on the right edge of its own <th>, which needs to be
-   a containing block for it. `.tvcell`'s `overflow: hidden` is why it sits
-   fully inside rather than straddling the boundary. */
-.tvheadtable th { position: relative; }
-.tvgrip--col { right: 0; }
+/* One lane per grip: an inert overlay spanning the header's WHOLE scroll width
+   (`.tv__head` is `width: max-content`, above, which is what makes `left: 0;
+   right: 0` mean that), so the jog grip inside it is in normal flow -- sticky
+   needs that -- and free to stick anywhere across the content, and the column
+   grip's own `left` is a plain scrollport coordinate. One lane each rather
+   than one shared lane, because in a shared one an in-flow grip's natural
+   position would be measured from the grip before it. Inert, so the lane
+   itself never swallows a pointer aimed at a header cell. */
+.tv__griplane {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 3; pointer-events: none;
+}
 
 /* Study highlighting. Binary, so no palette: on the path or off it. */
 .rail__bar--off, .rail__dot--off { opacity: .28; }
@@ -358,7 +467,7 @@ body { display: flex; flex-direction: column; }
 .tvrow--band-a { background-color: var(--tv-band-a); }
 .tvrow--band-b { background-color: var(--tv-band-b); }
 .tvrow:hover { background-color: #20242c; }
-.tvrow--edge { font-size: 13px; }
+.tvrow--edge { font-size: var(--t-dense); }
 /* A component group's first row: the seam a leader points at. box-shadow, not
    border-top — a cell border participates in the table's row-height sizing
    (this file's own collapsed-border lesson, above) and a shadow never does,
@@ -379,7 +488,7 @@ body { display: flex; flex-direction: column; }
 .tvrow--derived { font-style: italic; }
 .tvrow--closes .tvcell--name::after {
   content: " ↰ closes back to an interface above";
-  color: var(--muted); font-size: 11px;
+  color: var(--muted); font-size: var(--t-micro);
 }
 
 .tvcell {
@@ -398,16 +507,24 @@ body { display: flex; flex-direction: column; }
 /* The merged component column (viewer_leader_line_grid): one cell per
    contiguous same-part run, rowspanned over its tolerance sub-rows. Top-
    aligned so the label sits at the seam its leader points at. */
+/* Monospaced until 2026-09-17, which said "code" about a column holding
+   "propeller hub", "pitch link", "blade root" and "— across a clearance —".
+   The part NUMBERS that share the column ("208510-007 variable pitch actuator")
+   were the argument for it, and `tabular-nums` keeps those aligned without
+   spending a whole column's legibility on them: at 11px the proportional face
+   fits noticeably more of a long part name before `.tvcell`'s ellipsis, which
+   is the complaint this column has drawn twice. */
 .tvcell--component {
-  color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace;
+  color: var(--muted); font-size: var(--t-micro);
+  font-variant-numeric: tabular-nums;
   vertical-align: top; cursor: default;
 }
 .tvcell--ord {
   text-align: right; color: var(--accent);
-  font-family: ui-monospace, monospace; font-size: 11px;
+  font-family: ui-monospace, monospace; font-size: var(--t-micro);
 }
-.tvcell--nominal, .tvcell--min, .tvcell--max { font-size: 12px; }
-.tvcell--contribution { font-size: 12px; }
+.tvcell--nominal, .tvcell--min, .tvcell--max { font-size: var(--t-meta); }
+.tvcell--contribution { font-size: var(--t-meta); }
 /* The ELEMENT column is the resizable one (viewer_leader_grid_legibility).
    Jeff: "the descriptions get truncated and there's no way to see the entire
    text without clicking and expanding the preview." Widening is the ONLY
@@ -462,18 +579,26 @@ body { display: flex; flex-direction: column; }
    (The trigger lives in the crop column now — viewer_leader_line_grid — but
    the sizing constraint is the same one.) */
 .tvcell--crop .crop-trigger {
-  margin-top: 0; padding: 1px 6px; font-size: 10px; line-height: 1.3;
+  margin-top: 0; padding: 1px 6px; font-size: var(--t-micro); line-height: 1.2;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .tvcell--crop .crop-trigger.crop-trigger--thumb { padding: 0; }
 .tvrow__weight { color: var(--accent); margin-right: 4px; }
 
+/* The grid's own chips. Outlined, all of them, under the one fill rule at the
+   head of style.css's chip block: a filled background belongs to provenance at
+   its two worst states and to a verdict, and none of these five is either.
+   `DERIVED` and `BRANCH POINT` were filled and 700 until 2026-09-17 -- both are
+   structural facts about a row, and a row states several of them at once. */
 .chip--gap { color: var(--zero); border-color: var(--zero); }
-.chip--derived { color: #0b1020; background: var(--zero); border-color: var(--zero); font-weight: 700; }
-.chip--branch { color: var(--accent); border-color: var(--accent); font-weight: 700; }
-.chip--transform { color: var(--accent); border-color: var(--accent); font-family: ui-monospace, monospace; }
+.chip--derived { color: var(--zero); border-color: var(--zero); font-weight: 600; }
+.chip--branch { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.chip--transform { color: var(--muted); border-color: var(--line); font-family: ui-monospace, monospace; }
 .chip--source { color: var(--muted); }
-.chip--unlabelled { color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700; }
+/* A value_source this build has no word for. Outlined like the rest, and the
+   claim is not weakened: it is the only magenta thing on a row that has no
+   citation chip of its own to carry the colour. */
+.chip--unlabelled { color: var(--nocite); border-color: var(--nocite); font-weight: 600; }
 
 /* --- the totals footer: a slim, always-visible strip --------------------
    Demoted from a 260px panel (deliverable 2, viewer_v2_single_nav): the
@@ -495,11 +620,11 @@ body { display: flex; flex-direction: column; }
 .tvtotals__span { white-space: nowrap; }
 .chip--total { font-family: ui-monospace, monospace; }
 .tvtotals__more { margin: 0 0 4px; }
-.tvtotals__more summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.tvtotals__more summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
 .tvtotals__rule { margin: 6px 0 0; }
 .tvtotals__note {
   margin: 6px 0 0; padding-left: 8px; border-left: 2px solid var(--line);
-  color: var(--ink); font-size: 13px;
+  color: var(--ink); font-size: var(--t-dense);
 }
 
 /* A study that refuses to sum is a RESULT, and it gets the space of one. */
@@ -509,7 +634,7 @@ body { display: flex; flex-direction: column; }
 }
 .tverror__head { font-weight: 700; color: var(--inferred); }
 .tverror__type {
-  font-size: 12px; color: var(--muted); font-family: ui-monospace, monospace;
+  font-size: var(--t-meta); color: var(--muted); font-family: ui-monospace, monospace;
 }
 .tverror__message { margin: 6px 0; white-space: pre-wrap; }
 .tverror__advice { margin: 6px 0 0; color: var(--muted); }
@@ -542,33 +667,73 @@ body { display: flex; flex-direction: column; }
   flex: none; width: 7px; margin: 0 -3px; cursor: col-resize; z-index: 3;
   position: relative; background: none; border: none; padding: 0;
 }
+/* Visible at rest since 2026-09-16, and that is the whole of Jeff's third
+   complaint about this pane: the seam was `background: transparent` until
+   hover, so the one control that answers "it's too narrow" announced itself
+   only to a reader who already knew where to put the pointer. A hairline in
+   `--line` is what `.tvgrip` above has always shown, for the same reason. */
 .tv__divider::before {
   content: ""; position: absolute; top: 0; bottom: 0; left: 3px;
-  width: 1px; background: transparent;
+  width: 1px; background: var(--line);
 }
 .tv__divider:hover::before, .tv__divider:focus::before { background: var(--accent); }
+/* ...and the grip mark that says the seam is a HANDLE rather than a border.
+   Three dots, the universal drag affordance, so nothing has to be explained
+   in words (house rule: if a control needs a paragraph, redesign the control).
+
+   STICKY, not centred: this page scrolls as one document (full-page-scroll,
+   viewer_error_surface_and_layout), so the divider's own box is as tall as the
+   whole page and a mark at `top: 50%` would sit halfway down the DOCUMENT --
+   off screen for most of a long study. Sticky clamps it to the middle of the
+   VIEWPORT instead, bounded by the divider, so it is in front of the reader at
+   every scroll position. The hit area is the full 7px column either way; this
+   is what the eye finds, not what the pointer needs. */
+.tv__divider::after {
+  content: ""; display: block; position: sticky; top: 50vh;
+  width: 5px; height: 23px; margin: 0 1px;
+  background-image: radial-gradient(circle at center,
+    var(--muted) 1.1px, transparent 1.3px);
+  background-size: 5px 7px; background-position: center;
+}
+.tv__divider:hover::after, .tv__divider:focus::after {
+  background-image: radial-gradient(circle at center,
+    var(--accent) 1.3px, transparent 1.5px);
+}
 .tv__divider:focus { outline: none; }
 
-/* Narrower than the stack viewer's 520px: this page's centre pane carries six
-   columns and a rail gutter, and the preview is a companion to them rather than
-   the main event. THE DEFAULT ONLY, and still the one place it lives: a
-   remembered width is written as an INLINE width over this rule, and a page
-   with nothing remembered sets no inline width at all rather than restating
-   this number in JS. (The bounds a drag is clamped to have their own one
-   place: VA.TOPO_PANE_WIDTH, views/topology.js.)
+/* THE DEFAULT ONLY, and still the one place it lives: a remembered width is
+   written as an INLINE width over this rule, and a page with nothing
+   remembered sets no inline width at all rather than restating this number in
+   JS. (The bounds a drag is clamped to have their own one place:
+   VA.TOPO_PANE_WIDTH, views/topology.js.)
 
-   It went to 560px on 2026-09-15 with the drag and came straight back, which
-   is worth recording rather than quietly reverting: at 560 the centre pane is
-   133px narrower, and the grid's content overflows it horizontally either way
-   (the head table is fixed-width and this page has no inner scrollport by
-   design) -- so a widened jog zone put its own drag grip UNDERNEATH this pane,
-   where a pointer reaches the pane and not the grip. The browser tier caught
-   it on pitch_system at 1600px wide with the zone at 5.5x. A reader can still
-   reach that state by dragging this pane open, so the interaction is filed
-   rather than fixed here:
-   ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips.md. */
+   560px since 2026-09-16, and the history is the point. It went to 560 on
+   2026-09-15 with the drag and came straight back the same day: at 560 the
+   centre pane is 133px narrower, and the grid's content overflows it
+   horizontally either way (the head table is fixed-width and this page has no
+   inner scrollport by design) -- so a widened jog zone put its own drag grip
+   OUT of the pane's visible window, where `.tv__hscroll`'s overflow-x clips it
+   and a pointer reached this pane instead. The browser tier caught it on
+   pitch_system at 1600px wide with the zone at 5.5x.
+
+   That reachability hazard is FIXED (topology_grid_scroll_and_grips,
+   2026-09-16 -- see `.tvgrip` below, where both grips are clamped into the
+   visible window and the browser tier drags them at a 560px pane and at
+   VA.TOPO_PANE_WIDTH.max), and
+   ISSUE_20260915_a_wide_preview_pane_can_cover_the_grids_own_drag_grips is
+   closed on it. So the only thing still holding the default at 430 was that
+   Jeff had asked for RESIZABLE and not for wider -- and on 2026-09-16 he
+   asked for wider too ("Make the right side preview pane resizable. It's too
+   narrow", carried forward as still-open). 560 is the width already measured
+   safe at the tier's own viewport; it is not a fresh guess.
+
+   The MAX stays at 1000 (VA.TOPO_PANE_WIDTH), considered and declined rather
+   than overlooked: at this suite's 1600px viewport a 1000px pane already
+   leaves the grid ~298px, which `.tvgrip`'s own clamp arithmetic is written
+   against, and a higher cap buys a reader nothing they cannot reach by
+   dragging on a wider screen. */
 .tv .detail {
-  width: 430px; flex: none; overflow: visible; align-self: stretch;
+  width: 560px; flex: none; overflow: visible; align-self: stretch;
   /* The shared `.detail` rule's `position: sticky; top: 47px; max-height:
      calc(100vh - 47px); overflow: auto` (style.css:365-368) assumes the pane
      starts 47px below the viewport top and owns its own scrollport — true for
@@ -583,18 +748,28 @@ body { display: flex; flex-direction: column; }
   position: static; max-height: none;
 }
 .detail__values { margin: 8px 0; }
-.detail__valrow { display: flex; gap: 10px; font-size: 13px; }
+.detail__valrow { display: flex; gap: 10px; font-size: var(--t-dense); }
 .detail__vallabel { width: 110px; flex: none; color: var(--muted); }
 .detail__valnum { font-variant-numeric: tabular-nums; }
 .detail__transform {
-  margin: 8px 0; color: var(--muted); font-size: 12px;
+  margin: 8px 0; color: var(--muted); font-size: var(--t-meta);
   font-family: ui-monospace, monospace;
 }
+/* A 3px SPINE in the accent, not a 1px ring around the whole box (2026-09-17).
+   The accent is right here -- this block is the SELECTED study's own reading of
+   the edge, and the selected study's path is what the accent means on this page
+   -- but a full ring is a box drawn inside a pane that is already a box, and it
+   was reading as the loudest thing in the pane. The tinted background says
+   "this is a block"; the spine says which block. */
 .detail__contribution {
-  margin: 10px 0; padding: 8px 10px; border: 1px solid var(--accent);
-  border-radius: 6px; background: #1b2028;
+  margin: 10px 0; padding: 8px 10px 8px 12px;
+  border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+  background: #1b2028;
 }
-.detail__contribution h4 { margin: 0 0 6px; font-size: 13px; }
+.detail__contribution h4 {
+  margin: 0 0 6px; font-size: var(--t-meta); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); font-weight: 600;
+}
 .detail__citation { margin-top: 10px; }
 .detail__untraced { color: var(--untraced); font-weight: 600; margin-top: 4px; }
 .detail__crop--no-key { opacity: .85; }
@@ -613,18 +788,38 @@ body { display: flex; flex-direction: column; }
 .detail__annotate-btn:hover { text-decoration: underline; }
 
 /* --- the annotator flyout (study_3d_flyout) --------------------------------
-   The same "structurally cannot steal layout" family as the two dialogs
-   below, with one difference: it opens NON-modally (dialog.show(), no top
-   layer needed) and position: fixed pins it to the viewport's right edge, so
-   the page stays fully clickable beside it -- "attach to 3D" on another row
-   re-drives the open panel. position: fixed takes it out of flow entirely:
-   opening it cannot shrink or reflow the DAG pane by construction. */
+   It opens NON-modally (dialog.show(), no top layer needed) and position:
+   fixed pins it to a viewport edge, so the page beside it stays fully
+   clickable -- "attach to 3D" on another row re-drives the open panel.
+
+   LEFT-docked since 2026-09-16, and the reason is adjacency (Jeff: "I
+   actually want the 3d flyout on the left side, adjacent to the DAG. It would
+   be ok if it covered up the left side select menu since you shouldn't need
+   both at the same time"). It was pinned to the RIGHT edge until then, which
+   put the 3D panel and the graph at opposite ends of the window with the whole
+   grid between them -- the two things a reader is comparing.
+
+   AND THE PAGE YIELDS THE ROOM RATHER THAN BEING COVERED (`body.flyout-open`
+   below). That reverses, deliberately, what this comment argued until the
+   review of 2026-09-16: "position: fixed takes it out of flow entirely:
+   opening it cannot shrink or reflow the DAG pane by construction". That
+   invariant was right for a RIGHT-docked panel, where the thing underneath was
+   the preview pane and nothing was lost -- and it is exactly what made a
+   left-docked one useless. Measured across all 21 live studies: the DAG
+   drawing (`svg.tv__rails`) is only 90-262px wide and sits at the pane's LEFT
+   edge, so its right edge never passes x=562, while this panel's own floor is
+   560px. At every width a reader can reach, the graph was entirely underneath
+   the panel. Nor could a reader scroll it out: `.tv__rails` is `position:
+   sticky; left: 0` inside `.tv__hscroll` (by design, see above), so at
+   scrollLeft 0 and at scrollLeft 742 its box is the same 300..562.
+   "Adjacent to the DAG" and "cannot reflow the DAG pane" cannot both hold on
+   one edge of one window; adjacency is what Jeff asked for. */
 dialog#annotate-flyout {
-  position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0;
+  position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0;
   width: min(760px, 55vw); height: 100vh; max-height: 100vh;
   background: var(--panel); color: var(--ink);
-  border: none; border-left: 1px solid var(--line);
-  box-shadow: -12px 0 32px rgba(0, 0, 0, .45);
+  border: none; border-right: 1px solid var(--line);
+  box-shadow: 12px 0 32px rgba(0, 0, 0, .45);
   z-index: 40; /* over the crop popover's plane, under nothing */
 }
 dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
@@ -632,8 +827,75 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line);
 }
-.flyout__head h2 { margin: 0; font-size: 14px; }
+.flyout__head h2 { margin: 0; font-size: var(--t-body); flex: 1; }
+/* Out to the whole annotator in its own tab (Jeff: "There can be a separate
+   link that opens the full viewer (with the full fledged menus etc) in a
+   separate tab/page"). A plain <a target="_blank">, carrying the same params
+   the panel booted with -- the same href VA.annotateLink builds for every
+   other route into that app. */
+.flyout__fullpage {
+  color: var(--accent); font-size: var(--t-meta); text-decoration: none; white-space: nowrap;
+}
+.flyout__fullpage:hover, .flyout__fullpage:focus { text-decoration: underline; }
+/* The flyout's own drag divider, on the edge away from the dock -- so the
+   panel grows INTO the page rather than off the screen. Deliberately the same
+   control as the preview pane's `.tv__divider` above: same 7px hit area, same
+   hairline-at-rest turning accent on hover, same three-dot grip mark, because
+   it is the same gesture on the same page and a reader who has learned one
+   seam has learned this one. Absolutely positioned inside the dialog rather
+   than sitting in its flex column: a divider that took part in the layout
+   would push the iframe in by its own width, and the 3px overhang is what
+   makes the seam grabbable from the page side too. */
+.flyout__divider {
+  position: absolute; top: 0; bottom: 0; right: -3px; width: 7px;
+  cursor: col-resize; z-index: 1;
+  background: none; border: none; padding: 0;
+}
+.flyout__divider::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 3px;
+  width: 1px; background: var(--line);
+}
+.flyout__divider:hover::before, .flyout__divider:focus::before { background: var(--accent); }
+/* Centred, not sticky -- unlike `.tv__divider`'s mark. This divider's box is
+   the flyout's own height (100vh, never the document's), so 50% IS the middle
+   of the reader's window. */
+.flyout__divider::after {
+  content: ""; display: block; position: absolute; top: 50%;
+  transform: translateY(-50%);
+  width: 5px; height: 23px; margin: 0 1px;
+  background-image: radial-gradient(circle at center,
+    var(--muted) 1.1px, transparent 1.3px);
+  background-size: 5px 7px; background-position: center;
+}
+.flyout__divider:hover::after, .flyout__divider:focus::after {
+  background-image: radial-gradient(circle at center,
+    var(--accent) 1.3px, transparent 1.5px);
+}
+.flyout__divider:focus { outline: none; }
 .flyout__frame { flex: 1; width: 100%; border: none; background: #1b1e22; }
+
+/* --- what the page does while the panel is open ---------------------------
+   `--flyout-width` is written by topology_app.js's applyFlyoutWidth, on every
+   frame of a drag, so these two rules follow the seam live. The class is
+   added on launch and removed by the dialog's own `close` event, which is the
+   ONE seam every close path goes through (the ✕, a `.close()` from anywhere)
+   -- not the button's handler, which would leave the page shifted if anything
+   else ever closed the panel.
+
+   The nav rail stands down rather than being slid right, on Jeff's explicit
+   say-so ("you shouldn't need both at the same time"). Without that it would
+   cost 300px of the very room this is trying to hand the graph, and the panel
+   supersedes it: the annotator has its own topology and study pickers.
+
+   Everything above `.tv` shifts too, so the panel reads as the page's left
+   column rather than as a sheet lying across it. Nothing is latched and
+   nothing is destroyed -- `display: none` and a margin both reverse exactly,
+   which is what makes "closing restores whatever it covered" true by
+   construction rather than by a restore path that can rot. */
+body.flyout-open .topbar,
+body.flyout-open #banner,
+body.flyout-open .tv { margin-left: var(--flyout-width, 0); }
+body.flyout-open .navtree { display: none; }
 
 /* --- the legend and worksheet dialogs ------------------------------------
    Both retired out of the page's flex column into <dialog>s (deliverable 2):
@@ -641,10 +903,21 @@ dialog#annotate-flyout[open] { display: flex; flex-direction: column; }
    and opening the worksheet can no longer compete with the DAG pane for
    height — a dialog sits in the browser's top layer, entirely outside
    `.tv`'s box model. */
+/* Body size, not the dense data size, since 2026-09-17: these two dialogs are
+   the only surfaces on this page that are nothing but PROSE -- ten explanatory
+   bullets and a whole worksheet -- and prose reads at body size. The 640px cap
+   was chosen against 13px and lands at roughly 100 characters a line, past the
+   90 the house rule allows; at body size the same width is about 97, so the
+   step narrows the line and does not by itself bring it inside the measure --
+   `#legend-dialog li` and `.worksheet__body > p` each take `--measure` below,
+   and that is what fixes it. (Re-measured in review 2026-09-17: 1ch is 7.01px
+   at --t-dense and 7.55px at --t-body, so 640px is 91.3ch / 84.8ch; the
+   ~15% zero-to-average-letter ratio the --measure comment in style.css
+   derives puts those at ~105 and ~97 rendered characters.) */
 dialog#legend-dialog, dialog#worksheet-dialog {
   background: var(--panel); color: var(--ink); border: 1px solid var(--line);
   border-radius: 10px; padding: 16px 20px; width: 90vw; max-width: 640px;
-  max-height: 80vh; overflow: auto; font-size: 13px;
+  max-height: 80vh; overflow: auto; font-size: var(--t-body);
 }
 dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   background: rgba(0, 0, 0, .55);
@@ -653,9 +926,11 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 12px; margin-bottom: 10px;
 }
-.tv__legend-head h2, .worksheet-dialog__head h2 { margin: 0; font-size: 16px; }
+.tv__legend-head h2, .worksheet-dialog__head h2 { margin: 0; font-size: var(--t-title); }
 #legend-dialog ul { margin: 0; padding-left: 20px; }
-#legend-dialog li { margin-bottom: 8px; }
+/* The app's longest prose, so the measure applies here too: the dialog's own
+   640px cap is a BOX width and a bullet fills it. */
+#legend-dialog li { margin-bottom: 8px; max-width: var(--measure); }
 #worksheet-dialog { width: 90vw; max-width: 900px; }
 
 /* --- verdicts, attention flags and the gap panel -------------------------
@@ -677,7 +952,7 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    "there is no answer here" rather than as a quiet pass. */
 .tvverdict {
   font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
-  font-size: 11px; padding: 2px 9px;
+  font-size: var(--t-micro); padding: 2px 7px;
 }
 .tvverdict--pass { color: #fff; background: var(--pass); border-color: var(--pass); }
 .tvverdict--marginal { color: #0b1020; background: var(--marginal); border-color: var(--marginal); }
@@ -694,12 +969,46 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   outline: 2px dashed var(--inferred); outline-offset: 1px;
 }
 
-/* The attention flags. Filled for the same reason `.conf--untraced` is: these
-   have to survive a glance across a 43-row grid and a 20-study nav rail. */
-.tvflag { font-weight: 700; font-size: 10px; text-transform: uppercase; }
-.tvflag--unverified { color: #fff; background: var(--untraced); border-color: var(--untraced); }
-.tvflag--no_tolerance { color: #0b1020; background: var(--zero); border-color: var(--zero); }
-.tvflag--incomplete { color: #0b1020; background: var(--inferred); border-color: var(--inferred); }
+/* The attention flags. OUTLINED since 2026-09-17 (design_pass_typography),
+   where they were filled, 10px and 700 -- and this is a re-tuning of the
+   2026-09-15 decision above, not a reversal of it.
+   Jeff, 2026-09-16: "Left side menu is now impressively 'loud'… Styling for
+   the alert text themselves can then be a bit less obnoxious/overwhelming."
+   What stands: a flag is never omitted, it keeps the colour of the thing it is
+   about, and it keeps its uppercase (it is a tiny label, which is the one place
+   the house rule allows all-caps).
+   What changed is only the weight, the size and the fill:
+     * NOT FILLED. A filled badge is the loudest mark this app has, and it was
+       spent three times on one nav row -- measured on `pitch_system`, 61 filled
+       marks in a 300px rail at rest, against 20 study names. Three of anything
+       loudest is a budget spent into nothing: the reader sees a red wall and
+       reads neither the flag nor the name. Filled is now reserved for the two
+       marks that earn it -- an untraced value (`.chip.conf--untraced`) and a
+       verdict, which is the answer;
+     * 11px, not 10px, and 600, not 700. Smaller-and-bolder is how this rail
+       said "secondary"; the flags are now the same micro size as every other
+       tiny label in both apps, and the emphasis they need comes from their
+       colour and their outline instead of from a third axis.
+   A flag still survives a glance -- a red outlined pill on a grey row is the
+   only coloured thing on it. It just no longer survives at the cost of the row
+   it sits on. Consolidating the three into ONE badge is a separate, open
+   question and deliberately not done here:
+   ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud.
+
+   The padding is tighter than `.chip`'s own and there is no extra tracking,
+   both to buy back the width the step from 10px to 11px costs: a study
+   carrying a verdict and two flags has to fit them on one line in a 300px
+   rail, and two lines of badges under a name is the row's structure broken a
+   different way. Measured on the live nav: 12 of 28 rows wrapped their chips
+   before this pass and 12 wrap after it, so the step up in size cost no row
+   its line. */
+.tvflag {
+  font-weight: 600; font-size: var(--t-micro); text-transform: uppercase;
+  background: none; padding: 1px 5px;
+}
+.tvflag--unverified { color: var(--untraced); border-color: var(--untraced); }
+.tvflag--no_tolerance { color: var(--zero); border-color: var(--zero); }
+.tvflag--incomplete { color: var(--inferred); border-color: var(--inferred); }
 
 /* The per-check block under the totals strip: verdict, what it means, and by
    how much — then, where the chain is short a term, WHAT is missing, above the
@@ -721,17 +1030,28 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvverdict-card__head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .tvverdict-card__says { font-weight: 600; }
 .tvverdict-card__margin { font-family: ui-monospace, monospace; color: var(--accent); }
-.tvverdict-card__label { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.tvverdict-card__label { margin-top: 4px; color: var(--muted); font-size: var(--t-dense); }
 .tvverdict-card__missing { margin-top: 8px; }
-.tvverdict-card__missinghead { margin: 0; font-size: 13px; }
+.tvverdict-card__missinghead { margin: 0; font-size: var(--t-dense); }
 .tvverdict-card__missinglist { margin: 4px 0 0; padding-left: 20px; }
 .tvverdict-card__more { margin-top: 6px; }
-.tvverdict-card__more summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.tvverdict-card__more summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
+
+/* A MEASURE on every run of prose the totals block stacks (2026-09-17). This
+   block sits under a grid that is as wide as the window allows, so its
+   sentences inherited that width: at 1600px with the preview pane open, a
+   `.tvgaps__item` ran about 110 characters and `pitch_system` shows 38 of them
+   at once. `--measure` is the cap and style.css declares it once. Left-aligned
+   and capped, not centred -- a centred paragraph is the other half of the same
+   house rule. */
+.tvgaps__item, .tvverdicts__none, .tvverdict-card__label, .tvtotals__rule,
+.tvtotals__note, .tvwarn, .tverror__message, .tverror__advice,
+.tvgaps__closes { max-width: var(--measure); }
 
 /* The two chain-level warnings. Not `.muted`: a lower bound presented quietly
    is a number a reader takes at face value. */
 .tvwarn {
-  margin: 6px 0; padding: 6px 10px; border-radius: 0 6px 6px 0; font-size: 13px;
+  margin: 6px 0; padding: 6px 10px; border-radius: 0 6px 6px 0; font-size: var(--t-dense);
 }
 .tvwarn--lower-bound {
   border-left: 3px solid var(--zero); background: rgba(122, 167, 214, .12);
@@ -751,10 +1071,10 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
   font-weight: 600; padding: 4px 0;
 }
 .tvgaps__group { margin: 10px 0 0; padding-left: 10px; border-left: 2px solid var(--line); }
-.tvgaps__heading { margin: 0; font-size: 13px; }
-.tvgaps__closes { margin: 2px 0 4px; font-size: 12px; }
+.tvgaps__heading { margin: 0; font-size: var(--t-dense); }
+.tvgaps__closes { margin: 2px 0 4px; font-size: var(--t-meta); }
 .tvgaps__list { margin: 0; padding-left: 18px; }
-.tvgaps__item { font-size: 13px; margin-bottom: 3px; }
+.tvgaps__item { font-size: var(--t-dense); margin-bottom: 3px; }
 .tvgaps__where { color: var(--accent); margin-right: 6px; }
 
 /* The study-level flags, on their own line under the strip. They wrap; the

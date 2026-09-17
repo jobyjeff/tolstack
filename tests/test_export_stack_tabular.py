@@ -107,7 +107,7 @@ def test_element_row_values_are_the_stored_values_not_rederived():
         element.lmc, element.mmc, element.plus_minus)
     assert row["confidence"] == "traced"
     assert row["kind"] == "drawing"
-    assert row["part_drawing"] == "215197"
+    assert row["part_drawing"] == "215735"   # re-cited from PRELIM 215197 2026-09-16
     # The citation survives the trip whole, not just its confidence word.
     assert "5X 4.06" in row["source_ref"]
     assert row["note"] == element.note

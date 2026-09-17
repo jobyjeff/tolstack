@@ -67,6 +67,24 @@
       return (" " + String(raw || "") + " ").indexOf(" " + cls + " ") !== -1;
     }
 
+    // Every class in a crop block that joined VA.cropReference's `classPrefix`
+    // straight onto its suffix with nothing between them. Module-level beside
+    // hasClass because BOTH panes that pass a prefix are guarded with it, and
+    // they are 5,000 lines apart.
+    function unseparatedPrefixes(root) {
+      return all(root, "*").map(function (node) {
+        var raw = node.getAttribute("class");
+        if (raw === null || raw === undefined) raw = node.className;
+        if (raw && typeof raw === "object") raw = raw.baseVal;
+        return String(raw || "");
+      }).join(" ").split(/\s+/).filter(function (cls) {
+        // `detail__crop`, `detail__crop--resolved` and `detail__crop-head` are
+        // all right; `detail__crophead` is the defect, and a letter straight
+        // after the prefix is exactly what tells them apart.
+        return /^detail__crop[a-z]/.test(cls);
+      });
+    }
+
     // --- formatting: the no-second-arithmetic rule -------------------------
 
     await test("fmt prints a projection number verbatim, with no rounding", function () {
@@ -214,10 +232,60 @@
       ok(!VA.isBudgetScope({}));
     });
 
+    // The severity ranking, pinned as BEHAVIOUR. VA.worstVerdict reads
+    // "worst last" off the insertion order of the VA.VERDICTS object literal,
+    // so that order IS the rule -- and nothing else checks it. The Python/JS
+    // pairing in tests/test_js_python_vocabulary.py compares the two
+    // vocabularies as SETS, so every permutation of the three keys is green
+    // there; reordering VA.VERDICTS to `fail, marginal, pass` (plausible: both
+    // alphabetical and "worst first", matching the CSS block below it) leaves
+    // the whole suite green while every rollup badge reports the BEST verdict
+    // instead of the worst. Two live pitch-system studies are marginal + pass,
+    // so they would read PASS on the nav rail -- the exact misreading the
+    // rollup was added to prevent
+    // (ISSUE_20260915_worst_verdict_ranks_by_an_unguarded_object_key_order).
+    // Assert the ordering, never the key order: a guard on the constant is not
+    // a guard on the behaviour that reads it.
+    await test("worstVerdict ranks fail over marginal over pass, whatever order " +
+      "the checks arrive in", function () {
+      function worst(words) {
+        return VA.worstVerdict(words.map(function (v) { return { verdict: v }; }));
+      }
+      // Every pair, both ways round, so the total order is pinned and no
+      // single swap in VA.VERDICTS survives.
+      eq(worst(["pass", "marginal"]), "marginal");
+      eq(worst(["marginal", "pass"]), "marginal");
+      eq(worst(["marginal", "fail"]), "fail");
+      eq(worst(["fail", "marginal"]), "fail");
+      eq(worst(["pass", "fail"]), "fail");
+      eq(worst(["fail", "pass"]), "fail");
+      eq(worst(["pass", "marginal", "fail"]), "fail");
+      // A single check is its own worst; no checks is null, NOT a verdict.
+      eq(worst(["pass"]), "pass");
+      eq(worst(["marginal"]), "marginal");
+      eq(worst([]), null);
+      eq(VA.worstVerdict(null), null);
+      // A word this viewer has no branch for is ignored rather than ranked --
+      // it must not outrank a real verdict by landing at indexOf -1 or beyond.
+      eq(worst(["blocked"]), null);
+      eq(worst(["blocked", "pass"]), "pass");
+      eq(worst(["marginal", "blocked"]), "marginal");
+      eq(VA.worstVerdict([{}, { verdict: null }, { verdict: "pass" }]), "pass");
+    });
+
     await test("summaryChips scoreboards the stack and flags both soft spots", function () {
       var texts = VA.summaryChips(DEMO).map(function (c) { return c.text; });
+      // The summary chip says the SAME fact in the SAME words as the DAG page's
+      // badge and the element row's chip -- one vocabulary, out of VA.ATTENTION
+      // (ISSUE_20260915_the_stack_view_still_says_zero_width_band_...). Pinned
+      // as the rendered sentence, not as a class name: a class-name check
+      // passes straight through a wrong word, which is how this one survived.
       eq(texts, ["2 traced", "1 inferred", "1 UNTRACED",
-                 "1 zero-width band", "1 budget-scope check"]);
+                 "1 element with no tolerance recorded", "1 budget-scope check"]);
+      // ...and the plural arm, which no fixture stack reaches.
+      eq(VA.summaryChips({ provenance_counts: {}, zero_width_count: 2 })
+         .map(function (c) { return c.text; }),
+         ["2 elements with no tolerance recorded"]);
     });
 
     await test("summaryChips says the checks are generated and counts the probes", function () {
@@ -254,7 +322,25 @@
     await test("citationWhere reads like drawing-checker's Where column", function () {
       eq(VA.citationWhere(DEMO.stack.elements[0].source_ref),
          "215197 · rev A.1 · sheet 2 · SECTION A-A · zone D10");
-      eq(VA.citationWhere(null), "no source_ref");
+      // "Rev 4" in the title block is transcribed as "Rev 4", so the label and
+      // the value collided and the line read `rev Rev 4` on the live NAS
+      // citation (ISSUE_20260915_the_citation_where_line_prints_rev_rev_4_...).
+      // Never prefix a label a value already carries -- and keep the label
+      // where it is the only thing saying what the digits are.
+      eq(VA.citationWhere({ document: "NAS6403-NAS6420 Rev 4.pdf",
+                            revision: "Rev 4 (sheet 1 rev 4, sheet 2 rev 2)",
+                            sheet: 3 }),
+         "NAS6403-NAS6420 Rev 4.pdf · Rev 4 (sheet 1 rev 4, sheet 2 rev 2) · sheet 3");
+      eq(VA.citationWhere({ document: "215197", revision: "A.1" }),
+         "215197 · rev A.1");
+      // Case-insensitive, and anchored: "revised 2026" is not the label said
+      // twice, and a "rev" clause deeper in the string is part of the note.
+      eq(VA.revisionText("REV C"), "REV C");
+      eq(VA.revisionText("revised 2026"), "rev revised 2026");
+      eq(VA.revisionText("A (sheet 2 rev 2)"), "rev A (sheet 2 rev 2)");
+      // No citation at all says so in a reader's words. It said "no source_ref"
+      // -- a schema field name on a rendered surface -- until 2026-09-16.
+      eq(VA.citationWhere(null), "no citation");
     });
 
     // --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) --
@@ -720,6 +806,101 @@
       has(VA.provenanceAlarms(results, CROPS)[0], "no provenance stamp");
     });
 
+    // --- what a card says once (viewer_hover_deslop_and_banner_purge) ------
+
+    await test("componentDrawingText says only what the heading has not " +
+      "already said", function () {
+        // The live case Jeff filed: the part is NAMED after its drawing, so
+        // the card printed the same number on two consecutive lines.
+        eq(VA.componentDrawingText("214820-002 plain bushing", "214820-002", null),
+           null);
+        // ...and with a revision there IS something left to say, but only the
+        // revision -- never the number again. The noun stays: a line whose
+        // whole content is "rev B" is a revision modifying nothing, which is
+        // the shape three live parts rendered until 2026-09-16.
+        eq(VA.componentDrawingText("214820-002 plain bushing", "214820-002", "B"),
+           "drawing rev B");
+        // A part not named after its drawing keeps the full line.
+        eq(VA.componentDrawingText("propeller hub", "212966-006", null),
+           "drawing 212966-006");
+        eq(VA.componentDrawingText("propeller hub", "212966-006", "A.1"),
+           "drawing 212966-006 rev A.1");
+        // The revision label is VA.revisionText's, so a value that already
+        // says "Rev" is not prefixed twice here either.
+        eq(VA.componentDrawingText("propeller hub", "212966-006", "Rev 4"),
+           "drawing 212966-006 Rev 4");
+        eq(VA.componentDrawingText("anything", null, "A"), null);
+      });
+
+    await test("leadSentence returns a PREFIX of the record or the whole of " +
+      "it, and never a rewording", function () {
+        var note = "Plain bushing, aluminium bronze, .1900 in ID X .1875 in " +
+          "long, per the 217755 parts-list nomenclature. Ballooned 8X in " +
+          "DETAIL B of 217755 sheet 4. Drawing 214820-002 itself is not in " +
+          "this repo.";
+        var lead = VA.leadSentence(note);
+        // The decimals are the whole reason this is not a split on ".": the
+        // first two periods in that sentence are inside ".1900" and ".1875".
+        eq(lead, "Plain bushing, aluminium bronze, .1900 in ID X .1875 in " +
+           "long, per the 217755 parts-list nomenclature.");
+        ok(note.indexOf(lead) === 0, "the lead must be a prefix of the record");
+        // No sentence break at all: the whole note, not a guess at where a
+        // thought ended.
+        eq(VA.leadSentence("identity not established"), "identity not established");
+        eq(VA.leadSentence("one. 2 is not a capital"), "one. 2 is not a capital");
+        eq(VA.leadSentence(null), "");
+        eq(VA.leadSentence(""), "");
+        // Whitespace is trimmed and nothing else is touched.
+        eq(VA.leadSentence("  A sentence. And another."), "A sentence.");
+      });
+
+    await test("pointerHeadsFor: a pointer inside the box has arrived; one " +
+      "aimed at it is approaching; one aimed away is not", function () {
+        var box = { left: 100, top: 100, right: 300, bottom: 300 };
+        // Arrived -- no direction needed, and none is guessed.
+        ok(VA.pointerInside({ x: 200, y: 200 }, box));
+        ok(VA.pointerHeadsFor(null, { x: 200, y: 200 }, box));
+        // Approaching: moving right, level with the box.
+        ok(VA.pointerHeadsFor({ x: 50, y: 200 }, { x: 70, y: 200 }, box));
+        // Approaching on the diagonal, aimed at a corner.
+        ok(VA.pointerHeadsFor({ x: 40, y: 40 }, { x: 60, y: 60 }, box));
+        // Moving AWAY along the same line.
+        ok(!VA.pointerHeadsFor({ x: 70, y: 200 }, { x: 50, y: 200 }, box));
+        // Parallel to the box and never entering it.
+        ok(!VA.pointerHeadsFor({ x: 50, y: 400 }, { x: 70, y: 400 }, box));
+        // A pointer that has not moved aims at nothing.
+        ok(!VA.pointerHeadsFor({ x: 50, y: 200 }, { x: 50, y: 200 }, box));
+        // ...and REACH: the same aim, from far enough away that the reader is
+        // plainly crossing the page rather than reaching for this card. An
+        // uncapped ray hits almost anything eventually, and every trigger on
+        // that line would go quiet.
+        var far = VA.HOVER_INTENT_REACH + 200;
+        ok(!VA.pointerHeadsFor({ x: 100 - far - 20, y: 200 },
+                               { x: 100 - far, y: 200 }, box));
+        // Nothing to aim at, nothing to aim with.
+        ok(!VA.pointerHeadsFor({ x: 0, y: 0 }, { x: 1, y: 1 }, null));
+        ok(!VA.pointerHeadsFor({ x: 0, y: 0 }, null, box));
+        ok(!VA.pointerInside(null, box));
+      });
+
+    await test("popoverShouldMove: a card under the pointer never moves, and " +
+      "a box that is the height it was measured at is not re-placed", function () {
+        var box = { left: 100, top: 100, right: 300, bottom: 300 };
+        // The guard that matters: in use, so it stays put — even though the
+        // box grew by 200px, which is the other guard's own trigger.
+        eq(VA.popoverShouldMove({ x: 200, y: 200 }, box, 600, 400), false);
+        // Pointer away and the box really grew: re-place it.
+        eq(VA.popoverShouldMove({ x: 20, y: 20 }, box, 600, 400), true);
+        // Pointer away and the box is exactly as measured — the normal case,
+        // because VA.cropFigure reserves each image's height before the decode.
+        eq(VA.popoverShouldMove({ x: 20, y: 20 }, box, 400, 400), false);
+        // A sub-pixel difference is not a growth.
+        eq(VA.popoverShouldMove({ x: 20, y: 20 }, box, 400.4, 400), false);
+        // No pointer seen yet, and no box to be inside: the height decides.
+        eq(VA.popoverShouldMove(null, box, 600, 400), true);
+        eq(VA.popoverShouldMove({ x: 20, y: 20 }, null, 600, 400), true);
+      });
+
     await test("findStack returns null for an unknown id", function () {
       ok(VA.findStack(FIXTURE.results, "demo_joint"));
       eq(VA.findStack(FIXTURE.results, "nope"), null);
@@ -997,11 +1178,27 @@
       has(untraced[0].textContent, "UNTRACED");
     });
 
-    await test("a zero-width band is marked on the row and on min/max", function () {
+    await test("an element with no tolerance recorded is marked on the row and " +
+      "on min/max, in the DAG page's own words", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      // The classes are the colour system's and deliberately keep their names --
+      // nothing reads them as words.
       eq(all(root, "tr.el-row--zero-width").length, 1);
       eq(all(root, "td.num--zero-width").length, 2);
-      ok(all(root, ".chip--zero-width").length >= 1);
+      // Since flyout_resize_annotator_filter_and_deselect the row's WORDS are
+      // on one consolidated alert badge rather than a chip of their own -- the
+      // word is unchanged and still VA.ATTENTION's, which is what this pins.
+      var badges = all(all(root, "tr.el-row--zero-width")[0], ".chip--alert");
+      eq(badges.length, 1);
+      eq(badges[0].textContent, VA.ALERT_ICON);
+      has(badges[0].getAttribute("title"), VA.ATTENTION.no_tolerance.text);
+      has(badges[0].getAttribute("title"), VA.ATTENTION.no_tolerance.title);
+      // ...and no row that has nothing to admit wears one.
+      ok(all(root, "tr.el-row").length > all(root, ".chip--alert").length,
+         "a row with no alerts shows no badge");
+      // ...and the cells a reader compares carry the same sentence.
+      eq(all(root, "td.num--zero-width")[0].getAttribute("title"),
+         VA.ATTENTION.no_tolerance.title);
     });
 
     await test("element values are printed exactly as authored", function () {
@@ -1193,8 +1390,13 @@
         });
         // All four demo elements carry a source_ref (even the assumed one — an
         // `assumed` citation is still a citation to card), so all four
-        // confidence chips are triggers.
-        var chips = all(root, "span.cardtrig");
+        // confidence chips are triggers. The consolidated alert badges are
+        // triggers too (same class, same popover), so they are excluded by
+        // class here rather than by counting: this check is about the
+        // CITATION trigger.
+        var chips = all(root, "span.cardtrig").filter(function (node) {
+          return node.className.indexOf("chip--alert") === -1;
+        });
         eq(chips.length, 4);
         chips[0].onmouseenter();
         eq(shown.length, 1);
@@ -1232,7 +1434,19 @@
       has(note.textContent, "stack_demo_fit.json");
       // The escape hatch out of the browser: the command that prints the same
       // term table, so the surface is checkable and not just believable.
-      has(note.textContent, "debug_report_thermal_fit.py");
+      // NOT the command. Jeff's web-UI rule is binding across every repo's web
+      // surface -- never render a terminal command for the user to copy/paste --
+      // and this paragraph rendered one, `venv-win\\Scripts\\python.exe ...`,
+      // on the live M1 thermal stack. It was invisible to the banned-string
+      // guard, which has banned "venv-win" by name since the day it was written
+      // but had no walk that reached a stack-side surface (2026-09-16).
+      ok(note.textContent.indexOf("debug_report_thermal_fit.py") === -1,
+         "no terminal command in the rendered note: " + note.textContent);
+      ok(note.textContent.indexOf("venv-win") === -1,
+         "no interpreter path either: " + note.textContent);
+      // The fact the command carried is kept, in words: the table is
+      // reproducible outside the browser.
+      has(note.textContent, "printed outside the browser");
       // An authored stack gets no such note.
       var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
       eq(all(plain, ".check__note").length, 0);
@@ -1346,13 +1560,51 @@
       var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
       // The BASENAME, because the live paths are absolute and 90 characters long.
       has(line, "Read from 215197.pdf");
-      has(line, "drawing-checker runs: 20260804_114000_x");
+      // How many times and how recently -- never the run id, which is an
+      // internal artifact's address (ISSUE_20260916_the_element_pane_still_
+      // prints_bare_drawing_checker_run_ids_as_link_text). Both the rendered
+      // line and this text view-model read the one builder, so they cannot
+      // describe one export in two vocabularies.
+      has(line, "read by drawing-checker once, on 4 Aug 2026");
+      ok(line.indexOf("20260804_114000_x") === -1, "no run id in the line: " + line);
+      eq(VA.exportRunsText({ status: "established", runs: [
+           { run_id: "a", ts: "2026-07-23T16:38:10+00:00" },
+           { run_id: "b", ts: "2026-07-30T20:21:09+00:00" }] }),
+         "read by drawing-checker 2 times, most recently 30 Jul 2026");
+      // A run entry with no usable date still counts, and claims no day.
+      eq(VA.exportRunsText({ runs: [{ run_id: "not-a-run-id" }] }),
+         "read by drawing-checker once");
+      // ...and the mixed case, which is the one a filter-then-take-last gets
+      // WRONG rather than silent: the LAST run is the dateless one, so "most
+      // recently" has no day to name and the sentence stops. Reporting the
+      // previous run's day here would be a wrong date stated confidently.
+      eq(VA.exportRunsText({ runs: [
+           { run_id: "a", ts: "2026-07-23T16:38:10+00:00" },
+           { run_id: "later-but-undated" }] }),
+         "read by drawing-checker 2 times");
+      // The other way round, so this is a claim about the LAST run and not
+      // about "any run being undated".
+      eq(VA.exportRunsText({ runs: [
+           { run_id: "undated" },
+           { run_id: "b", ts: "2026-07-30T20:21:09+00:00" }] }),
+         "read by drawing-checker 2 times, most recently 30 Jul 2026");
+      // A run with no `ts` falls back to its own id's date prefix, which is
+      // where the shape `20260730_131903` is read as a day.
+      eq(VA.exportRunsText({ runs: [{ run_id: "20260730_131903" }] }),
+         "read by drawing-checker once, on 30 Jul 2026");
+      // The date is read off the front of the recorded string, never through
+      // Date -- a timezone must not move the day.
+      eq(VA.isoDateText("2026-07-30T20:21:09.210383+00:00"), "30 Jul 2026");
+      eq(VA.isoDateText("2026-01-05"), "5 Jan 2026");
+      eq(VA.isoDateText("last Tuesday"), null);
+      eq(VA.isoDateText(null), null);
+      eq(VA.isoDateText("2026-13-01"), null);
       // An export no run ever consumed says so — 15 of the 22 live established
       // CITATIONS are in that state (6 of the 9 distinct exports they name), and
       // a blank would read as a missing record rather than an empty one.
       has(VA.exportProvenanceLine({
         export: { status: "established", pdf: "C:/x/y.pdf", sha256: "ab", runs: [] },
-      }), "no drawing-checker run has consumed this export");
+      }), VA.EXPORT_NO_RUNS_TEXT);
     });
 
     await test("an unestablished export leads with the why, not with the file", function () {
@@ -1447,6 +1699,41 @@
       has(root.textContent, "read from the export this citation names");
     });
 
+    // --- VA.cropReference's `classPrefix`, the argument with no shape --------
+    //
+    // The prefix carries its own SEPARATOR: "croppop__" for the popover and
+    // the hover cards, "detail__crop-" for this pane and the topology preview
+    // pane. Four surfaces, three call sites, and one character is the whole
+    // difference between a styled block and an unstyled one -- which is a bug
+    // viewer_component_names_and_reference_copy shipped once and caught by
+    // eye, `detail__crop` rendering `detail__crophead` and `detail__croplinks`.
+    // Replayed in review on 2026-09-15 with that one character removed again:
+    // the fast tier passed 386/386 and the browser tier 33/33, because every
+    // assertion on this block reads `textContent`, which is exactly right for
+    // copy and exactly blind to this.
+    //
+    // The negative half is what makes it bite: the block still renders, still
+    // says the same words, and still has the same children -- only their class
+    // names moved.
+    //
+    // The negative half is also written as a SWEEP rather than as two named
+    // selectors, and that is not neatness. `VA.cropReference` appends its links
+    // row only when there is a link to put in it, and whether there is depends
+    // on the ORIGIN (VA.localFileUrl withholds a file:// link from a served
+    // page) -- so `div.detail__crop-links` is legitimately absent over http,
+    // and this suite runs in both. What is true at every origin is that no
+    // class in the block may join the prefix to its suffix with nothing
+    // between them.
+    await test("the stack pane's crop block carries THIS pane's class prefix, " +
+      "separator and all", function () {
+      var root = render(function (r) {
+        VA.renderDetail(r, DEMO, "plate", CROPS, { url: "blob:x" }, VA.CONFIG);
+      });
+      eq(all(root, "div.detail__crop-head").length, 1);
+      eq(unseparatedPrefixes(root), [],
+         "the prefix lost its separator: the block renders unstyled");
+    });
+
     await test("the panel names which of the four crop states applies when there is no image",
       function () {
         // resolved, but the image has not arrived (or failed) yet.
@@ -1491,7 +1778,13 @@
       eq(box.length, 1);
       has(box[0].textContent, "Read from 215197.pdf");
       has(box[0].textContent, "pinned to this exact file");
-      has(box[0].textContent, "20260804_114000_x");
+      // The run's own id is on the hover, not in the line -- and the fixture's
+      // crop resolved through the export rather than a run, so there is nothing
+      // to link here and the summary carries no title either.
+      has(box[0].textContent, "read by drawing-checker once, on 4 Aug 2026");
+      ok(box[0].textContent.indexOf("20260804_114000_x") === -1,
+         "no run id in the rendered line: " + box[0].textContent);
+      eq(all(root, "a.el-export__runlink").length, 0);
       // The absolute path used to print beside the basename as the fallback
       // for a file:// link that could not navigate. Gone 2026-09-15 (Jeff:
       // "full workstation file paths -- never rendered when the link works"),
@@ -1518,14 +1811,16 @@
     await test("an unestablished export is loud on the row, and its why is in the panel",
       function () {
         var rowsRoot = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-        // Legible from the ROW, which is the question the handoff asks: a filled
-        // chip beside the confidence chip, on the washer's row and no other.
-        var chips = all(rowsRoot, "span.chip--export-unestablished");
-        eq(chips.length, 1);
-        has(chips[0].textContent, "FILE NOT IDENTIFIED");
+        // Legible from the ROW, which is the question the handoff asks --
+        // since flyout_resize_annotator_filter_and_deselect through the row's
+        // one consolidated alert badge rather than a filled chip of its own,
+        // on the washer's row and no other. The WORD is unchanged.
+        var badges = all(rowsRoot, "span.chip--alert");
+        eq(badges.length, 1);
+        has(badges[0].getAttribute("title"), VA.EXPORT_CHIP_TEXT.unestablished);
         var rows = all(rowsRoot, "tr.el-row");
-        has(rows[1].textContent, "FILE NOT IDENTIFIED");
-        ok(rows[0].textContent.indexOf("FILE NOT IDENTIFIED") === -1,
+        eq(all(rows[1], "span.chip--alert").length, 1);
+        eq(all(rows[0], "span.chip--alert").length, 0,
            "the established row is not tarred with it");
 
         var detailRoot = render(function (r) {
@@ -1665,12 +1960,22 @@
         var poisoned = JSON.parse(JSON.stringify(DEMO));
         poisoned.elements[3].identity_rule = "sha_of_pile";
         var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
-        has(all(rowsRoot, "span.chip--export-identity_unlabelled")[0].textContent,
-            "SOURCE RULE UNKNOWN");
-        // Its own chip class and its own wording: calling an unknown identity rule
-        // "EXPORT STATUS UNKNOWN" would send a reader looking for a field this
-        // citation does not have.
-        eq(all(rowsRoot, "span.chip--export-unlabelled").length, 0);
+        // Its own wording, read off the row's consolidated alert badge:
+        // calling an unknown identity rule "EXPORT STATUS UNKNOWN" would send
+        // a reader looking for a field this citation does not have. Pinned
+        // through VA.rowAlerts' `kind` too, so the two states stay
+        // distinguishable to a stylesheet and to this check.
+        var alerts = VA.rowAlerts(poisoned.stack.elements[3],
+          poisoned.elements[3]);
+        eq(alerts.length, 1);
+        eq(alerts[0].kind, "export-identity_unlabelled");
+        has(alerts[0].text, VA.EXPORT_CHIP_TEXT.identity_unlabelled);
+        ok(alerts[0].text.indexOf(VA.EXPORT_CHIP_TEXT.unlabelled) === -1);
+        var gripRow = all(rowsRoot, "tr.el-row").filter(function (tr) {
+          return tr.textContent.indexOf("grip") !== -1;
+        })[0];
+        has(all(gripRow, "span.chip--alert")[0].getAttribute("title"),
+            VA.EXPORT_CHIP_TEXT.identity_unlabelled);
 
         var root = render(function (r) {
           VA.renderDetail(r, poisoned, "grip", CROPS, null, VA.CONFIG);
@@ -1701,13 +2006,19 @@
         var poisoned = JSON.parse(JSON.stringify(DEMO));
         poisoned.stack.elements[0].source_ref.export = { status: "provisional" };
         var rowsRoot = render(function (r) { VA.renderStack(r, poisoned, CROPS, {}); });
-        has(all(rowsRoot, "span.chip--export-unlabelled")[0].textContent,
-            "FILE STATUS UNKNOWN");
-        // The unestablished chip's class is NOT reused for it: the two states are
-        // different facts and a stylesheet must be able to tell them apart, even
-        // though today they share one loud rule. The washer's is untouched by
-        // this poisoning and still reads unestablished.
-        eq(all(rowsRoot, "span.chip--export-unestablished").length, 1);
+        // Two rows carry an alert badge now (the poisoned plate, the washer),
+        // and the two states keep their own `kind` on VA.rowAlerts -- the
+        // unestablished one is NOT reused for an unlabelled status, because
+        // the two are different facts a stylesheet must be able to tell apart.
+        eq(all(rowsRoot, "span.chip--alert").length, 2);
+        var plate = VA.rowAlerts(poisoned.stack.elements[0], poisoned.elements[0]);
+        eq(plate.length, 1);
+        eq(plate[0].kind, "export-unlabelled");
+        has(plate[0].text, VA.EXPORT_CHIP_TEXT.unlabelled);
+        var washer = VA.rowAlerts(poisoned.stack.elements[1], poisoned.elements[1]);
+        eq(washer.filter(function (a) {
+          return a.kind === "export-unestablished";
+        }).length, 1);
 
         var root = render(function (r) {
           VA.renderDetail(r, poisoned, "plate", CROPS, null, VA.CONFIG);
@@ -1783,7 +2094,7 @@
       has(desig[0].textContent, "designation from: DEMO-1 · rev A · sheet 1 · NOTES · zone D9");
       has(rows[0].textContent, "PRODUCE FROM DEMO ALUMINIUM T7451");
       // A material with no designation_source says so rather than showing a blank.
-      has(desig[2].textContent, "no source_ref");
+      has(desig[2].textContent, "no citation");
       // The outstanding ask for a real value, where one is recorded.
       var requests = all(root, "div.mat-row__request");
       eq(requests.length, 2, "the stainless records no CINDAS request");
@@ -2125,6 +2436,330 @@
       has(root.textContent, "Parts list, sheet 1");
     });
 
+    // --- the full-size crop lightbox (crop_lightbox_zoom_viewer) -------------
+    //
+    // Jeff, 2026-09-16: "thumbnail is too small to be legible… Maybe a button
+    // in the thumbnail that lets you launch it into a separate, full size
+    // viewer … that allows you to zoom/pan?"
+    //
+    // Two claims are pinned here and they need two different kinds of check.
+    // The AFFORDANCE is structural — every surface that shows a crop carries
+    // one launcher per picture — and is walked over the surfaces themselves.
+    // The ZOOM is arithmetic, and it is pinned value by value: this tier has no
+    // layout to measure, so "the highlight tracks the picture" is stated as the
+    // invariant it actually is (the box's position WITHIN the picture's box is
+    // the same fraction at every zoom level), and the browser tier measures the
+    // pixels.
+
+    // Every surface that renders a crop, each built the way the app builds it.
+    // Named here rather than inside the test for the same reason the
+    // reader-facing walks are: one launcher per picture is a claim about ALL of
+    // them, and a list inside one test is a list the next surface is not added
+    // to.
+    function cropBearingSurfaces() {
+      var entry = CROPS.by_stack.demo_joint.plate;
+      var balloon = balloonEntry();
+      var images = {
+        "crops/detailb.png": { url: "blob:crop" },
+        "crops/detailb__parts_list.png": { url: "blob:pl" },
+      };
+      return [
+        ["the plain crop popover", 1, render(function (r) {
+          VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+        })],
+        // TWO, and that is the point of putting the button on the FIGURE: a
+        // balloon crop is two pictures (the view with the balloon, and the
+        // parts-list row that says what its number is), and each opens itself.
+        ["the popover on a balloon crop, with its parts-list companion", 2,
+          render(function (r) {
+            VA.renderCrop(r, balloon, images["crops/detailb.png"], VA.CONFIG,
+                          null, images);
+          })],
+        ["the citation hover card", 1, render(function (r) {
+          var byPng = {};
+          byPng[entry.png] = { url: "blob:x" };
+          VA.renderHoverCard(r, VA.citationCard(
+            DEMO.stack.elements[0].source_ref, null, entry),
+            byPng, VA.CONFIG, null);
+        })],
+        ["the stack preview pane", 1, render(function (r) {
+          VA.renderDetail(r, DEMO, DEMO.stack.elements[0].id, CROPS,
+                          { url: "blob:x" }, VA.CONFIG);
+        })],
+      ];
+    }
+
+    await test("every surface that shows a crop carries a launcher, one per " +
+      "picture — because there is one crop builder and the button is on it",
+      function () {
+        var surfaces = cropBearingSurfaces();
+        surfaces.forEach(function (surface) {
+          var figures = all(surface[2], "div.cropfig");
+          var launchers = all(surface[2], "button.cropfig__launch");
+          eq(figures.length, surface[1],
+             surface[0] + " must show " + surface[1] + " picture(s)");
+          eq(launchers.length, surface[1],
+             surface[0] + " must carry one launcher per picture");
+          // On the figure, not beside the caption: a card showing two crops
+          // has two, and a button outside the frame could only mean one.
+          launchers.forEach(function (button) {
+            ok(figures.indexOf(button.parentNode) !== -1,
+               surface[0] + "'s launcher must be a child of the frame the " +
+               "picture is in");
+          });
+          // Words, on hover and for a screen reader. A glyph on its own is
+          // not an affordance anyone can read.
+          has(launchers[0].getAttribute("title"), "full size");
+          eq(launchers[0].getAttribute("aria-label"),
+             launchers[0].getAttribute("title"));
+        });
+        ok(surfaces.length >= 4, "the walk must not be vacuous");
+      });
+
+    await test("a crop whose image is not on disk offers no launcher — there " +
+      "is nothing to open, and an absence is never a disabled control",
+      function () {
+        var root = render(function (r) {
+          VA.renderCrop(r, CROPS.by_stack.demo_joint.plate, null, VA.CONFIG);
+        });
+        has(root.textContent, VA.CROP_IMAGE_MISSING_TEXT);
+        eq(all(root, "button.cropfig__launch").length, 0);
+      });
+
+    await test("clicking a launcher on a page with no lightbox is a no-op, " +
+      "never a throw — the dialog is the page's, not the builder's",
+      function () {
+        var root = render(function (r) {
+          VA.renderCrop(r, CROPS.by_stack.demo_joint.plate, { url: "blob:x" },
+                        VA.CONFIG);
+        });
+        // This tier has no document.getElementById at all, which is the
+        // strongest form of "no dialog". The click must still land.
+        all(root, "button.cropfig__launch")[0].click();
+        ok(true, "the launcher's click returned");
+      });
+
+    await test("the lightbox renders the crop, its boxes and its one " +
+      "where-line — and no second launcher back into itself", function () {
+        var entry = datasheetEntry();
+        var root = render(function (r) {
+          VA.renderLightbox(r, entry, { url: "blob:x" }, VA.CONFIG);
+        });
+        eq(all(root, "div.cropfig").length, 1);
+        eq(all(root, "img").length, 1);
+        eq(all(root, "div.crophl").length, 1);
+        eq(all(root, "button.cropfig__launch").length, 0);
+        // The picture sits inside the ONE transformed wrapper: that is the
+        // whole zoom mechanism, and a frame outside it would not move.
+        var pan = all(root, "div.lightbox__pan")[0];
+        ok(pan && all(pan, "div.cropfig").length === 1,
+           "the crop's frame must be inside the transformed wrapper");
+        // The caption: the document and the sheet, once. Not the head ROW's
+        // class -- `lightbox__` as a prefix would collide with it.
+        has(all(root, "div.lightbox__cap-head")[0].textContent, entry.pdf_name);
+        has(all(root, "div.lightbox__cap-head")[0].textContent, "sheet 3");
+        eq(all(root, "div.lightbox__cap-head").length, 1);
+        // Nothing longer: no provenance fold on this surface.
+        eq(all(root, "details.provfold").length, 0);
+        ok(root.textContent.indexOf(VA.CROP_PROVENANCE_SUMMARY) === -1,
+           "the lightbox shows the where-line and the links, nothing longer");
+      });
+
+    await test("a balloon crop's parts-list companion opens in the lightbox " +
+      "too, on the partial entry the companion figure is built from",
+      function () {
+        // The companion's entry is SYNTHESISED (VA.companionFigure): it
+        // carries the sheet and the rects and no `pdf`, no `run_dir`, no
+        // drawing number. So the caption names the document and offers no
+        // click-throughs, which is honest -- and the point of the check is
+        // that a partial entry renders rather than throwing on a field that
+        // is not there.
+        var companion = balloonEntry().companion;
+        var root = render(function (r) {
+          VA.renderLightbox(r, {
+            pdf_name: "217755 A.1.pdf", page: companion.page,
+            width: companion.width, height: companion.height,
+            highlights: companion.highlights,
+          }, { url: "blob:pl" }, VA.CONFIG);
+        });
+        eq(all(root, "img").length, 1);
+        eq(all(root, "div.crophl").length, 1);
+        has(all(root, "div.lightbox__cap-head")[0].textContent,
+            "217755 A.1.pdf · sheet 1");
+        eq(all(root, "a").length, 0);
+      });
+
+    await test("the lightbox's controls are the three it declares, plus a " +
+      "close — and each one moves the view", function () {
+        var handle = null;
+        var root = render(function (r) {
+          handle = VA.renderLightbox(r, datasheetEntry(), { url: "blob:x" },
+                                     VA.CONFIG);
+        });
+        var buttons = all(root, "button.lightbox__btn");
+        eq(buttons.length, VA.LIGHTBOX_CONTROLS.length);
+        eq(buttons.map(function (b) { return b.textContent; }),
+           VA.LIGHTBOX_CONTROLS.map(function (c) { return c.text; }));
+        eq(all(root, "button.lightbox__close").length, 1);
+        eq(handle.view().scale, 1);
+        all(root, "button.lightbox__btn--in")[0].click();
+        eq(handle.view().scale, VA.LIGHTBOX_ZOOM.step);
+        all(root, "button.lightbox__btn--in")[0].click();
+        eq(handle.view().scale, VA.LIGHTBOX_ZOOM.step * VA.LIGHTBOX_ZOOM.step);
+        all(root, "button.lightbox__btn--out")[0].click();
+        eq(handle.view().scale, VA.LIGHTBOX_ZOOM.step);
+        all(root, "button.lightbox__btn--fit")[0].click();
+        eq(handle.view(), { scale: 1, x: 0, y: 0 });
+        // The transform IS the state, written on the one wrapper.
+        all(root, "button.lightbox__btn--in")[0].click();
+        var pan = all(root, "div.lightbox__pan")[0];
+        eq(pan.style.transform, VA.lightboxTransform(handle.view()));
+        // ...and the scale is published beside it, for the one thing CSS has
+        // to un-scale: the highlight boxes' border weight.
+        eq(pan.style.getPropertyValue("--lightbox-scale"),
+           String(handle.view().scale));
+      });
+
+    await test("the close box closes the lightbox, and nothing else claims " +
+      "to", function () {
+        var closed = 0;
+        var root = render(function (r) {
+          VA.renderLightbox(r, datasheetEntry(), { url: "blob:x" }, VA.CONFIG,
+                            function () { closed++; });
+        });
+        all(root, "button.lightbox__close")[0].click();
+        eq(closed, 1);
+        has(all(root, "button.lightbox__close")[0].getAttribute("title"), "Esc");
+      });
+
+    // --- the zoom/pan arithmetic, value by value ----------------------------
+
+    await test("the crop is FITTED to the stage at scale 1 — the whole sheet " +
+      "on screen, at its own aspect ratio, never letterboxed", function () {
+        // Taller than the stage's ratio: the height binds and the width comes
+        // out under the stage's, which is the letterbox axis.
+        eq(VA.lightboxFitSize({ width: 1374, height: 1566 },
+                              { width: 1200, height: 800 }),
+           { width: 1374 * (800 / 1566), height: 800 });
+        // Wider than the stage's ratio: the width binds instead.
+        eq(VA.lightboxFitSize({ width: 1965, height: 254 },
+                              { width: 1200, height: 800 }),
+           { width: 1200, height: 254 * (1200 / 1965) });
+        // Nothing to measure is NULL, not zero: the caller leaves the
+        // stylesheet's own sizing standing rather than writing a guess.
+        eq(VA.lightboxFitSize({ width: 100, height: 100 }, null), null);
+        eq(VA.lightboxFitSize({ width: 100, height: 100 },
+                              { width: 0, height: 0 }), null);
+        eq(VA.lightboxFitSize({}, { width: 100, height: 100 }), null);
+      });
+
+    await test("a highlight box tracks the picture under zoom: its position " +
+      "WITHIN the picture is the same fraction at every scale", function () {
+        var entry = datasheetEntry();
+        var stage = { width: 1200, height: 800 };
+        var fit = VA.lightboxFitSize(entry, stage);
+        var frac = entry.highlights[0].frac;
+        // The highlight's top-left as a point of the CONTENT: the overlay is
+        // a percentage of the frame, and the frame is the fitted box.
+        var point = { x: frac[0] * fit.width, y: frac[1] * fit.height };
+        // Where that point sits inside the picture's own box, under a view.
+        // This is the claim: it must not move, at any scale, after any pan.
+        var within = function (view) {
+          var origin = VA.lightboxPoint(view, { x: 0, y: 0 });
+          var at = VA.lightboxPoint(view, point);
+          return {
+            x: Math.round(((at.x - origin.x) / (fit.width * view.scale)) * 1e6),
+            y: Math.round(((at.y - origin.y) / (fit.height * view.scale)) * 1e6),
+          };
+        };
+        var want = { x: Math.round(frac[0] * 1e6), y: Math.round(frac[1] * 1e6) };
+        var view = VA.lightboxClamp(VA.lightboxFit(), fit, stage);
+        eq(within(view), want, "at fit");
+        view = VA.lightboxClamp(VA.lightboxZoomAt(view, 2, { x: 600, y: 400 }),
+                                fit, stage);
+        eq(view.scale, 2);
+        eq(within(view), want, "zoomed 2x about the stage's centre");
+        view = VA.lightboxClamp(VA.lightboxPan(view, -40, -60), fit, stage);
+        eq(within(view), want, "after a pan");
+        view = VA.lightboxClamp(
+          VA.lightboxZoomAt(view, VA.LIGHTBOX_ZOOM.step, { x: 100, y: 700 }),
+          fit, stage);
+        eq(within(view), want, "zoomed again, about a corner this time");
+      });
+
+    await test("zooming keeps what is under the pointer under the pointer — " +
+      "the anchor, which is why this is arithmetic and not a class toggle",
+      function () {
+        var stage = { width: 1200, height: 800 };
+        var fit = VA.lightboxFitSize({ width: 1374, height: 1566 }, stage);
+        var view = VA.lightboxClamp(VA.lightboxFit(), fit, stage);
+        // The content point under the stage's centre, before the zoom.
+        var anchor = { x: 600, y: 400 };
+        var contentAt = function (v, screen) {
+          return { x: (screen.x - v.x) / v.scale, y: (screen.y - v.y) / v.scale };
+        };
+        var before = contentAt(view, anchor);
+        var zoomed = VA.lightboxClamp(VA.lightboxZoomAt(view, 2, anchor),
+                                      fit, stage);
+        var after = contentAt(zoomed, anchor);
+        eq([Math.round(after.x * 1e4), Math.round(after.y * 1e4)],
+           [Math.round(before.x * 1e4), Math.round(before.y * 1e4)]);
+      });
+
+    await test("the zoom range is bounded at both ends, and 1 is FIT rather " +
+      "than one image pixel per screen pixel", function () {
+        eq(VA.lightboxZoomAt({ scale: 1, x: 0, y: 0 }, 0.5, { x: 0, y: 0 }),
+           { scale: VA.LIGHTBOX_ZOOM.min, x: 0, y: 0 });
+        eq(VA.lightboxZoomAt(
+          { scale: VA.LIGHTBOX_ZOOM.max, x: -10, y: -20 }, 4, { x: 0, y: 0 }),
+           { scale: VA.LIGHTBOX_ZOOM.max, x: -10, y: -20 });
+        eq(VA.lightboxFit(), { scale: VA.LIGHTBOX_ZOOM.min, x: 0, y: 0 });
+        // A fresh object each time, not one shared literal: a zoom level that
+        // outlived a close would be the bug that pattern invites.
+        ok(VA.lightboxFit() !== VA.lightboxFit(), "fit must be a fresh view");
+      });
+
+    await test("the wheel zooms in when it is pushed away, and never the " +
+      "other way", function () {
+        eq(VA.lightboxWheelFactor(-100), VA.LIGHTBOX_ZOOM.step);
+        eq(VA.lightboxWheelFactor(120), 1 / VA.LIGHTBOX_ZOOM.step);
+        eq(VA.lightboxWheelFactor(0), 1 / VA.LIGHTBOX_ZOOM.step);
+      });
+
+    await test("the clamp centres a crop smaller than the stage and covers " +
+      "one larger — so the picture can never be dragged out of the window",
+      function () {
+        var stage = { width: 1200, height: 800 };
+        var content = { width: 600, height: 400 };
+        // Smaller than the stage on both axes: centred, whatever the offset
+        // says. This is also what makes the fit view a plain {1, 0, 0}.
+        eq(VA.lightboxClamp({ scale: 1, x: 5000, y: -5000 }, content, stage),
+           { scale: 1, x: 300, y: 200 });
+        // At 4x it is 2400x1600, larger both ways: held so no gap appears.
+        eq(VA.lightboxClamp({ scale: 4, x: 500, y: 500 }, content, stage),
+           { scale: 4, x: 0, y: 0 });
+        eq(VA.lightboxClamp({ scale: 4, x: -9999, y: -9999 }, content, stage),
+           { scale: 4, x: -1200, y: -800 });
+        // One axis each way, in one view: this crop at 2x is 1200 wide
+        // (exactly the stage) and 1600 tall.
+        eq(VA.lightboxClamp({ scale: 2, x: 40, y: -100 },
+                            { width: 600, height: 800 }, stage),
+           { scale: 2, x: 0, y: -100 });
+        // Nothing to clamp against leaves the view alone rather than zeroing
+        // it -- the DOM shim's answer, and it must not move the picture.
+        eq(VA.lightboxClamp({ scale: 2, x: 40, y: -100 }, null, stage),
+           { scale: 2, x: 40, y: -100 });
+      });
+
+    await test("the transform is rounded, so a style attribute is readable in " +
+      "a screenshot and a DOM diff", function () {
+        eq(VA.lightboxTransform({ scale: 1, x: 0, y: 0 }),
+           "translate(0px, 0px) scale(1)");
+        eq(VA.lightboxTransform({ scale: 1.4999999999999987,
+                                  x: 249.04214559386975, y: -160.5000001 }),
+           "translate(249.04px, -160.5px) scale(1.5)");
+      });
+
     // --- worksheet ----------------------------------------------------------
 
     await test("the worksheet renders markdown, tables included", function () {
@@ -2187,6 +2822,41 @@
               "not layout that reserves a line of height even collapsed");
           has(appJs, "showWorksheet: false",
               "the worksheet must default to closed — moved out of the way, not gone");
+        });
+
+      // The lightbox's own shell (crop_lightbox_zoom_viewer). Read out of the
+      // shipped source for the same reason the two dialogs above are: the
+      // element and the script tag are page wiring, and this file's sandbox
+      // loads neither topology.html nor topology_app.js.
+      //
+      // Three things, and each one is a whole feature if it is missing. No
+      // <dialog> and the launcher opens nothing. No `views/lightbox.js`
+      // <script> and VA.openCropLightbox does not exist, so every launch
+      // button on the page is the no-op the builder's own fallback allows.
+      // And both runners must load the same file list as the page, or the fast
+      // tier passes over a module the browser never gets — which is the exact
+      // shape of the bug the two script-tag lists exist to make visible.
+      await test("the crop lightbox is a <dialog> in the page, and every " +
+        "runner loads the module that fills it", function () {
+          var html = viewerSrc.readText("topology.html");
+          var testHtml = viewerSrc.readText("test.html");
+          var runner = viewerSrc.readText("run_tests.cjs");
+          ok(html && testHtml && runner,
+             "topology.html, test.html and run_tests.cjs must be readable");
+          var at = html.indexOf('id="crop-lightbox"');
+          ok(at !== -1, "expected #crop-lightbox in topology.html");
+          has(html.slice(Math.max(0, at - 60), at), "<dialog",
+              "the lightbox must be a native <dialog> — Escape is then the " +
+              "browser's own dismiss, and the top layer is what keeps it off " +
+              "the page's layout entirely");
+          has(html, 'src="./views/lightbox.js"',
+              "topology.html must load views/lightbox.js, or every launch " +
+              "button on the page opens nothing");
+          has(testHtml, 'src="./views/lightbox.js"',
+              "test.html must load it too — the browser tier runs this same " +
+              "suite, and a module it cannot see is a suite that skips it");
+          has(runner, '"views/lightbox.js"',
+              "run_tests.cjs must load it too, for the same reason");
         });
 
       await test("index.html is a redirect stub, not a second copy of the app",
@@ -2307,6 +2977,59 @@
       crops.provenance.branch = "handoff/somebody_else";
       return crops;
     }
+
+    // THE DELIVERABLE, pinned by SHAPE rather than by the absence of five
+    // particular strings: a new build stamp added to the bar later would pass
+    // a "does not contain `built`" check and fail this one.
+    await test("a READY banner shows no line of prose at all — one Reload " +
+      "button, one closed fold, and nothing else", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: CROPS,
+            transport: VA.TRANSPORT.HTTP,
+          }, {});
+        });
+        // Every direct child of the bar, in order. Two, and neither of them
+        // is a sentence sitting in front of the reader.
+        var kinds = Array.prototype.slice.call(root.childNodes)
+          .map(function (node) { return node.className || node.tagName; });
+        // The fold first and the button last: `.banner__action`'s
+        // `margin-left: auto` puts Reload hard right, so this order is what
+        // leaves the fold at the reading edge rather than stranded beside it.
+        eq(kinds, ["banner__source", "banner__action"]);
+        var fold = all(root, "details.banner__source")[0];
+        ok(fold, "the five rows keep a rendered home, folded");
+        eq(fold.getAttribute("open"), null,
+           "and it is closed on arrival, every load");
+        eq(all(root, "summary.banner__source__summary")[0].textContent,
+           VA.DATA_SOURCE_SUMMARY);
+        // ...and all five rows are IN it: folded, never deleted. The tree
+        // stamp in particular is why this box exists at all
+        // (ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_
+        // projection).
+        var body = all(root, ".banner__source__body")[0];
+        has(body.textContent, "Served over HTTP");
+        has(body.textContent, "results built");
+        has(body.textContent, "crops built");
+        has(body.textContent, "crops by rule:");
+        has(body.textContent, "results ← master @ 012345678");
+        has(body.textContent, "crops ← master @ 012345678");
+      });
+
+    // ...and the one thing that is still allowed to shout. A fold is not where
+    // a wrong pair goes.
+    await test("the stale-pair alarm is still OUTSIDE the fold, on the bar " +
+      "itself", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results,
+            crops: mismatchedCrops(),
+          }, {});
+        });
+        eq(all(root, ".banner__stale").length, 1);
+        eq(all(root, ".banner__source .banner__stale").length, 0,
+           "the alarm must never be something the reader has to open a fold to see");
+      });
 
     await test("the banner refuses to present a mismatched pair as current, " +
       "and states it in plain words with no capability", function () {
@@ -3008,7 +3731,54 @@
       ["C:\\", "an absolute workstation path, the other way round"],
       ["build_viewer_crops.py", "a terminal command for the reader to type"],
       ["venv-win", "a terminal command for the reader to type"],
+      // SHAPES, not literals (2026-09-16, reader_facing_copy_and_vocabulary
+      // item 7). The eight above are the eight instances that existed on
+      // 2026-09-15; a literal can only ever catch the strings someone has
+      // already written down. A shape catches the ones nobody has written yet,
+      // and that is not hypothetical here: VA.exportRunsLine printed four bare
+      // run ids -- `20260723_163810` and three more -- straight past this list
+      // for as long as it has existed, because no literal in it spells a run
+      // id and nothing could (ISSUE_20260916_the_element_pane_still_prints_
+      // bare_drawing_checker_run_ids_as_link_text).
+      [/\b\d{8}_\d{6}\b/,
+       "a drawing-checker run id -- an internal artifact's address, and a " +
+       "shape, so an id nobody has written yet is caught too"],
+      [/\b[0-9a-f]{24,}\b/,
+       "a checksum's own digits -- twelve hex characters are not something a " +
+       "reader of this page can do anything with"],
     ];
+
+    // Every FIELD NAME the schema uses, read out of the projection itself
+    // rather than listed here -- the same rule the id walks follow, one level
+    // up. Two of the eight literals above (`source_ref`, `crop_key`) are field
+    // names someone hit and wrote down; this is the general form, and it needs
+    // no maintenance when the schema grows a field.
+    //
+    // Keys with a separator in them ONLY, for exactly the reason the id walks
+    // skip a one-word id: `sheet`, `note`, `document`, `revision` and `zone`
+    // are all schema keys AND words a human would write, and `sheet 3` is the
+    // right thing for a citation line to say.
+    function schemaFieldNames(projection) {
+      var names = {}, values = {};
+      (function walk(value) {
+        if (typeof value === "string") { values[value] = true; return; }
+        if (!value || typeof value !== "object") return;
+        if (Array.isArray(value)) { value.forEach(walk); return; }
+        Object.keys(value).forEach(function (key) {
+          if (key.indexOf("_") !== -1) names[key] = true;
+          walk(value[key]);
+        });
+      })(projection);
+      // A word the schema uses as a VALUE somewhere is data, and the page is
+      // entitled to print it. `thermal_fit` is the live example and the reason
+      // this subtraction exists: it is an `archetype` value a stack page says
+      // out loud, and it is also a KEY, because the projection carries an
+      // archetype-keyed map. Without this the guard reports the sentence
+      // `The archetype "thermal_fit" builds them` as schema jargon, which it
+      // plainly is not -- and a guard that cries wolf on a correct sentence
+      // gets an allowlist entry, then two, then deleted.
+      return Object.keys(names).filter(function (name) { return !values[name]; });
+    }
 
     // The nodes that print a DOCUMENT's own prose, word for word: a citation's
     // note, a callout as printed, an export's recorded `why`. The ban above is
@@ -3021,26 +3791,186 @@
       "div.detail__note", "div.detail__callout",
       "div.hovercard__note", "div.hovercard__notefull", "div.hovercard__callout",
       "div.el-export__note", "div.el-export__why",
+      // The stack-side surfaces, enrolled 2026-09-16 when the walk below
+      // reached them. Every one of these is the RECORD speaking, not the page:
+      // an element row's citation note and callout as printed (a material
+      // entry's own note reuses the same two classes), and a worksheet, which
+      // is authored markdown read live off disk. `el-row__srcnote` in particular
+      // carries live prose naming `20260730_133912` to argue an export's
+      // identity -- true, useful, and not the viewer's words to trim.
+      "div.el-row__srcnote", "div.el-row__callout",
+      "div.worksheet__body",
+      // ...and the four places the stack page prints the RECORD: a stack's own
+      // notes, a derived gap's text, a hardware or material entry's recorded
+      // gap, and a check's authored guidance. Every one of these is authored in
+      // the stack JSON and rendered whole on purpose.
+      "li.notelist__note", "span.gap__text", "li.el-gaps__text",
+      "p.check__guidance", "dd.kv__value", "tr.el-note--record",
     ];
 
     // Everything on a surface that the VIEWER wrote -- the rendered text with
-    // the verbatim-prose nodes' own text removed.
+    // the verbatim-prose SUBTREES left out.
+    //
+    // A walk, not a substring subtraction. It subtracted each verbatim node's
+    // text out of the whole page's text until 2026-09-16, which is safe only
+    // while every enrolled class holds a paragraph: the stack page's free-form
+    // blocks render one-character values ("A", the assembly revision), and
+    // removing every "A" from the page turned "PARTS-LIST" into "P RTS-LIST"
+    // and the guard's own failure messages into nonsense. Skipping the node is
+    // the same intent without the collateral.
+    //
+    // Model-independent on purpose: the node tier keeps an element's text on
+    // the element, a browser keeps it in child text nodes, and descending only
+    // where there are children reads both the same way.
     function viewerAuthoredText(root) {
-      var text = root.textContent;
+      var skip = [];
       VERBATIM_PROSE_CLASSES.forEach(function (selector) {
-        all(root, selector).forEach(function (node) {
-          var quoted = node.textContent;
-          if (quoted) text = text.split(quoted).join(" ");
-        });
+        skip = skip.concat(all(root, selector));
       });
-      return text;
+      function walk(node) {
+        if (skip.indexOf(node) !== -1) return "";
+        var kids = node.childNodes
+          ? Array.prototype.slice.call(node.childNodes) : [];
+        if (!kids.length) return String(node.textContent || "");
+        return kids.map(walk).join(" ");
+      }
+      return walk(root);
     }
 
+    // A banned entry is a literal OR a shape; both report the string actually
+    // found, never the pattern, because "renders /\\b\\d{8}_\\d{6}\\b/" tells a
+    // reader nothing about which id is on their page.
     function bannedIn(text, where) {
       BANNED_IN_RENDERED_TEXT.forEach(function (pair) {
-        ok(String(text).indexOf(pair[0]) === -1,
-           where + " renders " + JSON.stringify(pair[0]) + " (" + pair[1] +
+        var found = typeof pair[0] === "string"
+          ? (String(text).indexOf(pair[0]) === -1 ? null : pair[0])
+          : (String(text).match(pair[0]) || [null])[0];
+        ok(found === null,
+           where + " renders " + JSON.stringify(found) + " (" + pair[1] +
            "): " + text);
+      });
+    }
+
+    // Every STACK-side surface that renders reader-facing text, for one stack
+    // projection. Named here rather than inside either tier's test so the
+    // fixture walk and the [real] walk cannot drift into covering different
+    // surfaces -- which is how the topology walks and the stack walks came to
+    // be two different guards in the first place.
+    //
+    // This half of the viewer had NO walk at all until 2026-09-16. Both
+    // existing walks enumerate topology surfaces (grid, node/edge panes, hover
+    // cards); `views/stack.js`, `views/detail.js`, `views/worksheet.js` and
+    // VA.summaryChips were reachable by no guard, which is why VA.exportRunsLine
+    // printed four bare run ids on the element pane for a month
+    // (reader_facing_copy_and_vocabulary item 7).
+    // A worksheet's own markdown: the RECORD's words, rendered whole. Both
+    // strings in it are ones the viewer itself may never print.
+    var WORKSHEET_PROSE = "## Sourcing\n\nThe `source_ref` on row 3 was read " +
+      "off C:/workspace/drawing-checker/data/inbox/drawings/215197.pdf.\n";
+
+    function stackSurfaces(stackProj, crops) {
+      var where = stackProj.id + " ";
+      var surfaces = [[where + "stack page", render(function (r) {
+        VA.renderStack(r, stackProj, crops, {});
+      })]];
+      // The header chips are a view-model, not DOM -- render them into one so
+      // the same scan reads them. A chip's `title` is rendered text too: it is
+      // the only explanation of the chip a reader ever gets.
+      surfaces.push([where + "summary chips", render(function (r) {
+        VA.summaryChips(stackProj).forEach(function (chip) {
+          r.appendChild(VA.chip("chip--scan", chip.text, chip.title || null));
+        });
+      })]);
+      // With MARKDOWN, not null: a null renders the could-not-be-read notice and
+      // no body at all, so `div.worksheet__body` matched zero nodes on every
+      // surface this walk built -- an exemption that exempts nothing, reading as
+      // coverage that is not there (caught in
+      // review/reader_facing_copy_and_vocabulary).
+      //
+      // ONE HONEST LIMIT, because the fix is smaller than it looks. The body is
+      // written with `innerHTML`, and the node tier's DOM shim keeps innerHTML
+      // in its own field rather than as child text -- so the body's text is not
+      // in `textContent` here at ALL, exempted or not. Deleting the selector
+      // from VERBATIM_PROSE_CLASSES takes this tier fully green; measured. What
+      // the markdown buys is that the selector now matches a real node, so the
+      // enrollment is a live statement rather than a dead one, and the guard
+      // below can say so. The exemption is load-bearing where this same file
+      // runs against a real DOM (apps/viewer/test.html), which is the tier that
+      // would otherwise scan a worksheet's own prose as if the page had written
+      // it. The prose below carries the two things a worksheet legitimately
+      // says and the page never may -- a schema field name and an absolute
+      // workstation path -- so that tier fails loudly rather than quietly.
+      surfaces.push([where + "worksheet pane", render(function (r) {
+        VA.renderWorksheet(r, stackProj, WORKSHEET_PROSE);
+      })]);
+      ((stackProj.stack || {}).elements || []).forEach(function (element) {
+        surfaces.push([where + "element pane on " + element.id,
+          render(function (r) {
+            VA.renderDetail(r, stackProj, element.id, crops, null, VA.CONFIG);
+          })]);
+        if (element.source_ref) {
+          surfaces.push([where + "citation card on " + element.id,
+            render(function (r) {
+              VA.renderHoverCard(r, VA.citationCard(element.source_ref, null, null),
+                {}, VA.CONFIG, null);
+            })]);
+        }
+        // The crop lightbox (crop_lightbox_zoom_viewer), enrolled the day it
+        // was added. Most of what it prints is the shared crop caption, which
+        // this walk already reads on four other surfaces; what is NEW is its
+        // own controls' words, and those are exactly the copy this scan exists
+        // to keep honest.
+        var cropEntry = VA.cropFor(crops, stackProj.id, element.id);
+        if (cropEntry.status === "resolved") {
+          surfaces.push([where + "crop lightbox on " + element.id,
+            render(function (r) {
+              VA.renderLightbox(r, cropEntry, { url: "blob:x" }, VA.CONFIG);
+            })]);
+        }
+      });
+      return surfaces;
+    }
+
+    // A WHOLE WORD, not a substring: the stack page prints every element's own
+    // id beside its name on purpose (a reviewer finds the row in the JSON by
+    // it), and `bushing_flange_thickness` contains the schema key
+    // `flange_thickness`. `_` counts as part of a word here, which is what
+    // makes an id with a separator either side of the key a miss and the key
+    // standing alone a hit.
+    //
+    // Spelled out rather than as a word-boundary escape, on purpose. This
+    // guard shipped for an hour as `new RegExp("\\b" + name + "\\b")` with one
+    // backslash instead of two, and JS reads `"\b"` as U+0008 BACKSPACE -- so
+    // the pattern was `<backspace>name<backspace>`, the scan matched nothing
+    // ever, and every surface passed. Nothing in the suite could tell that from
+    // a clean tree. What told it was planting a positive and watching the guard
+    // NOT fire, which is the whole argument for planting one.
+    var WORD_CHARACTER = /[A-Za-z0-9_$]/;
+    function wholeWordIn(text, word) {
+      for (var at = text.indexOf(word); at !== -1;
+           at = text.indexOf(word, at + 1)) {
+        var end = at + word.length;
+        if ((at === 0 || !WORD_CHARACTER.test(text.charAt(at - 1))) &&
+            (end >= text.length || !WORD_CHARACTER.test(text.charAt(end)))) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // The banned list, the schema's own field names, and a set of ids, over one
+    // surface's viewer-authored text. One function so a new surface cannot be
+    // enrolled in three quarters of the guard.
+    function surfaceIsClean(root, where, fieldNames, ids) {
+      var text = viewerAuthoredText(root);
+      bannedIn(text, where);
+      (fieldNames || []).forEach(function (name) {
+        ok(!wholeWordIn(text, name),
+           where + " renders the schema field name `" + name + "`: " + text);
+      });
+      (ids || []).forEach(function (id) {
+        ok(text.indexOf(id) === -1,
+           where + " prints the internal id `" + id + "`: " + text);
       });
     }
 
@@ -3102,6 +4032,99 @@
         // A part no row of which cites anything gets nothing to render.
         eq(VA.partReferences(TOPO, "no_such_part"), []);
         eq(VA.referenceText(null), "");
+      });
+
+    // ITEM 2 (ISSUE_20260915_the_component_card_says_dimensions_from_for_a_part_
+    // whose_every_value_is_untraced), pinned at the value level on BOTH halves:
+    // the producer that sets the flag and the string that states it.
+    //
+    // It was pinned by nothing at all until review/reader_facing_copy_and_
+    // vocabulary planted the obvious mutation -- deleting the qualifier clause
+    // from VA.referenceText -- and took 419/419 fast, 20/20 browser and 1192
+    // pytest passes with it gone. The reason it slipped: every reference object
+    // the three tests above build has no `unverified` key, so the conditional
+    // arm was dead in every test and live on every real page. A new arm on a
+    // shared helper needs its own case; an existing test that happens to call
+    // the helper does not become one.
+    await test("a document whose numbers have nothing behind them says so, and " +
+      "one whose numbers are traced does not", function () {
+        // THE STRING. The word is VA.ATTENTION's, so this asserts the rendered
+        // sentence rather than re-spelling it -- a reader meets the same word on
+        // the grid row and the "what is missing" panel.
+        eq(VA.referenceText({ document: "demo.xlsx", kinds: ["workbook"],
+                              sheets: [], unverified: true }),
+           "demo.xlsx (" + VA.ATTENTION.unverified.text + ")");
+        eq(VA.referenceText({ document: "demo.xlsx", kinds: ["workbook"],
+                              sheets: [7], unverified: true }),
+           "demo.xlsx · sheet 7 (" + VA.ATTENTION.unverified.text + ")");
+        // ...and the negative, both ways an object can fail to claim it: the
+        // flag false, and the key absent entirely (which is what every OTHER
+        // test in this file passes, and why the arm went unwitnessed).
+        eq(VA.referenceText({ document: "215197", kinds: ["drawing"],
+                              sheets: [2], unverified: false }),
+           "215197 · sheet 2");
+        eq(VA.referenceText({ document: "215197", kinds: ["drawing"], sheets: [2] }),
+           "215197 · sheet 2");
+
+        // THE PRODUCER. `arm`'s one row is untraced off a workbook; `base`'s is
+        // traced to a drawing. VA.partReferences reads the EDGE's confidence
+        // (the projection's derived field), not the citation's, which is the
+        // same thing VA.needsAnnotation is given everywhere else.
+        var armRefs = VA.partReferences(TOPO, "arm");
+        eq(armRefs.length, 1);
+        eq(armRefs[0].document, "demo.xlsx");
+        eq(armRefs[0].unverified, true);
+        var baseRefs = VA.partReferences(TOPO, "base");
+        eq(baseRefs[0].unverified, false);
+        // `post`'s row is `inferred` -- a real reading of a real document, and
+        // NOT one of the two loud states. The qualifier must not creep onto it:
+        // the claim is "nothing readable stands behind this", not "this is less
+        // than perfect".
+        eq(VA.partReferences(TOPO, "post")[0].unverified, false);
+
+        // The per-DOCUMENT tie-break, which no live part exercises and which the
+        // lesson can only argue in prose otherwise: ANY unverified row marks the
+        // document. A card that called a document clean because one of its rows
+        // was traced would overclaim.
+        var mixed = VA.partReferences({
+          edges: [
+            { part: "p", confidence: "traced",
+              dimension: { source_ref: { document: "D", kind: "drawing", sheet: 1 } } },
+            { part: "p", confidence: "untraced",
+              dimension: { source_ref: { document: "D", kind: "drawing", sheet: 2 } } },
+          ],
+        }, "p");
+        eq(mixed.length, 1);
+        eq(mixed[0].unverified, true);
+        eq(VA.referenceText(mixed[0]),
+           "D · sheets 1, 2 (" + VA.ATTENTION.unverified.text + ")");
+      });
+
+    await test("the component card states a document's sourcing in the words " +
+      "that document has earned, and hovers the reason", function () {
+        // The unqualified branch over an untraced workbook -- the exact shape
+        // the issue was filed for. The card carries NO confidence chip, so this
+        // line is the only provenance its reader gets.
+        var arm = render(function (r) {
+          VA.renderHoverCard(r, VA.componentCard(TOPO, "arm", TOPOCROPS), {},
+            VA.CONFIG, null);
+        });
+        var where = all(arm, "div.hovercard__where")[0];
+        eq(where.textContent,
+           "dimensions from demo.xlsx (" + VA.ATTENTION.unverified.text + ")");
+        // The word alone is terse on a card a reader may be meeting it on; the
+        // sentence behind it is VA.ATTENTION's too, not a second wording.
+        eq(where.getAttribute("title"), VA.ATTENTION.unverified.title);
+
+        // ...and a part whose one document IS a real reading gets the plain
+        // sentence and no hover, so the qualifier stays legible by being rare.
+        var post = render(function (r) {
+          VA.renderHoverCard(r, VA.componentCard(TOPO, "post", TOPOCROPS), {},
+            VA.CONFIG, null);
+        });
+        var postWhere = all(post, "div.hovercard__where")[0];
+        eq(postWhere.textContent, "dimensions from 217755 · sheet 1");
+        eq(postWhere.getAttribute("title"), null);
       });
 
     // THE ITEM. Jeff: "'no drawing recorded for this part' on a COTS fastener
@@ -3251,21 +4274,118 @@
           })]);
         });
 
+        // An id that happens also to BE a phrase a human would write is no
+        // evidence of anything (`post`, `arm`); only ids with a separator in
+        // them are unambiguously machine-shaped.
         var ids = (TOPO.parts || []).map(function (p) { return p.id; })
-          .concat((TOPO.nodes || []).map(function (n) { return n.id; }));
+          .concat((TOPO.nodes || []).map(function (n) { return n.id; }))
+          .filter(function (id) { return id.indexOf("_") !== -1; });
+        var fields = schemaFieldNames(TOPO);
+        ok(fields.length > 5, "the field-name scan must not be vacuous: " + fields);
         surfaces.forEach(function (pair) {
-          bannedIn(pair[1].textContent, pair[0]);
-          ids.forEach(function (id) {
-            // An id that happens also to BE a phrase a human would write is no
-            // evidence of anything (`post`, `arm`); only ids with a separator
-            // in them are unambiguously machine-shaped.
-            if (id.indexOf("_") === -1) return;
-            ok(pair[1].textContent.indexOf(id) === -1,
-               pair[0] + " prints the internal id `" + id + "`: " +
-               pair[1].textContent);
-          });
+          surfaceIsClean(pair[1], pair[0], fields, ids);
         });
         ok(surfaces.length > 20, "the walk must not be vacuous");
+      });
+
+    // The other half of the launcher walk (crop_lightbox_zoom_viewer). The
+    // stack-side surfaces are enumerated beside the lightbox's own tests
+    // above; these are the topology's, and they are here rather than there
+    // because TOPO/TOPOCROPS only exist in this block.
+    //
+    // The claim is parity, not a count: on EVERY topology surface, the number
+    // of launch buttons equals the number of pictures shown — so a surface
+    // that grows a second crop grows a second launcher, and one that renders a
+    // crop through anything other than the shared builder shows up as a
+    // picture with no way to open it.
+    await test("every topology surface that shows a crop carries one launcher " +
+      "per picture, and the count is parity rather than a constant",
+      function () {
+        var images = {};
+        [TOPOCROPS.by_stack, TOPOCROPS.by_topology].forEach(function (space) {
+          Object.keys(space || {}).forEach(function (outer) {
+            Object.keys(space[outer] || {}).forEach(function (inner) {
+              var entry = space[outer][inner];
+              if (entry && entry.png) images[entry.png] = { url: "blob:x" };
+              if (entry && entry.companion && entry.companion.png) {
+                images[entry.companion.png] = { url: "blob:pl" };
+              }
+            });
+          });
+        });
+        var surfaces = [["the grid", render(function (r) {
+          VA.renderTopoPane(r, topoCtx({ cropImages: images }));
+        })]];
+        (TOPO.edges || []).forEach(function (edge) {
+          surfaces.push(["the card on edge " + edge.id, render(function (r) {
+            VA.renderHoverCard(r, VA.edgeCard(TOPO, edge, TOPOCROPS), images,
+              VA.CONFIG, null);
+          })]);
+          surfaces.push(["the pane on edge " + edge.id, render(function (r) {
+            VA.renderTopoDetail(r, topoCtx({
+              selection: { kind: "edge", id: edge.id },
+              detailImage: { url: "blob:x" },
+            }));
+          })]);
+        });
+        (TOPO.nodes || []).forEach(function (node) {
+          surfaces.push(["the card on node " + node.id, render(function (r) {
+            VA.renderHoverCard(r, VA.nodeCard(TOPO, node.id, TOPOCROPS), images,
+              VA.CONFIG, null);
+          })]);
+        });
+        (TOPO.parts || []).forEach(function (part) {
+          surfaces.push(["the card on part " + part.id, render(function (r) {
+            VA.renderHoverCard(r, VA.componentCard(TOPO, part.id, TOPOCROPS),
+              images, VA.CONFIG, null);
+          })]);
+        });
+        var pictures = 0;
+        surfaces.forEach(function (pair) {
+          // A frame with no picture in it is the not-on-disk state, which
+          // offers nothing — so the pairing is against the IMAGES, not the
+          // frames.
+          var shown = all(pair[1], "div.cropfig").filter(function (frame) {
+            return all(frame, "img").length === 1;
+          });
+          eq(all(pair[1], "button.cropfig__launch").length, shown.length,
+             pair[0] + " must carry one launcher per picture");
+          pictures += shown.length;
+        });
+        ok(pictures >= 3, "the walk must not be vacuous: " + pictures +
+           " pictures over " + surfaces.length + " surfaces");
+        // The grid's inline thumbnail is the one crop image on this page that
+        // is NOT a cropFigure, and it deliberately carries no launcher of its
+        // own: clicking it opens the edge card, whose figure has one. Stated
+        // here so the decision is pinned rather than remembered.
+        var grid = surfaces[0][1];
+        ok(all(grid, "img.tvthumb").length >= 1,
+           "the grid must still render inline thumbnails");
+        eq(all(grid, "button.cropfig__launch").length, 0);
+      });
+
+    // The OTHER half of the viewer, which had no walk of any kind until
+    // 2026-09-16. Same three scans, same helpers, over the stack-side
+    // renderers: the element table, the header chips, the worksheet pane, the
+    // element pane and the citation card.
+    await test("no rendered stack surface prints an internal id, a field name, " +
+      "a checksum or a workstation path", function () {
+        var surfaces = [];
+        [DEMO, GEN].forEach(function (stackProj) {
+          surfaces = surfaces.concat(stackSurfaces(stackProj, CROPS));
+        });
+        var fields = schemaFieldNames({ stacks: [DEMO, GEN] });
+        ok(fields.length > 5, "the field-name scan must not be vacuous: " + fields);
+        surfaces.forEach(function (pair) {
+          // No id list here: a stack's element ids ARE printed, on purpose --
+          // views/stack.js puts each one in a <code> beside the element's name
+          // so a reviewer can find the row in the JSON. That is a deliberate
+          // affordance on this surface and not the class of thing this walk
+          // exists to catch, which is why the ids argument is the topology
+          // walks' and not this one's.
+          surfaceIsClean(pair[1], pair[0], fields, null);
+        });
+        ok(surfaces.length > 10, "the walk must not be vacuous: " + surfaces.length);
       });
 
     // ITEM 5. The pane's width, and the one preference on this page that
@@ -3323,6 +4443,260 @@
         VA.writeStoredPaneWidth(hostile, 600);     // must not throw
         eq(VA.readStoredPaneWidth(null), null);
         VA.writeStoredPaneWidth(null, 600);        // must not throw
+      });
+
+    // --- the annotator flyout's width (flyout_resize_annotator_filter_and_
+    // deselect, deliverable 1) ------------------------------------------------
+    //
+    // The flyout docks LEFT now, adjacent to the DAG (Jeff: "I actually want
+    // the 3d flyout on the left side, adjacent to the DAG"), and is dragged by
+    // a divider on its RIGHT edge -- so its drag sign is the opposite of the
+    // preview pane's. Both live in the pure layer for exactly this reason:
+    // there are now two of them, inverted, on one page.
+
+    await test("the flyout's width clamps, and a drag on its divider widens " +
+      "it by moving RIGHT -- the opposite sign to the preview pane's",
+      function () {
+        var WIDE = 3000;   // room enough that `max` is the binding cap
+        eq(VA.clampFlyoutWidth(700, WIDE), 700);
+        eq(VA.clampFlyoutWidth(10, WIDE), VA.FLYOUT_WIDTH.min);
+        eq(VA.clampFlyoutWidth(99999, WIDE), VA.FLYOUT_WIDTH.max);
+        eq(VA.clampFlyoutWidth("760", WIDE), 760);
+        eq(VA.clampFlyoutWidth(760.4, WIDE), 760);
+        eq(VA.clampFlyoutWidth("wide", WIDE), VA.FLYOUT_WIDTH.min);
+        ok(VA.FLYOUT_WIDTH.min < VA.FLYOUT_WIDTH.max);
+
+        // THE SIGN, and the whole reason this arithmetic is not in the pointer
+        // handler: the flyout is LEFT of its divider, so dragging RIGHT (a
+        // positive dx) makes it wider. VA.paneWidthAfterDrag, three tests up,
+        // is the same line with the other sign -- a copy-paste between the two
+        // fails exactly here.
+        eq(VA.flyoutWidthAfterDrag(760, 40, WIDE), 800);
+        eq(VA.flyoutWidthAfterDrag(760, -40, WIDE), 720);
+        eq(VA.flyoutWidthAfterDrag(VA.FLYOUT_WIDTH.min, -400, WIDE),
+           VA.FLYOUT_WIDTH.min);
+        eq(VA.paneWidthAfterDrag(760, 40), 720);   // ...and it is NOT this one
+      });
+
+    await test("a drag on the flyout keeps room for THE DRAWING -- what the " +
+      "caller measured, not a pixel constant and not the drawing's scrollport",
+      function () {
+        // Adjacency IS the deliverable ("the DAG must remain visible beside
+        // it"), and getting the clamp to deliver it took three goes, each of
+        // which measured the wrong thing:
+        //
+        //   1. the VIEWPORT -- so reserving 420px handed the reader back 420px
+        //      of PREVIEW PANE and covered the diagram completely;
+        //   2. `#topopane` -- which is the drawing's horizontal SCROLLPORT, so
+        //      it reported 300px of clearance over a diagram that was 100%
+        //      covered (caught by review, 2026-09-16);
+        //   3. the drawing. `svg.tv__rails` is 90-262px wide across the 21 live
+        //      studies, sits at the pane's left edge, and is `position: sticky;
+        //      left: 0`, so no scroll position can move it out from under
+        //      anything. It is the thing that has to survive.
+        //
+        // So `keep` is a measurement the caller passes in (topology_app.js's
+        // graphNeed), and this is the arithmetic over it.
+        var ROOM = 1033;           // 1600px window, less the pane's 560 and its seam
+        var RAILS = 262;           // the widest live drawing
+        eq(VA.clampFlyoutWidth(99999, ROOM, RAILS),
+           ROOM - VA.FLYOUT_WIDTH.reserve,
+           "a drawing narrower than the floor leaves the floor binding");
+        // ...and a drawing WIDER than the floor moves the cap itself, which is
+        // the whole point of measuring rather than picking a number: a future
+        // topology with a wider diagram gets more room, with no constant to
+        // edit.
+        //
+        // 400 rather than something larger on purpose: above 473 the CAP drops
+        // under VA.FLYOUT_WIDTH.min and the floor takes over, so a bigger
+        // number here would assert the floor and look like it was asserting
+        // the measurement.
+        eq(VA.clampFlyoutWidth(99999, ROOM, 400), ROOM - 400);
+        ok(VA.clampFlyoutWidth(99999, ROOM, 400) <
+           VA.clampFlyoutWidth(99999, ROOM, RAILS),
+           "a wider drawing narrows the panel, never the other way round");
+        // ...and past that point the panel's own floor wins, stated rather
+        // than left to be discovered: at a 500px drawing there is no width
+        // that satisfies both, and an unusable panel is the worse answer.
+        eq(VA.clampFlyoutWidth(99999, ROOM, 500), VA.FLYOUT_WIDTH.min);
+
+        // Nothing measured (stack mode draws no rails; a pre-layout call) falls
+        // back to the floor rather than to zero -- a clamp that read "no
+        // drawing" as "keep nothing" would hand the panel the whole window.
+        eq(VA.clampFlyoutWidth(99999, ROOM, 0),
+           ROOM - VA.FLYOUT_WIDTH.reserve);
+        eq(VA.clampFlyoutWidth(99999, ROOM),
+           ROOM - VA.FLYOUT_WIDTH.reserve);
+        ok(VA.clampFlyoutWidth(99999, ROOM, RAILS) < VA.FLYOUT_WIDTH.max,
+           "with 1033px to divide, the reserve binds before the px max does");
+
+        // The degenerate window, and the one case where the reserve loses: so
+        // little room that honouring it would leave a panel too small to
+        // annotate in. A covered graph beats an unusable panel, and the floor
+        // is stated rather than emergent.
+        eq(VA.clampFlyoutWidth(99999, 600, RAILS), VA.FLYOUT_WIDTH.min);
+        ok(VA.FLYOUT_WIDTH.min > VA.FLYOUT_WIDTH.reserve,
+           "which is only reachable because min exceeds the reserve");
+
+        // No room to measure at all (the DOM shim) falls back to the px max
+        // rather than to zero -- a clamp that read an absent measurement as
+        // "no room" would pin the panel at `min` forever.
+        eq(VA.clampFlyoutWidth(99999, 0, RAILS), VA.FLYOUT_WIDTH.max);
+        eq(VA.clampFlyoutWidth(99999, undefined, RAILS), VA.FLYOUT_WIDTH.max);
+      });
+
+    await test("the flyout width is remembered under its OWN key, beside the " +
+      "pane's, and neither read disturbs the other", function () {
+        var store = {
+          data: {},
+          getItem: function (k) {
+            return Object.prototype.hasOwnProperty.call(this.data, k)
+              ? this.data[k] : null;
+          },
+          setItem: function (k, v) { this.data[k] = String(v); },
+        };
+        var WIDE = 3000;
+        ok(VA.FLYOUT_WIDTH_KEY !== VA.PANE_WIDTH_KEY,
+           "two independent controls, two keys");
+        eq(VA.readStoredFlyoutWidth(store, WIDE), null);
+        VA.writeStoredFlyoutWidth(store, 900, WIDE);
+        eq(store.data[VA.FLYOUT_WIDTH_KEY], "900");
+        // ...and the write clamps too, so a width stored while the window was
+        // wide cannot be read back as a covered graph later.
+        VA.writeStoredFlyoutWidth(store, 900, 1033, 262);
+        eq(store.data[VA.FLYOUT_WIDTH_KEY], String(1033 - VA.FLYOUT_WIDTH.reserve));
+        VA.writeStoredFlyoutWidth(store, 900, WIDE);
+        eq(VA.readStoredFlyoutWidth(store, WIDE), 900);
+        // Widening the flyout said nothing about the pane, and vice versa.
+        eq(VA.readStoredPaneWidth(store), null);
+        VA.writeStoredPaneWidth(store, 640);
+        eq(VA.readStoredFlyoutWidth(store, WIDE), 900);
+
+        // Clamped on the way IN as well as out, and against the CURRENT
+        // room -- a width remembered on a 3000px screen must not cover the
+        // graph on a 1280px one.
+        eq(VA.readStoredFlyoutWidth(store, 1033, 262),
+           1033 - VA.FLYOUT_WIDTH.reserve);
+        store.data[VA.FLYOUT_WIDTH_KEY] = "not a number";
+        eq(VA.readStoredFlyoutWidth(store, WIDE), null);
+        store.data[VA.FLYOUT_WIDTH_KEY] = "";
+        eq(VA.readStoredFlyoutWidth(store, WIDE), null);
+
+        var hostile = {
+          getItem: function () { throw new Error("SecurityError"); },
+          setItem: function () { throw new Error("SecurityError"); },
+        };
+        eq(VA.readStoredFlyoutWidth(hostile, WIDE), null);
+        VA.writeStoredFlyoutWidth(hostile, 900, WIDE);   // must not throw
+        eq(VA.readStoredFlyoutWidth(null, WIDE), null);
+        VA.writeStoredFlyoutWidth(null, 900, WIDE);      // must not throw
+      });
+
+    // --- one alert badge per row (deliverable 5) -----------------------------
+    //
+    // Jeff: "roll all the alert badges into one single alert badge (something
+    // like a triangle ! icon). Mouse over the icon has a popup that lists out
+    // the actual alerts." The words are NOT changed by that -- VA.rowAlerts
+    // reads VA.ATTENTION and VA.EXPORT_CHIP_TEXT and never restates them --
+    // and nothing is deleted: what was shouted from the row is now one icon
+    // plus a card that also carries the `why` the chip only had as a tooltip.
+
+    await test("VA.rowAlerts reads the row's alerts out of the tables that " +
+      "already own those words, and a clean row has none", function () {
+        // The demo stack on purpose: one row with no tolerance recorded
+        // (zero_width), one with an unestablished export, and two with
+        // neither.
+        var alerts = DEMO.elements.map(function (derived, i) {
+          return VA.rowAlerts(DEMO.stack.elements[i], derived);
+        });
+        var loud = alerts.filter(function (list) { return list.length > 0; });
+        ok(loud.length > 0 && loud.length < alerts.length,
+           "the fixture must have both kinds of row for this to mean anything");
+
+        var words = [].concat.apply([], alerts).map(function (a) { return a.text; });
+        // Every word came out of a table, never out of this function.
+        var known = [VA.ATTENTION.no_tolerance.text]
+          .concat(Object.keys(VA.EXPORT_CHIP_TEXT).map(function (k) {
+            return VA.EXPORT_CHIP_TEXT[k];
+          }));
+        words.forEach(function (word) {
+          ok(known.indexOf(word) !== -1, "unowned alert wording: " + word);
+        });
+        // ...and each alert carries the sentence that used to be only a
+        // tooltip, so consolidating the chips revealed the why rather than
+        // hiding the word.
+        [].concat.apply([], alerts).forEach(function (alert) {
+          ok(alert.why && alert.why.length > 20, "each alert states its why");
+          ok(alert.kind, "each alert is distinguishable by kind: " + alert.text);
+        });
+      });
+
+    await test("two alerts on one row make ONE badge, and the card behind it " +
+      "lists both with their why", function () {
+        // The washer is both zero-width AND unestablished in the fixture as
+        // shipped -- the case the old presentation showed as two filled
+        // all-caps chips side by side, which is the loudness being fixed. Taken
+        // from the fixture rather than poisoned into it, so the check cannot
+        // drift away from what ?mock=1 actually renders.
+        var both = DEMO;
+        var idx = 1;
+        var alerts = VA.rowAlerts(both.stack.elements[idx], both.elements[idx]);
+        eq(alerts.length, 2);
+        eq(alerts.map(function (a) { return a.kind; }).join("+"),
+           "zero-width+export-unestablished");
+
+        var shown = [];
+        var rowsRoot = render(function (r) {
+          VA.renderStack(r, both, CROPS, {
+            onCardShow: function (card, trigger) { shown.push([card, trigger]); },
+          });
+        });
+        var row = all(rowsRoot, "tr.el-row")[idx];
+        // ONE badge, not two chips.
+        var badges = all(row, "span.chip--alert");
+        eq(badges.length, 1);
+        eq(badges[0].textContent, VA.ALERT_ICON);
+
+        badges[0].onmouseenter();
+        eq(shown.length, 1);
+        eq(shown[0][0].kind, "alerts");
+        eq(shown[0][0].alerts.length, 2);
+        var card = render(function (r) {
+          VA.renderHoverCard(r, shown[0][0], {}, VA.CONFIG, null);
+        });
+        eq(all(card, "li.hovercard__alert").length, 2);
+        // Both words, and both reasons, reachable -- nothing was deleted.
+        has(card.textContent, VA.ATTENTION.no_tolerance.text);
+        has(card.textContent, VA.ATTENTION.no_tolerance.title);
+        has(card.textContent, VA.EXPORT_CHIP_TEXT.unestablished);
+        has(card.textContent, "none hashes to the one");
+        // ...and the badge itself carries them too, for a render with no card
+        // machinery at all (the shim, a view called without handlers): the
+        // information is never ONLY in a hover.
+        var bare = render(function (r) { VA.renderStack(r, both, CROPS, {}); });
+        var bareBadge = all(all(bare, "tr.el-row")[idx], "span.chip--alert")[0];
+        has(bareBadge.getAttribute("title"), VA.ATTENTION.no_tolerance.text);
+        has(bareBadge.getAttribute("title"), VA.EXPORT_CHIP_TEXT.unestablished);
+        eq(bareBadge.className.indexOf("cardtrig"), -1);
+      });
+
+    await test("an alerts card with one alert renders one item and names the " +
+      "row it belongs to", function () {
+        // The badge is one glyph, so the card is the first place a reader can
+        // see WHICH row they hovered.
+        var card = render(function (r) {
+          VA.renderHoverCard(r, VA.alertsCard("plate thickness", [{
+            kind: "zero-width",
+            text: VA.ATTENTION.no_tolerance.text,
+            why: VA.ATTENTION.no_tolerance.title,
+          }]), {}, VA.CONFIG, null);
+        });
+        eq(all(card, "li.hovercard__alert").length, 1);
+        has(card.textContent, "plate thickness");
+        has(card.textContent, "Needs attention");
+        // No fold: this whole card is a list of gaps, and views/dom.js's rule
+        // is that an absence is never put behind a disclosure.
+        eq(all(card, "details.hovercard__source").length, 0);
       });
 
     // --- edge-length scaling (viewer_edge_length_scaling, 2026-09-10) -------
@@ -3781,6 +5155,158 @@
         eq(nudged[1][1], -8);
         eq(nudged[2][1], 40, "shift is the coarse step");
         eq(nudged[2][0].cls, "name");
+      });
+
+    // --- the grips' own geometry (topology_grid_scroll_and_grips) ----------
+    //
+    // Both grips live in a box the reader can scroll sideways and can make
+    // narrower than the content (the preview pane's divider), so where a grip
+    // is drawn is arithmetic and not a constant. The two functions below are
+    // that arithmetic; the browser tier drags the real grips at the real pane
+    // widths, which is the claim these cannot make.
+    await test("the jog grip rides the seam, clamped into the pane when the " +
+      "DAG is wider than the pane shows", function () {
+        var G = VA.TOPO_GRIP;
+        // The plain case: the seam, less the hairline's own offset inside the
+        // grip, so the hairline lands ON the boundary.
+        eq(VA.jogGripInset(316, 868), 316 - G.half);
+        // No layout to clamp against (the DOM shim) reads as "do not clamp".
+        eq(VA.jogGripInset(316, 0), 316 - G.half);
+        eq(VA.jogGripInset(316, undefined), 316 - G.half);
+        // A pane narrower than the DAG: pinned one grip's width clear of the
+        // ELEMENT grip's own right-hand pin, so the two never stack.
+        eq(VA.jogGripInset(316, 298), 298 - 2 * G.width);
+        ok(VA.jogGripInset(316, 298) <
+           VA.columnGripLeft(316 + 408, 0, 298) - G.width + 1,
+           "the jog grip stays left of the column grip's pin");
+        // ...and never off the pane's own left edge, however narrow it gets.
+        eq(VA.jogGripInset(316, 4), 0);
+      });
+
+    await test("a column grip rides its own boundary while that boundary is " +
+      "on screen, and pins to the pane's right edge past it", function () {
+        var G = VA.TOPO_GRIP;
+        // On screen: the boundary itself, so the browser scrolls the grip
+        // with the content and no handler has to keep up.
+        eq(VA.columnGripLeft(700, 0, 868), 700 - G.width);
+        eq(VA.columnGripLeft(700, 200, 868), 700 - G.width);
+        // Off the right: pinned, and the pin follows the scroll.
+        eq(VA.columnGripLeft(1424, 0, 868), 868 - G.width);
+        eq(VA.columnGripLeft(1424, 300, 868), 300 + 868 - G.width);
+        // Scrolled past it on the left, the grip goes with its column rather
+        // than parking over the sticky rails.
+        eq(VA.columnGripLeft(700, 900, 868), 700 - G.width);
+        eq(VA.columnGripLeft(1424, 0, 0), 1424 - G.width, "no layout, no clamp");
+      });
+
+    await test("each grip is rendered in its own lane, and the grip's pixels " +
+      "are the stylesheet's own", function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        var lanes = all(root, "div.tv__griplane");
+        eq(lanes.length, 2, "one lane per grip");
+        lanes.forEach(function (lane) {
+          eq(all(lane, "div.tvgrip").length, 1,
+             "a shared lane would measure one grip's position from another's");
+        });
+        var jog = all(root, "div.tvgrip").filter(function (g) {
+          return g.getAttribute("data-resize") === "jog";
+        })[0];
+        ok(jog, "the jog grip");
+        var railWidth = VA.leaderGeometry(VA.spineRight(TOPO.layout),
+          VA.gridPlan(VA.spineRight(TOPO.layout), TOPO), VA.RAIL_METRICS).width;
+        // No layout in the shim, so this is the unclamped seam.
+        eq(jog.style.left, VA.jogGripInset(railWidth, 0) + "px");
+        var src = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+        if (!src) return;
+        // One number in two files is this repo's most-repeated defect: the
+        // insets above are computed in JS against a hairline drawn in CSS.
+        var css = src.readText("topology.css");
+        ok(css, "topology.css must be readable");
+        var width = /\.tvgrip\s*\{[^}]*[;{\s]width:\s*(\d+)px/.exec(css);
+        ok(width, "expected an explicit width on .tvgrip in topology.css");
+        eq(Number(width[1]), VA.TOPO_GRIP.width,
+           "VA.TOPO_GRIP.width must be .tvgrip's own CSS width");
+        var half = /\.tvgrip::before\s*\{[^}]*[;{\s]left:\s*(\d+)px/.exec(css);
+        ok(half, "expected an explicit left on .tvgrip::before in topology.css");
+        eq(Number(half[1]), VA.TOPO_GRIP.half,
+           "VA.TOPO_GRIP.half must be the hairline's own offset");
+      });
+
+    // Whether this tier can hold a scroll position at all. The suite renders
+    // into a DETACHED div, and a real browser refuses to scroll a box that is
+    // not laid out and has nothing to overflow -- `scrollLeft = n` there is a
+    // silent no-op, so the two checks below would be asserting 0 === 0 about a
+    // pane that was never scrolled. The DOM shim keeps whatever is written to
+    // it, which is exactly the property they need. The browser half of this
+    // claim is scripts/run_viewer_browser_tests.mjs's testRespine scrolled
+    // arm, on a laid-out pane with real overflow.
+    function canHoldScroll(root) {
+      var pane = root.querySelector(".tv__hscroll");
+      pane.scrollLeft = 1;
+      var held = pane.scrollLeft === 1;
+      pane.scrollLeft = 0;
+      return held;
+    }
+
+    // --- the reader's sideways scroll across a rebuild ---------------------
+    //
+    // ISSUE_20260915_every_topology_pane_render_throws_away_the_readers_
+    // sideways_scroll: renderTopoPane clears the pane and builds a fresh
+    // `.tv__hscroll` every call, and a fresh element's scrollLeft is 0, so the
+    // position was discarded rather than clamped. The shim has no layout and
+    // therefore no clamp to observe -- that half is the browser tier's -- but
+    // WHICH renders carry the number at all is pure logic, and it is the half
+    // a reviewer would otherwise have to take on trust.
+    await test("a re-render of the same topology carries the reader's " +
+      "sideways scroll, and a different topology starts at the left edge",
+      function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        if (!canHoldScroll(root)) return;
+        root.querySelector(".tv__hscroll").scrollLeft = 240;
+        VA.renderTopoPane(root, topoCtx());
+        eq(root.querySelector(".tv__hscroll").scrollLeft, 240,
+           "the same topology, re-drawn, keeps the reader where they were");
+        // A study selection is the same topology re-serialised, not a new one.
+        root.querySelector(".tv__hscroll").scrollLeft = 310;
+        VA.renderTopoPane(root, topoCtx({ study: topoStudy(TOPO.studies[0].id) }));
+        eq(root.querySelector(".tv__hscroll").scrollLeft, 310);
+        // A DIFFERENT mechanism shares no horizontal extent with this one, so
+        // carrying the number across would be carrying a number, not a place.
+        root.querySelector(".tv__hscroll").scrollLeft = 310;
+        var other = JSON.parse(JSON.stringify(TOPO));
+        other.id = TOPO.id + "_elsewhere";
+        VA.renderTopoPane(root, topoCtx({ topoProj: other }));
+        // `|| 0`: a fresh element's scrollLeft is 0 in a browser and undefined
+        // in the DOM shim, and what is being claimed is that nothing was
+        // written back, not which of those two a tier reports.
+        eq(root.querySelector(".tv__hscroll").scrollLeft || 0, 0);
+      });
+
+    await test("the respine's ghost is handed the scroll the outgoing pane " +
+      "was carrying, so the cross-fade shows ONE horizontal window",
+      function () {
+        var root = render(function (r) { VA.renderTopoPane(r, topoCtx()); });
+        if (!canHoldScroll(root)) return;
+        var outgoing = root.querySelector(".tv__hscroll");
+        outgoing.scrollLeft = 275;
+        // What VA.animateTopoPane does before its first frame: re-parent the
+        // outgoing pane into an inert ghost. In a browser that resets its
+        // scrollLeft, which is why ghostOf has to read the number first.
+        var ghost = VA.el("div", "tv__ghost");
+        ghost.paneScrollLeft = outgoing.scrollLeft;
+        ghost.appendChild(outgoing);
+        // The DOM shim's appendChild does not detach from the old parent, so
+        // the pane has to be taken out of `root` by hand for the shim to be in
+        // the state a browser is already in. Both tiers run this file.
+        VA.clear(root);
+        outgoing.scrollLeft = 0;
+        VA.renderTopoPane(root, topoCtx({
+          tween: { positions: null, e: 0.5, ghost: ghost },
+        }));
+        eq(root.querySelector(".tv__hscroll").scrollLeft, 275,
+           "the first frame is drawn at the position the reader left");
+        eq(ghost.querySelector(".tv__hscroll").scrollLeft, 275,
+           "and the ghost under it shows the same window");
       });
 
     await test("column widths come off the ONE array -- both tables' <col>s " +
@@ -5545,7 +7071,11 @@
         has(root.className, "hovercard--component");
         has(root.textContent, "drawing 215197");
         eq(all(root, "img").length, 1);
-        has(root.textContent, "crop of its `base plate thickness` annotation");
+        // No backticks around the row's name since 2026-09-16: it is a display
+        // name, and dressing it as an id made it read as internal plumbing.
+        has(root.textContent, "crop of its base plate thickness annotation");
+        ok(root.textContent.indexOf("`") === -1,
+           "no card prints a backticked identifier at a reader");
         var isolate = all(root, "a")[all(root, "a").length - 1];
         has(isolate.getAttribute("href"), "isolate=base");
 
@@ -5576,7 +7106,89 @@
         // The run ids print through the same one runs-line builder the right
         // pane uses (VA.exportRunsLine) — linked only where the crop resolved
         // through that run, plain text otherwise.
-        has(root.textContent, "drawing-checker runs:");
+        has(root.textContent, "read by drawing-checker");
+      });
+
+    // --- deliverables 2 and 3, on every card kind at once -------------------
+    //
+    // Counted over the four kinds in one test rather than asserted kind by
+    // kind, because both rules are about the card AS A WHOLE: "how many times
+    // is the document said" and "how many folds are there" are not questions a
+    // per-branch check can answer.
+    await test("every card kind states its document ONCE and carries at most " +
+      "ONE fold", function () {
+        var entry = VA.cropFor(CROPS, "demo_joint", "plate");
+        var images = {};
+        images[entry.png] = { url: "blob:demo" };
+        var cards = [
+          VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.base_thickness, TOPOCROPS),
+          VA.componentCard(TOPO, "base", TOPOCROPS),
+          VA.nodeCard(TOPO, "base_post_seat", TOPOCROPS),
+          VA.citationCard(DEMO.stack.elements[0].source_ref, null, entry),
+        ];
+        cards.forEach(function (card) {
+          var root = render(function (r) {
+            VA.renderHoverCard(r, card, images, VA.CONFIG, null);
+          });
+          var where = "the " + card.kind + " card";
+          // The crop block inside a card renders no head restating the file,
+          // and opens no second disclosure of its own.
+          eq(all(root, ".cropblock .croppop__head").length, 0, where +
+             " restates its document over the picture");
+          eq(all(root, "details.provfold").length, 0, where +
+             " carries the crop's own fold as well as its own");
+          var folds = all(root, "details");
+          ok(folds.length <= 1, where + " carries " + folds.length + " folds");
+          if (folds.length) {
+            eq(folds[0].className, "hovercard__source", where);
+            eq(folds[0].getAttribute("open"), null, where +
+               "'s fold must be closed on arrival");
+            has(all(root, "summary.hovercard__source__summary")[0].textContent,
+                VA.DATA_SOURCE_SUMMARY, where);
+          }
+        });
+        // ...and the fold really is where the crop's matching provenance went:
+        // folded, never deleted.
+        var edge = render(function (r) {
+          VA.renderHoverCard(r,
+            VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.base_thickness, TOPOCROPS),
+            images, VA.CONFIG, null);
+        });
+        has(all(edge, ".hovercard__source__body")[0].textContent,
+            "read from the export this citation names");
+      });
+
+    await test("an edge card does not repeat a part number the line above it " +
+      "already printed", function () {
+        // The live shape Jeff filed, in the fixture's own terms: a part NAMED
+        // after its drawing. The card says "a dimension of 215197 base plate"
+        // and then must NOT say "cited at: 215197 · ...".
+        var topo = JSON.parse(JSON.stringify(TOPO));
+        topo.parts.forEach(function (part) {
+          if (part.id === "base") part.name = "215197 base plate";
+        });
+        var card = VA.edgeCard(topo, VA.topologyIndex(topo).edges.base_thickness,
+                               TOPOCROPS);
+        var root = render(function (r) {
+          VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+        });
+        has(all(root, ".hovercard__where")[0].textContent,
+            "a dimension of 215197 base plate");
+        var cited = all(root, ".hovercard__cited")[0].textContent;
+        ok(cited.indexOf("215197") === -1,
+           "the number is already on the line above: " + cited);
+        // ...and what is LEFT is still said, or the de-duplication would be
+        // deleting the citation rather than de-duplicating it.
+        has(cited, "sheet 2");
+
+        // The unnamed part keeps the full line, unchanged.
+        var plain = render(function (r) {
+          VA.renderHoverCard(r,
+            VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.base_thickness, TOPOCROPS),
+            {}, VA.CONFIG, null);
+        });
+        has(all(plain, ".hovercard__cited")[0].textContent,
+            "cited at: 215197 · rev A.1 · sheet 2");
       });
 
     await test("renderHoverCard says a card kind it has no branch for out loud",
@@ -5691,7 +7303,12 @@
         has(root.textContent, "BRANCH POINT");
         // Both sides are said; only one carries an image.
         has(root.textContent, "base plate ⇔ post");
-        has(root.textContent, "crop of its `base plate thickness` annotation");
+        // One where-line per side, and it is that side's ONE document
+        // statement: the crop beneath it renders no head restating the file,
+        // and the "crop of its `X` annotation" tail went with the backticks
+        // that carried it (viewer_hover_deslop_and_banner_purge, 2026-09-16).
+        has(root.textContent, "base plate · drawing 215197");
+        eq(all(root, ".cropblock .croppop__head").length, 0);
         eq(all(root, ".cropblock").length, 1);
         eq(all(root, ".hovercard__noresolve").length, 0);
         has(root.textContent, "An interface is a location, not a value");
@@ -6151,9 +7768,16 @@
         var root = render(function (r) { VA.renderTopoJoint(r, withJoint); });
         eq(all(root, "details.sv__joint").length, 1);
         Object.keys(joint).forEach(function (key) {
-          has(root.textContent, key);
+          // The KEY AS A LABEL, not as a schema field name: a free-form block
+          // is rendered key by key, so `assembly_drawing` was a definition-list
+          // term on the live L1 topology until 2026-09-16. VA.fieldLabel drops
+          // the separator and changes nothing else, which is why this asserts
+          // the transform rather than a hand-written expansion.
+          has(root.textContent, VA.fieldLabel(key));
           has(root.textContent, String(joint[key]));
         });
+        ok(root.textContent.indexOf("assembly_drawing") === -1,
+           "no raw schema key in the rendered block: " + root.textContent);
       });
 
     await test("a topology with no joint (it spans more than one physical " +
@@ -6320,7 +7944,7 @@
             selection: { kind: "edge", id: "arm_pin_to_tip" } }));
         });
         has(root.textContent, "No document backs this number");
-        has(root.textContent, "zero-width band");
+        has(root.textContent, VA.ATTENTION.no_tolerance.text);
         has(root.textContent, "linear_to_rotary");
       });
 
@@ -6461,6 +8085,22 @@
         });
         eq(all(stale, "div.detail__crop--no-entry").length, 1);
         has(stale.textContent, "older than this stack");
+      });
+
+    // The second of VA.cropReference's two `detail__crop-` call sites -- the
+    // stack pane's is beside its own crop test. Same contract, asserted per
+    // surface rather than once, because the prefix is passed per call site and
+    // a wrong one on either pane is invisible to the other's test.
+    await test("the topology preview pane's crop block carries THIS pane's " +
+      "class prefix, separator and all", function () {
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "base_thickness" },
+            detailImage: { url: "blob:x", name: "x.png" } }));
+        });
+        eq(all(root, "div.detail__crop-head").length, 1);
+        eq(unseparatedPrefixes(root), [],
+           "the prefix lost its separator: the block renders unstyled");
       });
 
     await test("the pane shows a selected edge's place in the study's sum",
@@ -7424,17 +9064,52 @@
         return cropEntriesIn(c).filter(function (e) { return e.status === "resolved"; });
       }
 
-      // One vocabulary, one list. `worksheet_source` is written by BOTH viewer
+      // Every crop entry of BOTH of the index's key spaces, `by_stack` and
+      // `by_topology`. Deliberately NOT a broadening of `cropEntriesIn`
+      // above, which walks `by_stack` only: three rows already read their live
+      // value sets through that function, and widening it to close this row's
+      // gap would widen theirs as an invisible side effect. `highlights[]` is
+      // written on both maps by one builder, so the guard that watches it has
+      // to see both.
+      function everyCropEntryIn(c) {
+        return flat([(c && c.by_stack) || {}, (c && c.by_topology) || {}]
+          .map(function (space) {
+            return flat(Object.keys(space).map(function (outerId) {
+              return Object.keys(space[outerId]).map(function (innerId) {
+                return space[outerId][innerId];
+              });
+            }));
+          }));
+      }
+
+      // ...and every box on them: the crop's own, plus the parts-list
+      // companion's, which is a second image with its own `highlights[]`
+      // written by the same builder through the same `highlight()`.
+      function cropHighlightsIn(c) {
+        return flat(everyCropEntryIn(c).map(function (e) {
+          return (e.highlights || []).concat(
+            (e.companion && e.companion.highlights) || []);
+        }));
+      }
+
+      // One vocabulary, one home. `worksheet_source` is written by BOTH viewer
       // builders (`scripts/build_viewer_projection.py`'s `worksheet_for` and
       // `scripts/build_topology_projection.py`'s, the same two rules
       // deliberately not shared because each builder is stdlib-only and
-      // self-contained), so it is guarded twice below — once per projection —
-      // and two rows keeping two copies of one list is the drift this repo
-      // names as its most-repeated defect. The real home for it is a
-      // `VA.WORKSHEET_SOURCES` that `views/worksheet.js` itself reads; that is
-      // ISSUE_20260915_worksheet_source_vocabulary_has_no_va_constant, out of
-      // this handoff's file scope.
-      var WORKSHEET_SOURCES = ["declared", "by_name", null];
+      // self-contained), so it is guarded twice below — once per projection.
+      // Both rows read `VA.WORKSHEET_SOURCES` directly, which is the strong
+      // form of this guard: the table they check is the one the renderer
+      // branches on, so a value the page has no branch for cannot pass here.
+      // A local copy of the list lived here until 2026-09-16 and was the
+      // vocabulary's only named home (ISSUE_20260915_worksheet_source_
+      // vocabulary_has_no_va_constant).
+      //
+      // `null` is looked up as the string "null" for the same reason the table
+      // spells it that way: a JS property key is coerced to a string.
+      function knownWorksheetSource(value) {
+        return Object.prototype.hasOwnProperty.call(
+          VA.WORKSHEET_SOURCES, String(value));
+      }
 
       // The reporting loop behind every value guard in this file, stack-side
       // and topology-side. It has TWO arms and they catch different things: an
@@ -7549,11 +9224,41 @@
           values: function (r, c) {
             return cropEntriesIn(c).map(function (e) { return e.status; });
           } },
+        // Added 2026-09-16 (viewer_unwitnessed_surface_guards). `highlights[]`
+        // arrived on 2026-09-15 and every rendered claim about WHERE ON A CROP
+        // TO LOOK now rides on it, with nothing in any live-data guard
+        // watching it: every highlight assertion in this file is fixture-tier,
+        // against entries the test itself builds.
+        //
+        // The arm that needs a guard is the SILENT one, and it is this repo's
+        // twice-bitten shape (VA.VERDICT_SCOPES' missing loud fallback,
+        // partMeshFact's absent `mesh` block): VA.cropHighlights returns []
+        // for an entry with no `highlights`, and filters out any box whose
+        // `frac` is not four numbers. A builder that stopped writing either
+        // makes every overlay on every surface vanish, and the page then reads
+        // as an honest "nothing on this sheet was marked" -- correct for a
+        // whole-sheet crop, a lie for a datasheet crop, and no tier can tell
+        // them apart. The empty-collector arm below is what fires on it.
+        //
+        // The other direction is already covered and needs nothing here:
+        // tests/test_js_python_vocabulary.py pairs VA.CROP_HIGHLIGHT_KINDS
+        // against the importable HIGHLIGHT_KINDS, and `highlight()` refuses a
+        // kind outside it, so a NEW WORD cannot reach crops.json unannounced.
+        { field: "crop entry highlights[].kind, crop and companion alike",
+          branch: "VA.CROP_HIGHLIGHT_KINDS, through views/crop.js's " +
+            "highlightBox — an unknown kind still draws the rect and reads as " +
+            "the weaker claim (.crophl--unlabelled), which is the honest arm. " +
+            "This row is the field going ABSENT, where the drawn claim goes " +
+            "with it and nothing says so",
+          known: function (v) { return !!VA.CROP_HIGHLIGHT_KINDS[v]; },
+          values: function (r, c) {
+            return cropHighlightsIn(c).map(function (h) { return h.kind; });
+          } },
         { field: "stacks[].worksheet_source",
           branch: "views/worksheet.js — only `declared` earns the 'one worksheet " +
             "may cover several stacks' note; `by_name` and null are the silent " +
             "default, correctly",
-          known: inList(WORKSHEET_SOURCES),
+          known: knownWorksheetSource,
           values: function (r) {
             return stacksIn(r).map(function (s) { return s.worksheet_source; });
           } },
@@ -7647,6 +9352,47 @@
           replayBlindCollectors(VALUE_GUARDS, realResults, realCrops);
         });
 
+      // The value guard above watches the WORD; this watches the BOX. They
+      // fail on different things: a `frac` that stopped being four numbers
+      // leaves every `kind` in the index intact and readable, and
+      // VA.cropHighlights quietly drops the box anyway -- so the page loses
+      // the whole overlay and the guard above sees nothing wrong. Rendering a
+      // live entry is the only thing that notices.
+      await test("[real] a live crop really draws the boxes its own index " +
+        "says are worth looking at", function () {
+          var marked = everyCropEntryIn(realCrops).filter(function (e) {
+            return e.status === "resolved" && (e.highlights || []).length;
+          });
+          // Anti-vacuity, first: the day the builder stops marking anything,
+          // this says so instead of rendering nothing and passing.
+          ok(marked.length >= 4, "the live crop index marks " + marked.length +
+             " crops — nothing left to render a box for");
+          var drawn = 0, kinds = {};
+          marked.forEach(function (entry) {
+            var root = render(function (r) {
+              VA.renderCrop(r, entry, { url: "blob:x" }, VA.CONFIG);
+            });
+            var boxes = all(root, "div.crophl");
+            eq(boxes.length, (entry.highlights || []).length,
+               entry.png + ": the index marks " + entry.highlights.length +
+               " rect(s) and the page drew " + boxes.length);
+            boxes.forEach(function (box) {
+              drawn++;
+              ok(/%$/.test(box.style.width) && /%$/.test(box.style.left),
+                 entry.png + ": a box is positioned in something other than " +
+                 "percentages of the picture");
+            });
+            entry.highlights.forEach(function (h) { kinds[h.kind] = true; });
+          });
+          ok(drawn >= marked.length, "every marked crop drew at least one box");
+          // Both words the builder can write are live, so both render paths
+          // (solid and dashed) are exercised by the loop above rather than
+          // only the one that happens to come first.
+          eq(Object.keys(kinds).sort(), Object.keys(VA.CROP_HIGHLIGHT_KINDS).sort(),
+             "the live index no longer exercises every highlight kind the " +
+             "page has a branch for");
+        });
+
       await test("[real] an unresolvable citation carries a reason, never a blank", function () {
         (realCrops.unresolved || []).forEach(function (row) {
           ok(row.reason && row.reason.length > 10,
@@ -7723,6 +9469,53 @@
 
       // --- [real] source_ref.export, against the live citations ---------------
 
+      await test("[real] no rendered stack surface of any live stack prints an " +
+        "internal id, a field name, a checksum or a workstation path",
+        function () {
+          var fields = schemaFieldNames(realResults);
+          ok(fields.length > 20,
+             "the field-name scan must not be vacuous: " + fields.length);
+          var surfaces = 0;
+          realResults.stacks.forEach(function (stackProj) {
+            stackSurfaces(stackProj, realCrops).forEach(function (pair) {
+              surfaceIsClean(pair[1], pair[0], fields, null);
+              surfaces += 1;
+            });
+          });
+          ok(surfaces > 50, "the walk must not be vacuous: " + surfaces);
+          // Every exemption earns its place on live data, not only on fixtures.
+          // A selector matching nothing is not a safe exemption, it is a claim
+          // about coverage that is not there -- `div.worksheet__body` was
+          // exactly that until review/reader_facing_copy_and_vocabulary found
+          // it, because this walk rendered the worksheet pane with null
+          // markdown and a null renders no body.
+          //
+          // This asserts the selector RESOLVES, which is the failure mode that
+          // was live; it does not assert the node carries text this tier can
+          // see. `div.worksheet__body` is the one that cannot -- see
+          // stackSurfaces' own note -- and the distinction is worth knowing
+          // before reading a green result here as full coverage.
+          var exempted = {};
+          realResults.stacks.forEach(function (stackProj) {
+            stackSurfaces(stackProj, realCrops).forEach(function (pair) {
+              VERBATIM_PROSE_CLASSES.forEach(function (selector) {
+                exempted[selector] =
+                  (exempted[selector] || 0) + all(pair[1], selector).length;
+              });
+            });
+          });
+          // `div.hovercard__note` is a TOPOLOGY surface's node (a part card's
+          // own note) and is matched by the fixture walk, not by this one --
+          // named here so its zero reads as scope rather than as rot.
+          VERBATIM_PROSE_CLASSES.forEach(function (selector) {
+            if (selector === "div.hovercard__note") return;
+            ok(exempted[selector] > 0, "the verbatim-prose exemption " +
+               selector + " matches nothing on any live stack surface -- an " +
+               "exemption that matches nothing exempts nothing, and reads as " +
+               "coverage that is not there");
+          });
+        });
+
       function liveCitations() {
         var out = [];
         realResults.stacks.forEach(function (stackProj) {
@@ -7754,8 +9547,22 @@
           // without one), so a live export with none is a finding, not a display
           // case.
           ok(pair[1].source_ref.export.sha256, where + " must carry a sha256");
+          // The pane says WHAT drawing-checker did with the file, and never a
+          // run id: it printed four bare ids on
+          // `tan_link_to_pitch_plate:straight_bushing` until 2026-09-16.
+          has(text, VA.exportRunsText(pair[1].source_ref.export),
+              where + " must summarise its drawing-checker history");
+          // Scoped to the line itself, not to the pane: an export's own `why`
+          // is the RECORD's prose and several live ones argue their identity by
+          // naming a run ("...20260730_133912's 215197_A_p01.json records..."),
+          // which this page renders verbatim on purpose.
+          var runsLine = all(render(function (r) {
+            VA.renderDetail(r, pair[0], pair[1].id, realCrops, null, VA.CONFIG);
+          }), "div.el-export__runs")[0];
           p.runIds.forEach(function (runId) {
-            has(text, runId, where + " must name run " + runId);
+            ok(runsLine.textContent.indexOf(runId) === -1,
+               where + " prints the internal run id `" + runId + "`: " +
+               runsLine.textContent);
           });
         });
       });
@@ -7802,9 +9609,16 @@
             why: "no PDF export of " + row.document + " exists, so the bytes this " +
               "value was read off cannot be identified",
           };
-          // ...and from the row alone, beside the confidence chip.
+          // ...and from the row alone, beside the confidence chip -- on the
+          // row's one consolidated alert badge since
+          // flyout_resize_annotator_filter_and_deselect, carrying the
+          // unchanged word.
           var rowsRoot = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
-          eq(all(rowsRoot, "span.chip--export-unestablished").length, 1);
+          var loud = all(rowsRoot, "span.chip--alert").filter(function (node) {
+            return node.getAttribute("title")
+              .indexOf(VA.EXPORT_CHIP_TEXT.unestablished) !== -1;
+          });
+          eq(loud.length, 1, row.stack + ":" + row.element);
 
           var root = render(function (r) {
             VA.renderDetail(r, stackProj, row.element, realCrops, null, VA.CONFIG);
@@ -7955,6 +9769,16 @@
         var liveTopos = realTopologies.topologies || [];
         var livePitch = VA.findTopology(realTopologies, "pitch_system");
         var liveL1 = VA.findTopology(realTopologies, "vpa_output_to_pitch_plate");
+        // The only live topology with a zero-width edge on it, which is why the
+        // "no tolerance recorded" badge needs its own handle rather than
+        // extending the unverified test: `pitch_system` has none, and the two
+        // kinds do not co-occur on any one topology
+        // (viewer_study_verdicts_and_gaps' lesson, §3). Measured 2026-09-16:
+        // 2 of this topology's 12 edges, and 0 on each of the other four --
+        // including `pitch_link_to_pitch_plate`, which
+        // ISSUE_20260915_the_grids_no_tolerance_badge_is_unguarded_in_every_tier
+        // credits with 2.
+        var liveRotor = VA.findTopology(realTopologies, "rotor_fastener_length");
 
         await test("[real] both MVP topologies are in the projection", function () {
           ok(liveL1, "the L1 grip stack must be there");
@@ -8958,8 +10782,25 @@
             eq(warn.length, 1);
             has(warn[0].textContent, "no tolerance recorded");
             has(warn[0].textContent, "LOWER bound");
-            has(warn[0].textContent, "MS21299C3");
-            has(warn[0].textContent, "NAS1149V0332H");
+            // The rows it names, DERIVED from the chain rather than spelled
+            // out. Two were spelled out until 2026-09-16, and one of them
+            // stopped being zero-width the day `5ce16f3` gave the
+            // NAS1149V0332H washer the band its two siblings already fold --
+            // which this check went on claiming, invisibly, until the shared
+            // projection was rebuilt (ISSUE_20260916_a_real_check_still_pins_
+            // the_zero_width_washer_the_rotor_citation_fix_removed).
+            var index = VA.topologyIndex(topo);
+            var zeroWidth = ((study.result && study.result.chain) || [])
+              .map(function (row) { return index.edges[row.edge]; })
+              .filter(function (edge) { return edge && edge.zero_width; });
+            ok(zeroWidth.length >= 1, "this study's chain no longer holds a " +
+               "zero-width row, so the warning it is named for cannot appear " +
+               "and this test measures nothing");
+            zeroWidth.forEach(function (edge) {
+              has(warn[0].textContent, edge.name);
+            });
+            has(warn[0].textContent, zeroWidth.length + (
+              zeroWidth.length === 1 ? " dimension" : " dimensions"));
           });
 
         // And the other half of the same move: the stack that USED to raise the
@@ -9127,6 +10968,34 @@
             eq(flagged.length, unverified.length,
                "one badge per unverified row, no more and no fewer");
             has(root.textContent, VA.ATTENTION.unverified.text);
+          });
+
+        // The OTHER half of VA.edgeAttention, and it had nothing standing on
+        // it: viewer_study_verdicts_and_gaps gave these rows their own loud
+        // badge and in the same change removed the `chip--zero-width` chip
+        // that used to mark them. Measured 2026-09-16 by deleting the
+        // `edge.zero_width` line from VA.edgeAttention: 367/367 passed, and
+        // the zero-width marking simply left the grid in every tier.
+        await test("[real] a row whose number has no plus/minus behind it says " +
+          "so in the grid too", function () {
+            var zeroWidth = liveRotor.edges.filter(function (e) {
+              return e.zero_width;
+            });
+            // Its own fixture precondition: the day this topology loses its
+            // zero-width edges, this says so rather than passing vacuously on
+            // a grid with nothing to badge.
+            ok(zeroWidth.length >= 1,
+               "rotor_fastener_length is the only live topology with a " +
+               "zero-width edge — with none, this test measures nothing");
+            var root = render(function (r) {
+              VA.renderTopoPane(r, {
+                topoProj: liveRotor, study: null, crops: realCrops,
+                selection: null, onSelect: function () {},
+              });
+            });
+            eq(all(root, ".tvflag--no_tolerance").length, zeroWidth.length,
+               "one badge per zero-width row, no more and no fewer");
+            has(root.textContent, VA.ATTENTION.no_tolerance.text);
           });
 
         await test("[real] selecting a study marks its chain on the real rails",
@@ -9773,13 +11642,9 @@
                   selection: selection, onSelect: function () {},
                 };
               };
+              var fields = schemaFieldNames(topoProj);
               var check = function (where, root) {
-                var text = viewerAuthoredText(root);
-                bannedIn(text, where);
-                ids.forEach(function (id) {
-                  ok(text.indexOf(id) === -1,
-                     where + " prints the internal id `" + id + "`: " + text);
-                });
+                surfaceIsClean(root, where, fields, ids);
                 surfaces += 1;
               };
               check(topoProj.id + " grid", render(function (r) {
@@ -9819,7 +11684,11 @@
         // field and wrong about the part.
         await test("[real] every live part with no drawing names the document " +
           "its own dimensions come off, or says nothing at all", function () {
-            var standard = 0, drawn = 0, silent = 0;
+            var standard = 0, drawn = 0, silent = 0, namedAfterDrawing = 0;
+            // Parts named after their own drawing that ALSO carry a revision:
+            // the only ones whose drawing line survives the de-duplication at
+            // all, and therefore the only ones the "rev A" check can bite on.
+            var revisionOnly = 0;
             liveTopos.forEach(function (topoProj) {
               (topoProj.parts || []).forEach(function (part) {
                 var card = VA.componentCard(topoProj, part.id, realCrops);
@@ -9830,7 +11699,43 @@
                 ok(root.textContent.indexOf("no drawing recorded") === -1,
                    where + " still says a field is empty rather than what is true");
                 if (card.drawing) {
-                  has(root.textContent, "drawing " + card.drawing, where);
+                  // Deliverable 2's rule (viewer_hover_deslop_and_banner_purge,
+                  // 2026-09-16): the part number is printed ONCE. Most live
+                  // parts are NAMED after their drawing, and those cards said
+                  // "214820-002 plain bushing" and then "drawing 214820-002" on
+                  // the very next line -- so where the heading already carries
+                  // the number, the drawing line carries only the revision, or
+                  // is not rendered at all.
+                  if (String(card.title).indexOf(card.drawing) !== -1) {
+                    namedAfterDrawing += 1;
+                    all(root, "div.hovercard__where").forEach(function (node) {
+                      var text = node.textContent.trim();
+                      ok(text.indexOf(card.drawing) === -1, where +
+                         ": the heading already says the part number, and no " +
+                         "card repeats it on the next line");
+                      // ...and what is left still modifies something.
+                      // Dropping the number used to drop the noun with
+                      // it, so three live parts rendered a where-line
+                      // whose entire content was "rev A" -- a revision
+                      // modifying nothing (review, 2026-09-16).
+                      //
+                      // Compared against the revision itself rather than
+                      // matched with a pattern: it is an exact claim
+                      // ("the line is NOTHING BUT the revision"), and the
+                      // first draft of it shipped a regex whose \b had
+                      // been eaten into a literal backspace, so it
+                      // matched nothing and witnessed nothing.
+                      if (card.revision) {
+                        revisionOnly += 1;
+                        ok(text !== VA.revisionText(card.revision), where +
+                           ": a where-line whose whole content is a " +
+                           "revision modifies nothing — " +
+                           JSON.stringify(text));
+                      }
+                    });
+                  } else {
+                    has(root.textContent, "drawing " + card.drawing, where);
+                  }
                   eq(card.references, [], where +
                     ": a part with a drawing needs no second reference");
                   drawn += 1;
@@ -9862,8 +11767,148 @@
             ok(standard > 0, "no live part is sourced only to a standard sheet, " +
               "so the sentence Jeff asked for went unexercised");
             ok(drawn > 0, "no live part carries a drawing");
+            ok(namedAfterDrawing > 0, "no live part is named after its own " +
+              "drawing, so the no-repeat branch went unexercised");
+            ok(revisionOnly > 0, "no live part is named after its own drawing " +
+              "AND carries a revision, so the line that would have read " +
+              "\"rev A\" is never rendered and that check went unexercised");
             ok(silent > 0, "no live part has neither a drawing nor a citation, " +
               "so the say-nothing branch went unexercised");
+          });
+
+        // Deliverable 2 of viewer_hover_deslop_and_banner_purge, swept over
+        // every live edge card at once. Jeff's complaint was a COUNT ("the
+        // reference is stated, then restated"), so this counts rather than
+        // matching a string: how many times does the always-visible part of a
+        // card name the document its value was read off?
+        //
+        // Always-visible is the operative word. The fold is allowed to say it
+        // again -- the matching provenance names the file by construction, and
+        // that is the whole reason it is folded.
+        await test("[real] no live edge card says its document twice on its " +
+          "own reference lines", function () {
+            // The card's REFERENCE lines -- the ones the viewer composes to
+            // say where a value came from. Deliberately not the whole card:
+            //
+            //   * the heading is the record's own `name`, and
+            //     `pitch_link_to_pitch_plate | bushing_214820` is authored
+            //     "plain bushing length (214820-002)". The viewer printing a
+            //     record's name is not the viewer repeating itself, and
+            //     trimming it would be editing the record;
+            //   * the note and a loud export's `why` are the record speaking
+            //     too (the same nodes VERBATIM_PROSE_CLASSES subtracts above),
+            //     and that same bushing's `why` names the drawing in the
+            //     middle of a paragraph explaining why no PDF exists to hash;
+            //   * the fold is allowed to say it again, which is the whole
+            //     reason it is folded.
+            function referenceText(root) {
+              return [".hovercard__where", ".hovercard__cited",
+                      ".hovercard__cropkey", ".cropblock .croppop__head"]
+                .reduce(function (acc, selector) {
+                  return acc.concat(all(root, selector).map(function (node) {
+                    return String(node.textContent || "");
+                  }));
+                }, []).join(" ");
+            }
+            var cited = 0, deduped = 0;
+            liveTopos.forEach(function (topoProj) {
+              var index = VA.topologyIndex(topoProj);
+              (topoProj.edges || []).forEach(function (edge) {
+                var card = VA.edgeCard(topoProj, index.edges[edge.id], realCrops);
+                var document = card.citation && card.citation.document;
+                if (!document) return;
+                cited += 1;
+                var where = topoProj.id + "/" + edge.id;
+                var root = render(function (r) {
+                  VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+                });
+                var text = referenceText(root);
+                var times = text.split(String(document)).length - 1;
+                ok(times <= 1, where + ": names " + JSON.stringify(document) +
+                   " " + times + " times across its own reference lines — " +
+                   text.trim());
+                // The case the de-duplication exists for: a part NAMED after
+                // the drawing its dimension is cited from.
+                if (card.partLabel &&
+                    String(card.partLabel).indexOf(String(document)) !== -1) {
+                  deduped += 1;
+                }
+                // ...and the picture never captions itself with the file.
+                eq(all(root, ".cropblock .croppop__head").length, 0, where);
+              });
+            });
+            ok(cited > 0, "no live edge carries a citation with a document, so " +
+              "this sweep proves nothing");
+            // The non-vacuity witness: without at least one part named after
+            // its own drawing, the de-duplication branch never runs and the
+            // sweep passes on cards that never had the defect. Four live edges
+            // had it on 2026-09-16.
+            ok(deduped > 0, "no live part is named after the document its own " +
+              "dimension is cited from, so the no-repeat branch went unexercised");
+          });
+
+        // ITEM 2's live case, and the one the PER-DOCUMENT design exists for.
+        //
+        // `pitch_system | hub` is the only live part citing a traced drawing
+        // AND an untraced workbook. One qualifier on the whole line is wrong
+        // about one of the two whichever way it falls -- which is why the flag
+        // is collected per document and not per part. Nothing but this
+        // assertion stands on that: at the fixture tier no part is mixed, and
+        // the walk above passes under either design (the handoff says so).
+        await test("[real] a part sourced to both a drawing and a workbook " +
+          "qualifies the workbook and leaves the drawing alone", function () {
+            var mixed = [];
+            liveTopos.forEach(function (topoProj) {
+              (topoProj.parts || []).forEach(function (part) {
+                var references = VA.partReferences(topoProj, part.id);
+                if (part.drawing || references.length < 2) return;
+                var unverified = references.filter(function (reference) {
+                  return reference.unverified;
+                });
+                if (!unverified.length || unverified.length === references.length) {
+                  return;
+                }
+                mixed.push([topoProj.id + " | " + part.id, part.id, topoProj]);
+              });
+            });
+            // Derived, not hard-coded -- but named, because a projection that
+            // stops carrying a mixed part has lost the only live witness this
+            // design has, and that is a finding rather than a silent pass.
+            ok(mixed.length > 0, "no live part cites both a verified and an " +
+              "unverified document, so the per-document qualifier is unwitnessed " +
+              "on real data -- check whether a re-citation removed the case " +
+              "before relaxing this");
+            has(mixed.map(function (row) { return row[0]; }).join(", "),
+                "pitch_system | hub");
+
+            mixed.forEach(function (row) {
+              var root = render(function (r) {
+                VA.renderHoverCard(r, VA.componentCard(row[2], row[1], realCrops),
+                  {}, VA.CONFIG, null);
+              });
+              var where = all(root, "div.hovercard__where")[0];
+              // Every document says for itself. Asserted through
+              // VA.referenceText rather than against a spelled-out sentence, so
+              // this cannot drift from the string the other tier pins -- and
+              // referenceText carries the qualifier, so "the traced drawing is
+              // NOT qualified" is asserted by the same line that asserts the
+              // workbook is.
+              var references = VA.partReferences(row[2], row[1]);
+              references.forEach(function (reference) {
+                has(where.textContent, VA.referenceText(reference), row[0]);
+              });
+              // ...and the count, which is what catches a qualifier that leaked
+              // onto the whole line instead of one document: as many
+              // occurrences of the word as there are unverified documents, no
+              // more.
+              var qualifier = "(" + VA.ATTENTION.unverified.text + ")";
+              eq(where.textContent.split(qualifier).length - 1,
+                 references.filter(function (r) { return r.unverified; }).length,
+                 row[0] + ": one qualifier per unverified document, no more");
+              // ...and the hover, which is the only place the word is explained.
+              eq(where.getAttribute("title"), VA.ATTENTION.unverified.title,
+                 row[0] + ": a line carrying the qualifier explains it");
+            });
           });
 
         // --- [real] the topology fixture, against the real shapes -------------
@@ -9909,6 +11954,9 @@
         function topoDimensions(p) {
           return topoEdges(p).map(function (e) { return e.dimension; })
             .filter(Boolean);
+        }
+        function topoGaps(p) {
+          return flat(topoRows(p).map(function (t) { return t.gaps || []; }));
         }
 
         var TOPO_SHAPES = [
@@ -10046,7 +12094,7 @@
               "SAME branch the stack-side row guards, over the other " +
               "projection: the stack table runs against realResults only and " +
               "never sees this copy of the field",
-            known: inList(WORKSHEET_SOURCES),
+            known: knownWorksheetSource,
             values: function (p) {
               return topoRows(p).map(function (t) { return t.worksheet_source; });
             } },
@@ -10115,6 +12163,33 @@
             known: function (v) { return !!VA.VERDICT_SCOPES[v]; },
             values: function (p) {
               return topoStudyChecks(p).map(function (c) { return c.verdict_scope; });
+            } },
+          // Added 2026-09-16 (viewer_unwitnessed_surface_guards). The field
+          // name is spelled out in full on purpose: the STACK projection's
+          // table has a `gaps[].kind` row of its own over a DIFFERENT
+          // projection with a different, shorter vocabulary
+          // (`excluded_from_model`, `hardware_entry`), and the two must not be
+          // read as copies of each other or "fixed" into agreement.
+          //
+          // This row does not close an open hole, and the issue that asked
+          // for it is honest about why it is `low`: the field is already
+          // covered twice over -- tests/test_topology_projection.py's
+          // JS_PAIRINGS pairs VA.GAP_KINDS' keys against the builder's
+          // TOPOLOGY_GAP_KINDS word for word (the EARLIER signal, firing the
+          // moment Python's tuple changes and before any data moves), and a
+          // [real] test above walks every live gap row. What it does is put
+          // `kind` in the same live-data sweep as every other enumerated field
+          // of this projection, reported the same way, so the answer to "is
+          // this field covered?" stops depending on knowing about two other
+          // tests.
+          { field: "topologies[].gaps[].kind",
+            branch: "VA.GAP_KINDS, through VA.topologyGapGroups — all four kinds " +
+              "have a branch and an unknown one is LOUD " +
+              "(VA.unlabelledGapKindText), so the reachable case here is a " +
+              "STALE projection rather than a new word",
+            known: function (v) { return !!VA.GAP_KINDS[v]; },
+            values: function (p) {
+              return topoGaps(p).map(function (g) { return g.kind; });
             } },
           // --- Deliberately NOT rows, and why -----------------------------
           //

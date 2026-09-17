@@ -20,7 +20,7 @@
     "source_note": "20260729T173648_qjk2xk (forge atomic note attachment; original is immutable, this repo holds a copy)",
     "workbook_authored": "2026-07-30T00:25Z (file metadata; the stack itself is older -- the sheet is named 'old')",
     "transcribed_by": "handoff tolerance_stack_slice1, 2026-07-30",
-    "drift_warning": "The workbook may predate the current design. Mismatches against 217755/215197 are recorded as findings in WORKSHEET_tan_link_to_pitch_plate.md, not corrected here."
+    "drift_warning": "The workbook may predate the current design. Mismatches against 217755/215197 are recorded as findings in WORKSHEET_tan_link_to_pitch_plate.md, not corrected here. [2026-09-16, handoff citation_identity_correctness: those findings were recorded against 215197 A.1 and stay as recorded. pitch_plate_flange now cites the released plate, 215735 rev A, which prints the same 3X 4.06 +/-0.08 callout with the same frames at the same address -- so no finding changes, only the part number the next comparison should be made against.]"
   },
   "elements": [
     {
@@ -187,25 +187,24 @@
       "note": "TRACED. The only stack value in this workbook that lands on a part drawing held in this repo.",
       "source_ref": {
         "kind": "drawing",
-        "document": "215197",
-        "revision": "A.1",
+        "document": "215735",
+        "revision": "A",
         "sheet": 2,
         "zone": "B4",
         "view": "SECTION A-A",
         "callout": "3X 4.06 ±0.08",
         "export": {
           "status": "established",
-          "pdf": "C:/workspace/drawing-checker/tests/fixtures/drawings/[PRELIM 2025-MAY-22] 215197 A.1.pdf",
-          "sha256": "3716251bab26196f4899087f1739da61c0fda6c81a40484f4fbad2100513e7fc",
+          "pdf": "data/inbox/drawings/215735-A.pdf",
+          "sha256": "a06526c2682de7a91cd76e3aa9463b043f50061da316ccecbf544b46a921c004",
           "runs": [
-            {"run_id": "20260409_170546", "ts": "2026-04-09T17:05:46+00:00"},
-            {"run_id": "20260409_172341", "ts": "2026-04-09T17:23:41+00:00"},
-            {"run_id": "20260730_133912", "ts": "2026-07-30T20:39:33.291499+00:00"}
+            {"run_id": "20260813_180734", "ts": "2026-08-14T01:07:56.112994+00:00"},
+            {"run_id": "20260819_153213", "ts": "2026-08-19T22:32:36.201417+00:00"}
           ],
-          "note": "Established 2026-08-06 by handoff citation_export_provenance. This is the ONLY export of 215197 anywhere in the workspace: all three drawing-checker runs of it record this same sha256 in data/runs.jsonl, 20260730_133912's 215197_A_p01.json records source_pdf '[PRELIM 2025-MAY-22] 215197 A.1.pdf', and no other 215197 PDF exists in drawing-checker's inbox or fixtures. Unlike 217755 (six exports on disk), 'which export' has a unique answer here."
+          "note": "Established 2026-09-16 by handoff citation_identity_correctness, which re-cited this value from the PRELIM 215197 fixture to the RELEASED plate. 215735-A is copied into this repo's own inbox (data/inbox/drawings/PROVENANCE.md, 'Copied 2026-09-16'), sha256 verified identical on both sides. Both drawing-checker runs of it -- 20260813_180734_215735-A and 20260819_153213_215735-A -- record this same sha256 in their run_meta.json inputs, and no other 215735 PDF exists in drawing-checker's inbox or fixtures, so 'which export' has a unique answer here."
         },
         "confidence": "traced",
-        "note": "215197 PITCH PLATE, PROPELLER, [PRELIM 2025-MAY-22] fixture. 3X matches the three tangential links (212956-005 qty 3). Carries positional 0.2 A B C and perpendicularity 0.05 F, 3X INDIVIDUALLY. Do NOT confuse with the 5X 4.06 ±0.10 group at sheet 2 zone D10 or the 1X 4.06 ±0.10 at sheet 1 zone D5."
+        "note": "215735 PITCH PLATE, PROPELLER, rev A, MATURITY STATE: Released, DRAWING RELEASE DATE 01/JUL/2025; sheet 2 is SHT. DESC 'PART DETAILS' and carries the sheet's only view, SECTION A-A. 3X matches the three tangential links (212956-005 qty 3). Carries positional ⌖0.2 A B C and perpendicularity ⊥0.05 F, 3X INDIVIDUALLY. As with the 5X group, the position frame lost its diameter symbol between exports: 215197 A.1 printed ⌖⌀0.2 A B C, 215735-A prints ⌖0.2 A B C (verified 2026-09-16 on the rendered frames). No value here moves. Do NOT confuse with the 5X 4.06 ±0.10 group at sheet 2 zone D10, or with EITHER of the two 4.06 ±0.10 callouts on sheet 1 (zones D5 and D6). Zone: the callout straddles the B4/B5 boundary on this export as it did on 215197 -- '4.06' prints in B5 and '±0.08' in B4 -- and B4 is cited because that is the half the crop builder corroborates (re-read on 215735-A 2026-09-16, not carried across). Re-cited 2026-09-16 from 215197 A.1 sheet 2 zone B4 (the [PRELIM 2025-MAY-22] fixture): same value, same tolerance, same frames, released part number."
       }
     },
     {

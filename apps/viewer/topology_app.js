@@ -76,6 +76,14 @@
     // place the default width lives; nothing is written inline until a drag
     // or a remembered value says otherwise.
     detailWidth: null,
+    // How wide the left-docked annotator flyout is, in px, or null for
+    // "whatever topology.css declares" — the same contract, the same reason
+    // and the same remembered-across-sessions posture as `detailWidth` above,
+    // over its own key (VA.FLYOUT_WIDTH_KEY). Jeff asked for the 3D panel
+    // beside the DAG, and how much of the window a reader wants to give it is
+    // exactly the kind of preference that means the same thing on every
+    // topology.
+    flyoutWidth: null,
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -134,6 +142,21 @@
   var imageCache = {};      // "crops/x.png" -> {url} | null
   var openTrigger = null;   // whose popover is showing
   var openedAt = 0;         // guards the opening click from closing it again
+  // Where the pointer is, and where it was one move ago -- the two points the
+  // hover-intent corridor is computed from (VA.pointerHeadsFor). Null until
+  // the first mousemove: a page that has never seen the pointer defers nothing.
+  var pointerAt = null;
+  var pointerWas = null;
+  // A competing trigger's open, held while the pointer is travelling toward
+  // the card already on screen: { trigger, run, timer }.
+  var deferredOpen = null;
+  // The trigger whose deferral has just EXPIRED, for exactly the length of the
+  // re-entrant call that honours it. See defer() -- this is what stops an
+  // expiry re-arming itself forever.
+  var expiring = null;
+  // What `position()` last left the popover's height at, so an image settling
+  // afterwards can tell "the box grew" from "the box is exactly as measured".
+  var placedHeight = 0;
 
   function boot() {
     nodes = {
@@ -156,13 +179,27 @@
       crop: document.getElementById("croppop"),
       flyout: document.getElementById("annotate-flyout"),
       flyoutClose: document.getElementById("flyout-close"),
+      flyoutDivider: document.getElementById("flyout-divider"),
+      flyoutFullpage: document.getElementById("flyout-fullpage"),
     };
     applyDensity();
-    state.detailWidth = VA.readStoredPaneWidth(paneWidthStore());
+    state.detailWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
     wireDetailDivider();
 
+    state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), roomBesideFlyout(), graphNeed());
+    applyFlyoutWidth();
+    wireFlyoutDivider();
+
     nodes.flyoutClose.onclick = function () { nodes.flyout.close(); };
+    // The ONE seam every close path goes through. Not the button's handler:
+    // `.close()` is also reachable from anywhere else that holds the element,
+    // and a page left shifted with no panel on it would be a layout with no
+    // way back. `display: none` and a margin both reverse exactly, so this is
+    // the whole of "closing restores whatever it covered".
+    nodes.flyout.addEventListener("close", function () {
+      document.body.classList.remove("flyout-open");
+    });
 
     // Probe for the sibling annotate mount (study_3d_flyout, feature 3) in
     // parallel with the transport probe below — measured, never assumed, and
@@ -264,6 +301,32 @@
       });
       document.addEventListener("keydown", function (event) {
         if (event && event.key === "Escape") hideCrop();
+      });
+      // The pointer's own track, for the hover-intent corridor below. Cheap on
+      // purpose: two numbers per move, and the only work beyond that happens
+      // while a trigger is actually being held back.
+      //
+      // A move to the SAME coordinates is dropped rather than recorded, and
+      // that is not a micro-optimisation: shifting `pointerWas` up to a
+      // position identical to `pointerAt` leaves a zero vector, and
+      // VA.pointerHeadsFor correctly refuses to guess a direction from one --
+      // so the whole corridor goes dead. Two things produce that pair. A
+      // browser emits repeat mousemoves at rest; and any harness that calls
+      // VA.bootTopology() a second time (every real-data probe in tests/ does,
+      // to install fixtures) registers a SECOND copy of this listener, whose
+      // run immediately overwrites the first's reading with its own. Measured
+      // 2026-09-16 in tests/debug_hover_deslop.mjs, where it made hover intent
+      // untestable from a probe.
+      document.addEventListener("mousemove", function (event) {
+        var x = event.clientX, y = event.clientY;
+        if (pointerAt && pointerAt.x === x && pointerAt.y === y) return;
+        pointerWas = pointerAt;
+        pointerAt = { x: x, y: y };
+        if (deferredOpen && VA.pointerInside(pointerAt, cardBox())) {
+          // The pointer got where it was going. The card it reached wins and
+          // the trigger it crossed on the way never opens at all.
+          cancelDeferred();
+        }
       });
 
       state.connection = picked.state;
@@ -444,10 +507,21 @@
   // dialog under this node's title.
   //
   // The read is called from INSIDE the try, not handed in as a promise: an
-  // adapter whose readText throws before it ever returns one (a null adapter,
-  // an unready handle -- VA.requireReady throws) would otherwise unwind
-  // straight out of the click handler, which is the wedge this exists to stop,
-  // reached by a different door.
+  // adapter whose readText throws before it ever returns one would otherwise
+  // unwind straight out of the click handler, which is the wedge this exists
+  // to stop, reached by a different door.
+  //
+  // WHICH adapters those are, narrowed 2026-09-16 from "a null adapter, an
+  // unready handle -- VA.requireReady throws", which overstated the door in
+  // both halves. FsaAdapter.readText and HttpAdapter.readText are `async`, so
+  // a requireReady throw in either arrives as a REJECTION and is caught by the
+  // handler below rather than by this try. The two that can throw
+  // synchronously are the non-async ones: MemoryAdapter (requireReady, on an
+  // unready handle) and NodeFsAdapter (whose `_io.readText` is a synchronous
+  // filesystem read). A null `adapter` would throw as well, but boot() returns
+  // before any nav row renders without one. So the guard is defence in depth
+  // through a narrower door than it claimed -- kept, because those two doors
+  // are real and the cost is one `try`. No tier reaches it today.
   function navigate(paint) {
     var pending;
     try {
@@ -611,19 +685,28 @@
   // `ctx.onCropShow` / `handlers.onCropShow`, which is this function either way.
 
   function showCrop(entry, trigger) {
+    if (defer(trigger, function () { showCrop(entry, trigger); })) return;
+    cancelDeferred();
     openTrigger = trigger;
     openedAt = new Date().getTime();
+    var painted = false;
     var paint = function (image) {
       if (openTrigger !== trigger) return;   // a later hover won the race
       VA.renderCrop(nodes.crop, entry, image, VA.CONFIG, hideCrop, imageCache);
       // display first, then measure: offsetHeight is 0 while display is none.
       nodes.crop.style.display = "block";
-      position(nodes.crop, trigger);
-      // aspect-ratio already reserved the height, but re-place once the PNG has
-      // settled either way — a broken image also changes the box.
+      // The FIRST placement is unconditional -- the popover has just appeared
+      // and has nowhere to be moved from. Every repaint after it is a
+      // re-place, and goes through the guards.
+      if (painted) replace(trigger); else position(nodes.crop, trigger);
+      painted = true;
+      // aspect-ratio already reserved the height, but OFFER a re-place once
+      // the PNG has settled either way -- a broken image also changes the box.
+      // Offer, not do: replace() decides, and declines while the pointer is on
+      // the card.
       var img = nodes.crop.querySelector ? nodes.crop.querySelector("img") : null;
       if (img) {
-        img.onload = function () { position(nodes.crop, trigger); };
+        img.onload = function () { replace(trigger); };
         img.onerror = img.onload;
       }
     };
@@ -647,8 +730,104 @@
   }
 
   function hideCrop() {
+    cancelDeferred();
     openTrigger = null;
     nodes.crop.style.display = "none";
+  }
+
+  // --- reaching an open popover with the mouse (deliverable 4) --------------
+  //
+  // Jeff, 2026-09-16: "sometimes the preview pop-up disappears when you try to
+  // move the mouse over it, you have to do it just right." Nothing here closes
+  // a popover on mouseleave -- see the design note in views/stack.js's
+  // cropTrigger, where closing on leave was tried and rejected in 2026-08 --
+  // so what the reader was seeing was the card being REPLACED by a trigger
+  // crossed on the way to it, or MOVED by a late image. Both are fixed here;
+  // the corridor arithmetic itself is VA.pointerHeadsFor (viewer.js), which is
+  // where the reasoning and the two constants live.
+  //
+  // `defer` returns true when the caller should stand down for now. It never
+  // drops the open: if the pointer has not reached the card by
+  // VA.HOVER_INTENT_MS, the held trigger opens after all, so the worst case of
+  // a wrong guess is a card a quarter-second late.
+
+  function cardBox() {
+    if (!nodes.crop || !nodes.crop.getBoundingClientRect) return null;
+    if (nodes.crop.style.display === "none") return null;
+    var box = nodes.crop.getBoundingClientRect();
+    return box && box.width ? box : null;
+  }
+
+  function cancelDeferred() {
+    if (!deferredOpen) return;
+    if (deferredOpen.timer && typeof clearTimeout === "function") {
+      clearTimeout(deferredOpen.timer);
+    }
+    deferredOpen = null;
+  }
+
+  function defer(trigger, run) {
+    // An EXPIRY is the one caller that must never be deferred again, and
+    // getting this wrong is not a lost quarter-second -- it is the card never
+    // arriving at all (review, 2026-09-16, measured at 4.4s and counting).
+    // `held.run()` re-enters showCard/showCrop, which calls straight back into
+    // here; `pointerWas`/`pointerAt` are written ONLY by mousemove, so a reader
+    // who crossed the trigger and then held still is still carrying the vector
+    // that aimed at the open card, and the corridor test would hold the same
+    // trigger again, and again. The token is cleared on the way through so it
+    // covers exactly one call.
+    if (expiring === trigger) {
+      expiring = null;
+      return false;
+    }
+    if (!openTrigger || openTrigger === trigger) return false;
+    var box = cardBox();
+    if (!box) return false;
+    if (!VA.pointerHeadsFor(pointerWas, pointerAt, box)) return false;
+    if (deferredOpen && deferredOpen.trigger === trigger) return true;
+    cancelDeferred();
+    var held = { trigger: trigger, run: run, timer: null };
+    deferredOpen = held;
+    held.timer = setTimeout(function () {
+      if (deferredOpen !== held) return;
+      deferredOpen = null;
+      // The pointer never arrived. Honour the trigger it crossed -- but only
+      // while it is still ON it, or a pointer that moved on somewhere else
+      // entirely would be handed a card it has left behind.
+      if (VA.pointerInside(pointerAt, cardBox())) return;
+      var rect = held.trigger.getBoundingClientRect
+        ? held.trigger.getBoundingClientRect() : null;
+      if (rect && !VA.pointerInside(pointerAt, rect)) return;
+      expiring = held.trigger;
+      try {
+        held.run();
+      } finally {
+        // Cleared here as well as in defer(), for the path where run() returns
+        // before reaching it (a null card, a trigger that has been re-rendered
+        // out from under the timer). A token left set would wave the NEXT
+        // hover of that same trigger straight past the corridor.
+        expiring = null;
+      }
+    }, VA.HOVER_INTENT_MS);
+    return true;
+  }
+
+  // Re-place the open popover once one of its images has settled -- but only
+  // when it actually needs re-placing. The decision is VA.popoverShouldMove
+  // (viewer.js), which is where both guards and their reasoning live; this is
+  // the wiring.
+  //
+  // EVERY re-place after the first paint goes through here, not just the
+  // `img.onload` one: showCrop and showCard both re-run their own paint() as
+  // each PNG blob resolves, and that path runs on the FIRST hover of every
+  // card, which is the common case. Routing only the onload half would have
+  // made "a card under the reader's pointer never moves" true of the rare
+  // path and false of the usual one (review, 2026-09-16).
+  function replace(trigger) {
+    if (!nodes.crop || nodes.crop.style.display === "none") return;
+    if (!VA.popoverShouldMove(pointerAt, cardBox(),
+                              nodes.crop.offsetHeight, placedHeight)) return;
+    position(nodes.crop, trigger);
   }
 
   // --- the hover reference cards (viewer_hover_cards_and_deep_links) ---------
@@ -691,19 +870,25 @@
 
   function showCard(card, trigger) {
     if (!card) return;
+    if (defer(trigger, function () { showCard(card, trigger); })) return;
+    cancelDeferred();
     openTrigger = trigger;
     openedAt = new Date().getTime();
+    var painted = false;
     var paint = function () {
       if (openTrigger !== trigger) return;   // a later hover won the race
       VA.renderHoverCard(nodes.crop, card, imageCache, VA.CONFIG, hideCrop,
         { mount: state.annotateMount, onAnnotate: onCardAnnotate });
       nodes.crop.style.display = "block";
-      position(nodes.crop, trigger);
-      // Re-place once each PNG settles either way — same reasoning as
-      // showCrop's single-image version.
+      // First placement unconditional, every repaint through the guards --
+      // see showCrop above, and replace().
+      if (painted) replace(trigger); else position(nodes.crop, trigger);
+      painted = true;
+      // Offer a re-place once each PNG settles either way -- same reasoning,
+      // and the same guards, as showCrop's single-image version.
       var imgs = nodes.crop.querySelectorAll ? nodes.crop.querySelectorAll("img") : [];
       Array.prototype.forEach.call(imgs, function (img) {
-        img.onload = function () { position(nodes.crop, trigger); };
+        img.onload = function () { replace(trigger); };
         img.onerror = img.onload;
       });
     };
@@ -821,6 +1006,9 @@
     pop.style.top = Math.max(8, goAbove
       ? box.top - height - 8
       : box.bottom + 8) + "px";
+    // The height this placement was computed FOR, so replace() can tell a box
+    // that grew under a settling PNG from one that is exactly as measured.
+    placedHeight = pop.offsetHeight || height;
   }
 
   // --- the annotator flyout (study_3d_flyout) --------------------------------
@@ -856,9 +1044,39 @@
           { type: "annotate:exec", command: command }, window.location.origin);
       });
     }
+    // The head's "Open full page" out-link (Jeff, 2026-09-16), pointed at the
+    // SAME url the panel booted with -- VA.annotateLink, once, for both. Set on
+    // every launch rather than at boot: a reader who re-drove the open panel
+    // from another row would otherwise open a new tab on the element they left.
+    if (nodes.flyoutFullpage) {
+      nodes.flyoutFullpage.setAttribute("href", VA.annotateLink(params));
+    }
+    // The drawing measured BEFORE the page shifts, so `keep` is this study's
+    // own rails width and not a width taken after the pane narrowed under them.
+    var keep = graphNeed();
+
     // show(), not showModal(): the page beside the panel stays clickable, so
     // "attach to 3D" on another row re-drives the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
+    // The page yields the room (topology.css's `body.flyout-open`): `.tv`
+    // starts at the panel's right edge and the nav rail stands down, so the
+    // panel sits BESIDE the graph instead of on top of it. Removed again by
+    // the dialog's own `close` event, wired once at boot.
+    document.body.classList.add("flyout-open");
+
+    // The panel's width, clamped to the room the page can spare, EVERY time it
+    // opens -- and AFTER show(), which is not a detail: a closed <dialog> is
+    // `display: none`, so flyoutWidthNow() would measure 0 and fall back to
+    // VA.FLYOUT_WIDTH.min, opening the first launch at the floor instead of at
+    // the width the stylesheet asked for.
+    //
+    // topology.css declares the width it WANTS; this is what keeps that a wish
+    // rather than a promise the layout cannot keep. Not remembered: a width the
+    // layout imposed is not a preference the reader expressed, so
+    // rememberWidth() is deliberately not called here.
+    state.flyoutWidth = VA.clampFlyoutWidth(flyoutWidthNow(),
+      roomBesideFlyout(), keep);
+    applyFlyoutWidth();
   }
 
   // --- the two resize drags (viewer_leader_grid_legibility) ----------------
@@ -892,7 +1110,10 @@
   // well as inside the read/write pair: on some file:// configurations even
   // TOUCHING window.localStorage throws, which is before either of those
   // functions gets a chance to catch anything.
-  function paneWidthStore() {
+  //
+  // Shared by both remembered widths (the preview pane's, the flyout's); the
+  // KEYS are the pure layer's, one per control.
+  function widthStore() {
     try {
       return (typeof window !== "undefined" && window.localStorage) || null;
     } catch (err) {
@@ -922,11 +1143,11 @@
   // The divider is static markup (topology.html), so it is wired once at boot
   // rather than per render -- which also means a re-render mid-drag cannot
   // destroy the node the gesture started on, the problem the column grip's own
-  // re-focus dance exists to work around.
-  function wireDetailDivider() {
-    var divider = nodes.detailDivider;
+  // re-focus dance exists to work around. Both dividers on this page (the
+  // preview pane's, the flyout's) are that shape, so they share one wiring
+  // function and differ only in the spec they carry.
+  function wireDivider(divider, spec) {
     if (!divider) return;
-    var spec = { kind: "pane" };
     divider.onpointerdown = function (event) {
       if (event && event.preventDefault) event.preventDefault();
       onResizeStart(spec, event);
@@ -939,9 +1160,92 @@
     };
   }
 
+  function wireDetailDivider() {
+    wireDivider(nodes.detailDivider, { kind: "pane" });
+  }
+
+  function wireFlyoutDivider() {
+    wireDivider(nodes.flyoutDivider, { kind: "flyout" });
+  }
+
+  // How much window there is to divide between the flyout and THE DAG -- the
+  // viewport less whatever the preview pane is currently taking, because the
+  // right-hand edge of this page is that pane and the flyout is not competing
+  // with it for the reader's attention. VA.clampFlyoutWidth reserves a strip of
+  // this, which is what makes the reserve give back graph rather than pane.
+  //
+  // Read at the moment of the gesture, never cached: BOTH terms move (a reader
+  // can resize the window, and the pane has its own divider), so a remembered
+  // number would be honest only until either one was touched. 0 where there is
+  // nothing to measure (the DOM shim), which the clamp reads as "no layout to
+  // go on" and answers with its px max.
+  // The width the panel and the page's own content are dividing: the window,
+  // less what sits to the RIGHT of the graph. The nav rail is NOT subtracted --
+  // it stands down while the panel is open (topology.css's `body.flyout-open`),
+  // so its 300px is part of what there is to divide.
+  //
+  // Deliberately reads neither the panel nor the page shift, so there is no
+  // circularity: both terms it does read (the window, the preview pane) are
+  // independent of how wide the panel is.
+  function roomBesideFlyout() {
+    var room = (typeof window !== "undefined" && window.innerWidth) || 0;
+    if (!room) return 0;
+    var pane = nodes.detail && nodes.detail.offsetWidth;
+    var seam = nodes.detailDivider && nodes.detailDivider.offsetWidth;
+    return Math.max(0, room
+      - (typeof pane === "number" && pane > 0 ? pane : 0)
+      - (typeof seam === "number" && seam > 0 ? seam : 0));
+  }
+
+  // How much of that has to be left for the page: the DAG DRAWING's own width.
+  //
+  // `svg.tv__rails` and not `#topopane`, and that distinction is the whole of
+  // the review's blocker (2026-09-16). `#topopane` is the drawing's horizontal
+  // scrollport; the drawing is the SVG pinned at its left edge, 90-262px wide
+  // across the live studies, `position: sticky; left: 0` so no scroll position
+  // can bring it out from under anything. Measuring the scrollport reported
+  // 300px of clearance over a diagram that was 100% covered.
+  //
+  // 0 where nothing is drawn -- stack mode, a pre-layout call -- which
+  // VA.clampFlyoutWidth reads as "nothing measured" and answers with its own
+  // floor.
+  function graphNeed() {
+    var rails = nodes.pane && nodes.pane.querySelector
+      ? nodes.pane.querySelector("svg.tv__rails") : null;
+    var box = rails && rails.getBoundingClientRect
+      ? rails.getBoundingClientRect() : null;
+    return box && box.width > 0 ? Math.round(box.width) : 0;
+  }
+
+  // The remembered flyout width onto the dialog, or nothing at all -- same
+  // contract as applyPaneWidth: an unset preference leaves the stylesheet's
+  // own width standing rather than overwriting it with a number from JS.
+  function applyFlyoutWidth() {
+    if (!nodes.flyout || state.flyoutWidth === null) return;
+    nodes.flyout.style.width = state.flyoutWidth + "px";
+    // ...and to the stylesheet, which is what shifts the page out from under
+    // the panel (topology.css's `body.flyout-open`). Written here rather than
+    // on open only, so the page follows the seam on every frame of a drag.
+    if (document.body && document.body.style.setProperty) {
+      document.body.style.setProperty("--flyout-width", state.flyoutWidth + "px");
+    }
+  }
+
+  // What a drag on the flyout's divider measures FROM -- the same three-way
+  // fallback paneWidthNow uses, and for the same reasons.
+  function flyoutWidthNow() {
+    var measured = nodes.flyout && nodes.flyout.offsetWidth;
+    if (typeof measured === "number" && measured > 0) return measured;
+    if (state.flyoutWidth !== null) return state.flyoutWidth;
+    return VA.FLYOUT_WIDTH.min;
+  }
+
   function resizeFrom(spec) {
     if (spec && spec.kind === "pane") {
       return { kind: "pane", width: paneWidthNow() };
+    }
+    if (spec && spec.kind === "flyout") {
+      return { kind: "flyout", width: flyoutWidthNow() };
     }
     if (spec && spec.kind === "column") {
       var column = VA.topoColumn(spec.cls);
@@ -969,7 +1273,23 @@
       // attached to the pointer even while a big topology repaints.
       state.detailWidth = VA.paneWidthAfterDrag(from.width, dx);
       applyPaneWidth();
+    } else if (from.kind === "flyout") {
+      // The OPPOSITE sign inversion to the pane's, and for the same structural
+      // reason: this panel is LEFT of its divider, so dragging right widens it.
+      // Both live in the pure layer (VA.flyoutWidthAfterDrag), not here.
+      state.flyoutWidth = VA.flyoutWidthAfterDrag(from.width, dx, roomBesideFlyout(), graphNeed());
+      applyFlyoutWidth();
     }
+  }
+
+  // Does a resize of this kind change what the PAGE paints? The pane and the
+  // grid's columns do -- they are part of the page's own layout, and the pane's
+  // content is re-serialised at its new width. The flyout does not: it is a
+  // position: fixed dialog whose only child is an iframe, so a repaint of the
+  // DAG on every pointermove of its seam would be a full SVG rebuild per frame
+  // for no visible difference.
+  function resizeRepaints(kind) {
+    return kind !== "flyout";
   }
 
   function onResizeStart(spec, event) {
@@ -977,14 +1297,14 @@
     var startX = event && typeof event.clientX === "number" ? event.clientX : 0;
     var move = function (ev) {
       applyResize(from, ev.clientX - startX);
-      scheduleResizePaint();
+      if (resizeRepaints(from.kind)) scheduleResizePaint();
     };
     var end = function () {
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", end);
       document.removeEventListener("pointercancel", end);
       document.body.classList.remove("tv-resizing");
-      rememberPaneWidth(spec);
+      rememberWidth(spec);
     };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", end);
@@ -1005,13 +1325,13 @@
   // by their position in the header).
   function onResizeNudge(spec, dx) {
     applyResize(resizeFrom(spec), dx);
-    render();
-    rememberPaneWidth(spec);
-    // The pane's divider is static markup and survives the render, so it
-    // keeps its own focus and needs none of what follows -- which exists
-    // because render() rebuilds the column header and destroys the grip the
-    // keydown came from.
-    if (spec.kind === "pane") return;
+    if (resizeRepaints(spec.kind)) render();
+    rememberWidth(spec);
+    // Both dividers are static markup and survive a render, so each keeps its
+    // own focus and needs none of what follows -- which exists because
+    // render() rebuilds the column header and destroys the grip the keydown
+    // came from.
+    if (spec.kind === "pane" || spec.kind === "flyout") return;
     var key = spec.kind + (spec.cls ? ":" + spec.cls : "");
     var grip = document.querySelector('[data-resize="' + key + '"]');
     if (grip && grip.focus) grip.focus();
@@ -1019,9 +1339,14 @@
 
   // Written at the END of a gesture, never per pointermove: a drag fires
   // hundreds of moves and a localStorage write is synchronous.
-  function rememberPaneWidth(spec) {
-    if (!spec || spec.kind !== "pane" || state.detailWidth === null) return;
-    VA.writeStoredPaneWidth(paneWidthStore(), state.detailWidth);
+  function rememberWidth(spec) {
+    if (!spec) return;
+    if (spec.kind === "pane" && state.detailWidth !== null) {
+      VA.writeStoredPaneWidth(widthStore(), state.detailWidth);
+    } else if (spec.kind === "flyout" && state.flyoutWidth !== null) {
+      VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth,
+        roomBesideFlyout(), graphNeed());
+    }
   }
 
   // --- render ----------------------------------------------------------------

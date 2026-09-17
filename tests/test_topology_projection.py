@@ -38,7 +38,11 @@ from tests.test_js_python_vocabulary import (  # noqa: E402
     js_object_keys,
     js_table_mutations,
 )
-from tolerance_stack.stack import SourceExport, SourceRef  # noqa: E402
+from tolerance_stack.stack import (  # noqa: E402
+    SCHEMA_HARDWARE,
+    SourceExport,
+    SourceRef,
+)
 from tolerance_stack.topology import (  # noqa: E402
     EDGE_KINDS,
     NODE_KINDS,
@@ -1007,3 +1011,65 @@ def test_the_shipped_alias_table_is_what_the_builder_reads():
         (TOPOLOGIES_DIR / B.MESH_ALIASES_NAME).read_text(encoding="utf-8"))
     assert aliases == shipped["aliases"]
     assert B.load_mesh_aliases(REPO_ROOT / "docs") == []
+
+
+def test_a_hardware_register_with_the_wrong_schema_is_refused_not_read_as_empty(
+        tmp_path):
+    """Absence is tolerated; a present-but-unreadable register is not.
+
+    ``load_hardware`` shipped 2026-09-15 with no schema check, while its sibling
+    ``build_viewer_projection.build()`` had raised against ``SCHEMA_HARDWARE``
+    for the same file since the classic view existed. The divergence was not
+    cosmetic: the two builders read ``docs/tolerance_stacks/hardware_entries.json``
+    and a register that had been renamed or re-schema'd made the classic view
+    refuse to build and the DAG page's "What's missing" panel report **no
+    hardware questions at all** -- and on that panel an empty gap list is a
+    positive claim that nothing is missing, over the ``hardware_entry`` rows
+    that are the largest single kind in it.
+
+    The absent-file tolerance stays, and is asserted here beside the refusal so
+    the two cannot be confused for one rule: a fixture tree with no register
+    honestly has no hardware-entry gaps, and that is a true thing to project.
+    What has no argument behind it is inferring the same emptiness from a file
+    nobody can read.
+    """
+    shipped = REPO_ROOT / "docs" / "tolerance_stacks" / B.HARDWARE_NAME
+    raw = json.loads(shipped.read_text(encoding="utf-8"))
+
+    # The real register loads, and its entries are the ones on disk -- so the
+    # refusal below is discriminating on the schema and not on everything.
+    assert raw["schema"] == SCHEMA_HARDWARE
+    assert B.load_hardware(shipped) == {"entries": raw["entries"]}
+
+    # Absent: still empty, still silent.
+    assert B.load_hardware(tmp_path / "does-not-exist.json") == {"entries": []}
+
+    # Present, parseable, full of entries -- and refused, because nothing here
+    # can vouch that those entries mean what this builder thinks they mean.
+    for wrong in ("joby.tolerance_stack/hardware_entry/v1",
+                  "joby.tolerance_stack/stack_definition/v0", "", None):
+        bad = tmp_path / f"register_{abs(hash(wrong))}.json"
+        payload = dict(raw)
+        if wrong is None:
+            payload.pop("schema")
+        else:
+            payload["schema"] = wrong
+        bad.write_text(json.dumps(payload), encoding="utf-8")
+        with pytest.raises(ValueError, match="expected schema"):
+            B.load_hardware(bad)
+
+
+def test_both_projection_builders_gate_the_register_on_the_same_constant():
+    """One definition, two readers -- which is what the 2026-09-15 divergence
+    cost. ``SCHEMA_HARDWARE`` is imported by both builders from
+    ``tolerance_stack.stack``; neither spells the string, so a version bump
+    moves both or neither."""
+    import build_viewer_projection as V
+
+    assert B.SCHEMA_HARDWARE is SCHEMA_HARDWARE
+    assert V.SCHEMA_HARDWARE is SCHEMA_HARDWARE
+    for module in (B, V):
+        source = Path(module.__file__).read_text(encoding="utf-8")
+        assert SCHEMA_HARDWARE not in source, (
+            f"{Path(module.__file__).name} spells the hardware schema inline -- "
+            f"import SCHEMA_HARDWARE instead, or the two gates can drift")

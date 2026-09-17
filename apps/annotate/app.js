@@ -31,6 +31,14 @@ const el = {
   canvasHost: document.getElementById("canvas-host"),
   sceneEmpty: document.getElementById("scene-empty"),
   partsPanel: document.getElementById("parts-panel"),
+  // The rail's scope bar (deliverable 2): what the rail is filtered to, and
+  // the control that lifts it. Rendered EMPTY and hidden when nothing is
+  // filtered -- an absent filter shows nothing about filtering.
+  railFilter: document.getElementById("rail-filter"),
+  // One shared hover popup for every consolidated alert badge on the rail
+  // (deliverable 5) -- position: fixed, placed by JS, the same one-node shape
+  // apps/viewer's own popover machinery uses.
+  alertPop: document.getElementById("alert-pop"),
   detail: document.getElementById("detail"),
   consoleInput: document.getElementById("console-input"),
   consoleRun: document.getElementById("console-run"),
@@ -52,6 +60,10 @@ const state = {
   currentTopology: null,
   currentStudy: null,
   selectedEdge: null,
+  // The rail's scope, or null for "the whole study and every installed mesh"
+  // -- AA.planPanelFilter's plan, as returned, so the two renderers read one
+  // decision rather than each re-deriving which rows belong to an element.
+  panelFilter: null,
   currentPick: null, // { sha256, faceId, record }
   // Cached listMeshes() result -- the command layer resolves "sha256 or
   // part_id" against this rather than re-reading storage on every command, so
@@ -254,6 +266,69 @@ function cmdSelectFace(identifier, faceIdText) {
   return state.currentPick;
 }
 
+// deselect [face|element|all] -- select-face's and select-edge's undo
+// (deliverable 3). Jeff: "I accidentally clicked a face … but there's no way to
+// deselect a surface." Until now `state.currentPick` was cleared by a click
+// into empty space and the orange tint was NOT: scene.restoreColors was only
+// ever reachable from inside highlightFace, so nothing on any path could put a
+// face back.
+//
+// A verb first, and the three UI surfaces all drive it (the empty-space click,
+// the re-click toggle, the selected element row) -- the standing architecture
+// rule for this app. Clearing something that is already clear is not an error:
+// this is an undo, and an undo that throws when there is nothing to undo makes
+// every caller check first.
+function cmdDeselect(target) {
+  const what = target || AA.DESELECT_TARGETS[0];
+  if (AA.DESELECT_TARGETS.indexOf(what) === -1) {
+    throw new Error("deselect takes one of " + AA.DESELECT_TARGETS.join(", ") +
+      ", got " + JSON.stringify(target));
+  }
+  const cleared = { face: null, element: null };
+  if (what === "face" || what === "all") {
+    // The tint and the pick come down together -- they are one fact, and the
+    // bug being fixed is exactly them disagreeing.
+    cleared.face = state.currentPick;
+    state.scene.clearHighlight();
+    state.currentPick = null;
+  }
+  if (what === "element" || what === "all") {
+    cleared.element = state.selectedEdge ? state.selectedEdge.id : null;
+    state.selectedEdge = null;
+    renderElementList();
+  }
+  renderDetail();
+  return cleared;
+}
+
+// filter-element [<edge or node id>] -- scope the left rail to ONE element
+// (deliverable 2); with no argument, lift the filter. One verb rather than a
+// `filter-element` / `show-all` pair: "show everything" is this filter's own
+// empty value, not a second operation, and a UI control that lifts a filter
+// and a deep link that arrives with none then run the same line.
+function cmdFilterElement(target) {
+  if (!target) {
+    clearPanelFilter();
+    renderElementList();
+    renderPartsPanel();
+    return null;
+  }
+  if (!state.currentTopology) {
+    throw new Error("no topology selected -- run select-topology first");
+  }
+  const plan = AA.planPanelFilter(state.currentTopology, target,
+    state.meshList, state.partMeshAliases);
+  if (!plan.kind) {
+    throw new Error("no edge or node \"" + target + "\" in topology \"" +
+      state.currentTopology.id + "\"");
+  }
+  state.panelFilter = plan;
+  renderElementList();
+  renderPartsPanel();
+  renderRailFilter();
+  return plan;
+}
+
 function cmdSelectTopology(topologyId) {
   if (!state.topologyProjection) throw new Error("no topology projection loaded yet");
   if (!state.topologyProjection.topologies.some((t) => t.id === topologyId)) {
@@ -296,6 +371,13 @@ async function cmdGoto(topologyId, edgeId, studyId) {
   }
   if (targetStudyId) cmdSelectStudy(targetStudyId);
   if (edgeId) cmdSelectEdge(edgeId);
+  // Arriving AT one element scopes the rail to it (deliverable 2) -- this is
+  // the "entered from" Jeff's note names, and `goto` is the one verb that means
+  // it. `select-edge` deliberately does not: it is what clicking a row in the
+  // rail runs, and a rail that collapsed to the row you just clicked would be
+  // unusable. Arriving with no edge LIFTS any filter a previous goto left, so
+  // a whole-topology link is never read through a stale scope.
+  cmdFilterElement(edgeId || null);
   return { topologyId, studyId: targetStudyId, edgeId: edgeId || null };
 }
 
@@ -313,6 +395,8 @@ commands.register("select-study", cmdSelectStudy);
 commands.register("select-edge", cmdSelectEdge);
 commands.register("goto", cmdGoto);
 commands.register("trace", cmdTrace);
+commands.register("deselect", cmdDeselect);
+commands.register("filter-element", cmdFilterElement);
 AA.exec = (input) => commands.exec(input);
 
 function setSceneEmptyState(missingParts, message) {
@@ -367,6 +451,10 @@ function renderTopologyPicker() {
 
 function selectTopology(topologyId) {
   state.currentTopology = state.topologyProjection.topologies.find((t) => t.id === topologyId) || null;
+  // A rail scope belongs to ONE topology's id space, so changing topology
+  // drops it rather than carrying a filter that can no longer name anything.
+  // `goto` sets its own filter AFTER this runs, so a deep link is unaffected.
+  clearPanelFilter();
   el.topologySelect.value = topologyId;
   el.studySelect.innerHTML = "";
   const studies = (state.currentTopology && state.currentTopology.studies) || [];
@@ -381,16 +469,40 @@ function selectTopology(topologyId) {
 
 function selectStudy(studyId) {
   state.currentStudy = (state.currentTopology.studies || []).find((s) => s.id === studyId) || null;
+  // Picking a study by hand is a reader saying "show me this study", which is
+  // the opposite of a one-element scope -- same reasoning as selectTopology.
+  clearPanelFilter();
   el.studySelect.value = studyId;
   renderElementList();
 }
 
+// The scope, dropped, with the bar that announces it -- and NOT the two panels,
+// which is why this is a function rather than two lines inside the verb:
+// selectTopology/selectStudy call it mid-way through their own render and must
+// not repaint the panels twice, while `filter-element` with no argument adds
+// those two repaints on top of it.
+function clearPanelFilter() {
+  state.panelFilter = null;
+  renderRailFilter();
+}
+
+// Which element ids the rail lists: the filter's, when one is set, and the
+// current study's selection otherwise. The filtered list is read from the
+// FILTER and not intersected with the study, deliberately -- a flyout can be
+// entered from an edge no study in this topology selects, and an intersection
+// would answer that with an empty rail.
+function listedEdgeIds() {
+  if (state.panelFilter) return state.panelFilter.edgeIds;
+  return (state.currentStudy && state.currentStudy.selection) || [];
+}
+
 function renderElementList() {
   el.elementList.innerHTML = "";
-  if (!state.currentTopology || !state.currentStudy) return;
+  if (!state.currentTopology) return;
+  if (!state.currentStudy && !state.panelFilter) return;
   const identity = mergedIdentityProjection();
   const staleness = state.identityProjection && state.identityProjection.staleness;
-  for (const edgeId of state.currentStudy.selection) {
+  for (const edgeId of listedEdgeIds()) {
     const edge = state.currentTopology.edges.find((e) => e.id === edgeId);
     if (!edge) continue;
     const key = AA.topologyEdgeKey(state.currentTopology.id, edgeId);
@@ -398,21 +510,142 @@ function renderElementList() {
     const bindingState = AA.elementBindingState(record, staleness);
 
     const li = document.createElement("li");
+    // The state still colours the ROW -- that signal is per-row, at a glance,
+    // and Jeff asked to keep it ("keep the *color* signal on the row"). What
+    // came off is the WORDS: the badge used to print the raw state value.
     li.className = "el-row el-row--" + bindingState;
-    li.textContent = (edge.name || edge.id) + "  ";
-    const badge = document.createElement("span");
-    badge.className = "badge badge--" + bindingState;
-    badge.textContent = bindingState;
-    li.appendChild(badge);
+    li.appendChild(document.createTextNode((edge.name || edge.id) + "  "));
+    const alerts = AA.elementAlerts(bindingState);
+    if (alerts.length) li.appendChild(alertBadge(alerts));
     li.onclick = () => {
       try {
-        AA.exec(["select-edge", edge.id]);
+        // Clicking the row that is already selected DESELECTS it (deliverable
+        // 3's second half): the rail is the only place an element selection can
+        // be let go of, and before this there was no path at all.
+        const selected = state.selectedEdge && state.selectedEdge.id === edge.id;
+        AA.exec(selected ? ["deselect", "element"] : ["select-edge", edge.id]);
       } catch (err) {
         setBanner(err.message, "error");
       }
     };
     if (state.selectedEdge && state.selectedEdge.id === edge.id) li.classList.add("selected");
     el.elementList.appendChild(li);
+  }
+}
+
+// --- the consolidated alert badge (deliverable 5) --------------------------
+//
+// ONE warning icon per row however many alerts it carries, with the words on
+// hover -- Jeff: "roll all the alert badges into one single alert badge
+// (something like a triangle ! icon). Mouse over the icon has a popup that
+// lists out the actual alerts."
+//
+// Positioned by JS into ONE shared position: fixed node rather than rendered
+// per row as an absolutely-positioned child. That is not a preference: the rail
+// is `overflow-y: auto` (style.css), so a popup inside a row is clipped to the
+// rail's 260px and a row near the bottom would open its popup off the bottom of
+// the scrollport. apps/viewer reaches the same conclusion for its own hover
+// cards, on the same page, for the same reason.
+function alertBadge(alerts) {
+  const badge = document.createElement("span");
+  badge.className = "alertbadge";
+  badge.setAttribute("tabindex", "0");
+  // A name for the icon, for a reader who cannot see it and for a hover with
+  // no pointer at all; the popup below is what a sighted reader gets.
+  badge.setAttribute("aria-label", alerts.map((a) => a.text).join(" "));
+  badge.textContent = AA.ALERT_ICON;
+  const show = (event) => {
+    if (event && event.stopPropagation) event.stopPropagation();
+    showAlertPop(alerts, badge);
+  };
+  badge.onmouseenter = show;
+  badge.onfocus = show;
+  badge.onmouseleave = hideAlertPop;
+  badge.onblur = hideAlertPop;
+  // The badge sits inside a row whose click selects the element. Clicking the
+  // icon must not select: it is a disclosure, not a second way in.
+  badge.onclick = show;
+  return badge;
+}
+
+function showAlertPop(alerts, trigger) {
+  if (!el.alertPop) return;
+  el.alertPop.innerHTML = "";
+  const list = document.createElement("ul");
+  for (const alert of alerts) {
+    const li = document.createElement("li");
+    li.textContent = alert.text;
+    list.appendChild(li);
+  }
+  el.alertPop.appendChild(list);
+  el.alertPop.style.display = "block";
+  // Below the badge, or above it where there is no room below -- the same
+  // below-by-default/flip-when-it-does-not-fit rule apps/viewer's popover
+  // placement uses, in the three lines this one needs.
+  if (!trigger.getBoundingClientRect) return;
+  const box = trigger.getBoundingClientRect();
+  const height = el.alertPop.offsetHeight || 0;
+  const below = box.bottom + 6;
+  el.alertPop.style.left = Math.max(8, box.left) + "px";
+  el.alertPop.style.top = (below + height > window.innerHeight - 8
+    ? Math.max(8, box.top - height - 6)
+    : below) + "px";
+}
+
+function hideAlertPop() {
+  if (!el.alertPop) return;
+  el.alertPop.style.display = "none";
+  el.alertPop.innerHTML = "";
+}
+
+// --- the rail's scope bar (deliverable 2) ---------------------------------
+//
+// What the rail is filtered to, in the element's own words, and the one control
+// that lifts it. Nothing at all when nothing is filtered: the standing rule is
+// that an absent feature shows NOTHING, and a permanently-visible "show all"
+// button with nothing hidden is a control that explains a state the reader is
+// not in.
+function renderRailFilter() {
+  if (!el.railFilter) return;
+  el.railFilter.innerHTML = "";
+  if (!state.panelFilter) {
+    el.railFilter.style.display = "none";
+    return;
+  }
+  el.railFilter.style.display = "block";
+  const plan = state.panelFilter;
+  const edges = (state.currentTopology && state.currentTopology.edges) || [];
+  const nodes = (state.currentTopology && state.currentTopology.nodes) || [];
+  const found = edges.find((e) => e.id === plan.target) ||
+    nodes.find((n) => n.id === plan.target);
+  const note = document.createElement("span");
+  note.className = "an__filter-note";
+  note.textContent = "Showing only: " +
+    ((found && (found.name || found.id)) || plan.target);
+  el.railFilter.appendChild(note);
+
+  const btn = document.createElement("button");
+  btn.className = "an__filter-clear";
+  btn.textContent = "Show all";
+  btn.title = "list every element in the study and every installed part again";
+  btn.onclick = () => {
+    try { AA.exec(["filter-element"]); }
+    catch (err) { setBanner(err.message, "error"); }
+  };
+  el.railFilter.appendChild(btn);
+
+  // A scoped rail whose element names a part with no installed mesh would
+  // otherwise show an empty parts panel and no reason for it.
+  const gapText = plan.missingParts.length
+    ? "No installed 3D part for: " + plan.missingParts.join(", ")
+    : (plan.parts.length
+      ? null
+      : "This element names no part, so there is nothing to show in 3D.");
+  if (gapText) {
+    const gap = document.createElement("div");
+    gap.className = "an__filter-gap";
+    gap.textContent = gapText;
+    el.railFilter.appendChild(gap);
   }
 }
 
@@ -444,6 +677,9 @@ function renderDetail() {
   }
 
   const pickP = document.createElement("p");
+  // A class so the stylesheet can say what this line is: secondary either way
+  // (design_pass_typography). Styling only -- the words are unchanged.
+  pickP.className = "an__pick";
   pickP.textContent = state.currentPick
     ? "Picked: part " + state.currentPick.sha256.slice(0, 12) + "…, face " + state.currentPick.faceId
     : "No face picked yet -- click a face in the 3D view.";
@@ -601,9 +837,21 @@ function buildOwnerNotInSetForm(edge) {
 // itself, only reads it (scene.listOpenParts()/isVisible()) to paint the
 // current checkbox states.
 
+// Which installed meshes the panel lists. Unfiltered it is every one of them,
+// which is what it has always been -- and was the gap Jeff hit: `cmdTrace` and
+// `cmdGoto` already scoped the ELEMENT list to a study, and this panel was
+// scoped by nothing at all, so entering the flyout from one element still
+// listed every mesh in the repo beside it.
+function listedMeshes() {
+  if (!state.panelFilter) return state.meshList;
+  const wanted = {};
+  state.panelFilter.parts.forEach((p) => { if (p.sha256) wanted[p.sha256] = true; });
+  return state.meshList.filter((m) => wanted[m.sha256]);
+}
+
 function renderPartsPanel() {
   el.partsPanel.innerHTML = "";
-  for (const mesh of state.meshList) {
+  for (const mesh of listedMeshes()) {
     const li = document.createElement("li");
     li.className = "part-row";
 
@@ -755,6 +1003,7 @@ async function loadAll() {
     const aliasDoc = await state.storage.readPartMeshAliases();
     state.partMeshAliases = (aliasDoc && Array.isArray(aliasDoc.aliases)) ? aliasDoc.aliases : [];
     renderPartsPanel();
+    renderRailFilter();
 
     await runPendingDeepLink();
     execQueue.markLoaded();
@@ -885,10 +1134,28 @@ async function main() {
     readMeshManifest: (sha) => state.storage.readMeshManifest(sha),
     readMeshBuffer: (sha, name) => state.storage.readMeshBuffer(sha, name),
   });
+  // The autotest convention again (window.__lastTrace, window.__autotestResults
+  // above): a READ-ONLY handle on the scene, so a harness can ask what is
+  // actually tinted. Nothing in this app reads it, and it is not a second way
+  // to drive the scene -- every mutation still goes through AA.exec. It exists
+  // because the pick tint lives in a WebGL colour buffer: `scene.
+  // highlightedFace()` is the only observable for "the orange came off", which
+  // is the entire deliverable of the deselect work and was un-checkable before.
+  window.__scene = state.scene;
+  // Every click in the 3D view is one of the two verbs, chosen by the pure
+  // AA.planPickToggle (deliverable 3): a click into empty space and a click
+  // back onto the already-picked face both DESELECT, anything else selects.
+  // Before this, a miss set `state.currentPick = null` and left the orange
+  // tint exactly where it was, and a re-click re-highlighted the same face --
+  // so there were three ways to pick a face and none to unpick one.
   state.scene.onPick = (pick) => {
-    state.currentPick = pick;
-    if (pick) state.scene.highlightFace(pick.sha256, pick.faceId);
-    renderDetail();
+    const plan = AA.planPickToggle(state.currentPick, pick);
+    try {
+      if (plan.action === "clear") AA.exec(["deselect", "face"]);
+      else AA.exec(["select-face", plan.pick.sha256, String(plan.pick.faceId)]);
+    } catch (err) {
+      setBanner(err.message, "error");
+    }
   };
 
   if (MOCK) {

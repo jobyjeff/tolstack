@@ -121,9 +121,9 @@
       "in_pile": false,
       "pile_filename": null,
       "closes": [],
-      "unblocks": "Whether the three 4.06 flange groups still read as they did 14 months before the assembly export.",
+      "unblocks": "ANSWERED 2026-09-16, by a different part number. The three 4.06 flange groups were re-read on the RELEASED plate and the values hold; nothing further is blocked on this request.",
       "stacks": ["pitch_link", "tan_link", "vpa"],
-      "note": "Only a [PRELIM 2025-MAY-22] export exists, and it is in drawing-checker's test fixtures, not in any inbox: C:\\workspace\\drawing-checker\\tests\\fixtures\\drawings\\[PRELIM 2025-MAY-22] 215197 A.1.pdf"
+      "note": "ANSWERED 2026-09-16 (handoff citation_identity_correctness), and the answer is not the document that was asked for. The request was 215197 at a current revision; what arrived is 215735 rev A -- PITCH PLATE, PROPELLER, MATURITY STATE Released, DRAWING RELEASE DATE 01/JUL/2025 -- a DIFFERENT part number, being find 1 = 215735-001 CW and find 4 = 215735-002 CCW of the 215177 PITCH PLATE ASSEMBLY parts list. All three stacks now cite it and no value moved: 3X 4.06 +/-0.08 at sheet 2 zone B4, 5X 4.06 +/-0.10 at sheet 2 zone D10. The only 215197 export anywhere is still the [PRELIM 2025-MAY-22] one in drawing-checker's test fixtures, and it is now superseded rather than merely old. in_pile stays FALSE and that is not an oversight: in_pile is about the spec pile (data/inbox/specs/), and 215735-A was copied into data/inbox/drawings/, which is a different stream. That a requested drawing can land in drawing-checker and nothing here notices is ISSUE_20260915_nothing_notices_when_a_requested_drawing_lands_in_drawing_checker.md."
     },
     {
       "rank": 12,

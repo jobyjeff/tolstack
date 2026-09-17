@@ -25,6 +25,11 @@
       <select id="topology-select"></select>
       <label class="an__label">study</label>
       <select id="study-select"></select>
+      <!-- The rail's scope bar: what both panels below are filtered to, and
+           the one control that lifts it. Empty and hidden until a
+           `filter-element` sets a scope (app.js's renderRailFilter) -- an
+           absent filter says nothing about filtering. -->
+      <div id="rail-filter" class="an__filter" style="display:none"></div>
       <ol id="element-list" class="element-list"></ol>
 
       <label class="an__label">parts (data/meshes/)</label>
@@ -44,6 +49,11 @@
 
     <aside id="detail" class="an__detail">Pick an element on the left, then click a face in the 3D view to bind it.</aside>
   </main>
+  <!-- The one hover popup every consolidated alert badge on the rail shares.
+       OUTSIDE #workspace and position: fixed (style.css) because the rail is a
+       scrollport: a popup rendered inside a row would be clipped to 260px and
+       a row near the bottom would open its popup below the fold. -->
+  <div id="alert-pop" class="alertpop" style="display:none"></div>
   <div id="test-status" style="display:none"></div>
 
   <!-- Classic scripts, loaded in order -- window.AnnotateApp (AA) is built up

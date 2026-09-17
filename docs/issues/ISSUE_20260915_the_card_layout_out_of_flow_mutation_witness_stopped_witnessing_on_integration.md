@@ -2,11 +2,11 @@
 type: bug
 priority: med
 status: resolved
+resolution: fixed 2026-09-16 by handoff `mutation_witness_tier_reaches_its_checks`; one defect with two sibling filings -- disposition written on ISSUE_20260915_card_layout_out_of_flow_mutation_reddens_an_earlier_check_so_it_is_never_witnessed.
 area: apps/viewer
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260915_viewer_component_names_and_reference_copy.md
 handoff: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
-resolution: handoff completed 2026-09-16 -- closed automatically by dispatch when handoff `mutation_witness_tier_reaches_its_checks` moved to completed/; not independently verified.
 ---
 
 # `card-layout-out-of-flow` stopped witnessing somewhere on `integration`, and the mutation tier is 21/22
@@ -67,3 +67,34 @@ whole point of the tier.
 Worth considering separately: a review agent's own integration merge should
 re-run `run_mutation_witness_tests.mjs`, not only the three behaviour tiers.
 This defect is invisible to every one of them.
+
+## Resolved 2026-09-16 -- `mutation_witness_tier_reaches_its_checks`
+
+Fixed. One defect, filed independently by three sessions on 2026-09-15; the
+disposition is written once, on
+`ISSUE_20260915_card_layout_out_of_flow_mutation_reddens_an_earlier_check_so_it_is_never_witnessed`.
+
+In short: `card-layout-out-of-flow` is WITNESSED by name with the mutation
+unchanged. The timing-out hover was **the declared check's own hover**, one
+line above it -- not the later "one edge, two triggers, ONE card" hover and not
+anything 150 lines earlier, so the declared check was never reached at all.
+Under `absolute` the mispositioned card lands **on** its trigger, and
+`locator.hover()` refuses to act on an occluded element;
+`hoverIgnoringOcclusion` drives the pointer there directly instead.
+
+This filing's own contributions to the fix, which the others did not carry:
+
+- it bisected **when** the regression entered (`afcbbb4`, a review merge of
+  three branches each of which was green alone), which is the evidence that it
+  rode in through the one merge nobody re-runs this tier on;
+- it drew the hard fence the fix is built inside: do **not** teach the runner to
+  accept a bare `ERROR` as red, because *red on the declared check* against *red
+  somewhere* is the entire value of the tier. Nothing in the fix touches that --
+  a suite that aborts before its first `push` still prints no names and is still
+  reported as unattributable.
+
+Its remaining suggestion is **not** done and is not this repo's to do: a review
+agent's own integration merge should re-run `run_mutation_witness_tests.mjs`
+and not only the three behaviour tiers. That is a dispatch/review-prompt
+change, and it now has its own filing --
+`ISSUE_20260916_a_review_merge_is_the_one_place_the_mutation_tier_is_never_re_run.md`.

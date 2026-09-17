@@ -73,20 +73,76 @@
     no_source_ref: "NO CITATION",
   };
 
-  // Class suffix for the colour system. `untraced` and `no_source_ref` are the
-  // loud ones on purpose: Jeff reviews sourcing as much as arithmetic, and an
+  // The confidences that mean *nothing readable stands behind this number*: it
+  // traces to no drawing or datasheet, or carries no citation at all. The loud
+  // pair, on purpose -- Jeff reviews sourcing as much as arithmetic, and an
   // untraced value must be impossible to miss.
+  //
+  // This pair decides TWO things that have to agree, and until 2026-09-16 each
+  // side spelled it itself (ISSUE_20260915_the_loud_gap_confidence_pair_has_
+  // three_homes_and_no_pairing): which edges become `unverified_value` rows in
+  // a topology's "what is missing" panel, chosen in Python, and which grid rows
+  // and studies wear the `unverified` badge and offer the annotate link, chosen
+  // here. Drift between them means the panel lists rows the grid does not badge
+  // -- on the one page whose whole job is to say what cannot be trusted. It is
+  // a TABLE now rather than two literals inside `needsAnnotation` for exactly
+  // that reason: a vocabulary spelled in a function body cannot be paired, and
+  // `tests/test_js_python_vocabulary.py` now pairs this one word for word
+  // against `scripts/build_topology_projection.py`'s UNVERIFIED_CONFIDENCES.
+  // `no_source_ref` has ZERO live instances, so the pairing is the only thing
+  // that could ever catch a drift in that half.
+  VA.UNVERIFIED_CONFIDENCES = ["untraced", "no_source_ref"];
+
+  // Class suffix for the colour system.
   VA.confidenceClass = function (confidence) {
     return "conf--" + (VA.CONFIDENCES.indexOf(confidence) === -1 ? "unknown" : confidence);
   };
 
   // Deep link OUT to apps/annotate/ (handoff annotate_deep_link_and_part_filter,
-  // deliverable 4). `untraced`/`no_source_ref` are the two loud gap states
-  // (confidenceClass's own comment) -- exactly the rows this repo's "record a
-  // gap" rule is about, and exactly the ones a click into the 3D tool can help
-  // close by resolving WHICH feature the row means.
+  // deliverable 4): exactly the rows this repo's "record a gap" rule is about,
+  // and exactly the ones a click into the 3D tool can help close by resolving
+  // WHICH feature the row means.
   VA.needsAnnotation = function (confidence) {
-    return confidence === "untraced" || confidence === "no_source_ref";
+    return VA.UNVERIFIED_CONFIDENCES.indexOf(confidence) !== -1;
+  };
+
+  // --- which worksheet a stack or a topology is showing, and HOW it was found
+  //
+  // `worksheet_source`, written by both viewer builders (`worksheet_for` in
+  // scripts/build_viewer_projection.py and in scripts/build_topology_projection.py
+  // -- the same two rules, deliberately not shared because each builder is
+  // stdlib-only). Three values, and the third is `null`: a stack with no
+  // worksheet at all has no source for one either.
+  //
+  // A vocabulary this page branches on is a module-level constant, never an
+  // inline literal (CLAUDE.md) -- and until 2026-09-16 this one's only named
+  // copy lived inside apps/viewer/tests.js, read by two guard rows and
+  // invisible to the branch itself (ISSUE_20260915_worksheet_source_vocabulary_
+  // has_no_va_constant).
+  //
+  // A TABLE carrying each value's on-screen note, not a list plus an if: the
+  // reason VA.CROP_RULES is one. An enumerated field needs a total function,
+  // because a silent default cannot be told apart from a handled case by
+  // reading the code -- and here only ONE of the three values has anything to
+  // say, which is exactly the shape that reads as an oversight when it is
+  // spelled as an `if`. `"null"` is quoted because JS coerces a property
+  // lookup's key to a string, so `VA.WORKSHEET_SOURCES[null]` finds it and the
+  // renderer needs no null check; `null` is also literally what the projection
+  // JSON carries in that field.
+  VA.WORKSHEET_SOURCES = {
+    declared: {
+      // The only value a reader can be surprised by: the sheet's name will not
+      // match the document they opened, and this says why rather than leaving
+      // them to suspect the wrong sheet.
+      note: "declared by this file itself (provenance.worksheet), not matched " +
+        "by name — one worksheet may cover several stacks or topologies",
+    },
+    // Matched by the X -> WORKSHEET_X naming convention. Silent, correctly: a
+    // sheet whose name matches the document needs no explanation.
+    by_name: { note: null },
+    // No worksheet at all, so no source for one either. The pane says that much
+    // above this line and has nothing to add here.
+    "null": { note: null },
   };
 
   // Pure string-building (no URL API -- this file is also loaded into the
@@ -265,13 +321,19 @@
         });
       }
     });
+    // One fact, one vocabulary. This chip said "1 zero-width band" while the DAG
+    // page two clicks away said "no tolerance recorded" about the same element
+    // (ISSUE_20260915_the_stack_view_still_says_zero_width_band_...), so the
+    // words are read out of VA.ATTENTION here and on all four of the other
+    // surfaces that state it. `zero_width_count` keeps its name: it is a
+    // projection field, not something a reader sees.
     if (stackProj.zero_width_count) {
       chips.push({
         kind: "zero-width",
-        text: stackProj.zero_width_count + " zero-width band" +
-          (stackProj.zero_width_count === 1 ? "" : "s"),
-        title: "min == max: no document gives this element a tolerance, so every " +
-          "interval it feeds is a LOWER bound on the real spread.",
+        text: stackProj.zero_width_count +
+          (stackProj.zero_width_count === 1 ? " element with " : " elements with ") +
+          VA.ATTENTION.no_tolerance.text,
+        title: VA.ATTENTION.no_tolerance.title,
       });
     }
     var budget = (stackProj.checks || []).filter(VA.isBudgetScope);
@@ -330,20 +392,102 @@
     });
   };
 
+  // The label this line puts in front of a revision, and the test for when the
+  // value has already said it. A revision is TRANSCRIBED from a title block, and
+  // a title block that reads "Rev 4" gets transcribed as "Rev 4" — so the label
+  // and the value collide, and the line prints `rev Rev 4`
+  // (ISSUE_20260915_the_citation_where_line_prints_rev_rev_4_...). The rule is
+  // general and it is not about this one document: never prefix a label a value
+  // already carries. Case-insensitive, and anchored at the START of the value,
+  // because "sheet 2 rev 2" further in is a clause of the note, not the label.
+  VA.REVISION_LABEL = "rev ";
+  VA.revisionText = function (revision) {
+    var text = String(revision);
+    return /^rev\b/i.test(text) ? text : VA.REVISION_LABEL + text;
+  };
+
+  // The first sentence of a record's own prose, for a surface that shows a
+  // short description in the open and the whole note behind a fold
+  // (views/cards.js, viewer_hover_deslop_and_banner_purge 2026-09-16).
+  //
+  // A PREFIX of the input or the whole of the input, never anything else:
+  // nothing is reworded, recased, reordered or summarised, the same discipline
+  // VA.fieldLabel and VA.elementDisplayLabel keep, and the full text is always
+  // one click away in the same card. This is a placement decision, not the
+  // viewer editing the record.
+  //
+  // A sentence ends at `.`/`!`/`?` followed by whitespace and a capital. Both
+  // halves of that are load-bearing on the live notes, which are full of
+  // leading-decimal dimensions: ".1900 in ID X .1875 in long" has two periods
+  // in it and neither is followed by a space, so a split on `.` alone would
+  // return "Plain bushing, aluminium bronze, " and call it a description. A
+  // note with no such break is returned whole — better a long lead than a
+  // guess at where a thought ended.
+  VA.LEAD_SENTENCE_RE = /^[\s\S]*?[.!?](?=\s+["'(\[]?[A-Z])/;
+  VA.leadSentence = function (text) {
+    if (text === null || text === undefined) return "";
+    var whole = String(text).trim();
+    var match = whole.match(VA.LEAD_SENTENCE_RE);
+    return match ? match[0] : whole;
+  };
+
+  // A schema key, as a label a reader can read: `assembly_drawing` -> "assembly
+  // drawing". The free-form blocks on this page (a stack's or a topology's
+  // `joint`) are authored as JSON and rendered key by key, because nothing
+  // knows in advance what they contain -- so the key IS the label, and until
+  // 2026-09-16 it was printed raw, which put schema jargon in a definition list
+  // a reader is meant to skim.
+  //
+  // Separator only. Nothing is reworded, recased or reordered: every character
+  // of the output is a character of the input in the input's order, minus the
+  // underscores, which is the same discipline VA.elementDisplayLabel keeps. A
+  // transform that guessed at expansions ("rev" -> "revision") would be the
+  // viewer editing the record.
+  VA.fieldLabel = function (key) {
+    return String(key).split("_").join(" ");
+  };
+
   // "sheet 4 · DETAIL B · zone H3" — the same shape drawing-checker's own
   // "Where" column uses, so a citation reads the same in both tools.
-  VA.citationWhere = function (sourceRef) {
-    if (!sourceRef) return "no source_ref";
+  //
+  // With no citation at all it says so in a reader's words, not the schema's:
+  // this string is rendered on the element pane and the citation card, and
+  // `source_ref` is a field name a reader cannot act on (the same ban
+  // `apps/viewer/tests.js`'s BANNED_IN_RENDERED_TEXT keeps). "no citation" is
+  // the wording VA.CONFIDENCE_LABEL.no_source_ref already uses on the chip
+  // beside it.
+  // `alreadySaid` is the hover cards' (viewer_hover_deslop_and_banner_purge,
+  // 2026-09-16): text the surface has ALREADY printed on the line above this
+  // one. Where it carries the document's own name, the document is dropped
+  // from here and the line says only what is new -- the revision, the sheet,
+  // the view, the zone.
+  //
+  // This is Jeff's "a part number is never printed on two consecutive lines",
+  // and four live edge cards needed it: `pitch_link_to_pitch_plate |
+  // bushing_214820` reads "a dimension of 214820-002 plain bushing" and then
+  // "cited at: 214820-002 · sheet 4" directly beneath. Most parts in this repo
+  // are NAMED after the drawing they are cited from, so the collision is the
+  // rule and not the exception. The same rule VA.componentDrawingText applies
+  // to a part's own drawing line, and it is a rule about LABELS, not about any
+  // one document: never prefix or repeat something the value already carries.
+  //
+  // A citation with nothing else to say still says the document -- dropping it
+  // would leave the line empty, and "no location" is a different claim.
+  VA.citationWhere = function (sourceRef, alreadySaid) {
+    if (!sourceRef) return "no citation";
     var parts = [];
-    if (sourceRef.document) parts.push(String(sourceRef.document));
-    if (sourceRef.revision) parts.push("rev " + sourceRef.revision);
+    var document = sourceRef.document ? String(sourceRef.document) : null;
+    var repeated = !!document && !!alreadySaid &&
+      String(alreadySaid).indexOf(document) !== -1;
+    if (document && !repeated) parts.push(document);
+    if (sourceRef.revision) parts.push(VA.revisionText(sourceRef.revision));
     if (sourceRef.sheet !== null && sourceRef.sheet !== undefined) {
       parts.push("sheet " + sourceRef.sheet);
     }
     if (sourceRef.view) parts.push(String(sourceRef.view));
     if (sourceRef.zone) parts.push("zone " + sourceRef.zone);
     if (sourceRef.cell) parts.push("cell " + sourceRef.cell);
-    return parts.join(" · ") || "no location";
+    return parts.join(" · ") || document || "no location";
   };
 
   // --- source_ref.export: WHICH BYTES the value was read off ---------------
@@ -431,6 +575,64 @@
     identity_unlabelled: "SOURCE RULE UNKNOWN",
   };
 
+  // A status the chip table has no wording for. Its own constant rather than an
+  // `||` literal at the one call site, the same posture every other total
+  // lookup on this surface takes.
+  VA.EXPORT_CHIP_FALLBACK = "EXPORT STATUS UNKNOWN";
+
+  // --- one alert badge per row (flyout_resize_annotator_filter_and_deselect,
+  // deliverable 5) -----------------------------------------------------------
+  //
+  // Jeff, 2026-09-16: "Left side menu is now impressively 'loud'… roll all the
+  // alert badges into one single alert badge (something like a triangle ! icon).
+  // Mouse over the icon has a popup that lists out the actual alerts. Styling
+  // for the alert text themselves can then be a bit less obnoxious/
+  // overwhelming, especially the ones in the source column that are always
+  // visible."
+  //
+  // The words do not change -- they are still VA.ATTENTION's and
+  // VA.EXPORT_CHIP_TEXT's, read here, never restated -- and nothing is deleted:
+  // this decides WHICH of a row's chips are alerts, so the row can carry one
+  // icon and the popup can carry the argument. What stays on the row beside it
+  // is the confidence chip, the kind chip and the material chip, which are not
+  // alerts: they are the row's primary provenance signal, and one of them is
+  // already the citation card's own hover trigger.
+  VA.ALERT_ICON = "⚠";
+
+  // What ONE elements-table row has to admit about itself, in severity order:
+  // a value whose band nobody wrote down, then bytes this viewer cannot
+  // identify. A list because the badge showing it is one badge however many
+  // there are -- a row with none renders nothing at all.
+  VA.rowAlerts = function (element, derived) {
+    var alerts = [];
+    if (derived && derived.zero_width) {
+      alerts.push({
+        kind: "zero-width",
+        text: VA.ATTENTION.no_tolerance.text,
+        why: VA.ATTENTION.no_tolerance.title,
+      });
+    }
+    var exportView = VA.exportProvenance(element && element.source_ref,
+      derived && derived.identity_rule);
+    if (exportView && exportView.loud) {
+      alerts.push({
+        kind: "export-" + exportView.state,
+        text: VA.EXPORT_CHIP_TEXT[exportView.state] || VA.EXPORT_CHIP_FALLBACK,
+        why: exportView.headline + (exportView.why ? " — " + exportView.why : ""),
+      });
+    }
+    return alerts;
+  };
+
+  // The hover card behind that badge. A card model like every other one on this
+  // page (VA.citationCard, VA.edgeCard, VA.componentCard), so the badge reuses
+  // the whole popover apparatus the page already has -- one node, one
+  // placement, one close story, the hover-intent corridor included -- instead
+  // of growing a second kind of popup beside it.
+  VA.alertsCard = function (title, alerts) {
+    return { kind: "alerts", title: title, alerts: alerts || [] };
+  };
+
   // An identity rule the viewer has never heard of. Same treatment as an
   // unlabelled export status, and for the same reason: falling through to
   // "no export block" would state the exact opposite of what the projection just
@@ -489,6 +691,78 @@
     });
   };
 
+  // Month names, for the one date this page formats itself. A table rather than
+  // toLocaleDateString: the node fast tier and a browser must agree character
+  // for character, and a locale-dependent string cannot be pinned by a test.
+  VA.MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  // "2026-07-30" -> "30 Jul 2026". Read off the front of the string rather than
+  // through Date: a recorded timestamp is a fact about a day, and parsing it
+  // into a Date moves that day across a timezone boundary for half the world.
+  // Anything that is not a leading ISO date comes back null, never a guess.
+  VA.isoDateText = function (value) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""));
+    if (!match) return null;
+    var month = VA.MONTH_NAMES[Number(match[2]) - 1];
+    return month ? Number(match[3]) + " " + month + " " + match[1] : null;
+  };
+
+  // What a reader can act on about an export's drawing-checker history: HOW
+  // MANY times the file has been read, and WHEN the last one was. Not the run
+  // ids -- those are an internal artifact's address, the same thing the crop
+  // popover's link stopped printing on 2026-09-15, and no reader can do
+  // anything with one (ISSUE_20260916_the_element_pane_still_prints_bare_
+  // drawing_checker_run_ids_as_link_text). They are kept, on the line's hover,
+  // because an id IS what a person with a drawing-checker shell would use.
+  //
+  // A run entry carries `{run_id, ts}`; `ts` is the recorded fact and the id's
+  // own date prefix is the fallback for an entry that somehow has no `ts`.
+  VA.exportRunsSummary = function (exportBlock) {
+    var runs = (exportBlock && exportBlock.runs) || [];
+    var runDate = function (run) {
+      return VA.isoDateText(run && run.ts) ||
+        VA.isoDateText(String((run && run.run_id) || "")
+          .replace(/^(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"));
+    };
+    return {
+      count: runs.length,
+      // The LAST recorded run's OWN day, by the order the export lists them --
+      // which is the order build_viewer_crops.py found them in, oldest first.
+      //
+      // Not "the last day this reader could parse". Filtering first and then
+      // taking the last is a one-character-looking difference that makes an
+      // export whose final run has no `ts` and no date-shaped id report the
+      // PREVIOUS run's day as "most recently" -- a wrong date, stated
+      // confidently, which is worse than the clause being absent. If the last
+      // run cannot say when it ran, the sentence says how many times and stops.
+      lastDate: runs.length ? runDate(runs[runs.length - 1]) : null,
+      ids: VA.exportRunIds(exportBlock),
+    };
+  };
+
+  // The sentence that summary becomes, on every surface that states it.
+  VA.EXPORT_NO_RUNS_TEXT = "no drawing-checker run has used this file — the " +
+    "value was read straight off it, so its checksum is the whole of its identity";
+  VA.exportRunsText = function (exportBlock) {
+    var summary = VA.exportRunsSummary(exportBlock);
+    if (!summary.count) return VA.EXPORT_NO_RUNS_TEXT;
+    return "read by drawing-checker " +
+      (summary.count === 1 ? "once" : summary.count + " times") +
+      (summary.lastDate
+        ? (summary.count === 1 ? ", on " : ", most recently ") + summary.lastDate
+        : "");
+  };
+
+  // Why the ids sit on a hover and not in the line, and why at most one run is
+  // ever a link -- both facts a reader who goes looking for them deserves.
+  VA.exportRunsTitle = function (exportBlock) {
+    var ids = VA.exportRunsSummary(exportBlock).ids;
+    return (ids.length ? "recorded on this export as " + ids.join(", ") + ". " : "") +
+      "drawing-checker addresses a run by a longer name than the id recorded " +
+      "here, so this page links only the run its own crop resolved through.";
+  };
+
   // Which of an export's run ids this page can actually LINK, and to where.
   //
   // The export carries run IDS (`20260803_145243`). drawing-checker addresses a
@@ -526,7 +800,7 @@
   // export block is what identifies the bytes wherever there is one, which is the
   // same precedence build_viewer_crops.resolve_pdf applies.
   // Returns null when there is no citation at all — VA.citationWhere already
-  // says "no source_ref", and saying it twice buys nothing.
+  // says "no citation", and saying it twice buys nothing.
   VA.exportProvenance = function (sourceRef, identityRule) {
     if (!sourceRef) return null;
     var x = sourceRef.export;
@@ -577,9 +851,10 @@
     if (p.detail) bits.push(p.detail);
     if (p.shaText) bits.push(p.shaText);
     if (p.state === "established") {
-      bits.push(p.runIds.length
-        ? "drawing-checker runs: " + p.runIds.join(", ")
-        : "no drawing-checker run has consumed this export");
+      // The same sentence the rendered line says, out of the same builder:
+      // this view-model and VA.exportRunsLine must not describe one export in
+      // two vocabularies.
+      bits.push(VA.exportRunsText((sourceRef || {}).export));
     }
     return bits.join(" · ");
   };
@@ -1141,6 +1416,251 @@
       : VA.unlabelledPlacementText(cropEntry.located_by));
     return bits.join(" · ");
   };
+
+  // --- reaching an open popover with the mouse ------------------------------
+  //
+  // Jeff, 2026-09-16: "sometimes the preview pop-up disappears when you try to
+  // move the mouse over it, you have to do it just right."
+  //
+  // Measured the same day, and the diagnosis is not what the complaint sounds
+  // like: there is no mouseleave and no hide timer anywhere in this app -- a
+  // hover popover closes only on its own X, on Escape, on an outside click, or
+  // by being REPLACED. The card was never disappearing; it was being
+  // re-targeted. Every trigger the pointer crosses on the way to the open card
+  // fires `mouseenter` and re-points the one shared #croppop node at itself,
+  // and on the DAG the corridor is crowded: a rail bar's hit area is a
+  // 14-px-wide stroke (.rail__barhit, topology.css), so a diagonal approach
+  // can cross two of them.
+  //
+  // The fix is intent, not a timer: while a popover is open, a competing
+  // trigger is DEFERRED -- not dropped -- for as long as the pointer is
+  // travelling toward the open box. This is the classic aim/corridor test
+  // (does the movement vector, extended, enter the card?) rather than a plain
+  // "ignore everything for N ms", because a plain grace period swallows a
+  // deliberate hover onto the neighbouring row: `mouseenter` fires once, so a
+  // suppressed one never arrives again while the pointer sits still.
+  //
+  // Two numbers, and both are bounded on purpose:
+  //
+  //   * HOVER_INTENT_MS is how long a deferred trigger waits before it opens
+  //     anyway. So the worst case of a WRONG guess is a card that arrives a
+  //     quarter-second late, never one that never arrives.
+  //   * HOVER_INTENT_REACH caps how far along the movement vector the box is
+  //     allowed to be. Without it a pointer crossing the grid in a straight
+  //     line counts as "approaching" a card 900px away, because an infinite
+  //     ray eventually hits almost anything -- and every trigger on that line
+  //     would go quiet. An open card sits 8px from the trigger it was opened
+  //     from, so anything the reader is plausibly reaching for is close.
+  VA.HOVER_INTENT_MS = 260;
+  VA.HOVER_INTENT_REACH = 240;
+
+  // Is this point in this box? Boxes here are always getBoundingClientRect()
+  // results (or anything with the same four fields), in VIEWPORT coordinates --
+  // the frame `position: fixed` places the popover in.
+  VA.pointerInside = function (point, box) {
+    if (!point || !box) return false;
+    return point.x >= box.left && point.x <= box.right &&
+           point.y >= box.top && point.y <= box.bottom;
+  };
+
+  // Is the pointer travelling from `from` to `to` on a course that reaches
+  // `box`? A ray/rectangle intersection by the slab method, with the entry
+  // distance measured in pixels and capped at HOVER_INTENT_REACH.
+  //
+  // A pointer already INSIDE the box counts, with no direction needed: it has
+  // arrived, which is the strongest possible evidence of intent. A pointer
+  // that has not moved does not -- a zero vector aims at nothing, and guessing
+  // a direction for it would be the thing this function exists to avoid.
+  VA.pointerHeadsFor = function (from, to, box) {
+    if (!to || !box) return false;
+    if (VA.pointerInside(to, box)) return true;
+    if (!from) return false;
+    var dx = to.x - from.x, dy = to.y - from.y;
+    if (!dx && !dy) return false;
+    var span = slab(to.x, dx, box.left, box.right, [0, Infinity]);
+    if (span) span = slab(to.y, dy, box.top, box.bottom, span);
+    if (!span) return false;
+    return span[0] * Math.sqrt(dx * dx + dy * dy) <= VA.HOVER_INTENT_REACH;
+  };
+
+  // Should an OPEN popover be re-placed now that one of its images has
+  // settled? Pure, so the fast tier can pin both halves without a browser;
+  // topology_app.js's `replace()` is the wiring and does nothing else.
+  //
+  // Two guards, and the first is the one that matters. A card under the
+  // reader's pointer is a card IN USE: `position()` flips a card above its
+  // trigger when it no longer fits below, and a flip under the pointer is the
+  // other half of what Jeff reported as the popup disappearing. The second
+  // skips the gesture entirely when the box is exactly the height it was last
+  // measured at, which is the normal case -- VA.cropFigure reserves each
+  // image's height from the crop index's own pixel size before the decode, so
+  // a settled PNG usually changes nothing at all.
+  VA.popoverShouldMove = function (pointer, box, height, placed) {
+    if (VA.pointerInside(pointer, box)) return false;
+    return Math.abs((height || 0) - (placed || 0)) > 1;
+  };
+
+  // One axis of the slab test: narrow `[tmin, tmax]` (in units of the movement
+  // vector) to the stretch of the ray inside this axis's pair of edges, or
+  // null where the two do not overlap at all. A zero component means the ray
+  // is parallel to this axis, which is a hit only if it starts between the
+  // edges -- the division would be an infinity that reads as a hit otherwise.
+  function slab(origin, delta, low, high, span) {
+    if (!delta) return (origin >= low && origin <= high) ? span : null;
+    var near = (low - origin) / delta, far = (high - origin) / delta;
+    if (near > far) { var swap = near; near = far; far = swap; }
+    var lo = Math.max(span[0], near), hi = Math.min(span[1], far);
+    return lo <= hi ? [lo, hi] : null;
+  }
+
+  // --- the crop lightbox's view: zoom, pan, and where a point of the picture
+  // lands (crop_lightbox_zoom_viewer) --------------------------------------
+  //
+  // Jeff, 2026-09-16: "thumbnail is too small to be legible… Maybe a button in
+  // the thumbnail that lets you launch it into a separate, full size viewer
+  // (either a popup or separate page) that allows you to zoom/pan?"
+  //
+  // The mechanism is ONE CSS transform on a wrapper around the crop's own
+  // frame, and that is the choice the whole surface turns on: a `.crophl`
+  // highlight box is positioned in PERCENTAGES of that frame (views/crop.js),
+  // so scaling an ancestor scales the picture and the boxes drawn on it in the
+  // same step. There is no second coordinate system to keep in step and no
+  // arithmetic anywhere that turns a `frac` into a pixel — which is exactly
+  // what zooming the <img> alone, or re-laying the boxes out per zoom step,
+  // would have introduced.
+  //
+  // `scale: 1` is FIT — the whole crop on screen — not one image pixel per
+  // screen pixel. VA.lightboxFitSize is what makes that true, and it is here
+  // rather than in CSS for a measured reason: capping a crop's height in CSS
+  // means `object-fit: contain`, which insets the picture inside its element,
+  // and a percentage overlay then points into the letterbox rather than at the
+  // rect (the hover card's own `--crop-ratio` rule, style.css, exists because
+  // of that same trap). Sizing the FRAME to the fitted box instead leaves the
+  // picture filling its element exactly, which is the one arrangement in which
+  // the overlay is right at every zoom level.
+  VA.LIGHTBOX_ZOOM = { min: 1, max: 8, step: 1.5 };
+
+  // The view a freshly-opened lightbox starts in. A function, not a shared
+  // object: every caller mutates nothing, but a module-level literal handed
+  // out three times is one accidental assignment away from a zoom level that
+  // survives a close.
+  VA.lightboxFit = function () {
+    return { scale: 1, x: 0, y: 0 };
+  };
+
+  // The crop's fitted size inside the stage: the larger box that still fits
+  // both ways, at the crop's own aspect ratio. `null` where there is nothing
+  // to measure (the DOM shim has no layout), which the caller reads as "leave
+  // the stylesheet's own sizing standing" rather than as zero.
+  VA.lightboxFitSize = function (crop, stage) {
+    var cw = Number(crop && crop.width) || 0;
+    var ch = Number(crop && crop.height) || 0;
+    var sw = Number(stage && stage.width) || 0;
+    var sh = Number(stage && stage.height) || 0;
+    if (cw <= 0 || ch <= 0 || sw <= 0 || sh <= 0) return null;
+    var k = Math.min(sw / cw, sh / ch);
+    return { width: cw * k, height: ch * k };
+  };
+
+  // Zoom by `factor`, keeping whatever is under `anchor` exactly where it is.
+  // `anchor` is in STAGE coordinates — the untransformed box the wrapper
+  // occupies — which is what a wheel event gives after subtracting the stage's
+  // own origin.
+  //
+  // The anchor is the whole reason this is arithmetic rather than a class
+  // toggle. Zooming about the stage's ORIGIN walks whatever the reader was
+  // looking at off the edge, so a reader who has just found the highlighted
+  // cell has to pan it back by hand at every step — which is the complaint
+  // this surface exists to answer, reintroduced one level in.
+  VA.lightboxZoomAt = function (view, factor, anchor) {
+    var from = view || VA.lightboxFit();
+    var scale = Math.min(VA.LIGHTBOX_ZOOM.max,
+      Math.max(VA.LIGHTBOX_ZOOM.min, from.scale * (Number(factor) || 1)));
+    if (scale === from.scale) return { scale: scale, x: from.x, y: from.y };
+    var at = anchor || { x: 0, y: 0 };
+    var ratio = scale / from.scale;
+    return {
+      scale: scale,
+      x: at.x - (at.x - from.x) * ratio,
+      y: at.y - (at.y - from.y) * ratio,
+    };
+  };
+
+  // A drag, in stage pixels. The scale is untouched: a pan is a translation
+  // and nothing else, which is why it is a separate function from the zoom
+  // rather than a flag on it.
+  VA.lightboxPan = function (view, dx, dy) {
+    var from = view || VA.lightboxFit();
+    return {
+      scale: from.scale,
+      x: from.x + (Number(dx) || 0),
+      y: from.y + (Number(dy) || 0),
+    };
+  };
+
+  // The one rule that keeps the picture reachable: an axis on which the
+  // scaled crop is SMALLER than the stage is centred, and an axis on which it
+  // is larger is held so the stage stays covered — no gap at either edge.
+  //
+  // Centring falls out of the same expression rather than being a separate
+  // step, which is what lets the fit view be a plain `{1, 0, 0}`: at fit the
+  // crop is smaller than the stage on at least one axis and exactly equal on
+  // the other, so clamping IS the centring. And a reader can no longer drag
+  // the crop out of the window and be left with an empty stage — the failure
+  // that would otherwise need the Fit button to be found before the surface
+  // was usable again.
+  //
+  // `content` is the FITTED size (VA.lightboxFitSize), unscaled; the scale is
+  // applied here, once, so no caller holds a second copy of it.
+  VA.lightboxClamp = function (view, content, stage) {
+    var v = view || VA.lightboxFit();
+    if (!content || !stage) return { scale: v.scale, x: v.x, y: v.y };
+    return {
+      scale: v.scale,
+      x: clampAxis(v.x, content.width * v.scale, stage.width),
+      y: clampAxis(v.y, content.height * v.scale, stage.height),
+    };
+  };
+
+  function clampAxis(offset, content, stage) {
+    if (content <= stage) return (stage - content) / 2;
+    return Math.min(0, Math.max(stage - content, offset));
+  }
+
+  // Where a point of the CONTENT lands on the stage under this view. The
+  // content's own frame is the fitted box, so a highlight's top-left is
+  // `frac[0] * fit.width, frac[1] * fit.height` — and this is the function a
+  // test needs to state "the box tracks the picture", because that claim is
+  // exactly "the same transform carries both".
+  VA.lightboxPoint = function (view, point) {
+    var v = view || VA.lightboxFit();
+    return {
+      x: (Number(point && point.x) || 0) * v.scale + v.x,
+      y: (Number(point && point.y) || 0) * v.scale + v.y,
+    };
+  };
+
+  // Rounded for the same reason views/crop.js rounds its percentages: an
+  // unrounded float in a style attribute is noise in every screenshot and
+  // every DOM diff, and a hundredth of a pixel is not a thing any of these
+  // images is laid out to.
+  VA.lightboxTransform = function (view) {
+    var v = view || VA.lightboxFit();
+    return "translate(" + round(v.x, 100) + "px, " + round(v.y, 100) +
+      "px) scale(" + round(v.scale, 10000) + ")";
+  };
+
+  // Which way a wheel notch zooms. Up (a negative deltaY, every platform's
+  // "away from me") zooms IN, which is the direction every map and every
+  // image viewer has taught.
+  VA.lightboxWheelFactor = function (deltaY) {
+    return (Number(deltaY) || 0) < 0
+      ? VA.LIGHTBOX_ZOOM.step : 1 / VA.LIGHTBOX_ZOOM.step;
+  };
+
+  function round(value, places) {
+    return Math.round((Number(value) || 0) * places) / places;
+  }
 
   // --- worksheets ---------------------------------------------------------
 

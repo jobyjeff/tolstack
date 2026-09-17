@@ -56,21 +56,25 @@
         "Chrome needs the folder permission re-granted (one click, once per browser restart)."));
       root.appendChild(button("Re-grant", "banner__action", handlers.onReconnect));
     } else {
-      // The one line served mode adds (viewer_http_transport, deliverable 2):
-      // FSA mode gets none, unchanged from before this handoff — the connect-
-      // folder banner already disappeared on its own once state went READY,
-      // and the picker itself is proof enough of "the granted folder" there.
-      if (state.transport === VA.TRANSPORT.HTTP) {
-        root.appendChild(VA.el("div", "banner__source",
-          "Served over HTTP — no folder grant needed. Read-only."));
-      }
-      root.appendChild(VA.el("span", "banner__built",
-        VA.builtLine(state.results, state.crops, state.projection)));
+      // Everything that used to sit here as five always-visible rows of text
+      // — the transport line, when each projection was built, which rule
+      // resolved the crops, and which tree built each of the two — is folded
+      // into ONE closed disclosure (Jeff, 2026-09-16: "These 5 lines at the
+      // top of the page are meaningless to the user. Delete.").
+      //
+      // Folded rather than deleted, and the distinction is the whole of this
+      // block's design: none of these facts is wrong, and one of them
+      // (`provenanceLine`) exists because a projection built from a superseded
+      // branch sat in front of a reader for six hours looking current
+      // (ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_
+      // projection). What was wrong was their PLACEMENT — five rows of build
+      // stamps above the page, on every load, for a reader who is here to read
+      // a stack. The alarm below still fires on its own whenever the pair
+      // provably disagrees, which is the case a reader must not be able to
+      // miss; this fold is for the reader who went looking.
+      source(root, state, labels);
       root.appendChild(button("Reload", "banner__action", handlers.onReload));
-      // Which rule resolved the crops, beneath the counts they belong to.
-      var rules = VA.cropRulesLine(state.crops);
-      if (rules) root.appendChild(VA.el("div", "banner__crop-rules", rules));
-      provenance(root, state, labels, handlers);
+      provenance(root, state, handlers);
     }
 
     if (state.error) {
@@ -100,12 +104,40 @@
     return root;
   };
 
+  // The fold itself. One <details>, the same word every fold on this app
+  // carries (VA.DATA_SOURCE_SUMMARY), holding the rows in the order they were
+  // rendered in before: how this page is reading the data, when each
+  // projection was built, which rule resolved the crops, and which tree wrote
+  // each file.
+  function source(root, state, labels) {
+    var fold = VA.disclosure(VA.DATA_SOURCE_SUMMARY, "banner__source");
+    // The one line served mode adds (viewer_http_transport, deliverable 2):
+    // FSA mode gets none, unchanged from before that handoff — the connect-
+    // folder banner already disappeared on its own once state went READY,
+    // and the picker itself is proof enough of "the granted folder" there.
+    if (state.transport === VA.TRANSPORT.HTTP) {
+      fold.body.appendChild(VA.el("div", "banner__transport",
+        "Served over HTTP — no folder grant needed. Read-only."));
+    }
+    fold.body.appendChild(VA.el("div", "banner__built",
+      VA.builtLine(state.results, state.crops, state.projection)));
+    // Which rule resolved the crops, beneath the counts they belong to.
+    var rules = VA.cropRulesLine(state.crops);
+    if (rules) fold.body.appendChild(VA.el("div", "banner__crop-rules", rules));
+    [[labels.name, state.results], ["crops", state.crops]].forEach(function (pair) {
+      var line = VA.provenanceLine(pair[0], pair[1]);
+      if (line) fold.body.appendChild(VA.el("div", "banner__provenance", line));
+    });
+    root.appendChild(fold.box);
+    return fold;
+  }
+
   // Which tree built each projection, and what is provably wrong with the pair.
   // `built_at` alone is what let a projection from a superseded branch sit in
   // front of a reader for six hours on 2026-08-07 looking current
   // (ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_projection).
   // A timestamp answers "when", and the question was "which tree".
-  function provenance(root, state, labels, handlers) {
+  function provenance(root, state, handlers) {
     // `extraAlarms` is the caller's own list, appended to the shared ones rather
     // than rendered somewhere else: the topology page's orphan studies belong in
     // the same box as "these two were built from different trees", because they
@@ -142,11 +174,6 @@
       root.appendChild(box);
       root.appendChild(rebuildAffordance(state, handlers));
     }
-
-    [[labels.name, state.results], ["crops", state.crops]].forEach(function (pair) {
-      var line = VA.provenanceLine(pair[0], pair[1]);
-      if (line) root.appendChild(VA.el("div", "banner__provenance", line));
-    });
   }
 
   // What the reader is given to do about a stale pair. Never a rebuild

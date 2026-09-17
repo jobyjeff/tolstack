@@ -9,6 +9,10 @@
     "assembly": "217755",
     "assembly_revision": "A.1",
     "assembly_export": "not read for this stack -- see identification_note",
+    "assembly_export_ref": {
+      "status": "unestablished",
+      "why": "Not read for this stack -- the machine-readable form of the prose `assembly_export` beside this; see `identification_note`. Same situation as the M1 stack: the part drawings and the workbook are the sources, and the 217755 assembly drawing was never opened for it."
+    },
     "configuration": "M2 / TC intent design (the current design)",
     "question": "At every corner of (fit condition x operating temperature), does either shrink-fit joint in the main spindle bearing seats reach zero interference? A slip fit anywhere is a failure, not a marginal result.",
     "parts": [

@@ -58,7 +58,13 @@ REQUIRED_KEYS = frozenset(
     {"id", "contract", "issue", "note", "file", "find", "replace",
      "tier", "suite", "expect_red"}
 )
-TIERS = frozenset({"fast", "browser"})
+#: ``tier`` names a HARNESS, not a speed -- ``fast`` is the *viewer's* fast
+#: runner specifically, which is why the annotate app's own fast runner needed a
+#: third word rather than a second meaning for that one
+#: (``ISSUE_20260915_the_annotate_fast_tier_cannot_own_a_mutation_witness``,
+#: closed 2026-09-16). The two runners are separate harnesses: separate
+#: check-name sources, and no suite registry in common.
+TIERS = frozenset({"fast", "annotate", "browser"})
 
 #: Where each tier's sub-check NAMES are written -- which ``expect_red`` copies
 #: verbatim. Note what the fast tier's entry is *not*: the tier is invoked as
@@ -68,8 +74,24 @@ TIERS = frozenset({"fast", "browser"})
 #: on documented vocabularies drifting from the data they describe).
 CHECK_SOURCE = {
     "fast": "apps/viewer/tests.js",
+    # ...and note what the annotate row IS: that runner is both the harness and
+    # the file its check names are written in, because it has no separate suite
+    # to load -- the asymmetry with the row above is real, not a mistake.
+    "annotate": "apps/annotate/run_tests.cjs",
     "browser": "scripts/run_viewer_browser_tests.mjs",
 }
+
+#: The runner's own copy of the tier vocabulary: one ``TIER_HARNESS`` object
+#: keyed by tier word, holding the script to spawn, the regex its failure lines
+#: match and whether it takes a ``--only <suite>``. Paired against ``TIERS``
+#: below, because a word that exists on one side and not the other is the
+#: failure this whole tier was built to kill, one level up: the runner would
+#: throw ``unknown tier`` several minutes into a browser sweep, or a tier word
+#: would sit in ``TIERS`` with nothing able to run it.
+RUNNER = "scripts/run_mutation_witness_tests.mjs"
+
+#: One ``<word>: {`` key of that object, at its one indentation level.
+TIER_HARNESS_KEY = re.compile(r"^  (\w+): \{$", re.MULTILINE)
 
 #: The file holding the ``SUITES`` registry a browser entry's ``suite`` filters
 #: on. Its keys are the labels the suites print; ``--only`` matches a substring
@@ -164,6 +186,23 @@ def test_every_anchor_resolves_to_exactly_one_place(mutations):
             f"code the entry means, or retire the entry. Anchor:\n"
             f"{entry['find']}"
         )
+
+
+def test_the_runner_and_this_module_hold_the_same_tier_vocabulary():
+    """``TIER_HARNESS``'s keys are the words the runner can actually spawn."""
+    source = source_of(RUNNER)
+    start = source.index("const TIER_HARNESS = {")
+    end = source.index("\n};", start)
+    keys = TIER_HARNESS_KEY.findall(source[start:end])
+    assert keys, (
+        f"no TIER_HARNESS keys found in {RUNNER} -- the reader has rotted, so "
+        f"this pairing is passing against nothing"
+    )
+    assert set(keys) == set(TIERS), (
+        f"{RUNNER}'s TIER_HARNESS covers {sorted(keys)}, TIERS is {sorted(TIERS)}. "
+        f"A tier word in one and not the other is either an entry nothing can "
+        f"run, or a harness no entry may name."
+    )
 
 
 def test_the_check_source_map_covers_the_tier_vocabulary():

@@ -67,25 +67,59 @@
       box.appendChild(VA.el("p", "muted", "no joint block"));
       return box;
     }
-    var dl = VA.el("dl", "kv");
-    Object.keys(joint).forEach(function (key) {
-      var value = joint[key];
-      dl.appendChild(VA.el("dt", null, key));
-      if (Array.isArray(value)) {
-        dl.appendChild(VA.el("dd", null, arrayValue(value)));
-      } else {
-        dl.appendChild(VA.el("dd", null, String(value)));
-      }
-    });
-    box.appendChild(dl);
+    box.appendChild(kvList(joint));
     return box;
+  }
+
+  // A free-form authored block, rendered key by key. The page cannot know what
+  // is in one -- a `joint` block and a generated check's `configuration` are
+  // both "whatever the author wrote" -- so the key IS the label, and this is
+  // the one renderer that turns a block into reader-facing text. It was three
+  // near-copies until 2026-09-16, and each of the three printed something the
+  // reader could not act on (reader_facing_copy_and_vocabulary item 7):
+  //
+  //   * the raw key, `assembly_drawing` / `temperature_c` / `stiffness_ratio`,
+  //     as a definition-list term. VA.fieldLabel drops the separator and
+  //     changes nothing else.
+  //   * the word "null", for a key whose value is absent. Absent is absent; it
+  //     is not the string a JSON serialiser happens to write for it. Live on
+  //     `hub_bearing_thermal_fit_m1` (`assembly_revision`).
+  //   * `JSON.stringify(item)` for an object inside an array -- a wall of
+  //     braces, quotes and field names in the middle of a page whose whole
+  //     argument is that a reader should not have to open the JSON. The M1
+  //     stack's joint block carries six parts-list rows that way.
+  //
+  // Nested rather than flattened: a key's own sub-block keeps its structure,
+  // and nothing is dropped.
+  function kvList(block) {
+    var dl = VA.el("dl", "kv");
+    Object.keys(block).forEach(function (key) {
+      dl.appendChild(VA.el("dt", null, VA.fieldLabel(key)));
+      dl.appendChild(blockValue(block[key]));
+    });
+    return dl;
+  }
+
+  function blockValue(value) {
+    if (Array.isArray(value)) return VA.el("dd", null, arrayValue(value));
+    if (value === null || value === undefined) {
+      return VA.el("dd", "muted", "not recorded");
+    }
+    if (typeof value === "object") return VA.el("dd", null, kvList(value));
+    // `kv__value` marks the RECORD's half of the pair: the label beside it is
+    // the viewer's (VA.fieldLabel), the value is whatever the author wrote,
+    // rendered whole. A live joint block says "not read for this stack -- see
+    // identification_note", which names a field on purpose and is not the
+    // page's sentence to trim.
+    return VA.el("dd", "kv__value", String(value));
   }
 
   function arrayValue(items) {
     var list = VA.el("ul", "plainlist");
     items.forEach(function (item) {
-      list.appendChild(VA.el("li", null,
-        typeof item === "object" && item !== null ? JSON.stringify(item) : String(item)));
+      list.appendChild(typeof item === "object" && item !== null
+        ? VA.el("li", null, kvList(item))
+        : VA.el("li", null, String(item)));
     });
     return list;
   }
@@ -113,7 +147,10 @@
     VA.elementRows(stackProj).forEach(function (row, index) {
       body.appendChild(elementRow(stackProj, row, index, cropsIndex, handlers));
       if (row.element.note) {
-        body.appendChild(noteRow("el-note", row.element.note));
+        // `--record`: this row is the element's OWN note, printed whole. Its
+        // sibling `el-note--gap` rows are the viewer's summary of a hardware
+        // entry's gaps, and the banned-string guard scans those.
+        body.appendChild(noteRow("el-note el-note--record", row.element.note));
       }
       // Hardware gaps fold into one row. They repeat verbatim across every
       // element sharing a hardware_ref (three, for the NAS6403 bolt), and an
@@ -192,8 +229,8 @@
     if (derived.zero_width) {
       min.className += " num--zero-width";
       max.className += " num--zero-width";
-      min.setAttribute("title", "zero-width band: min == max, no document gives a tolerance");
-      max.setAttribute("title", "zero-width band: min == max, no document gives a tolerance");
+      min.setAttribute("title", VA.ATTENTION.no_tolerance.title);
+      max.setAttribute("title", VA.ATTENTION.no_tolerance.title);
     }
     tr.appendChild(min);
     tr.appendChild(max);
@@ -247,22 +284,22 @@
         "the material this element's feature is cut in — see Materials below " +
         "for its CTE and where the CTE came from"));
     }
-    if (derived.zero_width) {
-      chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
-        "min == max: every interval this feeds is a LOWER bound on the real spread."));
-    }
-    // A chip only for the states that must be legible from the ROW, at a glance,
-    // across a thirty-row table: `unestablished`, and a status or identity rule
-    // this viewer cannot explain. `established`, "no export block" and the
-    // spec-pile identity rule get no chip — they are 48 of the 48 live citations
-    // between them, and a chip on every row is a chip nobody reads. Every state
-    // in full is in the right pane now (click the row).
-    var exportView = VA.exportProvenance(element.source_ref, derived.identity_rule);
-    if (exportView && exportView.loud) {
-      chips.appendChild(VA.chip("chip--export-" + exportView.state,
-        VA.EXPORT_CHIP_TEXT[exportView.state] || "EXPORT STATUS UNKNOWN",
-        exportView.headline + (exportView.why ? " — " + exportView.why : "")));
-    }
+    // ONE badge for everything this row has to admit, with the words on hover
+    // (deliverable 5, flyout_resize_annotator_filter_and_deselect). Until
+    // 2026-09-16 the two alerts below were two filled all-caps chips shouting
+    // from the row itself — "no tolerance recorded" beside "FILE NOT
+    // IDENTIFIED" — which is the loudness Jeff named. They still say the same
+    // words (VA.rowAlerts reads VA.ATTENTION and VA.EXPORT_CHIP_TEXT; nothing
+    // is reworded and nothing is dropped), just one row of type quieter and
+    // one hover away.
+    //
+    // Which alerts must be legible from the ROW at all is the same judgement it
+    // has always been: `established`, "no export block" and the spec-pile
+    // identity rule are quiet because nearly every live citation carries one of
+    // them, and a chip on every row is a chip nobody reads. Every state in full
+    // is in the right pane (click the row) as well as in this popup.
+    var alerts = VA.rowAlerts(element, derived);
+    if (alerts.length) chips.appendChild(alertBadge(alerts, element, handlers));
     cell.appendChild(chips);
     var where = VA.el("div", "el-row__where el-row__where--compact",
       VA.citationWhere(element.source_ref));
@@ -270,6 +307,36 @@
     cell.appendChild(where);
     cell.appendChild(cropTrigger(stackProj, element, cropsIndex, handlers));
     return cell;
+  }
+
+  // The row's consolidated alert badge: one icon, the alerts on hover.
+  //
+  // A `cardtrig` over the page's own popover, exactly like the confidence chip
+  // beside it — same trigger class, same tabindex, same three openers
+  // (mouseenter / focus / click), so it inherits the hover-intent corridor, the
+  // placement, Escape and the outside-click close rather than growing a second
+  // popup mechanism on this page. The `title` is not a duplicate of the popup:
+  // it is what the badge says when the page is rendered with no card machinery
+  // at all (the fast tier's DOM shim, a view called without handlers), so the
+  // information is never only in a hover.
+  function alertBadge(alerts, element, handlers) {
+    var badge = VA.el("span", "chip chip--alert", VA.ALERT_ICON);
+    badge.setAttribute("title", alerts.map(function (alert) {
+      return alert.text + (alert.why ? " — " + alert.why : "");
+    }).join("\n"));
+    // `cardtrig` is claimed only where a card can actually be shown, the same
+    // gate the confidence chip above applies to itself: a trigger cue on a
+    // badge that opens nothing is a promise the page cannot keep.
+    if (!handlers.onCardShow) return badge;
+    badge.className += " cardtrig";
+    badge.setAttribute("tabindex", "0");
+    var show = function () {
+      handlers.onCardShow(VA.alertsCard(element.name || element.id, alerts), badge);
+    };
+    badge.onmouseenter = show;
+    badge.onfocus = show;
+    badge.onclick = show;
+    return badge;
   }
 
   // The hover target. Carries its crop entry on the node so the app can show the
@@ -307,7 +374,13 @@
       gaps.length + " hardware gap" + (gaps.length === 1 ? "" : "s") +
       (hardwareRef ? " — " + hardwareRef : "")));
     var list = VA.el("ul", "plainlist");
-    gaps.forEach(function (gap) { list.appendChild(VA.el("li", null, gap)); });
+    // A hardware or material entry's own recorded gap, word for word. The
+    // class carries no styling; it says in the DOM that this text is the
+    // record's, which is what the banned-string guard subtracts before it
+    // scans the viewer's own words.
+    gaps.forEach(function (gap) {
+      list.appendChild(VA.el("li", "el-gaps__text", gap));
+    });
     box.appendChild(list);
     td.appendChild(box);
     tr.appendChild(td);
@@ -464,7 +537,13 @@
     box.appendChild(VA.el("summary", null,
       gaps.length + " material gap" + (gaps.length === 1 ? "" : "s") + " — " + materialId));
     var list = VA.el("ul", "plainlist");
-    gaps.forEach(function (gap) { list.appendChild(VA.el("li", null, gap)); });
+    // A hardware or material entry's own recorded gap, word for word. The
+    // class carries no styling; it says in the DOM that this text is the
+    // record's, which is what the banned-string guard subtracts before it
+    // scans the viewer's own words.
+    gaps.forEach(function (gap) {
+      list.appendChild(VA.el("li", "el-gaps__text", gap));
+    });
     box.appendChild(list);
     td.appendChild(box);
     tr.appendChild(td);
@@ -535,9 +614,8 @@
         (stackProj.archetype || "?") + "\" builds them, coefficients included, " +
         "from the stack's own block, and the projection ran that loader in " +
         "Python: the same code the tests pin, so nothing here was re-derived in " +
-        "the browser. The identical term table prints from: " +
-        "venv-win\\Scripts\\python.exe tests\\debug_report_thermal_fit.py " +
-        "--terms --markdown"));
+        "the browser. The same term table can be printed outside the browser, " +
+        "from the repo's own thermal-fit term report."));
     }
     (stackProj.checks || []).forEach(function (check) {
       section.appendChild(checkCard(stackProj, check));
@@ -670,12 +748,12 @@
     });
     card.appendChild(inputs);
 
+    // The archetype's own corner block, through the one free-form renderer the
+    // joint block uses -- it printed `temperature_c` and `stiffness_ratio` raw
+    // until 2026-09-16, on the live thermal stacks.
     if (check.configuration && Object.keys(check.configuration).length) {
-      var dl = VA.el("dl", "kv kv--tight");
-      Object.keys(check.configuration).forEach(function (key) {
-        dl.appendChild(VA.el("dt", null, key));
-        dl.appendChild(VA.el("dd", null, String(check.configuration[key])));
-      });
+      var dl = kvList(check.configuration);
+      dl.className = "kv kv--tight";
       card.appendChild(dl);
     }
     if (check.guidance) card.appendChild(VA.el("p", "check__guidance", check.guidance));
@@ -717,7 +795,16 @@
       return section;
     }
     var list = VA.el("ul", "notelist");
-    notes.forEach(function (note) { list.appendChild(VA.el("li", null, note)); });
+    // `notelist__note` carries no styling of its own; it says, in the DOM, that
+    // this node's text is the STACK's and not the page's. The banned-string
+    // guard subtracts the record's own prose before it scans, and could not
+    // tell these apart from the viewer's sentences until they had a name
+    // (2026-09-16) -- a live note argues an assumption by naming
+    // `thermal_fit.stiffness_ratio` and its `source_ref`, which is the record
+    // speaking precisely and not something to trim.
+    notes.forEach(function (note) {
+      list.appendChild(VA.el("li", "notelist__note", note));
+    });
     section.appendChild(list);
     return section;
   }

@@ -324,6 +324,32 @@ export class AnnotateScene {
     attr.needsUpdate = true;
   }
 
+  // Put the highlighted face back to its own colours, and forget it -- the
+  // missing half of highlightFace (flyout_resize_annotator_filter_and_deselect,
+  // deliverable 3). `restoreColors` existed but was reachable only from INSIDE
+  // highlightFace, on its way to tinting the next face, so no caller could ever
+  // arrive at "nothing is picked": a click into empty space cleared
+  // `state.currentPick` and left the orange exactly where it was.
+  //
+  // Returns what was cleared (or null), so a caller can tell an undo that did
+  // something from one that had nothing to undo. Clearing nothing is not an
+  // error: this is the undo of a mis-click.
+  clearHighlight() {
+    const last = this._lastPick;
+    if (!last) return null;
+    this.restoreColors(last.sha256);
+    this._lastPick = null;
+    return last;
+  }
+
+  // Which face carries the pick tint right now, or null. Read-only; the app
+  // keeps its own `state.currentPick`, and this is how a test (and the
+  // ?autotest=1 path) can check that the two agree instead of trusting that
+  // they do.
+  highlightedFace() {
+    return this._lastPick ? { sha256: this._lastPick.sha256, faceId: this._lastPick.faceId } : null;
+  }
+
   highlightFace(sha256, faceId) {
     const mesh = this.parts.get(sha256);
     if (!mesh) return;

@@ -58,6 +58,15 @@
     return node;
   };
 
+  // The ONE word this app folds things under, on every surface that folds
+  // anything: the banner's provenance rows and each hover card's sourcing
+  // narrative (viewer_hover_deslop_and_banner_purge, 2026-09-16). One constant
+  // rather than one literal per surface, for the reason every vocabulary in
+  // this repo is one constant -- a reader who learns what "Data source" hides
+  // on a card must find the same word hiding the same kind of thing on the
+  // banner, and two literals drift.
+  VA.DATA_SOURCE_SUMMARY = "Data source";
+
   // A small closed-by-default disclosure: `<details><summary>…`, with the body
   // returned beside the box so a caller appends into it.
   //

@@ -333,6 +333,7 @@ const files = [
   "views/stack.js",
   "views/crop.js",
   "views/cards.js",
+  "views/lightbox.js",
   "views/worksheet.js",
   "views/detail.js",
   "views/topology.js",
