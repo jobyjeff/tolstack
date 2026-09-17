@@ -678,8 +678,10 @@
       // re-place, and goes through the guards.
       if (painted) replace(trigger); else position(nodes.crop, trigger);
       painted = true;
-      // aspect-ratio already reserved the height, but re-place once the PNG has
-      // settled either way — a broken image also changes the box.
+      // aspect-ratio already reserved the height, but OFFER a re-place once
+      // the PNG has settled either way -- a broken image also changes the box.
+      // Offer, not do: replace() decides, and declines while the pointer is on
+      // the card.
       var img = nodes.crop.querySelector ? nodes.crop.querySelector("img") : null;
       if (img) {
         img.onload = function () { replace(trigger); };
@@ -860,8 +862,8 @@
       // see showCrop above, and replace().
       if (painted) replace(trigger); else position(nodes.crop, trigger);
       painted = true;
-      // Re-place once each PNG settles either way — same reasoning as
-      // showCrop's single-image version.
+      // Offer a re-place once each PNG settles either way -- same reasoning,
+      // and the same guards, as showCrop's single-image version.
       var imgs = nodes.crop.querySelectorAll ? nodes.crop.querySelectorAll("img") : [];
       Array.prototype.forEach.call(imgs, function (img) {
         img.onload = function () { replace(trigger); };
