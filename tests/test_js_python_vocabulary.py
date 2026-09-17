@@ -1,6 +1,6 @@
 """The viewer's status tables, paired with the Python enumerations they copy.
 
-Nine vocabularies are **defined in Python and hand-copied into JavaScript**:
+Eleven vocabularies are **defined in Python and hand-copied into JavaScript**:
 
 ===============================================  ==================================
  Python (the definition)                          JavaScript (the copy)
@@ -20,7 +20,19 @@ Nine vocabularies are **defined in Python and hand-copied into JavaScript**:
  ``PROJECTION_CONFIDENCES``, same file --          ``VA.CONFIDENCES``
  ``stack.CONFIDENCES`` ranked, plus the
  synthesised ``NO_SOURCE_REF``
+ ``UNVERIFIED_CONFIDENCES``,                      ``VA.UNVERIFIED_CONFIDENCES``
+ ``scripts/build_topology_projection.py``
+ the ``how`` each ``worksheet_for`` returns,      ``VA.WORKSHEET_SOURCES``
+ in **both** viewer builders
 ===============================================  ==================================
+
+The last two arrived together on 2026-09-16 (``reader_facing_copy_and_vocabulary``)
+and are the first rows whose JS side had to be *built* before it could be paired:
+one was two literals inside ``VA.needsAnnotation``'s body, the other a bare
+``=== "declared"`` whose only named copy was a local inside ``apps/viewer/tests.js``.
+Neither extractor can anchor on a vocabulary spelled in a function body, so "make it
+a table" is not a style preference here -- it is the precondition for this module
+being able to see the vocabulary at all.
 
 The JS tables are the right *shape* -- total functions with a loud fallback for a
 value they have no branch for -- and ``apps/viewer/tests.js``'s ``VALUE_GUARDS``
@@ -52,8 +64,9 @@ Handoff: ``js_python_vocabulary_pairing`` (2026-08-12), from
 What the JS extraction can and cannot see
 -----------------------------------------
 
-Five of the six tables are object literals, read by ``js_object_keys``;
-``VA.CONFIDENCES`` is an **array** and is read by its sibling ``js_array_strings``,
+Most of the tables are object literals, read by ``js_object_keys``;
+``VA.CONFIDENCES`` and ``VA.UNVERIFIED_CONFIDENCES`` are **arrays** and are read by
+its sibling ``js_array_strings``,
 which is the same scanner with the depth-1 rule changed from "identifiers followed
 by ``:``" to "string literals" -- and with anything else at depth 1 raising rather
 than being skipped, since an array element this reader cannot resolve is a
@@ -68,17 +81,20 @@ or a string, which is what defeats a regex over these files -- every table here 
 both. Three things it does **not** understand, all of them scoped to the span
 between the anchor and its matching brace:
 
-* **Regex literals.** ``/}/`` inside a table would end the scan early. The check is
-  per-span, not per-file: ``viewer.js`` does carry four regex literals, and all four
-  are outside every table body. Re-derived 2026-08-18 in
-  ``review/confidence_vocabulary_single_definition`` (the sentence had been written
-  for **three** tables at 2026-08-12 line numbers and was never recounted as tables
-  four, five and six arrived, so both halves of it had gone stale while staying
-  true): regex literals at lines 321, 556, 566, 567, table bodies at 67 (the
-  ``CONFIDENCES`` array), 97-108, 243-257, 288-295, 455-483 and 602-625. Both lists
-  move with any edit to ``viewer.js`` -- recompute them rather than trusting these
-  digits, and note that ``js_array_strings`` needs no such caveat, because a ``/``
-  that opens neither comment form is one of the things it refuses outright.
+* **Regex literals.** ``/}/`` inside a table would end the scan early, and the
+  table would come back SHORT rather than empty -- which the anti-vacuity test
+  below cannot catch, because a short table is a passing extraction. The check is
+  per-span, not per-file: ``viewer.js`` carries several regex literals and every one
+  of them is outside every table body.
+
+  This paragraph used to name both lists by line number. It was recounted in
+  ``review/confidence_vocabulary_single_definition`` (2026-08-18), where both halves
+  had gone stale while staying true, and it had gone stale again by 2026-09-16, when
+  ``revisionText`` and the run-date reader added three more regex literals and two
+  tables arrived. The digits are gone; **recompute both lists against the file** if
+  you need them. What has not changed is the rule: no regex literal inside a table
+  body. ``js_array_strings`` needs no such caveat, because a ``/`` that opens
+  neither comment form is one of the things it refuses outright.
 * **Ternaries at depth 1.** ``a: cond ? yes : no`` yields a spurious key ``yes``,
   because ``yes`` is an identifier followed by ``:``. That direction is loud rather
   than silent -- the pairing below goes red reporting a key Python cannot emit --
@@ -120,6 +136,7 @@ CROPS_SCRIPT = REPO_ROOT / "scripts" / "build_viewer_crops.py"
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from build_viewer_crops import HIGHLIGHT_KINDS  # noqa: E402
 PROJECTION_SCRIPT = REPO_ROOT / "scripts" / "build_viewer_projection.py"
+TOPOLOGY_PROJECTION_SCRIPT = REPO_ROOT / "scripts" / "build_topology_projection.py"
 
 
 # --------------------------------------------------------------------------- #
@@ -535,6 +552,218 @@ def python_identity_rules() -> tuple[str, ...]:
     return tuple(sorted(set(out)))
 
 
+#: The JSON spelling of a Python ``None``, which is what an absent value literally
+#: is by the time the viewer reads it out of a projection file -- and what a JS
+#: property key coerces to, which is why ``VA.WORKSHEET_SOURCES`` spells its third
+#: key ``"null"``. Named rather than written twice: it is the one place either
+#: side of a pairing is allowed to be re-spelled, and it should be arguable in one
+#: place rather than looking like a typo in two.
+JS_NULL_KEY = "null"
+
+
+def _topology_projection_module():
+    """``scripts/build_topology_projection.py``, imported by path.
+
+    Its sibling ``_projection_module`` reaches the *stack* builder; this one is
+    needed because the two viewer builders are deliberately not shared (each is a
+    self-contained stdlib-only script), so a vocabulary can be defined in either.
+    """
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import build_topology_projection  # noqa: PLC0415 -- resolved from scripts/
+
+    return build_topology_projection
+
+
+def python_unverified_confidences() -> tuple[str, ...]:
+    """The confidences that mean *nothing readable stands behind this number*.
+
+    Read from ``UNVERIFIED_CONFIDENCES`` in ``scripts/build_topology_projection.py``,
+    which is where the set is *used to decide something*: it chooses which edges
+    become ``unverified_value`` rows in a topology's "what is missing" panel. The JS
+    copy, ``VA.needsAnnotation``, chooses which grid rows and which studies wear the
+    ``unverified`` badge and which edges offer the annotate link -- and those two
+    answers have to agree, or the panel lists rows the grid does not badge, on the
+    one page whose whole job is to say what cannot be trusted.
+
+    It was unpairable until 2026-09-16 for a structural reason worth keeping: the
+    JS side was a **function body** (``confidence === "untraced" || confidence ===
+    "no_source_ref"``), and both extractors in this module need a ``VA.<NAME> = {``
+    or ``= [`` to anchor on. Promoting it to ``VA.UNVERIFIED_CONFIDENCES`` is what
+    made this row possible; a third copy of the pair, in ``confidenceClass``'s own
+    comment, was retired in the same diff
+    (``ISSUE_20260915_the_loud_gap_confidence_pair_has_three_homes_and_no_pairing``).
+
+    ``no_source_ref`` has **zero live instances**, so ``apps/viewer/tests.js``'s
+    live-data guards can never see a drift in that half. This row is the only thing
+    that can.
+    """
+    return tuple(_topology_projection_module().UNVERIFIED_CONFIDENCES)
+
+
+def python_worksheet_sources() -> tuple[str, ...]:
+    """Every ``worksheet_source`` value a viewer builder can write.
+
+    Same shape of problem as :func:`python_crop_rules` -- there is no enumeration to
+    import, the values are literals in the branches of ``worksheet_for`` that return
+    -- and the same answer: read the returns themselves. Scoped to that one function
+    for the reason :func:`python_crop_placements` is scoped to ``locate()``: it is
+    where the value is *minted*.
+
+    Read from **both** builders, not one. ``scripts/build_viewer_projection.py`` and
+    ``scripts/build_topology_projection.py`` each carry a ``worksheet_for`` spelling
+    the identical two rules, deliberately not shared because each builder is
+    stdlib-only and self-contained -- so reading only one would leave the other free
+    to grow a fourth value that the viewer has no branch for and this pairing never
+    sees. Their union is the domain, and
+    ``test_both_viewer_builders_mint_the_same_worksheet_source_vocabulary`` below
+    asserts the union is not hiding a disagreement.
+
+    ``worksheet_for`` returns a *pair* -- ``(worksheet path | None, how)`` -- so the
+    second element of each returned tuple is what this reads. ``None`` is a real
+    value of the field and not an absence to be skipped (a document with no
+    worksheet has no source for one either), and it comes back as
+    :data:`JS_NULL_KEY`, which is both what the projection JSON carries and what a
+    JS property lookup coerces it to.
+    """
+    out: list[str] = []
+    for script in (PROJECTION_SCRIPT, TOPOLOGY_PROJECTION_SCRIPT):
+        out += _worksheet_sources_of(script)
+    return tuple(sorted(set(out)))
+
+
+def _worksheet_sources_of(script: Path) -> tuple[str, ...]:
+    """One builder's half of :func:`python_worksheet_sources`."""
+    return _worksheet_sources_from_source(
+        script.read_text(encoding="utf-8"), script.name)
+
+
+def _worksheet_sources_from_source(source: str, where: str) -> tuple[str, ...]:
+    """Every ``how`` one ``worksheet_for`` can return, read out of its source.
+
+    Takes text rather than a path for the reason ``_values_statuses_from_source``
+    does: the shapes it refuses are the interesting part, and they must be
+    testable without a file on disk that has them.
+
+    A return this reader cannot follow **raises** rather than being skipped, and so
+    does finding none at all: a silently-dropped value is a vocabulary word the
+    pairing stops checking, which is the failure mode this whole module exists
+    against.
+    """
+    functions = [
+        node for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.FunctionDef) and node.name == "worksheet_for"
+    ]
+    if len(functions) != 1:
+        raise LookupError(
+            f"expected exactly one `worksheet_for` in {where}, found "
+            f"{len(functions)}. If the rule moved, read it where it now lives -- "
+            "do NOT hard-code the values here."
+        )
+
+    def returned_tuples(value: ast.expr) -> list[ast.Tuple]:
+        """The tuple(s) one ``return`` statement can evaluate to.
+
+        Both builders spell their second rule as a conditional expression --
+        ``return (by_name, "by_name") if by_name.exists() else (None, None)`` -- so
+        a reader that accepted only a bare ``ast.Tuple`` saw ``declared`` and
+        nothing else: two thirds of the vocabulary dropped in silence, and a
+        pairing that passes while checking one word. Recursive rather than one
+        level deep, because a third rule would nest.
+        """
+        if isinstance(value, ast.IfExp):
+            return returned_tuples(value.body) + returned_tuples(value.orelse)
+        return [value] if isinstance(value, ast.Tuple) else []
+
+    found: list[str] = []
+    for statement in ast.walk(functions[0]):
+        if not isinstance(statement, ast.Return) or statement.value is None:
+            continue
+        for tup in returned_tuples(statement.value):
+            if len(tup.elts) != 2:
+                raise LookupError(
+                    f"{where}: worksheet_for returns a {len(tup.elts)}-tuple, not "
+                    "the documented (worksheet, how) pair -- teach this reader the "
+                    "new shape rather than letting a value drop out of the pairing"
+                )
+            how = tup.elts[1]
+            if isinstance(how, ast.Constant) and how.value is None:
+                found.append(JS_NULL_KEY)
+            elif isinstance(how, ast.Constant) and isinstance(how.value, str):
+                found.append(how.value)
+            else:
+                raise LookupError(
+                    f"{where}: worksheet_for returns a `how` of {ast.dump(how)}, "
+                    "which this reader cannot follow"
+                )
+    if not found:
+        raise LookupError(
+            f"{where}: worksheet_for mints no `how` this reader can see -- an "
+            "empty Python side would make the pairing vacuous"
+        )
+    return tuple(found)
+
+
+def test_the_worksheet_source_reader_follows_a_conditional_return():
+    """The arm that made this reader more than four lines, watched working.
+
+    Both live builders spell their by-name rule as a conditional expression, and a
+    reader blind to ``ast.IfExp`` comes back with ``("declared",)`` -- which does
+    not redden, it *shrinks the compared set*, the one direction this module's
+    extractors refuse everywhere else. So exercise the shape here, and the shapes
+    it must refuse beside it.
+    """
+    both_rules = (
+        "def worksheet_for(path, raw):\n"
+        "    if declared:\n"
+        "        return resolved, 'declared'\n"
+        "    return (by_name, 'by_name') if by_name.exists() else (None, None)\n"
+    )
+    assert set(_worksheet_sources_from_source(both_rules, "<test>")) == {
+        "declared", "by_name", JS_NULL_KEY}
+
+    # A `how` that is not a literal at all: a forwarded value is a vocabulary word
+    # this reader cannot resolve, and dropping it quietly is the whole failure mode.
+    with pytest.raises(LookupError):
+        _worksheet_sources_from_source(
+            "def worksheet_for(path, raw):\n    return None, how\n", "<test>")
+    # The pair growing a third element -- the shape a refactor would take.
+    with pytest.raises(LookupError):
+        _worksheet_sources_from_source(
+            "def worksheet_for(path, raw):\n    return None, 'by_name', 1\n", "<test>")
+    # No `worksheet_for` at all, and two of them: both are "the rule moved", and
+    # both must raise rather than compare an empty set against Python's.
+    with pytest.raises(LookupError):
+        _worksheet_sources_from_source("x = 1\n", "<test>")
+    with pytest.raises(LookupError):
+        _worksheet_sources_from_source(both_rules + both_rules, "<test>")
+    # A `worksheet_for` that returns nothing this reader recognises.
+    with pytest.raises(LookupError):
+        _worksheet_sources_from_source(
+            "def worksheet_for(path, raw):\n    return None\n", "<test>")
+
+
+def test_both_viewer_builders_mint_the_same_worksheet_source_vocabulary():
+    """The half :func:`python_worksheet_sources` cannot assert by taking a union.
+
+    Two stdlib-only builders writing one field is a deliberate duplication
+    (CLAUDE.md: each viewer builder is self-contained), and the cost of that choice
+    is exactly this: the two ``worksheet_for`` rules can drift from each other
+    without the viewer noticing, because a topology's projection and a stack's are
+    read by the same renderer. A union would absorb the drift silently -- the
+    pairing above would still pass, with the viewer holding a branch for a value
+    only one of the two builders can write.
+    """
+    stack_side = set(_worksheet_sources_of(PROJECTION_SCRIPT))
+    topology_side = set(_worksheet_sources_of(TOPOLOGY_PROJECTION_SCRIPT))
+    assert stack_side == topology_side, (
+        "scripts/build_viewer_projection.py and scripts/build_topology_projection.py "
+        "mint different worksheet_source vocabularies:\n"
+        f"  only the stack builder: {sorted(stack_side - topology_side)}\n"
+        f"  only the topology builder: {sorted(topology_side - stack_side)}\n"
+        "They are two copies of one rule on purpose; keep them one rule."
+    )
+
+
 # --------------------------------------------------------------------------- #
 # 3. the extraction itself, asserted before anything is compared              #
 # --------------------------------------------------------------------------- #
@@ -608,6 +837,22 @@ PAIRINGS = (
     ("CONFIDENCES", js_array_strings, python_projection_confidences,
      "scripts/build_viewer_projection.py: PROJECTION_CONFIDENCES "
      "(tolerance_stack/stack.py: CONFIDENCES, plus the synthesised NO_SOURCE_REF)"),
+    # Added 2026-09-16 (reader_facing_copy_and_vocabulary), and the first row here
+    # whose JS side had to be BUILT before it could be paired: the pair lived in
+    # `VA.needsAnnotation`'s function body, and a vocabulary spelled in a function
+    # body has no anchor for either extractor. See python_unverified_confidences
+    # for what drift between the two halves does to the "what is missing" panel,
+    # and why no live-data guard can ever see it.
+    ("UNVERIFIED_CONFIDENCES", js_array_strings, python_unverified_confidences,
+     "scripts/build_topology_projection.py: UNVERIFIED_CONFIDENCES"),
+    # Added 2026-09-16, same handoff, same defect one layer over: the viewer
+    # branched on a bare "declared" literal and the vocabulary's only NAMED copy
+    # was a local inside apps/viewer/tests.js, read by the guard rows and
+    # invisible to the branch itself. An object literal rather than an array
+    # because the field is nullable and each value earns its own on-screen note.
+    ("WORKSHEET_SOURCES", js_object_keys, python_worksheet_sources,
+     "scripts/build_viewer_projection.py and scripts/build_topology_projection.py: "
+     "the `how` returned by each one's worksheet_for"),
 )
 
 
