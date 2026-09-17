@@ -56,6 +56,21 @@ body {
 .an__label { display: block; font-size: 11px; color: #9aa1ab; margin-top: 8px; }
 .an__rail select { width: 100%; margin-bottom: 4px; }
 
+/* The rail's scope bar (flyout_resize_annotator_filter_and_deselect,
+   deliverable 2). Quiet type: it states a state the reader put themselves in
+   by clicking through from one element, so it is a label, not an alarm. */
+.an__filter {
+  margin: 8px 0 0; padding: 6px 8px; border-radius: 4px;
+  background: #24282e; border: 1px solid #33383f; font-size: 12px;
+}
+.an__filter-note { color: #cfd3d8; }
+.an__filter-clear {
+  display: block; margin-top: 6px; width: 100%;
+  background: #3a4048; color: #e8e8e8; border: 1px solid #4a515a;
+  border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;
+}
+.an__filter-gap { margin-top: 6px; color: #d6b45b; line-height: 1.4; }
+
 .element-list { list-style: none; padding: 0; margin: 10px 0 0; }
 .el-row {
   padding: 6px 8px;
@@ -65,15 +80,46 @@ body {
   display: flex;
   justify-content: space-between;
   background: #24282e;
+  /* The state's colour now lives on the ROW rather than on a word-bearing
+     badge (deliverable 5 -- Jeff asked to keep the colour signal on the row
+     and roll the words into one hover badge). The stripe is declared here, in
+     neutral, so a state with no rule below is visibly unstyled rather than
+     silently indistinguishable from `bound`. */
+  border-left: 3px solid #4a515a;
 }
 .el-row:hover { background: #2c3138; }
 .el-row.selected { outline: 2px solid #5b8dd6; }
 
-.badge { font-size: 11px; padding: 2px 6px; border-radius: 3px; }
-.badge--bound { background: #234d27; color: #7bc47f; }
-.badge--unbound { background: #3a3f46; color: #9aa1ab; }
-.badge--owner_not_in_set { background: #4d3a23; color: #d6a15b; }
-.badge--needs_re_confirmation { background: #4d2323; color: #d65b5b; }
+/* One rule per AA.BINDING_STATES value. Same four colours the word-bearing
+   badges wore until 2026-09-16, so nothing a reader had learned changed
+   meaning -- only where it is carried. */
+.el-row--bound { border-left-color: #7bc47f; }
+.el-row--unbound { border-left-color: #9aa1ab; }
+.el-row--owner_not_in_set { border-left-color: #d6a15b; }
+.el-row--needs_re_confirmation { border-left-color: #d65b5b; }
+
+/* ONE alert badge per row, whatever it carries, with the words on hover
+   (deliverable 5). A row with nothing wrong renders no badge at all, so there
+   is no quiet variant of this to style. */
+.alertbadge {
+  flex: none; cursor: help; font-size: 12px; line-height: 1;
+  color: #d6b45b; padding: 2px 4px; border-radius: 3px;
+}
+.alertbadge:hover, .alertbadge:focus {
+  background: #4d3a23; outline: none;
+}
+/* The shared popup (index.html's #alert-pop). position: FIXED and outside the
+   rail on purpose: `.an__rail` is a scrollport, so a popup parented to a row
+   would be clipped to its 260px and cut off below the fold on a low row. */
+.alertpop {
+  position: fixed; z-index: 50; max-width: 320px;
+  background: #24282e; color: #e8e8e8;
+  border: 1px solid #4a515a; border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+  padding: 8px 10px; font-size: 12px; line-height: 1.45;
+}
+.alertpop ul { list-style: none; margin: 0; padding: 0; }
+.alertpop li + li { margin-top: 6px; }
 
 .an__scene { position: relative; }
 .an__canvas-host { position: absolute; inset: 0 0 92px 0; }

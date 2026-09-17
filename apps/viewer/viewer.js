@@ -575,6 +575,64 @@
     identity_unlabelled: "SOURCE RULE UNKNOWN",
   };
 
+  // A status the chip table has no wording for. Its own constant rather than an
+  // `||` literal at the one call site, the same posture every other total
+  // lookup on this surface takes.
+  VA.EXPORT_CHIP_FALLBACK = "EXPORT STATUS UNKNOWN";
+
+  // --- one alert badge per row (flyout_resize_annotator_filter_and_deselect,
+  // deliverable 5) -----------------------------------------------------------
+  //
+  // Jeff, 2026-09-16: "Left side menu is now impressively 'loud'… roll all the
+  // alert badges into one single alert badge (something like a triangle ! icon).
+  // Mouse over the icon has a popup that lists out the actual alerts. Styling
+  // for the alert text themselves can then be a bit less obnoxious/
+  // overwhelming, especially the ones in the source column that are always
+  // visible."
+  //
+  // The words do not change -- they are still VA.ATTENTION's and
+  // VA.EXPORT_CHIP_TEXT's, read here, never restated -- and nothing is deleted:
+  // this decides WHICH of a row's chips are alerts, so the row can carry one
+  // icon and the popup can carry the argument. What stays on the row beside it
+  // is the confidence chip, the kind chip and the material chip, which are not
+  // alerts: they are the row's primary provenance signal, and one of them is
+  // already the citation card's own hover trigger.
+  VA.ALERT_ICON = "⚠";
+
+  // What ONE elements-table row has to admit about itself, in severity order:
+  // a value whose band nobody wrote down, then bytes this viewer cannot
+  // identify. A list because the badge showing it is one badge however many
+  // there are -- a row with none renders nothing at all.
+  VA.rowAlerts = function (element, derived) {
+    var alerts = [];
+    if (derived && derived.zero_width) {
+      alerts.push({
+        kind: "zero-width",
+        text: VA.ATTENTION.no_tolerance.text,
+        why: VA.ATTENTION.no_tolerance.title,
+      });
+    }
+    var exportView = VA.exportProvenance(element && element.source_ref,
+      derived && derived.identity_rule);
+    if (exportView && exportView.loud) {
+      alerts.push({
+        kind: "export-" + exportView.state,
+        text: VA.EXPORT_CHIP_TEXT[exportView.state] || VA.EXPORT_CHIP_FALLBACK,
+        why: exportView.headline + (exportView.why ? " — " + exportView.why : ""),
+      });
+    }
+    return alerts;
+  };
+
+  // The hover card behind that badge. A card model like every other one on this
+  // page (VA.citationCard, VA.edgeCard, VA.componentCard), so the badge reuses
+  // the whole popover apparatus the page already has -- one node, one
+  // placement, one close story, the hover-intent corridor included -- instead
+  // of growing a second kind of popup beside it.
+  VA.alertsCard = function (title, alerts) {
+    return { kind: "alerts", title: title, alerts: alerts || [] };
+  };
+
   // An identity rule the viewer has never heard of. Same treatment as an
   // unlabelled export status, and for the same reason: falling through to
   // "no export block" would state the exact opposite of what the projection just

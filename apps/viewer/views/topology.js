@@ -671,23 +671,89 @@
   // reads as "no preference stored" — the stylesheet's width.
   VA.PANE_WIDTH_KEY = "tolstack.viewer.detailWidth";
 
-  VA.readStoredPaneWidth = function (store) {
+  // Both directions of a remembered width, over any key and any clamp. Two
+  // widths are remembered on this page now (the preview pane, the annotator
+  // flyout) and every wrapper below is one line, so the try/catch discipline
+  // and the "an unreadable value reads as no preference" rule live in exactly
+  // one place rather than once per control.
+  function readStoredWidth(store, key, clamp) {
     try {
-      var raw = store && store.getItem(VA.PANE_WIDTH_KEY);
+      var raw = store && store.getItem(key);
       if (raw === null || raw === undefined || raw === "") return null;
       var n = Number(raw);
-      return isFinite(n) ? VA.clampPaneWidth(n) : null;
+      return isFinite(n) ? clamp(n) : null;
     } catch (err) {
       return null;
     }
-  };
+  }
 
-  VA.writeStoredPaneWidth = function (store, px) {
+  function writeStoredWidth(store, key, clamp, px) {
     try {
-      if (store) store.setItem(VA.PANE_WIDTH_KEY, String(VA.clampPaneWidth(px)));
+      if (store) store.setItem(key, String(clamp(px)));
     } catch (err) {
       // A browser that refuses to store it still resizes for this session.
     }
+  }
+
+  VA.readStoredPaneWidth = function (store) {
+    return readStoredWidth(store, VA.PANE_WIDTH_KEY, VA.clampPaneWidth);
+  };
+
+  VA.writeStoredPaneWidth = function (store, px) {
+    writeStoredWidth(store, VA.PANE_WIDTH_KEY, VA.clampPaneWidth, px);
+  };
+
+  // --- the annotator flyout's width (Jeff, 2026-09-16) ----------------------
+  //
+  // "I actually want the 3d flyout on the left side, adjacent to the DAG. It
+  // would be ok if it covered up the left side select menu since you shouldn't
+  // need both at the same time." Adjacency is the requirement: the 3D panel and
+  // the graph have to be readable at the same time, so this width has one bound
+  // the preview pane's does not -- a strip of the page underneath must stay
+  // uncovered whatever the window is.
+  //
+  // `min` is the annotator's own three-column grid (260 + 320 of chrome either
+  // side of its canvas, apps/annotate/style.css) plus enough canvas to orbit in.
+  // `max` bounds a drag on a wide screen. `reserve` is that uncovered strip, and
+  // it is why the clamp takes the viewport: on a narrow window the reserve wins
+  // over `max`, and on one narrower still `min` wins over the reserve -- a
+  // 200px-wide panel would be worse than a covered page.
+  VA.FLYOUT_WIDTH = { min: 560, max: 1200, reserve: 420 };
+
+  VA.clampFlyoutWidth = function (px, viewportWidth) {
+    var n = Math.round(Number(px));
+    if (!isFinite(n)) return VA.FLYOUT_WIDTH.min;
+    var room = Math.round(Number(viewportWidth));
+    var cap = isFinite(room) && room > 0
+      ? Math.min(VA.FLYOUT_WIDTH.max, room - VA.FLYOUT_WIDTH.reserve)
+      : VA.FLYOUT_WIDTH.max;
+    return Math.min(Math.max(cap, VA.FLYOUT_WIDTH.min),
+      Math.max(VA.FLYOUT_WIDTH.min, n));
+  };
+
+  // The width a drag lands on. The flyout is LEFT of its divider, so dragging
+  // right (positive dx) makes it wider -- the opposite sign to
+  // VA.paneWidthAfterDrag, whose pane sits on the right of its own divider.
+  // That inversion is the likeliest mistake in either feature, so it is here,
+  // in one pure line a test can check with no pointer, in both cases.
+  VA.flyoutWidthAfterDrag = function (startWidth, dx, viewportWidth) {
+    return VA.clampFlyoutWidth(startWidth + dx, viewportWidth);
+  };
+
+  // Its own key, beside the pane's: the two controls are independent and a
+  // reader who widens one has said nothing about the other.
+  VA.FLYOUT_WIDTH_KEY = "tolstack.viewer.flyoutWidth";
+
+  VA.readStoredFlyoutWidth = function (store, viewportWidth) {
+    return readStoredWidth(store, VA.FLYOUT_WIDTH_KEY, function (n) {
+      return VA.clampFlyoutWidth(n, viewportWidth);
+    });
+  };
+
+  VA.writeStoredFlyoutWidth = function (store, px, viewportWidth) {
+    writeStoredWidth(store, VA.FLYOUT_WIDTH_KEY, function (n) {
+      return VA.clampFlyoutWidth(n, viewportWidth);
+    }, px);
   };
 
   VA.topoColumn = function (cls) {

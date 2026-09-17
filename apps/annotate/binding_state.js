@@ -33,6 +33,47 @@
     NEEDS_RECONFIRMATION: "needs_re_confirmation",
   });
 
+  // What each coarse state MEANS, in everyday words, and which of them is an
+  // alert a reader has to act on (flyout_resize_annotator_filter_and_deselect,
+  // deliverable 5). Jeff: "Left side menu is now impressively 'loud'… roll all
+  // the alert badges into one single alert badge (something like a triangle !
+  // icon). Mouse over the icon has a popup that lists out the actual alerts."
+  //
+  // Until 2026-09-16 each row printed the raw state VALUE as its badge text --
+  // `needs_re_confirmation`, a schema word with underscores, on the row. This
+  // table is where the reader-facing sentence lives instead, keyed by
+  // AA.BINDING_STATES so the two cannot drift: a state with no row here renders
+  // no alert at all, and the fast tier pairs the key sets so adding a state
+  // without deciding whether it is an alert fails there.
+  //
+  // `bound` is deliberately absent rather than present-and-quiet: a row with
+  // nothing wrong shows NOTHING (the standing rule), so "is this an alert?" and
+  // "what does it say?" are one question with one answer.
+  AA.BINDING_STATE_ALERTS = Object.freeze({
+    unbound: "No face is bound to this element yet.",
+    owner_not_in_set: "Recorded as belonging to a part that is not in this set, " +
+      "so no face here can stand for it.",
+    needs_re_confirmation: "The mesh behind this binding changed — someone has " +
+      "to look at the face again before the binding can be trusted.",
+  });
+
+  // The one glyph the rail's consolidated badge wears (Jeff: "something like a
+  // triangle ! icon"). A constant, not a literal in the renderer, for the same
+  // reason every other word on this surface is one: it appears in the markup
+  // and in the test that pins the badge, and two copies of a glyph drift the
+  // same way two copies of a word do.
+  AA.ALERT_ICON = "⚠";
+
+  // The alerts ONE row has to admit about itself, as a list, because the badge
+  // that shows them is one badge however many there are. A coarse state is
+  // single-valued today, so this returns zero or one; it is a list anyway
+  // because the badge's contract ("lists out the actual alerts") is the plural
+  // one, and a second carrier added later must not need a new badge.
+  AA.elementAlerts = function (bindingState) {
+    var text = AA.BINDING_STATE_ALERTS[bindingState];
+    return text ? [{ state: bindingState, text: text }] : [];
+  };
+
   AA.topologyEdgeKey = function (topologyId, edgeId) {
     return { kind: "topology_edge", topology_id: topologyId, edge_id: edgeId };
   };

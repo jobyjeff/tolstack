@@ -539,6 +539,32 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 /* A card trigger reads as one: same affordance cue as the crop trigger. */
 .cardtrig { cursor: help; }
 
+/* --- one alert badge per row, details on hover -----------------------------
+   (flyout_resize_annotator_filter_and_deselect, deliverable 5. Jeff: "roll all
+   the alert badges into one single alert badge (something like a triangle !
+   icon)… Styling for the alert text themselves can then be a bit less
+   obnoxious/overwhelming, especially the ones in the source column that are
+   always visible.")
+
+   Deliberately NOT filled the way `.chip--export-unestablished` and
+   `.conf--untraced` are. Those two are filled because each has to be the
+   loudest thing on its row; a badge that is the ONLY alert marker on the row
+   does not compete with anything, so outlined amber is enough to find and
+   quiet enough to read a table through. The words it stands for lost no
+   loudness -- they are unchanged, in the popup. */
+.chip--alert {
+  color: var(--inferred); border-color: var(--inferred);
+  font-weight: 700; line-height: 1;
+}
+/* The alert list inside the card the badge opens. One item per alert: what,
+   then why. No fold -- views/dom.js's rule: an absence is never folded. */
+.hovercard__alerts { list-style: none; margin: 6px 0 0; padding: 0; }
+.hovercard__alert + .hovercard__alert {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
+}
+.hovercard__alertwhat { font-size: 13px; font-weight: 700; color: var(--inferred); }
+.hovercard__alertwhy { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
 /* An inbound deep link that asked for something this data does not contain:
    one plain-words line, amber — a fact about the link, not a rebuild alarm. */
 .banner__notice { color: var(--inferred); font-size: 13px; margin-top: 4px; }

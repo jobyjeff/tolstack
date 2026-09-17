@@ -76,6 +76,14 @@
     // place the default width lives; nothing is written inline until a drag
     // or a remembered value says otherwise.
     detailWidth: null,
+    // How wide the left-docked annotator flyout is, in px, or null for
+    // "whatever topology.css declares" — the same contract, the same reason
+    // and the same remembered-across-sessions posture as `detailWidth` above,
+    // over its own key (VA.FLYOUT_WIDTH_KEY). Jeff asked for the 3D panel
+    // beside the DAG, and how much of the window a reader wants to give it is
+    // exactly the kind of preference that means the same thing on every
+    // topology.
+    flyoutWidth: null,
     // { kind: "node" | "edge", id } — what the preview pane is showing, in
     // topology mode.
     selection: null,
@@ -171,11 +179,17 @@
       crop: document.getElementById("croppop"),
       flyout: document.getElementById("annotate-flyout"),
       flyoutClose: document.getElementById("flyout-close"),
+      flyoutDivider: document.getElementById("flyout-divider"),
+      flyoutFullpage: document.getElementById("flyout-fullpage"),
     };
     applyDensity();
-    state.detailWidth = VA.readStoredPaneWidth(paneWidthStore());
+    state.detailWidth = VA.readStoredPaneWidth(widthStore());
     applyPaneWidth();
     wireDetailDivider();
+
+    state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), viewportWidth());
+    applyFlyoutWidth();
+    wireFlyoutDivider();
 
     nodes.flyoutClose.onclick = function () { nodes.flyout.close(); };
 
@@ -1022,6 +1036,13 @@
           { type: "annotate:exec", command: command }, window.location.origin);
       });
     }
+    // The head's "Open full page" out-link (Jeff, 2026-09-16), pointed at the
+    // SAME url the panel booted with -- VA.annotateLink, once, for both. Set on
+    // every launch rather than at boot: a reader who re-drove the open panel
+    // from another row would otherwise open a new tab on the element they left.
+    if (nodes.flyoutFullpage) {
+      nodes.flyoutFullpage.setAttribute("href", VA.annotateLink(params));
+    }
     // show(), not showModal(): the page beside the panel stays clickable, so
     // "attach to 3D" on another row re-drives the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
@@ -1058,7 +1079,10 @@
   // well as inside the read/write pair: on some file:// configurations even
   // TOUCHING window.localStorage throws, which is before either of those
   // functions gets a chance to catch anything.
-  function paneWidthStore() {
+  //
+  // Shared by both remembered widths (the preview pane's, the flyout's); the
+  // KEYS are the pure layer's, one per control.
+  function widthStore() {
     try {
       return (typeof window !== "undefined" && window.localStorage) || null;
     } catch (err) {
@@ -1088,11 +1112,11 @@
   // The divider is static markup (topology.html), so it is wired once at boot
   // rather than per render -- which also means a re-render mid-drag cannot
   // destroy the node the gesture started on, the problem the column grip's own
-  // re-focus dance exists to work around.
-  function wireDetailDivider() {
-    var divider = nodes.detailDivider;
+  // re-focus dance exists to work around. Both dividers on this page (the
+  // preview pane's, the flyout's) are that shape, so they share one wiring
+  // function and differ only in the spec they carry.
+  function wireDivider(divider, spec) {
     if (!divider) return;
-    var spec = { kind: "pane" };
     divider.onpointerdown = function (event) {
       if (event && event.preventDefault) event.preventDefault();
       onResizeStart(spec, event);
@@ -1105,9 +1129,47 @@
     };
   }
 
+  function wireDetailDivider() {
+    wireDivider(nodes.detailDivider, { kind: "pane" });
+  }
+
+  function wireFlyoutDivider() {
+    wireDivider(nodes.flyoutDivider, { kind: "flyout" });
+  }
+
+  // How much window there is to divide between the flyout and the page beside
+  // it -- read at the moment of the gesture, never cached: a reader can resize
+  // the window between opening the panel and dragging its seam, and
+  // VA.clampFlyoutWidth's reserve is only honest against the CURRENT viewport.
+  // 0 where there is no window to measure (the DOM shim), which the clamp
+  // reads as "no viewport known" and falls back to its px max.
+  function viewportWidth() {
+    return (typeof window !== "undefined" && window.innerWidth) || 0;
+  }
+
+  // The remembered flyout width onto the dialog, or nothing at all -- same
+  // contract as applyPaneWidth: an unset preference leaves the stylesheet's
+  // own width standing rather than overwriting it with a number from JS.
+  function applyFlyoutWidth() {
+    if (!nodes.flyout || state.flyoutWidth === null) return;
+    nodes.flyout.style.width = state.flyoutWidth + "px";
+  }
+
+  // What a drag on the flyout's divider measures FROM -- the same three-way
+  // fallback paneWidthNow uses, and for the same reasons.
+  function flyoutWidthNow() {
+    var measured = nodes.flyout && nodes.flyout.offsetWidth;
+    if (typeof measured === "number" && measured > 0) return measured;
+    if (state.flyoutWidth !== null) return state.flyoutWidth;
+    return VA.FLYOUT_WIDTH.min;
+  }
+
   function resizeFrom(spec) {
     if (spec && spec.kind === "pane") {
       return { kind: "pane", width: paneWidthNow() };
+    }
+    if (spec && spec.kind === "flyout") {
+      return { kind: "flyout", width: flyoutWidthNow() };
     }
     if (spec && spec.kind === "column") {
       var column = VA.topoColumn(spec.cls);
@@ -1135,7 +1197,23 @@
       // attached to the pointer even while a big topology repaints.
       state.detailWidth = VA.paneWidthAfterDrag(from.width, dx);
       applyPaneWidth();
+    } else if (from.kind === "flyout") {
+      // The OPPOSITE sign inversion to the pane's, and for the same structural
+      // reason: this panel is LEFT of its divider, so dragging right widens it.
+      // Both live in the pure layer (VA.flyoutWidthAfterDrag), not here.
+      state.flyoutWidth = VA.flyoutWidthAfterDrag(from.width, dx, viewportWidth());
+      applyFlyoutWidth();
     }
+  }
+
+  // Does a resize of this kind change what the PAGE paints? The pane and the
+  // grid's columns do -- they are part of the page's own layout, and the pane's
+  // content is re-serialised at its new width. The flyout does not: it is a
+  // position: fixed dialog whose only child is an iframe, so a repaint of the
+  // DAG on every pointermove of its seam would be a full SVG rebuild per frame
+  // for no visible difference.
+  function resizeRepaints(kind) {
+    return kind !== "flyout";
   }
 
   function onResizeStart(spec, event) {
@@ -1143,14 +1221,14 @@
     var startX = event && typeof event.clientX === "number" ? event.clientX : 0;
     var move = function (ev) {
       applyResize(from, ev.clientX - startX);
-      scheduleResizePaint();
+      if (resizeRepaints(from.kind)) scheduleResizePaint();
     };
     var end = function () {
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", end);
       document.removeEventListener("pointercancel", end);
       document.body.classList.remove("tv-resizing");
-      rememberPaneWidth(spec);
+      rememberWidth(spec);
     };
     document.addEventListener("pointermove", move);
     document.addEventListener("pointerup", end);
@@ -1171,13 +1249,13 @@
   // by their position in the header).
   function onResizeNudge(spec, dx) {
     applyResize(resizeFrom(spec), dx);
-    render();
-    rememberPaneWidth(spec);
-    // The pane's divider is static markup and survives the render, so it
-    // keeps its own focus and needs none of what follows -- which exists
-    // because render() rebuilds the column header and destroys the grip the
-    // keydown came from.
-    if (spec.kind === "pane") return;
+    if (resizeRepaints(spec.kind)) render();
+    rememberWidth(spec);
+    // Both dividers are static markup and survive a render, so each keeps its
+    // own focus and needs none of what follows -- which exists because
+    // render() rebuilds the column header and destroys the grip the keydown
+    // came from.
+    if (spec.kind === "pane" || spec.kind === "flyout") return;
     var key = spec.kind + (spec.cls ? ":" + spec.cls : "");
     var grip = document.querySelector('[data-resize="' + key + '"]');
     if (grip && grip.focus) grip.focus();
@@ -1185,9 +1263,13 @@
 
   // Written at the END of a gesture, never per pointermove: a drag fires
   // hundreds of moves and a localStorage write is synchronous.
-  function rememberPaneWidth(spec) {
-    if (!spec || spec.kind !== "pane" || state.detailWidth === null) return;
-    VA.writeStoredPaneWidth(paneWidthStore(), state.detailWidth);
+  function rememberWidth(spec) {
+    if (!spec) return;
+    if (spec.kind === "pane" && state.detailWidth !== null) {
+      VA.writeStoredPaneWidth(widthStore(), state.detailWidth);
+    } else if (spec.kind === "flyout" && state.flyoutWidth !== null) {
+      VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth, viewportWidth());
+    }
   }
 
   // --- render ----------------------------------------------------------------

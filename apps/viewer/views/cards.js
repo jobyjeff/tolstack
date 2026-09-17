@@ -65,6 +65,7 @@
     else if (card.kind === "component") componentCard(root, card, images, config, annotate, source);
     else if (card.kind === "node") nodeCard(root, card, images, config, source);
     else if (card.kind === "citation") citationCard(root, card, images, config, source);
+    else if (card.kind === "alerts") alertsCard(root, card);
     else {
       // A card kind this renderer has no branch for is said out loud, the
       // same posture every enumerated field on this surface takes.
@@ -317,6 +318,34 @@
   // the cited sheet where one resolved. For a spec citation the crop is the
   // spec sheet itself, which is what makes this the spec-sheet card the stack
   // view's right pane already renders — as a hover.
+  // --- the row's alerts, listed (flyout_resize_annotator_filter_and_deselect,
+  // deliverable 5) -----------------------------------------------------------
+  //
+  // What the elements table's one ⚠ badge opens. Each alert is the same word
+  // the row used to shout (VA.rowAlerts reads VA.ATTENTION and
+  // VA.EXPORT_CHIP_TEXT) plus the sentence that was already behind it as a
+  // tooltip -- so consolidating the chips MOVED the words here and revealed the
+  // "why", rather than hiding anything.
+  //
+  // No fold, unlike every other card kind: this whole card is a list of gaps,
+  // and views/dom.js's rule is that an absence never goes in a disclosure.
+  function alertsCard(root, card) {
+    var head = VA.el("div", "hovercard__head");
+    head.appendChild(VA.el("h4", null, "Needs attention"));
+    root.appendChild(head);
+    // Which row's alerts these are -- the badge is one glyph, so the card is
+    // the first place the element is named.
+    if (card.title) root.appendChild(VA.el("div", "hovercard__where", card.title));
+    var list = VA.el("ul", "hovercard__alerts");
+    card.alerts.forEach(function (alert) {
+      var item = VA.el("li", "hovercard__alert hovercard__alert--" + alert.kind);
+      item.appendChild(VA.el("div", "hovercard__alertwhat", alert.text));
+      if (alert.why) item.appendChild(VA.el("div", "hovercard__alertwhy", alert.why));
+      list.appendChild(item);
+    });
+    root.appendChild(list);
+  }
+
   function citationCard(root, card, images, config, source) {
     var head = VA.el("div", "hovercard__head");
     head.appendChild(VA.el("h4", null, "Citation"));

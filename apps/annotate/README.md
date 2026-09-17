@@ -130,8 +130,10 @@ tool calls would take.
 | `camera reset` | frames every currently-visible open part |
 | `camera frame <part…>` | frames the named part(s) (or the visible ones, with no args) |
 | `select-face <part> <face_id>` | picks a face by id — the non-mouse equivalent of clicking it |
+| `deselect [face\|element\|all]` | `select-face`'s and `select-edge`'s undo (default `face`): drops the pick AND its tint together, which is the pair that used to disagree. Clearing nothing is not an error — this is the undo of a mis-click |
+| `filter-element [<edge or node id>]` | scopes the left rail — element list *and* parts panel — to one element's own features; with no argument, lifts the filter. `goto` runs it for you when it arrives at an edge |
 | `select-topology <id>` / `select-study <id>` / `select-edge <id>` | the three steps `goto` composes, addressable one at a time |
-| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge |
+| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge — then scopes the rail to that edge (`filter-element`) |
 
 `resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and
 isolate state-transition helpers) and the tokenizer/dispatch registry itself
