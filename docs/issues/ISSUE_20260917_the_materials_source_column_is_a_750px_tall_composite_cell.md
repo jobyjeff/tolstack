@@ -32,10 +32,18 @@ chips, the where-line, the designation source, the values line, the library ref,
 a CINDAS request note and the crop trigger in one 260px-wide column, one under
 the next.
 
-See `docs/sessions/lessons/LESSONS_20260916_design_pass_typography_9_stack_materials_table_before.png`
-and `..._after.png` — the typography pass improved the row's *type* (it is no
-longer rendered entirely in 700-weight white) and could do nothing about its
-height. Three data rows occupy roughly two full screens.
+`design_pass_typography` (2026-09-17) took the two bites CSS had. Tightening the
+citation note's preview clamp (4.6em -> 2.8em) brought the same row from
+**750px to 653px** at this viewport, and the row is no longer rendered entirely
+in 700-weight white. Both leave the shape untouched: 653px is still about seven
+times a data row in the elements table beside it (measured there: 88-112px), and
+the stack's three materials still occupy roughly two screens.
+
+See the before/after pair,
+`docs/sessions/lessons/LESSONS_20260916_design_pass_typography_9_stack_materials_table_before.png`
+and `..._after.png` — shot at 2200px so the source column is in frame at all,
+which is the other thing this surface hides: at an ordinary window width the
+column driving the height sits outside the table's own box.
 
 ## Why this is the elements table's own retired defect, still live here
 

@@ -535,6 +535,14 @@ has twelve parts, which is past any categorical palette's cap regardless. So:
 * the selected study's path is the accent, and that is a binary, so it needs no
   palette.
 
+Since 2026-09-17 (`design_pass_typography`) there is one more rule about the
+palette, and it is about **fill** rather than hue: a filled mark -- a background
+of its own -- belongs to provenance at its two worst states and to a verdict,
+and everything else is outlined in its own hue. The reasoning and the type scale
+that came with it are in `docs/DESIGN_TYPE_AND_COLOUR.md`; the numbers are in
+`style.css`'s `:root` and paired against both apps by
+`tests/test_app_type_scale.py`.
+
 Part identity is carried as text, on the row and in the preview pane -- as
 the part's **name**, never its id. It printed the id until 2026-09-15, with the
 name demoted to hover, because a live part name ran to eighty characters and

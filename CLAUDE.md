@@ -56,6 +56,11 @@ traced ratio" — never restate the rule elsewhere).
   immutable `feature-identity/v0` event — **select + tag only, no
   measurement.** A binding is identity, not a value source; a drawing
   citation still wins wherever one exists.
+- **Writing a CSS rule in either web app** → `docs/DESIGN_TYPE_AND_COLOUR.md`.
+  The type scale, the spacing convention and the one rule about *fill* the
+  2026-09-17 pass settled. It states no numbers — they live in
+  `apps/viewer/style.css`'s `:root`, paired against both apps by
+  `tests/test_app_type_scale.py`.
 - **Reviewing** → `docs/prompts/REVIEW_AGENT.md`. It is both the checklist and
   the per-repo override dispatch serves to review agents.
 - **How the code is shaped and why** → `ARCHITECTURE.md`. Its module inventory is
