@@ -360,6 +360,15 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .el-row--zero-width .num--zero-width {
   color: var(--zero); border-bottom: 1px dashed var(--zero);
 }
+/* The element's name wants a line to read on. This is an auto-layout table of
+   eleven columns, so the browser shares the width out by content and the name
+   -- the one column that is a PHRASE rather than a number -- lost: measured on
+   `hub_bearing_thermal_fit_m1`, "hub lower bearing-seat bore, M1 hub 212966-004"
+   wrapped to four lines and stood the row up 90px tall. A floor rather than a
+   fixed width, so a table of short names still closes up, and it costs the page
+   nothing: `.stackview` already scrolls sideways (see its own rule) precisely
+   because eleven columns exceed the space beside the preview pane. */
+.el-row__name { min-width: 190px; }
 .el-row__name code { display: block; font-size: var(--t-micro); color: var(--muted); }
 /* Grid-like rows: a fixed, compact source column instead of the multi-line
    composite cell this replaced (chips + where + callout + note + export
@@ -385,7 +394,14 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    picks up another; one rule, because they read as one kind of thing. */
 .el-row__srcnote, .el-export__note, .mat-row__request {
   font-size: var(--t-meta); color: var(--muted); margin-top: 3px; cursor: pointer;
-  max-height: 4.6em; overflow: hidden; border-left: 2px solid var(--line); padding-left: 6px;
+  /* 2.8em since 2026-09-17, where it was 4.6em. The clamp is a PREVIEW -- the
+     note in full is what the preview pane exists for, unclamped
+     (`.detail__note`) -- and at 4.6em it was the tallest thing in the source
+     column and so the thing setting the row's height: measured on
+     `hub_bearing_thermal_fit_m1`, rows of 88 and 112px in a table whose data is
+     one line. Two lines and the top of a third is enough to recognise a note
+     and decide whether to open it, which is all a row has to let a reader do. */
+  max-height: 2.8em; overflow: hidden; border-left: 2px solid var(--line); padding-left: 6px;
 }
 .el-row__srcnote--open, .el-export__note--open,
 .mat-row__request--open { max-height: none; }
@@ -444,9 +460,28 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .el-gaps summary { cursor: pointer; }
 .el-gaps ul { margin: 4px 0 2px; }
 
-.crop-trigger { margin-top: 6px; font-size: var(--t-meta); padding: 3px 9px; background: var(--on); color: #fff; }
+/* QUIET at rest since 2026-09-17. This was a filled accent-blue button on
+   EVERY row that has a crop -- seven of eight on `hub_bearing_thermal_fit_m1`,
+   in a source column that is always visible -- which made the page's most
+   repeated mark a control rather than a fact, and put a third claimant on the
+   accent (which means selection here). Outlined and grey at rest, accent on
+   hover and on `:focus-visible`: an affordance a reader reaches for does not
+   have to announce itself from every row at once, and the keyboard half is not
+   decoration -- a border that only appears under a pointer leaves a reader
+   tabbing through invisible controls. The stateful variants below were already
+   quiet and are unchanged, which is now a difference of DASH rather than of
+   loudness: dashed means there is nothing behind it to open. */
+.crop-trigger {
+  margin-top: 6px; font-size: var(--t-meta); padding: 3px 9px;
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 6px; font-weight: 600;
+}
+.crop-trigger:hover, .crop-trigger:focus-visible {
+  border-color: var(--accent); color: var(--accent);
+}
 .crop-trigger--unresolvable, .crop-trigger--not-built, .crop-trigger--no-entry {
   background: transparent; color: var(--muted); border: 1px dashed var(--line);
+  font-weight: 400;
 }
 
 .fold-row__label code { color: var(--accent); }

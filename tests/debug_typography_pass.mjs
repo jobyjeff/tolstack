@@ -286,6 +286,12 @@ try {
   // gets no leaf of its own), and it is the one that renders BOTH tables, the
   // elements table and the materials table whose source column is the last
   // filled all-caps chip in the app.
+  // A WIDER window for these two, and it is not a nicety: the elements table is
+  // eleven columns and `.stackview` scrolls sideways by design, so at the 1600px
+  // viewport the rest of this probe uses, the source column -- the always-visible
+  // one Jeff's note is about -- sits outside the table's own box and outside any
+  // clip taken from it. At 2200px the whole table is in the frame.
+  await page.setViewportSize({ width: 2200, height: 1000 });
   await page.locator('[data-nav-kind="stack"][data-nav-id="hub_bearing_thermal_fit_m1"]')
     .click();
   await page.waitForSelector("#stackview tr.el-row", { timeout: 20000 });
