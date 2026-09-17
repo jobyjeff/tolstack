@@ -168,12 +168,21 @@ try {
       `drawing at x=${narrowRails.l}..${narrowRails.r}, clear: ${narrowRails.clear}`);
   await parkPointer(page);
   await shot(page, "2a_flyout_narrowed_more_dag");
-  const wide = await dragBy(400);
+  // "Resized WIDE" needs a window where wide is reachable. At 1600px the
+  // clamp binds at 713 and the stylesheet's own default already sits there, so
+  // dragging right buys nothing and a shot of it would be shot 1 again -- the
+  // review said so. A 2200px window is Jeff's own screen shape and leaves the
+  // clamp at VA.FLYOUT_WIDTH.max, so the panel can actually be opened up.
+  await page.setViewportSize({ width: 2200, height: 1000 });
+  const wide = await dragBy(900);
   const wideRails = await railsAt();
-  say(`dragged right 400px: ${narrow} -> ${wide}px (the clamp), ` +
-      `drawing at x=${wideRails.l}..${wideRails.r}, clear: ${wideRails.clear}`);
+  say(`at a 2200px window, dragged right 900px: ${narrow} -> ${wide}px ` +
+      `(FLYOUT_WIDTH.max is ${await page.evaluate(
+        () => window.ViewerApp.FLYOUT_WIDTH.max)}), drawing at ` +
+      `x=${wideRails.l}..${wideRails.r}, clear: ${wideRails.clear}`);
   await parkPointer(page);
   await shot(page, "2b_flyout_resized_wide_dag_still_beside_it");
+  await page.setViewportSize({ width: 1600, height: 1000 });
 
   // Closing puts the page back -- the nav rail it stood down, and the shift.
   // WAITED for, not sampled: the class comes off in the dialog's `close`

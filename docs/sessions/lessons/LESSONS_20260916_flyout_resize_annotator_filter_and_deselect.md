@@ -135,6 +135,12 @@ Measured after, at 1600px on the widest live study: panel `0..713`, drawing
 `560..822`. Closing puts the nav rail, the pane's box and the drawing's box back
 exactly.
 
+**Shot 2b is taken at a 2200px window, on purpose.** At 1600px the clamp binds
+at 713 and the stylesheet's default already sits there, so dragging right buys
+nothing and "resized wide" would have been shot 1 again — which the review
+noticed. At 2200px the clamp lifts to `FLYOUT_WIDTH.max` and the panel really
+opens up: 1200px of annotator with the drawing at `1200..1462` beside it.
+
 ### Two things that are easy to get wrong in this area
 
 * **The clamp runs AFTER `dialog.show()`.** A closed `<dialog>` is `display:
