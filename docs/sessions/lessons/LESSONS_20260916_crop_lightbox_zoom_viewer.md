@@ -28,7 +28,7 @@ four sessions' were.
 | `node apps/viewer/run_tests.cjs --repo …` | 437/437 | **453/453** |
 | `node scripts/run_viewer_browser_tests.mjs --repo …` | 21/21 suites | **22/22 suites** |
 | the new browser suite | — | **17/17 sub-checks** |
-| `node scripts/run_mutation_witness_tests.mjs --repo …` | 54/54 | 54/54 |
+| `node scripts/run_mutation_witness_tests.mjs --repo …` | (54/54, per the previous lesson) | **54/54, none unwitnessed** |
 
 The pytest red is **not mine and not new**:
 `test_no_live_document_states_an_unguarded_hardware_entry_count`, on a strategy
@@ -46,6 +46,11 @@ work. I did not re-measure that particular number at the branch point, so do
 not read a delta off the previous lesson's 315 — the browser total and the node
 total differ anyway (the `[real]` node-fs tests are not registered at all in a
 browser), and the fast tier's 437 → 453 is the number I measured both ends of.
+
+The mutation tier I measured only at the end, and the "before" column is the
+previous lesson's figure rather than mine. It is nevertheless the same set:
+`scripts/mutation_witnesses.json` is not in this branch's diff, because this
+handoff declares no new witnesses (filed — §5).
 
 ---
 
