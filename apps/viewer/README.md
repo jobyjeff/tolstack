@@ -1455,6 +1455,49 @@ and both preview panes — because they printed the same three lines in three
 slightly different orders before, which is the drift a shared builder exists to
 stop.
 
+### Any crop opens at full size, zoomable (2026-09-16)
+
+Jeff: *"selection box style sources (hilighted cells in the datasheet tables
+etc) are moving in the right direction, but thumbnail is too small to be
+legible… Maybe a button in the thumbnail that lets you launch it into a
+separate, full size viewer (either a popup or separate page) that allows you to
+zoom/pan?"*
+
+Every crop on the page carries a small **⤢** button on the picture itself —
+quiet until the figure is hovered or the button is focused, and a real
+`<button>`, so the keyboard reaches it. It opens the crop near-full-viewport in
+a modal `<dialog>` (`#crop-lightbox`, `views/lightbox.js`) with wheel and
+button zoom, drag pan, and the same **where-line and click-throughs** the card
+shows underneath it — nothing longer. `Esc`, the ✕ or a backdrop click closes
+it.
+
+The button is on `VA.cropFigure`, the one builder every crop image on the page
+goes through, which is why it is **one per picture rather than one per
+surface**: the popover, the hover cards, both preview panes and a balloon
+crop's parts-list companion all get it in the same change, and a balloon crop
+offers two — each opening its own picture. The one crop image that is *not* a
+`cropFigure` is the grid's inline `tvthumb`; it carries no launcher of its own
+and does not need one, because clicking a grid thumbnail already opens the edge
+card, whose figure has one.
+
+**Zoom is one CSS transform on a wrapper around the crop's frame**, and that is
+the decision the whole surface turns on: a `.crophl` highlight box is
+positioned in *percentages* of that frame, so scaling an ancestor scales the
+picture and the boxes drawn on it in one step. Nothing converts a `frac` into
+a pixel anywhere, so there is no second coordinate system to drift. The
+arithmetic — fit, zoom about the pointer, pan, and the clamp that keeps the
+picture on screen — is pure (`VA.lightbox*`, `viewer.js`) and pinned value by
+value in the fast tier; the browser tier measures the laid-out `.crophl`
+against `crops.json`'s own `highlights[].frac` at fit, zoomed and panned.
+
+Two smaller decisions worth knowing. `scale: 1` is **fit**, not one image pixel
+per screen pixel, and the frame is sized in pixels to the fitted box rather
+than height-capped with `object-fit: contain` — that insets the picture inside
+its element, and a percentage overlay then points into the letterbox. And the
+highlight's **border width** is divided back out by the current scale
+(`--lightbox-scale`), because a 2px edge at 8× is a 16px amber frame across the
+cell the reader zoomed in to read.
+
 **Two things left these surfaces on 2026-09-15**, both of them things Jeff read
 and none of them a loss of a fact a reader wanted:
 
@@ -1691,9 +1734,12 @@ apps/viewer/
   style.css           the SHARED stylesheet — the colour system lives here
   index.html          retired: redirects to topology.html (was the stack viewer)
   topology.html       the ONE viewer's shell (nav, toolbar, the joint block,
-                      three panes, legend + worksheet <dialog>s)
+                      three panes, legend + worksheet + crop-lightbox
+                      <dialog>s)
   topology.css        that page's own rules: the nav tree, the toolbar, the
-                      rails, the grid, the slim totals strip, both dialogs
+                      rails, the grid, the slim totals strip, the legend and
+                      worksheet dialogs (the crop lightbox's rules are in
+                      style.css, beside the crop rules they extend)
   test.html           browser test page; publishes window.__TEST_RESULTS__
   config.js           paths, the drawing-checker webui base, rebuild commands
   viewer.js           pure view-model logic — no DOM, no IO, no arithmetic
@@ -1725,8 +1771,8 @@ apps/viewer/
   storage/http.js     served transport — no folder grant, probed at load time
   storage/memory.js   in-memory mock (?mock=1, tests)
   storage/node_fs.js  real-checkout adapter for the node test tier
-  views/              dom, banner, nav, stack, crop, cards, worksheet, detail,
-                      topology
+  views/              dom, banner, nav, stack, crop, cards, lightbox,
+                      worksheet, detail, topology
   vendor/markdown.js  vendored from forge apps/notes (namespace changed only)
   run_tests.cjs       fast-tier runner (node vm + DOM shim)
 ```

@@ -2588,8 +2588,12 @@
         eq(handle.view(), { scale: 1, x: 0, y: 0 });
         // The transform IS the state, written on the one wrapper.
         all(root, "button.lightbox__btn--in")[0].click();
-        eq(all(root, "div.lightbox__pan")[0].style.transform,
-           VA.lightboxTransform(handle.view()));
+        var pan = all(root, "div.lightbox__pan")[0];
+        eq(pan.style.transform, VA.lightboxTransform(handle.view()));
+        // ...and the scale is published beside it, for the one thing CSS has
+        // to un-scale: the highlight boxes' border weight.
+        eq(pan.style.getPropertyValue("--lightbox-scale"),
+           String(handle.view().scale));
       });
 
     await test("the close box closes the lightbox, and nothing else claims " +

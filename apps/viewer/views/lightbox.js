@@ -128,6 +128,14 @@
         view = VA.lightboxClamp(view, fit, stageBox());
       }
       pan.style.transform = VA.lightboxTransform(view);
+      // The scale, published to CSS for ONE purpose: line weight. The
+      // transform scales the highlight boxes' BORDERS along with everything
+      // else, and a 2px edge at 8x is a 16px amber frame sitting over the
+      // table cell a reader zoomed in to read -- measured on the NAS grip
+      // table at 7.6x, where it covered the first digit. `box-sizing:
+      // border-box` means dividing the width back out cannot move the rect,
+      // so this is a cosmetic correction and not a second coordinate system.
+      pan.style.setProperty("--lightbox-scale", String(view.scale));
       stage.className = "lightbox__stage" +
         (view.scale > VA.LIGHTBOX_ZOOM.min ? " lightbox__stage--pannable" : "");
     }

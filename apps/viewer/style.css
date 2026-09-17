@@ -572,6 +572,17 @@ body.lightbox-dragging .lightbox__stage--pannable { cursor: grabbing; }
    `--crop-ratio` rule above records. */
 .lightbox .cropfig { position: absolute; top: 0; left: 0; }
 .lightbox .cropfig > img { width: 100%; height: 100%; display: block; }
+/* The highlight box's EDGE, un-scaled. The transform scales the whole subtree,
+   which is exactly what keeps the box's rect right (see views/lightbox.js) --
+   but it scales the border with it, and a 2px edge at 8x is a 16px amber frame
+   over the cell the reader came to read. `--lightbox-scale` is written by
+   apply() and `box-sizing: border-box` means dividing it back out cannot move
+   the rect. The glow goes entirely: it exists so a small box is findable on a
+   thumbnail, and at full size the box is the most obvious thing on the
+   picture. */
+.lightbox .crophl {
+  border-width: calc(2px / var(--lightbox-scale, 1)); box-shadow: none;
+}
 /* The caption: the crop's own where-line and its two click-throughs, from the
    same VA.cropReference every other surface uses. Its class prefix is
    `lightbox__cap-`, NOT `lightbox__` -- that would make the where-line a

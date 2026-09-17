@@ -4835,6 +4835,291 @@ async function testAnnotateHostedPosture(browser, label) {
 // prove that boot() actually reads location.search and that the selection
 // lands on screen. Over ?mock=1 so it runs with no data built; the served-mode
 // suite drives the same contract against the real projection with no seam.
+// --- the crop lightbox (crop_lightbox_zoom_viewer, 2026-09-16) -------------
+//
+// Jeff: "thumbnail is too small to be legible… Maybe a button in the thumbnail
+// that lets you launch it into a separate, full size viewer … that allows you
+// to zoom/pan?"
+//
+// What this proves that the fast tier cannot, and it is the whole reason the
+// feature has a browser suite of its own: the fast tier has NO LAYOUT, so it
+// can only state the zoom claim as arithmetic ("the box's position within the
+// picture is the same fraction at every scale"). Here the fraction is measured
+// off two `getBoundingClientRect()`s and compared against the crop index's own
+// `highlights[].frac` — the number the crop builder wrote. A transform applied
+// to the picture but not to the overlay, a height cap that letterboxes the
+// picture inside its element, an origin at the wrong corner: every one of them
+// is a green fast tier and a wrong picture, and every one of them moves that
+// fraction.
+//
+// SERVED mode over a repo-root static server, never ?mock=1: a launcher only
+// exists on a figure that HAS an image, and the mock adapter carries no PNGs at
+// all. The subject is derived from the live crop index rather than named — the
+// first topology edge whose crop is a `declared_region` on a datasheet table,
+// which is the highlighted-cell case the note was about.
+//
+// Its OWN server, not the shared `repoRootBaseUrl`, and that is not tidiness:
+// the `served mode` suite closes the shared one mid-run on purpose (its
+// mid-session-stop fixture), so a later suite pointed at it gets
+// ERR_CONNECTION_REFUSED and nothing to do with this feature. Measured here
+// first go. `testAnnotateRail` already starts its own for the same reason.
+async function testCropLightbox(browser, label, realProjection, realCrops) {
+  if (!realProjection || !realCrops) {
+    console.log(`[${label}] SKIP: topologies.json/crops.json not built under ` +
+      "the target repo -- build them, or pass --repo <main checkout>");
+    return { label, ok: true };
+  }
+  // The row to drive, and the number its picture must agree with. Derived, so
+  // this suite follows the data rather than pinning an id that a rebuild can
+  // retire.
+  let target = null;
+  for (const topology of realProjection.topologies) {
+    for (const edge of topology.edges || []) {
+      const key = edge.crop_key;
+      if (!key) continue;
+      const space = key.stack
+        ? (realCrops.by_stack || {})[key.stack]
+        : (realCrops.by_topology || {})[key.topology];
+      const entry = space ? space[key.element || key.edge] : null;
+      if (!entry || entry.status !== "resolved" || !entry.png) continue;
+      if (!(entry.highlights || []).length) continue;
+      if (entry.located_by !== "declared_region") continue;
+      target = { topology: topology.id, edge: edge.id, entry };
+      break;
+    }
+    if (target) break;
+  }
+  if (!target) {
+    console.log(`[${label}] SKIP: no live topology row reaches a declared-region ` +
+      "crop with a highlight on it");
+    return { label, ok: true };
+  }
+
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+
+  // Where the first highlight box actually lands on the picture, as a fraction
+  // of the picture's own box -- which is what `highlights[].frac` IS.
+  const measure = () => page.evaluate(() => {
+    const figure = document.querySelector("#crop-lightbox div.cropfig");
+    const img = figure && figure.querySelector("img");
+    const box = figure && figure.querySelector("div.crophl");
+    if (!figure || !img || !box) return null;
+    const i = img.getBoundingClientRect();
+    const b = box.getBoundingClientRect();
+    const handle = window.ViewerApp.openCropLightboxHandle();
+    return {
+      scale: handle ? handle.view().scale : null,
+      image: { width: i.width, height: i.height, left: i.left, top: i.top },
+      frac: [
+        (b.left - i.left) / i.width, (b.top - i.top) / i.height,
+        (b.right - i.left) / i.width, (b.bottom - i.top) / i.height,
+      ],
+    };
+  });
+  // A fraction of a laid-out box against a fraction written by the builder:
+  // the tolerance is sub-pixel at these sizes, not a fudge factor. 0.002 of a
+  // 740px picture is 1.5px, which is what a border and a rounded width cost.
+  const agrees = (got, want) => got && want &&
+    got.every((v, i) => Math.abs(v - want[i]) < 0.002);
+
+  try {
+    await page.goto(`${url}/apps/viewer/topology.html`, { waitUntil: "load" });
+    await page.waitForSelector('[data-nav-kind="topology"]', { timeout: 20000 });
+    await page.locator(navRow("topology", target.topology)).click();
+    const row = `tr.tvrow[data-id="${target.edge}"]`;
+    await page.waitForSelector(row, { timeout: 10000 });
+    await page.locator(row).click();
+
+    // 1. the affordance is really on the page, on the real crop.
+    const paneLauncher = page.locator("#detail button.cropfig__launch");
+    await paneLauncher.waitFor({ timeout: 20000 });
+    push("the preview pane's crop carries the launch affordance", true);
+
+    // 2. and it is a KEYBOARD affordance, not a hover-only one: focusable,
+    // visible once focused (opacity: 0 leaves a button in the tab order, so
+    // the focus rule is what stops it being an invisible control), and Enter
+    // opens it.
+    await paneLauncher.focus();
+    await page.waitForFunction(() => {
+      const button = document.querySelector("#detail button.cropfig__launch");
+      return button && Number(getComputedStyle(button).opacity) > 0.9;
+    }, null, { timeout: 5000 }).catch(() => {});
+    const focused = await page.evaluate(() => {
+      const button = document.querySelector("#detail button.cropfig__launch");
+      return { active: document.activeElement === button,
+               opacity: Number(getComputedStyle(button).opacity) };
+    });
+    push("the launcher takes keyboard focus and becomes visible when it does " +
+      "— an affordance only a pointer can find is half a page unusable",
+      focused.active && focused.opacity > 0.9);
+    await page.keyboard.press("Enter");
+    await page.waitForSelector("#crop-lightbox[open]", { timeout: 10000 });
+    push("Enter on the focused launcher opens the lightbox", true);
+    await page.waitForFunction(() => {
+      const box = document.querySelector("#crop-lightbox div.crophl");
+      return box && box.getBoundingClientRect().width > 0;
+    }, null, { timeout: 10000 });
+
+    // 3. the picture is at FULL SIZE -- bigger than the thumbnail it was
+    // launched from, which is the complaint this whole surface answers.
+    const thumb = await page.locator("#detail div.cropfig img").boundingBox();
+    const fit = await measure();
+    // Both axes, and by AREA rather than by a width factor: a tall datasheet
+    // crop fits by its HEIGHT, so the width gain over a 520px preview pane is
+    // modest while the area gain is not -- the first take of this check
+    // demanded 1.5x on width alone and failed on a picture that had genuinely
+    // more than doubled in area. Measured on the live NAS grip table at
+    // 1600x1000: pane thumbnail 520x593, lightbox 742x846.
+    const grew = fit && thumb &&
+      fit.image.width > thumb.width && fit.image.height > thumb.height &&
+      (fit.image.width * fit.image.height) > (thumb.width * thumb.height) * 1.8;
+    if (!grew && fit && thumb) {
+      console.log(`    thumbnail ${Math.round(thumb.width)}x` +
+        `${Math.round(thumb.height)}, lightbox ` +
+        `${Math.round(fit.image.width)}x${Math.round(fit.image.height)}`);
+    }
+    push("the lightbox's picture is larger than the thumbnail it was " +
+      "launched from, on both axes and by most of an order of magnitude in " +
+      "area — 'too small to be legible' is the complaint this surface " +
+      "answers, so the size is measured and not assumed", grew);
+    push("it opens at FIT, the whole crop on screen, not at some remembered " +
+      "zoom", fit && fit.scale === 1);
+
+    // 4. THE claim: the box lands where the crop index says it does.
+    push("at fit, the highlight box lands exactly on the rect the crop index " +
+      "wrote — measured off the laid-out picture, against " +
+      "`highlights[].frac` itself",
+      agrees(fit && fit.frac, target.entry.highlights[0].frac));
+
+    // 5. ...and it still does after a real wheel zoom.
+    //
+    // The wheel sits at the STAGE's centre, and the reason is the clamp, not
+    // convenience: the anchor is honoured only where honouring it would not
+    // leave blank stage (VA.lightboxClamp, which must win -- a reader cannot
+    // be shown a gap). This crop's highlight is 0.005 of the way across the
+    // sheet, so a zoom anchored on the box itself is clamped hard against the
+    // left edge and the anchor legitimately moves. The first take of this
+    // check measured that as a failure. The anchor's exact arithmetic is
+    // pinned value-by-value in the fast tier; what is measured HERE is that
+    // the wiring honours it where the clamp is not binding.
+    const centre = await page.evaluate(() => {
+      const s = document.querySelector("#crop-lightbox div.lightbox__stage")
+        .getBoundingClientRect();
+      return { x: s.left + s.width / 2, y: s.top + s.height / 2 };
+    });
+    // The point of the PICTURE that sits under the pointer, as a fraction of
+    // the picture -- read off the laid-out boxes, never off the view store.
+    const under = (m) => ({ x: (centre.x - m.image.left) / m.image.width,
+                            y: (centre.y - m.image.top) / m.image.height });
+    const before = under(fit);
+    await page.mouse.move(centre.x, centre.y);
+    for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -120);
+    await page.waitForFunction(() => {
+      const handle = window.ViewerApp.openCropLightboxHandle();
+      return handle && handle.view().scale > 2;
+    }, null, { timeout: 10000 });
+    const zoomed = await measure();
+    push("a wheel over the picture really zooms it — the mechanism is a " +
+      "transform on the wrapper, so this is the picture growing, not a " +
+      "second image",
+      zoomed && zoomed.scale > 2 && zoomed.image.width > fit.image.width * 2);
+    push("zoomed, the highlight box STILL lands on the crop index's own rect " +
+      "— the overlay rides the same transform as the picture and nothing " +
+      "recomputes a `frac` into a pixel",
+      agrees(zoomed && zoomed.frac, target.entry.highlights[0].frac));
+    const after = zoomed && under(zoomed);
+    push("what was under the pointer is still under the pointer after the " +
+      "zoom — zooming about the stage's corner walks whatever the reader is " +
+      "looking at off the edge",
+      after && Math.abs(after.x - before.x) < 0.01 &&
+      Math.abs(after.y - before.y) < 0.01);
+
+    // 6. a drag really pans, and the overlay comes with it.
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.down();
+    await page.mouse.move(centre.x - 180, centre.y - 120, { steps: 8 });
+    await page.mouse.up();
+    const panned = await measure();
+    push("dragging pans the picture", panned &&
+      Math.abs(panned.image.left - zoomed.image.left) > 60);
+    push("panned, the highlight box is still on its rect",
+      agrees(panned && panned.frac, target.entry.highlights[0].frac));
+
+    // 7. no page scroll bleed while it is open, and the page is handed back
+    // exactly as it was on close -- through the dialog's own `close` event,
+    // which is the one seam every dismissal goes through.
+    const whileOpen = await page.evaluate(
+      () => getComputedStyle(document.body).overflow);
+    push("the page behind the lightbox cannot scroll while it is open — a " +
+      "modal <dialog> makes the page inert but does not reliably stop it " +
+      "scrolling", whileOpen === "hidden");
+    await page.keyboard.press("Escape");
+    // Waited for on the body class, not on `open`: Escape drops `open`
+    // synchronously and the `close` event that reverses the page is a queued
+    // task, so reading the class the instant `open` goes false reads it one
+    // task early.
+    await page.waitForFunction(
+      () => !document.querySelector("#crop-lightbox").open &&
+            !document.body.classList.contains("lightbox-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    const afterClose = await page.evaluate(() => ({
+      open: document.querySelector("#crop-lightbox").open,
+      overflow: getComputedStyle(document.body).overflow,
+    }));
+    push("Escape closes it and the page's scroll comes back",
+      !afterClose.open && afterClose.overflow !== "hidden");
+
+    // 8. the GRID's route. Its inline thumbnail is the one crop image on this
+    // page that is not a cropFigure and carries no launcher of its own;
+    // clicking it opens the edge card, and the card's figure is where the
+    // launcher lives. That is the coverage claim the handoff left as a call,
+    // so it is measured rather than asserted in a comment.
+    const trigger = `${row} button.crop-trigger--thumb`;
+    await page.waitForSelector(trigger, { timeout: 15000 });
+    push("the grid's own inline thumbnail carries no launcher — it is not a " +
+      "cropFigure, and clicking it opens the card that is",
+      await page.locator(`${row} button.cropfig__launch`).count() === 0);
+    await page.locator(trigger).click();
+    await page.waitForSelector("#croppop.hovercard--edge",
+      { state: "visible", timeout: 10000 });
+    const cardLauncher = page.locator("#croppop button.cropfig__launch").first();
+    await cardLauncher.waitFor({ timeout: 10000 });
+    await cardLauncher.click();
+    await page.waitForSelector("#crop-lightbox[open]", { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const box = document.querySelector("#crop-lightbox div.crophl");
+      return box && box.getBoundingClientRect().width > 0;
+    }, null, { timeout: 10000 });
+    const fromCard = await measure();
+    push("a hover card's launcher opens the same lightbox, on the same rect " +
+      "— so the grid thumbnail reaches full size in two clicks",
+      agrees(fromCard && fromCard.frac, target.entry.highlights[0].frac));
+
+    // 9. the Fit button gets a lost reader back, and the clamp means there is
+    // nothing to be lost from: at fit the crop is centred whatever the offset.
+    await page.locator("#crop-lightbox button.lightbox__btn--in").click();
+    await page.locator("#crop-lightbox button.lightbox__btn--fit").click();
+    const refit = await measure();
+    push("Fit returns to the whole crop, centred",
+      refit && refit.scale === 1 &&
+      agrees(refit.frac, target.entry.highlights[0].frac));
+
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 async function testDeepLinks(browser, url, label) {
   const page = await browser.newPage();
   const errors = [];
@@ -5647,6 +5932,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateRail(browser, label)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>
         testAnnotateHostedPosture(browser, label)],
+      ["crop lightbox (launch, zoom, pan on the live crops)", (label) =>
+        testCropLightbox(browser, label, topologies, crops)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));
