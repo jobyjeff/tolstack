@@ -36,12 +36,18 @@
   //     kind of internal detail the standing web-copy rule bans.
   //   * "re-run the crop script" on a missing PNG. An instruction to type a
   //     command, in a web UI, which that rule bans outright.
-  VA.cropBlock = function (entry, image, config, images) {
+  //
+  // `opts` is the hover card's (views/cards.js, 2026-09-16) and passes
+  // straight through to VA.cropReference: a card states its document ONCE, in
+  // its own where-line, and folds its sourcing narrative into ONE disclosure —
+  // so inside a card this block renders neither the head that would restate
+  // the document a third time nor a second fold of its own.
+  VA.cropBlock = function (entry, image, config, images, opts) {
     var box = VA.el("div", "cropblock");
     box.appendChild(VA.cropFigure(entry, image, IMG_CLASS));
     var companion = VA.companionFigure(entry, images);
     if (companion) box.appendChild(companion);
-    VA.cropReference(box, entry, config);
+    VA.cropReference(box, entry, config, null, opts);
     return box;
   };
 
@@ -142,10 +148,22 @@
   // disclosure is the one exception and carries ONE shared class on every
   // surface -- it is new here, so there is no per-surface CSS to honour and no
   // reason to write the same rule four times.
-  VA.cropReference = function (box, entry, config, classPrefix) {
+  //
+  // `opts.omitHead` / `opts.omitProvenance` are the hover card's, and both are
+  // the same complaint (Jeff, 2026-09-16): a card that already names its
+  // document in its where-line printed it again as this head, and a third time
+  // inside the fold below — "stated, then restated". A card suppresses both
+  // and carries the matching provenance in its own single "Data source"
+  // disclosure instead. The plain popover and the two preview panes pass
+  // nothing and are unchanged: the popover has no where-line of its own, so
+  // this head IS its one document statement.
+  VA.cropReference = function (box, entry, config, classPrefix, opts) {
     var base = classPrefix || "croppop__";
-    box.appendChild(VA.el("div", base + "head",
-      entry.pdf_name + " · sheet " + entry.page));
+    opts = opts || {};
+    if (!opts.omitHead) {
+      box.appendChild(VA.el("div", base + "head",
+        entry.pdf_name + " · sheet " + entry.page));
+    }
 
     var links = VA.el("div", base + "links");
     var runUrl = VA.runUrl(config, entry);
@@ -172,7 +190,7 @@
     // picture (VA.cropProvenanceLine) — it is simply not what a reader opening
     // a crop is asking, and in the open it read as jargon restating the line
     // above.
-    var provenance = VA.cropProvenanceLine(entry);
+    var provenance = opts.omitProvenance ? null : VA.cropProvenanceLine(entry);
     if (provenance) {
       var fold = VA.disclosure(VA.CROP_PROVENANCE_SUMMARY, "provfold");
       fold.body.appendChild(VA.el("div", null, provenance));

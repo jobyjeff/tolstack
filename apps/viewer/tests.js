@@ -6192,7 +6192,11 @@
         has(root.className, "hovercard--component");
         has(root.textContent, "drawing 215197");
         eq(all(root, "img").length, 1);
-        has(root.textContent, "crop of its `base plate thickness` annotation");
+        // No backticks around the row's name since 2026-09-16: it is a display
+        // name, and dressing it as an id made it read as internal plumbing.
+        has(root.textContent, "crop of its base plate thickness annotation");
+        ok(root.textContent.indexOf("`") === -1,
+           "no card prints a backticked identifier at a reader");
         var isolate = all(root, "a")[all(root, "a").length - 1];
         has(isolate.getAttribute("href"), "isolate=base");
 
@@ -6338,7 +6342,12 @@
         has(root.textContent, "BRANCH POINT");
         // Both sides are said; only one carries an image.
         has(root.textContent, "base plate ⇔ post");
-        has(root.textContent, "crop of its `base plate thickness` annotation");
+        // One where-line per side, and it is that side's ONE document
+        // statement: the crop beneath it renders no head restating the file,
+        // and the "crop of its `X` annotation" tail went with the backticks
+        // that carried it (viewer_hover_deslop_and_banner_purge, 2026-09-16).
+        has(root.textContent, "base plate · drawing 215197");
+        eq(all(root, ".cropblock .croppop__head").length, 0);
         eq(all(root, ".cropblock").length, 1);
         eq(all(root, ".hovercard__noresolve").length, 0);
         has(root.textContent, "An interface is a location, not a value");
@@ -10707,7 +10716,7 @@
         // field and wrong about the part.
         await test("[real] every live part with no drawing names the document " +
           "its own dimensions come off, or says nothing at all", function () {
-            var standard = 0, drawn = 0, silent = 0;
+            var standard = 0, drawn = 0, silent = 0, namedAfterDrawing = 0;
             liveTopos.forEach(function (topoProj) {
               (topoProj.parts || []).forEach(function (part) {
                 var card = VA.componentCard(topoProj, part.id, realCrops);
@@ -10718,7 +10727,23 @@
                 ok(root.textContent.indexOf("no drawing recorded") === -1,
                    where + " still says a field is empty rather than what is true");
                 if (card.drawing) {
-                  has(root.textContent, "drawing " + card.drawing, where);
+                  // Deliverable 2's rule (viewer_hover_deslop_and_banner_purge,
+                  // 2026-09-16): the part number is printed ONCE. Most live
+                  // parts are NAMED after their drawing, and those cards said
+                  // "214820-002 plain bushing" and then "drawing 214820-002" on
+                  // the very next line -- so where the heading already carries
+                  // the number, the drawing line carries only the revision, or
+                  // is not rendered at all.
+                  if (String(card.title).indexOf(card.drawing) !== -1) {
+                    namedAfterDrawing += 1;
+                    all(root, "div.hovercard__where").forEach(function (node) {
+                      ok(node.textContent.indexOf(card.drawing) === -1, where +
+                         ": the heading already says the part number, and no " +
+                         "card repeats it on the next line");
+                    });
+                  } else {
+                    has(root.textContent, "drawing " + card.drawing, where);
+                  }
                   eq(card.references, [], where +
                     ": a part with a drawing needs no second reference");
                   drawn += 1;
@@ -10750,6 +10775,8 @@
             ok(standard > 0, "no live part is sourced only to a standard sheet, " +
               "so the sentence Jeff asked for went unexercised");
             ok(drawn > 0, "no live part carries a drawing");
+            ok(namedAfterDrawing > 0, "no live part is named after its own " +
+              "drawing, so the no-repeat branch went unexercised");
             ok(silent > 0, "no live part has neither a drawing nor a citation, " +
               "so the say-nothing branch went unexercised");
           });

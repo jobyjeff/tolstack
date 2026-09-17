@@ -2536,6 +2536,29 @@
     };
   };
 
+  // What a card's drawing line has left to say once the card's TITLE has been
+  // read (Jeff, 2026-09-16: a part number "is never printed on two consecutive
+  // lines" -- the 214820-002 bushing's card said "214820-002 plain bushing"
+  // and then "drawing 214820-002" directly beneath it).
+  //
+  // Most Joby parts here are NAMED after their drawing, so the number in the
+  // heading and the number in the drawing line are the same characters twice.
+  // Where the title already carries it, the only thing left worth printing is
+  // the REVISION -- which the title never carries -- and a part with no
+  // revision recorded gets no line at all rather than a line that repeats.
+  // Where the title does not carry it (a part named "propeller hub" off
+  // drawing 212966-006) the full line stands, unchanged.
+  //
+  // Takes the three fields rather than a card, so a node card's SIDE -- which
+  // carries the same three under different names -- gets the same answer as
+  // the component card for the same part.
+  VA.componentDrawingText = function (title, drawing, revision) {
+    if (!drawing) return null;
+    var rev = revision ? VA.revisionText(revision) : null;
+    if (String(title || "").indexOf(String(drawing)) !== -1) return rev;
+    return "drawing " + drawing + (rev ? " " + rev : "");
+  };
+
   // The word an adjacent edge with NO part gets wherever a node's sides are
   // listed. A clearance is a real side of an interface, not a missing one, so
   // it is named rather than skipped -- and named in the grid's own words.

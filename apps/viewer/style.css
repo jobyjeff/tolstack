@@ -73,7 +73,21 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 .banner__error { flex-basis: 100%; color: var(--untraced); }
 .banner__crash-hint { flex-basis: 100%; color: var(--muted); font-size: 12px; }
 .banner__built { color: var(--muted); font-variant-numeric: tabular-nums; }
-.banner__source { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+/* The one fold on the bar (viewer_hover_deslop_and_banner_purge, 2026-09-16):
+   five rows of build stamps became one closed <details> wearing the same word
+   a hover card's own fold wears (VA.DATA_SOURCE_SUMMARY). Deliberately NOT
+   `flex-basis: 100%` like the alarm below it -- this is a quiet aside sharing
+   the bar's first line with the Reload button, not a row of its own, and a
+   full-width row is exactly what it stopped being. The body opens beneath as
+   a full-width row all the same, because the lines inside it are long. */
+.banner__source { color: var(--muted); font-size: 12px; }
+.banner__source__summary { cursor: pointer; list-style: none; }
+.banner__source__summary::-webkit-details-marker { display: none; }
+.banner__source__summary::before { content: "▸  "; }
+.banner__source[open] .banner__source__summary::before { content: "▾  "; }
+.banner__source[open] { flex-basis: 100%; }
+.banner__source__body { margin: 4px 0 2px; }
+.banner__transport { color: var(--muted); font-size: 12px; }
 .banner__missing { flex-basis: 100%; border-left: 3px solid var(--inferred); padding: 6px 10px; }
 /* Which tree built each projection. Quiet by default — it is context, not an
    alarm — but the alarm above it is loud, because a projection built from a
@@ -484,6 +498,21 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
   border-radius: 4px; padding: 4px 6px; margin: 4px 0; overflow-wrap: anywhere;
 }
 .hovercard__notefull { color: var(--muted); font-size: 12px; margin: 4px 0; }
+/* The ONE fold a card carries (views/cards.js's sourceFold): the record's note
+   in full, the export/identity narrative and each crop's matching provenance,
+   under the same word the banner's own fold wears. Quiet, and last in the
+   card. */
+.hovercard__source { margin: 8px 0 0; }
+.hovercard__source__summary {
+  cursor: pointer; color: var(--muted); font-size: 12px; list-style: none;
+}
+.hovercard__source__summary::-webkit-details-marker { display: none; }
+.hovercard__source__summary::before { content: "▸  "; }
+.hovercard__source[open] .hovercard__source__summary::before { content: "▾  "; }
+.hovercard__source__body {
+  margin: 4px 0 0; padding-left: 8px; border-left: 2px solid var(--line);
+}
+.hovercard__cropprov { color: var(--muted); font-size: 12px; margin: 4px 0; }
 .hovercard__note { color: var(--muted); font-size: 12px; margin: 4px 0;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .hovercard__note--open { display: block; -webkit-line-clamp: unset; overflow: visible; }

@@ -406,6 +406,31 @@
     return /^rev\b/i.test(text) ? text : VA.REVISION_LABEL + text;
   };
 
+  // The first sentence of a record's own prose, for a surface that shows a
+  // short description in the open and the whole note behind a fold
+  // (views/cards.js, viewer_hover_deslop_and_banner_purge 2026-09-16).
+  //
+  // A PREFIX of the input or the whole of the input, never anything else:
+  // nothing is reworded, recased, reordered or summarised, the same discipline
+  // VA.fieldLabel and VA.elementDisplayLabel keep, and the full text is always
+  // one click away in the same card. This is a placement decision, not the
+  // viewer editing the record.
+  //
+  // A sentence ends at `.`/`!`/`?` followed by whitespace and a capital. Both
+  // halves of that are load-bearing on the live notes, which are full of
+  // leading-decimal dimensions: ".1900 in ID X .1875 in long" has two periods
+  // in it and neither is followed by a space, so a split on `.` alone would
+  // return "Plain bushing, aluminium bronze, " and call it a description. A
+  // note with no such break is returned whole — better a long lead than a
+  // guess at where a thought ended.
+  VA.LEAD_SENTENCE_RE = /^[\s\S]*?[.!?](?=\s+["'(\[]?[A-Z])/;
+  VA.leadSentence = function (text) {
+    if (text === null || text === undefined) return "";
+    var whole = String(text).trim();
+    var match = whole.match(VA.LEAD_SENTENCE_RE);
+    return match ? match[0] : whole;
+  };
+
   // A schema key, as a label a reader can read: `assembly_drawing` -> "assembly
   // drawing". The free-form blocks on this page (a stack's or a topology's
   // `joint`) are authored as JSON and rendered key by key, because nothing
