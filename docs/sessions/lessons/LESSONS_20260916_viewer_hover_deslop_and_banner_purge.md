@@ -130,7 +130,19 @@ knowing before touching that block:
   the position it jumped *from*, and the corridor is computed off a stale
   vector. A real mouse emits a move every few milliseconds, so in a reader's
   hand the positions either side of the enter are millimetres apart and on the
-  approach line; `{ steps: 12 }` is how a synthetic pointer reproduces that.
+  approach line.
+* **...and `{ steps }` alone does not reproduce that, because Chrome coalesces
+  mousemove under load.** This is the one that nearly shipped. The stepped
+  version was green five runs out of five in isolation and went **red inside a
+  full mutation-witness run** — a suite that passes on an idle machine and
+  fails on a loaded one is the worst shape a guard can have, and it was found
+  only because the mutation runner refuses to credit an entry whose tier was
+  already red. The fix is `approachFrom()`: three awaited moves down the
+  approach line, an 80ms drain so the page has processed them, and only then
+  the step that crosses into the trigger — so the two positions either side of
+  the crossing are deterministic: both already processed by the page, and both
+  on the approach line. Re-measured green with four suites running
+  concurrently.
 * **The geometry is chosen, not incidental.** The citation card opens from a
   row's confidence chip and is placed below that row, wide enough to sit under
   the row's own crop trigger — so that trigger is ~20px directly above the open
