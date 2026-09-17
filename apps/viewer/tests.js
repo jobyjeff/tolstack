@@ -1327,7 +1327,19 @@
       has(note.textContent, "stack_demo_fit.json");
       // The escape hatch out of the browser: the command that prints the same
       // term table, so the surface is checkable and not just believable.
-      has(note.textContent, "debug_report_thermal_fit.py");
+      // NOT the command. Jeff's web-UI rule is binding across every repo's web
+      // surface -- never render a terminal command for the user to copy/paste --
+      // and this paragraph rendered one, `venv-win\\Scripts\\python.exe ...`,
+      // on the live M1 thermal stack. It was invisible to the banned-string
+      // guard, which has banned "venv-win" by name since the day it was written
+      // but had no walk that reached a stack-side surface (2026-09-16).
+      ok(note.textContent.indexOf("debug_report_thermal_fit.py") === -1,
+         "no terminal command in the rendered note: " + note.textContent);
+      ok(note.textContent.indexOf("venv-win") === -1,
+         "no interpreter path either: " + note.textContent);
+      // The fact the command carried is kept, in words: the table is
+      // reproducible outside the browser.
+      has(note.textContent, "printed outside the browser");
       // An authored stack gets no such note.
       var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
       eq(all(plain, ".check__note").length, 0);
@@ -3164,7 +3176,54 @@
       ["C:\\", "an absolute workstation path, the other way round"],
       ["build_viewer_crops.py", "a terminal command for the reader to type"],
       ["venv-win", "a terminal command for the reader to type"],
+      // SHAPES, not literals (2026-09-16, reader_facing_copy_and_vocabulary
+      // item 7). The eight above are the eight instances that existed on
+      // 2026-09-15; a literal can only ever catch the strings someone has
+      // already written down. A shape catches the ones nobody has written yet,
+      // and that is not hypothetical here: VA.exportRunsLine printed four bare
+      // run ids -- `20260723_163810` and three more -- straight past this list
+      // for as long as it has existed, because no literal in it spells a run
+      // id and nothing could (ISSUE_20260916_the_element_pane_still_prints_
+      // bare_drawing_checker_run_ids_as_link_text).
+      [/\b\d{8}_\d{6}\b/,
+       "a drawing-checker run id -- an internal artifact's address, and a " +
+       "shape, so an id nobody has written yet is caught too"],
+      [/\b[0-9a-f]{24,}\b/,
+       "a checksum's own digits -- twelve hex characters are not something a " +
+       "reader of this page can do anything with"],
     ];
+
+    // Every FIELD NAME the schema uses, read out of the projection itself
+    // rather than listed here -- the same rule the id walks follow, one level
+    // up. Two of the eight literals above (`source_ref`, `crop_key`) are field
+    // names someone hit and wrote down; this is the general form, and it needs
+    // no maintenance when the schema grows a field.
+    //
+    // Keys with a separator in them ONLY, for exactly the reason the id walks
+    // skip a one-word id: `sheet`, `note`, `document`, `revision` and `zone`
+    // are all schema keys AND words a human would write, and `sheet 3` is the
+    // right thing for a citation line to say.
+    function schemaFieldNames(projection) {
+      var names = {}, values = {};
+      (function walk(value) {
+        if (typeof value === "string") { values[value] = true; return; }
+        if (!value || typeof value !== "object") return;
+        if (Array.isArray(value)) { value.forEach(walk); return; }
+        Object.keys(value).forEach(function (key) {
+          if (key.indexOf("_") !== -1) names[key] = true;
+          walk(value[key]);
+        });
+      })(projection);
+      // A word the schema uses as a VALUE somewhere is data, and the page is
+      // entitled to print it. `thermal_fit` is the live example and the reason
+      // this subtraction exists: it is an `archetype` value a stack page says
+      // out loud, and it is also a KEY, because the projection carries an
+      // archetype-keyed map. Without this the guard reports the sentence
+      // `The archetype "thermal_fit" builds them` as schema jargon, which it
+      // plainly is not -- and a guard that cries wolf on a correct sentence
+      // gets an allowlist entry, then two, then deleted.
+      return Object.keys(names).filter(function (name) { return !values[name]; });
+    }
 
     // The nodes that print a DOCUMENT's own prose, word for word: a citation's
     // note, a callout as printed, an export's recorded `why`. The ban above is
@@ -3177,26 +3236,129 @@
       "div.detail__note", "div.detail__callout",
       "div.hovercard__note", "div.hovercard__notefull", "div.hovercard__callout",
       "div.el-export__note", "div.el-export__why",
+      // The stack-side surfaces, enrolled 2026-09-16 when the walk below
+      // reached them. Every one of these is the RECORD speaking, not the page:
+      // an element row's citation note and callout as printed (a material
+      // entry's own note reuses the same two classes), and a worksheet, which
+      // is authored markdown read live off disk. `el-row__srcnote` in particular
+      // carries live prose naming `20260730_133912` to argue an export's
+      // identity -- true, useful, and not the viewer's words to trim.
+      "div.el-row__srcnote", "div.el-row__callout",
+      "div.worksheet__body",
+      // ...and the four places the stack page prints the RECORD: a stack's own
+      // notes, a derived gap's text, a hardware or material entry's recorded
+      // gap, and a check's authored guidance. Every one of these is authored in
+      // the stack JSON and rendered whole on purpose.
+      "li.notelist__note", "span.gap__text", "li.el-gaps__text",
+      "p.check__guidance", "dd.kv__value", "tr.el-note--record",
     ];
 
     // Everything on a surface that the VIEWER wrote -- the rendered text with
-    // the verbatim-prose nodes' own text removed.
+    // the verbatim-prose SUBTREES left out.
+    //
+    // A walk, not a substring subtraction. It subtracted each verbatim node's
+    // text out of the whole page's text until 2026-09-16, which is safe only
+    // while every enrolled class holds a paragraph: the stack page's free-form
+    // blocks render one-character values ("A", the assembly revision), and
+    // removing every "A" from the page turned "PARTS-LIST" into "P RTS-LIST"
+    // and the guard's own failure messages into nonsense. Skipping the node is
+    // the same intent without the collateral.
+    //
+    // Model-independent on purpose: the node tier keeps an element's text on
+    // the element, a browser keeps it in child text nodes, and descending only
+    // where there are children reads both the same way.
     function viewerAuthoredText(root) {
-      var text = root.textContent;
+      var skip = [];
       VERBATIM_PROSE_CLASSES.forEach(function (selector) {
-        all(root, selector).forEach(function (node) {
-          var quoted = node.textContent;
-          if (quoted) text = text.split(quoted).join(" ");
-        });
+        skip = skip.concat(all(root, selector));
       });
-      return text;
+      function walk(node) {
+        if (skip.indexOf(node) !== -1) return "";
+        var kids = node.childNodes
+          ? Array.prototype.slice.call(node.childNodes) : [];
+        if (!kids.length) return String(node.textContent || "");
+        return kids.map(walk).join(" ");
+      }
+      return walk(root);
     }
 
+    // A banned entry is a literal OR a shape; both report the string actually
+    // found, never the pattern, because "renders /\\b\\d{8}_\\d{6}\\b/" tells a
+    // reader nothing about which id is on their page.
     function bannedIn(text, where) {
       BANNED_IN_RENDERED_TEXT.forEach(function (pair) {
-        ok(String(text).indexOf(pair[0]) === -1,
-           where + " renders " + JSON.stringify(pair[0]) + " (" + pair[1] +
+        var found = typeof pair[0] === "string"
+          ? (String(text).indexOf(pair[0]) === -1 ? null : pair[0])
+          : (String(text).match(pair[0]) || [null])[0];
+        ok(found === null,
+           where + " renders " + JSON.stringify(found) + " (" + pair[1] +
            "): " + text);
+      });
+    }
+
+    // Every STACK-side surface that renders reader-facing text, for one stack
+    // projection. Named here rather than inside either tier's test so the
+    // fixture walk and the [real] walk cannot drift into covering different
+    // surfaces -- which is how the topology walks and the stack walks came to
+    // be two different guards in the first place.
+    //
+    // This half of the viewer had NO walk at all until 2026-09-16. Both
+    // existing walks enumerate topology surfaces (grid, node/edge panes, hover
+    // cards); `views/stack.js`, `views/detail.js`, `views/worksheet.js` and
+    // VA.summaryChips were reachable by no guard, which is why VA.exportRunsLine
+    // printed four bare run ids on the element pane for a month
+    // (reader_facing_copy_and_vocabulary item 7).
+    function stackSurfaces(stackProj, crops) {
+      var where = stackProj.id + " ";
+      var surfaces = [[where + "stack page", render(function (r) {
+        VA.renderStack(r, stackProj, crops, {});
+      })]];
+      // The header chips are a view-model, not DOM -- render them into one so
+      // the same scan reads them. A chip's `title` is rendered text too: it is
+      // the only explanation of the chip a reader ever gets.
+      surfaces.push([where + "summary chips", render(function (r) {
+        VA.summaryChips(stackProj).forEach(function (chip) {
+          r.appendChild(VA.chip("chip--scan", chip.text, chip.title || null));
+        });
+      })]);
+      surfaces.push([where + "worksheet pane", render(function (r) {
+        VA.renderWorksheet(r, stackProj, null);
+      })]);
+      ((stackProj.stack || {}).elements || []).forEach(function (element) {
+        surfaces.push([where + "element pane on " + element.id,
+          render(function (r) {
+            VA.renderDetail(r, stackProj, element.id, crops, null, VA.CONFIG);
+          })]);
+        if (element.source_ref) {
+          surfaces.push([where + "citation card on " + element.id,
+            render(function (r) {
+              VA.renderHoverCard(r, VA.citationCard(element.source_ref, null, null),
+                {}, VA.CONFIG, null);
+            })]);
+        }
+      });
+      return surfaces;
+    }
+
+    // The banned list, the schema's own field names, and a set of ids, over one
+    // surface's viewer-authored text. One function so a new surface cannot be
+    // enrolled in three quarters of the guard.
+    function surfaceIsClean(root, where, fieldNames, ids) {
+      var text = viewerAuthoredText(root);
+      bannedIn(text, where);
+      (fieldNames || []).forEach(function (name) {
+        // On a word boundary, not as a substring: the stack page prints every
+        // element's own id beside its name on purpose (a reviewer finds the row
+        // in the JSON by it), and `bushing_flange_thickness` contains the
+        // schema key `flange_thickness`. JS treats `_` as a word character, so
+        // `` is exactly the right fence here -- an id with a separator either
+        // side of the key does not match, and the key standing alone does.
+        ok(!(new RegExp("\b" + name + "\b").test(text)),
+           where + " renders the schema field name `" + name + "`: " + text);
+      });
+      (ids || []).forEach(function (id) {
+        ok(text.indexOf(id) === -1,
+           where + " prints the internal id `" + id + "`: " + text);
       });
     }
 
@@ -3407,21 +3569,42 @@
           })]);
         });
 
+        // An id that happens also to BE a phrase a human would write is no
+        // evidence of anything (`post`, `arm`); only ids with a separator in
+        // them are unambiguously machine-shaped.
         var ids = (TOPO.parts || []).map(function (p) { return p.id; })
-          .concat((TOPO.nodes || []).map(function (n) { return n.id; }));
+          .concat((TOPO.nodes || []).map(function (n) { return n.id; }))
+          .filter(function (id) { return id.indexOf("_") !== -1; });
+        var fields = schemaFieldNames(TOPO);
+        ok(fields.length > 5, "the field-name scan must not be vacuous: " + fields);
         surfaces.forEach(function (pair) {
-          bannedIn(pair[1].textContent, pair[0]);
-          ids.forEach(function (id) {
-            // An id that happens also to BE a phrase a human would write is no
-            // evidence of anything (`post`, `arm`); only ids with a separator
-            // in them are unambiguously machine-shaped.
-            if (id.indexOf("_") === -1) return;
-            ok(pair[1].textContent.indexOf(id) === -1,
-               pair[0] + " prints the internal id `" + id + "`: " +
-               pair[1].textContent);
-          });
+          surfaceIsClean(pair[1], pair[0], fields, ids);
         });
         ok(surfaces.length > 20, "the walk must not be vacuous");
+      });
+
+    // The OTHER half of the viewer, which had no walk of any kind until
+    // 2026-09-16. Same three scans, same helpers, over the stack-side
+    // renderers: the element table, the header chips, the worksheet pane, the
+    // element pane and the citation card.
+    await test("no rendered stack surface prints an internal id, a field name, " +
+      "a checksum or a workstation path", function () {
+        var surfaces = [];
+        [DEMO, GEN].forEach(function (stackProj) {
+          surfaces = surfaces.concat(stackSurfaces(stackProj, CROPS));
+        });
+        var fields = schemaFieldNames({ stacks: [DEMO, GEN] });
+        ok(fields.length > 5, "the field-name scan must not be vacuous: " + fields);
+        surfaces.forEach(function (pair) {
+          // No id list here: a stack's element ids ARE printed, on purpose --
+          // views/stack.js puts each one in a <code> beside the element's name
+          // so a reviewer can find the row in the JSON. That is a deliberate
+          // affordance on this surface and not the class of thing this walk
+          // exists to catch, which is why the ids argument is the topology
+          // walks' and not this one's.
+          surfaceIsClean(pair[1], pair[0], fields, null);
+        });
+        ok(surfaces.length > 10, "the walk must not be vacuous: " + surfaces.length);
       });
 
     // ITEM 5. The pane's width, and the one preference on this page that
@@ -6459,9 +6642,16 @@
         var root = render(function (r) { VA.renderTopoJoint(r, withJoint); });
         eq(all(root, "details.sv__joint").length, 1);
         Object.keys(joint).forEach(function (key) {
-          has(root.textContent, key);
+          // The KEY AS A LABEL, not as a schema field name: a free-form block
+          // is rendered key by key, so `assembly_drawing` was a definition-list
+          // term on the live L1 topology until 2026-09-16. VA.fieldLabel drops
+          // the separator and changes nothing else, which is why this asserts
+          // the transform rather than a hand-written expansion.
+          has(root.textContent, VA.fieldLabel(key));
           has(root.textContent, String(joint[key]));
         });
+        ok(root.textContent.indexOf("assembly_drawing") === -1,
+           "no raw schema key in the rendered block: " + root.textContent);
       });
 
     await test("a topology with no joint (it spans more than one physical " +
@@ -8152,6 +8342,22 @@
       });
 
       // --- [real] source_ref.export, against the live citations ---------------
+
+      await test("[real] no rendered stack surface of any live stack prints an " +
+        "internal id, a field name, a checksum or a workstation path",
+        function () {
+          var fields = schemaFieldNames(realResults);
+          ok(fields.length > 20,
+             "the field-name scan must not be vacuous: " + fields.length);
+          var surfaces = 0;
+          realResults.stacks.forEach(function (stackProj) {
+            stackSurfaces(stackProj, realCrops).forEach(function (pair) {
+              surfaceIsClean(pair[1], pair[0], fields, null);
+              surfaces += 1;
+            });
+          });
+          ok(surfaces > 50, "the walk must not be vacuous: " + surfaces);
+        });
 
       function liveCitations() {
         var out = [];
@@ -10272,13 +10478,9 @@
                   selection: selection, onSelect: function () {},
                 };
               };
+              var fields = schemaFieldNames(topoProj);
               var check = function (where, root) {
-                var text = viewerAuthoredText(root);
-                bannedIn(text, where);
-                ids.forEach(function (id) {
-                  ok(text.indexOf(id) === -1,
-                     where + " prints the internal id `" + id + "`: " + text);
-                });
+                surfaceIsClean(root, where, fields, ids);
                 surfaces += 1;
               };
               check(topoProj.id + " grid", render(function (r) {

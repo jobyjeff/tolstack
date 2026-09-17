@@ -586,21 +586,32 @@
   // `next` makes the toolbar's cycle order a fact of this table rather than
   // arithmetic in the app shell — the same reason ROW_DENSITIES carries its
   // own labels.
+  //
+  // `scaled` is a fact OF the mode, not arithmetic beside it: VA.rowPositions
+  // asked `mode === "tolerance" || mode === "absolute"` until 2026-09-16, which
+  // is this table's own vocabulary spelled a second time, in a function body
+  // where no pairing test can see it. A fourth mode added to the table would
+  // have been silently unscaled (tests/test_js_python_vocabulary.py's
+  // `test_no_viewer_vocabulary_is_spelled_as_a_comparison_chain` is what found
+  // it and what keeps it fixed).
   VA.EDGE_LENGTH_MODES = {
     uniform: {
       label: "uniform",
       next: "tolerance",
+      scaled: false,
       title: "Every dimension bar is drawn the same length.",
     },
     tolerance: {
       label: "tolerance width",
       next: "absolute",
+      scaled: true,
       title: "A bar's length is proportional to its dimension's tolerance " +
         "band (max − min). Indicative, never measured.",
     },
     absolute: {
       label: "feature size",
       next: "uniform",
+      scaled: true,
       title: "A bar's length is proportional to its dimension's nominal " +
         "size. Indicative, never measured.",
     },
@@ -865,7 +876,7 @@
   VA.rowPositions = function (layout, topoProj, mode, metrics, fit) {
     metrics = metrics || VA.RAIL_METRICS;
     var rows = (layout && layout.rows) || [];
-    var scaled = mode === "tolerance" || mode === "absolute";
+    var scaled = !!(VA.EDGE_LENGTH_MODES[mode] || {}).scaled;
     var index = scaled ? VA.topologyIndex(topoProj) : null;
     var floor = metrics.rowHeight * VA.EDGE_LENGTH_SCALE.floorRows;
 

@@ -406,6 +406,22 @@
     return /^rev\b/i.test(text) ? text : VA.REVISION_LABEL + text;
   };
 
+  // A schema key, as a label a reader can read: `assembly_drawing` -> "assembly
+  // drawing". The free-form blocks on this page (a stack's or a topology's
+  // `joint`) are authored as JSON and rendered key by key, because nothing
+  // knows in advance what they contain -- so the key IS the label, and until
+  // 2026-09-16 it was printed raw, which put schema jargon in a definition list
+  // a reader is meant to skim.
+  //
+  // Separator only. Nothing is reworded, recased or reordered: every character
+  // of the output is a character of the input in the input's order, minus the
+  // underscores, which is the same discipline VA.elementDisplayLabel keeps. A
+  // transform that guessed at expansions ("rev" -> "revision") would be the
+  // viewer editing the record.
+  VA.fieldLabel = function (key) {
+    return String(key).split("_").join(" ");
+  };
+
   // "sheet 4 · DETAIL B · zone H3" — the same shape drawing-checker's own
   // "Where" column uses, so a citation reads the same in both tools.
   //

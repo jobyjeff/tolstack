@@ -856,6 +856,228 @@ PAIRINGS = (
 )
 
 
+# --------------------------------------------------------------------------- #
+# 2b. the inline-literal scan, on the JavaScript side                         #
+# --------------------------------------------------------------------------- #
+#
+# ``tests/test_tolerance_stack.py``'s
+# ``test_no_persisted_field_vocabulary_is_an_inline_literal`` asks one question of
+# ``tolerance_stack/``: does any membership check spell its vocabulary as a bare
+# tuple of strings instead of reading a module-level constant? It reads
+# ``tolerance_stack/`` **only**, and that is precisely why two of the defects this
+# handoff fixed lived in ``apps/viewer/`` unnoticed --
+# ``VA.needsAnnotation``'s ``confidence === "untraced" || confidence ===
+# "no_source_ref"`` and ``views/worksheet.js``'s ``=== "declared"``.
+#
+# This is that question, asked of the viewer. Mirrored rather than shared: the
+# Python one walks an AST, and there is no JS parser here (deliberately -- see the
+# scanner note at the top of this module), so the two have no machinery in common
+# beyond their argument.
+#
+# **The rule, and why it is not "any two literals".** A comparison chain is flagged
+# when its literal set is a subset of some ``VA.<NAME>`` table's members. Not every
+# ``a === "x" || a === "y"``: ``key !== "ArrowLeft" && key !== "ArrowRight"`` and
+# ``part === "" || part === "."`` are both live, both correct, and neither is a
+# *vocabulary* -- there is no table anywhere that says what the domain is, so
+# there is nothing to read instead. Anchoring on the tables makes the finding
+# exact: the table IS the thing the chain should have read, and the failure
+# message can say so by name. What it cannot catch is a vocabulary with no table
+# at all, which is the ``worksheet_source`` shape; nothing static can, and the
+# pairing rows above are what keep a table honest once it exists.
+
+#: A single ``<expression> === "literal"`` term. ``expr`` is taken as written so
+#: that two terms count as one chain only when they test the *same* thing.
+_JS_TERM = re.compile(
+    r'([A-Za-z_$][A-Za-z0-9_$.]*)\s*(===|!==)\s*"([^"\\]*)"')
+
+#: What may sit between two terms of one chain: the joining operator and nothing
+#: else but whitespace and the parentheses a condition is often wrapped in.
+_JS_JOIN = re.compile(r"^[\s()]*(\|\||&&)[\s()]*$")
+
+
+def js_without_comments(text: str) -> str:
+    """``text`` with both comment forms blanked, string literals kept.
+
+    Blanked, not deleted, so every offset is still the offset in the original and
+    a finding can name its line. A comment is where a vocabulary is most likely to
+    be *quoted* rather than spelled -- ``VA.needsAnnotation``'s own comment quoted
+    the pair it checked -- so scanning them would report the documentation as the
+    defect.
+    """
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        char = text[i]
+        if char in "\"'":
+            quote, i = char, i + 1
+            while i < n and text[i] != quote:
+                i += 2 if text[i] == "\\" else 1
+            i += 1
+        elif char == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] != "\n":
+                out[i], i = " ", i + 1
+        elif char == "/" and i + 1 < n and text[i + 1] == "*":
+            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
+                out[i] = " " if text[i] != "\n" else "\n"
+                i += 1
+            out[i] = out[i + 1] = " "
+            i += 2
+        else:
+            i += 1
+    return "".join(out)
+
+
+def js_literal_chains(text: str) -> list[tuple[int, str, tuple[str, ...]]]:
+    """``(line, expression, literals)`` for every same-expression comparison chain.
+
+    Two or more terms only: one ``=== "resolved"`` is a branch, not a vocabulary,
+    and this repo's pages are full of correct ones.
+    """
+    source = js_without_comments(text)
+    terms = [
+        (m.start(), m.end(), m.group(1), m.group(2), m.group(3))
+        for m in _JS_TERM.finditer(source)
+    ]
+    chains: list[tuple[int, str, tuple[str, ...]]] = []
+    run: list[tuple[int, int, str, str, str]] = []
+
+    def flush() -> None:
+        if len(run) >= 2:
+            chains.append((
+                source[:run[0][0]].count("\n") + 1,
+                run[0][2],
+                tuple(term[4] for term in run),
+            ))
+        run.clear()
+
+    for term in terms:
+        if run:
+            joined = _JS_JOIN.match(source[run[-1][1]:term[0]])
+            same = run[-1][2] == term[2] and run[-1][3] == term[3]
+            if joined and same:
+                run.append(term)
+                continue
+            flush()
+        run.append(term)
+    flush()
+    return chains
+
+
+#: Every file the viewer serves, minus its own test file. ``tests.js`` is excluded
+#: because a test legitimately spells a vocabulary out -- that is what pinning a
+#: value at the value level IS -- and because the guards in it read the ``VA``
+#: tables directly anyway.
+def viewer_sources() -> list[Path]:
+    viewer = REPO_ROOT / "apps" / "viewer"
+    paths = sorted(viewer.glob("*.js")) + sorted((viewer / "views").glob("*.js"))
+    return [p for p in paths
+            if p.name not in {"tests.js", "fixtures.js", "topology_fixtures.js"}]
+
+
+def viewer_tables() -> dict[str, frozenset[str]]:
+    """Every ``VA.<NAME>`` table the viewer defines, by name, with its members.
+
+    Read with the same two extractors the pairings above use, so a table this
+    cannot see is a table nothing in this module can see. An anchor either
+    extractor refuses is skipped rather than raising: ``VA.CONFIDENCE_LABEL`` is a
+    perfectly good object literal and ``VA.MONTH_NAMES`` a perfectly good array,
+    and both belong in the comparison set; a mid-scan raise would drop every table
+    after the first awkward one.
+    """
+    tables: dict[str, frozenset[str]] = {}
+    for path in viewer_sources():
+        text = path.read_text(encoding="utf-8")
+        for name in re.findall(r"VA\.([A-Z][A-Z0-9_]*)\s*=\s*[\[{]", text):
+            for extract in (js_object_keys, js_array_strings):
+                try:
+                    tables[name] = extract(text, name).keys
+                    break
+                except (LookupError, ValueError):
+                    continue
+    return tables
+
+
+def test_no_viewer_vocabulary_is_spelled_as_a_comparison_chain():
+    """No ``VA`` table's words are re-spelled as ``x === "a" || x === "b"``.
+
+    The two halves of the defect this catches are worth keeping apart:
+
+    * **The branch drifts from the table.** A word is added to the table and the
+      chain keeps the old set, so the page has a branch for a state it no longer
+      recognises, or stops recognising one it should.
+    * **The vocabulary stops being pairable.** Neither extractor in this module
+      can anchor on a chain in a function body, so a vocabulary spelled that way
+      is invisible to every pairing row -- which is exactly the state
+      ``VA.needsAnnotation`` was in from the day it was written until 2026-09-16,
+      with the Python side it had to agree with sitting in
+      ``build_topology_projection.py`` and nothing able to compare them.
+
+    Revert ``VA.needsAnnotation`` to ``confidence === "untraced" || confidence ===
+    "no_source_ref"`` and this names ``VA.UNVERIFIED_CONFIDENCES`` on that line.
+    """
+    tables = viewer_tables()
+    assert len(tables) > 15, f"the table scan came back thin: {sorted(tables)}"
+
+    problems = []
+    for path in viewer_sources():
+        for line, expression, literals in js_literal_chains(
+                path.read_text(encoding="utf-8")):
+            words = set(literals)
+            for name, keys in sorted(tables.items()):
+                if words <= set(keys):
+                    problems.append(
+                        f"{path.relative_to(REPO_ROOT).as_posix()}:{line}: "
+                        f"`{expression}` is compared against {sorted(words)}, "
+                        f"which VA.{name} already spells"
+                    )
+                    break
+    assert problems == [], (
+        "a vocabulary the viewer already has a table for, spelled again as a "
+        "comparison chain. Read the table (VA.needsAnnotation and "
+        "views/worksheet.js are the fix shape), or give the fact its own field "
+        "on the table's rows:\n  " + "\n  ".join(problems)
+    )
+
+
+def test_the_chain_scanner_finds_what_it_is_for_and_ignores_what_it_is_not():
+    """The scanner, watched on each shape -- including the ones it must let past.
+
+    A guard that flagged every two-literal comparison would be deleted within a
+    month: ``key !== "ArrowLeft" && key !== "ArrowRight"`` is live in two files
+    and correct, and there is no table for it to read.
+    """
+    found = js_literal_chains(
+        'if (c === "untraced" || c === "no_source_ref") { return 1; }\n')
+    assert found == [(1, "c", ("untraced", "no_source_ref"))]
+
+    # Negated, joined the other way -- the same vocabulary, spelled inside out.
+    assert js_literal_chains('x !== "a" && x !== "b";\n') == [(1, "x", ("a", "b"))]
+    # Wrapped in the parentheses a real condition carries.
+    assert js_literal_chains('if ((x === "a") || (x === "b")) y();\n')[0][2] == ("a", "b")
+    # A property path is one expression, and stays one.
+    assert js_literal_chains('e.kind === "a" || e.kind === "b";\n')[0][1] == "e.kind"
+
+    # DIFFERENT expressions are not a chain: this is one condition about two
+    # things, which is the shape `protocol === "file:" || typeof f !== "function"`
+    # takes in viewer.js and must not be reported.
+    assert js_literal_chains('a === "x" || b === "y";\n') == []
+    # Different operators, likewise -- `a === "x" || a !== "y"` is not a domain.
+    assert js_literal_chains('a === "x" || a !== "y";\n') == []
+    # One literal is a branch, not a vocabulary.
+    assert js_literal_chains('a === "x";\n') == []
+    # Joined by something that is not a boolean operator at all.
+    assert js_literal_chains('f(a === "x", a === "y");\n') == []
+
+    # A comment quoting the pair it documents is documentation, not a defect --
+    # and `VA.needsAnnotation`'s own comment did exactly that.
+    assert js_literal_chains(
+        '// c === "untraced" || c === "no_source_ref"\nvar q = 1;\n') == []
+    assert js_literal_chains(
+        '/* c === "a" || c === "b" */\nvar q = 1;\n') == []
+    # ...and so is a string that happens to contain the shape.
+    assert js_literal_chains('var s = "c === \\"a\\" || c === \\"b\\"";\n') == []
+
+
 @pytest.fixture(scope="module")
 def viewer_js() -> str:
     return VIEWER_JS.read_text(encoding="utf-8")
