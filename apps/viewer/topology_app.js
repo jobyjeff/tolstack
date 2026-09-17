@@ -187,7 +187,7 @@
     applyPaneWidth();
     wireDetailDivider();
 
-    state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), viewportWidth());
+    state.flyoutWidth = VA.readStoredFlyoutWidth(widthStore(), roomBesideFlyout());
     applyFlyoutWidth();
     wireFlyoutDivider();
 
@@ -1046,6 +1046,21 @@
     // show(), not showModal(): the page beside the panel stays clickable, so
     // "attach to 3D" on another row re-drives the open panel.
     if (!nodes.flyout.open) nodes.flyout.show();
+
+    // The panel's width, clamped to the room the DAG can spare, EVERY time it
+    // opens -- and AFTER show(), which is not a detail: a closed <dialog> is
+    // `display: none`, so flyoutWidthNow() would measure 0 and fall back to
+    // VA.FLYOUT_WIDTH.min, opening the first launch at the floor instead of at
+    // the width the stylesheet asked for.
+    //
+    // topology.css declares the width it WANTS; this is what keeps that a wish
+    // rather than a promise the layout cannot keep. At 1600px with the preview
+    // pane at its own 560px default, the stylesheet's 760px leaves the diagram
+    // wholly covered, and the clamp trims it until a strip of graph survives.
+    // Not remembered: a width the layout imposed is not a preference the reader
+    // expressed, so rememberWidth() is deliberately not called here.
+    state.flyoutWidth = VA.clampFlyoutWidth(flyoutWidthNow(), roomBesideFlyout());
+    applyFlyoutWidth();
   }
 
   // --- the two resize drags (viewer_leader_grid_legibility) ----------------
@@ -1137,14 +1152,34 @@
     wireDivider(nodes.flyoutDivider, { kind: "flyout" });
   }
 
-  // How much window there is to divide between the flyout and the page beside
-  // it -- read at the moment of the gesture, never cached: a reader can resize
-  // the window between opening the panel and dragging its seam, and
-  // VA.clampFlyoutWidth's reserve is only honest against the CURRENT viewport.
-  // 0 where there is no window to measure (the DOM shim), which the clamp
-  // reads as "no viewport known" and falls back to its px max.
-  function viewportWidth() {
-    return (typeof window !== "undefined" && window.innerWidth) || 0;
+  // How much window there is to divide between the flyout and THE DAG -- the
+  // viewport less whatever the preview pane is currently taking, because the
+  // right-hand edge of this page is that pane and the flyout is not competing
+  // with it for the reader's attention. VA.clampFlyoutWidth reserves a strip of
+  // this, which is what makes the reserve give back graph rather than pane.
+  //
+  // Read at the moment of the gesture, never cached: BOTH terms move (a reader
+  // can resize the window, and the pane has its own divider), so a remembered
+  // number would be honest only until either one was touched. 0 where there is
+  // nothing to measure (the DOM shim), which the clamp reads as "no layout to
+  // go on" and answers with its px max.
+  function roomBesideFlyout() {
+    var room = (typeof window !== "undefined" && window.innerWidth) || 0;
+    if (!room) return 0;
+    // The DAG pane's own RIGHT EDGE where the page is showing one: everything
+    // left of it (the nav rail, the diagram, the grid) is coverable and
+    // everything right of it is the preview pane and its divider, so this is
+    // exactly the width the flyout and the graph are dividing. Measuring
+    // `window - pane` instead is off by the seam between them -- at 1600px it
+    // reserved 300 and left 298 of `#topopane` showing, which is the kind of
+    // two-pixel lie a guard then has to be written around.
+    var dag = nodes.pane && nodes.pane.getBoundingClientRect
+      ? nodes.pane.getBoundingClientRect() : null;
+    if (dag && dag.width > 0) return Math.round(dag.right);
+    // Stack mode (the DAG pane is not rendered) or a page that has not laid
+    // out yet: the window less whatever the preview pane is taking.
+    var pane = nodes.detail && nodes.detail.offsetWidth;
+    return Math.max(0, room - (typeof pane === "number" && pane > 0 ? pane : 0));
   }
 
   // The remembered flyout width onto the dialog, or nothing at all -- same
@@ -1201,7 +1236,7 @@
       // The OPPOSITE sign inversion to the pane's, and for the same structural
       // reason: this panel is LEFT of its divider, so dragging right widens it.
       // Both live in the pure layer (VA.flyoutWidthAfterDrag), not here.
-      state.flyoutWidth = VA.flyoutWidthAfterDrag(from.width, dx, viewportWidth());
+      state.flyoutWidth = VA.flyoutWidthAfterDrag(from.width, dx, roomBesideFlyout());
       applyFlyoutWidth();
     }
   }
@@ -1268,7 +1303,7 @@
     if (spec.kind === "pane" && state.detailWidth !== null) {
       VA.writeStoredPaneWidth(widthStore(), state.detailWidth);
     } else if (spec.kind === "flyout" && state.flyoutWidth !== null) {
-      VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth, viewportWidth());
+      VA.writeStoredFlyoutWidth(widthStore(), state.flyoutWidth, roomBesideFlyout());
     }
   }
 

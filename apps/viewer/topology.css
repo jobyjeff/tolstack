@@ -63,6 +63,17 @@
    the cursor must not revert the instant the pointer leaves the 7px grip, and
    a drag across a table is otherwise a text selection. */
 body.tv-resizing { cursor: col-resize; user-select: none; }
+/* ...and while a drag is in flight the annotator panel's iframe is transparent
+   to the pointer. This is not a nicety, it is what makes the flyout's own
+   divider work at all: pointer events over a cross-document iframe are
+   delivered to THAT document, so a drag that started on the seam and moved
+   left over the 3D panel stopped reaching this page entirely -- measured, one
+   `pointermove` seen by the parent document across a whole 8-step drag, and
+   the panel never moved. The two other drags on this page never met it because
+   neither the grid nor the preview pane embeds a document.
+   `body.tv-resizing` is already set for the duration of every gesture
+   (topology_app.js's onResizeStart), so this rule needs no new state. */
+body.tv-resizing .flyout__frame { pointer-events: none; }
 
 .tvpick__mode { white-space: nowrap; }
 

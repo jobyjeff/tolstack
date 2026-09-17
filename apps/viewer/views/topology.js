@@ -714,16 +714,34 @@
   //
   // `min` is the annotator's own three-column grid (260 + 320 of chrome either
   // side of its canvas, apps/annotate/style.css) plus enough canvas to orbit in.
-  // `max` bounds a drag on a wide screen. `reserve` is that uncovered strip, and
-  // it is why the clamp takes the viewport: on a narrow window the reserve wins
-  // over `max`, and on one narrower still `min` wins over the reserve -- a
-  // 200px-wide panel would be worse than a covered page.
-  VA.FLYOUT_WIDTH = { min: 560, max: 1200, reserve: 420 };
+  // `max` bounds a drag on a wide screen.
+  //
+  // `reserve` is the strip that stays uncovered, and it is measured against
+  // `roomForGraph` -- what the window has left AFTER the preview pane, not the
+  // window itself. That distinction is the whole of it, and it was wrong first:
+  // reserving 420px of VIEWPORT gave the reader back 420px of PREVIEW PANE and
+  // covered the diagram completely. Measured at 1600px with the pane at its
+  // 560px default and the flyout dragged to 1100: `#topopane` laid out at
+  // 300..1038 and every pixel of it was underneath. Adjacency is the
+  // deliverable, so the thing held back has to be the graph.
+  //
+  // 300px is the DAG column's own narrow-but-workable width -- the figure
+  // topology.css's `.tv .detail` comment already reasons about when it argues
+  // the pane's own max ("a 1000px pane already leaves the grid ~298px, which
+  // `.tvgrip`'s clamp arithmetic is written against"). On a window narrower
+  // still `min` wins over the reserve: a 200px-wide annotator would be worse
+  // than a covered graph.
+  VA.FLYOUT_WIDTH = { min: 560, max: 1200, reserve: 300 };
 
-  VA.clampFlyoutWidth = function (px, viewportWidth) {
+  // `roomForGraph` is the width the DAG and the flyout are dividing between
+  // them -- the viewport less whatever the preview pane is currently taking.
+  // The caller measures it (topology_app.js's roomBesideFlyout) because it is a
+  // live layout fact and this layer measures nothing; 0 or absent reads as "no
+  // layout to go on", which falls back to the px max rather than to `min`.
+  VA.clampFlyoutWidth = function (px, roomForGraph) {
     var n = Math.round(Number(px));
     if (!isFinite(n)) return VA.FLYOUT_WIDTH.min;
-    var room = Math.round(Number(viewportWidth));
+    var room = Math.round(Number(roomForGraph));
     var cap = isFinite(room) && room > 0
       ? Math.min(VA.FLYOUT_WIDTH.max, room - VA.FLYOUT_WIDTH.reserve)
       : VA.FLYOUT_WIDTH.max;
@@ -736,23 +754,23 @@
   // VA.paneWidthAfterDrag, whose pane sits on the right of its own divider.
   // That inversion is the likeliest mistake in either feature, so it is here,
   // in one pure line a test can check with no pointer, in both cases.
-  VA.flyoutWidthAfterDrag = function (startWidth, dx, viewportWidth) {
-    return VA.clampFlyoutWidth(startWidth + dx, viewportWidth);
+  VA.flyoutWidthAfterDrag = function (startWidth, dx, roomForGraph) {
+    return VA.clampFlyoutWidth(startWidth + dx, roomForGraph);
   };
 
   // Its own key, beside the pane's: the two controls are independent and a
   // reader who widens one has said nothing about the other.
   VA.FLYOUT_WIDTH_KEY = "tolstack.viewer.flyoutWidth";
 
-  VA.readStoredFlyoutWidth = function (store, viewportWidth) {
+  VA.readStoredFlyoutWidth = function (store, roomForGraph) {
     return readStoredWidth(store, VA.FLYOUT_WIDTH_KEY, function (n) {
-      return VA.clampFlyoutWidth(n, viewportWidth);
+      return VA.clampFlyoutWidth(n, roomForGraph);
     });
   };
 
-  VA.writeStoredFlyoutWidth = function (store, px, viewportWidth) {
+  VA.writeStoredFlyoutWidth = function (store, px, roomForGraph) {
     writeStoredWidth(store, VA.FLYOUT_WIDTH_KEY, function (n) {
-      return VA.clampFlyoutWidth(n, viewportWidth);
+      return VA.clampFlyoutWidth(n, roomForGraph);
     }, px);
   };
 

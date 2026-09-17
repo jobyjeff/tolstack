@@ -3991,11 +3991,21 @@ async function testAnnotateFlyout(browser, fileBase, label) {
     push("the flyout is pinned to the LEFT edge, not the right",
       docked && docked.x === 0 && docked.width < win.w);
     // The whole point of moving it: the graph and the 3D panel are readable at
-    // the same time. "Adjacent" is measured, not asserted by class.
+    // the same time. "Adjacent" is measured, and measured as UNCOVERED -- the
+    // first version of this check compared the DAG's laid-out box against the
+    // flyout's width and passed while the panel sat on top of the whole
+    // diagram, because `position: fixed` means the DAG's own box never moves.
+    // What has to be true is that a strip of it is not underneath.
     const dagBeside = await page.locator("#topopane").boundingBox();
-    push("the DAG is still visible BESIDE it -- adjacency is the deliverable",
-      dagBeside && dagBeside.x + dagBeside.width > docked.width &&
-      win.w - docked.width >= 200);
+    const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
+    const uncoveredDag = () => page.evaluate(() => {
+      const dag = document.querySelector("#topopane").getBoundingClientRect();
+      const panel = document.querySelector("#annotate-flyout").getBoundingClientRect();
+      return Math.max(0, dag.right - Math.max(dag.left, panel.right));
+    });
+    push("the DAG is still visible BESIDE it -- adjacency is the deliverable, " +
+      "and the strip left uncovered is at least the reserve",
+      await uncoveredDag() >= reserve);
     // And the accepted cost, stated as a check so it is a decision rather than
     // an accident: the nav rail is underneath.
     const navCovered = await page.locator("#navtree").boundingBox();
@@ -4013,19 +4023,29 @@ async function testAnnotateFlyout(browser, fileBase, label) {
       "explained in words",
       gripMark && gripMark !== "none");
 
-    // A real pointer drag on it. Rightwards must WIDEN -- this panel is left of
-    // its seam, the opposite sign to the preview pane's divider on the same
-    // page, and a copy-paste between the two is the likeliest mistake here.
-    await page.mouse.move(grip.x + grip.width / 2, grip.y + 300);
-    await page.mouse.down();
-    await page.mouse.move(grip.x + grip.width / 2 + 160, grip.y + 300, { steps: 8 });
-    await page.mouse.up();
-    const widened = await flyoutBox();
+    // Real pointer drags on it. At this viewport (1600px, the preview pane at
+    // its 560px default) the panel opens already AT its clamp, so "rightwards
+    // widens" is measured from a narrowed start -- drag left first, then right.
+    // The sign is the thing under test: this panel is left of its seam, the
+    // opposite of the preview pane's divider on the same page, and a
+    // copy-paste between the two is the likeliest mistake in either.
+    const dragBy = async (dx) => {
+      const seam = await page.locator("#flyout-divider").boundingBox();
+      await page.mouse.move(seam.x + seam.width / 2, seam.y + 300);
+      await page.mouse.down();
+      await page.mouse.move(seam.x + seam.width / 2 + dx, seam.y + 300, { steps: 8 });
+      await page.mouse.up();
+      return (await flyoutBox()).width;
+    };
+    const narrowed = await dragBy(-200);
+    push("dragging the divider LEFT narrows the flyout",
+      narrowed < docked.width - 100);
+    const widened = await dragBy(160);
     push("dragging the divider RIGHT widens the flyout (the pane's divider " +
       "runs the other way)",
-      widened && widened.width > docked.width + 100);
+      widened > narrowed + 100);
     push("...and the flyout is still pinned to the left edge while it grows",
-      widened && widened.x === 0);
+      (await flyoutBox()).x === 0);
     const dagAfterDrag = await page.locator("#topopane").boundingBox();
     push("resizing the flyout still moves the DAG pane by nothing -- it is a " +
       "position: fixed dialog, so this cannot reflow the page",
@@ -4035,32 +4055,30 @@ async function testAnnotateFlyout(browser, fileBase, label) {
     // The keyboard path, so the resize needs no pointer at all.
     await page.locator("#flyout-divider").focus();
     await page.keyboard.press("ArrowLeft");
-    const nudged = await flyoutBox();
-    push("the arrow keys nudge the divider without a pointer",
-      nudged && nudged.width < widened.width);
+    const nudged = (await flyoutBox()).width;
+    push("the arrow keys nudge the divider without a pointer", nudged < widened);
     await page.keyboard.down("Shift");
     await page.keyboard.press("ArrowLeft");
     await page.keyboard.up("Shift");
-    const coarse = await flyoutBox();
+    const coarse = (await flyoutBox()).width;
     push("...and shift makes it a coarse step",
-      coarse && widened.width - nudged.width < nudged.width - coarse.width);
+      widened - nudged < nudged - coarse);
 
-    // A drag cannot cover the page whatever the reader does: the clamp holds
-    // back a strip of window, measured against the CURRENT viewport rather
-    // than a pixel constant.
-    const reserve = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH.reserve);
-    await page.mouse.move(coarse.width + 1, 300);
-    await page.mouse.down();
-    await page.mouse.move(win.w + 2000, 300, { steps: 10 });
-    await page.mouse.up();
-    const maxed = await flyoutBox();
-    push("dragged past the window edge, the flyout still leaves the page a " +
-      "strip to be adjacent TO",
-      maxed && win.w - maxed.width >= reserve);
+    // A drag cannot cover the graph whatever the reader does. Dragged clean off
+    // the right edge of the window, a strip of DAG still has to survive.
+    await dragBy(win.w + 2000);
+    push("dragged past the window edge, the flyout still leaves a strip of " +
+      "DAG to be adjacent TO",
+      await uncoveredDag() >= reserve);
 
     // The width is remembered across a reload -- the same contract the preview
-    // pane's has, under its own key.
-    const remembered = (await flyoutBox()).width;
+    // pane's has, under its own key. Narrowed first, so the number being
+    // round-tripped is one a reader chose AND one the open-time clamp will
+    // accept unchanged; a width sitting at the clamp would round-trip even if
+    // nothing were stored at all, which is a check that cannot fail.
+    const remembered = await dragBy(-180);
+    push("the remembered width is well inside the clamp, so the round-trip " +
+      "below is a real one", remembered < coarse - 100);
     const storedKey = await page.evaluate(() => window.ViewerApp.FLYOUT_WIDTH_KEY);
     push("the width is written to localStorage under the flyout's own key",
       String(await page.evaluate((k) => window.localStorage.getItem(k), storedKey))

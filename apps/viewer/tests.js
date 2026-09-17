@@ -4010,7 +4010,7 @@
     await test("the flyout's width clamps, and a drag on its divider widens " +
       "it by moving RIGHT -- the opposite sign to the preview pane's",
       function () {
-        var WIDE = 3000;   // a viewport where `max` is the binding cap
+        var WIDE = 3000;   // room enough that `max` is the binding cap
         eq(VA.clampFlyoutWidth(700, WIDE), 700);
         eq(VA.clampFlyoutWidth(10, WIDE), VA.FLYOUT_WIDTH.min);
         eq(VA.clampFlyoutWidth(99999, WIDE), VA.FLYOUT_WIDTH.max);
@@ -4032,29 +4032,42 @@
       });
 
     await test("a drag on the flyout can never cover the DAG entirely -- the " +
-      "viewport, not a pixel constant, is what bounds it", function () {
+      "room left BESIDE THE PREVIEW PANE, not a pixel constant, is what " +
+      "bounds it", function () {
         // Adjacency IS the deliverable ("the DAG must remain visible beside
         // it"), and a px-only max cannot deliver it: at VA.FLYOUT_WIDTH.max on
-        // a 1280px window the panel would leave 80px of page. So the reserve
-        // is measured against the CURRENT viewport, every gesture.
-        var window1280 = VA.clampFlyoutWidth(99999, 1280);
-        eq(window1280, 1280 - VA.FLYOUT_WIDTH.reserve);
-        ok(window1280 < VA.FLYOUT_WIDTH.max,
-           "on a 1280px window the reserve binds before the px max does");
-        ok(1280 - window1280 >= VA.FLYOUT_WIDTH.reserve,
+        // a 1280px window the panel would leave 80px. So the reserve is
+        // measured against the live room, every gesture.
+        var room1040 = VA.clampFlyoutWidth(99999, 1040);
+        eq(room1040, 1040 - VA.FLYOUT_WIDTH.reserve);
+        ok(room1040 < VA.FLYOUT_WIDTH.max,
+           "with 1040px to divide, the reserve binds before the px max does");
+        ok(1040 - room1040 >= VA.FLYOUT_WIDTH.reserve,
            "the uncovered strip is at least the reserve");
 
-        // The degenerate window, and the one case where the reserve loses: a
-        // window so narrow that honouring it would leave a panel too small to
-        // annotate in. A covered page beats an unusable panel, and the floor
+        // 1040 is not an arbitrary number: it is a 1600px window less the
+        // preview pane's own 560px default, which is the geometry the FIRST
+        // version of this clamp got wrong. It reserved 420px of VIEWPORT,
+        // which handed the reader back 420px of PANE and covered the diagram
+        // completely -- measured in the browser with the panel at 1100px, the
+        // DAG laid out at 300..1038 and every pixel of it underneath. What the
+        // reserve protects has to be the graph, so what it is measured against
+        // has to exclude the pane.
+        ok(VA.clampFlyoutWidth(99999, 1600) > VA.clampFlyoutWidth(99999, 1040),
+           "more room beside the pane means more room for the panel");
+
+        // The degenerate window, and the one case where the reserve loses: so
+        // little room that honouring it would leave a panel too small to
+        // annotate in. A covered graph beats an unusable panel, and the floor
         // is stated rather than emergent.
         eq(VA.clampFlyoutWidth(99999, 600), VA.FLYOUT_WIDTH.min);
         ok(VA.FLYOUT_WIDTH.min > VA.FLYOUT_WIDTH.reserve,
            "which is only reachable because min exceeds the reserve");
 
-        // No viewport to measure (the DOM shim, a pre-layout call) falls back
-        // to the px max rather than to zero -- a clamp that read an absent
-        // window as "no room" would pin the panel at `min` forever.
+        // No layout to measure (the DOM shim, a pre-layout call, a closed
+        // dialog) falls back to the px max rather than to zero -- a clamp that
+        // read an absent measurement as "no room" would pin the panel at `min`
+        // forever.
         eq(VA.clampFlyoutWidth(99999, 0), VA.FLYOUT_WIDTH.max);
         eq(VA.clampFlyoutWidth(99999, undefined), VA.FLYOUT_WIDTH.max);
       });
@@ -4075,6 +4088,11 @@
         eq(VA.readStoredFlyoutWidth(store, WIDE), null);
         VA.writeStoredFlyoutWidth(store, 900, WIDE);
         eq(store.data[VA.FLYOUT_WIDTH_KEY], "900");
+        // ...and the write clamps too, so a width stored while the window was
+        // wide cannot be read back as a covered graph later.
+        VA.writeStoredFlyoutWidth(store, 900, 1040);
+        eq(store.data[VA.FLYOUT_WIDTH_KEY], String(1040 - VA.FLYOUT_WIDTH.reserve));
+        VA.writeStoredFlyoutWidth(store, 900, WIDE);
         eq(VA.readStoredFlyoutWidth(store, WIDE), 900);
         // Widening the flyout said nothing about the pane, and vice versa.
         eq(VA.readStoredPaneWidth(store), null);
@@ -4082,9 +4100,9 @@
         eq(VA.readStoredFlyoutWidth(store, WIDE), 900);
 
         // Clamped on the way IN as well as out, and against the CURRENT
-        // viewport -- a width remembered on a 3000px screen must not cover the
-        // whole page on a 1280px one.
-        eq(VA.readStoredFlyoutWidth(store, 1280), 1280 - VA.FLYOUT_WIDTH.reserve);
+        // room -- a width remembered on a 3000px screen must not cover the
+        // graph on a 1280px one.
+        eq(VA.readStoredFlyoutWidth(store, 1040), 1040 - VA.FLYOUT_WIDTH.reserve);
         store.data[VA.FLYOUT_WIDTH_KEY] = "not a number";
         eq(VA.readStoredFlyoutWidth(store, WIDE), null);
         store.data[VA.FLYOUT_WIDTH_KEY] = "";

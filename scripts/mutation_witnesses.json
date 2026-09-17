@@ -577,6 +577,102 @@
       "tier": "fast",
       "suite": null,
       "expect_red": "[real] every live part with no drawing names the document its own dimensions come off, or says nothing at all"
+    },
+    {
+      "id": "flyout-docks-left-of-the-dag",
+      "contract": "The annotator flyout is pinned to the window's LEFT edge, adjacent to the DAG -- the whole reason it moved, and a one-word CSS property is all that holds it there.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Jeff, 2026-09-16: \"I actually want the 3d flyout on the left side, adjacent to the DAG.\" The witness is the exact revert: `inset: 0 0 0 auto` is what the panel carried until this handoff, so this mutation IS the previous build. Nothing but a measured box can catch it -- the class names, the markup and every JS path are identical either way, which is why a class-name check was not enough here.",
+      "file": "apps/viewer/topology.css",
+      "find": "  position: fixed; inset: 0 auto 0 0; margin: 0; padding: 0;",
+      "replace": "  position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0;",
+      "tier": "browser",
+      "suite": "annotate flyout (repo-root mount + file:// degradation)",
+      "expect_red": "the flyout is pinned to the LEFT edge, not the right"
+    },
+    {
+      "id": "flyout-drag-sign",
+      "contract": "The flyout is LEFT of its divider, so dragging RIGHT widens it -- the opposite sign to the preview pane's divider on the same page.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "There are now two resize dividers on this page with inverted signs, and a copy-paste between them is the likeliest mistake in either feature. That is exactly why both lines of arithmetic live in the pure layer instead of in the pointer handler: the mutation below is the pane's own line, verbatim.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return VA.clampFlyoutWidth(startWidth + dx, roomForGraph);",
+      "replace": "    return VA.clampFlyoutWidth(startWidth - dx, roomForGraph);",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "the flyout's width clamps, and a drag on its divider widens it by moving RIGHT -- the opposite sign to the preview pane's"
+    },
+    {
+      "id": "flyout-reserves-a-strip-of-graph",
+      "contract": "However far it is dragged, the flyout leaves the page a strip to be adjacent TO -- bounded by the current viewport, not by a pixel constant.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Adjacency IS the deliverable (\"the DAG must remain visible beside it\"), and a px-only max cannot deliver it: at VA.FLYOUT_WIDTH.max on a 1280px window the panel would leave 80px of page. The mutation is the obvious simplification -- clamp to the window instead of to the window minus the reserve -- which reads as correct and covers the page. The reserve is measured against the room left BESIDE THE PREVIEW PANE, not against the viewport: reserving 420px of window handed the reader back 420px of PANE and covered the diagram completely (measured in Chrome at 1600px with the panel at 1100 -- #topopane at 300..1038, wholly underneath). See the lesson, section 2.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      ? Math.min(VA.FLYOUT_WIDTH.max, room - VA.FLYOUT_WIDTH.reserve)",
+      "replace": "      ? Math.min(VA.FLYOUT_WIDTH.max, room)",
+      "tier": "fast",
+      "suite": null,
+      "expect_red": "a drag on the flyout can never cover the DAG entirely -- the room left BESIDE THE PREVIEW PANE, not a pixel constant, is what bounds it"
+    },
+    {
+      "id": "deselect-clears-the-tint-not-just-the-pick",
+      "contract": "Deselecting a face puts its colours back. The pick state and the orange in the colour buffer are ONE fact, and the bug this closed was exactly them disagreeing.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Jeff: \"I accidentally clicked a face ... but there's no way to deselect a surface.\" The mutation restores the pre-handoff behaviour precisely -- forget the pick, leave the tint -- which is invisible to everything except a real GL context, so this entry can only be owned by the browser tier. `window.__scene.highlightedFace()` is the observable it reads.",
+      "file": "apps/annotate/scene.js",
+      "find": "    this.restoreColors(last.sha256);\n    this._lastPick = null;",
+      "replace": "    this._lastPick = null;",
+      "tier": "browser",
+      "suite": "annotate rail filter + face deselect",
+      "expect_red": "deselect takes the tint off, not just the pick -- the two facts that used to disagree"
+    },
+    {
+      "id": "parts-panel-honours-the-element-scope",
+      "contract": "A rail scoped to one element scopes BOTH its panels. The parts panel was the half that was filtered by nothing at all.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "cmdTrace/cmdGoto already scoped the ELEMENT list to a study before this handoff; renderPartsPanel walked state.meshList regardless, so entering the flyout from one element still listed every installed mesh in the repo beside it. The mutation is that exact previous line. There is no shim tier for this app (ES module, three.js, a WebGL context), so the browser tier is the only place it can be witnessed.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (!state.panelFilter) return state.meshList;",
+      "replace": "  return state.meshList;\n  if (!state.panelFilter) return state.meshList;",
+      "tier": "browser",
+      "suite": "annotate rail filter + face deselect",
+      "expect_red": "...and the parts panel to the parts that element names -- the panel that was scoped by nothing at all before"
+    },
+    {
+      "id": "alert-badge-is-not-filled",
+      "contract": "The row's consolidated alert badge is outlined, not filled -- it is the only alert marker on the row, so it competes with nothing and does not need to shout.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Jeff, 2026-09-16: \"Left side menu is now impressively 'loud'... Styling for the alert text themselves can then be a bit less obnoxious/overwhelming, especially the ones in the source column that are always visible.\" The mutation gives the badge the filled treatment `.chip--export-unestablished` wore, which is the loudness being removed -- and 'quieter' is a computed-style claim, so a class-name check would pass straight through it. The paired sub-check ('...but it is still findable') is what stops the fix being 'delete the border too'.",
+      "file": "apps/viewer/style.css",
+      "find": "  color: var(--inferred); border-color: var(--inferred);\n  font-weight: 700; line-height: 1;",
+      "replace": "  color: #fff; background: var(--nocite); border-color: var(--nocite);\n  font-weight: 700; line-height: 1;",
+      "tier": "browser",
+      "suite": "app file://",
+      "expect_red": "the row's alert badge is NOT filled — the loudness Jeff named is gone"
+    },
+    {
+      "id": "element-row-keeps-its-state-colour",
+      "contract": "Rolling the annotator rail's words into one hover badge did NOT take the colour off the row: each binding state is still distinguishable at a glance, without hovering anything.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Jeff asked to \"keep the *color* signal on the row\" while collapsing the words, so the colour moved from a word-bearing badge to the row's own left border. That makes a deleted CSS rule a silent loss of the at-a-glance signal -- the rows would still render, still be clickable, and simply stop saying anything. The mutation neutralises one state's colour; the check compares all three, so it cannot be satisfied by a stylesheet that colours them all the same.",
+      "file": "apps/annotate/style.css",
+      "find": ".el-row--owner_not_in_set { border-left-color: #d6a15b; }",
+      "replace": ".el-row--owner_not_in_set { border-left-color: #4a515a; }",
+      "tier": "browser",
+      "suite": "annotate rail filter + face deselect",
+      "expect_red": "each row still carries its state as a colour, and the three states are three different colours"
+    },
+    {
+      "id": "flyout-drag-survives-its-own-iframe",
+      "contract": "A drag on the flyout's seam keeps working when the pointer moves over the 3D panel. Pointer events over a cross-document iframe go to THAT document, so the panel's own content would otherwise swallow the gesture.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "This is the whole bug, not a hardening: measured on the first build of the divider, ONE `pointermove` reached the parent document across an entire 8-step drag and the panel never moved a pixel. The two other drags on this page never met it because neither the grid nor the preview pane embeds a document. The mutation deletes the one rule that fixes it; the LEFTWARD drag is the witness, because that is the direction that takes the pointer over the iframe (rightwards leaves the dialog for ordinary page content and works either way).",
+      "file": "apps/viewer/topology.css",
+      "find": "body.tv-resizing .flyout__frame { pointer-events: none; }",
+      "replace": "body.tv-resizing .flyout__frame { pointer-events: auto; }",
+      "tier": "browser",
+      "suite": "annotate flyout (repo-root mount + file:// degradation)",
+      "expect_red": "dragging the divider LEFT narrows the flyout"
     }
   ]
 }
