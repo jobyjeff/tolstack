@@ -5110,6 +5110,25 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
       refit && refit.scale === 1 &&
       agrees(refit.frac, target.entry.highlights[0].frac));
 
+    // 10. the POINTER's way out. Not redundant with Escape above: a backdrop
+    // click does NOT close a modal <dialog> (measured, Chrome 152 -- only the
+    // `closedby="any"` opt-in changes that), so the ✕ is the only dismissal a
+    // reader who never touches the keyboard has. It goes through the same
+    // `close` event, so the page's scroll must come back with it.
+    await page.locator("#crop-lightbox button.lightbox__close").click();
+    await page.waitForFunction(
+      () => !document.querySelector("#crop-lightbox").open &&
+            !document.body.classList.contains("lightbox-open"),
+      null, { timeout: 5000 }).catch(() => {});
+    const afterX = await page.evaluate(() => ({
+      open: document.querySelector("#crop-lightbox").open,
+      overflow: getComputedStyle(document.body).overflow,
+    }));
+    push("the ✕ closes it too, and hands the page's scroll back — a backdrop " +
+      "click does not close a modal <dialog>, so this is the only dismissal " +
+      "a pointer-only reader has",
+      !afterX.open && afterX.overflow !== "hidden");
+
     return reportSuite(label, checks, errors);
   } catch (err) {
     return reportAbortedSuite(label, checks, errors, err);

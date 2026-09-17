@@ -20,8 +20,16 @@
 //   2. **A `<dialog>`, shown modally.** The page already hosts three
 //      (`#legend-dialog`, `#worksheet-dialog`, `#annotate-flyout`); this is the
 //      fourth and the only modal one that needs to be, because a zoom/pan
-//      surface wants the wheel and the arrow keys to itself. Escape and the
-//      backdrop are then the browser's own dismiss, not ours.
+//      surface wants the wheel and the keyboard to itself, and the top layer is
+//      what keeps it off the page's layout entirely. Escape is then the
+//      browser's own dismiss and we write none of it.
+//
+//      A BACKDROP CLICK IS NOT A DISMISS, measured rather than assumed: Chrome
+//      152 leaves a modal <dialog> open on a click outside it (only the
+//      `closedby="any"` opt-in changes that, and it is too new to rely on
+//      here). So the ✕ is the pointer's dismiss, and it is not optional. The
+//      comment on this page's two older dialogs claims otherwise and is wrong
+//      about all three -- filed, not fixed here.
 //   3. **The whole zoom/pan mechanism is one CSS transform**, on a wrapper
 //      around the crop's own frame — the arithmetic is in the pure layer
 //      (VA.lightbox*, viewer.js) and the header there says why that keeps the
@@ -240,10 +248,11 @@
     openHandle = VA.renderLightbox(dialog, entry, image,
       config === undefined ? VA.CONFIG : config,
       function () { dialog.close(); });
-    // The ONE seam every close path goes through -- the button, Escape and a
-    // backdrop click all end at the dialog's own `close` event, so the body
-    // class cannot be left behind by a dismissal this file never sees. Same
-    // reasoning as the flyout's, topology_app.js.
+    // The ONE seam every close path goes through -- the ✕, Escape and any
+    // `.close()` an unrelated caller might reach for all end at the dialog's
+    // own `close` event, so the body class cannot be left behind by a
+    // dismissal this file never sees. Same reasoning as the flyout's,
+    // topology_app.js.
     if (!dialog.__lightboxWired) {
       dialog.__lightboxWired = true;
       dialog.addEventListener("close", function () {

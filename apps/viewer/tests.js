@@ -2846,9 +2846,9 @@
           var at = html.indexOf('id="crop-lightbox"');
           ok(at !== -1, "expected #crop-lightbox in topology.html");
           has(html.slice(Math.max(0, at - 60), at), "<dialog",
-              "the lightbox must be a native <dialog> — Escape and a backdrop " +
-              "click are then the browser's own dismiss, and the top layer is " +
-              "what keeps it off the page's layout entirely");
+              "the lightbox must be a native <dialog> — Escape is then the " +
+              "browser's own dismiss, and the top layer is what keeps it off " +
+              "the page's layout entirely");
           has(html, 'src="./views/lightbox.js"',
               "topology.html must load views/lightbox.js, or every launch " +
               "button on the page opens nothing");

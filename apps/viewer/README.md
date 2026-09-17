@@ -1482,8 +1482,9 @@ quiet until the figure is hovered or the button is focused, and a real
 `<button>`, so the keyboard reaches it. It opens the crop near-full-viewport in
 a modal `<dialog>` (`#crop-lightbox`, `views/lightbox.js`) with wheel and
 button zoom, drag pan, and the same **where-line and click-throughs** the card
-shows underneath it — nothing longer. `Esc`, the ✕ or a backdrop click closes
-it.
+shows underneath it — nothing longer. `Esc` or the ✕ closes it; a click on the
+backdrop does **not**, because a modal `<dialog>` stays open on one (measured,
+Chrome 152), which is why the ✕ is there and not optional.
 
 The button is on `VA.cropFigure`, the one builder every crop image on the page
 goes through, which is why it is **one per picture rather than one per

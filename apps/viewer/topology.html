@@ -174,8 +174,10 @@
        that allows you to zoom/pan?"
 
        The fourth <dialog> on this page and the only MODAL one, because a
-       zoom/pan surface wants the wheel and the keyboard to itself -- and
-       because Escape and a backdrop click are then the browser's own dismiss.
+       zoom/pan surface wants the wheel and the keyboard to itself, and because
+       Escape is then the browser's own dismiss. A backdrop click is NOT one --
+       measured on Chrome 152, a modal <dialog> stays open on a click outside
+       it -- so the head's X is the pointer's way out and is not optional.
        Empty and static here, for the same two reasons the dividers above are:
        no view owns it, and a re-render of the surface that launched it must not
        destroy it. views/lightbox.js fills it per launch. -->
