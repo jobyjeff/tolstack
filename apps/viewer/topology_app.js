@@ -142,6 +142,10 @@
   // A competing trigger's open, held while the pointer is travelling toward
   // the card already on screen: { trigger, run, timer }.
   var deferredOpen = null;
+  // The trigger whose deferral has just EXPIRED, for exactly the length of the
+  // re-entrant call that honours it. See defer() -- this is what stops an
+  // expiry re-arming itself forever.
+  var expiring = null;
   // What `position()` last left the popover's height at, so an image settling
   // afterwards can tell "the box grew" from "the box is exactly as measured".
   var placedHeight = 0;
@@ -279,9 +283,23 @@
       // The pointer's own track, for the hover-intent corridor below. Cheap on
       // purpose: two numbers per move, and the only work beyond that happens
       // while a trigger is actually being held back.
+      //
+      // A move to the SAME coordinates is dropped rather than recorded, and
+      // that is not a micro-optimisation: shifting `pointerWas` up to a
+      // position identical to `pointerAt` leaves a zero vector, and
+      // VA.pointerHeadsFor correctly refuses to guess a direction from one --
+      // so the whole corridor goes dead. Two things produce that pair. A
+      // browser emits repeat mousemoves at rest; and any harness that calls
+      // VA.bootTopology() a second time (every real-data probe in tests/ does,
+      // to install fixtures) registers a SECOND copy of this listener, whose
+      // run immediately overwrites the first's reading with its own. Measured
+      // 2026-09-16 in tests/debug_hover_deslop.mjs, where it made hover intent
+      // untestable from a probe.
       document.addEventListener("mousemove", function (event) {
+        var x = event.clientX, y = event.clientY;
+        if (pointerAt && pointerAt.x === x && pointerAt.y === y) return;
         pointerWas = pointerAt;
-        pointerAt = { x: event.clientX, y: event.clientY };
+        pointerAt = { x: x, y: y };
         if (deferredOpen && VA.pointerInside(pointerAt, cardBox())) {
           // The pointer got where it was going. The card it reached wins and
           // the trigger it crossed on the way never opens at all.
@@ -649,12 +667,17 @@
     cancelDeferred();
     openTrigger = trigger;
     openedAt = new Date().getTime();
+    var painted = false;
     var paint = function (image) {
       if (openTrigger !== trigger) return;   // a later hover won the race
       VA.renderCrop(nodes.crop, entry, image, VA.CONFIG, hideCrop, imageCache);
       // display first, then measure: offsetHeight is 0 while display is none.
       nodes.crop.style.display = "block";
-      position(nodes.crop, trigger);
+      // The FIRST placement is unconditional -- the popover has just appeared
+      // and has nowhere to be moved from. Every repaint after it is a
+      // re-place, and goes through the guards.
+      if (painted) replace(trigger); else position(nodes.crop, trigger);
+      painted = true;
       // aspect-ratio already reserved the height, but re-place once the PNG has
       // settled either way — a broken image also changes the box.
       var img = nodes.crop.querySelector ? nodes.crop.querySelector("img") : null;
@@ -720,6 +743,19 @@
   }
 
   function defer(trigger, run) {
+    // An EXPIRY is the one caller that must never be deferred again, and
+    // getting this wrong is not a lost quarter-second -- it is the card never
+    // arriving at all (review, 2026-09-16, measured at 4.4s and counting).
+    // `held.run()` re-enters showCard/showCrop, which calls straight back into
+    // here; `pointerWas`/`pointerAt` are written ONLY by mousemove, so a reader
+    // who crossed the trigger and then held still is still carrying the vector
+    // that aimed at the open card, and the corridor test would hold the same
+    // trigger again, and again. The token is cleared on the way through so it
+    // covers exactly one call.
+    if (expiring === trigger) {
+      expiring = null;
+      return false;
+    }
     if (!openTrigger || openTrigger === trigger) return false;
     var box = cardBox();
     if (!box) return false;
@@ -738,25 +774,35 @@
       var rect = held.trigger.getBoundingClientRect
         ? held.trigger.getBoundingClientRect() : null;
       if (rect && !VA.pointerInside(pointerAt, rect)) return;
-      held.run();
+      expiring = held.trigger;
+      try {
+        held.run();
+      } finally {
+        // Cleared here as well as in defer(), for the path where run() returns
+        // before reaching it (a null card, a trigger that has been re-rendered
+        // out from under the timer). A token left set would wave the NEXT
+        // hover of that same trigger straight past the corridor.
+        expiring = null;
+      }
     }, VA.HOVER_INTENT_MS);
     return true;
   }
 
-  // Re-place the open popover once a PNG has settled -- but only when it
-  // actually needs re-placing. `position()` flips the card above its trigger
-  // when it does not fit below, so a re-place that runs on every image load
-  // can move the box out from under a pointer already on its way to it. Two
-  // guards, and the first is the one that matters: a card under the reader's
-  // pointer is a card in use and never moves. The second skips the whole
-  // gesture when the box is exactly the height it was measured at, which is
-  // the normal case -- VA.cropFigure reserves each image's height from the
-  // crop index's own pixel size before the decode, so a settled PNG usually
-  // changes nothing at all.
+  // Re-place the open popover once one of its images has settled -- but only
+  // when it actually needs re-placing. The decision is VA.popoverShouldMove
+  // (viewer.js), which is where both guards and their reasoning live; this is
+  // the wiring.
+  //
+  // EVERY re-place after the first paint goes through here, not just the
+  // `img.onload` one: showCrop and showCard both re-run their own paint() as
+  // each PNG blob resolves, and that path runs on the FIRST hover of every
+  // card, which is the common case. Routing only the onload half would have
+  // made "a card under the reader's pointer never moves" true of the rare
+  // path and false of the usual one (review, 2026-09-16).
   function replace(trigger) {
     if (!nodes.crop || nodes.crop.style.display === "none") return;
-    if (VA.pointerInside(pointerAt, cardBox())) return;
-    if (Math.abs((nodes.crop.offsetHeight || 0) - placedHeight) <= 1) return;
+    if (!VA.popoverShouldMove(pointerAt, cardBox(),
+                              nodes.crop.offsetHeight, placedHeight)) return;
     position(nodes.crop, trigger);
   }
 
@@ -804,12 +850,16 @@
     cancelDeferred();
     openTrigger = trigger;
     openedAt = new Date().getTime();
+    var painted = false;
     var paint = function () {
       if (openTrigger !== trigger) return;   // a later hover won the race
       VA.renderHoverCard(nodes.crop, card, imageCache, VA.CONFIG, hideCrop,
         { mount: state.annotateMount, onAnnotate: onCardAnnotate });
       nodes.crop.style.display = "block";
-      position(nodes.crop, trigger);
+      // First placement unconditional, every repaint through the guards --
+      // see showCrop above, and replace().
+      if (painted) replace(trigger); else position(nodes.crop, trigger);
+      painted = true;
       // Re-place once each PNG settles either way — same reasoning as
       // showCrop's single-image version.
       var imgs = nodes.crop.querySelectorAll ? nodes.crop.querySelectorAll("img") : [];

@@ -28,7 +28,22 @@
 //      standard part, so its where-line is the spec sheet rather than a
 //      drawing, and its crop is of that same sheet: the "stated, then restated"
 //      case.
-//   6. the preview pane's own width and its divider.
+//   6/7. the preview pane's own width and its divider.
+//
+// WHAT THIS PROBE CANNOT SHOW YOU, and why it is worth knowing before you
+// reach for it: the hover-intent corridor (deliverable 4). Every real-data
+// probe in this directory installs its fixtures and then calls
+// VA.bootTopology() a SECOND time, which registers a second copy of the app's
+// document `mousemove` listener. Both write the same module state, so before
+// 2026-09-16 the second run of every move overwrote the first's reading and
+// left `pointerWas === pointerAt` -- a zero vector, which VA.pointerHeadsFor
+// correctly refuses to guess a direction from, so the corridor was simply dead
+// in here (measured: `from={x:497,y:617} to={x:497,y:617} -> false`). The
+// tracker drops a same-coordinates move now, which makes the duplicate
+// harmless, but the double boot is still real and still touches other module
+// state. The corridor's own contracts live in the BROWSER TIER, which boots
+// the page once: scripts/run_viewer_browser_tests.mjs, the four checks around
+// "a trigger crossed while the pointer is heading for the open card".
 import { chromium } from "playwright-core";
 import { createServer } from "node:http";
 import { readFile, mkdir } from "node:fs/promises";

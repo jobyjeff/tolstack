@@ -815,9 +815,11 @@
         eq(VA.componentDrawingText("214820-002 plain bushing", "214820-002", null),
            null);
         // ...and with a revision there IS something left to say, but only the
-        // revision -- never the number again.
+        // revision -- never the number again. The noun stays: a line whose
+        // whole content is "rev B" is a revision modifying nothing, which is
+        // the shape three live parts rendered until 2026-09-16.
         eq(VA.componentDrawingText("214820-002 plain bushing", "214820-002", "B"),
-           "rev B");
+           "drawing rev B");
         // A part not named after its drawing keeps the full line.
         eq(VA.componentDrawingText("propeller hub", "212966-006", null),
            "drawing 212966-006");
@@ -879,6 +881,24 @@
         ok(!VA.pointerHeadsFor({ x: 0, y: 0 }, { x: 1, y: 1 }, null));
         ok(!VA.pointerHeadsFor({ x: 0, y: 0 }, null, box));
         ok(!VA.pointerInside(null, box));
+      });
+
+    await test("popoverShouldMove: a card under the pointer never moves, and " +
+      "a box that is the height it was measured at is not re-placed", function () {
+        var box = { left: 100, top: 100, right: 300, bottom: 300 };
+        // The guard that matters: in use, so it stays put — even though the
+        // box grew by 200px, which is the other guard's own trigger.
+        eq(VA.popoverShouldMove({ x: 200, y: 200 }, box, 600, 400), false);
+        // Pointer away and the box really grew: re-place it.
+        eq(VA.popoverShouldMove({ x: 20, y: 20 }, box, 600, 400), true);
+        // Pointer away and the box is exactly as measured — the normal case,
+        // because VA.cropFigure reserves each image's height before the decode.
+        eq(VA.popoverShouldMove({ x: 20, y: 20 }, box, 400, 400), false);
+        // A sub-pixel difference is not a growth.
+        eq(VA.popoverShouldMove({ x: 20, y: 20 }, box, 400.4, 400), false);
+        // No pointer seen yet, and no box to be inside: the height decides.
+        eq(VA.popoverShouldMove(null, box, 600, 400), true);
+        eq(VA.popoverShouldMove({ x: 20, y: 20 }, null, 600, 400), true);
       });
 
     await test("findStack returns null for an unknown id", function () {
@@ -10927,6 +10947,10 @@
         await test("[real] every live part with no drawing names the document " +
           "its own dimensions come off, or says nothing at all", function () {
             var standard = 0, drawn = 0, silent = 0, namedAfterDrawing = 0;
+            // Parts named after their own drawing that ALSO carry a revision:
+            // the only ones whose drawing line survives the de-duplication at
+            // all, and therefore the only ones the "rev A" check can bite on.
+            var revisionOnly = 0;
             liveTopos.forEach(function (topoProj) {
               (topoProj.parts || []).forEach(function (part) {
                 var card = VA.componentCard(topoProj, part.id, realCrops);
@@ -10947,9 +10971,29 @@
                   if (String(card.title).indexOf(card.drawing) !== -1) {
                     namedAfterDrawing += 1;
                     all(root, "div.hovercard__where").forEach(function (node) {
-                      ok(node.textContent.indexOf(card.drawing) === -1, where +
+                      var text = node.textContent.trim();
+                      ok(text.indexOf(card.drawing) === -1, where +
                          ": the heading already says the part number, and no " +
                          "card repeats it on the next line");
+                      // ...and what is left still modifies something.
+                      // Dropping the number used to drop the noun with
+                      // it, so three live parts rendered a where-line
+                      // whose entire content was "rev A" -- a revision
+                      // modifying nothing (review, 2026-09-16).
+                      //
+                      // Compared against the revision itself rather than
+                      // matched with a pattern: it is an exact claim
+                      // ("the line is NOTHING BUT the revision"), and the
+                      // first draft of it shipped a regex whose \b had
+                      // been eaten into a literal backspace, so it
+                      // matched nothing and witnessed nothing.
+                      if (card.revision) {
+                        revisionOnly += 1;
+                        ok(text !== VA.revisionText(card.revision), where +
+                           ": a where-line whose whole content is a " +
+                           "revision modifies nothing — " +
+                           JSON.stringify(text));
+                      }
                     });
                   } else {
                     has(root.textContent, "drawing " + card.drawing, where);
@@ -10987,6 +11031,9 @@
             ok(drawn > 0, "no live part carries a drawing");
             ok(namedAfterDrawing > 0, "no live part is named after its own " +
               "drawing, so the no-repeat branch went unexercised");
+            ok(revisionOnly > 0, "no live part is named after its own drawing " +
+              "AND carries a revision, so the line that would have read " +
+              "\"rev A\" is never rendered and that check went unexercised");
             ok(silent > 0, "no live part has neither a drawing nor a citation, " +
               "so the say-nothing branch went unexercised");
           });
