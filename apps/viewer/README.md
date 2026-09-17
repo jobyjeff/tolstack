@@ -1151,7 +1151,7 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all (code: `no_source_ref`) |
 | **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below |
 | **filled magenta `CTE NOT TRANSCRIBED`** | a material whose `values_status` says nobody has read the CTE off a source |
-| dashed blue `zero-width band` | `min == max`; no document gives a tolerance, so every interval it feeds is a **lower bound** on the real spread. A separate axis from confidence, not a fourth confidence |
+| dashed blue `no tolerance recorded` | a value with no plus/minus behind it, so every interval it feeds is a **lower bound** on the real spread, never the real one. A separate axis from confidence, not a fourth confidence. It read `zero-width band` until 2026-09-16 on four of the five surfaces that state it while the DAG page said `no tolerance recorded` about the same element; all five read `VA.ATTENTION.no_tolerance` now, and the CSS class names (`chip--zero-width`, `num--zero-width`, `el-row--zero-width`, `tvrow--zero-width`) and the projection field `zero_width_count` deliberately keep the old word — nothing reads them as words |
 | striped card + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are printed on the card, directly under the numbers they are a budget for. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose |
 | dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |
 | blue `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above) |
@@ -1273,7 +1273,7 @@ pane, beneath its citation:
 
 | state | what the block says |
 |---|---|
-| `established` | *Read from `X.pdf`* · **pinned to this exact file, by checksum** · the drawing-checker runs that consumed it, or *no run has consumed this export*. The checksum **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
+| `established` | *Read from `X.pdf`* · **pinned to this exact file, by checksum** · *read by drawing-checker N times, most recently `<date>`*, or `VA.EXPORT_NO_RUNS_TEXT` when no run has used the file. The checksum **is** the identity; runs are corroboration, and 15 of the 22 live established *citations* have none — 6 of the 9 distinct exports they name. |
 | `unestablished` | **filled magenta, on the row's chip AND on the panel's block**: *FILE NOT IDENTIFIED — which file this value was read from cannot be established*, with the recorded `why` unclamped beneath it. The stack is stating outright that the bytes behind this number are unrecoverable. |
 | no `export` key | *This citation names no file, so nothing here says which copy of the document the value was read from*. Stated, not alarmed: 22 of the 48 live citations are here — 21 workbook, 1 assumed — and for a spreadsheet or an assumed value there is no exported PDF to name. |
 | no `export` key, `identity_rule: "spec_pile_filename"` | *A standard-spec document, identified by its filename*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
@@ -1317,12 +1317,21 @@ Two deliberate limits:
   the algorithm or prints the digest any more (2026-09-15): twelve hex digits
   are not something a reader of this page can do anything with, and the digest
   is in the stack file for anyone checking it.
-* a run id is a **link** only where the element's own crop resolved through that
-  run. An export carries a run *id* (`20260803_145243`); drawing-checker addresses
-  a run by its *directory* name (the id plus the drawing), which only the crop
-  entry knows. Every other id prints as plain text with a hover saying why —
-  building a URL from a prefix would be a guess, which is the class of mistake
-  this whole surface exists against.
+* the runs line **names no run id at all** (2026-09-16). It says how many times
+  drawing-checker has read the file and how recently, and offers at most one
+  click-through, whose text is the *drawing* and its revision — the treatment the
+  crop popover adopted a day earlier, for the reason a run is an internal
+  artifact and its id tells a reader nothing about what they are about to open.
+  The ids are on the line's hover, where someone with a drawing-checker shell can
+  still read them.
+
+  Why at most one link, and why the ids cannot simply be linked: an export
+  carries a run *id* (`20260803_145243`); drawing-checker addresses a run by its
+  *directory* name (the id plus the drawing), which only the crop entry knows. So
+  only the run the element's own crop resolved through can be addressed at all.
+  Building a URL from a prefix would be a guess, which is the class of mistake
+  this whole surface exists against — that argument is unchanged; it is the ids
+  in the rendered line that went.
 
 The export block renders whether or not a crop resolved, which is the point: until
 2026-08-12 these facts appeared **only** in the crop popover, so a citation whose

@@ -617,16 +617,23 @@
   // own date prefix is the fallback for an entry that somehow has no `ts`.
   VA.exportRunsSummary = function (exportBlock) {
     var runs = (exportBlock && exportBlock.runs) || [];
-    var dates = runs.map(function (run) {
+    var runDate = function (run) {
       return VA.isoDateText(run && run.ts) ||
         VA.isoDateText(String((run && run.run_id) || "")
           .replace(/^(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"));
-    }).filter(function (date) { return date !== null; });
+    };
     return {
       count: runs.length,
-      // The LAST recorded run, by the order the export lists them -- which is
-      // the order build_viewer_crops.py found them in, oldest first.
-      lastDate: dates.length ? dates[dates.length - 1] : null,
+      // The LAST recorded run's OWN day, by the order the export lists them --
+      // which is the order build_viewer_crops.py found them in, oldest first.
+      //
+      // Not "the last day this reader could parse". Filtering first and then
+      // taking the last is a one-character-looking difference that makes an
+      // export whose final run has no `ts` and no date-shaped id report the
+      // PREVIOUS run's day as "most recently" -- a wrong date, stated
+      // confidently, which is worse than the clause being absent. If the last
+      // run cannot say when it ran, the sentence says how many times and stops.
+      lastDate: runs.length ? runDate(runs[runs.length - 1]) : null,
       ids: VA.exportRunIds(exportBlock),
     };
   };
@@ -690,7 +697,7 @@
   // export block is what identifies the bytes wherever there is one, which is the
   // same precedence build_viewer_crops.resolve_pdf applies.
   // Returns null when there is no citation at all — VA.citationWhere already
-  // says "no source_ref", and saying it twice buys nothing.
+  // says "no citation", and saying it twice buys nothing.
   VA.exportProvenance = function (sourceRef, identityRule) {
     if (!sourceRef) return null;
     var x = sourceRef.export;
