@@ -32,8 +32,14 @@ four sessions' were.
 
 The pytest red is **not mine and not new**:
 `test_no_live_document_states_an_unguarded_hardware_entry_count`, on a strategy
-brief's prose. Three open issues describe it; the previous three lessons say
-the same thing about the same test. Reproduced before I touched anything.
+brief's prose. Three open issues describe it and the previous three lessons say
+the same thing about the same test. I did not re-run pytest at the branch point
+before starting, so here is the stronger form of the same claim: the test's two
+inputs are `docs/strategy/BRIEF_20260915_origin_posture_and_absent_feature_rule.md`
+and `docs/tolerance_stacks/hardware_entries.json`, and
+`git diff a3e8b4f --name-only` on this branch names **neither**: nine viewer
+files, the browser tier, one hand-run probe, three issues, and this lesson with
+its six screenshots.
 
 The two `suite file://` / `suite http` passes read **352/352** each after this
 work. I did not re-measure that particular number at the branch point, so do
