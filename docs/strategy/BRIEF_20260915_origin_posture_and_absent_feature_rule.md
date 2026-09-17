@@ -149,7 +149,8 @@ case — a real, empty 3D canvas that was paid a WebGL context for.
 items 1–3.** Those three discriminate on the *origin* (hosted vs local) and on
 the reader's *claim on the repo* (loopback). This one discriminates on the
 reader's **browser**, and it is the one case where the standing rule and the
-honest answer may genuinely diverge, for a reason the other three do not have:
+honest answer may genuinely diverge, for a reason that does not apply to
+items 1–3:
 **`?mock=1` is a real way forward.** A hosted reader has nothing to be offered;
 a Firefox reader sitting on their own repo has a demo of the surface one query
 parameter away, and the banner already names it — so today the page says the
