@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: high
-status: open
+status: triaged
+handoff: docs/sessions/HANDOFF_20260917_prose_guards_scope_out_strategy_briefs.md
 area: tests/doc-guards
 reporter: agent
 ---

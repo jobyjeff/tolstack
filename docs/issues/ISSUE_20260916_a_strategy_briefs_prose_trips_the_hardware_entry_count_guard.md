@@ -1,7 +1,8 @@
 ---
 type: bug
 priority: med
-status: open
+status: closed
+resolution: closed as a duplicate by the 2026-09-17 triage sweep -- one defect, five filings. The canonical file is docs/issues/ISSUE_20260917_hardware_count_guard_red_on_master_from_unrelated_prose.md, which carries the disposition: the immediate red was cleared inline by rewording the brief's clause (537f11b), and the recurring class is routed to docs/sessions/HANDOFF_20260917_prose_guards_scope_out_strategy_briefs.md. Filed blind on integration, where the canonical file was not visible -- the amplification itself is tracked at dispatch/docs/strategy/BRIEF_20260911_cross_branch_issue_dedup.md.
 area: tests/doc-scan
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md
