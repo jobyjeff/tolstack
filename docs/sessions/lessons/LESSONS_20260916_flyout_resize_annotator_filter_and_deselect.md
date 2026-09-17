@@ -23,7 +23,10 @@ it — the previous two lessons say the same thing about the same test).
 C:/workspace/tolstack` → **81/81** (66 at start).
 `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` →
 **21/21 suites** (20 at start; the new one is `annotate rail filter + face
-deselect`). `node scripts/run_mutation_witness_tests.mjs --repo
+deselect`, 30 sub-checks). The annotator's two suites went from 37 sub-checks
+to 87 between them: `annotate flyout` 19 → 39, the new rail suite 30, and
+`annotate hosted posture` untouched at 18. `app file://`/`app http` went 37 →
+39 each, where the source column's consolidation is measured. `node scripts/run_mutation_witness_tests.mjs --repo
 C:/workspace/tolstack` → **51/51**, eight of them added here.
 
 > **Note on the worktree.** `npm install` in the worktree root first or the
@@ -292,10 +295,13 @@ style — with a paired check ("...but it is still findable") so the fix for
 
 ## 7a. The mutation runner found three of my own guards checking the wrong thing
 
-Eight witnesses were declared and **three of the eight did not bite**, all three
-because the check they named was measuring a proxy rather than the claim. Every
-one of them was green on the clean tree and green on the mutated tree, which is
-the worst shape a guard has. Worth reading as three separate mistakes:
+Eight witnesses were declared and the first full run reported **five of them
+unwitnessed**. Two were bookkeeping — stale anchors left by this session's own
+renames, which `tests/test_mutation_witnesses.py` flags on the next pytest run
+anyway. **The other three were real**, and all three the same class of mistake:
+the check they named was measuring a *proxy* rather than the claim, so it was
+green on the clean tree AND green on the mutated one, which is the worst shape
+a guard has. Worth reading as three separate mistakes:
 
 1. **The deselect guard read the BOOKKEEPING, not the tint.** It asserted
    `scene.highlightedFace() === null` — and `highlightedFace()` reports
