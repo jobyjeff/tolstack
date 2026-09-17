@@ -3,11 +3,17 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
 reviewer: review agent (opus)
 date: 2026-09-16
-verdict: REQUEST CHANGES
-blockers: 1
+verdict: APPROVE (after one rework round)
+blockers: 0
 ---
 
 # REVIEW 2026-09-16 — reader_facing_copy_and_vocabulary
+
+> **Round 1: REQUEST CHANGES** (one blocker, two should-fixes, three nits).
+> **Round 2: APPROVE** — the rework (`a494a76`) closed the blocker, both
+> should-fixes and two of the three nits, and the one it left is argued
+> rather than dropped. Merged to `integration`. The round-1 findings are
+> kept below unedited; the round-2 verification is the last section.
 
 One blocker in a branch that is otherwise the best-evidenced piece of work this
 repo has seen: every count in the lesson re-derived exactly, three planted
@@ -242,3 +248,101 @@ new issue).
 The rework is small and bounded: findings 1–3, nothing else. When it comes
 back, re-run plant F first — if deleting the qualifier still leaves three green
 tiers, the blocker is not closed, whatever tests were added.
+
+---
+
+## Round 2 — the rework (`a494a76`), verified
+
+**APPROVE.** Merged to `integration`. The rework closed the blocker, both
+should-fixes and two of the three nits; the third is argued in the lesson and
+filed here rather than dropped.
+
+### Tiers on the reworked, merged tree
+
+| | |
+|---|---|
+| `pytest -q` | 1 failed, **1192** passed, 1 skipped — the same pre-existing `hardware_entry_count` red, unchanged |
+| fast tier | **422/422** (419 before the rework; three new tests) |
+| browser tier | **20/20**, `[suite file://]` and `[suite http]` both **324/324** |
+
+### The blocker — closed, and I re-planted all three limbs
+
+| plant | result | claimed |
+|---|---|---|
+| delete the qualifier clause from `VA.referenceText` | **419/422**, and the browser tier **18/20** (`324 → 322` in both suites) | 3 tests, both tiers ✓ |
+| `VA.partReferences` stops setting the `unverified` flag | **419/422**, the same three | the same 3 ✓ |
+| `views/cards.js` stops setting the `title` | **420/422** | 2 of the 3 ✓ |
+
+All three claims exact. The pins are the right ones, too: the fixture tier
+carries the positive (`arm`), the negative both ways (flag `false` **and** key
+absent — the shape that let this through), and the `inferred` case the
+qualifier must not creep onto; the per-document tie-break is asserted at the
+value level since no live part exercises it; and the `[real]` test *derives*
+the mixed case rather than hard-coding it, with `ok(mixed.length > 0)` so a
+re-citation that removes the last mixed part is a finding. That last one is the
+detail I would have accepted a weaker version of.
+
+### Should-fixes 2 and 3 — closed
+
+All three `apps/viewer/README.md` passages now describe what the viewer
+renders, and the third keeps its surviving *argument* (a URL built from a
+prefix would be a guess) while retiring the false sentences around it. The
+`VA.exportProvenance` comment says `no citation`.
+
+### Nits — two closed, one argued
+
+* **The dead exemption (nit 4) — closed, and better than I asked for.** The
+  worksheet pane renders real markdown now, and a new standing guard asserts
+  every `VERBATIM_PROSE_CLASSES` selector resolves on a live stack surface. I
+  planted a typo'd selector: it reddens and names it. **The stated limit is
+  also exactly right, and I checked it rather than taking it:** dropping
+  `div.worksheet__body` from the list leaves the node tier at **422/422**
+  (the shim keeps `innerHTML` out of `textContent`) and takes the **browser
+  tier to 18/20**. So the enrollment is load-bearing only against a real DOM,
+  the guard asserts the selector *resolves* rather than that its text is
+  excluded, and the lesson says both. That is a harder thing to write than a
+  clean claim.
+* **`lastDate` (nit 6) — closed.** It reads the last run's own day and drops
+  the clause when that run cannot say, with both orderings pinned. No live data
+  is affected: all **31** live run entries carry a `ts`, so every screenshot in
+  the lesson still shows what the code now produces.
+* **`dd.kv__value` (nit 5) — left as is, with the trade written down.** Fair;
+  a two-tier exemption is a design question, not a rework. Filed.
+
+### The lesson's new arithmetic — re-derived
+
+Every exemption count in the rework's table matches what the guard actually
+measures, selector for selector: `dd.kv__value` 433, `li.el-gaps__text` 125,
+`span.gap__text` 91, `div.el-export__note` 84, `tr.el-note--record` 60,
+`div.detail__note` 57, `div.hovercard__notefull` 57, `div.detail__callout` 51,
+`div.hovercard__callout` 51, `p.check__guidance` 51, `li.notelist__note` 35,
+`div.el-row__srcnote` 10, `div.el-row__callout` 4, `div.el-export__why` 2, and
+`div.hovercard__note` 0 — correctly excepted as a topology surface's node and
+named as scope rather than rot. 16 selectors, "15 of 16" ✓. The plant table
+(A 418/422, B 419/422, F/G 419/422, H 420/422, I does not bite) reproduces
+exactly. My round-1 figure of 451 for `dd.kv__value` was the count across all
+four walks; 433 is the `[real]` stack walk the guard actually measures, which
+is the right number to publish.
+
+### Filed before approving
+
+Two should-fixes I am not asking for, both of which outlive this handoff:
+
+* `ISSUE_20260916_nothing_pairs_apps_viewer_readme_against_the_strings_it_documents.md`
+  — the three README passages are fixed; the reason all three went green is
+  not. Names three candidate pairings, cheapest first.
+* `ISSUE_20260916_the_free_form_block_value_exemption_hides_the_values_from_every_scan.md`
+  — measured, not hypothetical: dropping `dd.kv__value` and running only the
+  banned-shapes half reddens on `pitch_link_to_pitch_plate stack page renders
+  "20260804_114000"`. `audience: strategy`, because the two-tier split costs
+  the list its single arguable meaning.
+
+(Plus round 1's
+`ISSUE_20260916_the_record_still_says_zero_width_band_on_the_screens_the_chip_now_calls_no_tolerance_recorded.md`.)
+
+### Checklist
+
+The three overlay entries from round 1 were refined rather than added to: the
+suffix entry now names the three-limb fix shape, the README entry points at the
+issue and stays a grep until a pairing exists, and the exemption entry records
+that a guard exists now **and** what it cannot see.

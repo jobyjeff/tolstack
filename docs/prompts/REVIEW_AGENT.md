@@ -3183,7 +3183,11 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`VA.partReferences`) that no fixture happens to set: the conditional arm
       is dead in every test and live on every real page. Mutate the rendered
       string, never the constant it reads -- a constant's tests are usually
-      tautologies against the constant.
+      tautologies against the constant. The fix shape, from the rework that
+      closed it: pin all three limbs separately -- the string, the **producer**
+      that sets the flag, and any hover/`title` wiring -- because deleting the
+      producer and deleting the string are different mutations and a test can
+      catch one without the other.
 
 - [ ] **A viewer copy change that leaves `apps/viewer/README.md` describing the
       old string.** New 2026-09-16, same handoff, three rows at once: the chip
@@ -3195,7 +3199,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       by panel, and **no test pairs it against the strings**, so a copy fix goes
       green with the documentation of it left wrong. After any `VA.*_TEXT` /
       `VA.ATTENTION` / chip-label edit, grep the retired string across
-      `apps/viewer/README.md` before you read the diff.
+      `apps/viewer/README.md` before you read the diff. All three were fixed on
+      the rework; the **pairing still does not exist**
+      (`ISSUE_20260916_nothing_pairs_apps_viewer_readme_against_the_strings_it_documents.md`),
+      so this stays a grep until it does.
 
 - [ ] **A new `VERBATIM_PROSE_CLASSES` (or any exemption-selector) entry that
       matches nothing.** New 2026-09-16: `div.worksheet__body` was enrolled in
@@ -3206,9 +3213,16 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       An exemption list is a guard's scope statement: instrument it
       (`__VP[selector] += all(root, selector).length`) and demand a non-zero
       count per entry, the same way the walk itself is required to be
-      non-vacuous. Read the *largest* counts while you are there --
-      `dd.kv__value` exempted 451 nodes, the value half of every free-form
-      authored block, which is exactly where a workstation path gets authored.
+      non-vacuous. There IS such a guard now, inside `[real] no rendered stack
+      surface ...` -- so check a new selector is in its scope, and know its
+      stated limit: it asserts the selector **resolves**, not that the node's
+      text was excluded. `div.worksheet__body` is written with `innerHTML`, and
+      the node shim keeps innerHTML out of `textContent`, so dropping that one
+      selector still takes 422/422 and only the browser tier reddens. Read the
+      *largest* counts while you are there -- `dd.kv__value` exempts 433 nodes,
+      the value half of every free-form authored block, which is exactly where
+      a workstation path gets authored
+      (`ISSUE_20260916_the_free_form_block_value_exemption_hides_the_values_from_every_scan.md`).
 
 ## Architectural errors to check
 
