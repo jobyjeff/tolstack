@@ -3270,7 +3270,42 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       probe. The fix shape when you need real data under one boot: serve a
       patched `topology_fixtures.js` (append an override of
       `VA.demoTopologyFixture`) from the probe's own static server instead of
-      re-booting.
+      re-booting. (Closed in the rework by dropping a same-coordinates move in
+      the tracker, which makes the duplicate listener harmless *for that
+      listener*; the double boot itself is still there.)
+- [ ] **Two true checks either side of an untested middle read as coverage.**
+      New 2026-09-16 (`viewer_hover_deslop_and_banner_purge`, blocker 1, and
+      the author's own best line about it). A three-state behaviour --
+      *hold* / *drop* / *fire after the grace period* -- shipped with pins on
+      the first two and nothing on the third, which was the one that was
+      broken. Worse, a check *named* for the third ("...and it still does not,
+      once the grace period has run out") measured the **drop** case, because
+      the pointer had been moved into the card before it ran. Nothing in a
+      green run distinguishes two checks from three. So: for any timer, retry,
+      debounce or grace period, **write down its states and point at the check
+      for each one** -- and read what each check actually sets up, not what its
+      name claims. A check whose *name* is the missing case is worse than no
+      check, because it retires the question.
+- [ ] **A browser-tier gesture that TELEPORTS the pointer computes off a stale
+      position.** Same handoff, and why the check above could not reach the case
+      it was named for. Chrome dispatches `mouseenter` on the element being
+      entered **before** the `mousemove` at the new coordinates, so a
+      single-jump `page.mouse.move(x, y)` fires the enter while the page still
+      holds the position it jumped *from* -- and any handler that asks "where
+      was the pointer one move ago" reads a vector from somewhere else
+      entirely. `{ steps: 12 }` reproduces what a real mouse does. Cheaper tell,
+      same family: a synthetic `dispatchEvent("mouseenter")` fired while the
+      real pointer sits elsewhere cannot reach any code that asks where the
+      pointer IS.
+- [ ] **A probe that perturbs state to observe a guard can destroy the guard's
+      own precondition.** Same handoff. Observing "did `position()` run" by
+      nudging the card and seeing whether it snaps back is the right idea --
+      but the first draft shoved `style.left` to 1px, which slid the box out
+      from under the pointer, so the guard ("never move a card the pointer is
+      on") correctly declined to hold and the probe reported a defect that was
+      not there. The nudge has to be smaller than the margin the precondition
+      has. Ask of any mutate-and-observe check: *does my perturbation still
+      satisfy the `if` I am testing?*
 
 ## Architectural errors to check
 

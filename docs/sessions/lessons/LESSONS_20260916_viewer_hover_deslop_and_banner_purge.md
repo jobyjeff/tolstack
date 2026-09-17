@@ -20,10 +20,16 @@ Seven PNGs beside this file.
 (422 at session start, 430 at the first hand-back).
 `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` →
 **20/20** checks. Two different suites contribute the big sub-counts and they
-are not the same thing: `test.html`'s in-page suite runs **331/331** under each
+are not the same thing: `test.html`'s in-page suite runs **332/332** under each
 of `file://` and `http`, and the topology PAGE suite runs **201/201** under each
 (193 before the rework). `node scripts/run_mutation_witness_tests.mjs --repo
 C:/workspace/tolstack` → **43/43**, six of them added here.
+
+> **Correction, 2026-09-16 (review, second pass).** The in-page number above
+> read 331/331 — the count from *before* this rework, which added the
+> `popoverShouldMove` test to the in-page set as well as to the `--repo` one.
+> Re-measured on the merged branch: **332/332** under each of `file://` and
+> `http`. The 431/431 and 201/201 beside it were re-derived and are right.
 
 The one Python failure is `test_no_live_document_states_an_unguarded_hardware_
 entry_count`, **red on `master` before this branch existed** — a strategy

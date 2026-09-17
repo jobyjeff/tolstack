@@ -3,11 +3,16 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260916_viewer_hover_deslop_and_banner_purge.md
 reviewer: agent
 date: 2026-09-16
-verdict: REQUEST CHANGES
-blockers: 2
+verdict: APPROVE
+blockers: 0
 ---
 
 # REVIEW 2026-09-16 — viewer_hover_deslop_and_banner_purge
+
+> **Two passes.** The first pass (below) was **REQUEST CHANGES** on 2 blockers.
+> The rework closed both; the **second pass at the end of this file is the
+> APPROVE**, and the frontmatter carries that verdict. Read the first pass for
+> what the findings were and the second for what was done and re-measured.
 
 Merged `handoff/viewer_hover_deslop_and_banner_purge` into
 `review/viewer_hover_deslop_and_banner_purge` (**fast-forward, no conflict**;
@@ -269,3 +274,113 @@ nothing would notice being broken.
 Overlay updated with three new entries (the stale-input re-arm, the
 CSS-only-deliverable pin, the double-boot probe). No issues filed: on REQUEST
 CHANGES the handoff still owns every finding above.
+
+---
+
+# Second pass — 2026-09-16, after rework
+
+**Verdict: APPROVE.** Both blockers closed, all three should-fix items and all
+five nits taken. Rework merged (fast-forward, no conflict — `integration` had
+still not moved); `7121f29` → `c4e89e8` in three commits.
+
+## Tiers, re-run on the merged branch
+
+| tier | result |
+|---|---|
+| `pytest -q` | 1192 passed, **1 failed** (the same pre-existing brief-prose regex), 1 skipped |
+| `run_tests.cjs --repo` | **431/431** (430 at the first hand-back; +1 is `popoverShouldMove`) |
+| `run_viewer_browser_tests.mjs --repo` | **20/20**; in-page suite 332/332 ×2, topology page 201/201 ×2 (193 before) |
+| `run_mutation_witness_tests.mjs --repo` | **43/43 declared mutations witnessed** (37 before) |
+
+## Blocker 1 — closed, verified independently
+
+Re-ran **my own probe, unchanged** — the same all-real-mouse gesture that
+measured 4.4 s and counting at the first hand-back. Card A open, four real moves
+up the column onto the `NAS6403U11D` cell 44px below its box, then the mouse
+stops:
+
+```
+t+0         : {"title":"214820-002 plain bushing"}    <- still held, correctly
+t+ 410ms    : {"title":"NAS6403U11D hex-head bolt"}   <- the held trigger opened
+t+1410ms    : {"title":"NAS6403U11D hex-head bolt"}
+```
+
+A quarter-second late, exactly as the design says. The `expiring` token is
+sound on every path I traced: it is set only *after* all three of the timer's
+early returns, cleared on the way through `defer()`, and cleared again in a
+`finally` for the `if (!card) return` path that never reaches `defer()` — so it
+cannot outlive its one call and wave a later hover past the corridor.
+
+And the mutation tier settles it as a contract rather than as today's
+behaviour: `hover-deferral-expires` deletes the token and reddens *"a held
+trigger the pointer STOPS on opens after the grace period"* by name.
+
+The author found the defect **underneath** the one I reported: the original
+check dispatched the competing `mouseenter` synthetically while the pointer sat
+elsewhere, and the expiry only honours a trigger the pointer is still *on* — so
+that check could never have reached the expiry path at all. The block is real
+moves end to end now, with a layout tripwire in front of it, and the reason
+`{ steps: 12 }` is load-bearing (`mouseenter` is dispatched *before* the
+`mousemove` at the new coordinates, so a single-jump move computes the corridor
+off the position it jumped from) is written down where the next person will hit
+it.
+
+## Blocker 2 — closed, and I checked the half nothing declares
+
+Four browser-tier checks now: the default width, the divider's hairline, the
+grip's `background-image`, and its `position: sticky`. In front of them, a
+tripwire asserting `localStorage` holds nothing and no inline width is set, so
+the number they read really is the stylesheet's rather than a leftover drag —
+which is the right shape, since the same suite drags this pane later.
+
+Two are declared witnesses (`pane-default-width`,
+`pane-divider-visible-at-rest`) and both came back WITNESSED. The other two are
+not declared, so I mutated them myself: deleted the `.tv__divider::after` rule
+in a scratch tree and re-ran the tier. **200/201 in both topology suites,
+failing exactly one named sub-check** — *"...and carries a grip mark, held in
+the viewport by sticky so a long study does not scroll it away"* — and nothing
+collateral. The checks bite and they name the right thing.
+
+## Should-fix, all three taken
+
+3. The "48 of the 48" count is **deleted** rather than corrected, which is the
+   better answer — "how many is a question for the live data, not for a
+   comment" — and the loud case (`bushing_214820`) is now named in the comment
+   instead of denied by it.
+4. Every repaint after the first paint routes through `replace()` in both
+   `showCrop` and `showCard`, so the async `paint()` path — the one the first
+   hover of every card takes — is covered, not just `img.onload`. The decision
+   moved into a pure `VA.popoverShouldMove` with its own fast-tier test over
+   both guards, and `open-card-under-the-pointer-never-moves` witnesses the
+   wiring. A later commit (`c4e89e8`) walked back two comments that still said
+   the repaint re-places rather than *offers* a re-place.
+5. `componentDrawingText` keeps the noun (`"drawing rev A"`), pinned by an
+   exact comparison against `VA.revisionText(card.revision)` plus a
+   `revisionOnly > 0` counter, so the check goes red rather than vacuous if the
+   live data stops carrying a part that can reach the branch.
+
+All five nits taken, including the one that mattered most: the schema question
+is its own `ISSUE_20260916_a_topology_note_does_two_jobs_and_the_viewer_guesses_
+where_one_ends.md`, `type: feature` with `audience: strategy`, and the
+five-notes issue now points at it and says why the two do not block each other.
+
+## Fixed inline (stated, per the boundary)
+
+The reworked **Counts** paragraph still read *"the in-page suite runs 331/331"*
+— the count from before the rework, which added `popoverShouldMove` to the
+in-page set as well as the `--repo` one. Measured 332/332 twice, on two
+independent runs. Added a dated correction blockquote rather than editing the
+number away; the 431/431, 201/201 and 43/43 beside it were each re-derived and
+are right. Doc-scan guards re-run clean.
+
+## One thing worth saying about the rework itself
+
+The lesson's new *"I had pinned the two halves either side of the bug"*
+paragraph is the most useful thing in this handoff, and it generalises past the
+viewer: two true checks flanking an untested middle read as coverage, and
+nothing in a green run distinguishes them from three. It is now an overlay
+entry, along with the `mouseenter`-before-`mousemove` ordering and the
+probe-destroys-its-own-precondition trap. The author also self-reported a guard
+they had shipped that could not fail — a `\b` eaten into a literal backspace by
+a non-raw Python patch string, caught by the mutation runner, not by reading —
+which is exactly the posture this checklist exists to produce.
