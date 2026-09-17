@@ -63,8 +63,8 @@ starts serving the projections, a plain reload enters served mode with no user
 action.
 
 The banner says which transport is live — a served page reads *"Served over
-HTTP — no folder grant needed"*; FSA mode is unchanged, the connect/granted
-flow already says so. Neither transport offers a control it cannot service
+HTTP — no folder grant needed"*, inside the **Data source** fold (see below);
+FSA mode is unchanged, the connect/granted flow already says so. Neither transport offers a control it cannot service
 (`adapter.capabilities()`, never the adapter's class): the one real capability
 gap is that drawing-checker's own mount cannot reach `docs/` at all (only the
 viewer app and its projection dir are mounted), so a worksheet is unavailable
@@ -97,13 +97,23 @@ venv-win/Scripts/python.exe scripts\build_topology_projection.py
 ```
 
 4. Open the page, click **Connect folder**, pick the **tolstack repo root**
-   (`C:\workspace\tolstack`), grant **read**. The banner turns into a build line:
-   *results built … · crops built … (26 resolved — 22 sha256-verified, 4 with no
-   sha to check; 22 unresolvable)*, then *crops by rule: source_ref_export 22 ·
-   spec_pile 4*. A resolved count on its own says nothing about whether anything
-   was **checked**, which is the whole difference between a crop of the export a
+   (`C:\workspace\tolstack`), grant **read**. The banner turns into a **Reload**
+   button and one closed **Data source** fold, and nothing else. Open the fold
+   and it holds the build lines: *results built … · crops built … (26 resolved —
+   22 sha256-verified, 4 with no sha to check; 22 unresolvable)*, then *crops by
+   rule: source_ref_export 22 · spec_pile 4*, then which tree wrote each of the
+   two files. A resolved count on its own says nothing about whether anything was
+   **checked**, which is the whole difference between a crop of the export a
    citation names and a crop of a file that happens to share its name — so the
    verification counts sit beside it, out of `crops.json`'s own `summary`.
+
+   Those five rows were always visible until 2026-09-16, when Jeff asked for them
+   to go: *"These 5 lines at the top of the page are meaningless to the user.
+   Delete."* They are **folded, not deleted** — the reader who came to read a
+   stack never sees them, and the reader investigating a suspect projection is
+   one click away. What still shouts on its own is the **stale-pair alarm**
+   below, which fires only when the two stamps provably disagree; that one is a
+   fact about the data in front of you, and a fold is not where it goes.
 
 All three steps are **wipe-and-rebuild** and each owns its own files, so any can
 be re-run alone. Re-run step 1 after editing a stack JSON; re-run step 2 after a
@@ -193,6 +203,30 @@ the crop popover already used, all **hover-only chrome**: the popover is
 full-page scroll, whole-edge hover, leader alignment — and the browser tier
 measures exactly that (the DAG pane's box with a card open, to the pixel, from
 a grid-side trigger AND from a trigger inside the DAG).
+
+**Two rules decide what a card says** (Jeff's de-slopification note,
+2026-09-16):
+
+1. **One document statement per card.** A card used to print the same drawing
+   three times — its own where-line, then the crop block's head restating it
+   (*"NAS6403-NAS6420 Rev 4.pdf · sheet 3"*), then the matching provenance
+   restating it again in jargon. The where-line is the statement; the picture
+   under it carries no caption naming the file it came from. A part number is
+   likewise never printed on two consecutive lines: where a part is *named*
+   after its own drawing — most of them are — the drawing line says only the
+   revision or nothing at all (`VA.componentDrawingText`), and the citation line
+   drops a document the line above it already named (`VA.citationWhere`'s second
+   argument). Four live edge cards needed that second rule.
+2. **One fold per card, and all the long-form prose is in it.** *"For now just
+   put all the long form text into a collapsible element (data source)."* The
+   record's note in full, the export/identity narrative and each crop's matching
+   provenance go inside one closed **Data source** disclosure — the same word
+   the banner's own fold wears (`VA.DATA_SOURCE_SUMMARY`). What stays in the
+   open is the note's **lead sentence** (`VA.leadSentence` — a prefix of the
+   record or the whole of it, never a rewording) and anything that is an
+   **absence**: a "no crop, because…" reason, a floored bar's not-to-scale
+   note, and a *loud* export state. A disclosure is a fold, not a place to hide
+   a gap.
 
 **One hover surface, not two.** A mark that opens a card no longer carries the
 native `<title>` it used to: the rail bars and the dots hand their tooltip text
@@ -604,20 +638,36 @@ on this page that survives a reload.** A full-height divider on its left edge
 `VA.TOPO_PANE_WIDTH`, remembered in `localStorage` under one key
 (`VA.PANE_WIDTH_KEY`).
 
-Its **default** width did not change, and that is a measured decision rather
-than a reading of the ask. It went to 560px with the drag and came straight
-back: the centre pane is then 133px narrower, the grid's content overflows it
-horizontally either way (fixed-width head table, no inner scrollport by
-design), and a widened jog zone put its own drag grip *out of the pane's
-visible window*, where `.tv__hscroll` clips it and a pointer reaches the
-preview pane instead. The browser tier caught it on `pitch_system` at 1600px
-wide.
+Its **default** is **560px** since 2026-09-16, and the two-step history is why
+that is a measured number rather than a guess. It went to 560 with the drag on
+2026-09-15 and came straight back the same day: the centre pane is then 133px
+narrower, the grid's content overflows it horizontally either way (fixed-width
+head table, no inner scrollport by design), and a widened jog zone put its own
+drag grip *out of the pane's visible window*, where `.tv__hscroll` clips it and
+a pointer reaches the preview pane instead. The browser tier caught it on
+`pitch_system` at 1600px wide.
 
 That hazard is **fixed** (`topology_grid_scroll_and_grips`, 2026-09-16): both
 grips are clamped into the visible window, and the browser tier drags them for
-real at a 560px pane and at `VA.TOPO_PANE_WIDTH.max`. The default stayed at
-430px anyway — Jeff asked for the pane to be *resizable*, not for a wider
-default, and nothing measured since says otherwise.
+real at a 560px pane and at `VA.TOPO_PANE_WIDTH.max`. With it closed, the only
+thing still holding the default at 430px was that Jeff had asked for
+*resizable* and not for *wider* — and he then asked for wider too (*"It's too
+narrow"*, carried forward still open into
+`viewer_hover_deslop_and_banner_purge`). 560 is the width already measured safe
+at the tier's own viewport.
+
+The **maximum** stays at 1000px, declined rather than overlooked: at 1600px a
+1000px pane already leaves the grid ~298px, which `.tvgrip`'s own clamp
+arithmetic is written against, and a reader on a wider screen reaches the same
+width by dragging.
+
+The divider itself is **visible at rest** since the same date — a hairline in
+`--line`, plus a three-dot grip mark held in the middle of the *viewport* by
+`position: sticky` (this page scrolls as one document, so a mark centred in the
+divider's own box would sit halfway down a long study, off screen). It was
+`background: transparent` until hover before that, so the one control that
+answers "it's too narrow" announced itself only to a reader who already knew
+where to put the pointer.
 
 The other four preferences (density, the two leader settings, the jog zone's
 width) still do **not** persist, and that asymmetry is deliberate rather than
