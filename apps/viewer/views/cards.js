@@ -125,11 +125,20 @@
     // NAS bolt has no Joby drawing. A part with neither gets no line at all.
     if (card.drawing) {
       root.appendChild(VA.el("div", "hovercard__where",
-        "drawing " + card.drawing + (card.revision ? " rev " + card.revision : "")));
+        "drawing " + card.drawing +
+        (card.revision ? " " + VA.revisionText(card.revision) : "")));
     } else if (card.references.length) {
-      root.appendChild(VA.el("div", "hovercard__where",
+      // Each reference says for itself whether the numbers read off it are
+      // verified (VA.referenceText) -- a part can cite a traced drawing for one
+      // dimension and an untraced workbook for another, and one qualifier on
+      // the whole line would be wrong about one of them either way.
+      var where = VA.el("div", "hovercard__where",
         (card.standardPart ? "standard part — dimensions from " : "dimensions from ") +
-        card.references.map(VA.referenceText).join("; ")));
+        card.references.map(VA.referenceText).join("; "));
+      if (card.references.some(function (r) { return r.unverified; })) {
+        where.setAttribute("title", VA.ATTENTION.unverified.title);
+      }
+      root.appendChild(where);
     }
     if (card.note) root.appendChild(VA.clampedNote("hovercard__note", card.note));
 

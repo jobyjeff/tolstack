@@ -18,18 +18,15 @@
       return root;
     }
     root.appendChild(VA.el("div", "worksheet__path", path));
-    // A declared worksheet (provenance.worksheet) overrides the X -> WORKSHEET_X
-    // naming convention (a stack's own build_viewer_projection.py and, since
-    // topology_schema_v1, a topology's own build_topology_projection.py alike),
-    // and the reason it exists is that one sheet can serve several documents —
-    // so a reader who notices the name does not match the one they opened is
-    // told why rather than left to suspect the wrong sheet. `stackProj` here is
-    // whichever projection the caller is showing; this renderer never reads
-    // anything else off it.
-    if (stackProj.worksheet_source === "declared") {
-      root.appendChild(VA.el("div", "worksheet__note",
-        "declared by this file itself (provenance.worksheet), not matched by " +
-        "name — one worksheet may cover several stacks or topologies"));
+    // HOW this sheet was found, in the words VA.WORKSHEET_SOURCES keeps for it.
+    // The branch used to be `=== "declared"` against a bare literal, with the
+    // sentence inline beside it; the vocabulary has a home now, and this reads
+    // it. `stackProj` here is whichever projection the caller is showing — a
+    // stack's or a topology's, both builders write this field — and this
+    // renderer never reads anything else off it.
+    var sourceNote = (VA.WORKSHEET_SOURCES[stackProj.worksheet_source] || {}).note;
+    if (sourceNote) {
+      root.appendChild(VA.el("div", "worksheet__note", sourceNote));
     }
     if (markdown === null || markdown === undefined) {
       root.appendChild(VA.el("p", "muted",

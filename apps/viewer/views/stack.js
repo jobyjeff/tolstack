@@ -192,8 +192,8 @@
     if (derived.zero_width) {
       min.className += " num--zero-width";
       max.className += " num--zero-width";
-      min.setAttribute("title", "zero-width band: min == max, no document gives a tolerance");
-      max.setAttribute("title", "zero-width band: min == max, no document gives a tolerance");
+      min.setAttribute("title", VA.ATTENTION.no_tolerance.title);
+      max.setAttribute("title", VA.ATTENTION.no_tolerance.title);
     }
     tr.appendChild(min);
     tr.appendChild(max);
@@ -248,8 +248,8 @@
         "for its CTE and where the CTE came from"));
     }
     if (derived.zero_width) {
-      chips.appendChild(VA.chip("chip--zero-width", "zero-width band",
-        "min == max: every interval this feeds is a LOWER bound on the real spread."));
+      chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
+        VA.ATTENTION.no_tolerance.title));
     }
     // A chip only for the states that must be legible from the ROW, at a glance,
     // across a thirty-row table: `unestablished`, and a status or identity rule

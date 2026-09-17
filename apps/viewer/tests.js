@@ -275,8 +275,17 @@
 
     await test("summaryChips scoreboards the stack and flags both soft spots", function () {
       var texts = VA.summaryChips(DEMO).map(function (c) { return c.text; });
+      // The summary chip says the SAME fact in the SAME words as the DAG page's
+      // badge and the element row's chip -- one vocabulary, out of VA.ATTENTION
+      // (ISSUE_20260915_the_stack_view_still_says_zero_width_band_...). Pinned
+      // as the rendered sentence, not as a class name: a class-name check
+      // passes straight through a wrong word, which is how this one survived.
       eq(texts, ["2 traced", "1 inferred", "1 UNTRACED",
-                 "1 zero-width band", "1 budget-scope check"]);
+                 "1 element with no tolerance recorded", "1 budget-scope check"]);
+      // ...and the plural arm, which no fixture stack reaches.
+      eq(VA.summaryChips({ provenance_counts: {}, zero_width_count: 2 })
+         .map(function (c) { return c.text; }),
+         ["2 elements with no tolerance recorded"]);
     });
 
     await test("summaryChips says the checks are generated and counts the probes", function () {
@@ -313,7 +322,25 @@
     await test("citationWhere reads like drawing-checker's Where column", function () {
       eq(VA.citationWhere(DEMO.stack.elements[0].source_ref),
          "215197 · rev A.1 · sheet 2 · SECTION A-A · zone D10");
-      eq(VA.citationWhere(null), "no source_ref");
+      // "Rev 4" in the title block is transcribed as "Rev 4", so the label and
+      // the value collided and the line read `rev Rev 4` on the live NAS
+      // citation (ISSUE_20260915_the_citation_where_line_prints_rev_rev_4_...).
+      // Never prefix a label a value already carries -- and keep the label
+      // where it is the only thing saying what the digits are.
+      eq(VA.citationWhere({ document: "NAS6403-NAS6420 Rev 4.pdf",
+                            revision: "Rev 4 (sheet 1 rev 4, sheet 2 rev 2)",
+                            sheet: 3 }),
+         "NAS6403-NAS6420 Rev 4.pdf · Rev 4 (sheet 1 rev 4, sheet 2 rev 2) · sheet 3");
+      eq(VA.citationWhere({ document: "215197", revision: "A.1" }),
+         "215197 · rev A.1");
+      // Case-insensitive, and anchored: "revised 2026" is not the label said
+      // twice, and a "rev" clause deeper in the string is part of the note.
+      eq(VA.revisionText("REV C"), "REV C");
+      eq(VA.revisionText("revised 2026"), "rev revised 2026");
+      eq(VA.revisionText("A (sheet 2 rev 2)"), "rev A (sheet 2 rev 2)");
+      // No citation at all says so in a reader's words. It said "no source_ref"
+      // -- a schema field name on a rendered surface -- until 2026-09-16.
+      eq(VA.citationWhere(null), "no citation");
     });
 
     // --- the inbound deep-link contract (viewer_hover_cards_and_deep_links) --
@@ -1056,11 +1083,20 @@
       has(untraced[0].textContent, "UNTRACED");
     });
 
-    await test("a zero-width band is marked on the row and on min/max", function () {
+    await test("an element with no tolerance recorded is marked on the row and " +
+      "on min/max, in the DAG page's own words", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+      // The classes are the colour system's and deliberately keep their names --
+      // nothing reads them as words.
       eq(all(root, "tr.el-row--zero-width").length, 1);
       eq(all(root, "td.num--zero-width").length, 2);
-      ok(all(root, ".chip--zero-width").length >= 1);
+      var chips = all(all(root, "tr.el-row--zero-width")[0], ".chip--zero-width");
+      eq(chips.length, 1);
+      eq(chips[0].textContent, VA.ATTENTION.no_tolerance.text);
+      eq(chips[0].getAttribute("title"), VA.ATTENTION.no_tolerance.title);
+      // ...and the cells a reader compares carry the same sentence.
+      eq(all(root, "td.num--zero-width")[0].getAttribute("title"),
+         VA.ATTENTION.no_tolerance.title);
     });
 
     await test("element values are printed exactly as authored", function () {
@@ -1405,13 +1441,33 @@
       var line = VA.exportProvenanceLine(DEMO.stack.elements[0].source_ref);
       // The BASENAME, because the live paths are absolute and 90 characters long.
       has(line, "Read from 215197.pdf");
-      has(line, "drawing-checker runs: 20260804_114000_x");
+      // How many times and how recently -- never the run id, which is an
+      // internal artifact's address (ISSUE_20260916_the_element_pane_still_
+      // prints_bare_drawing_checker_run_ids_as_link_text). Both the rendered
+      // line and this text view-model read the one builder, so they cannot
+      // describe one export in two vocabularies.
+      has(line, "read by drawing-checker once, on 4 Aug 2026");
+      ok(line.indexOf("20260804_114000_x") === -1, "no run id in the line: " + line);
+      eq(VA.exportRunsText({ status: "established", runs: [
+           { run_id: "a", ts: "2026-07-23T16:38:10+00:00" },
+           { run_id: "b", ts: "2026-07-30T20:21:09+00:00" }] }),
+         "read by drawing-checker 2 times, most recently 30 Jul 2026");
+      // A run entry with no usable date still counts, and claims no day.
+      eq(VA.exportRunsText({ runs: [{ run_id: "not-a-run-id" }] }),
+         "read by drawing-checker once");
+      // The date is read off the front of the recorded string, never through
+      // Date -- a timezone must not move the day.
+      eq(VA.isoDateText("2026-07-30T20:21:09.210383+00:00"), "30 Jul 2026");
+      eq(VA.isoDateText("2026-01-05"), "5 Jan 2026");
+      eq(VA.isoDateText("last Tuesday"), null);
+      eq(VA.isoDateText(null), null);
+      eq(VA.isoDateText("2026-13-01"), null);
       // An export no run ever consumed says so — 15 of the 22 live established
       // CITATIONS are in that state (6 of the 9 distinct exports they name), and
       // a blank would read as a missing record rather than an empty one.
       has(VA.exportProvenanceLine({
         export: { status: "established", pdf: "C:/x/y.pdf", sha256: "ab", runs: [] },
-      }), "no drawing-checker run has consumed this export");
+      }), VA.EXPORT_NO_RUNS_TEXT);
     });
 
     await test("an unestablished export leads with the why, not with the file", function () {
@@ -1585,7 +1641,13 @@
       eq(box.length, 1);
       has(box[0].textContent, "Read from 215197.pdf");
       has(box[0].textContent, "pinned to this exact file");
-      has(box[0].textContent, "20260804_114000_x");
+      // The run's own id is on the hover, not in the line -- and the fixture's
+      // crop resolved through the export rather than a run, so there is nothing
+      // to link here and the summary carries no title either.
+      has(box[0].textContent, "read by drawing-checker once, on 4 Aug 2026");
+      ok(box[0].textContent.indexOf("20260804_114000_x") === -1,
+         "no run id in the rendered line: " + box[0].textContent);
+      eq(all(root, "a.el-export__runlink").length, 0);
       // The absolute path used to print beside the basename as the fallback
       // for a file:// link that could not navigate. Gone 2026-09-15 (Jeff:
       // "full workstation file paths -- never rendered when the link works"),
@@ -1877,7 +1939,7 @@
       has(desig[0].textContent, "designation from: DEMO-1 · rev A · sheet 1 · NOTES · zone D9");
       has(rows[0].textContent, "PRODUCE FROM DEMO ALUMINIUM T7451");
       // A material with no designation_source says so rather than showing a blank.
-      has(desig[2].textContent, "no source_ref");
+      has(desig[2].textContent, "no citation");
       // The outstanding ask for a real value, where one is recorded.
       var requests = all(root, "div.mat-row__request");
       eq(requests.length, 2, "the stainless records no CINDAS request");
@@ -5822,7 +5884,7 @@
         // The run ids print through the same one runs-line builder the right
         // pane uses (VA.exportRunsLine) — linked only where the crop resolved
         // through that run, plain text otherwise.
-        has(root.textContent, "drawing-checker runs:");
+        has(root.textContent, "read by drawing-checker");
       });
 
     await test("renderHoverCard says a card kind it has no branch for out loud",
@@ -6566,7 +6628,7 @@
             selection: { kind: "edge", id: "arm_pin_to_tip" } }));
         });
         has(root.textContent, "No document backs this number");
-        has(root.textContent, "zero-width band");
+        has(root.textContent, VA.ATTENTION.no_tolerance.text);
         has(root.textContent, "linear_to_rotary");
       });
 
@@ -7714,17 +7776,24 @@
         }));
       }
 
-      // One vocabulary, one list. `worksheet_source` is written by BOTH viewer
+      // One vocabulary, one home. `worksheet_source` is written by BOTH viewer
       // builders (`scripts/build_viewer_projection.py`'s `worksheet_for` and
       // `scripts/build_topology_projection.py`'s, the same two rules
       // deliberately not shared because each builder is stdlib-only and
-      // self-contained), so it is guarded twice below — once per projection —
-      // and two rows keeping two copies of one list is the drift this repo
-      // names as its most-repeated defect. The real home for it is a
-      // `VA.WORKSHEET_SOURCES` that `views/worksheet.js` itself reads; that is
-      // ISSUE_20260915_worksheet_source_vocabulary_has_no_va_constant, out of
-      // this handoff's file scope.
-      var WORKSHEET_SOURCES = ["declared", "by_name", null];
+      // self-contained), so it is guarded twice below — once per projection.
+      // Both rows read `VA.WORKSHEET_SOURCES` directly, which is the strong
+      // form of this guard: the table they check is the one the renderer
+      // branches on, so a value the page has no branch for cannot pass here.
+      // A local copy of the list lived here until 2026-09-16 and was the
+      // vocabulary's only named home (ISSUE_20260915_worksheet_source_
+      // vocabulary_has_no_va_constant).
+      //
+      // `null` is looked up as the string "null" for the same reason the table
+      // spells it that way: a JS property key is coerced to a string.
+      function knownWorksheetSource(value) {
+        return Object.prototype.hasOwnProperty.call(
+          VA.WORKSHEET_SOURCES, String(value));
+      }
 
       // The reporting loop behind every value guard in this file, stack-side
       // and topology-side. It has TWO arms and they catch different things: an
@@ -7873,7 +7942,7 @@
           branch: "views/worksheet.js — only `declared` earns the 'one worksheet " +
             "may cover several stacks' note; `by_name` and null are the silent " +
             "default, correctly",
-          known: inList(WORKSHEET_SOURCES),
+          known: knownWorksheetSource,
           values: function (r) {
             return stacksIn(r).map(function (s) { return s.worksheet_source; });
           } },
@@ -8115,8 +8184,22 @@
           // without one), so a live export with none is a finding, not a display
           // case.
           ok(pair[1].source_ref.export.sha256, where + " must carry a sha256");
+          // The pane says WHAT drawing-checker did with the file, and never a
+          // run id: it printed four bare ids on
+          // `tan_link_to_pitch_plate:straight_bushing` until 2026-09-16.
+          has(text, VA.exportRunsText(pair[1].source_ref.export),
+              where + " must summarise its drawing-checker history");
+          // Scoped to the line itself, not to the pane: an export's own `why`
+          // is the RECORD's prose and several live ones argue their identity by
+          // naming a run ("...20260730_133912's 215197_A_p01.json records..."),
+          // which this page renders verbatim on purpose.
+          var runsLine = all(render(function (r) {
+            VA.renderDetail(r, pair[0], pair[1].id, realCrops, null, VA.CONFIG);
+          }), "div.el-export__runs")[0];
           p.runIds.forEach(function (runId) {
-            has(text, runId, where + " must name run " + runId);
+            ok(runsLine.textContent.indexOf(runId) === -1,
+               where + " prints the internal run id `" + runId + "`: " +
+               runsLine.textContent);
           });
         });
       });
@@ -10465,7 +10548,7 @@
               "SAME branch the stack-side row guards, over the other " +
               "projection: the stack table runs against realResults only and " +
               "never sees this copy of the field",
-            known: inList(WORKSHEET_SOURCES),
+            known: knownWorksheetSource,
             values: function (p) {
               return topoRows(p).map(function (t) { return t.worksheet_source; });
             } },

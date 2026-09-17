@@ -73,20 +73,76 @@
     no_source_ref: "NO CITATION",
   };
 
-  // Class suffix for the colour system. `untraced` and `no_source_ref` are the
-  // loud ones on purpose: Jeff reviews sourcing as much as arithmetic, and an
+  // The confidences that mean *nothing readable stands behind this number*: it
+  // traces to no drawing or datasheet, or carries no citation at all. The loud
+  // pair, on purpose -- Jeff reviews sourcing as much as arithmetic, and an
   // untraced value must be impossible to miss.
+  //
+  // This pair decides TWO things that have to agree, and until 2026-09-16 each
+  // side spelled it itself (ISSUE_20260915_the_loud_gap_confidence_pair_has_
+  // three_homes_and_no_pairing): which edges become `unverified_value` rows in
+  // a topology's "what is missing" panel, chosen in Python, and which grid rows
+  // and studies wear the `unverified` badge and offer the annotate link, chosen
+  // here. Drift between them means the panel lists rows the grid does not badge
+  // -- on the one page whose whole job is to say what cannot be trusted. It is
+  // a TABLE now rather than two literals inside `needsAnnotation` for exactly
+  // that reason: a vocabulary spelled in a function body cannot be paired, and
+  // `tests/test_js_python_vocabulary.py` now pairs this one word for word
+  // against `scripts/build_topology_projection.py`'s UNVERIFIED_CONFIDENCES.
+  // `no_source_ref` has ZERO live instances, so the pairing is the only thing
+  // that could ever catch a drift in that half.
+  VA.UNVERIFIED_CONFIDENCES = ["untraced", "no_source_ref"];
+
+  // Class suffix for the colour system.
   VA.confidenceClass = function (confidence) {
     return "conf--" + (VA.CONFIDENCES.indexOf(confidence) === -1 ? "unknown" : confidence);
   };
 
   // Deep link OUT to apps/annotate/ (handoff annotate_deep_link_and_part_filter,
-  // deliverable 4). `untraced`/`no_source_ref` are the two loud gap states
-  // (confidenceClass's own comment) -- exactly the rows this repo's "record a
-  // gap" rule is about, and exactly the ones a click into the 3D tool can help
-  // close by resolving WHICH feature the row means.
+  // deliverable 4): exactly the rows this repo's "record a gap" rule is about,
+  // and exactly the ones a click into the 3D tool can help close by resolving
+  // WHICH feature the row means.
   VA.needsAnnotation = function (confidence) {
-    return confidence === "untraced" || confidence === "no_source_ref";
+    return VA.UNVERIFIED_CONFIDENCES.indexOf(confidence) !== -1;
+  };
+
+  // --- which worksheet a stack or a topology is showing, and HOW it was found
+  //
+  // `worksheet_source`, written by both viewer builders (`worksheet_for` in
+  // scripts/build_viewer_projection.py and in scripts/build_topology_projection.py
+  // -- the same two rules, deliberately not shared because each builder is
+  // stdlib-only). Three values, and the third is `null`: a stack with no
+  // worksheet at all has no source for one either.
+  //
+  // A vocabulary this page branches on is a module-level constant, never an
+  // inline literal (CLAUDE.md) -- and until 2026-09-16 this one's only named
+  // copy lived inside apps/viewer/tests.js, read by two guard rows and
+  // invisible to the branch itself (ISSUE_20260915_worksheet_source_vocabulary_
+  // has_no_va_constant).
+  //
+  // A TABLE carrying each value's on-screen note, not a list plus an if: the
+  // reason VA.CROP_RULES is one. An enumerated field needs a total function,
+  // because a silent default cannot be told apart from a handled case by
+  // reading the code -- and here only ONE of the three values has anything to
+  // say, which is exactly the shape that reads as an oversight when it is
+  // spelled as an `if`. `"null"` is quoted because JS coerces a property
+  // lookup's key to a string, so `VA.WORKSHEET_SOURCES[null]` finds it and the
+  // renderer needs no null check; `null` is also literally what the projection
+  // JSON carries in that field.
+  VA.WORKSHEET_SOURCES = {
+    declared: {
+      // The only value a reader can be surprised by: the sheet's name will not
+      // match the document they opened, and this says why rather than leaving
+      // them to suspect the wrong sheet.
+      note: "declared by this file itself (provenance.worksheet), not matched " +
+        "by name — one worksheet may cover several stacks or topologies",
+    },
+    // Matched by the X -> WORKSHEET_X naming convention. Silent, correctly: a
+    // sheet whose name matches the document needs no explanation.
+    by_name: { note: null },
+    // No worksheet at all, so no source for one either. The pane says that much
+    // above this line and has nothing to add here.
+    "null": { note: null },
   };
 
   // Pure string-building (no URL API -- this file is also loaded into the
@@ -265,13 +321,19 @@
         });
       }
     });
+    // One fact, one vocabulary. This chip said "1 zero-width band" while the DAG
+    // page two clicks away said "no tolerance recorded" about the same element
+    // (ISSUE_20260915_the_stack_view_still_says_zero_width_band_...), so the
+    // words are read out of VA.ATTENTION here and on all four of the other
+    // surfaces that state it. `zero_width_count` keeps its name: it is a
+    // projection field, not something a reader sees.
     if (stackProj.zero_width_count) {
       chips.push({
         kind: "zero-width",
-        text: stackProj.zero_width_count + " zero-width band" +
-          (stackProj.zero_width_count === 1 ? "" : "s"),
-        title: "min == max: no document gives this element a tolerance, so every " +
-          "interval it feeds is a LOWER bound on the real spread.",
+        text: stackProj.zero_width_count +
+          (stackProj.zero_width_count === 1 ? " element with " : " elements with ") +
+          VA.ATTENTION.no_tolerance.text,
+        title: VA.ATTENTION.no_tolerance.title,
       });
     }
     var budget = (stackProj.checks || []).filter(VA.isBudgetScope);
@@ -330,13 +392,34 @@
     });
   };
 
+  // The label this line puts in front of a revision, and the test for when the
+  // value has already said it. A revision is TRANSCRIBED from a title block, and
+  // a title block that reads "Rev 4" gets transcribed as "Rev 4" — so the label
+  // and the value collide, and the line prints `rev Rev 4`
+  // (ISSUE_20260915_the_citation_where_line_prints_rev_rev_4_...). The rule is
+  // general and it is not about this one document: never prefix a label a value
+  // already carries. Case-insensitive, and anchored at the START of the value,
+  // because "sheet 2 rev 2" further in is a clause of the note, not the label.
+  VA.REVISION_LABEL = "rev ";
+  VA.revisionText = function (revision) {
+    var text = String(revision);
+    return /^rev\b/i.test(text) ? text : VA.REVISION_LABEL + text;
+  };
+
   // "sheet 4 · DETAIL B · zone H3" — the same shape drawing-checker's own
   // "Where" column uses, so a citation reads the same in both tools.
+  //
+  // With no citation at all it says so in a reader's words, not the schema's:
+  // this string is rendered on the element pane and the citation card, and
+  // `source_ref` is a field name a reader cannot act on (the same ban
+  // `apps/viewer/tests.js`'s BANNED_IN_RENDERED_TEXT keeps). "no citation" is
+  // the wording VA.CONFIDENCE_LABEL.no_source_ref already uses on the chip
+  // beside it.
   VA.citationWhere = function (sourceRef) {
-    if (!sourceRef) return "no source_ref";
+    if (!sourceRef) return "no citation";
     var parts = [];
     if (sourceRef.document) parts.push(String(sourceRef.document));
-    if (sourceRef.revision) parts.push("rev " + sourceRef.revision);
+    if (sourceRef.revision) parts.push(VA.revisionText(sourceRef.revision));
     if (sourceRef.sheet !== null && sourceRef.sheet !== undefined) {
       parts.push("sheet " + sourceRef.sheet);
     }
@@ -489,6 +572,71 @@
     });
   };
 
+  // Month names, for the one date this page formats itself. A table rather than
+  // toLocaleDateString: the node fast tier and a browser must agree character
+  // for character, and a locale-dependent string cannot be pinned by a test.
+  VA.MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  // "2026-07-30" -> "30 Jul 2026". Read off the front of the string rather than
+  // through Date: a recorded timestamp is a fact about a day, and parsing it
+  // into a Date moves that day across a timezone boundary for half the world.
+  // Anything that is not a leading ISO date comes back null, never a guess.
+  VA.isoDateText = function (value) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""));
+    if (!match) return null;
+    var month = VA.MONTH_NAMES[Number(match[2]) - 1];
+    return month ? Number(match[3]) + " " + month + " " + match[1] : null;
+  };
+
+  // What a reader can act on about an export's drawing-checker history: HOW
+  // MANY times the file has been read, and WHEN the last one was. Not the run
+  // ids -- those are an internal artifact's address, the same thing the crop
+  // popover's link stopped printing on 2026-09-15, and no reader can do
+  // anything with one (ISSUE_20260916_the_element_pane_still_prints_bare_
+  // drawing_checker_run_ids_as_link_text). They are kept, on the line's hover,
+  // because an id IS what a person with a drawing-checker shell would use.
+  //
+  // A run entry carries `{run_id, ts}`; `ts` is the recorded fact and the id's
+  // own date prefix is the fallback for an entry that somehow has no `ts`.
+  VA.exportRunsSummary = function (exportBlock) {
+    var runs = (exportBlock && exportBlock.runs) || [];
+    var dates = runs.map(function (run) {
+      return VA.isoDateText(run && run.ts) ||
+        VA.isoDateText(String((run && run.run_id) || "")
+          .replace(/^(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"));
+    }).filter(function (date) { return date !== null; });
+    return {
+      count: runs.length,
+      // The LAST recorded run, by the order the export lists them -- which is
+      // the order build_viewer_crops.py found them in, oldest first.
+      lastDate: dates.length ? dates[dates.length - 1] : null,
+      ids: VA.exportRunIds(exportBlock),
+    };
+  };
+
+  // The sentence that summary becomes, on every surface that states it.
+  VA.EXPORT_NO_RUNS_TEXT = "no drawing-checker run has used this file — the " +
+    "value was read straight off it, so its checksum is the whole of its identity";
+  VA.exportRunsText = function (exportBlock) {
+    var summary = VA.exportRunsSummary(exportBlock);
+    if (!summary.count) return VA.EXPORT_NO_RUNS_TEXT;
+    return "read by drawing-checker " +
+      (summary.count === 1 ? "once" : summary.count + " times") +
+      (summary.lastDate
+        ? (summary.count === 1 ? ", on " : ", most recently ") + summary.lastDate
+        : "");
+  };
+
+  // Why the ids sit on a hover and not in the line, and why at most one run is
+  // ever a link -- both facts a reader who goes looking for them deserves.
+  VA.exportRunsTitle = function (exportBlock) {
+    var ids = VA.exportRunsSummary(exportBlock).ids;
+    return (ids.length ? "recorded on this export as " + ids.join(", ") + ". " : "") +
+      "drawing-checker addresses a run by a longer name than the id recorded " +
+      "here, so this page links only the run its own crop resolved through.";
+  };
+
   // Which of an export's run ids this page can actually LINK, and to where.
   //
   // The export carries run IDS (`20260803_145243`). drawing-checker addresses a
@@ -577,9 +725,10 @@
     if (p.detail) bits.push(p.detail);
     if (p.shaText) bits.push(p.shaText);
     if (p.state === "established") {
-      bits.push(p.runIds.length
-        ? "drawing-checker runs: " + p.runIds.join(", ")
-        : "no drawing-checker run has consumed this export");
+      // The same sentence the rendered line says, out of the same builder:
+      // this view-model and VA.exportRunsLine must not describe one export in
+      // two vocabularies.
+      bits.push(VA.exportRunsText((sourceRef || {}).export));
     }
     return bits.join(" · ");
   };

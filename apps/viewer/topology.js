@@ -2416,11 +2416,20 @@
       if (!ref || !ref.document) return;
       var document = String(ref.document);
       if (!byDocument[document]) {
-        byDocument[document] = { document: document, kinds: [], sheets: [] };
+        byDocument[document] = {
+          document: document, kinds: [], sheets: [], unverified: false,
+        };
         order.push(document);
       }
       var row = byDocument[document];
       if (ref.kind && row.kinds.indexOf(ref.kind) === -1) row.kinds.push(ref.kind);
+      // ...and whether anything readable stands behind the numbers read off it.
+      // ANY unverified row marks the document, not every row: a card line that
+      // called a document clean because one of its four rows was traced would
+      // overclaim, and the direction this repo errs in is the other one. (No
+      // live part today cites one document at two confidences, so the tie-break
+      // is stated rather than exercised.)
+      if (VA.needsAnnotation(edge.confidence)) row.unverified = true;
       if (ref.sheet !== null && ref.sheet !== undefined &&
           row.sheets.indexOf(ref.sheet) === -1) {
         row.sheets.push(ref.sheet);
@@ -2431,6 +2440,16 @@
   };
 
   // One reference, in a reader's words: "NAS6403-NAS6420 Rev 4.pdf · sheet 3".
+  //
+  // ...and, where it applies, what the numbers read off it are worth
+  // (ISSUE_20260915_the_component_card_says_dimensions_from_for_a_part_whose_
+  // every_value_is_untraced). The card carries NO confidence chip, so this line
+  // is the only provenance its reader gets, and "dimensions from
+  // 260729_sample_tol_stack.xlsx" said exactly what a traced drawing citation
+  // says about a workbook transcription this repo refuses to call traced. The
+  // qualifier is the DAG grid's own badge word, read out of VA.ATTENTION rather
+  // than spelled again here: a reader meets "unverified" on the row and on the
+  // "what is missing" panel, and it must mean the same thing in all three.
   //
   // No revision. It is not an oversight: the live NAS citation's `revision` is
   // "Rev 4 (sheet 1 rev 4, sheet 2 rev 2, sheet 3 NEW, sheet 4 rev 2)" -- a
@@ -2454,7 +2473,8 @@
       });
       bits.push((sheets.length > 1 ? "sheets " : "sheet ") + sheets.join(", "));
     }
-    return bits.join(" · ");
+    return bits.join(" · ") +
+      (reference.unverified ? " (" + VA.ATTENTION.unverified.text + ")" : "");
   };
 
   // The component card, for the grid's merged component cell: the part's own
