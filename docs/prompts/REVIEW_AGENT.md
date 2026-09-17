@@ -365,13 +365,20 @@ must be confirmed before the property is looked up.
   workbook-sourced band as the failure to hunt regardless of how many there are.
   Since 2026-08-12 (`hardware_counts_doc_guard`) a second test,
   `test_no_live_document_states_an_unguarded_hardware_entry_count`, recounts these
-  counts **wherever they live** — every live `.md` plus the `.json` under `docs/`.
-  Know its blind spots before you treat its green as "the prose was checked":
-  it matches the claim *shapes* the repo has already written (`_COUNT_CLAIMS`), so
-  new phrasing is invisible; a number inside a blockquote or a `"…"` span is exempt
-  by design; and `docs/sessions/`, `docs/issues/`, `docs/reference/` and
-  `PROVENANCE.md` are out of scope as dated history. `CLAUDE.md` was on that
-  exempt list until 2026-09-01; now that it is tracked, the scan reads it.
+  counts **wherever a document states this repo's facts** — every live `.md` plus
+  the `.json` under `docs/`, less the exemptions below. Know its blind spots
+  before you treat its green as "the prose was checked": it matches the claim
+  *shapes* the repo has already written (`_COUNT_CLAIMS`), so new phrasing is
+  invisible; a number inside a blockquote or a `"…"` span is exempt by design;
+  `docs/sessions/`, `docs/issues/`, `docs/reference/` and `PROVENANCE.md` are out
+  of scope as dated history; and since 2026-09-17
+  (`prose_guards_scope_out_strategy_briefs`) so is `docs/strategy/BRIEF_*.md` —
+  an inbox artifact about an undecided question, not a document that states this
+  repo's facts. That last one is a *class* of exemption, not a file: it applies
+  to every claim-shape scan (`claim_scanned_documents()`, and
+  `is_claim_scanned()` for the byte-identity scan, which derives its corpus from
+  `git ls-files` instead). `CLAUDE.md` was on the dated-history list until
+  2026-09-01; now that it is tracked, the scan reads it.
 - **Checks the source does not contain** are marked `workbook_cells: null` and
   `[NOT IN WORKBOOK]` in the label, with a test asserting it.
 - **Scope is stated**, including what was excluded and why.
@@ -3759,7 +3766,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       grip-stack schema hygiene to a topology dropped in beside the stacks.
       `docs/DAG_TOPOLOGY.md` **is** in `live_documents()`, and since 2026-09-03
       (`doc_coverage_sets_derived`) the traced-ratio scanner's stale half walks
-      `live_documents()` too, so a retired ratio asserted there is caught now.
+      the same corpus, so a retired ratio asserted there is caught now. (That
+      half reads `claim_scanned_documents()` since 2026-09-17, which is
+      `live_documents()` minus the triage briefs; `docs/DAG_TOPOLOGY.md` is in
+      both.)
       This clause read *"the **traced-ratio** scanner does not walk
       `live_documents()` at all … so a stale ratio quoted there is not caught"*
       until then — correct when it was written on 2026-09-01, and the defect
@@ -3789,15 +3799,29 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `docs/DAG_TOPOLOGY.md`
       (`ISSUE_20260901_traced_ratio_doc_scan_uses_a_hand_kept_list.md`). Two
       documents asserted the wrong coverage before anyone injected a figure to
-      check. The corpus is now one walk for every scan; what is still **not**
-      shared is the traced-ratio guard's *other* half, which reads the curated
-      `traced_ratio_publishers()` because it is a presence check and the evidence
-      it needs is absent from exactly the file it must catch (the argument is
-      written above that function). So when work claims a document is now covered
-      by a scan, **inject the defect and watch the named test go red** — the
-      hardware-count guard firing is not evidence that the traced-ratio guard
-      would, and "it walks `live_documents()`" is not evidence that the half you
-      care about does.
+      check. There are **two derived corpora and one curated set** as of
+      2026-09-17, and telling them apart is the whole of this check:
+
+      * `live_documents()` — the `os.walk`. Read by the coverage guard and by
+        the enumerated-state surface lookup, which needs "this README stopped
+        being live" to be *loud*.
+      * `claim_scanned_documents()` — that walk minus `docs/strategy/BRIEF_*.md`.
+        Read by every scan that recounts a claim *shape* against this repo's
+        data: hardware-entry counts, the traced-ratio stale half, and the
+        one-fold-rule scan in `tests/test_thermal_exception_list.py`. The
+        byte-identity scan in `tests/test_provenance.py` makes the same scope
+        call through `is_claim_scanned()`, from a `git ls-files` corpus of its
+        own (it reads `.py`/`.json`/`.toml` too, not only live documents).
+      * `traced_ratio_publishers()` — curated, and stays that way: the
+        traced-ratio guard's *other* half is a presence check, and the evidence
+        it needs is absent from exactly the file it must catch (the argument is
+        written above that function).
+
+      So when work claims a document is now covered by a scan, **inject the
+      defect and watch the named test go red** — the hardware-count guard
+      firing is not evidence that the traced-ratio guard would, and "it walks
+      `live_documents()`" is not evidence that the half you care about does,
+      because most of the claim scans no longer walk it.
 
 - [ ] **A tool that summarizes "the" sign/coefficient for an element, where the
       element is referenced by more than one check/path.** New 2026-09-04

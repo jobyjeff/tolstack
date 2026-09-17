@@ -520,13 +520,20 @@ RULE_PASSAGE_SOURCES = (
     "tolerance_stack/topology.py",
 )
 
-#: Floor for the scan: 15 unquoted passages on 2026-09-03, which is also today's
-#: count. A floor rather than an exact count for the reason
-#: ``assert_coverage_set`` gives -- the corpus is meant to grow without an edit
-#: here -- and set *at* the count deliberately, so the asymmetry is the useful
-#: one: a new passage stating the rule costs nobody a test fix, and a passage
-#: deleted rather than corrected reddens.
-RULE_STATEMENT_FLOOR = 15
+#: Floor for the scan: **14** unquoted passages, and also today's count. A floor
+#: rather than an exact count for the reason ``assert_coverage_set`` gives -- the
+#: corpus is meant to grow without an edit here -- and set *at* the count
+#: deliberately, so the asymmetry is the useful one: a new passage stating the
+#: rule costs nobody a test fix, and a passage deleted rather than corrected
+#: reddens.
+#:
+#: It was 15 from 2026-09-03 until 2026-09-17, when the corpus stopped reading
+#: ``docs/strategy/BRIEF_*.md`` (see :func:`rule_scan_sources`). Two of those 15
+#: were in ``BRIEF_20260826_thermal_never_combines_invariant.md``, the brief that
+#: *asked* whether the rule was absolute. So the number moved because coverage
+#: moved out of scope on purpose -- not because a passage was deleted, which is
+#: the failure this floor is here to catch.
+RULE_STATEMENT_FLOOR = 14
 
 #: Passages carrying :data:`EXCEPTION_ANCHOR` and therefore claiming to state the
 #: list itself. Exactly these get paired against
@@ -620,22 +627,27 @@ def rule_scan_sources(repo_root: Path = REPO_ROOT) -> list[Path]:
     is not this repo and watched coming back empty -- see
     ``test_the_rule_scan_goes_red_on_a_corpus_pointed_nowhere``.
 
-    ``live_documents()`` is the walk the traced-ratio and hardware-count guards
-    share, so this scan inherits its scope decisions rather than making a second
-    set of them -- including the one this issue insisted be **deliberate**:
-    ``PROVENANCE.md`` states the absolute form in three of its dated amendments
-    and is exempt because it is dated history, not because a glob happened to
-    miss it (``_HISTORICAL_NAMES``, and
+    ``claim_scanned_documents()`` is the corpus the traced-ratio and
+    hardware-count guards share, so this scan inherits its scope decisions
+    rather than making a second set of them -- including the one this issue
+    insisted be **deliberate**: ``PROVENANCE.md`` states the absolute form in
+    three of its dated amendments and is exempt because it is dated history,
+    not because a glob happened to miss it (``_HISTORICAL_NAMES``, and
     ``test_the_rule_scan_exempts_dated_history_on_purpose`` below).
+
+    It was the unfiltered ``live_documents()`` until 2026-09-17. The narrowing
+    -- no ``docs/strategy/BRIEF_*.md`` -- is argued above
+    ``claim_scanned_documents()`` in ``tests/test_tolerance_stack.py`` and
+    witnessed here by ``test_the_rule_scan_does_not_read_a_triage_brief``.
 
     ``tests/`` is deliberately **not** in the corpus. Its prose is *about* the
     detector -- "``sleeve_bore + 2 * wall`` is two element values combined" --
     and including it means registering five exemptions that describe how the scan
     works. The rule's readers land on documents and on the package's docstrings.
     """
-    from tests.test_tolerance_stack import live_documents
+    from tests.test_tolerance_stack import claim_scanned_documents
 
-    return ([p for p in live_documents(repo_root) if p.suffix == ".md"]
+    return ([p for p in claim_scanned_documents(repo_root) if p.suffix == ".md"]
             + sorted((repo_root / "tolerance_stack").glob("*.py")))
 
 
@@ -870,6 +882,41 @@ def test_the_rule_statement_scan_can_fail(tmp_path):
     assert scan("> It is the only place element values are combined.") == []
     assert scan('It read "the only place element values are combined" '
                 'until 2026-09-01.') == []
+
+
+def test_the_rule_scan_does_not_read_a_triage_brief(tmp_path):
+    """The 2026-09-17 scope call, applied to this scan before it bit here.
+
+    This is the third guard family sharing the walk that two other families
+    went red on (`prose_guards_scope_out_strategy_briefs`), and it was moved
+    for cause rather than for symmetry: a `docs/strategy/BRIEF_*` is where the
+    rule's **superseded absolute form** is most likely to be written on
+    purpose. `BRIEF_20260826_thermal_never_combines_invariant.md` exists
+    precisely because the absolute form was believed, and a brief arguing an
+    undecided question has to be able to state the belief it is questioning.
+    Under the old corpus that brief contributed two live passages to this scan
+    and the next one to state the absolute form would have reddened it.
+
+    Both halves, because the exclusion alone proves nothing: the same absolute
+    sentence in a document that *does* state this repo's rules is still caught.
+    """
+    from tests.test_tolerance_stack import claim_scanned_documents, live_documents
+
+    absolute = "Nothing outside `fold()` combines two element values."
+    (tmp_path / "docs" / "strategy").mkdir(parents=True)
+    brief = tmp_path / "docs" / "strategy" / "BRIEF_20260826_thermal.md"
+    brief.write_text(absolute, encoding="utf-8")
+    doc = tmp_path / "ARCHITECTURE.md"
+    doc.write_text(absolute, encoding="utf-8")
+
+    assert brief in set(live_documents(tmp_path))
+    assert brief not in set(claim_scanned_documents(tmp_path))
+    assert brief not in rule_scan_sources(tmp_path)
+    assert doc in rule_scan_sources(tmp_path)
+
+    caught = [p.location for p in rule_statements(tmp_path)
+              if not p.quoted and not p.conditional]
+    assert caught == ["ARCHITECTURE.md:1"], caught
 
 
 def test_the_rule_scan_goes_red_on_a_corpus_pointed_nowhere(tmp_path):

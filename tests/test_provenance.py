@@ -66,6 +66,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.test_tolerance_stack import is_claim_scanned
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROVENANCE_PATH = REPO_ROOT / "PROVENANCE.md"
 TRUNK = "master"
@@ -659,6 +661,13 @@ _POINTER_RE = re.compile(
 # current_number uses. docs/reference/ is an import and is checked above instead.
 _HISTORICAL = ("docs/sessions/", "docs/issues/", "docs/reference/",
                "apps/viewer/vendor/")
+# The *other* out-of-scope class, and it is not history: `docs/strategy/BRIEF_*`
+# is an inbox artifact about an undecided question. One of them reddened this
+# guard on 2026-09-15 and gated a 129-commit batch merge. The call is shared with
+# the three other claim-shape scans rather than re-made here -- `is_claim_scanned`
+# in tests/test_tolerance_stack.py carries the argument, and this scan consults
+# it from a different starting set (`git ls-files`, not the live-document walk).
+
 _SCANNED_SUFFIXES = {".md", ".py", ".json", ".js", ".cjs", ".toml", ".txt", ".ps1"}
 # A definition line is not evidence. Without this the pointer search is nearly
 # vacuous inside a test module: `test_[a-z0-9_]+` matches the enclosing
@@ -721,25 +730,40 @@ def claims_in(rel: str, text: str) -> list[Claim]:
     return out
 
 
-def claim_inventory() -> list[Claim]:
-    """Every byte-identity claim in a live, tracked file.
+def _scanned_paths() -> list[str]:
+    """The repo-relative paths this scan reads.
 
     The file list comes from ``git ls-files`` rather than from a list in here --
     sighting 3 was the phrase escaping PROVENANCE.md into a stack note, a
     worksheet headline and two test comments, i.e. exactly the files a
     hand-kept list would not have contained.
+
+    Split out from :func:`claim_inventory` on 2026-09-17 so that each scope call
+    -- this file, dated history, a triage brief -- can be asserted as an
+    *exemption* rather than being indistinguishable from a path the derivation
+    never reached (``test_the_byte_identity_scan_does_not_read_a_triage_brief``).
     """
-    out: list[Claim] = []
+    out: list[str] = []
     for rel in _git("ls-files").splitlines():
         rel = rel.strip().replace("\\", "/")
         if not rel or rel == _SELF or rel.startswith(_HISTORICAL):
             continue
+        if not is_claim_scanned(rel):
+            continue
         if Path(rel).suffix.lower() not in _SCANNED_SUFFIXES:
             continue
-        path = REPO_ROOT / rel
-        if not path.exists():
+        if not (REPO_ROOT / rel).exists():
             continue
-        out += claims_in(rel, path.read_text(encoding="utf-8", errors="replace"))
+        out.append(rel)
+    return out
+
+
+def claim_inventory() -> list[Claim]:
+    """Every byte-identity claim in a live, tracked file."""
+    out: list[Claim] = []
+    for rel in _scanned_paths():
+        text = (REPO_ROOT / rel).read_text(encoding="utf-8", errors="replace")
+        out += claims_in(rel, text)
     return out
 
 
@@ -769,6 +793,55 @@ def test_every_byte_identity_claim_in_a_live_file_names_its_verification():
           "'byte-identical' is a claim about bytes; a cached numeric table is not "
           "the sheet."
     )
+
+
+def test_the_byte_identity_scan_does_not_read_a_triage_brief():
+    """The 2026-09-15 defect: the sentence that gated a 129-commit batch merge.
+
+    ``BRIEF_20260915_origin_posture_and_absent_feature_rule.md:62`` said the
+    viewer's *behaviour* was "byte-for-byte what ``viewer_transport_honest_
+    hosted`` shipped". That is a real overclaim -- bytes cannot carry a
+    behaviour -- and the reword (``1f62803``) was worth making on its own. But
+    the brief is an inbox artifact about an undecided question, not a document
+    that states this repo's facts, and this guard exists for the second kind.
+    Eight sessions each filed their own issue for the red before it was
+    collapsed (``ISSUE_20260916_byte_identity_guard_is_red_on_master_from_a_
+    triage_brief.md``).
+
+    So the corpus now consults ``is_claim_scanned()`` -- shared with the
+    traced-ratio, hardware-count and one-fold-rule scans, which read the same
+    scope call off ``claim_scanned_documents()``.
+
+    Three things are asserted, since this scan derives its corpus from
+    ``git ls-files`` rather than from that walk:
+
+    1. the briefs are **tracked** here, so this is an exemption and not a glob
+       that happens to match nothing;
+    2. none of them reaches the scan; and
+    3. the sentence itself is still an unbacked asserted claim -- so the
+       exemption is about *where* it was written, and moving it into a document
+       that states repo facts brings the guard straight back.
+    """
+    briefs = {rel.strip().replace("\\", "/")
+              for rel in _git("ls-files", "docs/strategy").splitlines()
+              if rel.strip().endswith(".md")
+              and Path(rel.strip()).name.startswith("BRIEF_")}
+    assert briefs, (
+        "no docs/strategy/BRIEF_*.md is tracked, so this test proves nothing "
+        "about an exemption -- the briefs moved, or this repo stopped holding "
+        "them"
+    )
+    reached = briefs & set(_scanned_paths())
+    assert reached == set(), sorted(reached)
+
+    sentence = ("the viewer's behaviour is byte-for-byte what "
+                "`viewer_transport_honest_hosted` shipped")
+    in_brief = claims_in("docs/strategy/BRIEF_20260915_origin_posture.md", sentence)
+    in_doc = claims_in("ARCHITECTURE.md", sentence)
+    assert [c.kind for c in in_brief] == ["asserted"], in_brief
+    assert [(c.kind, c.pointer) for c in in_doc] == [("asserted", "")], in_doc
+    assert not is_claim_scanned(in_brief[0].path)
+    assert is_claim_scanned(in_doc[0].path)
 
 
 # The tip of `hub_bearing_thermal_stack` before its review corrected the claim.

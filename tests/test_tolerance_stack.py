@@ -12,6 +12,7 @@ Handoff: tolerance_stack_slice1 (2026-07-29).
 from __future__ import annotations
 
 import ast
+import fnmatch
 import json
 import os
 import re
@@ -2288,6 +2289,80 @@ def live_documents(repo_root: Path) -> list[Path]:
     return found
 
 
+# --- the claim-shape corpus: live documents MINUS the triage briefs ---------
+#
+# Added 2026-09-17 (handoff `prose_guards_scope_out_strategy_briefs`), after the
+# same defect was measured twice in three days. The scans below read prose for a
+# *claim shape* and recount it against this repo's data. A `docs/strategy/BRIEF_*`
+# is an inbox artifact about an undecided question -- triage writes it, a strategy
+# session consumes it -- and it is not a document that states this repo's facts.
+# Ordinary English in one matches these shapes anyway:
+#
+#   * 2026-09-15: a sentence asserting that the viewer's *behaviour* was what a
+#     named handoff shipped, phrased with the byte-identity idiom, reddened
+#     `tests/test_provenance.py`'s byte-identity guard and gated a 129-commit
+#     batch merge
+#     (`ISSUE_20260916_byte_identity_guard_is_red_on_master_from_a_triage_brief.md`;
+#     the sentence itself is replayed in that module, which is the only file the
+#     scan exempts from itself).
+#   * 2026-09-17: "for a reason the other three do not have", in the *same* brief,
+#     was recounted against `hardware_entries.json`'s `not_library` by the shape
+#     `other\s+(N)\s+do\s+not` and gated a 104-commit batch merge
+#     (`ISSUE_20260917_hardware_count_guard_red_on_master_from_unrelated_prose.md`).
+#
+# Neither sentence was making a claim about this repo's data. Cost: two blocked
+# batch merges, thirteen duplicate issue filings, two rewords of prose that is
+# not these guards' business.
+#
+# The rejected alternative was to tighten each shape to require its subject
+# (`other\s+(N)\s+do\s+not\s+defer`). Rejected because the shape set is
+# open-ended -- nine shapes today, and the hardware guard's own docstring says
+# "a shape not listed in `_COUNT_CLAIMS` is not caught" -- so every shape added
+# re-opens the exposure, and narrowing shapes trades this false-positive class
+# for a false-*negative* class on the real tolerance-stack documents the guards
+# exist for.
+#
+# `live_documents()` is deliberately left alone: a brief still *is* a live file,
+# and the coverage guard and the enumerated-state guard below both want the
+# unfiltered walk (see `_surface_readme_text`, which needs "this README stopped
+# being live" to be loud). The exclusion lives here instead, in the corpus the
+# claim scans read -- one definition, every claim scan, in this file and in the
+# two other modules that share the walk.
+
+#: Repo-relative `fnmatch` globs the claim-shape scans do not read.
+_CLAIM_SCAN_EXEMPT_GLOBS = ("docs/strategy/BRIEF_*.md",)
+
+
+def is_claim_scanned(rel: str) -> bool:
+    """Is the repo-relative path ``rel`` read by the claim-shape scans?
+
+    A *predicate* rather than a filtered list, because not every claim scan walks
+    `live_documents()`: `tests/test_provenance.py`'s byte-identity scan derives
+    its corpus from `git ls-files` (it reads `.py`/`.json`/`.toml` too), and it
+    has to make the same scope call from a different starting set.
+
+    `fnmatchcase`, not `fnmatch`: the latter runs `os.path.normcase` first, so on
+    Windows the exemption would be case-insensitive and on Linux it would not.
+    `BRIEF_` is the naming convention; a file spelled some other way is scanned,
+    which is the loud direction.
+    """
+    return not any(fnmatch.fnmatchcase(rel, glob)
+                   for glob in _CLAIM_SCAN_EXEMPT_GLOBS)
+
+
+def claim_scanned_documents(repo_root: Path) -> list[Path]:
+    """`live_documents()` minus the triage briefs -- the corpus of the scans that
+    recount a claim shape against this repo's data.
+
+    Measured 2026-09-17: 94 live documents at trunk `efa5c4c`, of which 24 are
+    `docs/strategy/BRIEF_*.md`, leaving 70. Nothing else lives under
+    `docs/strategy/` in this walk, and a worktree sees two fewer of each because
+    the `data/` documents are gitignored.
+    """
+    return [p for p in live_documents(repo_root)
+            if is_claim_scanned(p.relative_to(repo_root).as_posix())]
+
+
 def _prose_blocks(path: Path, repo_root: Path) -> list[tuple[str, str]]:
     """``(location, text)`` -- a markdown file is one block; a JSON file is one
     block per string value, since that is where its prose lives."""
@@ -2368,6 +2443,15 @@ _DOCUMENTS_THE_DOC_SCANS_COVER = (
 #: between them are `PROVENANCE.md`s, which `_HISTORICAL_NAMES` drops anyway.
 _LIVE_DOCUMENT_FLOOR = 40
 
+#: Floor for `claim_scanned_documents()`. Its own constant, not a share of the
+#: one above, so the two corpora can move independently -- the whole point of
+#: splitting them. Left at the same **40**: the exclusion took 94 live documents
+#: to 70 on 2026-09-17 (68 in a worktree), so both sets clear this by a wide
+#: margin and lowering either would be lowering a floor that is not being
+#: pressed. The number's job is unchanged -- catch the derivation coming back
+#: empty or a fraction of itself, not fence the corpus's size.
+_CLAIM_SCANNED_DOCUMENT_FLOOR = 40
+
 # The documents that must **publish** the current traced ratio, as opposed to
 # merely not contradicting it. This one stays curated, and the argument is:
 #
@@ -2426,6 +2510,29 @@ def test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete():
         f"not in live_documents(). Either the walk stopped seeing them or a "
         f"document is claiming a coverage the guards do not have -- and the "
         f"second is how this class of bug stays invisible."
+    )
+
+    # The claim-shape corpus is a *derived subset*, so it needs the same two
+    # assertions one ring in: non-empty above its own floor, and still holding
+    # every document this repo says the scans read. A narrowing that quietly
+    # took one of those with it would be the exclusion overshooting -- the
+    # false-negative direction, which is the one that reports green.
+    claim_scanned = claim_scanned_documents(repo_root)
+    assert_coverage_set("claim-scanned documents", claim_scanned,
+                        _CLAIM_SCANNED_DOCUMENT_FLOOR)
+    claim_rel = {p.relative_to(repo_root).as_posix() for p in claim_scanned}
+    dropped = [name for name in _DOCUMENTS_THE_DOC_SCANS_COVER
+               if name not in claim_rel]
+    assert dropped == [], (
+        f"{dropped} are documented as being read by this repo's doc scans and "
+        f"_CLAIM_SCAN_EXEMPT_GLOBS has excluded them from the claim-shape "
+        f"corpus. The exclusion is for triage briefs; it has caught a document "
+        f"that states this repo's facts."
+    )
+    assert claim_rel <= rel, (
+        f"the claim-shape corpus holds {sorted(claim_rel - rel)}, which "
+        f"live_documents() does not. It is supposed to be a filter over that "
+        f"walk, not a second walk."
     )
 
     publishers = traced_ratio_publishers(repo_root)
@@ -2535,7 +2642,9 @@ def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
 
     **The two halves read two different sets, since 2026-09-03** (handoff
     `doc_coverage_sets_derived`). Rule 2 is a property of any text, so it walks
-    `live_documents()` -- every live document, derived, no list. Rule 1 is a
+    `claim_scanned_documents()` -- every live document except the triage briefs,
+    derived, no list; it read the unfiltered `live_documents()` until 2026-09-17,
+    and the argument for the narrowing is written above that function. Rule 1 is a
     presence check and reads the curated `traced_ratio_publishers()`; the
     argument for keeping that one curated is written above it. Both sets are
     asserted by `test_the_coverage_sets_the_doc_scans_walk_are_non_empty_and_complete`.
@@ -2560,7 +2669,7 @@ def test_every_document_quoting_the_traced_ratio_quotes_the_current_number():
             missing.append(str(p.relative_to(repo_root)))
 
     asserted_stale = []
-    for p in live_documents(repo_root):
+    for p in claim_scanned_documents(repo_root):
         for location, text in _prose_blocks(p, repo_root):
             for figure, offset in retired_traced_ratio_claims(text):
                 line = text[:offset].count("\n") + 1
@@ -2643,7 +2752,7 @@ def test_the_stale_half_now_reads_a_document_outside_the_curated_publisher_set(t
         "> Slice 1 scored 3 of 26 element instances traced.\n", encoding="utf-8")
 
     found = [f"{loc}: {figure}"
-             for p in live_documents(tmp_path)
+             for p in claim_scanned_documents(tmp_path)
              for loc, text in _prose_blocks(p, tmp_path)
              for figure, _ in retired_traced_ratio_claims(text)]
     assert found == ["NOTES_NOBODY_CURATED.md: 3 of 26"], found
@@ -2662,6 +2771,15 @@ def test_the_coverage_set_assertions_go_red_on_a_derivation_pointed_nowhere(tmp_
     with pytest.raises(AssertionError, match="coverage set is EMPTY"):
         assert_coverage_set("live documents", live_documents(tmp_path),
                             _LIVE_DOCUMENT_FLOOR)
+
+    # The claim-shape corpus is a filter over that walk, so it fails the same
+    # way and needs watching separately: a filter that excluded *everything*
+    # would leave every claim scan green with nothing scanned.
+    assert claim_scanned_documents(tmp_path) == []
+    with pytest.raises(AssertionError, match="coverage set is EMPTY"):
+        assert_coverage_set("claim-scanned documents",
+                            claim_scanned_documents(tmp_path),
+                            _CLAIM_SCANNED_DOCUMENT_FLOOR)
 
     # The curated set is never empty -- it is built from names -- so its failure
     # mode is the other one: the derived half of it, the worksheet glob, coming
@@ -2861,6 +2979,11 @@ def test_no_live_document_states_an_unguarded_hardware_entry_count():
 
     * a live document may state these counts -- it just cannot state them wrongly,
       and it will be named with a line number when it does; and
+    * the corpus is ``claim_scanned_documents()``, so a ``docs/strategy/BRIEF_*``
+      is **not** read. One of them reddened this guard on 2026-09-17 with a
+      sentence about something else entirely; the argument is above that
+      function. A brief that really does need to state one of these counts has
+      to state it in a document that owns the fact instead; and
     * a shape not listed in ``_COUNT_CLAIMS`` is not caught. If you invent new
       phrasing for one of these counts, add the shape. The honest reading of this
       test is "the ways this repo has gone stale before are now mechanical", not
@@ -2873,7 +2996,7 @@ def test_no_live_document_states_an_unguarded_hardware_entry_count():
     counts = hardware_entry_counts()
 
     wrong = []
-    for path in live_documents(repo_root):
+    for path in claim_scanned_documents(repo_root):
         for location, text in _prose_blocks(path, repo_root):
             for label, key, stated, offset in hardware_entry_count_claims(text):
                 expected = ({counts[k] for k in key} if isinstance(key, tuple)
@@ -2929,6 +3052,100 @@ def test_the_hardware_entry_count_guard_can_fail():
     # keeps a dated "this used to say X" from being a permanent test failure.
     assert hardware_entry_count_claims(f'> {stale}') == []
     assert hardware_entry_count_claims(f'it read "{stale}" until 2026-08-12') == []
+
+
+# The sentence from `BRIEF_20260915_origin_posture_and_absent_feature_rule.md:152`
+# that reddened the hardware-count guard on 2026-09-17 and gated a 104-commit
+# batch merge. It is prose about *why* one thing differs from three others; the
+# `other\s+(N)\s+do\s+not` shape recounted its "three" against
+# `hardware_entries.json`'s `not_library`. Kept verbatim so the witness below
+# replays the real defect rather than a sentence built to fail.
+_BRIEF_SENTENCE_THAT_REDDENED_THE_COUNT_GUARD = (
+    "that is the posture this repo already holds for an absent feature, and it "
+    "is load-bearing for a reason the other three do not have"
+)
+
+
+def test_the_claim_scans_skip_a_triage_brief_and_still_catch_a_real_document(tmp_path):
+    """The 2026-09-17 defect, and the coverage it was protecting, in one place.
+
+    Both halves, because either one alone proves nothing. The exclusion half:
+    the real brief sentence, in a brief-shaped file, is not scanned. The
+    coverage half: **the same sentence** in a real tolerance-stack document
+    still is -- otherwise "scope the briefs out" could have been implemented as
+    "stop scanning", and the suite would have agreed.
+
+    The count in the sentence is asserted to be *wrong* for this repo first, so
+    the exclusion half cannot go vacuous on the day `hardware_entries.json`
+    happens to hold `not_library == 3`.
+    """
+    sentence = _BRIEF_SENTENCE_THAT_REDDENED_THE_COUNT_GUARD
+    counts = hardware_entry_counts()
+    assert counts["not_library"] != 3, (
+        "this witness needs the brief's 'three' to disagree with the live "
+        "not_library count, or the exclusion half proves nothing"
+    )
+
+    (tmp_path / "docs" / "strategy").mkdir(parents=True)
+    (tmp_path / "docs" / "tolerance_stacks").mkdir(parents=True)
+    brief = tmp_path / "docs" / "strategy" / "BRIEF_20260915_origin_posture.md"
+    brief.write_text(f"# A question nobody has decided\n\n{sentence}\n",
+                     encoding="utf-8")
+    worksheet = tmp_path / "docs" / "tolerance_stacks" / "WORKSHEET_witness.md"
+    worksheet.write_text(f"# A stack that states a count\n\n{sentence}\n",
+                         encoding="utf-8")
+
+    # The brief is still a live file -- the walk did not stop seeing it, the
+    # claim scans stopped reading it. That distinction is the fix.
+    live = set(live_documents(tmp_path))
+    assert {brief, worksheet} <= live, sorted(str(p) for p in live)
+    assert set(claim_scanned_documents(tmp_path)) == {worksheet}
+
+    flagged = [
+        location
+        for path in claim_scanned_documents(tmp_path)
+        for location, text in _prose_blocks(path, tmp_path)
+        for _, key, stated, _ in hardware_entry_count_claims(text)
+        if stated not in ({counts[k] for k in key} if isinstance(key, tuple)
+                          else {counts[key]})
+    ]
+    assert flagged == ["docs/tolerance_stacks/WORKSHEET_witness.md"], flagged
+
+    # ...and the shape itself is untouched: narrowing the corpus must not have
+    # been done by narrowing what counts as a claim.
+    assert [(str(k), s) for _, k, s, _ in
+            hardware_entry_count_claims(sentence)] == [("not_library", 3)]
+
+
+def test_no_document_that_states_this_repos_facts_is_exempt_from_the_claim_scans():
+    """The exclusion, measured against the real corpus rather than a tmp tree.
+
+    Two things this cannot get from `tmp_path`: that `docs/strategy/BRIEF_*.md`
+    files actually exist here (an exemption glob matching nothing is a comment,
+    not a fix), and that the exemption removes **only** those -- the failure
+    that would report green is a glob quietly widened to `docs/*`.
+    """
+    repo_root = STACKS_DIR.parent.parent
+    live = {p.relative_to(repo_root).as_posix() for p in live_documents(repo_root)}
+    scanned = {p.relative_to(repo_root).as_posix()
+               for p in claim_scanned_documents(repo_root)}
+
+    exempt = live - scanned
+    assert exempt, (
+        "no live document is exempt from the claim scans, so "
+        "_CLAIM_SCAN_EXEMPT_GLOBS matches nothing in this repo. Either the "
+        "briefs moved out of docs/strategy/ or the glob went stale -- and a "
+        "stale exemption is invisible: the guards simply go back to reddening "
+        "on brief prose."
+    )
+    unexpected = sorted(r for r in exempt
+                        if not (r.startswith("docs/strategy/BRIEF_")
+                                and r.endswith(".md")))
+    assert unexpected == [], (
+        f"{unexpected} are live documents the claim scans no longer read. The "
+        f"exemption is for triage briefs only; anything else here is coverage "
+        f"lost, not a false positive avoided."
+    )
 
 
 # --------------------------------------------------------------------------- #
