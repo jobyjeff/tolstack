@@ -806,6 +806,81 @@
       has(VA.provenanceAlarms(results, CROPS)[0], "no provenance stamp");
     });
 
+    // --- what a card says once (viewer_hover_deslop_and_banner_purge) ------
+
+    await test("componentDrawingText says only what the heading has not " +
+      "already said", function () {
+        // The live case Jeff filed: the part is NAMED after its drawing, so
+        // the card printed the same number on two consecutive lines.
+        eq(VA.componentDrawingText("214820-002 plain bushing", "214820-002", null),
+           null);
+        // ...and with a revision there IS something left to say, but only the
+        // revision -- never the number again.
+        eq(VA.componentDrawingText("214820-002 plain bushing", "214820-002", "B"),
+           "rev B");
+        // A part not named after its drawing keeps the full line.
+        eq(VA.componentDrawingText("propeller hub", "212966-006", null),
+           "drawing 212966-006");
+        eq(VA.componentDrawingText("propeller hub", "212966-006", "A.1"),
+           "drawing 212966-006 rev A.1");
+        // The revision label is VA.revisionText's, so a value that already
+        // says "Rev" is not prefixed twice here either.
+        eq(VA.componentDrawingText("propeller hub", "212966-006", "Rev 4"),
+           "drawing 212966-006 Rev 4");
+        eq(VA.componentDrawingText("anything", null, "A"), null);
+      });
+
+    await test("leadSentence returns a PREFIX of the record or the whole of " +
+      "it, and never a rewording", function () {
+        var note = "Plain bushing, aluminium bronze, .1900 in ID X .1875 in " +
+          "long, per the 217755 parts-list nomenclature. Ballooned 8X in " +
+          "DETAIL B of 217755 sheet 4. Drawing 214820-002 itself is not in " +
+          "this repo.";
+        var lead = VA.leadSentence(note);
+        // The decimals are the whole reason this is not a split on ".": the
+        // first two periods in that sentence are inside ".1900" and ".1875".
+        eq(lead, "Plain bushing, aluminium bronze, .1900 in ID X .1875 in " +
+           "long, per the 217755 parts-list nomenclature.");
+        ok(note.indexOf(lead) === 0, "the lead must be a prefix of the record");
+        // No sentence break at all: the whole note, not a guess at where a
+        // thought ended.
+        eq(VA.leadSentence("identity not established"), "identity not established");
+        eq(VA.leadSentence("one. 2 is not a capital"), "one. 2 is not a capital");
+        eq(VA.leadSentence(null), "");
+        eq(VA.leadSentence(""), "");
+        // Whitespace is trimmed and nothing else is touched.
+        eq(VA.leadSentence("  A sentence. And another."), "A sentence.");
+      });
+
+    await test("pointerHeadsFor: a pointer inside the box has arrived; one " +
+      "aimed at it is approaching; one aimed away is not", function () {
+        var box = { left: 100, top: 100, right: 300, bottom: 300 };
+        // Arrived -- no direction needed, and none is guessed.
+        ok(VA.pointerInside({ x: 200, y: 200 }, box));
+        ok(VA.pointerHeadsFor(null, { x: 200, y: 200 }, box));
+        // Approaching: moving right, level with the box.
+        ok(VA.pointerHeadsFor({ x: 50, y: 200 }, { x: 70, y: 200 }, box));
+        // Approaching on the diagonal, aimed at a corner.
+        ok(VA.pointerHeadsFor({ x: 40, y: 40 }, { x: 60, y: 60 }, box));
+        // Moving AWAY along the same line.
+        ok(!VA.pointerHeadsFor({ x: 70, y: 200 }, { x: 50, y: 200 }, box));
+        // Parallel to the box and never entering it.
+        ok(!VA.pointerHeadsFor({ x: 50, y: 400 }, { x: 70, y: 400 }, box));
+        // A pointer that has not moved aims at nothing.
+        ok(!VA.pointerHeadsFor({ x: 50, y: 200 }, { x: 50, y: 200 }, box));
+        // ...and REACH: the same aim, from far enough away that the reader is
+        // plainly crossing the page rather than reaching for this card. An
+        // uncapped ray hits almost anything eventually, and every trigger on
+        // that line would go quiet.
+        var far = VA.HOVER_INTENT_REACH + 200;
+        ok(!VA.pointerHeadsFor({ x: 100 - far - 20, y: 200 },
+                               { x: 100 - far, y: 200 }, box));
+        // Nothing to aim at, nothing to aim with.
+        ok(!VA.pointerHeadsFor({ x: 0, y: 0 }, { x: 1, y: 1 }, null));
+        ok(!VA.pointerHeadsFor({ x: 0, y: 0 }, null, box));
+        ok(!VA.pointerInside(null, box));
+      });
+
     await test("findStack returns null for an unknown id", function () {
       ok(VA.findStack(FIXTURE.results, "demo_joint"));
       eq(VA.findStack(FIXTURE.results, "nope"), null);
@@ -2493,6 +2568,59 @@
       crops.provenance.branch = "handoff/somebody_else";
       return crops;
     }
+
+    // THE DELIVERABLE, pinned by SHAPE rather than by the absence of five
+    // particular strings: a new build stamp added to the bar later would pass
+    // a "does not contain `built`" check and fail this one.
+    await test("a READY banner shows no line of prose at all — one Reload " +
+      "button, one closed fold, and nothing else", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: CROPS,
+            transport: VA.TRANSPORT.HTTP,
+          }, {});
+        });
+        // Every direct child of the bar, in order. Two, and neither of them
+        // is a sentence sitting in front of the reader.
+        var kinds = Array.prototype.slice.call(root.childNodes)
+          .map(function (node) { return node.className || node.tagName; });
+        // The fold first and the button last: `.banner__action`'s
+        // `margin-left: auto` puts Reload hard right, so this order is what
+        // leaves the fold at the reading edge rather than stranded beside it.
+        eq(kinds, ["banner__source", "banner__action"]);
+        var fold = all(root, "details.banner__source")[0];
+        ok(fold, "the five rows keep a rendered home, folded");
+        eq(fold.getAttribute("open"), null,
+           "and it is closed on arrival, every load");
+        eq(all(root, "summary.banner__source__summary")[0].textContent,
+           VA.DATA_SOURCE_SUMMARY);
+        // ...and all five rows are IN it: folded, never deleted. The tree
+        // stamp in particular is why this box exists at all
+        // (ISSUE_20260806_concurrent_worktrees_clobber_the_shared_viewer_
+        // projection).
+        var body = all(root, ".banner__source__body")[0];
+        has(body.textContent, "Served over HTTP");
+        has(body.textContent, "results built");
+        has(body.textContent, "crops built");
+        has(body.textContent, "crops by rule:");
+        has(body.textContent, "results ← master @ 012345678");
+        has(body.textContent, "crops ← master @ 012345678");
+      });
+
+    // ...and the one thing that is still allowed to shout. A fold is not where
+    // a wrong pair goes.
+    await test("the stale-pair alarm is still OUTSIDE the fold, on the bar " +
+      "itself", function () {
+        var root = render(function (r) {
+          VA.renderBanner(r, {
+            connection: VA.STATE.READY, results: FIXTURE.results,
+            crops: mismatchedCrops(),
+          }, {});
+        });
+        eq(all(root, ".banner__stale").length, 1);
+        eq(all(root, ".banner__source .banner__stale").length, 0,
+           "the alarm must never be something the reader has to open a fold to see");
+      });
 
     await test("the banner refuses to present a mismatched pair as current, " +
       "and states it in plain words with no capability", function () {
@@ -6228,6 +6356,88 @@
         // pane uses (VA.exportRunsLine) — linked only where the crop resolved
         // through that run, plain text otherwise.
         has(root.textContent, "read by drawing-checker");
+      });
+
+    // --- deliverables 2 and 3, on every card kind at once -------------------
+    //
+    // Counted over the four kinds in one test rather than asserted kind by
+    // kind, because both rules are about the card AS A WHOLE: "how many times
+    // is the document said" and "how many folds are there" are not questions a
+    // per-branch check can answer.
+    await test("every card kind states its document ONCE and carries at most " +
+      "ONE fold", function () {
+        var entry = VA.cropFor(CROPS, "demo_joint", "plate");
+        var images = {};
+        images[entry.png] = { url: "blob:demo" };
+        var cards = [
+          VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.base_thickness, TOPOCROPS),
+          VA.componentCard(TOPO, "base", TOPOCROPS),
+          VA.nodeCard(TOPO, "base_post_seat", TOPOCROPS),
+          VA.citationCard(DEMO.stack.elements[0].source_ref, null, entry),
+        ];
+        cards.forEach(function (card) {
+          var root = render(function (r) {
+            VA.renderHoverCard(r, card, images, VA.CONFIG, null);
+          });
+          var where = "the " + card.kind + " card";
+          // The crop block inside a card renders no head restating the file,
+          // and opens no second disclosure of its own.
+          eq(all(root, ".cropblock .croppop__head").length, 0, where +
+             " restates its document over the picture");
+          eq(all(root, "details.provfold").length, 0, where +
+             " carries the crop's own fold as well as its own");
+          var folds = all(root, "details");
+          ok(folds.length <= 1, where + " carries " + folds.length + " folds");
+          if (folds.length) {
+            eq(folds[0].className, "hovercard__source", where);
+            eq(folds[0].getAttribute("open"), null, where +
+               "'s fold must be closed on arrival");
+            has(all(root, "summary.hovercard__source__summary")[0].textContent,
+                VA.DATA_SOURCE_SUMMARY, where);
+          }
+        });
+        // ...and the fold really is where the crop's matching provenance went:
+        // folded, never deleted.
+        var edge = render(function (r) {
+          VA.renderHoverCard(r,
+            VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.base_thickness, TOPOCROPS),
+            images, VA.CONFIG, null);
+        });
+        has(all(edge, ".hovercard__source__body")[0].textContent,
+            "read from the export this citation names");
+      });
+
+    await test("an edge card does not repeat a part number the line above it " +
+      "already printed", function () {
+        // The live shape Jeff filed, in the fixture's own terms: a part NAMED
+        // after its drawing. The card says "a dimension of 215197 base plate"
+        // and then must NOT say "cited at: 215197 · ...".
+        var topo = JSON.parse(JSON.stringify(TOPO));
+        topo.parts.forEach(function (part) {
+          if (part.id === "base") part.name = "215197 base plate";
+        });
+        var card = VA.edgeCard(topo, VA.topologyIndex(topo).edges.base_thickness,
+                               TOPOCROPS);
+        var root = render(function (r) {
+          VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+        });
+        has(all(root, ".hovercard__where")[0].textContent,
+            "a dimension of 215197 base plate");
+        var cited = all(root, ".hovercard__cited")[0].textContent;
+        ok(cited.indexOf("215197") === -1,
+           "the number is already on the line above: " + cited);
+        // ...and what is LEFT is still said, or the de-duplication would be
+        // deleting the citation rather than de-duplicating it.
+        has(cited, "sheet 2");
+
+        // The unnamed part keeps the full line, unchanged.
+        var plain = render(function (r) {
+          VA.renderHoverCard(r,
+            VA.edgeCard(TOPO, VA.topologyIndex(TOPO).edges.base_thickness, TOPOCROPS),
+            {}, VA.CONFIG, null);
+        });
+        has(all(plain, ".hovercard__cited")[0].textContent,
+            "cited at: 215197 · rev A.1 · sheet 2");
       });
 
     await test("renderHoverCard says a card kind it has no branch for out loud",
@@ -10779,6 +10989,77 @@
               "drawing, so the no-repeat branch went unexercised");
             ok(silent > 0, "no live part has neither a drawing nor a citation, " +
               "so the say-nothing branch went unexercised");
+          });
+
+        // Deliverable 2 of viewer_hover_deslop_and_banner_purge, swept over
+        // every live edge card at once. Jeff's complaint was a COUNT ("the
+        // reference is stated, then restated"), so this counts rather than
+        // matching a string: how many times does the always-visible part of a
+        // card name the document its value was read off?
+        //
+        // Always-visible is the operative word. The fold is allowed to say it
+        // again -- the matching provenance names the file by construction, and
+        // that is the whole reason it is folded.
+        await test("[real] no live edge card says its document twice on its " +
+          "own reference lines", function () {
+            // The card's REFERENCE lines -- the ones the viewer composes to
+            // say where a value came from. Deliberately not the whole card:
+            //
+            //   * the heading is the record's own `name`, and
+            //     `pitch_link_to_pitch_plate | bushing_214820` is authored
+            //     "plain bushing length (214820-002)". The viewer printing a
+            //     record's name is not the viewer repeating itself, and
+            //     trimming it would be editing the record;
+            //   * the note and a loud export's `why` are the record speaking
+            //     too (the same nodes VERBATIM_PROSE_CLASSES subtracts above),
+            //     and that same bushing's `why` names the drawing in the
+            //     middle of a paragraph explaining why no PDF exists to hash;
+            //   * the fold is allowed to say it again, which is the whole
+            //     reason it is folded.
+            function referenceText(root) {
+              return [".hovercard__where", ".hovercard__cited",
+                      ".hovercard__cropkey", ".cropblock .croppop__head"]
+                .reduce(function (acc, selector) {
+                  return acc.concat(all(root, selector).map(function (node) {
+                    return String(node.textContent || "");
+                  }));
+                }, []).join(" ");
+            }
+            var cited = 0, deduped = 0;
+            liveTopos.forEach(function (topoProj) {
+              var index = VA.topologyIndex(topoProj);
+              (topoProj.edges || []).forEach(function (edge) {
+                var card = VA.edgeCard(topoProj, index.edges[edge.id], realCrops);
+                var document = card.citation && card.citation.document;
+                if (!document) return;
+                cited += 1;
+                var where = topoProj.id + "/" + edge.id;
+                var root = render(function (r) {
+                  VA.renderHoverCard(r, card, {}, VA.CONFIG, null);
+                });
+                var text = referenceText(root);
+                var times = text.split(String(document)).length - 1;
+                ok(times <= 1, where + ": names " + JSON.stringify(document) +
+                   " " + times + " times across its own reference lines — " +
+                   text.trim());
+                // The case the de-duplication exists for: a part NAMED after
+                // the drawing its dimension is cited from.
+                if (card.partLabel &&
+                    String(card.partLabel).indexOf(String(document)) !== -1) {
+                  deduped += 1;
+                }
+                // ...and the picture never captions itself with the file.
+                eq(all(root, ".cropblock .croppop__head").length, 0, where);
+              });
+            });
+            ok(cited > 0, "no live edge carries a citation with a document, so " +
+              "this sweep proves nothing");
+            // The non-vacuity witness: without at least one part named after
+            // its own drawing, the de-duplication branch never runs and the
+            // sweep passes on cards that never had the defect. Four live edges
+            // had it on 2026-09-16.
+            ok(deduped > 0, "no live part is named after the document its own " +
+              "dimension is cited from, so the no-repeat branch went unexercised");
           });
 
         // ITEM 2's live case, and the one the PER-DOCUMENT design exists for.

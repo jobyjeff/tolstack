@@ -456,10 +456,30 @@
   // `apps/viewer/tests.js`'s BANNED_IN_RENDERED_TEXT keeps). "no citation" is
   // the wording VA.CONFIDENCE_LABEL.no_source_ref already uses on the chip
   // beside it.
-  VA.citationWhere = function (sourceRef) {
+  // `alreadySaid` is the hover cards' (viewer_hover_deslop_and_banner_purge,
+  // 2026-09-16): text the surface has ALREADY printed on the line above this
+  // one. Where it carries the document's own name, the document is dropped
+  // from here and the line says only what is new -- the revision, the sheet,
+  // the view, the zone.
+  //
+  // This is Jeff's "a part number is never printed on two consecutive lines",
+  // and four live edge cards needed it: `pitch_link_to_pitch_plate |
+  // bushing_214820` reads "a dimension of 214820-002 plain bushing" and then
+  // "cited at: 214820-002 · sheet 4" directly beneath. Most parts in this repo
+  // are NAMED after the drawing they are cited from, so the collision is the
+  // rule and not the exception. The same rule VA.componentDrawingText applies
+  // to a part's own drawing line, and it is a rule about LABELS, not about any
+  // one document: never prefix or repeat something the value already carries.
+  //
+  // A citation with nothing else to say still says the document -- dropping it
+  // would leave the line empty, and "no location" is a different claim.
+  VA.citationWhere = function (sourceRef, alreadySaid) {
     if (!sourceRef) return "no citation";
     var parts = [];
-    if (sourceRef.document) parts.push(String(sourceRef.document));
+    var document = sourceRef.document ? String(sourceRef.document) : null;
+    var repeated = !!document && !!alreadySaid &&
+      String(alreadySaid).indexOf(document) !== -1;
+    if (document && !repeated) parts.push(document);
     if (sourceRef.revision) parts.push(VA.revisionText(sourceRef.revision));
     if (sourceRef.sheet !== null && sourceRef.sheet !== undefined) {
       parts.push("sheet " + sourceRef.sheet);
@@ -467,7 +487,7 @@
     if (sourceRef.view) parts.push(String(sourceRef.view));
     if (sourceRef.zone) parts.push("zone " + sourceRef.zone);
     if (sourceRef.cell) parts.push("cell " + sourceRef.cell);
-    return parts.join(" · ") || "no location";
+    return parts.join(" · ") || document || "no location";
   };
 
   // --- source_ref.export: WHICH BYTES the value was read off ---------------
@@ -1338,6 +1358,85 @@
       : VA.unlabelledPlacementText(cropEntry.located_by));
     return bits.join(" · ");
   };
+
+  // --- reaching an open popover with the mouse ------------------------------
+  //
+  // Jeff, 2026-09-16: "sometimes the preview pop-up disappears when you try to
+  // move the mouse over it, you have to do it just right."
+  //
+  // Measured the same day, and the diagnosis is not what the complaint sounds
+  // like: there is no mouseleave and no hide timer anywhere in this app -- a
+  // hover popover closes only on its own X, on Escape, on an outside click, or
+  // by being REPLACED. The card was never disappearing; it was being
+  // re-targeted. Every trigger the pointer crosses on the way to the open card
+  // fires `mouseenter` and re-points the one shared #croppop node at itself,
+  // and on the DAG the corridor is crowded: a rail bar's hit area is a
+  // 14-px-wide stroke (.rail__barhit, topology.css), so a diagonal approach
+  // can cross two of them.
+  //
+  // The fix is intent, not a timer: while a popover is open, a competing
+  // trigger is DEFERRED -- not dropped -- for as long as the pointer is
+  // travelling toward the open box. This is the classic aim/corridor test
+  // (does the movement vector, extended, enter the card?) rather than a plain
+  // "ignore everything for N ms", because a plain grace period swallows a
+  // deliberate hover onto the neighbouring row: `mouseenter` fires once, so a
+  // suppressed one never arrives again while the pointer sits still.
+  //
+  // Two numbers, and both are bounded on purpose:
+  //
+  //   * HOVER_INTENT_MS is how long a deferred trigger waits before it opens
+  //     anyway. So the worst case of a WRONG guess is a card that arrives a
+  //     quarter-second late, never one that never arrives.
+  //   * HOVER_INTENT_REACH caps how far along the movement vector the box is
+  //     allowed to be. Without it a pointer crossing the grid in a straight
+  //     line counts as "approaching" a card 900px away, because an infinite
+  //     ray eventually hits almost anything -- and every trigger on that line
+  //     would go quiet. An open card sits 8px from the trigger it was opened
+  //     from, so anything the reader is plausibly reaching for is close.
+  VA.HOVER_INTENT_MS = 260;
+  VA.HOVER_INTENT_REACH = 240;
+
+  // Is this point in this box? Boxes here are always getBoundingClientRect()
+  // results (or anything with the same four fields), in VIEWPORT coordinates --
+  // the frame `position: fixed` places the popover in.
+  VA.pointerInside = function (point, box) {
+    if (!point || !box) return false;
+    return point.x >= box.left && point.x <= box.right &&
+           point.y >= box.top && point.y <= box.bottom;
+  };
+
+  // Is the pointer travelling from `from` to `to` on a course that reaches
+  // `box`? A ray/rectangle intersection by the slab method, with the entry
+  // distance measured in pixels and capped at HOVER_INTENT_REACH.
+  //
+  // A pointer already INSIDE the box counts, with no direction needed: it has
+  // arrived, which is the strongest possible evidence of intent. A pointer
+  // that has not moved does not -- a zero vector aims at nothing, and guessing
+  // a direction for it would be the thing this function exists to avoid.
+  VA.pointerHeadsFor = function (from, to, box) {
+    if (!to || !box) return false;
+    if (VA.pointerInside(to, box)) return true;
+    if (!from) return false;
+    var dx = to.x - from.x, dy = to.y - from.y;
+    if (!dx && !dy) return false;
+    var span = slab(to.x, dx, box.left, box.right, [0, Infinity]);
+    if (span) span = slab(to.y, dy, box.top, box.bottom, span);
+    if (!span) return false;
+    return span[0] * Math.sqrt(dx * dx + dy * dy) <= VA.HOVER_INTENT_REACH;
+  };
+
+  // One axis of the slab test: narrow `[tmin, tmax]` (in units of the movement
+  // vector) to the stretch of the ray inside this axis's pair of edges, or
+  // null where the two do not overlap at all. A zero component means the ray
+  // is parallel to this axis, which is a hit only if it starts between the
+  // edges -- the division would be an infinity that reads as a hit otherwise.
+  function slab(origin, delta, low, high, span) {
+    if (!delta) return (origin >= low && origin <= high) ? span : null;
+    var near = (low - origin) / delta, far = (high - origin) / delta;
+    if (near > far) { var swap = near; near = far; far = swap; }
+    var lo = Math.max(span[0], near), hi = Math.min(span[1], far);
+    return lo <= hi ? [lo, hi] : null;
+  }
 
   // --- worksheets ---------------------------------------------------------
 

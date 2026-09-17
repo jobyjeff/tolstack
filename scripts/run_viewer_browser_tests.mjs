@@ -433,9 +433,12 @@ async function testRebuildAffordance(browser, label) {
       // waiting on `#banner` resolves on the static element before any render
       // and would let this absence check PASS on a boot that never banner'd at
       // all -- the 200ms sleep was the only thing standing behind it.
-      // `.banner__built` exists only in a connected banner's own paint, which
+      // `.banner__source` exists only in a connected banner's own paint, which
       // is the same paint provenance() would have put `.banner__stale` in.
-      await page.waitForSelector(".banner__built", { timeout: 15000 });
+      // It was `.banner__built` until 2026-09-16, when that line moved INSIDE
+      // this fold -- and a `{ state: "visible" }` wait on a node inside a
+      // closed <details> waits forever.
+      await page.waitForSelector("details.banner__source", { timeout: 15000 });
       push("fresh (matching) provenance shows no stale banner",
         await page.locator(".banner__stale").count() === 0);
     });
@@ -1394,8 +1397,12 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
     push("the thumbnail trigger opens the edge hover card with the crop body",
       await page.locator(".croppop").isVisible() &&
-      /215197/.test(await page.locator(".croppop__head").textContent()) &&
-      /cited at:/.test(await page.locator(".croppop").textContent()) &&
+      // The document, from the card's ONE where-line. It came off
+      // `.croppop__head` -- the crop block's own caption -- until 2026-09-16,
+      // when a card stopped restating its document over the picture
+      // (viewer_hover_deslop_and_banner_purge, deliverable 2).
+      /cited at: .*215197/.test(await page.locator(".hovercard__cited").textContent()) &&
+      await page.locator(".hovercard .cropblock .croppop__head").count() === 0 &&
       // The part in a reader's words. This asserted the crop KEY here until
       // 2026-09-15 ("from stack `demo_joint`, element `plate`") -- which of the
       // crop index's two key spaces answered, in the ids of a stack and an
@@ -1574,11 +1581,95 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const componentText = await page.locator(".croppop").textContent();
     push("the component cell opens the component card with the derived crop line",
       /base plate/.test(componentText) &&
-      /crop of its `base plate thickness` annotation/.test(componentText));
+      // No backticks: a row's display name is user copy, not an id
+      // (viewer_hover_deslop_and_banner_purge, deliverable 2).
+      /crop of its base plate thickness annotation/.test(componentText) &&
+      !componentText.includes("`"));
     push("the component card deep-links into the annotator isolating the part",
       /isolate=base/.test(await page.locator(".hovercard--component a")
         .last().getAttribute("href")));
-    await page.keyboard.press("Escape");
+
+    // --- ONE fold per card, closed (deliverable 3, 2026-09-16) --------------
+    //
+    // Every long-form thing a card carries -- the record's note in full, the
+    // export/identity narrative, each crop's matching provenance -- is inside
+    // ONE <details>, and it is shut. Counted rather than read: the defect this
+    // replaces was TWO folds on one card (the crop block opened its own), and
+    // a substring check on the summary word cannot see a second one.
+    push("a card carries exactly one disclosure, closed, wearing the same " +
+      "word the banner's fold wears",
+      await page.locator(".hovercard details").count() === 1 &&
+      await page.locator(".hovercard details.hovercard__source").count() === 1 &&
+      !(await page.locator(".hovercard details").first().evaluate((n) => n.open)) &&
+      /Data source/.test(await page.locator(
+        ".hovercard details.hovercard__source > summary").textContent()));
+    // ...and the note itself: the lead sentence in the open, the whole of it
+    // inside the fold. The fixture's `base` part has a multi-sentence note.
+    push("a long note shows its lead sentence in the open and the whole of " +
+      "it in the fold", await (async () => {
+        const lead = await page.locator(".hovercard .hovercard__note").count()
+          ? (await page.locator(".hovercard .hovercard__note").textContent()).trim()
+          : null;
+        const full = await page.locator(
+          ".hovercard .hovercard__source .hovercard__notefull").count()
+          ? (await page.locator(
+              ".hovercard .hovercard__source .hovercard__notefull").textContent()).trim()
+          : null;
+        if (lead === null) return full === null;   // a card with no note at all
+        return full === null
+          ? true                                   // a one-sentence note: open, once
+          : full.startsWith(lead) && full.length > lead.length;
+      })());
+
+    // --- reaching an open card with the mouse (deliverable 4) ---------------
+    //
+    // Jeff: "sometimes the preview pop-up disappears when you try to move the
+    // mouse over it, you have to do it just right." Nothing closes a card on
+    // mouseleave; what happened is that a trigger crossed EN ROUTE re-pointed
+    // the shared #croppop node at itself. This is the only tier that can see
+    // it: the corridor is computed from real mousemove coordinates.
+    //
+    // The card open here is the COMPONENT card, and the competing trigger
+    // opens the EDGE card, so "the card survived" is a class check rather than
+    // a text diff.
+    const intentMs = await page.evaluate(() => window.ViewerApp.HOVER_INTENT_MS);
+    const approach = await page.evaluate(() => {
+      const card = document.querySelector("#croppop").getBoundingClientRect();
+      return {
+        mid: [card.left + card.width / 2, card.top + card.height / 2],
+        left: card.left, top: card.top,
+      };
+    });
+    // Two REAL moves along the line to the card, so the page has a movement
+    // vector to read (one move gives a position and no direction, and the
+    // corridor test refuses to guess a direction).
+    await page.mouse.move(approach.mid[0], approach.mid[1] - 90);
+    await page.mouse.move(approach.mid[0], approach.mid[1] - 45);
+    // ...and the trigger the pointer crosses, firing exactly the event the
+    // browser fires for it.
+    await page.locator(CARD_TRIGGER).dispatchEvent("mouseenter");
+    push("a trigger crossed while the pointer is heading for the open card " +
+      "does not steal it",
+      await page.locator(".hovercard--component").count() === 1 &&
+      await page.locator(".hovercard--edge").count() === 0);
+    // The pointer arrives. The held trigger must never open, now or after its
+    // grace period: the reader got where they were going.
+    await page.mouse.move(approach.mid[0], approach.mid[1]);
+    await page.waitForTimeout(intentMs + 200);
+    push("...and it still does not, once the pointer has arrived and the " +
+      "grace period has run out",
+      await page.locator(".hovercard--component").count() === 1 &&
+      await page.locator(".croppop").isVisible());
+    // The other half, and the reason this is a corridor and not a blanket
+    // grace period: a pointer moving AWAY from the open card is a reader who
+    // wants the other card, and they get it immediately.
+    await page.mouse.move(approach.left - 120, approach.top - 40);
+    await page.mouse.move(approach.left - 240, approach.top - 80);
+    await page.locator(CARD_TRIGGER).dispatchEvent("mouseenter");
+    push("a trigger hovered while the pointer is moving AWAY from the open " +
+      "card opens at once — the guard is intent, not a dead period",
+      await page.locator(".hovercard--edge").count() === 1);
+    await dismissCard(page);
 
     // --- the DAG's own hover surfaces (viewer_dag_hover_cards) --------------
     //
@@ -1631,7 +1722,13 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       /mating_surface/.test(nodeCardText));
     push("a boundary dot shows the adjacent part's thumbnail where one " +
       "resolves, and no slot where none does",
-      /crop of its `base plate thickness` annotation/.test(nodeCardText) &&
+      // One line per thumbed side, naming the side and its drawing -- and it
+      // is that side's ONE document statement, so the crop under it renders
+      // no head of its own (deliverable 2, 2026-09-16). The line used to end
+      // "— crop of its `base plate thickness` annotation", which dressed a
+      // display name as an id.
+      /base plate · drawing 215197/.test(nodeCardText) &&
+      await page.locator(".hovercard--node .cropblock .croppop__head").count() === 0 &&
       await page.locator(".hovercard--node img.croppop__img").count() === 1);
     await dismissCard(page);
 
@@ -1673,10 +1770,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // Re-expressed here the way the grid-side block was: the card WANTS more
     // height than either side of its trigger can give it, so its box is
     // exactly the roomier side's room and its content still overflows that
-    // box. Measured at 1600x700 on ?mock=1 for base_thickness' rail bar:
-    // trigger 354.5-378.5, room above 338.5 / below 305.5, card capped to
-    // 338.5 at top 8, scrolling inside itself.
-    await page.setViewportSize(CARD_LAYOUT_VIEWPORT);
+    // box.
+    //
+    // CARD_CAP_VIEWPORT (440px tall), not CARD_LAYOUT_VIEWPORT (700), since
+    // 2026-09-16 -- and the reason is a DELIVERABLE, not a flake. Folding a
+    // card is long-form prose behind one disclosure took ~200px off every edge
+    // card, so at 700px the card fit beside its bar on a served origin (where
+    // there is also no "open the PDF" link to add a line) and this tripwire
+    // went red for being unable to see the defect, which is exactly its job.
+    // It is the same window the grid-side block above measures its own cap in.
+    await page.setViewportSize(CARD_CAP_VIEWPORT);
     const beforeBarCard = await cardLayout(BAR_TRIGGER);
     await hoverBar("base_thickness");
     await page.waitForSelector(".hovercard--edge", { state: "visible", timeout: 5000 });
@@ -3417,12 +3520,15 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
         push("[real] hovering the edge shows the crop card with the real image " +
           "and the document it is a crop OF",
           await page.locator(".hovercard--edge img.croppop__img").count() === 1 &&
-          // The reference, in a reader's words. This asserted the crop-KEY
-          // claim here until 2026-09-15 ("authored in topology
-          // `pitch_system`") -- which of the crop index's two key spaces
-          // answered, in the topology's id, above a picture that names its
-          // own document on the line below.
-          /\.pdf · sheet \d/.test(cardText) &&
+          // The reference, in a reader's words, said ONCE. This asserted the
+          // crop-KEY claim until 2026-09-15 ("authored in topology
+          // `pitch_system`"), then the crop block's own "<file>.pdf · sheet N"
+          // head until 2026-09-16 -- which was the document's third printing
+          // on one card. It comes off the citation's where-line now, and the
+          // crop under it carries no caption at all.
+          /cited at: .+ · sheet \d/.test(cardText) &&
+          await page.locator(".hovercard--edge .cropblock .croppop__head")
+            .count() === 0 &&
           !/authored in topology/.test(cardText));
         await page.keyboard.press("Escape");
 
@@ -3480,8 +3586,13 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
           boundary.names.every((name) => realNode.includes(name)));
         // Absent is absent, on real data too: a thumbnail line and an image
         // arrive together or neither does.
+        // Keyed off the caption NODE rather than its wording since 2026-09-16:
+        // a side's line is "<part> · drawing <no>" now, which has no fixed
+        // substring to match on across live parts.
+        const thumbLines = await page.locator(
+          ".hovercard--node .hovercard__cropkey").count();
         push("[real] a node card's thumbnail line and its image arrive together",
-          /crop of its/.test(realNode)
+          thumbLines > 0
             ? await page.locator(".hovercard--node img.croppop__img").count() > 0
             : await page.locator(".hovercard--node img").count() === 0);
         await page.mouse.move(4, 4);

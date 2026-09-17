@@ -161,10 +161,13 @@
 
     // The card's ONE document statement. It is not a duplicate of the line
     // above it: that one says which PART the dimension belongs to, this one
-    // says which document it was read off.
+    // says which document it was read off -- and where the part is NAMED after
+    // that document (four live edges are), the number is left off here rather
+    // than printed on two consecutive lines. See VA.citationWhere's second
+    // argument.
     if (card.citation) {
       root.appendChild(VA.el("div", "hovercard__cited",
-        "cited at: " + VA.citationWhere(card.citation)));
+        "cited at: " + VA.citationWhere(card.citation, card.partLabel)));
     }
 
     // The crop KEY line is gone (2026-09-15): it printed which of the crop
@@ -277,9 +280,11 @@
         ? "internal to " + (labels[0] || "no part")
         : labels.join(" ⇔ ")));
 
+    // Same no-repeat rule as the edge card's: the sides were just named, and
+    // a side named after the document is not made clearer by saying it twice.
     if (card.citation) {
       root.appendChild(VA.el("div", "hovercard__cited",
-        "cited at: " + VA.citationWhere(card.citation)));
+        "cited at: " + VA.citationWhere(card.citation, labels.join(" "))));
     }
     noteBlock(root, card.note, source);
 

@@ -134,6 +134,17 @@
   var imageCache = {};      // "crops/x.png" -> {url} | null
   var openTrigger = null;   // whose popover is showing
   var openedAt = 0;         // guards the opening click from closing it again
+  // Where the pointer is, and where it was one move ago -- the two points the
+  // hover-intent corridor is computed from (VA.pointerHeadsFor). Null until
+  // the first mousemove: a page that has never seen the pointer defers nothing.
+  var pointerAt = null;
+  var pointerWas = null;
+  // A competing trigger's open, held while the pointer is travelling toward
+  // the card already on screen: { trigger, run, timer }.
+  var deferredOpen = null;
+  // What `position()` last left the popover's height at, so an image settling
+  // afterwards can tell "the box grew" from "the box is exactly as measured".
+  var placedHeight = 0;
 
   function boot() {
     nodes = {
@@ -264,6 +275,18 @@
       });
       document.addEventListener("keydown", function (event) {
         if (event && event.key === "Escape") hideCrop();
+      });
+      // The pointer's own track, for the hover-intent corridor below. Cheap on
+      // purpose: two numbers per move, and the only work beyond that happens
+      // while a trigger is actually being held back.
+      document.addEventListener("mousemove", function (event) {
+        pointerWas = pointerAt;
+        pointerAt = { x: event.clientX, y: event.clientY };
+        if (deferredOpen && VA.pointerInside(pointerAt, cardBox())) {
+          // The pointer got where it was going. The card it reached wins and
+          // the trigger it crossed on the way never opens at all.
+          cancelDeferred();
+        }
       });
 
       state.connection = picked.state;
@@ -622,6 +645,8 @@
   // `ctx.onCropShow` / `handlers.onCropShow`, which is this function either way.
 
   function showCrop(entry, trigger) {
+    if (defer(trigger, function () { showCrop(entry, trigger); })) return;
+    cancelDeferred();
     openTrigger = trigger;
     openedAt = new Date().getTime();
     var paint = function (image) {
@@ -634,7 +659,7 @@
       // settled either way — a broken image also changes the box.
       var img = nodes.crop.querySelector ? nodes.crop.querySelector("img") : null;
       if (img) {
-        img.onload = function () { position(nodes.crop, trigger); };
+        img.onload = function () { replace(trigger); };
         img.onerror = img.onload;
       }
     };
@@ -658,8 +683,81 @@
   }
 
   function hideCrop() {
+    cancelDeferred();
     openTrigger = null;
     nodes.crop.style.display = "none";
+  }
+
+  // --- reaching an open popover with the mouse (deliverable 4) --------------
+  //
+  // Jeff, 2026-09-16: "sometimes the preview pop-up disappears when you try to
+  // move the mouse over it, you have to do it just right." Nothing here closes
+  // a popover on mouseleave -- see the design note in views/stack.js's
+  // cropTrigger, where closing on leave was tried and rejected in 2026-08 --
+  // so what the reader was seeing was the card being REPLACED by a trigger
+  // crossed on the way to it, or MOVED by a late image. Both are fixed here;
+  // the corridor arithmetic itself is VA.pointerHeadsFor (viewer.js), which is
+  // where the reasoning and the two constants live.
+  //
+  // `defer` returns true when the caller should stand down for now. It never
+  // drops the open: if the pointer has not reached the card by
+  // VA.HOVER_INTENT_MS, the held trigger opens after all, so the worst case of
+  // a wrong guess is a card a quarter-second late.
+
+  function cardBox() {
+    if (!nodes.crop || !nodes.crop.getBoundingClientRect) return null;
+    if (nodes.crop.style.display === "none") return null;
+    var box = nodes.crop.getBoundingClientRect();
+    return box && box.width ? box : null;
+  }
+
+  function cancelDeferred() {
+    if (!deferredOpen) return;
+    if (deferredOpen.timer && typeof clearTimeout === "function") {
+      clearTimeout(deferredOpen.timer);
+    }
+    deferredOpen = null;
+  }
+
+  function defer(trigger, run) {
+    if (!openTrigger || openTrigger === trigger) return false;
+    var box = cardBox();
+    if (!box) return false;
+    if (!VA.pointerHeadsFor(pointerWas, pointerAt, box)) return false;
+    if (deferredOpen && deferredOpen.trigger === trigger) return true;
+    cancelDeferred();
+    var held = { trigger: trigger, run: run, timer: null };
+    deferredOpen = held;
+    held.timer = setTimeout(function () {
+      if (deferredOpen !== held) return;
+      deferredOpen = null;
+      // The pointer never arrived. Honour the trigger it crossed -- but only
+      // while it is still ON it, or a pointer that moved on somewhere else
+      // entirely would be handed a card it has left behind.
+      if (VA.pointerInside(pointerAt, cardBox())) return;
+      var rect = held.trigger.getBoundingClientRect
+        ? held.trigger.getBoundingClientRect() : null;
+      if (rect && !VA.pointerInside(pointerAt, rect)) return;
+      held.run();
+    }, VA.HOVER_INTENT_MS);
+    return true;
+  }
+
+  // Re-place the open popover once a PNG has settled -- but only when it
+  // actually needs re-placing. `position()` flips the card above its trigger
+  // when it does not fit below, so a re-place that runs on every image load
+  // can move the box out from under a pointer already on its way to it. Two
+  // guards, and the first is the one that matters: a card under the reader's
+  // pointer is a card in use and never moves. The second skips the whole
+  // gesture when the box is exactly the height it was measured at, which is
+  // the normal case -- VA.cropFigure reserves each image's height from the
+  // crop index's own pixel size before the decode, so a settled PNG usually
+  // changes nothing at all.
+  function replace(trigger) {
+    if (!nodes.crop || nodes.crop.style.display === "none") return;
+    if (VA.pointerInside(pointerAt, cardBox())) return;
+    if (Math.abs((nodes.crop.offsetHeight || 0) - placedHeight) <= 1) return;
+    position(nodes.crop, trigger);
   }
 
   // --- the hover reference cards (viewer_hover_cards_and_deep_links) ---------
@@ -702,6 +800,8 @@
 
   function showCard(card, trigger) {
     if (!card) return;
+    if (defer(trigger, function () { showCard(card, trigger); })) return;
+    cancelDeferred();
     openTrigger = trigger;
     openedAt = new Date().getTime();
     var paint = function () {
@@ -714,7 +814,7 @@
       // showCrop's single-image version.
       var imgs = nodes.crop.querySelectorAll ? nodes.crop.querySelectorAll("img") : [];
       Array.prototype.forEach.call(imgs, function (img) {
-        img.onload = function () { position(nodes.crop, trigger); };
+        img.onload = function () { replace(trigger); };
         img.onerror = img.onload;
       });
     };
@@ -832,6 +932,9 @@
     pop.style.top = Math.max(8, goAbove
       ? box.top - height - 8
       : box.bottom + 8) + "px";
+    // The height this placement was computed FOR, so replace() can tell a box
+    // that grew under a settling PNG from one that is exactly as measured.
+    placedHeight = pop.offsetHeight || height;
   }
 
   // --- the annotator flyout (study_3d_flyout) --------------------------------
