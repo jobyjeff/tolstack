@@ -45,9 +45,18 @@ Confirmed by stashing the only working-tree change (a
 ## Why the batch merge reported green
 
 This is the part worth keeping. The merge was tested in a **throwaway candidate
-worktree**, and reported `1203 passed, 1 skipped`. The skip was this JS suite: a
-fresh worktree has no `node_modules` (gitignored), so the tier that carries these
-two assertions **did not run at all**. The merge was therefore green on a suite
+worktree**, and reported `1203 passed, 1 skipped`. The skip was this JS suite, so
+the tier that carries these two assertions **did not run at all**.
+
+> **Correction, 2026-09-18 (`real_tier_red_and_the_skipping_tier`):** the cause
+> named below and above was `node_modules`, and that is wrong.
+> `apps/viewer/run_tests.cjs` uses node built-ins only and needs no install; it
+> is the **node-fs tier** that skips, because `data/projections/` is gitignored
+> and lives only in the main checkout. Measured: a fresh worktree ran 369 of
+> 455 checks and exited 0. `node_modules/playwright-core` is a real
+> worktree-only dependency, but of the browser TRUTH tier, which pytest never
+> runs. The distinction matters to anyone trying to reproduce this: `npm
+> install` in a worktree fixes nothing here. The merge was therefore green on a suite
 that structurally could not contain this failure, and the red only appeared in
 the main checkout, after the merge had landed and the projections had been
 rebuilt at `2dd457f`.

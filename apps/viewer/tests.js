@@ -1301,8 +1301,11 @@
       // The ELEMENTS TABLE, not the whole page. Scoped 2026-09-18: the joint
       // block renders its own `assembly_export_ref` through the same
       // VA.exportBlockNode the right pane uses, so a page-wide count of
-      // `div.el-export` now measures the joint too -- and this test's claim
-      // has always been about the ROW.
+      // `div.el-export` is no longer a count of what is on the ROWS -- which
+      // is the only thing this test has ever claimed. (The demo joint carries
+      // no export today, so the two readings agree; they stop agreeing the
+      // moment it does, which is exactly when a page-wide count would start
+      // passing for the wrong reason.)
       var table = root.querySelector("table.eltable");
       ok(table, "the elements table must be on the page");
       eq(all(table, "div.el-row__srcnote").length, 0);
@@ -7799,13 +7802,23 @@
     // that scan.
     await test("a joint's export block renders through the one export " +
       "builder, so no checksum, path or run id reaches the page", function () {
-        var ref = DEMO.stack.joint[VA.JOINT_EXPORT_KEY];
-        ok(ref && ref.sha256 && ref.pdf && (ref.runs || []).length,
-           "fixture precondition: the demo joint carries an established " +
-           "export with all three of the things the page may not print");
-        var root = render(function (r) {
-          r.appendChild(VA.jointBlock(DEMO.stack.joint));
-        });
+        // Built here rather than in fixtures.js: the demo fixture page is
+        // what the browser TRUTH tier drives, and it locates
+        // `.el-export--established` unscoped -- see the note beside the demo
+        // joint. Every value below is one the page may never print, which is
+        // what makes this a positive control rather than a shape check.
+        var ref = {
+          status: "established",
+          pdf: "C:/workspace/demo/217755.pdf",
+          sha256: "b2c3d4e5f60718293a4b5c6d7e8f90a1" +
+            "b2c3d4e5f60718293a4b5c6d7e8f90a1",
+          runs: [{ run_id: "20260804_114000",
+                   ts: "2026-08-04T11:40:00+00:00" }],
+          note: "A demo joint export. The sha is arbitrary and hashes nothing.",
+        };
+        var joint = { assembly_drawing: "217755", view: "DETAIL B" };
+        joint[VA.JOINT_EXPORT_KEY] = ref;
+        var root = render(function (r) { r.appendChild(VA.jointBlock(joint)); });
         var box = root.querySelector("div.el-export");
         ok(box, "the joint's export renders as an el-export box, not as " +
            "definition-list rows: " + root.textContent);
