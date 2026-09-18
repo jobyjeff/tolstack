@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: high
-status: triaged
+status: resolved
 area: viewer/real-tier
 reporter: agent
 found_by: dispatch/docs/sessions/lessons/LESSONS_20260918_triage_sweep_classes_over_instances.md
 handoff: docs/sessions/HANDOFF_20260918_real_tier_red_and_the_skipping_tier.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `real_tier_red_and_the_skipping_tier` moved to completed/; not independently verified.
 ---
 
 # Two `[real]` viewer tests are red on trunk after today's batch merge, and the merge's own candidate test could not see them
