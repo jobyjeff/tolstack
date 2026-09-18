@@ -76,6 +76,28 @@
               sheet: 4,
               view: "DETAIL B",
               question: "Does the fastener grip work in this joint?",
+              // The joint's own export, the machine-readable sibling of the
+              // prose `assembly_export` (c08d705, 2026-09-16). Four of the
+              // seven live stacks carry one and no fixture did, which is how
+              // the stack page came to render `sha256`, a 64-character
+              // checksum, a `C:/workspace/...` path and two bare run ids
+              // straight out of the free-form key-by-key renderer -- caught
+              // only by the [real] tier, and only in the main checkout
+              // (ISSUE_20260918_real_tier_red_on_trunk_after_the_batch_merge_
+              // and_projection_rebuild). It is here so the FIXTURE tier holds
+              // the shape too: every value in it is one the page may never
+              // print, so a surface that regresses to kvList fails in every
+              // worktree rather than only where data/ lives.
+              assembly_export_ref: {
+                status: "established",
+                pdf: "C:/workspace/demo/217755.pdf",
+                sha256: "b2c3d4e5f60718293a4b5c6d7e8f90a1" +
+                  "b2c3d4e5f60718293a4b5c6d7e8f90a1",
+                runs: [{ run_id: "20260804_114000",
+                         ts: "2026-08-04T11:40:00+00:00" }],
+                note: "A demo joint export. The sha is arbitrary and hashes " +
+                  "nothing.",
+              },
             },
             elements: [
               {

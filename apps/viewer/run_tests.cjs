@@ -398,8 +398,10 @@ for (const f of files) {
     rebuildFailServer.close();
   }
   let failed = 0;
+  let skipped = 0;
   for (const r of results) {
     if (r.skipped) {
+      skipped++;
       console.log(`SKIP  ${r.name}\n      ${r.skipped}`);
     } else if (r.ok) {
       console.log(`PASS  ${r.name}`);
@@ -408,6 +410,21 @@ for (const f of files) {
       console.log(`FAIL  ${r.name}\n      ${r.error}`);
     }
   }
-  console.log(`\n${results.length - failed}/${results.length} passed`);
+  // A SKIPPED TIER BELONGS IN THE TOTAL LINE, because the total line is the
+  // only line a caller reliably reads. This printed `368/368 passed` and
+  // exited 0 from a worktree until 2026-09-18 -- counting the node-fs tier's
+  // skip marker as a pass while the 85 [real] checks behind it did not exist
+  // -- and a batch merge read exactly that as a green suite
+  // (ISSUE_20260918_real_tier_red_on_trunk_after_the_batch_merge_and_
+  // projection_rebuild). The skip leaves the numerator AND the denominator: a
+  // tier that could not run did not pass, and it was never among the checks
+  // that ran either.
+  const ran = results.length - skipped;
+  console.log(`\n${ran - failed}/${ran} passed` + (skipped
+    ? `, ${skipped} TIER${skipped === 1 ? "" : "S"} SKIPPED -- NOT RUN, NOT PASSED`
+    : ""));
+  // The exit code still reports FAILURES only. `tests/test_viewer_js_suite.py`
+  // is what turns a skipped tier red, so the mutation-witness harness and the
+  // browser runner keep the exit code's existing meaning.
   process.exit(failed ? 1 : 0);
 })();

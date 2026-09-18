@@ -99,10 +99,19 @@ Know these before you write code; each has a test standing on it.
   command spellings). From a worktree, the venv exists only in the main checkout:
   use `C:\workspace\tolstack\venv-win\Scripts\python.exe`.
 - **Install:** `powershell -ExecutionPolicy Bypass -File setup.ps1`
-- **Test:** `venv-win/Scripts/python.exe -m pytest -q`. Expect green. The suite
+- **Test:** `venv-win/Scripts/python.exe -m pytest -q`. Expect green **in the
+  main checkout** (see the worktree bullet below). The suite
   pins ground-truth numbers value by value and pairs documents against the code
   they describe, so a docs-only change can legitimately turn it red — that is the
   design, not a nuisance.
+- **Two test tiers cannot run in a fresh worktree, and a green there does not
+  cover them.** The viewer's `[real]` checks read `data/projections/`, and the
+  browser TRUTH tier needs `node_modules/playwright-core` — both are gitignored
+  and exist only in the main checkout. So a worktree's `pytest -q` is red on
+  `tests/test_viewer_js_suite.py` (deliberately, since 2026-09-18: a skipped
+  tier is not a passed one), and before trusting any green — a batch merge's
+  most of all — run **in the main checkout**:
+  `node apps/viewer/run_tests.cjs` and `node scripts/run_viewer_browser_tests.mjs`.
 - `tests/debug_*.py` are inspection tools, run by hand, never by pytest.
 - **Ops verbs:** `ops.toml` (forge CONVENTIONS.md §8) — the only place a deploy
   command should live.

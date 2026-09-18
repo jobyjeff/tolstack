@@ -59,6 +59,13 @@
   // (docs/DAG_TOPOLOGY.md, topology_schema_v1) is the same free-form
   // assembly/context shape a stack's is, `{}` when a topology spans more than
   // one physical joint — one renderer, not a second copy that could drift.
+  // The one key in a free-form joint block that is NOT free-form: `c08d705`
+  // (2026-09-16) gave a joint the machine-readable sibling of its prose
+  // `assembly_export` -- the same `{status, pdf, sha256, runs[], note}` shape a
+  // citation's `source_ref.export` carries. A module-level constant, not an
+  // inline literal, per CLAUDE.md's field-vocabulary rule.
+  VA.JOINT_EXPORT_KEY = "assembly_export_ref";
+
   VA.jointBlock = jointBlock;
   function jointBlock(joint) {
     var box = VA.el("details", "sv__joint");
@@ -67,7 +74,42 @@
       box.appendChild(VA.el("p", "muted", "no joint block"));
       return box;
     }
-    box.appendChild(kvList(joint));
+    // An export block is a SHAPE THE PAGE KNOWS, so it does not fall through to
+    // the key-by-key renderer below. Lifted out and rendered through
+    // VA.exportBlockNode -- the one builder every other export on this page
+    // goes through (views/detail.js) -- which is why the export box is a
+    // sibling of the list rather than a `<dd>` inside it: it is self-describing
+    // ("Read from <file>") and needs no `<dt>`.
+    //
+    // WHAT THIS FIXES, and it is four leaks, not one. kvList prints the KEY as
+    // the label and the value whole, so the live pitch-link joint rendered
+    // `sha256`, a 64-character checksum, an absolute `C:/workspace/...` path
+    // and two bare drawing-checker run ids -- every one of them a class
+    // BANNED_IN_RENDERED_TEXT names. Only the `sha256` LABEL was caught, and
+    // only because `dd.kv__value` exempts every value in a free-form block from
+    // that scan; the three worse ones rode through the exemption.
+    // (ISSUE_20260918_real_tier_red_on_trunk_after_the_batch_merge_and_
+    // projection_rebuild.) VA.exportBlockNode already made this decision for
+    // the element pane on 2026-09-15 -- Jeff, "full workstation file paths --
+    // never rendered when the link works".
+    //
+    // REJECTED: giving the banned-string guard an exemption for `sha256`. The
+    // guard is right -- an algorithm's name is nothing a reader can act on --
+    // and a keyword allowlist would have exempted the label while leaving the
+    // path, the checksum and the run ids on the page, which is the whole
+    // failure mode of matching raw characters where structure is meant.
+    // ALSO REJECTED: renaming the `<dt>`. That fixes the one string the guard
+    // happened to see and none of the three it could not.
+    var rest = {}, exportRef = null;
+    Object.keys(joint).forEach(function (key) {
+      if (key === VA.JOINT_EXPORT_KEY && joint[key]) { exportRef = joint[key]; return; }
+      rest[key] = joint[key];
+    });
+    if (Object.keys(rest).length) box.appendChild(kvList(rest));
+    if (exportRef) {
+      box.appendChild(VA.exportBlockNode(
+        VA.exportProvenance({ export: exportRef }), null));
+    }
     return box;
   }
 

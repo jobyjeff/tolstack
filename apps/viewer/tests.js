@@ -1298,9 +1298,16 @@
     // below ("the citation note reaches the panel, in full, unclamped").
     await test("the compact row carries no note, callout or export block", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      eq(all(root, "div.el-row__srcnote").length, 0);
-      eq(all(root, "div.el-row__callout").length, 0);
-      eq(all(root, "div.el-export").length, 0,
+      // The ELEMENTS TABLE, not the whole page. Scoped 2026-09-18: the joint
+      // block renders its own `assembly_export_ref` through the same
+      // VA.exportBlockNode the right pane uses, so a page-wide count of
+      // `div.el-export` now measures the joint too -- and this test's claim
+      // has always been about the ROW.
+      var table = root.querySelector("table.eltable");
+      ok(table, "the elements table must be on the page");
+      eq(all(table, "div.el-row__srcnote").length, 0);
+      eq(all(table, "div.el-row__callout").length, 0);
+      eq(all(table, "div.el-export").length, 0,
          "the export block must be in the right pane only, not on the row");
     });
 
@@ -7780,6 +7787,70 @@
            "no raw schema key in the rendered block: " + root.textContent);
       });
 
+    // The one key in a joint block that is NOT free-form, and the reason the
+    // key-by-key renderer must not be the fallback for everything.
+    //
+    // `assembly_export_ref` is the same shape a citation's `source_ref.export`
+    // is, so it renders through the same builder -- and the difference is not
+    // cosmetic: kvList printed `sha256` as a label and the checksum, the
+    // absolute workstation path and the bare run ids as values, which is four
+    // of the classes BANNED_IN_RENDERED_TEXT names. Only the label was ever
+    // caught, because `dd.kv__value` exempts a free-form block's values from
+    // that scan.
+    await test("a joint's export block renders through the one export " +
+      "builder, so no checksum, path or run id reaches the page", function () {
+        var ref = DEMO.stack.joint[VA.JOINT_EXPORT_KEY];
+        ok(ref && ref.sha256 && ref.pdf && (ref.runs || []).length,
+           "fixture precondition: the demo joint carries an established " +
+           "export with all three of the things the page may not print");
+        var root = render(function (r) {
+          r.appendChild(VA.jointBlock(DEMO.stack.joint));
+        });
+        var box = root.querySelector("div.el-export");
+        ok(box, "the joint's export renders as an el-export box, not as " +
+           "definition-list rows: " + root.textContent);
+        // What a reader gets instead: the file by NAME, and the fact that a
+        // checksum was recorded -- never the checksum.
+        has(box.textContent, "Read from 217755.pdf");
+        has(box.textContent, "pinned to this exact file, by checksum");
+        // And what they never get. The note is the RECORD's words and is
+        // exempt from the scan below, so it is read off its own node.
+        [ref.sha256, ref.pdf, "sha256", "C:/", ref.runs[0].run_id]
+          .forEach(function (banned) {
+            ok(root.textContent.indexOf(banned) === -1,
+               "the joint block still renders " + JSON.stringify(banned) +
+               ": " + root.textContent);
+          });
+        // The rest of the block is untouched -- lifting one key out must not
+        // drop the others.
+        has(root.textContent, VA.fieldLabel("assembly_drawing"));
+        has(root.textContent, "DETAIL B");
+      });
+
+    // An unestablished export is the OTHER live state (the two thermal
+    // stacks), and it goes through the same builder rather than falling back.
+    await test("a joint whose export was never established says so through " +
+      "the same builder, and a joint with no export key grows no box",
+      function () {
+        var unestablished = { assembly_drawing: "217755" };
+        unestablished[VA.JOINT_EXPORT_KEY] = {
+          status: "unestablished",
+          why: "Not read for this stack -- a demo of the live thermal pair's " +
+            "state.",
+        };
+        var loud = render(function (r) {
+          r.appendChild(VA.jointBlock(unestablished));
+        });
+        eq(all(loud, "div.el-export--loud").length, 1);
+        has(loud.textContent, "FILE NOT IDENTIFIED");
+
+        var plain = render(function (r) {
+          r.appendChild(VA.jointBlock({ assembly_drawing: "217755" }));
+        });
+        eq(all(plain, "div.el-export").length, 0);
+        has(plain.textContent, "217755");
+      });
+
     await test("a topology with no joint (it spans more than one physical " +
       "joint) says so rather than fabricating one", function () {
         eq(TOPO.joint && Object.keys(TOPO.joint).length, 0,
@@ -8715,12 +8786,35 @@
         // `pitch_link_to_pitch_plate` and asserted 2 until that handoff gave its
         // bushing and washer real bands; asserting 0 there would have kept the
         // name and lost the subject. `rotor_fastener_length` is the live example
-        // now -- two washers, neither of which has a band in any document
-        // (MS21299 and NAS1149 are both absent from the pile).
+        // now -- one washer whose band is in no document at all (MS21299 is
+        // absent from the pile and has no workbook row either).
         var rotor = VA.findStack(realResults, "rotor_fastener_length");
         ok(rotor, "rotor_fastener_length must be in the projection");
+        // DERIVED from the projection, not a constant. This asserted the
+        // literal `2` until 2026-09-18 and had been wrong since `5ce16f3` gave
+        // the NAS1149V0332H washer the band its two siblings already fold --
+        // the SECOND instance of the defect
+        // ISSUE_20260916_a_real_check_still_pins_the_zero_width_washer_the_
+        // rotor_citation_fix_removed repaired in the topology half of this
+        // pair and did not look for here. The claim the test is named for is
+        // that every flagged element REACHES the page; a hand-written total
+        // restates the projection instead, and goes stale the next time an
+        // honest citation lands.
+        var flagged = (rotor.elements || []).filter(function (e) {
+          return e.zero_width;
+        });
+        ok(flagged.length >= 1, "this stack no longer holds a zero-width " +
+           "element, so the flag this test is named for cannot reach the page " +
+           "and the check measures nothing");
         var root = render(function (r) { VA.renderStack(r, rotor, realCrops, {}); });
-        eq(all(root, "tr.el-row--zero-width").length, 2);
+        var rows = all(root, "tr.el-row--zero-width");
+        eq(rows.length, flagged.length);
+        // ...and they are the SAME elements, not merely the same count: the
+        // page prints each element's id beside its name on purpose, so the
+        // pairing is readable straight off the row.
+        flagged.forEach(function (element, at) {
+          has(rows[at].textContent, element.id);
+        });
       });
 
       await test("[real] the pitch-link stack's three unverified bands render untraced, not zero-width", function () {
