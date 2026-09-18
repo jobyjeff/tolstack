@@ -3473,6 +3473,39 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       subtraction that reconciles only against the constant is arithmetic
       nobody checked.
 
+- [ ] **The tactical agent edited this overlay — `docs/prompts/REVIEW_AGENT.md`
+      is the *reviewer's* artifact.** Promoted 2026-09-18 by the triage sweep;
+      **four sightings in three days**, every one flagged by the reviewer and
+      every one kept, so nothing accumulated until now. Seen in
+      `REVIEW_20260915_respine_tween_fidelity` and its `_round2`
+      (*"the author amending the checklist entry that indicts their own file"*),
+      `REVIEW_20260915_viewer_value_guard_rows_and_replays`, and
+      `REVIEW_20260917_prose_guards_scope_out_strategy_briefs` (three passages).
+      The rule is not "always revert" — the resolutions legitimately differed:
+      **keep it when the author is repairing a pointer their own work broke**
+      (the `value_guard_rows` case, correctly disclosed); **reject it when the
+      author is grading the entry written about them**, which is the
+      `respine_round2` case and the one that must not become a habit. Either
+      way: it is out of any handoff's declared file scope, so check that it was
+      **disclosed**, and check **every** changed passage against the code — an
+      author's edit here is the one diff no reviewer's checklist is watching.
+
+- [ ] **An issue that asks a *design* question filed without
+      `audience: strategy`.** Promoted 2026-09-18 (two sightings). The
+      frontmatter routes it as a `bug`/`chore`, so triage stages a tactical
+      handoff that then has to make the design call anyway — or, worse, the
+      question is answered five times and never decided.
+      `REVIEW_20260915_viewer_popover_clamp_and_rebuild_terminal_state`: the
+      issue *"ends by asking the reader to decide whether the contract is worth
+      a configuration of its own at all — a design call, not a fix — but carries
+      no `audience: strategy`."*
+      `REVIEW_20260916_viewer_hover_deslop_and_banner_purge`: a `type: chore`
+      whose *"closing paragraph asks a schema question… That half wants
+      `audience: strategy` or a second issue, or it will be fixed five times and
+      never answered once."* One-line check at the merge gate: read the issue's
+      **last** paragraph, not its title, and ask whether it names a fix or a
+      decision.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
