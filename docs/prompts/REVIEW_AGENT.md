@@ -1484,10 +1484,18 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (2026-08-12; it was 95/95 the day before, so **recount rather than quoting
       this line** — the gap is the whole point, not the digits): 23 tests,
       including the guards that exist
-      precisely to catch a live shape the fixtures cannot produce. Exit code 0
-      both ways; the only tell is one `SKIP node-fs tier` line above the
-      headline. So a report quoting a JS count **must say whether the tier ran**,
-      and you re-run it yourself as
+      precisely to catch a live shape the fixtures cannot produce.
+      **Updated 2026-09-18 (`real_tier_red_and_the_skipping_tier`):** the skip
+      is no longer silent. The runner's own total line now reads
+      `369/369 passed, 1 TIER SKIPPED -- NOT RUN, NOT PASSED` (the skip leaves
+      the numerator *and* the denominator, so the count is of checks that ran),
+      and `tests/test_viewer_js_suite.py` **fails** rather than skips, so a
+      worktree's `pytest -q` is `1 failed, …` by design. What did **not**
+      change: the runner still **exits 0** on a skipped tier, deliberately, so
+      the mutation-witness harness and the browser runner keep the exit code's
+      existing meaning — a caller testing `$LASTEXITCODE` instead of reading the
+      line still sees success. So a report quoting a JS count
+      **must say whether the tier ran**, and you re-run it yourself as
       `node apps\viewer\run_tests.cjs --repo C:/workspace/tolstack`. **Forward
       slashes in that path**: under the Bash tool `C:\\workspace\\tolstack` has
       its backslashes eaten, the runner looks under
@@ -3505,6 +3513,40 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       never answered once."* One-line check at the merge gate: read the issue's
       **last** paragraph, not its title, and ask whether it names a fix or a
       decision.
+
+- [ ] **A new `VA.NAME = "literal"` scalar constant — the one vocabulary shape
+      `test_js_python_vocabulary.py` structurally cannot extract.** New
+      2026-09-18 (`real_tier_red_and_the_skipping_tier`). `views/stack.js`
+      gained `VA.JOINT_EXPORT_KEY = "assembly_export_ref"`, correctly a
+      module-level constant per `CLAUDE.md`'s field-vocabulary rule — and a
+      second hand-copy of `tolerance_stack/stack.py`'s `JOINT_EXPORT_KEY`,
+      paired by nothing. The pairing module's two extractors are
+      `js_object_keys` (object literals) and `js_array_strings` (arrays), so a
+      **bare string assignment** slips between them and the author gets the
+      "it's a named constant now" feeling without the guard. Check: for any new
+      `VA.<SCREAMING_NAME> =`, `grep` the same word in `tolerance_stack/` and
+      `scripts/`; if Python defines it, ask what reddens on a rename. Fails
+      closed here (the `[real]` surface scan reddens on the leaked label) but
+      only in the main checkout and only on the symptom, never the cause.
+      `ISSUE_20260918_va_joint_export_key_is_a_twelfth_hand_copy_of_a_python_
+      constant_that_the_pairing_module_cannot_see.md`.
+
+- [ ] **The guard the diff satisfies is the guard you must re-aim at the tier
+      the author could not run.** Same handoff, and it is the cheap half of
+      "a new guard has been observed failing". `run_viewer_browser_tests.mjs`
+      needs `node_modules/playwright-core`, which is gitignored — so a tactical
+      agent in a worktree genuinely cannot run the truth tier, and will
+      (rightly) design around it rather than risk it; this one declined to add
+      a fixture because `.el-export--established` is located page-wide and
+      `textContent()` is strict. **You can run it**: `node_modules` is 14 MB,
+      `cp -r C:/workspace/tolstack/node_modules .` into your review worktree
+      makes it resolve, and
+      `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`
+      then drives THIS branch's `apps/viewer` against the live projections
+      (`REPO` comes from `__dirname`, only `DATA_REPO` follows `--repo`).
+      22/22 in ~3 minutes, and it is the only evidence anyone will ever get
+      that a rendering change did not break the tier nobody ran. Delete the
+      copy before you finish.
 
 ## Architectural errors to check
 

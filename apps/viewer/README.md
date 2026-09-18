@@ -1642,6 +1642,9 @@ Two tiers (forge `CONVENTIONS.md` §7), plus a third that tests the tests:
 node apps\viewer\run_tests.cjs                          # fast tier (node + DOM shim)
 node apps\viewer\run_tests.cjs --repo C:\workspace\tolstack   # ...from a worktree
 venv-win/Scripts/python.exe -m pytest -q                # runs the fast tier too
+                                                        # ...and is RED in a worktree by design
+                                                        # since 2026-09-18: a skipped [real] tier
+                                                        # is not a passed one (CLAUDE.md, Environment)
 
 npm install                                             # once: playwright-core, no browser download
 node scripts\run_viewer_browser_tests.mjs               # truth tier (installed Chrome, file:// + http)

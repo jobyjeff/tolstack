@@ -66,3 +66,32 @@ Splitting it into two lists with two rules costs that, and whoever wants the
 coverage should decide whether the trade is worth it before writing the code.
 Either answer wants one line somewhere durable saying which it is, because
 otherwise the next reviewer refiles this.
+
+## Second sighting, and it is no longer hypothetical — 2026-09-18
+
+Added by the review of `real_tier_red_and_the_skipping_tier`
+(`docs/sessions/reviews/REVIEW_20260918_real_tier_red_and_the_skipping_tier.md`),
+which measured the cost of this exemption on a live page rather than in the
+abstract. `docs/tolerance_stacks/stack_pitch_link_to_pitch_plate.json`'s
+`joint.assembly_export_ref` was rendered key-by-key by `kvList`, so the
+`pitch_link_to_pitch_plate` page was printing, as `dd.kv__value` nodes:
+
+* `C:/workspace/drawing-checker/data/inbox/drawings/[PRELIM 2026-AUG-3] 217755
+  A.1 PROPULSION ASSEMBLY, PROPELLER.pdf` — an absolute workstation path,
+* `c6381f20…4294d8` — a 64-character checksum, which the `\b[0-9a-f]{24,}\b`
+  shape guard exists for, and
+* `20260803_145243` and `20260804_114000` — two bare run ids, which the
+  `\d{8}_\d{6}` shape guard exists for.
+
+**None of the three fired.** The only thing the surface scan could see was the
+`sha256` *label*, because a label is a `<dt>` and only the `<dd>` is exempt —
+so the guard reddened on the least harmful of four leaks, and the three it was
+actually written for rode through this exemption for two days on trunk.
+
+That session fixed the instance the right way (the key is lifted out and
+rendered through `VA.exportBlockNode`, so no free-form value is involved any
+more) and deliberately did not touch the exemption, which is correct and is
+why this issue is still open. What has changed is the evidence: the "two
+halves are both true" trade above now has a measured cost on one side of it,
+and the next authored free-form value carrying a path or a hash is invisible
+in exactly the same way.
