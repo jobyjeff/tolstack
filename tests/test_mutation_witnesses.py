@@ -360,6 +360,58 @@ def test_every_browser_entry_names_a_suite_the_registry_dispatches_on(mutations)
         )
 
 
+def test_no_expect_red_is_a_truncated_check_name(mutations):
+    """A PREFIX of a sub-check name resolves here and can never be witnessed.
+
+    The runner matches ``expect_red`` against the printed failure name with
+    ``Array.includes`` -- an EXACT string equality, not a substring test -- while
+    the pairing above counts substrings. So an entry declaring the first half of
+    a name passes pytest in 0.6s and is a guaranteed ``NOT WITNESSED`` several
+    minutes into whichever tier owns it, reported as
+    ``another check reddened, but not the declared one``: the loudest possible
+    way to say nothing useful.
+
+    Measured 2026-09-18, and it is not hypothetical -- it is how this test came
+    to exist. Two entries were pasted into
+    ``ISSUE_20260916_the_reader_facing_copy_guards_have_no_mutation_witness_entry``
+    with their names deliberately cut short, the issue saying so and giving the
+    reason (the prefixes sat wholly inside the first of two adjacent string
+    literals, so they resolved without ``joined_source``). Both were verified
+    against the pairing helpers by their author AND by a reviewer, both were
+    called paste-ready, and both missed on the first run of the tier.
+
+    What makes the prefix visible is that a check name is a STRING LITERAL: once
+    the ``" + "`` seams are closed, the name's last character is followed by the
+    quote that ends the literal. A prefix is followed by more of the name.
+
+    The OPENING quote is deliberately not required. One entry's name is
+    legitimately concatenated onto the tier's own ``"FAIL sub-check: "`` prefix
+    (``suite-prints-the-registry-key-it-was-handed``), so its first character
+    follows a space -- and a leading truncation is a different, harmless shape
+    anyway: the runner's regex captures the whole remainder of the line, so a
+    name missing its head simply fails the equality this test's sibling already
+    would not.
+    """
+    for entry in mutations:
+        # A python entry's name is looked for as `def <name>(`, which is exact
+        # by construction -- a prefix would not be followed by the paren.
+        if entry["tier"] == "python":
+            continue
+        relative = check_source_of(entry)
+        source = joined_source(relative)
+        at = source.index(entry["expect_red"]) + len(entry["expect_red"])
+        assert source[at] == '"', (
+            f"{entry['id']}: its `expect_red` is a PREFIX of the name "
+            f"{relative} actually prints -- the next character there is "
+            f"{source[at]!r}, not the quote that would end the literal. The "
+            f"runner compares names for EQUALITY, so this entry can only ever "
+            f"report NOT WITNESSED. Copy the whole name; a long one is split "
+            f"across a `\" + \"` seam and `joined_source()` closes it for you.\n"
+            f"Declared:\n{entry['expect_red']}\n"
+            f"Printed:\n{entry['expect_red']}{source[at:source.index(chr(34), at)]}"
+        )
+
+
 def test_every_python_entry_names_a_test_file_the_shadow_can_run(mutations):
     """``suite`` is the path pytest is handed, resolved inside the shadow tree.
 
