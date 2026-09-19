@@ -3629,6 +3629,65 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       not, the fast half needs the extra assertion — which is what
       `test_no_expect_red_is_a_truncated_check_name` now is.
 
+- [ ] **A per-suite SKIP that returns `ok: true` is counted in the runner's own
+      green total.** New 2026-09-18 (`visual_rules_nothing_checks`).
+      `scripts/run_viewer_browser_tests.mjs` now has **six** suite bodies that
+      print a `SKIP:` line and `return { label, ok: true }` on an unmet
+      precondition — an unbuilt projection, a live nav leaf that moved — and the
+      last line still reads `23/23 browser checks passed`. Since
+      `data/projections/` is gitignored and main-checkout-only, "skipped" is the
+      *default* in a worktree. The repo already paid for this exact shape a week
+      earlier on the pytest side
+      (`real_tier_red_and_the_skipping_tier`: *"A TIER THAT CANNOT RUN IS NOT A
+      TIER THAT PASSED"*), so a new suite that inherits the convention is worth a
+      filed issue even though it matches its neighbours. **The check to run: make
+      the precondition unmeetable** (point `--repo` at a tree with no
+      projections) **and read the LAST line, not the SKIP line.**
+      (`ISSUE_20260918_a_skipped_browser_suite_returns_ok_true_and_is_counted_in_the_runners_green_total`.)
+
+- [ ] **A guard's token list restated by hand where the DRIFT DIRECTION is
+      silence.** New 2026-09-18 (`visual_rules_nothing_checks`), and the reason
+      it earns a line of its own next to the generic hand-copy entry: ask not
+      just *is this copy paired?* but **which way does it fail when it goes
+      stale?** `tests/test_app_type_scale.py`'s `CONFIDENCE_TOKENS` is
+      `["conf--" + c for c in VA.CONFIDENCES] + ["conf--unknown"]` written out,
+      and a guard parametrized by a *too-short* list is silent on exactly the
+      new word — a fifth confidence would arrive with the unscoped
+      `.conf--<new> { color: #fff }` rule invisible to the guard written for it.
+      Its sibling in the same diff, the browser fill census's `MAY_FILL`, is the
+      same shape and fails **loudly** (a new unlisted token reads as an
+      overspend and reddens). Same defect class, different urgency; say which
+      one you found. The extractor to point at is already here —
+      `tests/test_js_python_vocabulary.py`'s `js_array_strings`, which already
+      reads `VA.CONFIDENCES`.
+      (`ISSUE_20260918_the_type_scale_guards_confidence_token_list_is_an_unpaired_hand_copy_of_va_confidences`.)
+
+- [ ] **A lesson citing a sibling file's habit as already-established — go
+      count the call sites.** New 2026-09-18 (`visual_rules_nothing_checks`), and
+      a second sighting of the canonical "audit the lesson's arithmetic" entry in
+      its *causal* half. The lesson explained a fixed race by saying
+      `scripts/run_viewer_browser_tests.mjs` "already knew this and waits 450ms
+      after each of its **three** `setViewportSize` calls". It has **seven**, all
+      on a booted topology page: two wait 450, two wait 400, three wait nothing,
+      and one of the three measures a layout on the very next line. The claim's
+      form is the tell — *"the neighbouring file already does X"* is an appeal to
+      a convention, and a convention with silent opt-outs is not one. `grep -c`
+      the call sites before you believe it; here it turned one corrected sentence
+      into a filed latent flake.
+      (`ISSUE_20260918_three_browser_tier_resizes_measure_through_the_apps_own_debounce`.)
+
+- [ ] **A probe/screenshot pair claimed identical to the byte — re-take it
+      TWICE, not once.** New 2026-09-18 (`visual_rules_nothing_checks`). The
+      handoff's own issue reported "7 of the 13 `after` shots differ from a
+      re-take", from three runs. Verifying it with `cmp -s` over every shot, the
+      reviewer's **first** re-take differed on **8** — the extra one being
+      `6_hover_card`, which carries an asynchronous `ensureThumbImages` thumbnail
+      no shot waits for. Two further runs matched each other under the same
+      `cmp -s` on all 13 and reproduced 7 of 13 exactly, shot for shot. So the
+      author's number was right and the probe is *nearly* deterministic — but
+      "nearly" is the finding, and one re-take cannot tell the two apart. Take it
+      into two scratch dirs, `cmp` the runs against **each other** first, and only
+      then against the committed set.
 - [ ] **A fix that SUPPRESSES a node takes every guard that was standing on
       that node with it — and an anti-vacuity anchor has to be derived from the
       argument under test.** New 2026-09-18

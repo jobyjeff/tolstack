@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
 found_by: docs/sessions/reviews/REVIEW_20260917_design_pass_typography.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `visual_rules_nothing_checks` moved to completed/; not independently verified.
 ---
 
 # Every visual rule `design_pass_typography` settled can be reverted with all three tiers green — including the confidence leak it was written to fix

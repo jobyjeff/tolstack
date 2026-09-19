@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
 found_by: docs/sessions/reviews/REVIEW_20260917_crop_lightbox_zoom_viewer.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `visual_rules_nothing_checks` moved to completed/; not independently verified.
 ---
 
 # Three of the crop lightbox's four geometric wiring lines can be deleted with every tier green

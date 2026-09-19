@@ -2831,6 +2831,69 @@
         has(all(root, "button.lightbox__close")[0].getAttribute("title"), "Esc");
       });
 
+
+    // THE FRAME'S SIZE, which is a wiring line and not arithmetic: measured
+    // 2026-09-17, deleting `figure.style.width/height` from `apply()` left all
+    // three tiers green (ISSUE_20260917_the_crop_lightboxs_fit_clamp_and_
+    // hairline_are_unwitnessed_in_every_tier). What the reader gets from the
+    // deletion is the crop at its natural 1374x1566 in an 846px stage -- the
+    // top half of the sheet -- and, because the drag is declined at fit,
+    // no way to reach the rest.
+    //
+    // THIS TIER AND NOT THE BROWSER, chosen per line: the thing under test is
+    // a computed value written into a style attribute, so all it needs is a
+    // stage box to compute from, and one can simply be DECLARED here. That is
+    // not a fake layout standing in for a real one -- `stageBox()` is the only
+    // thing in this file that measures, everything downstream of it is
+    // arithmetic, and handing it the box a browser would report is handing it
+    // its whole input. It also puts the check beside `lightboxFitSize`'s own
+    // value-by-value pins, which is where a reader looking for "how is the fit
+    // wired?" will be.
+    //
+    // The clamp and the hairline went to the browser tier instead, and their
+    // sub-checks there say why.
+    await test("the frame is SIZED to the fitted box on every apply — the " +
+      "whole sheet inside the stage, not its own 1374x1566 in an 846px " +
+      "window with the drag declined at fit", function () {
+        var entry = datasheetEntry();
+        var handle = null;
+        var root = render(function (r) {
+          handle = VA.renderLightbox(r, entry, { url: "blob:x" }, VA.CONFIG);
+        });
+        // Nothing measured yet, and that is the shipped behaviour rather than
+        // a gap: with no layout `stageBox()` is null, and apply() leaves the
+        // stylesheet's own sizing standing instead of writing a guess.
+        // Falsy rather than `""`: this suite runs in both the DOM shim and a
+        // real browser (test.html), and an unset style property is `undefined`
+        // in the shim and `""` in the browser.
+        ok(!handle.figure.style.width,
+           "an unmeasurable stage must leave the frame unsized, got " +
+           JSON.stringify(handle.figure.style.width));
+        // The live stage at 1600x1000, as the browser tier measured it.
+        var stage = { width: 846, height: 776, left: 120, top: 64 };
+        handle.stage.getBoundingClientRect = function () { return stage; };
+        handle.apply();
+        var fit = VA.lightboxFitSize(entry, stage);
+        eq(handle.figure.style.width, Math.round(fit.width) + "px");
+        eq(handle.figure.style.height, Math.round(fit.height) + "px");
+        // ...and what that size MEANS, stated against the stage rather than
+        // against the function that produced it: the whole picture is on
+        // screen. This is the claim "it opens at FIT" was supposed to be —
+        // the sub-check carrying that name in the browser suite asserted
+        // `scale === 1`, which is true of the unsized state too, because
+        // nothing about the frame's pixel size reaches `scale`.
+        ok(fit.width <= stage.width + 1 && fit.height <= stage.height + 1,
+           "the fitted frame must be inside the stage, got " +
+           fit.width + "x" + fit.height + " in " +
+           stage.width + "x" + stage.height);
+        // The crop is 1374x1566 and the stage is 846x776, so an unsized frame
+        // really would overflow -- the witness that this stage is a squeeze
+        // and the check is not passing on a picture that happened to fit.
+        ok(entry.width > stage.width && entry.height > stage.height,
+           "the fixture crop must be bigger than the stage, or there is " +
+           "nothing for the fit to do");
+      });
+
     // --- the zoom/pan arithmetic, value by value ----------------------------
 
     await test("the crop is FITTED to the stage at scale 1 — the whole sheet " +
