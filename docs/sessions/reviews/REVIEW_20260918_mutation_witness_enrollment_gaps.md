@@ -31,6 +31,24 @@ Merged `handoff/mutation_witness_enrollment_gaps` into
 `node_modules` came from a directory junction to the main checkout, per the
 lesson's §6; **removed before finishing.**
 
+### The new rule, applied to this review
+
+`integration` moved twice while I worked (`dbdb701` → `a22163e`, two board
+commits staging other handoffs to `active/`). I merged it into this review
+branch — a **true merge commit**, not a fast-forward — and did what the item
+this handoff just added says to do:
+
+| after the merge | |
+|---|---|
+| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | **64/64** — no drop |
+| `pytest -q` | 1206 passed, same single worktree red |
+
+The mechanical trigger would have excused the run: the merge touched only
+`docs/sessions/`, which `SHADOWED` does not name. I ran the full tier anyway,
+because this is the rule's first application and a checklist item's first
+evidence should not be an exemption. ~13 minutes, found nothing — the expected
+outcome, and the honest cost to record beside the rule.
+
 ## The tier, entry by entry — the definition of done, met
 
 64/64 is the headline, but the number that matters is that each of the **ten
@@ -209,7 +227,12 @@ Three edits to `docs/prompts/REVIEW_AGENT.md`, all committed on this branch:
   loosely and the expensive one compares it exactly."*
 - **Refined:** the existing "copy `node_modules` into your review worktree"
   entry now offers the junction, with the reparse-point warning that makes
-  removing it mandatory rather than tidy.
+  removing it mandatory rather than tidy — **and says to remove it after your
+  LAST tier run, not when you write the report.** I removed it early here, and
+  the post-merge re-run the new item sends you back for started reporting every
+  browser entry as `already red with NO mutation applied` — which looks exactly
+  like the regression you are re-running to find. The two new items interact;
+  now they say so.
 
 ## For the next reviewer
 

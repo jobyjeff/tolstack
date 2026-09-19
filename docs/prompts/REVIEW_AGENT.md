@@ -3589,6 +3589,12 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       that is not tidiness: a junction is a reparse point outside git's view,
       and a recursive delete that follows one takes the MAIN checkout's
       `node_modules` with it — dispatch removes your worktree at Complete.
+      **After your LAST tier run, not when you write the report** — the
+      review-merge item above sends you back for one more, and a mutation tier
+      run without `node_modules` reports every browser entry as
+      `the tier is already red with NO mutation applied`, which looks exactly
+      like the regression you were re-running to find (2026-09-18, done by the
+      reviewer who wrote this line).
 
 - [ ] **A diff that widens a tree the repo COPIES has to be re-tested with the
       copy on disk, and a fresh clone cannot reproduce the failure.** New
