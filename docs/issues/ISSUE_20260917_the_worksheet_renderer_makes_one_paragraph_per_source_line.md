@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 found_by: docs/sessions/HANDOFF_20260916_design_pass_typography.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `reader_facing_surfaces_second_pass` moved to completed/; not independently verified.
 ---
 
 # The worksheet renderer makes one `<p>` per source LINE, so a hard-wrapped paragraph reads as a column of fragments — and `**bold**` across a wrap is not parsed

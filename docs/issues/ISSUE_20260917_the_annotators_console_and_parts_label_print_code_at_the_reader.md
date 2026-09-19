@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/annotate
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 found_by: docs/sessions/HANDOFF_20260916_design_pass_typography.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `reader_facing_surfaces_second_pass` moved to completed/; not independently verified.
 ---
 
 # The annotator prints a command line, a JS module path and a repo folder path at the reader, on the two surfaces that are always visible

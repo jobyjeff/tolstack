@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 found_by: docs/sessions/HANDOFF_20260916_design_pass_typography.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `reader_facing_surfaces_second_pass` moved to completed/; not independently verified.
 ---
 
 # One materials row is 750px tall, because its source column is the composite cell the elements table already retired

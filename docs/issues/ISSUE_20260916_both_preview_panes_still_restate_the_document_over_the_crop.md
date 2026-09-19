@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 found_by: docs/sessions/HANDOFF_20260916_viewer_hover_deslop_and_banner_purge.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `reader_facing_surfaces_second_pass` moved to completed/; not independently verified.
 ---
 
 # Both preview panes still restate the document the crop came from, one line under the citation that already named it
