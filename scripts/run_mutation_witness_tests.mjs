@@ -22,7 +22,9 @@
 // `--repo` is the worktree escape hatch, same as the tiers below it:
 // data/projections/viewer/ lives only in the MAIN checkout, and the `[real]`
 // witnesses are skipped -- and so reported as misses -- without it. It is
-// passed straight through to whichever tier a mutation names.
+// passed straight through to whichever NODE tier a mutation names, and it is
+// also where the `python` tier's venv interpreter is resolved from, for the
+// same reason: venv-win/ is main-checkout-only too.
 //
 // IT DEFAULTS TO THIS TREE, AND THAT DEFAULT IS LOAD-BEARING. Each tier
 // resolves its own data root from the directory the tier's script lives in,
@@ -54,7 +56,8 @@
 //      the entry's claim is about one guard and not about the suite.
 //
 // THE SHADOW TREE. Everything a tier reads (`SHADOWED` below -- `apps/`,
-// `scripts/` and the one tracked table under `docs/`) is copied to
+// `scripts/`, the one tracked table under `docs/`, and `tests/` +
+// `tolerance_stack/` for the pytest tier) is copied to
 // tmp/mutation-witness/ and the copy is what gets patched; this tree is never
 // written to. The shadow
 // has to live INSIDE the repo (tmp/ is gitignored) for one specific reason:
@@ -83,7 +86,18 @@ const TABLE = join(HERE, "mutation_witnesses.json");
 // anything, 2026-09-16. Narrow rather than all of docs/ on purpose: 194 KB
 // against 5.2 MB, and the next tracked-input directory some tier starts
 // reading should have to be named here, where the reason can be written down.
-const SHADOWED = [["apps"], ["scripts"], ["docs", "topologies"]];
+//
+// tests/ and tolerance_stack/ are here for the `python` tier (2026-09-18): a
+// pytest entry runs ONE test file out of the shadow, and `tests/` is a package
+// (tests/__init__.py), so pytest puts the shadow root on sys.path and the test
+// module's own `REPO_ROOT = Path(__file__).parent.parent` resolves to the
+// shadow. Both are what a Python guard reads -- the test file itself, and the
+// package it imports its vocabularies from. A pytest entry may only name a test
+// file that reads what is listed here; one that also reads docs/ or data/ is
+// red before any mutation, which the runner reports as TIER_ALREADY_RED rather
+// than pretending.
+const SHADOWED = [["apps"], ["scripts"], ["docs", "topologies"],
+                  ["tests"], ["tolerance_stack"]];
 
 const argFlag = (name) => {
   const i = process.argv.indexOf(name);
@@ -95,6 +109,23 @@ const DATA_REPO = repoArg === null ? REPO : normalize(repoArg);
 // The one file whose absence makes every `[real]` witness unreachable: both
 // tiers gate their real-data checks on the topology projection resolving.
 const PROJECTION = join(DATA_REPO, "data", "projections", "viewer", "topologies.json");
+// The `python` tier's interpreter, resolved off DATA_REPO rather than REPO for
+// the same reason the projection is: in a worktree the venv exists only in the
+// MAIN checkout, and `--repo` is already the flag that names it. The shadow
+// never holds a venv -- only what SHADOWED copies -- so this is always an
+// out-of-shadow path, and that is fine: pytest is run WITH the shadow as its
+// argument, not from inside an installed tree.
+const PYTHON = join(DATA_REPO, "venv-win", "Scripts", "python.exe");
+// The pytest tier's one forbidden suite. Its harness is the suite that runs
+// THIS table's own pairing module, so an entry naming it would have every
+// mutation "witnessed" by `test_every_anchor_resolves_to_exactly_one_place`
+// going red -- the shadow's copy of the table still declares a `find` the
+// shadow's mutated copy of the file no longer contains. That is the pairing
+// module correctly reporting an applied mutation, not a guard biting, and it
+// would read as coverage for whatever guard the entry claimed.
+// tests/test_mutation_witnesses.py refuses it too; this is the half that does
+// not need a pytest run to say so.
+const SELF_PAIRING_SUITE = "tests/test_mutation_witnesses.py";
 const ONLY = argFlag("--only");
 // `--verbose` prints the mutated run's whole output even when the entry passes.
 // A miss prints it either way -- this is for reading the red a witness actually
@@ -107,7 +138,7 @@ const chosen = ONLY === null ? all : all.filter((m) => m.id.includes(ONLY));
 
 if (process.argv.includes("--list")) {
   for (const m of all) {
-    console.log(`${m.id}\n  tier      ${m.tier}${m.suite ? ` / --only ${JSON.stringify(m.suite)}` : ""}`);
+    console.log(`${m.id}\n  tier      ${m.tier}${m.suite ? ` / ${JSON.stringify(m.suite)}` : ""}`);
     console.log(`  contract  ${m.contract}`);
     console.log(`  mutation  ${m.file}: ${oneLine(m.find)} -> ${oneLine(m.replace)}`);
     console.log(`  must red  ${m.expect_red}\n`);
@@ -161,6 +192,26 @@ const TIER_HARNESS = {
     fail: /^ {4}FAIL sub-check: (.+)$/,
     suites: true,
   },
+  // The pytest tier (2026-09-18). The one row that is not node, and the one
+  // whose `suite` is not a registry key: pytest is handed ONE test file, and
+  // the entry's `suite` IS that file, repo-relative. Scoped rather than a whole
+  // `-m pytest` run for two reasons -- a full suite reads docs/ and data/,
+  // neither of which is in the shadow, and it would include this table's own
+  // pairing module (see SELF_PAIRING_SUITE).
+  //
+  // `expect_red` is therefore a different kind of string here: the TEST
+  // FUNCTION's name, off pytest's `FAILED <file>::<name>` summary line, rather
+  // than a prose sub-check. An exact identifier, which is the better of the two
+  // -- and it is why `tests/test_mutation_witnesses.py` pairs a python entry
+  // against its own suite file instead of against a shared CHECK_SOURCE.
+  python: {
+    // No script: the command is the interpreter plus `-m pytest`. tierCommand
+    // reads this flag rather than sniffing for a null `script`.
+    script: null,
+    interpreter: "python",
+    fail: /^FAILED \S+::(\w+)/,
+    suites: true,
+  },
 };
 
 // WHY AN ENTRY MISSED, in words a reader gets at a glance -- and the reason
@@ -204,18 +255,35 @@ function harnessFor(mutation) {
 
 function tierCommand(mutation) {
   const harness = harnessFor(mutation);
-  // Always passed, to every tier: a tier spawned inside the shadow would
+  if (harness.interpreter === "python") {
+    // No `--repo`: a pytest tier's tree is wherever its test file is, and the
+    // file handed over is the SHADOW's copy -- tests/ is a package, so pytest
+    // puts the shadow root on sys.path and the module's own REPO_ROOT lands in
+    // the shadow with it. `--tb=no` because the only line this file parses is
+    // the `FAILED <file>::<name>` summary one; `-p no:cacheprovider` so a run
+    // leaves no .pytest_cache behind in the shadow it is about to reuse.
+    return {
+      command: PYTHON,
+      args: ["-m", "pytest", "-q", "--tb=no", "-p", "no:cacheprovider",
+             join(SHADOW, ...mutation.suite.split("/"))],
+    };
+  }
+  // Always passed, to every NODE tier: a tier spawned inside the shadow would
   // otherwise resolve its data root to the shadow, which holds no data/ by
   // design. A harness that does not read it ignores it harmlessly -- one code
   // path here is worth more than a per-tier exception, and a harness that
   // learns `--repo` later then works with no change on this side.
-  return [join(SHADOW, ...harness.script), "--repo", DATA_REPO,
-          ...(harness.suites ? ["--only", mutation.suite] : [])];
+  return {
+    command: process.execPath,
+    args: [join(SHADOW, ...harness.script), "--repo", DATA_REPO,
+           ...(harness.suites ? ["--only", mutation.suite] : [])],
+  };
 }
 
 function runTier(mutation) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, tierCommand(mutation),
+    const { command, args } = tierCommand(mutation);
+    const child = spawn(command, args,
       { cwd: SHADOW, stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     child.stdout.on("data", (d) => { out += d; });
@@ -283,6 +351,29 @@ function anchorHits(mutation) {
       (repoArg === null
         ? "That path is this tree; data/projections/viewer/ lives only in the " +
           "MAIN checkout, so pass --repo <main checkout> (or build the projection)."
+        : "That path is the one --repo named.") + "\n");
+  }
+
+  // A table defect, not a witness outcome, so it stops the run rather than
+  // being counted as a miss -- see SELF_PAIRING_SUITE for why it can never be
+  // an honest entry.
+  const reentrant = chosen.filter(
+    (m) => m.tier === "python" && m.suite === SELF_PAIRING_SUITE);
+  if (reentrant.length) {
+    console.log(`REFUSED: ${reentrant.map((m) => m.id).join(", ")} declare ` +
+      `${SELF_PAIRING_SUITE} as their pytest suite. That module is this table's ` +
+      "own pairing half: with a mutation applied to the shadow, its anchor check " +
+      "reddens for EVERY entry, so such a witness reads as coverage while " +
+      "proving nothing. Point the entry at the test file that holds the guard.");
+    process.exitCode = 1;
+    return;
+  }
+  if (chosen.some((m) => m.tier === "python") && !existsSync(PYTHON)) {
+    console.log(`note: no interpreter at ${PYTHON}, so every \`python\` witness ` +
+      "will be reported as a MISS. " +
+      (repoArg === null
+        ? "That path is this tree; venv-win/ lives only in the MAIN checkout, " +
+          "so pass --repo <main checkout>."
         : "That path is the one --repo named.") + "\n");
   }
 
