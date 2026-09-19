@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: apps/viewer
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 found_by: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `reader_facing_surfaces_second_pass` moved to completed/; not independently verified.
 ---
 
 # The materials table says `values_status`, `library_ref` and `materials.json` to the reader — and the new surface guard cannot see it

@@ -1,12 +1,13 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: viewer/copy
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_real_tier_red_and_the_skipping_tier.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `reader_facing_surfaces_second_pass` moved to completed/; not independently verified.
 ---
 
 # The two thermal stacks' joint blocks now shout FILE NOT IDENTIFIED, in a sentence written for a citation
