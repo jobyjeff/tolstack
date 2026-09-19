@@ -1,11 +1,12 @@
 ---
 type: bug
 priority: low
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
 found_by: docs/sessions/reviews/REVIEW_20260917_design_pass_typography.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `visual_rules_nothing_checks` moved to completed/; not independently verified.
 ---
 
 # `tests/debug_typography_pass.mjs` aborts at the stack-table shots in five runs of eight, so its own documented re-take command reaches 5 of 13 surfaces
