@@ -1734,10 +1734,49 @@
     // and this suite runs in both. What is true at every origin is that no
     // class in the block may join the prefix to its suffix with nothing
     // between them.
+    //
+    // A SWEEP NEEDS SOMETHING TO SWEEP, and on 2026-09-18 it briefly had
+    // nothing. Retiring the crop head (VA.PANE_CROP) removed the one node in
+    // this block whose class came from `classPrefix` at every origin, and both
+    // panes' mutation witnesses stopped reddening -- 64/64 to 62/64, caught in
+    // review. Anchoring on `img.detail__crop-img` did not fix it and could not:
+    // that class is a SEPARATE LITERAL the pane hands to VA.cropFigure, so it
+    // proves the test is looking at something, not that it is looking at what
+    // the mutated argument builds. The rule, worth more than the fix: an
+    // anti-vacuity anchor has to be derived from the argument under test.
+    //
+    // So the run is SUPPLIED rather than waited for. `cropsWithRuns` gives the
+    // entry a `run_dir`, which makes VA.runUrl resolve against VA.CONFIG's
+    // drawing-checker base and the links row render at EVERY origin -- a shape
+    // the builder really emits (three live entries carry exactly
+    // `resolved_by: "source_ref_export"` with a run_dir). The sweep keeps its
+    // origin-independence and gains a node to sweep.
+    //
+    // `run_id` rides along with `run_dir` because the builder writes both or
+    // neither; nothing in this block reads it, and a fixture carrying half a
+    // pair is a shape the builder cannot emit.
+    function cropsWithRuns(index) {
+      var copy = JSON.parse(JSON.stringify(index));
+      var touched = 0;
+      ["by_stack", "by_topology"].forEach(function (space) {
+        Object.keys(copy[space] || {}).forEach(function (outer) {
+          Object.keys(copy[space][outer]).forEach(function (inner) {
+            var entry = copy[space][outer][inner];
+            if (entry.status !== "resolved") return;
+            entry.run_dir = "20260723_163810_215197_A.1";
+            entry.run_id = "20260723_163810";
+            touched++;
+          });
+        });
+      });
+      ok(touched > 0, "cropsWithRuns found no resolved entry to give a run to");
+      return copy;
+    }
     await test("the stack pane states its document ONCE, and its crop block " +
       "carries THIS pane's class prefix, separator and all", function () {
       var root = render(function (r) {
-        VA.renderDetail(r, DEMO, "plate", CROPS, { url: "blob:x" }, VA.CONFIG);
+        VA.renderDetail(r, DEMO, "plate", cropsWithRuns(CROPS), { url: "blob:x" },
+          VA.CONFIG);
       });
       // ONE document statement per pane (VA.PANE_CROP, 2026-09-18). The
       // where-line names the document; the picture under it renders no head
@@ -1751,12 +1790,15 @@
       // card's: with the head gone it is the only thing left naming the
       // exported file, which is a different claim from the citation's document.
       eq(all(root, "details.provfold").length, 1);
-      // The prefix is still a prefix, and `detail__crop-img` is the node that
-      // proves it now that the head is gone. NOT `detail__crop-links`: that
-      // node renders only where this origin can follow a link, so an
-      // anti-vacuity anchor on it passes over file:// and fails over http --
-      // measured, in the browser tier, the first time this test was rewritten.
-      eq(all(root, "img.detail__crop-img").length, 1);
+      // THE ANCHOR THE SWEEP NEEDS, and the only node left whose class the
+      // mutated argument builds: the links row, present at every origin here
+      // because `cropsWithRuns` gave the entry a run to link to. Drop the
+      // separator from `classPrefix` and this selector misses while
+      // `detail__croplinks` appears -- which is what the two halves below
+      // assert between them.
+      eq(all(root, "div.detail__crop-links").length, 1,
+         "nothing in this block is built from `classPrefix` any more, so the " +
+         "sweep below has nothing to sweep and the witness is dead");
       eq(unseparatedPrefixes(root), [],
          "the prefix lost its separator: the block renders unstyled");
     });
@@ -8590,6 +8632,14 @@
       function () {
         var root = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
+            crops: cropsWithRuns(TOPOCROPS),
+            // `topoCtx` leaves `config` undefined, which most of this pane's
+            // tests want -- but VA.runUrl needs the drawing-checker base to
+            // build a link, and without a link there is no links row and
+            // nothing built from `classPrefix` for the sweep to see. Over
+            // file:// VA.localFileUrl supplied one and hid the gap; the
+            // browser tier's http run is what said so.
+            config: VA.CONFIG,
             selection: { kind: "edge", id: "base_thickness" },
             detailImage: { url: "blob:x", name: "x.png" } }));
         });
@@ -8598,9 +8648,12 @@
         eq(all(root, "div.detail__crop-head").length, 0,
            "the crop head restates the citation's where-line above it");
         eq(all(root, "details.provfold").length, 1);
-        // See the stack pane's twin above on why this is the image and not
-        // the links node.
-        eq(all(root, "img.detail__crop-img").length, 1);
+        // Same anchor as the stack pane's twin above, for the same reason:
+        // the links row is the only node this pane builds from `classPrefix`
+        // once the head is gone, and `cropsWithRuns` makes it render here too.
+        eq(all(root, "div.detail__crop-links").length, 1,
+           "nothing in this block is built from `classPrefix` any more, so the " +
+           "sweep below has nothing to sweep and the witness is dead");
         eq(unseparatedPrefixes(root), [],
            "the prefix lost its separator: the block renders unstyled");
       });

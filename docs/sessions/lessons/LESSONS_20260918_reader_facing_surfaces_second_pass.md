@@ -12,7 +12,51 @@ C:/workspace/tolstack` **22/22**.
 `PYTHONIOENCODING=utf-8 venv-win/Scripts/python.exe -m pytest -q` **1203
 passed, 1 failed** — `test_viewer_js_suite_is_green`, which is red in any
 worktree by design since 2026-09-18 and is red at the branch point too.
-Mutation-witness tier: the two entries I re-pointed both re-witnessed.
+Mutation-witness tier: **54/54 on this branch after the rework** (54 entries
+here; review measured the MERGE, which carries
+`mutation_witness_enrollment_gaps`' rows too, at 64). See the correction
+immediately below — the first time round two of them were dead and this line
+said the opposite.
+
+## A CORRECTION, first, because the first version of this file got it wrong
+
+The first pass of this handoff said *"the two entries I re-pointed both
+re-witnessed"*. **They did not.** Review measured **64/64 → 62/64** on the
+merge, reproduced it in both directions, and sent the branch back.
+
+What happened, and it is the most transferable thing in this session:
+
+* `VA.PANE_CROP = { omitHead: true }` stops `VA.cropReference` appending
+  `div.detail__crop-head`.
+* That head was **the only node in the block whose class was built from the
+  `classPrefix` argument at every origin.** The links row renders only where
+  the origin can follow a link; `detail__crop-img` is a *separate literal* the
+  pane hands to `VA.cropFigure`, not derived from `classPrefix` at all.
+* So `unseparatedPrefixes(root)` had nothing left to sweep, and the two
+  witnesses — whose mutation is exactly `"detail__crop-"` → `"detail__crop"`
+  — stopped reddening. The suite stayed 466/466 with the mutation applied.
+* **I re-anchored on `img.detail__crop-img` and that did not fix it and could
+  not have.** It proved the test was looking at *something*; it did not prove
+  the test was looking at what the mutated argument builds. I ran the two
+  entries with `--only` after re-pointing them, saw WITNESSED, and wrote the
+  claim — but that run was *before* the re-anchor, on the version where the
+  head-absence assertion was not yet in place. **Re-running a witness before
+  the last edit that touches its test is the same as not running it.**
+
+**The rule, stated generally, because it is bigger than this fix:**
+
+> An anti-vacuity anchor has to be **derived from the argument under test**,
+> not merely present in the same subtree. And a fix that SUPPRESSES a node
+> takes every guard standing on that node with it — grep the suppressed
+> selector across `tests.js`, `run_viewer_browser_tests.mjs` and
+> `mutation_witnesses.json` *before* accepting an `omitX`.
+
+The fix in the rework: `cropsWithRuns(index)` in `tests.js` gives the crop
+entry a `run_dir`, so `VA.runUrl` resolves against `VA.CONFIG`'s
+drawing-checker base and `div.detail__crop-links` — which *is* built from
+`classPrefix` — renders at every origin. The sweep keeps its
+origin-independence and gains a node. Both entries WITNESSED again, run
+individually and in the full tier.
 
 ---
 
@@ -241,16 +285,33 @@ consequences worth knowing:
   cleared it on the second attempt. If the witness tier dies at "building the
   shadow tree", delete `tmp/mutation-witness` by hand and re-run.
 
-### An anti-vacuity anchor can be origin-dependent
+### An anti-vacuity anchor has to be BOTH derived from the argument AND origin-independent — and I got each one wrong in turn
 
-The two crop-prefix tests used the existence of `div.detail__crop-head` to prove
-the scan was looking at something. With the head gone I re-anchored them on
-`div.detail__crop-links` — which passed the node tier and the `file://` browser
-suite and **failed the http browser suite**, because `VA.localFileUrl` returns
-nothing on a served origin and `VA.runUrl` needs a configured drawing-checker,
-so the links node does not render there at all. `img.detail__crop-img` is the
-origin-independent anchor. General form: **an anti-vacuity anchor must be a node
-that exists on every tier the test runs on**, and this suite runs on three.
+This is the correction at the top, told as the sequence it actually was,
+because the two constraints pull in opposite directions and I traded one for
+the other twice before holding both.
+
+1. The tests anchored on `div.detail__crop-head`. `VA.PANE_CROP` deleted it.
+2. I re-anchored on `div.detail__crop-links` — **derived from the argument**,
+   and the node tier and the `file://` browser suite passed. The **http**
+   browser suite failed: `VA.localFileUrl` withholds a link from a served
+   origin, so with no run to link to there is no links row at all.
+3. I re-anchored on `img.detail__crop-img` — **origin-independent**, green
+   everywhere, and *worthless*: that class is a separate literal the pane
+   hands to `VA.cropFigure`, so it is not built from `classPrefix` and the
+   witness stayed dead. Review caught it; nothing in the suite could.
+4. The answer is to stop choosing. Keep the links row as the anchor and
+   **make it render at every origin** — `cropsWithRuns` supplies a `run_dir`
+   so `VA.runUrl` resolves, and the topology pane's ctx gets `config:
+   VA.CONFIG`, which `topoCtx` leaves undefined and which the http run is
+   what exposed (the stack pane already had one, so it passed while its twin
+   did not).
+
+**Both constraints, stated once:** an anti-vacuity anchor must be *derived
+from the argument under test* and must *exist on every tier the test runs on*
+— and this suite runs on three. Where a real surface only sometimes builds
+that node, supply the input that makes it build, rather than anchoring on a
+node that is always there and proves nothing.
 
 ### Re-taking a "before" measurement after the fact
 
@@ -264,10 +325,19 @@ this file are all measured rather than reconstructed.
 
 ---
 
-## For `mutation_witness_enrollment_gaps` — the guards this session added
+## The guards this session added — an enrolment spec with no owner
 
-The handoff asks these be named so the parallel handoff can enroll them. All
-are new and none is enrolled.
+The handoff asked these be named so `mutation_witness_enrollment_gaps` could
+enroll them. **That handoff reached `completed/` and merged the same day**
+(`0b849fa`, `62fd404`), so the table below has nobody waiting for it; review
+filed
+`ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md`
+and told me to leave the table as it stands. It is the enrolment spec — the
+mutation for each row is most of the work of writing the entry — and it is
+here rather than in `scripts/mutation_witnesses.json` because the handoff
+fenced that file.
+
+All are new and none is enrolled.
 
 **`apps/viewer/tests.js`:**
 
@@ -303,9 +373,15 @@ quietly: my `VA.PANE_CROP` argument rotted the `find`/`replace` anchors of
 `stack-pane-crop-block-keeps-its-prefix` and
 `topology-pane-crop-block-keeps-its-prefix`, and reworded the sub-check names
 their `expect_red` names, so `tests/test_mutation_witnesses.py` went red in
-pytest. The repair is six string fields in two entries, no structural change,
-and both re-witness. **That is the merge to watch** if
-`mutation_witness_enrollment_gaps` also edits that file.
+pytest. The repair is six string fields in two entries, no structural change.
+
+**Re-pointing them was not enough, and that was this branch's blocker** — see
+the correction at the top: an anchor that still RESOLVES can still be watching
+a guard that no longer bites. Both entries are WITNESSED again after the
+rework, run individually with `--only` and in the full tier, on the version of
+`tests.js` that ships. Review confirmed the merge into `integration` is clean
+against `mutation_witness_enrollment_gaps`' own edits to that file (different
+regions), so there is no conflict left to watch.
 
 ---
 
@@ -324,6 +400,14 @@ Three things, all filed rather than left here:
   — the question the original issue asked and this handoff did not answer:
   should a dev console be always-on chrome in a reader's 3D view at all.
   `audience: strategy`.
+
+Review filed two more against this work, neither needing a change here:
+`ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md`
+(`mutation_witness_enrollment_gaps` reached `completed/` and merged the same
+day, so the table below has no owner — it stands as the enrolment spec) and
+`ISSUE_20260918_the_annotate_js_suite_is_run_by_no_gate.md` (deliverable 4's
+three new checks live in a runner nothing runs — pre-existing, but this work
+just put reader-facing guards there).
 
 Two dead classes went with the composite cell: `el-row__srcnote` and
 `el-row__callout` are rendered by nothing now (the material pane uses the
@@ -356,6 +440,15 @@ node tests/debug_reader_facing_second_pass.mjs --repo C:/workspace/tolstack \
 | annotator placeholder | `command, e.g. isolate machined_213668 (window.AnnotateApp.exec)` | `command`, with the 15 verbs on its title |
 | annotator parts label | `parts (data/meshes/)` | `parts with a 3D model` |
 | viewer topbar subtitle | `read-only · renders data/projections/viewer/ · computes nothing` | `read-only · renders the built projections · computes nothing` |
+
+**324, where the issue says 294.** The issue measured on 2026-09-17 and the
+document has been edited since; I re-derived both numbers off the live
+`WORKSHEET_hub_bearing_thermal_fit.md` on 2026-09-18 and review re-derived them
+independently (324 → 74, 149 → 168 `<strong>`, zero stray `**`, the rendered
+word stream growing by 6 as asterisks-that-were-text became tags, nothing lost).
+Same reconciliation the row height needs between the issue's 750 and this
+branch's 653, and for the same reason: an issue records what was true the day
+it was filed, and a lesson has to say which number is the current one.
 
 The worksheet's paragraph count is bounded rather than pinned, and the bound is
 computed from the source without the parser: a paragraph can never exceed the

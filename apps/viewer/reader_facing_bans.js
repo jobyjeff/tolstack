@@ -62,9 +62,15 @@
     [/\b\d{8}_\d{6}\b/,
      "a drawing-checker run id -- an internal artifact's address, and a " +
      "shape, so an id nobody has written yet is caught too"],
+    // 24 hex characters, not twelve: the sentence said "twelve" from the day
+    // it was written (viewer_component_names_and_reference_copy) while the
+    // pattern has always required 24, and a failure message that misdescribes
+    // its own rule sends the reader looking for a shorter string than the one
+    // on their page. 24 is the floor because a sha256 is 64 and nothing
+    // shorter in this projection is a checksum.
     [/\b[0-9a-f]{24,}\b/,
-     "a checksum's own digits -- twelve hex characters are not something a " +
-     "reader of this page can do anything with"],
+     "a checksum's own digits -- twenty-four hex characters are not " +
+     "something a reader of this page can do anything with"],
   ];
 
   // A literal OR a shape; returns the string actually FOUND, never the
