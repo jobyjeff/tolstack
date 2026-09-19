@@ -96,7 +96,13 @@ const TABLE = join(HERE, "mutation_witnesses.json");
 // file that reads what is listed here; one that also reads docs/ or data/ is
 // red before any mutation, which the runner reports as TIER_ALREADY_RED rather
 // than pretending.
+// docs/tolerance_stacks/ and docs/spec_library/ are the tracked inputs the
+// pytest entries on tests/test_viewer_crops.py read -- the stack JSON those
+// tests resolve citations out of, and the crop-region registry
+// (tolerance_stack/spec_crop_regions.py's REGISTRY_RELPATH). Named one at a
+// time, same as docs/topologies/ above, rather than copying all of docs/.
 const SHADOWED = [["apps"], ["scripts"], ["docs", "topologies"],
+                  ["docs", "tolerance_stacks"], ["docs", "spec_library"],
                   ["tests"], ["tolerance_stack"]];
 
 const argFlag = (name) => {
