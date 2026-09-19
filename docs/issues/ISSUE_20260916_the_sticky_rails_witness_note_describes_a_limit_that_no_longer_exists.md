@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tests/mutation-witnesses
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 found_by: docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `mutation_witness_enrollment_gaps` moved to completed/; not independently verified.
 ---
 
 # `sticky-rails-hold-a-scrolled-dag`'s note still describes the limit that handoff removed
