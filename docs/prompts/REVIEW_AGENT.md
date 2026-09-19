@@ -1296,10 +1296,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       bands`) that brought `viewer_study_verdicts_and_gaps`,
       `respine_tween_fidelity_round2` and `annotate_hosted_page_posture`
       together. None of the three could have caught it alone. The coverage left
-      `integration` silently, stayed gone four days, and produced three
-      duplicate filings before anyone bisected it
+      `integration` silently
       (`ISSUE_20260916_a_review_merge_is_the_one_place_the_mutation_tier_is_
-      never_re_run.md`).
+      never_re_run.md`). **Corrected in review 2026-09-18:** that issue's
+      "stayed gone for four days and three duplicate filings" is the whole
+      `card-layout` *guard* saga (first filed 2026-09-11), not this regression —
+      `afcbbb4` landed 2026-09-15 22:28 and was bisected and filed at 23:14 the
+      same night, **46 minutes**. Do not quote the four days forward. The
+      argument does not need it: the cost of a merge-only regression is not how
+      long it happened to hide, it is that no branch's green can see it.
       Two practical notes. The `--repo` is not a worktree escape hatch: without
       it every `[real]` witness is skipped and reported as a miss, and the run
       tells you so on its first line. And a **drop** in the witnessed count is
@@ -3577,7 +3582,46 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`REPO` comes from `__dirname`, only `DATA_REPO` follows `--repo`).
       22/22 in ~3 minutes, and it is the only evidence anyone will ever get
       that a rendering change did not break the tier nobody ran. Delete the
-      copy before you finish.
+      copy before you finish. **Cheaper, 2026-09-18:** a directory junction is
+      instant and costs no disk —
+      `New-Item -ItemType Junction -Path <worktree>\node_modules -Target
+      C:\workspace\tolstack\node_modules`. **Remove it before you finish**, and
+      that is not tidiness: a junction is a reparse point outside git's view,
+      and a recursive delete that follows one takes the MAIN checkout's
+      `node_modules` with it — dispatch removes your worktree at Complete.
+
+- [ ] **A diff that widens a tree the repo COPIES has to be re-tested with the
+      copy on disk, and a fresh clone cannot reproduce the failure.** New
+      2026-09-18 (`mutation_witness_enrollment_gaps`). `SHADOWED` in
+      `scripts/run_mutation_witness_tests.mjs` grew from `apps/ scripts/
+      docs/topologies/` to seven directories including `tests/` — and every
+      walker that scans the repo by directory then saw each copied file twice,
+      because the shadow lives at `tmp/` **inside** the repo. Two live guards
+      broke: `pytest -q` died with **35 collection errors** on duplicate module
+      basenames, and `live_documents()` — the corpus walker every claim scan in
+      `tests/test_tolerance_stack.py` shares — went from 92 documents to 105,
+      quietly doubling counts. Both fixed here (`pytest.ini`'s `norecursedirs`,
+      and `tmp` in `_SKIP_DIR_NAMES`), and **both were measured load-bearing in
+      this review** by removing each fix with the shadow present. The reason
+      this is a review checklist item and not just a lesson: `tmp/` is
+      gitignored, so **a green suite in a tree that has never run the tier
+      proves nothing** — the order that finds it is *run the tier, then run
+      pytest*, and the author's green almost certainly came the other way
+      round. Anything that widens a copied tree (this one, or a future one)
+      inherits the whole trap.
+
+- [ ] **A declaration two consumers read, where the cheap one compares it
+      loosely and the expensive one compares it exactly.** New 2026-09-18, same
+      handoff, and it is the shape behind "verified, paste-ready, and wrong".
+      `mutation_witnesses.json`'s `expect_red` is counted as a **substring** by
+      `tests/test_mutation_witnesses.py` (0.6s) and matched for **equality** by
+      the runner (minutes, behind a browser). Two entries were filed with the
+      name deliberately truncated *so that the cheap checker would resolve
+      them*, were called paste-ready, and were a guaranteed `NOT WITNESSED`.
+      The question to ask of any new declared-string field: *what does the
+      slow half compare, and does the fast half compare it the same way?* If
+      not, the fast half needs the extra assertion — which is what
+      `test_no_expect_red_is_a_truncated_check_name` now is.
 
 ## Architectural errors to check
 

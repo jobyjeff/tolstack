@@ -392,8 +392,13 @@ def test_no_expect_red_is_a_truncated_check_name(mutations):
     with their names deliberately cut short, the issue saying so and giving the
     reason (the prefixes sat wholly inside the first of two adjacent string
     literals, so they resolved without ``joined_source``). Both were verified
-    against the pairing helpers by their author AND by a reviewer, both were
-    called paste-ready, and both missed on the first run of the tier.
+    against the pairing helpers by their author, both were called paste-ready,
+    and both missed on the first run of the tier. The sharper version of that,
+    corrected in review: the three entries a *reviewer* also replayed against
+    these helpers (``REVIEW_20260916_js_guards_and_suite_isolation``) all
+    witnessed first time. It was the author-checked-only paste that carried the
+    prefix -- which is the argument for a guard rather than another pair of
+    eyes.
 
     What makes the prefix visible is that a check name is a STRING LITERAL: once
     the ``" + "`` seams are closed, the name's last character is followed by the

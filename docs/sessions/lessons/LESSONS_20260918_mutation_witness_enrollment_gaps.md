@@ -7,6 +7,34 @@ The handoff asked for two numbers the brief
 (`docs/strategy/BRIEF_20260915_mutation_witness_enrollment.md`) does not have.
 Sections 1 and 2 are those numbers. Read them first if that is why you are here.
 
+> **Corrections, review 2026-09-18**
+> (`docs/sessions/reviews/REVIEW_20260918_mutation_witness_enrollment_gaps.md`).
+> Everything checkable in this lesson was re-derived and holds — the 64/64, the
+> ten entries, the zero guards that failed to redden, the six causes in §2, the
+> 35 collection errors in §5. Three things did not:
+>
+> 1. **Two stale notes were corrected, not one** — `sticky-rails-hold-a-scrolled-dag`
+>    (the filed one) and `crop-carries-the-boxes-worth-looking-at`. Commit
+>    `29a6c8e`'s own subject says two; the line above undercounts the work.
+> 2. **§1's "≈45 minutes of agent time, plus one 11-minute unattended run"
+>    double-counts.** The 11m25s tier run is *inside* the window the table
+>    measures (18:41:34 → ~19:25 ≈ 44 minutes total), so the honest split is
+>    **~44 minutes wall clock, ~33 of them active.** The headline the brief
+>    needs survives unchanged: 44/10 ≈ **4 minutes an entry**, which is the
+>    figure §1 already draws.
+> 3. **§4's "replayed by a reviewer" does not hold for the two entries that
+>    missed.** A reviewer did replay three paste-ready entries against the
+>    pairing helpers — `REVIEW_20260916_js_guards_and_suite_isolation.md`, and
+>    all three of *those* witnessed first time. The two that missed came from
+>    `ISSUE_20260916_the_reader_facing_copy_guards_have_no_mutation_witness_entry.md`,
+>    written by the tactical session itself (`80aa021`); the review of that
+>    handoff never mentions the witness table, and no other review touched the
+>    issue before triage. So the entries were author-checked only. The lesson's
+>    conclusion is *strengthened* by this, not weakened: the cheap-checker trap
+>    caught the paste that had **one** pair of eyes on it and not the paste that
+>    had two. (The same "AND by a reviewer" clause is corrected in
+>    `test_no_expect_red_is_a_truncated_check_name`'s docstring.)
+
 ---
 
 ## 1. What one enrollment round actually costs
