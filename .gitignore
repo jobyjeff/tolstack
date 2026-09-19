@@ -99,3 +99,7 @@ data/meshes/*
 .env
 .env.*
 !.env.example
+
+# Suite logs the handoff template tells agents to write at the repo root
+# (ISSUE_20260916_pytest_out_is_not_gitignored_though_every_handoff_tells_agents_to_write_it)
+/pytest.out
