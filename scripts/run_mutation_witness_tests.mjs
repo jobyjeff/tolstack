@@ -55,9 +55,8 @@
 //      other check is reported as a miss, with the names that did fail, because
 //      the entry's claim is about one guard and not about the suite.
 //
-// THE SHADOW TREE. Everything a tier reads (`SHADOWED` below -- `apps/`,
-// `scripts/`, the one tracked table under `docs/`, and `tests/` +
-// `tolerance_stack/` for the pytest tier) is copied to
+// THE SHADOW TREE. Everything a tier reads -- `SHADOWED` below, which is the
+// list, and the only place it is written down -- is copied to
 // tmp/mutation-witness/ and the copy is what gets patched; this tree is never
 // written to. The shadow
 // has to live INSIDE the repo (tmp/ is gitignored) for one specific reason:
@@ -96,6 +95,7 @@ const TABLE = join(HERE, "mutation_witnesses.json");
 // file that reads what is listed here; one that also reads docs/ or data/ is
 // red before any mutation, which the runner reports as TIER_ALREADY_RED rather
 // than pretending.
+//
 // docs/tolerance_stacks/ and docs/spec_library/ are the tracked inputs the
 // pytest entries on tests/test_viewer_crops.py read -- the stack JSON those
 // tests resolve citations out of, and the crop-region registry
