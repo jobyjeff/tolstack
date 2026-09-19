@@ -5,9 +5,14 @@ reviewer: review agent (opus)
 date: 2026-09-18
 verdict: REQUEST CHANGES
 blockers: 1
+rounds: 2
 ---
 
 # REVIEW 2026-09-18 — reader_facing_surfaces_second_pass
+
+> **Two rounds.** Round 1 is below as written. **Round 2 is at the end of
+> this file** — the round-1 blocker is fixed and verified, and a different
+> one arrived with the merge. The verdict in the frontmatter is round 2's.
 
 **REQUEST CHANGES.** One blocker, and it is narrow: the work is good and five
 and a half of the six deliverables are done properly, demonstrated and guarded.
@@ -203,3 +208,159 @@ nothing was left reading the old shape.
 * A directory junction (`New-Item -ItemType Junction`) is enough to get
   `node_modules` into a review worktree for the browser and mutation tiers. I
   removed mine, and the scratch worktree, before finishing.
+
+---
+
+# ROUND 2 — 2026-09-18, after `5420b76`
+
+**REQUEST CHANGES again. One blocker, and it is not the same one.** Round 1's
+blocker is **fixed and verified**; a *different* guard has lost its subject to
+the same class of change, and this one only becomes visible at the merge.
+
+`integration` moved while the rework was in flight — `08855d2` → `c484b8c`,
+carrying `visual_rules_nothing_checks`. I merged that in first, then the rework.
+
+## Round 1's blocker: closed
+
+The fix is better than the one I suggested. Instead of moving the anchor,
+`cropsWithRuns()` **supplies the missing input** — a `run_dir` on the crop entry,
+so `VA.runUrl` resolves and `div.detail__crop-links`, which *is* built from
+`classPrefix`, renders at every origin. The http browser run then exposed a
+second half I had not seen: `topoCtx` leaves `config` undefined, so the topology
+pane could only ever build a link over `file://`; that ctx now gets
+`config: VA.CONFIG`.
+
+Verified three ways:
+
+* **`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` on
+  the merge: 64/64 declared mutations witnessed**, both pane entries named
+  explicitly as WITNESSED;
+* by hand, in a scratch copy of `apps/` (so as not to disturb the running tier's
+  anchors): applying both prefix mutations takes the fast tier to **465/467**,
+  reddening exactly the two checks that own the claim;
+* both annotate guards still bite — restoring the old placeholder reddens *the
+  annotator's own markup…* and *the command box says what it accepts…*.
+
+The lesson now **opens** with the correction and names the root cause, which is
+worth more than the fix and is why I am satisfied it will not recur: *"I ran the
+two entries with `--only` after re-pointing them, saw WITNESSED, and wrote the
+claim — but that run was before the re-anchor… Re-running a witness before the
+last edit that touches its test is the same as not running it."* All round-1 nits
+are addressed, and the screenshots were re-shot on one tree (shot 3's topbar now
+reads *built projections*).
+
+## BLOCKER
+
+### 1. The typography suite's source-note clamp checks lost their subject — 9/9 at `integration`, 7/9 on the merge
+
+**Location:** `scripts/run_viewer_browser_tests.mjs:5677-5705` (sub-checks 5a and
+5b of `typography pass's visual rules (live stack view)`), against this branch's
+deletion of `.el-row__srcnote` from `apps/viewer/views/stack.js`.
+
+```
+[typography pass's visual rules (live stack view)] 7/9 sub-checks passed: FAIL
+    FAIL a row's source note really has more in it than the row shows — the witness…
+    FAIL ...and it is clamped to a PREVIEW of at most three lines…
+22/23 browser checks passed
+```
+
+Measured on both sides, same command, same `--repo`:
+
+* at `c484b8c` (`integration` alone, scratch worktree, `--only typography`):
+  **9/9 PASS**;
+* on this merge: **7/9 FAIL**.
+
+**Why.** The check reads `#stackview .el-row__srcnote:not(.el-row__srcnote--open)`
+and gets `null`, because this work retired the composite source cell: the row's
+note moved to the preview pane, and `.el-row__srcnote` is now rendered by nothing
+— it survives only as a word in a `style.css` comment. The guard is *well*
+written (it fails rather than passing when its subject is absent, which is why we
+are having this conversation at all), but its claim — *a row's note is a preview,
+so it is not the thing setting the row's height* — no longer has an instance,
+because your change satisfied it more completely than the clamp did.
+
+Neither branch can see this alone. `visual_rules_nothing_checks` wrote the guard
+on 2026-09-18 while this branch, cut from `47134d6`, was deleting the node; that
+handoff is merged and closed.
+
+**Why it is yours rather than mine to resolve.** It is the *third* instance of
+round 1's class in this one branch — a guard standing on a node this work removed
+— and the second one nobody swept for. You did the sweep for `detail__crop-head`
+after round 1; `el-row__srcnote` and `el-row__callout` went dead in the same
+commit and were taken out of `VERBATIM_PROSE_CLASSES` and `style.css`, but
+`scripts/run_viewer_browser_tests.mjs` was never grepped. You also hold the
+argument for *why* the row note is gone, which is what the retirement or re-point
+has to be written against.
+
+**I did the sweep for you, so the fix is bounded.** Every selector this branch
+deleted, across all three guard files:
+
+| deleted selector | live guard standing on it |
+|---|---|
+| `el-row__srcnote` | **`run_viewer_browser_tests.mjs:5678`** — the blocker |
+| `el-row__callout`, `mat-row__values`, `mat-row__libref`, `mat-row__desig`, `mat-row__request` | none |
+| `detail__crop-head` | none live; one *prose* mention (see the nit below) |
+
+**Suggested fix, and the choice is the point.** The two remaining clamped
+previews are `hovercard__note` (a hover card) and `el-export__note` (the *pane's*
+export note) — neither sits in a table row, so neither carries the row-height
+argument the check was written for. So I think the honest resolution is to
+**retire the pair with the reason stated in the suite's own comment** — the row
+no longer renders a note at all, and the claim is now carried by `[real] the
+materials ROW keeps only what decides whether to click it` and its elements-table
+twin in the fast tier — and to file an issue so the retirement is visible to
+whoever owns the typography rules. If you think it should be re-pointed instead,
+say to what and why; that is a defensible other answer and it needs to be argued
+rather than assumed. Either way the acceptance test is
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`
+reporting **23/23**.
+
+## Nits
+
+* **`scripts/mutation_witnesses.json:468`** — the `contract` prose on
+  `stack-pane-crop-block-keeps-its-prefix` still describes the pane as rendering
+  *"`detail__crop-head` / `detail__crop-links`"*. The entry itself works (the
+  mutation and `expect_red` are right); the sentence describes a node
+  `VA.PANE_CROP` retired. One line, while you are in the file.
+* **Fixed inline, and saying so:** `apps/viewer/tests.js:1751` claimed
+  `cropsWithRuns`' shape is one *"the builder really emits (three live entries
+  carry exactly `resolved_by: "source_ref_export"` with a run_dir)"*. Recounted
+  against the live `crops.json`: **six** entries carry a `run_dir`, all of them
+  `resolved_by: "source_ref_export"`, across **three** drawing-checker runs and
+  four stacks. The argument is unaffected — the shape is real — but the number was
+  wrong, so I corrected it in place rather than spending a third round on one word.
+* `VA.JOINT_EXPORT_SUBJECT = "joint"` is *not* a twelfth instance of
+  `ISSUE_20260918_va_joint_export_key_is_a_twelfth_hand_copy_of_a_python_constant…`
+  — it is a viewer-internal subject key with no Python twin, paired by the
+  viewer's own `eq(keys.length, 2)` check. Noted because the two constants now sit
+  three lines apart in `views/stack.js` and a future reader will wonder.
+
+## Round 2 tiers, on the merge
+
+| tier | result |
+|---|---|
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | **467/467** |
+| `node apps/annotate/run_tests.cjs` | **84/84** |
+| `PYTHONIOENCODING=utf-8 … -m pytest -q` | **1208 passed, 1 failed** (the by-design worktree `[real]` red) |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | **64/64 witnessed** |
+| `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | **22/23 — the blocker** |
+
+## The merge conflict I resolved, and why it chose what it chose
+
+`docs/prompts/REVIEW_AGENT.md`, merging `integration` (`c484b8c`) into the review
+branch. Both sides **appended** to the end of `## Recurring bugs to check`, at the
+same anchor: `visual_rules_nothing_checks`' review added four entries (skipped
+browser suites counted as green, the unpaired confidence-token list, the
+sibling-habit claim, the re-take-a-screenshot-twice entry) and round 1 of this
+review added one (a fix that suppresses a node takes its guards with it).
+Resolution: **keep both, integration's four first and mine last**, so the newest
+entry sits at the end of the list. Nothing was dropped and no entry was edited — a
+pure append collision, not a disagreement about intent.
+
+## Housekeeping
+
+The scratch worktree at `C:/workspace/tolstack-worktrees/_rev_base2` and both
+`node_modules` junctions are removed, and `tmp/mutation-witness/` is deleted.
+`integration` is untouched at `c484b8c`; the work sits on
+`review/reader_facing_surfaces_second_pass`, which now carries `integration` plus
+the rework plus this report.

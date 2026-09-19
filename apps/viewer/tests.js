@@ -1748,8 +1748,10 @@
     // So the run is SUPPLIED rather than waited for. `cropsWithRuns` gives the
     // entry a `run_dir`, which makes VA.runUrl resolve against VA.CONFIG's
     // drawing-checker base and the links row render at EVERY origin -- a shape
-    // the builder really emits (three live entries carry exactly
-    // `resolved_by: "source_ref_export"` with a run_dir). The sweep keeps its
+    // the builder really emits (SIX live crop entries carry a run_dir, all of
+    // them `resolved_by: "source_ref_export"`, across three drawing-checker
+    // runs and four stacks -- recounted in review 2026-09-18, where this
+    // comment said "three live entries"). The sweep keeps its
     // origin-independence and gains a node to sweep.
     //
     // `run_id` rides along with `run_dir` because the builder writes both or

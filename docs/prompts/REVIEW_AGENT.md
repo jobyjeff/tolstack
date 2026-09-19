@@ -3716,6 +3716,25 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
         could not prove it was looking at the thing `classPrefix` controls. The
         origin-independence question the author did ask (does this node exist on
         all three tiers?) is the second question, not the first.
+      **Second sighting, same branch, round 2 — and it widens the entry twice
+      over.** The same commit that suppressed the crop head also deleted
+      `.el-row__srcnote` with the composite source cell, and
+      `visual_rules_nothing_checks` had — *that same day, on a branch this one
+      could not see* — written a browser sub-check reading
+      `#stackview .el-row__srcnote:not(.el-row__srcnote--open)`. Each branch is
+      green alone; the merge is **9/9 → 7/9** on
+      `typography pass's visual rules (live stack view)`, measured both ways.
+      So: (a) the grep is not optional and it is **three files, not one** — the
+      author swept `tests.js` for the classes it had deleted, took them out of
+      `VERBATIM_PROSE_CLASSES` and `style.css`, and never opened
+      `scripts/run_viewer_browser_tests.mjs`; and (b) a *correctly failing*
+      guard is the good case — that check fails rather than passing when its
+      subject is absent, which is the only reason anyone found out. The
+      resolution is a judgement the author owes an argument for: retire the
+      assertion with its reason written where it lived, or re-point it at a
+      node that still carries the same claim — and a clamp check re-pointed at
+      a node in a *pane* is no longer a claim about a *row's height*, so
+      "re-point it at the nearest surviving selector" is usually the wrong one.
 
 ## Architectural errors to check
 
