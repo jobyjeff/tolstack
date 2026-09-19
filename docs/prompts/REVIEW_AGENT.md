@@ -3629,6 +3629,35 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       not, the fast half needs the extra assertion — which is what
       `test_no_expect_red_is_a_truncated_check_name` now is.
 
+- [ ] **A fix that SUPPRESSES a node takes every guard that was standing on
+      that node with it — and an anti-vacuity anchor has to be derived from the
+      argument under test.** New 2026-09-18
+      (`reader_facing_surfaces_second_pass`), and it is the first time this repo
+      has seen a witness die from a *correct* change to the app rather than from
+      a merge. `VA.PANE_CROP = { omitHead: true }` stops both preview panes
+      rendering `div.detail__crop-head` — which was the only node in the block
+      whose class came from `VA.cropReference`'s `classPrefix` argument at every
+      origin (`-links` renders only where the origin can follow a link;
+      `detail__crop-img` is a separate literal passed to `VA.cropFigure`). The
+      `unseparatedPrefixes()` sweep that guards the separator then had nothing
+      to sweep, and `stack-pane-crop-block-keeps-its-prefix` /
+      `topology-pane-crop-block-keeps-its-prefix` went **WITNESSED at
+      `08855d2` → NOT WITNESSED** on the branch: 64/64 → 62/64, with the
+      author's re-pointed `find` anchors resolving perfectly and the fast tier
+      green **with the mutation applied** (measured, 466/466). Two questions,
+      and the first is the cheap one:
+      - **Before you accept a suppression** (`omitX`, an early return, a node
+        moved to another surface), `grep` the suppressed class/selector across
+        `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs` and
+        `scripts/mutation_witnesses.json`. A guard that only ever saw the app
+        through that node is now vacuous, and it will not say so.
+      - **An anti-vacuity anchor must be a node the mutated argument actually
+        produces**, not merely a node that is present. Re-anchoring on
+        `img.detail__crop-img` proved the test was looking at *something*; it
+        could not prove it was looking at the thing `classPrefix` controls. The
+        origin-independence question the author did ask (does this node exist on
+        all three tiers?) is the second question, not the first.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
