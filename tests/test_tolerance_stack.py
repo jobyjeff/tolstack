@@ -2258,7 +2258,13 @@ def _quoted_spans(text: str) -> list[tuple[int, int]]:
 # scans read it like any other.
 _HISTORICAL_DIRS = ("docs/sessions", "docs/issues", "docs/reference")
 _HISTORICAL_NAMES = {"PROVENANCE.md"}
-_SKIP_DIR_NAMES = {".git", ".dispatch", ".pytest_cache", "__pycache__",
+# `tmp` is the mutation-witness SHADOW TREE (scripts/run_mutation_witness_tests.mjs
+# copies what the tiers read into tmp/mutation-witness/ and patches the copy). Since
+# 2026-09-18 that copy includes tracked docs/ subdirectories, so every document in
+# them was being scanned TWICE -- once live, once as its own shadow -- and every
+# count this corpus feeds was quietly doubled for anyone who had run the tier. It is
+# gitignored, so a fresh clone could never reproduce it.
+_SKIP_DIR_NAMES = {".git", ".dispatch", ".pytest_cache", "__pycache__", "tmp",
                    "node_modules", "venv", "venv-win", ".venv", "storage", "vendor"}
 _SKIP_REL_DIRS = {"data/runs", "data/projections"}   # run output, not documents
 

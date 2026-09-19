@@ -1282,6 +1282,34 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       in a worktree and **341 / 0** in the main checkout. Nothing conflicted. If
       a lesson quotes a suite count and the board ran anything in parallel,
       assume the count is stale and re-derive it in both checkouts.
+- [ ] **After you merge `integration` into your review branch, re-run
+      `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`
+      and report the count in your review.** This is an instruction, not a
+      ritual, and the reason is that **your merge is the only point in the
+      lifecycle where nothing re-runs this tier**. The other three tiers answer
+      *does the app still behave?*; this one answers *would the guards notice if
+      it didn't?*, and it is the only tier whose answer can change **as a result
+      of a merge** while every branch involved is green on its own.
+      Measured: `card-layout-out-of-flow` was WITNESSED at `473106e`, `0b898da`,
+      `f629942` and `0573826`, and **NOT WITNESSED from `afcbbb4` onward** — a
+      review merge (`Merge branch 'integration' into review/pitch_link_known_
+      bands`) that brought `viewer_study_verdicts_and_gaps`,
+      `respine_tween_fidelity_round2` and `annotate_hosted_page_posture`
+      together. None of the three could have caught it alone. The coverage left
+      `integration` silently, stayed gone four days, and produced three
+      duplicate filings before anyone bisected it
+      (`ISSUE_20260916_a_review_merge_is_the_one_place_the_mutation_tier_is_
+      never_re_run.md`).
+      Two practical notes. The `--repo` is not a worktree escape hatch: without
+      it every `[real]` witness is skipped and reported as a miss, and the run
+      tells you so on its first line. And a **drop** in the witnessed count is
+      the finding — a merge that takes the count down is a REQUEST CHANGES on
+      the merge, not on either branch, because the coverage that left is not
+      attributable to one of them. If the full tier is too long for your cycle,
+      the trigger worth stating is mechanical: the tier can only see what the
+      shadow tree holds, and `SHADOWED` in `scripts/run_mutation_witness_tests.mjs`
+      is that list — read it there — so a merge touching nothing it names cannot
+      change the answer.
 - [ ] **A prior review's PASS is a claim, not evidence — re-locate what it says
       it located.** New 2026-08-10 (`fastener_citations_and_confidence`), and it
       is how a *mandatory* check goes vacuous across a whole review chain. Check
@@ -2609,7 +2637,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       onto one line. Each of the three was green alone, so nobody could see it,
       and a review merge is the one place the mutation tier is not re-run.
       `ISSUE_20260915_the_card_layout_out_of_flow_mutation_witness_stopped_
-      witnessing_on_integration.md`. The tell is the same one this block keeps
+      witnessing_on_integration.md`. **That is now a standing instruction** —
+      re-run the tier after your own merge into the review branch and report the
+      count; see the checklist item above on the sibling merge, which carries
+      the bisect and what a dropped count means. The tell is the same one this block keeps
       producing: the tier goes red as `ERROR: locator.hover: Timeout`, a
       symptom with no name attached, rather than on the check that owns the
       claim.
