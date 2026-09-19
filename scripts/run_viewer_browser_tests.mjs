@@ -5698,9 +5698,10 @@ async function testTypographyRules(browser, label, realProjection) {
     // be a new claim wearing an old sentence. What the rule is about is how
     // TALL a data row is — and that is measurable directly, and only here:
     // the fast tier has a DOM shim and no layout at all, so its structural
-    // twin (`[real] the materials ROW keeps only what decides whether to
-    // click it`) can say the pane's nodes are absent from the row but cannot
-    // say the row is short.
+    // twin (`the materials ROW keeps only what decides whether to click it`,
+    // a fixture check -- the `[real]` twin beside it is `the live material
+    // entries show the provenance of their CTE`) can say the pane's nodes are
+    // absent from the row but cannot say the row is short.
     //
     // THE NUMBERS THIS STANDS ON, measured on this stack at this viewport:
     // before the retirement the first materials row was 653px (750px before

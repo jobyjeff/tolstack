@@ -112,9 +112,10 @@ reddens the claim; a material pane that renders nothing reddens the witness
 (313 characters on the row against 260 in the pane).
 
 That check can only live in the browser tier — the fast tier runs against a
-DOM shim with no layout at all, so its structural twin (`[real] the materials
-ROW keeps only what decides whether to click it`) can say the pane's nodes are
-absent from the row and cannot say the row is short. Filed as
+DOM shim with no layout at all, so its structural twin (`the materials ROW
+keeps only what decides whether to click it`, a fixture check; the `[real]` one
+beside it is `the live material entries show the provenance of their CTE`) can
+say the pane's nodes are absent from the row and cannot say the row is short. Filed as
 `ISSUE_20260918_the_source_note_clamp_checks_lost_their_subject_when_the_composite_source_cell_was_retired.md`
 so the substitution is visible to whoever owns the typography rules, and
 because the factor of two is a judgement somebody should get to revisit.

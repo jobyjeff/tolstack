@@ -3,16 +3,18 @@ type: review
 handoff: docs/sessions/active/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 reviewer: review agent (opus)
 date: 2026-09-18
-verdict: REQUEST CHANGES
-blockers: 1
-rounds: 2
+verdict: APPROVE
+blockers: 0
+rounds: 3
 ---
 
 # REVIEW 2026-09-18 — reader_facing_surfaces_second_pass
 
-> **Two rounds.** Round 1 is below as written. **Round 2 is at the end of
-> this file** — the round-1 blocker is fixed and verified, and a different
-> one arrived with the merge. The verdict in the frontmatter is round 2's.
+> **Three rounds, and the verdict is round 3: APPROVE.** Rounds 1 and 2 are
+> below as written, each with a blocker the next round closed; **round 3 is at
+> the end of this file.** Both blockers were the same defect one selector
+> apart — a guard standing on a node this work correctly removed — and neither
+> was visible from inside the branch.
 
 **REQUEST CHANGES.** One blocker, and it is narrow: the work is good and five
 and a half of the six deliverables are done properly, demonstrated and guarded.
@@ -364,3 +366,103 @@ The scratch worktree at `C:/workspace/tolstack-worktrees/_rev_base2` and both
 `integration` is untouched at `c484b8c`; the work sits on
 `review/reader_facing_surfaces_second_pass`, which now carries `integration` plus
 the rework plus this report.
+
+---
+
+# ROUND 3 — 2026-09-18, after `45eaa58` — **APPROVE**
+
+**APPROVE, merged into `integration`.** Round 2's blocker is fixed, and fixed by
+the harder of the two available answers rather than the cheaper one.
+
+## Round 2's blocker: closed, by substitution rather than re-point
+
+Rule 5 of `typography pass's visual rules (live stack view)` no longer looks for
+`.el-row__srcnote`. It asserts **the outcome the clamp was a mechanism for**:
+
+* **the witness** — selecting a materials row puts *more* of its sourcing in the
+  preview pane than the row itself carries, so a row that got short by having its
+  argument *deleted* fails where one that got short by having it *moved* passes;
+* **the claim** — no materials row is more than twice the tallest elements row.
+
+That is the right call and the reasoning is stated where it happened (the suite's
+own comment, the lesson, and a filed issue): the two clamped previews left,
+`hovercard__note` and `el-export__note`, are not in a table row, so re-pointing at
+either would have been *"a new claim wearing an old sentence"*. The fast tier
+cannot hold this — its DOM shim has no layout — so the browser tier is the only
+place it can live, which is argued rather than asserted.
+
+**I planted both halves myself rather than taking the claim:**
+
+| plant | result |
+|---|---|
+| put three of the pane's lines back into `materialSourcingCell` | `tallest elements row 112px, tallest materials row 548px (4.9x)` — **the claim reddens** |
+| make `renderMaterial` render nothing, so the pane falls through to its prompt | `313 characters on the row and 260 in the pane` — **the witness reddens** |
+
+The author's own figure for the second plant — *"313 characters on the row against
+260 in the pane"* — reproduces exactly: the pane's "Select a row in the tables on
+the left…" fallback is **260 characters**, which is a better plant than mine (mine
+emptied the pane to 0) because it is the realistic failure. Their 5.3x against my
+4.9x is two different plants of the same shape, not a disagreement.
+
+One more thing worth recording: with no materials rows at all, the claim **fails**
+rather than passing vacuously (`rowHeights.mat.length > 0 &&` is inside the
+condition, not guarding it). That is the right posture and it is the third time in
+this review that a guard's behaviour-when-its-subject-is-absent decided whether
+anyone found out.
+
+## All tiers green, on the tree that merged
+
+| tier | result |
+|---|---|
+| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | **467/467** |
+| `node apps/annotate/run_tests.cjs` | **84/84** |
+| `PYTHONIOENCODING=utf-8 … -m pytest -q` | **1208 passed, 1 failed** — `test_viewer_js_suite_is_green`, the by-design worktree `[real]` red, whose message is entirely about the missing projection path |
+| `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | **23/23** (re-run after my own comment edit, so the green is the tree that shipped) |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | **64/64 witnessed**, both pane entries named |
+
+## Fixed inline in round 3, declared
+
+Both citations of the fast-tier twin carried a `[real]` prefix the check does not
+have — `the materials ROW keeps only what decides whether to click it` is a
+fixture check; the `[real]` one beside it is `the live material entries show the
+provenance of their CTE`. Corrected in `scripts/run_viewer_browser_tests.mjs`'s
+rule-5 comment and in the lesson. A name that does not resolve is the cheapest
+kind of wrong fact to leave in a document that explains a substitution.
+
+## The second merge conflict, and why it chose what it chose
+
+`apps/viewer/tests.js`, merging the round-2 rework. Both sides had corrected the
+same stale sentence — my round-2 inline fix of the `run_dir` count against the
+author's own fix of it. **Took the branch's side**, per the carve-out's rule for
+the work under review: the two are equivalent on the number (six entries, three
+runs, four stacks) and theirs additionally says where the stale "three" came from
+(it was the count of distinct runs). Nothing else in the file conflicted.
+
+## What is left open, and who owns it after this merge
+
+Three issues, all filed and none blocking:
+
+* `ISSUE_20260918_the_source_note_clamp_checks_lost_their_subject_when_the_composite_source_cell_was_retired.md`
+  — the author's, so the substitution reaches whoever owns the typography rules,
+  and because the factor of two is a bar somebody should revisit;
+* `ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md`
+  — the thirteen guards this handoff wrote, whose enrolling handoff merged the
+  same day. The lesson's table is the enrolment spec;
+* `ISSUE_20260918_the_annotate_js_suite_is_run_by_no_gate.md` — `apps/annotate/run_tests.cjs`
+  is run by no pytest wrapper, no npm script and no line in `CLAUDE.md`.
+
+Plus the three the handoff itself filed (forge's copy of the markdown defect, the
+annotator's runtime copy being unscanned, and whether a dev console belongs in a
+reader's chrome at all).
+
+## Verdict
+
+**APPROVE.** Six deliverables, all demonstrated on live data, all guarded, and —
+after two loops — the guards are demonstrably *awake*: 64/64 witnessed, 23/23 in
+the browser, and every new check in this branch observed failing on its own
+mutation, by me, on the merged tree. Merged into `integration` and pushed.
+
+What this review is actually worth recording is in the lesson's own opening, not
+here: **three nodes were removed and a guard stood on two of them**, neither
+visible from inside the branch — the first needed the mutation tier, the second
+needed `integration` merged in. The overlay now carries both sightings.
