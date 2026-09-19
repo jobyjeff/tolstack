@@ -99,6 +99,37 @@ async function shotOf(page, name, selector) {
   console.log(`    wrote ${file}`);
 }
 
+// The pane (#detail) is a full-height scroll container: an element screenshot
+// of it is 10634px of mostly-empty column, which says nothing. Its VISIBLE box,
+// clamped to the viewport, is what a reader sees.
+async function shotVisible(page, name, selector) {
+  if (!SHOTS) return;
+  const file = join(SHOTS, `${PREFIX}_${name}_${PHASE}.png`);
+  // Back to the top first. The pane's content sits at the TOP of a
+  // full-height container, so a page still scrolled to wherever the last
+  // measurement looked (the materials table, half a screen down) clips an
+  // empty column -- which is what the first take of this shot was.
+  await page.evaluate((sel) => {
+    window.scrollTo(0, 0);
+    const node = document.querySelector(sel);
+    if (node) node.scrollTop = 0;
+  }, selector);
+  await page.waitForTimeout(80);
+  const size = page.viewportSize();
+  const b = await page.locator(selector).first().boundingBox();
+  const x = Math.max(0, b.x - 8);
+  const y = Math.max(0, b.y - 8);
+  await page.screenshot({
+    path: file,
+    clip: {
+      x, y,
+      width: Math.min(b.width + 16, size.width - x),
+      height: Math.min(b.height + 16, size.height - y),
+    },
+  });
+  console.log(`    wrote ${file}`);
+}
+
 async function parkPointer(page) {
   await page.keyboard.press("Escape");
   await page.mouse.move(2, 2);
@@ -159,7 +190,7 @@ try {
     return d ? d.textContent.replace(/\s+/g, " ").trim().slice(0, 400) : null;
   });
   say(`pane after clicking the first materials row: ${JSON.stringify(matPane)}`);
-  await shotOf(page, "2_material_pane", "#detail");
+  await shotVisible(page, "2_material_pane", "#detail");
 
   // --- deliverable 6: the joint block's headline ---------------------------
   const joint = await page.evaluate(() => {
@@ -198,7 +229,7 @@ try {
     }));
     say(`stack pane where-line: ${JSON.stringify(stackPane.where)}`);
     say(`stack pane crop head:  ${JSON.stringify(stackPane.head)}`);
-    await shotOf(page, "4_stack_preview_pane", "#detail");
+    await shotVisible(page, "4_stack_preview_pane", "#detail");
   } else {
     say("stack pane: no element on this stack has a resolved crop");
   }
@@ -243,14 +274,21 @@ try {
   // --- deliverable 5b: the DAG preview pane's crop head --------------------
   await page.locator(`[data-nav-kind="study"][data-nav-id="${TOPOLOGY_STUDY}"]`).click();
   await page.waitForSelector("tr.tvrow", { timeout: 20000 });
-  const dagRow = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll("tr.tvrow"));
-    return rows.findIndex((tr) => /214820/.test(tr.textContent));
-  });
-  const pick = dagRow >= 0 ? dagRow : 0;
-  await page.locator("tr.tvrow").nth(pick).click();
-  await page.waitForSelector("#detail .detail__head", { timeout: 10000 });
-  await page.waitForTimeout(350);
+  // The FIRST row whose selection actually resolves a crop -- the head under
+  // the picture is what this deliverable is about, and a row with no crop has
+  // no head either way, which is how the first take of this shot reported
+  // `null` on the unchanged tree and proved nothing.
+  const rowCount = await page.locator("tr.tvrow").count();
+  let picked = -1;
+  for (let i = 0; i < rowCount && picked === -1; i++) {
+    await page.locator("tr.tvrow").nth(i).click();
+    await page.waitForSelector("#detail .detail__head", { timeout: 10000 });
+    await page.waitForTimeout(250);
+    if (await page.locator("#detail .detail__crop--resolved").count()) picked = i;
+  }
+  say(picked === -1
+    ? "DAG pane: no row on this study resolves a crop"
+    : `DAG pane: row ${picked + 1} of ${rowCount} is the first with a resolved crop`);
   await parkPointer(page);
   const dagPane = await page.evaluate(() => ({
     wheres: Array.from(document.querySelectorAll("#detail .detail__where"))
@@ -259,7 +297,7 @@ try {
   }));
   dagPane.wheres.forEach((w, i) => say(`DAG pane where-line ${i + 1}: ${JSON.stringify(w)}`));
   say(`DAG pane crop head:  ${JSON.stringify(dagPane.head)}`);
-  await shotOf(page, "6_dag_preview_pane", "#detail");
+  await shotVisible(page, "6_dag_preview_pane", "#detail");
   await page.close();
 
   // --- deliverable 4: the annotator's two always-visible surfaces ----------
@@ -269,7 +307,7 @@ try {
   await an.waitForSelector("#element-list li.el-row", { timeout: 20000 });
   await an.mouse.move(2, 2);
   const annotate = await an.evaluate(() => {
-    const cmd = document.querySelector("#command");
+    const cmd = document.querySelector("#console-input");
     const labels = Array.from(document.querySelectorAll(".an__panel-label, .an__label, label"))
       .map((n) => n.textContent.replace(/\s+/g, " ").trim()).filter(Boolean);
     return {
@@ -281,7 +319,8 @@ try {
   });
   say(`annotator command placeholder: ${JSON.stringify(annotate.placeholder)}`);
   say(`annotator labels: ${JSON.stringify(annotate.labels)}`);
-  ["data/meshes/", "window.AnnotateApp", "machined_213668", "isolate "].forEach((needle) => {
+  say(`annotator command title:       ${JSON.stringify(annotate.commandTitle)}`);
+  ["data/meshes/", "window.AnnotateApp", "machined_213668"].forEach((needle) => {
     say(`annotator page text contains ${JSON.stringify(needle)}: ` +
         (annotate.pageText.indexOf(needle) !== -1));
   });

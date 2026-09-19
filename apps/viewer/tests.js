@@ -1751,9 +1751,12 @@
       // card's: with the head gone it is the only thing left naming the
       // exported file, which is a different claim from the citation's document.
       eq(all(root, "details.provfold").length, 1);
-      // The prefix is still a prefix: `detail__crop-links` is the node that
-      // proves it now that the head is gone.
-      eq(all(root, "div.detail__crop-links").length, 1);
+      // The prefix is still a prefix, and `detail__crop-img` is the node that
+      // proves it now that the head is gone. NOT `detail__crop-links`: that
+      // node renders only where this origin can follow a link, so an
+      // anti-vacuity anchor on it passes over file:// and fails over http --
+      // measured, in the browser tier, the first time this test was rewritten.
+      eq(all(root, "img.detail__crop-img").length, 1);
       eq(unseparatedPrefixes(root), [],
          "the prefix lost its separator: the block renders unstyled");
     });
@@ -4610,6 +4613,69 @@
         });
         ok(surfaces.length > 10, "the walk must not be vacuous: " + surfaces.length);
       });
+
+    // ...and this page's own MARKUP, which no walk above reaches.
+    //
+    // Every scan in this file renders a JS surface. The copy AROUND those
+    // surfaces -- the topbar, the two dialog headings, the button labels --
+    // is in `topology.html`, and nothing read it: the subtitle on screen at
+    // all times said *"read-only · renders `data/projections/viewer/` ·
+    // computes nothing"*, a repo-relative path into a gitignored directory,
+    // for as long as the page has existed. Found 2026-09-18 by widening the
+    // banned list to reach `apps/annotate/`, whose markup had the same class
+    // of defect twice -- which is the argument for scanning markup at all:
+    // two apps, two static surfaces, three strings, no guard.
+    //
+    // `apps/annotate/run_tests.cjs` has the twin of this check, over its own
+    // index.html, against the same shared list.
+    var markupSrc = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+    if (!markupSrc) {
+      skip("this page's own markup prints no repo path, module path, id or " +
+           "command at the reader",
+           "no VIEWER_SRC injected (browser tier has no filesystem)");
+    } else {
+      await test("this page's own markup prints no repo path, module path, " +
+        "id or command at the reader", function () {
+          ["topology.html", "index.html"].forEach(function (name) {
+            var html = markupSrc.readText(name);
+            ok(html, name + " must be readable");
+            // Comments and <script>/<style> bodies are NOT copy: the argument
+            // for a string belongs beside it, and a scan that read comments
+            // would make writing that argument impossible.
+            var body = html
+              .replace(/<!--[\s\S]*?-->/g, " ")
+              .replace(/<script[\s\S]*?<\/script>/gi, " ")
+              .replace(/<style[\s\S]*?<\/style>/gi, " ")
+              .replace(/<[^>]*>/g, " ");
+            bannedIn(body, name + " body text");
+            var attrs = body_attributes(html);
+            attrs.forEach(function (value, i) {
+              bannedIn(value, name + " attribute #" + (i + 1) +
+                " (" + JSON.stringify(value) + ")");
+            });
+          });
+          // Anti-vacuity: a stripper that returned "" would pass against
+          // anything, and the subtitle is the line this check exists for.
+          var topo = markupSrc.readText("topology.html")
+            .replace(/<!--[\s\S]*?-->/g, " ").replace(/<[^>]*>/g, " ");
+          has(topo, "computes nothing");
+          ok(body_attributes(markupSrc.readText("topology.html")).length > 0,
+             "no reader-facing attributes found -- the extractor has drifted");
+        });
+    }
+
+    // The attributes that are TEXT A READER MEETS, not plumbing. `title` and
+    // `placeholder` are copy -- moving a schema field name into one is hiding
+    // it from a scan, not taking it off the page.
+    function body_attributes(html) {
+      var out = [];
+      var re = /(?:placeholder|title|aria-label|alt)\s*=\s*("([^"]*)"|'([^']*)')/g;
+      var m;
+      while ((m = re.exec(html)) !== null) {
+        out.push(m[2] !== undefined ? m[2] : m[3]);
+      }
+      return out;
+    }
 
     // ...and the branches of that walk no DATA can reach.
     //
@@ -8532,7 +8598,9 @@
         eq(all(root, "div.detail__crop-head").length, 0,
            "the crop head restates the citation's where-line above it");
         eq(all(root, "details.provfold").length, 1);
-        eq(all(root, "div.detail__crop-links").length, 1);
+        // See the stack pane's twin above on why this is the image and not
+        // the links node.
+        eq(all(root, "img.detail__crop-img").length, 1);
         eq(unseparatedPrefixes(root), [],
            "the prefix lost its separator: the block renders unstyled");
       });
