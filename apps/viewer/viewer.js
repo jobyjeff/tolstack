@@ -1318,8 +1318,16 @@
     },
     spec_pile: {
       legacy: false,
+      // "from data/inbox/specs/ by filename" until 2026-09-18. A
+      // repo-relative path into a gitignored directory, in reader-facing
+      // copy -- the same class as the annotator's `parts (data/meshes/)`, and
+      // found the same way, when the banned-string list was widened to reach
+      // both apps. The LIBRARY is what a reader can act on and it already has
+      // a name on this page: VA.IDENTITY_RULES.spec_pile_filename says
+      // "the standard-spec library is only ever added to", and two wordings
+      // for one rule is the drift this repo keeps paying for.
       text: function (e) {
-        return "from data/inbox/specs/ by filename (" +
+        return "from the standard-spec library by filename (" +
           (e.pdf_name || "(the entry names no file)") + ") — " + VA.cropShaText(e);
       },
     },

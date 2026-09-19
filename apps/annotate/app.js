@@ -1129,6 +1129,12 @@ async function main() {
   };
   el.consoleRun.onclick = runConsoleCommand;
   el.consoleInput.onkeydown = (ev) => { if (ev.key === "Enter") runConsoleCommand(); };
+  // What this box accepts, read off the registry every verb was registered
+  // into rather than spelled in the markup (AA.commandHint, commands.js).
+  // Wired HERE, with the rest of the console, so a hosted page that withholds
+  // the console never advertises it: "a control that is about to be withheld
+  // is never wired" -- see main()'s note above.
+  el.consoleInput.setAttribute("title", AA.commandHint(commands.verbs()));
 
   state.scene = new AnnotateScene(el.canvasHost, {
     readMeshManifest: (sha) => state.storage.readMeshManifest(sha),

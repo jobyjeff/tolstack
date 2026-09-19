@@ -236,9 +236,9 @@
       "drawing number and a revision do not identify bytes, because exports get " +
       "written over."));
     list.appendChild(VA.el("li", null,
-      "A spec-pile citation is the deliberate exception: data/inbox/specs/ is " +
-      "append-only, so nothing there is renamed or re-exported over and the " +
-      "filename IS the identity. Those rows say “" +
+      "A spec-pile citation is the deliberate exception: the standard-spec " +
+      "library is append-only, so nothing in it is renamed or re-exported " +
+      "over and the filename IS the identity. Those rows say “" +
       VA.IDENTITY_RULES.spec_pile_filename.headline +
       "” in place of an export block, and `traced` beside no export is correct " +
       "for them and only for them."));

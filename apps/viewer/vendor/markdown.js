@@ -178,6 +178,19 @@
        TABLE_SEP_RE.test(lines[i + 1]));
   }
 
+  // Is lines[i] the wrapped tail of the list item above it?
+  //
+  // INDENTED, deliberately, where CommonMark also allows an unindented "lazy"
+  // continuation. Requiring the indent is the conservative reading: it cannot
+  // swallow a paragraph that follows a list with no blank line between them,
+  // and every hard-wrapped list item in this repo's documents indents its
+  // continuation by two. A line that starts any other block is never a
+  // continuation, however it is indented.
+  function continuesItem(lines, i) {
+    var line = lines[i];
+    return line.trim() !== "" && /^\s/.test(line) && !startsBlock(lines, i);
+  }
+
   // Render a block sequence of already-escaped lines to HTML.
   function renderBlocks(lines) {
     var html = [];
@@ -236,13 +249,28 @@
       // List (unordered/ordered, with nesting by indentation).
       if (LIST_RE.test(line)) {
         var items = [];
-        while (i < lines.length && LIST_RE.test(lines[i])) {
+        while (i < lines.length &&
+               (LIST_RE.test(lines[i]) ||
+                (items.length && continuesItem(lines, i)))) {
           var m = lines[i].match(LIST_RE);
-          items.push({
-            indent: m[1].replace(/\t/g, "    ").length,
-            tag: /\d/.test(m[2]) ? "ol" : "ul",
-            content: m[3],
-          });
+          if (m) {
+            items.push({
+              indent: m[1].replace(/\t/g, "    ").length,
+              tag: /\d/.test(m[2]) ? "ol" : "ul",
+              content: m[3],
+            });
+          } else {
+            // A wrapped item's continuation line, joined into the item it
+            // belongs to (local-v2). The same defect as the paragraph one
+            // above and found by the same guard: a list item hard-wrapped at
+            // ~80 columns had its tail emitted as a separate <p> BELOW the
+            // list, and an emphasis span straddling the wrap was left as
+            // asterisks on the page. Live on
+            // WORKSHEET_hub_bearing_thermal_fit.md ("**Hoop stress, contact
+            // pressure, and whether the interference is survivable or /
+            // sufficient.**").
+            items[items.length - 1].content += "\n" + lines[i].trim();
+          }
           i++;
         }
         html.push(buildList(items, 0).html);

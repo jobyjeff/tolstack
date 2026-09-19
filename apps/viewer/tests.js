@@ -605,7 +605,7 @@
         status: "resolved", resolved_by: "spec_pile",
         pdf_name: "NAS6403-NAS6420 Rev 4.pdf", sha256_verified: null,
         located_by: "sheet_full", note: "whole sheet -- no text layer",
-      }), "from data/inbox/specs/ by filename");
+      }), "from the standard-spec library by filename");
     });
 
     // THE GUARD AGAINST THIS BUG RECURRING. The old code switched on three
@@ -2213,6 +2213,108 @@
       eq(all(plain, "div.mat__libref").length, 0);
     });
 
+    // --- the worksheet's markdown renderer ---------------------------------
+    //
+    // `apps/viewer/vendor/markdown.js` had NO tests in this suite at all until
+    // 2026-09-18, which is how it shipped one <p> per source LINE for as long
+    // as this app has rendered a worksheet. Every `.md` in this repo hard-wraps
+    // at ~80 columns by house convention, so the defect scaled with how well
+    // the source file was written: measured on the live
+    // WORKSHEET_hub_bearing_thermal_fit.md, 324 paragraphs and 38 `**` runs
+    // printed on screen (ISSUE_20260917_the_worksheet_renderer_makes_one_
+    // paragraph_per_source_line).
+    //
+    // The file is VENDORED from forge, and its header now records the
+    // divergence rather than the old instruction to re-copy; these tests are
+    // the other half of that record -- a divergence nothing pins is a
+    // divergence the next re-copy silently reverts.
+
+    await test("a hard-wrapped paragraph is ONE paragraph, and a blank line " +
+      "is what ends it", function () {
+        var html = VA.renderMarkdown(
+          "Stacks A (the current design) and\n" +
+          "B (the as-built configuration that slipped).\n" +
+          "\n" +
+          "Handoff x, 2026-08-05.\n");
+        eq((html.match(/<p>/g) || []).length, 2);
+        has(html, "Stacks A (the current design) and\nB (the as-built");
+        // A soft wrap renders as a newline, not a <br />: the author's wrap is
+        // theirs, and a browser collapses it to the space it stood for.
+        ok(html.indexOf("<br") === -1, "a soft wrap must not become a <br />");
+      });
+
+    await test("emphasis spanning a wrap is parsed, which is what one <p> per " +
+      "line made impossible", function () {
+        // The live case, verbatim in shape: the asterisks were ON SCREEN
+        // because the inline pass never saw the two halves of the span
+        // together.
+        var html = VA.renderMarkdown(
+          "Archetype: docs/tolerance_stacks/ARCHETYPE_thermal_fit.md \u2014 **read that\n" +
+          "first if you are reading a number out of this file.**\n");
+        has(html, "<strong>read that\nfirst if you are reading a number out " +
+            "of this file.</strong>");
+        ok(html.indexOf("**") === -1, "the markup leaked onto the page: " + html);
+      });
+
+    await test("every other block still ends a paragraph, so nothing is " +
+      "swallowed by the run that precedes it", function () {
+        // ONE list of "what starts a block", read by the main loop and by the
+        // paragraph gatherer: two lists that can disagree is how a renderer
+        // eats a heading.
+        [["# Head", "<h1>"], ["- item", "<ul>"], ["1. item", "<ol>"],
+         ["> quoted", "<blockquote>"], ["---", "<hr />"], ["```", "<pre>"],
+        ].forEach(function (pair) {
+          var html = VA.renderMarkdown("a paragraph line\n" + pair[0] + "\n");
+          has(html, "<p>a paragraph line</p>", pair[0]);
+          has(html, pair[1], pair[0]);
+        });
+        // A GFM table is the one that needs its separator row to be visible
+        // from inside the paragraph run.
+        var table = VA.renderMarkdown(
+          "a paragraph line\n| a | b |\n|---|---|\n| 1 | 2 |\n");
+        has(table, "<p>a paragraph line</p>");
+        has(table, "<table>");
+        has(table, "<td>1</td>");
+      });
+
+    await test("a hard-wrapped LIST ITEM is one item, not an item and a " +
+      "paragraph under the list", function () {
+        // The second instance of the same defect, and the [real] guard below
+        // is what found it: the tail of a wrapped bullet was emitted as its
+        // own <p> AFTER the </ul>, and the emphasis span straddling the wrap
+        // was left as asterisks. Live on WORKSHEET_hub_bearing_thermal_fit.md.
+        var html = VA.renderMarkdown(
+          "- **Hoop stress, contact pressure, and whether the interference is\n" +
+          "  survivable.** See the torque caveat below.\n" +
+          "- Surface roughness.\n");
+        eq((html.match(/<li>/g) || []).length, 2);
+        eq((html.match(/<p>/g) || []).length, 0,
+           "the wrapped tail became a paragraph below the list: " + html);
+        // The continuation line is TRIMMED before it is joined: the indent
+        // is the markup that says "continuation", not part of the sentence.
+        has(html, "<strong>Hoop stress, contact pressure, and whether the " +
+            "interference is\nsurvivable.</strong>");
+        // A nested item is still a nested list, not a continuation: LIST_RE
+        // is tested first, so the indent alone never decides.
+        var nested = VA.renderMarkdown("- outer\n  - inner\n");
+        eq((nested.match(/<ul>/g) || []).length, 2);
+        // ...and an UNindented line after a list is still its own paragraph.
+        // CommonMark would lazily continue it; this renderer deliberately does
+        // not, because that reading cannot swallow a paragraph by accident.
+        var loose = VA.renderMarkdown("- item\nnot indented\n");
+        eq((loose.match(/<p>/g) || []).length, 1);
+      });
+
+    await test("the escape-first invariant survives the paragraph change",
+      function () {
+        // The whole source is HTML-escaped BEFORE any block or inline
+        // transform, so no raw user HTML can reach the DOM. Joining lines
+        // happens after that escape and must not undo it.
+        var html = VA.renderMarkdown("<script>alert(1)</script> and\nmore text\n");
+        ok(html.indexOf("<script") === -1, html);
+        has(html, "&lt;script&gt;");
+      });
+
     await test("a declared worksheet says it was declared, not matched by name", function () {
       var root = render(function (r) { VA.renderWorksheet(r, GEN, "# demo\n"); });
       has(all(root, ".worksheet__note")[0].textContent, "provenance.worksheet");
@@ -3811,42 +3913,12 @@
     // that is the only tier that can read what a reader reads: a class-name
     // check passes straight through a wrong sentence.
 
-    // Every string this page must never print, with what each one IS. Not a
-    // style preference -- each is a class of thing a reader cannot act on, and
-    // each had a live instance on 2026-09-15. Shared with the [real] tier
-    // below, which runs the same list over every live topology; internal IDS
-    // are per-topology and are checked there against each topology's own.
-    var BANNED_IN_RENDERED_TEXT = [
-      ["sha256", "an algorithm's name -- nothing a reader can act on"],
-      ["source_ref", "a field name out of the schema"],
-      ["crop_key", "a field name out of the schema"],
-      ["crops.json", "an internal artifact's filename"],
-      // Added 2026-09-18, and the reason it was not here is the finding:
-      // `VA.VALUES_STATUSES.inline.text()` said *"CTE transcribed INLINE in
-      // materials.json"* on every live thermal stack, and no literal in this
-      // list spelled it. It is exactly the class `crops.json` above is -- a
-      // file a reader of this page has no way to open and nothing to do with.
-      ["materials.json", "an internal artifact's filename"],
-      ["C:/", "an absolute workstation path"],
-      ["C:\\", "an absolute workstation path, the other way round"],
-      ["build_viewer_crops.py", "a terminal command for the reader to type"],
-      ["venv-win", "a terminal command for the reader to type"],
-      // SHAPES, not literals (2026-09-16, reader_facing_copy_and_vocabulary
-      // item 7). The eight above are the eight instances that existed on
-      // 2026-09-15; a literal can only ever catch the strings someone has
-      // already written down. A shape catches the ones nobody has written yet,
-      // and that is not hypothetical here: VA.exportRunsLine printed four bare
-      // run ids -- `20260723_163810` and three more -- straight past this list
-      // for as long as it has existed, because no literal in it spells a run
-      // id and nothing could (ISSUE_20260916_the_element_pane_still_prints_
-      // bare_drawing_checker_run_ids_as_link_text).
-      [/\b\d{8}_\d{6}\b/,
-       "a drawing-checker run id -- an internal artifact's address, and a " +
-       "shape, so an id nobody has written yet is caught too"],
-      [/\b[0-9a-f]{24,}\b/,
-       "a checksum's own digits -- twelve hex characters are not something a " +
-       "reader of this page can do anything with"],
-    ];
+    // Every string this page must never print, with what each one IS --
+    // `apps/viewer/reader_facing_bans.js`, which is where the list moved on
+    // 2026-09-18 so that `apps/annotate/run_tests.cjs` could read the same one
+    // rather than grow a second copy. Read that file for the argument; this
+    // alias is here so every use below reads as it always did.
+    var BANNED_IN_RENDERED_TEXT = ReaderFacingBans.BANNED;
 
     // Every FIELD NAME the schema uses, read out of the projection itself
     // rather than listed here -- the same rule the id walks follow, one level
@@ -3945,11 +4017,9 @@
     // reader nothing about which id is on their page.
     function bannedIn(text, where) {
       BANNED_IN_RENDERED_TEXT.forEach(function (pair) {
-        var found = typeof pair[0] === "string"
-          ? (String(text).indexOf(pair[0]) === -1 ? null : pair[0])
-          : (String(text).match(pair[0]) || [null])[0];
-        ok(found === null,
-           where + " renders " + JSON.stringify(found) + " (" + pair[1] +
+        var hit = ReaderFacingBans.found(text, pair);
+        ok(hit === null,
+           where + " renders " + JSON.stringify(hit) + " (" + pair[1] +
            "): " + text);
       });
     }
@@ -10188,6 +10258,45 @@
             var root = render(function (r) { VA.renderWorksheet(r, stack, md); });
             has(root.querySelector("div.worksheet__body").innerHTML, "<table>");
           }
+        });
+
+      // The renderer's own defect, measured on the document it was found on.
+      //
+      // The COUNT is derived from the source, not written down: a paragraph can
+      // never exceed the number of blank-line-separated chunks in the file,
+      // because a chunk yields at most one paragraph run. That bound is
+      // computed here without the parser, so it cannot agree with a broken
+      // parser by construction -- and it is the bound local-v1 violated by a
+      // factor of four (324 paragraphs from a file with far fewer chunks).
+      await test("[real] the live worksheet renders paragraphs by its BLANK " +
+        "LINES, not by its newlines, and its bold survives a wrap",
+        async function () {
+          var stack = VA.findStack(realResults, "hub_bearing_thermal_fit_m1");
+          var md = await real.readText(VA.worksheetSegments(stack));
+          ok(md, "the worksheet must be readable");
+          var html = VA.renderMarkdown(md);
+          var paragraphs = (html.match(/<p>/g) || []).length;
+          var nonBlankLines = md.split(/\r?\n/).filter(function (line) {
+            return line.trim() !== "";
+          }).length;
+          var chunks = md.split(/\n\s*\n/).length;
+          ok(paragraphs > 0, "the worksheet must render paragraphs at all");
+          ok(paragraphs <= chunks,
+             "the renderer made " + paragraphs + " paragraphs from a file with " +
+             chunks + " blank-line-separated chunks -- it is counting newlines, " +
+             "not blank lines");
+          // ...and the bound has to BITE. The house convention is a ~80-column
+          // hard wrap, so a document whose chunks are all one line long would
+          // satisfy the bound while telling us nothing.
+          ok(nonBlankLines > chunks * 1.5,
+             "this document is not hard-wrapped enough to be evidence: " +
+             nonBlankLines + " non-blank lines over " + chunks + " chunks");
+          // The markup that leaked: 38 `**` runs were on screen, because a
+          // span straddling a wrap was never resolved.
+          ok(html.indexOf("**") === -1,
+             "emphasis markup is on the page: " +
+             (html.match(/.{0,60}\*\*.{0,60}/) || [""])[0]);
+          has(html, "<strong>");
         });
 
       await test("[real] no authored stack grew a coefficient on any term", function () {
