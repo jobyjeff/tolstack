@@ -465,7 +465,7 @@
     },
     {
       "id": "stack-pane-crop-block-keeps-its-prefix",
-      "contract": "The stack pane's crop block renders under this pane's own class prefix, separator included -- `detail__crop-head` / `detail__crop-links`, never `detail__crophead`.",
+      "contract": "The stack pane's crop block renders under this pane's own class prefix, separator included -- `detail__crop-links`, never `detail__croplinks`. It said `detail__crop-head` too until 2026-09-18, when VA.PANE_CROP retired that node: the links row is the only node the prefix argument still builds, which is why the test supplies a run_dir to make it render at every origin.",
       "issue": "docs/issues/ISSUE_20260915_the_shared_crop_renderers_class_prefix_argument_is_unguarded_in_every_tier.md",
       "note": "The prefix carries its own SEPARATOR, which is the one argument of VA.cropReference with no natural shape to it. This exact one-character edit shipped once (viewer_component_names_and_reference_copy, caught by eye) and was replayed in review on 2026-09-15: fast tier 386/386, browser 33/33, because every assertion on this block reads textContent -- right for copy, blind to a class name.",
       "file": "apps/viewer/views/detail.js",

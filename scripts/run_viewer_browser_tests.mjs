@@ -5667,42 +5667,100 @@ async function testTypographyRules(browser, label, realProjection) {
       "and wraps the name to four lines",
       nameCol && nameCol.floor > 0 && nameCol.width >= nameCol.floor - 0.5);
 
-    // 5. THE SOURCE NOTE'S CLAMP. The note in a row is a PREVIEW -- the note in
-    // full is what the preview pane is for -- and unclamped it was the tallest
-    // thing in the source column and so the thing setting the row's height.
-    // Asserted as "at most three lines", not as the stylesheet's `2.8em`: the
-    // number is the stylesheet's to tune, and what the rule says is that two
-    // lines and the top of a third is enough to recognise a note by.
-    const note = await page.evaluate(() => {
-      const el = document.querySelector(
-        "#stackview .el-row__srcnote:not(.el-row__srcnote--open)");
-      if (!el) return null;
-      const cs = getComputedStyle(el);
-      const size = parseFloat(cs.fontSize);
+    // 5. A DATA ROW IS A ROW, NOT A BLOCK — the outcome, measured, where
+    // this suite used to check one MECHANISM for reaching it.
+    //
+    // WHAT WAS HERE, and why it went. Two sub-checks read
+    // `#stackview .el-row__srcnote:not(...--open)` and asserted that a row's
+    // source note holds more than the box shows and is clamped to at most
+    // three lines. The claim they carried was *the note is a preview, so it
+    // is not the thing setting the row's height*.
+    // `reader_facing_surfaces_second_pass` (2026-09-18) retired the composite
+    // source cell in both tables: the note, the callout, the values line and
+    // the rest moved to the preview pane and the row keeps chips and one
+    // ellipsised where-line, so `.el-row__srcnote` is rendered by nothing at
+    // all and both checks read `null`. The rule was not weakened — it was
+    // satisfied more completely than a clamp can satisfy it, which is exactly
+    // the case where a guard on the mechanism stops meaning anything while a
+    // guard on the outcome starts to.
+    //
+    // Neither branch could see this alone: the clamp checks were written on
+    // 2026-09-18 by `visual_rules_nothing_checks` while
+    // `reader_facing_surfaces_second_pass`, cut from `47134d6`, was deleting
+    // the node. Each was green by itself and the merge was 7/9. Filed as
+    // ISSUE_20260918_the_source_note_clamp_checks_lost_their_subject_when_the_
+    // composite_source_cell_was_retired.md so the substitution is visible to
+    // whoever owns the typography rules.
+    //
+    // WHY THE OUTCOME AND NOT A RE-POINT. The two clamped previews left are
+    // `hovercard__note` and `el-export__note`; neither sits in a table row,
+    // so neither carries the row-height argument, and pointing at one would
+    // be a new claim wearing an old sentence. What the rule is about is how
+    // TALL a data row is — and that is measurable directly, and only here:
+    // the fast tier has a DOM shim and no layout at all, so its structural
+    // twin (`[real] the materials ROW keeps only what decides whether to
+    // click it`) can say the pane's nodes are absent from the row but cannot
+    // say the row is short.
+    //
+    // THE NUMBERS THIS STANDS ON, measured on this stack at this viewport:
+    // before the retirement the first materials row was 653px (750px before
+    // the clamp tightened on 2026-09-17) against elements rows of 88-112px
+    // — between five and seven times a data row in the table directly
+    // above it. After: 111-169px. The factor of two is deliberately slack:
+    // the materials table's designation column holds a real specification
+    // string that wraps, and the rule is about a row reading as a row, not
+    // about a pixel budget.
+    const rowHeights = await page.evaluate(() => {
+      const heights = (sel) => [...document.querySelectorAll(sel)]
+        .map((tr) => tr.getBoundingClientRect().height);
+      const first = document.querySelector("#stackview tr.mat-row");
       return {
-        maxHeight: cs.maxHeight,
-        lines: parseFloat(cs.maxHeight) / size,
-        clientHeight: el.clientHeight,
-        scrollHeight: el.scrollHeight,
+        el: heights("#stackview tr.el-row"),
+        mat: heights("#stackview tr.mat-row"),
+        rowText: first ? first.textContent.replace(/\s+/g, " ").trim().length : 0,
       };
     });
-    if (note && !(note.scrollHeight > note.clientHeight + 1)) {
-      console.log(`    the note is ${note.scrollHeight}px of content in a ` +
-        `${note.clientHeight}px box — nothing is being clamped, so the clamp ` +
-        "is not under test");
+
+    // THE WITNESS, and it is the half that keeps this honest: a short row
+    // could mean the detail was DELETED rather than moved. Select the row and
+    // read the pane. If the pane does not carry more than the row does, the
+    // rows are short for the wrong reason and this suite has to say so.
+    let paneText = 0;
+    if (rowHeights.mat.length) {
+      await page.locator("#stackview tr.mat-row").first().click();
+      await page.waitForSelector("#detail .mat__values", { timeout: 10000 })
+        .catch(() => {});
+      paneText = await page.evaluate(() => {
+        const pane = document.querySelector("#detail");
+        return pane ? pane.textContent.replace(/\s+/g, " ").trim().length : 0;
+      });
     }
-    push("a row's source note really has more in it than the row shows — the " +
-      "witness, since a note shorter than the clamp says nothing about the " +
-      "clamp", note && note.scrollHeight > note.clientHeight + 1);
-    if (note && !(note.maxHeight !== "none" && note.lines <= 3)) {
-      console.log(`    the note is clamped at ${note.maxHeight}, which is ` +
-        `${note.lines.toFixed(1)} lines of its own type`);
+    if (!(rowHeights.rowText > 0 && paneText > rowHeights.rowText)) {
+      console.log(`    the first materials row carries ${rowHeights.rowText} ` +
+        `characters and selecting it puts ${paneText} in the pane — the row ` +
+        "is not short because its detail moved");
     }
-    push("...and it is clamped to a PREVIEW of at most three lines — the note " +
-      "in full is what the preview pane exists for, and unclamped it is the " +
-      "tallest thing in the source column and so the thing setting the row's " +
-      "height in a table whose data is one line",
-      note && note.maxHeight !== "none" && note.lines <= 3);
+    push("selecting a materials row puts MORE of its sourcing in the preview " +
+      "pane than the row itself carries — the witness, because a row that " +
+      "got short by losing its argument rather than by moving it would pass " +
+      "the height claim below while being the worse page",
+      rowHeights.rowText > 0 && paneText > rowHeights.rowText);
+
+    const tallestEl = Math.max(0, ...rowHeights.el);
+    const tallestMat = Math.max(0, ...rowHeights.mat);
+    const ratio = tallestEl ? tallestMat / tallestEl : 0;
+    if (!(rowHeights.el.length && rowHeights.mat.length && ratio <= 2)) {
+      console.log(`    tallest elements row ${Math.round(tallestEl)}px, ` +
+        `tallest materials row ${Math.round(tallestMat)}px ` +
+        `(${ratio.toFixed(1)}x) over ${rowHeights.el.length} and ` +
+        `${rowHeights.mat.length} rows`);
+    }
+    push("...and no materials row is more than twice the tallest elements " +
+      "row — the two tables sit one above the other on this page, and a " +
+      "source column that stacks chips, a where-line, a values line, a note, " +
+      "a citation and a request one under the next makes a row seven times " +
+      "the height of the data beside it and the table read as a list of blocks",
+      rowHeights.el.length > 0 && rowHeights.mat.length > 0 && ratio <= 2);
 
     return reportSuite(label, checks, errors);
   } catch (err) {

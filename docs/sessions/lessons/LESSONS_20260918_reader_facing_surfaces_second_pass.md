@@ -5,22 +5,50 @@ a previous handoff and stopped there.** I am the first to have seen all six
 together, and the handoff asks the right question of that — *can a guard find
 the next one without a human reading the page?* — so that is where this starts.
 
-**Counts.** `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`
-**466/466** (455 at branch point). `node apps/annotate/run_tests.cjs`
-**84/84** (81). `node scripts/run_viewer_browser_tests.mjs --repo
-C:/workspace/tolstack` **22/22**.
-`PYTHONIOENCODING=utf-8 venv-win/Scripts/python.exe -m pytest -q` **1203
+**Counts**, on the branch with `integration` (`c484b8c`) merged in — which it
+now is, because round 2's blocker only exists at that merge.
+`node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` **467/467**.
+`node apps/annotate/run_tests.cjs` **84/84** (81 at branch point).
+`node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`
+**23/23**.
+`PYTHONIOENCODING=utf-8 venv-win/Scripts/python.exe -m pytest -q` **1208
 passed, 1 failed** — `test_viewer_js_suite_is_green`, which is red in any
 worktree by design since 2026-09-18 and is red at the branch point too.
-Mutation-witness tier: **54/54 on this branch after the rework** (54 entries
-here; review measured the MERGE, which carries
-`mutation_witness_enrollment_gaps`' rows too, at 64). See the correction
-immediately below — the first time round two of them were dead and this line
-said the opposite.
+Mutation-witness tier: **64/64 on the merge** (54 on this branch's own table
+before `integration` came in). See the two corrections below; the first time
+round, this line said something that was not true.
 
-## A CORRECTION, first, because the first version of this file got it wrong
+## THE FINDING, which is not one of the six: a fix that SUPPRESSES a node takes every guard standing on that node with it
 
-The first pass of this handoff said *"the two entries I re-pointed both
+Two review rounds, two blockers, **and they are the same defect three times**.
+This handoff removed three nodes from the page — `div.detail__crop-head`,
+`.el-row__srcnote` and `.el-row__callout` — and each removal was correct.
+Every time, a guard somewhere was standing on the node rather than on the rule,
+and the guard went quiet rather than red:
+
+| the node I removed | the guard standing on it | how it surfaced |
+|---|---|---|
+| `div.detail__crop-head` | both crop-prefix **mutation witnesses** — the head was the only node built from the `classPrefix` argument at every origin | review round 1, 64/64 → 62/64 |
+| `.el-row__srcnote` | the typography suite's **source-note clamp** sub-checks, written on a branch this one could not see | review round 2, 9/9 → 7/9, **only at the merge** |
+| `.el-row__callout` | nothing — checked, by review's own sweep | — |
+
+**Neither was visible from inside this branch.** The first needed the mutation
+tier, which no other tier implies; the second needed `integration` merged in,
+because the guard did not exist on the tree I was cut from. That is why round
+2's report says a tier that can only fail at a merge has to be run at the
+merge.
+
+**The rule, and it is worth more than any of the six deliverables:** before
+accepting an `omitX` or deleting a render, **grep the suppressed selector
+across `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs` and
+`scripts/mutation_witnesses.json`** — and do it against `integration`, not
+against your branch point. I did that sweep for `detail__crop-head` after
+round 1 and did not widen it to the other two selectors that died in the same
+commit, which is exactly how round 2 happened.
+
+### Correction 1: the two crop-prefix witnesses did NOT re-witness
+
+The first pass of this file said *"the two entries I re-pointed both
 re-witnessed"*. **They did not.** Review measured **64/64 → 62/64** on the
 merge, reproduced it in both directions, and sent the branch back.
 
@@ -56,7 +84,44 @@ entry a `run_dir`, so `VA.runUrl` resolves against `VA.CONFIG`'s
 drawing-checker base and `div.detail__crop-links` — which *is* built from
 `classPrefix` — renders at every origin. The sweep keeps its
 origin-independence and gains a node. Both entries WITNESSED again, run
-individually and in the full tier.
+individually and in the full tier, and confirmed by review at 64/64 on the
+merge.
+
+### Correction 2: retiring the row's note killed a browser check on another branch
+
+`.el-row__srcnote` and `.el-row__callout` went dead in the same commit as the
+crop head. I took them out of `VERBATIM_PROSE_CLASSES` and out of `style.css`
+— the `[real]` dead-exemption guard made me — and stopped there. On
+2026-09-18, on a branch cut after mine, `visual_rules_nothing_checks` wrote two
+browser sub-checks reading
+`#stackview .el-row__srcnote:not(.el-row__srcnote--open)`: *a row's source note
+really has more in it than the row shows*, and *...and it is clamped to a
+PREVIEW of at most three lines*. Each branch was green alone. The merge was
+**9/9 → 7/9**.
+
+**What I did about it, and the choice is the point.** Not a re-point — the two
+clamped previews left (`hovercard__note`, `el-export__note`) are not in a table
+row, so neither carries the row-height argument and pointing at one would be a
+new claim wearing an old sentence. **Rule 5 now checks the OUTCOME the clamp
+was a mechanism for:** the witness is that selecting a materials row puts more
+of its sourcing in the pane than the row carries (so the row is short because
+its detail MOVED, not because it was deleted), and the claim is that no
+materials row is more than twice the tallest elements row. Both hand-planted
+and watched failing: re-adding the pane's lines to the row gives 5.3x and
+reddens the claim; a material pane that renders nothing reddens the witness
+(313 characters on the row against 260 in the pane).
+
+That check can only live in the browser tier — the fast tier runs against a
+DOM shim with no layout at all, so its structural twin (`[real] the materials
+ROW keeps only what decides whether to click it`) can say the pane's nodes are
+absent from the row and cannot say the row is short. Filed as
+`ISSUE_20260918_the_source_note_clamp_checks_lost_their_subject_when_the_composite_source_cell_was_retired.md`
+so the substitution is visible to whoever owns the typography rules, and
+because the factor of two is a judgement somebody should get to revisit.
+
+**This branch now carries `integration` merged in** (`bd63a34`). It had to:
+the guard that broke does not exist on `47134d6`, so neither the defect nor its
+fix is expressible without it.
 
 ---
 
@@ -366,6 +431,17 @@ shadow-tree entry today — `tests/test_mutation_witnesses.py` knows the suite a
 ...and its viewer twin, `this page's own markup prints no repo path, module
 path, id or command at the reader` (mutation: restore
 `renders <code>data/projections/viewer/</code>` in `topology.html`).
+
+**`scripts/run_viewer_browser_tests.mjs`**, rule 5 of *typography pass's visual
+rules (live stack view)* — the pair that replaced the retired clamp checks:
+
+| check | the mutation |
+|---|---|
+| selecting a materials row puts MORE of its sourcing in the preview pane than the row itself carries | `findMaterial` returns null, so the pane renders its empty state |
+| ...and no materials row is more than twice the tallest elements row | append the pane's lines back into `materialSourcingCell` |
+
+Both were hand-planted and watched failing before this branch was handed back;
+neither is enrolled.
 
 **I also re-pointed two EXISTING entries** in `scripts/mutation_witnesses.json`,
 which the handoff told me not to touch. I am saying so plainly rather than
