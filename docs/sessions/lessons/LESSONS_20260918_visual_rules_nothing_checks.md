@@ -138,25 +138,34 @@ anyone else. It is also why the `--only <suite>` seam matters so much: without
 it each revert would cost a 6-minute full browser sweep, and ten reverts would
 be an hour rather than five minutes.
 
-### A prerequisite the brief does not name: pytest is not a tier
+### The pytest-tier blocker — already closed, by the parallel handoff
 
-If enrollment does go mechanical, this blocks on day one. `tests/test_mutation_witnesses.py`:
+Worth recording because it was real for most of this session and because of
+what it shows. At the commit this worktree was cut from,
+`tests/test_mutation_witnesses.py` read `TIERS = frozenset({"fast",
+"annotate", "browser"})` and `TIER_HARNESS` held three `node` scripts — **no
+python harness, so a pytest guard could not hold a mutation witness at all.**
+Two of the four guards this session added are pytest guards, so neither could
+be enrolled, and pytest is where most of this repo's guards live (1205 tests
+against the fast tier's 456). I wrote that up as a prerequisite the brief was
+missing.
 
-```python
-TIERS = frozenset({"fast", "annotate", "browser"})
-```
+It is fixed. `mutation_witness_enrollment_gaps` landed on `integration` while
+this branch was open (`3f877a0` "a pytest tier, and eight guards enrolled"),
+and integration now carries `TIERS = {"fast", "annotate", "browser",
+"python"}`, `TIERS_WITH_SUITES = {"browser", "python"}` — where a `python`
+entry's `suite` is the test file pytest is pointed at and its `expect_red` is
+the test function name — and three `python` entries, 64 in the table. So the
+prerequisite is gone rather than unnamed, and §4 below gives both of my pytest
+guards in that shape.
 
-and `scripts/run_mutation_witness_tests.mjs`'s `TIER_HARNESS` has three
-entries, all `node` scripts. **There is no python harness, so a pytest guard
-cannot hold a mutation witness at all.** Two of the four guards this session
-added are pytest guards
-(`test_no_rule_keys_on_a_confidence_token_alone`,
-`test_both_apps_set_their_base_size_from_the_scale`) and neither can be
-enrolled today. pytest is where most of this repo's guards live — 1205 tests
-against the fast tier's 456 — so a rule of the form "every guard a diff adds
-gets an entry" will demand a fourth harness immediately, on the largest tier.
-That belongs in the brief's **Prerequisite** section beside the two plumbing
-issues already there.
+**The thing to take from it:** the blocker was named in an issue
+(`ISSUE_20260916_the_mutation_witness_table_has_no_tier_for_a_pytest_guard`,
+filed by `reader_facing_copy_and_vocabulary`, which had watched its guard
+redden by hand and could not declare it) and closed within two days. That is
+the enrollment machinery working exactly as the brief hopes. It also does not
+touch the §2 argument at all: the two handoffs whose rules went unwitnessed
+added no guard to enroll, so a fourth tier does not reach them either.
 
 ---
 
@@ -226,11 +235,14 @@ The squeeze is asserted as its own sub-check for that reason.
 
 ---
 
-## 4. The new guards, for `mutation_witness_enrollment_gaps`
+## 4. The new guards, ready to enroll
 
 Named here because the handoff asked, and `scripts/mutation_witnesses.json` was
-explicitly out of scope for this session (the parallel handoff owns it). **All
-eleven below are measured, not proposed**: each `find` occurs exactly once in
+explicitly out of scope for this session — it belonged to the parallel
+`mutation_witness_enrollment_gaps`, which has since landed on `integration`
+(64 entries, and the `python` tier). So these thirteen are *not* that handoff's
+to pick up any more; they need staging. **All
+thirteen below are measured, not proposed**: each `find` occurs exactly once in
 its file, and each was planted in a `git archive HEAD` scratch tree and
 observed reddening the named sub-check. The `expect_red` values are the whole
 printed name — note they are written in the source as adjacent string literals,
@@ -265,11 +277,22 @@ Two notes for whoever writes these up:
   one and the Escape one, since `show()` leaves Escape without a dismiss). Pick
   the modal one for `expect_red`.
 
-**And the two that cannot be enrolled**, per §2:
-`test_no_rule_keys_on_a_confidence_token_alone` and
-`test_both_apps_set_their_base_size_from_the_scale`, both in
-`tests/test_app_type_scale.py`. Their reverts are measured and named in the
-issues; they are waiting on a python harness in `TIER_HARNESS`.
+**And the two pytest guards**, which are enrollable after all — integration
+gained a `python` tier while this branch was open (§2). In that tier's shape,
+where `suite` is the file pytest is pointed at and `expect_red` is the test
+function name:
+
+| suggested id | file | find → replace | tier / suite | expect_red |
+| --- | --- | --- | --- | --- |
+| `conf-token-rule-names-its-element` | `apps/viewer/style.css` | `.chip.conf--untraced { color: #fff;` → `.conf--untraced { color: #fff;` | python / `tests/test_app_type_scale.py` | `test_no_rule_keys_on_a_confidence_token_alone` |
+| `annotator-declares-its-base-size` | `apps/annotate/style.css` | `font: var(--t-body)/1.5 "Segoe UI", system-ui, sans-serif;` → `font-family: "Segoe UI", system-ui, sans-serif;` | python / `tests/test_app_type_scale.py` | `test_both_apps_set_their_base_size_from_the_scale` |
+
+Both measured: the first is the same one-line `find` as
+`conf-token-is-scoped-to-the-chip` above, which is the point of having both —
+**one mutation, two tiers, two different questions.** The browser entry asks
+*did the row's cells inherit the chip's white?*; the python entry asks *may a
+rule name a confidence token with nothing to scope it?* The second was
+observed reddening only its own test (`1 failed, 7 passed` in that module).
 
 ---
 
@@ -277,7 +300,12 @@ issues; they are waiting on a python harness in `TIER_HARNESS`.
 
 - The two issues filed above
   (`…_lightboxs_glow_suppression_…`, `…_committed_typography_screenshots_…`).
-- The eleven entries in §4, which belong to `mutation_witness_enrollment_gaps`.
+- The thirteen entries in §4 — filed as
+  `ISSUE_20260918_thirteen_new_guards_from_visual_rules_nothing_checks_have_no_mutation_witness_entry`
+  rather than left here, because `mutation_witness_enrollment_gaps` has already
+  landed on `integration` and a list in a lesson is a list nothing schedules
+  anyone to read. That issue is the third filing of the same gap, which is
+  itself a data point for the brief.
 - A worktree cannot run `pytest -q` green — `tests/test_viewer_js_suite.py`
   fails on the skipping `[real]` tier, by design since 2026-09-18. Baseline
   before this work: 1 failed / 1203 passed. After: **1 failed / 1205 passed**,
