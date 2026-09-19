@@ -502,26 +502,92 @@
   // but only for a citation whose crop RESOLVED, so a fact about the citation was
   // reachable only through a crop.
 
+  // WHAT an export block is about — the thing the named file is, or is not,
+  // the bytes of. Introduced 2026-09-18 (ISSUE_20260918_a_joint_that_was_never_
+  // opened_now_reads_as_a_loud_file_not_identified) because ONE sentence was
+  // being reused for two subjects and was only true of one of them.
+  //
+  // An element's citation and a stack's `joint` block both render through
+  // VA.exportBlockNode, and until this table existed both got the value's
+  // sentence: *"FILE NOT IDENTIFIED — which file this value was read from
+  // cannot be established"*. There is no "this value" in a joint block. The
+  // joint is the assembly context a stack is built across; it is not a number,
+  // and a reader looking for the value that sentence is about will not find one.
+  //
+  // REJECTED: special-casing the joint block at its call site in
+  // views/stack.js. That leaves one wrong sentence in the shared vocabulary and
+  // moves the problem to the next non-value subject rather than ending it.
+  //
+  // The REGISTER varies with the subject too, and that is the second half of
+  // the same finding. `loud` is the tint this repo reserves for a number whose
+  // bytes nobody can pin — the defect this whole surface exists to surface.
+  // A joint with no assembly export is not that: the live `why` on both thermal
+  // stacks says the 217755 assembly drawing *was never opened for this stack*,
+  // which is an absence somebody recorded, not one somebody tried and failed to
+  // resolve. That is the same distinction VA.NO_EXPORT_TEXT and
+  // VA.IDENTITY_RULES draw at element level, and against the workspace rule
+  // "emphasis is a budget — one accent per view" a red block on a correctly
+  // unsourced joint spends it on the wrong thing. The recorded `why` still
+  // renders under the headline either way, so nothing is hidden by the quieter
+  // register — only the alarm is.
+  //
+  // A THIRD subject would be the evidence that this wants a noun substituted
+  // into one sentence rather than a sentence per row. There are two.
+  VA.EXPORT_SUBJECTS = {
+    value: {
+      noun: "this value",
+      unestablished: {
+        loud: true,
+        headline: "FILE NOT IDENTIFIED — which file this value was read from " +
+          "cannot be established",
+      },
+    },
+    joint: {
+      noun: "this joint",
+      unestablished: {
+        loud: false,
+        headline: "No assembly file recorded — nothing here says which drawing " +
+          "file describes the joint this stack is built across",
+      },
+    },
+  };
+
+  // What a caller that says nothing means. Every surface that renders an
+  // export block except the joint block is about a number.
+  VA.DEFAULT_EXPORT_SUBJECT = "value";
+
+  // Total, like every other lookup on this surface: a subject key the table has
+  // no row for is a programming error rather than a data value, so it resolves
+  // to the default rather than throwing mid-render — and
+  // `test_...export_subject...` pairs the table against the call sites so an
+  // unrowed key cannot reach a reader quietly.
+  VA.exportSubject = function (key) {
+    return VA.EXPORT_SUBJECTS[key] ||
+      VA.EXPORT_SUBJECTS[VA.DEFAULT_EXPORT_SUBJECT];
+  };
+
   // Every `status` a SourceExport can carry (tolerance_stack/stack.py), with the
   // sentence each earns. A table, not an if/else chain, for the reason
   // VA.CROP_RULES is one: an enumerated field needs a total function, because a
   // silent default cannot be told apart from a handled case by reading the code.
   // `loud` is the difference that matters on screen — `unestablished` is the
-  // stack stating outright that the bytes behind this number cannot be
+  // record stating outright that the bytes behind this subject cannot be
   // identified, and it must not look like a citation whose export is nailed down.
+  //
+  // Both entries take the resolved VA.EXPORT_SUBJECTS row as their second
+  // argument. `established` ignores it — "Read from 217755 A.1.pdf" is true of a
+  // value and of a joint in the same words — and `unestablished` is the one
+  // status whose sentence and register are the subject's, not the status's.
   VA.EXPORT_STATUSES = {
     established: {
-      loud: false,
+      loud: function () { return false; },
       headline: function (x) {
         return "Read from " + (VA.baseName(x.pdf) || "(the citation names no file)");
       },
     },
     unestablished: {
-      loud: true,
-      headline: function () {
-        return "FILE NOT IDENTIFIED — which file this value was read from " +
-          "cannot be established";
-      },
+      loud: function (x, subject) { return subject.unestablished.loud; },
+      headline: function (x, subject) { return subject.unestablished.headline; },
     },
   };
 
@@ -645,10 +711,15 @@
 
   // A status the viewer has never heard of. Names the value rather than
   // describing it, because the reader's next step is to grep for it.
-  VA.unlabelledExportStatusText = function (status) {
+  // Takes the SUBJECT's noun for the same reason the table above does: this
+  // sentence is rendered over a joint block too, and "the bytes behind this
+  // value" is about a number that is not on the surface there.
+  VA.unlabelledExportStatusText = function (status, subject) {
+    var noun = (subject || VA.EXPORT_SUBJECTS[VA.DEFAULT_EXPORT_SUBJECT]).noun;
     return "export status " + JSON.stringify(status === undefined ? null : status) +
-      ", which this viewer has no branch for — whether the bytes behind this " +
-      "value are identified is NOT shown here; read the citation in the stack file";
+      ", which this viewer has no branch for — whether the bytes behind " +
+      noun + " are identified is NOT shown here; read the citation in the " +
+      "stack file";
   };
 
   // Last path segment of a Windows or POSIX path. The export's `pdf` is absolute
@@ -801,8 +872,12 @@
   // same precedence build_viewer_crops.resolve_pdf applies.
   // Returns null when there is no citation at all — VA.citationWhere already
   // says "no citation", and saying it twice buys nothing.
-  VA.exportProvenance = function (sourceRef, identityRule) {
+  // `subjectKey` is a VA.EXPORT_SUBJECTS key and is the third thing a caller
+  // may say about an export block: WHAT it is about. Omitted everywhere except
+  // the joint block, which is the one surface whose subject is not a number.
+  VA.exportProvenance = function (sourceRef, identityRule, subjectKey) {
     if (!sourceRef) return null;
+    var subject = VA.exportSubject(subjectKey);
     var x = sourceRef.export;
     if (!x) {
       var identity = identityRule ? VA.IDENTITY_RULES[identityRule] : null;
@@ -825,8 +900,9 @@
     var established = x.status === "established";
     return {
       state: rule ? x.status : "unlabelled",
-      loud: rule ? rule.loud : true,
-      headline: rule ? rule.headline(x) : VA.unlabelledExportStatusText(x.status),
+      loud: rule ? rule.loud(x, subject) : true,
+      headline: rule ? rule.headline(x, subject)
+        : VA.unlabelledExportStatusText(x.status, subject),
       why: x.why || null,
       detail: null,
       pdf: x.pdf || null,
@@ -843,8 +919,8 @@
 
   // The one-line text form, for a hover and for a test that wants to read what
   // the panel says without walking the DOM.
-  VA.exportProvenanceLine = function (sourceRef, identityRule) {
-    var p = VA.exportProvenance(sourceRef, identityRule);
+  VA.exportProvenanceLine = function (sourceRef, identityRule, subjectKey) {
+    var p = VA.exportProvenance(sourceRef, identityRule, subjectKey);
     if (!p) return "";
     var bits = [p.headline];
     if (p.why) bits.push("why: " + p.why);
@@ -871,12 +947,28 @@
   // `library` with no `library_ref` is a self-contradiction — the entry says the
   // number resolves through a projection and then names none — and rendering a
   // contradiction quietly is the defect class this whole surface exists against.
+  // REWORDED 2026-09-18 (ISSUE_20260916_the_materials_table_says_values_status_
+  // and_library_ref_to_the_reader). Three of these sentences named a SCHEMA
+  // FIELD (`values_status`, `library_ref`) or an INTERNAL FILENAME
+  // (`materials.json`) at a reader, which is Jeff's standing rule twice over,
+  // and only one of the three was ever reachable by live data -- so the guard
+  // that covers this surface was green over branches nothing could reach.
+  //
+  // The argument FOR the old wording, considered and not taken: this surface's
+  // audience is the stack author, and the sentence's job is to say which field
+  // to go and fix. What decided it the other way is that the field is named in
+  // the FOLD-OUT nowhere and on the page everywhere -- a projection key is not
+  // how a reader addresses the record, and the same treatment VA.fieldLabel
+  // gave the free-form blocks ("values status", separator dropped and nothing
+  // else changed) says the same thing in words an author and a reviewer both
+  // read. The names are on the hover (views/stack.js), where an author looking
+  // for the key finds it and a reviewer reading the page does not.
   VA.VALUES_STATUSES = {
     inline: {
       loud: function () { return false; },
       text: function () {
-        return "CTE transcribed INLINE in materials.json — the number above is " +
-          "the record, and its citation is the one beside it";
+        return "CTE transcribed INLINE into this repo's own material record — " +
+          "the number above is the record, and its citation is the one beside it";
       },
     },
     library: {
@@ -886,9 +978,10 @@
           ? "CTE resolved through the spec library: " + entry.library_ref +
             " — the number above is a CROSS-CHECK of what that projection says, " +
             "not the record"
-          : "values_status says this CTE resolves through the spec library and " +
-            "the entry names NO library_ref — there is nothing for it to resolve " +
-            "through, so what the number above is a record of is unstated";
+          : "this CTE is recorded as resolving through the spec library, and " +
+            "the entry names no spec library reference — there is nothing for " +
+            "it to resolve through, so what the number above is a record of " +
+            "is unstated";
       },
     },
     not_transcribed: {
@@ -902,10 +995,25 @@
   };
 
   VA.unlabelledValuesStatusText = function (status) {
-    return "values_status " + JSON.stringify(status === undefined ? null : status) +
-      ", which this viewer has no branch for — whether this CTE is a " +
+    return "values status " + JSON.stringify(status === undefined ? null : status) +
+      ", which this page has no branch for — whether this CTE is a " +
       "transcription, a library cross-check or nothing at all is NOT shown here";
   };
+
+  // The materials row chip's wording, per loud values state. A table for the
+  // same reason VA.EXPORT_CHIP_TEXT is one, and moved out of views/stack.js on
+  // 2026-09-18 where both strings were inline literals -- CLAUDE.md's
+  // field-vocabulary rule, and the reason the second of them read
+  // `VALUES_STATUS UNKNOWN` (a schema key, shouted) for as long as it existed.
+  VA.VALUES_CHIP_TEXT = {
+    not_transcribed: "CTE NOT TRANSCRIBED",
+    unlabelled: "VALUES STATUS UNKNOWN",
+  };
+
+  // A loud values state the chip table has no wording for. Its own constant
+  // rather than an `||` literal at the call site, exactly as
+  // VA.EXPORT_CHIP_FALLBACK is.
+  VA.VALUES_CHIP_FALLBACK = "CTE SOURCING UNKNOWN";
 
   // The view-model of a material entry's value provenance.
   //   state      a VA.VALUES_STATUSES key, or "unlabelled"

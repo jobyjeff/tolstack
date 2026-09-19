@@ -620,11 +620,26 @@
                 // `cte_temperature_range_c` and `applied_over_c` exist to make
                 // visible side by side.
                 applied_over_c: [[20, 72]],
-                // `library_ref` is null in every live material entry and in all
-                // three here: no materials library exists yet, and a fixture that
-                // invented one would teach a reading the repo would contradict.
-                // The slot is present because the builder writes it.
-                values_status: "inline", library_ref: null,
+                // `library`, WITH a reference, since 2026-09-18 -- and it is
+                // the only entry in the repo, live or fixture, that reaches
+                // that branch. Every live material entry is `inline` with a
+                // null `library_ref`, so `VA.VALUES_STATUSES.library` and the
+                // `mat__libref` line it feeds had never rendered anywhere at
+                // all: the reader-facing-copy guard that covers this surface
+                // was green over branches no data could reach
+                // (ISSUE_20260916_the_materials_table_says_values_status_and_
+                // library_ref_to_the_reader). A guard whose covered branch is
+                // unreachable in every fixture reports green over nothing.
+                //
+                // It is a claim about nothing real, like every other number in
+                // this file: `spec_library:DEMO_STAINLESS_CTE` names a demo
+                // entry in a library this repo does not have yet. What it
+                // teaches is the RENDERING -- that the number in the CTE
+                // column is a cross-check of what a projection says rather
+                // than the record -- which is a reading the repo does not
+                // contradict and which the viewer has always had a branch for.
+                values_status: "library",
+                library_ref: "spec_library:DEMO_STAINLESS_CTE",
                 gaps: ["The CTE is a demo number and is traced to nothing."],
                 values_source: { kind: "workbook", document: "demo.xlsx", cell: "C6",
                                  confidence: "untraced" },

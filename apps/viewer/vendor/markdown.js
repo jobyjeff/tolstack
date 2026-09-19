@@ -1,9 +1,29 @@
 // VENDORED from forge apps/notes/vendor/markdown.js (local-v1, 2026-07-16),
-// verbatim apart from the namespace on the last line (NotesApp -> ViewerApp)
-// and this note. tolstack renders the WORKSHEET_*.md files beside each stack;
-// that is the same class of dependency-free renderer forge's notes app needs,
-// and copying it keeps this repo build-free and npm-free. If it is ever fixed
-// upstream, re-copy rather than diverge.
+// tolstack local-v2 (2026-09-18). tolstack renders the WORKSHEET_*.md files
+// beside each stack; that is the same class of dependency-free renderer
+// forge's notes app needs, and copying it keeps this repo build-free and
+// npm-free.
+//
+// THIS COPY NOW DIVERGES, deliberately, and the note that used to say "if it
+// is ever fixed upstream, re-copy rather than diverge" is why the divergence
+// is written down here rather than left to be discovered:
+//
+//   local-v2 (2026-09-18) — A PARAGRAPH ENDS AT A BLANK LINE, not at a
+//   newline. local-v1 emitted one <p> per source LINE, so a file hard-wrapped
+//   at ~80 columns rendered as a column of fragments with a full paragraph
+//   margin between each, and `**bold**` spanning a wrap was not parsed at all
+//   (the inline pass never saw the two halves together). Measured on
+//   WORKSHEET_hub_bearing_thermal_fit.md: 324 paragraphs and 38 stray `**`
+//   runs on screen. Every `.md` in this repo hard-wraps at ~80 by house
+//   convention, so the better the source file's typography, the worse the
+//   rendered page. See ISSUE_20260917_the_worksheet_renderer_makes_one_
+//   paragraph_per_source_line.md.
+//
+//   forge's notes app has the SAME defect for the same reason; it is simply
+//   less visible there, because a capture note is short and rarely wrapped.
+//   Re-copying from upstream would reintroduce this. Port this change
+//   upstream, or take upstream's fix if it lands first and this one can be
+//   retired — do not re-copy blind.
 //
 // Minimal, dependency-free markdown renderer (local — NOT the real marked.js).
 //
@@ -145,6 +165,19 @@
     return html + "</table>";
   }
 
+  // Does a block OTHER than a paragraph start at lines[i]? Read by the
+  // paragraph gatherer below, which consumes lines until one of these — or a
+  // blank line — ends the paragraph. It is the same set of tests the main loop
+  // makes, in the same order, deliberately: two lists of "what starts a block"
+  // that can disagree is how a renderer swallows a heading into a paragraph.
+  function startsBlock(lines, i) {
+    var line = lines[i];
+    return FENCE_RE.test(line) || HR_RE.test(line) || HEADING_RE.test(line) ||
+      BLOCKQUOTE_RE.test(line) || LIST_RE.test(line) ||
+      (line.indexOf("|") !== -1 && i + 1 < lines.length &&
+       TABLE_SEP_RE.test(lines[i + 1]));
+  }
+
   // Render a block sequence of already-escaped lines to HTML.
   function renderBlocks(lines) {
     var html = [];
@@ -219,9 +252,20 @@
       // Blank line — paragraph break.
       if (trimmed === "") { i++; continue; }
 
-      // Paragraph.
-      html.push("<p>" + inline(line) + "</p>");
-      i++;
+      // Paragraph: every following line until a blank line or another block.
+      // A single newline is a SOFT WRAP inside one paragraph, not a paragraph
+      // of its own (local-v2 — see the divergence note at the top of this
+      // file). The lines are joined with "\n" and handed to inline() as ONE
+      // string, which is the half that matters beyond the margins: an emphasis
+      // span that happens to straddle a wrap is only resolvable over the
+      // joined text, and rendering a newline rather than a <br /> keeps the
+      // author's wrap invisible, which is what a soft wrap means.
+      var para = [];
+      while (i < lines.length && lines[i].trim() !== "" && !startsBlock(lines, i)) {
+        para.push(lines[i].trim());
+        i++;
+      }
+      html.push("<p>" + inline(para.join("\n")) + "</p>");
     }
     return html.join("\n");
   }

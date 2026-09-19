@@ -92,7 +92,12 @@
     // the right pane (views/detail.js). Reset whenever the stack changes, same
     // reason selection is reset on selectTopology().
     selectedStackId: null,
-    selectedElementId: null,
+    // The stack page's ONE selection, and it is a ROW id rather than an
+    // element id since 2026-09-18: the materials table became clickable when
+    // its composite source cell was retired, and a material and an element are
+    // two rows in two tables feeding one preview pane. views/detail.js
+    // resolves the id against elements first, then materials.
+    selectedRowId: null,
     showWorksheet: false,
     worksheetText: null,
 
@@ -424,7 +429,7 @@
           state.selection = linked.selection;
         } else if (linked.mode === "stack") {
           selectStack(linked.stackId);
-          state.selectedElementId = linked.elementId;
+          state.selectedRowId = linked.elementId;
         }
       }
 
@@ -468,12 +473,12 @@
   function selectStack(stackId) {
     state.mode = "stack";
     state.selectedStackId = stackId;
-    state.selectedElementId = null;
+    state.selectedRowId = null;
     state.detailImage = null;
   }
 
-  function selectStackElement(elementId) {
-    state.selectedElementId = elementId;
+  function selectStackRow(rowId) {
+    state.selectedRowId = rowId;
     loadDetailImage().then(render);
   }
 
@@ -645,8 +650,11 @@
       entry = VA.cropForKey(state.crops, edge.crop_key);
     } else {
       var stackProj = currentStack();
-      if (!stackProj || !state.selectedElementId) return Promise.resolve();
-      entry = VA.cropFor(state.crops, stackProj.id, state.selectedElementId);
+      // A material row resolves to no crop entry here and that is correct:
+      // the crop index is keyed by {stack, element}, and a material entry
+      // cites a workbook or a drawing note, never a dimension.
+      if (!stackProj || !state.selectedRowId) return Promise.resolve();
+      entry = VA.cropFor(state.crops, stackProj.id, state.selectedRowId);
     }
     if (entry.status !== "resolved" || !entry.png) return Promise.resolve();
     // A balloon crop names a SECOND image, its parts-list row (the crop index's
@@ -1529,10 +1537,10 @@
       VA.renderStack(nodes.stackview, stackProj, state.crops, {
         onCropShow: showCrop,
         onCardShow: showCard,
-        onElementSelect: selectStackElement,
-        selectedElementId: state.selectedElementId,
+        onRowSelect: selectStackRow,
+        selectedRowId: state.selectedRowId,
       });
-      VA.renderDetail(nodes.detail, stackProj, state.selectedElementId,
+      VA.renderDetail(nodes.detail, stackProj, state.selectedRowId,
         state.crops, state.detailImage, VA.CONFIG, imageCache);
     }
 

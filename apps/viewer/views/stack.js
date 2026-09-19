@@ -23,7 +23,7 @@
     root.appendChild(elementsSection(stackProj, cropsIndex, handlers));
     // Only archetypes with material properties have one; a grip stack shows no
     // empty Materials heading.
-    var materials = materialsSection(stackProj);
+    var materials = materialsSection(stackProj, handlers);
     if (materials) root.appendChild(materials);
     root.appendChild(pathsSection(stackProj));
     root.appendChild(checksSection(stackProj));
@@ -66,6 +66,12 @@
   // inline literal, per CLAUDE.md's field-vocabulary rule.
   VA.JOINT_EXPORT_KEY = "assembly_export_ref";
 
+  // Which VA.EXPORT_SUBJECTS row this block's export is about. A module-level
+  // constant rather than the string `"joint"` written at the call site below,
+  // per CLAUDE.md's field-vocabulary rule: a subject key spelled inline is a
+  // vocabulary word no pairing test can see.
+  VA.JOINT_EXPORT_SUBJECT = "joint";
+
   VA.jointBlock = jointBlock;
   function jointBlock(joint) {
     var box = VA.el("details", "sv__joint");
@@ -107,8 +113,14 @@
     });
     if (Object.keys(rest).length) box.appendChild(kvList(rest));
     if (exportRef) {
+      // `VA.JOINT_EXPORT_SUBJECT`, not the default: this block is about the
+      // JOINT, and the status vocabulary's `unestablished` sentence and its
+      // loud tint are both written about a value (VA.EXPORT_SUBJECTS, viewer.js
+      // -- "there is no 'this value' in a joint block"). Both live thermal
+      // stacks are in that state.
       box.appendChild(VA.exportBlockNode(
-        VA.exportProvenance({ export: exportRef }), null));
+        VA.exportProvenance({ export: exportRef }, null, VA.JOINT_EXPORT_SUBJECT),
+        null));
     }
     return box;
   }
@@ -249,13 +261,13 @@
     var derived = row.derived;
     var classes = ["el-row", VA.confidenceClass(derived.confidence)];
     if (derived.zero_width) classes.push("el-row--zero-width");
-    if (handlers.selectedElementId === element.id) classes.push("el-row--selected");
+    if (handlers.selectedRowId === element.id) classes.push("el-row--selected");
     var tr = VA.el("tr", classes.join(" "));
     // Clicking anywhere on the row selects it and populates the right pane
     // (views/detail.js) — the row's own cell no longer carries enough to read
     // a citation in full, on purpose (deliverable 2).
-    if (handlers.onElementSelect) {
-      tr.onclick = function () { handlers.onElementSelect(element.id); };
+    if (handlers.onRowSelect) {
+      tr.onclick = function () { handlers.onRowSelect(element.id); };
     }
 
     tr.appendChild(VA.el("td", "num", String(index + 1)));
@@ -451,7 +463,7 @@
   var MATERIAL_COLUMNS = ["material", "designation", "CTE 1e-6/°C",
     "CTE range °C", "used by", "sourcing"];
 
-  function materialsSection(stackProj) {
+  function materialsSection(stackProj, handlers) {
     var materials = stackProj.materials || [];
     if (!materials.length) return null;
     var section = VA.el("section", "sv__section");
@@ -460,7 +472,10 @@
       "The soak factor on every weighted term below is 1 + ΔT·α from this table " +
       "(ΔT is on each check card). A scalar CTE hides that α varies with " +
       "temperature — the range each value is a mean over is stated when the " +
-      "source states one."));
+      "source states one. The sourcing column says how well sourced each " +
+      "number is and where it came from; the full argument — the entry's own " +
+      "note, the designation's citation and callout, and any outstanding " +
+      "request for a real value — is in the panel on the right; click the row."));
 
     var table = VA.el("table", "mattable");
     var head = VA.el("tr");
@@ -470,7 +485,17 @@
     var body = VA.el("tbody");
     materials.forEach(function (row) {
       var authored = row.material || {};
-      var tr = VA.el("tr", "mat-row " + VA.confidenceClass(row.confidence));
+      var classes = ["mat-row", VA.confidenceClass(row.confidence)];
+      if (handlers.selectedRowId === row.id) classes.push("mat-row--selected");
+      var tr = VA.el("tr", classes.join(" "));
+      // Clicking anywhere on the row selects it and populates the right pane
+      // (views/detail.js), the same one click the elements table above takes.
+      // The pane holds ONE selection for the whole stack page -- a material
+      // and an element are two rows in two tables and one thing a reader is
+      // looking at, so selecting either replaces the other.
+      if (handlers.onRowSelect) {
+        tr.onclick = function () { handlers.onRowSelect(row.id); };
+      }
       tr.appendChild(VA.el("td", null, VA.el("code", null, row.id)));
       var name = VA.el("td");
       name.appendChild(VA.el("div", null, authored.designation || "—"));
@@ -504,6 +529,30 @@
     return section;
   }
 
+  // The compact indicator -- the treatment the ELEMENTS table took when its
+  // own composite cell was retired, arriving here 2026-09-18 and not before
+  // (ISSUE_20260917_the_materials_source_column_is_a_750px_tall_composite_cell).
+  //
+  // WHAT IT COST TO LEAVE IT: measured on `hub_bearing_thermal_fit_m1`, live,
+  // at 1600x1000 with the preview pane at its 560px default, the first
+  // `tr.mat-row` rendered 653px tall and all six of its cells reported that
+  // height because this one set it. The elements table's data rows are 88-112px
+  // on the same page. A table whose rows are seven times the height of the
+  // table above it does not read as a table; it reads as a list of blocks with
+  // the numbers stranded at the top of acres of white.
+  //
+  // WHAT THE ELEMENTS TABLE'S ANSWER WAS, because a third table will arrive:
+  // (a) the cell keeps only what a reader needs to decide whether to click the
+  // row -- chips and a ONE-LINE, ellipsised where-ref; (b) everything else
+  // moves to the right pane, whole and unclamped; (c) the row becomes
+  // clickable, so the pane is reachable. All three, or none: a compact cell
+  // with nowhere for the detail to go is deletion, not restructuring.
+  //
+  // So the values line, the spec-library reference, the entry's own note, the
+  // designation's citation, its callout and its note, and the CINDAS request
+  // are all in views/detail.js now. The one exception is the same exception
+  // the elements table made: a LOUD chip stays on the row, because a CTE
+  // nobody transcribed has to be legible at a glance and not one click away.
   function materialSourcingCell(row, authored) {
     var cell = VA.el("td", "el-row__source");
     var chips = VA.el("div", "el-row__chips");
@@ -511,63 +560,27 @@
       VA.CONFIDENCE_LABEL[row.confidence] || row.confidence,
       "how the CTE VALUE is sourced — the designation is sourced separately"));
     if (row.kind) chips.appendChild(VA.chip("chip--kind", row.kind));
-    // The name and the number have different provenance, and materials.json
-    // keeps them in different fields on purpose: most designations are traced to
-    // a drawing note, and no CTE value in this repo is traced to anything.
+    // The name and the number have different provenance, and the material
+    // record keeps them in different fields on purpose: most designations are
+    // traced to a drawing note, and no CTE value in this repo is traced to
+    // anything.
     chips.appendChild(VA.chip(VA.confidenceClass(row.designation_confidence),
       "designation: " + (VA.CONFIDENCE_LABEL[row.designation_confidence] ||
         row.designation_confidence)));
-    // WHERE the CTE came from, and — since 2026-08-12 — WHAT KIND of record it
-    // is. `values_status` decides whether the number in the CTE column is the
-    // repo's record of it (`inline`), a cross-check of a projection that owns it
-    // (`library`, through `library_ref`), or nothing anybody read off a source
-    // (`not_transcribed`). All three rendered identically until this line
-    // existed, on a column whose numbers are the least-traced in the repo.
     var values = VA.valuesProvenance(authored);
     if (values.loud) {
       chips.appendChild(VA.chip("chip--values-" + values.state,
-        values.state === "not_transcribed" ? "CTE NOT TRANSCRIBED"
-          : "VALUES_STATUS UNKNOWN", values.text));
+        VA.VALUES_CHIP_TEXT[values.state] || VA.VALUES_CHIP_FALLBACK,
+        values.text));
     }
     cell.appendChild(chips);
-    cell.appendChild(VA.el("div", "el-row__where",
-      VA.citationWhere(authored.values_source)));
-    cell.appendChild(VA.el("div",
-      "mat-row__values" + (values.loud ? " mat-row__values--loud" : ""), values.text));
-    // Rendered whenever it is set, whatever the status says. `library_ref` is the
-    // provenance of a NUMBER — `spec_library:NAS6403U11D` is what a value
-    // resolves through — and the schema does not forbid an `inline` entry from
-    // naming one, so reading it only under `values_status: "library"` would be
-    // the same silent drop, one field along.
-    if (values.libraryRef) {
-      cell.appendChild(VA.el("div", "mat-row__libref",
-        "library_ref: " + values.libraryRef));
-    }
-    if (authored.note) {
-      cell.appendChild(VA.el("div", "el-row__srcnote el-row__srcnote--open", authored.note));
-    }
-    // The DESIGNATION's own citation. Its confidence has had a chip since the
-    // materials table shipped, but the chip says how well sourced the name is
-    // while never saying WHERE from — and a designation is what makes the CTE a
-    // claim about a specific alloy rather than about a word.
-    cell.appendChild(VA.el("div", "mat-row__desig",
-      "designation from: " + VA.citationWhere(authored.designation_source)));
-    if (authored.designation_source && authored.designation_source.callout) {
-      cell.appendChild(VA.el("div", "el-row__callout",
-        authored.designation_source.callout));
-    }
-    if (authored.designation_source && authored.designation_source.note) {
-      cell.appendChild(VA.clampedNote("el-row__srcnote", authored.designation_source.note));
-    }
-    // The outstanding ASK for a real value, when the entry records one. It is the
-    // one field on a material entry that describes future work rather than the
-    // present record, so it is clamped and labelled — but it is here, because a
-    // CTE that is traced to nothing and whose recorded next step is invisible is
-    // the same defect one layer down.
-    if (authored.cindas_request) {
-      cell.appendChild(VA.clampedNote("mat-row__request",
-        "CINDAS request on record: " + authored.cindas_request));
-    }
+    // WHERE the CTE came from, one line, ellipsised -- the same
+    // `el-row__where--compact` the elements table's cell uses, with the whole
+    // string on the hover for a reader who does not want to click.
+    var where = VA.el("div", "el-row__where el-row__where--compact",
+      VA.citationWhere(authored.values_source));
+    where.setAttribute("title", VA.citationWhere(authored.values_source));
+    cell.appendChild(where);
     return cell;
   }
 
