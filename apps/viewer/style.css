@@ -375,24 +375,31 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    block + crop trigger, up to 340px wide and tall enough to make the table
    read like a list). Full detail — callout, note, export block, crop — moved
    to the right pane (views/detail.js); the row keeps just enough to decide
-   whether to click it. */
-.el-row { cursor: pointer; }
-.el-row--selected { outline: 2px solid var(--accent); outline-offset: -1px; }
+   whether to click it.
+
+   BOTH TABLES, since 2026-09-18. The materials table kept the composite cell
+   for a month after the elements table dropped it, and a live materials row
+   measured 653px against 88-112px for an elements row on the same page. Same
+   answer, same three parts: a compact cell, the detail in the pane, and a
+   clickable row to reach it. */
+.el-row, .mat-row { cursor: pointer; }
+.el-row--selected,
+.mat-row--selected { outline: 2px solid var(--accent); outline-offset: -1px; }
 .el-row__source { max-width: 260px; }
 .el-row__chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
 .el-row__where { font-size: var(--t-meta); color: var(--ink); }
-/* The one-line form used only by the elements table's compact cell — the
-   materials table's `.el-row__where` (designation source) still wraps in
-   full, so the ellipsis is a modifier, not the base rule. */
+/* One line, ellipsised. Both tables' source cells use it now — the materials
+   cell's where-line used to wrap in full, which is part of what made the row
+   tall; the whole string is on the cell's hover and in the pane. */
 .el-row__where--compact {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.el-row__callout { font-size: var(--t-meta); color: var(--muted); font-family: ui-monospace, monospace; margin-top: 3px; }
-/* Clamped by default (click to expand) — see views/stack.js. Three of these
-   now: the citation's own note, the export's, and a material's CINDAS
-   request. Separate class names on purpose, so a selector for one never
-   picks up another; one rule, because they read as one kind of thing. */
-.el-row__srcnote, .el-export__note, .mat-row__request {
+/* Clamped by default (click to expand) — see views/stack.js. `el-row__srcnote`
+   / `el-row__callout` / `mat-row__request` were here too until 2026-09-18 and
+   are gone with the last composite source cell: both tables' rows are compact
+   now and neither renders a note, a callout or a request. The export's note is
+   the only clamped preview left, which is why this rule is one selector. */
+.el-export__note {
   font-size: var(--t-meta); color: var(--muted); margin-top: 3px; cursor: pointer;
   /* 2.8em since 2026-09-17, where it was 4.6em. The clamp is a PREVIEW -- the
      note in full is what the preview pane exists for, unclamped
@@ -403,9 +410,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
      and decide whether to open it, which is all a row has to let a reader do. */
   max-height: 2.8em; overflow: hidden; border-left: 2px solid var(--line); padding-left: 6px;
 }
-.el-row__srcnote--open, .el-export__note--open,
-.mat-row__request--open { max-height: none; }
-.mat-row__request { border-left-color: var(--accent); }
+.el-export__note--open { max-height: none; }
 
 /* --- source_ref.export: which BYTES the number was read off ----------- */
 /* Recessed by default: for an established export this is corroboration a
@@ -448,13 +453,13 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    quoted it for. Accent-coloured because the pair is the comparison, and the
    viewer states both without deciding whether one covers the other. */
 .mat-row__applied { color: var(--accent); font-size: var(--t-micro); margin-top: 2px; }
-.mat-row__values { color: var(--muted); font-size: var(--t-meta); margin-top: 3px; }
-.mat-row__values--loud { color: var(--nocite); font-weight: 600; }
-.mat-row__libref {
+.mat__values { color: var(--muted); font-size: var(--t-meta); margin-top: 3px; }
+.mat__values--loud { color: var(--nocite); font-weight: 600; }
+.mat__libref {
   color: var(--accent); font-size: var(--t-meta); font-family: ui-monospace, monospace;
   margin-top: 3px;
 }
-.mat-row__desig { color: var(--ink); font-size: var(--t-meta); margin-top: 5px; }
+.mat__desig { color: var(--ink); font-size: var(--t-meta); margin-top: 5px; }
 .el-note td { color: var(--muted); font-size: var(--t-meta); padding-top: 0; border-bottom: 1px solid var(--line); }
 .el-note--gap td { color: var(--inferred); }
 .el-gaps summary { cursor: pointer; }
@@ -608,6 +613,12 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .detail__note {
   margin-bottom: 10px; padding-left: 8px; border-left: 2px solid var(--line);
   color: var(--ink); max-width: var(--measure);
+}
+/* A small muted label over a block of the RECORD's own prose (the material
+   pane's request-on-record). Muted and one step down, never smaller-and-bolder
+   — the workspace rule: secondary information is muted, not shouted quietly. */
+.detail__sublabel {
+  color: var(--muted); font-size: var(--t-meta); margin-top: 10px;
 }
 .detail__crop { margin-top: 10px; }
 .detail__crop-img { display: block; width: 100%; background: #fff; border-radius: 4px; }

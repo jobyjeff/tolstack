@@ -32,7 +32,14 @@
       <div id="rail-filter" class="an__filter" style="display:none"></div>
       <ol id="element-list" class="element-list"></ol>
 
-      <label class="an__label">parts (data/meshes/)</label>
+      <!-- "parts (data/meshes/)" until 2026-09-18: a repo-relative path into
+           a gitignored directory, as a label, on an always-visible panel --
+           and in the flyout, where this app is embedded beside the viewer, a
+           path the reader has no shell in which to look at. It wanted to say
+           WHERE the meshes came from; this says it in everyday words.
+           (ISSUE_20260917_the_annotators_console_and_parts_label_print_code_
+           at_the_reader.) -->
+      <label class="an__label">parts with a 3D model</label>
       <ul id="parts-panel" class="parts-panel"></ul>
     </aside>
 
@@ -40,8 +47,17 @@
       <div id="canvas-host" class="an__canvas-host"></div>
       <div id="scene-empty" class="an__scene-empty" style="display:none"></div>
       <div class="an__console">
-        <input id="console-input" type="text"
-               placeholder='command, e.g. isolate machined_213668 (window.AnnotateApp.exec)' />
+        <!-- The placeholder read `command, e.g. isolate machined_213668
+             (window.AnnotateApp.exec)` until 2026-09-18, on a surface that is
+             visible at rest with nothing selected. `window.AnnotateApp.exec`
+             is an internal module path and `machined_213668` is a backend id
+             a reader cannot know without reading code -- two standing
+             web-UI rules, one placeholder. The list of commands this box
+             actually accepts is put on its `title` at boot, read off the
+             command registry itself (app.js), so it can never drift from what
+             the box takes -- and an unknown command already answers with the
+             same list. -->
+        <input id="console-input" type="text" placeholder="command" />
         <button id="console-run">Run</button>
         <pre id="console-output"></pre>
       </div>

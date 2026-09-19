@@ -30,6 +30,17 @@ const VIEWER_ADAPTER = path.join(here, "..", "viewer", "storage", "adapter.js");
 vm.runInContext(fs.readFileSync(VIEWER_ADAPTER, "utf8"), sandbox,
   { filename: "../viewer/storage/adapter.js" });
 
+// ...and the shared list of strings NEITHER app may print at a reader, loaded
+// across the same app boundary and for the same reason: a second copy of a
+// vocabulary is this repo's most-repeated defect. It lived inside
+// apps/viewer/tests.js until 2026-09-18 and therefore covered one of two apps,
+// while THIS one shipped `command, e.g. isolate machined_213668
+// (window.AnnotateApp.exec)` and `parts (data/meshes/)` on its two
+// always-visible surfaces. See apps/viewer/reader_facing_bans.js.
+const BANS = path.join(here, "..", "viewer", "reader_facing_bans.js");
+vm.runInContext(fs.readFileSync(BANS, "utf8"), sandbox,
+  { filename: "../viewer/reader_facing_bans.js" });
+
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js", "commands.js", "exec_queue.js", "fixtures.js"];
 for (const f of files) {
   vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), sandbox, { filename: f });
@@ -37,6 +48,7 @@ for (const f of files) {
 
 const AA = sandbox.AnnotateApp;
 const VA = sandbox.ViewerApp;
+const BANNED = sandbox.ReaderFacingBans;
 let failed = 0;
 let passed = 0;
 
@@ -68,6 +80,17 @@ function assertEqual(actual, expected, msg) {
 // like this is a module-level constant, never an inline literal (CLAUDE.md).
 const COMMANDISH = [".py", "venv-win", "python", "\\", "scripts/"];
 
+// The shared list, over one piece of reader-facing text. Every entry is a
+// literal OR a shape, and the failure names what was FOUND, never the pattern.
+function assertNothingBanned(text, what) {
+  for (const entry of BANNED.BANNED) {
+    const hit = BANNED.found(text, entry);
+    if (hit !== null) {
+      throw new Error(`${what} renders ${JSON.stringify(hit)} (${entry[1]}): ${text}`);
+    }
+  }
+}
+
 function assertNoCommandOrPath(text, what) {
   if (typeof text !== "string" || text.length === 0) {
     throw new Error(`${what} is not a non-empty string: ${JSON.stringify(text)}`);
@@ -77,6 +100,11 @@ function assertNoCommandOrPath(text, what) {
       throw new Error(`${what} names ${JSON.stringify(banned)}: ${text}`);
     }
   }
+  // ...and the list the viewer's surfaces are held to. COMMANDISH stays: it is
+  // about a terminal command specifically and catches three shapes the shared
+  // list does not (`.py`, `python`, a bare backslash), so this is a widening,
+  // not a replacement.
+  assertNothingBanned(text, what);
 }
 
 function assertThrows(fn, msg) {
@@ -98,6 +126,117 @@ function withTimeout(promise, ms, msg) {
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
+
+// --- the reader-facing copy this app SHIPS IN ITS MARKUP -------------------
+//
+// index.html is this app's only static surface and the one a reader meets
+// with nothing selected: two `<select>` labels, a parts-panel label, a
+// command box and a detail-pane prompt. Nothing scanned it until 2026-09-18,
+// which is how `parts (data/meshes/)` and `command, e.g. isolate
+// machined_213668 (window.AnnotateApp.exec)` stayed on screen -- a repo path
+// into a gitignored directory as a label, and an internal module path plus a
+// backend id a reader cannot know, in a placeholder
+// (ISSUE_20260917_the_annotators_console_and_parts_label_print_code_at_the_
+// reader).
+//
+// THE HONEST LIMIT, because a guard read as more than it is becomes a licence:
+// this scans the MARKUP, not the rendered page. Most of this app's words are
+// written by app.js at runtime into a real DOM, and app.js is an ES module
+// that needs three.js and a document -- neither of which exists in this
+// sandbox, which is why this runner has no DOM shim at all. So a sentence
+// app.js builds is covered only where it passes through `assertNoCommandOrPath`
+// (the banner) or through one of the AA tables below. A DOM tier for this app
+// is filed, not built.
+const ANNOTATE_HTML = fs.readFileSync(path.join(here, "index.html"), "utf8");
+
+// Reader-facing text out of HTML: the element text, plus the attributes that
+// are text a reader meets (a placeholder and a title are copy, and the
+// placeholder is exactly where this app's defect was). Comments, <script> and
+// <style> bodies are NOT copy -- the argument for a string belongs beside it,
+// and a scan that read comments would make writing that argument impossible.
+function htmlReaderText(html) {
+  const attrs = [];
+  const ATTR_RE = /(?:placeholder|title|aria-label|alt)\s*=\s*("([^"]*)"|'([^']*)')/g;
+  let m;
+  while ((m = ATTR_RE.exec(html)) !== null) {
+    attrs.push(m[2] !== undefined ? m[2] : m[3]);
+  }
+  const body = html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]*>/g, " ");
+  return { attrs: attrs, body: body };
+}
+
+check("the annotator's own markup prints no repo path, module path, id or " +
+  "command at the reader", () => {
+    const text = htmlReaderText(ANNOTATE_HTML);
+    // Anti-vacuity, both halves: a stripper that returned "" would pass this
+    // scan against anything.
+    if (text.attrs.length < 1) {
+      throw new Error("no reader-facing attributes found -- the extractor has " +
+        "drifted from the markup and this check now passes against anything");
+    }
+    if (!/parts with a 3D model/.test(text.body)) {
+      throw new Error(`the body extractor found no known label: ${text.body}`);
+    }
+    assertNothingBanned(text.body, "apps/annotate/index.html body text");
+    text.attrs.forEach((value, i) => {
+      assertNothingBanned(value, `apps/annotate/index.html attribute #${i + 1} ` +
+        `(${JSON.stringify(value)})`);
+    });
+  });
+
+check("the command box says what it accepts, read off the registry rather " +
+  "than written down", () => {
+    // The placeholder carried a hand-written example naming an internal module
+    // path and a backend id. A list built from `commands.verbs()` cannot drift
+    // from what the box takes -- and it is the same list `CommandLayer.exec`
+    // answers an unknown command with, so a reader meets ONE vocabulary
+    // whichever way they find it.
+    const layer = new AA.CommandLayer();
+    layer.register("isolate", () => {});
+    layer.register("camera", () => {});
+    const hint = AA.commandHint(layer.verbs());
+    assertEqual(hint, "commands: camera, isolate");
+    assertNothingBanned(hint, "AA.commandHint");
+    // An empty registry says so rather than trailing off after the colon --
+    // the hosted page never wires the console at all, but a registry that
+    // failed to register is a state this must not render as a bare label.
+    assertEqual(AA.commandHint([]), "commands: ");
+    // The one thing the placeholder must NOT be: an example command. It is
+    // the word `command` and nothing else.
+    if (!/placeholder="command"/.test(ANNOTATE_HTML)) {
+      throw new Error("the console placeholder is no longer the plain word " +
+        "`command` -- if that is deliberate, the example it now carries has " +
+        "to survive the scan above, and this check has to say so");
+    }
+  });
+
+check("every word table this app renders survives the shared ban list", () => {
+  // AA.BINDING_STATES / AA.BINDING_STATE_ALERTS are the sentences a rail row
+  // and its alert popup print. They are in `AA` and so, unlike app.js's
+  // inline strings, they are reachable from this sandbox -- which is the
+  // argument for a word table over an inline literal, one more time.
+  let scanned = 0;
+  [["AA.BINDING_STATES", AA.BINDING_STATES],
+   ["AA.BINDING_STATE_ALERTS", AA.BINDING_STATE_ALERTS],
+  ].forEach(([name, table]) => {
+    Object.keys(table || {}).forEach((key) => {
+      const row = table[key];
+      Object.keys(row || {}).forEach((field) => {
+        if (typeof row[field] !== "string") return;
+        assertNothingBanned(row[field], `${name}.${key}.${field}`);
+        scanned++;
+      });
+    });
+  });
+  if (scanned < 4) {
+    throw new Error(`the table scan read ${scanned} strings -- it has drifted ` +
+      `from the tables' shape and now passes against anything`);
+  }
+});
 
 // --- vocabulary sanity (hand-copy against tolerance_stack/feature_identity.py) ---
 check("STACK_KEY_KINDS matches the Python tuple", () => {

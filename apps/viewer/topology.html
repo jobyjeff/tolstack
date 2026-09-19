@@ -10,7 +10,15 @@
 <body>
   <div class="topbar">
     <h1>tolstack — viewer</h1>
-    <span class="sub">read-only · renders <code>data/projections/viewer/</code> · computes nothing</span>
+    <!-- It said `renders <code>data/projections/viewer/</code>` until
+         2026-09-18: a repo-relative path into a gitignored directory, on the
+         one line of copy that is on screen at all times. Nothing scanned
+         this file -- the reader-facing-copy walks render JS surfaces, not
+         the markup around them -- which is the same gap that left the
+         annotator's own two static strings standing. The claim that
+         matters is the one either side of it: this page reads a built
+         projection and does no arithmetic. -->
+    <span class="sub">read-only · renders the built projections · computes nothing</span>
     <span class="topbar__spacer"></span>
     <button id="legend-toggle" class="ghost">How to read this</button>
     <button id="worksheet-toggle" class="ghost">Show worksheet</button>

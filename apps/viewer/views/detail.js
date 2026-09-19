@@ -1,24 +1,35 @@
-// The right pane: full sourcing detail for the SELECTED element. Moved out of
-// the elements table (views/stack.js, the compact grid) so the table can stay
-// one line per element: this is where the callout as printed, the citation's
-// own note (unclamped), the export-provenance block and the crop itself all
-// live now, reached by clicking a row rather than by hovering a trigger.
+// The right pane: full sourcing detail for the SELECTED ROW. Moved out of the
+// elements table (views/stack.js, the compact grid) so the table can stay one
+// line per element: this is where the callout as printed, the citation's own
+// note (unclamped), the export-provenance block and the crop itself all live
+// now, reached by clicking a row rather than by hovering a trigger.
+//
+// TWO tables feed it since 2026-09-18. The materials table was the same
+// composite-cell shape the elements table had retired -- 653px of stacked
+// detail in a 260px column -- and the fix was the same fix, which needed a
+// place for the detail to go. So this pane takes a row id from EITHER table
+// and renders whichever it names: the id spaces do not overlap (an element id
+// is a feature, a material id is an alloy), and elements are looked up first
+// so a collision could only ever resolve to the older surface.
 (function (VA) {
   "use strict";
 
-  VA.renderDetail = function (root, stackProj, selectedElementId, cropsIndex, cropImage, config, images) {
+  VA.renderDetail = function (root, stackProj, selectedRowId, cropsIndex, cropImage, config, images) {
     VA.clear(root);
     root.className = "detail";
     if (!stackProj) {
       root.appendChild(VA.el("p", "muted", "Pick a stack."));
       return root;
     }
-    var row = findRow(stackProj, selectedElementId);
+    var row = findRow(stackProj, selectedRowId);
     if (!row) {
+      var materialRow = findMaterial(stackProj, selectedRowId);
+      if (materialRow) return renderMaterial(root, materialRow);
       root.appendChild(VA.el("p", "muted",
-        "Select an element in the table on the left to see its full sourcing " +
-        "here — the callout as printed, the citation note in full, which file " +
-        "the value was read from, and the drawing crop."));
+        "Select a row in the tables on the left to see its full sourcing " +
+        "here — for an element, the callout as printed, the citation note in " +
+        "full, which file the value was read from and the drawing crop; for a " +
+        "material, where its CTE and its designation each came from."));
       return root;
     }
     var element = row.element;
@@ -75,6 +86,118 @@
       if (rows[i].element.id === elementId) return rows[i];
     }
     return null;
+  }
+
+  function findMaterial(stackProj, materialId) {
+    if (!materialId) return null;
+    var rows = stackProj.materials || [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].id === materialId) return rows[i];
+    }
+    return null;
+  }
+
+  // --- the MATERIAL pane -----------------------------------------------------
+  //
+  // Everything views/stack.js's materials row used to stack inside one 260px
+  // table cell, at full width and unclamped -- the same trade the element pane
+  // made when the elements table went compact. Nothing here is new text: every
+  // line below was already on the page, in the cell that made a live row 653px
+  // tall (ISSUE_20260917_the_materials_source_column_is_a_750px_tall_composite_
+  // cell). What is new is where it is.
+  //
+  // There is NO crop section and no export block, and that is not an omission:
+  // a material entry cites a workbook or a drawing NOTE, never a dimension, so
+  // the crop index has no key for it and `source_ref.export` is not a field a
+  // material entry has. A pane that rendered an empty "Drawing crop" heading
+  // for every material would be saying a crop is missing, which is a different
+  // claim from there being none to take.
+  function renderMaterial(root, materialRow) {
+    var authored = materialRow.material || {};
+    var values = VA.valuesProvenance(authored) || {};
+
+    // Its designation, with the id on the hover -- the same rule the element
+    // pane and both topology panes follow: an id is a deep-link handle, not a
+    // label. The id falls through as the heading only when there is no
+    // designation to print, which is the honest fallback rather than a blank.
+    var head = VA.el("div", "detail__head");
+    var heading = VA.el("h3", null, authored.designation || materialRow.id);
+    heading.setAttribute("title", materialRow.id);
+    head.appendChild(heading);
+    root.appendChild(head);
+
+    var chips = VA.el("div", "detail__chips");
+    chips.appendChild(VA.chip(VA.confidenceClass(materialRow.confidence),
+      VA.CONFIDENCE_LABEL[materialRow.confidence] || materialRow.confidence,
+      "how the CTE VALUE is sourced — the designation is sourced separately"));
+    if (materialRow.kind) chips.appendChild(VA.chip("chip--kind", materialRow.kind));
+    chips.appendChild(VA.chip(VA.confidenceClass(materialRow.designation_confidence),
+      "designation: " + (VA.CONFIDENCE_LABEL[materialRow.designation_confidence] ||
+        materialRow.designation_confidence)));
+    if (values.loud) {
+      chips.appendChild(VA.chip("chip--values-" + values.state,
+        VA.VALUES_CHIP_TEXT[values.state] || VA.VALUES_CHIP_FALLBACK,
+        values.text));
+    }
+    root.appendChild(chips);
+
+    // The CTE's own citation, then what KIND of record the number is.
+    root.appendChild(VA.el("div", "detail__where",
+      VA.citationWhere(authored.values_source)));
+    root.appendChild(VA.el("div",
+      "mat__values" + (values.loud ? " mat__values--loud" : ""),
+      values.text));
+    // Rendered whenever it is set, whatever the status says. The reference is
+    // the provenance of a NUMBER -- `spec_library:NAS6403U11D` is what a value
+    // resolves through -- and the schema does not forbid an inline entry from
+    // naming one, so reading it only under one status would be a silent drop
+    // one field along. The LABEL is words, not the projection's key
+    // (2026-09-18, reader-facing copy) -- and not on a hover either: a `title`
+    // is rendered text a reader meets, so moving a schema field name into one
+    // would be hiding it from the guard rather than taking it off the page.
+    if (values.libraryRef) {
+      root.appendChild(VA.el("div", "mat__libref",
+        "spec library reference: " + values.libraryRef));
+    }
+    // `detail__note` / `detail__callout`, the element pane's own classes and
+    // not the row's: unclamped (this pane exists to hold the whole of a
+    // written argument) and already enrolled as the RECORD's prose, which a
+    // material entry's note is exactly as much as an element citation's is.
+    if (authored.note) {
+      root.appendChild(VA.el("div", "detail__note", authored.note));
+    }
+
+    // The DESIGNATION's own citation. Its confidence has a chip above, but a
+    // chip says how well sourced the name is while never saying WHERE from --
+    // and a designation is what makes the CTE a claim about a specific alloy
+    // rather than about a word.
+    root.appendChild(VA.el("div", "mat__desig",
+      "designation from: " + VA.citationWhere(authored.designation_source)));
+    if (authored.designation_source && authored.designation_source.callout) {
+      root.appendChild(VA.el("div", "detail__callout",
+        authored.designation_source.callout));
+    }
+    if (authored.designation_source && authored.designation_source.note) {
+      root.appendChild(VA.el("div", "detail__note",
+        authored.designation_source.note));
+    }
+    // The outstanding ASK for a real value, when the entry records one. It is
+    // the one field on a material entry that describes future work rather than
+    // the present record, so it is labelled -- but it is here, because a CTE
+    // traced to nothing whose recorded next step is invisible is the same
+    // defect one layer down. Unclamped here, unlike in the row it came from:
+    // this pane exists to hold the whole of a written argument.
+    // The LABEL and the record's words are two nodes, not one string. The
+    // label is the page's ("a request is on record"); the request itself is
+    // the entry's own prose and is exempt from the banned-string scan on that
+    // ground -- concatenating them would put the page's words inside the
+    // exemption and quietly widen it.
+    if (authored.cindas_request) {
+      root.appendChild(VA.el("div", "detail__sublabel",
+        "a request for a measured value is on record"));
+      root.appendChild(VA.el("div", "detail__note", authored.cindas_request));
+    }
+    return root;
   }
 
   // --- source_ref.export, moved here verbatim from views/stack.js: the row is
@@ -187,7 +310,21 @@
     // The prefix carries its own separator (see VA.cropReference): this pane's
     // classes are `detail__crop-head` / `-links`, one hyphen, not the
     // double-underscore the popover uses.
-    VA.cropReference(box, entry, config, "detail__crop-");
+    //
+    // `PANE_CROP` (omitHead): ONE document statement per pane, the rule
+    // viewer_hover_deslop_and_banner_purge applied to the hover cards on
+    // 2026-09-16 and scoped to cards, leaving this pane with the defect the
+    // cards were fixed for. The `detail__where` line six lines up already
+    // named the document ("214589-002 · rev A · sheet 1 · SECTION A-A · zone
+    // F5"); the picture under it needs no caption repeating it
+    // ("214589-002-A.pdf · sheet 1").
+    //
+    // The provenance fold is KEPT, unlike a card's. A card suppresses both
+    // because it carries one fold of its own and the crop's would be a second;
+    // a pane has no competing fold, and the fold is where the crop's own
+    // matching rule -- and with the head gone, the export FILENAME, which is a
+    // different claim from the citation's document -- still lands.
+    VA.cropReference(box, entry, config, "detail__crop-", VA.PANE_CROP);
     return box;
   }
 })(window.ViewerApp = window.ViewerApp || {});

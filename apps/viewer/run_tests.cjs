@@ -317,6 +317,7 @@ function startRebuildFailOrigin() {
 vm.createContext(sandbox);
 
 const files = [
+  "reader_facing_bans.js",
   "config.js",
   "viewer.js",
   "topology.js",

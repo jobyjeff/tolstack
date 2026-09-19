@@ -191,6 +191,21 @@
   // disclosure instead. The plain popover and the two preview panes pass
   // nothing and are unchanged: the popover has no where-line of its own, so
   // this head IS its one document statement.
+  // What a crop rendered inside a PREVIEW PANE suppresses, and the one place
+  // it is spelled. Exported, unlike views/cards.js's local CARD_CROP, because
+  // two files render a pane -- views/detail.js (stack side) and
+  // views/topology.js (DAG side) -- and the whole finding behind this constant
+  // is that a rule applied to one surface and not its twin is a rule that has
+  // to be applied twice again next time
+  // (ISSUE_20260916_both_preview_panes_still_restate_the_document_over_the_crop).
+  //
+  // The head only. A pane keeps its provenance fold where a card drops it: a
+  // card already carries one fold and the crop's would be a second, while a
+  // pane has none competing -- and with the head gone that fold is the only
+  // thing left naming the exported FILE, which is a different claim from the
+  // citation's document (`215197 A.1.pdf` versus `215197`).
+  VA.PANE_CROP = { omitHead: true };
+
   VA.cropReference = function (box, entry, config, classPrefix, opts) {
     var base = classPrefix || "croppop__";
     opts = opts || {};

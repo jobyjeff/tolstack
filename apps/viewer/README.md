@@ -1346,6 +1346,21 @@ pane, beneath its citation:
 | no `export` key, `identity_rule: "spec_pile_filename"` | *A standard-spec document, identified by its filename*, with the argument beneath it. The **deliberate exception** — see below. 4 live citations, all `traced`. |
 | anything else | loud: *export status `"X"`, which this viewer has no branch for*. `VA.EXPORT_STATUSES` is a table for the same reason `VA.CROP_RULES` is — an enumerated field needs a total function, because a silent default cannot be told from a handled case by reading the code. An identity rule the viewer has no branch for is loud the same way, through `VA.IDENTITY_RULES`. |
 
+**Two of those sentences are the SUBJECT's, not the status's** (`VA.EXPORT_SUBJECTS`,
+2026-09-18). The same builder renders a stack's `joint` block, whose
+`assembly_export_ref` is the same shape — and *"which file **this value** was read
+from cannot be established"* is about a number a joint block does not have. The
+joint is the assembly context a stack is built across. It says *"No assembly file
+recorded — nothing here says which drawing file describes the joint this stack is
+built across"* instead, and it is **quiet**: the recorded `why` on both live
+thermal stacks says the 217755 assembly drawing was never opened for this stack,
+which is an absence somebody recorded rather than one somebody tried and failed to
+resolve, and the loud tint is reserved for the second. Over a value, unchanged and
+still loud. The rejected alternative was a special case at the joint block's call
+site, which keeps one wrong sentence in the shared vocabulary and moves the problem
+to the next non-value subject. **A third subject** would be the evidence this wants
+a noun substituted into one sentence rather than a sentence per row; there are two.
+
 ### The spec-pile exception
 
 `data/inbox/specs/` is **append-only**: nothing there is renamed, deduplicated or
@@ -1415,21 +1430,41 @@ repo, so the table speaks the same colour language as the elements table. A
 thermal fit's answer is a CTE *difference*, and the soak factor in a term's
 coefficient is `1 + ΔT·α` from that table with the ΔT on the check card.
 
-A material's *name* and its *number* have different provenance, and the sourcing
-cell keeps them apart:
+**The table is a table again, since 2026-09-18.** Its source column was the
+multi-line composite cell the elements table retired a month earlier -- chips,
+a where-line, the values line, the spec-library reference, the entry's note,
+the designation's citation, its callout, its note and the outstanding request,
+stacked in a 260px column. Measured on `hub_bearing_thermal_fit_m1` at
+1600x1000 with the preview pane at its default width, the first row was **653px
+tall** against 88-112px for an elements row on the same page, and all six of
+its cells reported that height because one of them set it. It took the same
+three-part answer the elements table took: a compact cell (chips and one
+ellipsised where-line), the full argument in the preview pane, and a clickable
+row to reach it. Both tables feed one pane and one selection -- clicking a
+material replaces a selected element and the other way round. Rows are 111-169px
+now.
+
+A material's *name* and its *number* have different provenance, and the row and
+the pane keep them apart -- the chips on the row, the sentences in the pane:
 
 * **`values_status`** — what kind of record the CTE column is. `inline`: the
-  number is the record. `library`: it is a **cross-check** of the projection named
-  in `library_ref`, not the record. `not_transcribed`: **outlined magenta** (filled until 2026-09-17) — nobody
+  number is the record. `library`: it is a **cross-check** of the projection its
+  spec-library reference names, not the record. `not_transcribed`: **outlined magenta** (filled until 2026-09-17) — nobody
   read it off anything, so a number in the column is a placeholder and since
   2026-08-12 the schema lets the entry state none at all — though not one you
   will ever meet here, because a material with no CTE stops its stack loading
   (`thermal.material_soak_factor`) and so never reaches a projection. All three
-  rendered identically until 2026-08-12.
+  rendered identically until 2026-08-12. **The field's own name is not on the
+  page** (2026-09-18): three of the five sentences this table can print named a
+  schema key or `materials.json` at the reader, and only one of the five was
+  reachable by any live or fixture entry, so the copy guard covering this
+  surface was green over branches no data could reach. They say "values status"
+  and "the spec library reference" now, and every branch of the table is
+  scanned directly rather than through whatever rows happen to exist.
 * **`library_ref`** — printed whenever it is set, *whatever the status says*:
   `spec_library:NAS6403U11D` is the provenance of a number, and reading the field
   only under `values_status: "library"` would be the same silent drop one field
-  along. `library` with **no** `library_ref` is a self-contradiction the schema
+  along. `library` with **no** reference is a self-contradiction the schema
   permits, so the viewer says so loudly.
 * **the two temperature ranges, paired** — the range the source *quoted* the mean
   over, and the ranges this stack *applies* it over (`applied_over_c`, in accent
@@ -1440,9 +1475,9 @@ cell keeps them apart:
 * **`designation_source`** — where the *name* came from, with its callout and
   note. Its confidence chip has been on the row since the table shipped; where the
   name came from had not.
-* **`cindas_request`** — the outstanding ask for a real value, clamped, where the
-  entry records one. A CTE traced to nothing whose recorded next step is invisible
-  is the same defect one layer down.
+* **`cindas_request`** — the outstanding ask for a real value, where the entry
+  records one, unclamped in the pane. A CTE traced to nothing whose recorded
+  next step is invisible is the same defect one layer down.
 
 ## Hover crops — and the same crop, inline, in the right pane
 
@@ -1462,6 +1497,18 @@ show a resolved crop go through that builder — this popover, the hover cards
 and both preview panes — because they printed the same three lines in three
 slightly different orders before, which is the drift a shared builder exists to
 stop.
+
+**A pane states its document once** (`VA.PANE_CROP`, 2026-09-18). The crop's
+head — `214589-002-A.pdf · sheet 1` — restated the citation's own where-line
+directly above it. The hover cards took this rule on 2026-09-16 and the
+deliverable was scoped to cards, so both panes kept the defect for two days;
+they pass the same constant now, so the two cannot drift apart again. The
+panes keep the matching-provenance fold that a card drops, because with the
+head gone that fold is the only thing still naming the exported *file*, which
+is a different claim from the citation's *document* (`215197 A.1.pdf` versus
+`215197`). The DAG pane's citation line also passes what the pane already said
+to `VA.citationWhere`, so an edge whose part is named after its own drawing no
+longer prints the part number on two lines.
 
 **Two things left these surfaces on 2026-09-15**, both of them things Jeff read
 and none of them a loss of a fact a reader wanted:

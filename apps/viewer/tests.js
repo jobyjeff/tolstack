@@ -605,7 +605,7 @@
         status: "resolved", resolved_by: "spec_pile",
         pdf_name: "NAS6403-NAS6420 Rev 4.pdf", sha256_verified: null,
         located_by: "sheet_full", note: "whole sheet -- no text layer",
-      }), "from data/inbox/specs/ by filename");
+      }), "from the standard-spec library by filename");
     });
 
     // THE GUARD AGAINST THIS BUG RECURRING. The old code switched on three
@@ -1361,7 +1361,7 @@
     await test("clicking anywhere on a row hands its element id to the app", function () {
       var seen = null;
       var root = render(function (r) {
-        VA.renderStack(r, DEMO, CROPS, { onElementSelect: function (id) { seen = id; } });
+        VA.renderStack(r, DEMO, CROPS, { onRowSelect: function (id) { seen = id; } });
       });
       all(root, "tr.el-row")[0].click();
       eq(seen, "plate");
@@ -1371,7 +1371,7 @@
 
     await test("the selected row is visibly marked, and only that one", function () {
       var root = render(function (r) {
-        VA.renderStack(r, DEMO, CROPS, { selectedElementId: "washer" });
+        VA.renderStack(r, DEMO, CROPS, { selectedRowId: "washer" });
       });
       var selected = all(root, "tr.el-row--selected");
       eq(selected.length, 1);
@@ -1383,7 +1383,7 @@
       eq(all(root, "tr.el-row--selected").length, 0);
     });
 
-    await test("a row is clickable even with no onElementSelect handler wired", function () {
+    await test("a row is clickable even with no onRowSelect handler wired", function () {
       // renderStack is called with {} (no handlers) elsewhere in this file and
       // must not throw just because nothing is listening for a click.
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
@@ -1734,12 +1734,29 @@
     // and this suite runs in both. What is true at every origin is that no
     // class in the block may join the prefix to its suffix with nothing
     // between them.
-    await test("the stack pane's crop block carries THIS pane's class prefix, " +
-      "separator and all", function () {
+    await test("the stack pane states its document ONCE, and its crop block " +
+      "carries THIS pane's class prefix, separator and all", function () {
       var root = render(function (r) {
         VA.renderDetail(r, DEMO, "plate", CROPS, { url: "blob:x" }, VA.CONFIG);
       });
-      eq(all(root, "div.detail__crop-head").length, 1);
+      // ONE document statement per pane (VA.PANE_CROP, 2026-09-18). The
+      // where-line names the document; the picture under it renders no head
+      // restating it. The hover cards took this on 2026-09-16 and the panes
+      // were left out of scope, which is the whole of the issue this closes.
+      eq(all(root, "div.detail__crop-head").length, 0,
+         "the crop head restates the where-line above it");
+      var where = all(root, "div.detail__where")[0].textContent;
+      has(where, "215197");
+      // ...and the fold that carries the matching provenance STAYS, unlike a
+      // card's: with the head gone it is the only thing left naming the
+      // exported file, which is a different claim from the citation's document.
+      eq(all(root, "details.provfold").length, 1);
+      // The prefix is still a prefix, and `detail__crop-img` is the node that
+      // proves it now that the head is gone. NOT `detail__crop-links`: that
+      // node renders only where this origin can follow a link, so an
+      // anti-vacuity anchor on it passes over file:// and fails over http --
+      // measured, in the browser tier, the first time this test was rewritten.
+      eq(all(root, "img.detail__crop-img").length, 1);
       eq(unseparatedPrefixes(root), [],
          "the prefix lost its separator: the block renders unstyled");
     });
@@ -1871,12 +1888,17 @@
       ok(box[0].className.indexOf("--loud") === -1);
     });
 
-    await test("the panel says which element to select when nothing is selected",
+    await test("the panel says which rows to click when nothing is selected",
       function () {
         var root = render(function (r) {
           VA.renderDetail(r, DEMO, null, CROPS, null, VA.CONFIG);
         });
-        has(root.textContent, "Select an element");
+        // Both tables feed this pane since 2026-09-18, so the empty state names
+        // both -- an empty state that mentions one of two clickable tables is
+        // the "if a feature is absent from a build, show nothing about it" rule
+        // upside down.
+        has(root.textContent, "Select a row in the tables on the left");
+        has(root.textContent, "for a material");
         eq(all(root, "div.el-export").length, 0);
       });
 
@@ -2050,10 +2072,11 @@
       eq(VA.valuesProvenance(entries[2]).state, "not_transcribed");
       eq(VA.valuesProvenance(entries[2]).loud, true);
       has(VA.valuesProvenance(entries[2]).text, "NOT TRANSCRIBED");
-      // `library` — no live entry and no fixture entry is in this state (no
-      // materials library exists yet), so it is exercised inline. It is the state
-      // the whole field is FOR: `spec_library:NAS6403U11D` is the provenance of a
-      // number, and the CTE column would be a cross-check rather than the record.
+      // `library` — no LIVE entry is in this state; `DEMO_STAINLESS` is,
+      // since 2026-09-18, which is what makes the copy guard over this branch
+      // non-vacuous. It is the state the whole field is FOR:
+      // `spec_library:NAS6403U11D` is the provenance of a number, and the CTE
+      // column is then a cross-check rather than the record.
       var library = VA.valuesProvenance({ values_status: "library",
                                           library_ref: "spec_library:AL_7050" });
       eq(library.state, "library");
@@ -2065,7 +2088,11 @@
       // further), which is exactly why the viewer has to.
       var broken = VA.valuesProvenance({ values_status: "library", library_ref: null });
       eq(broken.loud, true);
-      has(broken.text, "names NO library_ref");
+      // In words, not in the schema's keys (2026-09-18): this sentence said
+      // "values_status says ... and the entry names NO library_ref" and was
+      // reachable by no live or fixture entry, so the guard over this surface
+      // was green over it.
+      has(broken.text, "names no spec library reference");
       // An unknown status gets the loud unlabelled treatment, same as an export's.
       var stranger = VA.valuesProvenance({ values_status: "estimated" });
       eq(stranger.state, "unlabelled");
@@ -2081,53 +2108,215 @@
       eq(VA.appliedOverText(null), null);
     });
 
-    await test("the materials table renders the provenance of the NUMBER", function () {
-      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
-      var rows = all(root, "tr.mat-row");
-      // What kind of record each CTE is — three rows that looked identical here
-      // until 2026-08-12.
-      eq(all(root, "div.mat-row__values").length, 3);
-      has(rows[0].textContent, "transcribed INLINE");
-      has(rows[2].textContent, "CTE NOT TRANSCRIBED");
-      // ...and the loudest one is legible from the row, not only from the prose.
-      eq(all(root, "span.chip--values-not_transcribed").length, 1);
-      has(all(root, "div.mat-row__values--loud")[0].textContent, "NOT TRANSCRIBED");
-      // The ranges, paired: what the source quoted the mean over, and what this
-      // stack applies it over. The aluminium quotes none and is applied over one.
-      has(rows[0].textContent, "— not stated");
-      has(all(root, "div.mat-row__applied")[0].textContent, "applied over 20 … 72 °C");
-      has(rows[1].textContent, "20 … 100");
-      // The DESIGNATION's own citation. Its confidence chip has been there since
-      // the table shipped; where the name came from had not.
-      var desig = all(root, "div.mat-row__desig");
-      eq(desig.length, 3);
-      has(desig[0].textContent, "designation from: DEMO-1 · rev A · sheet 1 · NOTES · zone D9");
-      has(rows[0].textContent, "PRODUCE FROM DEMO ALUMINIUM T7451");
-      // A material with no designation_source says so rather than showing a blank.
-      has(desig[2].textContent, "no citation");
-      // The outstanding ask for a real value, where one is recorded.
-      var requests = all(root, "div.mat-row__request");
-      eq(requests.length, 2, "the stainless records no CINDAS request");
-      has(requests[0].textContent, "CINDAS request on record");
-      has(requests[0].textContent, "would make the fit looser than analysed");
-    });
+    await test("the materials ROW keeps only what decides whether to click it",
+      function () {
+        var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+        var rows = all(root, "tr.mat-row");
+        eq(rows.length, 3);
+        // THE DEFECT THIS CLOSES: the source cell stacked chips, a where-line,
+        // the values line, the spec-library reference, the entry's note, the
+        // designation's citation, its callout, its note and the outstanding
+        // request one under the next, in a 260px column. Measured live at
+        // 1600x1000 it made a row 653px tall against 88-112px for an elements
+        // row on the same page (ISSUE_20260917_the_materials_source_column_
+        // is_a_750px_tall_composite_cell). None of it is deleted; all of it is
+        // one click away in the pane.
+        eq(all(root, "div.mat__values").length, 0);
+        eq(all(root, "div.mat__desig").length, 0);
+        eq(all(root, "div.mat__libref").length, 0);
+        eq(all(root, "div.detail__note").length, 0);
+        eq(all(root, "div.detail__callout").length, 0);
+        // What it keeps: the chips, and ONE ellipsised where-line. Scoped to
+        // the materials table -- the elements table beside it renders the same
+        // class, which is the point (one compact cell, two tables).
+        var table = root.querySelector("table.mattable");
+        ok(table, "the materials table must be on the page");
+        eq(all(table, "div.el-row__where--compact").length, 3);
+        has(rows[0].textContent, "demo.xlsx · cell C5");
+        // ...plus the loud chip, the same exception the elements table makes:
+        // a CTE nobody transcribed has to be legible across the table, not one
+        // click away.
+        eq(all(root, "span.chip--values-not_transcribed").length, 1);
+        has(rows[2].textContent, VA.VALUES_CHIP_TEXT.not_transcribed);
+        // The ranges, paired, stay in the row: what the source quoted the mean
+        // over and what this stack applies it over is the comparison the TABLE
+        // is for. The aluminium quotes none and is applied over one.
+        has(rows[0].textContent, "— not stated");
+        has(all(root, "div.mat-row__applied")[0].textContent, "applied over 20 … 72 °C");
+        has(rows[1].textContent, "20 … 100");
+      });
 
-    await test("library_ref renders whatever the status says", function () {
+    await test("the materials PANE holds the provenance of the NUMBER, and " +
+      "the provenance of the NAME beside it", function () {
+        function pane(id) {
+          return render(function (r) { VA.renderDetail(r, GEN, id, null, null, VA.CONFIG); });
+        }
+        // What kind of record each CTE is — three rows that looked identical
+        // on this surface until 2026-08-12.
+        var aluminium = pane("DEMO_ALUMINIUM");
+        has(aluminium.textContent, "transcribed INLINE");
+        has(all(aluminium, "div.detail__where")[0].textContent, "demo.xlsx · cell C5");
+        var bearing = pane("DEMO_BEARING_STEEL");
+        has(bearing.textContent, VA.VALUES_CHIP_TEXT.not_transcribed);
+        has(all(bearing, "div.mat__values--loud")[0].textContent, "NOT TRANSCRIBED");
+        // The DESIGNATION's own citation. Its confidence chip has been on the
+        // row since the table shipped; where the name came from had not.
+        has(all(aluminium, "div.mat__desig")[0].textContent,
+            "designation from: DEMO-1 · rev A · sheet 1 · NOTES · zone D9");
+        has(aluminium.textContent, "PRODUCE FROM DEMO ALUMINIUM T7451");
+        // A material with no designation_source says so rather than showing a
+        // blank.
+        has(all(bearing, "div.mat__desig")[0].textContent, "no citation");
+        // The outstanding ask for a real value, where one is recorded --
+        // unclamped here, and its LABEL is a separate node from the record's
+        // own prose (see views/detail.js on why that boundary matters).
+        has(bearing.textContent, "a request for a measured value is on record");
+        has(bearing.textContent, "there is no citation for it at all");
+        var stainless = pane("DEMO_STAINLESS");
+        ok(stainless.textContent.indexOf("a request for a measured value") === -1,
+           "the stainless records no request");
+        // The pane names the alloy, never its id; the id is the hover.
+        eq(all(aluminium, "h3")[0].textContent, "a demo aluminium");
+        eq(all(aluminium, "h3")[0].getAttribute("title"), "DEMO_ALUMINIUM");
+        // A material pane renders no crop section and no export block: a
+        // material entry cites a workbook or a drawing note, never a
+        // dimension, so there is no crop to take rather than one missing.
+        eq(all(aluminium, "div.detail__crop").length, 0);
+        eq(all(aluminium, "div.el-export").length, 0);
+      });
+
+    await test("a spec-library reference renders whatever the status says", function () {
       // Reading it only under `values_status: "library"` would be the same silent
       // drop this handoff exists to end, one field along — and the schema permits
       // an `inline` entry to name one.
       var poisoned = JSON.parse(JSON.stringify(GEN));
       poisoned.materials[0].material.library_ref = "spec_library:AL_7050_T7451";
       eq(VA.valuesProvenance(poisoned.materials[0].material).state, "inline");
-      var root = render(function (r) { VA.renderStack(r, poisoned, null, {}); });
-      var refs = all(root, "div.mat-row__libref");
+      var root = render(function (r) {
+        VA.renderDetail(r, poisoned, "DEMO_ALUMINIUM", null, null, VA.CONFIG);
+      });
+      var refs = all(root, "div.mat__libref");
       eq(refs.length, 1);
-      has(refs[0].textContent, "library_ref: spec_library:AL_7050_T7451");
-      // Null on every live and fixture entry, and a null must render nothing at
-      // all rather than an empty label.
-      var plain = render(function (r) { VA.renderStack(r, GEN, null, {}); });
-      eq(all(plain, "div.mat-row__libref").length, 0);
+      // In words, not in the projection's key: it said "library_ref: …" until
+      // 2026-09-18, and no live or fixture entry reached the line, so the
+      // guard over this surface had never seen it.
+      has(refs[0].textContent, "spec library reference: spec_library:AL_7050_T7451");
+      // The fixture's own `library` entry, which is what makes the guard over
+      // this branch non-vacuous.
+      var stainless = render(function (r) {
+        VA.renderDetail(r, GEN, "DEMO_STAINLESS", null, null, VA.CONFIG);
+      });
+      has(all(stainless, "div.mat__libref")[0].textContent,
+          "spec_library:DEMO_STAINLESS_CTE");
+      has(stainless.textContent, "CROSS-CHECK");
+      // Absent must render nothing at all rather than an empty label.
+      var plain = render(function (r) {
+        VA.renderDetail(r, GEN, "DEMO_BEARING_STEEL", null, null, VA.CONFIG);
+      });
+      eq(all(plain, "div.mat__libref").length, 0);
     });
+
+    // --- the worksheet's markdown renderer ---------------------------------
+    //
+    // `apps/viewer/vendor/markdown.js` had NO tests in this suite at all until
+    // 2026-09-18, which is how it shipped one <p> per source LINE for as long
+    // as this app has rendered a worksheet. Every `.md` in this repo hard-wraps
+    // at ~80 columns by house convention, so the defect scaled with how well
+    // the source file was written: measured on the live
+    // WORKSHEET_hub_bearing_thermal_fit.md, 324 paragraphs and 38 `**` runs
+    // printed on screen (ISSUE_20260917_the_worksheet_renderer_makes_one_
+    // paragraph_per_source_line).
+    //
+    // The file is VENDORED from forge, and its header now records the
+    // divergence rather than the old instruction to re-copy; these tests are
+    // the other half of that record -- a divergence nothing pins is a
+    // divergence the next re-copy silently reverts.
+
+    await test("a hard-wrapped paragraph is ONE paragraph, and a blank line " +
+      "is what ends it", function () {
+        var html = VA.renderMarkdown(
+          "Stacks A (the current design) and\n" +
+          "B (the as-built configuration that slipped).\n" +
+          "\n" +
+          "Handoff x, 2026-08-05.\n");
+        eq((html.match(/<p>/g) || []).length, 2);
+        has(html, "Stacks A (the current design) and\nB (the as-built");
+        // A soft wrap renders as a newline, not a <br />: the author's wrap is
+        // theirs, and a browser collapses it to the space it stood for.
+        ok(html.indexOf("<br") === -1, "a soft wrap must not become a <br />");
+      });
+
+    await test("emphasis spanning a wrap is parsed, which is what one <p> per " +
+      "line made impossible", function () {
+        // The live case, verbatim in shape: the asterisks were ON SCREEN
+        // because the inline pass never saw the two halves of the span
+        // together.
+        var html = VA.renderMarkdown(
+          "Archetype: docs/tolerance_stacks/ARCHETYPE_thermal_fit.md \u2014 **read that\n" +
+          "first if you are reading a number out of this file.**\n");
+        has(html, "<strong>read that\nfirst if you are reading a number out " +
+            "of this file.</strong>");
+        ok(html.indexOf("**") === -1, "the markup leaked onto the page: " + html);
+      });
+
+    await test("every other block still ends a paragraph, so nothing is " +
+      "swallowed by the run that precedes it", function () {
+        // ONE list of "what starts a block", read by the main loop and by the
+        // paragraph gatherer: two lists that can disagree is how a renderer
+        // eats a heading.
+        [["# Head", "<h1>"], ["- item", "<ul>"], ["1. item", "<ol>"],
+         ["> quoted", "<blockquote>"], ["---", "<hr />"], ["```", "<pre>"],
+        ].forEach(function (pair) {
+          var html = VA.renderMarkdown("a paragraph line\n" + pair[0] + "\n");
+          has(html, "<p>a paragraph line</p>", pair[0]);
+          has(html, pair[1], pair[0]);
+        });
+        // A GFM table is the one that needs its separator row to be visible
+        // from inside the paragraph run.
+        var table = VA.renderMarkdown(
+          "a paragraph line\n| a | b |\n|---|---|\n| 1 | 2 |\n");
+        has(table, "<p>a paragraph line</p>");
+        has(table, "<table>");
+        has(table, "<td>1</td>");
+      });
+
+    await test("a hard-wrapped LIST ITEM is one item, not an item and a " +
+      "paragraph under the list", function () {
+        // The second instance of the same defect, and the [real] guard below
+        // is what found it: the tail of a wrapped bullet was emitted as its
+        // own <p> AFTER the </ul>, and the emphasis span straddling the wrap
+        // was left as asterisks. Live on WORKSHEET_hub_bearing_thermal_fit.md.
+        var html = VA.renderMarkdown(
+          "- **Hoop stress, contact pressure, and whether the interference is\n" +
+          "  survivable.** See the torque caveat below.\n" +
+          "- Surface roughness.\n");
+        eq((html.match(/<li>/g) || []).length, 2);
+        eq((html.match(/<p>/g) || []).length, 0,
+           "the wrapped tail became a paragraph below the list: " + html);
+        // The continuation line is TRIMMED before it is joined: the indent
+        // is the markup that says "continuation", not part of the sentence.
+        has(html, "<strong>Hoop stress, contact pressure, and whether the " +
+            "interference is\nsurvivable.</strong>");
+        // A nested item is still a nested list, not a continuation: LIST_RE
+        // is tested first, so the indent alone never decides.
+        var nested = VA.renderMarkdown("- outer\n  - inner\n");
+        eq((nested.match(/<ul>/g) || []).length, 2);
+        // ...and an UNindented line after a list is still its own paragraph.
+        // CommonMark would lazily continue it; this renderer deliberately does
+        // not, because that reading cannot swallow a paragraph by accident.
+        var loose = VA.renderMarkdown("- item\nnot indented\n");
+        eq((loose.match(/<p>/g) || []).length, 1);
+      });
+
+    await test("the escape-first invariant survives the paragraph change",
+      function () {
+        // The whole source is HTML-escaped BEFORE any block or inline
+        // transform, so no raw user HTML can reach the DOM. Joining lines
+        // happens after that escape and must not undo it.
+        var html = VA.renderMarkdown("<script>alert(1)</script> and\nmore text\n");
+        ok(html.indexOf("<script") === -1, html);
+        has(html, "&lt;script&gt;");
+      });
 
     await test("a declared worksheet says it was declared, not matched by name", function () {
       var root = render(function (r) { VA.renderWorksheet(r, GEN, "# demo\n"); });
@@ -3727,36 +3916,12 @@
     // that is the only tier that can read what a reader reads: a class-name
     // check passes straight through a wrong sentence.
 
-    // Every string this page must never print, with what each one IS. Not a
-    // style preference -- each is a class of thing a reader cannot act on, and
-    // each had a live instance on 2026-09-15. Shared with the [real] tier
-    // below, which runs the same list over every live topology; internal IDS
-    // are per-topology and are checked there against each topology's own.
-    var BANNED_IN_RENDERED_TEXT = [
-      ["sha256", "an algorithm's name -- nothing a reader can act on"],
-      ["source_ref", "a field name out of the schema"],
-      ["crop_key", "a field name out of the schema"],
-      ["crops.json", "an internal artifact's filename"],
-      ["C:/", "an absolute workstation path"],
-      ["C:\\", "an absolute workstation path, the other way round"],
-      ["build_viewer_crops.py", "a terminal command for the reader to type"],
-      ["venv-win", "a terminal command for the reader to type"],
-      // SHAPES, not literals (2026-09-16, reader_facing_copy_and_vocabulary
-      // item 7). The eight above are the eight instances that existed on
-      // 2026-09-15; a literal can only ever catch the strings someone has
-      // already written down. A shape catches the ones nobody has written yet,
-      // and that is not hypothetical here: VA.exportRunsLine printed four bare
-      // run ids -- `20260723_163810` and three more -- straight past this list
-      // for as long as it has existed, because no literal in it spells a run
-      // id and nothing could (ISSUE_20260916_the_element_pane_still_prints_
-      // bare_drawing_checker_run_ids_as_link_text).
-      [/\b\d{8}_\d{6}\b/,
-       "a drawing-checker run id -- an internal artifact's address, and a " +
-       "shape, so an id nobody has written yet is caught too"],
-      [/\b[0-9a-f]{24,}\b/,
-       "a checksum's own digits -- twelve hex characters are not something a " +
-       "reader of this page can do anything with"],
-    ];
+    // Every string this page must never print, with what each one IS --
+    // `apps/viewer/reader_facing_bans.js`, which is where the list moved on
+    // 2026-09-18 so that `apps/annotate/run_tests.cjs` could read the same one
+    // rather than grow a second copy. Read that file for the argument; this
+    // alias is here so every use below reads as it always did.
+    var BANNED_IN_RENDERED_TEXT = ReaderFacingBans.BANNED;
 
     // Every FIELD NAME the schema uses, read out of the projection itself
     // rather than listed here -- the same rule the id walks follow, one level
@@ -3803,12 +3968,15 @@
       "div.el-export__note", "div.el-export__why",
       // The stack-side surfaces, enrolled 2026-09-16 when the walk below
       // reached them. Every one of these is the RECORD speaking, not the page:
-      // an element row's citation note and callout as printed (a material
-      // entry's own note reuses the same two classes), and a worksheet, which
-      // is authored markdown read live off disk. `el-row__srcnote` in particular
-      // carries live prose naming `20260730_133912` to argue an export's
-      // identity -- true, useful, and not the viewer's words to trim.
-      "div.el-row__srcnote", "div.el-row__callout",
+      // a worksheet, which is authored markdown read live off disk.
+      //
+      // `div.el-row__srcnote` and `div.el-row__callout` were here until
+      // 2026-09-18 and are gone with the last composite source cell: the
+      // materials row was their final renderer, and the material pane it moved
+      // into uses `detail__note` / `detail__callout` -- the PANE's classes,
+      // already on this list, already unclamped. An exemption for a class
+      // nothing renders is the dead-exemption shape the [real] guard below
+      // exists to catch, so they are removed rather than left to rot.
       "div.worksheet__body",
       // ...and the four places the stack page prints the RECORD: a stack's own
       // notes, a derived gap's text, a hardware or material entry's recorded
@@ -3852,11 +4020,9 @@
     // reader nothing about which id is on their page.
     function bannedIn(text, where) {
       BANNED_IN_RENDERED_TEXT.forEach(function (pair) {
-        var found = typeof pair[0] === "string"
-          ? (String(text).indexOf(pair[0]) === -1 ? null : pair[0])
-          : (String(text).match(pair[0]) || [null])[0];
-        ok(found === null,
-           where + " renders " + JSON.stringify(found) + " (" + pair[1] +
+        var hit = ReaderFacingBans.found(text, pair);
+        ok(hit === null,
+           where + " renders " + JSON.stringify(hit) + " (" + pair[1] +
            "): " + text);
       });
     }
@@ -3938,7 +4104,57 @@
             })]);
         }
       });
+      // The MATERIAL pane, enrolled 2026-09-18, the day views/detail.js grew
+      // one. It is the same pane node and the same walk as the element pane
+      // above: a surface that renders reader-facing text and is reachable by a
+      // click is in, and enrolling it the day it exists is the only way this
+      // list does not drift behind the app again -- `views/stack.js`'s
+      // materials table went a month with a defect no walk could see.
+      (stackProj.materials || []).forEach(function (material) {
+        surfaces.push([where + "material pane on " + material.id,
+          render(function (r) {
+            VA.renderDetail(r, stackProj, material.id, crops, null, VA.CONFIG);
+          })]);
+      });
       return surfaces;
+    }
+
+    // A material entry synthesised to reach ONE VA.VALUES_STATUSES branch.
+    //
+    // Why a synthesised entry and not a fixture row: two of the four branches
+    // below are shapes the BUILDER CANNOT EMIT. A `values_status` outside the
+    // vocabulary is what tests/test_js_python_vocabulary.py exists to make
+    // impossible, and a fixture carrying one would describe a materials record
+    // the loader refuses to read -- the defect `viewer_fixture_shape_guards`
+    // exists against. So the unreachable-by-data branches are reached the only
+    // way they can be: by calling the total function with each member of its
+    // own domain, which is also the only way the coverage stays complete when
+    // the domain grows.
+    function materialEntryWithStatus(status, libraryRef) {
+      return {
+        schema: "joby.tolerance_stack/material_entry/v0",
+        id: "SCAN_ALLOY", designation: "a scanned alloy", class: null,
+        cte_1e6_per_c: 12.0, cte_temperature_range_c: null, applied_over_c: [],
+        values_status: status, library_ref: libraryRef || null,
+        gaps: [], cindas_request: null, note: null,
+        values_source: { kind: "workbook", document: "scan.xlsx", cell: "A1",
+                         confidence: "untraced" },
+        designation_source: null, used_by: [],
+      };
+    }
+
+    // One materials row per branch, on a stack projection the page can render.
+    function stackWithMaterialStatuses(statuses) {
+      var proj = JSON.parse(JSON.stringify(GEN));
+      proj.materials = statuses.map(function (pair, index) {
+        return {
+          id: "SCAN_" + index, confidence: "untraced", kind: "workbook",
+          designation_confidence: "untraced",
+          used_by_elements: ["hub_bore"],
+          material: materialEntryWithStatus(pair[0], pair[1]),
+        };
+      });
+      return proj;
     }
 
     // A WHOLE WORD, not a substring: the stack page prints every element's own
@@ -4396,6 +4612,143 @@
           surfaceIsClean(pair[1], pair[0], fields, null);
         });
         ok(surfaces.length > 10, "the walk must not be vacuous: " + surfaces.length);
+      });
+
+    // ...and this page's own MARKUP, which no walk above reaches.
+    //
+    // Every scan in this file renders a JS surface. The copy AROUND those
+    // surfaces -- the topbar, the two dialog headings, the button labels --
+    // is in `topology.html`, and nothing read it: the subtitle on screen at
+    // all times said *"read-only · renders `data/projections/viewer/` ·
+    // computes nothing"*, a repo-relative path into a gitignored directory,
+    // for as long as the page has existed. Found 2026-09-18 by widening the
+    // banned list to reach `apps/annotate/`, whose markup had the same class
+    // of defect twice -- which is the argument for scanning markup at all:
+    // two apps, two static surfaces, three strings, no guard.
+    //
+    // `apps/annotate/run_tests.cjs` has the twin of this check, over its own
+    // index.html, against the same shared list.
+    var markupSrc = typeof VIEWER_SRC !== "undefined" ? VIEWER_SRC : null;
+    if (!markupSrc) {
+      skip("this page's own markup prints no repo path, module path, id or " +
+           "command at the reader",
+           "no VIEWER_SRC injected (browser tier has no filesystem)");
+    } else {
+      await test("this page's own markup prints no repo path, module path, " +
+        "id or command at the reader", function () {
+          ["topology.html", "index.html"].forEach(function (name) {
+            var html = markupSrc.readText(name);
+            ok(html, name + " must be readable");
+            // Comments and <script>/<style> bodies are NOT copy: the argument
+            // for a string belongs beside it, and a scan that read comments
+            // would make writing that argument impossible.
+            var body = html
+              .replace(/<!--[\s\S]*?-->/g, " ")
+              .replace(/<script[\s\S]*?<\/script>/gi, " ")
+              .replace(/<style[\s\S]*?<\/style>/gi, " ")
+              .replace(/<[^>]*>/g, " ");
+            bannedIn(body, name + " body text");
+            var attrs = body_attributes(html);
+            attrs.forEach(function (value, i) {
+              bannedIn(value, name + " attribute #" + (i + 1) +
+                " (" + JSON.stringify(value) + ")");
+            });
+          });
+          // Anti-vacuity: a stripper that returned "" would pass against
+          // anything, and the subtitle is the line this check exists for.
+          var topo = markupSrc.readText("topology.html")
+            .replace(/<!--[\s\S]*?-->/g, " ").replace(/<[^>]*>/g, " ");
+          has(topo, "computes nothing");
+          ok(body_attributes(markupSrc.readText("topology.html")).length > 0,
+             "no reader-facing attributes found -- the extractor has drifted");
+        });
+    }
+
+    // The attributes that are TEXT A READER MEETS, not plumbing. `title` and
+    // `placeholder` are copy -- moving a schema field name into one is hiding
+    // it from a scan, not taking it off the page.
+    function body_attributes(html) {
+      var out = [];
+      var re = /(?:placeholder|title|aria-label|alt)\s*=\s*("([^"]*)"|'([^']*)')/g;
+      var m;
+      while ((m = re.exec(html)) !== null) {
+        out.push(m[2] !== undefined ? m[2] : m[3]);
+      }
+      return out;
+    }
+
+    // ...and the branches of that walk no DATA can reach.
+    //
+    // The walk above is only as good as the rows it is handed. On 2026-09-16 it
+    // was widened to cover the materials table and reported green -- and three
+    // of the five sentences that table can print were naming a schema field or
+    // an internal filename at the reader the whole time, because no live or
+    // fixture material entry reached them (all six live entries are `inline`
+    // with a null `library_ref`, and one branch needs a `values_status` the
+    // vocabulary pairing makes impossible). A guard whose covered branch is
+    // unreachable is a guard reporting green over nothing.
+    //
+    // So: one row per member of the table's own domain, plus the off-vocabulary
+    // fallback, rendered on BOTH surfaces that print it. This is the shape the
+    // issue named, and it generalises -- every other total-function table in
+    // this viewer whose loud arm no live row exercises can be scanned the same
+    // way.
+    await test("every branch of the CTE sourcing vocabulary is scanned for " +
+      "schema jargon, including the ones no live or fixture entry reaches",
+      function () {
+        var branches = Object.keys(VA.VALUES_STATUSES).map(function (status) {
+          return [status, null];
+        });
+        // Both arms of `library`: the one that names a reference and the
+        // self-contradicting one that does not. They are different sentences.
+        branches.push(["library", "spec_library:SCAN_ALLOY_CTE"]);
+        // ...and a status outside the vocabulary, which is the one branch the
+        // schema forbids a fixture from carrying.
+        branches.push(["estimated", null]);
+        ok(branches.length >= 5,
+           "the branch list must not be vacuous: " + branches.length);
+
+        var proj = stackWithMaterialStatuses(branches);
+        var fields = schemaFieldNames({ stacks: [DEMO, GEN] });
+        ok(fields.indexOf("values_status") !== -1,
+           "`values_status` must be in the field-name scan for this to mean " +
+           "anything: " + fields);
+        ok(fields.indexOf("library_ref") !== -1,
+           "`library_ref` must be in the field-name scan for this to mean " +
+           "anything: " + fields);
+
+        surfaceIsClean(render(function (r) { VA.renderStack(r, proj, null, {}); }),
+                       "the materials table over every CTE sourcing branch",
+                       fields, null);
+        proj.materials.forEach(function (material) {
+          surfaceIsClean(
+            render(function (r) {
+              VA.renderDetail(r, proj, material.id, null, null, VA.CONFIG);
+            }),
+            "the material pane on " + material.material.values_status,
+            fields, null);
+        });
+
+        // ...and the same over the view-model's own text, which is where the
+        // sentences live. Reading the DOM alone would go green the day a
+        // renderer stopped printing one.
+        branches.forEach(function (pair) {
+          var view = VA.valuesProvenance(
+            materialEntryWithStatus(pair[0], pair[1]));
+          bannedIn(view.text, "VA.valuesProvenance(" + pair[0] + ").text");
+          fields.forEach(function (name) {
+            ok(!wholeWordIn(view.text, name),
+               "VA.valuesProvenance(" + pair[0] + ").text renders the schema " +
+               "field name `" + name + "`: " + view.text);
+          });
+        });
+        // The loud arms are loud, and the quiet ones are quiet -- otherwise
+        // the scan above could be passing over a table that renders nothing.
+        eq(VA.valuesProvenance(materialEntryWithStatus("library", null)).loud, true);
+        eq(VA.valuesProvenance(
+          materialEntryWithStatus("library", "spec_library:X")).loud, false);
+        eq(VA.valuesProvenance(materialEntryWithStatus("estimated", null)).state,
+           "unlabelled");
       });
 
     // ITEM 5. The pane's width, and the one preference on this page that
@@ -7841,9 +8194,10 @@
       });
 
     // An unestablished export is the OTHER live state (the two thermal
-    // stacks), and it goes through the same builder rather than falling back.
-    await test("a joint whose export was never established says so through " +
-      "the same builder, and a joint with no export key grows no box",
+    // stacks), and it goes through the same builder rather than falling back --
+    // but NOT through the same sentence, since 2026-09-18.
+    await test("a joint whose export was never established says so in the " +
+      "JOINT's words, not a value's, and a joint with no export key grows no box",
       function () {
         var unestablished = { assembly_drawing: "217755" };
         unestablished[VA.JOINT_EXPORT_KEY] = {
@@ -7851,17 +8205,68 @@
           why: "Not read for this stack -- a demo of the live thermal pair's " +
             "state.",
         };
-        var loud = render(function (r) {
+        var root = render(function (r) {
           r.appendChild(VA.jointBlock(unestablished));
         });
-        eq(all(loud, "div.el-export--loud").length, 1);
-        has(loud.textContent, "FILE NOT IDENTIFIED");
+        var box = all(root, "div.el-export--unestablished");
+        eq(box.length, 1);
+        // The value's sentence is about a number that is not on this surface:
+        // there is no "this value" in a joint block, the joint is context.
+        ok(root.textContent.indexOf(
+             VA.EXPORT_SUBJECTS.value.unestablished.headline) === -1,
+           "the joint block printed the VALUE's sentence: " + root.textContent);
+        has(root.textContent, VA.EXPORT_SUBJECTS.joint.unestablished.headline);
+        // ...and quiet, not loud. The recorded `why` says the drawing was never
+        // opened for this stack -- an absence somebody recorded, not one
+        // somebody tried and failed to resolve, which is the state the loud
+        // tint is reserved for.
+        eq(all(root, "div.el-export--loud").length, 0);
+        has(root.textContent, "Not read for this stack");
+
+        // The same status over a VALUE is unchanged and still loud: this is a
+        // per-subject sentence, not a softening of the vocabulary.
+        var asValue = VA.exportProvenance({ export: unestablished[VA.JOINT_EXPORT_KEY] });
+        eq(asValue.loud, true);
+        has(asValue.headline, "FILE NOT IDENTIFIED");
 
         var plain = render(function (r) {
           r.appendChild(VA.jointBlock({ assembly_drawing: "217755" }));
         });
         eq(all(plain, "div.el-export").length, 0);
         has(plain.textContent, "217755");
+      });
+
+    await test("every export subject has a sentence of its own, and an " +
+      "unrowed subject key falls back rather than rendering `undefined`",
+      function () {
+        // The domain, and the fact that makes the table worth having: no two
+        // subjects share the `unestablished` sentence, because the whole
+        // finding was one sentence reused for two subjects.
+        var keys = Object.keys(VA.EXPORT_SUBJECTS);
+        eq(keys.length, 2, "value and joint; a THIRD is the evidence this " +
+           "wants a noun substituted into one sentence instead of a sentence " +
+           "per row -- say so rather than adding a fourth quietly");
+        ok(keys.indexOf(VA.DEFAULT_EXPORT_SUBJECT) !== -1);
+        ok(keys.indexOf(VA.JOINT_EXPORT_SUBJECT) !== -1);
+        var sentences = keys.map(function (key) {
+          var row = VA.EXPORT_SUBJECTS[key];
+          ok(typeof row.noun === "string" && row.noun,
+             key + " has no noun for the unlabelled fallback to use");
+          return row.unestablished.headline;
+        });
+        eq(sentences.length, new Set(sentences).size,
+           "two subjects share one sentence: " + sentences.join(" | "));
+        // The unlabelled fallback is per-subject too -- it said "the bytes
+        // behind this value" over a joint block until the noun existed.
+        has(VA.unlabelledExportStatusText("odd", VA.EXPORT_SUBJECTS.joint),
+            VA.EXPORT_SUBJECTS.joint.noun);
+        has(VA.unlabelledExportStatusText("odd"), VA.EXPORT_SUBJECTS.value.noun);
+        // Total: a key with no row resolves to the default rather than
+        // throwing mid-render or printing `undefined` at a reader.
+        eq(VA.exportSubject("not_a_subject"),
+           VA.EXPORT_SUBJECTS[VA.DEFAULT_EXPORT_SUBJECT]);
+        eq(VA.exportSubject(undefined),
+           VA.EXPORT_SUBJECTS[VA.DEFAULT_EXPORT_SUBJECT]);
       });
 
     await test("a topology with no joint (it spans more than one physical " +
@@ -8154,7 +8559,12 @@
         });
         eq(all(resolved, "div.detail__crop--resolved").length, 1);
         eq(all(resolved, "img.detail__crop-img").length, 1);
-        has(resolved.textContent, "215197 A.1.pdf · sheet 2");
+        // The exported file's own name is in the matching-provenance fold now,
+        // not in a head over the picture restating the citation's document
+        // (VA.PANE_CROP, 2026-09-18) -- it is still on the surface, and it is
+        // still a different claim from `215197`.
+        eq(all(resolved, "div.detail__crop-head").length, 0);
+        has(all(resolved, "details.provfold")[0].textContent, "215197 A.1.pdf");
 
         var unresolvable = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
@@ -8175,16 +8585,63 @@
     // stack pane's is beside its own crop test. Same contract, asserted per
     // surface rather than once, because the prefix is passed per call site and
     // a wrong one on either pane is invisible to the other's test.
-    await test("the topology preview pane's crop block carries THIS pane's " +
-      "class prefix, separator and all", function () {
+    await test("the topology preview pane states its document ONCE, and its " +
+      "crop block carries THIS pane's class prefix, separator and all",
+      function () {
         var root = render(function (r) {
           VA.renderTopoDetail(r, topoCtx({
             selection: { kind: "edge", id: "base_thickness" },
             detailImage: { url: "blob:x", name: "x.png" } }));
         });
-        eq(all(root, "div.detail__crop-head").length, 1);
+        // Same constant as the stack pane's (VA.PANE_CROP). The two panes had
+        // drifted precisely because each carried its own copy of the decision.
+        eq(all(root, "div.detail__crop-head").length, 0,
+           "the crop head restates the citation's where-line above it");
+        eq(all(root, "details.provfold").length, 1);
+        // See the stack pane's twin above on why this is the image and not
+        // the links node.
+        eq(all(root, "img.detail__crop-img").length, 1);
         eq(unseparatedPrefixes(root), [],
            "the prefix lost its separator: the block renders unstyled");
+      });
+
+    await test("an edge whose part is NAMED after its own drawing does not say " +
+      "the part number on two consecutive lines", function () {
+        // VA.citationWhere's `alreadySaid`, which the hover cards passed from
+        // the day it existed and this pane did not. Four live edges are in this
+        // shape -- most parts in this repo are named after the drawing they are
+        // cited from, so the collision is the rule, not the exception.
+        var root = render(function (r) {
+          VA.renderTopoDetail(r, topoCtx({
+            selection: { kind: "edge", id: "base_thickness" } }));
+        });
+        var wheres = all(root, "div.detail__where").map(function (node) {
+          return node.textContent;
+        });
+        eq(wheres.length, 2, "the part line, then the citation line");
+        has(wheres[0], "base plate");
+        // The citation's own document is `215197`, which the part line above
+        // does NOT carry, so it is still stated -- dropping it would leave the
+        // line saying only "rev A.1 · sheet 2".
+        has(wheres[1], "215197");
+        var named = render(function (r) {
+          var ctx = topoCtx({ selection: { kind: "edge", id: "base_thickness" } });
+          // The same edge, with the part renamed after its own drawing: the
+          // live shape of `bushing_214820`.
+          ctx.topoProj = JSON.parse(JSON.stringify(ctx.topoProj));
+          ctx.topoProj.parts.forEach(function (part) {
+            if (part.id === "base") part.name = "215197 base plate";
+          });
+          VA.renderTopoDetail(r, ctx);
+        });
+        var namedWheres = all(named, "div.detail__where").map(function (node) {
+          return node.textContent;
+        });
+        has(namedWheres[0], "215197 base plate");
+        ok(namedWheres[1].indexOf("215197") === -1,
+           "the citation line repeated the part number the line above said: " +
+           namedWheres[1]);
+        has(namedWheres[1], "sheet 2");
       });
 
     await test("the pane shows a selected edge's place in the study's sum",
@@ -9798,7 +10255,14 @@
           });
         });
 
-      await test("[real] the live material entries show the provenance of their CTE",
+      // The materials ROW and the materials PANE, because since 2026-09-18 they
+      // are two surfaces and the split is the whole point: the row keeps what
+      // decides whether to click it, the pane holds the argument. Asserting
+      // only the page would go green on a pane that rendered nothing, and
+      // asserting only the pane would go green on a row that had quietly
+      // re-grown the 653px cell this change removed.
+      await test("[real] the live material entries show the provenance of " +
+        "their CTE -- the row compactly, the pane in full",
         function () {
           var entries = 0;
           realResults.stacks.forEach(function (stackProj) {
@@ -9806,19 +10270,43 @@
             if (!materials.length) return;
             var root = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
             var text = root.textContent;
-            eq(all(root, "div.mat-row__values").length, materials.length,
-               stackProj.id + ": one values_status line per material row");
-            eq(all(root, "div.mat-row__desig").length, materials.length,
-               stackProj.id + ": one designation citation per material row");
+            // NOT on the row: the values line, the designation citation, the
+            // note, the callout and the request all moved to the pane.
+            eq(all(root, "div.mat__values").length, 0,
+               stackProj.id + ": the values line belongs to the pane now");
+            eq(all(root, "div.mat__desig").length, 0,
+               stackProj.id + ": the designation citation belongs to the pane");
+            // What the row DOES keep: the chips, and one ellipsised where-line
+            // per material -- the same compact shape the elements table uses.
+            var matTable = root.querySelector("table.mattable");
+            ok(matTable, stackProj.id + ": the materials table must be rendered");
+            eq(all(matTable, "div.el-row__where--compact").length,
+               materials.length,
+               stackProj.id + ": one compact where-line per material row");
             materials.forEach(function (m) {
               var authored = m.material || {};
               var where = stackProj.id + ":" + m.id;
-              has(text, VA.valuesProvenance(authored).text, where);
+              has(text, VA.citationWhere(authored.values_source), where);
+              var pane = render(function (r) {
+                VA.renderDetail(r, stackProj, m.id, realCrops, null, VA.CONFIG);
+              });
+              var paneText = pane.textContent;
+              eq(all(pane, "div.mat__values").length, 1, where);
+              eq(all(pane, "div.mat__desig").length, 1, where);
+              has(paneText, VA.valuesProvenance(authored).text, where);
+              has(paneText,
+                  "designation from: " + VA.citationWhere(authored.designation_source),
+                  where);
               // Every live entry is applied over two soak ranges and quotes none,
-              // which is exactly the pair a reader has to be able to compare.
+              // which is exactly the pair a reader has to be able to compare --
+              // and that pair stays in the ROW, in the CTE-range column.
               var applied = VA.appliedOverText(authored.applied_over_c);
               if (applied) has(text, applied, where);
-              if (authored.cindas_request) has(text, "CINDAS request on record", where);
+              if (authored.note) has(paneText, authored.note, where);
+              if (authored.cindas_request) {
+                has(paneText, "a request for a measured value is on record", where);
+                has(paneText, authored.cindas_request, where);
+              }
               entries++;
             });
           });
@@ -9838,6 +10326,45 @@
             var root = render(function (r) { VA.renderWorksheet(r, stack, md); });
             has(root.querySelector("div.worksheet__body").innerHTML, "<table>");
           }
+        });
+
+      // The renderer's own defect, measured on the document it was found on.
+      //
+      // The COUNT is derived from the source, not written down: a paragraph can
+      // never exceed the number of blank-line-separated chunks in the file,
+      // because a chunk yields at most one paragraph run. That bound is
+      // computed here without the parser, so it cannot agree with a broken
+      // parser by construction -- and it is the bound local-v1 violated by a
+      // factor of four (324 paragraphs from a file with far fewer chunks).
+      await test("[real] the live worksheet renders paragraphs by its BLANK " +
+        "LINES, not by its newlines, and its bold survives a wrap",
+        async function () {
+          var stack = VA.findStack(realResults, "hub_bearing_thermal_fit_m1");
+          var md = await real.readText(VA.worksheetSegments(stack));
+          ok(md, "the worksheet must be readable");
+          var html = VA.renderMarkdown(md);
+          var paragraphs = (html.match(/<p>/g) || []).length;
+          var nonBlankLines = md.split(/\r?\n/).filter(function (line) {
+            return line.trim() !== "";
+          }).length;
+          var chunks = md.split(/\n\s*\n/).length;
+          ok(paragraphs > 0, "the worksheet must render paragraphs at all");
+          ok(paragraphs <= chunks,
+             "the renderer made " + paragraphs + " paragraphs from a file with " +
+             chunks + " blank-line-separated chunks -- it is counting newlines, " +
+             "not blank lines");
+          // ...and the bound has to BITE. The house convention is a ~80-column
+          // hard wrap, so a document whose chunks are all one line long would
+          // satisfy the bound while telling us nothing.
+          ok(nonBlankLines > chunks * 1.5,
+             "this document is not hard-wrapped enough to be evidence: " +
+             nonBlankLines + " non-blank lines over " + chunks + " chunks");
+          // The markup that leaked: 38 `**` runs were on screen, because a
+          // span straddling a wrap was never resolved.
+          ok(html.indexOf("**") === -1,
+             "emphasis markup is on the page: " +
+             (html.match(/.{0,60}\*\*.{0,60}/) || [""])[0]);
+          has(html, "<strong>");
         });
 
       await test("[real] no authored stack grew a coefficient on any term", function () {

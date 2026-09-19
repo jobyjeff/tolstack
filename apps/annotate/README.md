@@ -126,6 +126,21 @@ below and the parts panel are its first two consumers; the dev console
 devtools console) is the third, and the shape a future agent driver's own
 tool calls would take.
 
+**What the box SAYS, and why it is so little** (2026-09-18). Its placeholder
+read `command, e.g. isolate machined_213668 (window.AnnotateApp.exec)` -- an
+internal module path and a backend id a reader cannot know without reading
+code, on a surface that is visible at rest with nothing selected, which is two
+standing web-UI rules in one string. It is the word `command` now, with the
+accepted verbs on the input's own `title`, built at boot from
+`commands.verbs()` (`AA.commandHint`) rather than written into the markup: a
+hand-written example drifts from the registry, a list read off it cannot -- and
+it is the same list `CommandLayer.exec` already answers an unknown command
+with, so a reader meets one vocabulary whichever way they find it. The parts
+panel's label said `parts (data/meshes/)` and says `parts with a 3D model`,
+for the same reason one step over. **What this did NOT settle** is whether a
+developer affordance belongs at the foot of a reader's 3D view at all; that is
+a scope decision this handoff did not have, and it is filed.
+
 | verb | does |
 |---|---|
 | `open-part <mesh-id\|part>` | loads a mesh (sha256 or its `provenance.json` `part_id`) and shows it |

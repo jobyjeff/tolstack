@@ -1935,7 +1935,7 @@
 
     var dimension = edge.dimension;
     if (dimension && dimension.source_ref) {
-      root.appendChild(citation(dimension.source_ref, edge.confidence));
+      root.appendChild(citation(dimension.source_ref, edge.confidence, partLabel));
       var provenance = VA.exportProvenance(dimension.source_ref, null);
       if (provenance) root.appendChild(exportBlock(provenance));
     } else if (dimension) {
@@ -1988,9 +1988,19 @@
     return box;
   }
 
-  function citation(sourceRef, confidence) {
+  // `alreadySaid` is what this pane has ALREADY printed above the citation --
+  // the part's own label. Most parts in this repo are NAMED after the drawing
+  // they are cited from, so a pane that opens "a dimension of 214820-002 plain
+  // bushing" and then cites "214820-002 · sheet 4" says the part number twice
+  // (Jeff's rule; VA.citationWhere carries it, and four live edges are in that
+  // shape: `bushing_214820`, `pitch_plate_flange`, `gas_spring_mount_position`,
+  // `pitch_flange_thickness`). The hover cards passed this argument from the
+  // day it existed and this pane did not -- the same one-surface-only fix the
+  // crop head above was.
+  function citation(sourceRef, confidence, alreadySaid) {
     var box = VA.el("div", "detail__citation");
-    box.appendChild(VA.el("div", "detail__where", VA.citationWhere(sourceRef)));
+    box.appendChild(VA.el("div", "detail__where",
+      VA.citationWhere(sourceRef, alreadySaid)));
     if (sourceRef.callout) {
       box.appendChild(VA.el("div", "detail__callout", sourceRef.callout));
     }
@@ -2057,7 +2067,13 @@
     // This pane used to print the reference, then the provenance line in the
     // open, then the absolute path -- three lines where a reader wanted one,
     // and no way to reach the document at all.
-    VA.cropReference(box, entry, ctx.config, "detail__crop-");
+    //
+    // `VA.PANE_CROP` (omitHead), 2026-09-18: one document statement per pane.
+    // The citation's own where-line above already named it; the head under the
+    // picture restated it. Same constant as the stack-side pane's, on purpose
+    // -- the two panes had drifted precisely because each carried its own copy
+    // of this decision.
+    VA.cropReference(box, entry, ctx.config, "detail__crop-", VA.PANE_CROP);
     return box;
   }
 })(window.ViewerApp = window.ViewerApp || {});
