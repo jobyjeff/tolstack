@@ -59,6 +59,23 @@
   };
   AA.CommandLayer = CommandLayer;
 
+  // What the command box says it accepts, built from the REGISTRY rather
+  // than written down anywhere (handoff reader_facing_surfaces_second_pass,
+  // 2026-09-18). The placeholder used to carry an example command naming an
+  // internal module path and a backend id a reader cannot know
+  // (`isolate machined_213668 (window.AnnotateApp.exec)`), which is two
+  // standing web-UI rules broken on a surface that is visible at rest.
+  //
+  // A list read off `commands.verbs()` cannot drift from what the box takes,
+  // which a hand-written example always can -- and it is the same list
+  // `CommandLayer.exec` already answers an unknown command with, so a reader
+  // meets one vocabulary whichever way they find it. DOM-free like the rest
+  // of this file: app.js puts the string on the input.
+  AA.COMMAND_HINT_PREFIX = "commands: ";
+  AA.commandHint = function (verbs) {
+    return AA.COMMAND_HINT_PREFIX + (verbs || []).join(", ");
+  };
+
   // Pure: resolve a user-typed identifier (a mesh's sha256, its
   // provenance.json `part_id`, or a topology `part` id declared in the alias
   // table) against the mesh list `storage.listMeshes()` returns. Exact match
@@ -302,23 +319,6 @@
   // Pure state transition for `isolate`: given the sha256s already open in
   // the scene and the sha256s that should be visible afterward, returns which
   // ones need a fresh `loadPart` (not open yet), which already-open ones to
-  // What the command box says it accepts, built from the REGISTRY rather
-  // than written down anywhere (handoff reader_facing_surfaces_second_pass,
-  // 2026-09-18). The placeholder used to carry an example command naming an
-  // internal module path and a backend id a reader cannot know
-  // (`isolate machined_213668 (window.AnnotateApp.exec)`), which is two
-  // standing web-UI rules broken on a surface that is visible at rest.
-  //
-  // A list read off `commands.verbs()` cannot drift from what the box takes,
-  // which a hand-written example always can -- and it is the same list
-  // `CommandLayer.exec` already answers an unknown command with, so a reader
-  // meets one vocabulary whichever way they find it. DOM-free like the rest
-  // of this file: app.js puts the string on the input.
-  AA.COMMAND_HINT_PREFIX = "commands: ";
-  AA.commandHint = function (verbs) {
-    return AA.COMMAND_HINT_PREFIX + (verbs || []).join(", ");
-  };
-
   // show, and which already-open ones to hide. No scene, no three.js -- the
   // scene-mutating loop is three lines in app.js that just walks these three
   // arrays.
