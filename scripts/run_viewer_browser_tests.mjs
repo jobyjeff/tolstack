@@ -3194,6 +3194,29 @@ async function testRenderCrash(browser, url, label) {
 // mjs in the main checkout) into a maintained tier: swap `VA.FsaAdapter`
 // itself for a fake serving all THREE real JSONs, then boot for real, with no
 // `?mock=1` in the URL at all.
+// Every crop PNG the real index resolves, as a `MemoryAdapter` images map.
+// The VALUE only has to be truthy -- `MemoryAdapter.readCropImage` returns a
+// `blob:` URL built from the key, not the bytes -- so this is the whole of
+// what it takes to put a real crop figure, and therefore a launcher, on a
+// `file://` page. Built in node from the index rather than listed, so a
+// rebuild that retires a crop cannot leave a stale key behind.
+function resolvedCropImages(crops) {
+  const images = {};
+  for (const space of [crops.by_topology, crops.by_stack]) {
+    for (const entries of Object.values(space || {})) {
+      for (const entry of Object.values(entries || {})) {
+        if (entry && entry.status === "resolved" && entry.png) {
+          images[entry.png] = true;
+        }
+        if (entry && entry.companion && entry.companion.png) {
+          images[entry.companion.png] = true;
+        }
+      }
+    }
+  }
+  return images;
+}
+
 async function testRealDataRenderPath(browser, url, label, realProjection, realResults, realCrops) {
   if (!realProjection || !realResults) {
     console.log(`[${label}] SKIP: topologies.json/results.json not built under ` +
@@ -3214,12 +3237,51 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       });
     });
 
-    await page.evaluate(({ topologies, results, crops }) => {
+    // WHY THIS SUITE NOW SUPPLIES `images`, and the decision behind it
+    // (ISSUE_20260916_the_crop_lightbox_has_no_file_origin_coverage_in_any_tier)
+    //
+    // The lightbox shipped 2026-09-16 with a fast-tier suite and a browser
+    // suite, and the browser one runs over HTTP only -- necessarily, at the
+    // time: a launcher exists only on a crop figure that HAS an image, and
+    // `?mock=1` (the only dataset the `file://` suites drive) carries no crop
+    // PNGs at all. So no `file://` run ever called `showModal()` on
+    // `#crop-lightbox`. What WAS covered there is the module loading and its
+    // fast-tier rendering checks, so a script-order regression was caught;
+    // what was not is the dialog, the modal top layer, the suppressed page
+    // scroll and the wheel.
+    //
+    // THE DECISION WAS TO BUILD THE COVERAGE, and the reason is that `file://`
+    // is not a marginal configuration here -- it is the app's PRIMARY one.
+    // package.json: "the viewer stays build-free classic scripts that run by
+    // double-clicking index.html from file://". A reader who double-clicks
+    // index.html and grants a folder reads real crops through FSA, so "a
+    // `file://` page with real crops on it" is the normal way this app is
+    // used, not a hypothetical. Nothing in the lightbox is origin-dependent by
+    // design -- but that is the CLAIM, and it was the claim no tier stated.
+    //
+    // The cost turned out to be one word: this suite already replaces
+    // `VA.FsaAdapter` with a MemoryAdapter over the three real JSONs, and it
+    // passed `images: {}`. Giving it the resolved PNGs is what turns every
+    // crop figure on the `file://` page into one with an image, hence with a
+    // launcher, hence with a lightbox to open. `MemoryAdapter.readCropImage`
+    // hands back a `blob:` URL rather than bytes, which is enough for all of
+    // it: the frame is sized in pixels from the crop index's own
+    // `width`/`height` and the highlight boxes are percentages of the frame,
+    // so none of the geometry waits on an image decoding. The PIXEL claims
+    // stay on HTTP, where the real PNGs are (testCropLightbox); what is
+    // proved here is that the surface opens and behaves on this origin.
+    //
+    // The alternative the issue offered -- inline PNGs in the `?mock=1` crop
+    // fixtures -- was not taken here. It is a bigger change (it alters what
+    // the demo tour shows, which is a design question about the tour) and it
+    // would have covered a dataset nobody reads real numbers from, rather than
+    // the origin Jeff actually opens.
+    await page.evaluate(({ topologies, results, crops, images }) => {
       const VA = window.ViewerApp;
       window.__CROP_FETCHES__ = [];
       const Fake = function () {
         const memory = new VA.MemoryAdapter({
-          startState: VA.STATE.READY, topologies, results, crops, images: {}, texts: {},
+          startState: VA.STATE.READY, topologies, results, crops, images, texts: {},
         });
         // Which PNGs the app ASKED for, which is the half no other tier can
         // see: every fast-tier crop test hands the renderer its own `images`
@@ -3234,7 +3296,8 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       Fake.isSupported = () => true;
       VA.FsaAdapter = Fake;
       VA.bootTopology();
-    }, { topologies: realProjection, results: realResults, crops: realCrops });
+    }, { topologies: realProjection, results: realResults, crops: realCrops,
+         images: resolvedCropImages(realCrops) });
     await page.waitForSelector("tr.tvrow", { timeout: 15000 });
 
     const rejections = await page.evaluate(() => window.__REJECTIONS__);
@@ -3318,6 +3381,102 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
       "companion too — the card's list is built separately and carries the " +
       "same second image",
       !!cardRow && fetched.indexOf(cardRow.companion) !== -1);
+
+    // --- the crop lightbox, ON THIS ORIGIN ---------------------------------
+    //
+    // The `file://` half of the lightbox's coverage (see the note on the fake
+    // adapter above for why it is built here rather than on `?mock=1`). What
+    // is proved is the part that could plausibly be origin-dependent and was
+    // stated nowhere: that the dialog OPENS on a file URL, that it lands on
+    // the top layer with the page behind it inert, that the page's own scroll
+    // is suppressed while it is up, that the wheel reaches it, and that
+    // Escape hands the page back. The pixel geometry stays on HTTP, against
+    // the real PNGs (testCropLightbox) -- a `blob:` URL has no bytes, and a
+    // check that measured a picture here would be measuring nothing.
+    const launcher = page.locator("#detail button.cropfig__launch").first();
+    let launchable = false;
+    for (const topology of realProjection.topologies) {
+      await page.locator(navRow("topology", topology.id)).click();
+      await page.waitForSelector("tr.tvrow", { timeout: 5000 });
+      const withCrop = page.locator("tr.tvrow button.crop-trigger").first();
+      if (await withCrop.count() === 0) continue;
+      await page.locator("tr.tvrow button.crop-trigger").first()
+        .evaluate((b) => b.closest("tr").click());
+      await launcher.waitFor({ timeout: 5000 }).then(() => { launchable = true; })
+        .catch(() => {});
+      if (launchable) break;
+    }
+    // The precondition, asserted rather than assumed: with `images: {}` this
+    // was 0 on every live row, which is exactly the gap. If it is ever 0
+    // again the sub-checks below would all pass by never running.
+    push("a crop figure on this file:// page carries a launcher at all — the " +
+      "affordance exists only on a figure that HAS an image, which is why no " +
+      "file:// run reached the lightbox until this suite was given the real " +
+      "index's PNGs", launchable);
+    if (launchable) {
+      const scrollBefore = await page.evaluate(
+        () => getComputedStyle(document.body).overflow);
+      await launcher.click();
+      await page.waitForSelector("#crop-lightbox[open]", { timeout: 10000 });
+      const open = await page.evaluate(() => {
+        const dialog = document.querySelector("#crop-lightbox");
+        return {
+          open: dialog.open,
+          // `:modal` and not just `[open]`: a <dialog> opened with `show()`
+          // is also `[open]` but is NOT on the top layer and leaves the page
+          // behind it live, which is the one thing this surface cannot be.
+          modal: dialog.matches(":modal"),
+          overflow: getComputedStyle(document.body).overflow,
+          stage: !!dialog.querySelector("div.lightbox__stage"),
+          scale: window.ViewerApp.openCropLightboxHandle().view().scale,
+        };
+      });
+      push("the lightbox OPENS on a file:// page, as a MODAL dialog on the " +
+        "top layer — the whole surface is a <dialog>.showModal(), and a " +
+        "top-layer element is the one thing on these pages whose behaviour a " +
+        "reader could reasonably expect an origin to change",
+        open.open && open.modal && open.stage);
+      push("the page behind it cannot scroll on this origin either — a modal " +
+        "<dialog> makes the page inert but does not reliably stop it " +
+        "scrolling, so the body class is doing the work and it is the same " +
+        "class on both origins",
+        open.overflow === "hidden" && scrollBefore !== "hidden");
+      // The wheel, which is the gesture the modality exists for: it must
+      // reach the stage and zoom rather than scrolling anything.
+      const centre = await page.evaluate(() => {
+        const s = document.querySelector("#crop-lightbox div.lightbox__stage")
+          .getBoundingClientRect();
+        return { x: s.left + s.width / 2, y: s.top + s.height / 2 };
+      });
+      await page.mouse.move(centre.x, centre.y);
+      for (let i = 0; i < 3; i++) await page.mouse.wheel(0, -120);
+      await page.waitForFunction(() => {
+        const handle = window.ViewerApp.openCropLightboxHandle();
+        return handle && handle.view().scale > 1;
+      }, null, { timeout: 5000 }).catch(() => {});
+      const zoomedHere = await page.evaluate(() => ({
+        scale: window.ViewerApp.openCropLightboxHandle().view().scale,
+        pageScrollY: window.scrollY,
+      }));
+      push("a wheel over the stage zooms on this origin and scrolls nothing " +
+        "behind it — the preventDefault and the body class are the two halves " +
+        "of that, and neither is origin-dependent",
+        open.scale === 1 && zoomedHere.scale > 1 &&
+        zoomedHere.pageScrollY === 0);
+      await page.keyboard.press("Escape");
+      await page.waitForFunction(
+        () => !document.querySelector("#crop-lightbox").open &&
+              !document.body.classList.contains("lightbox-open"),
+        null, { timeout: 5000 }).catch(() => {});
+      const closedHere = await page.evaluate(() => ({
+        open: document.querySelector("#crop-lightbox").open,
+        overflow: getComputedStyle(document.body).overflow,
+      }));
+      push("Escape closes it and hands the page's scroll back, through the " +
+        "dialog's own `close` event — the one seam every dismissal goes " +
+        "through, on the origin a reader double-clicks into",
+        !closedHere.open && closedHere.overflow !== "hidden");
+    }
 
     return reportSuite(label, checks, errors);
   } catch (err) {
@@ -4906,9 +5065,27 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
     const i = img.getBoundingClientRect();
     const b = box.getBoundingClientRect();
     const handle = window.ViewerApp.openCropLightboxHandle();
+    // The STAGE's box and the highlight's own edge come back alongside the
+    // fractions, because three of this feature's four geometric wiring lines
+    // are claims about the picture's place IN the stage and about the weight
+    // of the frame around it -- and the `frac` checks below are invariant to
+    // all of them by design (the overlay is positioned in percentages of the
+    // <img>, so the fraction is right whatever size, position or border the
+    // picture ends up with). That invariance is the feature's central claim
+    // and it is correct; it is also why it cannot be the pin for anything
+    // about the frame itself. Measured 2026-09-17: deleting the fit sizing,
+    // the clamp or the whole `.lightbox .crophl` rule left every tier green
+    // (ISSUE_20260917_the_crop_lightboxs_fit_clamp_and_hairline_are_
+    // unwitnessed_in_every_tier).
+    const stage = document
+      .querySelector("#crop-lightbox div.lightbox__stage")
+      .getBoundingClientRect();
     return {
       scale: handle ? handle.view().scale : null,
       image: { width: i.width, height: i.height, left: i.left, top: i.top },
+      stage: { width: stage.width, height: stage.height,
+               left: stage.left, top: stage.top },
+      edge: parseFloat(getComputedStyle(box).borderTopWidth),
       frac: [
         (b.left - i.left) / i.width, (b.top - i.top) / i.height,
         (b.right - i.left) / i.width, (b.bottom - i.top) / i.height,
@@ -4983,6 +5160,42 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
       "answers, so the size is measured and not assumed", grew);
     push("it opens at FIT, the whole crop on screen, not at some remembered " +
       "zoom", fit && fit.scale === 1);
+    // THE CLAMP, at fit, measured off the page and not off the view store.
+    //
+    // The line is `view = VA.lightboxClamp(view, fit, stageBox())` in
+    // `apply()`, and deleting it left all three tiers green on 2026-09-17 --
+    // including the sub-check directly above, whose NAME is the claim. That is
+    // the whole lesson of the issue: `fit.scale` is `handle.view().scale`, and
+    // it is 1 in both the clamped and the unclamped states because nothing
+    // about where the picture sits reaches `scale`. So this asks the two rects
+    // instead (docs/prompts/REVIEW_AGENT.md, "A `[real]` test that asks the
+    // view-model instead of the page").
+    //
+    // THE BROWSER TIER AND NOT THE FAST TIER, chosen per line: unlike the fit
+    // sizing -- a computed value, pinned in `apps/viewer/tests.js` off a
+    // declared stage box -- this claim is "no blank stage beside the picture",
+    // which is two laid-out rects. In the fast tier the picture's position
+    // would have to be re-derived from the same numbers `apply()` used, which
+    // is the view-model shape again wearing different clothes.
+    //
+    // Centred on the SLACK axis only: the crop fits by its height here (742 x
+    // 846 in a 1518 x 845.5 stage), so the height has no slack to centre in
+    // and the width has 776px of it. Measured on the live sheet: gaps of
+    // 388.08 and 387.92, against 0 and 776 with the line gone.
+    const slack = fit && {
+      left: fit.image.left - fit.stage.left,
+      right: (fit.stage.left + fit.stage.width) - (fit.image.left + fit.image.width),
+    };
+    if (slack && !(slack.left > 1 && Math.abs(slack.left - slack.right) <= 1)) {
+      console.log(`    at fit the picture sits ${slack.left.toFixed(1)}px from ` +
+        `the stage's left edge and ${slack.right.toFixed(1)}px from its right`);
+    }
+    push("at fit the picture is CENTRED in the stage, with the spare width " +
+      "split evenly — the clamp's other job, and the one the check above " +
+      "cannot see: `scale` is 1 whether or not the picture was ever " +
+      "positioned, so a crop hard against the left edge with 776px of empty " +
+      "stage beside it reads as a remembered pan",
+      slack && slack.left > 1 && Math.abs(slack.left - slack.right) <= 1);
 
     // 4. THE claim: the box lands where the crop index says it does.
     push("at fit, the highlight box lands exactly on the rect the crop index " +
@@ -5033,6 +5246,49 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
       after && Math.abs(after.x - before.x) < 0.01 &&
       Math.abs(after.y - before.y) < 0.01);
 
+    // THE HAIRLINE. `.lightbox .crophl` divides the border weight back out by
+    // `--lightbox-scale` and drops the glow; deleting the whole rule left
+    // every tier green on 2026-09-17, and what the reader gets is a 16px amber
+    // frame at 8x lying across the very cell they zoomed in to read (the
+    // lesson records measuring it at 7.59x).
+    //
+    // THE BROWSER TIER, and here there is no choice to make: the rule is a CSS
+    // `calc()` over a custom property, and the fast tier has no stylesheet at
+    // all -- it renders into a DOM shim. What that tier CAN see, and already
+    // pins, is the other half: that `apply()` publishes `--lightbox-scale`
+    // beside the transform.
+    //
+    // Asserted as "declared thinner the further in the reader goes", not as
+    // "the painted edge is constant", because the engine will not paint a
+    // sub-pixel border: measured on the live sheet, `borderTopWidth` is 2px at
+    // 1x and 1px at both 5.06x and 8x -- Chrome's 1px floor under a computed
+    // 0.395px and 0.25px. So the correction is a division, not a cancellation,
+    // and the direction is the honest claim.
+    const thinner = fit && zoomed && zoomed.scale > fit.scale &&
+      zoomed.edge < fit.edge;
+    if (!thinner && fit && zoomed) {
+      console.log(`    the highlight's edge is ${fit.edge}px at ${fit.scale}x ` +
+        `and ${zoomed.edge}px at ${zoomed.scale.toFixed(2)}x`);
+    }
+    push("the highlight's edge is declared THINNER the further the reader " +
+      "zooms in — the transform scales borders along with everything else, so " +
+      "without dividing the weight back out a 2px frame is a 16px amber band " +
+      "over the cell that was zoomed in on", thinner);
+    // `.lightbox .crophl` also drops the GLOW, and there is deliberately no
+    // sub-check for that here, because on THIS target there could not be an
+    // honest one: the subject is derived as a `declared_region` crop (see the
+    // top of this suite), `declared_region` is `solid: false`
+    // (VA.CROP_HIGHLIGHT_KINDS), and views/crop.js therefore classes its box
+    // `.crophl--dashed` -- whose own rule sets `box-shadow: none`. So a glow
+    // assertion on this picture passes whether or not the lightbox rule
+    // exists, which is green for the wrong reason and the exact shape of
+    // defect this whole handoff was about. Measured 2026-09-18: deleting the
+    // rule reddens the edge check above and leaves a glow check passing.
+    // The 29 live `verified_match` highlights ARE solid and do carry the glow,
+    // so the claim is real on those -- filed rather than built here, because
+    // it needs a second subject and a second open:
+    // ISSUE_20260918_the_lightboxs_glow_suppression_is_only_witnessable_on_a_solid_highlight.
+
     // 6. a drag really pans, and the overlay comes with it.
     await page.mouse.move(centre.x, centre.y);
     await page.mouse.down();
@@ -5043,6 +5299,33 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
       Math.abs(panned.image.left - zoomed.image.left) > 60);
     push("panned, the highlight box is still on its rect",
       agrees(panned && panned.frac, target.entry.highlights[0].frac));
+
+    // ...and the clamp's OTHER half, which the 180px drag above is too short
+    // to reach: a drag cannot open blank stage beside the picture. Deliberately
+    // over-long -- 3000px on a 1518px stage, so an unclamped view would have
+    // walked the picture most of the way off screen.
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.down();
+    await page.mouse.move(centre.x + 3000, centre.y + 3000, { steps: 10 });
+    await page.mouse.up();
+    const shoved = await measure();
+    const gaps = shoved && {
+      left: shoved.image.left - shoved.stage.left,
+      top: shoved.image.top - shoved.stage.top,
+    };
+    if (gaps && !(gaps.left <= 1 && gaps.top <= 1)) {
+      console.log(`    after a 3000px drag the picture is ${gaps.left.toFixed(1)}` +
+        `px right of the stage's left edge and ${gaps.top.toFixed(1)}px below ` +
+        "its top");
+    }
+    push("a drag cannot pull blank stage into view — zoomed in, the picture " +
+      "covers the stage, and the clamp is what stops an over-long gesture " +
+      "walking it off the edge and leaving the reader holding nothing",
+      shoved && shoved.scale > 1 && gaps.left <= 1 && gaps.top <= 1);
+    // Back to fit, so the sub-checks below start where they did before this
+    // gesture was added: the two card/Fit routes that follow measure a freshly
+    // opened lightbox, and a shoved view would be a different starting state.
+    await page.locator("#crop-lightbox button.lightbox__btn--fit").click();
 
     // 7. no page scroll bleed while it is open, and the page is handed back
     // exactly as it was on close -- through the dialog's own `close` event,
@@ -5121,6 +5404,305 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
       "click does not close a modal <dialog>, so this is the only dismissal " +
       "a pointer-only reader has",
       !afterX.open && afterX.overflow !== "hidden");
+
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+// --- the typography pass's visual rules (design_pass_typography, 2026-09-17) -
+//
+// What `tests/test_app_type_scale.py` pins is THE SCALE: six steps, declared,
+// ordered, distinct, and every `font-size` in either app spending one. What
+// nothing pinned until 2026-09-18 is **where each step is spent** -- the
+// hierarchy decisions the pass actually made -- and the measurement that found
+// that out is worth stating, because it is the reason this suite exists rather
+// than a seventh stylesheet scan: a reviewer planted each of the pass's seven
+// edits as a one-line revert in a scratch tree and ran all three tiers, and
+// ALL SEVEN came back green, including the legibility regression the pass was
+// written to fix (ISSUE_20260917_the_typography_passs_visual_rules_are_
+// unwitnessed_in_every_tier).
+//
+// Five of those edits are only visible WITH A LAYOUT, which is why they are
+// here and not in pytest:
+//
+//   * an untraced row's cells inheriting the chip's white and its 700 -- a
+//     fact about INHERITANCE, not about a selector string;
+//   * `.tvflag` and `.crop-trigger` going back to filled -- a fact about how
+//     many filled marks a reader is looking at, not about one rule;
+//   * `--measure` -- a fact about a laid-out paragraph's width;
+//   * the name column's floor -- a fact about what auto table layout does to
+//     an eleven-column table under squeeze;
+//   * the source note's clamp -- a fact about a box with more content than
+//     height.
+//
+// The two edits a stylesheet CAN answer for on its own stayed in pytest
+// (`test_no_rule_keys_on_a_confidence_token_alone`,
+// `test_both_apps_set_their_base_size_from_the_scale`): they are about what
+// any future rule may say, where these five are about what this page does.
+//
+// THE LIVE STACK VIEW, and it has to be live: `hub_bearing_thermal_fit_m1` is
+// one of only two stack leaves the nav offers (VA.looseStacks) and the only one
+// rendering both tables, and it carries -- on real data -- untraced element
+// rows, untraced materials rows, a source note longer than its clamp, and a
+// name long enough to fight the floor. The mock fixture has three short rows
+// and answers none of it.
+//
+// 1600x1000 ON PURPOSE. At 2200px the name column gets 410px from auto layout
+// and the 190px floor is not binding, so the check for it would pass with the
+// rule deleted. Measured across widths 2026-09-18: 190px at 1280, 1400, 1600
+// and 1800 (the floor holding, table 1062px inside a 738px scrollport), 410px
+// at 2200. A check has to stand where the thing it is about is load-bearing.
+//
+// Its OWN server, for the same reason testCropLightbox starts one: the `served
+// mode` suite closes the shared repo-root server mid-run on purpose.
+async function testTypographyRules(browser, label, realProjection) {
+  if (!realProjection) {
+    console.log(`[${label}] SKIP: topologies.json not built under the target ` +
+      "repo -- build it, or pass --repo <main checkout>");
+    return { label, ok: true };
+  }
+  const STACK = "hub_bearing_thermal_fit_m1";
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+
+  try {
+    await page.goto(`${url}/apps/viewer/topology.html`, { waitUntil: "load" });
+    await page.waitForSelector('[data-nav-kind="stack"]', { timeout: 20000 });
+    if (await page.locator(navRow("stack", STACK)).count() === 0) {
+      console.log(`[${label}] SKIP: the live nav offers no ${STACK} leaf`);
+      return { label, ok: true };
+    }
+    await page.locator(navRow("stack", STACK)).click();
+    await page.waitForSelector("#stackview tr.el-row", { timeout: 20000 });
+
+    // 1. THE GENERIC ONE, and the only one of the five that is about the class
+    // of defect rather than about one setting: `VA.confidenceClass()` returns a
+    // token and five kinds of element wear the result, so a `conf--*` rule
+    // written without a scope hands whatever it declares to every descendant of
+    // whichever of the five it landed on. Unscoped, `.conf--untraced`'s
+    // `color: #fff` and `font-weight: 700` -- written for an 11px pill --
+    // reached all eleven cells of every untraced row.
+    //
+    // The WITNESS is asserted before the claim and is the whole reason this
+    // check is worth having: it reads the same row's own chip and requires it
+    // to BE filled and 700. Without it, a page that had lost the chip rule
+    // entirely -- or a row that turned out not to be untraced after all --
+    // would satisfy "the cells are not white and not bold" by there being
+    // nothing white and bold anywhere, which is green for being unable to see
+    // the difference rather than green for having looked.
+    const inheritance = await page.evaluate(() => {
+      const row = document.querySelector("#stackview tr.el-row.conf--untraced")
+        || document.querySelector("#stackview tr.mat-row.conf--untraced");
+      if (!row) return null;
+      const chip = row.querySelector("span.chip.conf--untraced");
+      const table = getComputedStyle(row.closest("table"));
+      const read = (el) => {
+        const cs = getComputedStyle(el);
+        return { weight: cs.fontWeight, color: cs.color,
+                 background: cs.backgroundColor };
+      };
+      return {
+        rowClass: row.className,
+        table: { weight: table.fontWeight, color: table.color },
+        cells: [...row.querySelectorAll("td")].map(read),
+        chip: chip ? read(chip) : null,
+      };
+    });
+    const chipIsLoud = inheritance && inheritance.chip &&
+      Number(inheritance.chip.weight) >= 700 &&
+      inheritance.chip.color === "rgb(255, 255, 255)" &&
+      inheritance.chip.background !== "rgba(0, 0, 0, 0)";
+    if (!chipIsLoud) {
+      console.log(`    the row's chip reads ${JSON.stringify(
+        inheritance && inheritance.chip)}`);
+    }
+    push("an untraced row really does carry a filled, white, 700-weight " +
+      "confidence chip — the witness this check needs before it can claim " +
+      "the row's own cells are none of those things, since a page with no " +
+      "loud chip anywhere would pass that claim by having nothing to find",
+      chipIsLoud);
+    const cells = (inheritance && inheritance.cells) || [];
+    const quiet = cells.length >= 8 && cells.every((c) =>
+      c.weight === inheritance.table.weight && c.color === inheritance.table.color);
+    if (!quiet && cells.length) {
+      const odd = cells.filter((c) => c.weight !== inheritance.table.weight ||
+        c.color !== inheritance.table.color);
+      console.log(`    ${odd.length} of ${cells.length} cells of ` +
+        `${inheritance.rowClass} differ from the table (${JSON.stringify(
+          inheritance.table)}): ${JSON.stringify(odd.slice(0, 3))}`);
+    }
+    push("...and its own cells are the table's weight and the table's colour " +
+      "— a rule keyed on a confidence token alone hands `color: #fff` and " +
+      "`font-weight: 700`, written for an 11px pill, to all eleven columns " +
+      "of the row by inheritance", quiet);
+
+    // 2. EMPHASIS IS A BUDGET, measured as a census rather than as a rule per
+    // mark: a background of its own is the loudest thing this app can say, and
+    // the pass settled that exactly two claims may spend it -- provenance at
+    // its two worst states, and a verdict, which is the answer the reader came
+    // for. Every other chip, flag and trigger is outlined in its own hue.
+    //
+    // A census and not seven selector checks, because the point generalises:
+    // the next mark somebody fills is caught by this without anybody adding a
+    // line. Before the pass, `pitch_system` rendered 61 filled marks in the
+    // 300px nav rail and 50 in one stack view.
+    const fills = await page.evaluate(() => {
+      // The mark FAMILY: the small inline things a reader scans a row by. Not
+      // "every element with a background" -- a panel, a card and the page
+      // itself all legitimately have one, and the rule is about marks.
+      const MARKS = ".chip, .tvflag, .verdict, .tvverdict, button.crop-trigger";
+      const filled = {}, plain = {};
+      for (const el of document.querySelectorAll(MARKS)) {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) continue;
+        const bg = getComputedStyle(el).backgroundColor;
+        const opaque = bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent";
+        const key = [...el.classList].join(".");
+        const into = opaque ? filled : plain;
+        into[key] = (into[key] || 0) + 1;
+      }
+      return { filled, plain };
+    });
+    // The two claims that may spend fill, as tokens rather than as selectors:
+    // a mark is allowed its background if its class list says it is one of
+    // them. `verdict`/`tvverdict` are the same claim on the two pages.
+    const MAY_FILL = ["conf--untraced", "conf--no_source_ref", "verdict", "tvverdict"];
+    const spent = Object.keys(fills.filled);
+    const overspent = spent.filter((key) =>
+      !key.split(".").some((token) => MAY_FILL.includes(token)));
+    if (overspent.length) {
+      console.log(`    filled marks that are neither provenance-at-its-worst ` +
+        `nor a verdict: ${overspent.map((k) => `${k} x${fills.filled[k]}`)
+          .join(", ")}`);
+    }
+    push("the page renders both filled and outlined marks, so a census of " +
+      "which are which can tell them apart at all",
+      spent.length > 0 && Object.keys(fills.plain).length > 0);
+    push("every filled mark on the page is one of the two claims allowed to " +
+      "spend fill — provenance at its two worst states, and the verdict — " +
+      "and every flag, qualifier and trigger is outlined instead; emphasis " +
+      "is a budget, and a qualifier rendered as loudly as the thing it " +
+      "qualifies leaves a reader unable to tell which is which",
+      overspent.length === 0);
+
+    // 3. THE MEASURE: a run of prose has a width it stops being readable past,
+    // and `.stackview` is as wide as the window leaves it. `--measure` is the
+    // cap; what is checked is that a capped paragraph is really narrower than
+    // the box it sits in, which is the only form of this claim a deleted
+    // `max-width` cannot satisfy.
+    const prose = await page.evaluate(() => {
+      // `.check__guidance` and not the worksheet's `<p>`: the guidance is on
+      // screen without opening a dialog, and there are sixteen of them on this
+      // stack, so the measurement is not about one paragraph's own content.
+      const el = document.querySelector("#stackview .check__guidance");
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      return {
+        n: document.querySelectorAll("#stackview .check__guidance").length,
+        maxWidth: cs.maxWidth,
+        width: el.clientWidth,
+        container: el.parentElement.clientWidth,
+      };
+    });
+    if (prose && !(prose.maxWidth !== "none" &&
+        prose.width < prose.container - 8)) {
+      console.log(`    guidance is ${Math.round(prose.width)}px in a ` +
+        `${Math.round(prose.container)}px container, max-width ${prose.maxWidth}`);
+    }
+    push("a run of prose is capped well inside the box it sits in — " +
+      "`.stackview` is as wide as the window leaves it, so without the cap " +
+      "every sentence in it is as long as the window and a reader loses the " +
+      "line coming back",
+      prose && prose.maxWidth !== "none" && prose.width < prose.container - 8);
+
+    // 4. THE NAME COLUMN'S FLOOR. Eleven columns in an auto-layout table, so
+    // the browser shares the width out by content and the one column that is a
+    // PHRASE rather than a number loses: the name wrapped to four lines and
+    // stood the row up 90px tall. The floor is read off the computed style
+    // rather than written here -- the number belongs to the stylesheet -- so
+    // what is asserted is that there IS one and that the squeezed table is
+    // honouring it.
+    const nameCol = await page.evaluate(() => {
+      const cell = document.querySelector("#stackview td.el-row__name");
+      if (!cell) return null;
+      const table = cell.closest("table");
+      const port = table.parentElement;
+      return {
+        floor: parseFloat(getComputedStyle(cell).minWidth) || 0,
+        width: cell.clientWidth,
+        widest: Math.max(...[...document.querySelectorAll("#stackview td.el-row__name")]
+          .map((c) => c.textContent.trim().length)),
+        tableWidth: table.getBoundingClientRect().width,
+        portWidth: port.clientWidth,
+      };
+    });
+    const squeezed = nameCol && nameCol.tableWidth > nameCol.portWidth + 1;
+    if (!squeezed && nameCol) {
+      console.log(`    table is ${Math.round(nameCol.tableWidth)}px in a ` +
+        `${Math.round(nameCol.portWidth)}px scrollport — not squeezed, so the ` +
+        "floor is not load-bearing at this viewport");
+    }
+    push("the elements table is wider than its scrollport at this viewport — " +
+      "the squeeze that makes a column floor load-bearing at all, and the " +
+      "reason this suite runs at 1600px and not at 2200px, where auto layout " +
+      "gives the name column 410px and the floor is slack", squeezed);
+    if (nameCol && !(nameCol.floor > 0 && nameCol.width >= nameCol.floor - 0.5)) {
+      console.log(`    name column is ${Math.round(nameCol.width)}px against a ` +
+        `declared floor of ${nameCol.floor}px (longest name ${nameCol.widest} chars)`);
+    }
+    push("...and the element-name column has a declared floor that the " +
+      "squeeze honours — it is the one column holding a phrase rather than a " +
+      "number, and with no floor auto layout gives the width to the numbers " +
+      "and wraps the name to four lines",
+      nameCol && nameCol.floor > 0 && nameCol.width >= nameCol.floor - 0.5);
+
+    // 5. THE SOURCE NOTE'S CLAMP. The note in a row is a PREVIEW -- the note in
+    // full is what the preview pane is for -- and unclamped it was the tallest
+    // thing in the source column and so the thing setting the row's height.
+    // Asserted as "at most three lines", not as the stylesheet's `2.8em`: the
+    // number is the stylesheet's to tune, and what the rule says is that two
+    // lines and the top of a third is enough to recognise a note by.
+    const note = await page.evaluate(() => {
+      const el = document.querySelector(
+        "#stackview .el-row__srcnote:not(.el-row__srcnote--open)");
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      const size = parseFloat(cs.fontSize);
+      return {
+        maxHeight: cs.maxHeight,
+        lines: parseFloat(cs.maxHeight) / size,
+        clientHeight: el.clientHeight,
+        scrollHeight: el.scrollHeight,
+      };
+    });
+    if (note && !(note.scrollHeight > note.clientHeight + 1)) {
+      console.log(`    the note is ${note.scrollHeight}px of content in a ` +
+        `${note.clientHeight}px box — nothing is being clamped, so the clamp ` +
+        "is not under test");
+    }
+    push("a row's source note really has more in it than the row shows — the " +
+      "witness, since a note shorter than the clamp says nothing about the " +
+      "clamp", note && note.scrollHeight > note.clientHeight + 1);
+    if (note && !(note.maxHeight !== "none" && note.lines <= 3)) {
+      console.log(`    the note is clamped at ${note.maxHeight}, which is ` +
+        `${note.lines.toFixed(1)} lines of its own type`);
+    }
+    push("...and it is clamped to a PREVIEW of at most three lines — the note " +
+      "in full is what the preview pane exists for, and unclamped it is the " +
+      "tallest thing in the source column and so the thing setting the row's " +
+      "height in a table whose data is one line",
+      note && note.maxHeight !== "none" && note.lines <= 3);
 
     return reportSuite(label, checks, errors);
   } catch (err) {
@@ -5953,6 +6535,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateHostedPosture(browser, label)],
       ["crop lightbox (launch, zoom, pan on the live crops)", (label) =>
         testCropLightbox(browser, label, topologies, crops)],
+      ["typography pass's visual rules (live stack view)", (label) =>
+        testTypographyRules(browser, label, topologies)],
     ];
     const chosen = ONLY === null
       ? SUITES : SUITES.filter(([suiteLabel]) => suiteLabel.includes(ONLY));

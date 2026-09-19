@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: scripts/mutation-witnesses
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 found_by: docs/sessions/HANDOFF_20260916_js_guards_and_suite_isolation.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `mutation_witness_enrollment_gaps` moved to completed/; not independently verified.
 ---
 
 # The three guards `js_guards_and_suite_isolation` added have no `mutation_witnesses.json` entry — all three are paste-ready

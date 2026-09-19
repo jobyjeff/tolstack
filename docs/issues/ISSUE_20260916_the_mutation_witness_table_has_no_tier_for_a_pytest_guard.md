@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: tests/mutation-witness
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 found_by: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `mutation_witness_enrollment_gaps` moved to completed/; not independently verified.
 ---
 
 # A Python guard cannot own a mutation witness: `tier` has no word for pytest

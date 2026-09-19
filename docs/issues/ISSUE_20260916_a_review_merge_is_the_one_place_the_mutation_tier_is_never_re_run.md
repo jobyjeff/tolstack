@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: prompts/review
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `mutation_witness_enrollment_gaps` moved to completed/; not independently verified.
 ---
 
 # A review agent's own merge into `integration` is the one place `run_mutation_witness_tests.mjs` is never re-run

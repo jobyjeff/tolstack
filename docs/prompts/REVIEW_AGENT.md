@@ -1282,6 +1282,39 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       in a worktree and **341 / 0** in the main checkout. Nothing conflicted. If
       a lesson quotes a suite count and the board ran anything in parallel,
       assume the count is stale and re-derive it in both checkouts.
+- [ ] **After you merge `integration` into your review branch, re-run
+      `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`
+      and report the count in your review.** This is an instruction, not a
+      ritual, and the reason is that **your merge is the only point in the
+      lifecycle where nothing re-runs this tier**. The other three tiers answer
+      *does the app still behave?*; this one answers *would the guards notice if
+      it didn't?*, and it is the only tier whose answer can change **as a result
+      of a merge** while every branch involved is green on its own.
+      Measured: `card-layout-out-of-flow` was WITNESSED at `473106e`, `0b898da`,
+      `f629942` and `0573826`, and **NOT WITNESSED from `afcbbb4` onward** — a
+      review merge (`Merge branch 'integration' into review/pitch_link_known_
+      bands`) that brought `viewer_study_verdicts_and_gaps`,
+      `respine_tween_fidelity_round2` and `annotate_hosted_page_posture`
+      together. None of the three could have caught it alone. The coverage left
+      `integration` silently
+      (`ISSUE_20260916_a_review_merge_is_the_one_place_the_mutation_tier_is_
+      never_re_run.md`). **Corrected in review 2026-09-18:** that issue's
+      "stayed gone for four days and three duplicate filings" is the whole
+      `card-layout` *guard* saga (first filed 2026-09-11), not this regression —
+      `afcbbb4` landed 2026-09-15 22:28 and was bisected and filed at 23:14 the
+      same night, **46 minutes**. Do not quote the four days forward. The
+      argument does not need it: the cost of a merge-only regression is not how
+      long it happened to hide, it is that no branch's green can see it.
+      Two practical notes. The `--repo` is not a worktree escape hatch: without
+      it every `[real]` witness is skipped and reported as a miss, and the run
+      tells you so on its first line. And a **drop** in the witnessed count is
+      the finding — a merge that takes the count down is a REQUEST CHANGES on
+      the merge, not on either branch, because the coverage that left is not
+      attributable to one of them. If the full tier is too long for your cycle,
+      the trigger worth stating is mechanical: the tier can only see what the
+      shadow tree holds, and `SHADOWED` in `scripts/run_mutation_witness_tests.mjs`
+      is that list — read it there — so a merge touching nothing it names cannot
+      change the answer.
 - [ ] **A prior review's PASS is a claim, not evidence — re-locate what it says
       it located.** New 2026-08-10 (`fastener_citations_and_confidence`), and it
       is how a *mandatory* check goes vacuous across a whole review chain. Check
@@ -2609,7 +2642,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       onto one line. Each of the three was green alone, so nobody could see it,
       and a review merge is the one place the mutation tier is not re-run.
       `ISSUE_20260915_the_card_layout_out_of_flow_mutation_witness_stopped_
-      witnessing_on_integration.md`. The tell is the same one this block keeps
+      witnessing_on_integration.md`. **That is now a standing instruction** —
+      re-run the tier after your own merge into the review branch and report the
+      count; see the checklist item above on the sibling merge, which carries
+      the bisect and what a dropped count means. The tell is the same one this block keeps
       producing: the tier goes red as `ERROR: locator.hover: Timeout`, a
       symptom with no name attached, rather than on the check that owns the
       claim.
@@ -3546,7 +3582,112 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       (`REPO` comes from `__dirname`, only `DATA_REPO` follows `--repo`).
       22/22 in ~3 minutes, and it is the only evidence anyone will ever get
       that a rendering change did not break the tier nobody ran. Delete the
-      copy before you finish.
+      copy before you finish. **Cheaper, 2026-09-18:** a directory junction is
+      instant and costs no disk —
+      `New-Item -ItemType Junction -Path <worktree>\node_modules -Target
+      C:\workspace\tolstack\node_modules`. **Remove it before you finish**, and
+      that is not tidiness: a junction is a reparse point outside git's view,
+      and a recursive delete that follows one takes the MAIN checkout's
+      `node_modules` with it — dispatch removes your worktree at Complete.
+      **After your LAST tier run, not when you write the report** — the
+      review-merge item above sends you back for one more, and a mutation tier
+      run without `node_modules` reports every browser entry as
+      `the tier is already red with NO mutation applied`, which looks exactly
+      like the regression you were re-running to find (2026-09-18, done by the
+      reviewer who wrote this line).
+
+- [ ] **A diff that widens a tree the repo COPIES has to be re-tested with the
+      copy on disk, and a fresh clone cannot reproduce the failure.** New
+      2026-09-18 (`mutation_witness_enrollment_gaps`). `SHADOWED` in
+      `scripts/run_mutation_witness_tests.mjs` grew from `apps/ scripts/
+      docs/topologies/` to seven directories including `tests/` — and every
+      walker that scans the repo by directory then saw each copied file twice,
+      because the shadow lives at `tmp/` **inside** the repo. Two live guards
+      broke: `pytest -q` died with **35 collection errors** on duplicate module
+      basenames, and `live_documents()` — the corpus walker every claim scan in
+      `tests/test_tolerance_stack.py` shares — went from 92 documents to 105,
+      quietly doubling counts. Both fixed here (`pytest.ini`'s `norecursedirs`,
+      and `tmp` in `_SKIP_DIR_NAMES`), and **both were measured load-bearing in
+      this review** by removing each fix with the shadow present. The reason
+      this is a review checklist item and not just a lesson: `tmp/` is
+      gitignored, so **a green suite in a tree that has never run the tier
+      proves nothing** — the order that finds it is *run the tier, then run
+      pytest*, and the author's green almost certainly came the other way
+      round. Anything that widens a copied tree (this one, or a future one)
+      inherits the whole trap.
+
+- [ ] **A declaration two consumers read, where the cheap one compares it
+      loosely and the expensive one compares it exactly.** New 2026-09-18, same
+      handoff, and it is the shape behind "verified, paste-ready, and wrong".
+      `mutation_witnesses.json`'s `expect_red` is counted as a **substring** by
+      `tests/test_mutation_witnesses.py` (0.6s) and matched for **equality** by
+      the runner (minutes, behind a browser). Two entries were filed with the
+      name deliberately truncated *so that the cheap checker would resolve
+      them*, were called paste-ready, and were a guaranteed `NOT WITNESSED`.
+      The question to ask of any new declared-string field: *what does the
+      slow half compare, and does the fast half compare it the same way?* If
+      not, the fast half needs the extra assertion — which is what
+      `test_no_expect_red_is_a_truncated_check_name` now is.
+
+- [ ] **A per-suite SKIP that returns `ok: true` is counted in the runner's own
+      green total.** New 2026-09-18 (`visual_rules_nothing_checks`).
+      `scripts/run_viewer_browser_tests.mjs` now has **six** suite bodies that
+      print a `SKIP:` line and `return { label, ok: true }` on an unmet
+      precondition — an unbuilt projection, a live nav leaf that moved — and the
+      last line still reads `23/23 browser checks passed`. Since
+      `data/projections/` is gitignored and main-checkout-only, "skipped" is the
+      *default* in a worktree. The repo already paid for this exact shape a week
+      earlier on the pytest side
+      (`real_tier_red_and_the_skipping_tier`: *"A TIER THAT CANNOT RUN IS NOT A
+      TIER THAT PASSED"*), so a new suite that inherits the convention is worth a
+      filed issue even though it matches its neighbours. **The check to run: make
+      the precondition unmeetable** (point `--repo` at a tree with no
+      projections) **and read the LAST line, not the SKIP line.**
+      (`ISSUE_20260918_a_skipped_browser_suite_returns_ok_true_and_is_counted_in_the_runners_green_total`.)
+
+- [ ] **A guard's token list restated by hand where the DRIFT DIRECTION is
+      silence.** New 2026-09-18 (`visual_rules_nothing_checks`), and the reason
+      it earns a line of its own next to the generic hand-copy entry: ask not
+      just *is this copy paired?* but **which way does it fail when it goes
+      stale?** `tests/test_app_type_scale.py`'s `CONFIDENCE_TOKENS` is
+      `["conf--" + c for c in VA.CONFIDENCES] + ["conf--unknown"]` written out,
+      and a guard parametrized by a *too-short* list is silent on exactly the
+      new word — a fifth confidence would arrive with the unscoped
+      `.conf--<new> { color: #fff }` rule invisible to the guard written for it.
+      Its sibling in the same diff, the browser fill census's `MAY_FILL`, is the
+      same shape and fails **loudly** (a new unlisted token reads as an
+      overspend and reddens). Same defect class, different urgency; say which
+      one you found. The extractor to point at is already here —
+      `tests/test_js_python_vocabulary.py`'s `js_array_strings`, which already
+      reads `VA.CONFIDENCES`.
+      (`ISSUE_20260918_the_type_scale_guards_confidence_token_list_is_an_unpaired_hand_copy_of_va_confidences`.)
+
+- [ ] **A lesson citing a sibling file's habit as already-established — go
+      count the call sites.** New 2026-09-18 (`visual_rules_nothing_checks`), and
+      a second sighting of the canonical "audit the lesson's arithmetic" entry in
+      its *causal* half. The lesson explained a fixed race by saying
+      `scripts/run_viewer_browser_tests.mjs` "already knew this and waits 450ms
+      after each of its **three** `setViewportSize` calls". It has **seven**, all
+      on a booted topology page: two wait 450, two wait 400, three wait nothing,
+      and one of the three measures a layout on the very next line. The claim's
+      form is the tell — *"the neighbouring file already does X"* is an appeal to
+      a convention, and a convention with silent opt-outs is not one. `grep -c`
+      the call sites before you believe it; here it turned one corrected sentence
+      into a filed latent flake.
+      (`ISSUE_20260918_three_browser_tier_resizes_measure_through_the_apps_own_debounce`.)
+
+- [ ] **A probe/screenshot pair claimed identical to the byte — re-take it
+      TWICE, not once.** New 2026-09-18 (`visual_rules_nothing_checks`). The
+      handoff's own issue reported "7 of the 13 `after` shots differ from a
+      re-take", from three runs. Verifying it with `cmp -s` over every shot, the
+      reviewer's **first** re-take differed on **8** — the extra one being
+      `6_hover_card`, which carries an asynchronous `ensureThumbImages` thumbnail
+      no shot waits for. Two further runs matched each other under the same
+      `cmp -s` on all 13 and reproduced 7 of 13 exactly, shot for shot. So the
+      author's number was right and the probe is *nearly* deterministic — but
+      "nearly" is the finding, and one re-take cannot tell the two apart. Take it
+      into two scratch dirs, `cmp` the runs against **each other** first, and only
+      then against the committed set.
 
 ## Architectural errors to check
 

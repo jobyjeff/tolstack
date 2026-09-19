@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: scripts/mutation-witnesses
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 found_by: docs/sessions/HANDOFF_20260916_reader_facing_copy_and_vocabulary.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `mutation_witness_enrollment_gaps` moved to completed/; not independently verified.
 ---
 
 # The two surface guards `reader_facing_copy_and_vocabulary` added have no `mutation_witnesses.json` entry — both are paste-ready

@@ -49,6 +49,11 @@ What this does NOT do
   size from ``.chip``) is not a finding. It exists to catch the specific
   regression the pass fixed -- ``h3`` at 15px ALL-CAPS carrying a sentence --
   not to be a complete audit of every capital letter.
+* It does not pin WHERE ON THE PAGE each step is spent. That is the other half
+  of the pass and most of it is only visible with a layout, so it lives in the
+  browser tier's ``typography pass's visual rules (live stack view)`` suite.
+  The two checks added to this module on 2026-09-18 are the two halves of the
+  pass that a stylesheet can answer on its own -- see each one's docstring.
 """
 
 from __future__ import annotations
@@ -75,6 +80,28 @@ APP_CSS_GLOBS = ("apps/*/*.css",)
 #: is the whole point of the module. A seventh name is a design decision and
 #: belongs in this tuple and in docs/DESIGN_TYPE_AND_COLOUR.md, not in a rule.
 STEP_NAMES = ("--t-micro", "--t-meta", "--t-dense", "--t-body", "--t-title", "--t-page")
+
+#: The tokens ``VA.confidenceClass()`` builds (``viewer.js``: ``"conf--" +
+#: confidence``, over ``VA.CONFIDENCES`` plus the ``unknown`` fallback). What
+#: makes them special is not that they are a vocabulary -- the stylesheet has
+#: several -- but that **more than one kind of element wears the result**: a
+#: ``span.chip``, three kinds of ``<tr>`` (``el-row``, ``mat-row``,
+#: ``tvrow--edge``) and an SVG ``line.rail__bar``. So a rule keyed on one of
+#: these ALONE is a rule whose scope nobody decided, and the properties below
+#: are the ones that then reach every descendant of whichever element it
+#: landed on.
+CONFIDENCE_TOKENS = (
+    "conf--traced", "conf--inferred", "conf--untraced", "conf--no_source_ref",
+    "conf--unknown",
+)
+
+#: The properties a bare confidence token may not declare, and the reason the
+#: list is these three: ``color`` and ``font-weight`` are INHERITED, so a row
+#: wearing the token hands them to all eleven of its cells, and ``background``
+#: paints the row itself. Everything else a ``conf--`` rule wants --
+#: ``border-color``, ``stroke``, a background TINT on a scoped row selector --
+#: is either not inherited or is already written against a scoped selector.
+SCOPE_SENSITIVE_PROPERTIES = ("color", "font-weight", "background")
 
 _STEP_DECL = re.compile(r"(--t-[a-z]+)\s*:\s*([0-9]+)px\s*;")
 _FONT_SIZE = re.compile(r"font-size\s*:\s*([^;}]+)")
@@ -225,4 +252,107 @@ def test_no_rule_sets_all_caps_above_the_metadata_step(stylesheets):
         f"var(--t-meta) ({owner['--t-meta']}px):\n  " + "\n  ".join(offenders)
         + "\nA sentence set in capitals is shouted, not labelled. Either drop "
         "the uppercase or make the rule a label."
+    )
+
+
+def test_both_apps_set_their_base_size_from_the_scale(stylesheets):
+    """Each app's ``body`` names a step, so nothing inherits the browser's 16px.
+
+    The other half of the regression this module's docstring opens with, and the
+    half the scale check above cannot see. ``test_no_stylesheet_declares_a_font_
+    size_off_the_scale`` asks *is every size a step?* -- and a ``body`` that
+    declares no size at all answers that perfectly, by having nothing to check.
+    That is exactly the state ``apps/annotate`` shipped in until 2026-09-17: no
+    base size, so its element rail inherited 16px from the user agent and was
+    the largest type on the page, above the app's own titles.
+
+    So this asks the complementary question: *is there a base size at all?* Both
+    apps set it through the ``font:`` shorthand, which is also where the
+    line-height lives -- the two belong together, and a bare ``font-size`` here
+    would leave ``1.5`` to be written somewhere else or not at all.
+    """
+    offenders = []
+    for name in (SCALE_OWNER, SCALE_COPY):
+        css = stylesheets[name]
+        block = re.search(r"(?:^|})\s*body\s*\{([^{}]*)\}", css)
+        if not block:
+            offenders.append(f"{name}: has no `body` rule at all")
+            continue
+        body = block.group(1)
+        size = _FONT_SIZE.search(body) or re.search(r"font\s*:\s*([^;}]+)", body)
+        value = size.group(1).strip() if size else None
+        if not value or "var(--t-" not in value:
+            offenders.append(
+                f"{name}: `body` declares {value!r} -- no step on the scale"
+            )
+    assert offenders == [], (
+        "each app's `body` must set the base size from the scale:\n  "
+        + "\n  ".join(offenders)
+        + f"\nUse one of {list(STEP_NAMES)}. With no base size the page inherits "
+        "the browser's 16px, which is off the scale AND larger than every step "
+        "on it -- and no other check in this module can see it, because a rule "
+        "that declares no size has no size to be wrong."
+    )
+
+
+def test_no_rule_keys_on_a_confidence_token_alone(stylesheets):
+    """A ``conf--*`` rule must name the element it is about.
+
+    The generic form of the legibility regression ``design_pass_typography``
+    found already shipped, and the one this module states as a RULE rather than
+    as an instance. ``VA.confidenceClass()`` returns a token and five kinds of
+    element wear the result (see ``CONFIDENCE_TOKENS``), so a rule whose subject
+    is the token alone is a rule whose scope nobody decided -- and ``color`` and
+    ``font-weight`` are inherited, so the scope it silently took was every
+    descendant. Unscoped, ``.conf--untraced``'s ``color: #fff`` and
+    ``font-weight: 700`` -- written for an 11px pill -- reached all eleven cells
+    of every untraced row: measured on the live ``pitch_system``, 8 of the
+    grid's first 10 rows and both materials rows rendered entirely in
+    700-weight white.
+
+    Checked on the SELECTOR and not on the rendered page, which is the half the
+    browser tier's companion check cannot do: this is available to the next
+    ``conf--`` rule anybody writes, where that one can only see the states the
+    live data happens to contain. Both exist on purpose -- the browser check is
+    about inheritance, this one is about the selector.
+
+    Every compound in the chain is checked, not just the subject: ``.conf--
+    untraced td { color: #fff }`` is the same defect reached by a descendant
+    combinator instead of by inheritance.
+    """
+    offenders = []
+    for name, css in sorted(stylesheets.items()):
+        for block in re.finditer(r"([^{}]*)\{([^{}]*)\}", css):
+            body = block.group(2)
+            declared = [
+                prop for prop in SCOPE_SENSITIVE_PROPERTIES
+                if re.search(rf"(?:^|;)\s*{prop}\s*:", body)
+            ]
+            if not declared:
+                continue
+            # The selector list, minus any comment that ran up to the brace --
+            # this file's rules carry paragraphs, and a `.conf--x` quoted inside
+            # one is prose about a selector, not a selector.
+            selector = re.sub(r"/\*.*?\*/", " ", block.group(1), flags=re.S)
+            for one in selector.split(","):
+                for compound in one.split():
+                    tokens = [t for t in compound.lstrip(".").split(".") if t]
+                    if not any(t.split(":")[0] in CONFIDENCE_TOKENS for t in tokens):
+                        continue
+                    if len(tokens) > 1 or not compound.startswith("."):
+                        continue
+                    line = css[: block.start(2)].count("\n") + 1
+                    offenders.append(
+                        f"{name}:{line}: `{compound}` declares "
+                        f"{', '.join(declared)} with nothing to scope it"
+                    )
+    assert offenders == [], (
+        "these rules are keyed on a confidence token alone:\n  "
+        + "\n  ".join(offenders)
+        + "\nA confidence token is worn by a chip, three kinds of <tr> and an "
+        "SVG bar, so a rule that names only the token cannot know which of "
+        f"them it is styling. {list(SCOPE_SENSITIVE_PROPERTIES)} are the three "
+        "that then reach every descendant. Scope it to the element it is about "
+        "(`.chip.conf--untraced`, `.el-row.conf--untraced`, "
+        "`.rail__bar.conf--untraced`)."
     )

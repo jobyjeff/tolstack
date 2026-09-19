@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: viewer/tests
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
 found_by: docs/sessions/HANDOFF_20260916_crop_lightbox_zoom_viewer.md
+resolution: handoff completed 2026-09-18 -- closed automatically by dispatch when handoff `visual_rules_nothing_checks` moved to completed/; not independently verified.
 ---
 
 # The crop lightbox never opens on a `file://` page in any test tier

@@ -28,6 +28,21 @@ this module at six passed in 0.03s, and the only symptom was a ``NOT WITNESSED``
 from a seven-minute browser sweep. So all three strings are paired here, and the
 reason is one reason.
 
+A ``python`` entry (2026-09-18) spells two of those three differently and is
+paired the same way for the same reason: ``suite`` is the test file pytest is
+handed rather than a registry key, and ``expect_red`` is a test FUNCTION's name
+rather than a prose sub-check. The identifier is the better string of the two,
+but it is not a safer one -- a renamed test rots it exactly as a reworded
+sub-check rots the others.
+
+**A PREFIX of a check name is the failure this module used to let through.** It
+counts substrings; the runner compares the declared name to the printed one for
+equality, so a name cut short is green here in under a second and a guaranteed
+``NOT WITNESSED`` minutes into whichever tier owns it. That is not hypothetical
+-- it is how ``test_no_expect_red_is_a_truncated_check_name`` below came to
+exist, and the two entries it was written for had been verified against these
+very helpers by two different agents first.
+
 What this module does **not** do: it never asserts that a mutation actually
 reddens anything. That claim can only be earned by running the tier, and pytest
 is not where a 3-minute browser sweep belongs. So a green pytest run means *every
@@ -64,7 +79,31 @@ REQUIRED_KEYS = frozenset(
 #: (``ISSUE_20260915_the_annotate_fast_tier_cannot_own_a_mutation_witness``,
 #: closed 2026-09-16). The two runners are separate harnesses: separate
 #: check-name sources, and no suite registry in common.
-TIERS = frozenset({"fast", "annotate", "browser"})
+#: ``python`` is the fourth word (2026-09-18,
+#: ``ISSUE_20260916_the_mutation_witness_table_has_no_tier_for_a_pytest_guard``):
+#: the venv interpreter plus ``-m pytest``, handed ONE test file. It is the only
+#: tier whose harness is *this* suite, which is why the two constants below
+#: exist.
+TIERS = frozenset({"fast", "annotate", "browser", "python"})
+
+#: The tiers whose entries carry a ``suite``, and what a ``suite`` MEANS in each:
+#: for ``browser`` it is a key the runner's ``--only`` dispatches on, for
+#: ``python`` it is the test file pytest is pointed at. Two different things
+#: wearing one field name, which is worth stating rather than inferring -- and
+#: paired against the runner's own ``suites: true`` flags below, so a tier that
+#: grows or loses suites on one side is red on the other.
+TIERS_WITH_SUITES = frozenset({"browser", "python"})
+
+#: The one pytest suite a ``python`` entry may never name. This module runs
+#: inside the shadow tree when a python entry is witnessed, and with a mutation
+#: applied its own ``test_every_anchor_resolves_to_exactly_one_place`` reddens --
+#: correctly, because the shadow's copy of the table declares a ``find`` the
+#: shadow's mutated file no longer holds. An entry pointing here would be
+#: "witnessed" by that, for any mutation whatsoever, and would read as coverage
+#: for a guard nothing had exercised. ``run_mutation_witness_tests.mjs`` refuses
+#: it too (``SELF_PAIRING_SUITE``); this half says so in a second, with no
+#: browser and no shadow.
+SELF_PAIRING_SUITE = "tests/test_mutation_witnesses.py"
 
 #: Where each tier's sub-check NAMES are written -- which ``expect_red`` copies
 #: verbatim. Note what the fast tier's entry is *not*: the tier is invoked as
@@ -79,7 +118,21 @@ CHECK_SOURCE = {
     # to load -- the asymmetry with the row above is real, not a mistake.
     "annotate": "apps/annotate/run_tests.cjs",
     "browser": "scripts/run_viewer_browser_tests.mjs",
+    # ``None`` is a statement, not an omission: pytest has no one file its check
+    # names live in -- each python entry's ``suite`` IS that file, and
+    # ``check_source_of()`` is where that is read. Keeping the row (rather than
+    # leaving ``python`` out of this map) is what keeps
+    # ``test_the_check_source_map_covers_the_tier_vocabulary`` able to catch a
+    # fifth tier added with no thought about where its names come from.
+    "python": None,
 }
+
+#: A ``python`` entry's ``expect_red`` is a test FUNCTION name, off pytest's
+#: ``FAILED <file>::<name>`` summary line -- an exact identifier rather than a
+#: prose sub-check. This is how it is looked for in the suite file: the ``def``
+#: that defines it, which is also what makes "declared twice" and "not there at
+#: all" distinguishable.
+PYTEST_DEF = "def {name}("
 
 #: The runner's own copy of the tier vocabulary: one ``TIER_HARNESS`` object
 #: keyed by tier word, holding the script to spawn, the regex its failure lines
@@ -132,6 +185,41 @@ def joined_source(relative: str) -> str:
     return CONCATENATION_SEAM.sub("", source_of(relative))
 
 
+def check_source_of(entry: dict) -> str:
+    """The file whose text holds this entry's ``expect_red``.
+
+    One file per tier for the three node tiers; for ``python`` it is the entry's
+    own ``suite``, because that is what "where the check names are written"
+    means for pytest.
+    """
+    return CHECK_SOURCE[entry["tier"]] or entry["suite"]
+
+
+def expect_red_hits(entry: dict) -> int:
+    """How many places in that file declare this entry's ``expect_red``."""
+    relative = check_source_of(entry)
+    if entry["tier"] == "python":
+        return source_of(relative).count(PYTEST_DEF.format(name=entry["expect_red"]))
+    return joined_source(relative).count(entry["expect_red"])
+
+
+def runner_tier_harness() -> dict[str, bool]:
+    """The runner's ``TIER_HARNESS``, as ``{tier word: takes a suite}``.
+
+    Read out of the source for the same reason the suite registry is: a copy
+    here would be the duplication the pairing exists to catch.
+    """
+    source = source_of(RUNNER)
+    start = source.index("const TIER_HARNESS = {")
+    block = source[start:source.index("\n};", start)]
+    bounds = [m.start() for m in TIER_HARNESS_KEY.finditer(block)] + [len(block)]
+    keys = TIER_HARNESS_KEY.findall(block)
+    return {
+        key: "suites: true" in block[bounds[i]:bounds[i + 1]]
+        for i, key in enumerate(keys)
+    }
+
+
 def suite_registry_keys() -> tuple[str, ...]:
     """The labels ``SUITES`` in the browser runner dispatches on.
 
@@ -154,9 +242,12 @@ def test_every_entry_carries_the_whole_shape(mutations):
         assert entry["tier"] in TIERS, (
             f"{entry['id']}: tier {entry['tier']!r} is not one of {sorted(TIERS)}"
         )
-        # The browser runner's --only filter; the fast tier has no suites.
-        if entry["tier"] == "browser":
-            assert entry["suite"], f"{entry['id']}: a browser entry must name a suite"
+        # A `suite` is the browser runner's --only filter, or the pytest tier's
+        # test file; neither fast tier has one.
+        if entry["tier"] in TIERS_WITH_SUITES:
+            assert entry["suite"], (
+                f"{entry['id']}: a {entry['tier']} entry must name a suite"
+            )
         else:
             assert entry["suite"] is None, (
                 f"{entry['id']}: tier {entry['tier']!r} takes no suite"
@@ -190,18 +281,31 @@ def test_every_anchor_resolves_to_exactly_one_place(mutations):
 
 def test_the_runner_and_this_module_hold_the_same_tier_vocabulary():
     """``TIER_HARNESS``'s keys are the words the runner can actually spawn."""
-    source = source_of(RUNNER)
-    start = source.index("const TIER_HARNESS = {")
-    end = source.index("\n};", start)
-    keys = TIER_HARNESS_KEY.findall(source[start:end])
-    assert keys, (
+    harness = runner_tier_harness()
+    assert harness, (
         f"no TIER_HARNESS keys found in {RUNNER} -- the reader has rotted, so "
         f"this pairing is passing against nothing"
     )
-    assert set(keys) == set(TIERS), (
-        f"{RUNNER}'s TIER_HARNESS covers {sorted(keys)}, TIERS is {sorted(TIERS)}. "
-        f"A tier word in one and not the other is either an entry nothing can "
-        f"run, or a harness no entry may name."
+    assert set(harness) == set(TIERS), (
+        f"{RUNNER}'s TIER_HARNESS covers {sorted(harness)}, TIERS is "
+        f"{sorted(TIERS)}. A tier word in one and not the other is either an "
+        f"entry nothing can run, or a harness no entry may name."
+    )
+
+
+def test_the_two_sides_agree_on_which_tiers_take_a_suite():
+    """``suites: true`` over there, ``TIERS_WITH_SUITES`` here.
+
+    Disagreement is silent in both directions and neither is a red anywhere
+    else: a tier this module lets carry a ``suite`` that the runner does not
+    pass on runs the whole harness and attributes the wrong red, and a tier the
+    runner filters by a ``suite`` this module requires to be ``null`` is handed
+    ``undefined``.
+    """
+    takes_a_suite = {tier for tier, suited in runner_tier_harness().items() if suited}
+    assert takes_a_suite == set(TIERS_WITH_SUITES), (
+        f"{RUNNER} passes a suite for {sorted(takes_a_suite)}, "
+        f"TIERS_WITH_SUITES is {sorted(TIERS_WITH_SUITES)}"
     )
 
 
@@ -211,6 +315,13 @@ def test_the_check_source_map_covers_the_tier_vocabulary():
         f"CHECK_SOURCE covers {sorted(CHECK_SOURCE)}, TIERS is {sorted(TIERS)}"
     )
     for tier, relative in CHECK_SOURCE.items():
+        # `None` is the pytest tier's honest answer -- its names are per entry.
+        if relative is None:
+            assert tier in TIERS_WITH_SUITES, (
+                f"CHECK_SOURCE[{tier!r}] is None, which means 'the entry's own "
+                f"suite names the file' -- but {tier!r} carries no suite"
+            )
+            continue
         assert (REPO_ROOT / relative).is_file(), (
             f"CHECK_SOURCE[{tier!r}] names {relative}, which is not in the tree"
         )
@@ -224,10 +335,14 @@ def test_every_expect_red_resolves_to_exactly_one_place(mutations):
     sweep. Two means the runner cannot attribute the red either, which is the
     same defect one step along, so uniqueness is asserted in the SOURCE and not
     per entry: three of the preference siblings deliberately share one sub-check.
+
+    A ``python`` entry declares a test function name rather than a prose
+    sub-check, so what is counted is the ``def`` in the entry's own suite file --
+    see ``expect_red_hits``. Same question, same two failure modes.
     """
     for entry in mutations:
-        relative = CHECK_SOURCE[entry["tier"]]
-        hits = joined_source(relative).count(entry["expect_red"])
+        relative = check_source_of(entry)
+        hits = expect_red_hits(entry)
         assert hits == 1, (
             f"{entry['id']}: its `expect_red` matches {hits} places in {relative} "
             f"(expected exactly 1). A reworded sub-check name leaves the entry "
@@ -260,6 +375,90 @@ def test_every_browser_entry_names_a_suite_the_registry_dispatches_on(mutations)
         )
 
 
+def test_no_expect_red_is_a_truncated_check_name(mutations):
+    """A PREFIX of a sub-check name resolves here and can never be witnessed.
+
+    The runner matches ``expect_red`` against the printed failure name with
+    ``Array.includes`` -- an EXACT string equality, not a substring test -- while
+    the pairing above counts substrings. So an entry declaring the first half of
+    a name passes pytest in 0.6s and is a guaranteed ``NOT WITNESSED`` several
+    minutes into whichever tier owns it, reported as
+    ``another check reddened, but not the declared one``: the loudest possible
+    way to say nothing useful.
+
+    Measured 2026-09-18, and it is not hypothetical -- it is how this test came
+    to exist. Two entries were pasted into
+    ``ISSUE_20260916_the_reader_facing_copy_guards_have_no_mutation_witness_entry``
+    with their names deliberately cut short, the issue saying so and giving the
+    reason (the prefixes sat wholly inside the first of two adjacent string
+    literals, so they resolved without ``joined_source``). Both were verified
+    against the pairing helpers by their author, both were called paste-ready,
+    and both missed on the first run of the tier. The sharper version of that,
+    corrected in review: the three entries a *reviewer* also replayed against
+    these helpers (``REVIEW_20260916_js_guards_and_suite_isolation``) all
+    witnessed first time. It was the author-checked-only paste that carried the
+    prefix -- which is the argument for a guard rather than another pair of
+    eyes.
+
+    What makes the prefix visible is that a check name is a STRING LITERAL: once
+    the ``" + "`` seams are closed, the name's last character is followed by the
+    quote that ends the literal. A prefix is followed by more of the name.
+
+    The OPENING quote is deliberately not required. One entry's name is
+    legitimately concatenated onto the tier's own ``"FAIL sub-check: "`` prefix
+    (``suite-prints-the-registry-key-it-was-handed``), so its first character
+    follows a space -- and a leading truncation is a different, harmless shape
+    anyway: the runner's regex captures the whole remainder of the line, so a
+    name missing its head simply fails the equality this test's sibling already
+    would not.
+    """
+    for entry in mutations:
+        # A python entry's name is looked for as `def <name>(`, which is exact
+        # by construction -- a prefix would not be followed by the paren.
+        if entry["tier"] == "python":
+            continue
+        relative = check_source_of(entry)
+        source = joined_source(relative)
+        at = source.index(entry["expect_red"]) + len(entry["expect_red"])
+        assert source[at] == '"', (
+            f"{entry['id']}: its `expect_red` is a PREFIX of the name "
+            f"{relative} actually prints -- the next character there is "
+            f"{source[at]!r}, not the quote that would end the literal. The "
+            f"runner compares names for EQUALITY, so this entry can only ever "
+            f"report NOT WITNESSED. Copy the whole name; a long one is split "
+            f"across a `\" + \"` seam and `joined_source()` closes it for you.\n"
+            f"Declared:\n{entry['expect_red']}\n"
+            f"Printed:\n{entry['expect_red']}{source[at:source.index(chr(34), at)]}"
+        )
+
+
+def test_every_python_entry_names_a_test_file_the_shadow_can_run(mutations):
+    """``suite`` is the path pytest is handed, resolved inside the shadow tree.
+
+    Three things have to hold and none of them is checkable from the entry
+    alone: the file is in the tree, it is under ``tests/`` (which is what
+    ``SHADOWED`` copies), and it is not this module (``SELF_PAIRING_SUITE`` --
+    the re-entrancy that would witness every mutation and prove none).
+    """
+    for entry in mutations:
+        if entry["tier"] != "python":
+            continue
+        suite = entry["suite"]
+        assert (REPO_ROOT / suite).is_file(), (
+            f"{entry['id']}: names suite {suite!r}, which is not in the tree"
+        )
+        assert suite.startswith("tests/"), (
+            f"{entry['id']}: names suite {suite!r}, outside tests/ -- the shadow "
+            f"tree copies tests/ and tolerance_stack/, so pytest would be handed "
+            f"a path that is not there"
+        )
+        assert suite != SELF_PAIRING_SUITE, (
+            f"{entry['id']}: names {SELF_PAIRING_SUITE}, which no entry may -- "
+            f"with a mutation applied, that module's anchor check reddens for "
+            f"every entry, so the witness would pass against anything"
+        )
+
+
 def test_no_mutation_is_a_no_op(mutations):
     """``find == replace`` would patch a file into itself and witness nothing."""
     for entry in mutations:
@@ -287,6 +486,8 @@ def test_the_anchor_reader_can_fail():
     assert source_of("scripts/mutation_witnesses.json").count(
         "this text is in no file in this repo, by construction") == 0
     for relative in CHECK_SOURCE.values():
+        if relative is None:  # the pytest tier: its names are per entry
+            continue
         assert joined_source(relative).count(
             "this text is in no file in this repo, by construction") == 0
 
@@ -301,7 +502,11 @@ def test_closing_the_concatenation_seam_is_load_bearing(mutations):
     """
     joined_only = [
         entry["id"] for entry in mutations
-        if source_of(CHECK_SOURCE[entry["tier"]]).count(entry["expect_red"]) == 0
+        # A python entry's name is an identifier on one line, so the seam
+        # question does not arise for it -- and it must not be allowed to
+        # satisfy this check either way.
+        if entry["tier"] != "python"
+        and source_of(CHECK_SOURCE[entry["tier"]]).count(entry["expect_red"]) == 0
         and joined_source(CHECK_SOURCE[entry["tier"]]).count(entry["expect_red"]) == 1
     ]
     assert joined_only, (
