@@ -27,6 +27,17 @@ all three tiers from the review worktree against `--repo C:/workspace/tolstack`:
 | `node apps/viewer/run_tests.cjs --repo …` | **456/456** |
 | `node scripts/run_viewer_browser_tests.mjs --repo …` | **23/23 suites** — `crop lightbox` 20, `real render path` 15, `typography pass's visual rules` 9 |
 
+**The mutation-witness tier was re-run after the merge, per this overlay's
+standing instruction, and came back `64/64 declared mutations witnessed`** —
+plus `tests/test_mutation_witnesses.py` 14 passed. That matters here more than
+usual: `integration` already carried `mutation_witness_enrollment_gaps` (the
+`python` tier and 64 entries) when the handoff branch was cut without it, so
+this merge is exactly the two-green-handoffs-on-one-line case the instruction
+exists for. Three existing entries name the two suites this handoff edited
+(`crop lightbox` ×1, `real render path` ×2); all three still witness, so the
+inserted "back to fit" click and the non-empty `images` map broke nothing
+downstream. No entry came back `NOT WITNESSED` or `SKIPPED`.
+
 The per-suite sub-check counts match the lesson's §5 claims exactly, and the
 `1203 → 1205` pytest delta is consistent (`tests/test_app_type_scale.py` now
 collects 8, up from 6; my absolute 1208 is higher only because `integration` has
