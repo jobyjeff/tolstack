@@ -159,8 +159,13 @@ async function stage(what, body) {
 // covered is that the replacement was already in flight.
 //
 // 450ms is the same number `scripts/run_viewer_browser_tests.mjs` waits after
-// its own three `setViewportSize` calls, for this debounce and no other
-// reason. Kept as a wait rather than a signal from the app because the probe
+// two of its own `setViewportSize` calls, for this debounce and no other
+// reason. (Corrected in review 2026-09-18: that file has SEVEN resizes, all on
+// a booted topology page -- two wait 450ms, two wait 400ms, and three wait
+// nothing at all. So it is a number to copy, not a convention already held;
+// the three unwaited ones are `ISSUE_20260918_three_browser_tier_resizes_
+// measure_through_the_apps_own_debounce`.) Kept as a wait rather than a signal
+// from the app because the probe
 // reads the page and never its internals, and because the alternative fix --
 // replacing the locator action with a `page.evaluate` scrollIntoView -- lands
 // on a different scroll offset and would have re-framed two of the 26

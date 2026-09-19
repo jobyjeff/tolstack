@@ -53,6 +53,19 @@ diff — the browser suite's waits carry no comment saying what they are for, so
 there was nothing to copy. There is now: `RESIZE_DEBOUNCE_SETTLE` names the
 number and the reason in one place.
 
+> **Correction (review, 2026-09-18).** "each of its three `setViewportSize`
+> calls" is wrong, and the true numbers make the point sharper rather than
+> softer. `scripts/run_viewer_browser_tests.mjs` has **seven** resizes, every
+> one of them on a booted topology page where the 150ms debounce applies:
+> five in `testTheTopologyPage` (lines 1495, 1632, 1670, 2022, 2041) and two in
+> `testHeightBudget` (2988, 2997). Only **two** are followed by
+> `waitForTimeout(450)`; two more wait `400`, and **three wait nothing** — one
+> of which (2022) measures `cardLayout()` on the very next line. So the browser
+> suite did not "already know this": it holds the number in two places and
+> races the same repaint in three others. The probe's fix and the 450ms value
+> are unaffected. Filed as
+> `ISSUE_20260918_three_browser_tier_resizes_measure_through_the_apps_own_debounce`.
+
 ### The probe's committed screenshots have drifted, and it is not this work
 
 Worth knowing before anyone trusts them. The crash issue recorded a strong
@@ -83,6 +96,16 @@ near-miss — the ten reverts I planted are *literally* its schema. Each one is 
 `{file, find, replace, tier, suite, expect_red}` tuple, and I have since
 rewritten all ten as single-line `find`/`replace` pairs and verified each has a
 unique `find` and names a red (listed in §4). Nothing new needs inventing.
+
+> **Correction (review, 2026-09-18).** "ten" does not match what §4 lists, and
+> §4 is the one that is right: **thirteen entries over twelve distinct edits**
+> (the `.chip.conf--untraced` scope drop is enrolled twice, once per tier, which
+> §4's own notes say on purpose). The cost table's "all ten reverts … ~5
+> minutes" row carries the same stale count. Re-verified independently in
+> review: all thirteen `find` strings occur exactly once in their file, and all
+> thirteen were planted in a `git archive HEAD` scratch tree and observed
+> reddening the named check — nothing about the measurement is affected, only
+> the count restating it.
 
 **But enrollment would not have caught any of the three issues, and this is
 the finding worth carrying to the brief.** `BRIEF_20260915_mutation_witness_enrollment`
