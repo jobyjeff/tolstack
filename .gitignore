@@ -94,3 +94,8 @@ data/meshes/*
 
 # Claude Code machine-local settings (ISSUE_20260812_sibling_repos_ignore_settings_local)
 .claude/settings.local.json
+
+# Secrets — never publish a dotenv (ISSUE_20260917_forge_template_has_no_dotenv_guard)
+.env
+.env.*
+!.env.example

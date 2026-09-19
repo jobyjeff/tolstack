@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: viewer/topology
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260915_respine_scope_and_grid_motion.md
+found_by: docs/strategy/BRIEF_20260915_respine_scope_and_grid_motion.md
+resolution: decided by Jeff 2026-09-15 (a respine is emphasis-in-place on the whole walk, no re-columning) and landed as docs/sessions/completed/HANDOFF_20260915_viewer_respine_whole_walk.md; verified on the board by the 2026-09-18 triage sweep, which also retired the brief that carried the question.
 ---
 
 # A respine shows the study's chain; it does not re-column the whole walk around it

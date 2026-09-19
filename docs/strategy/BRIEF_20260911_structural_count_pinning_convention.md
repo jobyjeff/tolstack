@@ -1,5 +1,8 @@
 # BRIEF 2026-09-11 — should hardcoded structural counts in JS tests derive from a single stated source?
 
+> **CONSUMED 2026-09-18 — merged into dispatch/docs/strategy/BRIEF_20260906_guard_coverage_set_size_assertions.md**
+
+
 Filed by triage 2026-09-11 from
 `docs/issues/ISSUE_20260909_hardcoded_structural_counts_in_js_tests_should_derive_not_pin.md`
 (feature, low, `audience: strategy`).

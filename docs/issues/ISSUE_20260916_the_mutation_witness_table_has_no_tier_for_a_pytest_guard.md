@@ -1,9 +1,10 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: tests/mutation-witness
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 found_by: docs/sessions/HANDOFF_20260916_viewer_unwitnessed_surface_guards.md
 ---
 

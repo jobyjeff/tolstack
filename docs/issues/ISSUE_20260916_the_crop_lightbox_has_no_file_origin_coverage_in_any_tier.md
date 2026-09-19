@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: viewer/tests
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
 found_by: docs/sessions/HANDOFF_20260916_crop_lightbox_zoom_viewer.md
 ---
 

@@ -5,7 +5,7 @@ status: triaged
 area: viewer/topology
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260915_respine_scope_and_grid_motion.md
+strategy: docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md
 ---
 
 # The grid cross-fades through a respine; its rows do not move

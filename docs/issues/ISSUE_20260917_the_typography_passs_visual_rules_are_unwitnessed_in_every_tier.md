@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/tests
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
 found_by: docs/sessions/reviews/REVIEW_20260917_design_pass_typography.md
 ---
 

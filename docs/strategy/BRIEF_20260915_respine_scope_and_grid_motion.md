@@ -1,5 +1,8 @@
 # BRIEF 2026-09-15 — what a respine should mean, and how much of the page moves through one
 
+> **CONSUMED 2026-09-18 — merged into tolstack/docs/strategy/BRIEF_20260914_dag_layout_geometry_tradeoffs.md**
+
+
 > **PARTIALLY CONSUMED 2026-09-15 — item 1 decided by Jeff's same-day review
 > (forge note `20260915T145908_fwc7qp`): a respine is NOT a view switch — the
 > whole walk stays on screen; the selected chain is emphasized in place

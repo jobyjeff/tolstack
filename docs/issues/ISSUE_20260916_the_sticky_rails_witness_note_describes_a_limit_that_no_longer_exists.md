@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tests/mutation-witnesses
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 found_by: docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md
 ---
 

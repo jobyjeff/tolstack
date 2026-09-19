@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: low
-status: open
+status: triaged
 area: viewer/copy
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260918_real_tier_red_and_the_skipping_tier.md
 ---

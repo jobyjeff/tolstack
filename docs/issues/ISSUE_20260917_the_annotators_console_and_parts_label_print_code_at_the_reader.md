@@ -1,9 +1,10 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: apps/annotate
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260918_reader_facing_surfaces_second_pass.md
 found_by: docs/sessions/HANDOFF_20260916_design_pass_typography.md
 ---
 

@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: prompts/review
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260918_mutation_witness_enrollment_gaps.md
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260916_mutation_witness_tier_reaches_its_checks.md
 ---

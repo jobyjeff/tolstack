@@ -182,3 +182,49 @@ only thing that puts `out.alpha` back on screen. So:
 
 Either answer is a one-line consequence of item 2; neither needs its own
 session slot, and neither should be picked by a tactical agent ahead of item 2.
+
+---
+
+## 2026-09-18 triage sweep — item 4, absorbed from the respine brief: may the grid's row pitch become dynamic?
+
+`BRIEF_20260915_respine_scope_and_grid_motion.md` is merged into this brief and
+retired. Its item 1 was decided by Jeff on 2026-09-15 (a respine is
+emphasis-in-place on the whole walk, **no re-columning**) and landed as
+`HANDOFF_20260915_viewer_respine_whole_walk.md`. Its item 2 never was: that
+brief's own marker sequences the remainder behind this one — *"re-decide it
+against the new whole-walk-DAG + chain-subset-grid semantics, after the geometry
+brief"* — and this brief's item 2 already absorbed the fade half of it. Two files
+for one sequenced conversation was the filing, not the substance.
+
+**The question, unchanged and undecided:** the grid's row pitch is fixed at
+`rowHeight`; only the *block's* `gridOffset` tweens. That is the landed
+`viewer_dag_spine_layout` contract — *"the block moves, the pitch does not"* —
+and it is what the leaders' grid-side seams are computed from
+(`gridOffset + boundary × rowHeight`). So a FLIP-style per-row transition is not
+"add FLIP"; it is **may the pitch become dynamic, and what does a leader point
+at mid-flight while its grid-side row is in motion?**
+
+**What `viewer_respine_whole_walk` changed about the premise, and why it matters
+here.** The surviving-row set is now a walk-order *subset of the same table*
+rather than a different table, so every surviving row keeps its relative order
+and only its index changes — a FLIP is at last arithmetically possible. But
+`boundary` is now an index into the **subset**, which is exactly the seam
+arithmetic this item has to answer for.
+
+**Why it belongs to this brief rather than its own.** It moves the same two
+variables items 2 and 3 move — vertical budget and leader-seam geometry — so
+deciding it apart from them would be deciding one of this brief's own variables
+twice. Item 2's re-packing call in particular changes what a row's post-transition
+index even means.
+
+**Measured, so nobody re-discovers it:** the cross-fade shipped *because* the
+line-up was tried and failed. A chain's grid rows are a different subset of the
+edges, in a different order, at a different count; drawn solid over each other at
+`e = 0` they read as garbled text. That was the first cut, and the screenshot is
+why the shipped version is a cross-fade. Recorded in `apps/viewer/README.md`.
+
+Source issue, carried over: `docs/issues/ISSUE_20260915_the_grid_cross_fades_through_a_respine_instead_of_moving_its_rows.md` (low, feature).
+
+Out of scope here, as it was there: the two shipped-tween defects routed to
+`HANDOFF_20260915_respine_tween_fidelity` (x-interpolation, settled-store keys).
+They are bugs in the animation as built, not questions about what it should do.
