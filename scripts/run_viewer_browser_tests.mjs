@@ -5080,14 +5080,12 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
     const stage = document
       .querySelector("#crop-lightbox div.lightbox__stage")
       .getBoundingClientRect();
-    const boxStyle = getComputedStyle(box);
     return {
       scale: handle ? handle.view().scale : null,
       image: { width: i.width, height: i.height, left: i.left, top: i.top },
       stage: { width: stage.width, height: stage.height,
                left: stage.left, top: stage.top },
-      edge: parseFloat(boxStyle.borderTopWidth),
-      glow: boxStyle.boxShadow,
+      edge: parseFloat(getComputedStyle(box).borderTopWidth),
       frac: [
         (b.left - i.left) / i.width, (b.top - i.top) / i.height,
         (b.right - i.left) / i.width, (b.bottom - i.top) / i.height,
@@ -5265,7 +5263,7 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
     // sub-pixel border: measured on the live sheet, `borderTopWidth` is 2px at
     // 1x and 1px at both 5.06x and 8x -- Chrome's 1px floor under a computed
     // 0.395px and 0.25px. So the correction is a division, not a cancellation,
-    // and the honest claim is the direction and the glow.
+    // and the direction is the honest claim.
     const thinner = fit && zoomed && zoomed.scale > fit.scale &&
       zoomed.edge < fit.edge;
     if (!thinner && fit && zoomed) {
@@ -5276,10 +5274,20 @@ async function testCropLightbox(browser, label, realProjection, realCrops) {
       "zooms in — the transform scales borders along with everything else, so " +
       "without dividing the weight back out a 2px frame is a 16px amber band " +
       "over the cell that was zoomed in on", thinner);
-    push("...and it carries no glow at either scale — the glow exists so a " +
-      "small box is findable on a thumbnail, and at full size the box is " +
-      "already the most obvious thing on the picture",
-      fit && zoomed && fit.glow === "none" && zoomed.glow === "none");
+    // `.lightbox .crophl` also drops the GLOW, and there is deliberately no
+    // sub-check for that here, because on THIS target there could not be an
+    // honest one: the subject is derived as a `declared_region` crop (see the
+    // top of this suite), `declared_region` is `solid: false`
+    // (VA.CROP_HIGHLIGHT_KINDS), and views/crop.js therefore classes its box
+    // `.crophl--dashed` -- whose own rule sets `box-shadow: none`. So a glow
+    // assertion on this picture passes whether or not the lightbox rule
+    // exists, which is green for the wrong reason and the exact shape of
+    // defect this whole handoff was about. Measured 2026-09-18: deleting the
+    // rule reddens the edge check above and leaves a glow check passing.
+    // The 29 live `verified_match` highlights ARE solid and do carry the glow,
+    // so the claim is real on those -- filed rather than built here, because
+    // it needs a second subject and a second open:
+    // ISSUE_20260918_the_lightboxs_glow_suppression_is_only_witnessable_on_a_solid_highlight.
 
     // 6. a drag really pans, and the overlay comes with it.
     await page.mouse.move(centre.x, centre.y);
