@@ -28,6 +28,21 @@ this module at six passed in 0.03s, and the only symptom was a ``NOT WITNESSED``
 from a seven-minute browser sweep. So all three strings are paired here, and the
 reason is one reason.
 
+A ``python`` entry (2026-09-18) spells two of those three differently and is
+paired the same way for the same reason: ``suite`` is the test file pytest is
+handed rather than a registry key, and ``expect_red`` is a test FUNCTION's name
+rather than a prose sub-check. The identifier is the better string of the two,
+but it is not a safer one -- a renamed test rots it exactly as a reworded
+sub-check rots the others.
+
+**A PREFIX of a check name is the failure this module used to let through.** It
+counts substrings; the runner compares the declared name to the printed one for
+equality, so a name cut short is green here in under a second and a guaranteed
+``NOT WITNESSED`` minutes into whichever tier owns it. That is not hypothetical
+-- it is how ``test_no_expect_red_is_a_truncated_check_name`` below came to
+exist, and the two entries it was written for had been verified against these
+very helpers by two different agents first.
+
 What this module does **not** do: it never asserts that a mutation actually
 reddens anything. That claim can only be earned by running the tier, and pytest
 is not where a 3-minute browser sweep belongs. So a green pytest run means *every
