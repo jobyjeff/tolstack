@@ -39,7 +39,14 @@ const el = {
   // (deliverable 5) -- position: fixed, placed by JS, the same one-node shape
   // apps/viewer's own popover machinery uses.
   alertPop: document.getElementById("alert-pop"),
+  // The rail's "set up automatically" menu (deliverable 3) -- the <details>
+  // and the box its checkbox rows are written into.
+  autoSetup: document.getElementById("auto-setup"),
+  autoSetupBody: document.getElementById("auto-setup-body"),
+  // The top bar (deliverable 1): the always-present instruction line and its
+  // element controls, and the help/settings panel that opens under them.
   detail: document.getElementById("detail"),
+  hintPanel: document.getElementById("hint-panel"),
   consoleInput: document.getElementById("console-input"),
   consoleRun: document.getElementById("console-run"),
   consoleOutput: document.getElementById("console-output"),
@@ -76,7 +83,34 @@ const state = {
   // resolveMeshIdentifier -- commands.js stays fetch-free. Missing/empty
   // table is just [] (no aliases resolve), never an error.
   partMeshAliases: [],
+  // Which steps of an arrival apply (deliverable 3), and whether bodies render
+  // translucent (deliverable 4). Both persist; both are read ONCE here, before
+  // any command can run, so a boot sequence and a later postMessage launch
+  // read the same settings.
+  autoSteps: AA.readStoredAutoSteps(prefStore()),
+  transparentParts: AA.readStoredTransparency(prefStore()),
+  // The top bar's help panel, and the rarely-wanted owner-not-in-set form --
+  // two disclosures, open or not. Session-only: neither is a preference, they
+  // are where the reader currently is.
+  helpOpen: false,
+  notInSetOpen: false,
+  // The last arrival this app applied ({topologyId, edgeId, studyId, trace}),
+  // so ticking an auto-setup box back ON can re-apply it rather than making
+  // the reader go back to the stack viewer and click through again.
+  lastEntry: null,
 };
+
+// localStorage, or null where there is none to have -- the same wrapped
+// access apps/viewer/topology_app.js's `widthStore` documents: on some
+// configurations even TOUCHING window.localStorage throws, which is before
+// the read/write pair gets a chance to catch anything.
+function prefStore() {
+  try {
+    return (typeof window !== "undefined" && window.localStorage) || null;
+  } catch (err) {
+    return null;
+  }
+}
 
 function setBanner(text, kind) {
   el.banner.textContent = text;
@@ -192,32 +226,61 @@ function cmdMarkFace(identifier, faceIdText) {
   return { sha256: mesh.sha256, faceId };
 }
 
-// trace <topology> <study> -- the per-study 3D view (handoff study_3d_flyout,
-// feature 1), composed from the verbs above the way goto composes the three
-// select verbs: select the topology and study, ghost the study's parts (those
-// with installed meshes after alias resolution), and mark every feature-
-// identity-bound face opaque. Parts with no mesh and edges with no binding
-// degrade to the existing honest absent states -- never a guessed surface.
+// trace <topology> [study] -- the SCOPE-level 3D view (handoff
+// study_3d_flyout feature 1, widened to topology scope by
+// annotate_hint_bar_and_context_autofilter deliverable 4). Composed from the
+// verbs above the way goto composes the three select verbs: select the
+// topology (and the study, when one is named), show only the scope's parts --
+// translucent while "See-through parts" is on -- and mark every
+// feature-identity-bound face in the scope's own colour. Parts with no mesh
+// and edges with no binding degrade to the existing honest absent states --
+// never a guessed surface.
+//
+// With NO study the scope is the whole topology: Jeff asked for a way in
+// "when an entire study or topology is selected", and the difference between
+// the two is which edges are in scope and nothing else (AA.scopeSelection).
 async function cmdTrace(topologyId, studyId) {
-  if (!topologyId || !studyId) throw new Error("trace needs <topology> <study>");
-  cmdSelectTopology(topologyId);
-  cmdSelectStudy(studyId);
-  const plan = AA.planStudyTrace(state.currentTopology, state.currentStudy,
+  if (!topologyId) throw new Error("trace needs <topology> [study]");
+  const arrival = AA.planArrival({
+    auto: state.autoSteps,
+    currentTopologyId: state.currentTopology && state.currentTopology.id,
+    topologyId,
+  });
+  if (!arrival.applies) return keptTopologyNote(arrival, topologyId);
+  if (arrival.selectTopology) cmdSelectTopology(topologyId);
+  // A named study is the scope, unless the reader has turned that step off --
+  // then the whole topology is, which is the honest reading of "don't pick a
+  // study for me".
+  if (studyId && arrival.selectStudy) cmdSelectStudy(studyId);
+  const study = (studyId && arrival.selectStudy) ? state.currentStudy : null;
+  state.lastEntry = { topologyId, studyId: studyId || null, edgeId: null, trace: true };
+
+  const plan = AA.planStudyTrace(state.currentTopology, study,
     mergedIdentityProjection(), state.meshList, state.partMeshAliases);
+
+  // The rail follows the scope too (deliverable 4: "pre-filtered to just the
+  // parts included in that study/topology"). Before this, `trace` scoped the
+  // 3D scene and left the parts panel listing every installed mesh in the
+  // repo -- the same gap `filter-element` closed one element down.
+  if (arrival.scopeParts) {
+    setPanelFilter(AA.planScopeFilter(state.currentTopology, study,
+      state.meshList, state.partMeshAliases));
+  }
 
   state.scene.clearMarks();
   if (plan.ghosts.length) {
-    await AA.exec(["ghost", ...plan.ghosts]);
+    await AA.exec([state.transparentParts ? "ghost" : "isolate", ...plan.ghosts]);
   } else {
     state.scene.listOpenParts().forEach((sha) => state.scene.setVisible(sha, false));
     renderPartsPanel();
     setSceneEmptyState(plan.missingParts.length ? plan.missingParts : null,
       plan.missingParts.length ? null
-        : "This study's selection names no parts -- nothing to show in 3D.");
+        : "Nothing in this selection names a part -- there is nothing to show in 3D.");
   }
   for (const mark of plan.marks) {
     await AA.exec(["mark-face", mark.sha256, String(mark.faceId)]);
   }
+  renderDetail();
 
   const notes = [];
   if (plan.missingParts.length) notes.push("no mesh: " + plan.missingParts.join(", "));
@@ -225,12 +288,13 @@ async function cmdTrace(topologyId, studyId) {
     notes.push(plan.unresolvedMarks.length + " binding(s) point at meshes not installed");
   }
   if (plan.unboundEdges.length) notes.push(plan.unboundEdges.length + " edge(s) unbound");
-  setBanner("Traced " + (state.currentStudy.title || studyId) + ": " +
-    plan.ghosts.length + " part(s) ghosted, " + plan.marks.length +
+  setBanner("Traced " + scopeName(study) + ": " + plan.ghosts.length +
+    (state.transparentParts ? " part(s) ghosted, " : " part(s) shown, ") +
+    plan.marks.length +
     " bound face(s) marked" + (notes.length ? " -- " + notes.join("; ") : ""),
     plan.ghosts.length ? "ok" : "warn");
   const summary = {
-    topologyId, studyId,
+    topologyId, studyId: study ? study.id : null,
     ghosted: plan.ghosts, marks: plan.marks,
     missingParts: plan.missingParts,
     unresolvedMarks: plan.unresolvedMarks,
@@ -238,6 +302,24 @@ async function cmdTrace(topologyId, studyId) {
   };
   window.__lastTrace = summary; // the autotest convention: machine-readable result
   return summary;
+}
+
+// What a scope is called, in the reader's words: the study's title, or the
+// topology's when the scope is the whole thing.
+function scopeName(study) {
+  if (study) return study.title || study.id;
+  const topology = state.currentTopology;
+  return topology ? (topology.title || topology.id) : "this topology";
+}
+
+// An arrival that did NOT apply, said out loud. `planArrival` returns this
+// only in one case -- auto-select-topology is off and the reader is looking at
+// a different topology -- and a launch that silently does nothing is the worst
+// possible reading of a checkbox, so it is reported rather than swallowed.
+function keptTopologyNote(arrival, topologyId) {
+  setBanner("Kept the topology you have open. Tick Topology under " +
+    "\"Set up automatically\" to follow a link into " + topologyId + ".", "warn");
+  return { topologyId, studyId: null, edgeId: null, applied: false };
 }
 
 function cmdCamera(mode, ...rest) {
@@ -322,11 +404,18 @@ function cmdFilterElement(target) {
     throw new Error("no edge or node \"" + target + "\" in topology \"" +
       state.currentTopology.id + "\"");
   }
+  setPanelFilter(plan);
+  return plan;
+}
+
+// One scope onto the rail, whatever produced it -- `planPanelFilter`'s element
+// plan or `planScopeFilter`'s study/topology plan. They are the same shape on
+// purpose (commands.js), so there is one setter and one pair of renderers.
+function setPanelFilter(plan) {
   state.panelFilter = plan;
   renderElementList();
   renderPartsPanel();
   renderRailFilter();
-  return plan;
 }
 
 function cmdSelectTopology(topologyId) {
@@ -362,23 +451,106 @@ function cmdSelectEdge(edgeId) {
 // naming the study too is an optional disambiguator when more than one
 // study crosses the same edge.
 async function cmdGoto(topologyId, edgeId, studyId) {
-  cmdSelectTopology(topologyId);
+  const arrival = AA.planArrival({
+    auto: state.autoSteps,
+    currentTopologyId: state.currentTopology && state.currentTopology.id,
+    topologyId,
+  });
+  if (!arrival.applies) return keptTopologyNote(arrival, topologyId);
+  if (arrival.selectTopology) cmdSelectTopology(topologyId);
   const topology = state.currentTopology;
   let targetStudyId = studyId || null;
   if (!targetStudyId && edgeId) {
     const owning = (topology.studies || []).find((s) => (s.selection || []).includes(edgeId));
     if (owning) targetStudyId = owning.id;
   }
-  if (targetStudyId) cmdSelectStudy(targetStudyId);
+  if (targetStudyId && arrival.selectStudy) cmdSelectStudy(targetStudyId);
+  // The edge is never gated: it is the thing the reader clicked on, and the
+  // three checkboxes are about how much CONTEXT comes with it.
   if (edgeId) cmdSelectEdge(edgeId);
-  // Arriving AT one element scopes the rail to it (deliverable 2) -- this is
-  // the "entered from" Jeff's note names, and `goto` is the one verb that means
-  // it. `select-edge` deliberately does not: it is what clicking a row in the
-  // rail runs, and a rail that collapsed to the row you just clicked would be
+  state.lastEntry = { topologyId, studyId: studyId || null, edgeId: edgeId || null, trace: false };
+
+  // Arriving AT one element scopes the rail to it (handoff flyout_resize_
+  // annotator_filter_and_deselect, deliverable 2) -- this is the "entered
+  // from" Jeff's note names, and `goto` is the one verb that means it.
+  // `select-edge` deliberately does not: it is what clicking a row in the rail
+  // runs, and a rail that collapsed to the row you just clicked would be
   // unusable. Arriving with no edge LIFTS any filter a previous goto left, so
   // a whole-topology link is never read through a stale scope.
-  cmdFilterElement(edgeId || null);
-  return { topologyId, studyId: targetStudyId, edgeId: edgeId || null };
+  //
+  // ...and it now ISOLATES that element's parts in the 3D view as well as in
+  // the two lists (annotate_hint_bar_and_context_autofilter, deliverable 2:
+  // Jeff -- "you already know the 3d body, the topology, the study, the
+  // component, etc, so all of these should be filtered automatically"). The
+  // link's own `isolate=` param, where one is present, still runs after this
+  // and wins: an explicitly named part beats a derived one.
+  if (!arrival.scopeParts) {
+    return { topologyId, studyId: targetStudyId, edgeId: edgeId || null, applied: true };
+  }
+  const plan = cmdFilterElement(edgeId || null);
+  const shas = ((plan && plan.parts) || [])
+    .map((p) => p.sha256).filter(Boolean);
+  // Never on an empty list: `isolate` with nothing to show would blank the
+  // scene, and a gap edge that names no part at all has nothing to isolate.
+  if (shas.length) {
+    await AA.exec([state.transparentParts ? "ghost" : "isolate", ...shas]);
+  }
+  renderDetail();
+  return { topologyId, studyId: targetStudyId, edgeId: edgeId || null, applied: true };
+}
+
+// --- the settings verbs (deliverables 3 and 4) -----------------------------
+//
+// Every checkbox on this page drives one of these rather than poking state:
+// the standing everything-is-a-command rule, and the reason a future driver
+// can turn the same switches a reader can.
+
+// auto-filter <topology|study|part> <on|off> -- one step of an arrival, on or
+// off. Turning `part` off LIFTS the current scope immediately and turning it
+// back on re-applies the last arrival: "returns that control to manual"
+// (deliverable 3) has to be something the reader can see happen, not a
+// promise about the next launch.
+async function cmdAutoFilter(key, value) {
+  if (AA.AUTO_STEP_KEYS.indexOf(key) === -1) {
+    throw new Error("auto-filter takes one of " + AA.AUTO_STEP_KEYS.join(", ") +
+      ", got " + JSON.stringify(key));
+  }
+  const on = AA.parseOnOff(value);
+  state.autoSteps[key] = on;
+  AA.writeStoredAutoSteps(prefStore(), state.autoSteps);
+  renderAutoSetup();
+  // Two independent statements, not an if/else: turning the scope OFF and
+  // turning it back ON are different jobs (one lifts what is on screen, the
+  // other re-runs an arrival), and an else-branch makes each one a fallback
+  // for the other -- which is how a mutation dropping the lift went on
+  // lifting, through a replay whose own topology re-select clears the scope.
+  if (key === "part" && !on) cmdFilterElement(null);
+  if (key === "part" && on && state.lastEntry) await replayLastEntry();
+  return Object.assign({}, state.autoSteps);
+}
+
+// transparency <on|off> -- Jeff: "Definitely include an option to enable/
+// disable transparency." One setting for both entry shapes (scope-level and
+// element-level), applied to what is on screen NOW as well as remembered for
+// the next arrival -- a display toggle that only takes effect on the next
+// launch is a toggle nobody trusts.
+function cmdTransparency(value) {
+  const on = AA.parseOnOff(value);
+  state.transparentParts = on;
+  AA.writeStoredTransparency(prefStore(), on);
+  state.scene.listOpenParts().forEach((sha) => {
+    if (state.scene.isVisible(sha)) state.scene.setGhost(sha, on);
+  });
+  renderHintPanel();
+  return on;
+}
+
+// help [on|off] -- the top bar's collapsible half (deliverable 1). No
+// argument toggles, which is what the button does.
+function cmdHelp(value) {
+  state.helpOpen = value === undefined ? !state.helpOpen : AA.parseOnOff(value);
+  renderDetail();
+  return state.helpOpen;
 }
 
 const commands = new AA.CommandLayer();
@@ -397,7 +569,25 @@ commands.register("goto", cmdGoto);
 commands.register("trace", cmdTrace);
 commands.register("deselect", cmdDeselect);
 commands.register("filter-element", cmdFilterElement);
+commands.register("auto-filter", cmdAutoFilter);
+commands.register("transparency", cmdTransparency);
+commands.register("help", cmdHelp);
 AA.exec = (input) => commands.exec(input);
+
+// The last arrival, run again -- what ticking an auto-setup box back on does.
+// Goes through the same command list a boot does (AA.planEntryCommands), so
+// there is no second reading of "what an arrival means".
+async function replayLastEntry() {
+  const entry = state.lastEntry;
+  if (!entry) return null;
+  for (const command of AA.planEntryCommands({
+    topology: entry.topologyId, study: entry.studyId,
+    edge: entry.edgeId, trace: entry.trace,
+  })) {
+    await AA.exec(command);
+  }
+  return entry;
+}
 
 function setSceneEmptyState(missingParts, message) {
   if ((!missingParts || !missingParts.length) && !message) {
@@ -616,12 +806,14 @@ function renderRailFilter() {
   const plan = state.panelFilter;
   const edges = (state.currentTopology && state.currentTopology.edges) || [];
   const nodes = (state.currentTopology && state.currentTopology.nodes) || [];
+  // A scope plan carries its own name (a study's title is not on the rail to
+  // look up); an element plan is named by the topology's own edge/node table.
   const found = edges.find((e) => e.id === plan.target) ||
     nodes.find((n) => n.id === plan.target);
   const note = document.createElement("span");
   note.className = "an__filter-note";
   note.textContent = "Showing only: " +
-    ((found && (found.name || found.id)) || plan.target);
+    (plan.name || (found && (found.name || found.id)) || plan.target);
   el.railFilter.appendChild(note);
 
   const btn = document.createElement("button");
@@ -640,7 +832,9 @@ function renderRailFilter() {
     ? "No installed 3D part for: " + plan.missingParts.join(", ")
     : (plan.parts.length
       ? null
-      : "This element names no part, so there is nothing to show in 3D.");
+      : (plan.name
+        ? "Nothing in this selection names a part, so there is nothing to show in 3D."
+        : "This element names no part, so there is nothing to show in 3D."));
   if (gapText) {
     const gap = document.createElement("div");
     gap.className = "an__filter-gap";
@@ -655,50 +849,169 @@ function selectEdge(edge) {
   renderDetail();
 }
 
+// --- the top bar (deliverable 1) -------------------------------------------
+//
+// One horizontal band above the canvas, where a 320px column used to stand to
+// the right of it. Jeff, on the flyout: "the 'Pick an element on the left,
+// then click a face in the 3D view to bind it.' has a vertical divider, so it
+// takes up half of the usable 3d canvas. Make it a horizontal divider so it's
+// just a single line at the top. Could even be a collapsible 'commands'
+// element that gives general help."
+//
+// Line one is always there and is always one line: the instruction, composed
+// from the element (AA.taskInstruction), and two quiet disclosures. Everything
+// else -- the precedence guard, the bind form, the owner-not-in-set escape
+// hatch, the general help and the display settings -- opens under it only when
+// there is something to open. That is the whole shape of the trade: the bar
+// costs one line at rest where the column cost a third of the canvas always.
+//
+// The node keeps the id `#detail`: it is still "what the reader is being told
+// and what they can do about it", and the hosted-posture guard (scripts/
+// run_viewer_browser_tests.mjs) names it when it checks that a page which has
+// said it cannot annotate is not also instructing the reader to.
 function renderDetail() {
   el.detail.innerHTML = "";
-  if (!state.selectedEdge) {
-    el.detail.textContent = "Pick an element on the left, then click a face in the 3D view to bind it.";
-    return;
-  }
   const edge = state.selectedEdge;
-  const wrap = document.createElement("div");
+  const canWrite = !!(state.storage && state.storage.canWrite());
 
-  const h = document.createElement("h3");
-  h.textContent = edge.name || edge.id;
-  wrap.appendChild(h);
+  const line = document.createElement("div");
+  line.className = "an__detail-line";
+  const task = document.createElement("span");
+  task.className = "an__task";
+  task.textContent = AA.taskInstruction({
+    elementName: edge ? (edge.name || edge.id) : null,
+    scopeName: (!edge && state.panelFilter && state.panelFilter.name) || null,
+    picked: !!state.currentPick,
+    needed: (edge && state.currentTopology)
+      ? AA.bindingDirectionsNeeded(AA.findBindingRecord(mergedIdentityProjection(),
+        AA.topologyEdgeKey(state.currentTopology.id, edge.id)))
+      : null,
+  });
+  line.appendChild(task);
+  line.appendChild(disclosure("Help", state.helpOpen, () => AA.exec(["help"])));
+  el.detail.appendChild(line);
 
-  const note = precedenceNote(edge);
-  if (note) {
-    const p = document.createElement("p");
-    p.className = "precedence-note";
-    p.textContent = note;
-    wrap.appendChild(p);
+  const work = document.createElement("div");
+  work.className = "an__detail-work";
+
+  if (edge) {
+    const note = precedenceNote(edge);
+    if (note) {
+      const p = document.createElement("p");
+      p.className = "precedence-note";
+      p.textContent = note;
+      work.appendChild(p);
+    }
+    if (!canWrite) {
+      const p = document.createElement("p");
+      p.className = "read-only-note";
+      p.textContent = "This transport cannot write -- binding controls are hidden. " +
+        "Connect a read/write folder to bind.";
+      work.appendChild(p);
+    } else {
+      if (state.currentPick) work.appendChild(buildBindForm(edge, state.currentPick));
+      work.appendChild(buildOwnerNotInSetForm(edge));
+    }
   }
 
-  const pickP = document.createElement("p");
-  // A class so the stylesheet can say what this line is: secondary either way
-  // (design_pass_typography). Styling only -- the words are unchanged.
-  pickP.className = "an__pick";
-  pickP.textContent = state.currentPick
-    ? "Picked: part " + state.currentPick.sha256.slice(0, 12) + "…, face " + state.currentPick.faceId
-    : "No face picked yet -- click a face in the 3D view.";
-  wrap.appendChild(pickP);
+  if (work.childNodes.length) el.detail.appendChild(work);
+  renderHintPanel();
+}
 
-  if (!state.storage || !state.storage.canWrite()) {
-    const p = document.createElement("p");
-    p.className = "read-only-note";
-    p.textContent = "This transport cannot write -- binding controls are hidden. Connect a read/write folder to bind.";
-    wrap.appendChild(p);
-    el.detail.appendChild(wrap);
+// A quiet toggle: no button chrome, subdued until hover/focus, and its state
+// carried on `aria-expanded` rather than in its label, so the word does not
+// change under the reader's cursor.
+function disclosure(label, open, onToggle) {
+  const btn = document.createElement("button");
+  btn.className = "an__disclose";
+  btn.textContent = label;
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  btn.onclick = () => {
+    try { onToggle(); }
+    catch (err) { setBanner(err.message, "error"); }
+  };
+  return btn;
+}
+
+// The bar's collapsible half: what the surface does, in short lines, and the
+// display settings. Jeff's "collapsible 'commands' element that gives general
+// help", and the room the follow-on suggestion work (handoff
+// annotate_face_suggestions) drops a third group into -- it is a list of
+// groups, so adding one is adding one.
+function renderHintPanel() {
+  if (!el.hintPanel) return;
+  el.hintPanel.innerHTML = "";
+  if (!state.helpOpen) {
+    el.hintPanel.style.display = "none";
     return;
   }
+  el.hintPanel.style.display = "flex";
 
-  if (state.currentPick) {
-    wrap.appendChild(buildBindForm(edge, state.currentPick));
+  const help = group("What you can do");
+  const lines = document.createElement("ul");
+  lines.className = "an__hint-lines";
+  for (const text of AA.HELP_LINES) {
+    const li = document.createElement("li");
+    li.textContent = text;
+    lines.appendChild(li);
   }
-  wrap.appendChild(buildOwnerNotInSetForm(edge));
-  el.detail.appendChild(wrap);
+  help.appendChild(lines);
+  el.hintPanel.appendChild(help);
+
+  const display = group("Display");
+  display.appendChild(settingCheckbox("See-through parts", state.transparentParts,
+    "renders bodies translucent, so faces already bound show through",
+    (on) => AA.exec(["transparency", AA.onOff(on)])));
+  el.hintPanel.appendChild(display);
+}
+
+function group(title) {
+  const box = document.createElement("div");
+  box.className = "an__hint-group";
+  const h = document.createElement("h4");
+  h.textContent = title;
+  box.appendChild(h);
+  return box;
+}
+
+// One labelled checkbox that drives a command. `onSet` may throw or reject --
+// the box goes back to where it was and the banner says why, the same
+// put-it-back-on-failure the parts panel's own checkbox does.
+function settingCheckbox(label, checked, title, onSet) {
+  const row = document.createElement("label");
+  row.className = "an__setting";
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = !!checked;
+  row.setAttribute("title", title);
+  box.onchange = async () => {
+    try {
+      await onSet(box.checked);
+    } catch (err) {
+      setBanner(err.message, "error");
+      box.checked = !box.checked;
+    }
+  };
+  row.appendChild(box);
+  row.appendChild(document.createTextNode(label));
+  return row;
+}
+
+// --- the rail's "set up automatically" menu (deliverable 3) ----------------
+//
+// Jeff: "the left side menu should have an 'auto-filter' menu at the top which
+// lets you enable/disable different parts of the selection algorithm
+// (checkboxes to auto select topology, study, part)." One row per
+// AA.AUTO_STEPS entry, so the words on the page and the steps `planArrival`
+// reads are one list.
+function renderAutoSetup() {
+  if (!el.autoSetupBody) return;
+  el.autoSetupBody.innerHTML = "";
+  for (const step of AA.AUTO_STEPS) {
+    el.autoSetupBody.appendChild(settingCheckbox(step.label,
+      state.autoSteps[step.key], step.hint,
+      (on) => AA.exec(["auto-filter", step.key, AA.onOff(on)])));
+  }
 }
 
 function labeledSelect(labelText, options, id) {
@@ -743,6 +1056,14 @@ async function existingEventFilenames() {
   return known.concat(sessionIds);
 }
 
+// The bind form, horizontal since 2026-09-21 -- it is the bottom of a bar
+// rather than the bottom of a column now, so its fields wrap across the width
+// instead of stacking down it. Shown only with a face picked: with none there
+// is nothing for it to write, and the instruction line already says so.
+//
+// It no longer prints "Picked: part <12 hex>…, face N" above itself: a
+// checksum prefix is not something a reader of this page can act on, and the
+// instruction line says which element the pick will land on in words.
 function buildBindForm(edge, pick) {
   const form = document.createElement("div");
   form.className = "bind-form";
@@ -799,7 +1120,31 @@ function buildBindForm(edge, pick) {
   return form;
 }
 
+// The escape hatch for an element whose owning part is not in the loaded set
+// -- there is no face to click for it, so it is the one binding action that
+// needs no pick. A DISCLOSURE since 2026-09-21: it is rare and it carries a
+// text field, and on a bar across the top of the canvas a permanently-open
+// note field beside every element is chrome the common path never wants.
+// Collapsed it is one quiet word; the state is per session, not a preference.
 function buildOwnerNotInSetForm(edge) {
+  const box = document.createElement("details");
+  box.className = "an__nis";
+  box.open = state.notInSetOpen;
+  const summary = document.createElement("summary");
+  summary.textContent = "Owner not in this set…";
+  summary.setAttribute("title",
+    "record that this element's part is not among the parts loaded here, " +
+    "so no face here can stand for it");
+  box.appendChild(summary);
+  box.ontoggle = () => { state.notInSetOpen = box.open; };
+  const body = document.createElement("div");
+  body.className = "an__nis-body";
+  body.appendChild(buildOwnerNotInSetFields(edge));
+  box.appendChild(body);
+  return box;
+}
+
+function buildOwnerNotInSetFields(edge) {
   const form = document.createElement("div");
   form.className = "owner-not-in-set-form";
   const noteField = labeledInput("why the owner isn't in the loaded set", "owner-nis-note-input");
@@ -917,32 +1262,22 @@ function pendingDeepLinkNote() {
     : "";
 }
 
+// The params, as the ordered command list. The branching used to live here;
+// it is AA.planEntryCommands now (commands.js), where a tier with no DOM can
+// read it -- this function is the two lines that RUN the list and the one
+// that reports a failure.
+//
+// `trace=1` no longer needs `study`: with none it is a topology-scope entry
+// (deliverable 4).
 async function runPendingDeepLink() {
-  if (wantTrace && wantTopology && wantStudy) {
-    // trace owns the whole scene state (which parts show, what is marked), so
-    // the goto/isolate params are not also applied on top of it.
+  for (const command of AA.planEntryCommands({
+    topology: wantTopology, study: wantStudy, edge: wantEdge,
+    isolate: wantIsolate, trace: wantTrace,
+  })) {
     try {
-      await AA.exec(["trace", wantTopology, wantStudy]);
-    } catch (err) {
-      setBanner("Deep link trace failed: " + err.message, "error");
-    }
-    return;
-  }
-  if (wantTopology) {
-    try {
-      await AA.exec(["goto", wantTopology, wantEdge || "", wantStudy || ""]);
+      await AA.exec(command);
     } catch (err) {
       setBanner("Deep link failed: " + err.message, "error");
-    }
-  }
-  if (wantIsolate) {
-    const parts = wantIsolate.split(",").map((s) => s.trim()).filter(Boolean);
-    if (parts.length) {
-      try {
-        await AA.exec(["isolate", ...parts]);
-      } catch (err) {
-        setBanner("Deep link isolate failed: " + err.message, "error");
-      }
     }
   }
 }
@@ -1135,6 +1470,12 @@ async function main() {
   // the console never advertises it: "a control that is about to be withheld
   // is never wired" -- see main()'s note above.
   el.consoleInput.setAttribute("title", AA.commandHint(commands.verbs()));
+  // The rail's auto-setup menu and the top bar's first paint: both are
+  // written from the settings read at boot, and both are wired HERE, below
+  // the hosted early-return, for the same reason the console is -- a control
+  // that is about to be withheld is never wired.
+  renderAutoSetup();
+  renderDetail();
 
   state.scene = new AnnotateScene(el.canvasHost, {
     readMeshManifest: (sha) => state.storage.readMeshManifest(sha),

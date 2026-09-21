@@ -21,6 +21,18 @@
        eight elements and forgetting the ninth. -->
   <main class="an" id="workspace">
     <aside class="an__rail">
+      <!-- What an arrival from the stack viewer sets up for you, and the three
+           switches that turn each step back to manual (handoff
+           annotate_hint_bar_and_context_autofilter, deliverable 3). Collapsed
+           at rest: a reader who is happy with the defaults never has to read
+           it, and one who is not finds it above the controls it governs. The
+           rows are written by app.js from AA.AUTO_STEPS, so the words and the
+           steps cannot drift. -->
+      <details id="auto-setup" class="an__auto">
+        <summary>Set up automatically</summary>
+        <div id="auto-setup-body" class="an__auto-body"></div>
+      </details>
+
       <label class="an__label">topology</label>
       <select id="topology-select"></select>
       <label class="an__label">study</label>
@@ -44,26 +56,41 @@
     </aside>
 
     <section class="an__scene">
-      <div id="canvas-host" class="an__canvas-host"></div>
-      <div id="scene-empty" class="an__scene-empty" style="display:none"></div>
-      <div class="an__console">
-        <!-- The placeholder read `command, e.g. isolate machined_213668
-             (window.AnnotateApp.exec)` until 2026-09-18, on a surface that is
-             visible at rest with nothing selected. `window.AnnotateApp.exec`
-             is an internal module path and `machined_213668` is a backend id
-             a reader cannot know without reading code -- two standing
-             web-UI rules, one placeholder. The list of commands this box
-             actually accepts is put on its `title` at boot, read off the
-             command registry itself (app.js), so it can never drift from what
-             the box takes -- and an unknown command already answers with the
-             same list. -->
-        <input id="console-input" type="text" placeholder="command" />
-        <button id="console-run">Run</button>
-        <pre id="console-output"></pre>
+      <!-- THE TOP BAR. This was a 320px column to the RIGHT of the canvas
+           until 2026-09-21 -- Jeff, using the annotator through the viewer
+           flyout: "the 'Pick an element on the left, then click a face in the
+           3D view to bind it.' has a vertical divider, so it takes up half of
+           the usable 3d canvas. Make it a horizontal divider so it's just a
+           single line at the top. Could even be a collapsible 'commands'
+           element that gives general help."
+           So: one line across the top (#detail, the current instruction and
+           this element's controls) plus a panel that opens under it (general
+           help, and the display settings). Both are written by app.js. -->
+      <div class="an__hintbar">
+        <div id="detail" class="an__detail"></div>
+        <div id="hint-panel" class="an__hint-panel" style="display:none"></div>
+      </div>
+
+      <div class="an__stage">
+        <div id="canvas-host" class="an__canvas-host"></div>
+        <div id="scene-empty" class="an__scene-empty" style="display:none"></div>
+        <div class="an__console">
+          <!-- The placeholder read `command, e.g. isolate machined_213668
+               (window.AnnotateApp.exec)` until 2026-09-18, on a surface that is
+               visible at rest with nothing selected. `window.AnnotateApp.exec`
+               is an internal module path and `machined_213668` is a backend id
+               a reader cannot know without reading code -- two standing
+               web-UI rules, one placeholder. The list of commands this box
+               actually accepts is put on its `title` at boot, read off the
+               command registry itself (app.js), so it can never drift from what
+               the box takes -- and an unknown command already answers with the
+               same list. -->
+          <input id="console-input" type="text" placeholder="command" />
+          <button id="console-run">Run</button>
+          <pre id="console-output"></pre>
+        </div>
       </div>
     </section>
-
-    <aside id="detail" class="an__detail">Pick an element on the left, then click a face in the 3D view to bind it.</aside>
   </main>
   <!-- The one hover popup every consolidated alert badge on the rail shares.
        OUTSIDE #workspace and position: fixed (style.css) because the rail is a

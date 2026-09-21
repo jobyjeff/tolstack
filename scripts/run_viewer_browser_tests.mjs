@@ -4812,8 +4812,15 @@ async function testAnnotateRail(browser, label) {
     push("select-face tints the face -- in the colour buffer, not just in the " +
       "pick state",
       await tinted() && picked && picked.faceId === 0 && picked.sha256 === sha);
-    push("...and the detail pane says which face is picked",
-      /Picked: part/.test((await page.locator("#detail").textContent()) || ""));
+    // ...and the TOP BAR says so in words. It used to read `Picked: part
+    // 000000000000…, face 0` -- a checksum prefix and a face number, neither
+    // of which a reader of this page can act on. Since 2026-09-21 the bar's
+    // one line is the instruction composed from the element
+    // (AA.taskInstruction), so what is asserted is that it names the ACTION
+    // the pick has enabled.
+    push("...and the top bar names the action the pick has enabled",
+      /Bind the selected face to Demo untraced edge/.test(
+        (await page.locator("#detail").textContent()) || ""));
 
     // THE BUG, and the verb that fixes it. Before this handoff the pick state
     // cleared and the orange stayed: `restoreColors` was reachable only from
@@ -4823,8 +4830,12 @@ async function testAnnotateRail(browser, label) {
       "the pick state, which is the pair that used to disagree",
       !(await tinted()) &&
       (await page.evaluate(() => window.__scene.highlightedFace())) === null);
-    push("...and the detail pane agrees it is unpicked",
-      /No face picked yet/.test((await page.locator("#detail").textContent()) || ""));
+    // The fixture's `demo_edge_untraced` already has a `to` binding, so the
+    // bar asks for the REMAINING face -- the singular/plural comes from what
+    // the binding still needs, not from a guess about the element's kind.
+    push("...and the top bar goes back to asking for a face",
+      /Select the remaining face that defines Demo untraced edge/.test(
+        (await page.locator("#detail").textContent()) || ""));
 
     // A REAL pointer into the geometry, and then back onto the same face: the
     // toggle. Two pieces of setup, both of them about the FIXTURE and neither
@@ -4896,7 +4907,8 @@ async function testAnnotateRail(browser, label) {
       push("a click into empty space clears the tint as well as the pick",
         !(await tinted()) &&
         (await page.evaluate(() => window.__scene.highlightedFace())) === null &&
-        /No face picked yet/.test((await page.locator("#detail").textContent()) || ""));
+        /Select the remaining face/.test(
+          (await page.locator("#detail").textContent()) || ""));
     }
 
     // The element row's own clear path, which had none either. This page
@@ -4944,6 +4956,196 @@ async function testAnnotateRail(browser, label) {
 // rather than just being strict: a build that removed the picker everywhere
 // would pass the hosted half and fail the local one, which is the regression
 // that would quietly kill Jeff's own annotation workflow.
+// --- the top bar, the entry context and its switches ------------------------
+//
+// (handoff annotate_hint_bar_and_context_autofilter, 2026-09-21.) Three claims
+// a DOM shim cannot answer, which is why they are here and not in
+// apps/annotate/run_tests.cjs:
+//
+//   1. THE CANVAS IS WIDER. The hint pane was a 320px column to the right of
+//      the 3D view -- Jeff, using the annotator through the flyout: "it takes
+//      up half of the usable 3d canvas." That it is now a bar across the top
+//      is a LAYOUT claim, measured box against box, and a class-name check
+//      would pass straight through a stylesheet that still declared three
+//      columns.
+//   2. THE ARRIVAL REALLY APPLIES. "you already know the 3d body, the
+//      topology, the study, the component, etc, so all of these should be
+//      filtered automatically" -- topology and study selected, the element
+//      SELECTED (not merely listed), its part alone in the scene.
+//   3. THE SWITCHES REALLY SWITCH. Unticking one has to be something a reader
+//      can see happen and has to survive a reload; the see-through toggle has
+//      to flip what is on screen, for both entry shapes.
+//
+// ?mock=1 throughout, for the same reason testAnnotateRail uses it: FSA cannot
+// be granted from an automated browser.
+async function testAnnotateTopBar(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const parts = () => page.locator("#parts-panel li.part-row");
+  const taskLine = () => page.locator("#detail .an__task").textContent();
+  // Is the ONE installed mock part rendered translucent right now? Read off
+  // the live material, not off a setting -- the whole claim of the toggle is
+  // that the two agree.
+  const ghosted = (sha) => page.evaluate((s) => {
+    const mesh = window.__scene.parts.get(s);
+    return !!(mesh && mesh.material.transparent && mesh.material.opacity < 1);
+  }, sha);
+  try {
+    await page.evaluate(() => {}).catch(() => {});
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    // Settings persist, so a stale run must not decide this one.
+    await page.evaluate(() => {
+      Object.keys(window.AnnotateApp.PREF_KEYS)
+        .forEach((k) => window.localStorage.removeItem(window.AnnotateApp.PREF_KEYS[k]));
+    });
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+
+    // --- 1. the bar is a bar ------------------------------------------------
+    const rail = await page.locator(".an__rail").boundingBox();
+    const bar = await page.locator(".an__hintbar").boundingBox();
+    const canvas = await page.locator("#canvas-host").boundingBox();
+    const viewport = page.viewportSize();
+    push("the top bar spans the scene column, starting where the rail ends",
+      bar && rail && Math.abs(bar.x - (rail.x + rail.width)) < 2 &&
+      Math.abs((bar.x + bar.width) - viewport.width) < 2);
+    push("...and the 3D canvas runs to the right edge of the window -- there " +
+      "is no third column taking a slice of it",
+      canvas && Math.abs((canvas.x + canvas.width) - viewport.width) < 2);
+    push("...and the canvas takes most of the width, not half of it",
+      canvas && canvas.width > viewport.width - rail.width - 4);
+    push("the bar is ONE line at rest -- it costs a line of height, not a " +
+      "third of the canvas",
+      bar && bar.height < 48);
+    push("the canvas starts below the bar",
+      canvas && bar && canvas.y >= bar.y + bar.height - 1);
+    // The renderer follows its box: the drawing buffer used to be sized once,
+    // at construction, and a stale buffer puts the raycast's own NDC mapping
+    // out of step with what is on screen.
+    push("the WebGL canvas really is laid out at the host's width",
+      Math.abs(await page.locator("#canvas-host canvas").evaluate(
+        (n) => n.getBoundingClientRect().width) - canvas.width) < 2);
+
+    // --- the help/settings panel (Jeff's "collapsible commands element") ----
+    push("nothing is expanded at rest", !(await page.locator("#hint-panel").isVisible()));
+    await page.locator("#detail .an__disclose").click();
+    await page.waitForSelector("#hint-panel", { state: "visible", timeout: 5000 });
+    const helpLines = await page.locator("#hint-panel .an__hint-lines li").count();
+    push("Help opens a panel of short lines about what this surface does",
+      helpLines >= 3);
+    push("...and the see-through switch lives in it, ticked by default",
+      await page.locator("#hint-panel input[type=checkbox]").isChecked());
+    const grewTo = (await page.locator(".an__hintbar").boundingBox()).height;
+    push("...and the bar grows only while it is open", grewTo > bar.height);
+    await page.locator("#detail .an__disclose").click();
+    push("closing it puts the bar back to one line",
+      !(await page.locator("#hint-panel").isVisible()) &&
+      (await page.locator(".an__hintbar").boundingBox()).height <= bar.height + 1);
+
+    // --- 2. arriving at an element -----------------------------------------
+    const sha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+      { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    push("the arrival selects the topology and the study it came from",
+      await page.locator("#topology-select").inputValue() === "demo_system" &&
+      await page.locator("#study-select").inputValue() === "demo_study");
+    push("...and SELECTS the element, rather than only listing it",
+      await page.locator("#element-list li.el-row.selected").count() === 1);
+    push("...and shows that element's part alone, in the scene and in the list",
+      await parts().count() === 1 &&
+      await page.evaluate((s) => window.__scene.isVisible(s), sha));
+    push("...and the bar tells the reader what to do, naming the element",
+      /Select the remaining face that defines Demo untraced edge/.test(
+        await taskLine()));
+    push("...with the part see-through, so a face already bound shows through it",
+      await ghosted(sha));
+
+    // --- 3. the switches ----------------------------------------------------
+    await page.locator("#auto-setup > summary").click();
+    const boxes = page.locator("#auto-setup-body input[type=checkbox]");
+    push("the rail's menu offers one switch per step of the arrival",
+      await boxes.count() === 3 &&
+      (await page.locator("#auto-setup-body").textContent()).includes("Topology"));
+
+    // Parts off: the scope has to LIFT, now, not on the next launch.
+    await boxes.nth(2).uncheck();
+    push("unticking Parts returns the lists to manual at once",
+      !(await page.locator("#rail-filter").isVisible()) &&
+      await page.locator("#element-list li.el-row").count() === 3);
+    push("...and disturbs neither of the others",
+      await boxes.nth(0).isChecked() && await boxes.nth(1).isChecked());
+    await boxes.nth(2).check();
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 5000 });
+    push("...and ticking it back re-applies the arrival it came from",
+      await parts().count() === 1);
+
+    // The setting outlives the page, the way the viewer's remembered pane
+    // width does.
+    await boxes.nth(1).uncheck();
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+      { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    await page.locator("#auto-setup > summary").click();
+    push("an unticked switch survives a reload",
+      !(await page.locator("#auto-setup-body input[type=checkbox]").nth(1).isChecked()));
+    await page.locator("#auto-setup-body input[type=checkbox]").nth(1).check();
+
+    // See-through, on the element entry that is already on screen.
+    await page.locator("#detail .an__disclose").click();
+    await page.waitForSelector("#hint-panel", { state: "visible", timeout: 5000 });
+    await page.locator("#hint-panel input[type=checkbox]").uncheck();
+    push("unticking See-through parts makes the body solid, now",
+      !(await ghosted(sha)));
+    await page.locator("#hint-panel input[type=checkbox]").check();
+    push("...and ticking it puts it back", await ghosted(sha));
+
+    // --- study scope and topology scope ------------------------------------
+    await page.goto(url + "?mock=1&trace=1&topology=demo_system&study=demo_study",
+      { waitUntil: "load" });
+    await page.waitForFunction(() => window.__lastTrace !== undefined, null,
+      { timeout: 15000 });
+    push("a study-scope entry shows only that study's parts, see-through, " +
+      "with its bound faces marked",
+      await parts().count() === 1 && await ghosted(sha) &&
+      await page.evaluate(() => window.__scene.listMarks().length) === 1);
+    const scopeNote = await page.locator(".an__filter-note").textContent();
+    push("...and the rail says which study it is scoped to, by its title",
+      /Showing only/.test(scopeNote || "") && /Demo study/.test(scopeNote || ""));
+    await page.locator("#detail .an__disclose").click();
+    await page.locator("#hint-panel input[type=checkbox]").uncheck();
+    push("the see-through switch flips a scope entry too, not just an element one",
+      !(await ghosted(sha)));
+    await page.locator("#hint-panel input[type=checkbox]").check();
+
+    await page.goto(url + "?mock=1&trace=1&topology=demo_system", { waitUntil: "load" });
+    await page.waitForFunction(() => window.__lastTrace !== undefined, null,
+      { timeout: 15000 });
+    const topoTrace = await page.evaluate(() => window.__lastTrace);
+    push("a TOPOLOGY-scope entry works with no study named at all",
+      topoTrace.studyId === null &&
+      await page.locator("#element-list li.el-row").count() === 3 &&
+      await ghosted(sha));
+    push("...and the rail names the topology it is scoped to",
+      /Demo mechanism/.test(await page.locator(".an__filter-note").textContent() || ""));
+
+    push("no page error anywhere in the run", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 async function testAnnotateHostedPosture(browser, label) {
   const checks = [];
   const push = (name, cond) => checks.push({ name, cond: !!cond });
@@ -6673,6 +6875,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateRail(browser, label)],
       ["annotate hosted posture (no folder grant off-machine)", (label) =>
         testAnnotateHostedPosture(browser, label)],
+      ["annotate top bar + entry context (auto-filter, see-through)", (label) =>
+        testAnnotateTopBar(browser, label)],
       ["crop lightbox (launch, zoom, pan on the live crops)", (label) =>
         testCropLightbox(browser, label, topologies, crops)],
       ["typography pass's visual rules (live stack view)", (label) =>

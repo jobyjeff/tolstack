@@ -147,11 +147,24 @@
     };
   };
 
+  // Which elements a SCOPE covers: one study's own lassoed selection, or --
+  // with no study -- every edge in the topology (handoff annotate_hint_bar_
+  // and_context_autofilter, deliverable 4: Jeff asked for a way into 3D
+  // "when an entire study or topology is selected"). One function because a
+  // scope-level entry differs from a study entry in exactly this list and in
+  // nothing else: the trace, the panel filter and the parts to open all read
+  // it, so "what does topology scope mean?" has one answer.
+  AA.scopeSelection = function (topology, study) {
+    if (study) return ((study && study.selection) || []).slice();
+    return ((topology && topology.edges) || []).map(function (e) { return e.id; });
+  };
+
   // Pure: the whole per-study 3D trace, as data (handoff study_3d_flyout,
-  // feature 1). Given a topology, one of its studies, the feature-identity
-  // projection (nullable -- absent means nothing is bound, never an error),
-  // the installed mesh list and the alias table, returns what the `trace`
-  // verb should do:
+  // feature 1). Given a topology, one of its studies (NULL for the whole
+  // topology -- see AA.scopeSelection), the feature-identity projection
+  // (nullable -- absent means nothing is bound, never an error), the
+  // installed mesh list and the alias table, returns what the `trace` verb
+  // should do:
   //
   //   parts          every part the study's selected edges name, in selection
   //                  order, each with its resolved mesh sha256 or null
@@ -165,7 +178,7 @@
   //   unresolvedMarks  bindings whose mesh is NOT installed ({edgeId, sha256})
   //   unboundEdges   selected edges with no binding at all
   AA.planStudyTrace = function (topology, study, identityProjection, meshes, aliases) {
-    var selection = (study && study.selection) || [];
+    var selection = AA.scopeSelection(topology, study);
     var edgesById = {};
     ((topology && topology.edges) || []).forEach(function (e) { edgesById[e.id] = e; });
     var installed = {};
@@ -290,6 +303,42 @@
     return plan(null, [], []);
   };
 
+  // The same plan shape, for a WHOLE study or a whole topology (handoff
+  // annotate_hint_bar_and_context_autofilter, deliverable 4). Deliberately the
+  // shape `planPanelFilter` returns and not a second one: the rail's two
+  // renderers and its scope bar already read that shape, so scope-level entry
+  // reuses them rather than teaching each of them a second kind of scope.
+  //
+  // `name` is the extra field, and only a scope carries one: an element's own
+  // name is looked up on the topology by id, and a study's title is not
+  // (nothing else on the rail holds the study table).
+  AA.planScopeFilter = function (topology, study, meshes, aliases) {
+    var edgeIds = AA.scopeSelection(topology, study);
+    var edgesById = {};
+    ((topology && topology.edges) || []).forEach(function (e) { edgesById[e.id] = e; });
+    var parts = [];
+    var seen = {};
+    edgeIds.forEach(function (edgeId) {
+      var edge = edgesById[edgeId];
+      var part = edge && edge.part;
+      if (!part || seen[part]) return;
+      seen[part] = true;
+      var mesh = AA.resolveMeshIdentifier(meshes, part, aliases);
+      parts.push({ part: part, sha256: mesh ? mesh.sha256 : null });
+    });
+    return {
+      target: study ? study.id : ((topology && topology.id) || null),
+      kind: study ? "study" : "topology",
+      name: study
+        ? (study.title || study.id)
+        : ((topology && (topology.title || topology.id)) || null),
+      edgeIds: edgeIds,
+      parts: parts,
+      missingParts: parts.filter(function (p) { return !p.sha256; })
+        .map(function (p) { return p.part; }),
+    };
+  };
+
   // --- deselect (deliverable 3) ----------------------------------------------
   //
   // Jeff: "I accidentally clicked a face … but there's no way to deselect a
@@ -334,5 +383,243 @@
       toShow: targets.filter(function (s) { return openSet[s]; }),
       toHide: open.filter(function (s) { return !targetSet[s]; }),
     };
+  };
+
+  // --- on/off, as one vocabulary ---------------------------------------------
+  //
+  // Two settings verbs take a switch and a reader's own checkbox drives both,
+  // so the accepted words are a module-level constant rather than a pair of
+  // inline literals compared in two handlers (CLAUDE.md's standing rule).
+  // Exactly two words: "1"/"true"/"yes" look harmless and are the beginning of
+  // a second, undocumented vocabulary.
+  AA.ON_OFF = ["on", "off"];
+  AA.parseOnOff = function (value) {
+    if (AA.ON_OFF.indexOf(value) === -1) {
+      throw new Error("expected one of " + AA.ON_OFF.join(", ") +
+        ", got " + JSON.stringify(value));
+    }
+    return value === AA.ON_OFF[0];
+  };
+  AA.onOff = function (on) { return on ? AA.ON_OFF[0] : AA.ON_OFF[1]; };
+
+  // --- arriving from the stack viewer: what is applied automatically ---------
+  //
+  // (handoff annotate_hint_bar_and_context_autofilter, deliverable 3.) Jeff:
+  // "When you open the 3d viewer for a given tolerance or feature, you already
+  // know the 3d body, the topology, the study, the component, etc, so all of
+  // these should be filtered automatically. … the left side menu should have an
+  // 'auto-filter' menu at the top which lets you enable/disable different parts
+  // of the selection algorithm (checkboxes to auto select topology, study,
+  // part)."
+  //
+  // One row per step of the arrival, with the words the checkbox wears. The
+  // labels are everyday and name no algorithm (the standing web-UI rule); the
+  // `hint` is what the checkbox's own title says, one line each.
+  AA.AUTO_STEPS = Object.freeze([
+    Object.freeze({ key: "topology", label: "Topology",
+      hint: "arriving from the stack viewer opens the topology it came from" }),
+    Object.freeze({ key: "study", label: "Study",
+      hint: "arriving from the stack viewer opens the study it came from" }),
+    Object.freeze({ key: "part", label: "Parts",
+      hint: "arriving from the stack viewer shows only the parts that element touches" }),
+  ]);
+  AA.AUTO_STEP_KEYS = Object.freeze(AA.AUTO_STEPS.map(function (s) { return s.key; }));
+
+  // Every step on, which is what this app did before the checkboxes existed --
+  // so a reader who never opens the menu sees no change.
+  AA.defaultAutoSteps = function () {
+    var out = {};
+    AA.AUTO_STEP_KEYS.forEach(function (key) { out[key] = true; });
+    return out;
+  };
+
+  // A stored settings blob, made safe: an unknown key is dropped and a missing
+  // one falls back to the default, so a half-written or stale value reads as
+  // "not set" rather than turning a step off behind the reader's back.
+  AA.normalizeAutoSteps = function (raw) {
+    var out = AA.defaultAutoSteps();
+    if (!raw || typeof raw !== "object") return out;
+    AA.AUTO_STEP_KEYS.forEach(function (key) {
+      if (typeof raw[key] === "boolean") out[key] = raw[key];
+    });
+    return out;
+  };
+
+  // What an arrival ACTUALLY does, given the reader's settings and what is
+  // already open. Pure, because it is the one place the checkboxes can be got
+  // wrong: `goto`/`trace` are the two entry verbs (the manual select-* verbs
+  // are never gated -- a verb typed by hand does what it says).
+  //
+  //   applies        false when auto-select-topology is off and the reader is
+  //                  looking at a DIFFERENT topology -- their pick stands, and
+  //                  nothing below could name anything in it anyway
+  //   selectTopology / selectStudy / scopeParts   which steps to run
+  //
+  // The edge itself is never gated: it is the thing the reader clicked.
+  AA.planArrival = function (opts) {
+    var o = opts || {};
+    var auto = AA.normalizeAutoSteps(o.auto);
+    var selectTopology = auto.topology || !o.currentTopologyId;
+    var landsOn = selectTopology ? o.topologyId : o.currentTopologyId;
+    if (!landsOn || landsOn !== o.topologyId) {
+      return {
+        applies: false, keptTopologyId: o.currentTopologyId || null,
+        selectTopology: false, selectStudy: false, scopeParts: false,
+      };
+    }
+    return {
+      applies: true, keptTopologyId: null,
+      selectTopology: selectTopology,
+      selectStudy: !!auto.study,
+      scopeParts: !!auto.part,
+    };
+  };
+
+  // The URL's params as the ordered command list a boot runs -- the deep link
+  // has never been a parallel code path (handoff annotate_deep_link_and_part_
+  // filter) and this is that rule made checkable: the branching used to live
+  // inside app.js's `runPendingDeepLink`, where no tier could read it.
+  //
+  // `trace` returns ONE command and drops `edge`/`isolate`: a scope entry owns
+  // the whole scene state (which parts show, what is marked), so applying an
+  // element entry on top of it would half-undo it.
+  AA.planEntryCommands = function (params) {
+    var p = params || {};
+    if (p.trace && p.topology) return [["trace", p.topology, p.study || ""]];
+    var commands = [];
+    if (p.topology) {
+      commands.push(["goto", p.topology, p.edge || "", p.study || ""]);
+    }
+    if (p.isolate) {
+      var parts = String(p.isolate).split(",")
+        .map(function (s) { return s.trim(); })
+        .filter(Boolean);
+      if (parts.length) commands.push(["isolate"].concat(parts));
+    }
+    return commands;
+  };
+
+  // --- the one-line task instruction (deliverable 2) -------------------------
+  //
+  // Jeff: "user can just be given simple instructions (ie select the two faces
+  // that define the bushing length…)". The bar's collapsed line, composed from
+  // the element rather than written once in the markup -- so the sentence a
+  // reader meets names the thing they arrived for.
+  //
+  // Singular/plural comes from what the binding actually needs: a topology edge
+  // is a dimension BETWEEN two interfaces, and a binding event carries a
+  // `direction` (AA.DIRECTIONS: from, to), so an element with nothing bound
+  // needs two faces and one with a `from` already recorded needs one more.
+  AA.TASK_NO_ELEMENT =
+    "Pick an element on the left, then click a face in the 3D view to bind it.";
+
+  // Which directions a record still has no face for. An absent record needs
+  // both -- the same "absence is the consumer's to notice" posture
+  // elementBindingState takes.
+  AA.bindingDirectionsNeeded = function (record) {
+    var have = {};
+    ((record && record.bindings) || []).forEach(function (b) {
+      if (b && b.direction) have[b.direction] = true;
+    });
+    return AA.DIRECTIONS.filter(function (d) { return !have[d]; });
+  };
+
+  AA.taskInstruction = function (ctx) {
+    var c = ctx || {};
+    if (!c.elementName) {
+      return c.scopeName
+        ? "Showing " + c.scopeName + ". Pick an element on the left, then " +
+          "click a face in the 3D view."
+        : AA.TASK_NO_ELEMENT;
+    }
+    if (c.picked) {
+      return "Bind the selected face to " + c.elementName +
+        ", or click another face to change it.";
+    }
+    var needed = c.needed || AA.DIRECTIONS;
+    if (needed.length > 1) {
+      return "Select the two faces that define " + c.elementName + ".";
+    }
+    if (needed.length === 1) {
+      return "Select the remaining face that defines " + c.elementName + ".";
+    }
+    return c.elementName + " already has the faces it needs. " +
+      "Click a face to bind another.";
+  };
+
+  // --- the help the top bar opens (deliverable 1) ----------------------------
+  //
+  // Jeff: "Could even be a collapsible 'commands' element that gives general
+  // help." Short lines, no paragraphs, and here rather than in the markup for
+  // the reason every other sentence on this surface is a constant: this is the
+  // only layer a test can read (run_tests.cjs has no DOM), so copy that lives
+  // here is copy the shared ban list actually scans.
+  AA.HELP_LINES = Object.freeze([
+    "Click a face in the 3D view to select it; click it again to let it go.",
+    "The rows on the left are this study's elements. Click one to work on it.",
+    "A scope bar on the left says when the lists are narrowed to one element, " +
+      "and lifts it.",
+    "Set up automatically decides how much of that an arrival from the stack " +
+      "viewer does for you.",
+    "See-through parts renders bodies translucent, so faces already bound show " +
+      "through in green.",
+  ]);
+
+  // --- remembered settings ---------------------------------------------------
+  //
+  // Both settings persist, the way the viewer's own remembered pane width does
+  // (apps/viewer/views/topology.js): one key per setting, `store` injected so
+  // both directions are checkable with no browser, and EVERY access wrapped --
+  // a preference is never worth a crash, and a value that cannot be read is
+  // "not set", never a guess.
+  AA.PREF_KEYS = Object.freeze({
+    autoSteps: "tolstack.annotate.autoSteps",
+    transparentParts: "tolstack.annotate.transparentParts",
+  });
+
+  // Translucent by default: a scope entry is transparent by Jeff's own
+  // description ("again transparent with the interface surfaces displayed in a
+  // different color"), and an element entry gains the same thing -- the green
+  // bound-face marks are only visible through a body that lets them through.
+  AA.DEFAULT_TRANSPARENT_PARTS = true;
+
+  AA.readStoredAutoSteps = function (store) {
+    try {
+      var raw = store && store.getItem(AA.PREF_KEYS.autoSteps);
+      if (!raw) return AA.defaultAutoSteps();
+      return AA.normalizeAutoSteps(JSON.parse(raw));
+    } catch (err) {
+      return AA.defaultAutoSteps();
+    }
+  };
+
+  AA.writeStoredAutoSteps = function (store, steps) {
+    try {
+      if (store) {
+        store.setItem(AA.PREF_KEYS.autoSteps,
+          JSON.stringify(AA.normalizeAutoSteps(steps)));
+      }
+    } catch (err) {
+      // A browser that refuses to store it still honours the setting now.
+    }
+  };
+
+  AA.readStoredTransparency = function (store) {
+    try {
+      var raw = store && store.getItem(AA.PREF_KEYS.transparentParts);
+      if (raw === AA.ON_OFF[0]) return true;
+      if (raw === AA.ON_OFF[1]) return false;
+      return AA.DEFAULT_TRANSPARENT_PARTS;
+    } catch (err) {
+      return AA.DEFAULT_TRANSPARENT_PARTS;
+    }
+  };
+
+  AA.writeStoredTransparency = function (store, on) {
+    try {
+      if (store) store.setItem(AA.PREF_KEYS.transparentParts, AA.onOff(!!on));
+    } catch (err) {
+      // Same as above: this session still honours it.
+    }
   };
 })(window.AnnotateApp = window.AnnotateApp || {});
