@@ -65,6 +65,21 @@ leader code (owned by the parallel `viewer_nav_alert_badge_and_angled_default`).
    manual (the current behaviour) without disturbing the others; the setting
    should persist the way other viewer/annotate preferences do. Everyday
    words on the checkboxes, no algorithm names.
+4. **Study/topology-scoped entry** (Jeff, same session: "when an entire study
+   or topology is selected, there should be a way to enter the 3d view,
+   pre-filtered to just the parts included in that study/topology (again
+   transparent with the interface surfaces displayed in a different color).
+   Definitely include an option to enable/disable transparency."). The
+   per-study 3D launch exists (`study_3d_flyout`, 2026-09-10) — what's new is
+   what a scope-level entry shows: only the parts that study/topology touches,
+   bodies transparent, and the scope's **bound faces** (the interfaces its
+   elements already have feature-identity bindings for) in a distinct colour.
+   That colour role is display-of-known-bindings — derivable from the
+   identity projection today, no geometry heuristics (those are the follow-on
+   `annotate_face_suggestions` handoff, which reuses these display states).
+   **Transparency is a user option, on/off**, living in the commands/help
+   element (deliverable 1) or the auto-filter menu — agent's call which reads
+   better — and it applies to element-scoped entry too, not just scope-level.
 
 ## Definition of done
 
@@ -73,6 +88,9 @@ leader code (owned by the parallel `viewer_nav_alert_badge_and_angled_default`).
   topology + study + element selected, parts isolated, and the one-line
   instruction visible; unchecking an auto-filter box demonstrably returns
   that control to manual.
+- Entering at study scope shows only that study's parts, transparent, with
+  its already-bound faces coloured; the transparency toggle demonstrably
+  flips both entry shapes.
 - The 3D canvas is measurably wider than before (the pane no longer splits it
   vertically); the full-page and flyout embeddings both lay out correctly.
 - JS suite + browser tier green in the main checkout; the deep-link contract
