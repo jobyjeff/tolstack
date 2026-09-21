@@ -111,3 +111,35 @@ cheap one of the two in this issue — `VA.rowAlerts` would grow a
   `VA.alertsCard` (the consolidation shipped for the stack table; the model is
   reusable as-is, and `views/cards.js`'s `alerts` card kind renders it)
 * `apps/viewer/style.css` — `.chip--alert`, `.hovercard__alert*`
+
+## 2026-09-21 — answered for the nav rail; the materials table is what is left
+
+Jeff answered the question this issue was waiting on, in the same words it
+asked for. Reviewing the live viewer: *"the alerts still haven't been replaced
+with a single triangle ! (hover over to see details)"*, and of the annotator's
+badge, *"same purpose, just in a different place"*. So it was **direction 1**
+(consolidate like the other two rails), not direction 2 — and the ambiguity
+about which rail he meant is resolved: he meant this one too.
+
+Shipped by `HANDOFF_20260921_viewer_nav_alert_badge_and_angled_default`:
+
+* the **nav rail's study rows** now carry the verdict chip plus one outlined
+  amber `⚠`, with the alerts as full sentences in the page's own hover card.
+  `VA.studyNavAlerts` (`topology.js`) is the single place deciding which of a
+  row's facts is an alert; `views/dom.js`'s `VA.alertBadge` is now the one
+  builder behind both this badge and the elements table's. The 2026-09-15
+  reasoning is kept where it applies: the **verdict** was what that handoff was
+  answering, so it stays a chip, and the two verdict *states* that are not
+  dispositions (`no criterion`, `does not sum`) fold with the flags. Documented
+  in `apps/viewer/README.md`, "What a study row wears".
+* `.tvflag` survives only on the DAG grid's edge rows and a study's totals
+  strip, and `topology.css`'s note above those selectors now says so.
+
+**Still open, and the whole of what is left:** the **materials table's** source
+column (`views/stack.js`'s `materialSourcingCell` over `VA.valuesProvenance`,
+the `.chip--values-*` rules) still carries always-visible loud chips —
+`CTE NOT TRANSCRIBED`, `VALUES_STATUS UNKNOWN`. That half was not in the
+2026-09-21 handoff's scope (`apps/viewer/` nav rows and the leader default) and
+still carries its own decision: consolidating it means deciding where those
+words live, not only how they are shown. Everything the mechanism needs now
+exists three times over, so it is cheap whenever it is picked up.

@@ -353,7 +353,10 @@
     // them, and a chip on every row is a chip nobody reads. Every state in full
     // is in the right pane (click the row) as well as in this popup.
     var alerts = VA.rowAlerts(element, derived);
-    if (alerts.length) chips.appendChild(alertBadge(alerts, element, handlers));
+    if (alerts.length) {
+      chips.appendChild(VA.alertBadge(alerts, element.name || element.id,
+        handlers.onCardShow));
+    }
     cell.appendChild(chips);
     var where = VA.el("div", "el-row__where el-row__where--compact",
       VA.citationWhere(element.source_ref));
@@ -363,35 +366,10 @@
     return cell;
   }
 
-  // The row's consolidated alert badge: one icon, the alerts on hover.
-  //
-  // A `cardtrig` over the page's own popover, exactly like the confidence chip
-  // beside it — same trigger class, same tabindex, same three openers
-  // (mouseenter / focus / click), so it inherits the hover-intent corridor, the
-  // placement, Escape and the outside-click close rather than growing a second
-  // popup mechanism on this page. The `title` is not a duplicate of the popup:
-  // it is what the badge says when the page is rendered with no card machinery
-  // at all (the fast tier's DOM shim, a view called without handlers), so the
-  // information is never only in a hover.
-  function alertBadge(alerts, element, handlers) {
-    var badge = VA.el("span", "chip chip--alert", VA.ALERT_ICON);
-    badge.setAttribute("title", alerts.map(function (alert) {
-      return alert.text + (alert.why ? " — " + alert.why : "");
-    }).join("\n"));
-    // `cardtrig` is claimed only where a card can actually be shown, the same
-    // gate the confidence chip above applies to itself: a trigger cue on a
-    // badge that opens nothing is a promise the page cannot keep.
-    if (!handlers.onCardShow) return badge;
-    badge.className += " cardtrig";
-    badge.setAttribute("tabindex", "0");
-    var show = function () {
-      handlers.onCardShow(VA.alertsCard(element.name || element.id, alerts), badge);
-    };
-    badge.onmouseenter = show;
-    badge.onfocus = show;
-    badge.onclick = show;
-    return badge;
-  }
+  // The badge itself is views/dom.js's VA.alertBadge — the nav rail's study
+  // rows wear the same one (viewer_nav_alert_badge_and_angled_default,
+  // 2026-09-21), and one glyph with two builders drifts the way one word with
+  // two literals does.
 
   // The hover target. Carries its crop entry on the node so the app can show the
   // popover without re-deriving anything, and so a test can assert what a given

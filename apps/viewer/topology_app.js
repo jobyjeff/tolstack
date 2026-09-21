@@ -48,10 +48,11 @@
     // like rowDensity, not a fact about a topology, so selectTopology() never
     // resets it either.
     edgeLengthMode: "uniform",
-    // "jogged" (right-angle jogs, the default and what shipped) or "angled"
-    // (one straight segment). VA.LEADER_STYLES, topology.js. A display
-    // preference like the three above -- selectTopology() never resets it.
-    leaderStyle: "jogged",
+    // "jogged" (right-angle jogs, what shipped first) or "angled" (one
+    // straight segment, the default since 2026-09-21). VA.LEADER_STYLES and
+    // VA.DEFAULT_LEADER_STYLE, topology.js. A display preference like the
+    // three above -- selectTopology() never resets it.
+    leaderStyle: VA.DEFAULT_LEADER_STYLE,
     // How far the jog zone has been dragged open, as a multiple of its own
     // natural width (VA.JOG_ZONE_SCALE, topology.js). A multiple rather than
     // a pixel width precisely BECAUSE it outlives the topology it was set on:
@@ -1512,7 +1513,7 @@
         // so render(), not rewind().
         onLeaderStyle: function () {
           var style = VA.LEADER_STYLES[state.leaderStyle];
-          state.leaderStyle = style ? style.next : "jogged";
+          state.leaderStyle = style ? style.next : VA.DEFAULT_LEADER_STYLE;
           render();
         },
         // "View in 3D" (study_3d_flyout): the toolbar builds the params
@@ -1576,6 +1577,13 @@
       onTopology: onNavTopology,
       onStudy: onNavStudy,
       onStack: onNavStack,
+      // The study row's consolidated ⚠ opens into the SAME popover node every
+      // other hover card on this page uses (viewer_nav_alert_badge_and_angled_
+      // default): one node, one placement, one close story. The rail is
+      // `overflow-y: auto` and 300px wide, so a popup rendered inside a row
+      // would be clipped -- and the shared node is `position: fixed`, which is
+      // the reason it is not.
+      onCardShow: showCard,
     });
   }
 

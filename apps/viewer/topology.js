@@ -475,6 +475,66 @@
     };
   };
 
+  // --- one ⚠ per nav row (viewer_nav_alert_badge_and_angled_default) --------
+  //
+  // Jeff, 2026-09-21, reviewing the live rail: "the alerts still haven't been
+  // replaced with a single triangle ! (hover over to see details)", and of the
+  // annotator's badge, "same purpose, just in a different place". The rail was
+  // the third surface named by
+  // ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud
+  // and the last one still shouting: `no criterion` beside `UNVERIFIED` beside
+  // `NO TOLERANCE RECORDED`, at rest, in 300px.
+  //
+  // What this decides is only WHICH of a row's badges is an alert. The verdict
+  // stays a chip — a disposition is what the reader came for, and folding
+  // `PASS` into a hover would be the 2026-09-15 decision reversed rather than
+  // quietened. The two things VA.studyVerdict returns that are NOT dispositions
+  // fold instead: a study with no criterion recorded and a study that does not
+  // sum both ask the reader to act, and neither answers "does it pass".
+  //
+  // A set keyed by the state, so the vocabulary cannot drift: the WORDS stay
+  // VA.studyVerdict's own `word` and `title`, read at the call site and never
+  // restated here. `pass`/`marginal`/`fail` are absent rather than
+  // present-and-quiet, the same posture apps/annotate/binding_state.js's
+  // BINDING_STATE_ALERTS takes for `bound`.
+  VA.NAV_ALERT_VERDICT_STATES = {
+    none: "no-criterion",
+    error: "does-not-sum",
+  };
+
+  // Everything ONE study row has to admit about itself, worst first: the
+  // verdict state that is not a verdict, then the attention flags. A list
+  // because the badge showing it is one badge however many there are, and
+  // shaped for VA.alertsCard ({ kind, text, why }) so the rail opens the
+  // page's own popover rather than growing a second kind of popup.
+  //
+  // `study` is a nav-tree entry (VA.navTree's studies), not a projection
+  // study: the verdict and the attention walk are already done there, once
+  // per study, and re-deriving them per render would walk every topology's
+  // edges again on every keystroke-cheap re-render the rail does.
+  VA.studyNavAlerts = function (study) {
+    var alerts = [];
+    var verdict = study && study.verdict;
+    var kind = verdict && VA.NAV_ALERT_VERDICT_STATES[verdict.state];
+    if (kind) alerts.push({ kind: kind, text: verdict.word, why: verdict.title });
+    ((study && study.attention && study.attention.badges) || []).forEach(function (flag) {
+      alerts.push({ kind: flag.key, text: flag.text, why: flag.title });
+    });
+    // Never a bare verdict where the chain is short a term. The `--qualified`
+    // tint on the verdict chip is a tint; nav.js's standing rule is that the
+    // WORD has to arrive too, and until this fold it arrived as its own chip.
+    // It normally arrives here from the attention flags — an excluded term is
+    // *why* a check reports `complete: false` — so this covers only the case
+    // where a check says incomplete and names no excluded term, which would
+    // otherwise leave the reader a stripe and no sentence.
+    var named = alerts.some(function (alert) { return alert.kind === "incomplete"; });
+    if (verdict && verdict.incomplete && !named) {
+      alerts.push({ kind: "incomplete", text: VA.ATTENTION.incomplete.text,
+                    why: VA.ATTENTION.incomplete.title });
+    }
+    return alerts;
+  };
+
   // --- what is missing ------------------------------------------------------
 
   // What each kind of gap IS and what would close it, in plain words. The
@@ -647,6 +707,20 @@
         "its seam in the grid. Same two ends, fewer corners to lose.",
     },
   };
+
+  // Which style a preference-less load draws. ANGLED since 2026-09-21
+  // (viewer_nav_alert_badge_and_angled_default) -- Jeff, having tried both
+  // against the real mechanisms: "angled by default (jogged isn't really
+  // usable yet and arguably isn't worth putting more effort into since the
+  // angled lines look just fine)." The toggle keeps both; jogged is kept and
+  // deprioritized, and apps/viewer/README.md's leaders section is where that
+  // decision is written down.
+  //
+  // A named constant rather than a literal at each of the three sites that
+  // needed one (the app's initial state, the toolbar's fallback preset, and
+  // the toggle's fallback when a state value is not in the table): three
+  // copies of a default is how a default half-moves.
+  VA.DEFAULT_LEADER_STYLE = "angled";
 
   // How far the jog zone may be dragged open, as a MULTIPLE of its natural
   // width (leaderPad/leaderLane over the leader count). A multiple rather
@@ -1894,6 +1968,11 @@
     metrics = metrics || VA.RAIL_METRICS;
     positions = positions || VA.rowPositions(layout, null, "uniform", metrics);
     options = options || {};
+    // `options.style` is geometry, not the reader's preference: absent means
+    // "draw the jogs", and `geo.style` reports what was drawn. The PREFERENCE
+    // default is VA.DEFAULT_LEADER_STYLE, held by the app shell and passed in
+    // on every real render (views/topology.js's renderTopoPane), so flipping
+    // that default does not silently re-point this primitive.
     var angled = options.style === "angled";
     // VA.respineX's, on a transition frame only. A leader crosses the whole
     // pane, so both its ends move: the node end rides the interpolated

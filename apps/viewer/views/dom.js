@@ -58,6 +58,51 @@
     return node;
   };
 
+  // ONE ⚠ per row, the alerts on hover — the badge two surfaces of this app
+  // now wear (the elements table's source cell, views/stack.js; the nav rail's
+  // study rows, views/nav.js), so it is built once here rather than twice.
+  // `VA.ALERT_ICON` is the glyph and `VA.alertsCard` the model behind it, both
+  // in viewer.js beside the words they carry.
+  //
+  // A `cardtrig` over the page's own popover — same trigger class, same
+  // tabindex, same three openers (mouseenter / focus / click) — so it inherits
+  // the hover-intent corridor, the placement, Escape and the outside-click
+  // close. `cardtrig` is claimed only where a card can actually be shown: a
+  // trigger cue on a badge that opens nothing is a promise the page cannot
+  // keep. The `title` is not a duplicate of the popup; it is what the badge
+  // says where there is no card machinery at all (the fast tier's DOM shim, a
+  // view called without handlers), so the information is never only in a hover.
+  //
+  // `opts.stopClick` — whether a click on the badge may reach the row beneath.
+  // The nav rail sets it: a click there selects the study and re-renders the
+  // rail out from under the badge, and the badge is a disclosure, not a second
+  // way in. The elements table does not: its row click opens the same
+  // element's detail pane, where every one of these alerts is stated in full.
+  VA.alertBadge = function (alerts, cardTitle, onCardShow, opts) {
+    var badge = VA.el("span", "chip chip--alert", VA.ALERT_ICON);
+    badge.setAttribute("title", alerts.map(function (alert) {
+      return alert.text + (alert.why ? " — " + alert.why : "");
+    }).join("\n"));
+    // For a reader with no pointer, and for one who cannot see the glyph: the
+    // icon's name is the words it stands for.
+    badge.setAttribute("aria-label", alerts.map(function (alert) {
+      return alert.text;
+    }).join(" "));
+    if (!onCardShow) return badge;
+    badge.className += " cardtrig";
+    badge.setAttribute("tabindex", "0");
+    var show = function (event) {
+      if (opts && opts.stopClick && event && event.stopPropagation) {
+        event.stopPropagation();
+      }
+      onCardShow(VA.alertsCard(cardTitle, alerts), badge);
+    };
+    badge.onmouseenter = show;
+    badge.onfocus = show;
+    badge.onclick = show;
+    return badge;
+  };
+
   // The ONE word this app folds things under, on every surface that folds
   // anything: the banner's provenance rows and each hover card's sourcing
   // narrative (viewer_hover_deslop_and_banner_purge, 2026-09-16). One constant

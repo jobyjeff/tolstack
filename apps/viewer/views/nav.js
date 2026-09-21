@@ -83,17 +83,21 @@
       var srow = VA.el("div", "navtree__row navtree__row--study" +
         (active ? " navtree__row--on" : "") +
         (s.status === "error" ? " navtree__row--warn" : ""));
-      srow.appendChild(VA.el("span", "navtree__label",
-        (s.status === "error" ? "⚠ " : "") + s.title));
+      // The row's own name, with no glyph in front of it: a study that does
+      // not sum used to prefix "⚠ " here AND now earns the consolidated badge
+      // below, and two triangles on one row is the loudness this pass exists
+      // to remove. The amber `--warn` tint stays — it is the row's state, not
+      // a badge, and it is what makes the row findable without hovering.
+      srow.appendChild(VA.el("span", "navtree__label", s.title));
       // The verdict, on the rail (viewer_study_verdicts_and_gaps, 2026-09-15).
-      // Every study wears one, including the ones with no criterion recorded:
-      // the rail is where a reader sees the shape of a whole document at once,
-      // and a row that stays silent about whether its study passes reads as a
-      // row whose study passed. The badge is never bare where the chain is
-      // short a term — VA.studyVerdict's `incomplete` puts "incomplete" beside
-      // it, because "fail" on an incomplete chain is true of the model and
-      // false of the hardware.
-      srow.appendChild(studyBadges(s));
+      // Every study that HAS a disposition wears it; everything else the row
+      // has to admit is one ⚠ with the sentences on hover
+      // (viewer_nav_alert_badge_and_angled_default, 2026-09-21). The rail is
+      // where a reader sees the shape of a whole document at once, so a row
+      // that stays silent about whether its study passes reads as a row whose
+      // study passed — which is why a row with no criterion recorded still
+      // carries the badge rather than nothing.
+      srow.appendChild(studyBadges(s, handlers));
       setTooltip(srow, s.description, null);
       srow.setAttribute("data-nav-kind", "study");
       srow.setAttribute("data-nav-id", s.id);
@@ -105,26 +109,41 @@
     return li;
   }
 
-  // The study row's chips: the verdict, then every flag the study earned. The
-  // verdict badge carries its own qualification as a style (`--qualified`)
-  // rather than as a fourth chip; the WORD "incomplete" still arrives, from the
-  // attention flags, so a reader sees the qualification and not only a tint.
+  // The study row's badges: at most two, and one of them is a glyph.
   //
-  // A study with no criterion recorded says "no criterion" rather than nothing:
-  // a silent row on a rail of verdicts reads as a row that passed, which is the
-  // misreading this whole badge exists to stop.
-  function studyBadges(s) {
+  // Until 2026-09-21 this was up to four filled all-caps chips — `PASS`
+  // `UNVERIFIED` `NO TOLERANCE RECORDED`, or `no criterion` `UNVERIFIED` — on
+  // every row of a 300px rail that is always on screen. Jeff: "the alerts
+  // still haven't been replaced with a single triangle ! (hover over to see
+  // details)". So:
+  //
+  //   * the VERDICT stays a chip, because it is the answer the reader came for
+  //     and folding it into a hover would reverse the 2026-09-15 decision that
+  //     put it here rather than quieten it. It still carries its `--qualified`
+  //     tint where the chain is short a term;
+  //   * every alert — the two verdict states that are not dispositions, and
+  //     each attention flag — folds into ONE ⚠ whose card lists them as full
+  //     sentences. VA.studyNavAlerts (topology.js) decides which is which and
+  //     is the only place that vocabulary lives;
+  //   * a row with nothing wrong shows the verdict alone. Nothing about an
+  //     absent alert is rendered at all.
+  function studyBadges(s, handlers) {
     var chips = VA.el("div", "navtree__chips");
     var verdict = s.verdict;
-    if (verdict) {
+    if (verdict && !VA.NAV_ALERT_VERDICT_STATES[verdict.state]) {
       var chip = VA.chip("tvverdict tvverdict--" + verdict.state,
-        verdict.state === "none" ? "no criterion" : verdict.word, verdict.title);
+        verdict.word, verdict.title);
       if (verdict.incomplete) chip.className += " tvverdict--qualified";
       chips.appendChild(chip);
     }
-    ((s.attention && s.attention.badges) || []).forEach(function (flag) {
-      chips.appendChild(VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
-    });
+    var alerts = VA.studyNavAlerts(s);
+    if (alerts.length) {
+      // `stopClick`: the row underneath selects the study and re-renders the
+      // whole rail, which would replace the badge the pointer is resting on.
+      // The badge is a disclosure, not a second way into the study.
+      chips.appendChild(VA.alertBadge(alerts, s.title,
+        handlers && handlers.onCardShow, { stopClick: true }));
+    }
     return chips;
   }
 

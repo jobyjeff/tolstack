@@ -85,14 +85,16 @@
     lengths.onclick = handlers.onEdgeLength;
     root.appendChild(lengths);
 
-    // How a leader is DRAWN (viewer_leader_grid_legibility): right-angle jogs
-    // (the default, and what shipped) or one straight angled segment. Jeff
-    // asked for both so he can try them against a real mechanism -- the same
-    // shape as the labelled/values-only toggle above, cycling through
+    // How a leader is DRAWN (viewer_leader_grid_legibility): one straight
+    // angled segment (VA.DEFAULT_LEADER_STYLE since 2026-09-21) or right-angle
+    // jogs (what shipped first). Jeff asked for both so he could try them
+    // against a real mechanism and, having done so, made angled the default --
+    // the same shape as the labelled/values-only toggle above, cycling through
     // VA.LEADER_STYLES' own `next`. Both ends of a leader are unchanged in
     // either style, so the page's correspondence contract does not know this
     // control exists.
-    var leaderPreset = VA.LEADER_STYLES[state.leaderStyle] || VA.LEADER_STYLES.jogged;
+    var leaderPreset = VA.LEADER_STYLES[state.leaderStyle] ||
+      VA.LEADER_STYLES[VA.DEFAULT_LEADER_STYLE];
     var leaderStyle = VA.el("button", "ghost tvpick__mode",
       "Leaders: " + leaderPreset.label);
     leaderStyle.setAttribute("id", "leader-style-toggle");

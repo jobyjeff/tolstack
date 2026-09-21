@@ -370,6 +370,42 @@ so nothing new is authored to say so (`VA.navTree`, `topology.js`).
 > `viewer_nav_wedge_and_classic_retirement` removed the row and contained the
 > wedge.
 
+### What a study row wears: the verdict, and one ⚠
+
+A study row carries **at most two marks**: its verdict chip, and one outlined
+amber `⚠` standing for everything else the study has to admit. Hovering the
+triangle opens the page's own alerts card (`VA.alertsCard`, the same popover
+node every other hover card on this page uses) and lists each alert as a full
+sentence with its *why*. A row with nothing wrong shows the verdict alone.
+
+`VA.studyNavAlerts` (`topology.js`) is the only place that decides which of a
+row's facts is an alert, and the words are never restated there: an attention
+flag reads its sentence out of `VA.ATTENTION`, and a folded verdict state reads
+`VA.studyVerdict`'s own `word` and `title`. What folds:
+
+| | |
+|---|---|
+| `pass` / `marginal` / `fail` | **stays a chip.** The disposition is what the reader came for, and it keeps its `--qualified` tint where the chain is short a term |
+| `no pass/fail criterion recorded yet` | folds. It is an absence, not an answer — but the row is never left silent, because the badge speaks for it |
+| `does not sum` | folds. The row also keeps its amber `--warn` tint, which is a state and not a badge |
+| `unverified` / `no tolerance recorded` / `incomplete` | fold. These are `VA.ATTENTION`'s three flags; they are still chips on the DAG grid's edge rows and on a study's totals strip, where there is room to read them |
+
+**Why (2026-09-21, `viewer_nav_alert_badge_and_angled_default`).** Until then
+each row printed every one of those as its own filled all-caps chip — measured
+on `pitch_system`, 61 filled marks in a 300px always-visible rail against 20
+study names. Jeff: *"the alerts still haven't been replaced with a single
+triangle ! (hover over to see details)"*, and of the annotator's badge that
+already did this, *"same purpose, just in a different place"*. It was filed as
+`ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud`
+rather than done at the time, because quietening them partly reverses
+`viewer_study_verdicts_and_gaps` (2026-09-15), which put them there on purpose
+after Jeff asked for a verdict roll-up at all. The resolution keeps both: the
+**verdict** was what that handoff was answering and it stays loud; the alerts
+were the loudness and they fold. Nothing is deleted or reworded — folding the
+chips away *revealed* each alert's `why`, which was previously only a native
+tooltip. On the live projection all 21 study rows carry a badge, so the fold is
+not a rare path.
+
 **No click can leave the page without a repaint.** Each of the three handlers
 (`onNavTopology` / `onNavStudy` / `onNavStack`, `topology_app.js`) moves the
 state and then awaits a worksheet read, and all three go through `navigate()`:
@@ -399,10 +435,11 @@ is a dimension; a leader line is a part boundary.** Since handoff
 `viewer_leader_line_grid` (2026-09-10) the grid holds **one row per edge** in
 walk order — compact and evenly spaced — while the DAG keeps its own layout
 (one slot per node and edge today; the coming edge-length scaling modes will
-make it deliberately uneven). The two are tied together by **jogged leader
-lines**, GD&T ordinate-dimension style: orthogonal segments from a node's dot,
-across the jog zone, into the seam between the two grid rows that interface
-separates.
+make it deliberately uneven). The two are tied together by **leader
+lines**: from a node's dot, across the jog zone, into the seam between the two
+grid rows that interface separates. They shipped GD&T ordinate-dimension style
+— orthogonal segments — and since 2026-09-21 the default is the angled variant
+of the same two ends (see "Reading the leaders", below).
 
 **A leader is drawn only at a part boundary, and that omission IS the
 component grouping** (locked 2026-09-10; it supersedes the earlier
@@ -590,11 +627,24 @@ measured in every combination of them.
   own tint. Clamped, the bands tile the pane exactly. The crossings themselves
   are a layout-policy question and are filed rather than fixed:
   `docs/issues/ISSUE_20260914_leaders_cross_each_other_since_the_grid_was_centred.md`.
-* **Jogged or angled**, from the toolbar. Jogged is the default and is what
-  shipped: out from the dot, down a lane of the leader's own, into the grid.
-  Angled is one straight segment between the same two ends — Jeff asked for
-  both so he could try them against a real mechanism, and since only the path
-  between the ends changes, the endpoint checks pass in either.
+* **Angled or jogged**, from the toolbar. **Angled is the default** — one
+  straight segment between the leader's two ends. Jogged is what shipped first:
+  out from the dot, down a lane of the leader's own, into the grid. Jeff asked
+  for both so he could try them against a real mechanism, and since only the
+  path between the ends changes, the endpoint checks pass in either. The
+  default lives in exactly one place, `VA.DEFAULT_LEADER_STYLE` (`topology.js`);
+  the app shell's initial state and the toolbar's fallback both read it.
+
+  **2026-09-21: jogged is kept and deprioritized.** Jeff, having read both
+  against the real mechanisms: *"angled by default (jogged isn't really usable
+  yet and arguably isn't worth putting more effort into since the angled lines
+  look just fine)."* So the toggle keeps both styles and nothing about jogged is
+  deleted — but it gets **no further investment without a new decision**. The
+  open jogged-only complaint is in that freeze rather than queued: its lanes
+  bunch up on a dense mechanism, which is the complaint that produced the two
+  styles in the first place (quoted at the top of this section) and which
+  angled sidesteps by having no lanes. A later session that finds itself
+  polishing jogged is doing work nobody asked for.
 * **Two draggable widths**, each a grip in the sticky column header. The jog
   zone's sits on the seam between the SVG and the grid and spreads the lanes
   proportionally across whatever width it is dragged to — held as a *multiple*
@@ -1211,7 +1261,7 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all (code: `no_source_ref`) |
 | **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below. **On the right pane's block only** since 2026-09-16 — the elements table's own copy of it rolled into the row's one alert badge (next row) |
 | outlined magenta `CTE NOT TRANSCRIBED` | a material whose `values_status` says nobody has read the CTE off a source. **Filled** until 2026-09-17, when `design_pass_typography` reserved a fill for provenance's two worst states and for a verdict: the confidence chip beside it in the same source column already carries the filled magenta, and one row was wearing that mark twice (`.chip--values-not_transcribed`) |
-| outlined amber `⚠` | **the elements table's one alert badge** (`flyout_resize_annotator_filter_and_deselect`, 2026-09-16). Jeff: *"roll all the alert badges into one single alert badge… Mouse over the icon has a popup that lists out the actual alerts."* One badge per row however many alerts it carries; the words are unchanged (`VA.rowAlerts` reads `VA.ATTENTION` and `VA.EXPORT_CHIP_TEXT`) and moved into the hover card, which also shows each alert's *why* — a sentence the chips only ever carried as a native tooltip. Outlined rather than filled because it is the only alert marker on the row and so competes with nothing. A row with nothing to admit shows **nothing** |
+| outlined amber `⚠` | **one alert badge per row**, on the elements table (`flyout_resize_annotator_filter_and_deselect`, 2026-09-16) and on the nav rail's study rows (`viewer_nav_alert_badge_and_angled_default`, 2026-09-21 — see "What a study row wears", above; `views/dom.js`'s `VA.alertBadge` builds both). Jeff: *"roll all the alert badges into one single alert badge… Mouse over the icon has a popup that lists out the actual alerts."* One badge per row however many alerts it carries; the words are unchanged (`VA.rowAlerts` reads `VA.ATTENTION` and `VA.EXPORT_CHIP_TEXT`) and moved into the hover card, which also shows each alert's *why* — a sentence the chips only ever carried as a native tooltip. Outlined rather than filled because it is the only alert marker on the row and so competes with nothing. A row with nothing to admit shows **nothing** |
 | dashed blue `no tolerance recorded` | a value with no plus/minus behind it, so every interval it feeds is a **lower bound** on the real spread, never the real one. Still rendered as a chip in the right pane and on the DAG grid; on the elements table it is one of the two alerts the badge above carries. A separate axis from confidence, not a fourth confidence. It read `zero-width band` until 2026-09-16 on four of the five surfaces that state it while the DAG page said `no tolerance recorded` about the same element; all five read `VA.ATTENTION.no_tolerance` now, and the CSS class names (`chip--zero-width`, `num--zero-width`, `el-row--zero-width`, `tvrow--zero-width`) and the projection field `zero_width_count` deliberately keep the old word — nothing reads them as words |
 | striped card + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are printed on the card, directly under the numbers they are a budget for. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose |
 | dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |

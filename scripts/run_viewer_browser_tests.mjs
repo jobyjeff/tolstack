@@ -1444,8 +1444,11 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await dismissCard(page);
 
     // A leader is clickable too, and selecting a boundary node marks it.
-    // Clicked at a point ON the path rather than at its box's centre: a
-    // jogged leader is an L, so whether its box centre happens to fall within
+    // Clicked at a point ON the path rather than at its box's centre. That is
+    // belt-and-braces at the angled default (a straight segment's box centre
+    // IS on the path) and load-bearing in jogged style, which this same click
+    // has to keep working in: a jogged leader is an L, so whether its box
+    // centre happens to fall within
     // the 10px hit stroke is luck about that one leader's proportions — and
     // the luck ran out when viewer_dag_spine_layout moved the spine right
     // (the node end moved 20px closer to the lane, and the centre fell off
@@ -2254,22 +2257,19 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     // angled, and the jog zone at two widths.
     const bands = () => page.evaluate(BANDS_IN_PAGE);
 
-    const joggedBands = await bands();
-    push("the bands are drawn, tinted by parity, and hit-test nothing",
-      joggedBands.bad.length === 0 && joggedBands.drawn === joggedBands.bands &&
-      joggedBands.tinted > 0);
-    if (joggedBands.bad.length) console.log("    bands: " + joggedBands.bad.slice(0, 5).join(" | "));
-    push("every leader is still a right-angle jog by default",
-      joggedBands.leaderPaths.length === 5 &&
-      joggedBands.leaderPaths.every((d) => / H .* V .* H /.test(d)));
-
-    push("the leader-style toggle starts at jogged",
-      /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
-    await page.locator("#leader-style-toggle").click();
-    await page.waitForTimeout(50);
+    // ANGLED is the default since 2026-09-21 (viewer_nav_alert_badge_and_
+    // angled_default), so the default style is measured FIRST and jogged is
+    // the one reached by a click. Jeff: "angled by default (jogged isn't
+    // really usable yet and arguably isn't worth putting more effort into
+    // since the angled lines look just fine)."
     const angledBands = await bands();
-    push("one click: angled leaders, drawn as one straight segment each",
-      /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
+    push("the bands are drawn, tinted by parity, and hit-test nothing",
+      angledBands.bad.length === 0 && angledBands.drawn === angledBands.bands &&
+      angledBands.tinted > 0);
+    if (angledBands.bad.length) console.log("    bands: " + angledBands.bad.slice(0, 5).join(" | "));
+    push("the leader-style toggle starts at angled",
+      /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()));
+    push("every leader is one straight segment by default",
       angledBands.leaderPaths.length === 5 &&
       angledBands.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
     // The deliverable's own condition: the endpoint checks pass in BOTH
@@ -2278,9 +2278,19 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("angled leaders land on exactly the same dots and seams",
       angledDrift.drift.length === 0 && angledDrift.leaders === 5);
     if (angledDrift.drift.length) console.log("    drift: " + angledDrift.drift.slice(0, 5).join(" | "));
-    push("the bands follow the angled leaders and still tint by parity",
-      angledBands.bad.length === 0);
-    if (angledBands.bad.length) console.log("    bands: " + angledBands.bad.slice(0, 5).join(" | "));
+
+    await page.locator("#leader-style-toggle").click();
+    await page.waitForTimeout(50);
+    const joggedBands = await bands();
+    push("one click: jogged leaders, each drawn as a right-angle jog",
+      /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()) &&
+      joggedBands.leaderPaths.length === 5 &&
+      joggedBands.leaderPaths.every((d) => / H .* V .* H /.test(d)));
+    push("jogged leaders land on exactly the same dots and seams",
+      (await correspondence()).drift.length === 0);
+    push("the bands follow the jogged leaders and still tint by parity",
+      joggedBands.bad.length === 0);
+    if (joggedBands.bad.length) console.log("    bands: " + joggedBands.bad.slice(0, 5).join(" | "));
 
     // Dragging the jog zone open, with a real pointer on the real grip --
     // the whole affordance, not the pure scale arithmetic the fast tier pins.
@@ -2295,22 +2305,25 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     await page.waitForTimeout(80);
     const widened = await bands();
     push("dragging the grip really widens the jog zone",
-      widened.svgWidth > angledBands.svgWidth + 100);
+      widened.svgWidth > joggedBands.svgWidth + 100);
     push("a widened jog zone leaves every leader on its dot and its seam",
       (await correspondence()).drift.length === 0);
     push("the bands widen with the zone rather than staying behind",
       widened.bad.length === 0);
     if (widened.bad.length) console.log("    bands: " + widened.bad.slice(0, 5).join(" | "));
-    // ...and the same, back in jogged style: the resized zone × both styles
-    // is the matrix, not two separate one-offs.
+    push("jogged lanes really did spread across the widened zone",
+      widened.leaderPaths.every((d) => / H .* V .* H /.test(d)));
+    // ...and the same, back in angled style: the resized zone × both styles
+    // is the matrix, not two separate one-offs. Ends on the DEFAULT style, so
+    // everything below this block sees the state a fresh load would have.
     await page.locator("#leader-style-toggle").click();
     await page.waitForTimeout(50);
-    const widenedJog = await bands();
-    push("jogged leaders in a widened zone correspond too, and their lanes " +
-      "really did spread",
+    const widenedAngled = await bands();
+    push("angled leaders in a widened zone correspond too, and the zone " +
+      "stayed where the drag left it",
       (await correspondence()).drift.length === 0 &&
-      widenedJog.leaderPaths.every((d) => / H .* V .* H /.test(d)) &&
-      widenedJog.svgWidth > angledBands.svgWidth + 100);
+      widenedAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)) &&
+      widenedAngled.svgWidth > joggedBands.svgWidth + 100);
 
     // The ELEMENT column: widening it must reveal more text and change NO
     // row's height -- a <tr>'s height is a floor, not a cap, so a cell that
@@ -2502,6 +2515,63 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         }
       }
 
+      // --- the nav rail, folded (viewer_nav_alert_badge_and_angled_default) --
+      //
+      // Jeff, 2026-09-21, on this rail against the live projection: "the
+      // alerts still haven't been replaced with a single triangle ! (hover
+      // over to see details)". The fast tier counts the badges in a shim; what
+      // only a real browser can answer is the half that made this a browser
+      // problem at all -- the rail is 300px, sticky, `overflow-y: auto`, so a
+      // popup rendered INSIDE a row would be clipped to it and a row near the
+      // bottom would open its card off the bottom of the scrollport. The card
+      // is the page's shared `position: fixed` node for exactly that reason,
+      // and the check is that it lands on screen.
+      const navAlerts = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll(
+          "#navtree .navtree__row--study"));
+        return {
+          rows: rows.length,
+          worst: Math.max(...rows.map((r) =>
+            r.querySelectorAll(".chip--alert").length)),
+          flags: rows.reduce((n, r) => n + r.querySelectorAll(".tvflag").length, 0),
+          silent: rows.filter((r) =>
+            !r.querySelectorAll(".tvverdict, .chip--alert").length).length,
+          badged: rows.filter((r) => r.querySelectorAll(".chip--alert").length).length,
+          triangles: rows.filter((r) => (r.textContent.match(/⚠/g) || []).length > 1).length,
+        };
+      });
+      push(`[real] every study row on the rail wears at most one ⚠ and no ` +
+        `loose flag (${navAlerts.badged} of ${navAlerts.rows} rows badged)`,
+        navAlerts.rows >= 20 && navAlerts.worst === 1 && navAlerts.flags === 0 &&
+        navAlerts.triangles === 0 && navAlerts.badged >= 1);
+      push("[real] and not one row is silent about whether its study passes",
+        navAlerts.silent === 0);
+      // Nothing open first: an open card plus a pointer aimed at it is the
+      // hover-intent corridor's own case (`defer`), and it would hold this
+      // hover for VA.HOVER_INTENT_MS rather than answer it.
+      await dismissCard(page);
+      const navBadge = page.locator("#navtree .navtree__row--study .chip--alert").first();
+      await navBadge.hover();
+      await page.waitForSelector(".hovercard--alerts", { timeout: 5000 });
+      const navCard = await page.evaluate(() => {
+        const card = document.querySelector(".hovercard--alerts");
+        const box = card.getBoundingClientRect();
+        return {
+          text: card.textContent,
+          items: card.querySelectorAll("li.hovercard__alert").length,
+          onScreen: box.top >= 0 && box.left >= 0 &&
+            box.bottom <= window.innerHeight && box.right <= window.innerWidth,
+          wider: box.width > 300,
+        };
+      });
+      push(`[real] hovering it opens the card with every folded alert as a ` +
+        `sentence (${navCard.items})`,
+        navCard.items >= 1 && /[a-z]{4,}[^.]*\./.test(navCard.text));
+      push("[real] the card escapes the 300px rail rather than being clipped " +
+        "inside it, and lands wholly on screen",
+        navCard.onScreen && navCard.wider);
+      await dismissCard(page);
+
       // Edge-length scaling against the real pitch_system (the DoD's own
       // case): every edge is variation-only (nominal 0.0, a real ± band), so
       // feature-size mode floors ALL of them — the honest all-marked
@@ -2559,20 +2629,26 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         realBands.tinted === realBands.rowHeights.length &&
         realBands.provenanceLayers > realBands.tinted / 2);
       if (realBands.bad.length) console.log("    bands: " + realBands.bad.slice(0, 5).join(" | "));
+      // Both styles against the real mechanism. The page arrives in ANGLED
+      // (VA.DEFAULT_LEADER_STYLE since 2026-09-21), so the click reaches
+      // jogged and the one after it comes home.
+      await page.locator("#leader-style-toggle").click();
+      await page.waitForTimeout(80);
+      const realJogged = await page.evaluate(BANDS_IN_PAGE);
+      push("[real] pitch_system's jogged leaders still land on every dot and seam",
+        (await correspondence()).drift.length === 0 &&
+        realJogged.bad.length === 0 &&
+        realJogged.leaderPaths.length === 16 &&
+        realJogged.leaderPaths.every((d) => / H .* V .* H /.test(d)));
+      if (realJogged.bad.length) console.log("    bands: " + realJogged.bad.slice(0, 5).join(" | "));
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
       const realAngled = await page.evaluate(BANDS_IN_PAGE);
-      push("[real] pitch_system's angled leaders still land on every dot and seam",
+      push("[real] and back in angled style, one straight segment each",
         (await correspondence()).drift.length === 0 &&
-        realAngled.bad.length === 0 &&
+        /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()) &&
         realAngled.leaderPaths.length === 16 &&
         realAngled.leaderPaths.every((d) => /^M [-\d.]+ [-\d.]+ L [-\d.]+ [-\d.]+$/.test(d)));
-      if (realAngled.bad.length) console.log("    bands: " + realAngled.bad.slice(0, 5).join(" | "));
-      await page.locator("#leader-style-toggle").click();
-      await page.waitForTimeout(80);
-      push("[real] and back in jogged style",
-        (await correspondence()).drift.length === 0 &&
-        /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
 
       // Both resizes are display preferences, so SWITCHING TOPOLOGY must not
       // reset them -- the rule density and the length modes already follow.
@@ -2613,17 +2689,22 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       // one nothing observed until 2026-09-15 (ISSUE_20260915_leader_style_
       // persistence_across_topology_switch_is_unpinned): topology_app.js and
       // apps/viewer/README.md both say it survives a topology switch "like
-      // density does", and adding `state.leaderStyle = "jogged";` to
+      // density does", and adding a `state.leaderStyle = <default>;` line to
       // selectTopology() shipped green in every tier. The reason is placement,
-      // not coverage: the block above toggles to angled, measures, and toggles
-      // BACK before the only topology switch in the suite, and at the default
-      // a reset and a non-reset are the same state. So switch topology while
-      // the style is OFF its default, and read the toggle back afterwards.
+      // not coverage: the block above toggles off the default, measures, and
+      // toggles BACK before the only topology switch in the suite, and at the
+      // default a reset and a non-reset are the same state. So switch topology
+      // while the style is OFF its default, and read the toggle back
+      // afterwards. Off the default is JOGGED since 2026-09-21, which is the
+      // whole reason this anchor is written against the toggle's TEXT rather
+      // than against a style name: flipping the default moves which side of
+      // the toggle is the anchor, and a hard-coded "angled" here would have
+      // quietly gone back to measuring nothing.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
       push("[real] the anchor: the leader style really is off its default " +
         "before the switch",
-        /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()));
+        /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
 
       await page.locator(navRow("topology", "pitch_link_to_pitch_plate")).click();
       await page.waitForSelector("tr.tvrow", { timeout: 5000 });
@@ -2634,8 +2715,8 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         Math.abs(switched.scale - dragged.scale) < 0.01 &&
         (await correspondence()).drift.length === 0);
       push("[real] switching topology keeps the leader STYLE too",
-        /Leaders: angled/.test(await page.locator("#leader-style-toggle").textContent()));
-      // Back to jogged, so everything below this sees the default it expects.
+        /Leaders: jogged/.test(await page.locator("#leader-style-toggle").textContent()));
+      // Back to angled, so everything below this sees the default it expects.
       await page.locator("#leader-style-toggle").click();
       await page.waitForTimeout(80);
       await page.locator(navRow("topology", "pitch_system")).click();

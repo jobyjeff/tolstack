@@ -991,17 +991,19 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
        colour and their outline instead of from a third axis.
    A flag still survives a glance -- a red outlined pill on a grey row is the
    only coloured thing on it. It just no longer survives at the cost of the row
-   it sits on. Consolidating the three into ONE badge is a separate, open
-   question and deliberately not done here:
-   ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud.
+   it sits on.
 
-   The padding is tighter than `.chip`'s own and there is no extra tracking,
-   both to buy back the width the step from 10px to 11px costs: a study
-   carrying a verdict and two flags has to fit them on one line in a 300px
-   rail, and two lines of badges under a name is the row's structure broken a
-   different way. Measured on the live nav: 12 of 28 rows wrapped their chips
-   before this pass and 12 wrap after it, so the step up in size cost no row
-   its line. */
+   CONSOLIDATED on 2026-09-21 (viewer_nav_alert_badge_and_angled_default),
+   which closes the question left open above: the NAV RAIL's study rows carry
+   no `.tvflag` at all any more -- their flags fold into one `.chip--alert` ⚠
+   with the sentences in the card it opens (views/nav.js's studyBadges over
+   VA.studyNavAlerts). These three selectors still style the two surfaces that
+   are not a 300px always-visible rail and where the words have room to be
+   read: the topology GRID's edge rows and a study's own totals strip
+   (views/topology.js). The padding below is tighter than `.chip`'s own and
+   there is no extra tracking, both to buy back the width the step from 10px to
+   11px cost on the rail those rows no longer sit in; it is kept because the
+   grid's rows are narrower still. */
 .tvflag {
   font-weight: 600; font-size: var(--t-micro); text-transform: uppercase;
   background: none; padding: 1px 5px;
