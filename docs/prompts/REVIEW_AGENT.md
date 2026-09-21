@@ -2111,6 +2111,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       control near a collapsed/expandable element, check which element's
       transient state a re-render destroys, and demand the browser tier click
       it — a fast-tier `.count()`-style assertion cannot fail on this class.
+      **Second sighting 2026-09-21 (`annotate_hint_bar_and_context_autofilter`),
+      and the wider shape: it is not only `<details>`/scroll/focus — a text
+      field's typed VALUE is UI state too.** The annotator's new Help toggle
+      calls `renderDetail()`, which is `el.detail.innerHTML = ""` + rebuild, and
+      the bind form's six controls are inside what it rebuilds, so the button a
+      reader presses *while* filling the form discards it
+      (`ISSUE_20260921_the_annotators_help_button_discards_a_half_filled_bind_
+      form.md`; measured by typing into `#bind-note-input`, clicking
+      `#detail .an__disclose`, re-reading the value). The check to run on any
+      new control: **grep what its handler calls, and ask whether that renderer
+      owns the subtree the control sits in.** The same diff's sibling toggles
+      are the correct shape and make the contrast — `transparency` calls only
+      `renderHintPanel()`, the auto-filter boxes only `renderAutoSetup()` plus
+      the rail renderers, and neither touches `#detail`.
 
 - [ ] **An example list explaining a numeric excess reads as exhaustive — do
       the residual arithmetic.** New 2026-09-10 (`viewer_leader_line_grid`).

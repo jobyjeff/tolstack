@@ -31,6 +31,15 @@ Inside those two verbs, the order that matters:
   the scope's parts → `clearMarks` → one `mark-face` per bound face →
   `renderDetail`.
 
+> **Correction, review 2026-09-21.** Two claims in this section are off against
+> the code, both harmlessly but the suggestion handoff is told to rely on this
+> list. (1) In `cmdTrace` the `clearMarks` comes **before** the `ghost`/`isolate`,
+> not after it (`apps/annotate/app.js`: `state.scene.clearMarks()` sits directly
+> under the `setPanelFilter` and above the `AA.exec(["ghost"|"isolate", …])`).
+> (2) `runPendingDeepLink` is twelve lines brace to brace, not "three" — a `for` over
+> `AA.planEntryCommands` with a `try`/`catch` inside it. The substantive claim
+> under (2) is right as written: it branches on nothing the URL carries.
+
 `ghost` vs `isolate` is the **only** place the see-through setting is consulted
 at entry; both take the same `planIsolate` transition, so the difference is one
 `setGhost` call and nothing else.
