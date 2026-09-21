@@ -56,6 +56,7 @@ function computeFaceVertexRanges(manifestFaces) {
 export class AnnotateScene {
   constructor(hostEl, storage) {
     this.storage = storage;
+    this.hostEl = hostEl;
     this.parts = new Map(); // source_step_sha256 -> THREE.Mesh
     this._marks = [];       // {sha256, faceId, mesh} -- opaque bound-face overlays
     this._layoutX = 0;
@@ -99,12 +100,38 @@ export class AnnotateScene {
     // successful pick, null on a miss into empty space.
     this.onPick = function () {};
 
+    // The canvas follows its host box. Until 2026-09-21 the renderer was sized
+    // ONCE, at construction, and nothing resized it -- which was survivable
+    // while the host was a fixed grid cell and is not now: the top bar opens
+    // and closes above it (handoff annotate_hint_bar_and_context_autofilter),
+    // and in the viewer's flyout the whole panel is drag-resized. A stale
+    // drawing buffer does not just look wrong, it puts the raycast's NDC
+    // mapping (pointerdown, above) out of step with what is on screen, so a
+    // click lands on the wrong face.
+    if (typeof ResizeObserver === "function") {
+      this._resizeObserver = new ResizeObserver(() => this.resize());
+      this._resizeObserver.observe(hostEl);
+    }
+
     const animate = () => {
       requestAnimationFrame(animate);
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
     };
     animate();
+  }
+
+  // Re-sizes the drawing buffer and the projection to the host's current box.
+  // A zero dimension (a hidden host) is ignored rather than clamped: three.js
+  // would take an aspect ratio of 0/N and never recover it on the way back.
+  resize() {
+    const width = this.hostEl.clientWidth;
+    const height = this.hostEl.clientHeight;
+    if (!width || !height) return false;
+    this.renderer.setSize(width, height);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    return true;
   }
 
   // Lazy-load: fetches geometry only when a part is actually opened, not the

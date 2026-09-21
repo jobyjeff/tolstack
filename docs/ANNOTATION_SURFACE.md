@@ -66,8 +66,8 @@ the loaded set is a **first-class result**, not a failure to record:
 
 **A binding is identity, not a value source** (decision 6, the precedence
 guard). Where a stack-side key already carries a real drawing citation, the
-drawing wins — `apps/annotate/` says so in plain words in its detail pane,
-and nothing here ever supplies a dimension.
+drawing wins — `apps/annotate/` says so in plain words in the bar above its
+3D view, and nothing here ever supplies a dimension.
 
 ## The formats
 
@@ -124,7 +124,10 @@ this command layer, on purpose, because the intended follow-on is a
 vision-agent driver operating the surface the same way (zoom/pan/rotate/
 filter/select as text commands over a screenshot). A deep link
 (`?topology=&edge=&study=&isolate=`) and a parts panel (per-mesh show/hide/
-isolate) are its first two consumers; `apps/viewer/`'s topology-mode detail
+isolate) are its first two consumers — and so is every switch on the page:
+the arrival settings and the see-through toggle added on 2026-09-21
+(`annotate_hint_bar_and_context_autofilter`) are `auto-filter` and
+`transparency`, not state a checkbox pokes. `apps/viewer/`'s topology-mode detail
 pane emits the deep link on an untraced/uncited edge ("annotate this →"),
 naming the edge's own `part` as `isolate` — a different vocabulary than a
 mesh's `provenance.json` `part_id`, bridged by the declared alias table

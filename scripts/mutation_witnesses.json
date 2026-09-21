@@ -846,6 +846,54 @@
       "tier": "python",
       "suite": "tests/test_viewer_crops.py",
       "expect_red": "test_the_builder_carries_the_drawings_own_number_and_revision"
+    },
+    {
+      "id": "annotate-hint-pane-is-a-bar-not-a-third-column",
+      "contract": "The detail/hint pane is a bar across the TOP of the 3D view, not a column beside it -- the 3D canvas runs to the right edge of the window.",
+      "issue": null,
+      "note": "The mutation is the pre-2026-09-21 layout exactly: the third grid column comes back. Nothing but a measurement notices -- the markup, the ids and every other annotate suite stay green, because #detail is still on the page, still populated and still inside #workspace. That is the whole reason this guard measures boxes rather than reading class names.",
+      "file": "apps/annotate/style.css",
+      "find": "  grid-template-columns: 260px 1fr;",
+      "replace": "  grid-template-columns: 260px 1fr 320px;",
+      "tier": "browser",
+      "suite": "annotate top bar + entry context (auto-filter, see-through)",
+      "expect_red": "...and the 3D canvas runs to the right edge of the window -- there is no third column taking a slice of it"
+    },
+    {
+      "id": "arriving-at-an-element-shows-its-part-in-3d",
+      "contract": "Arriving from the stack viewer does not merely FILTER the two lists to the element's part -- it shows that part in the 3D view, which is the half Jeff's 2026-09-21 note is about ('you already know the 3d body ... so all of these should be filtered automatically').",
+      "issue": null,
+      "note": "The mutation keeps every list-side effect (filter-element still runs, so the rail's scope bar and both panels are exactly right) and drops only the scene call. Every sub-check that reads the rail stays green; the one that asks whether the part is actually VISIBLE is the one that bites.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (shas.length) {\n    await AA.exec([state.transparentParts ? \"ghost\" : \"isolate\", ...shas]);\n  }",
+      "replace": "  if (false && shas.length) {\n    await AA.exec([state.transparentParts ? \"ghost\" : \"isolate\", ...shas]);\n  }",
+      "tier": "browser",
+      "suite": "annotate top bar + entry context (auto-filter, see-through)",
+      "expect_red": "...and shows that element's part alone, in the scene and in the list"
+    },
+    {
+      "id": "unticking-an-auto-filter-switch-returns-that-control-to-manual",
+      "contract": "Unticking an auto-filter switch returns that control to manual AT ONCE -- a switch whose effect only shows up on the next launch is a switch nobody can tell is working.",
+      "issue": null,
+      "note": "The mutation drops only the immediate lift and keeps the stored setting, which is the plausible half-implementation: the box stays unticked, it survives a reload, and the next arrival really does skip the step -- so every check except the one about NOW stays green. It took a code change to make this witnessable: the lift and the re-apply were an if/else, so dropping the lift fell through to the replay, whose own topology re-select clears the scope anyway -- the mutation lifted the filter by a second route and the tier stayed green. Two independent statements now.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (key === \"part\" && !on) cmdFilterElement(null);",
+      "replace": "  if (false) cmdFilterElement(null);",
+      "tier": "browser",
+      "suite": "annotate top bar + entry context (auto-filter, see-through)",
+      "expect_red": "unticking Parts returns the lists to manual at once"
+    },
+    {
+      "id": "the-see-through-switch-flips-what-is-already-on-screen",
+      "contract": "The see-through switch applies to the parts that are ALREADY open, not just to the next arrival -- for both entry shapes (one element, and a whole study or topology).",
+      "issue": null,
+      "note": "The mutation keeps the setting, the persistence and the checkbox state and drops only the re-application to open parts. The reader ticks the box, it stays ticked, it survives a reload, and nothing on screen changes -- which is exactly the shape a guard reading the setting rather than the material would miss.",
+      "file": "apps/annotate/app.js",
+      "find": "  state.scene.listOpenParts().forEach((sha) => {\n    if (state.scene.isVisible(sha)) state.scene.setGhost(sha, on);\n  });",
+      "replace": "  state.scene.listOpenParts().forEach(() => {});",
+      "tier": "browser",
+      "suite": "annotate top bar + entry context (auto-filter, see-through)",
+      "expect_red": "unticking See-through parts makes the body solid, now"
     }
   ]
 }

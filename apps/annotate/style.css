@@ -83,9 +83,15 @@ body {
 .banner--warn { color: #d6b45b; }
 .banner--error { color: #d65b5b; }
 
+/* TWO columns since 2026-09-21, not three: the detail/hint pane was a 320px
+   column on the right and is now a bar across the top of the scene (Jeff, on
+   the flyout: "it takes up half of the usable 3d canvas. Make it a horizontal
+   divider so it's just a single line at the top"). The canvas is that whole
+   320px wider; the bar costs one line of height and opens only when there is
+   something to act on. */
 .an {
   display: grid;
-  grid-template-columns: 260px 1fr 320px;
+  grid-template-columns: 260px 1fr;
   height: calc(100vh - 70px);
 }
 
@@ -94,6 +100,19 @@ body {
   overflow-y: auto;
   border-right: 1px solid #33383f;
 }
+
+/* What an arrival sets up for you (deliverable 3). Quiet and collapsed at
+   rest: it governs controls that are right below it and a reader who is happy
+   with the defaults should meet one word, not four checkboxes. */
+.an__auto { font-size: var(--t-meta); }
+/* `list-style-position: inside` on purpose: the rail is a 10px-padded
+   scrollport, so an OUTSIDE marker on a summary at x = 0 is drawn into the
+   padding and clipped -- measured, the disclosure triangle was invisible. */
+.an__auto > summary {
+  cursor: pointer; color: #9aa1ab; padding: 2px 0; list-style-position: inside;
+}
+.an__auto > summary:hover, .an__auto[open] > summary { color: #cfd3d8; }
+.an__auto-body { padding: 4px 0 6px 12px; }
 .an__label { display: block; font-size: var(--t-micro); color: #9aa1ab; margin-top: 8px; }
 .an__rail select, .bind-form select, .bind-form input,
 .owner-not-in-set-form input, .an__console input {
@@ -168,7 +187,12 @@ body {
 .alertpop ul { list-style: none; margin: 0; padding: 0; }
 .alertpop li + li { margin-top: 6px; }
 
-.an__scene { position: relative; }
+/* The scene column is a stack now: the top bar, then the stage. `min-height`
+   and `min-width` of 0 are load-bearing on a grid item -- without them a flex
+   column's content sets a floor and the canvas can no longer shrink with the
+   window (or with the flyout's divider). */
+.an__scene { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.an__stage { position: relative; flex: 1; min-height: 0; }
 .an__canvas-host { position: absolute; inset: 0 0 92px 0; }
 
 /* deliverable 3: "never a blank scene" -- an isolate that matched no
@@ -208,19 +232,61 @@ body {
 }
 .part-row__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.an__detail {
-  padding: 12px;
-  overflow-y: auto;
-  border-left: 1px solid #33383f;
+/* --- the top bar (2026-09-21) --------------------------------------------
+   One horizontal band above the canvas, bounded so a long bind form can never
+   eat the 3D view the way the old column ate its width. */
+.an__hintbar {
+  background: #24282e;
+  border-bottom: 1px solid #33383f;
+  padding: 6px 12px;
   font-size: var(--t-dense);
   line-height: 1.5;
+  max-height: 45vh;
+  overflow-y: auto;
+  flex: none;
 }
-/* The detail pane's title: the element's name. Explicit, because the browser's
-   own `h3` default is 1.17em of whatever it inherits -- which made it 15.2px
-   here, a size on no scale, arrived at by accident. */
+
+/* The always-present line: the current instruction, then the quiet controls.
+   `#detail` keeps its id -- it is still "what the reader is being told and
+   what they can do about it", and the hosted-posture guard withholds the whole
+   workspace by that name. */
+.an__detail { display: flex; flex-direction: column; gap: 6px; }
+.an__detail-line { display: flex; align-items: center; gap: 12px; }
+/* The instruction. Takes the width; `min-width: 0` so a long element name
+   ellipsizes instead of shoving the controls off the end. */
+.an__task { flex: 1; min-width: 0; color: #e8e8e8; }
+
+/* Quiet affordances: subdued until hover/focus, no button chrome. Two of them
+   sit on the instruction line and one opens the help panel. */
+.an__disclose {
+  flex: none; background: none; border: none; color: #9aa1ab;
+  font: inherit; padding: 2px 6px; border-radius: 4px; cursor: pointer;
+}
+.an__disclose:hover, .an__disclose:focus { color: #e8e8e8; background: #2c3138; outline: none; }
+.an__disclose[aria-expanded="true"] { color: #e8e8e8; }
+/* The element's own controls, under the line and only when there is something
+   there: whitespace separates them from the instruction, not a border. */
+.an__detail-work { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
 .an__detail h3 {
-  margin: 0 0 8px; font-size: var(--t-title); font-weight: 600; color: #e8e8e8;
+  margin: 0; font-size: var(--t-title); font-weight: 600; color: #e8e8e8;
 }
+
+/* The help/settings panel the top bar opens (Jeff's "collapsible 'commands'
+   element that gives general help"). Two groups side by side on a wide bar,
+   stacking on a narrow one -- and the room a later section (auto-suggestion
+   settings, handoff annotate_face_suggestions) drops into. */
+.an__hint-panel {
+  display: flex; flex-wrap: wrap; gap: 8px 32px;
+  border-top: 1px solid #33383f; margin-top: 6px; padding-top: 8px;
+  color: #cfd3d8;
+}
+.an__hint-group { flex: 1 1 260px; min-width: 0; }
+.an__hint-group h4 {
+  margin: 0 0 4px; font-size: var(--t-micro); font-weight: 600; color: #9aa1ab;
+}
+.an__hint-lines { list-style: none; margin: 0; padding: 0; font-size: var(--t-meta); }
+.an__hint-lines li + li { margin-top: 3px; }
+.an__setting { display: flex; align-items: center; gap: 6px; font-size: var(--t-meta); }
 /* Whose face this element already has, and why a binding here will not supply
    a value. A SPINE and a wash since 2026-09-17, where it was a filled dark-red
    panel with pink text: it is the pane's most important sentence and it is
@@ -229,30 +295,33 @@ body {
    draw. Same shape the viewer gives its own chain-level warnings
    (`.tvwarn--unverified`), so a reader who has learned one has learned this. */
 .precedence-note {
-  margin: 0 0 10px;
+  margin: 0;
+  width: 100%;
   border-left: 3px solid #d65b5b;
   background: rgba(214, 91, 91, .12);
   color: #e8e8e8;
   padding: 6px 10px;
   border-radius: 0 4px 4px 0;
 }
-.read-only-note { color: #d6b45b; }
-/* Whether a face has been picked. Grey: with no pick it is an ABSENCE, and with
-   one it is context for the form below it -- secondary either way, and it was
-   reading as the pane's headline because it was the only unstyled paragraph in
-   a pane where everything else is coloured. */
-.an__pick { color: #9aa1ab; }
+.read-only-note { margin: 0; width: 100%; color: #d6b45b; }
 
+/* HORIZONTAL since 2026-09-21: these two forms used to be the bottom of a
+   320px column and stacked their fields; in a bar across the top they lay out
+   in a row that wraps. Each field keeps a usable minimum so a narrow flyout
+   wraps rather than crushing them. */
 .bind-form, .owner-not-in-set-form {
-  border-top: 1px solid #33383f;
-  margin-top: 10px;
-  padding-top: 10px;
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px;
+  width: 100%;
 }
-.bind-form label, .owner-not-in-set-form label { display: block; font-size: var(--t-micro); color: #9aa1ab; margin-top: 6px; }
-.bind-form select, .bind-form input, .owner-not-in-set-form input { width: 100%; margin-bottom: 4px; }
-/* Full width, deliberately, against the `align-self: flex-start` the shared
-   button rule sets: here the button IS the form's submit and spanning the
-   form is what says so. */
-.bind-form button, .owner-not-in-set-form button {
-  margin-top: 6px; width: 100%; align-self: stretch;
-}
+.bind-form > div, .owner-not-in-set-form > div { flex: 1 1 140px; min-width: 120px; }
+.bind-form label, .owner-not-in-set-form label { display: block; font-size: var(--t-micro); color: #9aa1ab; }
+.bind-form select, .bind-form input, .owner-not-in-set-form input { width: 100%; }
+.bind-form button, .owner-not-in-set-form button { flex: none; }
+
+/* The escape hatch for an element whose part is not in the loaded set: rare,
+   and it needs a note field, so it is a disclosure rather than a permanent
+   control on the bar. */
+.an__nis { font-size: var(--t-meta); width: 100%; }
+.an__nis > summary { cursor: pointer; color: #9aa1ab; padding: 2px 0; }
+.an__nis > summary:hover, .an__nis[open] > summary { color: #cfd3d8; }
+.an__nis-body { padding-top: 6px; }

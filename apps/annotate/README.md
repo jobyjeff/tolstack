@@ -41,8 +41,18 @@ that: open a study, open a part, click a face, write one
   subtree-level filtering ("hide the whole EPU") needs assembly product
   structure this repo does not have yet.
 - Boots from a **deep link** (`?topology=&edge=&study=&isolate=`) with that
-  study open, the edge selected, and the named part(s) isolated — see "Deep
-  link in" below.
+  study open, the edge **selected**, the element's part(s) alone in the 3D
+  view, and a one-line task instruction composed from the element ("Select
+  the two faces that define …", singular once one direction is already bound)
+  — see "Deep link in" below. How much of that a link is allowed to do is the
+  reader's setting, in the rail's **Set up automatically** menu.
+- Puts the current instruction, this element's controls and a collapsible
+  help/settings panel in a **bar across the top of the 3D view** (handoff
+  `annotate_hint_bar_and_context_autofilter`, 2026-09-21). It was a 320px
+  column to the right of the canvas until then — Jeff, using the annotator
+  through the viewer flyout: *"it takes up half of the usable 3d canvas. Make
+  it a horizontal divider so it's just a single line at the top."* One line at
+  rest; the rest opens only when there is something to open.
 - **Does NOT measure, sum, or propose a binding.** A binding is identity, not
   a value source (the brief's decision 6): where an element already carries a
   drawing citation, the detail pane says so in plain words and the drawing
@@ -149,14 +159,17 @@ a scope decision this handoff did not have, and it is filed.
 | `isolate <part…>` | shows only the named part(s), hiding every other open part; opens any not yet loaded; frames the camera on them |
 | `ghost <part…>` | `isolate`'s translucent twin (handoff `study_3d_flyout`): shows only the named part(s), rendered ghosted, so opaque `mark-face` overlays trace a chain over them |
 | `mark-face <part> <face_id>` | renders one face as an opaque overlay — additive (a trace marks several), and unlike `select-face` it never touches the pick state |
-| `trace <topology> <study>` | the per-study 3D view: selects both, ghosts the study's parts (those with installed meshes after alias resolution), and marks every feature-identity-bound face opaque. Missing meshes and unbound edges degrade to the honest absent states, reported in the banner |
+| `trace <topology> [study]` | the **scope-level** 3D view: selects the topology (and the study, when one is named), shows only that scope's parts — translucent while `transparency` is on — and marks every feature-identity-bound face in the mark colour. With no study the scope is the whole topology. Missing meshes and unbound edges degrade to the honest absent states, reported in the banner |
 | `camera reset` | frames every currently-visible open part |
 | `camera frame <part…>` | frames the named part(s) (or the visible ones, with no args) |
 | `select-face <part> <face_id>` | picks a face by id — the non-mouse equivalent of clicking it |
 | `deselect [face\|element\|all]` | `select-face`'s and `select-edge`'s undo (default `face`): drops the pick AND its tint together, which is the pair that used to disagree. Clearing nothing is not an error — this is the undo of a mis-click |
 | `filter-element [<edge or node id>]` | scopes the left rail — element list *and* parts panel — to one element's own features; with no argument, lifts the filter. `goto` runs it for you when it arrives at an edge |
 | `select-topology <id>` / `select-study <id>` / `select-edge <id>` | the three steps `goto` composes, addressable one at a time |
-| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge — then scopes the rail to that edge (`filter-element`) |
+| `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge — then scopes the rail to that edge (`filter-element`) and shows only its part(s) in 3D. Each of those three steps is gated by its `auto-filter` switch; the edge itself never is |
+| `auto-filter <topology\|study\|part> <on\|off>` | one step of an arrival, on or off — the rail's **Set up automatically** checkboxes. Turning `part` off lifts the current scope at once; turning it back on re-applies the last arrival |
+| `transparency <on\|off>` | renders bodies translucent (or solid), for both entry shapes, applied to what is on screen now as well as remembered — the top bar's **See-through parts** box |
+| `help [on\|off]` | opens or closes the top bar's help/settings panel; no argument toggles |
 
 `resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and
 isolate state-transition helpers) and the tokenizer/dispatch registry itself
@@ -177,10 +190,29 @@ named part with no installed mesh is reported in the banner (and, if
 *nothing* named resolved, as a plain-words message over the 3D pane itself —
 never a blank scene) rather than silently doing nothing.
 
-`?trace=1&topology=<id>&study=<id>` boots the **per-study 3D trace** instead
-(the `trace` verb, handoff `study_3d_flyout`): the study's parts ghosted,
-its bound faces opaque. `trace` owns the whole scene state, so the
+`?trace=1&topology=<id>&study=<id>` boots a **scope-level entry** instead
+(the `trace` verb, handoff `study_3d_flyout`): only that study's parts,
+see-through, with its already-bound faces marked in the bind colour. `study`
+is optional here too — with none, the scope is the whole topology (handoff
+`annotate_hint_bar_and_context_autofilter`, deliverable 4; the viewer offers
+no launcher for that scope yet, `ISSUE_20260921_the_viewer_offers_no_3d_entry_
+at_topology_scope.md`). `trace` owns the whole scene state, so the
 `edge`/`isolate` params are not also applied on top of it.
+
+**How much of a link is applied is the reader's setting** (deliverable 3).
+The rail's **Set up automatically** menu carries one switch per step —
+Topology, Study, Parts — and the two entry verbs (`goto`, `trace`) consult
+them; the manual verbs (`select-topology`/`select-study`/`select-edge`/
+`filter-element`/`isolate`) never do, because a verb typed by hand does what
+it says. The edge itself is never gated: it is the thing the reader clicked.
+Unticking **Topology** while a *different* topology is open stops the arrival
+outright rather than half-applying it into an id space where the study and
+edge name nothing — and the banner says so. Both settings (these three, and
+**See-through parts**) persist in `localStorage` under `AA.PREF_KEYS`.
+
+The branching itself is `AA.planEntryCommands` (`commands.js`), not
+`app.js` — the URL's params in, the ordered command list out, so the fast
+tier can read what a link actually does.
 
 **FSA cannot pre-grant the folder from a URL.** A deep link opened cold has
 no folder access yet — the banner says so ("a linked element is queued"),
@@ -328,6 +360,29 @@ command, no interpreter and no path, and so is the absence of `CONFIG.rebuild`
 that used to supply one (handoff `annotate_hosted_page_posture`). They are
 constants in `storage/adapter.js` for exactly that reason: it is the only way
 this tier can read the copy at all.
+The 2026-09-21 top-bar/entry-context work added its own block to the same
+tier, all of it pure and therefore readable here: `scopeSelection` and
+`planScopeFilter` (a study's own lassoed edges, or every edge in the topology,
+returned in exactly `planPanelFilter`'s shape so the rail needs no second kind
+of scope), `planArrival` (each switch turns off its own step and disturbs no
+other; topology-off with a *different* topology open refuses outright rather
+than half-applying), `planEntryCommands` (the URL's params as an ordered
+command list — `trace` drops `edge`/`isolate` because a scope entry owns the
+scene), `bindingDirectionsNeeded`/`taskInstruction` (two faces, then one,
+then done, and every sentence the bar composes run past the shared ban list),
+and both remembered settings (round-trip, an unreadable value read as "not
+set" rather than as *off*, and a `localStorage` that throws on the very
+access still booting with the defaults).
+
+**What that tier still cannot see, and where it is seen instead.** The bar's
+whole point is a LAYOUT claim — the canvas is 320px wider — and there is no
+layout here. It is measured box against box in
+`scripts/run_viewer_browser_tests.mjs`'s `annotate top bar + entry context
+(auto-filter, see-through)` suite, together with the arrival actually
+selecting/showing what it says and the switches actually switching; four
+entries in `scripts/mutation_witnesses.json` pin that those measurements
+bite.
+
 It also carries a `[real]` tier that resolves every shipped alias in
 `docs/topologies/part_mesh_aliases.json` against the main checkout's
 installed meshes through `resolveMeshIdentifier` itself, skipping honestly

@@ -1093,6 +1093,425 @@ check("ALERT_ICON is one glyph and is not a word -- the badge carries no text " 
   }
 });
 
+// --- scope-level entry: a whole study, or a whole topology ------------------
+//
+// (handoff annotate_hint_bar_and_context_autofilter, deliverable 4. Jeff:
+// "when an entire study or topology is selected, there should be a way to
+// enter the 3d view, pre-filtered to just the parts included in that
+// study/topology".) The difference between the two scopes is which edges are
+// in scope and NOTHING else, which is what `scopeSelection` is for -- so the
+// trace and the panel filter both read it and cannot disagree about what
+// "topology scope" means.
+check("scopeSelection: a study is its own lassoed selection; no study is every " +
+  "edge in the topology", () => {
+  assertEqual(AA.scopeSelection(TRACE_TOPO, { selection: ["e_gap", "e_solid"] }),
+    ["e_gap", "e_solid"]);
+  assertEqual(AA.scopeSelection(TRACE_TOPO, null),
+    ["e_solid", "e_alias", "e_missing", "e_gap", "e_dup"]);
+  // A study with no selection is an EMPTY scope, not the whole topology: it
+  // says "these elements", and it named none.
+  assertEqual(AA.scopeSelection(TRACE_TOPO, { selection: [] }), []);
+});
+
+check("planStudyTrace with no study traces the WHOLE topology -- the same " +
+  "ghosts and marks, over every edge", () => {
+  const plan = AA.planStudyTrace(TRACE_TOPO, null, TRACE_IDENTITY, MESHES, ALIASES);
+  assertEqual(plan.parts, [
+    { part: "part_a", sha256: "aaaa" },
+    { part: "topology_name_for_part_a", sha256: "aaaa" },
+    { part: "no_such_part", sha256: null },
+  ]);
+  assertEqual(plan.marks, [{ edgeId: "e_solid", sha256: "bbbb", faceId: 4 }]);
+  assertEqual(plan.unresolvedMarks, [{ edgeId: "e_missing", sha256: "f".repeat(64) }]);
+});
+
+check("planScopeFilter returns the SAME shape planPanelFilter does, so the " +
+  "rail's two renderers and its scope bar need no second kind of scope", () => {
+  const study = { id: "s1", title: "A study", selection: ["e_solid", "e_missing"] };
+  const plan = AA.planScopeFilter(TRACE_TOPO, study, MESHES, ALIASES);
+  assertEqual(plan.kind, "study");
+  assertEqual(plan.target, "s1");
+  assertEqual(plan.name, "A study");
+  assertEqual(plan.edgeIds, ["e_solid", "e_missing"]);
+  assertEqual(plan.parts, [
+    { part: "part_a", sha256: "aaaa" },
+    { part: "no_such_part", sha256: null },
+  ]);
+  assertEqual(plan.missingParts, ["no_such_part"]);
+  // Every key planPanelFilter's plan carries, so a renderer reading one can
+  // read the other -- `name` is the one field only a scope has.
+  const element = AA.planPanelFilter(FILTER_TOPO, "demo_edge_untraced", FILTER_MESHES, []);
+  const missing = Object.keys(element).filter((k) => !(k in plan));
+  if (missing.length) {
+    throw new Error("a scope plan is missing planPanelFilter's " +
+      JSON.stringify(missing) + " -- the rail's renderers read both");
+  }
+});
+
+check("planScopeFilter with no study scopes the whole topology, naming it", () => {
+  const topology = { id: "t1", title: "A mechanism", edges: TRACE_TOPO.edges };
+  const plan = AA.planScopeFilter(topology, null, MESHES, ALIASES);
+  assertEqual(plan.kind, "topology");
+  assertEqual(plan.target, "t1");
+  assertEqual(plan.name, "A mechanism");
+  assertEqual(plan.edgeIds, ["e_solid", "e_alias", "e_missing", "e_gap", "e_dup"]);
+  // Each part once, in first-mention order, even though two edges name part_a.
+  assertEqual(plan.parts.map((p) => p.part),
+    ["part_a", "topology_name_for_part_a", "no_such_part"]);
+});
+
+// --- on/off, one vocabulary ------------------------------------------------
+check("parseOnOff takes exactly the two words in AA.ON_OFF and nothing else", () => {
+  assertEqual(AA.ON_OFF, ["on", "off"]);
+  assertEqual(AA.parseOnOff("on"), true);
+  assertEqual(AA.parseOnOff("off"), false);
+  // The near-misses that would otherwise become a second, undocumented
+  // vocabulary the moment one of them was accepted.
+  ["1", "0", "true", "false", "yes", "", undefined].forEach((bad) => {
+    assertThrows(() => AA.parseOnOff(bad),
+      "expected parseOnOff to refuse " + JSON.stringify(bad));
+  });
+  assertEqual(AA.onOff(true), "on");
+  assertEqual(AA.onOff(false), "off");
+});
+
+// --- the auto-filter switches (deliverable 3) ------------------------------
+check("AUTO_STEPS names the three steps Jeff asked for, in everyday words " +
+  "with no algorithm name on a checkbox", () => {
+  assertEqual(AA.AUTO_STEP_KEYS, ["topology", "study", "part"]);
+  if (AA.AUTO_STEPS.length !== AA.AUTO_STEP_KEYS.length) {
+    throw new Error("AUTO_STEPS and AUTO_STEP_KEYS have drifted");
+  }
+  AA.AUTO_STEPS.forEach((step) => {
+    assertNothingBanned(step.label, `AA.AUTO_STEPS.${step.key}.label`);
+    assertNothingBanned(step.hint, `AA.AUTO_STEPS.${step.key}.hint`);
+    if (/[a-z]_[a-z]/.test(step.label) || /filter|algorithm/i.test(step.label)) {
+      throw new Error(`the ${step.key} checkbox's label is not everyday words: ${step.label}`);
+    }
+    if (step.hint.length < 20) {
+      throw new Error(`the ${step.key} checkbox's hint is too short to be a sentence`);
+    }
+  });
+});
+
+check("normalizeAutoSteps: everything on by default, an unknown key dropped, " +
+  "a non-boolean read as 'not set' rather than as off", () => {
+  assertEqual(AA.normalizeAutoSteps(null), { topology: true, study: true, part: true });
+  assertEqual(AA.normalizeAutoSteps({ study: false }),
+    { topology: true, study: false, part: true });
+  assertEqual(AA.normalizeAutoSteps({ nonsense: false, part: "no" }),
+    { topology: true, study: true, part: true });
+});
+
+check("planArrival: every step on is the behaviour this app had before the " +
+  "checkboxes existed", () => {
+  assertEqual(AA.planArrival({
+    auto: AA.defaultAutoSteps(), currentTopologyId: "other", topologyId: "t1",
+  }), {
+    applies: true, keptTopologyId: null,
+    selectTopology: true, selectStudy: true, scopeParts: true,
+  });
+});
+
+check("planArrival: each switch turns off its own step and disturbs no other", () => {
+  const base = { currentTopologyId: "t1", topologyId: "t1" };
+  const off = (key) => {
+    const auto = AA.defaultAutoSteps();
+    auto[key] = false;
+    return AA.planArrival(Object.assign({ auto }, base));
+  };
+  assertEqual(off("study"), {
+    applies: true, keptTopologyId: null,
+    selectTopology: true, selectStudy: false, scopeParts: true,
+  });
+  assertEqual(off("part"), {
+    applies: true, keptTopologyId: null,
+    selectTopology: true, selectStudy: true, scopeParts: false,
+  });
+  // Topology off, same topology already open: there is nothing to select, and
+  // everything below still applies.
+  assertEqual(off("topology"), {
+    applies: true, keptTopologyId: null,
+    selectTopology: false, selectStudy: true, scopeParts: true,
+  });
+});
+
+check("planArrival: topology off with a DIFFERENT topology open keeps the " +
+  "reader's own pick -- and says so rather than half-applying", () => {
+  const auto = AA.defaultAutoSteps();
+  auto.topology = false;
+  const plan = AA.planArrival({ auto, currentTopologyId: "other", topologyId: "t1" });
+  assertEqual(plan.applies, false);
+  assertEqual(plan.keptTopologyId, "other");
+  // Nothing below it runs: a study id and an edge id from t1 name nothing in
+  // `other`, so a partial application would be an error, not a courtesy.
+  assertEqual(plan.selectStudy, false);
+  assertEqual(plan.scopeParts, false);
+});
+
+check("planArrival: topology off with NOTHING open still selects -- there is " +
+  "no reader's pick to keep", () => {
+  const auto = AA.defaultAutoSteps();
+  auto.topology = false;
+  const plan = AA.planArrival({ auto, currentTopologyId: null, topologyId: "t1" });
+  assertEqual(plan.applies, true);
+  assertEqual(plan.selectTopology, true);
+});
+
+// --- the URL params as a command list (deliverable 2) ----------------------
+check("planEntryCommands: a plain element link is goto, with the empty " +
+  "positional args the tokenizer would have produced", () => {
+  assertEqual(AA.planEntryCommands({ topology: "t1", edge: "e1", study: "s1" }),
+    [["goto", "t1", "e1", "s1"]]);
+  assertEqual(AA.planEntryCommands({ topology: "t1" }), [["goto", "t1", "", ""]]);
+});
+
+check("planEntryCommands: an explicit isolate= runs AFTER goto, so a named " +
+  "part beats the one the element derived", () => {
+  assertEqual(AA.planEntryCommands({ topology: "t1", edge: "e1", isolate: "part_a, part_b" }),
+    [["goto", "t1", "e1", ""], ["isolate", "part_a", "part_b"]]);
+  // An isolate with nothing in it is not a command at all.
+  assertEqual(AA.planEntryCommands({ topology: "t1", isolate: " , " }),
+    [["goto", "t1", "", ""]]);
+});
+
+check("planEntryCommands: trace owns the whole scene -- it drops edge and " +
+  "isolate rather than half-undoing itself", () => {
+  assertEqual(AA.planEntryCommands({ trace: true, topology: "t1", study: "s1",
+    edge: "e1", isolate: "part_a" }), [["trace", "t1", "s1"]]);
+  // ...and trace with no study is the topology-scope entry (deliverable 4).
+  assertEqual(AA.planEntryCommands({ trace: true, topology: "t1" }),
+    [["trace", "t1", ""]]);
+});
+
+check("planEntryCommands: no params at all is no commands -- an app opened " +
+  "cold runs nothing", () => {
+  assertEqual(AA.planEntryCommands({}), []);
+  assertEqual(AA.planEntryCommands(null), []);
+  // trace=1 with no topology names no scope, so there is nothing to trace.
+  assertEqual(AA.planEntryCommands({ trace: true }), []);
+  // ...and an isolate on its own still works, as it always has.
+  assertEqual(AA.planEntryCommands({ isolate: "part_a" }), [["isolate", "part_a"]]);
+});
+
+// --- the one-line task instruction (deliverable 2) -------------------------
+//
+// Jeff: "user can just be given simple instructions (ie select the two faces
+// that define the bushing length…)". Singular/plural comes from what the
+// binding still needs, which is what `bindingDirectionsNeeded` reads off the
+// record -- never from a guess about the element's kind.
+check("bindingDirectionsNeeded: nothing bound needs both directions; one " +
+  "bound leaves the other", () => {
+  assertEqual(AA.bindingDirectionsNeeded(null), ["from", "to"]);
+  assertEqual(AA.bindingDirectionsNeeded({ bindings: [] }), ["from", "to"]);
+  assertEqual(AA.bindingDirectionsNeeded({ bindings: [{ direction: "from" }] }), ["to"]);
+  assertEqual(AA.bindingDirectionsNeeded({
+    bindings: [{ direction: "from" }, { direction: "to" }],
+  }), []);
+  // Two faces recorded for the SAME direction still leave the other open.
+  assertEqual(AA.bindingDirectionsNeeded({
+    bindings: [{ direction: "to" }, { direction: "to" }],
+  }), ["from"]);
+});
+
+check("taskInstruction: with no element it is the sentence this app has " +
+  "always opened with", () => {
+  assertEqual(AA.taskInstruction({}), AA.TASK_NO_ELEMENT);
+  assertEqual(AA.taskInstruction(null), AA.TASK_NO_ELEMENT);
+});
+
+check("taskInstruction: a scope entry names the scope instead", () => {
+  const text = AA.taskInstruction({ scopeName: "End-stop chain" });
+  if (text.indexOf("End-stop chain") === -1) {
+    throw new Error("the scope entry's instruction does not name the scope: " + text);
+  }
+  assertNothingBanned(text, "AA.taskInstruction (scope)");
+});
+
+check("taskInstruction: two faces, then one, then done -- the count comes " +
+  "from what the binding still needs", () => {
+  const named = (needed) => AA.taskInstruction({
+    elementName: "Bushing length", needed,
+  });
+  if (named(["from", "to"]) !== "Select the two faces that define Bushing length.") {
+    throw new Error("unexpected two-face instruction: " + named(["from", "to"]));
+  }
+  if (named(["to"]).indexOf("remaining face") === -1) {
+    throw new Error("unexpected one-face instruction: " + named(["to"]));
+  }
+  if (named([]).indexOf("already has") === -1) {
+    throw new Error("unexpected fully-bound instruction: " + named([]));
+  }
+  // An element with no record at all defaults to both, never to "done".
+  assertEqual(AA.taskInstruction({ elementName: "Bushing length" }),
+    named(["from", "to"]));
+});
+
+check("taskInstruction: a picked face turns the instruction into the action " +
+  "the bind form is about to take", () => {
+  const text = AA.taskInstruction({ elementName: "Bushing length", picked: true,
+    needed: ["from", "to"] });
+  if (text.indexOf("Bind") !== 0 || text.indexOf("Bushing length") === -1) {
+    throw new Error("unexpected picked-face instruction: " + text);
+  }
+});
+
+check("every sentence the top bar composes survives the shared ban list, and " +
+  "carries no schema word", () => {
+  const sentences = [AA.TASK_NO_ELEMENT]
+    .concat(AA.HELP_LINES)
+    .concat([
+      AA.taskInstruction({ elementName: "Bushing length", needed: ["from", "to"] }),
+      AA.taskInstruction({ elementName: "Bushing length", needed: ["to"] }),
+      AA.taskInstruction({ elementName: "Bushing length", needed: [] }),
+      AA.taskInstruction({ elementName: "Bushing length", picked: true }),
+      AA.taskInstruction({ scopeName: "End-stop chain" }),
+    ]);
+  if (sentences.length < 9) {
+    throw new Error("the sentence scan collected " + sentences.length +
+      " strings -- it has drifted and now passes against anything");
+  }
+  sentences.forEach((text, i) => {
+    assertNothingBanned(text, `top-bar sentence #${i + 1} (${JSON.stringify(text)})`);
+    if (/[a-z]_[a-z]/.test(text)) {
+      throw new Error(`top-bar sentence #${i + 1} carries an underscored identifier: ${text}`);
+    }
+  });
+});
+
+check("HELP_LINES are LINES -- short, one idea each, no paragraphs", () => {
+  if (AA.HELP_LINES.length < 3) {
+    throw new Error("the help panel has fewer lines than it claims to");
+  }
+  AA.HELP_LINES.forEach((line) => {
+    // The house rule this is: "short lines, no paragraphs". A line long enough
+    // to wrap three times in the bar is a paragraph wearing a bullet.
+    if (line.length > 110) {
+      throw new Error(`a help line is a paragraph (${line.length} chars): ${line}`);
+    }
+  });
+});
+
+// --- remembered settings ----------------------------------------------------
+//
+// Both persist, the viewer's own remembered-pane-width shape: `store`
+// injected so both directions are checkable with no browser, every access
+// wrapped, and an unreadable value read as "not set" rather than as off.
+function memoryStore(initial) {
+  const data = Object.assign({}, initial);
+  return {
+    data,
+    getItem: (k) => (k in data ? data[k] : null),
+    setItem: (k, v) => { data[k] = String(v); },
+  };
+}
+
+function throwingStore() {
+  return {
+    getItem: () => { throw new Error("storage is disabled"); },
+    setItem: () => { throw new Error("storage is disabled"); },
+  };
+}
+
+check("the auto-filter settings round-trip through a store", () => {
+  const store = memoryStore();
+  AA.writeStoredAutoSteps(store, { topology: true, study: false, part: true });
+  assertEqual(AA.readStoredAutoSteps(store),
+    { topology: true, study: false, part: true });
+  assertEqual(store.data[AA.PREF_KEYS.autoSteps] !== undefined, true);
+});
+
+check("an unreadable or absent settings value is 'not set', never a step " +
+  "silently turned off", () => {
+  assertEqual(AA.readStoredAutoSteps(null), AA.defaultAutoSteps());
+  assertEqual(AA.readStoredAutoSteps(memoryStore()), AA.defaultAutoSteps());
+  assertEqual(AA.readStoredAutoSteps(memoryStore({
+    [AA.PREF_KEYS.autoSteps]: "{not json",
+  })), AA.defaultAutoSteps());
+  // A browser that throws on the very access still boots with the defaults --
+  // a preference is never worth a crash.
+  assertEqual(AA.readStoredAutoSteps(throwingStore()), AA.defaultAutoSteps());
+  AA.writeStoredAutoSteps(throwingStore(), AA.defaultAutoSteps()); // must not throw
+});
+
+check("transparency round-trips, defaults to on, and survives a store that " +
+  "throws", () => {
+  assertEqual(AA.DEFAULT_TRANSPARENT_PARTS, true);
+  const store = memoryStore();
+  assertEqual(AA.readStoredTransparency(store), true);
+  AA.writeStoredTransparency(store, false);
+  assertEqual(store.data[AA.PREF_KEYS.transparentParts], "off");
+  assertEqual(AA.readStoredTransparency(store), false);
+  AA.writeStoredTransparency(store, true);
+  assertEqual(AA.readStoredTransparency(store), true);
+  assertEqual(AA.readStoredTransparency(throwingStore()), AA.DEFAULT_TRANSPARENT_PARTS);
+  assertEqual(AA.readStoredTransparency(memoryStore({
+    [AA.PREF_KEYS.transparentParts]: "maybe",
+  })), AA.DEFAULT_TRANSPARENT_PARTS);
+  AA.writeStoredTransparency(throwingStore(), true); // must not throw
+});
+
+check("the two preference keys are distinct and namespaced to this app", () => {
+  const keys = Object.keys(AA.PREF_KEYS).map((k) => AA.PREF_KEYS[k]);
+  if (new Set(keys).size !== keys.length) {
+    throw new Error("two settings share a storage key: " + JSON.stringify(keys));
+  }
+  keys.forEach((key) => {
+    if (key.indexOf("tolstack.annotate.") !== 0) {
+      throw new Error("a settings key is not namespaced to this app: " + key);
+    }
+  });
+});
+
+// --- the markup the top bar and the auto-filter menu need -------------------
+//
+// app.js writes both of them, and app.js cannot be booted in this sandbox (ES
+// module, `document`, WebGL -- see the verb-table checks above for the same
+// constraint). What IS readable is that the nodes it writes into exist and
+// that the old three-column layout is really gone, which is the deliverable.
+check("the detail/hint pane is a BAR above the canvas, not a column beside " +
+  "it -- the deliverable, read off the markup and the stylesheet", () => {
+  const css = fs.readFileSync(path.join(here, "style.css"), "utf8");
+  const grid = /\.an\s*\{[^}]*grid-template-columns:\s*([^;]+);/.exec(css);
+  if (!grid) throw new Error("`.an`'s grid-template-columns is gone -- the extractor moved");
+  const columns = grid[1].trim().split(/\s+/);
+  if (columns.length !== 2) {
+    throw new Error("the workspace still has " + columns.length + " columns (" +
+      grid[1].trim() + ") -- the hint pane was a third column eating the canvas");
+  }
+  // ...and #detail really is inside the scene column now, above the stage.
+  const detail = ANNOTATE_HTML.indexOf('id="detail"');
+  const scene = ANNOTATE_HTML.indexOf('class="an__scene"');
+  const stage = ANNOTATE_HTML.indexOf('class="an__stage"');
+  if (scene === -1 || stage === -1 || detail === -1) {
+    throw new Error("the scene column, the stage or #detail is missing from the markup");
+  }
+  if (!(scene < detail && detail < stage)) {
+    throw new Error("#detail is no longer the bar at the top of the scene column");
+  }
+});
+
+check("the rail's auto-filter menu has the nodes app.js writes its rows into, " +
+  "above the controls it governs", () => {
+  const menu = ANNOTATE_HTML.indexOf('id="auto-setup"');
+  const body = ANNOTATE_HTML.indexOf('id="auto-setup-body"');
+  const topology = ANNOTATE_HTML.indexOf('id="topology-select"');
+  if (menu === -1 || body === -1) {
+    throw new Error("the auto-filter menu's nodes are missing from the markup");
+  }
+  if (!(menu < body && body < topology)) {
+    throw new Error("the auto-filter menu is not at the TOP of the rail");
+  }
+  // The rows themselves are written from AA.AUTO_STEPS, so the markup must
+  // carry no checkbox of its own -- a hand-written row is the drift this
+  // repo pays for most often.
+  const between = ANNOTATE_HTML.slice(menu, topology);
+  if (/type\s*=\s*"checkbox"/.test(between)) {
+    throw new Error("the auto-filter menu spells a checkbox in the markup -- " +
+      "the rows come from AA.AUTO_STEPS so the words and the steps cannot drift");
+  }
+});
+
 // --- [real] the shipped alias table against the installed meshes ------------
 //
 // The tracked table (docs/topologies/part_mesh_aliases.json -- read from THIS
