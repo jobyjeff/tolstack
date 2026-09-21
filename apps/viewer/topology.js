@@ -502,8 +502,9 @@
     error: "does-not-sum",
   };
 
-  // Everything ONE study row has to admit about itself, worst first: the
-  // verdict state that is not a verdict, then the attention flags. A list
+  // Everything ONE study row has to admit about itself, in reading order: the
+  // verdict state that is not a verdict first, then the attention flags in the
+  // order VA.studyAttention produced them. Not a severity sort. A list
   // because the badge showing it is one badge however many there are, and
   // shaped for VA.alertsCard ({ kind, text, why }) so the rail opens the
   // page's own popover rather than growing a second kind of popup.

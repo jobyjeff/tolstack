@@ -947,9 +947,12 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    inferred amber (the same amber `.chip--budget` already uses for exactly this
    claim). */
 
-/* The verdict badge. Filled, uppercase, and never absent: `--none` and
-   `--error` are states a verdict cannot express, and they are styled to read as
-   "there is no answer here" rather than as a quiet pass. */
+/* The verdict badge. Filled and uppercase; `--none` and `--error` are states a
+   verdict cannot express, and they are styled to read as "there is no answer
+   here" rather than as a quiet pass. Those two render on a study's own totals
+   strip only (views/topology.js): since 2026-09-21 the NAV RAIL folds them into
+   its ⚠ instead, so a nav row can legitimately carry no verdict chip -- what is
+   never absent there is a MARK, verdict or badge (views/nav.js's studyBadges). */
 .tvverdict {
   font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
   font-size: var(--t-micro); padding: 2px 7px;

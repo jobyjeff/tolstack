@@ -391,10 +391,14 @@ flag reads its sentence out of `VA.ATTENTION`, and a folded verdict state reads
 | `unverified` / `no tolerance recorded` / `incomplete` | fold. These are `VA.ATTENTION`'s three flags; they are still chips on the DAG grid's edge rows and on a study's totals strip, where there is room to read them |
 
 **Why (2026-09-21, `viewer_nav_alert_badge_and_angled_default`).** Until then
-each row printed every one of those as its own filled all-caps chip — measured
-on `pitch_system`, 61 filled marks in a 300px always-visible rail against 20
-study names. Jeff: *"the alerts still haven't been replaced with a single
-triangle ! (hover over to see details)"*, and of the annotator's badge that
+each row printed every one of those as its own all-caps chip: on the live
+projection, 21 verdict chips and 42 attention flags over 21 study rows, in a
+300px always-visible rail. (The flags were *filled* until
+`design_pass_typography` (2026-09-17) outlined them — `topology.css`'s
+`.tvflag` note carries that pass's own measurement, which is of the state
+*before* it, not of the state this pass replaced.) Jeff: *"the alerts still
+haven't been replaced with a single triangle ! (hover over to see details)"*,
+and of the annotator's badge that
 already did this, *"same purpose, just in a different place"*. It was filed as
 `ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud`
 rather than done at the time, because quietening them partly reverses

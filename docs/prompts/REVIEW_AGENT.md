@@ -3735,6 +3735,37 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       node that still carries the same claim — and a clamp check re-pointed at
       a node in a *pane* is no longer a claim about a *row's height*, so
       "re-point it at the nearest surviving selector" is usually the wrong one.
+- [ ] **A handoff closes HALF of an open issue and the issue's own closing note
+      then declares what is left — check that list against the issue's own
+      "Where the pieces are".** New 2026-09-21
+      (`viewer_nav_alert_badge_and_angled_default`). The handoff quietened the
+      nav rail's **study** rows, appended an honest "what shipped" section to
+      `ISSUE_20260916_..._jeff_called_loud`, and ended it "Still open, and the
+      whole of what is left: the materials table" — while the rail's
+      **loose-stack leaf rows** (`views/nav.js`'s `stackItem` over
+      `VA.summaryChips`, five chips and three on the live projection, one of
+      them the filled `UNTRACED`) are named in that same issue's own
+      "Where the pieces are" list and in its screenshot. Nothing was
+      mis-scoped — the deliverable said "study rows" — but a wrong
+      "whole of what is left" is how the remainder stops being scheduled, and
+      an issue left `status: open` with an understated remainder reads to the
+      next triage sweep as nearly done. **Diff the closing note against the
+      issue's own inventory, name by name**, and re-measure anything it calls a
+      remainder. Corollary worth holding: half-fixing a rail leaves it
+      *inconsistent*, which is a new complaint the issue did not previously
+      carry — say so where it will be read.
+- [ ] **A quoted design measurement whose ADJECTIVE went stale, not its digit.**
+      Second cousin of the restated-count family above; new 2026-09-21.
+      `apps/viewer/README.md` described the pre-fold nav rail as
+      "61 filled marks … against 20 study names", quoting `topology.css`'s
+      `.tvflag` note — whose very next sentence is **NOT FILLED**, because
+      `design_pass_typography` (2026-09-17) outlined those flags, and whose
+      figures are a measurement of the state *before that* pass, not before
+      this one. Live count at review: 21 study rows, 21 verdict chips + 42
+      outlined flags. So when a doc quotes a number out of a CSS/design
+      comment, check **what the comment says happened to it since** — a design
+      note is a dated record of a change, and its numbers describe the side of
+      the change they were measured on.
 
 ## Architectural errors to check
 

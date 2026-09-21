@@ -135,7 +135,7 @@ Shipped by `HANDOFF_20260921_viewer_nav_alert_badge_and_angled_default`:
 * `.tvflag` survives only on the DAG grid's edge rows and a study's totals
   strip, and `topology.css`'s note above those selectors now says so.
 
-**Still open, and the whole of what is left:** the **materials table's** source
+**Still open (1):** the **materials table's** source
 column (`views/stack.js`'s `materialSourcingCell` over `VA.valuesProvenance`,
 the `.chip--values-*` rules) still carries always-visible loud chips —
 `CTE NOT TRANSCRIBED`, `VALUES_STATUS UNKNOWN`. That half was not in the
@@ -143,3 +143,30 @@ the `.chip--values-*` rules) still carries always-visible loud chips —
 still carries its own decision: consolidating it means deciding where those
 words live, not only how they are shown. Everything the mechanism needs now
 exists three times over, so it is cheap whenever it is picked up.
+
+**Still open (2), and it is on this very rail — added by review, 2026-09-21.**
+The section above originally called the materials table "the whole of what is
+left"; it is not. The nav rail's **loose-stack leaf rows** (`views/nav.js`'s
+`stackItem`, over `VA.summaryChips` — named in "Where the pieces are" above,
+and visible in this issue's own screenshot excerpt as the `Demo joint` row)
+were never in the 2026-09-21 handoff's scope, whose deliverable was written as
+"the left nav's **study** rows". They still print every summary fact as its own
+chip. Measured against `data/projections/viewer/` during that handoff's review:
+
+```
+hub_bearing_thermal_fit_m1   4 traced | 2 inferred | 2 UNTRACED | checks GENERATED | 4 sensitivity probes
+hub_bearing_thermal_fit_m2   8 traced | checks GENERATED | 4 sensitivity probes
+```
+
+Five chips and three, one of them the **filled** `UNTRACED` — so after the
+fold these two rows are the loudest rows on a rail whose study rows now wear a
+verdict and one outlined ⚠. The inconsistency is new and is what makes this
+worth naming separately: before 2026-09-21 the whole rail was loud together.
+
+It is not a straight copy of the study-row fix, which is why it stays here
+rather than being done inline. `VA.summaryChips` is a **counts** roll-up, not
+an alert list: "4 traced" is not something the reader is asked to act on or
+distrust, so the standing rule ("verdicts stay chips, everything that asks the
+reader to act or distrust folds into the ⚠") does not by itself say which of
+the five fold. That is the same *design* call this issue already carries
+`audience: strategy` for.

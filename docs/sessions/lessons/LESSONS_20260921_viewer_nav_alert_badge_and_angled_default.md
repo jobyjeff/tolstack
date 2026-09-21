@@ -45,6 +45,17 @@ row shows the verdict alone", so that case is pinned on a synthetic fixture
 (`ALERT_TREE` in `tests.js`) rather than against `data/projections/`. Worth
 knowing before assuming a `[real]` assertion covers the quiet path.
 
+> **Correction, review 2026-09-21.** The fact is right — re-measured against
+> `data/projections/viewer/` during review: 21 study rows, 21 badged, 21
+> verdict chips + 42 attention flags before the fold. The *attribution* is
+> not: no tier asserts `badged === rows === 21`. The browser tier asserts
+> `rows >= 20 && worst === 1 && flags === 0 && badged >= 1`, and the fast
+> tier's `[real]` pin asserts `studies >= 20`. The "21 of 21" only ever
+> appears interpolated into a `push()` label, which is printed on FAILURE
+> only — so on a green run that number is never emitted at all. Both pins are
+> deliberately floors (the projection gains studies), which is fine; quoting a
+> floor as a measurement is what this note corrects.
+
 ## Where the leader default actually lived
 
 Three places, none of them named:
@@ -118,3 +129,10 @@ The **materials table's** source column still carries always-visible loud chips
 which is updated rather than closed and now says exactly what is left. It was
 out of this handoff's scope (nav rows + the leader default) and carries its own
 vocabulary decision. `VA.alertBadge` and `VA.alertsCard` are ready for it.
+
+> **Correction, review 2026-09-21.** The materials table is not the only thing
+> left. The nav rail's own **loose-stack leaf rows** (`views/nav.js`'s
+> `stackItem`, over `VA.summaryChips`) were also out of scope — the deliverable
+> said "study rows" — and still print five chips and three on the live
+> projection, one of them the filled `UNTRACED`. After this fold they are the
+> loudest rows on the rail. Written up as "Still open (2)" in the same issue.
