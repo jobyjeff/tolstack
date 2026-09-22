@@ -1,5 +1,27 @@
 # BRIEF 2026-09-11 — endstop topology retrace: §11 findings need a topology pass, and F12 needs Jeff
 
+> **CONSUMED 2026-09-21 — de-routed by the triage sweep to docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md; this brief's whole ask has been discharged and its one strategy question was answered elsewhere, not here.**
+
+> The brief asked strategy to produce exactly one thing (*What strategy should
+> produce*, below): a handoff for item 1's safe half plus items 3/4, with the
+> F12-gated part fenced out, and the F12 question queued for Jeff. The sweep
+> staged that handoff. The F12 question was **not** queued for Jeff because it
+> no longer needs him — `HANDOFF_20260915_stack_fable_audit` resolved item 2's
+> premise and recorded the resolution in the topology itself, in
+> `pitch_link_length`'s own `source_ref.note`: *"that 2026-09-06 refinement
+> pointed at the WRONG LINK … The owner of this row is therefore 213862-002 …
+> the band stays the workbook's, untraced, unchanged."* So rows 31 and 52 do
+> name two different physical links, the brief's own alternative reading won,
+> and the instruction "do NOT move that band's numeric `min`/`max`" is
+> permanently satisfied by leaving the band alone. What remains is a drawing
+> acquisition on the operator queue (213862-002 and its machined link, one BOM
+> level deeper), which is a procurement wait, not a design decision.
+>
+> The sweep did not decide anything here: a completed handoff decided it, in
+> the tree, six days before this marker. This note records that, which is why
+> the brief closes rather than waiting for a strategy slot it has no question
+> for.
+
 Filed by triage 2026-09-11 from
 `docs/issues/ISSUE_20260910_endstop_topology_retrace_and_link_length_discrepancy.md`
 (chore, med, `audience: strategy`) — routed to strategy rather than a

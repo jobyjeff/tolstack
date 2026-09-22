@@ -90,3 +90,33 @@ assertion is expressible there, so this need not be a convention nothing
 witnesses. That matters here specifically: see
 `HANDOFF_20260914_guard_mutation_witness_tier`, which exists because this repo
 has a measured pattern of shipping correct behaviour that no tier pins.
+
+## 2026-09-21 triage sweep — the "no `aria-` anywhere" measurement is stale, and the drift is the argument
+
+This brief's accessibility half rests on a measurement: *"`grep -rn "aria-"
+apps/viewer` returns **nothing at all**."* Re-run 2026-09-21 on trunk at
+`1946330`: **13 hits, 6 of them in app code.**
+
+| site | what it carries |
+| --- | --- |
+| `apps/viewer/views/crop.js:121` | `aria-` attribute |
+| `apps/viewer/views/dom.js:88` | `aria-` attribute |
+| `apps/viewer/views/lightbox.js:82`, `:191` | `aria-` attributes |
+| `apps/viewer/views/topology.js:522` | `aria-hidden` |
+| `apps/viewer/views/topology.js:968` | `aria-orientation` |
+| `apps/viewer/views/topology.js:967`, `topology.html:55`, `:159` | `role="separator"` |
+
+**This strengthens the brief rather than closing it, and that is the point worth
+recording.** The gap the measurement was evidence for is unchanged — `#croppop`
+still has no `role="tooltip"` and no `aria-describedby`, and the rail marks are
+still unnamed. What has changed is that an **ad-hoc accessibility convention is
+accreting while the brief waits**: six app-code sites now make per-site choices
+that the convention this brief is meant to set will have to either ratify or
+retrofit. The brief's own words are *"picking one sets the pattern for every
+future trigger"* — every trigger shipped before the pick enlarges the retrofit,
+so the cost of waiting here is not zero and is not flat.
+
+Corrected in an addendum rather than in place, per
+`dispatch/prompts/TRIAGE_AGENT.md` §2: the measurement is load-bearing for what
+this brief concludes, so replacing it silently would change the brief's argument
+without a reader being able to see that it moved.

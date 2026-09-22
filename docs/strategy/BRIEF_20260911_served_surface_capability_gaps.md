@@ -60,3 +60,20 @@ staging them independently would collide.
 Constraint to carry into every decomposed handoff: Jeff's rule that terminal
 commands in a web UI are unacceptable, with case-by-case exceptions only he
 approves.
+
+## 2026-09-21 triage sweep — item 4's last site is staged; the gate you were sequenced behind has lifted
+
+Filing note only; nothing below decides any of this brief's four items.
+
+- **Item 4 is now fully routed.** Three of its four terminal-command sites were
+  already removed (`apps/viewer/views/crop.js` records "Removed 2026-09-15");
+  the fourth, `missing(text, command)` in `apps/viewer/views/banner.js` with two
+  call sites in that same file, is staged as deliverable 1 of
+  `docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md`. Do not
+  re-stage it. That handoff is fenced out of `apps/annotate/storage/` and out of
+  every cross-repo question, so items 1–3 are untouched.
+- **The sequencing gate has lifted.** This brief says to check the board state
+  of `tolstack_mount_rebuild_endpoint` before sequencing. It is in
+  `drawing-checker/docs/sessions/completed/HANDOFF_20260910_tolstack_mount_rebuild_endpoint.md`.
+- **Item 1 is still live as described**: `apps/annotate/storage/` holds
+  `adapter.js`, `fsa.js` and `memory.js` — no `http.js`.

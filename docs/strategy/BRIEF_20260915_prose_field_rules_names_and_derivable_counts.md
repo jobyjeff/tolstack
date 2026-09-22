@@ -92,7 +92,10 @@ about where a `name`'s demoted half may go.
 
 ## Related, already routed — do not duplicate
 
-- `docs/strategy/BRIEF_20260911_structural_count_pinning_convention.md` — the
+- `dispatch/docs/strategy/BRIEF_20260906_guard_coverage_set_size_assertions.md`
+  (re-pointed by the 2026-09-21 triage sweep: the brief this line used to name,
+  `docs/strategy/BRIEF_20260911_structural_count_pinning_convention.md`, is now
+  `CONSUMED` — merged into the dispatch brief, which owns both shapes) — the
   general convention for pinning vs deriving structural counts. If route 2 wins
   for studies, it belongs to that brief's decomposition, not this one's.
 - `docs/sessions/HANDOFF_20260915_viewer_value_guard_rows_and_replays.md`

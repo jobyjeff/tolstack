@@ -63,7 +63,7 @@ equivalent:
   than two hand-kept lists. This is a real refactor of the tier's identity
   scheme, and it is the version that ends the class rather than policing it.
 
-Note the second is the same shape as `BRIEF_20260911_structural_count_pinning_convention.md`
+Note the second is the same shape as `BRIEF_20260911_structural_count_pinning_convention.md` (now `CONSUMED`, merged into dispatch's brief below — re-pointed by the 2026-09-21 triage sweep)
 and as dispatch's `BRIEF_20260906_guard_coverage_set_size_assertions.md`: *the
 guard's coverage set is a hand-kept literal, and nothing asserts it covers the
 thing it claims to.* A decomposition that solves enrollment by deriving the

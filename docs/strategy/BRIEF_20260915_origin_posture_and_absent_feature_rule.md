@@ -189,3 +189,23 @@ when this brief decomposes, or a small standalone handoff sooner.
 `docs/sessions/HANDOFF_20260916_topology_grid_scroll_and_grips.md` is **not** it
 — that handoff owns only `testRespine`'s scrolled arm and the jog-zone block in
 that file, and is told `apps/annotate/` is not its own.
+
+## 2026-09-21 triage sweep — the stage-it-now item is staged; the policy is still yours
+
+Filing note only; nothing below decides what a surface shows when a capability
+is absent.
+
+This brief says of the `/Connect folder|File System Access/` disjunction that it
+*"can be staged before any of this is decided"*. It is now staged, as
+deliverable 2 of
+`docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md` — both sites
+(`scripts/run_viewer_browser_tests.mjs` lines 4442 and 5499). That handoff is
+explicitly told **not** to decide what the no-FSA surface should say: its job is
+to make the test able to tell the two states apart, so that whatever this brief
+decides becomes assertable at all. Where the no-FSA arm has no defined
+expectation yet, it is instructed to leave an explicit named skip pointing back
+here rather than invent one — so if you find a skip with this brief's name on
+it, that is the handoff obeying its fence, not a gap it missed.
+
+The sub-gate this brief named (`HANDOFF_20260915_annotate_hosted_page_posture`)
+is in `docs/sessions/completed/`.

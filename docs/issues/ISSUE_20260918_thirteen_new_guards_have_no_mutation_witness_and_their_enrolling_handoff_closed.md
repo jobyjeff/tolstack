@@ -1,9 +1,10 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: scripts/mutation_witnesses
 reporter: agent
+handoff: docs/sessions/HANDOFF_20260921_mutation_witness_enrollment_backlog.md
 found_by: docs/sessions/reviews/REVIEW_20260918_reader_facing_surfaces_second_pass.md
 ---
 

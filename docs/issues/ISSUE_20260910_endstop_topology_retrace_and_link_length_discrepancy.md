@@ -5,7 +5,7 @@ status: triaged
 area: docs/topologies, docs/tolerance_stacks
 reporter: agent
 audience: strategy
-strategy: docs/strategy/BRIEF_20260911_endstop_topology_retrace_and_f12.md
+handoff: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
 ---
 
 # Endstop topology needs a retrace pass for §11's findings, and one finding is a Jeff question
