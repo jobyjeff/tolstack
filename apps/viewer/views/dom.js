@@ -58,6 +58,53 @@
     return node;
   };
 
+  // The alert mark as GEOMETRY rather than as a character
+  // (viewer_nav_verdict_into_alert_and_icon, 2026-09-22). Jeff, on the nav
+  // rail: "reformat the alert icon: get rid of the rounded border around it,
+  // make the actual icon larger so it's legible (or replace it with a proper
+  // icon/emoji rather than a character)."
+  //
+  // `VA.ALERT_ICON` -- the `⚠` character -- cannot be made legible on a row.
+  // It is sized by `font-size`, so it can only ever be as big as a type step,
+  // and the six steps are owned by tests/test_app_type_scale.py: a seventh
+  // added to make one triangle bigger would be a scale decision taken by an
+  // icon. It also renders through whatever font the platform picks for
+  // U+26A0, which on Windows is as often a colour emoji as a glyph -- and a
+  // colour emoji ignores the semantic colour the level class sets.
+  //
+  // A path has neither problem: it is sized in pixels independently of the
+  // type scale, it draws the same everywhere, and `currentColor` makes the
+  // level class the only thing that decides what colour it is. ONE path with
+  // `fill-rule: evenodd`, so the bar and the dot are cut OUT of the triangle
+  // instead of drawn over it -- a two-path icon would need a second colour to
+  // fill the counter with, and the only right answer for that colour is
+  // "whatever is behind the row", which a fill cannot name.
+  //
+  // Still `⚠` on the elements table's badge, deliberately: this pass is the
+  // left-hand nav, and the two remaining glyph sites (that badge and
+  // apps/annotate's own) are
+  // ISSUE_20260922_the_alert_glyph_is_still_a_character_on_two_rails.
+  VA.WARNING_ICON_PATH =
+    "M12 3L22.4 21H1.6Z M10.9 9h2.2v5.6h-2.2z M10.9 16.4h2.2v2.2h-2.2z";
+
+  // Big enough to read at 100% zoom on a 13px row, and a PIXEL size rather
+  // than a step on the type scale because it is a picture, not text.
+  VA.WARNING_ICON_PX = 16;
+
+  VA.warningIcon = function (className) {
+    var svg = VA.svg("svg", className || null, {
+      viewBox: "0 0 24 24",
+      width: VA.WARNING_ICON_PX, height: VA.WARNING_ICON_PX,
+      // The badge around it carries the words, as a title and an aria-label,
+      // so the picture itself is decoration to a reader who cannot see it.
+      "aria-hidden": "true", focusable: "false",
+    });
+    svg.appendChild(VA.svg("path", null, {
+      d: VA.WARNING_ICON_PATH, "fill-rule": "evenodd", fill: "currentColor",
+    }));
+    return svg;
+  };
+
   // ONE ⚠ per row, the alerts on hover — the badge two surfaces of this app
   // now wear (the elements table's source cell, views/stack.js; the nav rail's
   // study rows, views/nav.js), so it is built once here rather than twice.
@@ -78,8 +125,17 @@
   // rail out from under the badge, and the badge is a disclosure, not a second
   // way in. The elements table does not: its row click opens the same
   // element's detail pane, where every one of these alerts is stated in full.
+  // `opts.className` / `opts.icon` — what the badge LOOKS like, the two
+  // presentations this app now has for one mark. The default is the chip the
+  // elements table wears; the nav rail passes its own class and a drawn icon
+  // (`VA.warningIcon`), because a bordered 11px character is not legible at a
+  // row's own size. Everything else about the badge — the card wiring, the
+  // tooltip, the aria-label, the three openers — is the same on both, which
+  // is why this is one builder with two skins rather than two builders.
   VA.alertBadge = function (alerts, cardTitle, onCardShow, opts) {
-    var badge = VA.el("span", "chip chip--alert", VA.ALERT_ICON);
+    opts = opts || {};
+    var badge = VA.el("span", opts.className || "chip chip--alert",
+      opts.icon || VA.ALERT_ICON);
     badge.setAttribute("title", alerts.map(function (alert) {
       return alert.text + (alert.why ? " — " + alert.why : "");
     }).join("\n"));
@@ -92,7 +148,7 @@
     badge.className += " cardtrig";
     badge.setAttribute("tabindex", "0");
     var show = function (event) {
-      if (opts && opts.stopClick && event && event.stopPropagation) {
+      if (opts.stopClick && event && event.stopPropagation) {
         event.stopPropagation();
       }
       onCardShow(VA.alertsCard(cardTitle, alerts), badge);

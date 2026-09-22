@@ -118,7 +118,38 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
    which put the selection colour on every topology row at rest -- the one
    colour this page uses to mean "this, and not the others". */
 .navtree__id { color: var(--muted); font-size: var(--t-micro); }
-.navtree__chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; flex-basis: 100%; }
+
+/* --- the one status icon a row may wear ------------------------------------
+   (viewer_nav_verdict_into_alert_and_icon, 2026-09-22. Jeff, on the rail as
+   2026-09-21 left it: "get rid of the pass/fail in the left side menu (move
+   it into the alert along with all the other alerts). Also reformat the alert
+   icon: get rid of the rounded border around it, make the actual icon larger
+   so it's legible (or replace it with a proper icon/emoji rather than a
+   character).")
+
+   NO BOX. The retired `.chip--alert` framing put a rounded 1px border around
+   an 11px character, which is two marks where the row needs one and made the
+   glyph inside it smaller than the name beside it -- the smaller-and-bolder
+   inversion the house rules name, applied to an icon. What is left is the
+   mark itself: a 16px drawn triangle (views/dom.js's VA.warningIcon, sized in
+   pixels because it is a picture and not a step on the type scale), coloured
+   by `currentColor` off the level class alone.
+
+   TWO levels, and they are semantic, not decorative: red is a verdict of
+   `fail` and nothing else, amber is everything else the row has to say. The
+   words are all in the card it opens, so the colour's whole job is to tell a
+   scan of a 300px rail where to stop. VA.NAV_VERDICT_LEVELS (topology.js) is
+   where the mapping lives; a row with no mark had nothing to say. */
+.navstatus {
+  display: inline-flex; align-self: center; flex: none; line-height: 0;
+}
+.navstatus--warn { color: var(--inferred); }
+.navstatus--fail { color: var(--fail); }
+/* For a reader arriving by keyboard: the icon is a card trigger, so it takes
+   focus, and a focus ring is the one place this mark grows a box. */
+.navstatus:focus-visible {
+  outline: 1px solid var(--accent); outline-offset: 2px; border-radius: 3px;
+}
 
 /* --- the toolbar: layout mode, row density, annotate — display preference,
    not selection, so it stays a slim strip above the DAG pane rather than
@@ -949,10 +980,15 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 
 /* The verdict badge. Filled and uppercase; `--none` and `--error` are states a
    verdict cannot express, and they are styled to read as "there is no answer
-   here" rather than as a quiet pass. Those two render on a study's own totals
-   strip only (views/topology.js): since 2026-09-21 the NAV RAIL folds them into
-   its ⚠ instead, so a nav row can legitimately carry no verdict chip -- what is
-   never absent there is a MARK, verdict or badge (views/nav.js's studyBadges). */
+   here" rather than as a quiet pass.
+
+   A STUDY'S OWN TOTALS STRIP is the only place any of these render now
+   (views/topology.js). 2026-09-21 moved `--none` and `--error` off the nav rail
+   into its ⚠; 2026-09-22 moved the other three the same way, so the rail wears
+   no verdict chip at all and states its verdict in words, in the card its one
+   status icon opens (`.navstatus`, above). A nav row's mark is not a verdict
+   and is not always present: a study with a clean pass and nothing to admit
+   wears nothing. */
 .tvverdict {
   font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
   font-size: var(--t-micro); padding: 2px 7px;
@@ -998,9 +1034,10 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 
    CONSOLIDATED on 2026-09-21 (viewer_nav_alert_badge_and_angled_default),
    which closes the question left open above: the NAV RAIL's study rows carry
-   no `.tvflag` at all any more -- their flags fold into one `.chip--alert` ⚠
-   with the sentences in the card it opens (views/nav.js's studyBadges over
-   VA.studyNavAlerts). These three selectors still style the two surfaces that
+   no `.tvflag` at all any more -- their flags fold into one icon with the
+   sentences in the card it opens (views/nav.js's statusIcon over
+   VA.studyNavStatus; a bordered `.chip--alert` ⚠ until 2026-09-22, a drawn
+   `.navstatus` since). These three selectors still style the two surfaces that
    are not a 300px always-visible rail and where the words have room to be
    read: the topology GRID's edge rows and a study's own totals strip
    (views/topology.js). The padding below is tighter than `.chip`'s own and

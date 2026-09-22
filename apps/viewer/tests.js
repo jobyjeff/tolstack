@@ -9067,12 +9067,13 @@
         var active = all(root, ".navtree__row--on");
         eq(active.length, 1);
         // `demo_ambiguous` does not sum. That state used to print a "⚠ "
-        // prefix on the row's own LABEL; since 2026-09-21 it is one of the
-        // states that folds into the consolidated badge instead, and the badge
-        // is the only triangle on the row.
-        eq(all(active[0], ".chip--alert").length, 1);
-        eq(active[0].textContent.split("⚠").length - 1, 1,
-           "one triangle per row -- not the badge AND a label prefix");
+        // prefix on the row's own LABEL; since 2026-09-21 it folds into the
+        // row's one mark instead, and since 2026-09-22 that mark is drawn
+        // rather than typed -- so there is no triangle CHARACTER on the rail
+        // at all any more, on a label or anywhere else.
+        eq(all(active[0], ".navstatus").length, 1);
+        eq(root.textContent.indexOf("⚠"), -1,
+           "the rail's mark is a drawn icon -- no glyph on any row");
       });
 
     await test("the topology row is marked active with no study selected, " +
@@ -9114,14 +9115,19 @@
         has(root.textContent, "No topologies or stacks");
       });
 
-    // --- one ⚠ per study row (viewer_nav_alert_badge_and_angled_default) ----
+    // --- one status icon per nav row ---------------------------------------
     //
-    // Jeff, 2026-09-21: "the alerts still haven't been replaced with a single
-    // triangle ! (hover over to see details)". The verdict stays a chip; every
-    // alert folds. A synthetic tree rather than TOPOFIX, because the demo
-    // mechanism has no study that both PASSES and carries a flag -- and "a
-    // clean row shows the verdict alone" is exactly the case that has to be
-    // pinned against a row that could have shouted and does not.
+    // Jeff, 2026-09-22, on the rail as the 2026-09-21 fold left it: "get rid
+    // of the pass/fail in the left side menu (move it into the alert along
+    // with all the other alerts). Also reformat the alert icon: get rid of the
+    // rounded border around it, make the actual icon larger so it's legible
+    // (or replace it with a proper icon/emoji rather than a character)."
+    //
+    // So a row wears at most ONE mark, and a clean row wears none. A synthetic
+    // tree rather than TOPOFIX, because the demo mechanism has no study that
+    // both PASSES and carries a flag -- and "a clean row shows nothing at all"
+    // is exactly the case that has to be pinned against a row that could have
+    // shouted and does not.
 
     function navStudy(verdict, badgeKeys) {
       return {
@@ -9138,28 +9144,61 @@
       };
     }
 
-    var CLEAN = { state: "pass", word: "pass", title: VA.VERDICTS.pass.title,
-                  incomplete: false, checks: [] };
-    var FAILING = { state: "fail", word: "fail", title: VA.VERDICTS.fail.title,
-                    incomplete: false, checks: [] };
+    var CLEAN = { state: "pass", word: "pass", says: VA.VERDICTS.pass.says,
+                  title: VA.VERDICTS.pass.title, incomplete: false, checks: [] };
+    var FAILING = { state: "fail", word: "fail", says: VA.VERDICTS.fail.says,
+                    title: VA.VERDICTS.fail.title, incomplete: false, checks: [] };
+    var MARGINAL = { state: "marginal", word: "marginal",
+                     says: VA.VERDICTS.marginal.says,
+                     title: VA.VERDICTS.marginal.title,
+                     incomplete: false, checks: [] };
     var NO_CRITERION = { state: "none", word: "no pass/fail criterion recorded yet",
+                         says: null,
                          title: "Nobody has written down what the total has to be.",
                          incomplete: false, checks: [] };
-    var DOES_NOT_SUM = { state: "error", word: "does not sum",
+    var DOES_NOT_SUM = { state: "error", word: "does not sum", says: null,
                          title: "This study raises rather than summing.",
                          incomplete: false, checks: [] };
 
-    await test("VA.studyNavAlerts folds every alert and no verdict: a clean " +
-      "pass has nothing to say", function () {
-        eq(VA.studyNavAlerts(navStudy(CLEAN, [])), []);
-        eq(VA.studyNavAlerts(navStudy(FAILING, [])), [],
-           "a FAIL is a disposition, not an alert -- it stays a chip");
-        eq(VA.studyNavAlerts(null), []);
-        eq(VA.studyNavAlerts({}), []);
+    await test("VA.NAV_VERDICT_LEVELS names every state VA.studyVerdict can " +
+      "return, and spends red on exactly one of them", function () {
+        // Anti-drift, both ways: a verdict word with no row in the table would
+        // fall through to the unknown branch, and a row naming a state nothing
+        // produces is a colour nobody can see.
+        Object.keys(VA.VERDICTS).forEach(function (word) {
+          ok(Object.prototype.hasOwnProperty.call(VA.NAV_VERDICT_LEVELS, word),
+             word + " is a verdict this app renders and the rail has no level "
+             + "for it");
+        });
+        eq(Object.keys(VA.NAV_VERDICT_LEVELS).sort(),
+           ["error", "fail", "marginal", "none", "pass"]);
+        // And the two extra states are really reachable from VA.studyVerdict,
+        // so the table is not naming a state the projection cannot produce.
+        eq(VA.studyVerdict({ status: "error" }).state, "error");
+        eq(VA.studyVerdict({ status: "ok", checks: [] }).state, "none");
+        var red = Object.keys(VA.NAV_VERDICT_LEVELS).filter(function (state) {
+          return VA.NAV_VERDICT_LEVELS[state] === VA.NAV_STATUS_WORST;
+        });
+        eq(red, ["fail"], "one accent per view -- red is the answer nobody "
+           + "wants, and nothing else");
+        eq(VA.NAV_VERDICT_LEVELS.pass, null,
+           "a clean pass draws no mark at all");
+      });
+
+    await test("VA.navStatusLevel treats a verdict word this viewer has no " +
+      "branch for as no answer at all, never as a quiet one", function () {
+        eq(VA.navStatusLevel(null), null);
+        eq(VA.navStatusLevel({ state: "pass" }), null);
+        eq(VA.navStatusLevel({ state: "fail" }), VA.NAV_STATUS_WORST);
+        eq(VA.navStatusLevel({ state: "marginal" }), VA.NAV_STATUS_LOOK);
+        eq(VA.navStatusLevel({ state: "borderline" }),
+           VA.NAV_VERDICT_LEVELS.none,
+           "an unheard-of state reads as 'no answer is recorded here'");
       });
 
     await test("VA.studyNavAlerts folds the attention flags in the order they " +
-      "arrive, each with the sentence that was behind it", function () {
+      "arrive, each with the sentence that was behind it, and no verdict",
+      function () {
         var alerts = VA.studyNavAlerts(
           navStudy(FAILING, ["unverified", "no_tolerance", "incomplete"]));
         eq(alerts.map(function (a) { return a.kind; }),
@@ -9169,51 +9208,65 @@
           eq(alert.why, VA.ATTENTION[alert.kind].title,
              "the words stay VA.ATTENTION's -- nothing is reworded here");
         });
+        eq(VA.studyNavAlerts(navStudy(CLEAN, [])), []);
+        eq(VA.studyNavAlerts(null), []);
+        eq(VA.studyNavAlerts({}), []);
       });
 
-    await test("the two verdict states that are not dispositions fold FIRST, " +
-      "in the verdict's own words", function () {
+    await test("a row's hover leads with the verdict in plain words, and the " +
+      "flags follow it", function () {
+        var status = VA.studyNavStatus(
+          navStudy(FAILING, ["unverified", "no_tolerance"]));
+        eq(status.alerts.length, 3);
+        eq(status.alerts[0].kind, "verdict-fail");
+        eq(status.alerts[0].text, "fail — " + VA.VERDICTS.fail.says,
+           "the word and VA.VERDICTS' own plain-words phrase, not a restatement");
+        eq(status.alerts[0].why, VA.VERDICTS.fail.title);
+        eq(status.alerts.slice(1).map(function (a) { return a.kind; }),
+           ["unverified", "no_tolerance"]);
+      });
+
+    await test("the two states that are not dispositions lead in their own " +
+      "words, with no phrase pinned onto them", function () {
         [NO_CRITERION, DOES_NOT_SUM].forEach(function (verdict) {
-          var alerts = VA.studyNavAlerts(navStudy(verdict, ["unverified"]));
-          eq(alerts.length, 2, verdict.state);
-          eq(alerts[0].kind, VA.NAV_ALERT_VERDICT_STATES[verdict.state]);
-          eq(alerts[0].text, verdict.word,
-             "the word is VA.studyVerdict's, read here and not restated");
-          eq(alerts[0].why, verdict.title);
-          eq(alerts[1].kind, "unverified", "the flags follow, worst first");
+          var status = VA.studyNavStatus(navStudy(verdict, ["unverified"]));
+          eq(status.level, VA.NAV_STATUS_LOOK, verdict.state);
+          eq(status.alerts[0].kind, "verdict-" + verdict.state);
+          eq(status.alerts[0].text, verdict.word,
+             "`says` is null on these two -- the word IS the statement");
+          eq(status.alerts[0].why, verdict.title);
+          eq(status.alerts[1].kind, "unverified", "the flags follow");
         });
       });
 
-    // The invariant the `--qualified` tint alone cannot keep: a verdict on a
-    // chain short a term must never be bare. It normally arrives from the
-    // attention flags -- an excluded term is WHY a check is incomplete -- so
-    // this covers the check that reports `complete: false` and names none.
-    await test("an incomplete chain gets the WORD as well as the tint, and " +
+    await test("a clean pass with nothing to admit has no status at all, and " +
+      "every other row has one", function () {
+        eq(VA.studyNavStatus(navStudy(CLEAN, [])), null);
+        eq(VA.studyNavStatus(null), null);
+        // A pass is not a licence to be silent about a flag against it.
+        eq(VA.studyNavStatus(navStudy(CLEAN, ["unverified"])).level,
+           VA.NAV_STATUS_LOOK);
+        // ...and a FAIL earns the red mark with no flag needed: it is a
+        // disposition now, where before 2026-09-22 it was a chip.
+        eq(VA.studyNavStatus(navStudy(FAILING, [])).level, VA.NAV_STATUS_WORST);
+        eq(VA.studyNavStatus(navStudy(MARGINAL, [])).level, VA.NAV_STATUS_LOOK);
+      });
+
+    // The invariant the retired `--qualified` tint alone could not keep: a
+    // verdict on a chain short a term must never be bare. It normally arrives
+    // from the attention flags -- an excluded term is WHY a check is
+    // incomplete -- so this covers the check that reports `complete: false`
+    // and names none.
+    await test("an incomplete chain gets the WORD beside its verdict, and " +
       "never twice", function () {
-        var qualified = { state: "fail", word: "fail", title: "t",
-                          incomplete: true, checks: [] };
+        var qualified = { state: "fail", word: "fail", says: VA.VERDICTS.fail.says,
+                          title: "t", incomplete: true, checks: [] };
         var alone = VA.studyNavAlerts(navStudy(qualified, []));
         eq(alone.length, 1);
         eq(alone[0].kind, "incomplete");
         eq(alone[0].text, VA.ATTENTION.incomplete.text);
         var named = VA.studyNavAlerts(navStudy(qualified, ["incomplete"]));
         eq(named.length, 1, "the flag already said it -- no second copy");
-      });
-
-    // Anti-drift, both ways: a verdict word must never be folded away, and a
-    // non-disposition state must never be left as a chip. VA.studyVerdict can
-    // return exactly these three kinds of `state`.
-    await test("VA.NAV_ALERT_VERDICT_STATES names the non-verdict states and " +
-      "not one verdict word", function () {
-        Object.keys(VA.NAV_ALERT_VERDICT_STATES).forEach(function (state) {
-          ok(!VA.VERDICTS[state],
-             state + " is a verdict word and must stay a chip");
-        });
-        eq(Object.keys(VA.NAV_ALERT_VERDICT_STATES).sort(), ["error", "none"]);
-        // And both are really reachable from VA.studyVerdict, so the table is
-        // not naming a state the projection cannot produce.
-        eq(VA.studyVerdict({ status: "error" }).state, "error");
-        eq(VA.studyVerdict({ status: "ok", checks: [] }).state, "none");
       });
 
     var ALERT_TREE = {
@@ -9228,47 +9281,71 @@
       looseStacks: [],
     };
 
-    await test("a study row wears the verdict and at most one ⚠, and a row " +
-      "with nothing wrong wears nothing else at all", function () {
+    await test("a study row wears ONE status icon and no verdict chip, and a " +
+      "row with nothing wrong wears nothing at all", function () {
         var root = render(function (r) {
           VA.renderNavTree(r, ALERT_TREE, { mode: "topology" },
             { onTopology: function () {}, onStudy: function () {} });
         });
         var rows = all(root, ".navtree__row--study");
         eq(rows.length, 3);
-        // The clean pass: its verdict, and NOTHING about the alerts it does
-        // not have (the standing nothing-wrong-shows-nothing rule).
-        eq(all(rows[0], ".tvverdict").length, 1);
-        has(rows[0].textContent, "pass");
-        eq(all(rows[0], ".chip--alert").length, 0);
-        eq(rows[0].textContent.indexOf("⚠"), -1);
-        // Two alerts, one badge, and the words are not on the row.
-        eq(all(rows[1], ".tvverdict").length, 1);
-        eq(all(rows[1], ".chip--alert").length, 1);
-        eq(all(rows[1], ".tvflag").length, 0);
-        eq(rows[1].textContent.indexOf(VA.ATTENTION.unverified.text), -1,
+        eq(all(root, ".tvverdict").length, 0,
+           "the verdict left the rail -- it is in the icon's card now");
+        eq(all(root, ".tvflag").length, 0);
+        // The clean pass: nothing at all. Deliberately the quiet-row decision
+        // this pass had to make and apply everywhere.
+        eq(all(rows[0], ".navstatus").length, 0);
+        eq(rows[0].textContent, "Study pass");
+        // Two alerts and a verdict, one icon, and not a word of it on the row.
+        eq(all(rows[1], ".navstatus").length, 1);
+        eq(all(rows[1], ".navstatus--fail").length, 1,
+           "a failing study is the one thing this rail draws in red");
+        eq(rows[1].textContent, "Study fail",
            "the alert words belong in the card, not on a 300px rail");
-        // No criterion recorded: no verdict chip, but never silent.
-        eq(all(rows[2], ".tvverdict").length, 0);
-        eq(all(rows[2], ".chip--alert").length, 1);
+        // No criterion recorded: no verdict to draw red, but never silent.
+        eq(all(rows[2], ".navstatus--warn").length, 1);
       });
 
-    await test("the badge carries its alerts as a tooltip and an aria-label, " +
+    await test("the status icon is drawn, not typed: one sized SVG path that " +
+      "takes its colour from the row's level", function () {
+        var root = render(function (r) {
+          VA.renderNavTree(r, ALERT_TREE, { mode: "topology" }, {});
+        });
+        var icon = all(root, ".navstatus")[0];
+        eq(icon.className.indexOf("chip"), -1,
+           "no chip framing -- the rounded border was the second mark");
+        var svg = all(icon, "svg");
+        eq(svg.length, 1);
+        eq(svg[0].getAttribute("width"), String(VA.WARNING_ICON_PX));
+        eq(svg[0].getAttribute("height"), String(VA.WARNING_ICON_PX));
+        ok(VA.WARNING_ICON_PX >= 14,
+           "the whole point of the redraw is that it is legible at row size");
+        var path = all(icon, "path");
+        eq(path.length, 1, "one path, so the counters are CUT OUT of the "
+           + "triangle rather than filled with a colour nothing can name");
+        eq(path[0].getAttribute("fill"), "currentColor");
+        eq(path[0].getAttribute("fill-rule"), "evenodd");
+        eq(root.textContent.indexOf(VA.ALERT_ICON), -1,
+           "no triangle character anywhere on the rail");
+      });
+
+    await test("the icon carries its alerts as a tooltip and an aria-label, " +
       "so they are never ONLY in a hover card", function () {
         var root = render(function (r) {
           VA.renderNavTree(r, ALERT_TREE, { mode: "topology" }, {});
         });
-        var badge = all(root, ".chip--alert")[0];
-        ok(badge, "expected the badge");
-        has(badge.getAttribute("title"), VA.ATTENTION.unverified.text);
-        has(badge.getAttribute("title"), VA.ATTENTION.unverified.title);
-        has(badge.getAttribute("aria-label"), VA.ATTENTION.no_tolerance.text);
-        eq(badge.className.indexOf("cardtrig"), -1,
-           "no card machinery, no trigger cue -- the badge promises nothing " +
+        var icon = all(root, ".navstatus")[0];
+        ok(icon, "expected the icon");
+        has(icon.getAttribute("title"), VA.VERDICTS.fail.says);
+        has(icon.getAttribute("title"), VA.ATTENTION.unverified.text);
+        has(icon.getAttribute("title"), VA.ATTENTION.unverified.title);
+        has(icon.getAttribute("aria-label"), VA.ATTENTION.no_tolerance.text);
+        eq(icon.className.indexOf("cardtrig"), -1,
+           "no card machinery, no trigger cue -- the icon promises nothing " +
            "it cannot open");
       });
 
-    await test("hovering the badge opens the page's own alerts card, and " +
+    await test("hovering the icon opens the page's own alerts card, and " +
       "clicking it does NOT select the study underneath", function () {
         var shown = [];
         var selected = [];
@@ -9279,45 +9356,116 @@
             onCardShow: function (card, trigger) { shown.push([card, trigger]); },
           });
         });
-        var badge = all(root, ".chip--alert")[0];
+        var badge = all(root, ".navstatus")[0];
         ok(badge.className.indexOf("cardtrig") !== -1, "a trigger cue now");
         eq(badge.getAttribute("tabindex"), "0");
         badge.onmouseenter();
         eq(shown.length, 1);
         var card = shown[0][0];
         eq(card.kind, "alerts", "the page's own card model, not a second popup");
-        eq(card.title, "Study fail", "the card names the study -- the badge is one glyph");
+        eq(card.title, "Study fail", "the card names the study -- the icon is one mark");
         eq(card.alerts.map(function (a) { return a.text; }),
-           [VA.ATTENTION.unverified.text, VA.ATTENTION.no_tolerance.text]);
-        ok(shown[0][1] === badge, "placed against the badge it opened from");
+           ["fail — " + VA.VERDICTS.fail.says,
+            VA.ATTENTION.unverified.text, VA.ATTENTION.no_tolerance.text]);
+        ok(shown[0][1] === badge, "placed against the icon it opened from");
         // Focus opens it too, and a click opens it WITHOUT navigating: the
         // row underneath would re-render the whole rail out from under the
-        // badge the pointer is resting on.
+        // icon the pointer is resting on.
         badge.onfocus();
         eq(shown.length, 2);
         var stopped = 0;
         badge.onclick({ stopPropagation: function () { stopped++; } });
         eq(shown.length, 3);
         eq(stopped, 1);
-        eq(selected, [], "the badge is a disclosure, not a second way in");
+        eq(selected, [], "the icon is a disclosure, not a second way in");
       });
 
-    await test("the card the nav badge opens renders every alert as a " +
-      "sentence, with no fold over it", function () {
-        var alerts = VA.studyNavAlerts(
+    await test("the card the nav icon opens renders the verdict and every " +
+      "alert as a sentence, with no fold over it", function () {
+        var status = VA.studyNavStatus(
           navStudy(NO_CRITERION, ["unverified", "no_tolerance"]));
         var root = render(function (r) {
-          VA.renderHoverCard(r, VA.alertsCard("Study none", alerts), {}, VA.CONFIG,
-            function () {});
+          VA.renderHoverCard(r, VA.alertsCard("Study none", status.alerts), {},
+            VA.CONFIG, function () {});
         });
         eq(all(root, ".hovercard__alert").length, 3);
         has(root.textContent, "Study none");
-        alerts.forEach(function (alert) {
+        status.alerts.forEach(function (alert) {
           has(root.textContent, alert.text);
           has(root.textContent, alert.why);
         });
+        // The verdict line is styled as state, not as a warning: the rail
+        // states the disposition nowhere else now.
+        eq(all(root, ".hovercard__alert--verdict-none").length, 1);
         eq(all(root, "details").length, 0,
            "an absence is never folded (views/dom.js's rule)");
+      });
+
+    // --- the same mark on a loose stack's leaf row --------------------------
+    //
+    // These rows printed every one of VA.summaryChips' counts as its own chip
+    // until 2026-09-22 -- five on one live row, one of them the FILLED
+    // `UNTRACED` -- which after the 2026-09-21 study-row fold made them the
+    // loudest rows on the rail ("Still open (2)" on
+    // ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud).
+
+    var LOUD_STACK = {
+      id: "loud", title: "A loud stack",
+      provenance_counts: { traced: 4, inferred: 2, untraced: 2 },
+      zero_width_count: 1,
+      checks_source: "generated",
+      checks: [{ check_id: "c1", verdict: "pass", complete: false,
+                 verdict_scope: "budget", units: "mm", label: "l" },
+               { check_id: "c2", verdict: "pass", sensitivity: true,
+                 units: "mm", label: "probe" }],
+    };
+    var QUIET_STACK = {
+      id: "quiet", title: "A quiet stack",
+      provenance_counts: { traced: 8 }, checks_source: "generated",
+      checks: [{ check_id: "c1", verdict: "pass", complete: true,
+                 verdict_scope: "joint", units: "mm", label: "l" }],
+    };
+
+    await test("a stack row folds only what asks the reader to look: the " +
+      "scoreboard stays on the stack's own page", function () {
+        var alerts = VA.stackNavAlerts(LOUD_STACK);
+        eq(alerts.map(function (a) { return a.kind; }),
+           ["unverified", "no_tolerance", "incomplete"]);
+        // Every word is the chip's own, moved rather than restated.
+        var chips = VA.summaryChips(LOUD_STACK);
+        var texts = chips.map(function (c) { return c.text; });
+        alerts.forEach(function (alert) {
+          ok(texts.indexOf(alert.text) !== -1,
+             "a hover line nothing on the stack page says: " + alert.text);
+          ok(alert.why, alert.kind + " arrives with no sentence behind it");
+        });
+        // ...and the counts a reader is not asked to act on are gone from the
+        // rail entirely, rather than moved into the card.
+        var folded = alerts.map(function (a) { return a.text; });
+        ["4 traced", "2 inferred", "checks GENERATED"].forEach(function (word) {
+          ok(texts.indexOf(word) !== -1, "expected the chip " + word);
+          eq(folded.indexOf(word), -1, word + " is a scoreboard, not an alert");
+        });
+        eq(VA.stackNavAlerts(QUIET_STACK), []);
+        eq(VA.stackNavStatus(QUIET_STACK), null);
+        eq(VA.stackNavStatus(LOUD_STACK).level, VA.NAV_STATUS_LOOK);
+        eq(VA.stackNavAlerts(null), []);
+      });
+
+    await test("a loose-stack row wears the same one icon, and no chip", function () {
+        var root = render(function (r) {
+          VA.renderNavTree(r, { topologies: [], looseStacks: [LOUD_STACK, QUIET_STACK] },
+            { mode: "stack" }, { onStack: function () {} });
+        });
+        var rows = all(root, ".navtree__row--stack");
+        eq(rows.length, 2);
+        eq(all(root, "span.chip").length, 0,
+           "the counts roll-up left the rail with the verdict chips");
+        eq(all(rows[0], ".navstatus--warn").length, 1);
+        eq(rows[0].textContent, "A loud stack");
+        eq(all(rows[1], ".navstatus").length, 0,
+           "a stack with nothing to admit wears nothing -- the same quiet-row " +
+           "rule the study rows run on");
       });
 
     // --- descriptions as hover tooltips (stack_title_style_pass, 2026-09-14) -
@@ -12038,13 +12186,23 @@
           });
 
         // The rail, as a reader finds it at rest
-        // (viewer_nav_alert_badge_and_angled_default, 2026-09-21). Two things
-        // at once, because they pull against each other: no row may be silent
-        // (a rail of verdicts with a blank row reads as a row that passed) and
-        // no row may carry more than the verdict plus one ⚠ (the loudness Jeff
-        // named). Before this pass a live row carried up to four filled chips.
-        await test("[real] every study row states something, and no row " +
-          "carries more than a verdict and one ⚠", function () {
+        // (viewer_nav_verdict_into_alert_and_icon, 2026-09-22). Two things at
+        // once, because they pull against each other: no row may carry more
+        // than the ONE status icon -- the loudness Jeff named, up to four
+        // filled chips on a live row before 2026-09-21 and a verdict pill
+        // beside the ⚠ before 2026-09-22 -- and a row carrying NOTHING has to
+        // have earned the silence.
+        //
+        // That second half is this pass's reversal, stated as a test rather
+        // than only in a comment. The 2026-09-21 version of this test asserted
+        // no row may be silent, on the 2026-09-15 reading that a blank row on
+        // a rail of verdicts reads as a row that passed. True while the rail
+        // was a rail of verdicts; the rail is a rail of things to LOOK AT now,
+        // so silence is the intended reading — and what needs pinning is that
+        // it is earned, row by row, rather than a status that went missing on
+        // the way to the DOM.
+        await test("[real] every live study row wears at most the one status " +
+          "icon, and a silent row is a row with nothing to say", function () {
             var tree = VA.navTree(realTopologies, null);
             var root = render(function (r) {
               VA.renderNavTree(r, tree, { mode: "topology" }, {
@@ -12058,44 +12216,71 @@
             }, 0);
             eq(rows.length, studies);
             ok(studies >= 20, "expected the live study count, got " + studies);
-            var silent = rows.filter(function (row) {
-              return all(row, ".tvverdict").length +
-                     all(row, ".chip--alert").length === 0;
-            });
-            eq(silent.length, 0,
-               "a study row that says nothing reads as a study that passed");
+            // Nothing else on this rail is a mark any more: no verdict pill,
+            // no flag, no chip of any kind, and not one triangle CHARACTER.
+            eq(all(root, ".tvverdict").length, 0,
+               "the verdict left the rail -- it is in the icon's card now");
+            eq(all(root, ".tvflag").length, 0);
+            eq(all(root, "span.chip").length, 0);
+            eq(root.textContent.indexOf(VA.ALERT_ICON), -1,
+               "the rail's mark is drawn, not typed");
             var loud = rows.filter(function (row) {
-              return all(row, ".tvverdict").length > 1 ||
-                     all(row, ".chip--alert").length > 1 ||
-                     all(row, ".tvflag").length > 0;
+              return all(row, ".navstatus").length > 1;
             });
             eq(loud.length, 0,
-               "a nav row's alerts fold into ONE badge -- no second verdict, " +
-               "no second triangle, and no .tvflag on this rail at all");
-            // And the states are all really on screen, so the assertions above
-            // are not satisfied by one word repeated 21 times.
-            ok(all(root, ".tvverdict--pass").length >= 1, "a passing study");
-            ok(all(root, ".tvverdict--fail").length >= 1, "a failing study");
-            ok(all(root, ".chip--alert").length >= 1, "a row with an alert");
-            // The two verdict states that are NOT dispositions have no chip
-            // any more -- they are alerts, and the rows carrying them are the
-            // ones the folded badge has to speak for.
-            eq(all(root, ".tvverdict--none").length, 0);
-            eq(all(root, ".tvverdict--error").length, 0);
-            var folded = 0;
+               "one mark per row, however much the row has to say");
+            // Each row's mark against the model that decided it, study by
+            // study, in render order.
+            var flat = [];
             tree.topologies.forEach(function (t) {
-              t.studies.forEach(function (s) {
-                if (!VA.NAV_ALERT_VERDICT_STATES[s.verdict.state]) return;
-                folded++;
-                var alerts = VA.studyNavAlerts(s);
-                ok(alerts.length >= 1, s.id + " folds its state into no alert");
-                eq(alerts[0].text, s.verdict.word, s.id);
-                ok((alerts[0].why || "").length > 30,
-                   s.id + ": the folded state must arrive as a sentence");
+              t.studies.forEach(function (s) { flat.push(s); });
+            });
+            eq(flat.length, rows.length);
+            var seen = { warn: 0, fail: 0, silent: 0 };
+            flat.forEach(function (s, i) {
+              var status = VA.studyNavStatus(s);
+              if (!status) {
+                eq(all(rows[i], ".navstatus").length, 0, s.id);
+                eq(s.verdict.state, "pass",
+                   s.id + " is silent on a state that is not a clean pass");
+                eq(VA.studyNavAlerts(s), [], s.id + " is silent with a flag on it");
+                seen.silent++;
+                return;
+              }
+              eq(all(rows[i], ".navstatus--" + status.level).length, 1, s.id);
+              seen[status.level]++;
+              // Every word the icon promises is a sentence, and the verdict is
+              // the first of them: the rail states the disposition nowhere
+              // else now, so a row whose card opened without it would leave a
+              // reader the colour and no answer.
+              eq(status.alerts[0].kind, "verdict-" + s.verdict.state, s.id);
+              has(rows[i].querySelector(".navstatus").getAttribute("title"),
+                  s.verdict.word, s.id);
+              status.alerts.forEach(function (alert) {
+                ok(alert.text, s.id + ": an alert with no words in it");
+                ok((alert.why || "").length > 30,
+                   s.id + ": " + alert.kind + " must arrive as a sentence");
               });
             });
-            ok(folded >= 5,
-               "expected the live no-criterion/does-not-sum studies, got " + folded);
+            // Anti-vacuity for the two branches live data reaches, so neither
+            // is a loop nothing enters.
+            ok(seen.warn >= 1, "expected a live row asking to be looked at");
+            ok(seen.fail >= 1, "expected the live failing studies, in red");
+            eq(all(root, ".navstatus--fail").length, seen.fail);
+            // And the third, pinned as the fact it is: NO live study is a
+            // clean pass with nothing against it, measured 2026-09-22 (11
+            // amber, 10 red, 0 silent -- the red ones the nine
+            // `rotor_fastener_grip_u*h` variants plus `vpa_output_shank_out`).
+            // Every live study either misses its criterion, has no criterion,
+            // does not sum, or carries an unverified value. So the quiet row
+            // this pass decided on is a promise about data that has not
+            // arrived yet, and the branch is covered by the synthetic tier
+            // above ("a clean pass with nothing to admit has no status at
+            // all") rather than here. A green that turns red on this line is
+            // a stack getting BETTER: read the loop above, then move the
+            // number.
+            eq(seen.silent, 0,
+               "a live row now earns silence -- update the count and say so");
           });
 
         // The whole rail, against the live repo (deliverable 2 and 3,

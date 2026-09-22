@@ -897,6 +897,18 @@ body.lightbox-open { overflow: hidden; }
 }
 .hovercard__alertwhat { font-size: var(--t-dense); font-weight: 700; color: var(--inferred); }
 .hovercard__alertwhy { font-size: var(--t-meta); color: var(--muted); margin-top: 2px; }
+/* The nav rail's card leads with the study's VERDICT
+   (viewer_nav_verdict_into_alert_and_icon, 2026-09-22: the rail no longer
+   wears a verdict chip, so this line is the only place the disposition is
+   stated on that side of the page). A verdict is state, so it keeps the
+   provenance palette's verdict colours rather than inheriting the amber every
+   other line here wears -- "every build clears it" printed in the colour of a
+   warning is a colour that means nothing. `--verdict-none` and
+   `--verdict-error` deliberately have NO rule: those two really are alerts,
+   and amber is the right answer for them. */
+.hovercard__alert--verdict-pass .hovercard__alertwhat { color: var(--pass); }
+.hovercard__alert--verdict-marginal .hovercard__alertwhat { color: var(--marginal); }
+.hovercard__alert--verdict-fail .hovercard__alertwhat { color: var(--fail); }
 
 /* An inbound deep link that asked for something this data does not contain:
    one plain-words line, amber — a fact about the link, not a rebuild alarm. */

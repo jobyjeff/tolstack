@@ -475,39 +475,85 @@
     };
   };
 
-  // --- one ⚠ per nav row (viewer_nav_alert_badge_and_angled_default) --------
+  // --- one status icon per nav row -----------------------------------------
   //
-  // Jeff, 2026-09-21, reviewing the live rail: "the alerts still haven't been
-  // replaced with a single triangle ! (hover over to see details)", and of the
-  // annotator's badge, "same purpose, just in a different place". The rail was
-  // the third surface named by
-  // ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud
-  // and the last one still shouting: `no criterion` beside `UNVERIFIED` beside
-  // `NO TOLERANCE RECORDED`, at rest, in 300px.
+  // 2026-09-21 (viewer_nav_alert_badge_and_angled_default) folded a row's
+  // FLAGS into one ⚠ and kept the verdict as a chip beside it. Jeff, looking
+  // at the result on 2026-09-22: "get rid of the pass/fail in the left side
+  // menu (move it into the alert along with all the other alerts)." Two
+  // badges on a 300px row read as two competing marks, and the one carrying
+  // the words was the smaller of them.
   //
-  // What this decides is only WHICH of a row's badges is an alert. The verdict
-  // stays a chip — a disposition is what the reader came for, and folding
-  // `PASS` into a hover would be the 2026-09-15 decision reversed rather than
-  // quietened. The two things VA.studyVerdict returns that are NOT dispositions
-  // fold instead: a study with no criterion recorded and a study that does not
-  // sum both ask the reader to act, and neither answers "does it pass".
+  // So the rail now states ONE thing per row -- an icon -- and everything the
+  // row has to say is in the hover, verdict first. That retires
+  // VA.NAV_ALERT_VERDICT_STATES entirely rather than extending it: it existed
+  // to split `no criterion` / `does not sum` (fold) from `pass` / `marginal` /
+  // `fail` (chip), and with no chip left on the rail there is no split left to
+  // make. Every state goes the same way now.
   //
-  // A set keyed by the state, so the vocabulary cannot drift: the WORDS stay
-  // VA.studyVerdict's own `word` and `title`, read at the call site and never
-  // restated here. `pass`/`marginal`/`fail` are absent rather than
-  // present-and-quiet, the same posture apps/annotate/binding_state.js's
+  // What did NOT change: the words. A verdict line reads VA.studyVerdict's own
+  // `word`, `says` and `title`; an attention flag reads VA.ATTENTION's. Nothing
+  // on this rail is reworded here, and nothing is abbreviated onto a row.
+
+  // Every verdict state, and which icon a nav row carrying it earns.
+  //
+  // Amber is the FLOOR -- an icon is only drawn where the row has something to
+  // say at all -- and red is spent on exactly one state, `fail`. Two levels
+  // and not five, because the words are all in the hover now: the colour's
+  // whole job is to tell a scan of a 300px rail where to stop, and an emphasis
+  // every row earns is an emphasis no row has (the house rule: one accent per
+  // view).
+  //
+  // `pass` maps to NOTHING, and that is the quiet-row decision this pass had
+  // to make: a row with a clean answer and nothing to admit draws no mark at
+  // all. It reverses the 2026-09-15 reading that "a silent row on a rail of
+  // verdicts reads as a row that passed" -- which was true while the rail was
+  // a rail of verdicts, and is the intended reading now that it is a rail of
+  // things to look at. Same posture apps/annotate/binding_state.js's
   // BINDING_STATE_ALERTS takes for `bound`.
-  VA.NAV_ALERT_VERDICT_STATES = {
-    none: "no-criterion",
-    error: "does-not-sum",
+  VA.NAV_STATUS_LOOK = "warn";
+  VA.NAV_STATUS_WORST = "fail";
+  VA.NAV_VERDICT_LEVELS = {
+    pass: null,
+    marginal: VA.NAV_STATUS_LOOK,
+    fail: VA.NAV_STATUS_WORST,
+    none: VA.NAV_STATUS_LOOK,
+    error: VA.NAV_STATUS_LOOK,
   };
 
-  // Everything ONE study row has to admit about itself, in reading order: the
-  // verdict state that is not a verdict first, then the attention flags in the
-  // order VA.studyAttention produced them. Not a severity sort. A list
-  // because the badge showing it is one badge however many there are, and
-  // shaped for VA.alertsCard ({ kind, text, why }) so the rail opens the
-  // page's own popover rather than growing a second kind of popup.
+  // A verdict word this viewer has no branch for is never drawn as a quiet
+  // one: it is treated exactly as "no answer is recorded here", which is what
+  // it is from the rail's point of view. Same posture as
+  // VA.unlabelledVerdictText, one step further out.
+  VA.navStatusLevel = function (verdict) {
+    if (!verdict) return null;
+    var level = VA.NAV_VERDICT_LEVELS[verdict.state];
+    return level === undefined ? VA.NAV_VERDICT_LEVELS.none : level;
+  };
+
+  // The verdict, as the FIRST line of a row's hover -- "in plain words", which
+  // is VA.VERDICTS' own `says` ("every build clears it"), pinned to the word it
+  // explains and followed by the full sentence as the why. The three parts are
+  // exactly what a study's totals strip already pairs (views/topology.js's
+  // verdictChip beside .tvverdict-card__says), so a reader who learns the
+  // phrasing in one place meets it in the other.
+  //
+  // `says` is null on the two states that are not dispositions, and there the
+  // word IS the plain-words statement ("no pass/fail criterion recorded yet").
+  VA.navVerdictAlert = function (verdict) {
+    if (!verdict) return null;
+    return {
+      kind: "verdict-" + verdict.state,
+      text: verdict.word + (verdict.says ? " — " + verdict.says : ""),
+      why: verdict.title,
+    };
+  };
+
+  // Everything ONE study row has to say BESIDE its verdict, in reading order:
+  // the attention flags in the order VA.studyAttention produced them. Not a
+  // severity sort. A list because the icon showing it is one icon however many
+  // there are, and shaped for VA.alertsCard ({ kind, text, why }) so the rail
+  // opens the page's own popover rather than growing a second kind of popup.
   //
   // `study` is a nav-tree entry (VA.navTree's studies), not a projection
   // study: the verdict and the attention walk are already done there, once
@@ -516,24 +562,90 @@
   VA.studyNavAlerts = function (study) {
     var alerts = [];
     var verdict = study && study.verdict;
-    var kind = verdict && VA.NAV_ALERT_VERDICT_STATES[verdict.state];
-    if (kind) alerts.push({ kind: kind, text: verdict.word, why: verdict.title });
     ((study && study.attention && study.attention.badges) || []).forEach(function (flag) {
       alerts.push({ kind: flag.key, text: flag.text, why: flag.title });
     });
-    // Never a bare verdict where the chain is short a term. The `--qualified`
-    // tint on the verdict chip is a tint; nav.js's standing rule is that the
-    // WORD has to arrive too, and until this fold it arrived as its own chip.
-    // It normally arrives here from the attention flags — an excluded term is
-    // *why* a check reports `complete: false` — so this covers only the case
-    // where a check says incomplete and names no excluded term, which would
-    // otherwise leave the reader a stripe and no sentence.
+    // Never a bare verdict where the chain is short a term. The verdict line
+    // states the disposition; this is the standing rule that the QUALIFICATION
+    // arrives as a word of its own rather than only as a tint. It normally
+    // arrives from the attention flags — an excluded term is *why* a check
+    // reports `complete: false` — so this covers only the case where a check
+    // says incomplete and names no excluded term.
     var named = alerts.some(function (alert) { return alert.kind === "incomplete"; });
     if (verdict && verdict.incomplete && !named) {
       alerts.push({ kind: "incomplete", text: VA.ATTENTION.incomplete.text,
                     why: VA.ATTENTION.incomplete.title });
     }
     return alerts;
+  };
+
+  // The whole of a study row's mark: which icon, and what it says. `null` is a
+  // row with nothing to state — a clean pass with no flag against it — and
+  // that row renders nothing at all.
+  VA.studyNavStatus = function (study) {
+    var verdict = study && study.verdict;
+    var alerts = VA.studyNavAlerts(study);
+    var level = VA.navStatusLevel(verdict);
+    if (!level && !alerts.length) return null;
+    var lead = VA.navVerdictAlert(verdict);
+    return {
+      level: level || VA.NAV_STATUS_LOOK,
+      alerts: lead ? [lead].concat(alerts) : alerts,
+    };
+  };
+
+  // --- the same mark on a loose stack's row ---------------------------------
+  //
+  // A stack no topology re-expresses is a leaf of the same rail, and until now
+  // it printed every one of VA.summaryChips' facts as its own chip — five on
+  // `hub_bearing_thermal_fit_m1`, one of them the FILLED `UNTRACED`, so after
+  // the 2026-09-21 fold these were the loudest rows on a rail whose study rows
+  // wore two marks. Filed as "Still open (2)" on
+  // ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud;
+  // this is the answer, and it is the same scheme, which is the point ("every
+  // nav tier is consistent", the 2026-09-22 handoff's deliverable 3).
+  //
+  // WHICH of the five fold is the question that issue left open, and the rule
+  // is the one the rail now runs on: the rail states what asks you to look, and
+  // nothing else. A count of traced values, where the checks came from and how
+  // many probes were run are none of them something a reader is asked to act on
+  // or distrust — they are the stack's scoreboard, and they are on the stack's
+  // own page (views/stack.js renders the same VA.summaryChips there,
+  // unchanged). What stays is what the repo's one rule is about: a value
+  // nothing stands behind, a value with no band, and a check that is a budget
+  // rather than an answer.
+  //
+  // A stack row leads with no verdict, unlike a study row: the stack
+  // projection has never carried a study-style disposition and this pass does
+  // not derive one. Its checks state their own verdicts on the page the row
+  // opens.
+  VA.STACK_NAV_ALERT_KINDS = {
+    "zero-width": "no_tolerance",
+    budget: "incomplete",
+  };
+
+  VA.stackNavAlerts = function (stackProj) {
+    var alerts = [];
+    VA.summaryChips(stackProj || {}).forEach(function (chip) {
+      if (chip.kind === "confidence") {
+        // The loud pair only. `traced` and `inferred` counts are a scoreboard.
+        if (!VA.needsAnnotation(chip.confidence)) return;
+        alerts.push({ kind: "unverified", text: chip.text,
+                      why: VA.ATTENTION.unverified.title });
+        return;
+      }
+      var kind = VA.STACK_NAV_ALERT_KINDS[chip.kind];
+      // The chip's OWN words, moved rather than restated — VA.summaryChips
+      // already reads them out of VA.ATTENTION and VA.VERDICT_SCOPES.
+      if (kind) alerts.push({ kind: kind, text: chip.text, why: chip.title });
+    });
+    return alerts;
+  };
+
+  VA.stackNavStatus = function (stackProj) {
+    var alerts = VA.stackNavAlerts(stackProj);
+    if (!alerts.length) return null;
+    return { level: VA.NAV_STATUS_LOOK, alerts: alerts };
   };
 
   // --- what is missing ------------------------------------------------------

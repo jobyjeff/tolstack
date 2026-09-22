@@ -84,20 +84,16 @@
         (active ? " navtree__row--on" : "") +
         (s.status === "error" ? " navtree__row--warn" : ""));
       // The row's own name, with no glyph in front of it: a study that does
-      // not sum used to prefix "⚠ " here AND now earns the consolidated badge
+      // not sum used to prefix "⚠ " here AND now earns the status icon
       // below, and two triangles on one row is the loudness this pass exists
       // to remove. The amber `--warn` tint stays — it is the row's state, not
       // a badge, and it is what makes the row findable without hovering.
       srow.appendChild(VA.el("span", "navtree__label", s.title));
-      // The verdict, on the rail (viewer_study_verdicts_and_gaps, 2026-09-15).
-      // Every study that HAS a disposition wears it; everything else the row
-      // has to admit is one ⚠ with the sentences on hover
-      // (viewer_nav_alert_badge_and_angled_default, 2026-09-21). The rail is
-      // where a reader sees the shape of a whole document at once, so a row
-      // that stays silent about whether its study passes reads as a row whose
-      // study passed — which is why a row with no criterion recorded still
-      // carries the badge rather than nothing.
-      srow.appendChild(studyBadges(s, handlers));
+      // One mark, and only where there is something to look at
+      // (viewer_nav_verdict_into_alert_and_icon, 2026-09-22). The verdict went
+      // in with it: VA.studyNavStatus (topology.js) decides both which icon
+      // and what it says, and is the only place either vocabulary lives.
+      statusIcon(VA.studyNavStatus(s), s.title, srow, handlers);
       setTooltip(srow, s.description, null);
       srow.setAttribute("data-nav-kind", "study");
       srow.setAttribute("data-nav-id", s.id);
@@ -109,42 +105,37 @@
     return li;
   }
 
-  // The study row's badges: at most two, and one of them is a glyph.
+  // The ONE mark a nav row may wear, appended onto the row itself rather than
+  // into a wrapper of its own: it sits at the end of the row's first line,
+  // where the label's `flex: 1 1 auto` pushes it, instead of on a second line
+  // under the name the way the retired `.navtree__chips` strip did. Whitespace
+  // before chrome, and one line per row on a rail that is always on screen.
   //
-  // Until 2026-09-21 this was up to four filled all-caps chips — `PASS`
-  // `UNVERIFIED` `NO TOLERANCE RECORDED`, or `no criterion` `UNVERIFIED` — on
-  // every row of a 300px rail that is always on screen. Jeff: "the alerts
-  // still haven't been replaced with a single triangle ! (hover over to see
-  // details)". So:
+  // Until 2026-09-22 a study row wore two marks — a filled all-caps verdict
+  // pill AND a bordered ⚠ — and before 2026-09-21, up to four. Jeff, on the
+  // two: "get rid of the pass/fail in the left side menu (move it into the
+  // alert along with all the other alerts). Also reformat the alert icon: get
+  // rid of the rounded border around it, make the actual icon larger so it's
+  // legible." So:
   //
-  //   * the VERDICT stays a chip, because it is the answer the reader came for
-  //     and folding it into a hover would reverse the 2026-09-15 decision that
-  //     put it here rather than quieten it. It still carries its `--qualified`
-  //     tint where the chain is short a term;
-  //   * every alert — the two verdict states that are not dispositions, and
-  //     each attention flag — folds into ONE ⚠ whose card lists them as full
-  //     sentences. VA.studyNavAlerts (topology.js) decides which is which and
-  //     is the only place that vocabulary lives;
-  //   * a row with nothing wrong shows the verdict alone. Nothing about an
-  //     absent alert is rendered at all.
-  function studyBadges(s, handlers) {
-    var chips = VA.el("div", "navtree__chips");
-    var verdict = s.verdict;
-    if (verdict && !VA.NAV_ALERT_VERDICT_STATES[verdict.state]) {
-      var chip = VA.chip("tvverdict tvverdict--" + verdict.state,
-        verdict.word, verdict.title);
-      if (verdict.incomplete) chip.className += " tvverdict--qualified";
-      chips.appendChild(chip);
-    }
-    var alerts = VA.studyNavAlerts(s);
-    if (alerts.length) {
-      // `stopClick`: the row underneath selects the study and re-renders the
-      // whole rail, which would replace the badge the pointer is resting on.
-      // The badge is a disclosure, not a second way into the study.
-      chips.appendChild(VA.alertBadge(alerts, s.title,
-        handlers && handlers.onCardShow, { stopClick: true }));
-    }
-    return chips;
+  //   * ONE icon, drawn (VA.warningIcon) rather than typed, with no chip
+  //     framing around it — a border is a second mark on a row that needs one;
+  //   * everything the row has to say is in the card it opens, verdict first,
+  //     as full sentences. No abbreviation ever lands on a row;
+  //   * a row with nothing to look at — a clean pass, no flags — wears
+  //     nothing. The level says which of the two colours; the words say why.
+  //
+  // `stopClick`: the row underneath selects the study and re-renders the whole
+  // rail, which would replace the icon the pointer is resting on. The icon is
+  // a disclosure, not a second way into the study.
+  function statusIcon(status, title, row, handlers) {
+    if (!status) return;
+    row.appendChild(VA.alertBadge(status.alerts, title,
+      handlers && handlers.onCardShow, {
+        stopClick: true,
+        className: "navstatus navstatus--" + status.level,
+        icon: VA.warningIcon("navstatus__mark"),
+      }));
   }
 
   function stackItem(stackProj, state, handlers) {
@@ -153,13 +144,12 @@
     var row = VA.el("div", "navtree__row navtree__row--stack" +
       (active ? " navtree__row--on" : ""));
     row.appendChild(VA.el("span", "navtree__label", stackProj.title));
-    var chips = VA.el("div", "navtree__chips");
-    VA.summaryChips(stackProj).forEach(function (chip) {
-      chips.appendChild(VA.chip(
-        chip.kind === "confidence" ? VA.confidenceClass(chip.confidence) : "chip--" + chip.kind,
-        chip.text, chip.title));
-    });
-    row.appendChild(chips);
+    // The same mark a study row wears, over the same scheme
+    // (VA.stackNavStatus). These rows printed every one of VA.summaryChips'
+    // counts as its own chip until 2026-09-22 — five of them on one row, one
+    // filled — which made them the loudest rows on a rail whose study rows had
+    // just been quietened. The scoreboard is on the stack's own page.
+    statusIcon(VA.stackNavStatus(stackProj), stackProj.title, row, handlers);
     setTooltip(row, stackProj.description, null);
     row.setAttribute("data-nav-kind", "stack");
     row.setAttribute("data-nav-id", stackProj.id);
