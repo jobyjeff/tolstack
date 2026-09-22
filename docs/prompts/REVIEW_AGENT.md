@@ -474,10 +474,16 @@ problem as an unrecorded full suite one step later.
   tests/test_rebuild_terminal_state_pairing.py`, then the rebuild itself and the
   viewer `[real]` tier.
 - **Prose in a tracked document, including this file** → `pytest -q
-  tests/test_tolerance_stack.py tests/test_provenance.py`. The doc-scan,
-  claim-shape and byte-identity guards read `docs/` as a live corpus, so a
-  docs-only diff can legitimately go red — that is the design, not a nuisance
-  (repo `CLAUDE.md`).
+  tests/test_tolerance_stack.py tests/test_provenance.py
+  tests/test_thermal_exception_list.py`. The doc-scan, claim-shape and
+  byte-identity guards read `docs/` as a live corpus, so a docs-only diff can
+  legitimately go red — that is the design, not a nuisance (repo `CLAUDE.md`).
+  **Three modules share that walk, not two** — `claim_scanned_documents()` is
+  defined in `tests/test_tolerance_stack.py` and imported by the other two, so
+  `grep -rl claim_scanned_documents tests/` is how you check this row is still
+  complete. `docs/prompts/` is inside the corpus; `docs/sessions/`,
+  `docs/issues/` and `docs/reference/` are not (`_HISTORICAL_DIRS`), so a diff
+  of only lessons and issues cannot red these — measured 2026-09-21.
 - **`ARCHITECTURE.md`, `README.md`, `PROVENANCE.md`, `ops.toml`** → `pytest -q
   tests/test_architecture_inventory.py tests/test_provenance.py
   tests/test_ops_toml_serve_verb.py`.
@@ -1654,7 +1660,7 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       existing meaning — a caller testing `$LASTEXITCODE` instead of reading the
       line still sees success. So a report quoting a JS count
       **must say whether the tier ran**, and you re-run it yourself as
-      `node apps\viewer\run_tests.cjs --repo C:/workspace/tolstack`. **Forward
+      `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`. **Forward
       slashes in that path**: under the Bash tool `C:\\workspace\\tolstack` has
       its backslashes eaten, the runner looks under
       `<cwd>/workspacetolstack/...`, finds nothing and — skips, green. Same trap,

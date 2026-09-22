@@ -35,6 +35,11 @@ One `sed`: `apps\viewer\run_tests.cjs` → `apps/viewer/run_tests.cjs` in
 `review_overlay_test_cadence` handoff, whose scope was that file's test-cadence
 sentences only (file-don't-fix).
 
+> **2026-09-21, `review/review_overlay_test_cadence`:** the overlay half is
+> **done** — fixed inline in the review, where the overlay is the reviewer's
+> own artifact. This issue stays `open` for the sibling below, which is in a
+> test file and belongs to whoever owns that file next.
+
 Sibling worth checking in the same pass, **not** the same file and explicitly
 out of that handoff's scope (it forbade touching tests): the docstring of
 `tests/test_viewer_js_suite.py` prints
