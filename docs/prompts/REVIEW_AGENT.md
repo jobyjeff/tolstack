@@ -3937,6 +3937,19 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       checked the coexistence on two DIFFERENT faces, which is the fixture's
       shape, not the contract's.
       `ISSUE_20260921_a_face_bound_to_another_element_gets_two_opaque_overlays.md`.
+- [ ] **A hand-enumerated list of test modules is a vocabulary, and it drifts
+      like every other one here.** New 2026-09-21 (`review_overlay_test_cadence`),
+      found in the *same commit* that introduced the list. "Choosing the risky
+      subset" above maps a diff shape to the modules to run; its prose row named
+      `test_tolerance_stack.py` and `test_provenance.py`, and the corpus walk is
+      shared by **three** modules — `test_thermal_exception_list.py` imports
+      `claim_scanned_documents()` too, and `docs/prompts/` is inside its rule-scan
+      corpus, so this very file can red it. A module list cannot be pinned by a
+      test the way a field vocabulary is (no constructor refuses a missing row),
+      so the only thing standing between it and drift is **the grep that
+      regenerates it, written into the row beside the list**. When a review adds
+      or edits a mapping row, ask for that grep; a row that names modules and
+      not the query that found them is already stale-shaped.
 
 ## Architectural errors to check
 
