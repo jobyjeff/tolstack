@@ -4956,6 +4956,252 @@ async function testAnnotateRail(browser, label) {
 // rather than just being strict: a build that removed the picker everywhere
 // would pass the hosted half and fail the local one, which is the regression
 // that would quietly kill Jeff's own annotation workflow.
+
+// --- the face-suggestion display (handoff annotate_face_suggestions) --------
+//
+// Four claims, and every one of them is about what is ON SCREEN, which is why
+// they are here rather than in apps/annotate/run_tests.cjs. That suite owns the
+// RULES (which faces, and why) against synthetic classifications and the real
+// mesh store; it cannot see a colour, cannot see a body fade, and cannot see
+// two overlays coexist.
+//
+//   1. Selecting an element really colours the candidates. The plan is data;
+//      the overlay is geometry added to a three.js scene, in a colour read off
+//      the live material.
+//   2. The two overlays COEXIST and are different colours -- the bound face
+//      stays green while the candidate is the accent, which is the whole reason
+//      scene.js keys its overlay colours by what the overlay claims.
+//   3. Picking a candidate moves it to the pick colour rather than drawing two
+//      opaque overlays on one face.
+//   4. The switch really switches, and survives a reload -- and, the thing the
+//      first build of this got wrong, it does not fight the See-through switch:
+//      both are live at once and each does its own job.
+//
+// ?mock=1 throughout, like the other two annotate suites: FSA cannot be granted
+// from an automated browser. The fixture was grown for this (fixtures.js) -- a
+// named interface table and a second mesh face, because a suggestion needs a
+// candidate that is not already bound.
+async function testAnnotateSuggestions(browser, label) {
+  const checks = [];
+  const push = (name, cond) => checks.push({ name, cond: !!cond });
+  const server = await startRepoRootServer();
+  const url = `http://127.0.0.1:${server.address().port}/apps/annotate/index.html`;
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const setting = (text) =>
+    page.locator("#hint-panel label.an__setting", { hasText: text }).locator("input");
+  const openHelp = async () => {
+    await page.locator("#detail .an__disclose").click();
+    await page.waitForSelector("#hint-panel", { state: "visible", timeout: 5000 });
+  };
+  // The overlays of one role, with the colour each is actually drawn in --
+  // read off the live material, because "it is the accent" is a CSS-token claim
+  // and a class-name check would pass straight through a wrong hex.
+  const overlays = (role) => page.evaluate((r) => window.__scene._marks
+    .filter((m) => m.role === r)
+    .map((m) => ({ faceId: m.faceId, color: m.mesh.material.color.getHexString() })), role);
+  const ghosted = (sha) => page.evaluate((s) => {
+    const mesh = window.__scene.parts.get(s);
+    return !!(mesh && mesh.material.transparent && mesh.material.opacity < 1);
+  }, sha);
+  const element = url + "?mock=1&topology=demo_system&edge=demo_edge_untraced";
+  try {
+    await page.goto(url + "?mock=1", { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row", { timeout: 15000 });
+    await page.evaluate(() => {
+      Object.keys(window.AnnotateApp.PREF_KEYS)
+        .forEach((k) => window.localStorage.removeItem(window.AnnotateApp.PREF_KEYS[k]));
+    });
+
+    // --- 1. arriving at an element colours the candidates -------------------
+    await page.goto(element, { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    const sha = await page.evaluate(() => window.AnnotateApp.FIXTURES.demoSha);
+    await page.waitForFunction(
+      () => window.__scene && window.__scene.listMarks("suggested").length > 0,
+      null, { timeout: 15000 });
+    const suggested = await overlays("suggested");
+    // The fixture binds face 0, so face 1 is the candidate: the same-part
+    // parallel narrowing keeps it and the bound face is not offered again.
+    push("selecting an element colours the face that could be its feature",
+      suggested.length === 1 && suggested[0].faceId === 1);
+    push("...in the shared accent, read off the live material",
+      suggested.length === 1 && "#" + suggested[0].color === "#6ea8fe");
+    push("...and the top bar says how far the list was narrowed, in words",
+      /likely face/.test(
+        (await page.locator("#detail .an__suggestion-note").textContent()) || ""));
+    push("...with the body see-through, so a candidate behind it is visible",
+      await ghosted(sha));
+    push("...and the element's part is in the scene exactly once",
+      await page.evaluate(() => window.__scene.scene.children
+        .filter((c) => c.isMesh && c.geometry && c.geometry.attributes.color).length) === 1);
+
+    // --- 2. the two claims coexist, in two colours --------------------------
+    //
+    // Through a SCOPE entry, because that is what puts a bound-face mark on
+    // screen (`trace` marks every bound face in the scope; an element entry
+    // never has). Then one element is selected on top of it, which is the
+    // state a reader is actually in: one face green because a binding attaches
+    // there, another in the accent because it could be the one they are about
+    // to bind.
+    await page.goto(url + "?mock=1&trace=1&topology=demo_system&study=demo_study",
+      { waitUntil: "load" });
+    await page.waitForFunction(() => window.__lastTrace !== undefined, null,
+      { timeout: 15000 });
+    push("a scope entry marks the face already bound, in green",
+      (await overlays("bound")).length === 1 &&
+      (await overlays("bound"))[0].faceId === 0 &&
+      (await overlays("suggested")).length === 0);
+    await page.locator("#element-list li.el-row", { hasText: "Demo untraced edge" })
+      .first().click();
+    await page.waitForFunction(
+      () => window.__scene.listMarks("suggested").length === 1, null, { timeout: 5000 });
+    const traced = { bound: await overlays("bound"), suggested: await overlays("suggested") };
+    push("selecting an element on top of it colours the candidate WITHOUT " +
+      "taking the bound mark down -- 'a binding attaches here' and 'this could " +
+      "be it' are two claims that coexist",
+      traced.bound.length === 1 && traced.bound[0].faceId === 0 &&
+      traced.suggested.length === 1 && traced.suggested[0].faceId === 1 &&
+      traced.bound[0].color !== traced.suggested[0].color);
+    const bound = traced.bound;
+
+    // ...and the switch comes down on ONE of those two layers. Checked here
+    // rather than on an element entry for the same reason the pair above is:
+    // this is the only state in which there is a bound mark to leave alone.
+    await openHelp();
+    await setting("Suggest likely faces").uncheck();
+    await page.waitForFunction(
+      () => window.__scene.listMarks("suggested").length === 0, null, { timeout: 5000 });
+    push("unticking the switch takes the candidate colours off, now",
+      (await overlays("suggested")).length === 0);
+    push("...and leaves the bound face marked -- it was never a suggestion",
+      (await overlays("bound")).length === 1);
+    push("...and leaves See-through alone, which owns the body's translucency",
+      await ghosted(sha) && await setting("See-through parts").isChecked());
+    await setting("Suggest likely faces").check();
+    await page.waitForFunction(
+      () => window.__scene.listMarks("suggested").length === 1, null, { timeout: 5000 });
+    push("...and ticking it back puts them on again",
+      (await overlays("suggested")).length === 1);
+
+    // Back to the element entry for the pick checks below.
+    await page.goto(element, { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    await page.waitForFunction(
+      () => window.__scene.listMarks("suggested").length === 1, null, { timeout: 15000 });
+
+    // --- 3. picking a candidate moves it to the pick colour -----------------
+    await page.evaluate((s) => window.AnnotateApp.exec(["select-face", s, "1"]), sha);
+    await page.waitForFunction(
+      () => window.__scene.listMarks("picked").length === 1, null, { timeout: 5000 });
+    const picked = await overlays("picked");
+    const afterPick = await overlays("suggested");
+    push("picking a suggested face draws it as the PICK",
+      picked.length === 1 && picked[0].faceId === 1);
+    push("...and stops drawing it as a suggestion -- one face, one overlay",
+      afterPick.every((m) => m.faceId !== 1));
+    push("...in a third colour again", picked[0].color !== suggested[0].color &&
+      picked[0].color !== bound[0].color);
+    await page.evaluate(() => window.AnnotateApp.exec(["deselect"]));
+    await page.waitForFunction(
+      () => window.__scene.listMarks("picked").length === 0, null, { timeout: 5000 });
+    push("letting the face go takes its overlay down and puts the suggestion back",
+      (await overlays("suggested")).length === 1);
+
+    // --- 4. the two switches side by side -----------------------------------
+    //
+    // See-through off WHILE suggestions are on: the conflict the first build of
+    // this had. The suggestion display used to fade the body unconditionally,
+    // so this switch did nothing a reader could see.
+    await openHelp();
+    await setting("See-through parts").uncheck();
+    push("with suggestions ON, unticking See-through still makes the body solid",
+      !(await ghosted(sha)));
+    push("...and the candidates stay coloured",
+      (await overlays("suggested")).length === 1);
+    // ...and it has to SURVIVE the next suggestion run, which is the half a
+    // display that fades the body itself takes back. Deselect the element and
+    // select it again: that is the gesture a reader makes constantly, and it
+    // re-runs `suggest` from scratch.
+    const row = page.locator("#element-list li.el-row", { hasText: "Demo untraced edge" })
+      .first();
+    await row.click();
+    await page.waitForFunction(
+      () => window.__scene.listMarks("suggested").length === 0, null, { timeout: 5000 });
+    await row.click();
+    await page.waitForFunction(
+      () => window.__scene.listMarks("suggested").length === 1, null, { timeout: 5000 });
+    push("...and the solid body survives the next suggestion run -- the " +
+      "suggestion display asks what See-through says, it never decides",
+      !(await ghosted(sha)) && (await overlays("suggested")).length === 1);
+    await setting("See-through parts").check();
+    push("...and ticking it back restores the see-through body", await ghosted(sha));
+
+    // The setting outlives the page, like the other two.
+    await setting("Suggest likely faces").uncheck();
+    await page.goto(element, { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    await openHelp();
+    push("an unticked suggestion switch survives a reload",
+      !(await setting("Suggest likely faces").isChecked()) &&
+      (await overlays("suggested")).length === 0);
+    push("...and nothing on the bar claims a narrowing that is switched off",
+      await page.locator("#detail .an__suggestion-note").count() === 0);
+
+    // ...and the verb is never gated: a command typed by hand does what it says.
+    await page.evaluate(() => window.AnnotateApp.exec(["suggest"]));
+    await page.waitForFunction(
+      () => window.__scene.listMarks("suggested").length === 1, null, { timeout: 5000 });
+    push("the `suggest` verb still runs with the switch off -- a verb typed by " +
+      "hand does what it says",
+      (await overlays("suggested")).length === 1);
+
+    // --- an element whose words say nothing shows NOTHING -------------------
+    await setting("Suggest likely faces").check();
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_traced",
+      { waitUntil: "load" });
+    await page.waitForSelector("#element-list li.el-row.selected", { timeout: 15000 });
+    // demo_edge_traced names no part at all, so there is nothing to suggest --
+    // and the bar must not be lit up about it.
+    push("an element with no part suggests nothing, and says nothing about " +
+      "narrowing", (await overlays("suggested")).length === 0);
+
+    // --- scene.loadPart's concurrency contract, driven ---------------------
+    //
+    // Two callers ask for the same part before either finishes. In normal use
+    // that pair is `goto` (which opens the element's part) and the suggestion
+    // display, which `select-edge` starts and a click handler does not await --
+    // but their relative timing is not deterministic enough to be a guard, so
+    // the contract is DRIVEN here rather than hoped for. Without the shared
+    // in-flight promise both callers build a THREE.Mesh, and the second is
+    // unreachable through `scene.parts` and therefore impossible to hide,
+    // frame or dispose. Counted off the live scene graph, because that map is
+    // exactly where the duplicate is NOT.
+    //
+    // Last in the suite because it unloads and reloads the part, which moves
+    // it in the side-by-side layout and drops its overlays.
+    const bodies = await page.evaluate(async (s) => {
+      const scene = window.__scene;
+      scene.unloadPart(s);
+      await Promise.all([scene.loadPart(s), scene.loadPart(s)]);
+      return scene.scene.children
+        .filter((c) => c.isMesh && c.geometry && c.geometry.attributes.color).length;
+    }, sha);
+    push("two callers that both ask for one part before either finishes get " +
+      "ONE body in the scene", bodies === 1);
+
+    push("no page error anywhere in the run", errors.length === 0);
+    return reportSuite(label, checks, errors);
+  } catch (err) {
+    return reportAbortedSuite(label, checks, errors, err);
+  } finally {
+    await page.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
 // --- the top bar, the entry context and its switches ------------------------
 //
 // (handoff annotate_hint_bar_and_context_autofilter, 2026-09-21.) Three claims
@@ -4995,6 +5241,18 @@ async function testAnnotateTopBar(browser, label) {
     const mesh = window.__scene.parts.get(s);
     return !!(mesh && mesh.material.transparent && mesh.material.opacity < 1);
   }, sha);
+  // A Display switch, addressed by the WORDS on it. It was
+  // `#hint-panel input[type=checkbox]` until 2026-09-21, which worked only
+  // while there was exactly one switch in the panel and became a strict-mode
+  // violation the moment the face-suggestion setting joined it -- a locator
+  // that depends on a panel having one control is a locator that breaks on the
+  // second one.
+  const setting = (label) =>
+    page.locator("#hint-panel label.an__setting", { hasText: label }).locator("input");
+  const openHelp = async () => {
+    await page.locator("#detail .an__disclose").click();
+    await page.waitForSelector("#hint-panel", { state: "visible", timeout: 5000 });
+  };
   try {
     await page.evaluate(() => {}).catch(() => {});
     await page.goto(url + "?mock=1", { waitUntil: "load" });
@@ -5039,8 +5297,9 @@ async function testAnnotateTopBar(browser, label) {
     const helpLines = await page.locator("#hint-panel .an__hint-lines li").count();
     push("Help opens a panel of short lines about what this surface does",
       helpLines >= 3);
-    push("...and the see-through switch lives in it, ticked by default",
-      await page.locator("#hint-panel input[type=checkbox]").isChecked());
+    push("...and the two display switches live in it, both ticked by default",
+      await setting("See-through parts").isChecked() &&
+      await setting("Suggest likely faces").isChecked());
     const grewTo = (await page.locator(".an__hintbar").boundingBox()).height;
     push("...and the bar grows only while it is open", grewTo > bar.height);
     await page.locator("#detail .an__disclose").click();
@@ -5098,12 +5357,11 @@ async function testAnnotateTopBar(browser, label) {
     await page.locator("#auto-setup-body input[type=checkbox]").nth(1).check();
 
     // See-through, on the element entry that is already on screen.
-    await page.locator("#detail .an__disclose").click();
-    await page.waitForSelector("#hint-panel", { state: "visible", timeout: 5000 });
-    await page.locator("#hint-panel input[type=checkbox]").uncheck();
+    await openHelp();
+    await setting("See-through parts").uncheck();
     push("unticking See-through parts makes the body solid, now",
       !(await ghosted(sha)));
-    await page.locator("#hint-panel input[type=checkbox]").check();
+    await setting("See-through parts").check();
     push("...and ticking it puts it back", await ghosted(sha));
 
     // --- study scope and topology scope ------------------------------------
@@ -5118,11 +5376,11 @@ async function testAnnotateTopBar(browser, label) {
     const scopeNote = await page.locator(".an__filter-note").textContent();
     push("...and the rail says which study it is scoped to, by its title",
       /Showing only/.test(scopeNote || "") && /Demo study/.test(scopeNote || ""));
-    await page.locator("#detail .an__disclose").click();
-    await page.locator("#hint-panel input[type=checkbox]").uncheck();
+    await openHelp();
+    await setting("See-through parts").uncheck();
     push("the see-through switch flips a scope entry too, not just an element one",
       !(await ghosted(sha)));
-    await page.locator("#hint-panel input[type=checkbox]").check();
+    await setting("See-through parts").check();
 
     await page.goto(url + "?mock=1&trace=1&topology=demo_system", { waitUntil: "load" });
     await page.waitForFunction(() => window.__lastTrace !== undefined, null,
@@ -6877,6 +7135,8 @@ note: no topologies.json under ${DATA_REPO} — the topology ` +
         testAnnotateHostedPosture(browser, label)],
       ["annotate top bar + entry context (auto-filter, see-through)", (label) =>
         testAnnotateTopBar(browser, label)],
+      ["annotate face suggestions (candidate colours, the pick, the switch)", (label) =>
+        testAnnotateSuggestions(browser, label)],
       ["crop lightbox (launch, zoom, pan on the live crops)", (label) =>
         testCropLightbox(browser, label, topologies, crops)],
       ["typography pass's visual rules (live stack view)", (label) =>

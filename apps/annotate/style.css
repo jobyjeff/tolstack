@@ -273,8 +273,10 @@ body {
 
 /* The help/settings panel the top bar opens (Jeff's "collapsible 'commands'
    element that gives general help"). Two groups side by side on a wide bar,
-   stacking on a narrow one -- and the room a later section (auto-suggestion
-   settings, handoff annotate_face_suggestions) drops into. */
+   stacking on a narrow one. The face-suggestion setting (handoff
+   annotate_face_suggestions, 2026-09-21) joined the DISPLAY group rather than
+   opening a third one: it is a second answer to "what do I see", which is the
+   question that group already asks, and a group per setting is chrome. */
 .an__hint-panel {
   display: flex; flex-wrap: wrap; gap: 8px 32px;
   border-top: 1px solid #33383f; margin-top: 6px; padding-top: 8px;
@@ -304,6 +306,14 @@ body {
   border-radius: 0 4px 4px 0;
 }
 .read-only-note { margin: 0; width: 100%; color: #d6b45b; }
+/* What the colours on the body mean, while faces are suggested. Metadata: it
+   carries no state and no alarm, so it is muted and unhued (the house rule --
+   secondary is muted, never smaller-and-bolder, and red/amber/green mean
+   state). No spine and no box either: it sits under the instruction with room
+   above it, which is all the separation a one-line caption needs. */
+.an__suggestion-note {
+  margin: 0; width: 100%; color: #9aa1ab; font-size: var(--t-meta);
+}
 
 /* HORIZONTAL since 2026-09-21: these two forms used to be the bottom of a
    320px column and stacked their fields; in a bar across the top they lay out

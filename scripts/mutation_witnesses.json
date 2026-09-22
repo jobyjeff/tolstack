@@ -894,6 +894,66 @@
       "tier": "browser",
       "suite": "annotate top bar + entry context (auto-filter, see-through)",
       "expect_red": "unticking See-through parts makes the body solid, now"
+    },
+    {
+      "id": "a-suggestion-never-selects-a-face",
+      "contract": "A face suggestion is a PROPOSAL IN THE UI and never a binding: the suggestion path colours candidates and does nothing else. It never picks one, and it never writes a feature-identity event -- the hard fence on handoff annotate_face_suggestions, and the whole reason the engine was allowed to exist.",
+      "issue": null,
+      "note": "The mutation is the exact temptation the fence is about, and the cheapest possible version of it: when the narrowing gets down to ONE candidate, select it for the reader. That is one line, it looks helpful, and it turns an eager-until-one-way-door surface into one that quietly makes identity decisions.",
+      "file": "apps/annotate/app.js",
+      "find": "  faces.forEach((f) => state.scene.markFace(f.sha256, f.faceId, \"suggested\"));",
+      "replace": "  faces.forEach((f) => state.scene.markFace(f.sha256, f.faceId, \"suggested\"));\n  if (faces.length === 1) {\n    AA.exec([\"select-face\", faces[0].sha256, String(faces[0].faceId)]);\n  }",
+      "tier": "annotate",
+      "suite": null,
+      "expect_red": "THE FENCE: the suggestion path colours faces and does nothing else -- it never selects, never highlights, never builds an event"
+    },
+    {
+      "id": "a-suggestion-wears-no-state-colour",
+      "contract": "The suggestion overlay is the shared accent -- one declaration, in apps/viewer/style.css's :root. Red, amber and green mean provenance and a verdict in both apps (docs/DESIGN_TYPE_AND_COLOUR.md), and a candidacy is neither of those.",
+      "issue": null,
+      "note": "The mutation paints candidates in the provenance palette's traced green, which is the specific way this goes wrong: green reads as 'this one is right' on a surface whose whole point is that the reader decides. It also leaves the hex a plausible-looking literal, which is why the guard pairs it against the stylesheet rather than against a value written down twice.",
+      "file": "apps/annotate/scene.js",
+      "find": "const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };",
+      "replace": "const MARK_COLORS = { bound: 0x35c26e, suggested: 0x43a047, picked: 0xff8c1a };",
+      "tier": "annotate",
+      "suite": null,
+      "expect_red": "the suggestion colour IS the shared accent -- one declaration in apps/viewer/style.css, not a hex typed twice"
+    },
+    {
+      "id": "two-flat-faces-on-different-parts-are-not-compared",
+      "contract": "The cross-part narrowing stage can assert NOTHING about two flat faces, because apps/annotate applies no assembly placement transforms -- every part is drawn at its own local origin, so one mesh's plane normal and offset mean nothing measured against another's. The null in the relation table is a decision with a reason, not a hole.",
+      "issue": "docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md",
+      "note": "The mutation fills the null in with the relation it looks like it wants, which is what a reader who has not noticed the missing frame would do. Two planes at unrelated origins then read as parallel or not by accident -- a suggestion that is right half the time, on the one surface in this repo whose value is that it never guesses.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    mating_fit: Object.freeze({ planar: null, cylindrical: \"same_radius\" }),",
+      "replace": "    mating_fit: Object.freeze({ planar: \"parallel\", cylindrical: \"same_radius\" }),",
+      "tier": "annotate",
+      "suite": null,
+      "expect_red": "the narrowing stages and the relations they may assert are one table, and the cross-part plane null is written out rather than missing"
+    },
+    {
+      "id": "suggestions-do-not-overrule-the-see-through-switch",
+      "contract": "Translucency has ONE owner -- the `transparency` verb and its See-through parts checkbox. The face-suggestion display asks for whatever that says and never forces it, so both switches are live at once and each does its own job.",
+      "issue": null,
+      "note": "This is not a hypothetical: the first build of the suggestion display faded the suggested body unconditionally, and this tier is what caught it. The witnessing sub-check is the one that RE-RUNS the suggestion after the switch is unticked, and that is the whole finding here -- the first version of the guard only unticked the switch, which the mutated build still honoured, because nothing had re-run `suggest` yet. A display state has to be checked after the thing that draws it runs again, not only after the setting changes.",
+      "file": "apps/annotate/app.js",
+      "find": "    state.scene.setGhost(sha, state.transparentParts);",
+      "replace": "    state.scene.setGhost(sha, true);",
+      "tier": "browser",
+      "suite": "annotate face suggestions (candidate colours, the pick, the switch)",
+      "expect_red": "...and the solid body survives the next suggestion run -- the suggestion display asks what See-through says, it never decides"
+    },
+    {
+      "id": "one-part-loads-once-however-many-callers-ask",
+      "contract": "scene.loadPart is idempotent under concurrency. Its already-open check is synchronous and `this.parts.set` happens three awaits later, so two callers that both start before either finishes would each build a THREE.Mesh -- two bodies in the scene at two layout slots, one of them unreachable through `this.parts` and so impossible to hide, frame or dispose.",
+      "issue": null,
+      "note": "Two callers is the normal case since 2026-09-21: `goto` opens the element's part and the face-suggestion display opens the same one, started from `select-edge` and deliberately not awaited by a click handler. Their relative timing is not deterministic enough to be a guard, though -- measured, the mutated build stayed green through a real element arrival -- so the witnessing sub-check DRIVES the contract instead: two loadPart calls started before either finishes, and the bodies counted off the live scene graph. The mutation drops the shared in-flight promise and keeps the synchronous already-open check, which is the shape the hazard had.",
+      "file": "apps/annotate/scene.js",
+      "find": "    const inFlight = this._loading.get(sha256);\n    if (inFlight) return inFlight;",
+      "replace": "    const inFlight = null;\n    if (inFlight) return inFlight;",
+      "tier": "browser",
+      "suite": "annotate face suggestions (candidate colours, the pick, the switch)",
+      "expect_red": "two callers that both ask for one part before either finishes get ONE body in the scene"
     }
   ]
 }

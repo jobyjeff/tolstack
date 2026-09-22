@@ -127,7 +127,8 @@ filter/select as text commands over a screenshot). A deep link
 isolate) are its first two consumers — and so is every switch on the page:
 the arrival settings and the see-through toggle added on 2026-09-21
 (`annotate_hint_bar_and_context_autofilter`) are `auto-filter` and
-`transparency`, not state a checkbox pokes. `apps/viewer/`'s topology-mode detail
+`transparency`, and the face-suggestion switch beside them is `auto-suggest`
+over the `suggest` verb — not state a checkbox pokes. `apps/viewer/`'s topology-mode detail
 pane emits the deep link on an untraced/uncited edge ("annotate this →"),
 naming the edge's own `part` as `isolate` — a different vocabulary than a
 mesh's `provenance.json` `part_id`, bridged by the declared alias table
@@ -143,6 +144,54 @@ the honest empty-state ("no installed mesh for X") — that state is the
 annotator's answer to an unresolvable identifier, never something the viewer
 may hand a reader.
 
+## Face suggestions — proposals in the UI, never bindings
+
+Added 2026-09-21 by handoff `annotate_face_suggestions`, promoting arc 3 of
+`dispatch/docs/strategy/drafts/DRAFT_annotation_roadmap.md`. Jeff: *"you can
+greatly narrow it down (diameters require cylindrical surfaces, flanges require
+planar surfaces, etc), so we could display the body as transparent and then use
+a different color for suggested surfaces."*
+
+**This does not change decision 1.** The surface still measures nothing from
+geometry, and a suggestion is not a candidate *value* — it is a shortlist of
+faces to look at. Concretely, the fence is three statements:
+
+- **The engine colours; the human selects.** It never picks a candidate, not
+  even when the narrowing gets down to one, and it never writes an event. A
+  binding is still a human-ratified `feature-identity/v0` event through the same
+  write path (`scripts/mutation_witnesses.json`'s
+  `a-suggestion-never-selects-a-face` is the mutation that has to redden).
+- **It reads a shape, never a dimension.** `apps/annotate/face_geometry.js`
+  extracts a face's plane or its axis and radius, because a *relation* between
+  two faces (parallel, coaxial, matching radius) cannot be tested without them.
+  Those numbers are compared and discarded: none of them reaches a binding
+  event, a stack value, or the screen.
+- **A face it cannot read is `other`**, which is a first-class answer in the
+  same sense a spec library's *unreadable* is — a cone, a sphere, a torus and a
+  swept blade surface all land there, and a face there is suggested for nothing.
+
+The rules are two declared tables in `apps/annotate/suggestions.js`: which kind
+of surface an element's own words ask for, and how much further a face already
+bound nearby narrows it (every flat face on the part → the ones parallel to a
+face bound on that same part → for round faces only, the ones whose radius
+matches a face bound on the *adjacent* part).
+
+**The narrowing this surface cannot do, and why it matters here.** Two flat
+faces on *different* parts cannot be compared at all, because this app applies
+no assembly placement transforms (below) — every part is drawn at its own local
+origin, so one mesh's plane normal means nothing against another's. Exactly one
+relation survives having no shared frame: two mating cylinders have the same
+radius, because a radius belongs to one face rather than to a pair of frames.
+The table declares the gap with its reason rather than computing a coplanarity
+it cannot support, and the surface says so in plain words. Whether to apply the
+placements that `provenance.json` already records is design work, filed as
+`docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
+
+Full detail — the thresholds, the measured hit rates over the installed meshes,
+the rule table and the display states — is in `apps/annotate/README.md`'s "Face
+suggestions" and in
+`docs/sessions/lessons/LESSONS_20260921_annotate_face_suggestions.md`.
+
 ## What this MVP does not build
 
 - **Measurement from geometry.** Explicitly out of scope by the brief's
@@ -152,7 +201,11 @@ may hand a reader.
   was a single-part OML or a non-hierarchical bonded sub-assembly; nothing
   has exercised a real multi-part assembly's placement math. Parts render
   side by side at their own local origin. A real placement-handling
-  validation is separate work — see the session lesson.
+  validation is separate work — see the session lesson. Since 2026-09-21 this
+  is load-bearing rather than merely absent: it is what stops the face
+  suggestions comparing two flat faces across two parts (above), so the
+  decision now has a consumer that would visibly do more if it were revisited
+  (`ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`).
 - **Automatic supersession / correction events**, the way
   `docs/spec_library/`'s `correction` mode works. v0's fold has no notion of
   "this binding replaces that one" — every `bound` event is a fact that
