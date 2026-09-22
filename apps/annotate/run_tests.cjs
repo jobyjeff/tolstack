@@ -2534,7 +2534,7 @@ if (realMeshesDir) {
         counts[c.surface]++;
         if (c.surface === "other") reasons[c.why] = (reasons[c.why] || 0) + 1;
       });
-      if (classes.length !== mesh.sha256 && classes.length === 0) {
+      if (classes.length === 0) {
         throw new Error(`${mesh.part_id}: classified no faces`);
       }
       Object.keys(counts).forEach((k) => { totals[k] += counts[k]; });

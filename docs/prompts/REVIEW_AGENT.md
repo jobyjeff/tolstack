@@ -3780,6 +3780,32 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       comment, check **what the comment says happened to it since** — a design
       note is a dated record of a change, and its numbers describe the side of
       the change they were measured on.
+- [ ] **A measured number landing in the ONE app README nothing scans.** New
+      2026-09-21 (`annotate_face_suggestions`). `tests/test_viewer_readme_
+      doc_facts.py` scans `apps/viewer/README.md`; **nothing scans
+      `apps/annotate/README.md`**, which is now the longer of the two and the
+      document `ARCHITECTURE.md`, `docs/ANNOTATION_SURFACE.md` and `CLAUDE.md`
+      all point a reader at. The handoff put four measured geometry numbers in
+      it (`2.4065`, `2.4130`, `0.27%`, `eight → four`) of which exactly one is
+      pinned — the `[real]` tier deliberately asserts only that the narrowing
+      is *strict*, because the counts belong to the mesh store and the tier
+      does not own it. Right call in the tier, unguarded prose beside it. So:
+      **before accepting a number in a doc, name the test that reads it** —
+      "the `[real]` tier prints it" is not pairing, printing is not asserting.
+      `ISSUE_20260921_annotate_readme_measured_numbers_are_paired_by_nothing.md`.
+- [ ] **A de-dup key widened by a ROLE, where two roles can land on one
+      target.** New 2026-09-21, same handoff. `scene.markFace` de-duplicated on
+      `(sha256, faceId)` and now de-duplicates on `(sha256, faceId, role)` — so
+      the `suggested` layer can be cleared without taking the `bound` marks
+      down, which is right, and so two opaque overlays at identical
+      `polygonOffset` can now sit on ONE face, which nobody asked for. The
+      filter that would have prevented it (`planEnd`'s `alreadyBound`) drops
+      only the faces bound to **this** element. Ask it as one line: *when a
+      key gains a dimension, which two rows can now collide on everything
+      except the new dimension, and does the consumer care?* The browser tier
+      checked the coexistence on two DIFFERENT faces, which is the fixture's
+      shape, not the contract's.
+      `ISSUE_20260921_a_face_bound_to_another_element_gets_two_opaque_overlays.md`.
 
 ## Architectural errors to check
 

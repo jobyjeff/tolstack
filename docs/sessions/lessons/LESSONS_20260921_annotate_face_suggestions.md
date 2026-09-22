@@ -55,7 +55,7 @@ runs 26–100%, and the spread is entirely about what the part *is*:
 
 **The classifier is exact where the shape is exact.** On the washer, the two
 plane offsets are 0.813 apart (.032 in) and the radii read 2.578 / 5.5626
-(.203 / .438 in); on the bushing the bore reads 2.4130 (.1900 in ID). All three
+(the .203 / .438 in the parts list names, which are DIAMETERS); on the bushing the bore reads 2.4130 (.1900 in ID). All three
 are pinned as ground truth in the `[real]` tier against the numbers the 217755
 parts list already states. **They are a check on the geometry READER and
 nothing else** — no stack value comes from them, and
