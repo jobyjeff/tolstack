@@ -1839,28 +1839,62 @@
     return line;
   };
 
+  // Where a projection actually comes from, said ONCE for all four surfaces
+  // that have to say it: the banner's two missing-projection boxes, the
+  // topology pane's empty state, and (through those) both pages.
+  //
+  // All four told the reader to run a build command until 2026-09-22, which
+  // is the wrong advice twice over: a reader of this page has no shell, and a
+  // terminal command on a web surface is ruled out across this workspace
+  // anyway (Jeff, 2026-09-10 — see views/banner.js's docstring). A BUTTON is
+  // the right answer wherever the transport can service one, and the banner
+  // already has that for the stale-pair case (rebuildAffordance, gated on
+  // capabilities().rebuild); nothing can service a projection that does not
+  // exist yet, so the honest interim is to say where the work happens and
+  // stop. Same sentence shape apps/annotate/storage/adapter.js's
+  // AA.NO_PROJECTION_NOTICE settled on for the same reason.
+  VA.PROJECTION_BUILT_ELSEWHERE =
+    "It is built in the tolerance-stack repository, not from this page.";
+
   // Which projection the banner is describing. Two pages share views/banner.js
   // and they read DIFFERENT files: index.html renders `results.json`,
   // topology.html renders `topologies.json`. The banner's job is identical for
-  // both — when was it built, which tree built it, and what to run when it is
-  // missing — so the wording is a parameter rather than a second banner. The
-  // default is `results`, which is why every existing call site is unchanged.
+  // both — when was it built, which tree built it, and what its absence costs
+  // the reader — so the wording is a parameter rather than a second banner.
+  // The default is `results`, which is why every existing call site is
+  // unchanged.
+  //
+  // `missing` is ONE SENTENCE and carries no advice: what to do about it is
+  // VA.PROJECTION_BUILT_ELSEWHERE above, appended by whichever surface
+  // renders it. `rebuildKey` was a third field here, indexing the retired
+  // VA.CONFIG.rebuild table.
   VA.PROJECTION_LABELS = {
     results: {
       name: "results",
       file: "results.json",
-      rebuildKey: "results",
-      missing: "No results projection. The viewer renders it dumbly and computes " +
-        "nothing, so without it there is nothing to show. Build it:",
+      missing: "No results projection — this page displays it and computes " +
+        "nothing, so without it there is nothing to show.",
     },
     topologies: {
       name: "topologies",
       file: "topologies.json",
-      rebuildKey: "topologies",
-      missing: "No topology projection — the rails, every study chain and every " +
-        "total come out of it, so without it there is nothing to draw. Build it:",
+      missing: "No topology projection — the rails, every study chain and " +
+        "every total come out of it, so without it there is nothing to draw.",
     },
   };
+
+  // The CROP projection's absence, which is not one of the two above and does
+  // not belong in that table: those two are "this page has nothing to render
+  // at all", and this one is "the page renders, and what changes is what a
+  // hover can say".
+  //
+  // That distinction is the whole of the copy and it predates the 2026-09-22
+  // rewrite, so it survives it verbatim: "not built" and "unresolvable" are
+  // different facts about a crop, and a reader who reads the first as the
+  // second concludes a CITATION is missing when only a picture is.
+  VA.MISSING_CROPS_NOTICE =
+    "No crop projection — hovers will say a crop is \"not built\" rather " +
+    "than \"unresolvable\", which are different facts.";
 
   VA.projectionLabels = function (which) {
     return VA.PROJECTION_LABELS[which] || VA.PROJECTION_LABELS.results;

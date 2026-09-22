@@ -1,21 +1,22 @@
 // Connection + freshness banner. Three connection states plus the two
-// "projection not built" states, each with the command that fixes it — a
-// missing projection is the app's most likely first-run condition and it should
-// never look like a bug.
+// "projection not built" states — a missing projection is the app's most
+// likely first-run condition and it should never look like a bug.
 //
 // Above all three sits one state that is not about a connection at all: a
 // served page whose origin has nothing published (viewer_transport_honest_
 // hosted, 2026-09-14). It short-circuits the whole function — see the first
 // branch below.
 //
-// The one exception is the STALE-pair alarm below (provenance()): it never
-// shows a command, in either mode. Jeff hit this exact box on 2026-09-10
-// pasted straight into PowerShell and found two commands concatenated onto
-// one line with no separator (the fix, see rebuildAffordance's own comment)
-// — and, separately from that bug, decided pasting terminal commands into a
-// web UI is not acceptable UI design at all. A served page with the rebuild
-// endpoint live gets a button instead; everything else gets one plain
-// sentence and nothing to type.
+// NOTHING IN THIS FILE RENDERS A TERMINAL COMMAND, in either mode. Jeff hit
+// the stale-pair box on 2026-09-10 pasted straight into PowerShell and found
+// two commands concatenated onto one line with no separator (the fix, see
+// rebuildAffordance's own comment) — and, separately from that bug, decided
+// pasting terminal commands into a web UI is not acceptable UI design at all.
+// That box lost its commands then; the two "projection not built" boxes kept
+// theirs until 2026-09-22 and were the last of the four sites in the viewer's
+// chrome (policy_free_brief_residues, BRIEF_20260911_served_surface_
+// capability_gaps item 4). A served page with the rebuild endpoint live gets
+// a button instead; everything else gets plain sentences and nothing to type.
 (function (VA) {
   "use strict";
 
@@ -91,15 +92,10 @@
     });
 
     if (state.connection === VA.STATE.READY && !state.results) {
-      root.appendChild(missing(labels.missing,
-        VA.CONFIG.rebuild[labels.rebuildKey]));
+      root.appendChild(missing(labels.missing));
     }
     if (state.connection === VA.STATE.READY && state.results && !state.crops) {
-      root.appendChild(missing(
-        "No crop projection — hovers will say \"not built\" rather than " +
-        "\"unresolvable\", which are different facts. Build it (needs PyMuPDF, " +
-        "so use drawing-checker's venv):",
-        VA.CONFIG.rebuild.crops));
+      root.appendChild(missing(VA.MISSING_CROPS_NOTICE));
     }
     return root;
   };
@@ -225,10 +221,27 @@
     return root;
   };
 
-  function missing(text, command) {
+  // A projection this page cannot build: the fact, then where the work
+  // happens, and nothing to type.
+  //
+  // It took a second argument until 2026-09-22 and rendered it as a
+  // `<code class="banner__cmd">` — the LAST of the four terminal commands the
+  // viewer's own chrome printed at a reader (the crop popover's went
+  // 2026-09-15, the disclosure's two before that). Both were removed together
+  // with the VA.CONFIG.rebuild table that supplied them and the `.banner__cmd`
+  // rule that styled them, because a guard on the copy alone goes green again
+  // the moment somebody re-adds "Build it: " + a string — the finding
+  // apps/annotate/ recorded when the same defect came back there
+  // (ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_not_the
+  // _call_site).
+  //
+  // Two nodes, not one sentence: the second line is secondary information and
+  // is muted rather than emphasised, which is the house rule for it.
+  function missing(text) {
     var box = VA.el("div", "banner__missing");
     box.appendChild(VA.el("div", null, text));
-    box.appendChild(VA.el("code", "banner__cmd", command));
+    box.appendChild(VA.el("div", "banner__missing-where",
+      VA.PROJECTION_BUILT_ELSEWHERE));
     return box;
   }
 

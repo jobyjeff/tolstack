@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: docs/topologies, docs/tolerance_stacks
 reporter: agent
 audience: strategy
 handoff: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
+resolution: handoff completed 2026-09-22 -- closed automatically by dispatch when handoff `policy_free_brief_residues` moved to completed/; not independently verified.
 ---
 
 # Endstop topology needs a retrace pass for §11's findings, and one finding is a Jeff question

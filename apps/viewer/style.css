@@ -156,14 +156,12 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
 }
 .banner__stale-head { color: var(--untraced); font-weight: 600; }
 .banner__stale-list { margin: 4px 0 6px; padding-left: 20px; }
-/* The banner is the ONLY surface that still prints a rebuild command, and it
-   prints it once for the whole page. The crop popover's own copy
-   (.croppop__cmd) went on 2026-09-15 -- a terminal command in hover chrome,
-   against the standing rule twice over. */
-.banner__cmd {
-  display: inline-block; margin-top: 5px; background: var(--bg);
-  padding: 3px 7px; border-radius: 4px; font-size: var(--t-meta); color: var(--ink);
-}
+/* Where the projection comes from, under the sentence saying it is absent.
+   Secondary information, so muted rather than smaller-and-bolder -- the
+   .banner__cmd rule that used to sit here styled the last rebuild COMMAND
+   the viewer's chrome printed at a reader (.croppop__cmd went 2026-09-15,
+   these two on 2026-09-22) and no surface in either app has one now. */
+.banner__missing-where { margin-top: 4px; color: var(--muted); }
 .banner__rebuild {
   margin-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
 }

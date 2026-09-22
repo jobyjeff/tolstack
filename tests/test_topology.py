@@ -760,19 +760,26 @@ def test_every_value_in_a_topology_carries_a_source_ref(path):
         assert edge.dimension.source_ref.kind in SOURCE_REF_KINDS
 
 
-#: The edges handoff ``endstop_location_stack`` (2026-09-06) re-cited off real
-#: drawings instead of the founding workbook -- ``{edge id: confidence}``, so a
-#: fifth edge silently claiming better than `untraced` still fails below. Every
-#: one of these is a disposition ``WORKSHEET_endstop_vision_baseline.md``
-#: (§3/§8b) scored `traced` or `convention-traced` -- never a `candidate` or
+#: The edges re-cited off real drawings instead of the founding workbook --
+#: ``{edge id: confidence}``, so a sixth edge silently claiming better than
+#: `untraced` still fails below. Four came from handoff
+#: ``endstop_location_stack`` (2026-09-06, worksheet §3/§8b); the fifth,
+#: ``tan_link_mount_height``, from ``policy_free_brief_residues`` (2026-09-22)
+#: carrying §11b's 2026-09-10 disposition into this document at last.
+#:
+#: Every one of these is a disposition ``WORKSHEET_endstop_vision_baseline.md``
+#: scored `traced` or `convention-traced` -- never a `candidate` or
 #: `mismatch` row, which stay `untraced` on purpose (identity unresolved is not
 #: a licence to claim better than the source workbook, which is exactly the
-#: overclaiming this test used to refuse outright).
+#: overclaiming this test used to refuse outright). §11 is the live example of
+#: both halves: it traced row 42 and scored row 59 `candidate` off the SAME
+#: drawing, and only one of them is here.
 _RETRACED_CONFIDENCES = {
     "pitch_plate_flange_to_link_hole": "traced",
     "hub_blade_root_seat_position": "traced",
     "gas_spring_body_height": "traced",
     "piston_length": "inferred",
+    "tan_link_mount_height": "traced",
 }
 
 
