@@ -47,3 +47,30 @@ Four banner states are scanned; two are not. Any new leak in the
 `DISCONNECTED` / `NEEDS_REGRANT` copy is caught by nothing. Whatever is decided,
 the outcome should end with those two states enrolled in the same walk as the
 other four.
+
+> **Added by `review/policy_free_brief_residues`, 2026-09-22: there is a THIRD
+> unscanned state, and it is the box this whole rule came from.** The
+> stale-pair alarm (`provenance()`, the box Jeff pasted into PowerShell on
+> 2026-09-10) is not among the six surfaces the new walk holds — it needs
+> `mismatchedCrops()` to render, and no entry in the `surfaces` list supplies
+> it. It is not unguarded: `apps/viewer/tests.js` (~3383, "the banner refuses
+> to present a mismatched pair as current") runs the **local**
+> `noCommandsOrPaths` helper over its whole text. But that helper is three
+> strings (`.py`, `venv-win`, `\`) rather than the shared
+> `ReaderFacingBans.BANNED`, so the stale box is the one banner state the
+> widened ban list never sees — no field names, no checksums, no `data/`, no
+> `window.*`.
+>
+> Measured while reviewing: the walk's exemption list
+> `OPENED_BY_THE_READER = ["div.banner__source__body", "div.banner__stale-detail"]`
+> is half dead for the same reason. Emptying it reddens the walk (the
+> Data-source fold legitimately prints the resolved stacks-dir, so the first
+> entry is load-bearing); dropping only `div.banner__stale-detail` leaves
+> `480/480`, because nothing in the list renders that box. So the second
+> exemption exempts nothing today and pre-authorises its detail body for
+> whoever adds the state later.
+>
+> One seventh `surfaces` entry — `{connection: READY, results: FIXTURE.results,
+> crops: mismatchedCrops()}` — closes both halves and makes the existing
+> exemption honest instead of speculative. Recorded here because this issue
+> already owns the question "which banner states are in the walk".

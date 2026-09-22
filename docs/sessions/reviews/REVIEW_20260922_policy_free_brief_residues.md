@@ -53,6 +53,18 @@ running the ratio the checklist asks every report to state).
   | `rebuild: { results: "x" }` back in `config.js` | 479/480 — `this app holds no terminal command…` red |
   | `VA.CONFIG.rebuild.topologies` read from `views/topology.js` with no table | 479/480 — the static half red, so both halves of that guard bite |
 
+- **The fifth site was filed, not fixed, and its "unreachable" claim checks
+  out** — which is what makes the DoD's "no rendered viewer surface contains a
+  terminal command" true rather than nearly true.
+  `ISSUE_20260922_the_stack_pages_no_loader_warning_is_the_fifth_terminal_command_in_the_viewer`
+  says `views/stack.js`'s arm needs `checks_generated_not_rendered: true` plus
+  an empty `checks` list, reachable only for an archetype with no loader:
+  `build_viewer_projection.ARCHETYPE_LOADERS` holds exactly
+  `{"thermal_fit": …}`, the only archetype in `docs/tolerance_stacks/` is
+  `thermal_fit`, and all seven live stacks project
+  `checks_generated_not_rendered: False` with non-empty `checks`. So no reader
+  can reach that string today, and it is correctly out of a handoff whose file
+  scope was `views/banner.js`.
 - Two banner states (`DISCONNECTED`, `NEEDS_REGRANT`) are excluded from the
   walk; the exclusion is named in the test and owned by
   `ISSUE_20260922_the_disconnected_banners_folder_path_is_unscannable`. That is
@@ -165,6 +177,15 @@ running the ratio the checklist asks every report to state).
   smaller-and-bolder (the house rule for secondary information), `4px` is on the
   2px/multiple-of-4 spacing step, and it adds no third type size.
   `tests/test_app_type_scale.py` green. Nothing to file.
+- **Nothing was written into drawing-checker.** Checked by writes, not by
+  `git status` over there: exactly one file under
+  `C:/workspace/drawing-checker/data/` has been touched today —
+  `data/logs/eager/eager_pass_20260922.log`, written 00:12 by drawing-checker's
+  own eager pass (`repo=C:\workspace\drawing-checker` in its first line), not by
+  this session. `215198-A.pdf` still carries its 2026-09-10 mtime and its
+  recorded sha256. The one crop this handoff resolved took the
+  `source_ref_export` route with `runs: []`, so no drawing-checker run was
+  involved at all.
 - **Tests don't pollute production data:** the worktree's `data/` still holds
   only its tracked `.gitkeep`/README skeleton after the full suite; nothing was
   written to `C:/workspace/tolstack/data/` except the deliberate projection
@@ -245,9 +266,24 @@ running the ratio the checklist asks every report to state).
    `tests.js:~3383` runs `noCommandsOrPaths` over its whole text), but that
    check is the local three-string helper, not the shared ban list — so the
    surface that started this whole rule on 2026-09-10 is the one banner state
-   the widened list never sees. A seventh entry in `surfaces` would close both
-   halves.
-7. **The command-ban vocabulary now exists in three places**: the shared
+   the widened list never sees. A seventh entry in `surfaces` —
+   `{connection: READY, results: FIXTURE.results, crops: mismatchedCrops()}` —
+   closes both halves. **Recorded in
+   `ISSUE_20260922_the_disconnected_banners_folder_path_is_unscannable`**, which
+   already owns "which banner states are in the walk", rather than left as a
+   nit with no owner.
+7. **The twin guard in `apps/annotate/` did not get `codeOnly()`.**
+   `apps/annotate/run_tests.cjs:570` still greps `appSource.includes(
+   "CONFIG.rebuild")` over raw source, which the lesson itself notices "gets
+   away with a raw `includes` only because its comment happens to say
+   '`rebuild` entry'" — so the next agent who writes the words `CONFIG.rebuild`
+   into an annotate comment, exactly as this handoff wrote them into five viewer
+   comments, reddens annotate for documenting a decision. Aligning it is one
+   call to the same one-line helper. Confirmed live: `apps/annotate/config.js`'s
+   note says "`rebuild`", not "`CONFIG.rebuild`", so it passes today by
+   coincidence of wording. Named here rather than filed because the author
+   recorded it and the viewer's side is now the good shape to copy from.
+8. **The command-ban vocabulary now exists in three places**: the shared
    `ReaderFacingBans.BANNED`, `tests.js`'s local `noCommandsOrPaths` (`.py`,
    `venv-win`, `\`) and `run_viewer_browser_tests.mjs:352`'s inline
    `!/\.py|venv-win|C:\\/`. Only the first got the widening. All pre-existing,
@@ -303,7 +339,7 @@ was no conflict to resolve):
 | what | where | result |
 |---|---|---|
 | `venv-win/Scripts/python.exe -m pytest -q` | review worktree (the merged tree) | **1 failed, 1208 passed** |
-| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | review worktree | see below |
+| `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` | review worktree (all 73 entries) | **70/73 witnessed** — and the three misses are *exactly* the known baseline |
 
 The one red is `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`,
 and it is the documented worktree environment failure: `data/projections/` is
@@ -313,6 +349,28 @@ unexercised by it** — I ran that same tier through the `--repo` seam with the
 real tier live (480/480, 87 `[real]`), which is the arming the cadence asks for.
 The main checkout sits on `master` and a `pytest` typed there would measure
 trunk, not this merge, so it was not used as a verdict on the merged tree.
+
+**The mutation tier, post-merge, is the answer to the overlay's "a review merge
+is the one place the mutation tier is …" entry — and it is clean.** All three
+misses reproduce `ISSUE_20260921_three_declared_mutations_are_unwitnessed_on_trunk_after_the_batch_merge`
+name for name *and diagnosis for diagnosis*:
+
+```
+70/73 declared mutations witnessed
+NOT WITNESSED:
+  leader-style-survives-a-topology-switch — another check reddened, but not the declared one
+  worst-verdict-ranks-worst-last — the tier never reached the witness
+  arriving-at-an-element-shows-its-part-in-3d — the witness cannot see the difference
+```
+
+None of the three touches a file or a surface in this diff (`topology_app.js`
+leader style, `worstVerdict`'s key order, the annotate 3D scene call), the clean
+runs of every affected suite were green, and the count matches trunk's
+2026-09-21 baseline exactly. **So this handoff neither introduced a witness
+regression nor lost coverage in the merge**, and that issue keeps its three
+entries — it is not made worse and needs no re-filing. That issue also notes no
+full-tier baseline had been written down anywhere since `54/54`; this run is one:
+**70/73 on `review/policy_free_brief_residues` @ `d21a74d`, 2026-09-22.**
 
 **Tactical full-suite record.** I have no tactical report file to read; the
 lesson records the projection rebuild in detail but states no suite counts.

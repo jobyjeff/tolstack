@@ -598,8 +598,15 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       silent -- there is one `SKIP node-fs tier` line naming the mangled path --
       but it is one line above the total, so a `| tail -4` read misses it
       entirely. Use `--repo C:/workspace/tolstack` from Bash, and **check the
-      total moved** (371 with the real tier, 302 without) before you
-      believe a green. Same seam in `scripts/run_viewer_browser_tests.mjs`.
+      total moved** before you believe a green. Same seam in
+      `scripts/run_viewer_browser_tests.mjs`.
+      **Re-measured 2026-09-22 (`review/policy_free_brief_residues`): the pair
+      is now 480 with the tier and 393 without** — 87 `[real]` checks, up from
+      69 — so read the *gap*, not the remembered numerals, and expect both to
+      keep climbing. The silent half of this entry has since been fixed: the
+      runner's own total line now reads
+      `393/393 passed, 1 TIER SKIPPED -- NOT RUN, NOT PASSED`, so a `| tail -1`
+      read can no longer mistake the skip for a pass.
 
 - [ ] **A vocabulary pairing compares SETS, so a consumer that ranks by the
       order is unguarded.** New 2026-09-15 (`viewer_study_verdicts_and_gaps`).
