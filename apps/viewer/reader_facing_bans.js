@@ -46,7 +46,25 @@
     ["materials.json", "an internal artifact's filename"],
     ["C:/", "an absolute workstation path"],
     ["C:\\", "an absolute workstation path, the other way round"],
-    ["build_viewer_crops.py", "a terminal command for the reader to type"],
+    // Was the literal `build_viewer_crops.py` until 2026-09-22, and the
+    // replacement is the finding: THREE more build commands were live on this
+    // repo's surfaces -- `build_viewer_projection.py` twice (the banner's
+    // results box and a stack page's no-loader warning) and
+    // `build_topology_projection.py` twice (the banner's topology box and the
+    // topology pane's empty state) -- and no literal in this list spelled any
+    // of them, so the one literal here was reading as coverage of a class it
+    // covered a fifth of. A script's filename is a SHAPE, so the shape is what
+    // is banned, the same widening `/\b\d{8}_\d{6}\b/` below got for run ids.
+    //
+    // `.pdf` is deliberately NOT in the extension set, and `.json` is not
+    // either: a drawing's filename is what a reader came here for and every
+    // citation line prints one, while the two artifact filenames a reader
+    // cannot open are named as literals above. This entry is about something
+    // EXECUTABLE.
+    [/\b[\w.-]+\.(?:py|exe|ps1|bat|cmd|sh)\b/,
+     "a script or executable's filename -- a terminal command for the " +
+     "reader to type, and a shape, so a script nobody has written yet is " +
+     "caught too"],
     ["venv-win", "a terminal command for the reader to type"],
     // A repo-relative path into a directory the reader has no shell in which
     // to look at -- and `data/` is gitignored, so it is a directory that does

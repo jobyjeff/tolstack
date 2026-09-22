@@ -19,17 +19,16 @@
     //   serve it with:  cd C:\workspace\drawing-checker && cmd /c serve.bat
     drawingCheckerWebui: "http://127.0.0.1:8000",
 
-    // Commands the banner offers when a projection is missing. Kept here so the
-    // app never hard-codes a path in view code.
-    rebuild: {
-      results: "venv-win\\Scripts\\python.exe scripts\\build_viewer_projection.py",
-      // topology.html's projection — the rails, the study chains and the folds.
-      // Its own file, built by its own script, so either can be re-run alone.
-      topologies:
-        "venv-win\\Scripts\\python.exe scripts\\build_topology_projection.py",
-      crops:
-        "C:\\workspace\\drawing-checker\\venv-win\\Scripts\\python.exe " +
-        "scripts\\build_viewer_crops.py",
-    },
+    // There is deliberately NO `rebuild` entry here. It held the three build
+    // commands as strings, and every one of them reached a reader: two
+    // through the banner's `missing()` box and the third through the topology
+    // pane's empty state — three interpreter paths and eight backslashes on a
+    // web surface, the shape ruled out for every web surface in this
+    // workspace (Jeff, 2026-09-10; views/banner.js's docstring records the
+    // sighting). Nothing on this page can run a command, so this app holds
+    // none at all: see VA.PROJECTION_LABELS and VA.PROJECTION_BUILT_ELSEWHERE
+    // in viewer.js for what is said instead, and tests.js for the checks that
+    // keep them from coming back. apps/annotate/config.js retired its own
+    // twin of this block on 2026-09-15 with the same argument.
   };
 })(window.ViewerApp = window.ViewerApp || {});

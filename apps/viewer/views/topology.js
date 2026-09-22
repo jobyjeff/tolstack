@@ -175,9 +175,16 @@
     root.className = "tv__scroll";
     var topoProj = ctx.topoProj;
     if (!topoProj) {
+      // The SAME two sentences the banner's own missing-projection box shows,
+      // off the same two constants rather than a second wording of the same
+      // fact — this site said "Build it with <interpreter path> and reload"
+      // until 2026-09-22 and was the third of the four terminal commands in
+      // the viewer's chrome (policy_free_brief_residues). It is not the
+      // banner's box because this pane is where a reader looking for the
+      // rails is actually looking.
       root.appendChild(VA.el("p", "muted",
-        "No topology projection. Build it with " +
-        VA.CONFIG.rebuild.topologies + " and reload."));
+        VA.projectionLabels("topologies").missing + " " +
+        VA.PROJECTION_BUILT_ELSEWHERE));
       return root;
     }
 

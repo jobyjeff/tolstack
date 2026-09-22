@@ -3210,22 +3210,53 @@
           "must not carry a URL or a path: " + root.textContent);
       });
 
-    await test("a ready banner with no results explains how to build it", function () {
+    // The two "projection not built" boxes. Each says what is absent, what
+    // its absence costs the reader, and where the work happens -- and neither
+    // gives the reader anything to type (policy_free_brief_residues,
+    // 2026-09-22: these were the last two of the four terminal commands in
+    // the viewer's chrome). Both arms assert on the RENDERED text and then run
+    // the same command-and-path scan the unpublished banner above does, so a
+    // new way of leaking one in later fails here rather than shipping.
+    await test("a ready banner with no results says what is absent and where " +
+      "it comes from, with nothing to paste", function () {
       var root = render(function (r) {
         VA.renderBanner(r, { connection: VA.STATE.READY, results: null, crops: null }, {});
       });
       has(root.textContent, "No results projection");
-      has(root.textContent, "build_viewer_projection.py");
+      has(root.textContent, "nothing to show");
+      has(root.textContent, VA.PROJECTION_BUILT_ELSEWHERE);
+      noCommandsOrPaths(root.textContent);
+      // The where-line is the box's SECOND node and muted, not a second
+      // sentence inside the first: secondary information is muted, never
+      // smaller-and-bolder (the house visual-hierarchy rule).
+      eq(all(root, ".banner__missing-where").length, 1);
+      // ...and the <code> element that held the command is gone with it.
+      eq(all(root, ".banner__cmd").length, 0);
     });
 
-    await test("results without crops nudges for the crop script only", function () {
+    await test("results without crops draws the not-built / unresolvable " +
+      "distinction, still with nothing to paste", function () {
       var root = render(function (r) {
         VA.renderBanner(r, {
           connection: VA.STATE.READY, results: FIXTURE.results, crops: null,
         }, {});
       });
-      has(root.textContent, "build_viewer_crops.py");
+      // THE LOAD-BEARING SENTENCE, and the reason this box was not simply
+      // deleted along with its command: "not built" and "unresolvable" are
+      // different facts about a crop, and a reader who reads the first as the
+      // second concludes a citation is missing when only a picture is.
+      has(root.textContent, "not built");
+      has(root.textContent, "unresolvable");
+      has(root.textContent, "different facts");
+      has(root.textContent, VA.PROJECTION_BUILT_ELSEWHERE);
+      noCommandsOrPaths(root.textContent);
       ok(root.textContent.indexOf("No results projection") === -1);
+      // It used to name PyMuPDF and drawing-checker's venv, to explain WHY the
+      // command needed a different interpreter. With no command there is no
+      // interpreter to explain, and neither is a fact a reader can act on.
+      ok(root.textContent.indexOf("PyMuPDF") === -1,
+         "a library the reader does not install is not this box's business: " +
+         root.textContent);
     });
 
     await test("a deep-link notice renders as its own plain line, never inside " +
@@ -4107,9 +4138,15 @@
     // Model-independent on purpose: the node tier keeps an element's text on
     // the element, a browser keeps it in child text nodes, and descending only
     // where there are children reads both the same way.
-    function viewerAuthoredText(root) {
+    // `extraSkip` is the ENROLLING surface's own exemption list, kept separate
+    // from VERBATIM_PROSE_CLASSES above because it is a different argument:
+    // that list is "the RECORD is speaking, not the page", this one is "the
+    // reader clicked to open this". Added 2026-09-22 for the banner's two
+    // `<details>` bodies (policy_free_brief_residues) -- see the banner walk
+    // for why those two and nothing else.
+    function viewerAuthoredText(root, extraSkip) {
       var skip = [];
-      VERBATIM_PROSE_CLASSES.forEach(function (selector) {
+      VERBATIM_PROSE_CLASSES.concat(extraSkip || []).forEach(function (selector) {
         skip = skip.concat(all(root, selector));
       });
       function walk(node) {
@@ -4294,8 +4331,8 @@
     // The banned list, the schema's own field names, and a set of ids, over one
     // surface's viewer-authored text. One function so a new surface cannot be
     // enrolled in three quarters of the guard.
-    function surfaceIsClean(root, where, fieldNames, ids) {
-      var text = viewerAuthoredText(root);
+    function surfaceIsClean(root, where, fieldNames, ids, extraSkip) {
+      var text = viewerAuthoredText(root, extraSkip);
       bannedIn(text, where);
       (fieldNames || []).forEach(function (name) {
         ok(!wholeWordIn(text, name),
@@ -4771,6 +4808,130 @@
         });
     }
 
+    // ...and THE BANNER, which no walk above reached either -- the finding
+    // behind enrolling it (policy_free_brief_residues, 2026-09-22). Three of
+    // the four terminal commands in the viewer's chrome had already been
+    // removed one at a time by hand, each time leaving the others in place,
+    // because nothing scanned the surface that printed them: the two
+    // "projection not built" boxes were still concatenating an interpreter
+    // path onto their copy eleven days after the crop popover's went.
+    //
+    // WHICH STATES, and the exclusion is deliberate rather than an oversight.
+    // The DISCONNECTED and NEEDS_REGRANT banners are left out: the first
+    // prints `C:\workspace\tolstack` on purpose, because it is naming the
+    // folder a reader has to pick in a picker, and that is a real affordance
+    // rather than the class this scan exists to catch. Whether it should is
+    // a copy question with an owner
+    // (ISSUE_20260922_the_disconnected_banners_folder_path_is_unscannable),
+    // not a residue -- so the exclusion is named here and the other four
+    // states are held.
+    await test("no banner state prints a terminal command, a repo path, a " +
+      "field name or a checksum at the reader", function () {
+        function bannerIn(state) {
+          return render(function (r) { VA.renderBanner(r, state, {}); });
+        }
+        var surfaces = [
+          ["the banner with no results", bannerIn({
+            connection: VA.STATE.READY, results: null, crops: null })],
+          ["the banner with no crops", bannerIn({
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: null })],
+          ["the topology banner with no topologies", bannerIn({
+            connection: VA.STATE.READY, projection: "topologies",
+            results: null, crops: null })],
+          ["the ready banner", bannerIn({
+            connection: VA.STATE.READY, results: FIXTURE.results, crops: CROPS,
+            transport: VA.TRANSPORT.HTTP })],
+          ["the unpublished banner", bannerIn({
+            connection: VA.STATE.DISCONNECTED,
+            transport: VA.TRANSPORT.UNPUBLISHED })],
+          // The topology PANE's empty state, which says the same two
+          // sentences off the same two constants and is a fourth site of the
+          // same class -- scanned here rather than beside the grid because
+          // this is the walk that reads the copy.
+          ["the topology pane with no projection", render(function (r) {
+            VA.renderTopoPane(r, topoCtx({ topoProj: null }));
+          })],
+        ];
+        var fields = schemaFieldNames({ stacks: [DEMO, GEN] });
+        ok(fields.length > 5, "the field-name scan must not be vacuous: " + fields);
+        // The two `<details>` BODIES, and only those two. Both are diagnostic
+        // detail a reader clicked to open -- the Data-source fold's rows and
+        // the stale-pair alarm's list -- and views/banner.js states the rule
+        // they are held to in as many words: the house copy rules bind on the
+        // COLLAPSED line, which is the one every reader sees whether or not
+        // anything is wrong. The fold legitimately prints the resolved
+        // stacks-dir, which is an absolute workstation path, and that is what
+        // it was folded rather than deleted FOR. Everything outside the two
+        // summaries-and-bodies is scanned, which is every sentence a reader
+        // meets without clicking.
+        var OPENED_BY_THE_READER = ["div.banner__source__body",
+                                    "div.banner__stale-detail"];
+        surfaces.forEach(function (pair) {
+          ok(pair[1].textContent.length > 20,
+             pair[0] + " rendered nothing -- a scan over an empty surface is " +
+             "green over nothing: " + JSON.stringify(pair[1].textContent));
+          surfaceIsClean(pair[1], pair[0], fields, null, OPENED_BY_THE_READER);
+          noCommandsOrPaths(viewerAuthoredText(pair[1], OPENED_BY_THE_READER));
+        });
+      });
+
+    // The copy is half of it; the SUPPLY is the other half. The defect was a
+    // concatenation at the call site -- VA.CONFIG.rebuild held three build
+    // commands as strings and three surfaces pasted one of them onto their
+    // copy -- so a check on the sentences alone goes green again the moment
+    // somebody re-adds "Build it: " + a command. That is not hypothetical:
+    // apps/annotate/ measured exactly that return and filed it
+    // (ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_not_
+    // the_call_site). Nothing on this page can run a command, so the app
+    // carries none at all -- the same pair of checks apps/annotate/
+    // run_tests.cjs holds over AA.CONFIG.
+    if (!markupSrc) {
+      skip("this app holds no terminal command for a surface to render",
+           "no VIEWER_SRC injected (browser tier has no filesystem)");
+    } else {
+      await test("this app holds no terminal command for a surface to render",
+        function () {
+          ok(VA.CONFIG.rebuild === undefined,
+             "VA.CONFIG.rebuild is back -- a table of command strings this " +
+             "app's views could render");
+          // Read STATICALLY: a source that reads the table is the supply
+          // route, whether or not any state in this suite renders it.
+          //
+          // CODE ONLY -- whole-line comments are dropped first, the same
+          // stance the markup scan above takes. Every one of these files
+          // NAMES the retired table in a comment, on purpose: the argument
+          // for a decision belongs beside it, and a check that read comments
+          // would make recording why the table went impossible.
+          ["config.js", "viewer.js", "views/banner.js", "views/topology.js",
+           "views/stack.js", "views/crop.js", "views/detail.js"]
+            .forEach(function (name) {
+              var src = markupSrc.readText(name);
+              ok(src, name + " must be readable");
+              ok(codeOnly(src).indexOf("CONFIG.rebuild") === -1,
+                 name + " reads CONFIG.rebuild -- the command concatenation " +
+                 "is back");
+            });
+          // ...and the rule that styled the <code> the banner put one in.
+          var css = markupSrc.readText("style.css");
+          ok(css, "style.css must be readable");
+          ok(css.indexOf(".banner__cmd {") === -1,
+             "the .banner__cmd rule is back -- a styled slot for a command");
+        });
+    }
+
+
+    // A JS source with its whole-line comments dropped, for the static checks
+    // above. LINE-BASED rather than a comment parser, deliberately: stripping
+    // `//` anywhere would cut `"http://127.0.0.1:8000"` in half, and this
+    // repo writes its arguments as full-line comments. A trailing end-of-line
+    // comment therefore still counts as code -- which is the safe direction
+    // (a false FAILURE, arguing for moving the note onto its own line, which
+    // CLAUDE.md asks for anyway) rather than a silent pass.
+    function codeOnly(src) {
+      return String(src).split("\n").filter(function (line) {
+        return !/^\s*(\/\/|\/\*|\*)/.test(line);
+      }).join("\n");
+    }
     // The attributes that are TEXT A READER MEETS, not plumbing. `title` and
     // `placeholder` are copy -- moving a schema field name into one is hiding
     // it from a scan, not taking it off the page.
@@ -9544,7 +9705,14 @@
         eq(root.textContent.indexOf("results built "), -1);
       });
 
-    await test("a missing topology projection prints ITS build command",
+    // The banner is shared by both pages and its wording is a parameter, so
+    // the claim is that the TOPOLOGY page's absence reads as the topology's.
+    // It was asserted by which build command the box printed until
+    // 2026-09-22; with no command in either box the distinguishing text is
+    // each projection's own `missing` sentence, which is the thing a reader
+    // was always actually reading.
+    await test("a missing topology projection says what the TOPOLOGY page " +
+      "cannot draw, not what the results page cannot show",
       function () {
         var root = render(function (r) {
           VA.renderBanner(r, {
@@ -9552,8 +9720,10 @@
             results: null, crops: TOPOCROPS,
           }, {});
         });
-        has(root.textContent, "build_topology_projection.py");
-        eq(root.textContent.indexOf("build_viewer_projection.py"), -1);
+        has(root.textContent, "No topology projection");
+        has(root.textContent, "nothing to draw");
+        eq(root.textContent.indexOf("No results projection"), -1);
+        noCommandsOrPaths(root.textContent);
       });
 
     await test("a study pointing at a topology nobody declares is an alarm",
