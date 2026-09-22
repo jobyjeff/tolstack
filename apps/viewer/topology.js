@@ -579,12 +579,16 @@
     return alerts;
   };
 
-  // The whole of a study row's mark: which icon, and what it says. `null` is a
-  // row with nothing to state — a clean pass with no flag against it — and
-  // that row renders nothing at all.
-  VA.studyNavStatus = function (study) {
-    var verdict = study && study.verdict;
-    var alerts = VA.studyNavAlerts(study);
+  // The whole of a row's mark: which icon, and what it says. `null` is a row
+  // with nothing to state — a clean pass with no flag against it — and that
+  // row renders nothing at all.
+  //
+  // Written once and called by both tiers, because the two differ ONLY in
+  // where the verdict comes from. A row's level, the verdict-leads-the-card
+  // order and the silence rule are the SCHEME, and "every nav tier is
+  // consistent" is a deliverable a second copy of this body would quietly
+  // stop satisfying the first time one copy was edited.
+  function navStatus(verdict, alerts) {
     var level = VA.navStatusLevel(verdict);
     if (!level && !alerts.length) return null;
     var lead = VA.navVerdictAlert(verdict);
@@ -592,6 +596,10 @@
       level: level || VA.NAV_STATUS_LOOK,
       alerts: lead ? [lead].concat(alerts) : alerts,
     };
+  }
+
+  VA.studyNavStatus = function (study) {
+    return navStatus(study && study.verdict, VA.studyNavAlerts(study));
   };
 
   // --- the same mark on a loose stack's row ---------------------------------
@@ -615,10 +623,6 @@
   // nothing stands behind, a value with no band, and a check that is a budget
   // rather than an answer.
   //
-  // A stack row leads with no verdict, unlike a study row: the stack
-  // projection has never carried a study-style disposition and this pass does
-  // not derive one. Its checks state their own verdicts on the page the row
-  // opens.
   VA.STACK_NAV_ALERT_KINDS = {
     "zero-width": "no_tolerance",
     budget: "incomplete",
@@ -642,10 +646,48 @@
     return alerts;
   };
 
+  // A loose stack's own verdict, so its row can reach the same two levels a
+  // study row can. Same combiner: VA.worstVerdict over the stack's checks, the
+  // one this file already takes a study's disposition with, not a second one.
+  //
+  // This is the half of the consistency deliverable that is NOT just moving
+  // what a row already showed. A stack row never carried a verdict — its chips
+  // were counts — so leaving it that way would have been the literal reading.
+  // But this pass is what gives the rail's colour a meaning ("red is a verdict
+  // of `fail` and nothing else"), and `hub_bearing_thermal_fit_m1` fails a
+  // check today: a rail where the amber rows include the one stack that fails
+  // is a rail whose red is not worth scanning for. The colour has to be true
+  // on every tier that can be flagged, or it is true on none.
+  //
+  // MINUS THE SENSITIVITY PROBES, and that is the whole of the care needed
+  // here. A probe is the same check with an undocumented input moved, and the
+  // stack page stamps it `NOT A RESULT` for exactly that reason
+  // (views/stack.js). Two of m1's three failing checks are its `__k0`/`__k1`
+  // probes; drawing a row red on a what-if is the "true of the model, false of
+  // the hardware" misreading the repo exists to prevent. m1 still goes red, on
+  // `lower_seat__sleeve_to_bearing__hot`, which is a result.
+  //
+  // `null` where no result check has a verdict this viewer knows. A stack gets
+  // no "no pass/fail criterion recorded yet" the way VA.studyVerdict writes one
+  // for a study with `checks: []`: nothing in the stack projection says a stack
+  // was meant to have a criterion, so a row asserting the criterion is MISSING
+  // would be this file inventing the expectation it then reports against.
+  VA.stackVerdict = function (stackProj) {
+    var results = ((stackProj && stackProj.checks) || []).filter(function (check) {
+      return !check.sensitivity;
+    });
+    var worst = VA.worstVerdict(results);
+    var known = VA.VERDICTS[worst];
+    if (!known) return null;
+    // No `incomplete`: a stack states that as an alert of its own already (the
+    // budget-scope chip, via VA.STACK_NAV_ALERT_KINDS), and the study tier's
+    // `incomplete` flag exists to cover a case this one cannot reach.
+    return { state: worst, word: worst, says: known.says, title: known.title,
+             incomplete: false };
+  };
+
   VA.stackNavStatus = function (stackProj) {
-    var alerts = VA.stackNavAlerts(stackProj);
-    if (!alerts.length) return null;
-    return { level: VA.NAV_STATUS_LOOK, alerts: alerts };
+    return navStatus(VA.stackVerdict(stackProj), VA.stackNavAlerts(stackProj));
   };
 
   // --- what is missing ------------------------------------------------------

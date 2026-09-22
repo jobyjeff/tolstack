@@ -9468,6 +9468,84 @@
            "rule the study rows run on");
       });
 
+    // A stack's row reaches the same two levels a study's does, which is the
+    // half of the consistency deliverable that is not just moving what the row
+    // already showed: a stack row never carried a verdict at all. It has to
+    // now, because this pass is what makes red MEAN something on the rail --
+    // `hub_bearing_thermal_fit_m1` fails a check live, and a rail whose amber
+    // rows include the one stack that fails has a red not worth scanning for.
+    var FAILING_STACK = {
+      id: "bad", title: "A failing stack",
+      provenance_counts: { traced: 8 }, checks_source: "generated",
+      checks: [{ check_id: "c1", verdict: "pass", complete: true,
+                 verdict_scope: "joint", units: "mm", label: "l" },
+               { check_id: "c2", verdict: "fail", complete: true,
+                 verdict_scope: "joint", units: "mm", label: "hot" }],
+    };
+    // The distinction that needs care: a probe is the same check with an
+    // undocumented input moved, and the stack page stamps it NOT A RESULT.
+    var PROBE_FAIL_STACK = {
+      id: "probe", title: "A stack whose probe fails",
+      provenance_counts: { traced: 8 }, checks_source: "generated",
+      checks: [{ check_id: "c1", verdict: "pass", complete: true,
+                 verdict_scope: "joint", units: "mm", label: "l" },
+               { check_id: "c1__k0", verdict: "fail", sensitivity: true,
+                 complete: true, verdict_scope: "joint", units: "mm",
+                 label: "probe" }],
+    };
+
+    await test("a stack's verdict is its worst RESULT check, taken with the " +
+      "same combiner a study's is and never off a sensitivity probe",
+      function () {
+        eq(VA.stackVerdict(FAILING_STACK).state, "fail");
+        eq(VA.stackVerdict(FAILING_STACK).word, "fail");
+        eq(VA.stackVerdict(FAILING_STACK).says, VA.VERDICTS.fail.says,
+           "VA.VERDICTS' own words, read here and not restated");
+        eq(VA.stackVerdict(FAILING_STACK).title, VA.VERDICTS.fail.title);
+        eq(VA.stackVerdict(QUIET_STACK).state, "pass");
+        // The probe is NOT A RESULT on the stack's own page, so it is not a
+        // verdict on the rail either: red on a what-if is "true of the model,
+        // false of the hardware".
+        eq(VA.stackVerdict(PROBE_FAIL_STACK).state, "pass",
+           "a failing probe is not a failing stack");
+        eq(VA.worstVerdict(PROBE_FAIL_STACK.checks), "fail",
+           "...and it really would have been the worst, probes included");
+        // Nothing to have a verdict about, and no expectation invented either:
+        // a stack gets no "no criterion recorded yet", unlike a study.
+        eq(VA.stackVerdict({ checks: [] }), null);
+        eq(VA.stackVerdict({}), null);
+        eq(VA.stackVerdict(null), null);
+        eq(VA.stackVerdict({ checks: [{ verdict: "borderline" }] }), null,
+           "a verdict word this viewer has no branch for is not a verdict");
+      });
+
+    await test("a failing stack row is drawn in the one colour this rail " +
+      "spends on failure, and says so in words", function () {
+        var root = render(function (r) {
+          VA.renderNavTree(r, {
+            topologies: [],
+            looseStacks: [FAILING_STACK, PROBE_FAIL_STACK],
+          }, { mode: "stack" }, { onStack: function () {} });
+        });
+        var rows = all(root, ".navtree__row--stack");
+        eq(all(rows[0], ".navstatus--fail").length, 1);
+        var status = VA.stackNavStatus(FAILING_STACK);
+        eq(status.level, VA.NAV_STATUS_WORST);
+        eq(status.alerts.length, 1, "no flags on it -- the verdict alone");
+        eq(status.alerts[0].kind, "verdict-fail");
+        eq(status.alerts[0].text, "fail — " + VA.VERDICTS.fail.says);
+        has(rows[0].querySelector(".navstatus").getAttribute("title"), "fail");
+        // The probe-only failure stays silent: a clean result verdict, no
+        // flags, nothing to look at.
+        eq(VA.stackNavStatus(PROBE_FAIL_STACK), null);
+        eq(all(rows[1], ".navstatus").length, 0);
+        // And the scheme is ONE scheme: a stack and a study with the same
+        // verdict and no flags produce the same mark, level and words alike.
+        var asStudy = VA.studyNavStatus(navStudy(FAILING, []));
+        eq(asStudy.level, status.level);
+        eq(asStudy.alerts[0].text, status.alerts[0].text);
+      });
+
     // --- descriptions as hover tooltips (stack_title_style_pass, 2026-09-14) -
     //
     // Titles are short noun phrases now; the qualification they shed lives in
@@ -12272,13 +12350,14 @@
             // amber, 10 red, 0 silent -- the red ones the nine
             // `rotor_fastener_grip_u*h` variants plus `vpa_output_shank_out`).
             // Every live study either misses its criterion, has no criterion,
-            // does not sum, or carries an unverified value. So the quiet row
-            // this pass decided on is a promise about data that has not
-            // arrived yet, and the branch is covered by the synthetic tier
+            // does not sum, or carries an unverified value; and neither live
+            // leaf row is silent either (the leaf test below). So the quiet
+            // row this pass decided on is today a promise about data that has
+            // not arrived, and its branch is covered by the synthetic tier
             // above ("a clean pass with nothing to admit has no status at
-            // all") rather than here. A green that turns red on this line is
-            // a stack getting BETTER: read the loop above, then move the
-            // number.
+            // all") rather than by any real row. A green that turns red on
+            // this line is a stack getting BETTER: read the loop above, then
+            // move the number.
             eq(seen.silent, 0,
                "a live row now earns silence -- update the count and say so");
           });
@@ -12331,6 +12410,89 @@
                offered.join(", "));
             eq(root.textContent.toLowerCase().indexOf("classic"), -1,
                "no row says \"classic\" (deliverable 4)");
+          });
+
+        // The two leaf rows, under the same scheme as the study rows above
+        // (viewer_nav_verdict_into_alert_and_icon, 2026-09-22). These are the
+        // live rows "Still open (2)" on
+        // ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud
+        // names, and they were measured there as five chips and three, one of
+        // them the filled `UNTRACED`.
+        //
+        // `m2` is also the row that settled WHY a stack derives a verdict at
+        // all. Every one of its 8 values is traced and it has no zero-width
+        // element, so its alert list is empty and an alerts-only rail would
+        // have drawn it silent -- while two of its result checks are
+        // `marginal`. A silent row that carries a marginal result is the
+        // quiet-row promise broken on live data, on the first row it was
+        // tried against.
+        await test("[real] the two live leaf rows carry the same one mark: m1 " +
+          "in red, m2 amber on a verdict it has no flag for", function () {
+            var tree = VA.navTree(realTopologies, realResults);
+            var root = render(function (r) {
+              VA.renderNavTree(r, tree, { mode: "topology" }, {
+                onTopology: function () {}, onStudy: function () {},
+                onStack: function () {},
+              });
+            });
+            var rows = all(root, ".navtree__row--stack");
+            eq(rows.length, 2);
+            eq(all(root, "span.chip").length, 0,
+               "the counts roll-up left the rail");
+            var m1 = VA.findStack(realResults, "hub_bearing_thermal_fit_m1");
+            var m2 = VA.findStack(realResults, "hub_bearing_thermal_fit_m2");
+
+            // m1: two untraced values, and a FAILING result check. Red, and
+            // the verdict is the first thing its card says -- this row is why
+            // a stack derives a verdict at all.
+            eq(VA.stackVerdict(m1).state, "fail");
+            var failing = (m1.checks || []).filter(function (check) {
+              return check.verdict === "fail" && !check.sensitivity;
+            });
+            eq(failing.map(function (c) { return c.check_id; }),
+               ["lower_seat__sleeve_to_bearing__hot"],
+               "the live result check the red is for");
+            var s1 = VA.stackNavStatus(m1);
+            eq(s1.level, VA.NAV_STATUS_WORST);
+            eq(s1.alerts[0].kind, "verdict-fail");
+            eq(s1.alerts.slice(1).map(function (a) { return a.kind; }),
+               ["unverified"], "its 2 untraced values, and the counts dropped");
+            eq(all(rows[0], ".navstatus--fail").length, 1);
+            eq(rows[0].textContent, m1.title,
+               "not a word of it on a 300px row");
+            has(rows[0].querySelector(".navstatus").getAttribute("title"),
+                VA.VERDICTS.fail.says);
+
+            // m2: nothing to DISTRUST -- all 8 values traced, no zero-width
+            // element, so no flag at all -- but two marginal result checks. It
+            // is amber on its verdict alone, and its card has exactly one line.
+            eq(VA.stackNavAlerts(m2), [],
+               "nothing about m2 asks a reader to distrust a number");
+            eq(VA.stackVerdict(m2).state, "marginal");
+            eq((m2.checks || []).filter(function (check) {
+              return check.verdict === "marginal" && !check.sensitivity;
+            }).map(function (c) { return c.check_id; }),
+               ["upper_seat__hub_to_sleeve__hot",
+                "upper_seat__sleeve_to_bearing__hot"],
+               "the live result checks the amber is for");
+            var s2 = VA.stackNavStatus(m2);
+            eq(s2.level, VA.NAV_STATUS_LOOK);
+            eq(s2.alerts.map(function (a) { return a.kind; }),
+               ["verdict-marginal"],
+               "the verdict is the whole of what this row has to say");
+            eq(all(rows[1], ".navstatus--warn").length, 1);
+            eq(rows[1].textContent, m2.title);
+            // The probes are really there, and "minus the sensitivity probes"
+            // is load-bearing on m1 rather than a precaution about nothing:
+            // two of its three failing checks are probes.
+            ok((m2.checks || []).some(function (c) { return c.sensitivity; }),
+               "expected m2's live probes");
+            eq((m1.checks || []).filter(function (check) {
+              return check.verdict === "fail" && check.sensitivity;
+            }).map(function (c) { return c.check_id; }),
+               ["lower_seat__sleeve_to_bearing__hot__k0",
+                "lower_seat__sleeve_to_bearing__hot__k1"],
+               "the live what-ifs the rail must not draw a verdict off");
           });
 
         // Every leaf really does render as a page, which is the other half of
