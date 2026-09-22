@@ -314,11 +314,25 @@ must be confirmed before the property is looked up.
   state. What the title sheds is **demoted into `description`, not deleted** —
   an author who cut real information and wrote no description has lost it.
   Check the `id` did not move with the title: ids are deep links.
-- **Tests.** `venv-win/Scripts/python.exe -m pytest -q` green, and re-run it
-  yourself rather than trusting the report. New source-derived numbers carry the
-  source cell reference in a comment (`# JEFF E18`), which is what makes the suite
-  a transcription check rather than a self-consistency check. A new stack with no
-  new tests pinning its numbers is incomplete.
+- **Tests — read the canonical "Test cadence" first; this bullet applies that
+  cadence here and is not a second full-suite order.** Check that the tactical
+  report **records** its full-suite run — command, checkout, result counts — and
+  give that record the benefit of the doubt. Pre-merge you run the **risky
+  subset** for the diff's shape; "Choosing the risky subset" below is the
+  mapping, written down so you do not re-derive it. The one full suite this
+  review owes comes **after** the merge, and the entry that owns it is *"…and the
+  same thing in reverse: run the suite in BOTH checkouts"* under "Recurring bugs
+  to check". Nothing in this overlay asks for a full suite before the merge.
+- **Green is not the whole verdict here — and that, not distrust of the author,
+  is the repo-specific reason this needs its own sentence.** This suite is a
+  **transcription** check rather than a self-consistency check, and it is one
+  *only because* new source-derived numbers carry their source cell reference in
+  a comment (`# JEFF E18`). A number pinned by a test that cites nothing is
+  pinned to itself: the green then tells you the author is internally
+  consistent, not that the worksheet says so. So read the tests the diff adds
+  rather than only its total — a new stack with no new tests pinning its numbers
+  is incomplete, and newly pinned numbers carrying no source comment are a
+  finding whatever the counts say.
 - **The re-derivation table** covers every result cell the source computes, at
   full precision. Deltas ~1e-15 are float summation order. Anything larger is a
   real disagreement that must be a recorded finding, not a rounded-away one — but
@@ -408,6 +422,107 @@ must be confirmed before the property is looked up.
   number came from.
 
 ---
+
+## Choosing the risky subset (diff shape → what to run, pre-merge)
+
+The canonical **"Test cadence"** above is the process: the tactical report's
+recorded full-suite run gets the benefit of the doubt, you run a **risky subset
+before** the merge, and **one full suite after** it. This section is the
+*mapping* for this repo — written down so no reviewer re-derives it, and so two
+reviews of the same diff shape run the same thing.
+
+Start from `git diff --name-only integration...HEAD`, take **every** row the
+change set matches (the rows union; none of them overrides another), and **name
+the subset and its counts in your review**. An unnamed subset is the same
+problem as an unrecorded full suite one step later.
+
+- **Python under `tolerance_stack/` or `tests/`** → that module's own test file,
+  plus `tests/test_architecture_inventory.py` (the module inventory is paired
+  against the tree, so a new, moved or renamed module reds it).
+- **Stack or topology data under `docs/tolerance_stacks/` or `docs/topologies/`**
+  → `pytest -q tests/test_tolerance_stack.py tests/test_topology.py
+  tests/test_topology_projection.py tests/test_viewer_projection.py`, **and** the
+  viewer `[real]` tier (both traps below apply). A change to a value, a band, a
+  `confidence` or a `zero_width` is a viewer-test change: the "A STACK-DATA
+  change is a viewer-test change" entry under "Recurring bugs to check" is why,
+  and it names the greps to run before the tier.
+- **`apps/viewer/`** → `pytest -q tests/test_viewer_js_suite.py
+  tests/test_js_python_vocabulary.py tests/test_viewer_readme_doc_facts.py
+  tests/test_viewer_deep_link_contract.py`, plus the fast tier through the
+  `--repo` seam. If the diff touches `style.css`, `topology.css` or anything
+  positional, the fast tier's DOM shim **structurally cannot see the defect
+  class** and the browser tier is not optional:
+  `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack`.
+- **`apps/annotate/`** → `pytest -q tests/test_annotate_js_vocabulary.py
+  tests/test_feature_identity.py tests/test_part_mesh_aliases.py`, plus
+  `node apps/annotate/run_tests.cjs`. That runner takes **no `--repo` flag**: its
+  `[real]` checks try the repo-relative projection path and then fall back to a
+  hardcoded main-checkout path, so from a worktree they usually run anyway — but
+  when neither path resolves they print a `SKIP  [real] ...` line and the total
+  stays green, so read the SKIP lines rather than the total.
+- **A CSS rule in either app** → `pytest -q tests/test_app_type_scale.py` (the
+  two apps' `:root` scales are paired against each other there), plus the browser
+  tier as above.
+- **A guard, a witness, or `scripts/mutation_witnesses.json`** → `pytest -q
+  tests/test_mutation_witnesses.py` plus `node
+  scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`. This tier
+  also owes a **post-merge** run, for a reason the merge itself creates — see the
+  "After you merge `integration` into your review branch, re-run" entry, which is
+  not covered by this pre-merge row.
+- **A projection builder, or `scripts/rebuild_projections.ps1`** → `pytest -q
+  tests/test_projection_provenance.py tests/test_rebuild_projections_script.py
+  tests/test_rebuild_terminal_state_pairing.py`, then the rebuild itself and the
+  viewer `[real]` tier.
+- **Prose in a tracked document, including this file** → `pytest -q
+  tests/test_tolerance_stack.py tests/test_provenance.py`. The doc-scan,
+  claim-shape and byte-identity guards read `docs/` as a live corpus, so a
+  docs-only diff can legitimately go red — that is the design, not a nuisance
+  (repo `CLAUDE.md`).
+- **`ARCHITECTURE.md`, `README.md`, `PROVENANCE.md`, `ops.toml`** → `pytest -q
+  tests/test_architecture_inventory.py tests/test_provenance.py
+  tests/test_ops_toml_serve_verb.py`.
+- **Nothing here matches the diff** → say so in the review, and derive the
+  subset the same way these rows were: `grep -rl <changed path> tests/` and run
+  what names it. Then **add the row**, so the next reviewer of that shape does
+  not repeat the grep. A row you could not justify from the tree does not belong
+  here; leave it out and say what you could not map.
+
+### The two traps this mapping exists to carry
+
+Both measured; both have cost real sessions.
+
+- **The viewer's `[real]` tier reads gitignored `data/projections/viewer/`, which
+  exists only in the main checkout, so from a worktree it must go through the
+  runner's `--repo` seam:
+  `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`.** Without it
+  `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green` fails on
+  **every** branch and tells you nothing about the diff in front of you — the
+  2026-09-21 batch-merge agent measured `1 failed, 1208 passed` in the worktree
+  against a fully green run through `--repo`. **Forward slashes** in that path
+  under the Bash tool, and confirm the total *moved* rather than reading the last
+  line: the two `--repo` entries under "Recurring bugs to check" hold the numbers
+  and the silent-skip shape.
+- **Re-run `scripts/rebuild_projections.ps1` from the main checkout after
+  anything that changes a projection input** — a stack value, a topology edge, a
+  crop region — or the `[real]` tier judges a **stale** projection and its green
+  is a statement about the previous tree. A 2026-09-06/08 incident, not a
+  hypothetical. The script refuses rather than guessing when the projection it
+  would overwrite was built from a tree it does not contain, so a refusal is
+  information: read it, do not reach for `--allow-older-tree`.
+
+### Where the one full suite runs
+
+The canonical cadence leaves the *where* to this file, so: run it **after the
+merge, in your review worktree**, because that tree is the merged code while the
+main checkout sits on trunk and a `pytest` typed there measures trunk until the
+operator's batch merge moves it. Arm everything a worktree can be given --
+`node_modules`, the viewer tier through `--repo` — and name in the review what
+the worktree still could not exercise. The "run the suite in BOTH checkouts"
+entry additionally asks for the main checkout, and it is right to: that is the
+*more restrictive* environment for anything resolving a real `data/` path, and
+it has caught a red no worktree could see. Run it there too when the diff
+touches path resolution or reads `data/`, say which checkout produced each
+count, and do not read the main-checkout run as a verdict on the merged tree.
 
 ## When the work is a spec-library parse event (not a stack)
 
@@ -1256,10 +1371,17 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       the first asserted `values_status != "inline"` ⟹ `values_source is None`,
       the second promoted an entry to `library` while deliberately keeping its
       `values_source`. Neither branch's suite could see it; the merged tree failed.
-      **Before you write the verdict: `git log --oneline HEAD..master`, merge
-      master into your review branch, and re-run the suite there.** A review that
-      only tests `handoff/<slug>` against its own merge-base is testing a tree
-      that will never exist. **Second sighting (`stack_viewer_v0`):** same cause,
+      **Before you write the verdict: `git log --oneline HEAD..master`, and
+      merge master into your review branch.** A review that only tests
+      `handoff/<slug>` against its own merge-base is testing a tree that will
+      never exist. **Keep the merge; what you run on it is the risky subset for
+      the UNION of two diffs** — yours, plus whatever the incoming range touched.
+      `git log --oneline --name-only HEAD..master` gives you that second file
+      set: map both through "Choosing the risky subset" and run the union. This
+      step is deliberately **not** a full-suite order, and the reason it can be a
+      subset is that a semantic conflict is a collision between two file sets you
+      can both *enumerate* — the union covers it — while the full suite on the
+      merged tree is the post-merge run. **Second sighting (`stack_viewer_v0`):** same cause,
       a doc this time — `spec_library_v0` and `stack_viewer_v0` each rewrote
       `ARCHITECTURE.md`'s data-flow ASCII diagram from its founding shape, and
       git could not merge them. Nothing fails a test; the conflict is yours to
@@ -1281,7 +1403,10 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `viewer_projection_provenance` landed; the shipping tree reports **340 / 1**
       in a worktree and **341 / 0** in the main checkout. Nothing conflicted. If
       a lesson quotes a suite count and the board ran anything in parallel,
-      assume the count is stale and re-derive it in both checkouts.
+      assume the count is stale — but do **not** buy a fresh full suite here to
+      settle it. A stale count in a lesson is a documentation finding, not a test
+      failure; the shipping count comes from the post-merge run, and whatever you
+      quote from it names the checkout that produced it.
 - [ ] **After you merge `integration` into your review branch, re-run
       `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`
       and report the count in your review.** This is an instruction, not a
@@ -4283,15 +4408,20 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `tests/test_topology_projection.py::test_the_number_of_closing_edges_is_the_graphs_cycle_count`
       (the viewer's layout math assumes a single connected component), and
       `tests/test_topology.py` itself is glob-based/per-file and does **not**
-      catch a disconnected addition — only the full suite does. The author
-      caught this by running the whole suite, not just the topology module's
-      own tests, after a first design gave a new feature two brand-new,
+      catch a disconnected addition — the assertion that does lives in the
+      *other* module, named at the top of this entry. The author caught this by
+      running the whole suite, which is how that per-file blindness was found in
+      the first place, after a first design gave a new feature two brand-new,
       deliberately unconnected nodes. When a handoff adds a node/edge whose
       other end has no source to tie it to the existing graph, check that it
       reuses an **existing** node (with the approximation this implies named
       explicitly, e.g. in the edge's `properties`) rather than floating a new
-      isolated subgraph — and run the full suite, not the archetype's own test
-      module, whenever a topology's own connectivity could change. Expect this
+      isolated subgraph — and whenever a topology's own connectivity could
+      change, run **the named assertion's module**, not the archetype's own test
+      module alone: `pytest -q tests/test_topology.py
+      tests/test_topology_projection.py`. Now that the assertion has a name the
+      whole suite is no longer the only way to reach it, so this costs seconds
+      and owes no pre-merge full suite. Expect this
       to recur for the brake-family stack (staged next, same archetype, today
       only `kind: "assumed"` external edges — same shape of gap).
 
