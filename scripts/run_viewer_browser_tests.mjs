@@ -2515,42 +2515,119 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         }
       }
 
-      // --- the nav rail, folded (viewer_nav_alert_badge_and_angled_default) --
+      // --- the nav rail: one mark per row (viewer_nav_verdict_into_alert_and_icon)
       //
-      // Jeff, 2026-09-21, on this rail against the live projection: "the
-      // alerts still haven't been replaced with a single triangle ! (hover
-      // over to see details)". The fast tier counts the badges in a shim; what
-      // only a real browser can answer is the half that made this a browser
-      // problem at all -- the rail is 300px, sticky, `overflow-y: auto`, so a
-      // popup rendered INSIDE a row would be clipped to it and a row near the
-      // bottom would open its card off the bottom of the scrollport. The card
-      // is the page's shared `position: fixed` node for exactly that reason,
-      // and the check is that it lands on screen.
+      // Jeff, 2026-09-22, on this rail as the 09-21 fold left it: "get rid of
+      // the pass/fail in the left side menu (move it into the alert along with
+      // all the other alerts). Also reformat the alert icon: get rid of the
+      // rounded border around it, make the actual icon larger so it's legible
+      // (or replace it with a proper icon/emoji rather than a character)."
+      //
+      // Two of those three are claims only a real browser can settle, which is
+      // why they are checked here and not only in the shim:
+      //
+      //   * "LEGIBLE" is a RENDERED SIZE. The shim can read the `width`
+      //     attribute the icon was built with; only a layout engine can say
+      //     what the mark actually measures on the row, and a stylesheet that
+      //     collapsed it (`line-height: 0` on an inline-flex box is a real way
+      //     to get zero height) would sail through a class-name check.
+      //   * "NO ROUNDED BORDER" is computed style. A leftover `.chip` rule
+      //     matching the badge would put the border back with the markup
+      //     unchanged.
+      //
+      // And the third thing a browser adds, unchanged from 09-21: the rail is
+      // 300px, sticky, `overflow-y: auto`, so a popup rendered INSIDE a row
+      // would be clipped to it and a row near the bottom would open its card
+      // off the bottom of the scrollport. The card is the page's shared
+      // `position: fixed` node for exactly that reason.
       const navAlerts = await page.evaluate(() => {
         const rows = Array.from(document.querySelectorAll(
           "#navtree .navtree__row--study"));
+        const leaves = Array.from(document.querySelectorAll(
+          "#navtree .navtree__row--stack"));
+        const icons = Array.from(document.querySelectorAll("#navtree .navstatus"));
+        const measure = (icon) => {
+          const svg = icon.querySelector("svg");
+          const box = svg && svg.getBoundingClientRect();
+          const style = getComputedStyle(icon);
+          return {
+            w: box ? Math.round(box.width) : 0,
+            h: box ? Math.round(box.height) : 0,
+            colour: style.color,
+            border: style.borderTopWidth + " " + style.borderTopStyle,
+            radius: style.borderTopLeftRadius,
+            // The one place the mark may grow a box is a focus ring, and
+            // nothing is focused here.
+            outline: style.outlineStyle,
+            paths: icon.querySelectorAll("path").length,
+          };
+        };
+        const marks = (r) => r.querySelectorAll(".navstatus").length;
         return {
           rows: rows.length,
-          worst: Math.max(...rows.map((r) =>
-            r.querySelectorAll(".chip--alert").length)),
-          flags: rows.reduce((n, r) => n + r.querySelectorAll(".tvflag").length, 0),
-          silent: rows.filter((r) =>
-            !r.querySelectorAll(".tvverdict, .chip--alert").length).length,
-          badged: rows.filter((r) => r.querySelectorAll(".chip--alert").length).length,
-          triangles: rows.filter((r) => (r.textContent.match(/⚠/g) || []).length > 1).length,
+          leaves: leaves.length,
+          worst: Math.max(...rows.map(marks), ...leaves.map(marks)),
+          silent: rows.filter((r) => !marks(r)).length,
+          marked: rows.filter(marks).length,
+          leavesMarked: leaves.filter(marks).length,
+          // The retired presentations, all three of them, over the WHOLE rail.
+          verdictChips: document.querySelectorAll("#navtree .tvverdict").length,
+          flags: document.querySelectorAll("#navtree .tvflag").length,
+          chips: document.querySelectorAll("#navtree span.chip").length,
+          glyphs: (document.querySelector("#navtree").textContent
+            .match(/⚠/g) || []).length,
+          icons: icons.length,
+          red: document.querySelectorAll("#navtree .navstatus--fail").length,
+          amber: document.querySelectorAll("#navtree .navstatus--warn").length,
+          shapes: icons.map(measure),
         };
       });
-      push(`[real] every study row on the rail wears at most one ⚠ and no ` +
-        `loose flag (${navAlerts.badged} of ${navAlerts.rows} rows badged)`,
-        navAlerts.rows >= 20 && navAlerts.worst === 1 && navAlerts.flags === 0 &&
-        navAlerts.triangles === 0 && navAlerts.badged >= 1);
-      push("[real] and not one row is silent about whether its study passes",
-        navAlerts.silent === 0);
+      push(`[real] every row on the rail wears at most ONE mark and no chip ` +
+        `of any kind (${navAlerts.marked}/${navAlerts.rows} studies, ` +
+        `${navAlerts.leavesMarked}/${navAlerts.leaves} leaves)`,
+        navAlerts.rows >= 20 && navAlerts.leaves === 2 &&
+        navAlerts.worst === 1 && navAlerts.verdictChips === 0 &&
+        navAlerts.flags === 0 && navAlerts.chips === 0 &&
+        navAlerts.icons >= 1);
+      // The rail states its verdicts in the card now, so the glyph, the pill
+      // and the flag are all gone together. No triangle CHARACTER either: the
+      // mark is drawn, which is what makes its size independent of the type
+      // scale.
+      push("[real] not one triangle character is left anywhere on the rail",
+        navAlerts.glyphs === 0);
+      // Live tally, pinned: every live row has something to say (11 amber and
+      // 10 red across the studies, both leaves marked, measured 2026-09-22).
+      // The quiet row is real and decided -- the fast tier's synthetic rows
+      // cover it -- but no live artifact is in that position yet.
+      push(`[real] no live row is silent, so the rail's silence is a promise ` +
+        `rather than a gap (${navAlerts.amber} amber, ${navAlerts.red} red)`,
+        navAlerts.silent === 0 && navAlerts.leavesMarked === navAlerts.leaves &&
+        navAlerts.red >= 1 && navAlerts.amber >= 1);
+      // The legibility claim, MEASURED, and the border claim off computed
+      // style. Both on every icon on the rail, because one row styled
+      // differently is the bug this is looking for.
+      const SIZE = 14;
+      const unreadable = navAlerts.shapes.filter((s) =>
+        s.w < SIZE || s.h < SIZE || s.paths !== 1);
+      const boxed = navAlerts.shapes.filter((s) =>
+        !/^0px/.test(s.border) || !/^0px/.test(s.radius) || s.outline !== "none");
+      push(`[real] the mark renders at a legible size on every row ` +
+        `(${navAlerts.shapes[0].w}x${navAlerts.shapes[0].h}px, one path)`,
+        navAlerts.shapes.length >= 1 && unreadable.length === 0);
+      push("[real] and with no border, no corner radius and no outline — the " +
+        "chip framing is gone, not just unclassed",
+        boxed.length === 0);
+      // Semantic colour, actually applied: `currentColor` off the level class
+      // is the whole mechanism, so two levels that computed to the same colour
+      // would leave the rail's red unscannable with every class name correct.
+      const levels = [...new Set(navAlerts.shapes.map((s) => s.colour))];
+      push(`[real] the two levels really do compute to different colours ` +
+        `(${levels.length})`, levels.length === 2);
       // Nothing open first: an open card plus a pointer aimed at it is the
       // hover-intent corridor's own case (`defer`), and it would hold this
       // hover for VA.HOVER_INTENT_MS rather than answer it.
       await dismissCard(page);
-      const navBadge = page.locator("#navtree .navtree__row--study .chip--alert").first();
+      const navBadge = page.locator("#navtree .navtree__row--study .navstatus").first();
       await navBadge.hover();
       await page.waitForSelector(".hovercard--alerts", { timeout: 5000 });
       const navCard = await page.evaluate(() => {
@@ -3529,6 +3606,15 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
           .getBoundingClientRect();
         return { x: s.left + s.width / 2, y: s.top + s.height / 2 };
       });
+      // The page's OWN scroll offset, read before the gesture rather than
+      // assumed to be zero. Getting the launcher on screen is a real scroll
+      // (Playwright scrolls a target into view before clicking it), so
+      // whether this page happens to sit at 0 by the time the lightbox is up
+      // is a fact about how tall the rest of the page is -- which is not what
+      // this check is about, and which moved the first time the nav rail's
+      // rows stopped being two lines tall (2026-09-22). What the check means
+      // is that THE WHEEL scrolled nothing, so it measures the delta.
+      const scrollAtOpen = await page.evaluate(() => window.scrollY);
       await page.mouse.move(centre.x, centre.y);
       for (let i = 0; i < 3; i++) await page.mouse.wheel(0, -120);
       await page.waitForFunction(() => {
@@ -3543,7 +3629,7 @@ async function testRealDataRenderPath(browser, url, label, realProjection, realR
         "behind it — the preventDefault and the body class are the two halves " +
         "of that, and neither is origin-dependent",
         open.scale === 1 && zoomedHere.scale > 1 &&
-        zoomedHere.pageScrollY === 0);
+        zoomedHere.pageScrollY === scrollAtOpen);
       await page.keyboard.press("Escape");
       await page.waitForFunction(
         () => !document.querySelector("#crop-lightbox").open &&
