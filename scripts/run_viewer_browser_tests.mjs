@@ -2623,6 +2623,42 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
       const levels = [...new Set(navAlerts.shapes.map((s) => s.colour))];
       push(`[real] the two levels really do compute to different colours ` +
         `(${levels.length})`, levels.length === 2);
+      // WHERE the mark sits, on the rows that make it a question. A study
+      // name that needs two lines in 300px is ordinary, and `.navtree__row`'s
+      // `flex-wrap: wrap` -- there for the topology row's id, and before that
+      // for the retired chips strip -- put the icon on a THIRD line of its
+      // own, left-aligned under the text, on every one of them. Found by
+      // looking at the rail, which is the only way it could have been: the
+      // markup, the classes and the shim's geometry are all identical either
+      // way. So it is asserted where a layout engine can see it.
+      const wrapped = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll(
+          "#navtree .navtree__row--study, #navtree .navtree__row--stack"))
+          .filter((r) => r.querySelector(".navstatus"));
+        const out = { twoLine: 0, misplaced: [] };
+        for (const row of rows) {
+          const label = row.querySelector(".navtree__label");
+          const icon = row.querySelector(".navstatus");
+          const lb = label.getBoundingClientRect();
+          const ib = icon.getBoundingClientRect();
+          const lines = Math.round(lb.height / parseFloat(getComputedStyle(label).lineHeight));
+          if (lines > 1) out.twoLine++;
+          // The mark is to the RIGHT of the name and inside the row's own
+          // vertical extent -- never under the name on a line of its own.
+          const rb = row.getBoundingClientRect();
+          if (ib.left < lb.right - 1 || ib.top < rb.top ||
+              ib.bottom > rb.bottom + 1) {
+            out.misplaced.push(label.textContent.slice(0, 40));
+          }
+        }
+        return out;
+      });
+      push(`[real] the mark stays at the end of its row, including on the ` +
+        `${wrapped.twoLine} rows whose name needs two lines`,
+        wrapped.twoLine >= 1 && wrapped.misplaced.length === 0);
+      if (wrapped.misplaced.length) {
+        console.log(`    under the name: ${wrapped.misplaced.join(" | ")}`);
+      }
       // Nothing open first: an open card plus a pointer aimed at it is the
       // hover-intent corridor's own case (`defer`), and it would hold this
       // hover for VA.HOVER_INTENT_MS rather than answer it.

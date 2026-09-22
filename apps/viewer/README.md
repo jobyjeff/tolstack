@@ -370,45 +370,83 @@ so nothing new is authored to say so (`VA.navTree`, `topology.js`).
 > `viewer_nav_wedge_and_classic_retirement` removed the row and contained the
 > wedge.
 
-### What a study row wears: the verdict, and one ⚠
+### What a nav row wears: one status icon, and nothing else
 
-A study row carries **at most two marks**: its verdict chip, and one outlined
-amber `⚠` standing for everything else the study has to admit. Hovering the
-triangle opens the page's own alerts card (`VA.alertsCard`, the same popover
-node every other hover card on this page uses) and lists each alert as a full
-sentence with its *why*. A row with nothing wrong shows the verdict alone.
+**Every row on this rail carries at most ONE mark**, and it is not a word. A
+study row, a loose-stack row: a single drawn triangle at the end of the row,
+amber or red, and everything the row has to say is in the card it opens —
+verdict first, then the alerts, each as a full sentence with its *why*.
 
-`VA.studyNavAlerts` (`topology.js`) is the only place that decides which of a
-row's facts is an alert, and the words are never restated there: an attention
-flag reads its sentence out of `VA.ATTENTION`, and a folded verdict state reads
-`VA.studyVerdict`'s own `word` and `title`. What folds:
+* **No abbreviation ever lands on a row.** No verdict pill, no all-caps flag,
+  no chip of any kind. A 300px rail that is always on screen is a place for
+  names, and the names are what a reader navigates by.
+* **The icon is drawn, not typed** — `VA.warningIcon` (`views/dom.js`), one SVG
+  path sized in pixels. Two reasons, both about legibility rather than taste: a
+  `⚠` character is sized by `font-size`, so it can only ever be as big as a
+  step on the type scale (owned by `tests/test_app_type_scale.py`, and a
+  seventh step added to enlarge one triangle is a scale decision taken by an
+  icon); and U+26A0 renders through whatever font the platform picks for it,
+  which on Windows is as often a **colour emoji** as a glyph — and a colour
+  emoji ignores the semantic colour the level class sets.
+* **No chip framing.** No border, no corner radius. A border around the only
+  mark on a row is a second mark.
+* **Two levels, semantic.** Red is a verdict of `fail` and nothing else; amber
+  is everything else the row has to say. The colour's whole job is to tell a
+  scan of the rail where to stop, so an emphasis every row earned would be an
+  emphasis no row has.
+* **A row with nothing to say wears nothing.** Not a quiet variant — nothing.
+
+`VA.studyNavStatus` / `VA.stackNavStatus` (`topology.js`) decide a row's mark,
+over one shared `navStatus()`: the two tiers differ only in where the verdict
+comes from, and "every nav tier is consistent" is not a claim two copies of
+that body could keep. The words are never restated there — a verdict line reads
+`VA.VERDICTS`' own `word` and `says`, an attention flag reads `VA.ATTENTION`'s,
+a stack's alert lines are `VA.summaryChips`' own text, moved.
 
 | | |
 |---|---|
-| `pass` / `marginal` / `fail` | **stays a chip.** The disposition is what the reader came for, and it keeps its `--qualified` tint where the chain is short a term |
-| `no pass/fail criterion recorded yet` | folds. It is an absence, not an answer — but the row is never left silent, because the badge speaks for it |
-| `does not sum` | folds. The row also keeps its amber `--warn` tint, which is a state and not a badge |
-| `unverified` / `no tolerance recorded` / `incomplete` | fold. These are `VA.ATTENTION`'s three flags; they are still chips on the DAG grid's edge rows and on a study's totals strip, where there is room to read them |
+| `fail` | **red.** The one state this rail spends red on |
+| `marginal` | amber, and the verdict leads the card in plain words |
+| `pass` | **no mark at all** — *unless* a flag stands against it, which is a pass that still asks to be looked at |
+| `no pass/fail criterion recorded yet` / `does not sum` | amber. An absence is not an answer; the row also keeps its amber `--warn` tint, which is a state and not a badge |
+| `unverified` / `no tolerance recorded` / `incomplete` | in the card. These are `VA.ATTENTION`'s three flags; they are still chips on the DAG grid's edge rows and on a study's totals strip, where there is room to read them |
+| a stack's `traced` / `inferred` counts, `checks GENERATED`, probe count | **not on the rail.** A scoreboard is not something a reader is asked to act on, and it is on the stack's own page, which renders the same `VA.summaryChips` unchanged |
 
-**Why (2026-09-21, `viewer_nav_alert_badge_and_angled_default`).** Until then
-each row printed every one of those as its own all-caps chip: on the live
-projection, 21 verdict chips and 42 attention flags over 21 study rows, in a
-300px always-visible rail. (The flags were *filled* until
-`design_pass_typography` (2026-09-17) outlined them — `topology.css`'s
-`.tvflag` note carries that pass's own measurement, which is of the state
-*before* it, not of the state this pass replaced.) Jeff: *"the alerts still
-haven't been replaced with a single triangle ! (hover over to see details)"*,
-and of the annotator's badge that
-already did this, *"same purpose, just in a different place"*. It was filed as
-`ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud`
-rather than done at the time, because quietening them partly reverses
-`viewer_study_verdicts_and_gaps` (2026-09-15), which put them there on purpose
-after Jeff asked for a verdict roll-up at all. The resolution keeps both: the
-**verdict** was what that handoff was answering and it stays loud; the alerts
-were the loudness and they fold. Nothing is deleted or reworded — folding the
-chips away *revealed* each alert's `why`, which was previously only a native
-tooltip. On the live projection all 21 study rows carry a badge, so the fold is
-not a rare path.
+**Why (2026-09-22, `viewer_nav_verdict_into_alert_and_icon`).** This rail has
+been quietened twice. `viewer_study_verdicts_and_gaps` (2026-09-15) put the
+verdicts and flags here at all, after Jeff asked for a roll-up; by 2026-09-16
+each row printed every one of them as its own all-caps chip — on the live
+projection, 21 verdict chips and 42 attention flags over 21 study rows, in
+300px. (The flags were *filled* until `design_pass_typography` (2026-09-17)
+outlined them.) `viewer_nav_alert_badge_and_angled_default` (2026-09-21) folded
+the flags into one bordered `⚠` and kept the verdict as a chip — Jeff: *"the
+alerts still haven't been replaced with a single triangle ! (hover over to see
+details)"*. Looking at that result the next day he reversed the half it had
+kept: *"get rid of the pass/fail in the left side menu (move it into the alert
+along with all the other alerts). Also reformat the alert icon: get rid of the
+rounded border around it, make the actual icon larger so it's legible (or
+replace it with a proper icon/emoji rather than a character)."* Two badges per
+row read as two competing marks, and the one carrying the words was the smaller.
+
+That retired `VA.NAV_ALERT_VERDICT_STATES` rather than extending it: it existed
+to split the states that fold from the states that stay a chip, and with no
+chip left on the rail there is no split to make.
+
+**The silent row is the one reversal, and it is deliberate.** 2026-09-15's
+reading was that a blank row on a rail of verdicts reads as a row that passed —
+true of a rail of verdicts, and not of a rail of things to look at. Today **no
+live row is silent** (11 amber and 10 red across the 21 studies, both leaf rows
+marked, measured 2026-09-22 and pinned in `tests.js`), so the quiet row is a
+promise about data that has not arrived rather than a state a reader meets.
+
+**A loose stack derives its own verdict** (`VA.stackVerdict`, over the same
+`VA.worstVerdict` a study's comes from) **minus the sensitivity probes**, which
+the stack page stamps `NOT A RESULT`. It has to: `hub_bearing_thermal_fit_m1`
+fails a result check, and `hub_bearing_thermal_fit_m2` has no flag at all while
+two of its result checks are `marginal` — an alerts-only leaf row drew that one
+silent. A stack gets no "no criterion recorded yet" the way a study with
+`checks: []` does, because nothing in the stack projection says a stack was
+meant to have one.
 
 **No click can leave the page without a repaint.** Each of the three handlers
 (`onNavTopology` / `onNavStudy` / `onNavStack`, `topology_app.js`) moves the
@@ -1265,7 +1303,7 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | **filled magenta `NO CITATION`** | worse than untraced: no `source_ref` at all (code: `no_source_ref`) |
 | **filled magenta `EXPORT UNESTABLISHED`** | the citation exists and the stack says outright that the *bytes* behind the value cannot be identified. A separate axis from confidence: an `inferred` citation can have a nailed-down export and a `traced` one can have none. See below. **On the right pane's block only** since 2026-09-16 — the elements table's own copy of it rolled into the row's one alert badge (next row) |
 | outlined magenta `CTE NOT TRANSCRIBED` | a material whose `values_status` says nobody has read the CTE off a source. **Filled** until 2026-09-17, when `design_pass_typography` reserved a fill for provenance's two worst states and for a verdict: the confidence chip beside it in the same source column already carries the filled magenta, and one row was wearing that mark twice (`.chip--values-not_transcribed`) |
-| outlined amber `⚠` | **one alert badge per row**, on the elements table (`flyout_resize_annotator_filter_and_deselect`, 2026-09-16) and on the nav rail's study rows (`viewer_nav_alert_badge_and_angled_default`, 2026-09-21 — see "What a study row wears", above; `views/dom.js`'s `VA.alertBadge` builds both). Jeff: *"roll all the alert badges into one single alert badge… Mouse over the icon has a popup that lists out the actual alerts."* One badge per row however many alerts it carries; the words are unchanged (`VA.rowAlerts` reads `VA.ATTENTION` and `VA.EXPORT_CHIP_TEXT`) and moved into the hover card, which also shows each alert's *why* — a sentence the chips only ever carried as a native tooltip. Outlined rather than filled because it is the only alert marker on the row and so competes with nothing. A row with nothing to admit shows **nothing** |
+| outlined amber `⚠` | **one alert badge per row** on the elements table (`flyout_resize_annotator_filter_and_deselect`, 2026-09-16). Jeff: *"roll all the alert badges into one single alert badge… Mouse over the icon has a popup that lists out the actual alerts."* One badge per row however many alerts it carries; the words are unchanged (`VA.rowAlerts` reads `VA.ATTENTION` and `VA.EXPORT_CHIP_TEXT`) and moved into the hover card, which also shows each alert's *why* — a sentence the chips only ever carried as a native tooltip. Outlined rather than filled because it is the only alert marker on the row and so competes with nothing. A row with nothing to admit shows **nothing**. The NAV RAIL wore this same badge from 2026-09-21 until 2026-09-22, when `viewer_nav_verdict_into_alert_and_icon` replaced it there with a drawn icon and no chip framing — see "What a nav row wears", above, for why a character cannot be made legible at row size. `views/dom.js`'s `VA.alertBadge` still builds both: same card wiring, same tooltip, same three openers, two skins. The remaining character sites are `ISSUE_20260922_the_alert_glyph_is_still_a_character_on_two_rails` |
 | dashed blue `no tolerance recorded` | a value with no plus/minus behind it, so every interval it feeds is a **lower bound** on the real spread, never the real one. Still rendered as a chip in the right pane and on the DAG grid; on the elements table it is one of the two alerts the badge above carries. A separate axis from confidence, not a fourth confidence. It read `zero-width band` until 2026-09-16 on four of the five surfaces that state it while the DAG page said `no tolerance recorded` about the same element; all five read `VA.ATTENTION.no_tolerance` now, and the CSS class names (`chip--zero-width`, `num--zero-width`, `el-row--zero-width`, `tvrow--zero-width`) and the projection field `zero_width_count` deliberately keep the old word — nothing reads them as words |
 | striped card + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are printed on the card, directly under the numbers they are a budget for. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose |
 | dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |

@@ -23,6 +23,21 @@
 | The measure (how wide prose may run) | `apps/viewer/style.css` `:root`, `--measure` | — (prose rules reference it; nothing else may hard-code a cap) |
 | The colour palette and what each hue means | `apps/viewer/style.css`'s header comment, and `apps/viewer/topology.css`'s | the palette is the app's subject, not a style token; see below |
 | Row geometry (row height, grip pixels) | `VA.RAIL_METRICS`, `VA.TOPO_GRIP` — **JS**, not CSS | `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs` |
+| The size of a drawn icon | `VA.WARNING_ICON_PX` — **JS**, not a type step | `apps/viewer/tests.js` (the attribute), `scripts/run_viewer_browser_tests.mjs` (the rendered box) |
+
+**An icon is a picture, and its size is not a step on the scale.** The nav
+rail's status mark (`VA.warningIcon`, 2026-09-22) is drawn at a pixel size
+because the alternative is worse in both directions: a `⚠` *character* is
+sized by `font-size`, so making it legible at row size means either accepting
+whatever the nearest existing step gives or adding a seventh step — a scale
+decision taken by one icon, in a scale whose whole point is that a step exists
+because a *kind of text* does. So a glyph-as-icon is the shape to avoid, and
+`VA.WARNING_ICON_PX` is not a precedent for hard-coding text sizes: the ban on
+a bare `px` font-size is unchanged and `test_app_type_scale.py` still enforces
+it. (The other half of that decision is about colour, not size: U+26A0 renders
+through whatever font the platform picks for it, which on Windows is as often a
+colour emoji as a glyph — and a colour emoji overrules the semantic colour the
+rule below requires.)
 
 `apps/annotate/style.css` declares the same six steps by **copy**, not by
 import: the two apps deliberately share no stylesheet (that file's header says

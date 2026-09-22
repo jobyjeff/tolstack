@@ -170,3 +170,39 @@ distrust, so the standing rule ("verdicts stay chips, everything that asks the
 reader to act or distrust folds into the ⚠") does not by itself say which of
 the five fold. That is the same *design* call this issue already carries
 `audience: strategy` for.
+
+## 2026-09-22 — "Still open (2)" is closed. (1) is the whole of what is left.
+
+`viewer_nav_verdict_into_alert_and_icon` did the leaf rows, and in the same
+pass took the verdict chip off the study rows Jeff had just looked at: "get rid
+of the pass/fail in the left side menu (move it into the alert along with all
+the other alerts)." So the rail now states **one** thing per row — a drawn
+status icon — and everything a row has to say is in the card it opens, verdict
+first, in sentences.
+
+The design call this issue left open ("which of the five fold") was answered by
+the rule the rail now runs on: **the rail states what asks you to look, and
+nothing else.** A count of traced values, where the checks came from and how
+many probes ran are a *scoreboard*, and they stay on the stack's own page,
+which renders the same `VA.summaryChips` unchanged. What folds into the card is
+what this repo's one rule is about — a value nothing stands behind, a value
+with no band, and a check that is a budget rather than an answer
+(`VA.stackNavAlerts`, `apps/viewer/topology.js`).
+
+Two things the live data taught, which the measurement above could not show:
+
+* `hub_bearing_thermal_fit_m2` has **nothing** in that list — all 8 values
+  traced, no zero-width element — while two of its result checks are
+  `marginal`. An alerts-only leaf row drew it silent. So a stack row derives
+  its own verdict now (`VA.stackVerdict`, over the same `VA.worstVerdict` a
+  study's comes from), minus the sensitivity probes, which the stack page
+  stamps `NOT A RESULT`.
+* `hub_bearing_thermal_fit_m1` **fails** `lower_seat__sleeve_to_bearing__hot`.
+  Without the derived verdict it would have been amber — the one stack on the
+  rail that fails, indistinguishable from the ones that merely need a look.
+
+Both pinned against the live projection by the `[real]` leaf-row check in
+`apps/viewer/tests.js`.
+
+**"Still open (1)" — the materials table's source column — is unchanged and is
+now genuinely the last of it.** This issue stays `open` for that half.

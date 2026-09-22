@@ -113,6 +113,21 @@ body.tv-resizing .flyout__frame { pointer-events: none; }
 .navtree__row--study { font-size: var(--t-dense); }
 .navtree__row--warn { color: var(--inferred); }
 .navtree__row--stack { font-size: var(--t-dense); }
+/* ...and these two rows do NOT wrap, which the row above does. A study's or a
+   stack's row is a name plus at most one mark, and the mark belongs at the END
+   of the row rather than under it. The wrap on `.navtree__row` is the TOPOLOGY
+   row's: its id sits on a second line beneath its name, and it is also what
+   the retired `.navtree__chips` strip used (`flex-basis: 100%`) to take a line
+   of its own.
+   Left on, it puts the status icon on a line of its own, left-aligned under
+   the text, on every row whose name needs two lines -- `Blade OML angular
+   position, full-sweep-average sensitivity` is one, and the browser tier
+   counts them rather than this comment ("the mark stays at the end of its
+   row", scripts/run_viewer_browser_tests.mjs).
+   `.navtree__label` already shrinks below its max-content width (`min-width:
+   0`), so with no wrap the name takes the two lines and the mark stays where a
+   scan expects it. */
+.navtree__row--study, .navtree__row--stack { flex-wrap: nowrap; }
 .navtree__label { flex: 1 1 auto; min-width: 0; }
 /* A topology's own id: metadata under its name, so grey. It was the accent,
    which put the selection colour on every topology row at rest -- the one
