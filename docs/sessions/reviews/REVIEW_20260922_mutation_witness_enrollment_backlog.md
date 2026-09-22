@@ -124,6 +124,20 @@ says "measured, not proposed"), and the annotate face-click flake with its
 root-cause pointer, so the next reviewer who sees this exact sub-check red
 doesn't re-diagnose it from scratch.
 
+## `integration` moved during review — re-verified after the second merge
+
+While this review was in flight, `policy_free_brief_residues` landed on
+`integration` (`f8e2e06`), touching `apps/viewer/style.css`,
+`apps/viewer/views/topology.js`, `apps/viewer/tests.js` and this same
+`docs/prompts/REVIEW_AGENT.md` overlay. Merging `integration` into this
+review branch (`abf670c`) auto-merged cleanly — no conflict markers, in
+neither the overlay nor any app file. Since two of the changed files
+(`style.css`, `topology.js`) are files this handoff's own `find` strings
+target, I re-checked all 23 enrolled `find` strings for uniqueness and
+re-ran the full mutation-witness tier once more post-merge: still
+**93/96 witnessed**, same three pre-existing misses, all 23 new entries
+still WITNESSED. Nothing rotted.
+
 ## Verdict
 
 **APPROVE.** No guard, check, or app file changed. Every enrolled row
