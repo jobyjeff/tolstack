@@ -634,15 +634,23 @@ def test_an_inline_dimension_with_a_croppable_citation_carries_a_topology_scoped
     projection,
 ):
     """The pitch system is authored topology-first, so no ``dimension_ref``
-    edge covers it -- but six of its inline edges carry a real drawing
-    citation (handoff ``inline_edge_crops``, 2026-09-08), and those six now
-    get a crop key too, in a space of their own: ``{topology, edge}``, never
-    ``by_stack``'s ``{stack, element}`` -- see :func:`build_topology_projection.crop_key`'s
-    own docstring for why the two spaces must stay apart (a topology's id can
-    equal a stack's).
+    edge covers it -- but seven of its inline edges carry a real drawing
+    citation (six from handoff ``inline_edge_crops``, 2026-09-08;
+    ``tan_link_mount_height`` added by ``policy_free_brief_residues``,
+    2026-09-22, carrying worksheet §11b's disposition into the document), and
+    those seven get a crop key too, in a space of their own:
+    ``{topology, edge}``, never ``by_stack``'s ``{stack, element}`` -- see
+    :func:`build_topology_projection.crop_key`'s own docstring for why the two
+    spaces must stay apart (a topology's id can equal a stack's).
+
+    A crop key follows the CITATION, not the confidence: two of these seven
+    (``end_stop_clearance``, ``gas_spring_mount_position``) are still
+    ``untraced`` because the worksheet scored them ``candidate``, and they are
+    croppable anyway -- a named drawing with an established export is exactly
+    what ``_croppable`` asks for.
 
     Its one ``gap`` edge is *toleranced* rather than derived (the end-stop
-    clearance is an ordinary term, not an answer, and it is one of the six with
+    clearance is an ordinary term, not an answer, and it is one of the seven with
     a real citation) -- which is why every edge here is ``inline`` -- the
     derived state lives in L1 and is asserted there.
     """
@@ -652,7 +660,7 @@ def test_an_inline_dimension_with_a_croppable_citation_carries_a_topology_scoped
     assert set(keyed) == {
         "hub_blade_root_seat_position", "end_stop_clearance", "piston_length",
         "pitch_plate_flange_to_link_hole", "gas_spring_body_height",
-        "gas_spring_mount_position",
+        "gas_spring_mount_position", "tan_link_mount_height",
     }
     for edge_id, key in keyed.items():
         assert key == {"topology": "pitch_system", "edge": edge_id}
@@ -724,10 +732,16 @@ def test_a_workbook_or_assumed_inline_dimension_still_has_no_crop_key(projection
     """Legitimately uncroppable, and that is the documents' state, not a stale
     index: ``scripts/build_viewer_crops.py`` reports these as unresolvable with
     a reason (never silently, never as an error) but mints no crop_key for them
-    at all -- there is no document to even attempt a crop from."""
+    at all -- there is no document to even attempt a crop from.
+
+    18 until 2026-09-22, when ``tan_link_mount_height`` traded its workbook
+    cell for the drawing worksheet §11b read (handoff
+    ``policy_free_brief_residues``). The count is paired with the keyed set in
+    the test above: one edge leaving this side lands on that one, and a drop
+    here with no matching gain there is a citation lost rather than upgraded."""
     row = projected(projection, "pitch_system")
     uncroppable = [e for e in row["edges"] if e["crop_key"] is None]
-    assert len(uncroppable) == 18
+    assert len(uncroppable) == 17
     assert {e["dimension"]["source_ref"]["kind"] for e in uncroppable} == {
         "workbook", "assumed"}
 
