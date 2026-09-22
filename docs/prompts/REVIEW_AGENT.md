@@ -3951,6 +3951,39 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       or edits a mapping row, ask for that grep; a row that names modules and
       not the query that found them is already stale-shaped.
 
+- [ ] **A lesson's "measured, not proposed" mutation claim still decays —
+      re-run the tier, don't transcribe on faith.** New 2026-09-22
+      (`mutation_witness_enrollment_backlog`), transcribing 26 rows two
+      lessons had each verified by hand-planting the mutation before writing
+      the row down. **4 of 26 (15%) did not reproduce** 3-4 days later, on
+      four different causes: a check that scans `Object.keys()` on a flat
+      string map and has never scanned anything but single characters
+      (never worked, the plant just happened to look right the first time);
+      a census scoped to a page the marked element has never rendered on
+      (coverage assumption that stopped holding, or never held); a CSS clamp
+      already superseded by an outcome check the same day it was measured;
+      and an `expect_red` that resolves to two identical-string branches in
+      one file, which pytest's own pairing test structurally cannot accept.
+      Three of the four surfaced only by actually running
+      `node scripts/run_mutation_witness_tests.mjs` with the row staged, not
+      by re-reading the lesson's prose. Independently reproduced in review:
+      70/73 pre-merge, 93/96 post-merge, exactly the counts the lesson
+      claimed. Ask of any handoff transcribing a lesson's mutation table:
+      *was this row re-planted against today's tree, or copied off a table
+      written against one three days old?*
+- [ ] **`[annotate rail filter + face deselect]`'s "a real click on the face
+      tints it" sub-check is flaky, not red.** Confirmed 2026-09-22
+      (`mutation_witness_enrollment_backlog` review): a full browser-tier run
+      landed 24/25 with this sub-check failing; `--only "annotate rail
+      filter"` immediately after passed 30/30. Root cause is pre-existing and
+      already filed —
+      `ISSUE_20260916_the_mock_annotator_mesh_is_edge_on_to_its_own_default_camera.md`:
+      the `?mock=1` demo triangle is edge-on to its framing camera, so a ray
+      at its centroid lands a hit or a miss depending on whether the
+      projected coordinate rounds to `0` or `1.3e-16`. If this sub-check is
+      the only red in an otherwise-clean browser tier, re-run it with
+      `--only` before treating it as a regression.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New
