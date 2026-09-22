@@ -122,3 +122,15 @@ script path, inside the entry that explains why backslashes break under the Bash
 tool. Fails loudly, not silently, which is why it survived. Its sibling (same
 shape, in `tests/test_viewer_js_suite.py`'s docstring) is named in the issue and
 was out of scope here: the handoff forbade touching tests.
+
+`ISSUE_20260921_three_declared_mutations_are_unwitnessed_on_trunk_after_the_batch_merge.md`
+— the mutation tier was a supplementary run, beyond this handoff's definition of
+done, and it is the one that paid off: **70/73, exit 0**, on a clean main
+checkout at `master` @ `1d31b69`. One of the three was WITNESSED in that
+morning's `REVIEW_20260921_annotate_hint_bar_and_context_autofilter.md` witness
+table, so the coverage was lost at a merge and reached trunk anyway. Two
+incidental notes for whoever runs this tier next: it takes **over ten minutes**
+for the 73-entry registry (budget for it, or use `--only`), and it leaves
+`tmp/mutation-witness/` in whichever checkout it ran from — which in the main
+checkout is `live_documents()` dirt (`ISSUE_20260917_…`). **Delete it
+afterwards.** I did, and the main checkout's `git status` is clean.
