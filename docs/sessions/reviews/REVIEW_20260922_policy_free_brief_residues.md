@@ -370,7 +370,9 @@ runs of every affected suite were green, and the count matches trunk's
 regression nor lost coverage in the merge**, and that issue keeps its three
 entries — it is not made worse and needs no re-filing. That issue also notes no
 full-tier baseline had been written down anywhere since `54/54`; this run is one:
-**70/73 on `review/policy_free_brief_residues` @ `d21a74d`, 2026-09-22.**
+**70/73, 2026-09-22, on the merged tree at `fd38422`** — the runner copies its
+shadow at launch, and this run was launched before my two inline comment fixes
+landed, so the number is against the handoff branch exactly as delivered.
 
 **Tactical full-suite record.** I have no tactical report file to read; the
 lesson records the projection rebuild in detail but states no suite counts.
