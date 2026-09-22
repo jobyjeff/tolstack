@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: high
-status: triaged
+status: resolved
 area: tolstack/prompts
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260921_review_overlay_test_cadence.md
 found_by: dispatch/docs/sessions/HANDOFF_20260921_test_run_policy_in_prompts.md
+resolution: handoff completed 2026-09-22 -- closed automatically by dispatch when handoff `review_overlay_test_cadence` moved to completed/; not independently verified.
 ---
 
 # tolstack: the review overlay says "re-run it yourself rather than trusting the report", which is the opposite of the new cadence
