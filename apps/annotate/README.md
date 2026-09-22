@@ -53,10 +53,21 @@ that: open a study, open a part, click a face, write one
   through the viewer flyout: *"it takes up half of the usable 3d canvas. Make
   it a horizontal divider so it's just a single line at the top."* One line at
   rest; the rest opens only when there is something to open.
+- **Suggests which faces could be the feature** when an element is selected
+  (handoff `annotate_face_suggestions`, 2026-09-21). A diameter needs a round
+  surface and a thickness needs flat ones, so the body fades, the candidates
+  are coloured and the current pick is coloured differently — and a muted line
+  in the top bar says how far the list was narrowed. See "Face suggestions"
+  below for the rules, the geometry and the one narrowing this app cannot do.
+  It is **colour only**: nothing selects a face for you and nothing writes an
+  event.
 - **Does NOT measure, sum, or propose a binding.** A binding is identity, not
   a value source (the brief's decision 6): where an element already carries a
   drawing citation, the detail pane says so in plain words and the drawing
-  still wins — this app never supplies a dimension.
+  still wins — this app never supplies a dimension. The suggestion engine
+  above does not change that: it reads a face's radius and plane to compare
+  two faces with each other, and that number reaches neither a binding event
+  nor the screen.
 - **Does NOT render an assembly with placement transforms.** Every fixture
   the underlying tessellation spike had was a single-part OML or a
   non-hierarchical bonded sub-assembly; nothing has exercised a real
@@ -169,6 +180,8 @@ a scope decision this handoff did not have, and it is filed.
 | `goto <topology> <edge> [study]` | the deep link's own boot command: selects the topology, the study (named, or the first one whose selection carries the edge), and the edge — then scopes the rail to that edge (`filter-element`) and shows only its part(s) in 3D. Each of those three steps is gated by its `auto-filter` switch; the edge itself never is |
 | `auto-filter <topology\|study\|part> <on\|off>` | one step of an arrival, on or off — the rail's **Set up automatically** checkboxes. Turning `part` off lifts the current scope at once; turning it back on re-applies the last arrival |
 | `transparency <on\|off>` | renders bodies translucent (or solid), for both entry shapes, applied to what is on screen now as well as remembered — the top bar's **See-through parts** box |
+| `suggest` | colours the faces that could be the selected element's feature (handoff `annotate_face_suggestions`): fades the bodies carrying them, draws each candidate in the suggestion colour and the current pick in the pick colour. Recomputes every time, because the element, the pick and the bindings all change under it. Never gated by the setting below — a verb typed by hand does what it says |
+| `auto-suggest <on\|off>` | whether selecting an element runs `suggest` — the top bar's **Suggest likely faces** box. Applied to what is on screen now as well as remembered; turning it off puts the bodies back to whatever `transparency` says |
 | `help [on\|off]` | opens or closes the top bar's help/settings panel; no argument toggles |
 
 `resolveMeshIdentifier`/`planIsolate` (the pure identifier-resolution and
@@ -177,6 +190,110 @@ are DOM-free (`commands.js`) and covered by `run_tests.cjs`; the handlers
 (`app.js`, closing over `state`/`scene`/`storage`) are exercised through
 `?mock=1&autotest=1` and manual use, the same split `binding_state.js` already
 draws between logic and wiring.
+
+## Face suggestions
+
+Handoff `annotate_face_suggestions` (2026-09-21), promoting arc 3 of
+`dispatch/docs/strategy/drafts/DRAFT_annotation_roadmap.md`. Jeff: *"you can
+greatly narrow it down (diameters require cylindrical surfaces, flanges require
+planar surfaces, etc), so we could display the body as transparent and then use
+a different color for suggested surfaces, and another color for currently
+selected surface (if any). If one half of an interface is already defined (in
+the adjacent 3d part) you can narrow it down further, by suggesting coaxial
+cylinders or coplanar/parallel planes etc."*
+
+**The fence: a suggestion is a proposal in the UI and never a binding.** The
+engine colours candidates. It never selects one, it never writes an event, and
+a binding is still a human-ratified `feature-identity/v0` event through the
+same write path. Nothing here is a value source either — it compares one face's
+radius with another's to decide whether they could mate, and that number goes
+nowhere but the comparison.
+
+### What is classified, and how well
+
+`face_geometry.js` reads a face's own triangles and answers **planar**,
+**cylindrical** or **other**. A plane is facet normals that are parallel and
+vertices that lie in one plane; a cylinder is facet normals that all lie in one
+plane (so the direction they never point in is the axis) plus vertices at one
+radius over a wide enough arc to place that axis. Everything else is **other**,
+which is a first-class answer and not a near miss: a cone, a sphere, a torus, a
+fillet along a curved edge and a swept blade surface all land there, and a face
+there is suggested for nothing.
+
+Measured hit rates over every installed mesh, the thresholds that produced them
+and what the remaining **other** actually is are in
+`docs/sessions/lessons/LESSONS_20260921_annotate_face_suggestions.md`. The
+`[real]` tier re-measures on every run and fails if the rate collapses, so the
+number in that lesson is not a claim that decays.
+
+### The narrowing rules
+
+Two tables in `suggestions.js`, both declared rather than scattered:
+
+1. **`AA.SUGGESTION_RULES`** — which *kind* of surface the element's own words
+   ask for, one row per surface class, first hit winning. The **interface**'s
+   name is asked before the dimension's, because the thing being bound is the
+   interface: `cotter-pin hole centreline` and `bolt-head bearing face` are two
+   ends of one joint and want different surfaces, and the dimension name that
+   spans them (`cotter-hole centreline to bolt point`) cannot tell them apart.
+   An element whose words say nothing gets no suggestion and the ordinary view
+   — deliberately, and the rule table's own comment says which words were left
+   out for being ambiguous and why.
+2. **`AA.NARROWING_STAGES` / `AA.NARROWING_RELATIONS`** — how much further a
+   face already bound nearby narrows it:
+
+| stage | what has to be known | planes | cylinders |
+|---|---|---|---|
+| `surface_class` | the element's words name a kind of surface | every flat face on the part | every round face on the part |
+| `same_part_relation` | a face on **this** part is bound at the other end of the dimension, or at the other half of this interface | parallel to it | coaxial with it |
+| `mating_fit` | a face on a **different** part is bound at this interface | *nothing* — see below | radius matches it |
+
+### The one narrowing this app cannot do, and why
+
+`mating_fit` has no answer for two flat faces, and that is a fence rather than
+a gap waiting to be filled in. This app applies **no assembly placement
+transforms** (see "What it does and does not do", above): every part is drawn
+at its own local origin, so a plane's normal and offset on one mesh mean
+nothing against another mesh's. Coplanar and parallel are unaskable across two
+parts, and the surface says so in plain words instead of computing a
+coplanarity it cannot support.
+
+Exactly one relation survives having no shared frame, and it is the reason
+`mating_fit` exists at all: two mating cylinders have the **same radius**,
+because a radius is a property of one face rather than of a pair of frames.
+Measured on the live pitch-link joint — the NAS6403U11D bolt's full-diameter
+shank reads 2.4065 and the 214820-002 bushing's bore 2.4130, which is the
+0.27% that a fit looks like, and it narrows the bolt's eight round faces to the
+four that are the shank.
+
+Whether to apply the placements (`provenance.json` records them and nothing
+reads them) is design work, not a fix, and it is filed rather than assumed:
+`docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md`.
+
+### What it looks like
+
+While an element has suggestions: each candidate is an opaque overlay in the
+suggestion colour, and the face you have picked is an opaque overlay in the
+pick colour. All three overlay colours live in one
+block in `scene.js`, keyed by what the overlay claims (`bound` / `suggested` /
+`picked`), and the suggestion colour is the shared `--accent` from
+`apps/viewer/style.css`'s `:root` — whose declared job is "this, and not the
+others", which is what a candidacy says. It is deliberately **not** a state hue:
+red/amber/green mean provenance and a verdict in both apps
+(`docs/DESIGN_TYPE_AND_COLOUR.md`), and a suggestion is neither.
+
+**Nothing suggested renders the ordinary view**, not a faded ghost with no
+marks on it — a body lit up about nothing is worse than a body left alone.
+
+**Translucency has one owner, and it is not this feature.** A candidate can be
+a bore's inner wall, which is behind the part, so the first build of this faded
+the suggested body unconditionally. The browser tier caught what that costs:
+with suggestions on, unticking **See-through parts** did nothing a reader could
+see, because the suggestion display faded the body again immediately. A control
+that does nothing is worse than a body you have to rotate — so the suggestion
+display asks for whatever `transparency` says, which is on by default. A reader
+who turns it off has said they want solid bodies, and gets them, with the
+candidates still coloured on every face they can see.
 
 ## Deep link in
 
@@ -280,6 +397,17 @@ apps/annotate/
                        registry, mesh-identifier resolution, the isolate
                        state-transition helper -- no DOM, no scene, no fetch.
                        app.js registers the actual (impure) handlers onto it.
+  face_geometry.js     PURE geometry: classifies a mesh face as planar /
+                       cylindrical / other from its own triangles, extracts
+                       the plane or the axis and radius, and answers whether
+                       two classified faces are parallel, coaxial or of
+                       matching radius. No DOM, no fetch, no three.js -- every
+                       threshold is a named constant in one frozen block.
+  suggestions.js       PURE narrowing rules: the declared word table (which
+                       kind of surface an element's own words ask for), the
+                       three narrowing stages, and the planner that turns a
+                       topology + the bindings + a face classification into
+                       the list of faces to colour. No DOM, no fetch.
   exec_queue.js        PURE flyout-embedding queue: the "queue commands
                        behind loadAll()" gate, settled on success (markLoaded)
                        or failure (markLoadFailed, naming the load error) --
@@ -301,7 +429,8 @@ apps/annotate/
   vendor/              three.js r169 + OrbitControls, copied verbatim from
                        rotorkit's spike (see vendor/README.md)
   run_tests.cjs        fast-tier runner for binding_state.js + commands.js +
-                       storage/memory.js
+                       face_geometry.js + suggestions.js + storage/memory.js,
+                       plus a [real] tier over the installed meshes
 ```
 
 ### Why ES modules here, when apps/viewer is classic scripts
@@ -312,7 +441,8 @@ already cannot run from `file://` at all — File System Access has no
 `file://` story, and neither does fetching a mesh binary — so there is no
 constraint left to design `scene.js`/`app.js` around, and `import * as THREE
 from "three"` is simply the native, un-bundled way to consume the vendored
-ES-module build. `config.js`/`storage/*.js`/`binding_state.js`/`fixtures.js`
+ES-module build. `config.js`/`storage/*.js`/`binding_state.js`/`commands.js`/
+`face_geometry.js`/`suggestions.js`/`fixtures.js`
 stay classic scripts anyway, loaded before the module script: a classic
 script runs synchronously as the parser reaches it, a `type="module"` script
 is deferred by spec, so `window.AnnotateApp` is fully built by the time

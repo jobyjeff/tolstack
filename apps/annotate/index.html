@@ -118,6 +118,13 @@
   <script src="./storage/fsa.js"></script>
   <script src="./binding_state.js"></script>
   <script src="./commands.js"></script>
+  <!-- The face-suggestion pair (handoff annotate_face_suggestions,
+       2026-09-21). face_geometry.js BEFORE suggestions.js and before the
+       module below: scene.js calls AA.faceVertexRanges at load-time of its
+       first mesh, and suggestions.js's rule patterns are built when the file
+       runs. Both are DOM-free and fetch-free, like commands.js. -->
+  <script src="./face_geometry.js"></script>
+  <script src="./suggestions.js"></script>
   <script src="./exec_queue.js"></script>
   <script src="./fixtures.js"></script>
 

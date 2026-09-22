@@ -24,10 +24,28 @@ const HIGHLIGHT = [1.0, 0.55, 0.1];
 // opaque bound-face marks read as THE content, high enough that the part's
 // silhouette still orients the viewer.
 const GHOST_OPACITY = 0.22;
-// Bound-face mark colour -- deliberately NOT the selection HIGHLIGHT orange:
-// a mark says "a binding already attaches here", a highlight says "you just
-// picked this"; the two states coexist on screen.
-const MARK_COLOR = 0x35c26e;
+// The opaque face-overlay colours, by what the overlay CLAIMS. Three roles,
+// three claims, and they coexist on screen -- a face can be a suggestion this
+// second and a pick the next, and a face already bound stays marked throughout:
+//
+//   bound      a binding already attaches here (green, the provenance palette's
+//              `--traced`-adjacent green this app has used since study_3d_flyout)
+//   suggested  this face COULD be the feature -- a candidacy, never a claim that
+//              it is right (handoff annotate_face_suggestions). Drawn in the
+//              shared `--accent` (apps/viewer/style.css `:root`), whose declared
+//              job is "this, and not the others" -- which is exactly what a
+//              suggestion says. Deliberately NOT a state hue: red/amber/green
+//              mean provenance and a verdict in both apps
+//              (docs/DESIGN_TYPE_AND_COLOUR.md), and a suggestion is neither.
+//   picked     you just picked this (the same orange the vertex-colour highlight
+//              uses). It needs an overlay of its own only while the body is
+//              translucent: a vertex tint at GHOST_OPACITY is not a selection a
+//              reader can see.
+//
+// run_tests.cjs pairs `suggested` against that stylesheet's own `--accent`
+// declaration, so the two cannot drift.
+const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };
+const DEFAULT_MARK_ROLE = "bound";
 
 // CATIA STEP exports are Z-up (handoff annotate_deep_link_and_part_filter,
 // deliverable 5 -- Jeff's live report: horizontal drag sometimes orbits about
@@ -39,26 +57,22 @@ const MARK_COLOR = 0x35c26e;
 const UP_AXIS = new THREE.Vector3(0, 0, 1);
 const BACK_AXIS = new THREE.Vector3(0, -1, 0);
 
-// Faces are appended in face_id order (0..N-1, dense) and each face's
-// triangulation nodes occupy a contiguous run of the flat vertex buffer --
-// see rotorkit/stepgeom/tessellate.py's own docstring for why a cumulative
-// sum over the manifest gives each face's vertex range with no index scan.
-function computeFaceVertexRanges(manifestFaces) {
-  const ranges = new Array(manifestFaces.length);
-  let offset = 0;
-  for (const f of manifestFaces) {
-    ranges[f.face_id] = { start: offset, count: f.n_vertices };
-    offset += f.n_vertices;
-  }
-  return ranges;
-}
+// The per-face vertex ranges come from AA.faceVertexRanges (face_geometry.js)
+// since 2026-09-21: the classifier needs the same cumulative sum over the
+// manifest, and a traversal contract with two copies is a contract with two
+// places to get it wrong. Called through `window.AnnotateApp` for the same
+// reason `AA.faceSubGeometry` is -- this file is an ES module and that one is
+// a classic script index.html loads first.
 
 export class AnnotateScene {
   constructor(hostEl, storage) {
     this.storage = storage;
     this.hostEl = hostEl;
     this.parts = new Map(); // source_step_sha256 -> THREE.Mesh
-    this._marks = [];       // {sha256, faceId, mesh} -- opaque bound-face overlays
+    // In-flight loadPart promises, keyed by sha256 -- see loadPart's own note
+    // on why "is it already open?" is not enough on its own.
+    this._loading = new Map();
+    this._marks = [];       // {sha256, faceId, role, mesh} -- opaque face overlays
     this._layoutX = 0;
     this._colorIndex = 0;
     this._lastPick = null;
@@ -136,8 +150,31 @@ export class AnnotateScene {
 
   // Lazy-load: fetches geometry only when a part is actually opened, not the
   // whole set eagerly (spike lever #1, the DoD's own requirement).
-  async loadPart(sha256) {
-    if (this.parts.has(sha256)) return this.parts.get(sha256);
+  //
+  // IDEMPOTENT UNDER CONCURRENCY, and that is not decoration. The
+  // already-open check below is synchronous and `this.parts.set` happens after
+  // three awaits, so two callers that both start before either finishes would
+  // BOTH build a mesh: two THREE.Meshes in the scene at two different
+  // `_layoutX` slots, one of them unreachable through `this.parts` and
+  // therefore impossible to hide, frame or dispose. Two callers is the normal
+  // case since 2026-09-21 -- `goto` opens the element's part and the
+  // suggestion display (app.js's cmdSuggest, started from `select-edge` and
+  // deliberately not awaited by a click handler) opens the same one -- so the
+  // in-flight promise is shared rather than the work repeated.
+  loadPart(sha256) {
+    if (this.parts.has(sha256)) return Promise.resolve(this.parts.get(sha256));
+    const inFlight = this._loading.get(sha256);
+    if (inFlight) return inFlight;
+    const promise = this._loadPart(sha256);
+    this._loading.set(sha256, promise);
+    // A FAILED load must not be cached as in-flight forever: the next caller
+    // should be able to try again (a transport can be re-granted).
+    return promise.then(
+      (mesh) => { this._loading.delete(sha256); return mesh; },
+      (err) => { this._loading.delete(sha256); throw err; });
+  }
+
+  async _loadPart(sha256) {
     const manifest = await this.storage.readMeshManifest(sha256);
     if (!manifest) throw new Error("no mesh manifest for " + sha256);
     const [posBuf, idxBuf, fidBuf] = await Promise.all([
@@ -178,7 +215,7 @@ export class AnnotateScene {
 
     mesh.userData = {
       sha256, manifest, faceIdPerTriangle,
-      faceRanges: computeFaceVertexRanges(manifest.faces),
+      faceRanges: window.AnnotateApp.faceVertexRanges(manifest.faces),
       baseColors: colors.slice(),
     };
     this.scene.add(mesh);
@@ -237,11 +274,16 @@ export class AnnotateScene {
   // the side-by-side layout carries over. polygonOffset pulls the overlay a
   // hair toward the camera so the parent's own coplanar surface never
   // z-fights it. Not in `this.parts`, so picks pass through to the parent.
-  markFace(sha256, faceId) {
+  markFace(sha256, faceId, role) {
     const parent = this.parts.get(sha256);
     if (!parent) return false;
+    const which = role || DEFAULT_MARK_ROLE;
+    if (!Object.prototype.hasOwnProperty.call(MARK_COLORS, which)) {
+      throw new Error("unknown mark role \"" + which + "\" -- known: " +
+        Object.keys(MARK_COLORS).join(", "));
+    }
     for (const m of this._marks) {
-      if (m.sha256 === sha256 && m.faceId === faceId) return true; // already marked
+      if (m.sha256 === sha256 && m.faceId === faceId && m.role === which) return true;
     }
     const AA = window.AnnotateApp;
     const range = parent.userData.faceRanges[faceId];
@@ -257,23 +299,29 @@ export class AnnotateScene {
     geometry.setIndex(sub.indices);
     geometry.computeVertexNormals();
     const material = new THREE.MeshStandardMaterial({
-      color: MARK_COLOR, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.05,
+      color: MARK_COLORS[which], side: THREE.DoubleSide, roughness: 0.5, metalness: 0.05,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.copy(parent.position);
     mesh.visible = parent.visible;
     this.scene.add(mesh);
-    this._marks.push({ sha256, faceId, mesh });
+    this._marks.push({ sha256, faceId, role: which, mesh });
     return true;
   }
 
-  listMarks() {
-    return this._marks.map((m) => ({ sha256: m.sha256, faceId: m.faceId }));
+  listMarks(role) {
+    return this._marks
+      .filter((m) => !role || m.role === role)
+      .map((m) => ({ sha256: m.sha256, faceId: m.faceId, role: m.role }));
   }
 
-  clearMarks() {
-    this._disposeMarks(() => true);
+  // With no argument this clears EVERY overlay, which is what `trace` has
+  // always wanted. With a role it clears just that layer -- the suggestion
+  // overlays are repainted on every element change and must not take the
+  // bound-face marks down with them.
+  clearMarks(role) {
+    this._disposeMarks((m) => !role || m.role === role);
   }
 
   _disposeMarks(predicate) {

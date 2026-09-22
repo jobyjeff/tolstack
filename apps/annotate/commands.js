@@ -121,7 +121,7 @@
   // disposal safe by construction.
   //
   // `vertexRange` is the face's contiguous vertex run ({start, count}, from
-  // scene.js's computeFaceVertexRanges); indices are remapped into it. A
+  // AA.faceVertexRanges in face_geometry.js); indices are remapped into it. A
   // triangle of this face indexing a vertex OUTSIDE the run is a data-shape
   // violation (the tessellation contract says a face's triangulation nodes
   // occupy a contiguous run) and throws rather than drawing something wrong.
@@ -563,6 +563,8 @@
       "viewer does for you.",
     "See-through parts renders bodies translucent, so faces already bound show " +
       "through in green.",
+    "Suggest likely faces colours the faces that could be the one you are " +
+      "binding. You still pick.",
   ]);
 
   // --- remembered settings ---------------------------------------------------
@@ -575,6 +577,7 @@
   AA.PREF_KEYS = Object.freeze({
     autoSteps: "tolstack.annotate.autoSteps",
     transparentParts: "tolstack.annotate.transparentParts",
+    faceSuggestions: "tolstack.annotate.faceSuggestions",
   });
 
   // Translucent by default: a scope entry is transparent by Jeff's own
@@ -604,22 +607,52 @@
     }
   };
 
-  AA.readStoredTransparency = function (store) {
+  // An on/off preference, read and written in ONE place. It was two copies of
+  // the same try/catch until a third setting arrived (handoff
+  // annotate_face_suggestions, 2026-09-21) and made the shape obvious: the
+  // stored form is AA.onOff's own two words, anything else is "not set", and a
+  // store that throws on touch is "not set" too -- a preference is never worth
+  // a crash, and a value that cannot be read is never a guess.
+  AA.readStoredOnOff = function (store, key, fallback) {
     try {
-      var raw = store && store.getItem(AA.PREF_KEYS.transparentParts);
+      var raw = store && store.getItem(key);
       if (raw === AA.ON_OFF[0]) return true;
       if (raw === AA.ON_OFF[1]) return false;
-      return AA.DEFAULT_TRANSPARENT_PARTS;
+      return fallback;
     } catch (err) {
-      return AA.DEFAULT_TRANSPARENT_PARTS;
+      return fallback;
     }
   };
 
-  AA.writeStoredTransparency = function (store, on) {
+  AA.writeStoredOnOff = function (store, key, on) {
     try {
-      if (store) store.setItem(AA.PREF_KEYS.transparentParts, AA.onOff(!!on));
+      if (store) store.setItem(key, AA.onOff(!!on));
     } catch (err) {
-      // Same as above: this session still honours it.
+      // A browser that refuses to store it still honours the setting now.
     }
+  };
+
+  AA.readStoredTransparency = function (store) {
+    return AA.readStoredOnOff(store, AA.PREF_KEYS.transparentParts,
+      AA.DEFAULT_TRANSPARENT_PARTS);
+  };
+
+  AA.writeStoredTransparency = function (store, on) {
+    AA.writeStoredOnOff(store, AA.PREF_KEYS.transparentParts, on);
+  };
+
+  // Face suggestions (handoff annotate_face_suggestions, 2026-09-21). On by
+  // default: an element whose words say nothing suggests nothing and renders
+  // the ordinary view, so the setting being on is not a change a reader has to
+  // opt out of -- it only shows up where there is something to show.
+  AA.DEFAULT_FACE_SUGGESTIONS = true;
+
+  AA.readStoredSuggestions = function (store) {
+    return AA.readStoredOnOff(store, AA.PREF_KEYS.faceSuggestions,
+      AA.DEFAULT_FACE_SUGGESTIONS);
+  };
+
+  AA.writeStoredSuggestions = function (store, on) {
+    AA.writeStoredOnOff(store, AA.PREF_KEYS.faceSuggestions, on);
   };
 })(window.AnnotateApp = window.AnnotateApp || {});

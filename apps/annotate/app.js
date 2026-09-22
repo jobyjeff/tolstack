@@ -89,6 +89,17 @@ const state = {
   // read the same settings.
   autoSteps: AA.readStoredAutoSteps(prefStore()),
   transparentParts: AA.readStoredTransparency(prefStore()),
+  // Whether selecting an element colours the faces that could be its feature
+  // (handoff annotate_face_suggestions). Persists like the two above.
+  faceSuggestions: AA.readStoredSuggestions(prefStore()),
+  // sha256 -> AA.classifyPartFaces(...) output, computed ONCE per mesh per
+  // session and kept here rather than on the scene's meshes: a reference face
+  // for the narrowing can live on a part that is not open in the 3D view at
+  // all, and reading a mesh's buffers does not require rendering it.
+  faceClasses: {},
+  // The last plan AA.planFaceSuggestions returned, so the top bar can say what
+  // it narrowed and how far without re-running it.
+  suggestionPlan: null,
   // The top bar's help panel, and the rarely-wanted owner-not-in-set form --
   // two disclosures, open or not. Session-only: neither is a preference, they
   // are where the reader currently is.
@@ -345,6 +356,11 @@ function cmdSelectFace(identifier, faceIdText) {
   state.scene.highlightFace(mesh.sha256, faceId);
   state.currentPick = { sha256: mesh.sha256, faceId, record };
   renderDetail();
+  // The pick needs its own opaque overlay while the body is faded -- a vertex
+  // tint at ghost opacity is not a selection a reader can see -- and the face
+  // it lands on must stop being drawn as a suggestion. Both are the suggest
+  // verb's job, so this asks for it rather than reaching into the marks.
+  refreshSuggestions();
   return state.currentPick;
 }
 
@@ -380,6 +396,9 @@ function cmdDeselect(target) {
     renderElementList();
   }
   renderDetail();
+  // Letting go of the face takes its overlay down; letting go of the ELEMENT
+  // takes the whole suggestion display down, bodies included.
+  refreshSuggestions();
   return cleared;
 }
 
@@ -545,6 +564,182 @@ function cmdTransparency(value) {
   return on;
 }
 
+// --- face suggestions (handoff annotate_face_suggestions) ------------------
+//
+// Jeff: "you can greatly narrow it down (diameters require cylindrical
+// surfaces, flanges require planar surfaces, etc), so we could display the
+// body as transparent and then use a different color for suggested surfaces,
+// and another color for currently selected surface (if any)."
+//
+// The rules and the geometry are in suggestions.js / face_geometry.js, both
+// pure; this half is the three impure things they cannot do -- read a mesh's
+// buffers, paint the scene, and remember which bodies the display faded.
+//
+// THE FENCE: a suggestion is colour and nothing else. Nothing below selects a
+// face, and nothing below writes an event. `mark-face`'s own overlay
+// machinery does the drawing, in the `suggested` role.
+
+// One mesh's faces, classified once per session. Reads through the storage
+// adapter directly rather than through the scene, because a REFERENCE face
+// (the other half of an interface, on the adjacent part) can live on a part
+// nobody has opened -- and classifying a shape does not require rendering it.
+async function ensureFaceClasses(sha256) {
+  if (state.faceClasses[sha256]) return state.faceClasses[sha256];
+  const manifest = await state.storage.readMeshManifest(sha256);
+  if (!manifest) return null;
+  const [posBuf, idxBuf, fidBuf] = await Promise.all([
+    state.storage.readMeshBuffer(sha256, manifest.positions_file),
+    state.storage.readMeshBuffer(sha256, manifest.indices_file),
+    state.storage.readMeshBuffer(sha256, manifest.face_ids_file),
+  ]);
+  if (!posBuf || !idxBuf || !fidBuf) return null;
+  state.faceClasses[sha256] = AA.classifyPartFaces(
+    manifest.faces, new Float32Array(posBuf), new Uint32Array(idxBuf),
+    new Uint32Array(fidBuf));
+  return state.faceClasses[sha256];
+}
+
+// Every mesh a suggestion for `edge` could need read: the element's own part,
+// and every part a nearby binding points at. Done before planning rather than
+// inside it, because the planner is pure and cannot fetch -- and a reference
+// whose mesh went unread silently loses the narrowing it would have supplied.
+async function loadClassesForSuggestion(edge, identity) {
+  const wanted = [];
+  const mesh = edge.part
+    ? AA.resolveMeshIdentifier(state.meshList, edge.part, state.partMeshAliases)
+    : null;
+  if (mesh) wanted.push(mesh.sha256);
+  for (const direction of AA.DIRECTIONS) {
+    AA.gatherFaceReferences(state.currentTopology, edge.id, direction, identity)
+      .forEach((reference) => {
+        if (wanted.indexOf(reference.sha256) === -1) wanted.push(reference.sha256);
+      });
+  }
+  for (const sha of wanted) {
+    try {
+      await ensureFaceClasses(sha);
+    } catch (err) {
+      // A mesh that cannot be read costs its own narrowing and nothing else:
+      // the planner treats an unclassified reference as "not known", which is
+      // the truth about it.
+      setBanner("Could not read the shapes of one part: " + err.message, "warn");
+    }
+  }
+}
+
+// WHY THE SUGGESTION DISPLAY DOES NOT FADE THE BODY ITSELF, which was the one
+// real design decision in this handoff and it went the other way first.
+//
+// A candidate can be a bore's inner wall, which is behind the part, so an
+// opaque body hides the very face the page is pointing at -- and the handoff
+// asks for the body to render transparent while suggestions are up. The first
+// build therefore faded the suggested part unconditionally and put it back
+// afterwards. The browser tier caught what that costs: with suggestions on,
+// unticking **See-through parts** did nothing a reader could see, because the
+// suggestion display immediately faded the body again. A control that does
+// nothing is worse than a body you have to rotate.
+//
+// So translucency has ONE owner -- the `transparency` verb and its checkbox --
+// and the suggestion display asks for whatever that says. It is on by default,
+// so the handoff's display state is what a reader meets; a reader who turns it
+// off has said they want solid bodies, and gets them, with the candidates
+// still coloured on every face they can see.
+
+// suggest -- colour the faces that could be the selected element's feature.
+// Recomputed rather than cached, because everything it reads can change under
+// it: the element, the pick, and (after a bind) the bindings themselves.
+//
+// A verb, so the thing a click does is the thing a driver can ask for -- and,
+// unlike the checkbox, it is never gated: a verb typed by hand does what it
+// says, the same rule the select-* verbs follow.
+async function cmdSuggest() {
+  state.scene.clearMarks("suggested");
+  state.scene.clearMarks("picked");
+  state.suggestionPlan = null;
+  const edge = state.selectedEdge;
+  if (!edge || !state.currentTopology) {
+    renderDetail();
+    return null;
+  }
+  const identity = mergedIdentityProjection();
+  await loadClassesForSuggestion(edge, identity);
+  const plan = AA.planFaceSuggestions({
+    topology: state.currentTopology,
+    edgeId: edge.id,
+    identityProjection: identity,
+    meshes: state.meshList,
+    aliases: state.partMeshAliases,
+    faceClasses: state.faceClasses,
+  });
+  state.suggestionPlan = plan;
+
+  // Nothing suggested renders the ORDINARY view -- not a faded ghost of a body
+  // with no marks on it, which says "look here" about nothing (the handoff's
+  // own requirement, and the standing rule that an absent feature shows
+  // nothing at all).
+  if (!plan.faces.length) {
+    renderDetail();
+    return plan;
+  }
+
+  // The face under the pick is drawn as the PICK and not as a suggestion: two
+  // opaque overlays on one face would z-fight, and "you picked this" is the
+  // more specific of the two claims.
+  const picked = state.currentPick;
+  const faces = plan.faces.filter((f) =>
+    !(picked && picked.sha256 === f.sha256 && picked.faceId === f.faceId));
+  const shas = [];
+  plan.faces.forEach((f) => { if (shas.indexOf(f.sha256) === -1) shas.push(f.sha256); });
+
+  for (const sha of shas) {
+    if (state.scene.listOpenParts().indexOf(sha) === -1) await state.scene.loadPart(sha);
+    state.scene.setVisible(sha, true);
+    // Translucency per the See-through setting and never against it -- see the
+    // note above cmdSuggest for what forcing it cost.
+    state.scene.setGhost(sha, state.transparentParts);
+  }
+  faces.forEach((f) => state.scene.markFace(f.sha256, f.faceId, "suggested"));
+  if (picked && shas.indexOf(picked.sha256) !== -1) {
+    state.scene.markFace(picked.sha256, picked.faceId, "picked");
+  }
+  renderPartsPanel();
+  renderDetail();
+  return plan;
+}
+
+// auto-suggest <on|off> -- whether selecting an element does the above.
+// `transparency`'s shape exactly: persisted, and applied to what is on screen
+// NOW as well as remembered, because a display toggle that only takes effect
+// on the next selection is a toggle nobody trusts.
+async function cmdAutoSuggest(value) {
+  const on = AA.parseOnOff(value);
+  state.faceSuggestions = on;
+  AA.writeStoredSuggestions(prefStore(), on);
+  if (on) {
+    await cmdSuggest();
+    return on;
+  }
+  state.scene.clearMarks("suggested");
+  state.scene.clearMarks("picked");
+  state.suggestionPlan = null;
+  renderDetail();
+  return on;
+}
+
+// What every UI path that changes the element or the pick calls. Goes through
+// the verb (never around it), does nothing while the reader has the setting
+// off, and reports a failure on the banner rather than rejecting into a click
+// handler nobody awaits.
+async function refreshSuggestions() {
+  if (!state.faceSuggestions) return null;
+  try {
+    return await AA.exec(["suggest"]);
+  } catch (err) {
+    setBanner(err.message, "error");
+    return null;
+  }
+}
+
 // help [on|off] -- the top bar's collapsible half (deliverable 1). No
 // argument toggles, which is what the button does.
 function cmdHelp(value) {
@@ -571,6 +766,8 @@ commands.register("deselect", cmdDeselect);
 commands.register("filter-element", cmdFilterElement);
 commands.register("auto-filter", cmdAutoFilter);
 commands.register("transparency", cmdTransparency);
+commands.register("suggest", cmdSuggest);
+commands.register("auto-suggest", cmdAutoSuggest);
 commands.register("help", cmdHelp);
 AA.exec = (input) => commands.exec(input);
 
@@ -847,6 +1044,10 @@ function selectEdge(edge) {
   state.selectedEdge = edge;
   renderElementList();
   renderDetail();
+  // Not awaited, and deliberately: `select-edge` is what a rail click runs and
+  // a click handler has nothing to await into. refreshSuggestions() reports
+  // its own failures on the banner for exactly that reason.
+  refreshSuggestions();
 }
 
 // --- the top bar (deliverable 1) -------------------------------------------
@@ -895,6 +1096,17 @@ function renderDetail() {
   work.className = "an__detail-work";
 
   if (edge) {
+    // What the colours on the body mean, in one muted line, and only while
+    // there is something to explain. A reader who sees part of a body lit up
+    // should not have to guess whether that is every round face on the part or
+    // the two that line up with a face already bound.
+    const suggestion = suggestionLine();
+    if (suggestion) {
+      const p = document.createElement("p");
+      p.className = "an__suggestion-note";
+      p.textContent = suggestion;
+      work.appendChild(p);
+    }
     const note = precedenceNote(edge);
     if (note) {
       const p = document.createElement("p");
@@ -916,6 +1128,15 @@ function renderDetail() {
 
   if (work.childNodes.length) el.detail.appendChild(work);
   renderHintPanel();
+}
+
+// The suggestion line, or null when there is nothing to say -- the setting is
+// off, no element is selected, or the element produced neither candidates nor a
+// reason. Composed by AA.describeSuggestions so the counts and the stage names
+// come off the plan rather than being written twice.
+function suggestionLine() {
+  if (!state.faceSuggestions || !state.selectedEdge || !state.suggestionPlan) return null;
+  return AA.describeSuggestions(state.suggestionPlan) || null;
 }
 
 // A quiet toggle: no button chrome, subdued until hover/focus, and its state
@@ -962,6 +1183,9 @@ function renderHintPanel() {
   display.appendChild(settingCheckbox("See-through parts", state.transparentParts,
     "renders bodies translucent, so faces already bound show through",
     (on) => AA.exec(["transparency", AA.onOff(on)])));
+  display.appendChild(settingCheckbox(AA.SUGGEST_SETTING_LABEL, state.faceSuggestions,
+    AA.SUGGEST_SETTING_HINT,
+    (on) => AA.exec(["auto-suggest", AA.onOff(on)])));
   el.hintPanel.appendChild(display);
 }
 

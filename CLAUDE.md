@@ -55,7 +55,10 @@ traced ratio" — never restate the rule elsewhere).
   `apps/annotate/` binds a stack-side key to a mesh face and writes an
   immutable `feature-identity/v0` event — **select + tag only, no
   measurement.** A binding is identity, not a value source; a drawing
-  citation still wins wherever one exists.
+  citation still wins wherever one exists. Since 2026-09-21 the surface also
+  *suggests* which faces could be the feature (a diameter needs a round
+  surface, a thickness flat ones) — still colour only: it never selects a
+  face and never writes.
 - **Writing a CSS rule in either web app** → `docs/DESIGN_TYPE_AND_COLOUR.md`.
   The type scale, the spacing convention and the one rule about *fill* the
   2026-09-17 pass settled. It states no numbers — they live in

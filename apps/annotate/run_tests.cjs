@@ -41,7 +41,8 @@ const BANS = path.join(here, "..", "viewer", "reader_facing_bans.js");
 vm.runInContext(fs.readFileSync(BANS, "utf8"), sandbox,
   { filename: "../viewer/reader_facing_bans.js" });
 
-const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js", "commands.js", "exec_queue.js", "fixtures.js"];
+const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js",
+  "commands.js", "face_geometry.js", "suggestions.js", "exec_queue.js", "fixtures.js"];
 for (const f of files) {
   vm.runInContext(fs.readFileSync(path.join(here, f), "utf8"), sandbox, { filename: f });
 }
@@ -942,8 +943,6 @@ check("planPanelFilter on a gap edge that names no part at all filters the " +
 
 check("planPanelFilter on a NODE keeps every element touching it -- a node is " +
   "an element of a topology too", () => {
-  // The fixture's nodes are bare ids on the edges' from/to (no `nodes` array),
-  // so this also pins that a topology with no node table still filters.
   const withNodes = JSON.parse(JSON.stringify(FILTER_TOPO));
   withNodes.nodes = [{ id: "b", name: "interface b", parts: ["demo_triangle"] }];
   const plan = AA.planPanelFilter(withNodes, "b", FILTER_MESHES, []);
@@ -951,6 +950,20 @@ check("planPanelFilter on a NODE keeps every element touching it -- a node is " 
   // "b" is the `to` of the traced edge and the `from` of the untraced one.
   assertEqual(plan.edgeIds, ["demo_edge_traced", "demo_edge_untraced"]);
   assertEqual(plan.parts, [{ part: "demo_triangle", sha256: AA.FIXTURES.demoSha }]);
+});
+
+check("planPanelFilter on a topology with NO node table at all still filters " +
+  "by edge -- a node id simply matches nothing", () => {
+  // This was carried by the fixture itself until 2026-09-21, when it gained a
+  // node table (handoff annotate_face_suggestions: the suggestion rules ask an
+  // interface for its name). An assertion that rode on a fixture's shape is an
+  // assertion that disappears the day the fixture grows, so it is written out.
+  const bare = JSON.parse(JSON.stringify(FILTER_TOPO));
+  delete bare.nodes;
+  assertEqual(AA.planPanelFilter(bare, "demo_edge_untraced", FILTER_MESHES, []).kind,
+    "edge", "an edge stopped resolving without a node table");
+  assertEqual(AA.planPanelFilter(bare, "b", FILTER_MESHES, []).kind, null,
+    "a node id resolved against a topology that has no nodes");
 });
 
 check("planPanelFilter on an id nothing in the topology carries reports kind " +
@@ -1512,6 +1525,819 @@ check("the rail's auto-filter menu has the nodes app.js writes its rows into, " 
   }
 });
 
+
+// --- face classification (face_geometry.js) ---------------------------------
+//
+// Synthetic meshes, built to be exactly the surfaces whose names the classes
+// wear -- a plane, a full cylinder, a cone, a spherical patch, a narrow arc.
+// The [real] tier at the foot of this file is what measures the classifier
+// against actual tessellated parts; these are what say what it MEANS, so a
+// threshold change that starts calling a cone a cylinder fails here with the
+// shape named rather than as a hit-rate drop nobody can localise.
+
+// One mesh out of per-face vertex lists and LOCAL triangle indices. Lays the
+// faces out in face_id order with each face's vertices in one contiguous run,
+// which is the tessellation contract AA.faceVertexRanges and the classifier
+// both depend on -- so a builder that broke it would be testing nothing.
+function buildMesh(faces) {
+  const positions = [];
+  const indices = [];
+  const faceIds = [];
+  const manifestFaces = [];
+  let offset = 0;
+  faces.forEach((face, faceId) => {
+    face.verts.forEach((v) => positions.push(v[0], v[1], v[2]));
+    let area = 0;
+    face.tris.forEach((t) => {
+      indices.push(offset + t[0], offset + t[1], offset + t[2]);
+      faceIds.push(faceId);
+      const a = face.verts[t[0]], b = face.verts[t[1]], c = face.verts[t[2]];
+      const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+      const e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      const x = e1[1] * e2[2] - e1[2] * e2[1];
+      const y = e1[2] * e2[0] - e1[0] * e2[2];
+      const z = e1[0] * e2[1] - e1[1] * e2[0];
+      area += Math.sqrt(x * x + y * y + z * z) / 2;
+    });
+    manifestFaces.push({
+      face_id: faceId, solid_id: 0, n_vertices: face.verts.length,
+      n_triangles: face.tris.length, area_native2: area,
+    });
+    offset += face.verts.length;
+  });
+  return {
+    manifestFaces,
+    positions: new Float32Array(positions),
+    indices: new Uint32Array(indices),
+    faceIds: new Uint32Array(faceIds),
+  };
+}
+
+function classify(faces) {
+  const mesh = buildMesh(faces);
+  return AA.classifyPartFaces(mesh.manifestFaces, mesh.positions, mesh.indices, mesh.faceIds);
+}
+
+// A flat n-by-n grid at height `z`, normal +Z. More than two triangles on
+// purpose: a two-triangle plane passes a normal-spread test trivially.
+function planeFace(z, half, n) {
+  const verts = [];
+  for (let i = 0; i <= n; i++) {
+    for (let j = 0; j <= n; j++) {
+      verts.push([-half + (2 * half * i) / n, -half + (2 * half * j) / n, z]);
+    }
+  }
+  const tris = [];
+  const at = (i, j) => i * (n + 1) + j;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      tris.push([at(i, j), at(i + 1, j), at(i + 1, j + 1)]);
+      tris.push([at(i, j), at(i + 1, j + 1), at(i, j + 1)]);
+    }
+  }
+  return { verts, tris };
+}
+
+// A surface of revolution about +Z, as the quad grid OCC itself lays down:
+// `radiusAt(t)` is the radius at parameter t in [0, 1] up the height, so a
+// constant returns a cylinder and a ramp returns a cone. `arcDeg` is how much
+// of the turn the face covers, `cx`/`cy` where its axis stands.
+function revolvedFace(radiusAt, height, arcDeg, segments, cx, cy, z0) {
+  const verts = [];
+  const span = (arcDeg * Math.PI) / 180;
+  for (let i = 0; i <= segments; i++) {
+    const theta = (span * i) / segments;
+    for (let k = 0; k < 2; k++) {
+      const r = radiusAt(k);
+      verts.push([(cx || 0) + r * Math.cos(theta), (cy || 0) + r * Math.sin(theta),
+        (z0 || 0) + k * height]);
+    }
+  }
+  const tris = [];
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
+    tris.push([a, c, d]);
+    tris.push([a, d, b]);
+  }
+  return { verts, tris };
+}
+
+const CYL = (radius, height, arcDeg, segments, cx, cy, z0) =>
+  revolvedFace(() => radius, height, arcDeg, segments, cx, cy, z0);
+
+// A latitude/longitude patch of a sphere: normals that span all three axes,
+// which is the "other" case with no plane and no axis in it.
+function spherePatch(radius, segments) {
+  const verts = [];
+  for (let i = 0; i <= segments; i++) {
+    const phi = (Math.PI / 3) * (i / segments) + Math.PI / 6;
+    for (let j = 0; j <= segments; j++) {
+      const theta = (Math.PI / 2) * (j / segments);
+      verts.push([
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.sin(phi) * Math.sin(theta),
+        radius * Math.cos(phi),
+      ]);
+    }
+  }
+  const tris = [];
+  const at = (i, j) => i * (segments + 1) + j;
+  for (let i = 0; i < segments; i++) {
+    for (let j = 0; j < segments; j++) {
+      tris.push([at(i, j), at(i + 1, j), at(i + 1, j + 1)]);
+      tris.push([at(i, j), at(i + 1, j + 1), at(i, j + 1)]);
+    }
+  }
+  return { verts, tris };
+}
+
+check("SURFACE_CLASSES is the closed set, and the classifier answers nothing else", () => {
+  assertEqual(AA.SURFACE_CLASSES, ["planar", "cylindrical", "other"],
+    "the surface-class vocabulary moved");
+  const classes = classify([planeFace(5, 10, 3), CYL(3, 8, 360, 24), spherePatch(4, 6)]);
+  classes.forEach((c) => {
+    if (AA.SURFACE_CLASSES.indexOf(c.surface) === -1) {
+      throw new Error(`classifyPartFaces answered "${c.surface}", which is not in SURFACE_CLASSES`);
+    }
+  });
+});
+
+check("a plane classifies as planar, with its own normal and offset", () => {
+  const [plane] = classify([planeFace(5, 10, 4)]);
+  assertEqual(plane.surface, "planar", "a flat grid is not planar");
+  // Normal along +/-Z either way round: the winding decides the sign and
+  // nothing downstream depends on it (facesParallel treats a flip as the same
+  // direction on purpose).
+  if (Math.abs(Math.abs(plane.normal[2]) - 1) > 1e-6) {
+    throw new Error("a +Z plane's normal is not along Z: " + JSON.stringify(plane.normal));
+  }
+  if (Math.abs(Math.abs(plane.offset) - 5) > 1e-4) {
+    throw new Error("a plane at z=5 has offset " + plane.offset);
+  }
+});
+
+check("a full cylinder classifies as cylindrical, with its axis, radius and " +
+  "a full turn of arc", () => {
+  const [cyl] = classify([CYL(3, 8, 360, 24)]);
+  assertEqual(cyl.surface, "cylindrical", "a revolved constant radius is not cylindrical");
+  if (Math.abs(Math.abs(cyl.axis[2]) - 1) > 1e-4) {
+    throw new Error("a Z-axis cylinder's axis is not along Z: " + JSON.stringify(cyl.axis));
+  }
+  if (Math.abs(cyl.radius - 3) > 1e-3) {
+    throw new Error("radius read as " + cyl.radius + ", not 3");
+  }
+  // 360 minus one station spacing (24 segments -> 345): a closed loop has no
+  // duplicate station at the seam, so the wrap-around gap is a gap as far as
+  // angularSpreadDeg can tell. See its own comment on why that is left alone.
+  if (cyl.arcDeg < 340) throw new Error("a full cylinder's arc read as " + cyl.arcDeg);
+});
+
+check("a half cylinder is still cylindrical -- OCC splits a bore in two and " +
+  "each half is a face", () => {
+  const [half] = classify([CYL(2.413, 4.76, 180, 13)]);
+  assertEqual(half.surface, "cylindrical", "a 180-degree bore half is not cylindrical");
+  if (Math.abs(half.radius - 2.413) > 1e-3) {
+    throw new Error("a half bore's radius read as " + half.radius);
+  }
+  if (Math.abs(half.arcDeg - 180) > 1) {
+    throw new Error("a half bore's arc read as " + half.arcDeg);
+  }
+});
+
+check("a cone is OTHER, not a cylinder -- the chamfers on every bushing in " +
+  "the mesh store are cones", () => {
+  const [cone] = classify([revolvedFace((k) => 3 + k * 2, 2, 360, 24)]);
+  assertEqual(cone.surface, "other", "a cone classified as something else");
+});
+
+check("a spherical patch is OTHER -- its normals span all three axes", () => {
+  const [sphere] = classify([spherePatch(5, 6)]);
+  assertEqual(sphere.surface, "other", "a spherical patch classified as something else");
+  if (sphere.why.indexOf("neither a plane nor a cylinder") === -1) {
+    throw new Error("unexpected reason for a sphere: " + sphere.why);
+  }
+});
+
+check("a too-narrow arc is OTHER, and says so -- the axis POSITION is what " +
+  "cannot be placed, and the coaxial test is what needs it", () => {
+  const [sliver] = classify([CYL(50, 10, 6, 8)]);
+  assertEqual(sliver.surface, "other", "a 6-degree arc classified as a cylinder");
+  if (sliver.why.indexOf("too narrow an arc") === -1) {
+    throw new Error("unexpected reason for a narrow arc: " + sliver.why);
+  }
+  // ...and the same arc is a cylinder once the threshold is relaxed, which is
+  // what makes this a threshold and not a shape the classifier cannot read.
+  const mesh = buildMesh([CYL(50, 10, 6, 8)]);
+  const relaxed = AA.classifyPartFaces(mesh.manifestFaces, mesh.positions, mesh.indices,
+    mesh.faceIds, { cylinderMinArcDeg: 1 });
+  assertEqual(relaxed[0].surface, "cylindrical", "the arc threshold does nothing");
+});
+
+check("a face too small to be a feature is OTHER -- the NAS6403U11D bolt " +
+  "carries two of them", () => {
+  const classes = classify([planeFace(0, 100, 4), planeFace(1, 0.001, 2)]);
+  assertEqual(classes[0].surface, "planar", "the big face should still classify");
+  assertEqual(classes[1].surface, "other", "a sliver face was offered as a candidate");
+  if (classes[1].why.indexOf("sliver") === -1) {
+    throw new Error("unexpected reason for a sliver: " + classes[1].why);
+  }
+});
+
+check("eigenSymmetric3 sorts descending and returns the matching vectors", () => {
+  // Diagonal, so the answer is known by inspection: the LEAST eigenvector is
+  // the one the cylinder test reads as the axis.
+  const e = AA.eigenSymmetric3([3, 0, 0, 1, 0, 2]);
+  assertEqual(e.values.map((v) => Math.round(v * 1e6) / 1e6), [3, 2, 1],
+    "eigenvalues are not sorted descending");
+  if (Math.abs(Math.abs(e.vectors[2][1]) - 1) > 1e-9) {
+    throw new Error("the least eigenvector is not the y axis: " + JSON.stringify(e.vectors[2]));
+  }
+});
+
+check("fitCircle2 recovers a circle exactly, and refuses collinear points " +
+  "rather than guessing a centre", () => {
+  const xs = [], ys = [];
+  for (let i = 0; i < 12; i++) {
+    const t = (2 * Math.PI * i) / 12;
+    xs.push(4 + 7 * Math.cos(t));
+    ys.push(-2 + 7 * Math.sin(t));
+  }
+  const fit = AA.fitCircle2(xs, ys);
+  if (Math.abs(fit.r - 7) > 1e-9 || Math.abs(fit.cx - 4) > 1e-9 || Math.abs(fit.cy + 2) > 1e-9) {
+    throw new Error("circle fit off: " + JSON.stringify(fit));
+  }
+  if (AA.fitCircle2([0, 1, 2, 3], [0, 1, 2, 3]) !== null) {
+    throw new Error("a collinear set was fitted to a circle");
+  }
+});
+
+check("angularSpreadDeg measures the turn covered, not max-minus-min -- an " +
+  "arc across the branch cut is not a full circle", () => {
+  // Five angles clustered around +/-pi: max-minus-min would read ~360.
+  const around = [-3.1, -3.0, 3.0, 3.1, 3.14];
+  const spread = AA.angularSpreadDeg(around);
+  if (spread > 30) {
+    throw new Error("an arc straddling the branch cut read as " + spread + " degrees");
+  }
+  // A closed loop of 16 stations: 360 less the one 22.5-degree seam gap.
+  const full = [];
+  for (let i = 0; i < 16; i++) full.push((2 * Math.PI * i) / 16);
+  if (Math.abs(AA.angularSpreadDeg(full) - (360 - 360 / 16)) > 1e-6) {
+    throw new Error("a full turn read as " + AA.angularSpreadDeg(full));
+  }
+});
+
+// --- relations between two classified faces ---------------------------------
+
+check("facesParallel: a flip counts as parallel (a thickness is measured " +
+  "between exactly that pair), a tilt does not, and a cylinder never does", () => {
+  const [top] = classify([planeFace(5, 10, 3)]);
+  const [bottom] = classify([planeFace(-5, 10, 3)]);
+  if (!AA.facesParallel(top, bottom)) throw new Error("two Z planes are not parallel");
+  const tilted = { surface: "planar", normal: [0, Math.sin(0.5), Math.cos(0.5)], offset: 0 };
+  if (AA.facesParallel(top, tilted)) throw new Error("a 28-degree tilt read as parallel");
+  const [cyl] = classify([CYL(3, 8, 360, 24)]);
+  if (AA.facesParallel(top, cyl)) throw new Error("a plane and a cylinder read as parallel");
+});
+
+check("facesCoaxial: concentric cylinders of DIFFERENT radius are coaxial, an " +
+  "offset one is not", () => {
+  const [inner] = classify([CYL(2, 8, 360, 24)]);
+  const [outer] = classify([CYL(4, 8, 360, 24)]);
+  if (!AA.facesCoaxial(inner, outer)) {
+    throw new Error("a bore and the OD around it are not coaxial");
+  }
+  const [beside] = classify([CYL(2, 8, 360, 24, 20, 0)]);
+  if (AA.facesCoaxial(inner, beside)) {
+    throw new Error("a cylinder 20 away read as coaxial");
+  }
+});
+
+check("radiiMatch is the ONE relation that needs no shared frame: it compares " +
+  "two radii and nothing else", () => {
+  const [bore] = classify([CYL(2.413, 4.76, 180, 13)]);
+  // The same radius, elsewhere entirely, on another axis: a fit is a fit.
+  const [shank] = classify([CYL(2.4065, 20, 180, 13, 500, -300, 99)]);
+  if (!AA.radiiMatch(bore, shank)) {
+    throw new Error("2.4130 and 2.4065 are 0.27% apart and did not match");
+  }
+  const [cotterHole] = classify([CYL(0.9525, 3, 180, 13)]);
+  if (AA.radiiMatch(bore, cotterHole)) {
+    throw new Error("a 1.9 mm hole matched a 4.8 mm bore");
+  }
+});
+
+// --- the rule table (suggestions.js) ----------------------------------------
+
+check("SUGGESTION_RULES: every row names a class the classifier can actually " +
+  "answer, and no word appears in two rows", () => {
+  assertEqual(AA.SUGGESTION_RULE_KEYS, AA.SUGGESTION_RULES.map((r) => r.key),
+    "SUGGESTION_RULE_KEYS has drifted from the table");
+  const seen = {};
+  AA.SUGGESTION_RULES.forEach((rule) => {
+    if (AA.SURFACE_CLASSES.indexOf(rule.surface) === -1) {
+      throw new Error(`rule "${rule.key}" wants surface "${rule.surface}", which ` +
+        "face_geometry.js never answers -- it would suggest nothing, forever");
+    }
+    if (rule.surface === "other") {
+      throw new Error(`rule "${rule.key}" wants "other", which is the class that ` +
+        "means no feature was read");
+    }
+    if (!rule.words.length) throw new Error(`rule "${rule.key}" has no words`);
+    rule.words.forEach((word) => {
+      if (word !== word.toLowerCase()) {
+        throw new Error(`rule word ${JSON.stringify(word)} is not lowercase -- the ` +
+          "match is case-insensitive and a capital here reads as a second spelling");
+      }
+      // A word in two rows makes TABLE ORDER decide the class silently, which
+      // is the one way this table can be wrong without looking wrong.
+      if (seen[word]) {
+        throw new Error(`the word ${JSON.stringify(word)} is in both "${seen[word]}" ` +
+          `and "${rule.key}" -- table order would decide the class silently`);
+      }
+      seen[word] = rule.key;
+    });
+  });
+});
+
+check("requiredSurfaceClass: the live names in docs/topologies read as the " +
+  "surfaces they are", () => {
+  const cases = [
+    ["cotter-pin hole centreline", "cylindrical"],
+    ["end of the bolt's full cylindrical shank", "cylindrical"],
+    ["hub lower bearing-seat bore, M1 hub 212966-004", "cylindrical"],
+    ["lower bearing outer-ring OD (214589-002, ID 160 / OD 200)", "cylindrical"],
+    ["bolt-head bearing face against the plain bushing", "planar"],
+    ["plain bushing length (214820-002)", "planar"],
+    ["flanged bushing flange thickness (NAS77A3-015A)", "planar"],
+    ["pitch plate lug thickness (5X group)", "planar"],
+    ["washer thickness, NAS1149V0332H (.032 in)", "planar"],
+  ];
+  cases.forEach(([text, want]) => {
+    const got = AA.requiredSurfaceClass(text);
+    if (!got || got.surface !== want) {
+      throw new Error(`"${text}" read as ${got ? got.surface : "nothing"}, wanted ${want}`);
+    }
+  });
+});
+
+check("requiredSurfaceClass matches WORDS, not substrings -- and a name that " +
+  "says nothing gets nothing", () => {
+  // "dia" inside "diagonal" and "id" inside "rigid" are the two this is for:
+  // a substring match would classify half the repo's prose by accident.
+  ["diagonal brace", "rigid mount", "the grid", "pinion"].forEach((text) => {
+    const got = AA.requiredSurfaceClass(text);
+    if (got) {
+      throw new Error(`"${text}" matched ${JSON.stringify(got.word)} as a substring`);
+    }
+  });
+  if (AA.requiredSurfaceClass("") !== null) throw new Error("an empty name matched a rule");
+  if (AA.requiredSurfaceClass(null) !== null) throw new Error("a null name matched a rule");
+  if (AA.requiredSurfaceClass("spherical bearing ball") !== null) {
+    throw new Error("a sphere matched a rule -- neither class is right for it");
+  }
+});
+
+check("endSurfaceClass asks the INTERFACE first: one dimension's two ends can " +
+  "want different surfaces, and the dimension name cannot tell them apart", () => {
+  const edge = { id: "cotter_hole_from_point",
+    name: "cotter-hole centreline to bolt point (dimension M)" };
+  const hole = { id: "cotter_hole_centerline", name: "cotter-pin hole centreline" };
+  const face = { id: "head_bearing_face", name: "bolt-head bearing face against the bushing" };
+  assertEqual(AA.endSurfaceClass(edge, hole).surface, "cylindrical",
+    "the hole end did not read as round");
+  assertEqual(AA.endSurfaceClass(edge, hole).where, "interface",
+    "the hole end was not answered by its interface");
+  assertEqual(AA.endSurfaceClass(edge, face).surface, "planar",
+    "a bearing-face interface was overruled by the dimension's name");
+  // With no interface to ask, the dimension's own words answer -- and `where`
+  // records that it was the coarser of the two sources.
+  assertEqual(AA.endSurfaceClass(edge, null).where, "dimension",
+    "a nameless interface did not fall back to the dimension");
+  assertEqual(AA.endSurfaceClass(null, null), null, "nothing answered something");
+});
+
+check("the narrowing stages and the relations they may assert are one table, " +
+  "and the cross-part plane null is written out rather than missing", () => {
+  assertEqual(AA.NARROWING_STAGE_KEYS, AA.NARROWING_STAGES.map((s) => s.key),
+    "NARROWING_STAGE_KEYS has drifted from the table");
+  assertEqual(AA.NARROWING_STAGE_KEYS[0], "surface_class",
+    "the first stage must be the one that needs nothing bound");
+  Object.keys(AA.NARROWING_RELATIONS).forEach((stage) => {
+    if (AA.NARROWING_STAGE_KEYS.indexOf(stage) === -1) {
+      throw new Error(`NARROWING_RELATIONS names a stage that is not in the table: ${stage}`);
+    }
+    const perClass = AA.NARROWING_RELATIONS[stage];
+    // Every class the rule table can ask for must have an ENTRY -- a null is a
+    // decision with a reason (AA.NO_MATING_PLANE_RELATION); a missing key is a
+    // hole for the next reader to fill in without noticing there was one.
+    AA.SUGGESTION_RULES.forEach((rule) => {
+      if (!Object.prototype.hasOwnProperty.call(perClass, rule.surface)) {
+        throw new Error(`stage "${stage}" says nothing at all about ` +
+          `"${rule.surface}", which rule "${rule.key}" asks for`);
+      }
+      const relation = perClass[rule.surface];
+      if (relation !== null && AA.NARROWING_RELATION_NAMES.indexOf(relation) === -1) {
+        throw new Error(`stage "${stage}" asserts "${relation}", which is not in ` +
+          "NARROWING_RELATION_NAMES");
+      }
+    });
+  });
+  assertEqual(AA.NARROWING_RELATIONS.mating_fit.planar, null,
+    "mating_fit claims a relation between two flat faces on different parts -- " +
+    "this app applies no placement transforms, so it cannot have one");
+});
+
+// --- the planner ------------------------------------------------------------
+//
+// One fixture topology, built to be the pitch-link joint's own shape: a
+// thickness between two flat interfaces on one part, a diametral interface, and
+// a gap edge naming no part at all. The face classifications are handed in as
+// data (the planner is pure), so each stage can be driven exactly.
+
+const SUGGEST_MESHES = [
+  { sha256: "a".repeat(64), label: "plate", part_id: "plate_part" },
+  { sha256: "b".repeat(64), label: "bolt", part_id: "bolt_part" },
+];
+
+const SUGGEST_TOPOLOGY = {
+  id: "fixture_joint",
+  nodes: [
+    { id: "near_face", name: "plate near face against the washer", kind: "mating_surface" },
+    { id: "far_face", name: "plate far face", kind: "datum_feature" },
+    { id: "bolt_hole", name: "plate bolt hole", kind: "mating_surface" },
+    { id: "shank_end", name: "end of the bolt's full cylindrical shank", kind: "datum_feature" },
+  ],
+  edges: [
+    { id: "plate_thickness", name: "plate thickness", kind: "structural",
+      part: "plate_part", from: "near_face", to: "far_face" },
+    { id: "hole_depth", name: "plate bolt hole depth", kind: "structural",
+      part: "plate_part", from: "bolt_hole", to: "far_face" },
+    { id: "bolt_grip", name: "fastener grip", kind: "structural",
+      part: "bolt_part", from: "bolt_hole", to: "shank_end" },
+    // A second bolt-side dimension meeting the plate at a FLAT interface --
+    // the shape every cross-part interface in the live pitch-link joint has,
+    // and the one the mating_fit fence is about.
+    { id: "bolt_head_height", name: "bolt head height", kind: "structural",
+      part: "bolt_part", from: "near_face", to: "shank_end" },
+    { id: "stand_off", name: "stand off beyond the stack", kind: "gap",
+      from: "far_face", to: "shank_end" },
+  ],
+};
+
+// Plate: two parallel flats (0, 1), one tilted flat (2), a bore (3) and the
+// bore's mate one radius up (4). Bolt: a shank at the bore's radius (5) and a
+// cotter hole nowhere near it (6).
+function fixtureClasses() {
+  const plate = [];
+  plate[0] = { faceId: 0, surface: "planar", normal: [0, 0, 1], offset: 0 };
+  plate[1] = { faceId: 1, surface: "planar", normal: [0, 0, -1], offset: -4.06 };
+  plate[2] = { faceId: 2, surface: "planar", normal: [1, 0, 0], offset: 12 };
+  plate[3] = { faceId: 3, surface: "cylindrical", axis: [0, 0, 1], axisPoint: [0, 0, 0],
+    radius: 2.413, arcDeg: 180 };
+  plate[4] = { faceId: 4, surface: "cylindrical", axis: [0, 0, 1], axisPoint: [40, 0, 0],
+    radius: 6, arcDeg: 360 };
+  const bolt = [];
+  bolt[0] = { faceId: 0, surface: "cylindrical", axis: [1, 0, 0], axisPoint: [0, 0, 0],
+    radius: 2.4065, arcDeg: 180 };
+  bolt[1] = { faceId: 1, surface: "cylindrical", axis: [1, 0, 0], axisPoint: [0, 0, 0],
+    radius: 0.9525, arcDeg: 180 };
+  const out = {};
+  out[SUGGEST_MESHES[0].sha256] = plate;
+  out[SUGGEST_MESHES[1].sha256] = bolt;
+  return out;
+}
+
+function boundAt(edgeId, direction, sha256, faceId) {
+  return {
+    schema: "joby.tolerance_stack/feature-identity-projection/v0",
+    stack_keys: [{
+      stack_key: AA.topologyEdgeKey(SUGGEST_TOPOLOGY.id, edgeId),
+      state: "bound",
+      bindings: [{ event_id: "fixture-1", direction: direction,
+        geometry_key: { source_step_sha256: sha256, face_id: faceId } }],
+      owner_not_in_set: [], history: ["fixture-1"],
+    }],
+  };
+}
+
+function plan(edgeId, identity) {
+  return AA.planFaceSuggestions({
+    topology: SUGGEST_TOPOLOGY, edgeId: edgeId, identityProjection: identity,
+    meshes: SUGGEST_MESHES, aliases: [], faceClasses: fixtureClasses(),
+  });
+}
+
+check("stage 1: a thickness suggests only the FLAT faces of its own part, and " +
+  "a hole only the ROUND ones", () => {
+  const thickness = plan("plate_thickness", null);
+  assertEqual(thickness.ends.map((e) => e.surface), ["planar", "planar"],
+    "a thickness asked for something other than flat faces at both ends");
+  assertEqual(thickness.ends[0].candidates, [0, 1, 2],
+    "a thickness was offered a face that is not flat");
+  assertEqual(thickness.ends.map((e) => e.stage), ["surface_class", "surface_class"],
+    "stage 1 reported a narrowing nothing supplied");
+  const hole = plan("hole_depth", null);
+  // `from` is the hole interface (round); `to` is the plate's far face (flat).
+  assertEqual(hole.ends.map((e) => e.surface), ["cylindrical", "planar"],
+    "the two ends of a hole depth read as the same surface");
+  assertEqual(hole.ends[0].candidates, [3, 4], "a bore was offered a flat face");
+});
+
+check("stage 2: one end bound narrows the other to the faces PARALLEL to it -- " +
+  "and the bound face is not offered again", () => {
+  const narrowed = plan("plate_thickness", boundAt("plate_thickness", "from",
+    SUGGEST_MESHES[0].sha256, 0));
+  assertEqual(narrowed.ends.map((e) => e.direction), ["to"],
+    "the end that is already bound is still being asked for");
+  const end = narrowed.ends[0];
+  assertEqual(end.stage, "same_part_relation", "the stage did not advance");
+  assertEqual(end.relation, "parallel", "the wrong relation was asserted");
+  // Face 0 is bound, face 2 is the tilted flat: only the far face survives.
+  assertEqual(end.candidates, [1],
+    "the parallel narrowing kept a face that is not parallel, or dropped the one that is");
+  assertEqual(end.considered, 2, "the pool before narrowing is wrong");
+});
+
+check("stage 2: a round end bound on the SAME part narrows to the coaxial " +
+  "faces, dropping the bore beside it", () => {
+  const narrowed = plan("hole_depth", boundAt("bolt_grip", "from",
+    SUGGEST_MESHES[0].sha256, 3));
+  const end = narrowed.ends.filter((e) => e.direction === "from")[0];
+  assertEqual(end.stage, "same_part_relation", "the stage did not advance");
+  assertEqual(end.relation, "coaxial", "the wrong relation was asserted");
+  assertEqual(end.candidates, [3],
+    "the coaxial narrowing kept the bore 40 away, or dropped the one on the axis");
+});
+
+check("stage 3: a ROUND face bound on the ADJACENT part narrows by radius -- " +
+  "the one relation that survives having no placement transform", () => {
+  // The bolt's grip is bound at the plate's bolt hole; the plate's own hole
+  // depth at that same interface now has a reference on another mesh.
+  const narrowed = plan("hole_depth", boundAt("bolt_grip", "from",
+    SUGGEST_MESHES[1].sha256, 0));
+  const end = narrowed.ends.filter((e) => e.direction === "from")[0];
+  assertEqual(end.stage, "mating_fit", "the cross-part stage was not reached");
+  assertEqual(end.relation, "same_radius", "the wrong relation was asserted");
+  assertEqual(end.references.map((r) => r.sameMesh), [false],
+    "the reference was read as being on the same mesh");
+  // 2.413 matches the bolt's 2.4065; the 6 mm bore does not.
+  assertEqual(end.candidates, [3], "the radius narrowing kept the wrong bore");
+});
+
+check("stage 3: a FLAT face bound on the adjacent part narrows nothing, says " +
+  "why, and does not claim a stage it did not reach", () => {
+  // (a) A reference of the WRONG class is not comparable at all. A flat face
+  //     bound at a round interface says nothing about which bore this is, so
+  //     stage 1's list stands untouched and there is nothing to say about it.
+  const mismatch = plan("bolt_grip", boundAt("hole_depth", "from",
+    SUGGEST_MESHES[0].sha256, 0));
+  const round = mismatch.ends.filter((e) => e.direction === "from")[0];
+  assertEqual(round.stage, "surface_class", "a stage was credited with no narrowing");
+  assertEqual(round.relation, null, "a relation was asserted across two classes");
+  assertEqual(round.candidates, [0, 1], "the candidate list was narrowed by a guess");
+  assertEqual(round.note, null, "a non-comparable reference produced a sentence");
+
+  // (b) The fence itself: a FLAT reference for a FLAT end, on another mesh.
+  //     Class and reference agree, so the only thing stopping the narrowing is
+  //     that the two meshes share no frame -- and that is said out loud.
+  const classes = fixtureClasses();
+  classes[SUGGEST_MESHES[1].sha256][1] = { faceId: 1, surface: "planar",
+    normal: [0, 0, 1], offset: 3 };
+  const flat = AA.planFaceSuggestions({
+    topology: SUGGEST_TOPOLOGY, edgeId: "plate_thickness",
+    identityProjection: boundAt("bolt_head_height", "from", SUGGEST_MESHES[1].sha256, 1),
+    meshes: SUGGEST_MESHES, aliases: [], faceClasses: classes,
+  });
+  const end = flat.ends.filter((e) => e.direction === "from")[0];
+  assertEqual(end.references.map((r) => r.sameMesh), [false],
+    "the reference was read as being on the same mesh");
+  assertEqual(end.stage, "surface_class",
+    "the flat cross-part case claimed a narrowing it cannot do");
+  assertEqual(end.relation, null, "a relation was asserted between two frames");
+  assertEqual(end.note, AA.NO_MATING_PLANE_RELATION,
+    "the flat cross-part case did not say why it narrowed nothing");
+  assertEqual(end.candidates, [0, 1, 2], "the candidate list was narrowed anyway");
+});
+
+check("an element that names no part, and one whose words say nothing, both " +
+  "suggest NOTHING and say so -- never a guessed surface", () => {
+  const gap = plan("stand_off", null);
+  assertEqual(gap.faces, [], "a gap edge with no part suggested faces");
+  if (!gap.note || gap.note.indexOf("names no part") === -1) {
+    throw new Error("a gap edge did not say why it has nothing to suggest: " + gap.note);
+  }
+  const mute = AA.planFaceSuggestions({
+    topology: {
+      id: "t", nodes: [{ id: "n1", name: "the first place" }, { id: "n2", name: "the second" }],
+      edges: [{ id: "e", name: "a quantity", kind: "structural", part: "plate_part",
+        from: "n1", to: "n2" }],
+    },
+    edgeId: "e", identityProjection: null, meshes: SUGGEST_MESHES, aliases: [],
+    faceClasses: fixtureClasses(),
+  });
+  assertEqual(mute.faces, [], "an element whose words say nothing suggested faces");
+  mute.ends.forEach((end) => {
+    assertEqual(end.surface, null, "a class was invented for an element with no rule");
+    if (!end.note) throw new Error("an unreadable element end said nothing at all");
+  });
+});
+
+check("a part with no installed mesh, and a part whose shapes are unread, are " +
+  "two different absences", () => {
+  const noMesh = AA.planFaceSuggestions({
+    topology: SUGGEST_TOPOLOGY, edgeId: "plate_thickness", identityProjection: null,
+    meshes: [], aliases: [], faceClasses: {},
+  });
+  // The rail already says "No installed 3D part for ..." -- this must not say
+  // it a second time in different words.
+  assertEqual(noMesh.faces, [], "a part with no mesh suggested faces");
+  assertEqual(noMesh.note, null, "the no-mesh case duplicates the rail's own sentence");
+  const unread = AA.planFaceSuggestions({
+    topology: SUGGEST_TOPOLOGY, edgeId: "plate_thickness", identityProjection: null,
+    meshes: SUGGEST_MESHES, aliases: [], faceClasses: {},
+  });
+  if (!unread.note || unread.note.indexOf("not been read") === -1) {
+    throw new Error("an unread mesh did not say so: " + unread.note);
+  }
+});
+
+check("the same face suggested for both ends is ONE face to paint, not two", () => {
+  const thickness = plan("plate_thickness", null);
+  const tokens = thickness.faces.map((f) => f.sha256 + ":" + f.faceId);
+  assertEqual(tokens.length, new Set(tokens).size,
+    "the paint list carries a face twice -- two opaque overlays on one face");
+  assertEqual(thickness.faces.length, 3, "the paint list is not the union of the ends");
+});
+
+check("gatherFaceReferences names both kinds of neighbour, and never the " +
+  "binding it was asked about", () => {
+  const identity = boundAt("plate_thickness", "to", SUGGEST_MESHES[0].sha256, 1);
+  const otherEnd = AA.gatherFaceReferences(SUGGEST_TOPOLOGY, "plate_thickness", "from", identity);
+  assertEqual(otherEnd.map((r) => r.source), ["other_end"],
+    "the same dimension's opposite end was not found");
+  const otherHalf = AA.gatherFaceReferences(SUGGEST_TOPOLOGY, "hole_depth", "to", identity);
+  assertEqual(otherHalf.map((r) => r.source), ["other_half"],
+    "the other dimension at this interface was not found");
+  // Asked about the very direction that IS bound: its own binding is not a
+  // reference for itself.
+  const itself = AA.gatherFaceReferences(SUGGEST_TOPOLOGY, "plate_thickness", "to", identity);
+  assertEqual(itself.filter((r) => r.source === "other_end").length, 0,
+    "a binding was offered as a reference for its own end");
+});
+
+check("every sentence the suggestion surface can print survives the shared " +
+  "ban list, and carries no schema word", () => {
+  const sentences = [AA.NO_MATING_PLANE_RELATION, AA.SUGGEST_SETTING_LABEL,
+    AA.SUGGEST_SETTING_HINT]
+    .concat(AA.SUGGESTION_RULES.map((r) => r.says))
+    .concat(AA.NARROWING_STAGES.map((s) => s.says))
+    .concat(AA.NARROWING_STAGES.map((s) => s.needs))
+    .concat([
+      AA.describeSuggestions(plan("plate_thickness", null)),
+      AA.describeSuggestions(plan("stand_off", null)),
+      AA.describeSuggestions(plan("plate_thickness",
+        boundAt("plate_thickness", "from", SUGGEST_MESHES[0].sha256, 0))),
+    ])
+    .concat(plan("stand_off", null).ends.map((e) => e.note))
+    .concat(plan("hole_depth", null).ends.map((e) => e.note))
+    .filter(Boolean);
+  if (sentences.length < 12) {
+    throw new Error("the suggestion sentence scan collected " + sentences.length +
+      " strings -- it has drifted and now passes against anything");
+  }
+  sentences.forEach((text, i) => {
+    assertNoCommandOrPath(text, `suggestion sentence #${i + 1}`);
+    if (/[a-z]_[a-z]/.test(text)) {
+      throw new Error(`suggestion sentence #${i + 1} carries an underscored identifier: ${text}`);
+    }
+  });
+});
+
+check("describeSuggestions counts the faces and names the stage that produced " +
+  "them, so a lit-up body is never unexplained", () => {
+  const wide = AA.describeSuggestions(plan("plate_thickness", null));
+  if (wide.indexOf("3 likely faces") !== 0) {
+    throw new Error("unexpected stage-1 summary: " + wide);
+  }
+  if (wide.indexOf(AA.NARROWING_STAGES[0].says) === -1) {
+    throw new Error("the summary does not name the stage it reached: " + wide);
+  }
+  const narrow = AA.describeSuggestions(plan("plate_thickness",
+    boundAt("plate_thickness", "from", SUGGEST_MESHES[0].sha256, 0)));
+  if (narrow.indexOf("1 likely face -") !== 0) {
+    throw new Error("a single face is not described in the singular: " + narrow);
+  }
+});
+
+// --- the display, read statically out of scene.js and app.js ----------------
+//
+// Neither file can be booted in this sandbox (scene.js imports three.js and
+// app.js is an ES module that touches `document` at load), so both are read as
+// TEXT -- the same choice the verb-table and no-projection-banner guards above
+// make, for the same reason.
+
+const SCENE_SOURCE = fs.readFileSync(path.join(here, "scene.js"), "utf8");
+const APP_SOURCE = fs.readFileSync(path.join(here, "app.js"), "utf8");
+
+check("the suggestion colour IS the shared accent -- one declaration in " +
+  "apps/viewer/style.css, not a hex typed twice", () => {
+  const viewerCss = fs.readFileSync(path.join(here, "..", "viewer", "style.css"), "utf8");
+  const declared = /--accent:\s*(#[0-9a-fA-F]{6})/.exec(viewerCss);
+  if (!declared) {
+    throw new Error("apps/viewer/style.css declares no --accent -- the token moved");
+  }
+  const roles = /const MARK_COLORS = \{([^}]*)\}/.exec(SCENE_SOURCE);
+  if (!roles) throw new Error("scene.js has no MARK_COLORS block -- the anchor moved");
+  const suggested = /suggested:\s*0x([0-9a-fA-F]{6})/.exec(roles[1]);
+  if (!suggested) throw new Error("MARK_COLORS has no `suggested` role");
+  assertEqual("#" + suggested[1].toLowerCase(), declared[1].toLowerCase(),
+    "the suggestion colour has drifted from apps/viewer/style.css's --accent");
+  // Three roles and three claims: a fourth colour added with no claim behind
+  // it is the emphasis budget being spent without a decision.
+  ["bound", "suggested", "picked"].forEach((role) => {
+    if (roles[1].indexOf(role + ":") === -1) {
+      throw new Error(`MARK_COLORS lost the "${role}" role`);
+    }
+  });
+});
+
+check("the mark overlays are one implementation with a ROLE, so clearing the " +
+  "suggestions cannot take the bound-face marks down with them", () => {
+  if (!/clearMarks\(role\)/.test(SCENE_SOURCE)) {
+    throw new Error("scene.js's clearMarks takes no role -- clearing suggestions " +
+      "would clear every overlay, bound faces included");
+  }
+  if (!/markFace\(sha256, faceId, role\)/.test(SCENE_SOURCE)) {
+    throw new Error("scene.js's markFace takes no role");
+  }
+  // The suggest path must clear ONLY its own two layers.
+  ['clearMarks("suggested")', 'clearMarks("picked")'].forEach((call) => {
+    if (APP_SOURCE.indexOf(call) === -1) {
+      throw new Error(`app.js never calls scene.${call}`);
+    }
+  });
+  if (/clearMarks\(\)\s*;/.test(APP_SOURCE) === false) {
+    throw new Error("app.js no longer clears every mark anywhere -- `trace` needs that");
+  }
+});
+
+check("THE FENCE: the suggestion path colours faces and does nothing else -- " +
+  "it never selects, never highlights, never builds an event", () => {
+  // The two handlers, as text, from the verb that starts them to the next
+  // top-level function after them.
+  const start = APP_SOURCE.indexOf("async function cmdSuggest()");
+  const end = APP_SOURCE.indexOf("async function refreshSuggestions()");
+  if (start < 0 || end < 0 || end < start) {
+    throw new Error("could not find the suggestion handlers in app.js -- the anchors moved");
+  }
+  const body = APP_SOURCE.slice(start, end);
+  // `markFace(..., "picked")` is a COLOUR for a pick that already happened;
+  // the pick itself is `select-face`'s, and the suggestion path must not make
+  // one.
+  ["select-face", "highlightFace", "buildBoundEvent", "buildOwnerNotInSetEvent",
+    "writeEvent", "sessionEvents.push"].forEach((forbidden) => {
+    if (body.indexOf(forbidden) !== -1) {
+      throw new Error(`the suggestion path references ${JSON.stringify(forbidden)} -- ` +
+        "a suggestion is a proposal in the UI and never a binding");
+    }
+  });
+  if (body.indexOf('markFace') === -1) {
+    throw new Error("the suggestion path draws nothing at all -- the guard above is vacuous");
+  }
+});
+
+check("index.html loads the geometry before the rules, and both before the " +
+  "module that uses them", () => {
+  const geometry = ANNOTATE_HTML.indexOf('src="./face_geometry.js"');
+  const rules = ANNOTATE_HTML.indexOf('src="./suggestions.js"');
+  const app = ANNOTATE_HTML.indexOf('src="./app.js"');
+  if (geometry === -1) throw new Error("index.html does not load face_geometry.js");
+  if (rules === -1) throw new Error("index.html does not load suggestions.js");
+  if (geometry > rules) {
+    throw new Error("suggestions.js loads before face_geometry.js, whose relations it calls");
+  }
+  if (rules > app) throw new Error("app.js loads before the rules it dispatches to");
+});
+
+check("the face-suggestion setting round-trips through a store, defaults to " +
+  "on, and survives a store that throws", () => {
+  const store = memoryStore({});
+  assertEqual(AA.readStoredSuggestions(store), AA.DEFAULT_FACE_SUGGESTIONS,
+    "an unset preference is not the default");
+  AA.writeStoredSuggestions(store, false);
+  assertEqual(AA.readStoredSuggestions(store), false, "off did not round-trip");
+  AA.writeStoredSuggestions(store, true);
+  assertEqual(AA.readStoredSuggestions(store), true, "on did not round-trip");
+  const hostile = { getItem() { throw new Error("nope"); }, setItem() { throw new Error("nope"); } };
+  assertEqual(AA.readStoredSuggestions(hostile), AA.DEFAULT_FACE_SUGGESTIONS,
+    "a store that throws is not read as 'not set'");
+  AA.writeStoredSuggestions(hostile, false); // must not throw
+  // Three preferences now, three distinct keys.
+  const keys = Object.keys(AA.PREF_KEYS).map((k) => AA.PREF_KEYS[k]);
+  assertEqual(keys.length, new Set(keys).size, "two preferences share a key");
+});
+
 // --- [real] the shipped alias table against the installed meshes ------------
 //
 // The tracked table (docs/topologies/part_mesh_aliases.json -- read from THIS
@@ -1630,6 +2456,356 @@ if (!realMeshesDir) {
       if (!aliasedResolved) {
         console.log("      (no real study names gas_spring_mount_213668_002 -- " +
           "the alias-resolution leg of this check found nothing to resolve)");
+      }
+    });
+  }
+}
+
+
+// --- [real] the classifier, and the suggestion rules, over the installed
+// --- meshes -----------------------------------------------------------------
+//
+// The classifier's own [real] tier: every mesh in data/meshes/, classified,
+// with the rate reported and a floor under it -- so the hit rates quoted in
+// docs/sessions/lessons/LESSONS_20260921_annotate_face_suggestions.md are
+// re-measured on every run rather than being a number that decays. Same
+// gitignored-data posture as the two checks above: data/ lives only in the
+// main checkout, so from a worktree this falls back to the absolute path and
+// skips honestly when there is no mesh at all.
+//
+// It also pins GROUND TRUTH on three parts whose dimensions are stated on
+// documents this repo already cites. To be completely clear about what that
+// is and is not: these assertions check that the GEOMETRY READER reads a known
+// shape correctly. They are not a measurement of a part, they supply no stack
+// value, and nothing in the app renders or writes them --
+// docs/ANNOTATION_SURFACE.md's decision 1 is untouched. A number here that
+// disagrees with the drawing means the classifier is broken, and that is the
+// only thing it is allowed to mean.
+if (realMeshesDir) {
+  const readRealMesh = (sha256) => {
+    const dir = path.join(realMeshesDir, sha256);
+    const manifest = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
+    const typed = (name, Kind) => {
+      const raw = fs.readFileSync(path.join(dir, name));
+      return new Kind(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength));
+    };
+    return {
+      manifest,
+      positions: typed(manifest.positions_file, Float32Array),
+      indices: typed(manifest.indices_file, Uint32Array),
+      faceIds: typed(manifest.face_ids_file, Uint32Array),
+    };
+  };
+  const realClassCache = {};
+  const classifyReal = (sha256) => {
+    if (!realClassCache[sha256]) {
+      const mesh = readRealMesh(sha256);
+      realClassCache[sha256] = AA.classifyPartFaces(mesh.manifest.faces, mesh.positions,
+        mesh.indices, mesh.faceIds);
+    }
+    return realClassCache[sha256];
+  };
+  const byPartId = (partId) => {
+    const found = realMeshList().filter((m) => m.part_id === partId)[0];
+    return found ? found.sha256 : null;
+  };
+  const roundTo = (value, places) => Math.round(value * Math.pow(10, places)) / Math.pow(10, places);
+
+  // The floor, not the measurement: the point of the number is to be reported,
+  // and the point of the floor is that a threshold edit which quietly halves
+  // the classifier fails here. It sits well under the measured rate on purpose
+  // -- a tighter floor would redden whenever a mesh is installed or replaced,
+  // and this check does not own what is in the mesh store.
+  const CLASSIFIED_FRACTION_FLOOR = 0.45;
+
+  check("[real] every installed mesh classifies, and the rate over the whole " +
+    "store stays above the floor", () => {
+    const totals = { planar: 0, cylindrical: 0, other: 0 };
+    const reasons = {};
+    const perPart = [];
+    realMeshList().forEach((mesh) => {
+      const classes = classifyReal(mesh.sha256);
+      const counts = { planar: 0, cylindrical: 0, other: 0 };
+      classes.forEach((c, index) => {
+        if (!c) throw new Error(`${mesh.part_id}: face ${index} got no classification at all`);
+        if (c.surface === "other" && !c.why) {
+          throw new Error(`${mesh.part_id}: face ${index} is "other" with no reason`);
+        }
+        counts[c.surface]++;
+        if (c.surface === "other") reasons[c.why] = (reasons[c.why] || 0) + 1;
+      });
+      if (classes.length !== mesh.sha256 && classes.length === 0) {
+        throw new Error(`${mesh.part_id}: classified no faces`);
+      }
+      Object.keys(counts).forEach((k) => { totals[k] += counts[k]; });
+      perPart.push({ part: mesh.part_id, n: classes.length, counts: counts });
+    });
+    const n = totals.planar + totals.cylindrical + totals.other;
+    if (!n) throw new Error("no faces were classified at all");
+    const fraction = (totals.planar + totals.cylindrical) / n;
+    console.log(`      ${n} faces over ${perPart.length} meshes: ` +
+      `${totals.planar} planar, ${totals.cylindrical} cylindrical, ${totals.other} other ` +
+      `(${(100 * fraction).toFixed(1)}% classified)`);
+    Object.keys(reasons).sort((a, b) => reasons[b] - reasons[a]).forEach((why) => {
+      console.log(`        ${String(reasons[why]).padStart(5)}  ${why}`);
+    });
+    if (fraction < CLASSIFIED_FRACTION_FLOOR) {
+      throw new Error(`only ${(100 * fraction).toFixed(1)}% of faces classified, under the ` +
+        `${(100 * CLASSIFIED_FRACTION_FLOOR).toFixed(0)}% floor -- a threshold in ` +
+        "AA.FACE_CLASSIFY has been tightened past what the mesh store looks like");
+    }
+  });
+
+  check("[real] ground truth: the NAS1149V0332H washer is read as the part the " +
+    "217755 parts list describes -- two flats and four half-cylinders", () => {
+    const sha = byPartId("asm217755_NAS1149V0332H");
+    if (!sha) {
+      console.log("      (asm217755_NAS1149V0332H is not installed -- nothing to check)");
+      return;
+    }
+    const classes = classifyReal(sha);
+    // .203 x .438 x .032 in, per the nomenclature the topology's own part note
+    // carries (docs/topologies/topology_pitch_link_to_pitch_plate.json). In mm:
+    // OD 11.125 (r 5.5626), ID 5.156 (r 2.5781), thickness 0.813.
+    const planes = classes.filter((c) => c.surface === "planar");
+    const cylinders = classes.filter((c) => c.surface === "cylindrical");
+    assertEqual([planes.length, cylinders.length, classes.length - planes.length - cylinders.length],
+      [2, 4, 0], "the washer is not two flats and four round faces");
+    // Compared with a tolerance rather than a rounded equality: the nomenclature
+    // is in inches and the mesh is in mm, so the expected value is a conversion
+    // and pinning its last decimal would be pinning a rounding rule.
+    const radii = cylinders.map((c) => c.radius).sort((a, b) => a - b);
+    [2.5781, 2.5781, 5.5626, 5.5626].forEach((want, i) => {
+      if (Math.abs(radii[i] - want) > 0.002) {
+        throw new Error("the washer's radii are not the .203/.438 in the parts list " +
+          "names: got " + JSON.stringify(radii.map((r) => roundTo(r, 4))));
+      }
+    });
+    // The two flats are parallel and 0.032 in apart -- which is what a
+    // correctly-read plane offset looks like, and is not a dimension this repo
+    // publishes from geometry.
+    if (!AA.facesParallel(planes[0], planes[1])) {
+      throw new Error("the washer's two faces did not read as parallel");
+    }
+    const apart = Math.abs(Math.abs(planes[0].offset) - Math.abs(planes[1].offset));
+    if (Math.abs(apart - 0.813) > 0.01) {
+      throw new Error("the washer's two planes are " + apart + " apart, not 0.813");
+    }
+  });
+
+  check("[real] ground truth: the 214820-002 bushing's bore is the .1900 in the " +
+    "parts list names, and its four chamfers are cones -- so they are OTHER", () => {
+    const sha = byPartId("asm217755_214820_002");
+    if (!sha) {
+      console.log("      (asm217755_214820_002 is not installed -- nothing to check)");
+      return;
+    }
+    const classes = classifyReal(sha);
+    const radii = classes.filter((c) => c.surface === "cylindrical")
+      .map((c) => roundTo(c.radius, 3)).sort((a, b) => a - b);
+    // .1900 in ID = 4.826 mm, so r = 2.413. The OD's 4.253 is not on a document
+    // in this repo and is reported rather than pinned to a source.
+    assertEqual(radii, [2.413, 2.413, 4.253, 4.253],
+      "the bushing's bore is not the .1900 in ID the 217755 parts list names");
+    // Eight chamfer faces, every one of them a cone. A cone read as a cylinder
+    // would put four chamfers into every bore's candidate list.
+    const others = classes.filter((c) => c.surface === "other");
+    assertEqual(others.length, 8, "the bushing's chamfer count moved");
+    others.forEach((c) => {
+      if (c.why.indexOf("neither a plane nor a cylinder") === -1) {
+        throw new Error("a bushing chamfer was refused for the wrong reason: " + c.why);
+      }
+    });
+  });
+
+  check("[real] the mating fit, measured: the NAS6403U11D shank and the " +
+    "214820-002 bore agree to 0.3%, and that narrows the bolt's round faces", () => {
+    const boltSha = byPartId("asm217755_NAS6403U11D");
+    const bushingSha = byPartId("asm217755_214820_002");
+    if (!boltSha || !bushingSha) {
+      console.log("      (the bolt or the bushing is not installed -- nothing to fit)");
+      return;
+    }
+    const bolt = classifyReal(boltSha);
+    const bushing = classifyReal(bushingSha);
+    const bore = bushing.filter((c) => c.surface === "cylindrical" && c.radius < 3)[0];
+    if (!bore) throw new Error("the bushing's bore did not classify");
+    const boltCylinders = bolt.filter((c) => c.surface === "cylindrical");
+    const matching = boltCylinders.filter((c) => AA.radiiMatch(c, bore));
+    console.log(`      bore r=${roundTo(bore.radius, 4)}; ` +
+      `bolt round faces ${boltCylinders.length} -> ${matching.length} at that radius ` +
+      `(${matching.map((c) => roundTo(c.radius, 4)).join(", ")})`);
+    if (!matching.length) {
+      throw new Error("no face of the bolt reads at the bushing bore's radius -- " +
+        "the shank and the bore it passes through are a fit");
+    }
+    if (matching.length >= boltCylinders.length) {
+      throw new Error("the radius relation narrowed nothing: " + matching.length +
+        " of " + boltCylinders.length + " round faces matched");
+    }
+    // The cotter hole is the face this must NOT keep: it is round, on the same
+    // part, and half the diameter.
+    matching.forEach((c) => {
+      if (c.radius < 2) {
+        throw new Error("the cotter hole (r " + roundTo(c.radius, 4) +
+          ") matched the bore's radius");
+      }
+    });
+  });
+
+  check("[real] the planner end to end over real geometry: a diametral " +
+    "interface between the bolt and the bushing reaches the cross-part stage", () => {
+    const boltSha = byPartId("asm217755_NAS6403U11D");
+    const bushingSha = byPartId("asm217755_214820_002");
+    if (!boltSha || !bushingSha) {
+      console.log("      (the bolt or the bushing is not installed -- nothing to plan)");
+      return;
+    }
+    // A SYNTHETIC topology over REAL meshes, and it is synthetic for a reason
+    // worth writing down: the two diametral cross-part interfaces the live
+    // topologies model (topology_pitch_system's `pitch_plate_link_hole` and
+    // `pitch_link_arm_hole`) each have one half on `pitch_link`, which has no
+    // installed mesh -- so the cylindrical leg of `mating_fit` has no live
+    // end-to-end case yet. This is the shape it will have when one arrives.
+    // See ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md.
+    const topology = {
+      id: "fit_probe",
+      nodes: [
+        { id: "bore_wall", name: "bushing bore wall", kind: "mating_surface" },
+        { id: "bore_far", name: "bushing far face", kind: "datum_feature" },
+        { id: "shank_end", name: "end of the bolt's full cylindrical shank",
+          kind: "datum_feature" },
+      ],
+      edges: [
+        { id: "bore_depth", name: "bushing bore depth", kind: "structural",
+          part: "asm217755_214820_002", from: "bore_wall", to: "bore_far" },
+        { id: "shank_in_bore", name: "bolt shank diameter in the bore", kind: "structural",
+          part: "asm217755_NAS6403U11D", from: "bore_wall", to: "shank_end" },
+      ],
+    };
+    const meshes = realMeshList();
+    const faceClasses = {};
+    faceClasses[boltSha] = classifyReal(boltSha);
+    faceClasses[bushingSha] = classifyReal(bushingSha);
+    const bore = faceClasses[bushingSha]
+      .filter((c) => c.surface === "cylindrical" && c.radius < 3)[0];
+
+    const wide = AA.planFaceSuggestions({
+      topology: topology, edgeId: "shank_in_bore", identityProjection: null,
+      meshes: meshes, aliases: [], faceClasses: faceClasses,
+    });
+    const wideEnd = wide.ends.filter((e) => e.direction === "from")[0];
+    assertEqual(wideEnd.surface, "cylindrical", "a bore wall did not ask for a round face");
+    assertEqual(wideEnd.stage, "surface_class", "stage 1 claimed a narrowing");
+
+    const narrowed = AA.planFaceSuggestions({
+      topology: topology, edgeId: "shank_in_bore",
+      identityProjection: {
+        schema: "joby.tolerance_stack/feature-identity-projection/v0",
+        stack_keys: [{
+          stack_key: AA.topologyEdgeKey(topology.id, "bore_depth"), state: "bound",
+          bindings: [{ event_id: "probe-1", direction: "from",
+            geometry_key: { source_step_sha256: bushingSha, face_id: bore.faceId } }],
+          owner_not_in_set: [], history: ["probe-1"],
+        }],
+      },
+      meshes: meshes, aliases: [], faceClasses: faceClasses,
+    });
+    const narrowEnd = narrowed.ends.filter((e) => e.direction === "from")[0];
+    assertEqual(narrowEnd.stage, "mating_fit", "the cross-part stage was not reached");
+    assertEqual(narrowEnd.relation, "same_radius", "the wrong relation was asserted");
+    console.log(`      bolt round faces at a bore-wall interface: ` +
+      `${wideEnd.candidates.length} -> ${narrowEnd.candidates.length} once the ` +
+      `bushing bore is bound`);
+    if (narrowEnd.candidates.length >= wideEnd.candidates.length) {
+      throw new Error("binding the other half of the interface narrowed nothing");
+    }
+    if (!narrowEnd.candidates.length) {
+      throw new Error("binding the other half of the interface emptied the list");
+    }
+  });
+
+  // The live joint, end to end: the two shapes the handoff's definition of done
+  // names, over the real projection and the real meshes.
+  const livePitchLinkPath = [
+    path.join(here, "..", "..", "data", "projections", "viewer", "topologies.json"),
+    "C:\\workspace\\tolstack\\data\\projections\\viewer\\topologies.json",
+  ].find((candidate) => fs.existsSync(candidate));
+
+  if (!livePitchLinkPath) {
+    console.log("SKIP  [real] face suggestions over the live pitch-link joint -- no " +
+      "data/projections/viewer/topologies.json (gitignored, main checkout only)");
+  } else {
+    check("[real] the live pitch-link joint: a diametral element suggests only " +
+      "round faces, a thickness only flat ones, and one end bound narrows the other", () => {
+      const projection = JSON.parse(fs.readFileSync(livePitchLinkPath, "utf8"));
+      const topology = projection.topologies
+        .filter((t) => t.id === "pitch_link_to_pitch_plate")[0];
+      if (!topology) throw new Error("the real projection carries no pitch_link_to_pitch_plate");
+      const meshes = realMeshList();
+      const aliases = shippedAliases();
+      const faceClasses = {};
+      topology.edges.forEach((edge) => {
+        if (!edge.part) return;
+        const mesh = AA.resolveMeshIdentifier(meshes, edge.part, aliases);
+        if (mesh) faceClasses[mesh.sha256] = classifyReal(mesh.sha256);
+      });
+      const planFor = (edgeId, identity) => AA.planFaceSuggestions({
+        topology: topology, edgeId: edgeId, identityProjection: identity || null,
+        meshes: meshes, aliases: aliases, faceClasses: faceClasses,
+      });
+      const surfaceOf = (sha, faceId) => faceClasses[sha][faceId].surface;
+
+      // A diametral element: `cotter_hole_from_point`'s `from` end is the
+      // cotter-pin hole centreline, on the bolt.
+      const diametral = planFor("cotter_hole_from_point");
+      const holeEnd = diametral.ends.filter((e) => e.direction === "from")[0];
+      assertEqual(holeEnd.surface, "cylindrical",
+        "the cotter-pin hole interface did not ask for a round face");
+      if (!holeEnd.candidates.length) throw new Error("the bolt offered no round face");
+      holeEnd.candidates.forEach((faceId) => {
+        assertEqual(surfaceOf(diametral.sha256, faceId), "cylindrical",
+          "a flat face was suggested for a hole");
+      });
+
+      // A length between faces: the washer's thickness, on the washer.
+      const thickness = planFor("washer_nas1149v0332");
+      thickness.ends.forEach((end) => {
+        assertEqual(end.surface, "planar", "a washer thickness asked for a round face");
+        end.candidates.forEach((faceId) => {
+          assertEqual(surfaceOf(thickness.sha256, faceId), "planar",
+            "a round face was suggested for a thickness");
+        });
+      });
+
+      // One end bound narrows the other. The plain bushing's own length: two
+      // flat ends, one bound, and the other is the one parallel to it.
+      const bushingPlan = planFor("bushing_214820");
+      const bushingSha = bushingPlan.sha256;
+      const flat = bushingPlan.ends[0].candidates
+        .filter((faceId) => surfaceOf(bushingSha, faceId) === "planar");
+      if (flat.length < 2) throw new Error("the bushing offered fewer than two flat faces");
+      const before = bushingPlan.ends.filter((e) => e.direction === "to")[0];
+      const after = planFor("bushing_214820", {
+        schema: "joby.tolerance_stack/feature-identity-projection/v0",
+        stack_keys: [{
+          stack_key: AA.topologyEdgeKey(topology.id, "bushing_214820"), state: "bound",
+          bindings: [{ event_id: "probe-1", direction: "from",
+            geometry_key: { source_step_sha256: bushingSha, face_id: flat[0] } }],
+          owner_not_in_set: [], history: ["probe-1"],
+        }],
+      }).ends.filter((e) => e.direction === "to")[0];
+      assertEqual(after.stage, "same_part_relation", "the same-part stage was not reached");
+      assertEqual(after.relation, "parallel", "the wrong relation was asserted");
+      console.log(`      pitch-link joint: cotter hole ${holeEnd.candidates.length} round ` +
+        `faces on the bolt; washer thickness ${thickness.ends[0].candidates.length} flat faces; ` +
+        `bushing length ${before.candidates.length} -> ${after.candidates.length} once one ` +
+        `end is bound`);
+      if (after.candidates.length >= before.candidates.length) {
+        throw new Error("binding one end of the bushing length narrowed nothing");
+      }
+      if (after.candidates.indexOf(flat[0]) !== -1) {
+        throw new Error("the face already bound is still being suggested");
       }
     });
   }
