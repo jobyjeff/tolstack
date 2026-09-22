@@ -3950,6 +3950,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       regenerates it, written into the row beside the list**. When a review adds
       or edits a mapping row, ask for that grep; a row that names modules and
       not the query that found them is already stale-shaped.
+- [ ] **A ban-list literal widened to a SHAPE, in the same diff that removes
+      every live instance — so nothing can witness the widening.** New
+      2026-09-22 (`policy_free_brief_residues`).
+      `apps/viewer/reader_facing_bans.js` traded the literal
+      `build_viewer_crops.py` for `/\b[\w.-]+\.(?:py|exe|ps1|bat|cmd|sh)\b/`,
+      which is the right change — and **measured**: reverting the shape back to
+      that one literal leaves `480/480` (viewer, through `--repo`) and
+      `154/154` (annotate) green, because with every command site gone no
+      walked surface prints a script filename at all. The widening's value is
+      *prospective*, so the only mutation that witnesses it is one that
+      **plants** a filename no literal spells onto a walked surface — never one
+      that edits the list. The handoff's own witness issue proposed the
+      un-witnessing mutation
+      (`ISSUE_20260922_the_policy_free_residue_guards_have_no_mutation_witness_entry`,
+      corrected in place). Ask of every literal→shape widening: *which single
+      mutation passes under the literal and fails under the shape?* If you
+      cannot name one, the row belongs on the call site, not on the list.
+- [ ] **Copy lifted from `apps/annotate/` into `apps/viewer/`, carrying a
+      justification only annotate has.** New 2026-09-22, same handoff.
+      `AA.NO_PROJECTION_NOTICE` ("It is built in the tolerance-stack
+      repository, not from this page") is honest *there* for a stated reason —
+      annotate "has no transport that could ask anything to rebuild anything"
+      (`ISSUE_20260910_annotate_has_no_http_read_transport`). The viewer has
+      one: `storage/http.js` probes the sibling mount and reports
+      `capabilities().rebuild`, and drawing-checker's endpoint reruns the whole
+      `rebuild_projections.ps1` recipe, so it services a **missing** projection
+      as readily as a stale one. The sentence arrived in `viewer.js` ungated,
+      with a comment asserting the opposite
+      (`ISSUE_20260922_the_missing_projection_box_says_not_from_this_page_while_the_rebuild_endpoint_is_live`).
+      The two apps are deliberately near-twins, so expect borrowed copy — and
+      check the borrowed *reason* against the receiving app's capabilities, not
+      just the words.
 
 ## Architectural errors to check
 

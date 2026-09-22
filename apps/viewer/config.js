@@ -9,7 +9,9 @@
   VA.CONFIG = {
     // Where the projection scripts write, relative to the repo root the folder
     // grant points at. Three of them land here: results.json, crops.json and
-    // topologies.json, one per `rebuild` key below.
+    // topologies.json. (This said "one per `rebuild` key below" until
+    // 2026-09-22, when that table went -- there is no key here to be one per
+    // any more; see the note at the end of this block.)
     projectionDir: ["data", "projections", "viewer"],
     stacksDir: ["docs", "tolerance_stacks"],
 
@@ -22,8 +24,8 @@
     // There is deliberately NO `rebuild` entry here. It held the three build
     // commands as strings, and every one of them reached a reader: two
     // through the banner's `missing()` box and the third through the topology
-    // pane's empty state — three interpreter paths and eight backslashes on a
-    // web surface, the shape ruled out for every web surface in this
+    // pane's empty state — three interpreter paths and twelve backslashes on
+    // a web surface, the shape ruled out for every web surface in this
     // workspace (Jeff, 2026-09-10; views/banner.js's docstring records the
     // sighting). Nothing on this page can run a command, so this app holds
     // none at all: see VA.PROJECTION_LABELS and VA.PROJECTION_BUILT_ELSEWHERE

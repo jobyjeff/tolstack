@@ -43,3 +43,21 @@ one-line `find`/`replace` that should redden the banner walk, and it witnesses
 the widening rather than any one call site — which is the claim that actually
 matters, since four live command sites passed the literal list for as long as
 it existed.
+
+> **Correction, 2026-09-22** (`review/policy_free_brief_residues`). **That
+> mutation does not redden anything — measured, not reasoned.** Reverting the
+> shape entry to the single literal `["build_viewer_crops.py", …]` and running
+> both suites gives `480/480` (`node apps/viewer/run_tests.cjs --repo
+> C:/workspace/tolstack`) and `154/154` (`node apps/annotate/run_tests.cjs`).
+> The reason is the same one that makes the widening worth having: **once every
+> live command site is gone, no walked surface prints a script filename at
+> all**, so no guard can tell the literal from the shape. The widening's value
+> is prospective and therefore not witnessable by a source mutation of the ban
+> list — it would need a mutation that *plants* a `.py` name no literal spells
+> (e.g. `build_topology_projection.py`) on a walked surface, which witnesses
+> the shape rather than the list. Do not transcribe this row as written: it
+> would enroll an entry that reports NOT WITNESSED, or worse be read as
+> coverage that does not exist. The row above it (mutation 1, re-adding a
+> command to `missing()`) was re-measured and is accurate — it fails on the
+> shared shape ban naming `"python.exe"`, as claimed, though the literal
+> `venv-win` entry would have caught that same mutation too.
