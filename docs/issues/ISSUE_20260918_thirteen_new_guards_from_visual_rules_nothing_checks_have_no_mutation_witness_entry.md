@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: scripts/mutation-witnesses
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260921_mutation_witness_enrollment_backlog.md
 found_by: docs/sessions/HANDOFF_20260918_visual_rules_nothing_checks.md
+resolution: handoff completed 2026-09-22 -- closed automatically by dispatch when handoff `mutation_witness_enrollment_backlog` moved to completed/; not independently verified.
 ---
 
 # The thirteen guards `visual_rules_nothing_checks` added have no mutation-witness entry, and the handoff that would have declared them has already landed

@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: scripts/mutation_witnesses
 reporter: agent
 handoff: docs/sessions/HANDOFF_20260921_mutation_witness_enrollment_backlog.md
 found_by: docs/sessions/reviews/REVIEW_20260918_reader_facing_surfaces_second_pass.md
+resolution: handoff completed 2026-09-22 -- closed automatically by dispatch when handoff `mutation_witness_enrollment_backlog` moved to completed/; not independently verified.
 ---
 
 # Thirteen guards from `reader_facing_surfaces_second_pass` have no mutation-witness entry, and the handoff they were written down for closed the same day
