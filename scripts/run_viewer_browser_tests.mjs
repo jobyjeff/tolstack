@@ -4438,8 +4438,35 @@ async function testAnnotateFlyout(browser, fileBase, label, topologies) {
       const text = el ? el.textContent.trim() : "";
       return text.length > 0 ? text : null;
     }, null, { timeout: 15000 }).then((handle) => handle.jsonValue());
-    push("the embedded annotator boots to an honest pre-connect state",
-      /Connect folder|File System Access/.test(bannerText));
+    // WHICH pre-connect state, asserted rather than accepted. This read
+    // `/Connect folder|File System Access/` until 2026-09-22 and was
+    // satisfied by EITHER -- the has-FSA banner, which asks for the folder,
+    // or the no-FSA one, which says this browser cannot have it -- so "an
+    // honest pre-connect state" was a claim about neither state in
+    // particular. Same defect and same fix as the loopback half in
+    // testAnnotateHostedPosture; see the long note there for the argument,
+    // BRIEF_20260915_origin_posture_and_absent_feature_rule for the policy
+    // question this does NOT answer.
+    //
+    // Read off the IFRAME's own window, not the host page's: the surface
+    // under test is the embedded app, and same-origin is what makes that
+    // readable (startRepoRootServer serves both apps off one origin). Same
+    // predicate apps/annotate/storage/fsa.js's FsaAdapter.isSupported() uses.
+    const flyoutHasFsa = await page.evaluate(() => {
+      const w = document.querySelector("#annotate-flyout iframe")?.contentWindow;
+      return !!w && typeof w.showDirectoryPicker === "function";
+    });
+    if (flyoutHasFsa) {
+      push("the embedded annotator boots to the pre-GRANT state -- it asks " +
+        "for the folder, and says nothing about the API",
+        /Connect folder/.test(bannerText) &&
+        !/File System Access/.test(bannerText));
+    } else {
+      push("SKIPPED: the embedded annotator in a browser WITHOUT File System " +
+        "Access -- what that reader should be shown is " +
+        "BRIEF_20260915_origin_posture_and_absent_feature_rule's open " +
+        "question, so this tier asserts no copy for it", true);
+    }
 
     await page.locator("#flyout-close").click();
     push("the close button closes the flyout",
@@ -5495,28 +5522,77 @@ async function testAnnotateHostedPosture(browser, label) {
       const text = document.querySelector("#banner")?.textContent.trim() || "";
       return text.length > 0 ? text : null;
     }, null, { timeout: 15000 }).then((h) => h.jsonValue());
-    push("a loopback page still asks for the folder, or says this browser cannot",
-      /Connect folder|File System Access/.test(localBanner));
+    // WHICH of the two pre-connect states this is, asserted rather than
+    // accepted. This read `/Connect folder|File System Access/` until
+    // 2026-09-22 and was satisfied by EITHER -- the has-FSA banner, which
+    // asks for the folder, or the no-FSA one, which says this browser cannot
+    // have it. So it could not tell the ordinary pre-grant page from the
+    // dead-end state
+    // BRIEF_20260915_origin_posture_and_absent_feature_rule is deciding
+    // about, and the sub-checks below it would have gone on passing if the
+    // test browser lost FSA -- that brief's own "One thing to fix regardless
+    // of the policy call", staged as deliverable 2 of
+    // HANDOFF_20260921_policy_free_brief_residues.
+    //
+    // The capability is read ONCE, off the page being asserted, with the same
+    // predicate apps/annotate/storage/fsa.js's FsaAdapter.isSupported() uses
+    // -- not sniffed twice and not inferred from the copy, which is the thing
+    // under test.
+    //
+    // NOTHING HERE DECIDES WHAT THE NO-FSA SURFACE SHOULD SAY. That is the
+    // brief's open question (withhold the workspace, substitute ?mock=1, or
+    // state the limit and show nothing -- it currently does the third for
+    // this reader and the first for a hosted one, which is two answers to one
+    // question). So the no-FSA arm is an explicit named skip pointing back at
+    // it, and an honest gap beats a disjunction that hides one.
+    const localHasFsa = await page.evaluate(
+      () => typeof window.showDirectoryPicker === "function");
+    if (localHasFsa) {
+      push("a loopback page in a browser WITH File System Access asks for the " +
+        "folder, and says nothing about the API",
+        /Connect folder/.test(localBanner) &&
+        !/File System Access/.test(localBanner));
+    } else {
+      push("SKIPPED: a loopback page in a browser WITHOUT File System Access " +
+        "-- what that reader should be shown is " +
+        "BRIEF_20260915_origin_posture_and_absent_feature_rule's open " +
+        "question, so this tier asserts no copy for it", true);
+    }
     push("and it does NOT show the hosted notice",
       !/not available on this site/.test(localBanner));
     // The discriminating half of the withholding above: on the origin that CAN
     // annotate, the whole workspace is there and the console is live, before a
     // folder has even been granted. Without this, "hide everything, always"
     // would pass every one of the hosted checks.
-    push("the same page on loopback still has the full bind workspace",
-      await rendered(page, "#detail") &&
-      await rendered(page, "#topology-select") &&
-      await rendered(page, "#study-select") &&
-      await rendered(page, "#element-list") &&
-      await rendered(page, "#parts-panel") &&
-      await rendered(page, "#canvas-host") &&
-      await rendered(page, "#console-input") &&
-      await rendered(page, "#console-run"));
-    push("and the 3D view the bind instruction names really is there",
-      await page.locator("#canvas-host canvas").count() === 1);
-    push("and its dev console is wired there",
-      await page.evaluate(() => document.querySelector("#console-run").onclick !== null &&
-        document.querySelector("#console-input").onkeydown !== null));
+    //
+    // Gated on the same capability read, and this is the half the brief called
+    // out: on a no-FSA browser "the full workspace renders" is the DEFECT it
+    // measured (a pane telling the reader to click a face in a 3D view, under
+    // a sentence saying annotation is unavailable), so asserting it
+    // unconditionally is a guard pinning a defect in place. With FSA it is the
+    // correct claim -- a grant is one click away -- and that is the arm that
+    // runs.
+    if (localHasFsa) {
+      push("the same page on loopback still has the full bind workspace",
+        await rendered(page, "#detail") &&
+        await rendered(page, "#topology-select") &&
+        await rendered(page, "#study-select") &&
+        await rendered(page, "#element-list") &&
+        await rendered(page, "#parts-panel") &&
+        await rendered(page, "#canvas-host") &&
+        await rendered(page, "#console-input") &&
+        await rendered(page, "#console-run"));
+      push("and the 3D view the bind instruction names really is there",
+        await page.locator("#canvas-host canvas").count() === 1);
+      push("and its dev console is wired there",
+        await page.evaluate(() => document.querySelector("#console-run").onclick !== null &&
+          document.querySelector("#console-input").onkeydown !== null));
+    } else {
+      push("SKIPPED: what a no-FSA loopback page should SHOW under that " +
+        "sentence -- withhold the workspace, substitute ?mock=1, or leave it " +
+        "-- is BRIEF_20260915_origin_posture_and_absent_feature_rule's call, " +
+        "and the live dev console on it is the same question", true);
+    }
 
     return reportSuite(label, checks, errors);
   } catch (err) {
