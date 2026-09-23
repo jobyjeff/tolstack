@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "the embedded annotator boots to the pre-GRANT state -- it asks for the folder, and says nothing about the API",
+  "mutations": [
+    {
+      "contract": "The same claim about the EMBEDDED annotator, read off the iframe's own window: the flyout boots to the pre-GRANT state, asking for the folder and saying nothing about the API.",
+      "issue": "docs/issues/ISSUE_20260922_the_policy_free_residue_guards_have_no_mutation_witness_entry.md",
+      "note": "Same mutation as `loopback-pre-grant-banner-asks-for-the-folder`, different suite and different check -- the twins are two surfaces reading one banner, and a fix applied to one of them is the reason both are declared. Same shape as the hosted-annotate pair above.",
+      "file": "apps/annotate/app.js",
+      "find": "    setBanner(\"Click \\\"Connect folder\\\" and pick the tolstack repo root, grant read/write.\" +",
+      "replace": "    setBanner(\"Pick the tolstack repo root with the File System Access API, grant read/write.\" +"
+    }
+  ]
+}

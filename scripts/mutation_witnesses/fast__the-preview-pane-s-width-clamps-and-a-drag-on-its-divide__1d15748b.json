@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the preview pane's width clamps, and a drag on its divider widens it by moving LEFT",
+  "mutations": [
+    {
+      "contract": "The preview pane is RIGHT of its divider, so dragging left widens it. The sign lives in the pure layer (VA.paneWidthAfterDrag) precisely because getting it backwards is the likeliest mistake in the feature and the app shell cannot be checked without a pointer.",
+      "issue": null,
+      "note": "Flips the sign only. The clamp still holds, so a mutated build still 'works' -- it resizes the wrong way, which is the defect a reader would report and the one a green suite must not allow. Reasoning and the measurements: docs/sessions/lessons/LESSONS_20260915_viewer_component_names_and_reference_copy.md.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return VA.clampPaneWidth(startWidth - dx);",
+      "replace": "    return VA.clampPaneWidth(startWidth + dx);"
+    }
+  ]
+}

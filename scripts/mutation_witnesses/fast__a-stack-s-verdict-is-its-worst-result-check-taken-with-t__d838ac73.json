@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a stack's verdict is its worst RESULT check, taken with the same combiner a study's is and never off a sensitivity probe",
+  "mutations": [
+    {
+      "contract": "A stack's rail verdict is its worst RESULT check. A sensitivity probe is the same check with an undocumented input moved and the stack page stamps it NOT A RESULT, so drawing a row red on a what-if is \"true of the model, false of the hardware\".",
+      "issue": "docs/issues/ISSUE_20260922_the_nav_status_icon_guards_have_no_mutation_witness_entry.md",
+      "note": "Live data cannot discriminate here and that is why the synthetic fixture exists: m1's probes are themselves `fail` and m2's worst probe verdict is `marginal`, so the [real] leaf-row pin does not move under this mutation. PROBE_FAIL_STACK is the only thing that can see it.",
+      "file": "apps/viewer/topology.js",
+      "find": "      return !check.sensitivity;",
+      "replace": "      return true;"
+    }
+  ]
+}

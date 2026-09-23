@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the narrowing stages and the relations they may assert are one table, and the cross-part plane null is written out rather than missing",
+  "mutations": [
+    {
+      "contract": "The cross-part narrowing stage can assert NOTHING about two flat faces, because apps/annotate applies no assembly placement transforms -- every part is drawn at its own local origin, so one mesh's plane normal and offset mean nothing measured against another's. The null in the relation table is a decision with a reason, not a hole.",
+      "issue": "docs/issues/ISSUE_20260921_cross_part_face_relations_need_assembly_placement.md",
+      "note": "The mutation fills the null in with the relation it looks like it wants, which is what a reader who has not noticed the missing frame would do. Two planes at unrelated origins then read as parallel or not by accident -- a suggestion that is right half the time, on the one surface in this repo whose value is that it never guesses.",
+      "file": "apps/annotate/suggestions.js",
+      "find": "    mating_fit: Object.freeze({ planar: null, cylindrical: \"same_radius\" }),",
+      "replace": "    mating_fit: Object.freeze({ planar: \"parallel\", cylindrical: \"same_radius\" }),"
+    }
+  ]
+}

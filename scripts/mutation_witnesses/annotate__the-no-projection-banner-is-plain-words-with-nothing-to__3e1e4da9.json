@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the no-projection banner is plain words, with nothing to paste",
+  "mutations": [
+    {
+      "contract": "The annotate app's no-projection banner is PLAIN WORDS: it says where the projection is built and stops. Jeff's standing rule across every web surface in this workspace -- a terminal command is never rendered for a reader to copy.",
+      "issue": "docs/issues/ISSUE_20260915_the_annotate_fast_tier_cannot_own_a_mutation_witness.md",
+      "note": "The first entry on the `annotate` tier word (2026-09-16). It restores the exact shape the defect had -- \"Build it: \" with an interpreter and a script path concatenated on (ISSUE_20260915_annotate_banner_renders_a_terminal_command_for_the_user_to_copy) -- so the guard is checked against the sentence it was written for rather than a synthetic one.",
+      "file": "apps/annotate/storage/adapter.js",
+      "find": "    \"No topology projection in the connected folder. It is built in the \" +\n    \"tolerance-stack repository, not from this page.\";",
+      "replace": "    \"No topology projection in the connected folder. Build it: \" +\n    \"venv-win/Scripts/python.exe scripts/build_topology_projection.py\";"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "worstVerdict ranks fail over marginal over pass, whatever order the checks arrive in",
+  "mutations": [
+    {
+      "contract": "A study's rollup verdict is its WORST check, and the ranking is the insertion order of VA.VERDICTS -- worst last. That object literal's key order is the whole of the severity rule.",
+      "issue": "docs/issues/ISSUE_20260915_worst_verdict_ranks_by_an_unguarded_object_key_order.md",
+      "note": "tests/test_js_python_vocabulary.py compares the JS and Python vocabularies as SETS, so every permutation of the three keys was green there. This mutation is the plausible one: `fail, marginal, pass` is both alphabetical and 'worst first', matching how the CSS block below it is written. With it, two live pitch-system studies (marginal + pass) roll up as PASS on the nav rail. REPAIRED 2026-09-22: the anchor spanned only the `pass` block and the line after it, so the patch REPLACED pass with a second fail rather than reordering -- VA.VERDICTS.pass was then undefined and tests.js died on `VA.VERDICTS.pass.says` before any check ran (NEVER_REACHED: a mutation that breaks the page carries no check name to attribute). The anchor now spans the whole object and the replacement is a true PERMUTATION of the same three entries, which is the defect the contract is about.",
+      "file": "apps/viewer/viewer.js",
+      "find": "  VA.VERDICTS = {\n    pass: {\n      says: \"every build clears it\",\n      title: \"The worst case still satisfies the criterion, so no build of \" +\n        \"this joint violates it.\",\n    },\n    marginal: {\n      says: \"clears on average, not in the worst case\",\n      title: \"Nominal satisfies the criterion and the worst case does not. No \" +\n        \"single build is guaranteed — this joint needs selection at assembly, \" +\n        \"not a clean analytical answer.\",\n    },\n    fail: {\n      says: \"does not clear, even on average\",\n      title: \"Neither the worst case nor nominal satisfies the criterion.\",\n    },\n  };",
+      "replace": "  VA.VERDICTS = {\n    fail: {\n      says: \"does not clear, even on average\",\n      title: \"Neither the worst case nor nominal satisfies the criterion.\",\n    },\n    marginal: {\n      says: \"clears on average, not in the worst case\",\n      title: \"Nominal satisfies the criterion and the worst case does not. No \" +\n        \"single build is guaranteed — this joint needs selection at assembly, \" +\n        \"not a clean analytical answer.\",\n    },\n    pass: {\n      says: \"every build clears it\",\n      title: \"The worst case still satisfies the criterion, so no build of \" +\n        \"this joint violates it.\",\n    },\n  };"
+    }
+  ]
+}

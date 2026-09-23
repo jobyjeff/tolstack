@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "real render path (non-mock)",
+  "expect_red": "the page behind it cannot scroll on this origin either — a modal <dialog> makes the page inert but does not reliably stop it scrolling, so the body class is doing the work and it is the same class on both origins",
+  "mutations": [
+    {
+      "contract": "Opening the lightbox adds the shared body-open class that makes the page behind it inert, on a file:// origin too -- the modal alone does not reliably stop the page scrolling.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_lightboxs_new_guards_carry_no_mutation_witnesses.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4.",
+      "file": "apps/viewer/views/lightbox.js",
+      "find": "    document.body.classList.add(BODY_OPEN_CLASS);",
+      "replace": "    document.body.classList.add(BODY_OPEN_CLASS + \"-nope\");"
+    }
+  ]
+}

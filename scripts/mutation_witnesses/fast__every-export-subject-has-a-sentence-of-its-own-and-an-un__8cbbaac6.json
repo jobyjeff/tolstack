@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every export subject has a sentence of its own, and an unrowed subject key falls back rather than rendering `undefined`",
+  "mutations": [
+    {
+      "contract": "Every export subject (value, joint) has a sentence of its own; no two subjects may share one, since the finding this table exists for was one sentence reused across both.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md; see materials-vocabulary-scanned-for-schema-jargon's note for why it arrived unenrolled.",
+      "file": "apps/viewer/viewer.js",
+      "find": "        headline: \"No assembly file recorded — nothing here says which drawing \" +\n          \"file describes the joint this stack is built across\",",
+      "replace": "        headline: \"FILE NOT IDENTIFIED — which file this value was read from \" +\n          \"cannot be established\","
+    }
+  ]
+}

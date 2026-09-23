@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "the preview pane's default is the widened 560px, not the 430px Jeff called too narrow",
+  "mutations": [
+    {
+      "contract": "The topology preview pane opens at 560px -- the width Jeff asked for on 2026-09-15 and again on 2026-09-16 (\"it's too narrow\"). The number lives in exactly one place, `.tv .detail`'s own rule, because a remembered width is written as an inline style over it.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Blocker 2 of that review. The whole of deliverable 5 is three CSS declarations, and the reviewer undid it in a scratch tree -- width back to 430px, the divider's hairline back to transparent, the grip rule deleted -- for 430/430 fast and 20/20 browser. Nothing anywhere went red. The hand-run probe tests/debug_hover_deslop.mjs does assert the width, but no tier ever executes it, so it cannot be the pin. The browser tier's own drag loop drags TO 560 and says nothing about the default. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/topology.css",
+      "find": "  width: 560px; flex: none; overflow: visible; align-self: stretch;",
+      "replace": "  width: 430px; flex: none; overflow: visible; align-self: stretch;"
+    }
+  ]
+}

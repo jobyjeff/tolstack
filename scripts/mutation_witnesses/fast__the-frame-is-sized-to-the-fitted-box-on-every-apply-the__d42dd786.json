@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the frame is SIZED to the fitted box on every apply — the whole sheet inside the stage, not its own 1374x1566 in an 846px window with the drag declined at fit",
+  "mutations": [
+    {
+      "contract": "The lightbox figure is sized to VA.lightboxFitSize's own fitted box on every apply() -- the whole sheet inside the stage, never its own unscaled pixel size.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_lightboxs_new_guards_carry_no_mutation_witnesses.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4. `stageBox()` is the only thing in views/lightbox.js that measures; the fast tier hands apply() a declared stage box, which is why this one witness is reachable off the DOM shim.",
+      "file": "apps/viewer/views/lightbox.js",
+      "find": "        figure.style.width = Math.round(fit.width) + \"px\";",
+      "replace": "        figure.style.width = figure.style.width;"
+    }
+  ]
+}

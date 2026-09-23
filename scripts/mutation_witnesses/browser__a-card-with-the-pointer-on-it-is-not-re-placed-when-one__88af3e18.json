@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "a card with the pointer on it is not re-placed when one of its images settles",
+  "mutations": [
+    {
+      "contract": "An open popover with the reader's pointer on it is never re-placed when one of its images settles. position() flips a card above its trigger when it no longer fits below, and a flip under the pointer is the other half of what Jeff reported as the popup disappearing.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Should-fix 4 of that review: with both guards deleted -- i.e. the pre-branch behaviour restored -- fast stayed 430/430 and browser 20/20, so half of deliverable 4 had no pin at all. The same review found the substantive half: showCrop and showCard re-run their own paint() as each PNG blob resolves, and that path (the FIRST hover of every card, the common case) called position() unconditionally; both now go through replace(). The check observes whether position() RAN, by nudging the `top` it unconditionally rewrites, rather than waiting for a layout where the placement's answer happens to differ. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (!VA.popoverShouldMove(pointerAt, cardBox(),\n                              nodes.crop.offsetHeight, placedHeight)) return;",
+      "replace": "    /* mutated: an open card is re-placed under the reader's pointer */"
+    }
+  ]
+}

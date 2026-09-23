@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the totals are the projection's numbers, printed verbatim, as footer rows of the contributions grid",
+  "mutations": [
+    {
+      "contract": "A study's rolled-up numbers render as footer rows of the contributions grid -- the projection's numbers printed verbatim, in the same nine columns the member rows use.",
+      "issue": "docs/issues/ISSUE_20260922_the_balance_sheet_guards_have_no_mutation_witness_entry.md",
+      "note": "Withholding the footer entirely is the whole-feature mutation; `totals-land-in-the-column-they-total` is the one that asks whether the footer is in the RIGHT table. Two claims, two entries, because a footer rendered into a table of its own satisfies this one.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "  function totalsFoot(study) {\n    if (!study || study.status !== \"ok\") return null;",
+      "replace": "  function totalsFoot(study) {\n    if (study) return null;\n    if (!study || study.status !== \"ok\") return null;"
+    }
+  ]
+}

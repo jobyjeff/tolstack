@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an http page whose served probes both fail never boots FSA -- a hosted visitor has no repo to grant, so Connect folder is not offered at all",
+  "mutations": [
+    {
+      "contract": "An http(s) page whose served probes fail is UNPUBLISHED, never FSA: a hosted visitor has no tolstack repo to grant, so the folder picker is not offered at all.",
+      "issue": null,
+      "note": "Already sound when this table was written (2026-09-15) -- entered as a standing witness, and as the fast-tier worked example this file otherwise would not have. Verified by hand in the review that filed the unpublished-banner issue. RE-POINTED at the merge into integration, 2026-09-15: afbed4e (handoff surfaces_that_state_something_false) replaced `opts.protocol !== FILE_PROTOCOL` with `!VA.isLocalPage(opts.protocol, opts.hostname)` so the annotator's loopback origin counts as local too. Same branch, same defect if it goes; the anchor check caught the rot on the first pytest run after the merge, which is the whole reason it is in pytest.",
+      "file": "apps/viewer/storage/adapter.js",
+      "find": "    if (!VA.isLocalPage(opts.protocol, opts.hostname)) {",
+      "replace": "    if (false) {"
+    }
+  ]
+}

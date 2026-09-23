@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the suggestion colour IS the shared accent -- one declaration in apps/viewer/style.css, not a hex typed twice",
+  "mutations": [
+    {
+      "contract": "The suggestion overlay is the shared accent -- one declaration, in apps/viewer/style.css's :root. Red, amber and green mean provenance and a verdict in both apps (docs/DESIGN_TYPE_AND_COLOUR.md), and a candidacy is neither of those.",
+      "issue": null,
+      "note": "The mutation paints candidates in the provenance palette's traced green, which is the specific way this goes wrong: green reads as 'this one is right' on a surface whose whole point is that the reader decides. It also leaves the hex a plausible-looking literal, which is why the guard pairs it against the stylesheet rather than against a value written down twice.",
+      "file": "apps/annotate/scene.js",
+      "find": "const MARK_COLORS = { bound: 0x35c26e, suggested: 0x6ea8fe, picked: 0xff8c1a };",
+      "replace": "const MARK_COLORS = { bound: 0x35c26e, suggested: 0x43a047, picked: 0xff8c1a };"
+    }
+  ]
+}

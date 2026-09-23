@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "the crop's element IS the picture — its box still carries the crop's own aspect ratio, so a percentage lands where it reads",
+  "mutations": [
+    {
+      "contract": "A card's crop is capped by WIDTH, so the figure the highlight overlay is positioned against stays the picture itself -- a percentage box lands on the cell it names rather than in a letterbox beside it.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md",
+      "note": "The pre-2026-09-15 rule this replaces capped the HEIGHT and let `object-fit: contain` inset the picture inside an element that kept the block's full width. The element then measures ~2.0:1 where the crop is 1.33:1 and every pct() box in views/crop.js points past the picture. Only measurable in a browser, and only on a card that HAS a highlight to mis-place -- which is why the witness lives beside the card-layout block rather than in the fast tier.",
+      "file": "apps/viewer/style.css",
+      "find": ".hovercard .cropblock .cropfig {\n  max-width: calc(260px * var(--crop-ratio, 1)); margin-inline: auto;\n}",
+      "replace": ".hovercard .cropblock img.croppop__img {\n  max-height: 260px; object-fit: contain;\n}"
+    }
+  ]
+}

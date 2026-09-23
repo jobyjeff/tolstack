@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "crop lightbox (launch, zoom, pan on the live crops)",
+  "expect_red": "what was under the pointer is still under the pointer after the zoom — zooming about the stage's corner walks whatever the reader is looking at off the edge",
+  "mutations": [
+    {
+      "contract": "`.lightbox__pan` is the one transformed element and its transform-origin is the stage's top-left. The pure layer measures every anchor from that corner, so the origin is not a styling choice -- it is the coordinate system the zoom arithmetic is written in.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_lightboxs_new_guards_carry_no_mutation_witnesses.md",
+      "note": "The highest-value of the three that issue names, and the reason is the class of claim: this is a STYLESHEET fact, which is exactly what a class-name assertion passes straight through, and the fast tier cannot see it at all. The mutation is the CSS DEFAULT -- `50% 50%` is what the property reverts to if the declaration is dropped in a tidy-up -- and a centred origin offsets every zoom by half the stage, so what the reader was pointing at walks off the edge. Verified in review of crop_lightbox_zoom_viewer (2026-09-17) by planting it in a `git archive` scratch tree: browser 16/17, red on exactly this sub-check.",
+      "file": "apps/viewer/style.css",
+      "find": "  position: absolute; inset: 0; transform-origin: 0 0; will-change: transform;",
+      "replace": "  position: absolute; inset: 0; transform-origin: 50% 50%; will-change: transform;"
+    }
+  ]
+}

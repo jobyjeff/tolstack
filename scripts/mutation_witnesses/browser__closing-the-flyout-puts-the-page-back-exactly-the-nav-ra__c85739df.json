@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "closing the flyout puts the page back exactly -- the nav rail, the DAG pane's box and the drawing's box all as they were",
+  "mutations": [
+    {
+      "contract": "Closing the panel puts the page back exactly. The shift comes off in the dialog's own `close` handler, which is the one seam every close path goes through.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Now that the page yields room rather than being covered, \"closing restores whatever it covered\" stopped being true by construction and became a real claim with a real way to get it wrong -- a page left shifted with no panel on it. The mutation guards the handler on `nodes.flyout.open`, which reads as a sensible \"only if it was open\" check and is in fact dead on arrival: by the time `close` fires the dialog's `open` is already false, so the class never comes off on ANY close path. What reddens is the width comparison after the ✕, and the same failure is what wiring the removal to the button instead of to the dialog would produce on every other path. Kept narrow deliberately: removing the handler altogether would strand the page for the checks that follow and take the suite down as an error rather than a named failure.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    nodes.flyout.addEventListener(\"close\", function () {\n      document.body.classList.remove(\"flyout-open\");\n    });",
+      "replace": "    nodes.flyout.addEventListener(\"close\", function () {\n      if (!nodes.flyout.open) return;\n      document.body.classList.remove(\"flyout-open\");\n    });"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "loadAll's no-projection branch renders that constant, not a sentence of its own",
+  "mutations": [
+    {
+      "contract": "loadAll()'s no-projection branch renders AA.NO_PROJECTION_NOTICE itself. A guard on the constant certifies the constant; this one pairs it to the one surface that reads it.",
+      "issue": "docs/issues/ISSUE_20260915_the_no_projection_banner_guard_pins_the_constant_not_the_call_site.md",
+      "note": "The third of that session's trio, and the one the other two cannot cover: `annotate-banner-says-nothing-to-paste` asserts on the constant and `annotate-carries-no-command-to-render` on the AA.CONFIG supply route, so a bare string literal typed straight into setBanner() left both green. Measured: the annotate tier returned 65/65 with the command inlined at the call site.",
+      "file": "apps/annotate/app.js",
+      "find": "      setBanner(AA.NO_PROJECTION_NOTICE, \"warn\");",
+      "replace": "      setBanner(\"No topology projection found. Build it: venv-win/Scripts/python.exe scripts/build_topology_projection.py\", \"warn\");"
+    }
+  ]
+}

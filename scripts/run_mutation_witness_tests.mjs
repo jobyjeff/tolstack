@@ -15,9 +15,27 @@
 //
 //   node scripts/run_mutation_witness_tests.mjs                     # npm run test:mutations
 //   node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack  # ...from a worktree
-//   node scripts/run_mutation_witness_tests.mjs --only card-layout   # one entry
+//   node scripts/run_mutation_witness_tests.mjs --only card-layout   # one guard
 //   node scripts/run_mutation_witness_tests.mjs --verbose            # show the red
 //   node scripts/run_mutation_witness_tests.mjs --list
+//   node scripts/run_mutation_witness_tests.mjs --unenrolled         # the gap, and what to write
+//
+// TWO THINGS FAIL THIS RUN, AND THEY ARE DIFFERENT DEFECTS. A guard that is
+// enrolled and does not redden on its own mutation has DECAYED -- somebody
+// wrote the witness and the app has since moved out from under it. A guard the
+// tree declares and no spec names is UNENROLLED -- nobody ever wrote one. The
+// first is a repair, the second is an authoring job, and the summary keeps them
+// apart because for eight days they were reported as one word ("NOT WITNESSED")
+// and read as the other.
+//
+// Unenrollment is measured against a pinned census
+// (`DECLARED_GUARDS`, scripts/guard_enumeration.mjs) rather than against zero:
+// requiring all 1,173 of this repo's guards to carry a spec would fail nothing
+// usefully. What the pin buys is that a guard ADDED and not enrolled moves a
+// number, and the run says so, naming the file to write. That is the half of
+// the enrollment problem no checklist entry ever moved -- five of them are in
+// docs/prompts/REVIEW_AGENT.md and the rate did not change
+// (docs/strategy/BRIEF_20260915_mutation_witness_enrollment.md).
 //
 // `--repo` is the worktree escape hatch, same as the tiers below it:
 // data/projections/viewer/ lives only in the MAIN checkout, and the `[real]`
@@ -38,7 +56,7 @@
 // projection is not under whatever `--repo` resolves to, the run says so on its
 // first line rather than after several minutes of browser.
 //
-// WHAT IT DOES, per entry in scripts/mutation_witnesses.json:
+// WHAT IT DOES, per mutation in scripts/mutation_witnesses/:
 //
 //   1. resolves `find` in the file it names and requires EXACTLY ONE match.
 //      Zero matches means the anchor has rotted and the entry is checking
@@ -67,11 +85,12 @@ import { spawn } from "node:child_process";
 import { readFileSync, rmSync, cpSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, normalize } from "node:path";
+import { census, censusReport, specFileName, SPEC_DIR }
+  from "./guard_enumeration.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = normalize(join(HERE, ".."));
 const SHADOW = join(REPO, "tmp", "mutation-witness");
-const TABLE = join(HERE, "mutation_witnesses.json");
 // The directories the tiers actually read, as path segments. apps/ is the app
 // under test and scripts/ is the browser runner itself. Copying data/
 // (gigabytes, gitignored, main-checkout only) would be both wrong and slow --
@@ -138,9 +157,26 @@ const ONLY = argFlag("--only");
 // produces, which is what a lesson or a review writes down.
 const VERBOSE = process.argv.includes("--verbose");
 
-const table = JSON.parse(readFileSync(TABLE, "utf8"));
-const all = table.mutations;
-const chosen = ONLY === null ? all : all.filter((m) => m.id.includes(ONLY));
+const STATE = census(REPO);
+// One job per MUTATION, flattened out of one spec file per GUARD. The `id` is
+// the spec's file name without its extension -- derived from the guard, so it
+// is not something anybody chose and not something that can drift from the
+// guard it names -- with an ordinal only where a guard declares more than one
+// way to break it.
+const all = STATE.specs.flatMap((spec) =>
+  spec.mutations.map((mutation, i) => ({
+    ...mutation,
+    tier: spec.tier,
+    suite: spec.suite,
+    expect_red: spec.expect_red,
+    specFile: spec.specFile,
+    id: spec.specFile.replace(/\.json$/, "") +
+      (spec.mutations.length > 1 ? `#${i + 1}` : ""),
+  })));
+// `--only` matches the derived id OR the guard's own name, because the name is
+// the half a reader has in front of them: it is what the tier printed.
+const chosen = ONLY === null
+  ? all : all.filter((m) => m.id.includes(ONLY) || m.expect_red.includes(ONLY));
 
 if (process.argv.includes("--list")) {
   for (const m of all) {
@@ -148,6 +184,27 @@ if (process.argv.includes("--list")) {
     console.log(`  contract  ${m.contract}`);
     console.log(`  mutation  ${m.file}: ${oneLine(m.find)} -> ${oneLine(m.replace)}`);
     console.log(`  must red  ${m.expect_red}\n`);
+  }
+  process.exit(0);
+}
+
+// The gap, and the file name that closes each line of it. Deliberately a
+// separate flag rather than something the full run prints in full: it is ~1,070
+// lines long, and the run's own summary needs to stay readable.
+if (process.argv.includes("--unenrolled")) {
+  console.log(censusReport(STATE.rows) + "\n");
+  for (const guard of STATE.guards) {
+    if (guard.spec) continue;
+    console.log(`${guard.tier}  ${guard.name}`);
+    console.log(guard.enrollable
+      ? `  write ${SPEC_DIR.join("/")}/${specFileName(
+          { tier: guard.tier, expect_red: guard.name })}` +
+        (guard.tier === "browser"
+          // The one field the enumeration cannot supply: a guard's name is
+          // declared once and may be run under more than one suite, so which
+          // suite to pay for is the author's call.
+          ? '   ("suite": the registry key whose run reaches this guard)' : "")
+      : `  NOT ENROLLABLE: ${guard.why}`);
   }
   process.exit(0);
 }
@@ -469,11 +526,41 @@ function anchorHits(mutation) {
   const witnessed = chosen.length - misses.length;
   console.log(`\n${witnessed}/${chosen.length} declared mutations witnessed`);
   if (misses.length) {
-    console.log("NOT WITNESSED:" +
+    // DECAY. The spec exists and the guard no longer bites -- which is the
+    // failure this whole tier was built to find, and a different job from the
+    // one below it.
+    console.log("NOT WITNESSED — an enrolled guard that no longer reddens:" +
       misses.map((m) => `\n  ${m.id} — ${m.why}`).join(""));
     console.log("A guard that no longer reddens on its own declared mutation is " +
       "not a guard. Repair the guard, or -- if the app changed so the mutation " +
-      "no longer describes a defect -- retire the entry and say why.");
+      "no longer describes a defect -- retire the spec and say why.");
+    process.exitCode = 1;
+  }
+
+  // ...and the second failure class, which is not about any spec that exists.
+  console.log("\nenrollment, per guard source:");
+  console.log(censusReport(STATE.rows));
+  const moved = STATE.rows.filter((r) => r.declared !== r.pinned);
+  if (moved.length) {
+    console.log("\nNOT ENROLLED — this tree declares guards the census is not " +
+      "pinned at:" + moved.map((r) =>
+        `\n  ${r.source}: ${r.declared} declared, pinned at ${r.pinned}`).join(""));
+    console.log("A guard added without a mutation spec is the enrollment gap " +
+      "arriving, and this is the moment it is cheap to close -- the author " +
+      "still knows what the guard is for. Run `node " +
+      "scripts/run_mutation_witness_tests.mjs --unenrolled` for the file name " +
+      `to write under ${SPEC_DIR.join("/")}/, then raise that source's number ` +
+      "in DECLARED_GUARDS (scripts/guard_enumeration.mjs). Raising it WITHOUT " +
+      "a spec is allowed -- some guards cannot be witnessed -- and is then a " +
+      "line in the diff rather than nothing at all.");
+    process.exitCode = 1;
+  }
+  if (STATE.orphans.length) {
+    // A renamed guard, seen from the spec's side. Loud here and in pytest,
+    // which is the whole point of deriving the file name from the name.
+    console.log("\nORPHANED SPECS — these name a guard the tree no longer " +
+      "declares:" + STATE.orphans.map((s) =>
+        `\n  ${s.specFile}\n    ${s.expect_red}`).join(""));
     process.exitCode = 1;
   }
 })();

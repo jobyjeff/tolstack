@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "hosted origin with nothing published",
+  "expect_red": "the bar carries that one sentence and nothing else — no second element offering advice that is untrue of a hosted visitor",
+  "mutations": [
+    {
+      "contract": "A served page with nothing published gets one plain sentence AND NOTHING ELSE -- in particular not the switch-to-Chrome advice written for the other no-adapter state, which is untrue of a hosted visitor's situation.",
+      "issue": "docs/issues/ISSUE_20260915_unpublished_banner_has_nothing_pinning_and_nothing_else.md",
+      "note": "Every other sub-check on that bar looks for something ABSENT, so all of them pass while a second element rides along.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "        if (transportKind !== VA.TRANSPORT.UNPUBLISHED) {",
+      "replace": "        if (true) {"
+    }
+  ]
+}

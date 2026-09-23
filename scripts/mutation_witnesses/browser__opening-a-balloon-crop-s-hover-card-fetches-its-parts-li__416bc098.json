@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "real render path (non-mock)",
+  "expect_red": "opening a balloon crop's hover CARD fetches its parts-list companion too — the card's list is built separately and carries the same second image",
+  "mutations": [
+    {
+      "contract": "The hover card builds its own fetch list and carries the same second image: a balloon crop's card shows the parts-list row, not the missing-image line.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md",
+      "note": "The same companion term, in the second of the three places it is written (`cardPngs`). A separate entry from the pane's because `imageCache` is shared -- whichever fetcher reaches a PNG first is the only one that touches the adapter, so the two can only be observed on two different rows and only fail one check each.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "      [entry.png, entry.companion && entry.companion.png].forEach(function (png) {",
+      "replace": "      [entry.png].forEach(function (png) {"
+    }
+  ]
+}

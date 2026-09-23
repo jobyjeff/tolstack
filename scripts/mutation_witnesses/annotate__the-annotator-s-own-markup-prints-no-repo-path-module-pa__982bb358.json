@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "the annotator's own markup prints no repo path, module path, id or command at the reader",
+  "mutations": [
+    {
+      "contract": "The annotator's own static markup (index.html) prints no repo path, module path, id or command at the reader -- the same shared ban list apps/viewer/tests.js scans its own markup against.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md. Enrollable on the `annotate` tier word added 2026-09-16 (ISSUE_20260915_the_annotate_fast_tier_cannot_own_a_mutation_witness) -- trap 5 of HANDOFF_20260921_mutation_witness_enrollment_backlog.md asked whether that issue's fix covers these three rows; it does, the tier is a real harness word with its own CHECK_SOURCE row, so suite: null enrolls cleanly.",
+      "file": "apps/annotate/index.html",
+      "find": "      <label class=\"an__label\">parts with a 3D model</label>",
+      "replace": "      <label class=\"an__label\">parts (data/meshes/)</label>"
+    }
+  ]
+}

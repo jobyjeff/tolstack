@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "real render path (non-mock)",
+  "expect_red": "selecting a balloon crop's row fetches its parts-list companion too, so the PANE's second image is there with the first rather than a paint later",
+  "mutations": [
+    {
+      "contract": "A balloon crop names TWO images, and the detail pane fetches both: the crop and its parts-list row, awaited together so the second is on screen with the first.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md",
+      "note": "Every fast-tier companion test hands the renderer its own `images` map, so the FETCH list has nothing standing on it; dropping this term left the fast tier at 407/407 and the browser tier at 20/20, with the only symptom VA.CROP_IMAGE_MISSING_TEXT under 'Parts list, sheet 1' on all four live balloon crops. Not witnessable in the fast tier at all: topology_app.js is not in run_tests.cjs's file list.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    var pngs = [entry.png];\n    if (entry.companion && entry.companion.png) pngs.push(entry.companion.png);\n    return Promise.all(pngs.map(cacheCropImage)).then(function () {",
+      "replace": "    var pngs = [entry.png];\n    return Promise.all(pngs.map(cacheCropImage)).then(function () {"
+    }
+  ]
+}

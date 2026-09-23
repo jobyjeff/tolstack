@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file:// respine",
+  "expect_red": "[real] scrolled sideways, the DAG stays pinned to the pane's VISIBLE left edge — `.tv__rails` is sticky, which is what keeps a scrolled reader's rails beside their own rows",
+  "mutations": [
+    {
+      "contract": ".tv__rails { position: sticky; left: 0 } holds the DAG against the pane's VISIBLE left edge, so a reader who scrolls the grid sideways keeps their rails beside the rows those rails align with.",
+      "issue": "docs/issues/ISSUE_20260915_the_sticky_rails_stop_sticking_once_the_grid_is_scrolled_past_the_dags_own_width.md",
+      "note": "Browser tier only, and it has to be: the DOM shim has no layout to scroll. Every other respine check in either tier runs at scrollLeft 0, where the claim holds of a pane with no sticky at all -- which is why testRespine's scrolled arm sets scrollLeft before measuring. The arm's second sub-check used to pin the LIMIT -- the sticky running out of containing block past paneWidth - dagWidth. topology_grid_scroll_and_grips (2026-09-16) removed that limit, since `.tv__body { width: max-content }` makes the sticky's containing block the CONTENT's width, and rewrote the sub-check into its opposite: it now pins that the rails hold past the room the DAG leaves beside them, all the way to the far end.",
+      "file": "apps/viewer/topology.css",
+      "find": "  flex: none; display: block; position: sticky; left: 0; z-index: 1;",
+      "replace": "  flex: none; display: block; position: static; left: 0; z-index: 1;"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] no study summary explains itself in a paragraph",
+  "mutations": [
+    {
+      "contract": "The author's rationale lives INSIDE the row's disclosure, never as a paragraph beside it. \"Compress the wording, never the facts\" -- a summary that explains itself in a paragraph is the shape this replaced.",
+      "issue": "docs/issues/ISSUE_20260922_the_balance_sheet_guards_have_no_mutation_witness_entry.md",
+      "note": "One statement of scope, which is the point: the guard walks every live study's summary and asks whether every <p> it finds is inside a <details>, so a rationale appended one level up is caught on whichever study has one -- not on a spot-check of the study the author had in mind.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      box.appendChild(VA.el(\"p\", \"tvfind__why\", finding.rationale));",
+      "replace": "      what.appendChild(VA.el(\"p\", \"tvfind__why\", finding.rationale));"
+    }
+  ]
+}

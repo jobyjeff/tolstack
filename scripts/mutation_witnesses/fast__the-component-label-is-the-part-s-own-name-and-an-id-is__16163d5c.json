@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the component label is the part's own name, and an id is what it is keyed by -- never what is printed",
+  "mutations": [
+    {
+      "contract": "The grid's merged component cell, the preview pane's heading, a hover card's heading and an interface's side list all print a part's NAME. An id is a deep-link handle and is rendered nowhere a reader reads -- Jeff, 2026-09-15: \"2nd line bolt_nas6403u11d appears to be some type of internal id that is meaningless to user\".",
+      "issue": null,
+      "note": "Swaps the fallback order rather than deleting the name, so a part WITH a name renders its id and a part without one is unaffected -- which is the exact defect, not a crash. Reddens 17 tests; the declared one is the fixture-tier statement of the rule, so it witnesses without a projection on disk. Reasoning and the measurements: docs/sessions/lessons/LESSONS_20260915_viewer_component_names_and_reference_copy.md.",
+      "file": "apps/viewer/topology.js",
+      "find": "    return part.name || part.id;",
+      "replace": "    return part.id || part.name;"
+    }
+  ]
+}

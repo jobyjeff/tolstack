@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "selecting a study never hides a node or an edge: the DAG is the whole walk before and after, whatever the study is",
+  "mutations": [
+    {
+      "contract": "Selecting a study never changes what is ON SCREEN: the rails are always VA.spineRight(topoProj.layout), so every node, edge, rail and link of the document survives the selection. The old behaviour swapped in study.layout, which is what Jeff read as a defect.",
+      "issue": null,
+      "note": "Declared in review of viewer_respine_whole_walk (2026-09-15). The handoff's headline deliverable, and its single undo is this one expression -- the same shape as viewer_dag_spine_layout's `VA.spineRight` call, which shipped green in all three tiers when its CALL was deleted. Measured by hand here: the mutation reddens three fast-tier checks. Entered because the tactical lesson carried no mutation list for the three emphasis contracts.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var layout = VA.spineRight(topoProj.layout);",
+      "replace": "    var layout = VA.spineRight(study && study.layout ? study.layout : topoProj.layout);"
+    }
+  ]
+}

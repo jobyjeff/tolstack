@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "the flyout's width clamps, and a drag on its divider widens it by moving RIGHT -- the opposite sign to the preview pane's",
+  "mutations": [
+    {
+      "contract": "The flyout is LEFT of its divider, so dragging RIGHT widens it -- the opposite sign to the preview pane's divider on the same page.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "There are now two resize dividers on this page with inverted signs, and a copy-paste between them is the likeliest mistake in either feature. That is exactly why both lines of arithmetic live in the pure layer instead of in the pointer handler: the mutation below is the pane's own line, verbatim.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    return VA.clampFlyoutWidth(startWidth + dx, room, keep);",
+      "replace": "    return VA.clampFlyoutWidth(startWidth - dx, room, keep);"
+    }
+  ]
+}

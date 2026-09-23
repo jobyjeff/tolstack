@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "no rendered stack surface prints an internal id, a field name, a checksum or a workstation path",
+  "mutations": [
+    {
+      "contract": "The schema's own field names, read out of the projection rather than listed, must not appear as reader-facing text. A free-form block's raw key printed as its label reddens.",
+      "issue": "docs/issues/ISSUE_20260916_the_reader_facing_copy_guards_have_no_mutation_witness_entry.md",
+      "note": "The half that silently matched nothing for an hour on 2026-09-16 (a lost backslash in a word-boundary escape, so every pattern was <backspace>name<backspace> and the scan matched nothing ever, green the whole time). It is spelled as an explicit wholeWordIn() now, with no escape left to lose -- and this entry is what would have caught the escape had it existed. The mutation restores the shipped-until-2026-09-16 label, so `assembly_drawing` and `temperature_c` print as definition-list terms.",
+      "file": "apps/viewer/views/stack.js",
+      "find": "      dl.appendChild(VA.el(\"dt\", null, VA.fieldLabel(key)));",
+      "replace": "      dl.appendChild(VA.el(\"dt\", null, key));"
+    }
+  ]
+}

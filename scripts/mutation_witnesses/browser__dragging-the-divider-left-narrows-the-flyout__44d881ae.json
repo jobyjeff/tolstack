@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "dragging the divider LEFT narrows the flyout",
+  "mutations": [
+    {
+      "contract": "A drag on the flyout's seam keeps working when the pointer moves over the 3D panel. Pointer events over a cross-document iframe go to THAT document, so the panel's own content would otherwise swallow the gesture.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "This is the whole bug, not a hardening: measured on the first build of the divider, ONE `pointermove` reached the parent document across an entire 8-step drag and the panel never moved a pixel. The two other drags on this page never met it because neither the grid nor the preview pane embeds a document. The mutation deletes the one rule that fixes it; the LEFTWARD drag is the witness, because that is the direction that takes the pointer over the iframe (rightwards leaves the dialog for ordinary page content and works either way).",
+      "file": "apps/viewer/topology.css",
+      "find": "body.tv-resizing .flyout__frame { pointer-events: none; }",
+      "replace": "body.tv-resizing .flyout__frame { pointer-events: auto; }"
+    }
+  ]
+}

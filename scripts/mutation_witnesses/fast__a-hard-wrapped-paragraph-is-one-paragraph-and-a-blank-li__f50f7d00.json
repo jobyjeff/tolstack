@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a hard-wrapped paragraph is ONE paragraph, and a blank line is what ends it",
+  "mutations": [
+    {
+      "contract": "A hard-wrapped paragraph is ONE paragraph and a blank line is what ends it -- apps/viewer/vendor/markdown.js's local-v2 divergence from the vendored forge renderer, which used to emit one <p> per source line.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md as 'a hard-wrapped paragraph is ONE paragraph... (and its four siblings)' -- the mutation reddens five tests; this is the primary one. The [real] worksheet twin below shares the same find/replace and is entered separately because the lesson lists it as its own row.",
+      "file": "apps/viewer/vendor/markdown.js",
+      "find": "      var para = [];\n      while (i < lines.length && lines[i].trim() !== \"\" && !startsBlock(lines, i)) {\n        para.push(lines[i].trim());\n        i++;\n      }\n      html.push(\"<p>\" + inline(para.join(\"\\n\")) + \"</p>\");",
+      "replace": "      html.push(\"<p>\" + inline(lines[i].trim()) + \"</p>\");\n      i++;"
+    }
+  ]
+}

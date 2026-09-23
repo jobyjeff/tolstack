@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate top bar + entry context (auto-filter, see-through)",
+  "expect_red": "unticking See-through parts makes the body solid, now",
+  "mutations": [
+    {
+      "contract": "The see-through switch applies to the parts that are ALREADY open, not just to the next arrival -- for both entry shapes (one element, and a whole study or topology).",
+      "issue": null,
+      "note": "The mutation keeps the setting, the persistence and the checkbox state and drops only the re-application to open parts. The reader ticks the box, it stays ticked, it survives a reload, and nothing on screen changes -- which is exactly the shape a guard reading the setting rather than the material would miss.",
+      "file": "apps/annotate/app.js",
+      "find": "  state.scene.listOpenParts().forEach((sha) => {\n    if (state.scene.isVisible(sha)) state.scene.setGhost(sha, on);\n  });",
+      "replace": "  state.scene.listOpenParts().forEach(() => {});"
+    }
+  ]
+}

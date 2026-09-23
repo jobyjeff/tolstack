@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate top bar + entry context (auto-filter, see-through)",
+  "expect_red": "unticking Parts returns the lists to manual at once",
+  "mutations": [
+    {
+      "contract": "Unticking an auto-filter switch returns that control to manual AT ONCE -- a switch whose effect only shows up on the next launch is a switch nobody can tell is working.",
+      "issue": null,
+      "note": "The mutation drops only the immediate lift and keeps the stored setting, which is the plausible half-implementation: the box stays unticked, it survives a reload, and the next arrival really does skip the step -- so every check except the one about NOW stays green. It took a code change to make this witnessable: the lift and the re-apply were an if/else, so dropping the lift fell through to the replay, whose own topology re-select clears the scope anyway -- the mutation lifted the filter by a second route and the tier stayed green. Two independent statements now.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (key === \"part\" && !on) cmdFilterElement(null);",
+      "replace": "  if (false) cmdFilterElement(null);"
+    }
+  ]
+}

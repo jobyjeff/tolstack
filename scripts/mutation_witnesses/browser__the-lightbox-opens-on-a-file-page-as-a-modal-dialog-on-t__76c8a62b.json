@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "real render path (non-mock)",
+  "expect_red": "the lightbox OPENS on a file:// page, as a MODAL dialog on the top layer — the whole surface is a <dialog>.showModal(), and a top-layer element is the one thing on these pages whose behaviour a reader could reasonably expect an origin to change",
+  "mutations": [
+    {
+      "contract": "The lightbox opens as a MODAL dialog (dialog.showModal()) on a file:// origin too, on the top layer -- not merely dialog.show(), which leaves the page behind it live.",
+      "issue": "docs/issues/ISSUE_20260916_the_crop_lightboxs_new_guards_carry_no_mutation_witnesses.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4. This mutation reddens TWO sub-checks (the modal one and the Escape-dismiss one, since show() leaves Escape without a dismiss); the lesson says to declare the modal one.",
+      "file": "apps/viewer/views/lightbox.js",
+      "find": "    if (!dialog.open) dialog.showModal();",
+      "replace": "    if (!dialog.open) dialog.show();"
+    }
+  ]
+}

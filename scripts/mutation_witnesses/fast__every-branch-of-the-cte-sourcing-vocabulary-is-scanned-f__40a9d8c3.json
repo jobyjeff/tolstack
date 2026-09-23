@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "every branch of the CTE sourcing vocabulary is scanned for schema jargon, including the ones no live or fixture entry reaches",
+  "mutations": [
+    {
+      "contract": "Every branch of VA.VALUES_STATUSES is scanned for schema jargon, including the branches no live or fixture entry reaches -- a guard whose covered branch is unreachable is a guard reporting green over nothing.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md, whose enrolling handoff (mutation_witness_enrollment_gaps) reached completed/ and merged the same day. `materials.json` is on reader_facing_bans.js's banned list; the text scan (not the field-name scan) is what this mutation trips.",
+      "file": "apps/viewer/viewer.js",
+      "find": "          \"the schema lets such an entry state no CTE at all\";",
+      "replace": "          \"the schema lets such an entry state no CTE at all (materials.json)\";"
+    }
+  ]
+}

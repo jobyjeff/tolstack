@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every untraced edge whose part HAS a mesh offers a working annotate-this link, wherever the mesh set has reached",
+  "mutations": [
+    {
+      "contract": "The other half of the same rule: where a mesh DOES resolve the link is really offered, carrying that edge's own topology/edge/study/part identity. Withholding it everywhere would satisfy the entry above on its own.",
+      "issue": "docs/issues/ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows.md",
+      "note": "Inverts the pane's mesh gate rather than blinding VA.partHasMesh, so the red comes from the pane's behaviour and not from the test's own classifier changing under it. This mutation reddens the entry above too; the runner only requires the declared check among the failures.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (VA.needsAnnotation(edge.confidence) &&\n        VA.partHasMesh(ctx.topoProj, edge.part)) {",
+      "replace": "    if (VA.needsAnnotation(edge.confidence) &&\n        !VA.partHasMesh(ctx.topoProj, edge.part)) {"
+    }
+  ]
+}

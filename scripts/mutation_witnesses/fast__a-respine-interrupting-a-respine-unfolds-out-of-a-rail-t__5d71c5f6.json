@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a respine interrupting a respine unfolds out of a rail the frame it interrupted really drew — not out of drawn column 0, which a frame caught mid-unfold has nothing on",
+  "mutations": [
+    {
+      "contract": "A column a respine ADDS is drawn collapsed onto the OUTGOING FRAME'S LEFTMOST RAIL and unfolds out of it -- which is why rails carry no opacity of their own, and which has to hold from a transition frame as well as from a settled one.",
+      "issue": "docs/issues/ISSUE_20260915_an_interrupted_respine_pops_nine_rails_in_from_nowhere.md",
+      "note": "The mutation is the pre-2026-09-15 behaviour exactly: clamp the drawn column index at 0 rather than at the outgoing frame's own leftmost index. A SETTLED outgoing frame always has a rail at drawn 0, so every guard that starts from one stays green; the witness has to interrupt a transition at e = 0.5, where the spine sits at drawn 4.5 with nothing to its left.",
+      "file": "apps/viewer/topology.js",
+      "find": "      floor: from.floor > 0 ? from.floor : 0,",
+      "replace": "      floor: 0,"
+    }
+  ]
+}

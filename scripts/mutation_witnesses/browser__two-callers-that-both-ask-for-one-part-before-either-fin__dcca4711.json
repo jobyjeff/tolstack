@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate face suggestions (candidate colours, the pick, the switch)",
+  "expect_red": "two callers that both ask for one part before either finishes get ONE body in the scene",
+  "mutations": [
+    {
+      "contract": "scene.loadPart is idempotent under concurrency. Its already-open check is synchronous and `this.parts.set` happens three awaits later, so two callers that both start before either finishes would each build a THREE.Mesh -- two bodies in the scene at two layout slots, one of them unreachable through `this.parts` and so impossible to hide, frame or dispose.",
+      "issue": null,
+      "note": "Two callers is the normal case since 2026-09-21: `goto` opens the element's part and the face-suggestion display opens the same one, started from `select-edge` and deliberately not awaited by a click handler. Their relative timing is not deterministic enough to be a guard, though -- measured, the mutated build stayed green through a real element arrival -- so the witnessing sub-check DRIVES the contract instead: two loadPart calls started before either finishes, and the bodies counted off the live scene graph. The mutation drops the shared in-flight promise and keeps the synchronous already-open check, which is the shape the hazard had.",
+      "file": "apps/annotate/scene.js",
+      "find": "    const inFlight = this._loading.get(sha256);\n    if (inFlight) return inFlight;",
+      "replace": "    const inFlight = null;\n    if (inFlight) return inFlight;"
+    }
+  ]
+}

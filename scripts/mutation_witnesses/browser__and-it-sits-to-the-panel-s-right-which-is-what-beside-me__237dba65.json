@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate flyout (repo-root mount + file:// degradation)",
+  "expect_red": "...and it sits to the panel's RIGHT, which is what 'beside' means",
+  "mutations": [
+    {
+      "contract": "The page yields ENOUGH room, not just some: the whole DAG drawing ends up clear of the panel, never partly under it.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "The discriminating witness for the 2026-09-16 review blocker. The shipped guard measured PARTIAL overlap against the drawing's SCROLLPORT (dag.right - max(dag.left, panel.right) >= reserve) and so was green over a diagram that was 100% covered: `#topopane` is 738px wide and only its left end was under the panel. This mutation shifts the page 300px SHORT -- the nav rail's own width, the obvious off-by-one -- which leaves the scrollport partly clear and the drawing wholly underneath. The old formula passes that; \"the drawing's left edge is at or past the panel's right edge\" does not. Its sibling `flyout-open-yields-the-page` mutates the same declaration to no shift at all, which is the pre-review build; this one is the near miss that looks correct.",
+      "file": "apps/viewer/topology.css",
+      "find": "body.flyout-open .tv { margin-left: var(--flyout-width, 0); }",
+      "replace": "body.flyout-open .tv { margin-left: calc(var(--flyout-width, 0) - 300px); }"
+    }
+  ]
+}

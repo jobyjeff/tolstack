@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate hosted posture (no folder grant off-machine)",
+  "expect_red": "the bind instruction is gone -- it named a 3D view this origin does not have",
+  "mutations": [
+    {
+      "contract": "A hosted annotate page says annotating is unavailable and then shows nothing that instructs it -- no bind hint, no pickers, no parts panel, no empty 3D pane and no dev console.",
+      "issue": "docs/issues/ISSUE_20260915_the_hosted_annotate_page_still_instructs_the_reader_to_bind_a_face.md",
+      "note": "Every sub-check that existed before this one reads the TOP BAR -- the banner sentence, the Connect button, the transport line, the origin itself and the pageerror list -- and not one of them looks below it. The banner was already honest while the page under it told the reader to click a face in a 3D view that does not exist on that origin, so a mutation that puts the workspace back leaves all six of them green (measured in review 2026-09-15: 12/18, and the six reds are exactly the six sub-checks added with this entry).",
+      "file": "apps/annotate/app.js",
+      "find": "    el.workspace.style.display = \"none\";",
+      "replace": "    el.workspace.style.display = \"\";"
+    }
+  ]
+}

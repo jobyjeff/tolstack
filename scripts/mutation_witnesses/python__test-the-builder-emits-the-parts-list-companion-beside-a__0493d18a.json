@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_viewer_crops.py",
+  "expect_red": "test_the_builder_emits_the_parts_list_companion_beside_a_balloon_crop",
+  "mutations": [
+    {
+      "contract": "A balloon crop is a number in a circle until the parts-list row beside it says what the number names, so the builder emits the companion crop alongside every balloon it resolves.",
+      "issue": "docs/issues/ISSUE_20260916_the_mutation_witness_table_has_no_tier_for_a_pytest_guard.md",
+      "note": "One of the two guards that issue was filed FOR: planted, watched reddening and reverted on 2026-09-16 by viewer_unwitnessed_surface_guards, and undeclarable until the `python` tier existed. The mutation is the wire cut at its one seam -- the call replaced by the `None` the non-balloon branch already produces -- which is exactly the shape of the silent revert ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier described: the projection still builds, every crop still renders, and the companion simply stops being there.",
+      "file": "scripts/build_viewer_crops.py",
+      "find": "        companion = (parts_list_companion(doc, page, balloon, dc_root,\n                                          resolved[\"run_dir\"], crops_dir,\n                                          name_stem, args)\n                     if balloon is not None else None)",
+      "replace": "        companion = None"
+    }
+  ]
+}

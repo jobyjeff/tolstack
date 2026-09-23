@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate rail filter + face deselect",
+  "expect_red": "deselect puts the mesh back to its own colours -- the tint, not just the pick state, which is the pair that used to disagree",
+  "mutations": [
+    {
+      "contract": "Deselecting a face puts its colours back. The pick state and the orange in the colour buffer are ONE fact, and the bug this closed was exactly them disagreeing.",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
+      "note": "Jeff: \"I accidentally clicked a face ... but there's no way to deselect a surface.\" The mutation restores the pre-handoff behaviour precisely -- forget the pick, leave the tint -- which is invisible to everything except a real GL context, so this entry can only be owned by the browser tier. `window.__scene.highlightedFace()` is the observable it reads. This entry earned its keep immediately: the first version of the guard read `scene.highlightedFace()`, which reports `_lastPick` -- the BOOKKEEPING -- so the mutation cleared the flag, left the mesh orange, and the check stayed green. It reads the live colour attribute against `userData.baseColors` now, which is the claim.",
+      "file": "apps/annotate/scene.js",
+      "find": "    this.restoreColors(last.sha256);\n    this._lastPick = null;",
+      "replace": "    this._lastPick = null;"
+    }
+  ]
+}

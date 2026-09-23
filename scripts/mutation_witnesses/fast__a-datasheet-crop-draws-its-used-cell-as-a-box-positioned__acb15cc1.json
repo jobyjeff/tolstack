@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a datasheet crop draws its used cell as a box positioned in PERCENTAGES of the image",
+  "mutations": [
+    {
+      "contract": "A crop says where on it to look: every surface that shows a crop draws the crop's own `highlights[]` over the picture, in the same frame as the `<img>`. A crop that widened and marked nothing is worse than the tight strip it replaced, and it looks perfectly fine in a screenshot.",
+      "issue": null,
+      "note": "Declared in review 2026-09-16 (REVIEW_20260915_viewer_reference_crops_in_context), from a hand mutation that did redden. Removes the overlay loop from the ONE shared figure builder, so it reaches all four crop surfaces at once; four fast-tier sub-checks go red, the named one first. The deliverable's other wires could not be declared alongside it, because no check reddened on them -- see ISSUE_20260916_the_crop_overlays_wiring_is_unwitnessed_in_every_tier.md, and note that this is no longer the state. viewer_unwitnessed_surface_guards wrote the assertions and declared the browser-tier ones (the entries that share this `issue`); the two that live in the builder were watched reddening in that same session and waited only on a tier word for pytest existing -- `builder-emits-the-parts-list-companion` and `builder-names-the-drawing-the-link-is-called-after`, 2026-09-18.",
+      "file": "apps/viewer/views/crop.js",
+      "find": "    VA.cropHighlights(entry).forEach(function (highlight) {\n      frame.appendChild(highlightBox(highlight));\n    });",
+      "replace": "    /* mutated: the crop marks nothing */"
+    }
+  ]
+}

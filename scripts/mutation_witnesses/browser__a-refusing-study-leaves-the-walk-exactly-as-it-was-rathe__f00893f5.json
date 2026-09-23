@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology file://",
+  "expect_red": "a refusing study leaves the walk exactly as it was rather than emphasizing a chain it has not got",
+  "mutations": [
+    {
+      "contract": "A study that REFUSED has no chain, so clicking it leaves the walk at FULL emphasis -- nothing dimmed, every leader, the whole table. The error is the result.",
+      "issue": "docs/issues/ISSUE_20260915_a_refusing_study_staying_on_the_walk_is_unwitnessed_in_every_tier.md",
+      "note": "Re-pointed by viewer_respine_whole_walk (2026-09-15): the condition used to be topology_app.js's chainable() picking a layout, and is now views/topology.js's one `marking` test, which gates the dimming, the leader subset and the grid subset together. The witness still has to arrive from a SUMMING study -- reached from the deselected walk, a refusal and no selection at all draw the same page, which is why this shipped green in all three tiers.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    var marking = !!(study && study.status === \"ok\");",
+      "replace": "    var marking = !!study;"
+    }
+  ]
+}

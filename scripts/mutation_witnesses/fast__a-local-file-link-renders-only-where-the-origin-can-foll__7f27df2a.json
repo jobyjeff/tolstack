@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "a local-file link renders only where the origin can follow it",
+  "mutations": [
+    {
+      "contract": "The \"open the PDF\" link renders only on an origin that can service a file: navigation. Chrome refuses every navigation from an http(s) page to a file: URL, so on a served page the click did nothing at all (Jeff, 2026-09-15) -- and a control that does nothing must be absent, not explained.",
+      "issue": null,
+      "note": "Reverts the one call to the pure URL builder, which is exactly the pre-fix code. VA.fileUrl is deliberately still pure and still exported, so this mutation is the real regression rather than a synthetic one. Reasoning and the measurements: docs/sessions/lessons/LESSONS_20260915_viewer_component_names_and_reference_copy.md.",
+      "file": "apps/viewer/views/crop.js",
+      "find": "    var fileUrl = VA.localFileUrl(entry.pdf);",
+      "replace": "    var fileUrl = VA.fileUrl(entry.pdf);"
+    }
+  ]
+}

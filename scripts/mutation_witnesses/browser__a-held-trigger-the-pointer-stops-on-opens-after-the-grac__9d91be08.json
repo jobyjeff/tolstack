@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "topology http",
+  "expect_red": "a held trigger the pointer STOPS on opens after the grace period — a deferral is a delay, never a card that never arrives",
+  "mutations": [
+    {
+      "contract": "A trigger held back by the hover-intent corridor opens after VA.HOVER_INTENT_MS if the pointer never reaches the open card. A deferral is a DELAY; the design's own words are \"never one that never arrives\".",
+      "issue": "docs/sessions/lessons/LESSONS_20260916_viewer_hover_deslop_and_banner_purge.md",
+      "note": "Blocker 1 of that review, and the reason this entry exists rather than trust: the expiry re-enters showCard/showCrop, which calls straight back into defer(), and pointerWas/pointerAt are written ONLY by mousemove -- so a reader who crossed the trigger and then held still still carried the vector that aimed at the open card and the same trigger was held again, without bound. Measured at 4.4 seconds and still going, ending only because the pointer twitched 3px. The `expiring` token is what makes the re-entrant call bypass the corridor exactly once. Raised by REVIEW_20260916_viewer_hover_deslop_and_banner_purge.md, which is on the review branch and so not a path this tree can cite; the lesson named above carries the same finding.",
+      "file": "apps/viewer/topology_app.js",
+      "find": "    if (expiring === trigger) {\n      expiring = null;\n      return false;\n    }",
+      "replace": "    /* mutated: the expiry re-consults the same stale vector it was armed from */"
+    }
+  ]
+}

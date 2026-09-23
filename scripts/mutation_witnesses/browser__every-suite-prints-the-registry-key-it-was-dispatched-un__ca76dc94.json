@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "index redirect file://",
+  "expect_red": "every suite prints the registry key it was dispatched under — a --only filter is copied straight off that line, and every `suite` in scripts/mutation_witnesses.json is a whole copy of one",
+  "mutations": [
+    {
+      "contract": "A browser suite prints the label the SUITES registry dispatches it under. The key is the label, so a `--only` filter can be copied straight off a failing line and mutation_witnesses.json's `suite` values mean what they say.",
+      "issue": "docs/issues/ISSUE_20260915_the_suites_label_pass_through_is_one_word_from_a_silent_revert.md",
+      "note": "mutation_witness_tier_repair single-sourced the labels and left the pass-through unobserved: dropping the argument left every tier green and printed `[undefined] 2/2 sub-checks passed: PASS`. --only filters on the registry key rather than the printed line, so even the mutation tier keeps working -- the damage is silent by construction. The originating issue's runtime check was dismissed as comparing a string to itself; it is not, once the in-body copies are gone. The key comes from the registry and result.label from whatever the suite body returned.",
+      "file": "scripts/run_viewer_browser_tests.mjs",
+      "find": "      const result = await runSuiteFn(label);",
+      "replace": "      const result = await runSuiteFn();"
+    }
+  ]
+}

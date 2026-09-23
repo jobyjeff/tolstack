@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "an edge whose part is NAMED after its own drawing does not say the part number on two consecutive lines",
+  "mutations": [
+    {
+      "contract": "An edge whose part is named after its own drawing number does not say that number on two consecutive lines: VA.citationWhere's alreadySaid argument is threaded from the topology pane's citation() call.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_have_no_mutation_witness_and_their_enrolling_handoff_closed.md",
+      "note": "Named for enrollment in LESSONS_20260918_reader_facing_surfaces_second_pass.md; see materials-vocabulary-scanned-for-schema-jargon's note for why it arrived unenrolled.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "      root.appendChild(citation(dimension.source_ref, edge.confidence, partLabel));",
+      "replace": "      root.appendChild(citation(dimension.source_ref, edge.confidence));"
+    }
+  ]
+}

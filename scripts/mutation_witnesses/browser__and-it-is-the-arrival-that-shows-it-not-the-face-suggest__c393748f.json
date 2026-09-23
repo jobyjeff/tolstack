@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "annotate top bar + entry context (auto-filter, see-through)",
+  "expect_red": "...and it is the ARRIVAL that shows it, not the face suggestions — with those off the part is in the scene all the same",
+  "mutations": [
+    {
+      "contract": "Arriving from the stack viewer does not merely FILTER the two lists to the element's part -- it shows that part in the 3D view, which is the half Jeff's 2026-09-21 note is about ('you already know the 3d body ... so all of these should be filtered automatically').",
+      "issue": null,
+      "note": "The mutation keeps every list-side effect (filter-element still runs, so the rail's scope bar and both panels are exactly right) and drops only the scene call. REPAIRED 2026-09-22: it was declared on `...and shows that element's part alone, in the scene and in the list`, which stopped discriminating the day annotate_face_suggestions merged -- cmdSuggest() also loads the selected element's part and shows it, and the mock topology has exactly one part, so \"alone\" cannot separate the two loaders either. WITNESSED on its own branch and BLIND on trunk with every branch green alone, which is ISSUE_20260916_a_review_merge_is_the_one_place_the_mutation_tier_is_never_re_run happening. The suite now asks the question with the suggestion display switched OFF, where only the arrival can have put the part in the scene, and the entry is declared on that check.",
+      "file": "apps/annotate/app.js",
+      "find": "  if (shas.length) {\n    await AA.exec([state.transparentParts ? \"ghost\" : \"isolate\", ...shas]);\n  }",
+      "replace": "  if (false && shas.length) {\n    await AA.exec([state.transparentParts ? \"ghost\" : \"isolate\", ...shas]);\n  }"
+    }
+  ]
+}

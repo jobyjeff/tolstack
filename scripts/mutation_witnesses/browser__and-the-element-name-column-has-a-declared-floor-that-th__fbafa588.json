@@ -1,0 +1,15 @@
+{
+  "tier": "browser",
+  "suite": "typography pass's visual rules (live stack view)",
+  "expect_red": "...and the element-name column has a declared floor that the squeeze honours — it is the one column holding a phrase rather than a number, and with no floor auto layout gives the width to the numbers and wraps the name to four lines",
+  "mutations": [
+    {
+      "contract": "The elements table's name column carries a declared min-width floor -- the one column holding a phrase rather than a number, honoured when auto layout squeezes the table.",
+      "issue": "docs/issues/ISSUE_20260918_thirteen_new_guards_from_visual_rules_nothing_checks_have_no_mutation_witness_entry.md",
+      "note": "Set B of HANDOFF_20260921_mutation_witness_enrollment_backlog.md, from LESSONS_20260918_visual_rules_nothing_checks.md sec 4.",
+      "file": "apps/viewer/style.css",
+      "find": ".el-row__name { min-width: 190px; }",
+      "replace": ".el-row__name { }"
+    }
+  ]
+}

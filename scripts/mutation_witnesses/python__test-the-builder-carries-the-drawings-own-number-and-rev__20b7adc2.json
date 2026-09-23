@@ -1,0 +1,15 @@
+{
+  "tier": "python",
+  "suite": "tests/test_viewer_crops.py",
+  "expect_red": "test_the_builder_carries_the_drawings_own_number_and_revision",
+  "mutations": [
+    {
+      "contract": "The link into drawing-checker is labelled with the drawing's OWN number and revision as the citation states them -- and only where there is a run to link to, since a spec-pile document's `document` is a filename and labelling one would be a category error.",
+      "issue": "docs/issues/ISSUE_20260916_the_mutation_witness_table_has_no_tier_for_a_pytest_guard.md",
+      "note": "The second of the two, same session and same reason. The mutation keeps the CONDITION and drops the value, so the spec-pile half of the rule still reads as honoured while every drawing link loses its name -- the failure shows up as a link with nothing to call it, not as a crash.",
+      "file": "scripts/build_viewer_crops.py",
+      "find": "        \"drawing_no\": (str(source_ref.get(\"document\") or \"\") or None\n                       if resolved[\"run_dir\"] else None),",
+      "replace": "        \"drawing_no\": None,"
+    }
+  ]
+}

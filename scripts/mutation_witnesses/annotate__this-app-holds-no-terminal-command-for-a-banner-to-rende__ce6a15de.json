@@ -1,0 +1,15 @@
+{
+  "tier": "annotate",
+  "suite": null,
+  "expect_red": "this app holds no terminal command for a banner to render",
+  "mutations": [
+    {
+      "contract": "The copy is half of it; the SUPPLY is the other half. This app holds no command string at all, so there is nothing for a banner to concatenate on even if somebody rewrote the sentence.",
+      "issue": "docs/issues/ISSUE_20260915_the_annotate_fast_tier_cannot_own_a_mutation_witness.md",
+      "note": "The second guard of the pair, and the one a check on the COPY alone would not cover: it reddens on the supply coming back, not on the sentence changing. Re-adds `AA.CONFIG.rebuild`, which is what config.js deliberately holds a comment where instead of a key.",
+      "file": "apps/annotate/config.js",
+      "find": "    // There is deliberately NO `rebuild` entry here. It held the two build",
+      "replace": "    rebuild: [\"venv-win/Scripts/python.exe scripts/build_topology_projection.py\"],\n    // There is deliberately NO `rebuild` entry here. It held the two build"
+    }
+  ]
+}

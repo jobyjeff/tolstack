@@ -81,11 +81,23 @@ scripts/
                                this directory under `tmp/`, runs the tier that
                                owns the guard, and fails if it stays green or
                                reddens somewhere else. Added 2026-09-15.
-  mutation_witnesses.json      the mutations themselves -- per guard, the edit it
-                               must redden on, the tier that owns it and the
-                               check that must fail. Read by the runner above
+  guard_enumeration.mjs        the enumeration of guards: reads guard
+                               declarations out of the JS check sources, joins
+                               them to the specs beside them, and derives the
+                               file name a spec must be written at -- so "this
+                               guard has no witness" is computed rather than
+                               noticed. Imported by the runner above, spawned by
+                               `tests/test_mutation_witnesses.py`. Holds the
+                               pinned per-source guard census. Added 2026-09-23.
+  mutation_witnesses/          the mutation specs themselves -- a file per
+                               witnessed guard, named for the guard, holding the
+                               edits it must redden on. Read by the runner above
                                and, for the anchor check, by
-                               `tests/test_mutation_witnesses.py`. Added 2026-09-15.
+                               `tests/test_mutation_witnesses.py`. Its README is
+                               the page an author enrols a guard from. Split out
+                               of the shared table on 2026-09-23, which agents
+                               in sibling worktrees collided over.
+                               Added 2026-09-15.
   rebuild_projections.ps1      runs the topology, results and crops builders from
                                the MAIN checkout in sequence and fails loud,
                                before building anything, if drawing-checker's

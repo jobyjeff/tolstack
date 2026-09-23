@@ -1,0 +1,15 @@
+{
+  "tier": "fast",
+  "suite": null,
+  "expect_red": "[real] every untraced edge whose part has NO mesh offers nothing at all -- not a disabled control, not an explanation",
+  "mutations": [
+    {
+      "contract": "The detail pane's annotate-this link is gated on BOTH rules, not just the gap one: an edge with a gap to close whose part has no 3D model is offered nothing at all, because the click would land on the annotator's empty state.",
+      "issue": "docs/issues/ISSUE_20260914_real_mesh_edge_tests_break_when_the_mesh_set_grows.md",
+      "note": "The guard this witnesses used to name `hub` as the meshless part, so installing a hub mesh in the sibling rotorkit repo reddened it for a reason unrelated to the behaviour. It now picks every live edge with a gap to close whose part's mesh does not resolve, so the witness survives any mesh set -- measured green with 27 extra meshes installed.",
+      "file": "apps/viewer/views/topology.js",
+      "find": "    if (VA.needsAnnotation(edge.confidence) &&\n        VA.partHasMesh(ctx.topoProj, edge.part)) {",
+      "replace": "    if (VA.needsAnnotation(edge.confidence)) {"
+    }
+  ]
+}
