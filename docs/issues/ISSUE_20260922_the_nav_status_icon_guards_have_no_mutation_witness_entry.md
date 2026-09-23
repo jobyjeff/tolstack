@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: med
-status: triaged
+status: resolved
 area: scripts/mutation-witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_nav_verdict_into_alert_and_icon.md
 handoff: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
+resolution: handoff completed 2026-09-23 -- closed automatically by dispatch when handoff `mutation_witness_repair_and_enrollment` moved to completed/; not independently verified.
 ---
 
 # The nav status-icon guards have no `mutation_witnesses.json` entry — two rows are paste-ready and were measured in review

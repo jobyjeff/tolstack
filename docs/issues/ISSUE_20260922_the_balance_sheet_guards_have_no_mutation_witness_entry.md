@@ -1,12 +1,13 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: tests/mutation-witnesses
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
 handoff: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
+resolution: handoff completed 2026-09-23 -- closed automatically by dispatch when handoff `mutation_witness_repair_and_enrollment` moved to completed/; not independently verified.
 ---
 
 # The balance-sheet guards have no mutation-witness entry
