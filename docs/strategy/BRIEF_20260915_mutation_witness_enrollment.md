@@ -1,5 +1,25 @@
 # BRIEF 2026-09-15 — mutation-witness enrollment: the tier exists, and joining it is nobody's job
 
+> **CONSUMED 2026-09-23 — decided by the strategy session (Jeff live: both
+> remediation arms measured flat, no seventh backlog handoff); expanded to
+> `HANDOFF_20260923_mutation_witness_derived_enrollment_and_gating.md` and
+> `HANDOFF_20260923_js_vocabulary_generated_from_python.md` (the pareto's
+> R2), sequenced by depends_on.** Enrollment becomes mechanical, the HONEST
+> version: entry ids derive from test names so the set of guards and the set
+> of witnessed guards are ONE enumeration — this also removes the hand-kept
+> JSON table two agents collided over (the 09-22 sharpest instance). AND the
+> 09-22 finding's second guard is bought too: the tier's exit code means
+> something — NOT WITNESSED fails, and the main-checkout pre-batch-merge
+> check discipline runs it (a witness that decays between branch and trunk
+> is caught at the merge, not by the next audit). The "flat is fine" answer
+> is rejected on the brief's own evidence (one-line-from-reverted blockers).
+> The 13 open instances are the derivation handoff's DoD, cleared at a
+> stroke. The at-source rule (a handoff that adds a guard enrolls it in the
+> same change — trivial once ids derive) rides dispatch's
+> `prompt_antipattern_hardening`. Cost-gate note: the direction doesn't
+> hinge on the pending N/M baseline; the derivation handoff's FIRST
+> deliverable is measuring it.
+
 Filed by triage 2026-09-15 as this sweep's **step-5 bug-class finding** — not a
 request for a checklist entry (there are already five), but the question of what
 change would make the class structurally impossible. No issue file is the source
