@@ -1971,9 +1971,10 @@ apps/viewer/
                       three panes, legend + worksheet + crop-lightbox
                       <dialog>s)
   topology.css        that page's own rules: the nav tree, the toolbar, the
-                      rails, the grid, the slim totals strip, the legend and
-                      worksheet dialogs (the crop lightbox's rules are in
-                      style.css, beside the crop rules they extend)
+                      rails, the grid and its totals footer, the study summary
+                      pane, the legend and worksheet dialogs (the crop
+                      lightbox's rules are in style.css, beside the crop rules
+                      they extend)
   test.html           browser test page; publishes window.__TEST_RESULTS__
   config.js           paths, the drawing-checker webui base, rebuild commands
   viewer.js           pure view-model logic — no DOM, no IO, and no

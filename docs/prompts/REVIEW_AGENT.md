@@ -4051,6 +4051,37 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       "the README is guarded" is not "this sentence is guarded". Resolve the
       claim to the specific `_*_CLAIM` pattern that would read it, or say it is
       unpaired.
+- [ ] **A "nothing is lost" assertion that reads the WHOLE PANE, where a
+      sibling block prints the same string.** New 2026-09-22
+      (`viewer_summary_balance_sheet`, med). The findings table's guard ends
+      `ok(root.textContent.indexOf(finding.whole) !== -1)` under the comment
+      "the whole authored text is on the row" — but `root` is
+      `VA.renderTopoTotals`'s output, which also appends `gapsPanel`, and that
+      panel prints every excluded term **whole**. So the assertion can never
+      fire for a split finding: the row holds the name and the rationale in
+      two nodes with the separator gone, and the panel supplies the match.
+      Measured by mutation: blanking the rationale left it green; blanking the
+      rationale *and* removing `gapsPanel` reddened it.
+      `ISSUE_20260922_the_findings_whole_text_assertion_is_satisfied_by_the_
+      gap_panel_beside_it.md`. **The one-line check:** when a guard asserts a
+      string is *somewhere*, ask which element it reads and whether a
+      different block in the same root also prints it — and scope the
+      assertion to the node under test before you believe a green.
+- [ ] **A parser applied to a list whose members come from TWO vocabularies
+      that share a separator glyph.** New 2026-09-22
+      (`viewer_summary_balance_sheet`, med). `VA.splitAuthoredFinding` splits
+      at ` -- `, justified in the lesson as an *excluded-term* convention
+      (what -- why) and correct there. `VA.studyFindings` then runs it over
+      two more buckets that hold **edge names**, where the same glyph is a
+      *naming* convention (name -- clarifier): the live edge `piston end to
+      end-stop feature -- the end stop` renders truncated on five studies,
+      with its clarifier presented as the author's rationale.
+      `ISSUE_20260922_the_authored_finding_splitter_also_cuts_edge_names_
+      where_the_same_separator_means_something_else.md`. **Ask where every
+      member of the collection came from**, not where the motivating example
+      came from — and scan the live projection for the separator in the
+      *other* fields (58 strings carry ` -- `; `edge.name` and `node.name` are
+      among them) before accepting "every X uses it this way".
 
 ## Architectural errors to check
 
