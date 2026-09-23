@@ -77,3 +77,82 @@ Filing note only; nothing below decides any of this brief's four items.
   `drawing-checker/docs/sessions/completed/HANDOFF_20260910_tolstack_mount_rebuild_endpoint.md`.
 - **Item 1 is still live as described**: `apps/annotate/storage/` holds
   `adapter.js`, `fsa.js` and `memory.js` — no `http.js`.
+
+## 2026-09-23 consolidation — item 5: the viewer entry shim's ownership (absorbed brief)
+
+Merged in by the 2026-09-23 triage sweep's consolidation pass (40 open briefs
+workspace-wide, over the 15 threshold), absorbing
+`BRIEF_20260911_viewer_entry_point_redirect_ownership.md` — same question, a
+different file. Both briefs were filed by the same 2026-09-11 sweep and both ask
+**where the tolstack / drawing-checker line falls for the served viewer surface,
+and which side owns each piece of it**: this brief's item 3 says "which side owns
+it is the strategy call", the absorbed brief says "who owns the fix?". That is
+one axis, asked twice.
+
+Consolidation changes filing, not substance: nothing below is decided here, and
+the absorbed brief's own sub-questions are carried over verbatim in effect.
+
+**The instance.** `/tolstack/viewer/` serves `apps/viewer/index.html`, a pure
+redirect shim to `topology.html` that redirects **two ways at once**:
+
+```html
+<meta http-equiv="refresh" content="0; url=./topology.html" />
+<script>window.location.replace("./topology.html" + window.location.search);</script>
+```
+
+The `<script>` carries the query string; the `<meta>` cannot. Whichever the
+browser honours decides whether `?mock=1` — and, more importantly, `?stack=<id>`,
+the deep-link contract documented in drawing-checker's
+`docs/sessions/lessons/LESSONS_20260910_analyses_viewer_deep_link.md` — survives
+the hop.
+
+**Measured 2026-09-11, and it is a latent hazard rather than a live defect.**
+`scripts/debug_tolstack_viewer_boot_probe.mjs` against the real mount, over a
+dozen probes: *the script always won* — two main-frame navigations, 27 requests,
+last at 413 ms, nothing left in flight. The query string was preserved every
+time. Hence `low`, and hence "do nothing" being defensible.
+
+That measurement also **removes a scarier story**, which is worth keeping:
+drawing-checker's `ISSUE_20260911_tolstack_panel_runner_stale_against_viewer_v2`
+reported `/tolstack/viewer/?mock=1` re-requested ~2000 times in 12 s, attributed
+to `index.html`'s `location.replace` re-entering. That did **not** reproduce in
+any probe; the `networkidle` hang it was inferred from had a complete and
+different explanation (a Playwright lifecycle wait straddling the document swap
+never sees the new document's idle event). The storm is unconfirmed; the double
+redirect that would explain one is real and still there.
+
+**What item 5 adds to this brief's ownership question**, as three sub-questions
+that do not collapse into items 1–4:
+
+- **Who owns the fix?** The file is tolstack's and the one-line change is
+  tolstack's to make. But drawing-checker *mounts* this page and deep-links into
+  it, so a query-dropping entry point is its failure surface too — a clicked
+  stack row landing unselected is a drawing-checker symptom with a tolstack
+  cause. Decide whether that makes it a tolstack fix with a drawing-checker
+  regression test, a coordinated pair, or something drawing-checker should stop
+  depending on.
+- **Should the shim exist at all?** This one is *tolstack-internal layout, not a
+  boundary question*, and it is flagged here so the merge does not drop it:
+  dropping the `<meta>` is the obvious minimum, but a redirect shim as the
+  documented entry point of a deep-link contract is itself the fragile part.
+  Serving `topology.html` at `/tolstack/viewer/` directly, or having
+  drawing-checker's mount point at it, removes the hop instead of fixing it.
+  That is the more durable answer and it costs more. The answer here largely
+  follows from the ownership call above.
+- **What pins it afterwards?** Nothing currently asserts the query string
+  survives the entry point. Whatever is decided, the deep-link contract deserves
+  a test on the side that would notice — and which side that is follows from the
+  ownership call.
+
+**Carried over verbatim, because it is the absorbed brief's own verdict on
+waiting:** *"Doing nothing is defensible and should be said out loud if chosen.
+The script wins every time measured, and the fix is one line whenever it stops
+winning. What is not defensible is leaving it undecided a second time: this is
+now the second handoff scoped away from it."*
+
+**Sources.** drawing-checker
+`docs/issues/ISSUE_20260911_mounted_tolstack_viewer_entry_point_double_redirects.md`
+(the filing, with the probe results). Re-measure with
+`venv-win/Scripts/python.exe tests/debug_tolstack_panel_browser.py` and
+`node scripts/debug_tolstack_viewer_boot_probe.mjs <base-url> /tolstack/viewer/?mock=1`
+(both in drawing-checker).

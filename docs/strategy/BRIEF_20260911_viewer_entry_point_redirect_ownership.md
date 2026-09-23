@@ -4,6 +4,15 @@ priority: low
 
 # STRATEGY BRIEF 2026-09-11 — viewer_entry_point_redirect_ownership: the viewer's entry shim redirects twice, and one of the two drops the query string
 
+> **CONSUMED 2026-09-23 — merged into tolstack/docs/strategy/BRIEF_20260911_served_surface_capability_gaps.md**
+>
+> Absorbed by the 2026-09-23 triage sweep's consolidation pass as **item 5** of
+> that brief. Same question — where the tolstack / drawing-checker line falls for
+> the served viewer surface, and which side owns each piece of it — asked over a
+> different file. The substance, the 2026-09-11 probe measurement, the
+> unconfirmed-storm note and all three sub-questions were carried over; nothing
+> was decided in the merge. Read the survivor, not this file.
+
 **Routing note.** Filed from drawing-checker's
 `docs/issues/ISSUE_20260911_mounted_tolstack_viewer_entry_point_double_redirects.md`
 (`type: bug`, `audience: strategy`) by the 2026-09-11 triage sweep. Routed to tolstack
