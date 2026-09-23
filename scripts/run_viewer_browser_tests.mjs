@@ -2641,8 +2641,16 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
           const icon = row.querySelector(".navstatus");
           const lb = label.getBoundingClientRect();
           const ib = icon.getBoundingClientRect();
-          const lines = Math.round(lb.height / parseFloat(getComputedStyle(label).lineHeight));
-          if (lines > 1) out.twoLine++;
+          // How many LINE BOXES the name takes, off a Range over its own text
+          // rather than height ÷ line-height: `getComputedStyle(...).lineHeight`
+          // answers the string "normal" whenever nothing in the cascade set a
+          // number, and `parseFloat("normal")` is NaN -- which would make every
+          // row look like one line and turn the anti-vacuity check below into a
+          // silent pass-or-flake. A Range's client rects are one per line box,
+          // measured by the same engine that laid the text out.
+          const range = document.createRange();
+          range.selectNodeContents(label);
+          if (range.getClientRects().length > 1) out.twoLine++;
           // The mark is to the RIGHT of the name and inside the row's own
           // vertical extent -- never under the name on a line of its own.
           const rb = row.getBoundingClientRect();
