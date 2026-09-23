@@ -5540,6 +5540,13 @@ async function testAnnotateTopBar(browser, label) {
     // cannot separate them either; turning the other loader off is what can.
     await openHelp();
     await setting("Suggest likely faces").uncheck();
+    // The setting is only honoured on the next page if it reached storage
+    // first, and unticking runs an async handler the click does not wait for.
+    await page.waitForFunction(
+      () => window.localStorage.getItem(
+        window.AnnotateApp.PREF_KEYS.faceSuggestions) ===
+        window.AnnotateApp.ON_OFF[1],
+      null, { timeout: 5000 });
     await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
       { waitUntil: "load" });
     await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
