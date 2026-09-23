@@ -4110,6 +4110,61 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       nothing_witnesses.md`). A deferred finding has no owner unless a
       deliverable names it: **grep the previous review report for "not filed"
       and re-check each one against the diff in front of you.**
+- [ ] **A handoff FENCED OUT of `scripts/mutation_witnesses.json` hands you a
+      red registry, and that is the fence working — repair it in your own
+      merge.** New 2026-09-22 (`stack_page_alert_marks_and_drawn_glyph`), and
+      it is the second face of "The anchor check fires at MERGE time"
+      above: there the rot came from `integration` moving under the handoff;
+      here the handoff's **own** diff rotted an entry (`.chip--alert`'s
+      declaration deleted, its browser sub-check reworded) while its scope said
+      in as many words *"Do NOT touch `scripts/mutation_witnesses.json`"*,
+      because a sibling handoff owns that file. Three
+      `tests/test_mutation_witnesses.py` guards were red on the branch, filed
+      not fixed, with a paste-ready repair. **Check the owner-handoff story
+      before you take "someone else will" on faith:** the sibling was in flight
+      from an older `integration`, did not contain the work, and its own diff of
+      that file did not touch the entry — so nobody would have reached it before
+      it landed. The repair is yours (the entry above prescribes it), and it is
+      only done when you have run BOTH halves: `pytest -q
+      tests/test_mutation_witnesses.py` **and** `node
+      scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
+      --only <id>`. An entry whose anchors resolve and whose mutation has never
+      been replayed is the unwitnessed guard this whole tier exists to prevent,
+      and pytest cannot tell you which you have.
+- [ ] **A new TOP-LEVEL file under `apps/viewer/` and an unchanged `## Layout`
+      tree in `apps/viewer/README.md`.** New 2026-09-22, same handoff:
+      `apps/viewer/warning_icon.js` was added, documented in three prose
+      sections and in `apps/annotate/README.md`'s own tree, and left out of the
+      one list in the repo that claims to enumerate that directory. Nothing
+      pairs that fence against the directory — `reader_facing_bans.js` has been
+      missing from it since it was created, which is how you can tell
+      (`ISSUE_20260922_the_viewer_readmes_layout_tree_is_a_hand_list_nothing_
+      pairs_against_the_directory.md`). The `views/` and `storage/` rows are
+      directory-level, so only a new **top-level** file trips this; the row is
+      one line and inside the inline-fix boundary.
+- [ ] **You are RESUMING a review whose session died — the report is not the
+      evidence that the job finished.** New 2026-09-23
+      (`stack_page_alert_marks_and_drawn_glyph`): the machine crashed between
+      the inline-fix commit and everything after it, so the branch carried a
+      verdict of APPROVE, a 316-line report and **no merge**. A report that
+      says APPROVE reads exactly the same whether or not the work reached
+      `integration`, so do not infer the state from it — measure it:
+      `git merge-base --is-ancestor <handoff-branch> integration` (the
+      containment check the canonical prompt already prescribes, here pointed
+      at your OWN branch as well), and `git log --oneline integration` against
+      your branch's base to see how far the target moved while you were dead.
+      Two specific things a crash leaves behind, both of which were present:
+      **a forward reference to a section that was never written** (grep the
+      report for "below" and confirm each one resolves — one pointed at a
+      *Full witness tier* heading that did not exist, and one at a *What I
+      changed* section that never did), and **an armed `node_modules` junction
+      the lesson's own "remove it before finishing" step never reached.** Then
+      re-run the tiers rather than quoting the dead session's numbers for a
+      tree it never saw: `integration` had moved four commits, so the counts
+      that gate the merge are the ones measured after merging it in, not the
+      ones already in the file. Say in the report which numbers are the dead
+      session's and which are yours — the resumed run owns the merge, so it
+      owns the evidence under it.
 
 ## Architectural errors to check
 

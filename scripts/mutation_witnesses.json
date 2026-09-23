@@ -669,15 +669,15 @@
     },
     {
       "id": "alert-badge-is-not-filled",
-      "contract": "The row's consolidated alert badge is outlined, not filled -- it is the only alert marker on the row, so it competes with nothing and does not need to shout.",
+      "contract": "The row's consolidated alert mark is quiet -- not filled, and not framed. It is the only alert marker on the row, so it competes with nothing and does not need to shout.",
       "issue": "docs/sessions/lessons/LESSONS_20260916_flyout_resize_annotator_filter_and_deselect.md",
-      "note": "Jeff, 2026-09-16: \"Left side menu is now impressively 'loud'... Styling for the alert text themselves can then be a bit less obnoxious/overwhelming, especially the ones in the source column that are always visible.\" The mutation gives the badge the filled treatment `.chip--export-unestablished` wore, which is the loudness being removed -- and 'quieter' is a computed-style claim, so a class-name check would pass straight through it. The paired sub-check ('...but it is still findable') is what stops the fix being 'delete the border too'.",
+      "note": "Jeff, 2026-09-16: \"Left side menu is now impressively 'loud'... Styling for the alert text themselves can then be a bit less obnoxious/overwhelming, especially the ones in the source column that are always visible.\" The mutation gives the mark the filled treatment `.chip--export-unestablished` wore, which is the loudness being removed -- and 'quieter' is a computed-style claim, so a class-name check would pass straight through it. The paired sub-check ('...but it is still findable') is what stops the fix being 'delete the colour too'. RE-POINTED 2026-09-22, in review of stack_page_alert_marks_and_drawn_glyph (1c33359): the badge was `.chip--alert` -- a character in a rounded border -- and is `.rowalert`, a drawn path with no box, so the old anchor (the `.chip--alert` declaration, `color: var(--inferred); border-color: var(--inferred);` + `font-weight: 700; line-height: 1;`) is a rule that commit deletes, and the old sub-check name was reworded to cover the frame as well as the fill. The mutation now touches `color` ONLY, which keeps it narrow enough that the `DRAWN and legible` sub-check printed before the declared one stays green and the declared one is the only red -- verified by replaying `--only alert-badge-is-not-filled`.",
       "file": "apps/viewer/style.css",
-      "find": "  color: var(--inferred); border-color: var(--inferred);\n  font-weight: 700; line-height: 1;",
-      "replace": "  color: #fff; background: var(--nocite); border-color: var(--nocite);\n  font-weight: 700; line-height: 1;",
+      "find": "  display: inline-flex; align-self: center; flex: none; line-height: 0;\n  color: var(--inferred);",
+      "replace": "  display: inline-flex; align-self: center; flex: none; line-height: 0;\n  color: #fff; background: var(--nocite);",
       "tier": "browser",
       "suite": "app file://",
-      "expect_red": "the row's alert badge is NOT filled — the loudness Jeff named is gone"
+      "expect_red": "the row's alert mark is NOT filled and wears no box — the loudness Jeff named is gone, and so is the border that was a second mark"
     },
     {
       "id": "element-row-keeps-its-state-colour",

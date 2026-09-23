@@ -57,12 +57,37 @@
       "to look at the face again before the binding can be trusted.",
   });
 
-  // The one glyph the rail's consolidated badge wears (Jeff: "something like a
-  // triangle ! icon"). A constant, not a literal in the renderer, for the same
-  // reason every other word on this surface is one: it appears in the markup
-  // and in the test that pins the badge, and two copies of a glyph drift the
-  // same way two copies of a word do.
-  AA.ALERT_ICON = "⚠";
+  // The mark the rail's consolidated badge wears (Jeff: "something like a
+  // triangle ! icon"), and it is the SIBLING APP'S -- one definition of the
+  // mark for both surfaces. Jeff, 2026-09-21, on this badge beside the
+  // viewer's: "same purpose, just in a different place."
+  //
+  // It was `AA.ALERT_ICON = "\u26A0"` until 2026-09-22, set straight onto
+  // `badge.textContent` in app.js
+  // (ISSUE_20260922_the_alert_glyph_is_still_a_character_on_two_rails). A
+  // character is sized by `font-size`, whose steps tests/test_app_type_scale.py
+  // owns, and U+26A0 renders as a colour emoji on Windows as often as not --
+  // which overrules the one thing the mark exists to say. So it is drawn now,
+  // and drawn ONCE: apps/viewer/warning_icon.js, loaded by this app's
+  // index.html as a sibling exactly the way storage/adapter.js's transport
+  // decision is.
+  //
+  // Reached through here rather than from app.js, and that is the rule this
+  // app already follows for the other shared thing it uses (see
+  // storage/adapter.js's AA.chooseTransport): a renderer does not reach across
+  // into the viewer's namespace, and when the sibling file did not load the
+  // failure says which file and why rather than `undefined is not a function`.
+  AA.warningIcon = function (className) {
+    var viewer = window.ViewerApp;
+    if (!viewer || !viewer.warningIcon) {
+      throw new Error(
+        "the shared alert mark did not load: this app is served beside " +
+        "apps/viewer/ (its index.html loads ../viewer/warning_icon.js), so " +
+        "serve the apps/ directory, not apps/annotate/ alone"
+      );
+    }
+    return viewer.warningIcon(className);
+  };
 
   // The alerts ONE row has to admit about itself, as a list, because the badge
   // that shows them is one badge however many there are. A coarse state is

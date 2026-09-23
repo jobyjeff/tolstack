@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: apps/viewer
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_flyout_resize_annotator_filter_and_deselect.md
 handoff: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
+resolution: handoff completed 2026-09-23 -- closed automatically by dispatch when handoff `stack_page_alert_marks_and_drawn_glyph` moved to completed/; not independently verified.
 ---
 
 # "Left side menu is now impressively 'loud'" — the viewer's nav rail is still the loudest thing on the page, and it may be the rail Jeff meant
@@ -207,3 +208,37 @@ Both pinned against the live projection by the `[real]` leaf-row check in
 
 **"Still open (1)" — the materials table's source column — is unchanged and is
 now genuinely the last of it.** This issue stays `open` for that half.
+
+## 2026-09-22 (later) — "Still open (1)" is closed, and the 2026-09-16 thread is empty **as asked**
+
+`stack_page_alert_marks_and_drawn_glyph` folded the materials table's source
+column: `materialSourcingCell` no longer renders the `CTE NOT TRANSCRIBED` /
+`VALUES STATUS UNKNOWN` chip at all. One quiet drawn mark per row where there
+is something to distrust, nothing where there is not, and the words — unchanged
+— on the mark's tooltip, its aria-label and the alerts card it opens.
+
+Where the words live, which is the decision this half carried: **exactly where
+they already did.** `VA.VALUES_CHIP_TEXT` (viewer.js) stays the one spelling,
+and a new `VA.materialRowAlerts` beside it reads it into the alert shape
+`VA.alertBadge` already renders — the fourth per-surface alert-list function
+(`VA.rowAlerts`, `VA.studyNavAlerts`, `VA.stackNavAlerts`) rather than a third
+branch on a function whose parameters are an element and its derived row.
+`views/detail.js`'s pane chip reads the same table, so the row, the card and
+the pane cannot disagree.
+
+**So every half of this issue has shipped, and it can close.** But the
+*question* behind it — which chips may be loud in an always-visible source
+column — is not finished, and it moved rather than closed:
+`ISSUE_20260922_the_loud_chips_in_the_live_materials_source_column_are_the_two_provenance_chips.md`
+carries it, with the finding that made it worth re-filing. Measured on the live
+projection while doing this fold: **the chip this issue asked to fold has never
+rendered on a live stack page.** All six live material entries are
+`values_status: "inline"`; the loud branch is reachable only from
+`VA.generatedFixture()`'s `demo_fit`, which no browser surface loads
+(`ISSUE_20260922_no_browser_surface_can_render_a_materials_table_at_all.md`).
+What a reader of `hub_bearing_thermal_fit_m1` actually meets in that column is
+two *filled* provenance chips on every row — `UNTRACED` and
+`designation: NO CITATION` — and those are exempt from the fold by a rule this
+repo wrote down on purpose. Before/after screenshots, including the live column
+that did not change, are in
+`docs/sessions/lessons/LESSONS_20260922_stack_page_alert_marks_and_drawn_glyph.md`.

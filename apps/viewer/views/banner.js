@@ -158,8 +158,19 @@
       .concat(state.extraAlarms || []);
     if (alarms.length) {
       var box = VA.el("details", "banner__stale");
-      box.appendChild(VA.el("summary", "banner__stale-summary",
-        "⚠ Data is older than the latest code — needs a rebuild"));
+      // The mark is DRAWN here too, and this site was found by the grep that
+      // closed the other three (ISSUE_20260922_the_alert_glyph_is_still_a_
+      // character_on_two_rails, 2026-09-22): it was a `⚠` typed in front
+      // of the sentence, so it was sized by whatever step this line inherits
+      // and coloured by the platform's font pick -- and unlike the row marks
+      // it never carried a semantic colour at all, in the one box on the page
+      // that is about data a reader should not trust. Now it is the same
+      // triangle the tables and the rail wear, in the box's own colour.
+      var summary = VA.el("summary", "banner__stale-summary");
+      summary.appendChild(VA.warningIcon("banner__stale-mark"));
+      summary.appendChild(VA.el("span", null,
+        "Data is older than the latest code — needs a rebuild"));
+      box.appendChild(summary);
       var detail = VA.el("div", "banner__stale-detail");
       var list = VA.el("ul", "banner__stale-list");
       alarms.forEach(function (text) {

@@ -166,10 +166,20 @@ body {
 
 /* ONE alert badge per row, whatever it carries, with the words on hover
    (deliverable 5). A row with nothing wrong renders no badge at all, so there
-   is no quiet variant of this to style. */
+   is no quiet variant of this to style.
+
+   DRAWN since 2026-09-22, not typed: the badge holds a 16px SVG triangle
+   (apps/viewer/warning_icon.js, shared with the viewer's own badge) rather
+   than a `⚠` character, so `font-size` no longer decides how big the mark is
+   and no font substitution can overrule its colour. Hence `line-height: 0`
+   and no font-size at all here -- there is no text in this node to size, and
+   an inline SVG in a text line box otherwise sits on the descender space of
+   type that is not there. The hover box stays: this badge is a click/hover
+   disclosure inside a row that is itself clickable, so it needs an affordance
+   of its own, quiet until the pointer is on it. */
 .alertbadge {
-  flex: none; cursor: help; font-size: var(--t-meta); line-height: 1;
-  color: #d6b45b; padding: 2px 4px; border-radius: 3px;
+  display: inline-flex; align-items: center; flex: none; cursor: help;
+  line-height: 0; color: #d6b45b; padding: 2px 4px; border-radius: 3px;
 }
 .alertbadge:hover, .alertbadge:focus {
   background: #4d3a23; outline: none;
