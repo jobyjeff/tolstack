@@ -1194,7 +1194,11 @@
       // The classes are the colour system's and deliberately keep their names --
       // nothing reads them as words.
       eq(all(root, "tr.el-row--zero-width").length, 1);
-      eq(all(root, "td.num--zero-width").length, 2);
+      // Scoped to the ELEMENTS table: since 2026-09-22 the results table wears
+      // the same mark on the three of its five numbers a missing band makes a
+      // lower bound, so an unscoped count here is a count of both tables.
+      var elements = all(root, "table.eltable")[0];
+      eq(all(elements, "td.num--zero-width").length, 2);
       // Since flyout_resize_annotator_filter_and_deselect the row's WORDS are
       // on one consolidated alert badge rather than a chip of their own -- the
       // word is unchanged and still VA.ATTENTION's, which is what this pins.
@@ -1208,7 +1212,7 @@
       ok(all(root, "tr.el-row").length > all(root, ".rowalert").length,
          "a row with no alerts shows no badge");
       // ...and the cells a reader compares carry the same sentence.
-      eq(all(root, "td.num--zero-width")[0].getAttribute("title"),
+      eq(all(elements, "td.num--zero-width")[0].getAttribute("title"),
          VA.ATTENTION.no_tolerance.title);
     });
 
@@ -1223,30 +1227,35 @@
 
     await test("the budget-scope check is flagged and its verdict shown", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      var budget = all(root, "article.check--budget");
+      var budget = all(root, "tr.rs-row--budget");
       eq(budget.length, 1);
       has(budget[0].textContent, "BUDGET");
       has(budget[0].textContent, "fail");
-      // A check is only as sourced as its weakest term.
-      has(budget[0].textContent, "weakest input: UNTRACED");
+      // A check is only as sourced as its weakest term. The words "weakest
+      // input" are the COLUMN's since 2026-09-22 -- one header rather than the
+      // same phrase on every row -- so the row carries the confidence alone
+      // and the header is asserted beside it.
+      has(budget[0].textContent, "UNTRACED");
+      has(all(root, "table.restable")[0].textContent, "weakest input");
     });
 
     // A budget rendered without the term it is a budget FOR is the misreading
     // the scope exists to prevent, one screen further down: the reader sees a
     // number and a `fail` and no statement of what is missing. The gap list
-    // three sections below does not count — this is the card.
-    await test("a budget-scope card names its excluded terms beside the number", function () {
+    // three sections below does not count, and neither does the row's own fold
+    // — this is the row, closed, as a reader scanning the table sees it.
+    await test("a budget-scope row names its excluded terms beside the number", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      var excluded = all(all(root, "article.check--budget")[0], ".check__excluded");
+      var excluded = all(all(root, "tr.rs-row--budget")[0], ".check__excluded");
       eq(excluded.length, 1);
       has(excluded[0].textContent, "link eye width");
       has(excluded[0].textContent, "budget for the missing");
     });
 
-    await test("a joint-scope check gets no stripe, no chip and no excluded line", function () {
+    await test("a joint-scope check gets no spine, no chip and no excluded line", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      var joint = all(root, "article.check").filter(function (c) {
-        return c.className.indexOf("check--budget") === -1;
+      var joint = all(root, "tr.rs-row--check").filter(function (c) {
+        return c.className.indexOf("rs-row--budget") === -1;
       });
       eq(joint.length, 1);
       eq(joint[0].textContent.indexOf("BUDGET"), -1);
@@ -1268,10 +1277,10 @@
             if (scope !== undefined) c.verdict_scope = scope;
           });
           var root = render(function (r) { VA.renderStack(r, stack, CROPS, {}); });
-          var cards = all(root, "article.check");
-          eq(cards.length, 2, String(scope));
-          cards.forEach(function (card) {
-            has(card.textContent, "SCOPE UNKNOWN");
+          var rows = all(root, "tr.rs-row--check");
+          eq(rows.length, 2, String(scope));
+          rows.forEach(function (row) {
+            has(row.textContent, "SCOPE UNKNOWN");
           });
           has(VA.unlabelledVerdictScopeText(scope),
               JSON.stringify(scope === undefined ? null : scope));
@@ -1280,10 +1289,196 @@
 
     await test("a check lists its expanded inputs with signs", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      var text = all(root, "article.check")[1].textContent;
+      // The term list is the RECORD, so it is in the fold row -- the second
+      // `<tr>` of the pair appendResult emits, one per result in source order.
+      var text = all(root, "tr.rs-fold")[1].textContent;
       has(text, "+ plate");
       has(text, "− eye");
     });
+
+    // --- the results table ---------------------------------------------------
+    //
+    // (stack_page_check_card_balance_sheet, 2026-09-22.) One row per check and
+    // per path, the numbers in columns, the record one fold deep. What these
+    // pin is the two decisions the issue said do not transfer from the study
+    // page — the checks do NOT become footer rows of the elements table, and
+    // they DO join the paths table rather than standing beside it — plus the
+    // one rule the handoff put above both: the record's own words are folded,
+    // never edited.
+
+    await test("checks and paths are rows of ONE table, and each group is named",
+      function () {
+        var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+        eq(all(root, "table.restable").length, 1);
+        var table = all(root, "table.restable")[0];
+        eq(all(table, "tr.rs-row--check").length, 2);
+        eq(all(table, "tr.rs-row--path").length, 1);
+        // ...and the checks are NOT footer rows of the elements table: each
+        // one folds its own subset of the elements, so there is nothing for a
+        // <tfoot> under that grid to be a total OF.
+        eq(all(all(root, "table.eltable")[0], "tr.rs-row").length, 0);
+        var groups = all(table, "tr.rs-group").map(function (g) {
+          return g.textContent;
+        });
+        eq(groups.length, 2);
+        has(groups[0], "Checks");
+        has(groups[1], "Paths");
+        // The second group says, once, what the two empty columns under it
+        // mean. A blank verdict cell and a passing one look identical.
+        has(groups[1], "no criterion");
+        has(groups[1], "no verdict");
+      });
+
+    // A stack with only one kind of row has nothing to tell its rows apart
+    // FROM, so the group rows would be a line of chrome restating the section
+    // heading. Both live thermal stacks are in that state.
+    await test("a stack with no paths gets no group rows", function () {
+      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+      eq(all(root, "tr.rs-row--path").length, 0);
+      eq(all(root, "tr.rs-group").length, 0);
+      ok(all(root, "tr.rs-row--check").length > 0, "...but it still has rows");
+    });
+
+    await test("a path states it has no verdict rather than leaving the cell blank",
+      function () {
+        var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+        var path = all(root, "tr.rs-row--path")[0];
+        var verdict = all(path, "td.rs-row__verdict")[0];
+        eq(verdict.textContent, "—");
+        has(verdict.getAttribute("title"), "no verdict");
+        eq(all(path, "span.verdict").length, 0,
+           "a path has no verdict, so it wears no verdict chip");
+        // ...and it prints the same five numbers in the same columns a check
+        // does, which is the whole reason the two share a table.
+        eq(all(path, "td.num").length, 5);
+        has(path.textContent, "4.7728");
+      });
+
+    await test("every result row fills exactly the columns the header names",
+      function () {
+        [DEMO, GEN].forEach(function (stack) {
+          var root = render(function (r) { VA.renderStack(r, stack, CROPS, {}); });
+          var table = all(root, "table.restable")[0];
+          var columns = all(table, "th").filter(function (th) {
+            return th.className.indexOf("rs-group__cell") === -1;
+          }).length;
+          ok(columns > 5, "the header must not be vacuous: " + columns);
+          var rows = all(table, "tr.rs-row");
+          ok(rows.length > 0, "the walk must not be vacuous");
+          rows.forEach(function (row) {
+            eq(all(row, "td").length, columns, row.textContent.slice(0, 60));
+          });
+          // ...and the fold spans every one of them, which is the reason the
+          // record is a second row rather than a <details> in the name cell.
+          all(table, "td.rs-fold__cell").forEach(function (cell) {
+            eq(cell.getAttribute("colspan"), String(columns));
+          });
+        });
+      });
+
+    await test("the number columns state the stack's units once, not once per row",
+      function () {
+        var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+        var table = all(root, "table.restable")[0];
+        var headers = all(table, "th").map(function (th) { return th.textContent; })
+          .join(" | ");
+        has(headers, "nominal (mm)");
+        has(headers, "worst case min (mm)");
+        has(headers, "RSS half (mm)");
+        // The card this replaced printed a `units` box per check — sixteen of
+        // them reading `mm` on the live thermal stacks.
+        all(table, "tr.rs-row").forEach(function (row) {
+          eq(row.textContent.indexOf("units"), -1, row.textContent.slice(0, 60));
+        });
+      });
+
+    // The column header carries the STACK's units, so a check that records its
+    // own different ones would be a number under a header that is wrong for
+    // it — which is exactly the trade deliverable 4 of this handoff rules out.
+    // No live check is in this state; the branch exists so the header can
+    // never be silently wrong.
+    await test("a check whose own units differ from the stack's says so on its row",
+      function () {
+        var stack = JSON.parse(JSON.stringify(DEMO));
+        stack.checks[0].units = "in";
+        var root = render(function (r) { VA.renderStack(r, stack, CROPS, {}); });
+        var rows = all(root, "tr.rs-row--check");
+        has(rows[0].textContent, "units: in");
+        eq(rows[1].textContent.indexOf("units:"), -1,
+           "the check that agrees with the header says nothing");
+      });
+
+    await test("a result's record is folded until the row is asked for it",
+      function () {
+        var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+        var row = all(root, "tr.rs-row--check")[0];
+        var fold = all(root, "tr.rs-fold")[0];
+        var toggle = all(row, "button.rs-toggle")[0];
+        eq(fold.className, "rs-fold");
+        eq(toggle.getAttribute("aria-expanded"), "false");
+        row.click();
+        has(fold.className, "rs-fold--open");
+        eq(toggle.getAttribute("aria-expanded"), "true");
+        row.click();
+        eq(fold.className, "rs-fold");
+        eq(toggle.getAttribute("aria-expanded"), "false");
+      });
+
+    // Deliverable 2 of the handoff, and the line this pass is not allowed to
+    // cross: folding is the ONLY permitted move on authored prose.
+    await test("every check's authored guidance is in its fold, word for word, " +
+      "and never on the scan line", function () {
+        [DEMO, GEN].forEach(function (stack) {
+          var root = render(function (r) { VA.renderStack(r, stack, CROPS, {}); });
+          var rows = all(root, "tr.rs-row--check");
+          var folds = all(root, "tr.rs-fold");
+          var seen = 0;
+          (stack.checks || []).forEach(function (check, index) {
+            if (!check.guidance) return;
+            seen++;
+            has(folds[index].textContent, check.guidance);
+            eq(rows[index].textContent.indexOf(check.guidance.slice(0, 24)), -1,
+               "guidance belongs one fold deep, not on the row");
+          });
+          ok(seen > 0, "the walk must not be vacuous: " + stack.id);
+        });
+      });
+
+    await test("an excluded term's name is on the row and its rationale one fold deep",
+      function () {
+        var stack = JSON.parse(JSON.stringify(DEMO));
+        var whole = "link eye width -- no drawing in this repo, only a " +
+          "number somebody recalled";
+        stack.checks[1].excluded_terms = [whole];
+        var root = render(function (r) { VA.renderStack(r, stack, CROPS, {}); });
+        var row = all(root, "tr.rs-row--budget")[0];
+        // Split at the author's OWN separator, never at a guessed point --
+        // VA.splitAuthoredFinding, the one part of the study page's findings
+        // idiom that transferred to this page unchanged.
+        eq(all(row, "span.check__excludedterms")[0].textContent, "link eye width");
+        has(all(row, "div.check__excluded")[0].getAttribute("title"), whole);
+        // Nothing is dropped: the whole authored string is in the fold.
+        has(all(root, "tr.rs-fold")[1].textContent, whole);
+      });
+
+    await test("a result fed by a zero-width band marks the three numbers it " +
+      "makes a lower bound, and not the two it does not", function () {
+        var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+        var table = all(root, "table.restable")[0];
+        var marked = all(table, "tr.rs-row--zero-width");
+        ok(marked.length >= 2, "the walk must not be vacuous: " + marked.length);
+        marked.forEach(function (row) {
+          var cells = all(row, "td.num");
+          eq(cells.length, 5);
+          eq(cells.map(function (c) {
+            return c.className.indexOf("num--zero-width") !== -1;
+          }), [false, true, true, false, true],
+             "the nominal and the RSS centre are where they are whatever the " +
+             "missing band turns out to be; the spread is not");
+          // The same sentence the elements table puts on the same mark.
+          eq(cells[1].getAttribute("title"), VA.ATTENTION.no_tolerance.title);
+        });
+      });
 
     await test("a check fed by a zero-width band says it is a lower bound", function () {
       var root = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
@@ -1475,25 +1670,43 @@
 
     await test("a sensitivity probe is marked NOT A RESULT, not shown as a verdict", function () {
       var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
-      var probes = all(root, "article.check--sensitivity");
+      var probes = all(root, "tr.rs-row--sensitivity");
       eq(probes.length, 1);
       has(probes[0].textContent, "NOT A RESULT");
       has(probes[0].textContent, "[SENSITIVITY]");
-      // The result card beside it is not tarred with it.
-      eq(all(root, "article.check").length, 2);
+      // The result row beside it is not tarred with it.
+      eq(all(root, "tr.rs-row--check").length, 2);
     });
 
-    await test("a generated card names the corner of (fit × temperature) it describes", function () {
-      var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
-      var corner = all(root, "div.check__corner")[0].textContent;
-      has(corner, "chain seat");
-      has(corner, "stage hub_to_sleeve");
-      has(corner, "temperature hot (72 °C)");
-      has(corner, "k 0.8");
-      // An authored check has none of that vocabulary and gets no corner row.
-      var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
-      eq(all(plain, "div.check__corner").length, 0);
-    });
+    await test("a generated row names the corner of (fit × temperature) it describes",
+      function () {
+        var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
+        var corner = all(root, "div.rs-row__meta")[0].textContent;
+        has(corner, "chain seat");
+        has(corner, "stage hub_to_sleeve");
+        has(corner, "temperature hot (72 °C)");
+        has(corner, "k 0.8");
+        // An authored check has none of that vocabulary and gets no corner
+        // line at all -- an empty one would be a blank strip under every row.
+        var plain = render(function (r) { VA.renderStack(r, DEMO, CROPS, {}); });
+        eq(all(plain, "span.chip--corner").length, 0);
+        eq(all(plain, "div.rs-row__meta").length, 0);
+        // ...and the id a reviewer finds the row in the JSON by is one line
+        // into the fold on every stack, authored or generated.
+        [DEMO, GEN].forEach(function (stack) {
+          var page = render(function (r) { VA.renderStack(r, stack, CROPS, {}); });
+          var ids = all(page, "code.rs-record__id").map(function (c) {
+            return c.textContent;
+          });
+          eq(ids.slice(0, (stack.checks || []).length),
+             (stack.checks || []).map(function (c) { return c.check_id; }));
+          // ...and never on the row, where it would be the corner spelled
+          // with underscores beside the corner spelled in words.
+          all(page, "tr.rs-row").forEach(function (row) {
+            eq(all(row, "code.rs-record__id").length, 0);
+          });
+        });
+      });
 
     await test("the materials table shows each CTE and how untraced it is", function () {
       var root = render(function (r) { VA.renderStack(r, GEN, null, {}); });
@@ -10424,7 +10637,7 @@
         // flange members completed the shank-out column, so only the cotter
         // budget still carries an excluded term -- the MS9363-09 nut side.
         var root = render(function (r) { VA.renderStack(r, pitch, realCrops, {}); });
-        var budget = all(root, "article.check--budget");
+        var budget = all(root, "tr.rs-row--budget");
         eq(budget.length, 1);
         has(budget[0].textContent, "MS9363-09");
         eq(root.textContent.indexOf("INCOMPLETE:"), -1);
@@ -11167,6 +11380,66 @@
         });
       });
 
+      // The handoff's definition of done, over the live projection rather than
+      // a fixture: 51 authored guidance strings across seven stacks, and not
+      // one of them may be truncated, summarised or reworded by the renderer.
+      // Folding is the only permitted move, so what is asserted is presence in
+      // full BEHIND the fold and absence from the row a reader scans.
+      await test("[real] no live check's authored prose is edited by the page — " +
+        "every guidance string is in its fold whole, and off the scan line",
+        function () {
+          var strings = 0, folded = 0;
+          realResults.stacks.forEach(function (stackProj) {
+            var checks = stackProj.checks || [];
+            if (!checks.length) return;
+            var root = render(function (r) {
+              VA.renderStack(r, stackProj, realCrops, {});
+            });
+            var rows = all(root, "tr.rs-row--check");
+            var folds = all(root, "tr.rs-fold");
+            eq(rows.length, checks.length, stackProj.id + " row count");
+            checks.forEach(function (check, index) {
+              var record = folds[index].textContent;
+              // Every excluded term, whole -- the row carries only the name
+              // before the author's own ` -- `, and the rest may not be lost.
+              (check.excluded_terms || []).forEach(function (term) {
+                strings++;
+                has(record, term, stackProj.id + " " + check.check_id);
+              });
+              if (!check.guidance) return;
+              strings++;
+              folded++;
+              has(record, check.guidance, stackProj.id + " " + check.check_id);
+              eq(rows[index].textContent.indexOf(check.guidance.slice(0, 24)), -1,
+                 stackProj.id + " " + check.check_id +
+                 ": guidance belongs one fold deep, not on the row");
+            });
+          });
+          ok(folded > 40, "the walk must not be vacuous: " + folded +
+             " guidance strings over " + strings + " authored strings");
+        });
+
+      // The same page, measured the way the issue measured it: what a reader
+      // scrolls past to compare one check with the next. A row and its folded
+      // record are two `<tr>`s, so a live stack's checks section is now bounded
+      // by its row count -- which is the property the 10,633 px page did not
+      // have, since each card's height was its guidance paragraph's length.
+      await test("[real] a stack's checks are bounded by their row count, not " +
+        "by the length of the prose behind them", function () {
+          realResults.stacks.forEach(function (stackProj) {
+            var checks = (stackProj.checks || []).length;
+            var paths = (stackProj.paths || []).length;
+            if (!checks && !paths) return;
+            var root = render(function (r) {
+              VA.renderStack(r, stackProj, realCrops, {});
+            });
+            eq(all(root, "tr.rs-row").length, checks + paths, stackProj.id);
+            eq(all(root, "tr.rs-fold").length, checks + paths, stackProj.id);
+            eq(all(root, "tr.rs-fold--open").length, 0,
+               stackProj.id + ": every record starts folded");
+          });
+        });
+
       // --- [real] the generated-check stacks, which is why this handoff exists --
 
       var thermal = VA.findStack(realResults, "hub_bearing_thermal_fit_m1");
@@ -11176,7 +11449,8 @@
         var root = render(function (r) { VA.renderStack(r, thermal, realCrops, {}); });
         eq(thermal.checks_source, "generated");
         eq(thermal.checks_generated_not_rendered, false);
-        eq(all(root, "article.check").length, 16, "2 chains × 2 stages × 3 temps + 4 probes");
+        eq(all(root, "tr.rs-row--check").length, 16,
+           "2 chains × 2 stages × 3 temps + 4 probes");
         has(all(root, ".check__note")[0].textContent, "thermal_fit");
       });
 
@@ -11203,8 +11477,8 @@
 
       await test("[real] the four sensitivity probes are not shown as results", function () {
         var root = render(function (r) { VA.renderStack(r, thermal, realCrops, {}); });
-        eq(all(root, "article.check--sensitivity").length, 4);
-        has(all(root, "article.check--sensitivity")[0].textContent, "NOT A RESULT");
+        eq(all(root, "tr.rs-row--sensitivity").length, 4);
+        has(all(root, "tr.rs-row--sensitivity")[0].textContent, "NOT A RESULT");
       });
 
       await test("[real] the thermal stack's CTEs and materials reach the page", function () {

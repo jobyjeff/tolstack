@@ -578,9 +578,13 @@ async function testTheApp(browser, url, label) {
     const rowBg = await untraced.first().evaluate((n) => getComputedStyle(n).backgroundColor);
     push("the untraced row is tinted", rowBg && rowBg !== "rgba(0, 0, 0, 0)");
 
+    // Scoped to the ELEMENTS table: the results table below wears the same
+    // mark on the three of its five numbers a missing band makes a lower
+    // bound (stack_page_check_card_balance_sheet, 2026-09-22), so an unscoped
+    // count is a count of both tables.
     push("the zero-width band is marked",
       await page.locator("tr.el-row--zero-width").count() === 1 &&
-      await page.locator("td.num--zero-width").count() === 2);
+      await page.locator("table.eltable td.num--zero-width").count() === 2);
 
     // The loud export/identity fact is the one thing the compact row still
     // carries about the export — everything else moved to the right pane,
@@ -752,7 +756,7 @@ async function testTheApp(browser, url, label) {
     push("the sourcing legend states the rule on the page",
       /append-only/.test(await page.locator("details.sv__legend").textContent()));
     push("the budget-scope check is flagged",
-      await page.locator("article.check--budget").count() === 1);
+      await page.locator("tr.rs-row--budget").count() === 1);
     push("both verdicts render",
       await page.locator(".verdict--pass").count() === 1 &&
       await page.locator(".verdict--fail").count() === 1);
@@ -6466,11 +6470,18 @@ async function testTypographyRules(browser, label, realProjection) {
     // cap; what is checked is that a capped paragraph is really narrower than
     // the box it sits in, which is the only form of this claim a deleted
     // `max-width` cannot satisfy.
+    // A check's guidance is one fold deep since 2026-09-22
+    // (stack_page_check_card_balance_sheet), and a paragraph inside a
+    // `display: none` row measures 0px wide -- so the fold this measurement
+    // reads is opened first, by the affordance a reader would use.
+    await page.locator("#stackview tr.rs-row").first().click();
+    await page.waitForSelector("#stackview tr.rs-fold--open", { timeout: 10000 });
     const prose = await page.evaluate(() => {
-      // `.check__guidance` and not the worksheet's `<p>`: the guidance is on
-      // screen without opening a dialog, and there are sixteen of them on this
-      // stack, so the measurement is not about one paragraph's own content.
-      const el = document.querySelector("#stackview .check__guidance");
+      // `.check__guidance` and not the worksheet's `<p>`: there are sixteen of
+      // them on this stack, so the measurement is not about one paragraph's
+      // own content. The OPEN fold's, specifically -- a closed one is 0px and
+      // would satisfy "narrower than its box" for the wrong reason.
+      const el = document.querySelector("#stackview tr.rs-fold--open .check__guidance");
       if (!el) return null;
       const cs = getComputedStyle(el);
       return {
@@ -6490,6 +6501,104 @@ async function testTypographyRules(browser, label, realProjection) {
       "every sentence in it is as long as the window and a reader loses the " +
       "line coming back",
       prose && prose.maxWidth !== "none" && prose.width < prose.container - 8);
+    // ...and the fold goes back down, so nothing measured after this is
+    // measured against a page one row taller than the one before it.
+    await page.locator("#stackview tr.rs-row").first().click();
+
+    // 3b. THE NUMBER IS UNDER THE HEADER THAT NAMES IT — the check the
+    // handoff asked the browser tier for, and the one no fixture assertion
+    // can make: a cell's column is a LAYOUT fact. `table-layout: fixed` plus
+    // a shared <colgroup> is the mechanism (views/stack.js's RESULT_COLUMNS),
+    // and this compares the rendered left edge of a data cell against the
+    // rendered left edge of its header, to the pixel, for every column of
+    // every row. The study grid's totals footer is guarded the same way.
+    //
+    // The VALUES are checked against the projection at the same time: a table
+    // whose columns line up perfectly and prints `worst_case_max` under
+    // `worst case min` would pass a geometry check on its own.
+    const columns = await page.evaluate(async () => {
+      const table = document.querySelector("#stackview table.restable");
+      if (!table) return { error: "no results table" };
+      const headers = [...table.querySelectorAll("thead th")]
+        .map((th) => ({ label: th.textContent, x: th.getBoundingClientRect().x }));
+      const rows = [...table.querySelectorAll("tbody tr.rs-row")];
+      let offGrid = 0, checked = 0;
+      for (const row of rows) {
+        const cells = [...row.querySelectorAll("td")];
+        if (cells.length !== headers.length) { offGrid += 1; continue; }
+        cells.forEach((td, i) => {
+          checked += 1;
+          if (Math.abs(td.getBoundingClientRect().x - headers[i].x) > 0.5) {
+            offGrid += 1;
+          }
+        });
+      }
+      // ...and the numbers themselves, off the projection the page read.
+      const proj = await (await fetch("/data/projections/viewer/results.json")).json();
+      const stack = proj.stacks.filter((s) => s.id === "hub_bearing_thermal_fit_m1")[0];
+      const column = (label) =>
+        headers.findIndex((h) => h.label.indexOf(label) === 0);
+      const readAt = (row, label) =>
+        row.querySelectorAll("td")[column(label)].textContent.trim();
+      const wrong = [];
+      stack.checks.forEach((check, i) => {
+        [["nominal", check.nominal],
+         ["worst case min", check.worst_case_min],
+         ["worst case max", check.worst_case_max],
+         ["RSS center", check.rss_center],
+         ["RSS half", check.rss_half]].forEach((pair) => {
+          const printed = readAt(rows[i], pair[0]);
+          if (printed !== String(pair[1])) {
+            wrong.push(`${check.check_id} ${pair[0]}: ${printed} != ${pair[1]}`);
+          }
+        });
+      });
+      return {
+        headers: headers.length, rows: rows.length, checked, offGrid,
+        wrong: wrong.slice(0, 4), wrongCount: wrong.length,
+      };
+    });
+    if (columns.offGrid || columns.wrongCount) {
+      console.log(`    ${columns.offGrid} of ${columns.checked} cells off ` +
+        `their header's left edge; ${columns.wrongCount} values in the wrong ` +
+        `column: ${(columns.wrong || []).join("; ")}`);
+    }
+    push("every cell of the results table starts at its own header's left " +
+      "edge, and each of a check's five numbers is printed verbatim under " +
+      "the header that names it — a scannable table that puts a value one " +
+      "column over is worse than the cards it replaced",
+      columns.rows === 16 && columns.headers === 9 && columns.checked === 144 &&
+      columns.offGrid === 0 && columns.wrongCount === 0);
+
+    // 3c. A ROW IS A ROW. The page was 10,633px tall on this stack because
+    // each of its sixteen check cards was as tall as its own guidance
+    // paragraph; the point of the fold is that a row's height is now a
+    // property of the table and not of the prose behind it.
+    const resultRows = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll("#stackview tr.rs-row")];
+      const heights = rows.map((r) => r.getBoundingClientRect().height);
+      return {
+        n: rows.length,
+        tallest: Math.max(...heights),
+        openFolds: document.querySelectorAll("#stackview tr.rs-fold--open").length,
+        pane: document.querySelector("#stackview").scrollHeight,
+      };
+    });
+    if (!(resultRows.tallest <= 90 && resultRows.openFolds === 0)) {
+      console.log(`    tallest of ${resultRows.n} rows is ` +
+        `${Math.round(resultRows.tallest)}px, ${resultRows.openFolds} folds ` +
+        `open, pane ${resultRows.pane}px`);
+    }
+    // 130px is the name cell at its worst in a 702px scrollport: a clamped
+    // one-line label over four corner chips that wrap to three lines. It is a
+    // bound on the TABLE's own geometry -- the number that matters is that it
+    // is not a function of the guidance behind the row, and the cards this
+    // replaced ran to ~500px each for exactly that reason.
+    push("no result row is taller than a name and its corner chips, and every " +
+      "record starts folded — the 10,633px page this replaced was sixteen " +
+      "cards as tall as the prose inside them",
+      resultRows.n === 16 && resultRows.openFolds === 0 &&
+      resultRows.tallest <= 130);
 
     // 4. THE NAME COLUMN'S FLOOR. Eleven columns in an auto-layout table, so
     // the browser shares the width out by content and the one column that is a
