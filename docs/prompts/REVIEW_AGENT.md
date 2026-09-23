@@ -1453,6 +1453,48 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       shadow tree holds, and `SHADOWED` in `scripts/run_mutation_witness_tests.mjs`
       is that list — read it there — so a merge touching nothing it names cannot
       change the answer.
+- [ ] **A crashed session's last commit looks exactly like a finished one —
+      grep the diff for placeholder tokens before you read anything else.**
+      New 2026-09-23 (`mutation_witness_repair_and_enrollment`). A tactical
+      agent died mid-finish after committing its lesson with three literal
+      `FILL_BROWSER` / `FILL_BRANCH` / `FILL_ENTRIES` markers where the two
+      long tier runs were to be pasted. Every cheap signal said done: clean
+      worktree, five commits, a `LESSONS_*.md` present at the expected path,
+      and the last commit message was the one a finishing session writes. The
+      only tell was in the file body, and three Definition-of-done bullets rode
+      on exactly those three slots. One line, first thing:
+      `git diff integration...HEAD | grep -nE "FILL_|TODO|TBD|XXX|<placeholder"`.
+- [ ] **Do not impeach another session's tier timing with a single run of your
+      own — get a per-entry number first, and it costs 6 seconds.** New
+      2026-09-23, same handoff, and it is written here because the reviewer got
+      it wrong before getting it right. The lesson recorded the full table at
+      **16.7 min / 96** and **17.8 min / 108**; the post-merge review run of the
+      same 108 entries measured **123 min** (00:45:52 → 02:48:52, 108/108,
+      `EXIT=0`) on a machine reading ~18% CPU with 41 GB free and no other live
+      `tmp/mutation-witness/`. That looked like a 7x discrepancy worth a
+      correction and an issue. It was not: `--only alert-badge-is-not-filled`,
+      a browser entry, then ran **start to finish in 6 s including the shadow
+      build**, and the whole 25-suite browser tier in **2 min 20 s** — both
+      consistent with the recorded figures and not with the reviewer's own.
+      The 123 min was never attributed (42 orphaned chrome processes from
+      killed tier runs were alive throughout, but they were *still* alive for
+      the fast runs afterwards, so that is a correlate and not a cause).
+      **The rule: a wall clock you cannot reproduce is not evidence against one
+      you can't either.** Two `--only` runs, six seconds each, settle
+      per-entry cost before any claim about the table gets written down — and
+      a two-point floor/rate fit is worthless besides, since 96 and 108 are
+      12.5% apart and cannot separate the two terms.
+- [ ] **Before believing a tier number — especially a RED one — check no other
+      worktree is running one.** New 2026-09-23, same handoff, and distinct
+      from the shadow-tree corruption entry above (which is about two runs
+      against *one* tree). Three mutation tiers ran concurrently across three
+      worktrees here, ~75 chrome processes, which is the load this overlay
+      elsewhere records as turning a pointer-path guard "red on a loaded
+      machine". The bias is toward false **misses**, not false witnesses, so a
+      green under load is still a green and a red is not a finding until you
+      re-run it idle. Killing a run does **not** reap its browsers: check for
+      strays by start time, not just by count. One command:
+      `Get-ChildItem C:\workspace\tolstack-worktrees -Directory | %{ Join-Path $_.FullName "tmp\mutation-witness" } | ? { Test-Path $_ }`.
 - [ ] **A prior review's PASS is a claim, not evidence — re-locate what it says
       it located.** New 2026-08-10 (`fastener_citations_and_confidence`), and it
       is how a *mandatory* check goes vacuous across a whole review chain. Check

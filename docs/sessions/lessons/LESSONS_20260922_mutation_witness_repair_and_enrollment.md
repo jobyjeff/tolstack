@@ -39,6 +39,20 @@ any more — one `--only` pays the same clean-run floor for one entry as the who
 table pays for 96. Below ~10 entries `--only` still wins; above that, run the
 lot.
 
+> **Correction, 2026-09-23 (review).** The wall clock stands; the `--only`
+> advice does not. A single `--only` does **not** pay the table's floor,
+> because the floor is not paid up front: `baselines` is populated lazily
+> inside `for (const mutation of chosen)`
+> (`scripts/run_mutation_witness_tests.mjs`), so the run pays one clean run per
+> distinct `(tier, suite)` **among the chosen entries only** — one of them, for
+> a single `--only`, not the table's 21. Measured on the merged tree:
+> `--only alert-badge-is-not-filled`, a browser entry, ran start-to-finish in
+> **6 seconds** including building the shadow tree. So `--only` is still much
+> the cheapest way in at any table size, and the "above ~10 entries, run the
+> lot" rule should be read as being about *coverage* — a full table is the only
+> thing that catches a merge-induced miss elsewhere in the registry — and not
+> about cost.
+
 **The runner's exit code already means something, and has since `9c6c4a4`.** The
 handoff and the source issue both say it "prints the NOT WITNESSED list and
 still exits 0", and that is the one claim in either document that is false —
