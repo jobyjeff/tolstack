@@ -376,10 +376,12 @@
     return cell;
   }
 
-  // The badge itself is views/dom.js's VA.alertBadge — the nav rail's study
-  // rows wear the same one (viewer_nav_alert_badge_and_angled_default,
-  // 2026-09-21), and one glyph with two builders drifts the way one word with
-  // two literals does.
+  // The badge itself is views/dom.js's VA.alertBadge — the nav rail's rows
+  // (viewer_nav_alert_badge_and_angled_default, 2026-09-21) and the materials
+  // table below (2026-09-22) wear the same one, and one mark with three
+  // builders drifts the way one word with three literals does. Since
+  // 2026-09-22 this call site passes no skin at all: the drawn, unframed
+  // triangle IS the default, and the nav rail is the surface that overrides it.
 
   // The hover target. Carries its crop entry on the node so the app can show the
   // popover without re-deriving anything, and so a test can assert what a given
@@ -507,7 +509,7 @@
       }
       tr.appendChild(ranges);
       tr.appendChild(VA.el("td", null, (row.used_by_elements || []).join(", ")));
-      tr.appendChild(materialSourcingCell(row, authored));
+      tr.appendChild(materialSourcingCell(row, authored, handlers));
       body.appendChild(tr);
       var gaps = authored.gaps || [];
       if (gaps.length) body.appendChild(materialGapsRow(row.id, gaps));
@@ -538,10 +540,13 @@
   //
   // So the values line, the spec-library reference, the entry's own note, the
   // designation's citation, its callout and its note, and the CINDAS request
-  // are all in views/detail.js now. The one exception is the same exception
-  // the elements table made: a LOUD chip stays on the row, because a CTE
-  // nobody transcribed has to be legible at a glance and not one click away.
-  function materialSourcingCell(row, authored) {
+  // are all in views/detail.js now. The one exception the elements table made
+  // -- a LOUD chip stays on the row -- was made here too, and both have since
+  // been taken back: a CTE nobody transcribed still has to be legible at a
+  // glance, and since 2026-09-22 what is legible at a glance is a MARK rather
+  // than the words, with the words one hover away instead of one click (see
+  // the badge at the end of this function).
+  function materialSourcingCell(row, authored, handlers) {
     var cell = VA.el("td", "el-row__source");
     var chips = VA.el("div", "el-row__chips");
     chips.appendChild(VA.chip(VA.confidenceClass(row.confidence),
@@ -555,11 +560,27 @@
     chips.appendChild(VA.chip(VA.confidenceClass(row.designation_confidence),
       "designation: " + (VA.CONFIDENCE_LABEL[row.designation_confidence] ||
         row.designation_confidence)));
-    var values = VA.valuesProvenance(authored);
-    if (values.loud) {
-      chips.appendChild(VA.chip("chip--values-" + values.state,
-        VA.VALUES_CHIP_TEXT[values.state] || VA.VALUES_CHIP_FALLBACK,
-        values.text));
+    // ...and the one thing this row may ask the reader to DISTRUST, as the
+    // same quiet mark the elements table above wears
+    // (stack_page_alert_marks_and_drawn_glyph, 2026-09-22). It was a filled
+    // all-caps chip until 2026-09-17 and an outlined one until now --
+    // `CTE NOT TRANSCRIBED`, always visible, in a source column, which is the
+    // literal surface Jeff's sentence named ("especially the ones in the
+    // source column that are always visible"). The exception paragraph above
+    // was written when this was the LAST loud chip on the page and the
+    // mechanism to fold it did not exist twice over; it does now, so the
+    // sentence goes where every other alert's does.
+    //
+    // The standing rule this obeys (the 2026-09-22 rail pass): a row states
+    // what asks you to look and nothing else; a verdict stays a chip and
+    // anything that asks the reader to act or distrust folds into the mark.
+    // The three chips left above are the row's provenance, which is what the
+    // column is FOR; "nobody read this number off a source" is a reason to
+    // distrust the number in the column beside it, so it folds.
+    var alerts = VA.materialRowAlerts(authored);
+    if (alerts.length) {
+      chips.appendChild(VA.alertBadge(alerts, authored.designation || row.id,
+        handlers && handlers.onCardShow));
     }
     cell.appendChild(chips);
     // WHERE the CTE came from, one line, ellipsised -- the same

@@ -940,7 +940,11 @@ function alertBadge(alerts) {
   // A name for the icon, for a reader who cannot see it and for a hover with
   // no pointer at all; the popup below is what a sighted reader gets.
   badge.setAttribute("aria-label", alerts.map((a) => a.text).join(" "));
-  badge.textContent = AA.ALERT_ICON;
+  // DRAWN, not typed -- one SVG path sized in pixels and coloured by
+  // `currentColor`, shared with the viewer (AA.warningIcon delegates to
+  // apps/viewer/warning_icon.js). It was `AA.ALERT_ICON` on `textContent`
+  // until 2026-09-22; binding_state.js carries why a character could not stay.
+  badge.appendChild(AA.warningIcon("alertbadge__mark"));
   const show = (event) => {
     if (event && event.stopPropagation) event.stopPropagation();
     showAlertPop(alerts, badge);

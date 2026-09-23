@@ -62,3 +62,47 @@ Off the 2026-09-22 handoff's scope in as many words ("this is the left-hand nav
 only"), and the rail was the surface Jeff was looking at. Recorded so the
 inconsistency has an owner: the nav rail and the elements table are on the same
 page, two clicks apart, showing the same alert two different ways.
+
+## 2026-09-22 (later) — both sites are drawn, and there was a third
+
+`stack_page_alert_marks_and_drawn_glyph` shipped it. `VA.ALERT_ICON` and
+`AA.ALERT_ICON` are both deleted; `grep -n` for the character over `apps/`
+returns comments and history only.
+
+**The design question this issue named — copy, or a third shared file — was
+answered "shared file".** `apps/viewer/warning_icon.js` holds
+`VA.WARNING_ICON_PATH`, `VA.WARNING_ICON_PX` and `VA.warningIcon`, moved out of
+`views/dom.js`, and `apps/annotate/index.html` loads it as a sibling — the
+third file it loads across that boundary, after `storage/adapter.js` and
+`reader_facing_bans.js`, both of which are there for the same stated reason. It
+is reached through `AA.warningIcon` (`binding_state.js`) rather than from
+`app.js`, the way `AA.chooseTransport` reaches the shared transport decision, so
+a renderer never touches the viewer's namespace and a missing sibling file
+fails with a sentence naming the file. A copy plus a pairing assertion was the
+other option; it was not taken because the sharing precedent in **JS** here is
+direct and documented, and a shared definition needs no guard at all.
+
+The annotate guard was rewritten, not dropped, as this issue asked: it now pins
+that `AA.warningIcon` **delegates** (proved by substituting the viewer's
+function and watching the call land), that the missing-sibling error names the
+file, that `AA` defines no geometry of its own, and that the path data is path
+data — a moveto followed by nothing but commands and numbers, at a pixel size
+≥ 14. That the *rendered* badge is a sized `<path>` with no text in it is
+asserted where a layout engine can see it, in the browser tier.
+
+**A third site, found by this issue's own grep:** `views/banner.js`'s stale-data
+summary typed the character in front of its sentence
+(`"\u26A0 Data is older than the latest code — needs a rebuild"`). Both of this
+issue's arguments applied to it and one applied harder — it carried no semantic
+colour at all, inheriting body text, in the one box on the page that says "do
+not trust what you are reading". It is the drawn mark now, in the box's own
+`--untraced` colour (`.banner__stale-summary` / `.banner__stale-mark`).
+
+One argument in this issue's framing turned out to be wrong and is worth not
+repeating: the chip framing was **not** dropped because a 16px picture inside a
+`.chip` would have grown the row. It would not have — a `.chip` measures 21px
+in that cell and the mark is 16 — and the browser tier now carries that
+measurement beside the check that caught it. The frame went for the two reasons
+the nav rail's did: a border around the only alert marker on a row is a second
+mark, and unframed is the one thing in a cell of chips that is different in
+kind.

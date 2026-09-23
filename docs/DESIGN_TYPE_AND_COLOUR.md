@@ -25,8 +25,11 @@
 | Row geometry (row height, grip pixels) | `VA.RAIL_METRICS`, `VA.TOPO_GRIP` — **JS**, not CSS | `apps/viewer/tests.js`, `scripts/run_viewer_browser_tests.mjs` |
 | The size of a drawn icon | `VA.WARNING_ICON_PX` — **JS**, not a type step | `apps/viewer/tests.js` (the attribute), `scripts/run_viewer_browser_tests.mjs` (the rendered box) |
 
-**An icon is a picture, and its size is not a step on the scale.** The nav
-rail's status mark (`VA.warningIcon`, 2026-09-22) is drawn at a pixel size
+**An icon is a picture, and its size is not a step on the scale.** The alert
+mark both apps wear (`VA.warningIcon`, 2026-09-22 -- the nav rail's rows, both
+stack tables' source columns, the banner's stale-data line and the annotator's
+element rail; `apps/viewer/warning_icon.js` is its one home) is drawn at a
+pixel size
 because the alternative is worse in both directions: a `⚠` *character* is
 sized by `font-size`, so making it legible at row size means either accepting
 whatever the nearest existing step gives or adding a seventh step — a scale

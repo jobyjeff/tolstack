@@ -663,7 +663,13 @@
   // is the confidence chip, the kind chip and the material chip, which are not
   // alerts: they are the row's primary provenance signal, and one of them is
   // already the citation card's own hover trigger.
-  VA.ALERT_ICON = "⚠";
+  //
+  // The mark itself is not here and is not a character: it is a drawn triangle
+  // (`VA.warningIcon`, apps/viewer/warning_icon.js). This file held
+  // `VA.ALERT_ICON = "\u26A0"` until 2026-09-22
+  // (ISSUE_20260922_the_alert_glyph_is_still_a_character_on_two_rails); that
+  // file's header carries why a character could not be made legible at row
+  // size. What lives here is the WORDS, which is what this file is for.
 
   // What ONE elements-table row has to admit about itself, in severity order:
   // a value whose band nobody wrote down, then bytes this viewer cannot
@@ -1014,6 +1020,39 @@
   // rather than an `||` literal at the call site, exactly as
   // VA.EXPORT_CHIP_FALLBACK is.
   VA.VALUES_CHIP_FALLBACK = "CTE SOURCING UNKNOWN";
+
+  // What ONE materials-table row has to admit about itself -- the same shape
+  // VA.rowAlerts returns for an elements-table row, so views/dom.js's
+  // VA.alertBadge and the `alerts` card render it with nothing added
+  // (stack_page_alert_marks_and_drawn_glyph, 2026-09-22; Jeff's 2026-09-16
+  // sentence was about "the ones in the source column that are always
+  // visible", and this column was the last one still shouting).
+  //
+  // A BRANCH ON VA.rowAlerts WAS THE OTHER OPTION AND IS NOT WHAT THIS IS.
+  // That function takes an element and its derived row; a material entry is
+  // neither, and passing one in to reach a third branch would make the
+  // parameters mean "whatever the caller happens to hold". The shape this repo
+  // already uses is one small alert-list function per SURFACE, each reading the
+  // shared vocabulary rather than restating it -- VA.rowAlerts above,
+  // VA.studyNavAlerts and VA.stackNavAlerts in topology.js. So this is the
+  // fourth of those, and the WORDS stay where they already lived: in
+  // VA.VALUES_CHIP_TEXT, which views/detail.js's pane chip reads too. Nothing
+  // about a material's sourcing is written down twice.
+  //
+  // Only the LOUD state folds, which is the judgement every other surface
+  // makes: `inline` and a resolved `library` reference are what nearly every
+  // live entry carries, and a mark on every row is a mark nobody reads. The
+  // full sentence is on the badge's card, on its tooltip and in the right
+  // pane -- three places, none of them an abbreviation on the row.
+  VA.materialRowAlerts = function (authored) {
+    var values = VA.valuesProvenance(authored);
+    if (!values || !values.loud) return [];
+    return [{
+      kind: "values-" + values.state,
+      text: VA.VALUES_CHIP_TEXT[values.state] || VA.VALUES_CHIP_FALLBACK,
+      why: values.text,
+    }];
+  };
 
   // The view-model of a material entry's value provenance.
   //   state      a VA.VALUES_STATUSES key, or "unlabelled"

@@ -237,7 +237,7 @@ try {
     const VA = window.ViewerApp;
     const row = document.querySelectorAll("#stackview tr.el-row")[1];
     const chips = row.querySelector(".el-row__chips");
-    row.querySelector(".chip--alert").style.display = "none";
+    row.querySelector(".rowalert").style.display = "none";
     chips.appendChild(VA.chip("chip--zero-width", VA.ATTENTION.no_tolerance.text,
       VA.ATTENTION.no_tolerance.title));
     chips.appendChild(VA.chip("chip--export-unestablished",
@@ -253,7 +253,7 @@ try {
   // ...and the card behind the badge, which is where the words went -- plus
   // the `why` behind each of them, which the old chips only carried as a
   // native tooltip nothing could screenshot.
-  await page.locator("#stackview tr.el-row").nth(1).locator(".chip--alert").hover();
+  await page.locator("#stackview tr.el-row").nth(1).locator(".rowalert").hover();
   await page.waitForSelector(".hovercard--alerts", { timeout: 10000 });
   const alerts = await page.locator(".hovercard--alerts li.hovercard__alert").count();
   say(`the stack row's badge opens a card listing ${alerts} alert(s) with their why`);

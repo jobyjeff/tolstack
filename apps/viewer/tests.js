@@ -32,6 +32,16 @@
       }
     }
 
+    // The character the alert mark is NOT, spelled as an escape so a grep for
+    // the glyph over apps/ finds only prose. `VA.ALERT_ICON` held it until
+    // 2026-09-22, when the last two badges that typed it became drawn icons
+    // (ISSUE_20260922_the_alert_glyph_is_still_a_character_on_two_rails) --
+    // and a check that reads a DELETED constant is worse than no check: it
+    // asserts that the string "undefined" is absent and passes over anything.
+    // It is kept here, in the suite, because all three surfaces are asserted
+    // to render none of it and no assertion can spell its own subject.
+    var TRIANGLE_CHARACTER = "\u26A0";
+
     var FIXTURE = VA.demoFixture();
     var DEMO = FIXTURE.results.stacks[0];
     var CROPS = FIXTURE.crops;
@@ -1188,13 +1198,14 @@
       // Since flyout_resize_annotator_filter_and_deselect the row's WORDS are
       // on one consolidated alert badge rather than a chip of their own -- the
       // word is unchanged and still VA.ATTENTION's, which is what this pins.
-      var badges = all(all(root, "tr.el-row--zero-width")[0], ".chip--alert");
+      var badges = all(all(root, "tr.el-row--zero-width")[0], ".rowalert");
       eq(badges.length, 1);
-      eq(badges[0].textContent, VA.ALERT_ICON);
+      eq(badges[0].textContent, "",
+         "the badge is a PICTURE -- no text on the row at all");
       has(badges[0].getAttribute("title"), VA.ATTENTION.no_tolerance.text);
       has(badges[0].getAttribute("title"), VA.ATTENTION.no_tolerance.title);
       // ...and no row that has nothing to admit wears one.
-      ok(all(root, "tr.el-row").length > all(root, ".chip--alert").length,
+      ok(all(root, "tr.el-row").length > all(root, ".rowalert").length,
          "a row with no alerts shows no badge");
       // ...and the cells a reader compares carry the same sentence.
       eq(all(root, "td.num--zero-width")[0].getAttribute("title"),
@@ -1405,7 +1416,7 @@
         // class here rather than by counting: this check is about the
         // CITATION trigger.
         var chips = all(root, "span.cardtrig").filter(function (node) {
-          return node.className.indexOf("chip--alert") === -1;
+          return node.className.indexOf("rowalert") === -1;
         });
         eq(chips.length, 4);
         chips[0].onmouseenter();
@@ -1886,12 +1897,12 @@
         // since flyout_resize_annotator_filter_and_deselect through the row's
         // one consolidated alert badge rather than a filled chip of its own,
         // on the washer's row and no other. The WORD is unchanged.
-        var badges = all(rowsRoot, "span.chip--alert");
+        var badges = all(rowsRoot, "span.rowalert");
         eq(badges.length, 1);
         has(badges[0].getAttribute("title"), VA.EXPORT_CHIP_TEXT.unestablished);
         var rows = all(rowsRoot, "tr.el-row");
-        eq(all(rows[1], "span.chip--alert").length, 1);
-        eq(all(rows[0], "span.chip--alert").length, 0,
+        eq(all(rows[1], "span.rowalert").length, 1);
+        eq(all(rows[0], "span.rowalert").length, 0,
            "the established row is not tarred with it");
 
         var detailRoot = render(function (r) {
@@ -2050,7 +2061,7 @@
         var gripRow = all(rowsRoot, "tr.el-row").filter(function (tr) {
           return tr.textContent.indexOf("grip") !== -1;
         })[0];
-        has(all(gripRow, "span.chip--alert")[0].getAttribute("title"),
+        has(all(gripRow, "span.rowalert")[0].getAttribute("title"),
             VA.EXPORT_CHIP_TEXT.identity_unlabelled);
 
         var root = render(function (r) {
@@ -2086,7 +2097,7 @@
         // and the two states keep their own `kind` on VA.rowAlerts -- the
         // unestablished one is NOT reused for an unlabelled status, because
         // the two are different facts a stylesheet must be able to tell apart.
-        eq(all(rowsRoot, "span.chip--alert").length, 2);
+        eq(all(rowsRoot, "span.rowalert").length, 2);
         var plate = VA.rowAlerts(poisoned.stack.elements[0], poisoned.elements[0]);
         eq(plate.length, 1);
         eq(plate[0].kind, "export-unlabelled");
@@ -2177,17 +2188,97 @@
         ok(table, "the materials table must be on the page");
         eq(all(table, "div.el-row__where--compact").length, 3);
         has(rows[0].textContent, "demo.xlsx · cell C5");
-        // ...plus the loud chip, the same exception the elements table makes:
-        // a CTE nobody transcribed has to be legible across the table, not one
-        // click away.
-        eq(all(root, "span.chip--values-not_transcribed").length, 1);
-        has(rows[2].textContent, VA.VALUES_CHIP_TEXT.not_transcribed);
+        // ...plus ONE QUIET MARK where the row has something to distrust, and
+        // not the words. The exception the elements table made -- a loud chip
+        // stays on the row -- was made here too until 2026-09-22, and both
+        // have been taken back the same way: the mark is legible across the
+        // table, the words are one hover (not one click) away, and nothing was
+        // reworded on the way (stack_page_alert_marks_and_drawn_glyph).
+        eq(all(root, "span.chip--values-not_transcribed").length, 0,
+           "the always-visible source column no longer shouts");
+        var marks = all(table, "span.rowalert");
+        eq(marks.length, 1, "one mark, on the one row whose CTE nobody read");
+        eq(all(rows[2], "span.rowalert").length, 1);
+        eq(rows[2].textContent.indexOf(VA.VALUES_CHIP_TEXT.not_transcribed), -1,
+           "the words are on the badge, not on the row");
+        // ...and they ARE reachable without a click: the tooltip carries the
+        // wording and the sentence behind it, the aria-label the wording.
+        has(marks[0].getAttribute("title"), VA.VALUES_CHIP_TEXT.not_transcribed);
+        has(marks[0].getAttribute("title"),
+            VA.VALUES_STATUSES.not_transcribed.text());
+        eq(marks[0].getAttribute("aria-label"),
+           VA.VALUES_CHIP_TEXT.not_transcribed);
         // The ranges, paired, stay in the row: what the source quoted the mean
         // over and what this stack applies it over is the comparison the TABLE
         // is for. The aluminium quotes none and is applied over one.
         has(rows[0].textContent, "— not stated");
         has(all(root, "div.mat-row__applied")[0].textContent, "applied over 20 … 72 °C");
         has(rows[1].textContent, "20 … 100");
+      });
+
+    await test("materialRowAlerts folds only the LOUD values state, in the " +
+      "words the chip table already owns", function () {
+        // Where the words live was the one real decision in
+        // stack_page_alert_marks_and_drawn_glyph, and this is it asserted: the
+        // alert READS VA.VALUES_CHIP_TEXT rather than restating it, so the
+        // materials row, the right pane and this check cannot disagree about
+        // what a CTE nobody transcribed is called.
+        var entries = GEN.materials.map(function (row) { return row.material; });
+        eq(VA.materialRowAlerts(entries[0]), [],
+           "an inline transcription is not an alert");
+        var loud = VA.materialRowAlerts(entries[2]);
+        eq(loud.length, 1);
+        eq(loud[0].kind, "values-not_transcribed");
+        eq(loud[0].text, VA.VALUES_CHIP_TEXT.not_transcribed);
+        eq(loud[0].why, VA.VALUES_STATUSES.not_transcribed.text());
+        // A status this page has no branch for is loud too, and says the value
+        // rather than describing it -- the same fallback the export axis takes.
+        var stranger = VA.materialRowAlerts({ values_status: "estimated" });
+        eq(stranger.length, 1);
+        eq(stranger[0].kind, "values-unlabelled");
+        eq(stranger[0].text, VA.VALUES_CHIP_TEXT.unlabelled);
+        has(stranger[0].why, "estimated");
+        // A library reference that resolves is not an alert; one that names
+        // nothing to resolve THROUGH is.
+        eq(VA.materialRowAlerts({ values_status: "library",
+          library_ref: "spec_library:X" }), []);
+        eq(VA.materialRowAlerts({ values_status: "library",
+          library_ref: null }).length, 1);
+        eq(VA.materialRowAlerts(null), []);
+      });
+
+    await test("the materials badge opens the same alerts card the elements " +
+      "table's does, naming the material it belongs to", function () {
+        var shown = [];
+        var root = render(function (r) {
+          VA.renderStack(r, GEN, CROPS, {
+            onCardShow: function (card, trigger) { shown.push([card, trigger]); },
+          });
+        });
+        var mark = all(root.querySelector("table.mattable"), "span.rowalert")[0];
+        ok(mark, "expected the materials table's one mark");
+        mark.onmouseenter();
+        eq(shown.length, 1);
+        eq(shown[0][0].kind, "alerts");
+        eq(shown[0][0].alerts.length, 1);
+        var card = render(function (r) {
+          VA.renderHoverCard(r, shown[0][0], {}, VA.CONFIG, null);
+        });
+        eq(all(card, "li.hovercard__alert").length, 1);
+        // The words AND the sentence behind them -- the `why` the outlined
+        // chip only ever carried as a native tooltip.
+        has(card.textContent, VA.VALUES_CHIP_TEXT.not_transcribed);
+        has(card.textContent, "nobody has read this number off a source");
+        // ...and WHICH row, which a one-mark badge cannot say on its own. The
+        // designation, not the id: an id is a deep-link handle, not a label.
+        has(card.textContent, GEN.materials[2].material.designation);
+        // Without a card handler the mark is not a trigger and nothing throws,
+        // and the tooltip is still the whole of it.
+        var bare = render(function (r) { VA.renderStack(r, GEN, CROPS, {}); });
+        var bareMark = all(bare.querySelector("table.mattable"),
+          "span.rowalert")[0];
+        eq(bareMark.className.indexOf("cardtrig"), -1);
+        has(bareMark.getAttribute("title"), VA.VALUES_CHIP_TEXT.not_transcribed);
       });
 
     await test("the materials PANE holds the provenance of the NUMBER, and " +
@@ -5351,9 +5442,9 @@
         });
         var row = all(rowsRoot, "tr.el-row")[idx];
         // ONE badge, not two chips.
-        var badges = all(row, "span.chip--alert");
+        var badges = all(row, "span.rowalert");
         eq(badges.length, 1);
-        eq(badges[0].textContent, VA.ALERT_ICON);
+        eq(badges[0].textContent, "");
 
         badges[0].onmouseenter();
         eq(shown.length, 1);
@@ -5372,10 +5463,51 @@
         // machinery at all (the shim, a view called without handlers): the
         // information is never ONLY in a hover.
         var bare = render(function (r) { VA.renderStack(r, both, CROPS, {}); });
-        var bareBadge = all(all(bare, "tr.el-row")[idx], "span.chip--alert")[0];
+        var bareBadge = all(all(bare, "tr.el-row")[idx], "span.rowalert")[0];
         has(bareBadge.getAttribute("title"), VA.ATTENTION.no_tolerance.text);
         has(bareBadge.getAttribute("title"), VA.EXPORT_CHIP_TEXT.unestablished);
         eq(bareBadge.className.indexOf("cardtrig"), -1);
+      });
+
+    await test("a table row's alert mark is DRAWN, not typed: one sized SVG " +
+      "path, and no chip framing around it", function () {
+        // The same claim the nav rail's icon carries, now over both tables --
+        // stack_page_alert_marks_and_drawn_glyph, 2026-09-22. It matters here
+        // for the reason it mattered there and not for symmetry: a `⚠`
+        // character is sized by `font-size`, whose six steps
+        // tests/test_app_type_scale.py owns, and U+26A0 renders as a colour
+        // emoji on Windows as often as not -- which overrules the semantic
+        // colour the class sets.
+        // Both tables, from the two fixtures that reach them: the demo stack's
+        // washer row is the elements table's case and GEN's bearing steel is
+        // the materials table's. One loop over both, so neither presentation
+        // can drift away from the other.
+        var elementsRoot = render(function (r) {
+          VA.renderStack(r, DEMO, CROPS, {});
+        });
+        var root = render(function (r) { VA.renderStack(r, GEN, CROPS, {}); });
+        var marks = all(elementsRoot.querySelector("table.eltable"),
+          "span.rowalert").concat(
+            all(root.querySelector("table.mattable"), "span.rowalert"));
+        eq(marks.length, 2, "expected the mark on both tables");
+        marks.forEach(function (mark) {
+          eq(mark.className.indexOf("chip"), -1,
+             "no chip framing -- a border around the only alert marker on a " +
+             "row is a second mark");
+          var svg = all(mark, "svg");
+          eq(svg.length, 1);
+          eq(svg[0].getAttribute("width"), String(VA.WARNING_ICON_PX));
+          eq(svg[0].getAttribute("height"), String(VA.WARNING_ICON_PX));
+          var path = all(mark, "path");
+          eq(path.length, 1, "one path, so the counters are CUT OUT of the "
+             + "triangle rather than filled with a colour nothing can name");
+          eq(path[0].getAttribute("fill"), "currentColor");
+          eq(path[0].getAttribute("fill-rule"), "evenodd");
+        });
+        ok(VA.WARNING_ICON_PX >= 14,
+           "the whole point of the redraw is that it is legible at row size");
+        eq(root.textContent.indexOf(TRIANGLE_CHARACTER), -1,
+           "no triangle character anywhere on a stack page");
       });
 
     await test("an alerts card with one alert renders one item and names the " +
@@ -9354,7 +9486,7 @@
         // rather than typed -- so there is no triangle CHARACTER on the rail
         // at all any more, on a label or anywhere else.
         eq(all(active[0], ".navstatus").length, 1);
-        eq(root.textContent.indexOf("⚠"), -1,
+        eq(root.textContent.indexOf(TRIANGLE_CHARACTER), -1,
            "the rail's mark is a drawn icon -- no glyph on any row");
       });
 
@@ -9607,7 +9739,7 @@
            + "triangle rather than filled with a colour nothing can name");
         eq(path[0].getAttribute("fill"), "currentColor");
         eq(path[0].getAttribute("fill-rule"), "evenodd");
-        eq(root.textContent.indexOf(VA.ALERT_ICON), -1,
+        eq(root.textContent.indexOf(TRIANGLE_CHARACTER), -1,
            "no triangle character anywhere on the rail");
       });
 
@@ -11243,7 +11375,7 @@
           // flyout_resize_annotator_filter_and_deselect, carrying the
           // unchanged word.
           var rowsRoot = render(function (r) { VA.renderStack(r, stackProj, realCrops, {}); });
-          var loud = all(rowsRoot, "span.chip--alert").filter(function (node) {
+          var loud = all(rowsRoot, "span.rowalert").filter(function (node) {
             return node.getAttribute("title")
               .indexOf(VA.EXPORT_CHIP_TEXT.unestablished) !== -1;
           });
@@ -11376,6 +11508,76 @@
             });
           });
           ok(entries > 0, "the live projection must carry material entries");
+        });
+
+      await test("[real] the live materials column carries at most ONE quiet " +
+        "mark per row, and its words are reachable from the card it opens",
+        function () {
+          // The DoD of stack_page_alert_marks_and_drawn_glyph, measured on the
+          // projection rather than on the fixture: `hub_bearing_thermal_fit_m1`
+          // and `_m2` are the two live stacks with materials, and their source
+          // column carried an always-visible `CTE NOT TRANSCRIBED` chip on
+          // every row whose CTE nobody had read -- which is the literal
+          // surface Jeff's 2026-09-16 sentence named.
+          var stacks = 0;
+          var marked = 0;
+          realResults.stacks.forEach(function (stackProj) {
+            var materials = stackProj.materials || [];
+            if (!materials.length) return;
+            stacks += 1;
+            var shown = [];
+            var root = render(function (r) {
+              VA.renderStack(r, stackProj, realCrops, {
+                onCardShow: function (card) { shown.push(card); },
+              });
+            });
+            var rows = all(root.querySelector("table.mattable"), "tr.mat-row");
+            eq(rows.length, materials.length, stackProj.id);
+            materials.forEach(function (m, i) {
+              var where = stackProj.id + ":" + m.id;
+              var alerts = VA.materialRowAlerts(m.material || {});
+              var marks = all(rows[i], "span.rowalert");
+              eq(marks.length, alerts.length ? 1 : 0,
+                 where + ": one mark however much the row has to admit, and " +
+                 "nothing at all on a row with nothing to admit");
+              if (!alerts.length) return;
+              marked += 1;
+              // The words are OFF the row and on the mark -- the whole trade.
+              alerts.forEach(function (alert) {
+                eq(rows[i].textContent.indexOf(alert.text), -1,
+                   where + ": " + alert.text + " is still on the row");
+                has(marks[0].getAttribute("title"), alert.text, where);
+                has(marks[0].getAttribute("title"), alert.why, where);
+              });
+              // ...and reachable from the card the mark opens, which is where
+              // a reader with a pointer meets them.
+              shown.length = 0;
+              marks[0].onmouseenter();
+              eq(shown.length, 1, where);
+              var card = render(function (r) {
+                VA.renderHoverCard(r, shown[0], {}, VA.CONFIG, null);
+              });
+              has(card.textContent, alerts[0].text, where);
+              has(card.textContent, alerts[0].why, where);
+            });
+          });
+          eq(stacks, 2, "the two live thermal stacks are the ones with materials");
+          // AND THE MEASUREMENT THAT MATTERS MOST, because it is not what the
+          // issue behind this fold assumed: NOT ONE live material entry is
+          // loud. All six are `values_status: "inline"`, so the always-visible
+          // `CTE NOT TRANSCRIBED` chip this fold retired was never on a live
+          // stack page -- only on the fixture's `demo_fit`, which is what the
+          // two checks above the [real] block render. viewer.js already says
+          // as much about these sentences ("only one of the three was ever
+          // reachable by live data"); this is the same fact, asserted where a
+          // reader of the fold can see it.
+          //
+          // So the loop above is an INVARIANT check on live data, not a
+          // witness of the fold. If this line ever fails, a live entry has
+          // become loud and the fold now has a live witness: delete the line
+          // and move this note, because the loop already covers it.
+          eq(marked, 0, "a live material entry has become loud -- read the " +
+             "note above this assertion before changing it");
         });
 
       await test("[real] both thermal stacks resolve the one worksheet that covers them",
@@ -12694,7 +12896,7 @@
                "the verdict left the rail -- it is in the icon's card now");
             eq(all(root, ".tvflag").length, 0);
             eq(all(root, "span.chip").length, 0);
-            eq(root.textContent.indexOf(VA.ALERT_ICON), -1,
+            eq(root.textContent.indexOf(TRIANGLE_CHARACTER), -1,
                "the rail's mark is drawn, not typed");
             var loud = rows.filter(function (row) {
               return all(row, ".navstatus").length > 1;
