@@ -4022,6 +4022,35 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       projected coordinate rounds to `0` or `1.3e-16`. If this sub-check is
       the only red in an otherwise-clean browser tier, re-run it with
       `--only` before treating it as a regression.
+- [ ] **A `push()` LABEL that dereferences the very thing its condition
+      guards.** New 2026-09-22 (`viewer_nav_verdict_into_alert_and_icon`), and
+      a fresh instance of the 1180-line-`try` entry above rather than a new
+      class. `push(\`… (${shapes[0].w}x${shapes[0].h}px)\`, shapes.length >= 1
+      && …)` — the author knew `shapes` could be empty, guarded the
+      *condition*, and left the **label** to throw first: template literals are
+      evaluated as arguments, so in exactly the case the check exists for (no
+      mark on the rail at all) the block died on
+      `Cannot read properties of undefined` and took the three sub-checks below
+      it with it. Measured by planting it: 2 sub-checks reported and the tier
+      `ABORTED`, versus 5 reported after a one-line default. **Read every
+      interpolation in a check's own label as if the check had just failed** —
+      a `[0]`, a `.length` on a maybe-null, a `JSON.parse` — because that is
+      the only run where the label matters. Fixed inline in review; the sibling
+      shape to watch for in the same diffs is a
+      `filter(...).length === 0` assertion that passes **vacuously** on the
+      empty collection (the border/radius check beside this one still does).
+- [ ] **…and the "printing is not asserting" entry reached its SECOND sighting,
+      inside a README that IS scanned.** Same handoff: `apps/viewer/README.md`
+      gained "11 amber and 10 red across the 21 studies … pinned in
+      `tests.js`", where both tiers assert only `>= 1` of each and *print* the
+      split in a label
+      (`ISSUE_20260922_the_viewer_readme_states_a_live_nav_tally_that_only_a_
+      label_prints`). The refinement over the 2026-09-21 entry: that one turned
+      on `apps/annotate/README.md` having **no** scanner. This one has one —
+      `tests/test_viewer_readme_doc_facts.py` — and it is two regexes wide, so
+      "the README is guarded" is not "this sentence is guarded". Resolve the
+      claim to the specific `_*_CLAIM` pattern that would read it, or say it is
+      unpaired.
 
 ## Architectural errors to check
 

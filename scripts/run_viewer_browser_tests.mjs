@@ -2611,8 +2611,15 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         s.w < SIZE || s.h < SIZE || s.paths !== 1);
       const boxed = navAlerts.shapes.filter((s) =>
         !/^0px/.test(s.border) || !/^0px/.test(s.radius) || s.outline !== "none");
+      // The measurement is read through a default, because the case this check
+      // exists to catch -- no mark on the rail at all -- is exactly the case
+      // that leaves `shapes` EMPTY, and a label reading `shapes[0].w` is
+      // evaluated before push() ever sees the condition: the block aborted on
+      // a TypeError there instead of failing, taking the border, colour and
+      // placement checks below it with it (review, 2026-09-22).
+      const shape = navAlerts.shapes[0] || { w: 0, h: 0 };
       push(`[real] the mark renders at a legible size on every row ` +
-        `(${navAlerts.shapes[0].w}x${navAlerts.shapes[0].h}px, one path)`,
+        `(${shape.w}x${shape.h}px, one path)`,
         navAlerts.shapes.length >= 1 && unreadable.length === 0);
       push("[real] and with no border, no corner radius and no outline — the " +
         "chip framing is gone, not just unclassed",
