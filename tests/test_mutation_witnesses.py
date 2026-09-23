@@ -35,6 +35,14 @@ rather than a prose sub-check. The identifier is the better string of the two,
 but it is not a safer one -- a renamed test rots it exactly as a reworded
 sub-check rots the others.
 
+**One name written twice is not always two declarations.** A viewer guard with
+a ``skip(...)`` arm beside its ``test(...)`` one carries the same words in both,
+deliberately, so a reader of either output sees the same title -- and only the
+test arm can ever print the ``FAIL  <name>`` line the runner attributes a red
+to. Counting both made every such guard permanently unenrollable, which cost two
+measured rows before it was noticed (``SKIP_DECLARATION`` below has the
+citations), so a ``skip(``-introduced occurrence is passed over here.
+
 **A PREFIX of a check name is the failure this module used to let through.** It
 counts substrings; the runner compares the declared name to the printed one for
 equality, so a name cut short is green here in under a second and a guaranteed
@@ -127,6 +135,28 @@ CHECK_SOURCE = {
     "python": None,
 }
 
+#: A check name is declared TWICE in ``apps/viewer/tests.js`` wherever a guard
+#: has a ``skip(...)`` arm beside its ``test(...)`` one -- deliberately the same
+#: words, so a reader of either output sees the same title. That is not the
+#: ambiguity ``test_every_expect_red_resolves_to_exactly_one_place`` is about:
+#: only the ``test(`` arm can ever print the ``FAIL  <name>`` line the runner
+#: attributes a red to, and the two arms are mutually exclusive by construction
+#: (the viewer's node-fs tier injects ``VIEWER_SRC``; the browser one does not).
+#: Counting both left every such guard permanently unenrollable -- measured
+#: twice: ``LESSONS_20260921_mutation_witness_enrollment_backlog.md`` excluded
+#: the markup-scan twin for exactly this, and
+#: ``ISSUE_20260922_the_policy_free_residue_guards_have_no_mutation_witness_entry.md``
+#: proposed a row on ``this app holds no terminal command for a surface to
+#: render``, which has the same shape. So an occurrence introduced by ``skip(``
+#: is passed over, and only test declarations are counted.
+#:
+#: Deliberately literal rather than a regex: the seams are closed before this is
+#: looked for (``joined_source``), so a ``skip(`` arm whose name spans lines
+#: still reads as one string, and the only spelling this does NOT recognise is a
+#: ``skip(`` with its first argument on the NEXT line -- which counts as a test
+#: declaration and so fails loudly, the safe direction.
+SKIP_DECLARATION = 'skip("'
+
 #: A ``python`` entry's ``expect_red`` is a test FUNCTION name, off pytest's
 #: ``FAILED <file>::<name>`` summary line -- an exact identifier rather than a
 #: prose sub-check. This is how it is looked for in the suite file: the ``def``
@@ -195,12 +225,38 @@ def check_source_of(entry: dict) -> str:
     return CHECK_SOURCE[entry["tier"]] or entry["suite"]
 
 
+def expect_red_offsets(entry: dict) -> tuple[int, ...]:
+    """Every offset in the check source where this entry's ``expect_red`` sits.
+
+    Node tiers only -- a ``python`` entry's name is an identifier looked for as
+    a ``def``, which has no seams and no skip arm.
+    """
+    source = joined_source(check_source_of(entry))
+    name = entry["expect_red"]
+    out, at = [], source.find(name)
+    while at != -1:
+        out.append(at)
+        at = source.find(name, at + 1)
+    return tuple(out)
+
+
+def declared_as_a_skip(source: str, at: int) -> bool:
+    """Is the name at ``at`` the first argument of a ``skip(...)`` call?"""
+    head = at - len(SKIP_DECLARATION)
+    return head >= 0 and source[head:at] == SKIP_DECLARATION
+
+
 def expect_red_hits(entry: dict) -> int:
-    """How many places in that file declare this entry's ``expect_red``."""
+    """How many places in that file declare this entry's ``expect_red``.
+
+    A ``skip(`` arm is not one of them -- see ``SKIP_DECLARATION``.
+    """
     relative = check_source_of(entry)
     if entry["tier"] == "python":
         return source_of(relative).count(PYTEST_DEF.format(name=entry["expect_red"]))
-    return joined_source(relative).count(entry["expect_red"])
+    source = joined_source(relative)
+    return sum(1 for at in expect_red_offsets(entry)
+               if not declared_as_a_skip(source, at))
 
 
 def runner_tier_harness() -> dict[str, bool]:
@@ -419,7 +475,11 @@ def test_no_expect_red_is_a_truncated_check_name(mutations):
             continue
         relative = check_source_of(entry)
         source = joined_source(relative)
-        at = source.index(entry["expect_red"]) + len(entry["expect_red"])
+        # The TEST declaration, never a `skip(` arm beside it: the runner only
+        # ever attributes a red to the one the test arm prints.
+        starts = [i for i in expect_red_offsets(entry)
+                  if not declared_as_a_skip(source, i)]
+        at = starts[0] + len(entry["expect_red"])
         assert source[at] == '"', (
             f"{entry['id']}: its `expect_red` is a PREFIX of the name "
             f"{relative} actually prints -- the next character there is "
@@ -430,6 +490,31 @@ def test_no_expect_red_is_a_truncated_check_name(mutations):
             f"Declared:\n{entry['expect_red']}\n"
             f"Printed:\n{entry['expect_red']}{source[at:source.index(chr(34), at)]}"
         )
+
+
+def test_passing_over_the_skip_arm_is_load_bearing(mutations):
+    """At least one declared name is ALSO written in a ``skip(...)`` beside it.
+
+    Without this, a ``SKIP_DECLARATION`` that had stopped matching -- the call
+    reworded, the argument moved to its own line -- would leave
+    ``expect_red_hits`` counting both arms again, and the only symptom would be
+    the next such guard being called unenrollable by a test that used to let it
+    through. Same argument as ``test_closing_the_concatenation_seam_is_load_
+    bearing`` below: a discriminator nothing exercises is a dead one.
+    """
+    both_arms = [
+        entry["id"] for entry in mutations
+        if entry["tier"] != "python"
+        and any(declared_as_a_skip(joined_source(check_source_of(entry)), at)
+                for at in expect_red_offsets(entry))
+    ]
+    assert both_arms, (
+        "no declared `expect_red` is written in a `skip(...)` arm as well as a "
+        "`test(...)` one, so this module cannot tell a working "
+        "SKIP_DECLARATION from a dead one. Either no enrolled guard has a skip "
+        "arm any more -- in which case say so and drop the passing-over -- or "
+        "the literal has stopped matching."
+    )
 
 
 def test_every_python_entry_names_a_test_file_the_shadow_can_run(mutations):
