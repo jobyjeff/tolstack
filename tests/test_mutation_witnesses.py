@@ -479,6 +479,10 @@ def test_no_expect_red_is_a_truncated_check_name(mutations):
         # ever attributes a red to the one the test arm prints.
         starts = [i for i in expect_red_offsets(entry)
                   if not declared_as_a_skip(source, i)]
+        # A name with no test declaration at all is the sibling test's failure,
+        # stated there in words; an IndexError here would only bury it.
+        if not starts:
+            continue
         at = starts[0] + len(entry["expect_red"])
         assert source[at] == '"', (
             f"{entry['id']}: its `expect_red` is a PREFIX of the name "
