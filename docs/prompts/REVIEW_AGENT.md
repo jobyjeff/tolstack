@@ -4142,6 +4142,29 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       pairs_against_the_directory.md`). The `views/` and `storage/` rows are
       directory-level, so only a new **top-level** file trips this; the row is
       one line and inside the inline-fix boundary.
+- [ ] **You are RESUMING a review whose session died — the report is not the
+      evidence that the job finished.** New 2026-09-23
+      (`stack_page_alert_marks_and_drawn_glyph`): the machine crashed between
+      the inline-fix commit and everything after it, so the branch carried a
+      verdict of APPROVE, a 316-line report and **no merge**. A report that
+      says APPROVE reads exactly the same whether or not the work reached
+      `integration`, so do not infer the state from it — measure it:
+      `git merge-base --is-ancestor <handoff-branch> integration` (the
+      containment check the canonical prompt already prescribes, here pointed
+      at your OWN branch as well), and `git log --oneline integration` against
+      your branch's base to see how far the target moved while you were dead.
+      Two specific things a crash leaves behind, both of which were present:
+      **a forward reference to a section that was never written** (grep the
+      report for "below" and confirm each one resolves — one pointed at a
+      *Full witness tier* heading that did not exist, and one at a *What I
+      changed* section that never did), and **an armed `node_modules` junction
+      the lesson's own "remove it before finishing" step never reached.** Then
+      re-run the tiers rather than quoting the dead session's numbers for a
+      tree it never saw: `integration` had moved four commits, so the counts
+      that gate the merge are the ones measured after merging it in, not the
+      ones already in the file. Say in the report which numbers are the dead
+      session's and which are yours — the resumed run owns the merge, so it
+      owns the evidence under it.
 
 ## Architectural errors to check
 

@@ -37,8 +37,9 @@ Two things a later reader needs from this review specifically:
 1. **The handoff handed back a deliberately red `tests/test_mutation_witnesses.py`
    (3 failures), and I repaired it** in the merge under this overlay's standing
    "the anchor check fires at merge time and you are the one holding it" rule.
-   Details in *What I changed*, below. Without that repair this merge would have
-   put those three reds on `integration` with nobody scheduled to reach them.
+   Details in *Findings → Should-fix*, below. Without that repair this merge
+   would have put those three reds on `integration` with nobody scheduled to
+   reach them.
 2. **The first DoD bullet is satisfied vacuously and the author says so.** No
    live material entry has ever been in the state this fold retires. That is
    the session's real finding, it is filed as a strategy issue, and I re-derived
@@ -212,6 +213,61 @@ there measures trunk, not this merge, and this diff touches no path resolution
 and reads no `data/` — the one shape that overlay row exists for. Said plainly:
 merged code and real data met here only through the `--repo` seam, which this
 repo documents as working for exactly these tiers.
+
+### Full witness tier
+
+**This session is a resumption: the machine running the review crashed after
+the inline fixes were committed (`d93da14`, 2026-09-22 23:52) and before any of
+the finishing work; everything below this heading was run 2026-09-23.** What the crash interrupted is exactly this section — the sentence above
+forward-references it and there was nothing here — plus the `integration`
+merge-in, the post-merge suite and the merge out. All of it is below, run fresh
+rather than reconstructed, and nothing above this line was re-measured: it was
+recorded by the run that did the measuring.
+
+`integration` had moved four commits past this branch's base by the time I
+picked it up (`a183de6` → `42a38c0`: the sibling handoff's board move, its issue
+disposition and two `master` syncs). Merged in — `b85c03e`, **by the 'ort'
+strategy, no conflicts**, and the incoming diff is two doc files and one rename
+(`docs/sessions/{active => completed}/HANDOFF_20260922_findings_splitter_...`).
+No app code, no test, no registry entry arrived with it, which is the fact the
+tier count below has to be read against.
+
+All four tiers re-run **after** that merge, in this worktree, `node_modules`
+junctioned in from the main checkout:
+
+- `venv-win/Scripts/python.exe -m pytest -q` → **1208 passed, 1 failed in
+  42.5 s**. The one red is
+  `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`, the documented
+  worktree-only red (gitignored `data/`, so the node-fs tier has no projection
+  and the test refuses to count a skip as a pass). Its tier is green through
+  `--repo`, below. **The three `test_mutation_witnesses.py` reds the handoff
+  handed back are gone** — 1208/1209 here against the 1205/1209 measured
+  pre-repair, and the same 1208 passed the sibling review measured on
+  `integration`.
+- `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` → **501/501**,
+  no SKIP lines.
+- `node apps/annotate/run_tests.cjs` → **154/154**, no SKIP lines.
+- `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` →
+  **25/25 browser checks**.
+- `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`
+  (the whole tier, the overlay's standing instruction) → **93/96 witnessed**.
+
+**The merge cost no coverage, and that is the claim this tier exists to
+support.** The three `NOT WITNESSED` are
+`leader-style-survives-a-topology-switch` ("another check reddened, but not the
+declared one"), `worst-verdict-ranks-worst-last` ("the tier never reached the
+witness") and `arriving-at-an-element-shows-its-part-in-3d` ("the witness cannot
+see the difference") — name for name and reason for reason the three the
+sibling review measured on `integration` at the same 93/96, and the three Part 1
+of `HANDOFF_20260922_mutation_witness_repair_and_enrollment` already owns. The
+count did not move in either direction: **93 before the merge, 93 after it**, so
+there is no merge-only regression here of the `card-layout-out-of-flow` kind the
+overlay row was written for.
+
+`alert-badge-is-not-filled` — the entry I re-pointed — is **not** in that miss
+list, which is the whole-tier confirmation of the `--only` run recorded above:
+the narrowed colour-only mutation reddens its declared sub-check and no earlier
+one, in a run that also drives every other browser entry.
 
 ## Findings
 
