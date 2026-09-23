@@ -1,7 +1,7 @@
 ---
 type: bug
 priority: med
-status: open
+status: resolved
 area: scripts/mutation_witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
@@ -85,3 +85,38 @@ id in the message, which is the least useful of the three reds. Guarding the
 `index` (skip when the count is 0, and let the pairing test own that failure)
 would make the triple read as one finding rather than one finding and a
 traceback.
+
+## 2026-09-22 (review) — RESOLVED: re-pointed in the integration merge, and witnessed
+
+`REVIEW_20260922_stack_page_alert_marks_and_drawn_glyph` applied the repair
+above in the review branch's own commit, under the overlay's standing rule that
+**the anchor check fires at merge time and the reviewer is the one holding it**
+(`docs/prompts/REVIEW_AGENT.md`). The handoff's fence was right and the filing
+was right: a red `integration` was the alternative, and nothing else would have
+reached this entry before the work landed -- `handoff/mutation_witness_repair_
+and_enrollment` is in flight from an older `integration`, does not contain this
+work, and its diff of `scripts/mutation_witnesses.json` does not touch this
+entry, so it would not have picked it up.
+
+What the reviewer changed against the paste above: the `note` records the
+re-point, the commit that moved the code (`1c33359`) and the old anchor text, as
+that rule requires. Everything else is the issue's own text.
+
+Verified, in the merged review worktree:
+
+* `venv-win/Scripts/python.exe -m pytest -q tests/test_mutation_witnesses.py`
+  -> **14 passed** (was 3 failed, 11 passed);
+* `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
+  --only alert-badge-is-not-filled` -> **WITNESSED**, `1/1 declared mutations
+  witnessed`, clean run green and the declared sub-check the red:
+  `the row's alert mark is NOT filled and wears no box - the loudness Jeff named
+  is gone, and so is the border that was a second mark`. So the narrower
+  `color`-only mutation does keep the `DRAWN and legible` sub-check above it
+  green, which is what the paste predicted and nothing had yet measured.
+
+The second, smaller finding below -- `test_no_expect_red_is_a_truncated_check_
+name` crashing with a bare `ValueError` instead of an assertion naming the entry
+-- was **not** fixed here (it is a change to a guard's behaviour, outside the
+inline-fix boundary) and is re-filed so it keeps an owner after this issue
+closes: `ISSUE_20260922_the_truncated_check_name_guard_crashes_instead_of_
+reporting_when_the_name_is_absent.md`.

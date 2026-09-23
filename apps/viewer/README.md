@@ -382,7 +382,8 @@ verdict first, then the alerts, each as a full sentence with its *why*.
   names, and the names are what a reader navigates by.
 * **The icon is drawn, not typed** — `VA.warningIcon`
   (`apps/viewer/warning_icon.js`, its own file since 2026-09-22 because
-  `apps/annotate` wears the same mark), one SVG path sized in pixels. Two reasons, both about legibility rather than taste: a
+  `apps/annotate` wears the same mark), one SVG path sized in pixels. Two
+  reasons, both about legibility rather than taste: a
   `⚠` character is sized by `font-size`, so it can only ever be as big as a
   step on the type scale (owned by `tests/test_app_type_scale.py`, and a
   seventh step added to enlarge one triangle is a scale decision taken by an
@@ -2011,6 +2012,10 @@ apps/viewer/
                       fixtures into one mock adapter at boot
   topology_app.js     boot + wiring for the whole page (formerly app.js's job
                       too — app.js is deleted; there is one boot file now)
+  warning_icon.js     the alert mark's geometry and builder
+                      (VA.WARNING_ICON_PATH / _PX / VA.warningIcon) — a file of
+                      its own since 2026-09-22 because apps/annotate loads it
+                      as a sibling, which it cannot do with views/dom.js
   storage/adapter.js  the read-only adapter contract, plus the one decision
                       above it: VA.chooseTransport / VA.TRANSPORT — which
                       adapter a page gets, and what a served page with

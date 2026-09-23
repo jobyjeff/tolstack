@@ -4110,6 +4110,38 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       nothing_witnesses.md`). A deferred finding has no owner unless a
       deliverable names it: **grep the previous review report for "not filed"
       and re-check each one against the diff in front of you.**
+- [ ] **A handoff FENCED OUT of `scripts/mutation_witnesses.json` hands you a
+      red registry, and that is the fence working — repair it in your own
+      merge.** New 2026-09-22 (`stack_page_alert_marks_and_drawn_glyph`), and
+      it is the second face of "The anchor check fires at MERGE time"
+      above: there the rot came from `integration` moving under the handoff;
+      here the handoff's **own** diff rotted an entry (`.chip--alert`'s
+      declaration deleted, its browser sub-check reworded) while its scope said
+      in as many words *"Do NOT touch `scripts/mutation_witnesses.json`"*,
+      because a sibling handoff owns that file. Three
+      `tests/test_mutation_witnesses.py` guards were red on the branch, filed
+      not fixed, with a paste-ready repair. **Check the owner-handoff story
+      before you take "someone else will" on faith:** the sibling was in flight
+      from an older `integration`, did not contain the work, and its own diff of
+      that file did not touch the entry — so nobody would have reached it before
+      it landed. The repair is yours (the entry above prescribes it), and it is
+      only done when you have run BOTH halves: `pytest -q
+      tests/test_mutation_witnesses.py` **and** `node
+      scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack
+      --only <id>`. An entry whose anchors resolve and whose mutation has never
+      been replayed is the unwitnessed guard this whole tier exists to prevent,
+      and pytest cannot tell you which you have.
+- [ ] **A new TOP-LEVEL file under `apps/viewer/` and an unchanged `## Layout`
+      tree in `apps/viewer/README.md`.** New 2026-09-22, same handoff:
+      `apps/viewer/warning_icon.js` was added, documented in three prose
+      sections and in `apps/annotate/README.md`'s own tree, and left out of the
+      one list in the repo that claims to enumerate that directory. Nothing
+      pairs that fence against the directory — `reader_facing_bans.js` has been
+      missing from it since it was created, which is how you can tell
+      (`ISSUE_20260922_the_viewer_readmes_layout_tree_is_a_hand_list_nothing_
+      pairs_against_the_directory.md`). The `views/` and `storage/` rows are
+      directory-level, so only a new **top-level** file trips this; the row is
+      one line and inside the inline-fix boundary.
 
 ## Architectural errors to check
 
