@@ -468,6 +468,18 @@ that do reproduce belong with the enrollment stream (see the replay appended
 to the author's issue), not to a reviewer reaching into a file another
 session was holding.
 
+## The merge
+
+`integration` `8959a2a` → **`0ccd1ab`**, a fast-forward of
+`review/stack_page_check_card_balance_sheet` (which already contained
+`integration`, checked with `git merge-base --is-ancestor` rather than sha
+equality). Containment of the handoff in `integration` re-checked after the
+merge: contained. Pushed to `origin/integration`. **Trunk not touched** —
+`master` is still `35991da` and moves only on the operator's batch merge.
+
+Both `handoff/…` and `review/…` refused deletion because their worktrees still
+hold them, which is expected; dispatch removes the worktrees at Complete.
+
 ## Housekeeping
 
 The `node_modules` directory junction created in this worktree for the browser
