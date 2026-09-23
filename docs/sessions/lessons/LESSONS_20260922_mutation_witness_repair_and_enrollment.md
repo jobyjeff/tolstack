@@ -260,34 +260,46 @@ run it has to diagnose.
 ## Cost, for `BRIEF_20260915_mutation_witness_enrollment`
 
 The brief is ranked #4 partly on the freshness of the 2026-09-18 pass's
-≈4 min/entry. Third data point, and it splits the figure in two:
+≈4 min/entry. Third data point, and the useful thing it does is **split that
+figure in two**, because the two halves are moving in opposite directions.
 
-- **Authoring: ≈8 min/entry** for these 11 (a session of roughly 90 minutes of
-  authoring across 11 rows, plus the two guard repairs and the pairing-module
-  change that made 3 of them possible). Slower than the 09-21 pass's "2-3× the
-  09-18 rate" because 4 of the 11 were *candidate* rows nobody had run, and
-  because two needed a code change before an entry could exist at all.
-- **Running: ≈10 s/entry**, amortised. This is the number that has been
-  overstated everywhere, and it is the one that decides whether the tier can be
-  wired into a merge step.
+- **Authoring: ≈2 min/entry.** Measured off the commit clock rather than
+  estimated: worktree cut at 22:58, and the commit carrying all eleven of the
+  first batch's rows *plus* the three repairs *plus* both guard edits *plus*
+  the pairing-module change landed at 23:17 — 19 minutes. The twelfth row and
+  a follow-up tightening add about six more. That is **half** the 09-18 rate
+  and a third of what the 09-21 pass reported, and the reason is visible: four
+  issues had already done the measuring, so most rows were a `find` to verify
+  and a name to copy rather than a contract to work out.
+- **Running: ≈10 s/entry**, amortised over a full table (16.7 min / 96). This
+  is the number every document about this tier overstates, and it is the one
+  that decides whether the tier can be wired into a merge step.
 
-**Reproduction rate: 11 of 15 candidate rows enrolled (73%).** Four did not: the
-`reader_facing_bans.js` shape row (the issue's own dated correction, measured),
-and the three legibility/border/two-colour nav checks the issue called "not
-paste-ready" — all three are interpolated names, so the reason they are not
-paste-ready is the 45-name population above, not the shared `.navstatus` rule
-block the issue guessed at. Compare 4-of-26 (15%) decay on the 09-21 pass: the
-difference is that those were *measured* rows three days old, and these were a
-mix of measured and proposed.
+So the shape of the cost has inverted since the brief was written. Enrollment is
+no longer dominated by the tier; it is dominated by **whether somebody already
+measured the row**, and after that by whether the guard's check name can be
+declared at all (above). A brief that ranks this work on ≈4 min/entry of
+authoring plus a ">10 minute" run is ranking it on both halves being wrong.
 
-**A cheap pre-flight that is worth reusing.** The seven fast-tier rows were
-validated before the browser sweep by applying each mutation to the worktree
-directly, running `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`,
-and restoring from git — ~20 s each, no shadow, no browser, and it runs happily
-alongside a browser sweep in another checkout. It found nothing wrong here, but
-it would have found a wrong `expect_red` in seconds rather than at minute nine
-of a sweep. The script is not kept: it is fifteen lines, and a kept copy would
-be a second implementation of the runner to keep in step.
+**Reproduction rate: 12 of 15 candidate rows enrolled (80%).** The three that
+were not: the `reader_facing_bans.js` shape row, absent on its own issue's dated
+correction (measured there, not guessed), and the nav legibility and two-colour
+checks, whose names are interpolated. Compare the 09-21 pass's 4-of-26 (15%)
+decay — not the same measurement: those were *measured* rows three days old
+going stale, these are a mix of measured rows (which all held) and candidate
+rows nobody had run (which all held too). **Nothing here decayed in a day.**
+Every exclusion was structural and knowable by reading.
+
+**A cheap pre-flight worth reusing.** The eight fast-tier mutations — seven new
+rows and the repaired `worst-verdict-ranks-worst-last` — were validated before
+the browser sweep by applying each to the worktree directly, running
+`node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack`, and restoring
+from git: ~20 s each, no shadow, no browser, and it runs happily alongside a
+browser sweep in another checkout. It found nothing wrong here, but it would
+have found a wrong `expect_red` in seconds rather than at minute nine of a
+sweep. The script is deliberately not kept — it is fifteen lines, and a kept
+copy would be a second implementation of the runner to hold in step with the
+first.
 
 ## Mechanics worth knowing
 
