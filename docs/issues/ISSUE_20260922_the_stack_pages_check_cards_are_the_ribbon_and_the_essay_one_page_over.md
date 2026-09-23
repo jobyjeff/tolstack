@@ -1,12 +1,13 @@
 ---
 type: feature
 priority: med
-status: triaged
+status: resolved
 area: viewer/stack-page
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
 handoff: docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md
+resolution: handoff completed 2026-09-23 -- closed automatically by dispatch when handoff `stack_page_check_card_balance_sheet` moved to completed/; not independently verified.
 ---
 
 # The stack page's check cards are the same ribbon and the same essay, one page over
