@@ -69,7 +69,7 @@ code, .num { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 h1 { font-size: var(--t-page); margin: 0; }
 h2 { font-size: var(--t-title); margin: 0 0 4px; }
 /* `h3` is a SECTION LABEL, not a heading a reader stops at: "Elements",
-   "Materials", "Paths", "Checks", "Gaps", "Notes" (views/stack.js). So it is a
+   "Materials", "Results", "Gaps", "Notes" (views/stack.js). So it is a
    tiny uppercase label with room above it and nothing else -- the 22px margin
    is what separates the sections, not a size step and not a rule (whitespace
    before chrome). It was 15px ALL-CAPS until 2026-09-17, which is the one
@@ -348,7 +348,7 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The topbar and banner are sticky, so anything scrolled to must leave room
    for them or it lands underneath and stops being clickable. */
-.el-row, .mat-row, .crop-trigger, .check, .gaplist li { scroll-margin-top: 120px; }
+.el-row, .mat-row, .rs-row, .crop-trigger, .gaplist li { scroll-margin-top: 120px; }
 
 /* Provenance tint on the whole row + a 3px spine in the confidence colour.
    The Materials table speaks the same language: a CTE nobody traced has to
@@ -365,7 +365,8 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .el-row.conf--untraced, .mat-row.conf--untraced { background: rgba(224, 82, 82, .10); }
 .el-row.conf--no_source_ref,
 .mat-row.conf--no_source_ref { background: rgba(195, 85, 195, .12); }
-.el-row--zero-width .num--zero-width {
+.el-row--zero-width .num--zero-width,
+.rs-row--zero-width .num--zero-width {
   color: var(--zero); border-bottom: 1px dashed var(--zero);
 }
 /* The element's name wants a line to read on. This is an auto-layout table of
@@ -500,37 +501,110 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
 .fold-row__label code { color: var(--accent); }
 .fold-note td { color: var(--zero); font-size: var(--t-meta); padding-top: 0; }
 
-.check {
-  background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--line);
-  border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+/* --- the results table: one row per check, one per path ------------------
+   (stack_page_check_card_balance_sheet, 2026-09-22.) The `.check` CARD is
+   gone -- a bordered, striped <article> per check, with a five-chip head, five
+   label/value boxes and an unfolded guidance paragraph, sixteen deep on the
+   live thermal stacks. What is left of `check__*` here is the nodes that hold
+   the RECORD's own words, which keep their names because two guards reach them
+   by selector (views/stack.js says which). Everything structural is `rs-*`. */
+
+/* `table-layout: fixed`, which is what makes the one-line clamp on a result's
+   name possible at all: an auto table sizes the name column to the intrinsic
+   width of a 120-character generated label whatever the clamp says, and did --
+   1850px of table in a 702px scrollport, measured. The column widths and the
+   table's own floor are inline from views/stack.js's RESULT_COLUMNS, the one
+   place they can agree; no `.rs-col--*` width is declared here. */
+.restable { table-layout: fixed; width: 100%; }
+.rs-row__namebox { display: flex; gap: 6px; align-items: flex-start; }
+.rs-row__text { min-width: 0; flex: 1; }
+.rs-name {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* A budget-scope check: a term is missing from the model, so the number is a
-   budget for it and not a verdict on the joint. Striped, and its excluded
-   terms print directly under the numbers they are a budget for. */
-.check--budget { border-left-color: var(--inferred);
-  background: repeating-linear-gradient(135deg, var(--panel), var(--panel) 10px, #23242a 10px, #23242a 20px); }
-.check__excluded { margin: 6px 0 0; font-size: var(--t-meta); display: flex; gap: 6px;
+.rs-row__meta {
+  display: flex; gap: 5px; flex-wrap: wrap; align-items: baseline; margin-top: 2px;
+}
+.rs-record__id { display: block; font-size: var(--t-micro); margin-bottom: 4px; }
+/* The verdict and its qualifiers WRAP rather than overflow. `nowrap` here put
+   `NOT A RESULT` on top of the criterion column on all four of M1's
+   sensitivity probes -- a fixed table clips nothing, it just lets a cell
+   paint over its neighbour. */
+.rs-marks { display: flex; gap: 4px; flex-wrap: wrap; align-items: baseline; }
+/* Quieter than the numbers it qualifies and NOT right-aligned beside them: a
+   criterion is an operator and a bound, not a measurement, and a column of
+   `>= 0` flush against the nominal column reads as a sixth value. */
+.rs-row__criterion {
+  color: var(--muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: nowrap;
+}
+.rs-row { cursor: pointer; }
+.rs-row:hover { background: var(--panel2); }
+/* Quiet until asked: the marker is the only chrome the row carries at rest. */
+.rs-toggle {
+  background: none; border: 0; padding: 0 2px; margin: 0; cursor: pointer;
+  color: var(--muted); font-size: var(--t-meta); line-height: 1.5;
+}
+.rs-row:hover .rs-toggle, .rs-row--open .rs-toggle { color: var(--ink); }
+.rs-toggle:focus-visible { outline: 1px solid var(--accent); }
+
+/* The record, spanning every column. Hidden until the row is clicked; see
+   views/stack.js's appendResult for why it is a second <tr> and not a
+   <details> in the name cell. */
+.rs-fold { display: none; }
+.rs-fold--open { display: table-row; }
+.rs-fold__cell { background: var(--panel); padding: 8px 12px 12px 26px; }
+.rs-record > *:first-child { margin-top: 0; }
+.rs-row--open > td { border-bottom: 0; }
+
+/* A group row names what the rows under it are, and appears only when there
+   is more than one kind of row to tell apart. Whitespace before chrome: the
+   room above it is what separates the blocks, not a rule. */
+.rs-group__cell { padding-top: 16px; text-transform: none; }
+.rs-group__name {
+  color: var(--ink); font-size: var(--t-meta); letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.rs-group__says {
+  color: var(--muted); font-weight: 400; font-size: var(--t-meta);
+  letter-spacing: 0; margin-left: 8px;
+}
+
+/* The two things a result row may ask the reader to hold back on, in the same
+   spine-and-tint language the elements table uses one section up: a budget
+   scope (a term is missing from the model, so the number is a budget for it
+   and not a verdict on the joint) and a sensitivity probe (not a result at
+   all). Emphasis is a budget, so both are a 3px spine and nothing else -- the
+   word is on the chip in the verdict column. */
+/* The header's first cell carries the SAME 3px spine, transparent: without it
+   the header is 3px narrower in its first column than every row under it, and
+   with `border-collapse: collapse` that walks all eight remaining columns off
+   their own headers. Measured by the browser tier, which compares every cell's
+   left edge against its header's -- 128 of 144 cells were off before this
+   line existed. */
+.restable thead th:first-child,
+.rs-row td:first-child { border-left: 3px solid transparent; }
+.rs-row--budget td:first-child { border-left-color: var(--inferred); }
+.rs-row--sensitivity td:first-child {
+  border-left-color: var(--marginal); border-left-style: dashed;
+}
+.rs-row--sensitivity { opacity: .88; }
+/* ...and the same dashed underline the elements table puts on a value whose
+   band nobody wrote down. It is declared with that table's rule above rather
+   than copied here: here it marks the three of the five numbers a missing
+   band makes a LOWER bound (views/stack.js's LOWER_BOUND_KEYS). */
+
+.check__excluded { margin: 4px 0 0; font-size: var(--t-meta); display: flex; gap: 6px;
   flex-wrap: wrap; align-items: baseline; }
 .check__excludedlabel { color: var(--inferred); font-weight: 700;
   text-transform: uppercase; letter-spacing: .04em; }
-.check__excludedterms { color: var(--ink); }
-/* A sensitivity probe is NOT a result: recessed and dashed so it reads as an
-   aside beside the cards that are, however loud its verdict chip is. */
-.check--sensitivity { border-left-color: var(--marginal); border-style: dashed;
-  opacity: .88; }
+/* One line, ellipsised: the term NAMES are on the row because a budget without
+   them is the misreading the scope exists to prevent, and each one whole is in
+   the fold. */
+.check__excludedterms { color: var(--ink); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.check__excludedterm { font-size: var(--t-dense); color: var(--ink); }
 .check__note { font-size: var(--t-meta); color: var(--accent); border: 1px dashed var(--accent);
   border-radius: 8px; padding: 8px 10px; margin: 0 0 10px; }
-.check__corner { display: flex; gap: 5px; flex-wrap: wrap; margin: 4px 0 6px; }
-.check__head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.check__id { margin-left: auto; color: var(--muted); font-size: var(--t-meta); }
-.check__label { margin: 6px 0; font-weight: 600; }
-.check__numbers { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; }
-.check__num { display: flex; flex-direction: column; }
-.check__numlabel {
-  font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .06em;
-  color: var(--muted);
-}
-.check__numvalue { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .check__warn { color: var(--zero); font-size: var(--t-meta); margin: 4px 0; }
 .check__inputs { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
 .check__guidance { font-size: var(--t-dense); color: var(--muted); margin: 8px 0 0; }
@@ -540,9 +614,12 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
    inherited that width -- a check's guidance, a gap's text, a note. Capped in
    `--measure` (declared at the top of this file, with why it is in `ch`). The
    TABLES are deliberately not capped: a column of numbers narrowed to a
-   measure is worse than a long line. */
-.check__guidance, .gap__text, .notelist li, .sv__legend li, .el-note td,
-.check__warn, .check__note { max-width: var(--measure); }
+   measure is worse than a long line. The fold row is prose inside a table and
+   IS capped, which is the reason its cell spans every column rather than
+   sitting in the name one -- a 30ch column would have capped the paragraph
+   tighter than the measure and left eight columns of white space beside it. */
+.check__guidance, .check__excludedterm, .gap__text, .notelist li, .sv__legend li,
+.el-note td, .check__warn, .check__note { max-width: var(--measure); }
 
 .gaplist, .notelist { margin: 0; padding-left: 0; list-style: none; }
 .gaplist li, .notelist li {
