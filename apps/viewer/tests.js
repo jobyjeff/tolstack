@@ -12529,9 +12529,9 @@
             // VA.STUDY_FINDING_SOURCES marks this bucket `reasonSplit: false`.
             // Before that it was luck -- the splitter cut every bucket at
             // ` -- `, so the first zero-width edge whose name carried the
-            // separator (58 live strings do, `edge.name` among them) would
-            // have reddened this line on a projection rebuild with nothing in
-            // the diff to explain it.
+            // separator (58 strings carry it in the three fields this table
+            // reads, `edge.name` among them) would have reddened this line on
+            // a projection rebuild with nothing in the diff to explain it.
             var shownRows = warn.map(function (r) {
               return all(r, "summary.tvfind__name")[0].textContent;
             });

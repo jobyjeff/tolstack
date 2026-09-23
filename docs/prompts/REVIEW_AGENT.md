@@ -4080,8 +4080,36 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       where_the_same_separator_means_something_else.md`. **Ask where every
       member of the collection came from**, not where the motivating example
       came from — and scan the live projection for the separator in the
-      *other* fields (58 strings carry ` -- `; `edge.name` and `node.name` are
-      among them) before accepting "every X uses it this way".
+      *other* fields before accepting "every X uses it this way".
+      **Corrected in review 2026-09-22 (`findings_splitter_scopes_to_excluded_
+      terms`):** this entry said "58 strings carry ` -- `" and the issue it
+      cites says the same of the whole projection. 58 is the count of
+      `edge.name` + `node.name` + `excluded_terms` occurrences (7 + 9 + 42) —
+      the fields the findings table reads. The projection as a whole carries
+      **381** separator-bearing string occurrences, 222 of them distinct. The
+      narrower number is the useful one; quote it with its fields.
+- [ ] **A count copied out of the ISSUE into a code comment, with its scope
+      lost in transit.** New 2026-09-22 (`findings_splitter_scopes_to_excluded_
+      terms`), and a scope drift rather than a digit drift: the issue's "58
+      strings in `topologies.json` carry ` -- `" arrived in `apps/viewer/
+      topology.js` and `tests.js` as "58 strings in the live projection carry
+      the separator". The digits are right for the three fields the findings
+      table reads and wrong by 6.5x for the file the sentence names (381
+      occurrences, 222 distinct). A handoff quotes its issue verbatim, so the
+      issue's imprecision becomes a comment nothing pairs — **re-derive the
+      number AND read the noun it is attached to.**
+- [ ] **A prior review's finding waved through as "the next handoff will
+      settle it" — check whether it actually did.** New 2026-09-22, same
+      handoff. `REVIEW_20260922_viewer_summary_balance_sheet` finding 5
+      (`AUTHORED_REASON_SPLIT`'s em-dash alternative) was deliberately not
+      filed, on the reasoning that this handoff's fix "should settle it". It
+      could not: the handoff scoped *which buckets* reach the splitter and was
+      told to leave the split behaviour alone, so the alternative is still live
+      on the one bucket still split, still unwitnessed
+      (`ISSUE_20260922_the_authored_split_regex_still_cuts_at_an_em_dash_which_
+      nothing_witnesses.md`). A deferred finding has no owner unless a
+      deliverable names it: **grep the previous review report for "not filed"
+      and re-check each one against the diff in front of you.**
 
 ## Architectural errors to check
 

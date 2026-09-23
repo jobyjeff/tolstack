@@ -539,9 +539,11 @@
   //     and files its clarifier in the fold as though it were the author's
   //     argument for why the value is unverified. Take it whole.
   //
-  // 58 strings in the live projection carry the separator and they are not all
-  // excluded terms, which is why this is a per-bucket declaration rather than
-  // one rule for the table.
+  // In the three fields this table reads, 58 strings carry the separator (42
+  // excluded terms, 7 edge names, 9 node names) -- and the projection as a
+  // whole carries it in hundreds more, in `note`, `text` and `description`.
+  // The glyph is not a vocabulary marker anywhere, which is why this is a
+  // per-bucket declaration rather than one rule for the table.
   VA.STUDY_FINDING_SOURCES = {
     excluded_from_model: { bucket: "excluded", reasonSplit: true },
     unverified_value: { bucket: "unverified", reasonSplit: false },
