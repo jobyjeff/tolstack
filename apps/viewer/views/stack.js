@@ -1,11 +1,13 @@
-// The stack view: elements, paths, checks, gaps, notes.
+// The stack view: elements, materials, results (checks and paths), gaps,
+// notes.
 //
 // Every number below is printed straight out of the projection. The view never
 // adds, subtracts or compares a tolerance — see viewer.js for why.
 //
 // Colour carries provenance, not decoration: a row's tint is its element's
 // `confidence`, a zero-width band gets a dashed outline and a chip, and a
-// budget-scope check gets a striped header. Jeff reviews sourcing as much as
+// budget-scope check gets an amber spine on its row (a striped card until
+// 2026-09-22, when the cards became rows). Jeff reviews sourcing as much as
 // arithmetic, so an untraced value has to be impossible to miss.
 (function (VA) {
   "use strict";
@@ -626,8 +628,8 @@
   // sixteen cards printed just FOUR distinct guidance paragraphs between them
   // -- 6, 6, 2 and 2 -- because a generated check's guidance belongs to the
   // archetype's stage (and, for a probe, to the ratio it moved), not to the
-  // corner. The complaint the study page answered one week
-  // earlier, in Jeff's words, was "the weird ribbon of random values in circled
+  // corner. The complaint the study page answered one week earlier,
+  // in Jeff's words, was "the weird ribbon of random values in circled
   // elements at the top" and "tons of long-winded text explanations"; this is
   // the same two defects one page over, and the same answer -- numbers in
   // columns, the author's own prose one disclosure deep, never edited.
@@ -639,10 +641,11 @@
   //    be: a `<tfoot>` total is legible only because it totals the column above
   //    it over every row above it, and each of these checks folds a DIFFERENT
   //    subset of the elements (`element_terms`) -- sixteen checks over eight
-  //    elements on m1, two to four terms each. Sixteen footer rows under one elements
-  //    table would each be a total of a subset the reader cannot see, in
-  //    columns that do not even line up (an element row's columns are one
-  //    element's nominal/min/max/±/LMC/MMC; a check's are a fold's interval).
+  //    elements on m1, two to four terms each. Sixteen footer rows under one
+  //    elements table would each be a total of a subset the reader cannot
+  //    see, in columns that do not even line up (an element row's columns are
+  //    one element's nominal/min/max/±/LMC/MMC; a check's are a fold's
+  //    interval).
   //    So the checks get a table of their own, and the link back to the
   //    elements is each row's own term list, in its fold, with every sign and
   //    every coefficient.

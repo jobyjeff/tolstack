@@ -25,7 +25,7 @@ return VA.chip("chip--alert", "units: " + check.units,
 `stack_page_alert_marks_and_drawn_glyph` retired it the day before — the badge
 became `.rowalert`, a drawn path with no box — and `style.css`, `topology.css`
 and `views/dom.js` all now describe `.chip--alert` in the past tense
-(`grep -n 'chip--alert' apps/viewer/` returns comments and no declaration).
+(`grep -rn 'chip--alert' apps/viewer/` returns nine hits: eight comments and this one call, and no declaration).
 So the one warning on this page that says *"this number is under the wrong
 header"* renders as an ordinary neutral chip, indistinguishable from the
 `chain` / `stage` / `temperature` corner chips sitting on the same line.

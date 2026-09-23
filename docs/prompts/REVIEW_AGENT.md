@@ -4197,8 +4197,8 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       `unitsNote()` in `views/stack.js` shipped
       `VA.chip("chip--alert", "units: …")`, so the one warning that says *"this
       number is under the wrong header"* renders as an ordinary neutral chip.
-      `grep chip--alert apps/viewer/` returns **eight** hits and not one of them
-      is a declaration — the retiring handoff's own comments are what make the
+      `grep -rn chip--alert apps/viewer/` returns **nine** hits -- eight comments
+      and the call itself -- and not one of them is a declaration — the retiring handoff's own comments are what make the
       name look alive. So grep a class for its **declaration** (`^\s*\.<name>[
       ,{]`), not for the word, whenever a diff introduces a modifier class the
       previous week's handoff touched. Fails silently here because no live
