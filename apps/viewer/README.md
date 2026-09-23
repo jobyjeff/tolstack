@@ -155,7 +155,7 @@ semantics change as **breaking**, and change this section with it.
 | param | opens |
 |---|---|
 | `topology=<id>` | topology mode, that topology |
-| `study=<id>` | …with that study emphasized on the walk (chain lit, the rest dimmed, the grid on the chain's rows, totals in the strip). Requires `topology`. |
+| `study=<id>` | …with that study emphasized on the walk (chain lit, the rest dimmed, the grid on the chain's rows, the totals as that grid's own footer rows). Requires `topology`. |
 | `edge=<id>` | …with that edge selected in the detail pane. Requires `topology`. |
 | `node=<id>` | …with that interface selected. Requires `topology`; when both `edge` and `node` are given, the edge wins. |
 | `stack=<id>` | stack mode — the elements table — on that stack. Resolves against the projection, not the nav, so it still reaches a stack a topology re-expresses (which has no row of its own). |
@@ -409,7 +409,7 @@ a stack's alert lines are `VA.summaryChips`' own text, moved.
 | `marginal` | amber, and the verdict leads the card in plain words |
 | `pass` | **no mark at all** — *unless* a flag stands against it, which is a pass that still asks to be looked at |
 | `no pass/fail criterion recorded yet` / `does not sum` | amber. An absence is not an answer; the row also keeps its amber `--warn` tint, which is a state and not a badge |
-| `unverified` / `no tolerance recorded` / `incomplete` | in the card. These are `VA.ATTENTION`'s three flags; they are still chips on the DAG grid's edge rows and on a study's totals strip, where there is room to read them |
+| `unverified` / `no tolerance recorded` / `incomplete` | in the card. These are `VA.ATTENTION`'s three flags; they are still chips on the DAG grid's edge **rows**, where there is room to read them. At STUDY scale they are rows of the findings table now (see "The study summary reads like a balance sheet"), each naming the thing it is about — which a badge over a list never could |
 | a stack's `traced` / `inferred` counts, `checks GENERATED`, probe count | **not on the rail.** A scoreboard is not something a reader is asked to act on, and it is on the stack's own page, which renders the same `VA.summaryChips` unchanged |
 
 **Why (2026-09-22, `viewer_nav_verdict_into_alert_and_icon`).** This rail has
@@ -821,6 +821,87 @@ constantly, and the message *is* the feature: which parallel path binds is a
 mechanics question this tool does not answer (`docs/DAG_TOPOLOGY.md`, "Not a
 solver").
 
+### The study summary reads like a balance sheet
+
+`HANDOFF_20260922_viewer_summary_balance_sheet.md`. Jeff, on what stood here:
+
+> *"the entire page is still extremely busy and difficult to make sense of. The
+> last part that really needs attention is the study summary (bottom pane).
+> Still tons of long-winded text explanations, very unconventional and
+> confusing layout (the weird ribbon of random values in circled elements at
+> the top, no real thought put into the explanations). […] The components of
+> the stack are already arranged into a table/grid, simply put the
+> computed/rolled up values in the same grid at the bottom, like a balance
+> sheet/invoice etc."*
+
+So a study's answer is now on **two** surfaces, and which one holds what is the
+whole design:
+
+**The numbers are footer rows of the contributions grid** (`totalsFoot`,
+`views/topology.js`). A real `<tfoot>` of the same body table, so the shared
+`<colgroup>` puts every total under the column it totals — `worst case` and
+`RSS` each fill the nominal / min / max cells and put their half-width in the
+column a member row's own contribution occupies. A merged `component`-column
+cell says `totals` once, exactly as a component group's cell does, and the
+**bottom line** is one row per authored check: the verdict chip and the check's
+label in the element column, the signed margin right-aligned across the three
+value columns (the amount column of an invoice), and the criterion beside it.
+A study with no authored check still gets a bottom line — `no pass/fail
+criterion recorded yet` — because a blank there reads as a pass.
+
+Two things are deliberate and easy to undo by accident:
+
+* **the margin, not the criterion, takes the value columns.** Which of
+  min/max a criterion bites on depends on the criterion's own direction, so a
+  page that put the number under one of them would be stating a reading of the
+  operator rather than printing the record;
+* **the verdict chip is in the name cell, not the merged section cell.** A
+  study may carry more than one check and they need not agree
+  (`pitch_system_end_stop_minus7` carries two that do not), so a verdict merged
+  over the block would be one row's answer printed over another's.
+
+Nothing about the rails moved. These rows sit below the last member row, and
+the grid block's own centring offset comes from the plan's row count
+(`VA.rowPositions`), not from the table's rendered height — the browser tier
+measures both the correspondence and the column alignment (`a total lands in
+the column it totals, to the pixel`).
+
+**The pane below holds what is not a number**, in three blocks and no prose
+between them:
+
+* a **findings table** — one row per thing that makes this answer less than
+  its digits suggest: the item's name, a one-line reason in
+  `VA.GAP_KINDS`' own `says` vocabulary, and the author's full rationale
+  behind the row's own disclosure. It replaced two generated paragraphs, and
+  both are the acceptance cases the handoff named: the *"This answer does not
+  include everything the joint needs, so it is a budget…"* preamble over a
+  90-word excluded term, and *"3 dimensions in this chain are unverified — …:
+  a; b; c."*. The preamble was the page's own words and is gone; the term is
+  the **author's** and is rendered whole, split at its own ` -- ` into a name
+  and a rationale (`VA.splitAuthoredFinding`). A term whose author wrote no
+  separator is never cut at a guessed point: it comes through whole and the
+  row's CSS clamps it, with the full text in the fold and on the hover;
+* **cards of parameter/value pairs** — what was measured (the two interfaces,
+  by name; how many contributions; the units; the weakest input) and, per
+  check, its own `configuration` plus a `Why` fold over the authored guidance.
+  Both go through `VA.kvList`, the same free-form block renderer the stack
+  page's joint block uses, so "humanise the key / say *not recorded* / never
+  print a JSON blob" is decided in one place;
+* the assembly-wide **What's missing** panel, unchanged.
+
+**The ids left the surface.** The study's own id is the heading's hover title,
+and `from → to` prints the two interfaces' **names** — the same "an id is a
+deep-link handle, not a label" rule the node pane, the edge pane, the element
+pane and the nav rail already followed, applied to the last surface still
+breaking it. `closes` names the derived gap's **edge name** for the same
+reason.
+
+**The guard that keeps it this way** is structural rather than a string ban:
+`[real] no study summary explains itself in a paragraph` renders every live
+study's summary and refuses any `<p>` that is not inside a `<details>`. A
+paragraph where a table belongs is not a phrase a banned-string list can see,
+and that is the defect this pass existed to remove.
+
 ### The preview pane reuses the crop plumbing, and says so when it cannot
 
 An edge that re-expresses a committed stack element **is** that element: same id,
@@ -927,6 +1008,8 @@ instead of raising it, by shrinking the chrome it was floored against:
 * the totals footer (`.tvtotals`) demoted from a 260px panel to a slim,
   always-visible strip of chips — the same folded numbers, one line, with the
   rule sentence and a study's own `notes` behind their own `Details` toggle.
+  (The chips themselves are gone since 2026-09-22: the numbers are rows of the
+  contributions grid now. See "The study summary reads like a balance sheet".)
 
 The topology's own joint block (`#topojoint`, deliverable 4) is new chrome
 above the pane, not removed chrome — but it costs one collapsed `<details>`

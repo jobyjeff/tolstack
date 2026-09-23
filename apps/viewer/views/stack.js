@@ -145,6 +145,16 @@
   //
   // Nested rather than flattened: a key's own sub-block keeps its structure,
   // and nothing is dropped.
+  //
+  // Exported since viewer_summary_balance_sheet (2026-09-22): the topology
+  // page's study summary renders a check's `configuration` as a card of
+  // parameter/value pairs, which is the same free-form authored block this
+  // renders for a `joint` and for a generated check's configuration on the
+  // stack page. A second copy would be a second place the three decisions
+  // above (humanise the key, say "not recorded", never print a JSON blob) can
+  // be forgotten. views/stack.js loads before views/topology.js -- see
+  // topology.html's script order.
+  VA.kvList = kvList;
   function kvList(block) {
     var dl = VA.el("dl", "kv");
     Object.keys(block).forEach(function (key) {

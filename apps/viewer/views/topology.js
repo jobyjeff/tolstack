@@ -1238,8 +1238,148 @@
       }
     });
     table.appendChild(tbody);
+    // The balance sheet's bottom block (viewer_summary_balance_sheet): the
+    // rolled-up numbers as rows of THIS table, under the members they are the
+    // total of, in the same columns. Only where a study is actually
+    // emphasized -- the whole-walk view has no chain and therefore no total,
+    // and a study that refuses to sum has its refusal instead
+    // (VA.renderTopoTotals's error block).
+    var foot = totalsFoot(marking ? ctx.study : null);
+    if (foot) table.appendChild(foot);
     box.appendChild(table);
     return box;
+  }
+
+  // --- the totals: footer rows of the contributions grid -------------------
+  //
+  // Jeff, 2026-09-22, on the strip of pills this replaces: "The components of
+  // the stack are already arranged into a table/grid, simply put the
+  // computed/rolled up values in the same grid at the bottom, like a balance
+  // sheet/invoice etc."
+  //
+  // Literally the same grid, and that is the point rather than a shortcut: a
+  // total under the column it totals needs no label saying which column it
+  // belongs to, which is most of what the old strip's chip text was for
+  // ("worst case 2.3296 … 4.3098 mm" is three columns and a units chip once
+  // the row is in the table). The numbers are VA.studyTotalRows' and
+  // VA.studyMarginRows'; nothing is computed here.
+  //
+  // It is a <tfoot> of the BODY table and not a third table: `table-layout:
+  // fixed` plus the shared <colgroup> is what makes the cells line up with the
+  // member rows above, and a separate table in the pane below would be a
+  // second set of widths to keep in step with a column a reader can drag.
+  //
+  // Nothing about the rails changes. These rows sit BELOW the last member row,
+  // so no leader's seam moves, and the grid block's own centring offset is
+  // computed from the plan's row count (VA.rowPositions), not from the
+  // table's rendered height.
+  function totalsFoot(study) {
+    if (!study || study.status !== "ok") return null;
+    var totals = VA.studyTotalRows(study);
+    var margins = VA.studyMarginRows(study);
+    if (!totals.length && !margins.length) return null;
+    var foot = VA.el("tfoot", "tvfoot");
+    totals.forEach(function (total, i) {
+      foot.appendChild(totalRow(total, i === 0 ? totals.length : 0));
+    });
+    // A study with no authored check still gets a bottom line: "nobody has
+    // written down what this has to be" is an answer, and a blank there reads
+    // as a pass (VA.studyVerdict's own reason for having a `none` state).
+    var verdict = VA.studyVerdict(study);
+    if (!margins.length) {
+      foot.appendChild(noCriterionRow(verdict));
+      return foot;
+    }
+    margins.forEach(function (row, i) {
+      foot.appendChild(marginRow(row, i === 0 ? margins.length : 0));
+    });
+    return foot;
+  }
+
+  // One footer row, opened by the merged section cell the member rows' own
+  // component column already taught the reader to read: said once, spanning
+  // its block. `section` is the block's row count on its first row, 0 after.
+  function footRow(cls, section, sectionLabel) {
+    var tr = VA.el("tr", "tvtotal " + cls);
+    tr.style.height = M.rowHeight + "px";
+    if (section) {
+      var cell = VA.el("td", "tvcell tvcell--component tvtotal__section",
+        sectionLabel);
+      if (section > 1) cell.setAttribute("rowspan", String(section));
+      tr.appendChild(cell);
+    }
+    tr.appendChild(VA.el("td", "tvcell tvcell--ord"));
+    return tr;
+  }
+
+  function totalRow(total, section) {
+    var tr = footRow("tvtotal--" + total.key, section, "totals");
+    var label = VA.el("td", "tvcell tvcell--name tvtotal__label", total.label);
+    label.setAttribute("title", total.title);
+    tr.appendChild(label);
+    tr.appendChild(VA.el("td", "tvcell tvcell--nominal num", total.center));
+    tr.appendChild(VA.el("td", "tvcell tvcell--min num", total.min));
+    tr.appendChild(VA.el("td", "tvcell tvcell--max num", total.max));
+    tr.appendChild(VA.el("td", "tvcell tvcell--contribution num",
+      total.half + " " + total.units));
+    tr.appendChild(VA.el("td", "tvcell tvcell--chips"));
+    tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    return tr;
+  }
+
+  // The bottom line: the verdict word, what the check is about, by how much,
+  // and against what.
+  //
+  // WHY THE MARGIN AND NOT THE CRITERION GETS THE VALUE COLUMNS. The margin is
+  // this row's ANSWER, so it lands right-aligned at the same edge the
+  // worst-case row's own last number lands on -- the amount column of an
+  // invoice, which is the whole idiom. It spans all three because it is
+  // neither a centre nor a bound: which of min/max a criterion bites on
+  // depends on the criterion's own direction, and a page that put the number
+  // under one of them would be stating a reading of the operator rather than
+  // printing the record. The criterion itself is the row's premise and is
+  // quieter, so it takes the column a member row's own contribution occupies.
+  //
+  // The verdict chip is IN the name cell rather than in the merged section
+  // cell beside it, and that is not a layout preference: a study may carry
+  // more than one check (`pitch_system_end_stop_minus7` carries two, and they
+  // do not agree), so a verdict merged over the block would be one row's
+  // answer printed over another's.
+  function marginRow(row, section) {
+    var tr = footRow("tvtotal--margin", section, "verdict");
+    var label = VA.el("td", "tvcell tvcell--name tvtotal__label");
+    label.appendChild(verdictChip({
+      state: row.verdict, word: row.verdict, title: row.title,
+      incomplete: row.incomplete,
+    }));
+    label.appendChild(VA.el("span", "tvtotal__check", row.label));
+    label.setAttribute("title", row.label);
+    tr.appendChild(label);
+    var margin = VA.el("td", "tvcell num tvtotal__margin", row.marginValue);
+    margin.setAttribute("colspan", "3");
+    margin.setAttribute("title", row.marginText);
+    tr.appendChild(margin);
+    tr.appendChild(VA.el("td", "tvcell tvcell--contribution num tvtotal__criterion",
+      row.criterionText || ""));
+    var chips = chipsCell("chips");
+    if (row.scopeChip) {
+      chips.wrap.appendChild(VA.chip("chip--budget", row.scopeChip, row.scopeTitle));
+    }
+    tr.appendChild(chips.cell);
+    tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    return tr;
+  }
+
+  function noCriterionRow(verdict) {
+    var tr = footRow("tvtotal--margin tvtotal--nocriterion", 1, "verdict");
+    var label = VA.el("td", "tvcell tvtotal__label",
+      verdict ? verdict.word : "");
+    label.setAttribute("colspan", "5");
+    if (verdict) label.setAttribute("title", verdict.title);
+    tr.appendChild(label);
+    tr.appendChild(VA.el("td", "tvcell tvcell--chips"));
+    tr.appendChild(VA.el("td", "tvcell tvcell--crop"));
+    return tr;
   }
 
   // Every row is exactly `rowHeight` tall, set inline from the same constant the
@@ -1510,27 +1650,30 @@
     return id + " — the layout names an id the topology does not declare";
   }
 
-  // --- the totals footer ---------------------------------------------------
-
-  // A slim, always-visible footer strip (deliverable 2, viewer_v2_single_nav
-  // 2026-09-08): the same folded numbers the old 260px panel showed, as chips
-  // in one horizontally-scrolling row rather than a wrapping grid of boxes —
-  // the DAG pane above it is what this page is for, and a study's own `notes`
-  // used to be able to push that panel to its full 260px cap. The rule
-  // sentence and any notes still exist, behind a same-line "Details" toggle,
-  // so nothing is dropped — only what is ALWAYS on screen shrinks.
+  // --- the study summary pane ----------------------------------------------
   //
-  // A study's own authored `checks` — the verdict, and by how much — ARE here
-  // since viewer_study_verdicts_and_gaps (2026-09-15). They reach the page the
-  // same way `topoProj.joint` and `topoProj.worksheet_file` do: as a projection
-  // field. `project_study()` gained its `checks` key on 2026-09-09
-  // (topology_projection_emits_study_checks, closing
-  // `ISSUE_20260908_topology_projection_never_emits_a_studys_checks.md`), and
-  // for six days after that the field existed and nothing read it — the comment
-  // that used to sit here said the opposite, which is how a stale comment costs
-  // more than no comment. The margin beside the verdict is CheckResult.margin,
-  // computed in Python against the check's own criterion; this strip still adds
-  // nothing up.
+  // Everything a study's answer needs that is NOT a number in the grid's own
+  // totals rows (viewer_summary_balance_sheet, 2026-09-22). Jeff, looking at
+  // what stood here: "the entire page is still extremely busy and difficult to
+  // make sense of ... Still tons of long-winded text explanations, very
+  // unconventional and confusing layout (the weird ribbon of random values in
+  // circled elements at the top, no real thought put into the explanations)."
+  //
+  // So this pane holds three things and no prose between them:
+  //
+  //   * the FINDINGS table -- one row per thing that makes this answer less
+  //     than its digits suggest, each with the author's own rationale one
+  //     disclosure deep. It replaced two generated paragraphs (see
+  //     findingsTable);
+  //   * CARDS of parameter/value pairs -- the measurement basis, and each
+  //     check's own configuration. "Like the way a single row of a database
+  //     table would be displayed on a card in a webui";
+  //   * the assembly-wide gap panel, unchanged.
+  //
+  // The numbers left, one block up: VA.studyTotalRows and VA.studyMarginRows
+  // render as footer rows of the contributions grid (totalsFoot, above), which
+  // is where the verdict word now sits too. Nothing on this page is added up
+  // in JavaScript, here or there.
   VA.renderTopoTotals = function (root, topoProj, study, index) {
     VA.clear(root);
     root.className = "tvtotals";
@@ -1546,63 +1689,27 @@
       return root;
     }
 
-    var verdict = VA.studyVerdict(study);
-    var strip = VA.el("div", "tvtotals__strip");
-    // The verdict leads — ahead of the title, because it is the one thing a
-    // reader came for and the one thing this page never said. It is the ONLY
-    // thing this handoff put in the strip: the strip does not wrap, it scrolls
-    // sideways (`.tvtotals__strip`, topology.css), and a long `from → to` span
-    // already pushes the folded totals past its right edge on a 870px pane.
-    // Three more chips in here would have pushed them further for a reader who
-    // has to drag to reach them — so the flags get their own line below,
-    // where they can wrap.
-    strip.appendChild(verdictChip(verdict));
-    strip.appendChild(VA.el("span", "tvtotals__title", study.title));
-    strip.appendChild(VA.el("code", "muted", study.id));
-    strip.appendChild(VA.el("span", "muted tvtotals__span",
-      study.from + " → " + study.to +
-      (study.closes ? "  ·  closes `" + study.closes + "`" : "")));
+    // The study's own name, with its id on the heading's hover rather than
+    // printed beside it — the rule the node pane, the edge pane, the element
+    // pane and the nav rail all already follow: an id is a deep-link handle,
+    // not a label. It was a `<code>` in the strip this replaces.
+    var head = VA.el("h2", "tvsum__title", study.title);
+    head.setAttribute("title", study.id);
+    root.appendChild(head);
 
     if (study.status !== "ok") {
-      root.appendChild(strip);
       root.appendChild(errorBlock(study));
       root.appendChild(gapsPanel(topoProj));
       return root;
     }
 
-    var attention = VA.studyAttention(study, index);
-    var worst = VA.studyWorstConfidence(study, index);
-    strip.appendChild(VA.chip("chip--kind", study.result.chain.length + " contributions"));
-    strip.appendChild(VA.chip("chip--kind", study.result.units));
-    if (worst) {
-      strip.appendChild(VA.chip(VA.confidenceClass(worst),
-        "weakest input: " + (VA.CONFIDENCE_LABEL[worst] || worst),
-        "weakest wins: a study fed by nine traced edges and one untraced one is " +
-        "an untraced result"));
-    }
-    VA.studyTotals(study).forEach(function (total) {
-      strip.appendChild(VA.chip("chip--total",
-        total.label + " " + total.value + " " + total.units));
+    var findings = VA.studyFindings(study, index);
+    if (findings.length) root.appendChild(findingsTable(findings));
+    root.appendChild(basisCard(study, index));
+    VA.studyMarginRows(study).forEach(function (row) {
+      var card = checkCard(row);
+      if (card) root.appendChild(card);
     });
-    root.appendChild(strip);
-
-    // The study-level flags, on their own wrapping line (deliverable 2): loud,
-    // never clipped, and directly above the block that explains each of them.
-    if (attention.badges.length) {
-      var flags = VA.el("div", "tvtotals__flags");
-      attention.badges.forEach(function (flag) {
-        flags.appendChild(
-          VA.chip("tvflag tvflag--" + flag.key, flag.text, flag.title));
-      });
-      root.appendChild(flags);
-    }
-
-    root.appendChild(verdictBlock(verdict, attention));
-
-    var warning = VA.zeroWidthWarning(attention);
-    if (warning) {
-      root.appendChild(VA.el("p", "tvwarn tvwarn--lower-bound", warning));
-    }
 
     var more = VA.el("details", "tvtotals__more");
     more.appendChild(VA.el("summary", null, "Details"));
@@ -1618,6 +1725,118 @@
     return root;
   };
 
+  // --- the findings table --------------------------------------------------
+  //
+  // One row per finding: WHAT it is, WHY it is a finding in one phrase, and
+  // the rest behind the row's own disclosure. It replaced two generated
+  // paragraphs, and both are worth naming because they are the acceptance
+  // cases this table was written against:
+  //
+  //   * "This answer does not include everything the joint needs, so it is a
+  //     budget for what is missing rather than a verdict on the hardware.
+  //     Missing: • <a 90-word authored term>" -- the preamble was the page's
+  //     own prose and is gone (the BUDGET chip on the verdict row and the
+  //     `not folded into the total` phrase here say it in three words each);
+  //     the term is the AUTHOR's and is here in full, split at its own ` -- `
+  //     into a name and a rationale (VA.splitAuthoredFinding).
+  //   * "3 dimensions in this chain are unverified — nothing readable stands
+  //     behind them: <three names joined by semicolons>." -- a generated
+  //     sentence that was a list wearing a sentence's clothes. It is three
+  //     rows now, and the count is the row count.
+  //
+  // NOTHING is dropped: every finding's full authored text is in its fold,
+  // word for word, next to what would close a gap of its kind.
+  function findingsTable(findings) {
+    var section = VA.el("section", "tvfind");
+    var table = VA.el("table", "tvfind__table");
+    var body = VA.el("tbody");
+    findings.forEach(function (finding) {
+      body.appendChild(findingRow(finding));
+    });
+    table.appendChild(body);
+    section.appendChild(table);
+    return section;
+  }
+
+  function findingRow(finding) {
+    var tr = VA.el("tr", "tvfind__row tvfind__row--" + finding.kind);
+    var what = VA.el("td", "tvfind__what");
+    // `<details>` inside the NAME cell rather than a column of its own: the
+    // marker then sits where the reader's eye already is, and an opened row
+    // spends the table's whole width on the rationale instead of one column's.
+    var box = VA.el("details", "tvfind__more");
+    var summary = VA.el("summary", "tvfind__name", finding.name);
+    // The whole authored text on the hover, so the name is never the only
+    // copy a reader who cannot open a fold gets to see.
+    summary.setAttribute("title", finding.whole);
+    box.appendChild(summary);
+    if (finding.rationale) {
+      box.appendChild(VA.el("p", "tvfind__why", finding.rationale));
+    }
+    box.appendChild(VA.el("p", "muted tvfind__closes", finding.closes));
+    what.appendChild(box);
+    tr.appendChild(what);
+    tr.appendChild(VA.el("td", "tvfind__says", finding.says));
+    return tr;
+  }
+
+  // --- the cards -----------------------------------------------------------
+  //
+  // "Anything that doesn't fit neatly into the main table can go in additional
+  // tables and/or a 'card' with parameter/value pairs (like the way a single
+  // row of a database table would be displayed on a card in a webui)" (Jeff,
+  // 2026-09-22). Both cards below are exactly that: a `<dl>`, no sentences.
+
+  // What the totals are totals OF. The two ends, how many terms, in what
+  // units, and how well the weakest of them is sourced -- the last of which
+  // was the strip's `weakest input: UNTRACED` chip.
+  function basisCard(study, index) {
+    var card = VA.el("section", "tvcard");
+    card.appendChild(VA.el("h4", "tvcard__head", "What was measured"));
+    var dl = VA.el("dl", "kv");
+    VA.studyBasis(study, index).forEach(function (pair) {
+      var dt = VA.el("dt", null, pair.label);
+      if (pair.title) dt.setAttribute("title", pair.title);
+      dl.appendChild(dt);
+      // A confidence is a CHIP everywhere else in this app (the elements
+      // table, both preview panes, the grid's own sourcing cell), and the
+      // colour rules that carry its meaning are written against `.chip` --
+      // so the one pair that states one gets a chip rather than a coloured
+      // string that would silently render grey.
+      dl.appendChild(pair.confidence
+        ? VA.el("dd", null, VA.chip(VA.confidenceClass(pair.confidence),
+            pair.value, pair.title))
+        : VA.el("dd", "kv__value", pair.value));
+    });
+    card.appendChild(dl);
+    return card;
+  }
+
+  // One check's own configuration, and the argument behind it. The criterion,
+  // the margin and the verdict are NOT here -- they are the grid's bottom
+  // line, and a card repeating them would be the third place this page states
+  // the same number.
+  //
+  // `VA.kvList` is views/stack.js's free-form block renderer, the one place in
+  // this app that turns an authored key/value block into reader-facing text
+  // (it humanises the key, says "not recorded" rather than "null", and never
+  // prints a JSON blob). A check's `configuration` is the same kind of block
+  // as a stack's `joint`, so it goes through the same renderer rather than a
+  // second copy of those three decisions.
+  function checkCard(row) {
+    var keys = Object.keys(row.configuration || {});
+    if (!keys.length && !row.guidance) return null;
+    var card = VA.el("section", "tvcard");
+    card.appendChild(VA.el("h4", "tvcard__head", row.label));
+    if (keys.length) card.appendChild(VA.kvList(row.configuration));
+    if (row.guidance) {
+      var why = VA.disclosure("Why", "tvcard__why");
+      why.body.appendChild(VA.el("p", null, row.guidance));
+      card.appendChild(why.box);
+    }
+    return card;
+  }
+
   // The rollup badge, in one shape for all five states — a verdict word, the
   // two states a verdict cannot express, and the unknown-word fallback. Never
   // blank: a study with no recorded criterion says so, because a blank badge
@@ -1629,64 +1848,6 @@
       verdict.word, verdict.title);
     if (verdict.incomplete) chip.className += " tvverdict--qualified";
     return chip;
-  }
-
-  // Under the strip: what the verdict means, by how much, and — where the chain
-  // is knowingly short a term — what is missing, in words, ABOVE the number. An
-  // unqualified verdict on an incomplete chain is the exact lie this repo
-  // exists to avoid, so the qualification is not a footnote and not a hover.
-  function verdictBlock(verdict, attention) {
-    var box = VA.el("div", "tvverdicts");
-    if (!verdict) return box;
-    if (verdict.state === "none") {
-      box.appendChild(VA.el("p", "tvverdicts__none",
-        "No pass/fail criterion has been recorded for this study yet — the " +
-        "totals above are its answer, and whether that answer is good enough " +
-        "is not written down anywhere this page can read."));
-      return box;
-    }
-    verdict.checks.forEach(function (row) {
-      var card = VA.el("div", "tvverdict-card" +
-        (row.incomplete ? " tvverdict-card--qualified" : ""));
-      var head = VA.el("div", "tvverdict-card__head");
-      head.appendChild(VA.chip("tvverdict tvverdict--" + row.verdict,
-        row.verdict, row.title));
-      head.appendChild(VA.el("span", "tvverdict-card__says", row.says));
-      head.appendChild(VA.el("span", "tvverdict-card__margin", row.marginText));
-      card.appendChild(head);
-      card.appendChild(VA.el("div", "tvverdict-card__label", row.label));
-      if (row.incomplete) {
-        var missingBox = VA.el("div", "tvverdict-card__missing");
-        missingBox.appendChild(VA.el("p", "tvverdict-card__missinghead",
-          "This answer does not include everything the joint needs, so it is a " +
-          "budget for what is missing rather than a verdict on the hardware. " +
-          "Missing:"));
-        var list = VA.el("ul", "tvverdict-card__missinglist");
-        row.excludedTerms.forEach(function (term) {
-          list.appendChild(VA.el("li", null, term));
-        });
-        missingBox.appendChild(list);
-        card.appendChild(missingBox);
-      }
-      if (row.guidance) {
-        var more = VA.el("details", "tvverdict-card__more");
-        more.appendChild(VA.el("summary", null, "Why"));
-        more.appendChild(VA.el("p", null, row.guidance));
-        card.appendChild(more);
-      }
-      box.appendChild(card);
-    });
-    if (attention && attention.unverified.length) {
-      box.appendChild(VA.el("p", "tvwarn tvwarn--unverified",
-        attention.unverified.length +
-        (attention.unverified.length === 1 ? " dimension" : " dimensions") +
-        " in this chain " +
-        (attention.unverified.length === 1 ? "is" : "are") +
-        " unverified — nothing readable stands behind " +
-        (attention.unverified.length === 1 ? "it" : "them") + ": " +
-        attention.unverified.join("; ") + "."));
-    }
-    return box;
   }
 
   // "What's missing" for the whole topology (deliverable 4). Grouped, collapsed,

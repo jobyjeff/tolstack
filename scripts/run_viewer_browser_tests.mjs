@@ -2088,7 +2088,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const walkShape = await railShape();
     const walkRows = await page.locator("tr.tvrow").count();
     await page.locator(navRow("study", "demo_strut_branch")).click();
-    await page.waitForSelector(".chip--total", { timeout: 5000 });
+    await page.waitForSelector("tfoot.tvfoot", { timeout: 5000 });
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
     const litShape = await railShape();
@@ -2113,8 +2113,33 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     const dimmedBar = await page.locator("svg.tv__rails line.rail__bar--off")
       .first().evaluate((n) => parseFloat(getComputedStyle(n).opacity));
     push("a non-member is actually dimmed, not just classed", dimmedBar < 0.9);
-    push("the totals render as chips in the slim strip",
-      await page.locator(".chip--total").count() === 5);
+    // The balance sheet (viewer_summary_balance_sheet, 2026-09-22): the
+    // rolled-up numbers are rows of the CONTRIBUTIONS TABLE, under the
+    // members they total and in the same columns. A chip strip could line up
+    // with nothing; this is the claim that replaced it, and only a real
+    // browser can measure it.
+    const totalsAlign = await page.evaluate(() => {
+      const cell = (sel) => document.querySelector(sel);
+      const box = (n) => (n ? n.getBoundingClientRect() : null);
+      const memberMin = box(document.querySelector("tr.tvrow td.tvcell--min"));
+      const totalMin = box(cell("tr.tvtotal--worst_case td.tvcell--min"));
+      const table = cell("tr.tvtotal--worst_case").closest("table");
+      return {
+        rows: document.querySelectorAll("tfoot.tvfoot tr.tvtotal").length,
+        sameTable: table === document.querySelector("tr.tvrow").closest("table"),
+        drift: memberMin && totalMin
+          ? Math.abs(memberMin.right - totalMin.right) : null,
+        margins: document.querySelectorAll(".tvtotal__margin").length,
+        strips: document.querySelectorAll(".tvtotals__strip, .chip--total").length,
+      };
+    });
+    push("the totals are rows of the contributions grid, not a strip beside it",
+      totalsAlign.sameTable && totalsAlign.rows >= 3 && totalsAlign.strips === 0);
+    push("a total lands in the column it totals, to the pixel",
+      totalsAlign.drift !== null && totalsAlign.drift < 0.5);
+    if (totalsAlign.drift === null || totalsAlign.drift >= 0.5) {
+      console.log("    totals column drift: " + JSON.stringify(totalsAlign));
+    }
     await page.locator(".tvtotals__more summary").click();
     push("the totals say where the numbers came from, behind the Details toggle",
       /This page adds nothing up/.test(await page.locator("#totals").textContent()));
@@ -2136,7 +2161,7 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
     push("a BranchAmbiguity renders as a result, not as a blank",
       /The selection reaches a fork/.test(refusal) &&
       /still unused/.test(refusal) &&
-      await page.locator(".chip--total").count() === 0);
+      await page.locator("tfoot.tvfoot").count() === 0);
 
     // ...and the other half of that rule: a refusing study has no chain, so
     // it must leave the walk at FULL emphasis rather than dimming everything
@@ -2500,12 +2525,13 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
                 .test(await page.locator("#totals").textContent()));
             continue;
           }
-          const totals = await page.locator("#totals").textContent();
-          // Value for value against the projection — the page's own footer
-          // claims exactly this, and a `toFixed` sneaking into a view is
-          // precisely how it would stop being true.
+          // The GRID's own totals footer since 2026-09-22, not the pane
+          // below it. Value for value against the projection — the page's
+          // own rule sentence claims exactly this, and a `toFixed` sneaking
+          // into a view is precisely how it would stop being true.
+          const totals = await page.locator("tfoot.tvfoot").textContent();
           const fields = ["nominal", "worst_case_min", "worst_case_max",
-            "worst_case_half", "rss_min", "rss_max", "rss_half"];
+            "worst_case_half", "rss_center", "rss_min", "rss_max", "rss_half"];
           const missing = fields.filter((f) => !totals.includes(String(study.result[f])));
           push(`[real] ${study.id}'s totals are the projection's numbers`,
             missing.length === 0);
@@ -3146,7 +3172,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       /needs a rebuild/.test(await page.locator("#banner").textContent()));
 
     await page.locator(navRow("study", "demo_base_to_tip")).click();
-    await page.waitForSelector(".chip--total", { timeout: 5000 });
+    await page.waitForSelector("tfoot.tvfoot", { timeout: 5000 });
     await page.waitForFunction(() => !window.ViewerApp.lastTopoRender.tweening,
       null, { timeout: 5000 });
     // Deselect: the DAG's own extent no longer changes with a study
@@ -3264,7 +3290,7 @@ async function testHeightBudget(browser, url, label, realProjection, realCrops) 
       const okStudy = pitch && pitch.studies.find((s) => s.status === "ok");
       if (okStudy) {
         await page.locator(navRow("study", okStudy.id)).click();
-        await page.waitForSelector(".chip--total", { timeout: 5000 });
+        await page.waitForSelector("tfoot.tvfoot", { timeout: 5000 });
         await page.waitForFunction(
           () => !window.ViewerApp.lastTopoRender.tweening, null, { timeout: 5000 });
         // Deselect, same reason as the mock block above: the height
@@ -4110,12 +4136,16 @@ async function testServedModeBoot(browser, url, label, realProjection, stopServe
       await page.goto(url + "/apps/viewer/topology.html" +
         "?topology=pitch_system&study=pitch_system_gas_spring_branch",
         { waitUntil: "load" });
-      await page.waitForSelector(".chip--total", { timeout: 15000 });
+      await page.waitForSelector("tfoot.tvfoot", { timeout: 15000 });
       push("[real] a deep link opens the named study selected, over the real " +
         "served transport",
-        /pitch_system_gas_spring_branch/
-          .test(await page.locator("#totals").textContent()) &&
-        await page.locator(".chip--total").count() === 5);
+        // The study's id is the summary heading's hover now, not printed
+        // beside its title (viewer_summary_balance_sheet: an id is a
+        // deep-link handle, not a label) -- so the deep link's own claim is
+        // read off the attribute the page really carries.
+        await page.locator("#totals h2.tvsum__title")
+          .getAttribute("title") === "pitch_system_gas_spring_branch" &&
+        await page.locator("tfoot.tvfoot").count() === 1);
 
       // Edge hover on a pitch_system edge with a crop: the edge card, with
       // the REAL crop PNG rendered. pitch_system's croppable edges live in
@@ -6546,10 +6576,11 @@ async function testDeepLinks(browser, url, label) {
     await page.goto(url +
       "/topology.html?mock=1&topology=demo_mechanism&study=demo_base_to_tip",
       { waitUntil: "load" });
-    await page.waitForSelector(".chip--total", { timeout: 15000 });
+    await page.waitForSelector("tfoot.tvfoot", { timeout: 15000 });
     push("a topology+study link opens with the study selected",
-      /demo_base_to_tip/.test(await page.locator("#totals").textContent()) &&
-      await page.locator(".chip--total").count() === 5);
+      await page.locator("#totals h2.tvsum__title")
+        .getAttribute("title") === "demo_base_to_tip" &&
+      await page.locator("tfoot.tvfoot").count() === 1);
     push("the nav marks the linked study current",
       await page.locator(
         "[data-nav-kind='study'][data-nav-id='demo_base_to_tip'].navtree__row--on")

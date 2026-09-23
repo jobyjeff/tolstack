@@ -3497,6 +3497,30 @@
 
     function topoStudy(id) { return VA.findStudy(TOPO, id); }
 
+    // A study's answer is on TWO surfaces since viewer_summary_balance_sheet
+    // (2026-09-22). The rolled-up numbers, the criterion, the margin and the
+    // verdict are footer rows of the CONTRIBUTIONS GRID -- inside the pane,
+    // under the members they total (views/topology.js's totalsFoot). The
+    // findings, the cards and the gap panel are the summary pane beside it
+    // (VA.renderTopoTotals). A check that reads only one of the two measures
+    // half the page, which is why these are three helpers and not one.
+    function studyGrid(topoProj, study) {
+      return render(function (r) {
+        VA.renderTopoPane(r, topoCtx({ topoProj: topoProj, study: study }));
+      });
+    }
+
+    function studySummary(topoProj, study) {
+      return render(function (r) {
+        VA.renderTopoTotals(r, topoProj, study, VA.topologyIndex(topoProj));
+      });
+    }
+
+    function studyAnswer(topoProj, study) {
+      return studyGrid(topoProj, study).textContent + " " +
+        studySummary(topoProj, study).textContent;
+    }
+
     await test("railGeometry puts a row's mark at the row's own y", function () {
       var geometry = VA.railGeometry(TOPO.layout, VA.RAIL_METRICS);
       eq(geometry.marks.length, TOPO.layout.rows.length);
@@ -4122,6 +4146,16 @@
       // the stack JSON and rendered whole on purpose.
       "li.notelist__note", "span.gap__text", "li.el-gaps__text",
       "p.check__guidance", "dd.kv__value", "tr.el-note--record",
+      // The EXCEPTION's own message, enrolled 2026-09-22 when the study
+      // summary joined the id walk below. It is the strongest case on this
+      // list: `BranchAmbiguity` names the node it stopped at and both
+      // candidate edges BY ID, and that is not a leak, it is the feature --
+      // docs/DAG_TOPOLOGY.md's "Not a solver" says which parallel path binds
+      // is a mechanics decision this tool never makes, so the message has to
+      // hand the author the two edges to choose between. A page that trimmed
+      // the ids out of it would leave a reader with "there is a fork
+      // somewhere".
+      "p.tverror__message",
     ];
 
     // Everything on a surface that the VIEWER wrote -- the rendered text with
@@ -4617,6 +4651,35 @@
         var surfaces = [["the grid", render(function (r) {
           VA.renderTopoPane(r, topoCtx());
         })]];
+        // The two surfaces a STUDY's answer is on, enrolled 2026-09-22
+        // (viewer_summary_balance_sheet). Neither was in this walk before,
+        // and both were printing exactly what it exists to catch: the
+        // summary strip carried the study's id in a `<code>` and named its
+        // two ends `washer_far_face → cotter_hole_centerline`. Enrolling
+        // them, rather than adding a new literal to reader_facing_bans.js,
+        // is the fix -- "an internal id as a label" is already a class this
+        // walk can see; what it could not see was a surface nobody had
+        // added to it.
+        //
+        // The grid is rendered WITH a study so the walk reaches its totals
+        // footer, and once more over a study carrying a check, because the
+        // demo topologies author none (topology_fixtures.js) and the bottom
+        // line renders only where there is one.
+        (TOPO.studies || []).forEach(function (study) {
+          surfaces.push(["the grid under study " + study.id,
+            studyGrid(TOPO, study)]);
+          surfaces.push(["the summary of study " + study.id,
+            studySummary(TOPO, study)]);
+        });
+        var checked = studyWithCheck("demo_base_to_tip", {
+          complete: false, verdict_scope: "budget",
+          excluded_terms: ["a term this chain leaves out -- and the reason it " +
+            "does, in the author's own words"],
+          guidance: "why the check is written the way it is",
+        });
+        surfaces.push(["the grid's bottom line", studyGrid(TOPO, checked.study)]);
+        surfaces.push(["a summary with findings and a check card",
+          studySummary(TOPO, checked.study)]);
         (TOPO.nodes || []).forEach(function (node) {
           surfaces.push(["the pane on node " + node.id, render(function (r) {
             VA.renderTopoDetail(r, topoCtx({
@@ -4649,6 +4712,10 @@
         // them are unambiguously machine-shaped.
         var ids = (TOPO.parts || []).map(function (p) { return p.id; })
           .concat((TOPO.nodes || []).map(function (n) { return n.id; }))
+          // A STUDY's own id joined the list with its surfaces above: it is a
+          // deep-link handle exactly as a node's is, and it was the one this
+          // walk had never been given.
+          .concat((TOPO.studies || []).map(function (st) { return st.id; }))
           .filter(function (id) { return id.indexOf("_") !== -1; });
         var fields = schemaFieldNames(TOPO);
         ok(fields.length > 5, "the field-name scan must not be vacuous: " + fields);
@@ -8604,19 +8671,152 @@
         has(root.textContent, "No worksheet for this stack");
       });
 
-    await test("the totals are the projection's numbers, printed verbatim",
-      function () {
+    await test("the totals are the projection's numbers, printed verbatim, " +
+      "as footer rows of the contributions grid", function () {
         var study = topoStudy("demo_strut_branch");
-        var root = render(function (r) {
-          VA.renderTopoTotals(r, TOPO, study, VA.topologyIndex(TOPO));
-        });
-        var text = root.textContent;
+        var grid = studyGrid(TOPO, study);
+        var foot = all(grid, "tfoot.tvfoot")[0];
+        ok(foot, "the grid must carry a totals footer for a selected study");
+        var text = foot.textContent;
         ["nominal", "worst_case_min", "worst_case_max", "worst_case_half",
-         "rss_min", "rss_max", "rss_half"].forEach(function (field) {
+         "rss_center", "rss_min", "rss_max", "rss_half"].forEach(function (field) {
           has(text, VA.fmt(study.result[field]), field);
         });
         has(text, study.result.units);
-        has(text, "This page adds nothing up");
+        // Two value rows and a bottom line, in the same nine columns the
+        // member rows use -- which is the whole claim of the balance-sheet
+        // layout and the thing a chip strip could not make.
+        eq(all(foot, "tr.tvtotal--worst_case").length, 1);
+        eq(all(foot, "tr.tvtotal--rss").length, 1);
+        ok(all(foot, "tr.tvtotal--margin").length >= 1,
+           "a study states its bottom line even with no criterion recorded");
+        // ...and the rule sentence is in the summary pane, not the grid.
+        has(studySummary(TOPO, study).textContent, "This page adds nothing up");
+      });
+
+    await test("the whole walk has no totals footer -- a total belongs to a " +
+      "chain, and with no study selected there is not one", function () {
+        eq(all(studyGrid(TOPO, null), "tfoot.tvfoot").length, 0);
+        eq(all(studyGrid(TOPO, topoStudy("demo_ambiguous")), "tfoot.tvfoot").length, 0);
+      });
+
+    // The demo topologies author no checks at all (topology_fixtures.js says
+    // so and why), so a fixture-tier claim about the bottom line has to bring
+    // its own -- one check, over a real demo study's real chain.
+    function studyWithCheck(id, over) {
+      var study = topoStudy(id);
+      var check = {
+        check_id: "demo_check", label: "the tip clears the post",
+        criterion: ">= 0", units: study.result.units, verdict: "pass",
+        margin: 1.25, complete: true, verdict_scope: "joint",
+        excluded_terms: [], guidance: null, configuration: {},
+      };
+      Object.keys(over || {}).forEach(function (k) { check[k] = over[k]; });
+      var copy = {};
+      Object.keys(study).forEach(function (k) { copy[k] = study[k]; });
+      copy.checks = [check];
+      return { study: copy, check: check };
+    }
+
+    await test("the bottom line states the verdict, the margin and the " +
+      "criterion, each once", function () {
+        var made = studyWithCheck("demo_base_to_tip");
+        var row = all(studyGrid(TOPO, made.study), "tr.tvtotal--margin")[0];
+        ok(row, "a check earns a bottom line");
+        has(row.textContent, made.check.criterion);
+        has(row.textContent, VA.fmt(made.check.margin));
+        has(row.textContent, made.check.label);
+        eq(all(row, ".tvverdict").length, 1, "the verdict word, once");
+        has(all(row, ".tvverdict")[0].textContent, made.check.verdict);
+        // A complete check wears no qualification and no BUDGET chip: those
+        // two marks are what an incomplete one earns, and a page that spent
+        // them on every row would be saying nothing with them.
+        eq(all(row, ".tvverdict--qualified").length, 0);
+        eq(all(row, ".chip--budget").length, 0);
+      });
+
+    await test("an incomplete check's bottom line is visibly qualified, and " +
+      "what it leaves out is a findings row rather than a paragraph",
+      function () {
+        var made = studyWithCheck("demo_base_to_tip", {
+          complete: false, verdict_scope: "budget",
+          excluded_terms: ["the post's own seat height -- no drawing in this " +
+            "repo gives it, so the column below it is a budget"],
+        });
+        var row = all(studyGrid(TOPO, made.study), "tr.tvtotal--margin")[0];
+        eq(all(row, ".tvverdict--qualified").length, 1);
+        eq(all(row, ".chip--budget").length, 1);
+
+        var summary = studySummary(TOPO, made.study);
+        var rows = all(summary, "tr.tvfind__row--excluded_from_model");
+        eq(rows.length, 1);
+        // The author's own split: the NAME on the row, the rationale in the
+        // fold, and nothing between them that the page wrote.
+        has(all(rows[0], "summary.tvfind__name")[0].textContent,
+            "the post's own seat height");
+        eq(all(rows[0], "summary.tvfind__name")[0].textContent
+             .indexOf("no drawing in this repo"), -1,
+           "the rationale belongs in the fold, not on the row");
+        has(rows[0].textContent, "no drawing in this repo gives it");
+        has(rows[0].textContent, VA.GAP_KINDS.excluded_from_model.says);
+        has(rows[0].textContent, VA.GAP_KINDS.excluded_from_model.closes);
+        // The preamble this replaced. It is a sentence the PAGE wrote about a
+        // list, and its return would be the essay coming back.
+        eq(summary.textContent.indexOf("budget for what is missing"), -1);
+      });
+
+    await test("a finding whose author wrote no separator is never cut at a " +
+      "guessed point", function () {
+        var whole = "the limit rests in part on a requirement still in draft";
+        var made = studyWithCheck("demo_base_to_tip", {
+          complete: false, verdict_scope: "budget", excluded_terms: [whole],
+        });
+        var row = all(studySummary(TOPO, made.study),
+                      "tr.tvfind__row--excluded_from_model")[0];
+        eq(all(row, "summary.tvfind__name")[0].textContent, whole);
+        eq(VA.splitAuthoredFinding(whole).rationale, null);
+      });
+
+    await test("a study's findings are the gap panel's own vocabulary, kind " +
+      "for kind", function () {
+        // One table of words for both surfaces. A kind here that the panel
+        // under it has never heard of would be a study describing a gap in a
+        // vocabulary the assembly-wide list cannot group it under.
+        Object.keys(VA.STUDY_FINDING_SOURCES).forEach(function (kind) {
+          ok(VA.GAP_KINDS[kind],
+             "VA.STUDY_FINDING_SOURCES names gap kind " + JSON.stringify(kind) +
+             " and VA.GAP_KINDS has no words for it");
+        });
+        Object.keys(VA.GAP_KINDS).forEach(function (kind) {
+          ok(VA.GAP_KINDS[kind].says && VA.GAP_KINDS[kind].closes &&
+             VA.GAP_KINDS[kind].heading,
+             kind + " must say what it is at row scale AND at panel scale");
+        });
+        // ...and in the panel's own order, worst first.
+        var made = studyWithCheck("demo_base_to_tip", {
+          complete: false, verdict_scope: "budget",
+          excluded_terms: ["a missing term -- because"],
+        });
+        var kinds = VA.studyFindings(made.study, VA.topologyIndex(TOPO))
+          .map(function (row) { return row.kind; });
+        var order = Object.keys(VA.GAP_KINDS);
+        var ranks = kinds.map(function (k) { return order.indexOf(k); });
+        eq(JSON.stringify(ranks), JSON.stringify(ranks.slice().sort(
+          function (a, b) { return a - b; })), "findings: " + kinds.join(", "));
+      });
+
+    await test("the summary pane's ends are the interfaces' NAMES, and its " +
+      "ids are on the hover", function () {
+        var study = topoStudy("demo_base_to_tip");
+        var index = VA.topologyIndex(TOPO);
+        var basis = VA.studyBasis(study, index);
+        var from = basis.filter(function (p) { return p.key === "from"; })[0];
+        eq(from.value, index.nodes[study.from].name);
+        eq(from.title, study.from);
+        // The study's own id is the heading's hover, not a `<code>` beside it.
+        var root = studySummary(TOPO, study);
+        eq(all(root, "h2")[0].getAttribute("title"), study.id);
+        eq(all(root, "code").length, 0);
       });
 
     await test("the weakest input of a study is the weakest of its chain",
@@ -8624,11 +8824,16 @@
         // Weakest wins, exactly as a check's does. The degrees study crosses the
         // untraced arm edge, so it is an untraced result however many traced
         // ones it also sums.
-        var root = render(function (r) {
-          VA.renderTopoTotals(r, TOPO, topoStudy("demo_base_to_tip"),
-                              VA.topologyIndex(TOPO));
-        });
-        has(root.textContent, "weakest input: UNTRACED");
+        //
+        // A parameter/value pair on the basis card since 2026-09-22, not a
+        // chip in a strip -- so the LABEL and the VALUE are two nodes, and a
+        // substring check for "weakest input: UNTRACED" would pass on a page
+        // that had lost the pairing.
+        var root = studySummary(TOPO, topoStudy("demo_base_to_tip"));
+        var labels = all(root, "dt").map(function (dt) { return dt.textContent; });
+        var at = labels.indexOf("weakest input");
+        ok(at !== -1, "the basis card names the weakest input");
+        has(all(root, "dd")[at].textContent, VA.CONFIDENCE_LABEL.untraced);
       });
 
     await test("a study that refuses to sum renders the refusal, not a total",
@@ -10841,11 +11046,21 @@
               });
             });
           });
-          // `div.hovercard__note` is a TOPOLOGY surface's node (a part card's
-          // own note) and is matched by the fixture walk, not by this one --
-          // named here so its zero reads as scope rather than as rot.
+          // Two exemptions are TOPOLOGY-surface nodes and are matched by the
+          // fixture walk, not by this one -- named here so their zeros read
+          // as scope rather than as rot.
+          //
+          //   div.hovercard__note   a part card's own note;
+          //   p.tverror__message    a study that refuses to sum. Enrolled
+          //     2026-09-22 and it can never match HERE: no live study raises
+          //     (every one of the 21 is `status: ok`), and a stack page has
+          //     no study to raise at all. The fixture's `demo_ambiguous` is
+          //     its only witness, which is worth knowing before reading a
+          //     green here as coverage of it.
+          var TOPOLOGY_ONLY_EXEMPTIONS =
+            ["div.hovercard__note", "p.tverror__message"];
           VERBATIM_PROSE_CLASSES.forEach(function (selector) {
-            if (selector === "div.hovercard__note") return;
+            if (TOPOLOGY_ONLY_EXEMPTIONS.indexOf(selector) !== -1) return;
             ok(exempted[selector] > 0, "the verbatim-prose exemption " +
                selector + " matches nothing on any live stack surface -- an " +
                "exemption that matches nothing exempts nothing, and reads as " +
@@ -12059,13 +12274,15 @@
               topoProj.studies.forEach(function (study) {
                 if (study.status !== "ok") return;
                 seen++;
-                var root = render(function (r) {
-                  VA.renderTopoTotals(r, topoProj, study,
-                                      VA.topologyIndex(topoProj));
-                });
-                var text = root.textContent;
+                // The grid's own footer, not the summary pane: the numbers
+                // moved into the table on 2026-09-22
+                // (viewer_summary_balance_sheet).
+                var foot = all(studyGrid(topoProj, study), "tfoot.tvfoot")[0];
+                ok(foot, study.id + " renders no totals footer");
+                var text = foot.textContent;
                 ["nominal", "worst_case_min", "worst_case_max",
-                 "worst_case_half", "rss_min", "rss_max", "rss_half"]
+                 "worst_case_half", "rss_center", "rss_min", "rss_max",
+                 "rss_half"]
                   .forEach(function (field) {
                     has(text, VA.fmt(study.result[field]),
                         study.id + " " + field);
@@ -12082,12 +12299,16 @@
             // this archetype: it is the grip stack's own worst_case_shank_out
             // check, re-expressed as a loop closure.
             var study = VA.findStudy(liveL1, "vpa_output_shank_out");
-            var root = render(function (r) {
-              VA.renderTopoTotals(r, liveL1, study, VA.topologyIndex(liveL1));
-            });
-            has(root.textContent, "-0.0824");    // nominal
-            has(root.textContent, "0.6449");     // worst-case half
-            has(root.textContent, "shank_out");  // the derived gap it closes
+            var text = studyAnswer(liveL1, study);
+            has(text, "-0.0824");    // nominal
+            has(text, "0.6449");     // worst-case half
+            // The derived gap it closes, BY ITS NAME. It was the edge id
+            // (`shank_out`) until 2026-09-22 -- the same "an id is a
+            // deep-link handle, not a label" rule every pane on this page
+            // already followed, applied to the last surface still breaking it.
+            var closes = VA.topologyIndex(liveL1).edges[study.closes];
+            ok(closes, "this claim needs the study to close a declared edge");
+            has(text, closes.name);
           });
 
         // --- the verdict, the margin and what is missing ----------------------
@@ -12107,9 +12328,7 @@
             ok(topo, "the pitch-link topology must be in the projection");
             var index = VA.topologyIndex(topo);
             var shown = function (studyId) {
-              return render(function (r) {
-                VA.renderTopoTotals(r, topo, VA.findStudy(topo, studyId), index);
-              }).textContent;
+              return studyAnswer(topo, VA.findStudy(topo, studyId));
             };
 
             // PASS with a THIN margin, and the word "margin" beside it: the two
@@ -12120,23 +12339,29 @@
             // `VA.fmt` is `String(n)`, so the page prints 0.1098 verbatim.
             var out = shown("pitch_link_shank_out");
             has(out, "pass");
-            has(out, "margin +0.1098 mm at worst case");
-            has(out, VA.VERDICTS.pass.says);
+            // The margin is a CELL of the bottom line now, not a sentence:
+            // the signed number in the amount column, with the sentence on
+            // its hover. So the number and its limit are what the page reads.
+            has(out, "+0.1098");
+            has(out, "must be >= 0");
 
             // PASS, same shape, on the same page. +2.3296, not +11.0444: the
             // completed column consumed most of the old budget.
             var clear = shown("pitch_link_cotter_hole_clearance");
             has(clear, "pass");
-            has(clear, "margin +2.3296 mm at worst case");
-            has(clear, VA.VERDICTS.pass.says);
+            has(clear, "+2.3296");
+            has(clear, "must be >= 0");
 
             // And the third: a study that sums and has no criterion recorded.
             // Rendering this one blank is what made the whole page look as
             // though it held no verdicts.
+            var noCriterion = VA.findStudy(topo, "pitch_link_thread_region_t");
             var none = shown("pitch_link_thread_region_t");
-            has(none, "No pass/fail criterion has been recorded for this study yet");
-            eq(none.indexOf("margin "), -1,
-               "a study with no criterion must not print a margin");
+            has(none, VA.studyVerdict(noCriterion).word);
+            eq(none.indexOf("must be "), -1,
+               "a study with no criterion must not print a limit");
+            eq(all(studyGrid(topo, noCriterion), ".tvtotal__margin").length, 0,
+               "...nor a margin");
           });
 
         await test("[real] an incomplete check states what is missing ABOVE its " +
@@ -12147,18 +12372,32 @@
             // what it excludes is the MS9363-09 nut side.
             var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
             var study = VA.findStudy(topo, "pitch_link_cotter_hole_clearance");
-            var root = render(function (r) {
-              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
-            });
             eq(study.checks[0].complete, false,
                "this claim rests on the live check really being incomplete");
-            has(root.textContent, "budget for what is missing");
-            // The term itself, in the words the check wrote -- not a field name
-            // and not a count.
-            has(root.textContent, "MS9363-09 nut height");
-            eq(all(root, ".tvverdict-card--qualified").length, 1);
-            ok(all(root, ".tvverdict--qualified").length >= 1,
-               "the rollup badge wears the qualification too");
+
+            // The bottom line wears the qualification, in the grid.
+            var row = all(studyGrid(topo, study), "tr.tvtotal--margin")[0];
+            eq(all(row, ".tvverdict--qualified").length, 1);
+            eq(all(row, ".chip--budget").length, 1);
+
+            // ...and WHAT is missing is one findings row beside it: the term
+            // in the words the check wrote -- not a field name, not a count,
+            // and not the 90-word paragraph it used to be rendered as.
+            var summary = studySummary(topo, study);
+            var missing = all(summary, "tr.tvfind__row--excluded_from_model");
+            eq(missing.length, 1);
+            var name = all(missing[0], "summary.tvfind__name")[0];
+            has(name.textContent, "MS9363-09 nut height");
+            ok(name.textContent.length < 90,
+               "the row's own line is a name, not the argument: " + name.textContent);
+            // Every fact the paragraph carried is still on the page, one fold
+            // deeper -- this is the "compress the wording, never the facts"
+            // half of the handoff, and it is the half a layout pass loses.
+            ["MS9363 Rev C", ".178/.198 in", "castellation PHASE",
+             "JPS00094 5.9.7"].forEach(function (fact) {
+              has(missing[0].textContent, fact);
+            });
+            eq(name.getAttribute("title"), study.checks[0].excluded_terms[0]);
           });
 
         // Repointed at `rotor_fastener_length` during
@@ -12182,13 +12421,14 @@
             var topo = VA.findTopology(realTopologies, "rotor_fastener_length");
             ok(topo, "the rotor-fastener topology must be in the projection");
             var study = VA.findStudy(topo, "rotor_fastener_grip_u2h");
-            var root = render(function (r) {
-              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
-            });
-            var warn = all(root, ".tvwarn--lower-bound");
-            eq(warn.length, 1);
-            has(warn[0].textContent, "no tolerance recorded");
-            has(warn[0].textContent, "LOWER bound");
+            var root = studySummary(topo, study);
+            // One ROW per zero-width dimension since 2026-09-22, where one
+            // sentence used to name them all in a semicolon-joined list. The
+            // kind's own phrase is what says the spread is a lower bound.
+            var warn = all(root, "tr.tvfind__row--no_tolerance_recorded");
+            ok(warn.length >= 1);
+            has(root.textContent, VA.GAP_KINDS.no_tolerance_recorded.says);
+            has(root.textContent, VA.GAP_KINDS.no_tolerance_recorded.closes);
             // The rows it names, DERIVED from the chain rather than spelled
             // out. Two were spelled out until 2026-09-16, and one of them
             // stopped being zero-width the day `5ce16f3` gave the
@@ -12203,11 +12443,15 @@
             ok(zeroWidth.length >= 1, "this study's chain no longer holds a " +
                "zero-width row, so the warning it is named for cannot appear " +
                "and this test measures nothing");
-            zeroWidth.forEach(function (edge) {
-              has(warn[0].textContent, edge.name);
+            eq(warn.length, zeroWidth.length,
+               "one row per zero-width dimension, no more and no fewer");
+            var shownRows = warn.map(function (r) {
+              return all(r, "summary.tvfind__name")[0].textContent;
             });
-            has(warn[0].textContent, zeroWidth.length + (
-              zeroWidth.length === 1 ? " dimension" : " dimensions"));
+            zeroWidth.forEach(function (edge) {
+              ok(shownRows.indexOf(edge.name) !== -1,
+                 "no row names " + edge.name + " -- rows: " + shownRows.join(" | "));
+            });
           });
 
         // And the other half of the same move: the stack that USED to raise the
@@ -12219,10 +12463,8 @@
           function () {
             var topo = VA.findTopology(realTopologies, "pitch_link_to_pitch_plate");
             var study = VA.findStudy(topo, "pitch_link_shank_out");
-            var root = render(function (r) {
-              VA.renderTopoTotals(r, topo, study, VA.topologyIndex(topo));
-            });
-            eq(all(root, ".tvwarn--lower-bound").length, 0);
+            var root = studySummary(topo, study);
+            eq(all(root, "tr.tvfind__row--no_tolerance_recorded").length, 0);
             // It is still qualified, just for a different reason -- the two
             // bands are UNVERIFIED rather than missing, which is the whole
             // point of the 2026-09-15 ruling. A page that dropped both signals
@@ -12243,6 +12485,71 @@
             has(root.textContent, "What's missing");
             has(root.textContent, "MS9363-09 nut height");
             has(root.textContent, VA.GAP_KINDS.excluded_from_model.heading);
+          });
+
+        // The handoff's own acceptance shape (viewer_summary_balance_sheet,
+        // 2026-09-22): "no visible paragraph longer than ~2 lines without a
+        // disclosure". Stated as the rule that actually produces it -- this
+        // pane puts PROSE behind a fold and nothing else, so a `<p>` outside
+        // one is the essay coming back. Every live study, because the two
+        // Jeff quoted were on two different studies and a spot-check of one
+        // would have missed the other.
+        //
+        // The two exemptions are both states that are not a summary at all:
+        // the "pick a study" hint, and a study that refuses to sum (its
+        // exception message IS the result, and `.tverror` says so).
+        await test("[real] no study summary explains itself in a paragraph",
+          function () {
+            var seen = 0;
+            liveTopos.forEach(function (topoProj) {
+              topoProj.studies.forEach(function (study) {
+                if (study.status !== "ok") return;
+                seen++;
+                var root = studySummary(topoProj, study);
+                // Descendant selectors do not exist in the DOM shim this tier
+                // renders into (run_tests.cjs's matcher is tag/.class only),
+                // so "inside a fold" is collected fold by fold rather than
+                // written as `details p` -- which would silently match
+                // nothing here and everything in the browser.
+                var folded = [];
+                all(root, "details").forEach(function (box) {
+                  folded = folded.concat(all(box, "p"));
+                });
+                all(root, "p").forEach(function (node) {
+                  ok(folded.indexOf(node) !== -1,
+                     study.id + " renders an unfolded paragraph (" +
+                     node.className + "): " + node.textContent.slice(0, 120));
+                });
+                // ...and the ribbon of pills is gone from every one of them.
+                eq(all(root, ".chip--total").length, 0, study.id);
+                eq(all(root, ".tvtotals__strip").length, 0, study.id);
+              });
+            });
+            ok(seen >= 5, "expected the live studies, got " + seen);
+          });
+
+        await test("[real] every finding a study raises is one row, and the " +
+          "count is the row count", function () {
+            var rows = 0;
+            liveTopos.forEach(function (topoProj) {
+              var index = VA.topologyIndex(topoProj);
+              topoProj.studies.forEach(function (study) {
+                if (study.status !== "ok") return;
+                var attention = VA.studyAttention(study, index);
+                var expected = attention.excluded.length +
+                  attention.unverified.length + attention.noTolerance.length;
+                var root = studySummary(topoProj, study);
+                eq(all(root, "tr.tvfind__row").length, expected, study.id);
+                rows += expected;
+                // Nothing a finding carries is only in the fold's summary:
+                // the whole authored text is on the row, hover and all.
+                VA.studyFindings(study, index).forEach(function (finding) {
+                  ok(root.textContent.indexOf(finding.whole) !== -1,
+                     study.id + " drops the words of: " + finding.name);
+                });
+              });
+            });
+            ok(rows >= 20, "expected the live findings, got " + rows);
           });
 
         await test("[real] every live gap row is one this page has words for, " +
@@ -13211,6 +13518,29 @@
               check(topoProj.id + " grid", render(function (r) {
                 VA.renderTopoPane(r, ctx(null));
               }));
+              // The GRID with a study emphasized, enrolled 2026-09-22
+              // (viewer_summary_balance_sheet) so the walk reaches its totals
+              // footer on live data.
+              //
+              // The SUMMARY PANE beside it is NOT here, and that is a
+              // measurement rather than an omission: it renders the study's
+              // own `notes` and the assembly's gap texts whole, and two live
+              // ones carry strings this scan bans -- a study note names
+              // `tests/test_topology_conversions.py` and a hardware gap names
+              // `data/inbox/specs/`. Both are the RECORD speaking, both are
+              // behind a disclosure, and exempting them would mean five new
+              // verbatim-prose classes none of which a stack surface can
+              // liveness-check. The page's OWN words on that surface are
+              // covered by the fixture walk above, where the data is ours and
+              // the id scan is on as well.
+              // (ISSUE_20260922_the_study_summary_renders_record_prose_the_
+              // banned_string_guard_would_refuse.md)
+              (topoProj.studies || []).forEach(function (study) {
+                check(topoProj.id + " grid under " + study.id,
+                  render(function (r) {
+                    VA.renderTopoPane(r, Object.assign(ctx(null), { study: study }));
+                  }));
+              });
               (topoProj.nodes || []).forEach(function (node) {
                 check(topoProj.id + " pane on " + node.id, render(function (r) {
                   VA.renderTopoDetail(r, ctx({ kind: "node", id: node.id }));

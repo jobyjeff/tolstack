@@ -268,24 +268,61 @@
       " (" + transform.kind + ")";
   };
 
-  // The totals footer, straight off StudyResult.as_dict(). Label/value pairs so
-  // the view has nothing to decide and no number to combine.
-  VA.studyTotals = function (study) {
+  // The rolled-up result, as ROWS OF THE CONTRIBUTIONS GRID rather than as a
+  // strip of pills (viewer_summary_balance_sheet, 2026-09-22). Jeff, on the
+  // strip this replaces: "the weird ribbon of random values in circled
+  // elements at the top ... The components of the stack are already arranged
+  // into a table/grid, simply put the computed/rolled up values in the same
+  // grid at the bottom, like a balance sheet/invoice."
+  //
+  // So each row here lands in the SAME four numeric columns a member row
+  // fills — centre, low, high, and the row's own spread in the column a
+  // member's contribution occupies — and the view does what it does for every
+  // other row: prints them. Nothing is combined here; `nominal` and
+  // `rss_center` are two different centres the projection already computed,
+  // which is why they are two rows rather than one row and a loose chip.
+  //
+  // Straight off StudyResult.as_dict(), through VA.fmt (String(n): no toFixed,
+  // no band derived from the limits), exactly as the old strip was.
+  VA.studyTotalRows = function (study) {
     var r = study && study.result;
     if (!r) return [];
-    var units = r.units;
     return [
-      { key: "nominal", label: "nominal", value: VA.fmt(r.nominal), units: units },
       { key: "worst_case", label: "worst case",
-        value: VA.fmt(r.worst_case_min) + " … " + VA.fmt(r.worst_case_max),
-        units: units },
-      { key: "worst_case_half", label: "worst-case half",
-        value: "±" + VA.fmt(r.worst_case_half), units: units },
+        center: VA.fmt(r.nominal),
+        min: VA.fmt(r.worst_case_min), max: VA.fmt(r.worst_case_max),
+        half: "± " + VA.fmt(r.worst_case_half), units: r.units,
+        title: "Every contribution at its own worst end at once. The centre " +
+          "column is the nominal; the spread is half the interval." },
       { key: "rss", label: "RSS",
-        value: VA.fmt(r.rss_min) + " … " + VA.fmt(r.rss_max), units: units },
-      { key: "rss_half", label: "RSS half",
-        value: "±" + VA.fmt(r.rss_half), units: units },
+        center: VA.fmt(r.rss_center),
+        min: VA.fmt(r.rss_min), max: VA.fmt(r.rss_max),
+        half: "± " + VA.fmt(r.rss_half), units: r.units,
+        title: "A relative softening indicator, not a probability statement, " +
+          "and not directly comparable to the worst-case row. Verdicts never " +
+          "read it." },
     ];
+  };
+
+  // The bottom line of the same grid: one row per authored check — what it
+  // has to be, how far the worst case is from that, and the verdict word,
+  // once. `VA.studyCheckRow` already holds the words; this adds only the two
+  // cells a table needs that a sentence did not, and neither is derived:
+  // `margin` is CheckResult.margin as Python signed it, and `criterion` is
+  // the check's own string, printed verbatim rather than re-spelled (a
+  // re-spelling is a second vocabulary for an operator, and the only thing it
+  // would buy is a prettier glyph).
+  VA.studyMarginRows = function (study) {
+    return ((study && study.checks) || []).map(function (check) {
+      var row = VA.studyCheckRow(check);
+      row.criterionText = check.criterion === null || check.criterion === undefined
+        ? null : "must be " + check.criterion;
+      row.marginValue = (typeof check.margin === "number"
+        ? (check.margin > 0 ? "+" : "") + VA.fmt(check.margin)
+        : "—") + " " + check.units;
+      row.configuration = check.configuration || {};
+      return row;
+    });
   };
 
   // The weakest confidence among the edges a study actually summed. Weakest
@@ -302,6 +339,59 @@
     }
     return null;
   };
+
+  // What the totals are totals OF — the database-row-on-a-card half of
+  // viewer_summary_balance_sheet (deliverable 3): parameter/value pairs, never
+  // a sentence doing a table's job.
+  //
+  // The two ENDS are resolved to the interfaces' own names. They were the raw
+  // node ids ("washer_far_face → cotter_hole_centerline") on the strip this
+  // replaces, which is the rule every other pane on this page already follows
+  // the other way round — a name on the surface, the id on the hover. Same for
+  // `closes`, which named a derived gap by its edge id.
+  VA.studyBasis = function (study, index) {
+    if (!study) return [];
+    var nodes = (index && index.nodes) || {};
+    var edges = (index && index.edges) || {};
+    var named = function (id, table) {
+      var row = id ? table[id] : null;
+      return { value: row && row.name ? row.name : (id ? missingLabel(id) : null),
+               title: id || null };
+    };
+    var from = named(study.from, nodes);
+    var to = named(study.to, nodes);
+    var pairs = [
+      { key: "from", label: "measured from", value: from.value, title: from.title },
+      { key: "to", label: "measured to", value: to.value, title: to.title },
+    ];
+    if (study.closes) {
+      var closes = named(study.closes, edges);
+      pairs.push({ key: "closes", label: "closes the gap",
+                   value: closes.value, title: closes.title });
+    }
+    var result = study.result;
+    if (result) {
+      pairs.push({ key: "contributions", label: "contributions",
+                   value: String((result.chain || []).length),
+                   title: "how many dimensions this study summed" });
+      pairs.push({ key: "units", label: "units", value: result.units, title: null });
+    }
+    var worst = VA.studyWorstConfidence(study, index);
+    if (worst) {
+      pairs.push({ key: "weakest_input", label: "weakest input",
+                   value: VA.CONFIDENCE_LABEL[worst] || worst,
+                   confidence: worst,
+                   title: "weakest wins: a study fed by nine traced edges and " +
+                     "one untraced one is an untraced result" });
+    }
+    return pairs;
+  };
+
+  // An id the topology does not declare, said out loud rather than rendered
+  // blank — the model-side twin of views/topology.js's `missing()`.
+  function missingLabel(id) {
+    return id + " — the study names an id the topology does not declare";
+  }
 
   // --- does it pass, by how much, and what is missing -----------------------
   //
@@ -386,16 +476,73 @@
     return out;
   };
 
-  // The lower-bound sentence, or null where no row in the chain earned it
-  // (deliverable 3). Plain words, and it NAMES the rows: "two of them" leaves a
-  // reader scrolling a 43-row grid looking for which two.
-  VA.zeroWidthWarning = function (attention) {
-    var rows = (attention && attention.noTolerance) || [];
-    if (!rows.length) return null;
-    return rows.length + (rows.length === 1 ? " dimension" : " dimensions") +
-      " in this chain " + (rows.length === 1 ? "has" : "have") +
-      " no tolerance recorded, so the worst-case spread above is a LOWER " +
-      "bound, not the real one: " + rows.join("; ") + ".";
+  // The separator an AUTHORED finding uses between what a thing is and why it
+  // is a finding. Every excluded term in the live projection that carries a
+  // reason at all carries it this way — "MS9363-09 nut height and
+  // thread-start-to-castellation distance -- the height is printed in ...".
+  //
+  // That convention is the whole reason a row of the findings table can be
+  // short without anything being dropped: the author already wrote the split,
+  // so the table renders it instead of a paragraph, and the rationale sits one
+  // disclosure away, word for word. A term with no separator is NOT cut at a
+  // guessed point — it comes back whole as the name, and the row's own CSS
+  // clamps it to one line with the full text in the fold.
+  // (viewer_summary_balance_sheet, 2026-09-22: "Compress the wording, never
+  // the facts".)
+  var AUTHORED_REASON_SPLIT = / -- | — /;
+
+  VA.splitAuthoredFinding = function (text) {
+    var whole = String(text === null || text === undefined ? "" : text);
+    var at = whole.match(AUTHORED_REASON_SPLIT);
+    if (!at) return { name: whole, rationale: null, whole: whole };
+    return {
+      name: whole.slice(0, at.index),
+      rationale: whole.slice(at.index + at[0].length),
+      whole: whole,
+    };
+  };
+
+  // Which of VA.studyAttention's lists feeds each gap KIND. The kinds are
+  // VA.GAP_KINDS' own words and the rows come out in GAP_KINDS' order — worst
+  // first — so a study's findings table and the assembly-wide gap panel under
+  // it rank and name the same things the same way. A kind here that GAP_KINDS
+  // does not declare is a vocabulary that has drifted, and a test says so.
+  VA.STUDY_FINDING_SOURCES = {
+    excluded_from_model: "excluded",
+    unverified_value: "unverified",
+    no_tolerance_recorded: "noTolerance",
+  };
+
+  // Everything that makes THIS study's answer less than its digits suggest, as
+  // one row each (viewer_summary_balance_sheet, deliverable 4). It replaced
+  // two generated paragraphs — the "budget for what is missing" preamble over
+  // a bulleted term, and the "N dimensions in this chain are unverified ..."
+  // sentence — both of which said in prose what a name, a phrase and a fold
+  // say in a line.
+  //
+  // No facts leave: `rationale` is the author's own words after the split,
+  // `whole` is the untouched text, and `closes` is what the gap panel already
+  // says would close a gap of this kind.
+  VA.studyFindings = function (study, index) {
+    var attention = VA.studyAttention(study, index);
+    var rows = [];
+    Object.keys(VA.GAP_KINDS).forEach(function (kind) {
+      var bucket = VA.STUDY_FINDING_SOURCES[kind];
+      if (!bucket) return;
+      var known = VA.GAP_KINDS[kind];
+      (attention[bucket] || []).forEach(function (text) {
+        var split = VA.splitAuthoredFinding(text);
+        rows.push({
+          kind: kind,
+          name: split.name,
+          rationale: split.rationale,
+          whole: split.whole,
+          says: known.says,
+          closes: known.closes,
+        });
+      });
+    });
+    return rows;
   };
 
   // One check, as the strip renders it. `margin` is `CheckResult.margin` — the
@@ -427,8 +574,8 @@
     };
   };
 
-  // The one-badge answer for a study, for the nav row and the head of the
-  // totals strip. `state` is a verdict word, or one of the two states a verdict
+  // The one-badge answer for a study, for the nav row and for the grid's own
+  // verdict row where a study has no authored check to write one. `state` is a verdict word, or one of the two states a verdict
   // cannot express:
   //
   //   "none"   no pass/fail criterion has been recorded for this study yet.
@@ -534,9 +681,9 @@
   // The verdict, as the FIRST line of a row's hover -- "in plain words", which
   // is VA.VERDICTS' own `says` ("every build clears it"), pinned to the word it
   // explains and followed by the full sentence as the why. The three parts are
-  // exactly what a study's totals strip already pairs (views/topology.js's
-  // verdictChip beside .tvverdict-card__says), so a reader who learns the
-  // phrasing in one place meets it in the other.
+  // exactly what the grid's own verdict row already pairs (views/topology.js's
+  // marginRow: the verdict chip, the check's label and its margin), so a
+  // reader who learns the phrasing in one place meets it in the other.
   //
   // `says` is null on the two states that are not dispositions, and there the
   // word IS the plain-words statement ("no pass/fail criterion recorded yet").
@@ -697,25 +844,35 @@
   // paired word for word by tests/test_topology_projection.py — the projection
   // writes the kind and the text, this table writes the heading and the way
   // out, and neither side restates the other.
+  // `says` is the same fact at ROW scale — what one line of the findings table
+  // admits about itself, in a phrase short enough to sit in a column beside a
+  // name (viewer_summary_balance_sheet, 2026-09-22). It is here rather than in
+  // a second table because a reader meets both: the heading groups a panel of
+  // gaps for the whole assembly, the phrase labels one row of one study's
+  // findings, and the two must not describe the same kind in two vocabularies.
   VA.GAP_KINDS = {
     excluded_from_model: {
       heading: "Left out of the chain",
+      says: "not folded into the total",
       closes: "Find a document that gives this dimension, add it to the chain, " +
         "and the verdict above stops being a budget and becomes an answer " +
         "about the joint.",
     },
     unverified_value: {
       heading: "Numbers with nothing behind them",
+      says: "nothing readable stands behind it",
       closes: "Find the drawing callout or datasheet line that states the " +
         "dimension, and cite it on the row.",
     },
     no_tolerance_recorded: {
       heading: "Dimensions with no tolerance",
+      says: "no plus/minus recorded — the spread is a lower bound",
       closes: "Find the plus/minus on the drawing. Until then every spread " +
         "these feed is a lower bound.",
     },
     hardware_entry: {
       heading: "Open questions about the hardware",
+      says: "an open question recorded against the part",
       closes: "Each is a question recorded against a part when it was " +
         "transcribed; closing one takes a source for what it asks about.",
     },

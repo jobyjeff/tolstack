@@ -314,7 +314,7 @@ body { display: flex; flex-direction: column; }
    the incoming frame lays out as if it were alone; inert, because it is a
    picture of a state the reader has already left -- a click landing on a
    ghost dot would select a row that is on its way off the page. Clipped to
-   the pane so a taller outgoing DAG cannot paint over the totals strip below
+   the pane so a taller outgoing DAG cannot paint over the summary pane below
    while it fades. Lives for one transition; nothing renders it at rest. */
 .tv__ghost {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -646,25 +646,55 @@ body { display: flex; flex-direction: column; }
    citation chip of its own to carry the colour. */
 .chip--unlabelled { color: var(--nocite); border-color: var(--nocite); font-weight: 600; }
 
-/* --- the totals footer: a slim, always-visible strip --------------------
-   Demoted from a 260px panel (deliverable 2, viewer_v2_single_nav): the
-   folded numbers are chips in one horizontally-scrolling row instead of a
-   wrapping grid of boxes, so this block's height does not grow with a
-   study's own `notes` or with window width. The rule sentence and the notes
-   still exist — behind `.tvtotals__more`'s own <details> — just not always on
-   screen. */
+/* --- the totals: footer rows of the contributions grid ------------------
+   viewer_summary_balance_sheet (2026-09-22). Jeff: "simply put the
+   computed/rolled up values in the same grid at the bottom, like a balance
+   sheet/invoice etc."
+
+   So there is no strip of chips here any more. `.tvfoot` is a <tfoot> of the
+   grid's own body table (views/topology.js's totalsFoot) and inherits every
+   column width from the shared <colgroup>: a total sits under the column it
+   totals, which is what lets the row's label be two words instead of a chip
+   repeating the column's name.
+
+   NO `height` rule, and that is deliberate: `.tvrow`'s pitch is the alignment
+   contract with the rails and these rows are below the last of them, so their
+   height is set inline from the same metric only for RHYTHM. A stylesheet
+   rule here would be a second place that number lives. */
+.tvfoot { background: var(--panel2); }
+/* The seam between the members and their total — the one line an invoice
+   draws. box-shadow, not a border, for the reason `.tvrow--group-start` uses
+   one: a cell border participates in the table's row-height sizing. */
+.tvfoot .tvtotal:first-child .tvcell { box-shadow: inset 0 2px 0 var(--line); }
+.tvtotal { font-size: var(--t-dense); white-space: nowrap; }
+/* The merged section cell, in the component column and reading exactly as a
+   component group's does: said once, spanning its block, muted and tiny. */
+.tvtotal__section {
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.tvtotal__label { font-weight: 600; }
+/* The verdict row's own two cells. The check's name sits after its verdict
+   chip in the element column and clips there like every other name in that
+   column does (the card below repeats it in full as its heading, and the
+   column is the draggable one). */
+.tvtotal__check { margin-left: 10px; font-weight: 600; }
+/* The row's premise, quieter than its answer: a static limit, in the column a
+   member row's own contribution occupies. */
+.tvtotal__criterion { color: var(--muted); font-size: var(--t-meta); }
+/* THE BOTTOM LINE, right-aligned at the same edge the worst-case row's own
+   last number lands on -- the amount column of an invoice. The only
+   accent-coloured number in the grid: every other figure on the page is a
+   transcription, and this one is the answer. */
+.tvtotal__margin { text-align: right; color: var(--accent); font-weight: 600; }
+.tvtotal--nocriterion .tvtotal__label { font-weight: 400; color: var(--muted); }
+
+/* --- the study summary pane --------------------------------------------- */
 .tvtotals {
-  border-top: 1px solid var(--line); padding: 4px 16px; background: var(--panel2);
+  border-top: 1px solid var(--line); padding: 4px 16px 10px; background: var(--panel2);
   flex-shrink: 0;
 }
 .tvtotals__empty { margin: 6px 0; }
-.tvtotals__strip {
-  display: flex; gap: 6px; align-items: center; flex-wrap: nowrap;
-  overflow-x: auto; padding: 6px 0; white-space: nowrap;
-}
-.tvtotals__title { font-weight: 600; }
-.tvtotals__span { white-space: nowrap; }
-.chip--total { font-family: ui-monospace, monospace; }
+.tvsum__title { margin: 8px 0 6px; }
 .tvtotals__more { margin: 0 0 4px; }
 .tvtotals__more summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
 .tvtotals__rule { margin: 6px 0 0; }
@@ -997,13 +1027,15 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    verdict cannot express, and they are styled to read as "there is no answer
    here" rather than as a quiet pass.
 
-   A STUDY'S OWN TOTALS STRIP is the only place any of these render now
-   (views/topology.js). 2026-09-21 moved `--none` and `--error` off the nav rail
-   into its ⚠; 2026-09-22 moved the other three the same way, so the rail wears
-   no verdict chip at all and states its verdict in words, in the card its one
-   status icon opens (`.navstatus`, above). A nav row's mark is not a verdict
-   and is not always present: a study with a clean pass and nothing to admit
-   wears nothing. */
+   THE GRID'S OWN VERDICT ROW is the only place any of these render now
+   (views/topology.js's marginRow -- the bottom line of the contributions
+   table, since viewer_summary_balance_sheet on 2026-09-22; a strip of chips
+   under the grid before that). 2026-09-21 moved `--none` and `--error` off
+   the nav rail into its ⚠; 2026-09-22 moved the other three the same way, so
+   the rail wears no verdict chip at all and states its verdict in words, in
+   the card its one status icon opens (`.navstatus`, above). A nav row's mark
+   is not a verdict and is not always present: a study with a clean pass and
+   nothing to admit wears nothing. */
 .tvverdict {
   font-weight: 700; text-transform: uppercase; letter-spacing: .02em;
   font-size: var(--t-micro); padding: 2px 7px;
@@ -1054,8 +1086,11 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    VA.studyNavStatus; a bordered `.chip--alert` ⚠ until 2026-09-22, a drawn
    `.navstatus` since). These three selectors still style the two surfaces that
    are not a 300px always-visible rail and where the words have room to be
-   read: the topology GRID's edge rows and a study's own totals strip
-   (views/topology.js). The padding below is tighter than `.chip`'s own and
+   read: the topology GRID's edge rows, and the count on the "What's missing"
+   summary line (views/topology.js). A STUDY's own flags left on 2026-09-22
+   (viewer_summary_balance_sheet): they are rows of the findings table now,
+   each naming the thing it is about, which is what a badge over a list could
+   never do. The padding below is tighter than `.chip`'s own and
    there is no extra tracking, both to buy back the width the step from 10px to
    11px cost on the rail those rows no longer sit in; it is kept because the
    grid's rows are narrower still. */
@@ -1067,32 +1102,75 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvflag--no_tolerance { color: var(--zero); border-color: var(--zero); }
 .tvflag--incomplete { color: var(--inferred); border-color: var(--inferred); }
 
-/* The per-check block under the totals strip: verdict, what it means, and by
-   how much — then, where the chain is short a term, WHAT is missing, above the
-   fold and not behind a hover. */
-.tvverdicts { margin: 2px 0 6px; }
-.tvverdicts__none {
-  margin: 6px 0; color: var(--muted); border-left: 3px solid var(--line);
-  padding-left: 10px;
+/* --- the findings table -------------------------------------------------
+   viewer_summary_balance_sheet (2026-09-22), replacing two stacked
+   paragraphs: the "budget for what is missing" preamble over a bulleted
+   90-word term, and the "3 dimensions in this chain are unverified — ...:
+   a; b; c." sentence. Both were lists wearing a paragraph's clothes.
+
+   A data table, so it is set at the data row's size and pitch rather than at
+   prose's: two columns, the name first because that is what a reader scans
+   for, the reason second and muted because it is the same phrase down a
+   whole run of rows. No borders between rows -- spacing separates them
+   (whitespace before chrome), and the `--why` column's muted grey is the
+   only colour. */
+.tvfind { margin: 2px 0 8px; }
+/* `fixed`, so the name column really does clip at its share of the width
+   rather than pushing the reason column off the end -- an authored finding
+   with no ` -- ` split in it is a whole sentence, and `auto` layout sizes a
+   column to that. */
+.tvfind__table {
+  table-layout: fixed; border-collapse: collapse;
+  width: 100%; max-width: calc(var(--measure) + 26ch);
 }
-.tvverdict-card {
-  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
-  margin-top: 6px; background: var(--panel);
+.tvfind__row > td {
+  border-bottom: none; padding: 2px 0; vertical-align: top;
+  font-size: var(--t-dense);
 }
-.tvverdict-card--qualified {
-  border-left: 3px solid var(--inferred);
-  background: repeating-linear-gradient(135deg,
-    var(--panel), var(--panel) 10px, #23262e 10px, #23262e 20px);
+.tvfind__what { width: 62%; padding-right: 18px; }
+/* The reason, in the kind's own words (VA.GAP_KINDS' `says`). Muted, not
+   smaller-and-bolder: secondary information is quieter, never a second size
+   step. `white-space: nowrap` keeps a two-column row two lines tall at most,
+   which is what makes a run of findings scannable. */
+.tvfind__says {
+  color: var(--muted); font-size: var(--t-meta); white-space: nowrap;
 }
-.tvverdict-card__head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.tvverdict-card__says { font-weight: 600; }
-.tvverdict-card__margin { font-family: ui-monospace, monospace; color: var(--accent); }
-.tvverdict-card__label { margin-top: 4px; color: var(--muted); font-size: var(--t-dense); }
-.tvverdict-card__missing { margin-top: 8px; }
-.tvverdict-card__missinghead { margin: 0; font-size: var(--t-dense); }
-.tvverdict-card__missinglist { margin: 4px 0 0; padding-left: 20px; }
-.tvverdict-card__more { margin-top: 6px; }
-.tvverdict-card__more summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
+/* The name IS the disclosure's summary: the marker sits where the eye
+   already is, and an opened row spends the table's whole width on the
+   rationale rather than one column's. Clamped to one line, because a term
+   whose author wrote no ` -- ` split comes through whole (see
+   VA.splitAuthoredFinding) -- the full text is in the fold and on the hover
+   either way, so the clamp drops no fact. */
+.tvfind__more > summary.tvfind__name {
+  cursor: pointer; list-style: revert;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tvfind__more[open] > summary.tvfind__name { white-space: normal; }
+.tvfind__why { margin: 4px 0 0; max-width: var(--measure); font-size: var(--t-dense); }
+.tvfind__closes { margin: 4px 0 2px; max-width: var(--measure); }
+/* The colour is the finding's KIND, on a hairline at the row's left edge --
+   the same three colours `.tvflag--*` gives the same three kinds, so a reader
+   who learned them on a grid row meets them here. A hairline and not a fill:
+   a table of findings is already the loud part of this pane. */
+.tvfind__row--excluded_from_model .tvfind__what { border-left: 2px solid var(--inferred); }
+.tvfind__row--unverified_value .tvfind__what { border-left: 2px solid var(--untraced); }
+.tvfind__row--no_tolerance_recorded .tvfind__what { border-left: 2px solid var(--zero); }
+.tvfind__row > td.tvfind__what { padding-left: 8px; }
+
+/* --- the cards ----------------------------------------------------------
+   "a 'card' with parameter/value pairs (like the way a single row of a
+   database table would be displayed on a card in a webui)" (Jeff). The pairs
+   themselves are `.kv` (style.css), shared with the stack page's joint block
+   and generated-check configuration -- one grid for parameter/value pairs in
+   this app, not two. */
+.tvcard {
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px 8px;
+  margin: 6px 0; background: var(--panel); max-width: var(--measure);
+}
+.tvcard__head { margin: 2px 0 0; font-size: var(--t-dense); }
+.tvcard__why { margin-top: 4px; }
+.tvcard__why__summary { cursor: pointer; color: var(--muted); font-size: var(--t-meta); }
+.tvcard__why__body { max-width: var(--measure); font-size: var(--t-dense); }
 
 /* A MEASURE on every run of prose the totals block stacks (2026-09-17). This
    block sits under a grid that is as wide as the window allows, so its
@@ -1101,21 +1179,9 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
    at once. `--measure` is the cap and style.css declares it once. Left-aligned
    and capped, not centred -- a centred paragraph is the other half of the same
    house rule. */
-.tvgaps__item, .tvverdicts__none, .tvverdict-card__label, .tvtotals__rule,
-.tvtotals__note, .tvwarn, .tverror__message, .tverror__advice,
+.tvgaps__item, .tvtotals__rule,
+.tvtotals__note, .tverror__message, .tverror__advice,
 .tvgaps__closes { max-width: var(--measure); }
-
-/* The two chain-level warnings. Not `.muted`: a lower bound presented quietly
-   is a number a reader takes at face value. */
-.tvwarn {
-  margin: 6px 0; padding: 6px 10px; border-radius: 0 6px 6px 0; font-size: var(--t-dense);
-}
-.tvwarn--lower-bound {
-  border-left: 3px solid var(--zero); background: rgba(122, 167, 214, .12);
-}
-.tvwarn--unverified {
-  border-left: 3px solid var(--untraced); background: rgba(224, 82, 82, .12);
-}
 
 /* "What's missing" — collapsed by default, with its total in the summary line.
    Progressive disclosure: pitch_system carries 38 gap rows and a wall of 38
@@ -1133,9 +1199,3 @@ dialog#legend-dialog::backdrop, dialog#worksheet-dialog::backdrop {
 .tvgaps__list { margin: 0; padding-left: 18px; }
 .tvgaps__item { font-size: var(--t-dense); margin-bottom: 3px; }
 .tvgaps__where { color: var(--accent); margin-right: 6px; }
-
-/* The study-level flags, on their own line under the strip. They wrap; the
-   strip above them deliberately does not (see `.tvtotals__strip` -- it scrolls
-   sideways so its height cannot grow), and three long badges inside a
-   non-wrapping scrollport would have pushed the folded totals out of reach. */
-.tvtotals__flags { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 4px; }
