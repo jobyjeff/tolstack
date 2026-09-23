@@ -2694,11 +2694,20 @@ async function testTheTopologyPage(browser, url, label, realProjection, realCrop
         }
         return out;
       });
-      push(`[real] the mark stays at the end of its row, including on the ` +
-        `${wrapped.twoLine} rows whose name needs two lines`,
+      // The two-line COUNT is printed beside the check, never inside its name.
+      // A name built by interpolation cannot be declared in
+      // scripts/mutation_witnesses.json at all: `expect_red` is compared to the
+      // printed name for EQUALITY, and it is paired against this file's source
+      // on every pytest run, where `${wrapped.twoLine}` is what is written. So
+      // an interpolated name is a guard that can never be enrolled -- which is
+      // what kept this one out of the table until 2026-09-22.
+      push("[real] the mark stays at the end of its row, including on the " +
+        "rows whose name needs two lines",
         wrapped.twoLine >= 1 && wrapped.misplaced.length === 0);
-      if (wrapped.misplaced.length) {
-        console.log(`    under the name: ${wrapped.misplaced.join(" | ")}`);
+      if (wrapped.twoLine < 1 || wrapped.misplaced.length) {
+        console.log(`    two-line rows: ${wrapped.twoLine}` +
+          (wrapped.misplaced.length
+            ? `; under the name: ${wrapped.misplaced.join(" | ")}` : ""));
       }
       // Nothing open first: an open card plus a pointer aimed at it is the
       // hover-intent corridor's own case (`defer`), and it would hold this
@@ -5519,6 +5528,37 @@ async function testAnnotateTopBar(browser, label) {
         await taskLine()));
     push("...with the part see-through, so a face already bound shows through it",
       await ghosted(sha));
+
+    // ...and it is the ARRIVAL that put the part in the scene, asked with the
+    // face-suggestion display OUT OF THE WAY. Since 2026-09-21 `suggest` loads
+    // the selected element's part and shows it too (cmdSuggest, app.js), so
+    // with suggestions on the two are indistinguishable and the check above
+    // stayed green with the arrival's own scene call deleted -- coverage lost
+    // by a merge, with both branches green alone
+    // (ISSUE_20260921_three_declared_mutations_are_unwitnessed_on_trunk_after_
+    // the_batch_merge). The mock topology has exactly one part, so "alone"
+    // cannot separate them either; turning the other loader off is what can.
+    await openHelp();
+    await setting("Suggest likely faces").uncheck();
+    // The setting is only honoured on the next page if it reached storage
+    // first, and unticking runs an async handler the click does not wait for.
+    await page.waitForFunction(
+      () => window.localStorage.getItem(
+        window.AnnotateApp.PREF_KEYS.faceSuggestions) ===
+        window.AnnotateApp.ON_OFF[1],
+      null, { timeout: 5000 });
+    await page.goto(url + "?mock=1&topology=demo_system&edge=demo_edge_untraced",
+      { waitUntil: "load" });
+    await page.waitForSelector("#rail-filter", { state: "visible", timeout: 15000 });
+    push("...and it is the ARRIVAL that shows it, not the face suggestions — " +
+      "with those off the part is in the scene all the same",
+      await parts().count() === 1 &&
+      await page.evaluate((s) => window.__scene.isVisible(s), sha));
+    await openHelp();
+    await setting("Suggest likely faces").check();
+    // Closed again: `openHelp()` below asserts the panel BECOMES visible, so a
+    // panel left open would toggle it shut and time out there instead.
+    await page.locator("#detail .an__disclose").click();
 
     // --- 3. the switches ----------------------------------------------------
     await page.locator("#auto-setup > summary").click();
