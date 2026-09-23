@@ -279,10 +279,30 @@ number, and it is the claim the code rests on.
 
 ## Mutation-witness tier
 
-Run post-merge, `node scripts/run_mutation_witness_tests.mjs --repo
-C:/workspace/tolstack`. Result recorded in the review branch's commit message
-for this report; no entry in `scripts/mutation_witnesses.json` names a selector
-or symbol this diff removed, so no witness was stranded by the change.
+Run post-merge on the merged tree: `node scripts/run_mutation_witness_tests.mjs
+--repo C:/workspace/tolstack` → **93/96 declared mutations witnessed**.
+
+The three NOT WITNESSED are the same three that have been unwitnessed since the
+2026-09-21 batch merge, verbatim and for the same stated reasons:
+
+```
+leader-style-survives-a-topology-switch — another check reddened, but not the declared one
+worst-verdict-ranks-worst-last — the tier never reached the witness
+arriving-at-an-element-shows-its-part-in-3d — the witness cannot see the difference
+```
+
+They are already open as
+`ISSUE_20260921_three_declared_mutations_are_unwitnessed_on_trunk_after_the_batch_merge.md`
+and were reported identically by both 2026-09-22 reviews that preceded this one
+(`policy_free_brief_residues` measured 70/73 with the same three; the
+denominator moved to 96 when `mutation_witness_enrollment_backlog` landed).
+**None of them is this diff's doing** — this work touches no leader style, no
+verdict ranking and no 3D affordance, and `scripts/mutation_witnesses.json`
+names none of the selectors or symbols it deleted, so no witness was stranded
+by the change. The four guards this pass *adds* carry no entry yet, which the
+author filed as
+`ISSUE_20260922_the_balance_sheet_guards_have_no_mutation_witness_entry.md`;
+three of them I witnessed by hand above instead.
 
 ## For the next reviewer
 
