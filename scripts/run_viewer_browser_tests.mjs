@@ -589,29 +589,86 @@ async function testTheApp(browser, url, label) {
     // Since flyout_resize_annotator_filter_and_deselect it rides on the row's
     // ONE consolidated alert badge rather than a filled all-caps chip of its
     // own (Jeff: "roll all the alert badges into one single alert badge"), and
-    // BOTH halves of that trade are CSS claims only a layout engine can check:
-    // the badge has to be quieter than the filled chip it replaced (no fill)
-    // and still findable (a real border, in the attention colour, not the
-    // neutral chip outline).
-    const badge = page.locator("#stackview .chip--alert");
+    // both halves of that trade are CSS claims only a layout engine can check:
+    // the badge has to be quieter than the filled chip it replaced and still
+    // findable.
+    //
+    // REWRITTEN 2026-09-22 (stack_page_alert_marks_and_drawn_glyph), because
+    // the shape it asserted is no longer the shipped one and a stale CSS claim
+    // is worse than no claim. Until then the badge was a `.chip--alert` -- a
+    // `\u26A0` character in a rounded 1px border -- and "findable" meant a real
+    // border in the attention colour. It is a DRAWN triangle with no box now,
+    // for the reason the nav rail's is, so what a layout engine has to confirm
+    // is:
+    //
+    //   * the mark is really a picture and really 16px -- the whole point of
+    //     the redraw is a size the type scale does not own, and a `width`
+    //     attribute with a stylesheet overriding it would measure differently;
+    //   * NO BOX. A leftover `.chip` rule matching the badge would put the
+    //     border back with the markup unchanged;
+    //   * it is the attention colour and not the colour of the chip beside it,
+    //     which is now the whole of "findable": `currentColor` means one wrong
+    //     cascade and the triangle is body text grey.
+    const badge = page.locator("#stackview .rowalert");
     const badgeStyle = await badge.first().evaluate((n) => {
       const cs = getComputedStyle(n);
       const neighbour = getComputedStyle(n.parentNode.querySelector(".chip--kind")
         || n.parentNode.firstElementChild);
+      const svg = n.querySelector("svg");
+      const box = svg && svg.getBoundingClientRect();
       return {
         background: cs.backgroundColor,
-        border: cs.borderTopColor,
-        weight: cs.fontWeight,
-        neighbourBorder: neighbour.borderTopColor,
+        border: cs.borderTopWidth + " " + cs.borderTopStyle,
+        radius: cs.borderTopLeftRadius,
+        colour: cs.color,
+        paths: n.querySelectorAll("path").length,
+        w: box ? Math.round(box.width) : 0,
+        h: box ? Math.round(box.height) : 0,
+        text: n.textContent,
+        neighbourColour: neighbour.color,
+        centre: Math.round(box ? box.top + box.height / 2 : 0),
+        neighbourCentre: Math.round((() => {
+          const b = n.parentNode.querySelector(".chip").getBoundingClientRect();
+          return b.top + b.height / 2;
+        })()),
       };
     });
-    push("the row's alert badge is NOT filled — the loudness Jeff named is gone",
-      badgeStyle.background === "rgba(0, 0, 0, 0)" ||
-      badgeStyle.background === "transparent");
-    push("...but it is still findable: a real border, and not the neutral one " +
-      "its neighbour chip wears",
-      badgeStyle.border && badgeStyle.border !== "rgba(0, 0, 0, 0)" &&
-      badgeStyle.border !== badgeStyle.neighbourBorder);
+    push("the row's alert mark is DRAWN and legible — one path, 16px, no text " +
+      `at all (${badgeStyle.w}x${badgeStyle.h})`,
+      badgeStyle.paths === 1 && badgeStyle.w >= 14 && badgeStyle.h >= 14 &&
+      badgeStyle.w === badgeStyle.h && badgeStyle.text === "");
+    push("the row's alert mark is NOT filled and wears no box — the loudness " +
+      "Jeff named is gone, and so is the border that was a second mark",
+      (badgeStyle.background === "rgba(0, 0, 0, 0)" ||
+       badgeStyle.background === "transparent") &&
+      badgeStyle.border === "0px none" && badgeStyle.radius === "0px");
+    push("...but it is still findable: the attention colour, and not the " +
+      "colour of the chip beside it",
+      badgeStyle.colour && badgeStyle.colour !== badgeStyle.neighbourColour);
+    // WHERE the mark sits, which is what losing the frame made a question: a
+    // chip is 21px tall (11px type at the body's line-height, plus padding and
+    // a border) and the mark is 16px, so without `align-self: center` the
+    // stretch default of `.el-row__chips` leaves the picture at the TOP of a
+    // 21px line while the words beside it are centred in theirs. The markup
+    // and the class names are identical either way, so this is only visible to
+    // a layout engine -- the same shape as the nav rail's "the mark stays at
+    // the end of its row", found by looking at the rail rather than at a test.
+    //
+    // This check replaced a wrong one in the same run it was written in, which
+    // is worth keeping: it asserted that a framed mark WOULD have driven the
+    // height of the chips beside it (16 + 2 padding + 2 border = 20px against
+    // a 15px chip). It measured 21px, so the frame would have cost no height
+    // at all and that was never a reason to drop it. The reasons that survive
+    // are the two the nav rail's `.navstatus` gave -- a border around the only
+    // alert marker on a row is a second mark, and unframed is the one thing in
+    // a cell of chips that is different in kind.
+    //
+    // Non-vacuity, measured rather than assumed (2026-09-22): commenting
+    // `align-self: center` out of `.rowalert` reports `602 vs 604` here and
+    // this is the only sub-check that moves.
+    push(`the mark is centred against the chips beside it, not hung at the ` +
+      `top of the line (${badgeStyle.centre} vs ${badgeStyle.neighbourCentre})`,
+      Math.abs(badgeStyle.centre - badgeStyle.neighbourCentre) <= 1);
 
     // ONE row in this fixture has something to admit and it has TWO things —
     // the washer is zero-width AND unestablished, which is exactly the case
@@ -629,7 +686,7 @@ async function testTheApp(browser, url, label) {
     // chip this badge replaced — so folding the chip away REVEALED a sentence
     // rather than hiding one.
     const washerBadge = page.locator("#stackview tr.el-row").nth(1)
-      .locator(".chip--alert");
+      .locator(".rowalert");
     await washerBadge.hover();
     await page.waitForSelector(".hovercard--alerts", { timeout: 5000 });
     const alertCard = await page.locator(".hovercard--alerts").textContent();
@@ -639,7 +696,7 @@ async function testTheApp(browser, url, label) {
     push("...and the card carries the why, which the old chip only had as a " +
       "native tooltip",
       /none hashes to the one/.test(alertCard));
-    push("the card names WHICH row it belongs to — the badge is one glyph, so " +
+    push("the card names WHICH row it belongs to — the badge is one mark, so " +
       "the card is the first place a reader can tell",
       /washer/i.test(alertCard));
     push("...and the row's OTHER alert too: two chips became one badge and one " +
@@ -4880,6 +4937,30 @@ async function testAnnotateRail(browser, label) {
     const rowText = await page.locator("#element-list").textContent();
     push("no row prints a schema value any more",
       !/owner_not_in_set|needs_re_confirmation/.test(rowText || ""));
+    // ...nor a triangle CHARACTER (stack_page_alert_marks_and_drawn_glyph,
+    // 2026-09-22). Jeff, of this badge beside the viewer's: "same purpose,
+    // just in a different place" -- so it is the same mark, drawn once in
+    // apps/viewer/warning_icon.js and loaded across the app boundary. The
+    // fast tier pins the geometry it is built from; this is the only tier that
+    // can say the RENDERED badge is a sized picture with no text in it.
+    const railMark = await page.locator("#element-list .alertbadge").first()
+      .evaluate((n) => {
+        const svg = n.querySelector("svg");
+        const box = svg && svg.getBoundingClientRect();
+        return {
+          paths: n.querySelectorAll("path").length,
+          w: box ? Math.round(box.width) : 0,
+          h: box ? Math.round(box.height) : 0,
+          text: n.textContent,
+          colour: getComputedStyle(n).color,
+        };
+      });
+    push(`the rail's badge is DRAWN, not typed — one path, 16px, no text ` +
+      `(${railMark.w}x${railMark.h})`,
+      railMark.paths === 1 && railMark.w >= 14 && railMark.h >= 14 &&
+      railMark.w === railMark.h && railMark.text === "");
+    push("no triangle character anywhere in the rail",
+      !/\u26A0/.test(rowText || ""));
     // The colour signal Jeff asked to KEEP on the row, asserted as computed
     // style: a class-name check would pass through a stylesheet typo, and the
     // colour is now the row's only at-a-glance state marker.

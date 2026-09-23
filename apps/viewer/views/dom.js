@@ -58,58 +58,18 @@
     return node;
   };
 
-  // The alert mark as GEOMETRY rather than as a character
-  // (viewer_nav_verdict_into_alert_and_icon, 2026-09-22). Jeff, on the nav
-  // rail: "reformat the alert icon: get rid of the rounded border around it,
-  // make the actual icon larger so it's legible (or replace it with a proper
-  // icon/emoji rather than a character)."
-  //
-  // `VA.ALERT_ICON` -- the `⚠` character -- cannot be made legible on a row.
-  // It is sized by `font-size`, so it can only ever be as big as a type step,
-  // and the six steps are owned by tests/test_app_type_scale.py: a seventh
-  // added to make one triangle bigger would be a scale decision taken by an
-  // icon. It also renders through whatever font the platform picks for
-  // U+26A0, which on Windows is as often a colour emoji as a glyph -- and a
-  // colour emoji ignores the semantic colour the level class sets.
-  //
-  // A path has neither problem: it is sized in pixels independently of the
-  // type scale, it draws the same everywhere, and `currentColor` makes the
-  // level class the only thing that decides what colour it is. ONE path with
-  // `fill-rule: evenodd`, so the bar and the dot are cut OUT of the triangle
-  // instead of drawn over it -- a two-path icon would need a second colour to
-  // fill the counter with, and the only right answer for that colour is
-  // "whatever is behind the row", which a fill cannot name.
-  //
-  // Still `⚠` on the elements table's badge, deliberately: this pass is the
-  // left-hand nav, and the two remaining glyph sites (that badge and
-  // apps/annotate's own) are
-  // ISSUE_20260922_the_alert_glyph_is_still_a_character_on_two_rails.
-  VA.WARNING_ICON_PATH =
-    "M12 3L22.4 21H1.6Z M10.9 9h2.2v5.6h-2.2z M10.9 16.4h2.2v2.2h-2.2z";
+  // The alert mark itself -- `VA.warningIcon`, `VA.WARNING_ICON_PATH` and
+  // `VA.WARNING_ICON_PX` -- is in `apps/viewer/warning_icon.js`, a file of its
+  // own since 2026-09-22 because `apps/annotate` wears the same mark and
+  // cannot load this one. Its header carries the argument for drawing the
+  // triangle rather than typing it.
 
-  // Big enough to read at 100% zoom on a 13px row, and a PIXEL size rather
-  // than a step on the type scale because it is a picture, not text.
-  VA.WARNING_ICON_PX = 16;
-
-  VA.warningIcon = function (className) {
-    var svg = VA.svg("svg", className || null, {
-      viewBox: "0 0 24 24",
-      width: VA.WARNING_ICON_PX, height: VA.WARNING_ICON_PX,
-      // The badge around it carries the words, as a title and an aria-label,
-      // so the picture itself is decoration to a reader who cannot see it.
-      "aria-hidden": "true", focusable: "false",
-    });
-    svg.appendChild(VA.svg("path", null, {
-      d: VA.WARNING_ICON_PATH, "fill-rule": "evenodd", fill: "currentColor",
-    }));
-    return svg;
-  };
-
-  // ONE ⚠ per row, the alerts on hover — the badge two surfaces of this app
-  // now wear (the elements table's source cell, views/stack.js; the nav rail's
-  // study rows, views/nav.js), so it is built once here rather than twice.
-  // `VA.ALERT_ICON` is the glyph and `VA.alertsCard` the model behind it, both
-  // in viewer.js beside the words they carry.
+  // ONE alert mark per row, the alerts on hover — the badge three surfaces
+  // now wear (the elements table's source cell and the materials table's,
+  // views/stack.js; the nav rail's rows, views/nav.js), so it is built once
+  // here rather than three times. `VA.alertsCard` is the model behind it and
+  // `VA.rowAlerts` / `VA.materialRowAlerts` / `VA.studyNavAlerts` decide what
+  // goes in it, all in viewer.js and topology.js beside the words they carry.
   //
   // A `cardtrig` over the page's own popover — same trigger class, same
   // tabindex, same three openers (mouseenter / focus / click) — so it inherits
@@ -123,23 +83,44 @@
   // `opts.stopClick` — whether a click on the badge may reach the row beneath.
   // The nav rail sets it: a click there selects the study and re-renders the
   // rail out from under the badge, and the badge is a disclosure, not a second
-  // way in. The elements table does not: its row click opens the same
-  // element's detail pane, where every one of these alerts is stated in full.
-  // `opts.className` / `opts.icon` — what the badge LOOKS like, the two
-  // presentations this app now has for one mark. The default is the chip the
-  // elements table wears; the nav rail passes its own class and a drawn icon
-  // (`VA.warningIcon`), because a bordered 11px character is not legible at a
-  // row's own size. Everything else about the badge — the card wiring, the
-  // tooltip, the aria-label, the three openers — is the same on both, which
-  // is why this is one builder with two skins rather than two builders.
+  // way in. The tables do not: a row click opens the same row's detail pane,
+  // where every one of these alerts is stated in full.
+  //
+  // `opts.className` / `opts.icon` — what the badge LOOKS like. THE DEFAULT IS
+  // THE MARK ITSELF: a drawn triangle (`VA.warningIcon`) with no chip framing,
+  // which is what both tables wear. The nav rail overrides both, because its
+  // class carries the two semantic levels a table row does not have (amber for
+  // "look at this", red for a verdict of `fail`) — nothing else about the
+  // badge differs, which is why this is one builder with a skin rather than
+  // two builders.
+  //
+  // It defaulted to the `⚠` CHARACTER inside a `chip chip--alert` until
+  // 2026-09-22, and the frame went WITH the character rather than separately.
+  // Two reasons, and neither is the one that first looked obvious:
+  //
+  //   * a border around the only alert marker on a row is a second mark. That
+  //     is the argument `.chip--alert` itself made against the filled chips it
+  //     replaced on 2026-09-16, and the one the nav rail's `.navstatus` made
+  //     against `.chip--alert` in turn;
+  //   * unframed, the mark is the one thing in a cell of three or four
+  //     outlined chips that is different in KIND — which is exactly what it
+  //     is. The chips state the row's provenance; this says "distrust the
+  //     number". A pill among pills reads as a fifth fact.
+  //
+  // NOT because a framed picture would have grown the row: that was the first
+  // argument written here and it was measured wrong in the same session. A
+  // `.chip` renders 21px tall (micro type at the body's line-height, plus
+  // padding and border) against the mark's 16, so a framed mark would have
+  // fitted inside the height the chips already set. The browser tier carries
+  // the measurement, beside the check that caught it.
   VA.alertBadge = function (alerts, cardTitle, onCardShow, opts) {
     opts = opts || {};
-    var badge = VA.el("span", opts.className || "chip chip--alert",
-      opts.icon || VA.ALERT_ICON);
+    var badge = VA.el("span", opts.className || "rowalert",
+      opts.icon || VA.warningIcon("rowalert__mark"));
     badge.setAttribute("title", alerts.map(function (alert) {
       return alert.text + (alert.why ? " — " + alert.why : "");
     }).join("\n"));
-    // For a reader with no pointer, and for one who cannot see the glyph: the
+    // For a reader with no pointer, and for one who cannot see the mark: the
     // icon's name is the words it stands for.
     badge.setAttribute("aria-label", alerts.map(function (alert) {
       return alert.text;

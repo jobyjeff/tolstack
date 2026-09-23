@@ -41,6 +41,17 @@ const BANS = path.join(here, "..", "viewer", "reader_facing_bans.js");
 vm.runInContext(fs.readFileSync(BANS, "utf8"), sandbox,
   { filename: "../viewer/reader_facing_bans.js" });
 
+// ...and the shared ALERT MARK, the third file loaded across that boundary and
+// the third instance of the same rule: the rail's badge and the viewer's wear
+// ONE triangle, drawn rather than typed, defined in
+// apps/viewer/warning_icon.js. Loaded here so the check below pins the geometry
+// the badge actually renders rather than a copy of it -- AA.warningIcon
+// (binding_state.js) delegates straight to it. It only DEFINES at load; the
+// node is built at render time, which is why this runner still needs no DOM.
+const MARK = path.join(here, "..", "viewer", "warning_icon.js");
+vm.runInContext(fs.readFileSync(MARK, "utf8"), sandbox,
+  { filename: "../viewer/warning_icon.js" });
+
 const files = ["config.js", "storage/adapter.js", "storage/memory.js", "binding_state.js",
   "commands.js", "face_geometry.js", "suggestions.js", "exec_queue.js", "fixtures.js"];
 for (const f of files) {
@@ -1096,13 +1107,68 @@ check("the three fixture edges are three different binding states -- two that " 
   assertEqual(badged, ["unbound", "owner_not_in_set"]);
 });
 
-check("ALERT_ICON is one glyph and is not a word -- the badge carries no text " +
-  "to read, which is the whole point of the popup", () => {
-  if (Array.from(AA.ALERT_ICON).length !== 1) {
-    throw new Error("expected a single glyph, got " + JSON.stringify(AA.ALERT_ICON));
+// This check was `ALERT_ICON is one glyph and is not a word` from 2026-09-16
+// until 2026-09-22 -- a real guard, written against a CHARACTER
+// (`AA.ALERT_ICON = "\u26A0"`, set on `badge.textContent`). The character is
+// gone (ISSUE_20260922_the_alert_glyph_is_still_a_character_on_two_rails) and
+// the guard is not: what it was protecting is that the badge carries no text to
+// read, which is the whole point of the popup, and that claim is now a claim
+// about a drawn icon. So it is REWRITTEN to the shape the viewer's own mark is
+// pinned by -- a single path, sized in pixels -- rather than dropped with the
+// thing it was phrased against.
+//
+// Geometry only, no node: this runner has no DOM (see the header), so what is
+// asserted here is the definition. That the rendered badge really contains one
+// sized `<path>` and no character is asserted where a layout engine can see it:
+// scripts/run_viewer_browser_tests.mjs, over the live rail.
+check("the rail's alert mark is DRAWN, not typed -- one path, sized in " +
+  "pixels, and the viewer's definition rather than a second copy of it", () => {
+  // ONE definition, asserted by DELEGATION rather than by identity: AA's entry
+  // point is a wrapper (it turns a missing sibling file into a sentence naming
+  // the file, the way AA.chooseTransport does), so what has to be true is that
+  // every call lands on the viewer's function and nothing of the mark is
+  // written down on this side.
+  const real = VA.warningIcon;
+  try {
+    VA.warningIcon = function (className) { return { delegated: className }; };
+    assertEqual(AA.warningIcon("alertbadge__mark"),
+      { delegated: "alertbadge__mark" },
+      "AA.warningIcon must call the shared mark, not draw its own");
+    // ...and when the sibling file did not load, the failure says which file.
+    delete VA.warningIcon;
+    let message = "";
+    try { AA.warningIcon(); } catch (err) { message = err.message; }
+    if (!/warning_icon\.js/.test(message)) {
+      throw new Error("expected the missing-sibling error to name the file, " +
+        "got " + JSON.stringify(message));
+    }
+  } finally {
+    VA.warningIcon = real;
   }
-  if (/[a-z]/i.test(AA.ALERT_ICON)) {
-    throw new Error("the badge glyph must not be letters: " + AA.ALERT_ICON);
+  for (const key of ["ALERT_ICON", "WARNING_ICON_PATH", "WARNING_ICON_PX"]) {
+    if (key in AA) {
+      throw new Error("a second definition of the mark on this side: AA." +
+        key + " = " + JSON.stringify(AA[key]));
+    }
+  }
+  // A PIXEL size, and a number rather than a CSS length, because the point of
+  // drawing the mark is that its size is not a step on the type scale
+  // (tests/test_app_type_scale.py owns those, and owns the ban on a bare px
+  // font-size that this deliberately is not one of).
+  if (typeof VA.WARNING_ICON_PX !== "number" || VA.WARNING_ICON_PX < 14) {
+    throw new Error("expected a pixel size legible at row height, got " +
+      JSON.stringify(VA.WARNING_ICON_PX));
+  }
+  // SVG path data and nothing else: a `d` starting at a moveto, built only out
+  // of path commands and numbers. A character would fail on the first test and
+  // a word on the second.
+  if (!/^M[\d.\-]/.test(VA.WARNING_ICON_PATH)) {
+    throw new Error("expected path data starting at a moveto, got " +
+      JSON.stringify(VA.WARNING_ICON_PATH));
+  }
+  if (/[^MmLlHhVvCcSsQqTtAaZz0-9.,\s-]/.test(VA.WARNING_ICON_PATH)) {
+    throw new Error("the mark must be path data, not text: " +
+      JSON.stringify(VA.WARNING_ICON_PATH));
   }
 });
 

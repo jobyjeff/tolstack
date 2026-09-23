@@ -155,6 +155,13 @@ button.ghost, .banner__action { background: #363b45; color: var(--ink); }
   background: rgba(0, 0, 0, 0.15);
 }
 .banner__stale-head { color: var(--untraced); font-weight: 600; }
+/* The stale-pair summary carries the page's one alert mark, drawn (2026-09-22,
+   see views/banner.js) -- so the line is a flex row and the mark takes the
+   same colour the box's own left border does. It is the first place on this
+   page where that triangle means "do not trust what you are reading", which is
+   what this box is for. */
+.banner__stale-summary { display: flex; align-items: center; gap: 6px; }
+.banner__stale-mark { flex: none; color: var(--untraced); }
 .banner__stale-list { margin: 4px 0 6px; padding-left: 20px; }
 /* Where the projection comes from, under the sentence saying it is absent.
    Secondary information, so muted rather than smaller-and-bolder -- the
@@ -266,9 +273,10 @@ main { display: flex; align-items: flex-start; gap: 0; }
    kind of thing.
 
    The three `.chip--export-*` selectors are DEAD, since 2026-09-16: the
-   elements table rolled them into one `.chip--alert` badge with the words on
-   hover (flyout_resize_annotator_filter_and_deselect, Jeff's "roll all the
-   alert badges into one single alert badge"). They are kept, not deleted,
+   elements table rolled them into one badge with the words on hover
+   (flyout_resize_annotator_filter_and_deselect, Jeff's "roll all the alert
+   badges into one single alert badge") -- `.chip--alert` then, `.rowalert`
+   since 2026-09-22. They are kept, not deleted,
    because this is what that treatment looked like, and because
    tests/debug_flyout_and_alerts.mjs reconstructs the previous row through
    these exact classes to shoot its before/after pair -- deleting them would
@@ -280,16 +288,18 @@ main { display: flex; align-items: flex-start; gap: 0; }
 .chip--export-identity_unlabelled {
   color: #fff; background: var(--nocite); border-color: var(--nocite); font-weight: 700;
 }
-/* ...and the `.chip--values-*` half is LIVE and IS re-tuned: the materials
-   table still states a CTE nobody transcribed from its own always-visible
-   source column (views/stack.js's materialSourcingCell), which is the literal
-   surface Jeff's sentence names -- "especially the ones in the source column
-   that are always visible". Outlined, not filled, for the rule above: the
-   confidence chip immediately beside it is already the filled magenta mark,
-   and one row was carrying that mark twice. Whether these words should be
-   rolled into the alert badge the elements table now uses is the open design
-   question, not this pass's:
-   ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud. */
+/* ...and the `.chip--values-*` half is LIVE, but it is no longer on a table
+   row: since 2026-09-22 the materials table's always-visible source column
+   carries the quiet `.rowalert` mark instead, and these words are rendered by
+   views/detail.js in the RIGHT PANE, where a click has already asked for them.
+   That was the open design question in
+   ISSUE_20260916_the_viewer_nav_rail_may_be_the_left_side_menu_jeff_called_loud,
+   and Jeff answered it on 2026-09-21 ("the alerts still haven't been replaced
+   with a single triangle !").
+
+   Outlined rather than filled, unchanged from the 2026-09-17 typography pass
+   and for its reason: the confidence chip beside it in the same block is
+   already the filled magenta mark, and one row was carrying that mark twice. */
 .chip--values-not_transcribed, .chip--values-unlabelled {
   color: var(--nocite); border-color: var(--nocite); font-weight: 600;
 }
@@ -872,22 +882,51 @@ body.lightbox-open { overflow: hidden; }
 /* A card trigger reads as one: same affordance cue as the crop trigger. */
 .cardtrig { cursor: help; }
 
-/* --- one alert badge per row, details on hover -----------------------------
+/* --- one alert mark per table row, details on hover ------------------------
    (flyout_resize_annotator_filter_and_deselect, deliverable 5. Jeff: "roll all
    the alert badges into one single alert badge (something like a triangle !
    icon)… Styling for the alert text themselves can then be a bit less
    obnoxious/overwhelming, especially the ones in the source column that are
    always visible.")
 
-   Deliberately NOT filled the way `.chip--export-unestablished` and
-   `.conf--untraced` are. Those two are filled because each has to be the
-   loudest thing on its row; a badge that is the ONLY alert marker on the row
-   does not compete with anything, so outlined amber is enough to find and
-   quiet enough to read a table through. The words it stands for lost no
-   loudness -- they are unchanged, in the popup. */
-.chip--alert {
-  color: var(--inferred); border-color: var(--inferred);
-  font-weight: 700; line-height: 1;
+   Worn by BOTH tables' source cells since 2026-09-22 -- the elements table's
+   from the start, the materials table's when its `CTE NOT TRANSCRIBED` chip
+   folded into it (`.chip--values-*` below is the right pane's copy now, and
+   only the pane's).
+
+   NO BOX, and no colour but its own. It was `.chip--alert` -- outlined amber,
+   1px border, 10px radius, a `⚠` character inside -- until 2026-09-22, when
+   the character became a drawn 16px triangle
+   (ISSUE_20260922_the_alert_glyph_is_still_a_character_on_two_rails) and the
+   frame went with it. Two reasons:
+
+   * a border around the only alert marker on a row is a second mark, which is
+     the argument the nav rail's `.navstatus` already made (topology.css) and
+     the same one `.chip--alert` made against the filled chips it replaced;
+   * unframed, it is the one thing in a cell of three or four outlined chips
+     that is different in KIND -- which is what it is. The chips state the
+     row's provenance; this says "distrust the number".
+
+   NOT because a frame would have grown the row: a `.chip` is 21px tall here
+   and the mark is 16, so a framed mark fits inside the height the chips
+   already set. That argument was written first, measured wrong, and is
+   recorded in views/dom.js and in the browser check that caught it -- because
+   it is the plausible-sounding reason a later pass would reach for again.
+
+   Still amber and never filled: the words lost no loudness, they are in the
+   card and on the tooltip. `line-height: 0` because the box is now exactly the
+   picture -- an inline SVG in a line box otherwise carries the descender space
+   of text that is not there; `align-self: center` because a 16px picture in a
+   21px row of chips is otherwise hung at the top of the line (the browser tier
+   measures that; nothing else can). */
+.rowalert {
+  display: inline-flex; align-self: center; flex: none; line-height: 0;
+  color: var(--inferred);
+}
+/* Same as the rail's mark: the one place this grows a box is a focus ring, for
+   a reader arriving at the card trigger by keyboard. */
+.rowalert:focus-visible {
+  outline: 1px solid var(--accent); outline-offset: 2px; border-radius: 3px;
 }
 /* The alert list inside the card the badge opens. One item per alert: what,
    then why. No fold -- views/dom.js's rule: an absence is never folded. */

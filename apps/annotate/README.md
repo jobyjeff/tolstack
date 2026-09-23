@@ -21,10 +21,15 @@ that: open a study, open a part, click a face, write one
   `dimension_ref` resolution in JS) and lists a study's elements with their
   current binding state: **bound** / **unbound** / **owner not in set** /
   **needs re-confirmation**. Each row carries its state as a colour and, where
-  the state is one a reader has to act on, a single ⚠ badge whose hover popup
-  says which in everyday words (handoff
+  the state is one a reader has to act on, a single alert badge whose hover
+  popup says which in everyday words (handoff
   `flyout_resize_annotator_filter_and_deselect`; it used to print the raw state
-  value on the row). A row with nothing wrong shows nothing.
+  value on the row). A row with nothing wrong shows nothing. The badge's mark
+  is a **drawn** triangle, not a `⚠` character, and it is the viewer's --
+  `apps/viewer/warning_icon.js`, loaded by `index.html` as a sibling the way
+  the transport decision is (2026-09-22; Jeff, of this badge beside the
+  viewer's: *"same purpose, just in a different place"*). `AA.warningIcon`
+  (`binding_state.js`) is the one caller.
 - **Scopes the rail to one element** when it is entered from one — the flyout's
   own case, and any `?edge=` deep link: both panels list that element's own
   features and parts, and a plain **Show all** control lifts it. The verb is
@@ -422,7 +427,10 @@ apps/annotate/
                        transport decision -- which DELEGATES to
                        apps/viewer/storage/adapter.js's VA.chooseTransport
                        (loaded by index.html as a sibling) rather than
-                       keeping a second copy of the rule
+                       keeping a second copy of the rule. binding_state.js's
+                       AA.warningIcon delegates the same way, to
+                       apps/viewer/warning_icon.js -- one alert mark for both
+                       apps rather than two drawings of one triangle
   storage/fsa.js       File System Access, mode: "readwrite"
   storage/memory.js    in-memory mock (?mock=1, tests) -- captures writes
                        rather than persisting them
