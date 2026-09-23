@@ -29,12 +29,23 @@ Three issues filed, six inline fixes made, all disclosed below.
 
 * Branch under review: `handoff/stack_page_check_card_balance_sheet`, four
   commits (`1172676`, `c3c2e2b`, `7cca5fc`, `9a032a4`).
-* `integration` **had not moved** since the branch point (`git merge-base
-  integration handoff/… == 9f19647 == integration`), and
-  `git log HEAD..master` is empty. So there is no sibling-landed semantic
-  conflict to look for, the merge was clean, and the pre-merge and post-merge
-  trees are the same tree. I merged with `--no-ff` (`5b0dabe`), then committed
-  my inline fixes on top (`3fb39e4`).
+* `integration` was at the branch point (`9f19647`) when I started, and
+  `git log HEAD..master` was empty. I merged with `--no-ff` (`5b0dabe`), then
+  committed my inline fixes on top.
+* **A sibling landed mid-review and I merged it in too.**
+  `mutation_witness_repair_and_enrollment` took `integration` to `8959a2a`
+  while I was measuring, and it touches **two of the same files** this handoff
+  does — `scripts/run_viewer_browser_tests.mjs` and
+  `docs/prompts/REVIEW_AGENT.md`. Both auto-merged with **no conflict**
+  (different regions in each), and the union risky subset was re-run on the
+  merged tree; the numbers in the table below are that tree's. This matters
+  more than usual here: the sibling **is** the mutation-witness enrollment
+  pass, its own review measured the registry at **108/108** on an
+  `integration` that did not yet carry this handoff, and this handoff deletes
+  `article.check` / `.check__head` / `.check__numbers` / `.check__corner` /
+  `.check__id` / `.check__label` and rewords three check names. That is
+  exactly the shape that takes a witness down at merge time and at no other
+  moment.
 * Containment checked before merging: `git merge-base --is-ancestor
   handoff/… integration` → **NOT MERGED**, so nothing bypassed me.
 * `git diff --name-status` shows every new file as `A`. Nothing overwrote an
@@ -54,19 +65,24 @@ for any of them**, and it never mentions the `venv-win` pytest run the
 definition of done names. Per the canonical cadence that is the "records no
 full-suite run at all" case.
 
-| | pre-merge (`integration` @ `9f19647`) | post-merge (`3fb39e4`) |
-|---|---|---|
-| `venv-win … -m pytest -q` (review worktree) | **1 failed, 1208 passed** | **1 failed, 1208 passed** |
-| `node apps/viewer/run_tests.cjs --repo C:/workspace/tolstack` | **501/501** | **513/513** |
-| `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` | **25/25**, typography suite 9/9 | **23/25** first run, both reds green on re-run alone; typography suite **11/11** |
-| `pytest -q` risky subset (see below) | — | **57 passed** |
-| doc/prose guards after my own edits | — | **209 passed** |
+All three runs in this review worktree, `--repo` pointed at the main
+checkout's `data/`, `node_modules` junctioned in.
 
-The one pytest failure is the same on both sides and is the by-design
+| | pre-merge (`integration` @ `9f19647`) | + the handoff | + `integration` @ `8959a2a` (the tree that ships) |
+|---|---|---|---|
+| `venv-win … -m pytest -q` | **1 failed, 1208 passed** | **1 failed, 1208 passed** | **1 failed, 1209 passed** |
+| `node apps/viewer/run_tests.cjs --repo …` | **501/501** | **513/513** | **513/513** |
+| `node scripts/run_viewer_browser_tests.mjs --repo …` | **25/25**, typography 9/9 | **23/25** (two flakes, both green on isolated re-run), typography **11/11** | **25/25**, typography **11/11** |
+| `node scripts/run_mutation_witness_tests.mjs --repo …` | 108/108 (the sibling review's, not mine) | — | see below |
+| `pytest -q` risky subset | — | **57 passed** | — |
+| doc/prose guards after my own edits | — | **209 passed** | — |
+
+The one pytest failure is the same in every column and is the by-design
 worktree one: `tests/test_viewer_js_suite.py::test_viewer_js_suite_is_green`
-fails because `data/projections/viewer/` is gitignored and absent here. Same
-count of passes either side, which is right — this handoff adds no Python
-tests.
+fails because `data/projections/viewer/` is gitignored and absent here; the
+tier it stands in for is the 513/513 row, run through `--repo`. 1208 → 1208
+across the handoff is right — it adds no Python tests — and 1208 → 1209 is
+the sibling's new pairing test.
 
 **Risky subset, pre-merge**, from the overlay's mapping (`apps/viewer/` ∪ a CSS
 rule ∪ `scripts/run_viewer_browser_tests.mjs` ∪ a guard's anchors):
@@ -76,25 +92,24 @@ tests/test_mutation_witnesses.py` → **57 passed**, plus the fast tier through
 `--repo` and the full browser tier. `tests/test_viewer_js_suite.py` is in that
 row too and is the known red above.
 
-**The two browser-tier reds on the first post-merge full run were flakes**, and
-the machine says why: five concurrent sessions were driving Chrome at the time
-(two drawing-checker worktrees, a sibling tolstack mutation-witness review, a
-dispatch worktree, and this one), and the run took ~35 minutes against a
-~12-minute baseline. Re-run alone, `--only "suite "` is **406/406 + 406/406**
-and `--only "crop lightbox"` is **20/20**. The crop-lightbox failure was
+**The two browser-tier reds in the middle column were flakes**, and the
+machine says why: five concurrent sessions were driving Chrome at the time
+(two drawing-checker worktrees, the sibling tolstack review, a dispatch
+worktree, and this one), and that run took ~35 minutes against a ~12-minute
+baseline. Re-run alone, `--only "suite "` was **406/406 + 406/406** and
+`--only "crop lightbox"` **20/20**; the crop-lightbox red was
 `the launcher takes keyboard focus and becomes visible when it does`, a
-pre-existing suite this diff does not touch.
+pre-existing suite this diff does not touch. The right-hand column is the
+clean full run on the tree that ships, and it supersedes both.
 
 `node_modules` was junctioned in from the main checkout for the browser and
 mutation tiers and **is removed** (see the end of this report).
 
-## Mutation-witness tier, post-merge
+## Mutation-witness tier
 
-`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` on
-the merged tree: **see "Mutation-witness tier result" at the end of this
-report** — it is the last thing this session ran and its count is recorded
-there rather than here, so the number in this file is the one that was
-actually measured.
+Recorded at the end of this report rather than here, because it is the last
+thing this session ran and the number in this file has to be the one that was
+actually measured on the tree that ships.
 
 ## The mandatory checks (1–7)
 
@@ -422,8 +437,36 @@ sighting of the README-describes-the-old-string entry pointed the other way.
 
 ## Mutation-witness tier result
 
-`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`,
-merged tree, `node_modules` junctioned in: **RESULT_PLACEHOLDER**.
+`node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack`, on
+the tree that ships (this handoff **plus** `integration` @ `8959a2a`),
+`node_modules` junctioned in:
+
+> **108/108 declared mutations witnessed**, `EXIT=0`.
+
+**No drop.** That is the number that mattered in this review rather than a
+ritual: `mutation_witness_repair_and_enrollment`'s own review measured
+108/108 on an `integration` that did **not** carry this handoff, and this
+handoff deletes `article.check`, `.check__head`, `.check__numbers`,
+`.check__corner`, `.check__id` and `.check__label` and rewords three check
+names — the shape that takes a witness down at the review merge and at no
+other point in the lifecycle, because neither branch can see it alone. Both
+halves were run, as the overlay requires: `pytest -q
+tests/test_mutation_witnesses.py` (inside the 1209) for the anchors, and the
+tier itself for the mutations.
+
+The one entry that could plausibly have rotted is
+`prose-is-capped-at-the-measure`, whose `find` is the tail of the very
+`max-width: var(--measure)` selector list this handoff edited (it inserted
+`.check__excludedterm` into it). The `find` is still a contiguous substring,
+the `replace` still empties the whole rule's declaration block, and the
+guidance it measures is now behind a fold the browser check opens first —
+witnessed.
+
+I did **not** edit `scripts/mutation_witnesses.json` myself. The sibling
+session owned that file for most of this review, and the four candidate rows
+that do reproduce belong with the enrollment stream (see the replay appended
+to the author's issue), not to a reviewer reaching into a file another
+session was holding.
 
 ## Housekeeping
 
