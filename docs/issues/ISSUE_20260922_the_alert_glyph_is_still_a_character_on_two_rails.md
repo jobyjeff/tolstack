@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: triaged
+status: resolved
 area: apps/viewer, apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_nav_verdict_into_alert_and_icon.md
 handoff: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
+resolution: handoff completed 2026-09-23 -- closed automatically by dispatch when handoff `stack_page_alert_marks_and_drawn_glyph` moved to completed/; not independently verified.
 ---
 
 # The alert mark is a drawn icon on the nav rail and still a `⚠` character on the two other badges
