@@ -273,7 +273,11 @@ figure in two**, because the two halves are moving in opposite directions.
   and a name to copy rather than a contract to work out.
 - **Running: ≈10 s/entry**, amortised over a full table (16.7 min / 96). This
   is the number every document about this tier overstates, and it is the one
-  that decides whether the tier can be wired into a merge step.
+  that decides whether the tier can be wired into a merge step. **Measured
+  twice, and it holds:** the branch's own full table ran 17.8 min for 108
+  entries — 9.9 s/entry against the trunk baseline's 10.4, two different
+  tables and two different sizes. So the estimate for wiring the tier into a
+  batch merge is `~2 min + 10 s × entries`, and it is a rate, not a guess.
 
 So the shape of the cost has inverted since the brief was written. Enrollment is
 no longer dominated by the tier; it is dominated by **whether somebody already
@@ -328,7 +332,7 @@ first.
 ## Verified
 
 - `venv-win/Scripts/python.exe -m pytest -q` — **worktree**: 1209 passed,
-  1 failed (`test_viewer_js_suite.py::test_viewer_js_suite_is_green`, red in
+  1 failed in 49.8 s (`test_viewer_js_suite.py::test_viewer_js_suite_is_green`, red in
   every worktree by design since 2026-09-18 — the `[real]` node-fs tier has no
   `data/` here).
 - `venv-win/Scripts/python.exe -m pytest -q tests/test_mutation_witnesses.py` —
@@ -338,12 +342,35 @@ first.
   real data: 496/496.
 - `node apps/annotate/run_tests.cjs` — **worktree**: 154/154.
 - `node scripts/run_viewer_browser_tests.mjs --repo C:/workspace/tolstack` —
-  **worktree**: FILL_BROWSER.
+  **worktree**: 25/25 browser checks passed (both `[suite]` runs 392/392;
+  the repaired annotate guard's own suite, `[annotate top bar + entry
+  context (auto-filter, see-through)]`, 30/30).
 - `node scripts/run_mutation_witness_tests.mjs --repo C:/workspace/tolstack` —
-  **worktree**, full table: FILL_BRANCH.
+  **worktree**, full table: **108/108 declared mutations witnessed**,
+  `EXIT=0`, wall clock 17.8 min. No `NOT WITNESSED`, no `ANCHOR ROTTED`,
+  no `SKIPPED`, no `REFUSED` line anywhere in the run.
 - `tmp/mutation-witness/` deleted from both checkouts; the `node_modules`
   junction removed from the worktree.
 
 ## The three repaired entries, as the tier reports them
 
-FILL_ENTRIES
+```
+--- leader-style-survives-a-topology-switch
+  mutated run... WITNESSED
+  apps/viewer/topology_app.js: state.studyId = null; state.selection = null; state.detailImage = null; } function selectElem...
+  reddens: [real] switching topology keeps the leader STYLE too
+
+--- worst-verdict-ranks-worst-last
+  mutated run... WITNESSED
+  apps/viewer/viewer.js: VA.VERDICTS = { pass: { says: "every build clears it", title: "The worst case still satisfies...
+  reddens: worstVerdict ranks fail over marginal over pass, whatever order the checks arrive in
+
+--- arriving-at-an-element-shows-its-part-in-3d
+  mutated run... WITNESSED
+  apps/annotate/app.js: if (shas.length) { await AA.exec([state.transparentParts ? "ghost" : "isolate", ...shas]); }
+  reddens: ...and it is the ARRIVAL that shows it, not the face suggestions — with those off the part is in the scene all the same
+```
+
+Transcribed from the full-table run above rather than three separate
+`--only` invocations: the blocks are the same text either way, and the
+measurement above is why one full run is now the cheaper way to get them.
