@@ -19,8 +19,15 @@ blocked session*. The session is over, so the questions need an owner that
 outlives it. This is that owner.
 
 Both are about the live `hub_bearing_thermal_fit_m1` page (sixteen checks) and
-`tan_link_to_pitch_plate` (six checks over three paths, the only live stack
-with both kinds of row). Screenshots of exactly what is being asked about are
+`tan_link_to_pitch_plate` (six checks over three paths, the widest live
+example of a stack with both kinds of row — **five** of the seven live stacks
+have both and therefore render group rows: `pitch_link_to_pitch_plate` 2/3,
+`rotor_fastener_length` 9/1, `tan_link_to_pitch_plate` 6/3,
+`tan_link_to_pitch_plate_take2` 1/1, `vpa_output_to_pitch_plate` 1/1. Only the
+two thermal fits have checks and no paths. Corrected in review 2026-09-23;
+the filing said "the only live stack with both", which matters here because
+question 1 settles the shape of **five** pages, not one). Screenshots of
+exactly what is being asked about are
 in `docs/sessions/lessons/LESSONS_20260922_stack_page_check_card_balance_sheet*.png`.
 
 ## 1. One table, or two?
@@ -41,8 +48,8 @@ before. `tan_link_to_pitch_plate` is the page to read it on.
 
 Every M1 row is a clamped one-line label over up to four corner chips
 (`chain lower_seat`, `stage hub_to_sleeve`, `temperature cold (-20 °C)`,
-`k 0.8`). They are there because the generated label's first forty characters
-are identical across all sixteen checks and the part that differs is at the
+`k 0.8`). They are there because, within a seat, the generated label's first
+forty characters are identical and the part that differs is at the
 tail, which is exactly what a one-line clamp takes off — so without the chips
 the sixteen rows are indistinguishable at a glance.
 

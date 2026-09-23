@@ -498,8 +498,10 @@ td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line)
   font-weight: 400;
 }
 
-.fold-row__label code { color: var(--accent); }
-.fold-note td { color: var(--zero); font-size: var(--t-meta); padding-top: 0; }
+/* `.fold-row__label` and `.fold-note` were the Paths table's, and went with it
+   on 2026-09-22 -- the only surviving references are the before/after probe's
+   (tests/debug_stack_check_table.mjs), which queries them against the OLD
+   tree. Nothing in either app emits either class now. */
 
 /* --- the results table: one row per check, one per path ------------------
    (stack_page_check_card_balance_sheet, 2026-09-22.) The `.check` CARD is

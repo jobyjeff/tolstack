@@ -1389,9 +1389,10 @@ was a `Paths` table followed by one `<article>` per check, and each card
 carried a head of five chips, five label/value boxes in a row, the excluded
 terms, a row of term chips and the authored guidance whole and unfolded.
 Measured on `hub_bearing_thermal_fit_m1` at 1600px, that page was **10,633 px
-tall** with sixteen cards on it — and the sixteen printed the same guidance
-paragraph six, six and four times, because a generated check's guidance
-belongs to the archetype's *stage* and not to the corner. The same page
+tall** with sixteen cards on it — and the sixteen printed only **four**
+distinct guidance paragraphs between them, 6 / 6 / 2 / 2, because a generated
+check's guidance belongs to the archetype's *stage* (and, for a probe, to the
+stiffness ratio it moved) and not to the corner. The same page
 measured **4,825 px** after this pass, on the same projection at the same
 viewport (`tests/debug_stack_check_table.mjs --phase before|after`, which is
 committed so the pair can be re-taken rather than believed).
@@ -1410,8 +1411,8 @@ there is nothing to tell its rows apart from.
 **The checks are not footer rows of the elements table.** That is the one part
 of the study summary's idiom that does *not* transfer: a study's grid **is**
 its chain, so its totals belong under it, but each of a stack's checks folds
-its own subset of the elements (`element_terms` — sixteen checks of three
-terms each over eight elements, on M1). Sixteen footer rows under that grid
+its own subset of the elements (`element_terms` — sixteen checks of two to
+four terms each over eight elements, on M1). Sixteen footer rows under that grid
 would each be a total of a subset the reader cannot see, in columns that do
 not line up. The link back to the elements is each row's own term list, in its
 fold, with every sign and every coefficient.
@@ -1457,8 +1458,8 @@ Provenance is the only saturated colour on the page; everything else is grey.
 | outlined magenta `CTE NOT TRANSCRIBED` | a material whose `values_status` says nobody has read the CTE off a source. **On the right pane's block only** since 2026-09-22: the materials table's own copy of it folded into that row's one alert mark (next row), which is the last of Jeff's *"especially the ones in the source column that are always visible"*. It was **filled** until 2026-09-17, when `design_pass_typography` reserved a fill for provenance's two worst states and for a verdict — the confidence chip beside it carries the filled magenta, and one row was wearing that mark twice (`.chip--values-not_transcribed`). Worth knowing before reading either date as a visible change: no live material entry has ever been in this state. All six are `inline`, so this chip was only ever on the fixture's `demo_fit` |
 | a drawn amber triangle | **one alert mark per row** on the elements table and the materials table (`flyout_resize_annotator_filter_and_deselect`, 2026-09-16; the materials table 2026-09-22). Jeff: *"roll all the alert badges into one single alert badge… Mouse over the icon has a popup that lists out the actual alerts."* One mark per row however many alerts it carries; the words are unchanged (`VA.rowAlerts`, `VA.materialRowAlerts` read `VA.ATTENTION`, `VA.EXPORT_CHIP_TEXT` and `VA.VALUES_CHIP_TEXT`) and moved into the hover card, which also shows each alert's *why* — a sentence the chips only ever carried as a native tooltip. A row with nothing to admit shows **nothing**. It was an **outlined** `⚠` **character** in a chip until 2026-09-22 and is a drawn path with no framing now, the presentation the nav rail took on first — see "What a nav row wears", above, for why a character cannot be made legible at row size, and `views/dom.js`'s `VA.alertBadge` for why the frame went with the character rather than separately. One builder (`VA.alertBadge`), one mark (`apps/viewer/warning_icon.js`, shared with `apps/annotate`), three surfaces |
 | dashed blue `no tolerance recorded` | a value with no plus/minus behind it, so every interval it feeds is a **lower bound** on the real spread, never the real one. Still rendered as a chip in the right pane and on the DAG grid; on the elements table it is one of the two alerts the badge above carries. A separate axis from confidence, not a fourth confidence. It read `zero-width band` until 2026-09-16 on four of the five surfaces that state it while the DAG page said `no tolerance recorded` about the same element; all five read `VA.ATTENTION.no_tolerance` now, and the CSS class names (`chip--zero-width`, `num--zero-width`, `el-row--zero-width`, `tvrow--zero-width`) and the projection field `zero_width_count` deliberately keep the old word — nothing reads them as words |
-| striped card + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are printed on the card, directly under the numbers they are a budget for. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose |
-| dashed card + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint |
+| amber spine on the row + amber `BUDGET` | the check's `verdict_scope` is `budget`: a term is missing from the model, so read the magnitude as a budget for the missing term, never as a verdict on the joint — a `fail` here is true of the model and false of the hardware. The missing terms are named **on the row**, in the name cell, and never folded. Read off the schema (`complete: false` + `excluded_terms`) since 2026-08-13, never off the prose. It was a striped **card** with the terms under the numbers until 2026-09-22, when the checks became rows of one table (see "A stack's checks and paths are one table", above) |
+| dashed amber spine on the row + amber `NOT A RESULT` | a `[SENSITIVITY]` probe: the same check with an undocumented input moved, so you can see how much of the answer rests on it. Its verdict is about that hypothetical, not about the joint. A dashed **card** until 2026-09-22, same pass |
 | grey `checks GENERATED` | the term lists are not in the stack JSON — the archetype's loader built them (see above). Accent-**blue** until 2026-09-17: "the loader built these" carries no state, and on these pages the accent means selection (`design_pass_typography`; `.chip--generated`) |
 | monospaced weighted chip | a term whose coefficient is not 1: `+ 2.0010712 × sleeve_wall_lower`. Hover says what a coefficient can be |
 

@@ -4166,6 +4166,57 @@ Seeded 2026-08-04 from the founding review, the founding lesson, and slice 1.
       session's and which are yours — the resumed run owns the merge, so it
       owns the evidence under it.
 
+- [ ] **A geometry check that compares two readings of ONE layout grid.** New
+      2026-09-23 (`stack_page_check_card_balance_sheet`). The stack page's new
+      results table is argued for in four files on four geometry mechanisms
+      (`table-layout: fixed`, a shared `<colgroup>`, a `min-width` floor, a
+      transparent 3px spine on the header's first cell), and its browser
+      sub-check is named for exactly that claim — *"every cell of the results
+      table starts at its own header's left edge"*. It compares
+      `td.getBoundingClientRect().x` against `th.getBoundingClientRect().x`
+      **inside one `<table>`**, and a data cell and its header share a column
+      grid by construction in fixed AND in auto layout, so the two numbers are
+      one number read twice. Measured: dropping `table-layout: fixed`, dropping
+      the min-width floor, dropping the header's spine, putting `display: flex`
+      back on the `<td>`, and giving the rows' first cell a **20px** left
+      border against the header's 3px all leave it 11/11 green. Only dropping
+      the `<colgroup>` reddened anything, and on a *different* sub-check (row
+      height). The tell is the sentence the lesson writes to justify it — here
+      *"128 of 144 cells were off before this line existed"*, true of a tree
+      that had no colgroup yet and false of the one that shipped. **Ask what
+      the assertion's two operands are DERIVED from**: a check over a table
+      must compare the rendering to something outside the table (the
+      `RESULT_COLUMNS` widths, the projection's own numbers), never one part of
+      the table to another. The value half of that same sub-check — each
+      printed number against `results.json` — is the shape to copy.
+      (`ISSUE_20260923_the_results_tables_column_geometry_is_unwitnessed_and_its_alignment_check_cannot_fail_on_it.md`.)
+- [ ] **A handoff cut right after a RETIRING one reaches for the retired class
+      name, because every comment about it survived.** Same review.
+      `stack_page_alert_marks_and_drawn_glyph` retired `.chip--alert` on
+      2026-09-22 (the badge is `.rowalert`, a drawn path); the next day's
+      `unitsNote()` in `views/stack.js` shipped
+      `VA.chip("chip--alert", "units: …")`, so the one warning that says *"this
+      number is under the wrong header"* renders as an ordinary neutral chip.
+      `grep chip--alert apps/viewer/` returns **eight** hits and not one of them
+      is a declaration — the retiring handoff's own comments are what make the
+      name look alive. So grep a class for its **declaration** (`^\s*\.<name>[
+      ,{]`), not for the word, whenever a diff introduces a modifier class the
+      previous week's handoff touched. Fails silently here because no live
+      check has non-stack units, which is also why the fast tier's synthetic
+      case asserts the text and cannot see the treatment.
+      (`ISSUE_20260923_the_units_mismatch_chip_on_a_result_row_asks_for_a_css_rule_that_was_retired.md`.)
+- [ ] **The copy fix landed in `apps/viewer/README.md` and NOT in the string
+      the app renders** — the "README describes the old string" entry above,
+      pointed the other way, and a second sighting of it on 2026-09-23. The
+      same commit that renamed the check *card* to a check *row* correctly
+      rewrote the README's `ΔT is on the check card` and left
+      `materialsSection`'s rendered `"(ΔT is on each check card)"` standing, so
+      the page told a reader to look at a surface the same commit deleted. And
+      the README's own legend kept two rows describing a *striped card* and a
+      *dashed card*. Both directions, one commit: after a rename, grep the
+      retired noun across `apps/*/**.js` **and** `apps/viewer/README.md`, and
+      do not let the one you fixed stand in for the other.
+
 ## Architectural errors to check
 
 - [ ] **Two readers of one input file, one strict and one tolerant.** New

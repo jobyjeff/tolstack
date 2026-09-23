@@ -25,6 +25,14 @@ check's are a fold's interval). There is no arrangement of that grid in which
 a check's number lands under a column it totals, which is the whole mechanism
 the study page's footer rows rely on.
 
+> **Correction, 2026-09-23 (review).** Not "three terms each": M1's sixteen
+> checks fold **2, 3 or 4** terms — eight fold 3, six fold 4, and the two
+> `k 0` probes fold 2. The argument is unaffected, because it rests on each
+> check folding a *different subset* of the eight elements rather than on how
+> many. Same correction applied to `apps/viewer/README.md` and to
+> `views/stack.js`'s `resultsSection` header comment, which carried the same
+> figure.
+
 So: a **Results** table, and the link back to the elements is each row's own
 term list, in its fold, with every sign and every coefficient — the one place
 on this page where "which elements did this check actually use" was ever
@@ -148,15 +156,15 @@ questions rather than block. Both are about the live page at
 1. **Is one table right, or should paths go back to standing alone?** The
    argument above says a path is a check without a criterion and belongs in
    the same grid. `tan_link_to_pitch_plate` is the page to read it on — six
-   checks over three paths, the only live stack with both
+   checks over three paths, the widest live example of a stack with both
    (screenshot 3 below). If a path reads as "a check that forgot its verdict"
    rather than "a measured span", the group row is not carrying enough and the
    answer is two tables with deliberately different column sets.
 2. **Is the corner belt on the row worth the two lines it costs?** Every M1
    row is a clamped label over up to four corner chips
    (`chain lower_seat`, `stage hub_to_sleeve`, `temperature cold (-20 °C)`,
-   `k 0.8`), because the label's first forty characters are identical across
-   all sixteen and the part that differs is at the tail, which is what the
+   `k 0.8`), because within a seat the label's first forty characters are
+   identical and the part that differs is at the tail, which is what the
    clamp takes off. The chips are what makes the sixteen rows tellable apart —
    and they are also the only reason a row is ~58px rather than ~32px: the
    sixteen rows are 923px of table with them and would be roughly 510px
@@ -239,3 +247,41 @@ git checkout HEAD -- apps/viewer/views/stack.js apps/viewer/style.css
 Two files, named explicitly — `git checkout <commit>^ -- apps/viewer` would
 have taken `README.md` with it and silently reverted the section written for
 this pass.
+
+---
+
+> **Corrections, 2026-09-23, from the review
+> (`docs/sessions/reviews/REVIEW_20260923_stack_page_check_card_balance_sheet.md`).**
+> Three figures in this lesson were re-derived against
+> `data/projections/viewer/results.json` and did not reproduce; all three are
+> corrected in place above and the same wording was corrected wherever else it
+> had been written.
+>
+> * **"three terms each"** — M1's sixteen checks fold 2, 3 or 4 terms
+>   (8 / 6 / 2). Corrected above, and in `apps/viewer/README.md` and
+>   `views/stack.js`.
+> * **"the only live stack with both [checks and paths]"** — **five** of the
+>   seven live stacks carry both, and so render group rows:
+>   `pitch_link_to_pitch_plate` (2/3), `rotor_fastener_length` (9/1),
+>   `tan_link_to_pitch_plate` (6/3), `tan_link_to_pitch_plate_take2` (1/1) and
+>   `vpa_output_to_pitch_plate` (1/1). Only the two thermal fits have checks
+>   and no paths. `tan_link_to_pitch_plate` is still the right page for
+>   question 1 — it is the widest example, not the only one — but the
+>   decision it asks for touches five pages, not one. Corrected here and in
+>   `ISSUE_20260923_two_layout_questions_...`.
+> * **"the label's first forty characters are identical across all sixteen"** —
+>   there are **four** distinct forty-character openings (6 `LOWER … 202.140`,
+>   6 `UPPER … 132.073`, and the four probes behind a `[SENSITIVITY] ` prefix).
+>   The argument survives: within a seat the stage and the temperature are at
+>   the tail, which is what the clamp takes off.
+>
+> **And one claim about the guards, measured rather than re-read.** The
+> paragraph above credits the new browser sub-check
+> (*"every cell of the results table starts at its own header's left edge…"*)
+> with catching the `display: flex`-on-a-`<td>` defect at **128 of 144 cells**.
+> That was true of the tree it was measured on; it is not true of the shipped
+> one. With the `<colgroup>` and `table-layout: fixed` in place, the review
+> could not make the alignment half of that sub-check fail with ANY of the
+> mechanisms this lesson argues for — see the measured table in the review
+> report, and the corrected candidate list in
+> `ISSUE_20260923_the_results_table_guards_have_no_mutation_witness_entry.md`.

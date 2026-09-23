@@ -451,7 +451,7 @@
   // and they are both the mechanism (a fit loosens because two members grow at
   // different rates) and the least-traced numbers in the stack. They are also
   // what makes a term's coefficient auditable: 2.0010712 on a sleeve wall is
-  // 2 (diametral) × (1 + ΔT·α), and ΔT is on the check card.
+  // 2 (diametral) × (1 + ΔT·α), and ΔT is on the check's own row.
   var MATERIAL_COLUMNS = ["material", "designation", "CTE 1e-6/°C",
     "CTE range °C", "used by", "sourcing"];
 
@@ -462,7 +462,7 @@
     section.appendChild(VA.el("h3", null, "Materials"));
     section.appendChild(VA.el("p", "muted",
       "The soak factor on every weighted term below is 1 + ΔT·α from this table " +
-      "(ΔT is on each check card). A scalar CTE hides that α varies with " +
+      "(ΔT is on each check's own row). A scalar CTE hides that α varies with " +
       "temperature — the range each value is a mean over is stated when the " +
       "source states one. The sourcing column says how well sourced each " +
       "number is and where it came from; the full argument — the entry's own " +
@@ -623,9 +623,10 @@
   // card carrying a five-chip head, five label/value boxes in a row, and the
   // check's authored guidance whole and unfolded. On
   // `hub_bearing_thermal_fit_m1` that page measured 10,633 px tall -- and its
-  // sixteen cards printed the SAME guidance paragraph six times, six times and
-  // four times, because a generated check's guidance belongs to the archetype's
-  // stage, not to the corner. The complaint the study page answered one week
+  // sixteen cards printed just FOUR distinct guidance paragraphs between them
+  // -- 6, 6, 2 and 2 -- because a generated check's guidance belongs to the
+  // archetype's stage (and, for a probe, to the ratio it moved), not to the
+  // corner. The complaint the study page answered one week
   // earlier, in Jeff's words, was "the weird ribbon of random values in circled
   // elements at the top" and "tons of long-winded text explanations"; this is
   // the same two defects one page over, and the same answer -- numbers in
@@ -638,7 +639,7 @@
   //    be: a `<tfoot>` total is legible only because it totals the column above
   //    it over every row above it, and each of these checks folds a DIFFERENT
   //    subset of the elements (`element_terms`) -- sixteen checks over eight
-  //    elements on m1, three terms each. Sixteen footer rows under one elements
+  //    elements on m1, two to four terms each. Sixteen footer rows under one elements
   //    table would each be a total of a subset the reader cannot see, in
   //    columns that do not even line up (an element row's columns are one
   //    element's nominal/min/max/±/LMC/MMC; a check's are a fold's interval).
@@ -1007,7 +1008,8 @@
   // the corner it describes.
   //
   // WHAT IS ON THE ROW is what a reader compares without clicking: the result's
-  // name (clamped to one line, whole on the hover and whole again in the fold),
+  // name (clamped to one line, and whole on the hover -- the record below does
+  // NOT repeat it, so the hover is the only place the tail is readable),
   // its id, the corner it describes, and — for a budget — WHAT IT IS A BUDGET
   // FOR. That last one is not a style choice: a budget rendered without the
   // term it is a budget for is the misreading the scope exists to prevent, so
@@ -1099,16 +1101,20 @@
   function resultName(label) {
     var name = VA.el("span", "rs-name", label);
     // Clamped by CSS to one line, so the whole string has to be reachable
-    // without opening anything: a reader who does not want to click gets it on
-    // the hover, and it is in the fold word for word either way.
+    // without opening anything: the hover is where a reader gets it. The
+    // record does NOT carry the label a second time, so this is the only
+    // reading of the clamped tail the page offers -- the corner chips on the
+    // line below are what make the sixteen tellable apart without it.
     name.setAttribute("title", label);
     return name;
   }
 
   // The row's second line: WHICH CORNER this result describes, which is the
-  // part of a generated label that the clamp takes off (every one of M1's
-  // sixteen reads `LOWER bearing seat, M1 (hub bore 202.140 …` for its first
-  // forty characters and differs only at the tail).
+  // part of a generated label that the clamp takes off (M1's sixteen labels
+  // have FOUR distinct forty-character openings between them -- six read
+  // `LOWER bearing seat, M1 (hub bore 202.140`, six `UPPER … 132.073`, and the
+  // four probes the same two behind a `[SENSITIVITY] ` prefix -- so within a
+  // seat the stage and the temperature differ only at the tail).
   //
   // The result's ID is NOT here, and that is a change of mind inside this
   // session rather than an oversight. It was on this line first, as the

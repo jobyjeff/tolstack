@@ -39,3 +39,58 @@ named, and a declared-but-unwitnessed row is worse than no row.
 ```
 node scripts/run_mutation_witness_tests.mjs --repo C:\workspace\tolstack
 ```
+
+---
+
+## Replayed in review, 2026-09-23 — two of the six candidates do not reproduce
+
+The filing says each candidate has to be **run** before it is declared. It has
+been. Scratch tree from `git archive` of the merged review branch, data through
+`--repo C:/workspace/tolstack`; fast tier `node apps/viewer/run_tests.cjs`,
+browser tier `node scripts/run_viewer_browser_tests.mjs --only "typography"`.
+Baseline: **513/513 fast, 11/11 browser.**
+
+| candidate | measured | verdict |
+|---|---|---|
+| `checkRecord`'s guidance printed on the row as well | 511/513 fast, red on *every check's authored guidance is in its fold…* **and** on the `[real]` walk | **reproduces** — declare it |
+| `excludedLine` renders `.whole` instead of `.name` | 512/513 fast, red on *an excluded term's name is on the row and its rationale one fold deep* | **reproduces** — declare it |
+| `pathRow`'s verdict/criterion cells left blank | 512/513 fast, red on *a path states it has no verdict rather than leaving the cell blank* | **reproduces** — declare it |
+| `appendResult` starts a fold open | 511/513 fast, red on *a result's record is folded until the row is asked for it* **and** on the `[real]` row-count walk | **reproduces** — declare it |
+| `.rs-row__name` gets `display: flex` back on the `<td>` | 513/513 fast, **11/11 browser** | **does NOT reproduce** — do not declare |
+| `.restable` loses `table-layout: fixed` | 513/513 fast, **11/11 browser** | **does NOT reproduce** — do not declare |
+
+Both misses name the same expected witness — *"every cell of the results table
+starts at its own header's left edge…"* — and the reason they miss is
+structural rather than a wording slip. That sub-check compares
+`td.getBoundingClientRect().x` against `th.getBoundingClientRect().x` **within
+one table**, and a `<td>` and its `<th>` share a column grid by construction,
+so the comparison is close to tautological. Measured three ways: dropping
+`table-layout: fixed`, moving `display: flex` back onto the `<td>`, and giving
+`.rs-row td:first-child` a **20px** left border against the header's 3px all
+leave it green. The 128-of-144 figure the lesson credits it with was measured
+on a tree that had no `<colgroup>` yet.
+
+Three further geometry mechanisms are unwitnessed in every tier and want an
+assertion before they want a witness row:
+
+* `table.style.minWidth = resultTableWidth()` — dropped, 513/513 and 11/11.
+* `.restable thead th:first-child`'s matching transparent 3px spine — dropped,
+  513/513 and 11/11, though `views/stack.js` and `style.css` both say it is
+  what keeps the header on the grid.
+* `resultName`'s `title` — dropped, 513/513 and 11/11. It is the only place a
+  reader can read a clamped 130-character label, since the record does not
+  repeat it.
+
+One geometry mechanism **is** witnessed, and not by the check named for it:
+dropping `table.appendChild(resultColgroup())` reddens *"no result row is
+taller than a name and its corner chips…"* (10/11 browser).
+
+**Route this with the enrollment stream, not as a fifteenth independent
+filing.** `docs/issues/` holds fourteen open "no mutation-witness entry"
+issues; the two immediately preceding this one
+(`..._the_balance_sheet_guards_...`, `..._the_nav_status_icon_guards_...`) are
+already `status: triaged` onto
+`docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md`.
+
+Full evidence:
+`docs/sessions/reviews/REVIEW_20260923_stack_page_check_card_balance_sheet.md`.
