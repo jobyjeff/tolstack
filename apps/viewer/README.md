@@ -1381,6 +1381,68 @@ venv-win/Scripts/python.exe tests\debug_report_thermal_fit.py --terms --markdown
 A stack declaring an archetype the projection has **no** loader for still renders
 zero checks — and says exactly that, rather than "no checks".
 
+### A stack's checks and paths are one table, and it reads like a balance sheet
+
+`HANDOFF_20260922_stack_page_check_card_balance_sheet.md`, one page over from
+the study summary above and against the same two complaints. What stood here
+was a `Paths` table followed by one `<article>` per check, and each card
+carried a head of five chips, five label/value boxes in a row, the excluded
+terms, a row of term chips and the authored guidance whole and unfolded.
+Measured on `hub_bearing_thermal_fit_m1` at 1600px, that page was **10,633 px
+tall** with sixteen cards on it — and the sixteen printed the same guidance
+paragraph six, six and four times, because a generated check's guidance
+belongs to the archetype's *stage* and not to the corner. The same page
+measured **4,825 px** after this pass, on the same projection at the same
+viewport (`tests/debug_stack_check_table.mjs --phase before|after`, which is
+committed so the pair can be re-taken rather than believed).
+
+**Checks and paths are rows of one table** (`resultsSection`,
+`views/stack.js`). They fold the same arithmetic over the same elements and
+print the same five numbers under the same column names, so two tables side by
+side would have been two tables that look like the same thing and are not. The
+one honest difference is that a check was folded against a criterion and a
+path was not, which is worth exactly two columns; a path's verdict and
+criterion cells say `—` and carry the reason on their hover, and a stack that
+has both kinds gets a group row above each block saying which it is. A stack
+with only checks — both thermal fits — gets no group rows at all, because
+there is nothing to tell its rows apart from.
+
+**The checks are not footer rows of the elements table.** That is the one part
+of the study summary's idiom that does *not* transfer: a study's grid **is**
+its chain, so its totals belong under it, but each of a stack's checks folds
+its own subset of the elements (`element_terms` — sixteen checks of three
+terms each over eight elements, on M1). Sixteen footer rows under that grid
+would each be a total of a subset the reader cannot see, in columns that do
+not line up. The link back to the elements is each row's own term list, in its
+fold, with every sign and every coefficient.
+
+**The record is a second `<tr>`, spanning every column, folded until the row
+is clicked** — not a `<details>` in the name cell, which is what the findings
+table one page over uses. That table has two columns; this one has nine, and a
+fold in the first would have rendered a 47-word paragraph in a ~350px lane
+with eight columns of white space beside it. Inside it: the check's id, every
+excluded term whole, the zero-width sentence, the term list, the archetype's
+`configuration` block and the guidance. Nothing in there is edited, truncated
+or summarised — folding is the only move the renderer makes on authored prose,
+and a `[real]` test walks every live check to say so.
+
+**What may not fold is a budget's excluded terms.** A budget rendered without
+the term it is a budget *for* is the misreading `verdict_scope` exists to
+prevent, so the term's **name** is on the row, split at the author's own
+` -- ` (`VA.splitAuthoredFinding`, the one piece of the findings-table idiom
+that transferred unchanged); the whole authored string is in the fold and on
+the row's hover.
+
+**`table-layout: fixed` with a shared `<colgroup>`**, widths inline from
+`RESULT_COLUMNS` and none of them in `style.css` — the same arrangement, and
+the same reason, as the topology grid's `VA.TOPO_COLUMNS`. An auto-layout
+table sized the name column to the *intrinsic* width of a 120-character
+generated label whatever the one-line clamp said, and ran to 1850px. Measured
+2026-09-22 on the same page: 1240px of results table against 1060px of
+elements table, both in the same 702px scrollport. Both overflow it, which is
+`BRIEF_20260916_topology_page_number_reach.md`'s territory and not this
+page's to settle.
+
 ## Reading the colours
 
 Provenance is the only saturated colour on the page; everything else is grey.
@@ -1611,7 +1673,7 @@ the `materials.json` entry verbatim (designation, CTE, the range it is a mean
 over) beside its own sourcing — and the CTEs are the least-traced numbers in this
 repo, so the table speaks the same colour language as the elements table. A
 thermal fit's answer is a CTE *difference*, and the soak factor in a term's
-coefficient is `1 + ΔT·α` from that table with the ΔT on the check card.
+coefficient is `1 + ΔT·α` from that table with the ΔT on the check's own row.
 
 **The table is a table again, since 2026-09-18.** Its source column was the
 multi-line composite cell the elements table retired a month earlier -- chips,
