@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: guards/mutation-witness
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_review_overlay_test_cadence.md
+handoff: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
 ---
 
 # Three declared mutations are NOT WITNESSED on trunk after the 2026-09-21 batch merge, and one of them was WITNESSED on its own branch hours earlier

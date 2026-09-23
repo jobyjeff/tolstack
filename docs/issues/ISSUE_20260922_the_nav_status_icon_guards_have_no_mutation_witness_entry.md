@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: scripts/mutation-witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_nav_verdict_into_alert_and_icon.md
+handoff: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
 ---
 
 # The nav status-icon guards have no `mutation_witnesses.json` entry — two rows are paste-ready and were measured in review

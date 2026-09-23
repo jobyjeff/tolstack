@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: med
-status: open
+status: triaged
 area: scripts/mutation_witnesses
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260921_policy_free_brief_residues.md
+handoff: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
 ---
 
 # Four guards from `policy_free_brief_residues` have no mutation-witness entry

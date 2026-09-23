@@ -58,3 +58,19 @@ Nothing here touches the lesson
 (`LESSONS_20260922_viewer_nav_verdict_into_alert_and_icon.md`) or the code
 comments, which state the same tally: `docs/sessions/` is dated history and out
 of scope for the live-document rule.
+
+## 2026-09-22 triage sweep — left `open` deliberately; do not re-route
+
+This is an instance of the meta-class recorded in
+`dispatch/docs/sessions/lessons/LESSONS_20260922_triage_backlog_is_one_class.md`:
+an unpaired hand copy of a count that nothing keeps equal to its source. That class is **already owned** by
+`dispatch/docs/strategy/BRIEF_20260906_guard_coverage_set_size_assertions.md`,
+whose open decision is *detector vs. a third written convention vs. accept the
+rate*. Point-fixing the ~160 workspace-wide instances now would pre-decide that
+question by brute force, which is the anti-pattern the brief exists to end.
+
+So this issue is **deferred to that brief's strategy decision**, not missed. It
+carries no `strategy:` back-link on purpose — dispatch's close-out refuses to
+advance an issue that has one, and this issue should stay visible to the sweep
+that runs after the brief is decided. The next triage pass should read this
+section and move on rather than filing a handoff for it.

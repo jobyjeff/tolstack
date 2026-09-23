@@ -32,3 +32,20 @@ Neither is a behaviour defect. Both are the residue class the review overlay
 names ("a doc citing a symbol by name — resolve the name to the thing that
 exists"), and a comment that credits a deleted class is how the *next* pass
 learns a rule that is no longer there.
+
+## 2026-09-22 triage sweep — left `open` deliberately; do not re-route
+
+This is an instance of the meta-class recorded in
+`dispatch/docs/sessions/lessons/LESSONS_20260922_triage_backlog_is_one_class.md`:
+a stale noun -- a comment citing a symbol the code no longer has, with
+nothing pairing the two. That class is **already owned** by
+`dispatch/docs/strategy/BRIEF_20260906_guard_coverage_set_size_assertions.md`,
+whose open decision is *detector vs. a third written convention vs. accept the
+rate*. Point-fixing the ~160 workspace-wide instances now would pre-decide that
+question by brute force, which is the anti-pattern the brief exists to end.
+
+So this issue is **deferred to that brief's strategy decision**, not missed. It
+carries no `strategy:` back-link on purpose — dispatch's close-out refuses to
+advance an issue that has one, and this issue should stay visible to the sweep
+that runs after the brief is decided. The next triage pass should read this
+section and move on rather than filing a handoff for it.

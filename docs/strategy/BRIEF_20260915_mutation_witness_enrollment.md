@@ -105,3 +105,62 @@ and the four still-open ones are routed this sweep to
 `respine_tween_fidelity_round2`, `viewer_value_guard_rows_and_replays`,
 `annotate_hosted_page_posture` and `mutation_witness_tier_repair`. This is only
 about whether enrollment gets a mechanism.
+
+## 2026-09-22 triage sweep — a third data point on the curve, and it points the same way
+
+This is evidence for the question above, not a re-route: the three fresh
+instances below are staged as tactical work
+(`docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md`),
+because the *instances* have always been cleared by a periodic backlog handoff
+while the *mechanism* question waits here. No issue's `strategy:` was pointed at
+this brief by the sweep; what is recorded here is what those instances say about
+whether the mechanism is worth building.
+
+**The registry grew 73 → 96 and the arrival rate did not move.**
+`HANDOFF_20260921_mutation_witness_enrollment_backlog` reached `completed/` in
+the 2026-09-22 batch merge and enrolled 22 of 26 proposed rows (commit
+`f402884`) — the **second** dedicated backlog handoff in four days, after
+`HANDOFF_20260918_mutation_witness_enrollment_gaps`. In the same week, three
+more handoffs shipped guards and declared none of them:
+
+| handoff | guards added | entry written |
+|---|---|---|
+| `HANDOFF_20260921_policy_free_brief_residues` | 4 | none — the enrolling handoff was **active in a sibling worktree**, so two agents editing one table would have collided |
+| `HANDOFF_20260922_viewer_nav_verdict_into_alert_and_icon` | ~10 | none |
+| `HANDOFF_20260922_viewer_summary_balance_sheet` | 4 + 2 surface enrollments | none |
+
+So the pattern the brief predicted is now visible three times over: enrollment
+is done by a *separate, later* session, which means it is nobody's job inside
+the session that creates the debt. The middle row is the sharpest instance yet
+and is an argument the "cheap version" of the mechanism has to answer: the
+reason that handoff wrote no rows was **worktree contention on a single
+hand-kept JSON table**. A per-diff CI check would have reddened it; a derived
+enumeration would have removed the table it collided over.
+
+**And the other half of the same coin: declared coverage is decaying.** Measured
+by this sweep from the main checkout on `master` @ `836f11e`, clean tree,
+`--only` per entry: all three entries named by
+`ISSUE_20260921_three_declared_mutations_are_unwitnessed_on_trunk_after_the_batch_merge.md`
+are **still NOT WITNESSED**, one day and a batch merge later, with three
+*distinct* diagnoses (an over-broad mutation eaten by an earlier check; a
+mutation that aborts the suite instead of failing a check; a witness that cannot
+see the difference at all). The runner prints them and **exits 0**. One of the
+three was reported WITNESSED on its own review branch hours before it reached
+trunk.
+
+That is the input the brief's third answer — *"flat-rate is the right
+outcome"* — now has to contend with. Enrollment is not only failing to keep up
+with new guards; the entries that do exist are silently losing their witnesses
+between the branch that measured them and the trunk that runs them, and nothing
+in the pipeline fails when they do. A mechanism keyed on "every guard has an
+entry" would not have caught any of the three; a mechanism keyed on "the tier's
+exit code means something, and the batch merge runs it" would have caught all
+three. Those are two different guards, and the decomposition should say which
+one it is buying, or that it is buying both.
+
+**Cost input, still the freshest thing about this brief.** The 09-18 pass
+measured ≈4 min/entry. The 09-21 pass added 23 entries. The handoff staged
+today is instructed to report a third figure plus the first full-tier `N/M`
+baseline written down since 54/54 on 2026-09-16 — the registry is 96 entries
+now, so nobody can currently say whether the tier is regressing or has always
+leaked. Decide after that number exists, not before; it is due this week.

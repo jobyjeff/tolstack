@@ -1,11 +1,12 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: tests/mutation-witnesses
 reporter: agent
 audience: strategy
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
+handoff: docs/sessions/HANDOFF_20260922_mutation_witness_repair_and_enrollment.md
 ---
 
 # The balance-sheet guards have no mutation-witness entry

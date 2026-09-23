@@ -135,3 +135,67 @@ because reversing the full-page-scroll contract
 argument re-made. If this brief's answer is "a wide grid legitimately scrolls
 sideways, and the page says so", that *is* the argument being re-made, and the
 two decisions should be taken in one sitting.
+
+## 2026-09-22 triage sweep — the grid's clipped zone now holds two *required* values, and the column budget is measured again
+
+Source issue:
+`docs/issues/ISSUE_20260922_the_totals_rows_put_two_required_values_in_the_grids_permanently_clipped_zone.md`
+(bug, med, `audience: strategy`), filed by the review of
+`viewer_summary_balance_sheet` (2026-09-22). It is this brief's item 2 — the
+grid's column budget against the grid pane — with the stakes raised, so it is an
+addendum rather than a second file.
+
+**What changed.** `viewer_summary_balance_sheet` made the grid's **footer rows**
+the place a study's rolled-up answer lives. Four of the values that pass now
+land in the clipped zone:
+
+| value | column | visible at the default layout? |
+|---|---|---|
+| worst-case half-width (`± 0.9901 mm`) | `contribution` | no |
+| RSS half-width (`± 0.488755 mm`) | `contribution` | no |
+| the criterion (`must be >= 0`) | `contribution` | no |
+| the `BUDGET` scope chip | `sourcing` | no |
+
+So the brief's question is no longer only *"can a reader reach the evidence"*;
+it is *"can a reader reach the study's own answer"*. Two of the four that matter
+most were deliberately placed in the always-visible zone (the verdict chip and
+the check's label in `element`; the **margin** right-aligned across
+`nominal`/`min`/`max`), so the bottom line does read without scrolling. The
+half-widths and the criterion do not, and the issue is explicit that they are
+placed **correctly** — a half-width is a spread, in the column a member row's
+own spread occupies; the criterion is the row's premise. *The defect is the
+column budget, not the placement.*
+
+**A fresh measurement of the 1218/640 pair this brief says will expire.**
+Measured 2026-09-22 on the live `pitch_link_to_pitch_plate` at a 1600 px
+viewport with the preview pane at its default 560 px: `COLUMNS`
+(`apps/viewer/views/topology.js`) still sums to **1218 px**; the table starts at
+x≈417 and the pane ends at x≈1037, so **620 of 1218 px is visible** — `max` is
+cut mid-number and `contribution`, `sourcing` and `crop` are off-screen
+entirely. Read alongside `LESSONS_20260916_topology_grid_scroll_and_grips`'s
+post-merge `scrollWidth` 1534 px in an 868 px pane (max `scrollLeft` 666), which
+`dispatch/docs/strategy/BRIEF_QUEUE.md` #7 says to decide against: the two
+differ because the preview pane's width is a *reader-set* variable, which is
+itself an input this brief has not yet named.
+
+**What it adds to the decomposition.** The issue prices two of this brief's
+existing candidates and adds a constraint:
+
+- the `crop` column (110 px) is a thumbnail nobody reads at a glance, and the
+  preview pane already shows the same crop;
+- `sourcing` (260 px) is the widest column on the page and holds chips that
+  could fold to one mark — which is precisely the move the nav rail made on
+  2026-09-22 and which `docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md`
+  is staged to make on the materials table. If that lands, "fold the chips" is
+  no longer a hypothetical for this page either;
+- a third option the issue raises that this brief did not list: **scroll the
+  pane to its right-hand end when a study is selected**, so the answer is what
+  is on screen rather than the left edge of the walk;
+- and a fence: **do not move a totals value into a column it does not belong
+  to** — that trades a scroll for a mislabelled number.
+
+**Sequencing.** `docs/sessions/HANDOFF_20260922_stack_page_check_card_balance_sheet.md`
+(staged 2026-09-22) is instructed to report the stack page's measured
+`scrollWidth` if its layout needs room it does not have, and is explicitly
+fenced out of pre-empting this decision. Nothing staged today re-lays the grid's
+columns.

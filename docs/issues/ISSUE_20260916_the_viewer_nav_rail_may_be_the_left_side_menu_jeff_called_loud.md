@@ -1,11 +1,12 @@
 ---
 type: feature
 priority: med
-status: open
+status: triaged
 area: apps/viewer
 audience: strategy
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260916_flyout_resize_annotator_filter_and_deselect.md
+handoff: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
 ---
 
 # "Left side menu is now impressively 'loud'" — the viewer's nav rail is still the loudest thing on the page, and it may be the rail Jeff meant

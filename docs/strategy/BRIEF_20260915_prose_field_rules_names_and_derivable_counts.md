@@ -186,3 +186,68 @@ names **this** brief, not the SOP-restructure one. The SOP brief decides
 whether `SOP_TOLERANCE_STACK.md`'s steps are rewritten topology-first; the rule
 this issue needs is the one being written here. Where the resulting sentence
 lands in the SOP is downstream of that.
+
+## 2026-09-22 triage sweep — route 2 has a second, live instance, and it is the one place the reader-facing guard cannot reach
+
+Source issue:
+`docs/issues/ISSUE_20260922_the_study_summary_renders_record_prose_the_banned_string_guard_would_refuse.md`
+(bug, low, `audience: strategy`), filed by the review of
+`viewer_summary_balance_sheet` (2026-09-22). It belongs here rather than in a
+new file because it is the **same two routes** this brief's 2026-09-16 addendum
+already frames for citation `note`s — *exempt the class* vs *mark the record's
+words on the page* — arriving on a second surface, with the exemption list's own
+hygiene problem attached.
+
+**What was measured.** That handoff enrolled the study summary
+(`VA.renderTopoTotals`) and the grid's new totals footer in the **fixture**
+tier's reader-facing walk, and the enrollment immediately paid: the surface had
+been printing the study's own id in a `<code>` and naming its two ends
+`washer_far_face → cotter_hole_centerline`. Both are gone. Enrolling the same
+surface in the **`[real]`** walk was attempted and **backed out**, because it
+fails on live data — on the **record's** own words:
+
+* `pitch_link_cotter_hole_clearance`'s study `notes` name
+  `tests/test_topology_conversions.py`, caught by the
+  `\b[\w.-]+\.(?:py|exe|ps1|bat|cmd|sh)\b` shape in
+  `apps/viewer/reader_facing_bans.js`;
+* several `hardware_entry` gap texts name `data/inbox/specs/`, caught by the
+  `data/` literal.
+
+Both render behind a disclosure (`Details`, and `What's missing`). Neither is
+the page speaking.
+
+**Why it sharpens route 1 rather than merely repeating it.** Exempting these
+costs five new `VERBATIM_PROSE_CLASSES` entries — `p.tvtotals__note`,
+`span.tvgaps__text`, `summary.tvfind__name`, `p.tvfind__why`,
+`div.tvcard__why__body` — each with the same argument `p.check__guidance` and
+`li.notelist__note` already won. But **none of the five can be
+liveness-checked**: the dead-exemption guard runs over **stack** surfaces only,
+so all five land in `TOPOLOGY_ONLY_EXEMPTIONS` and are exempt from the hygiene
+rule that keeps the exemption list honest. So route 1 here is not "add five
+lines"; it is "add five lines *plus* teach the liveness check about topology
+surfaces", or knowingly grow an unchecked list. That is a real price this brief
+did not previously have on the table, and it is the same shape as
+`dispatch/docs/strategy/BRIEF_20260906_guard_coverage_set_size_assertions.md`'s
+*definability* sub-question — a hand-kept exemption set nothing pairs to the
+surfaces it claims to cover. If the answer turns out to be a detector, it
+belongs to that brief's decomposition, not this one's.
+
+**What shipped, and what it costs to leave it.** Option 3 — leave it, and write
+the boundary down — is the current state: the page's **own** words on this
+surface are guarded at the fixture tier, the **record's** are not scanned at
+all, and that boundary is stated in the `[real]` walk's own comment. The cost is
+named in the issue and is the reason it is filed: a future *page* string added
+inside one of those five nodes rides through the live walk unseen.
+
+**The repro is in the issue** (a six-line addition to the `[real]` walk's
+`liveTopos` loop, then `node apps/viewer/run_tests.cjs --repo
+C:\workspace\tolstack`), so whoever decomposes this can re-measure the
+population rather than trust the two bullets above.
+
+**What this adds to "what the decomposition will need to decide."** A fourth
+bullet: **does the presentational route (route 2) also discharge the guard's
+problem, or only the reader's?** If record prose renders inside a marked "the
+author's words, to another author" block, a scanner could subtract *that block*
+by one class instead of five, and the exemption list stops growing per surface.
+That is a genuinely different answer from either route as currently written, and
+it is the one that would keep working when the next reading surface is added.

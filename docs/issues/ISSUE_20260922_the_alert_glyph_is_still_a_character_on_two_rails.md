@@ -1,10 +1,11 @@
 ---
 type: chore
 priority: low
-status: open
+status: triaged
 area: apps/viewer, apps/annotate
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_nav_verdict_into_alert_and_icon.md
+handoff: docs/sessions/HANDOFF_20260922_stack_page_alert_marks_and_drawn_glyph.md
 ---
 
 # The alert mark is a drawn icon on the nav rail and still a `⚠` character on the two other badges

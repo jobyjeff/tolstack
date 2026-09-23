@@ -1,10 +1,11 @@
 ---
 type: bug
 priority: med
-status: open
+status: triaged
 area: viewer/topology-summary
 reporter: agent
 found_by: docs/sessions/HANDOFF_20260922_viewer_summary_balance_sheet.md
+handoff: docs/sessions/HANDOFF_20260922_findings_splitter_scopes_to_excluded_terms.md
 ---
 
 # The authored-finding splitter also cuts EDGE NAMES, where the same ` -- ` means something else
