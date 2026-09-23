@@ -252,8 +252,13 @@ try {
       // The resize re-paints, which drops a direct render and detaches
       // whatever locator was resolved before it.
       await openStack(page, id, titles[id]);
-      await elementShot(page, `${name}_results`,
-        "table.restable, section.sv__section table.foldtable");
+      // `.restable` after this pass; BEFORE it, the surface that stood in its
+      // place was not a table at all but a run of `<article class="check">`
+      // cards -- so the before phase shoots the first two of them, which is
+      // the ribbon and the essay at the scale Jeff read them at.
+      await elementShot(page, `${name}_results`, PHASE === "before"
+        ? "article.check"
+        : "table.restable");
       await resizeTo(page, { width: 1600, height: 1000 });
     } catch (err) {
       say(`${id}: SKIP ${firstLine(err)}`);
