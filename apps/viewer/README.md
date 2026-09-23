@@ -880,7 +880,12 @@ between them:
   the **author's** and is rendered whole, split at its own ` -- ` into a name
   and a rationale (`VA.splitAuthoredFinding`). A term whose author wrote no
   separator is never cut at a guessed point: it comes through whole and the
-  row's CSS clamps it, with the full text in the fold and on the hover;
+  row's CSS clamps it, with the full text in the fold and on the hover.
+  **Only an excluded term is split that way** — a chain row's finding names an
+  **edge**, where the same ` -- ` is a naming convention
+  (`name -- clarifier`) rather than a what/why one, so those names arrive
+  whole down the very same path. Which of the three buckets the convention
+  governs is declared per kind, in `VA.STUDY_FINDING_SOURCES`;
 * **cards of parameter/value pairs** — what was measured (the two interfaces,
   by name; how many contributions; the units; the weakest input) and, per
   check, its own `configuration` plus a `Why` fold over the authored guidance.

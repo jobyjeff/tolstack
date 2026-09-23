@@ -1738,7 +1738,10 @@
   //     own prose and is gone (the BUDGET chip on the verdict row and the
   //     `not folded into the total` phrase here say it in three words each);
   //     the term is the AUTHOR's and is here in full, split at its own ` -- `
-  //     into a name and a rationale (VA.splitAuthoredFinding).
+  //     into a name and a rationale (VA.splitAuthoredFinding). Only an
+  //     EXCLUDED TERM is split that way: a chain row's name carries ` -- ` as
+  //     a naming convention and arrives whole (VA.STUDY_FINDING_SOURCES'
+  //     `reasonSplit`, 2026-09-22).
   //   * "3 dimensions in this chain are unverified — nothing readable stands
   //     behind them: <three names joined by semicolons>." -- a generated
   //     sentence that was a list wearing a sentence's clothes. It is three

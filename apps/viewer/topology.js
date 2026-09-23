@@ -489,12 +489,27 @@
   // clamps it to one line with the full text in the fold.
   // (viewer_summary_balance_sheet, 2026-09-22: "Compress the wording, never
   // the facts".)
+  //
+  // It governs EXCLUDED TERMS and nothing else — see
+  // VA.STUDY_FINDING_SOURCES' `reasonSplit` for the other half of that rule.
   var AUTHORED_REASON_SPLIT = / -- | — /;
 
+  function findingText(text) {
+    return String(text === null || text === undefined ? "" : text);
+  }
+
+  // A finding taken WHOLE: the string is the name and there is no rationale.
+  // Two ways in — an authored term whose author wrote no separator, and every
+  // string in a bucket the split convention does not govern.
+  function wholeFinding(text) {
+    var whole = findingText(text);
+    return { name: whole, rationale: null, whole: whole };
+  }
+
   VA.splitAuthoredFinding = function (text) {
-    var whole = String(text === null || text === undefined ? "" : text);
+    var whole = findingText(text);
     var at = whole.match(AUTHORED_REASON_SPLIT);
-    if (!at) return { name: whole, rationale: null, whole: whole };
+    if (!at) return wholeFinding(whole);
     return {
       name: whole.slice(0, at.index),
       rationale: whole.slice(at.index + at[0].length),
@@ -502,15 +517,35 @@
     };
   };
 
-  // Which of VA.studyAttention's lists feeds each gap KIND. The kinds are
-  // VA.GAP_KINDS' own words and the rows come out in GAP_KINDS' order — worst
-  // first — so a study's findings table and the assembly-wide gap panel under
-  // it rank and name the same things the same way. A kind here that GAP_KINDS
-  // does not declare is a vocabulary that has drifted, and a test says so.
+  // Which of VA.studyAttention's lists feeds each gap KIND, and whether the
+  // strings in that list follow the AUTHORED_REASON_SPLIT convention above.
+  // The kinds are VA.GAP_KINDS' own words and the rows come out in GAP_KINDS'
+  // order — worst first — so a study's findings table and the assembly-wide gap
+  // panel under it rank and name the same things the same way. A kind here that
+  // GAP_KINDS does not declare is a vocabulary that has drifted, and a test
+  // says so.
+  //
+  // `reasonSplit` exists because ` -- ` means TWO different things in this
+  // projection (findings_splitter_scopes_to_excluded_terms, 2026-09-22):
+  //
+  //   * in an EXCLUDED TERM it separates what from why, because that is how
+  //     the author of a check writes one. Split it;
+  //   * in an `edge.name` or a `node.name` it is a NAMING convention,
+  //     `name -- clarifier` — "piston end to end-stop feature -- the end
+  //     stop", "flat washer far face -- the last modelled clamped surface".
+  //     The unverified and no-tolerance buckets carry nothing BUT those names
+  //     (VA.studyAttention pushes `edge.name`), so splitting one renames the
+  //     edge on the row — to a name the grid one block above does not use —
+  //     and files its clarifier in the fold as though it were the author's
+  //     argument for why the value is unverified. Take it whole.
+  //
+  // 58 strings in the live projection carry the separator and they are not all
+  // excluded terms, which is why this is a per-bucket declaration rather than
+  // one rule for the table.
   VA.STUDY_FINDING_SOURCES = {
-    excluded_from_model: "excluded",
-    unverified_value: "unverified",
-    no_tolerance_recorded: "noTolerance",
+    excluded_from_model: { bucket: "excluded", reasonSplit: true },
+    unverified_value: { bucket: "unverified", reasonSplit: false },
+    no_tolerance_recorded: { bucket: "noTolerance", reasonSplit: false },
   };
 
   // Everything that makes THIS study's answer less than its digits suggest, as
@@ -522,16 +557,19 @@
   //
   // No facts leave: `rationale` is the author's own words after the split,
   // `whole` is the untouched text, and `closes` is what the gap panel already
-  // says would close a gap of this kind.
+  // says would close a gap of this kind. Which buckets get split at all is
+  // VA.STUDY_FINDING_SOURCES' `reasonSplit`, not a rule written here.
   VA.studyFindings = function (study, index) {
     var attention = VA.studyAttention(study, index);
     var rows = [];
     Object.keys(VA.GAP_KINDS).forEach(function (kind) {
-      var bucket = VA.STUDY_FINDING_SOURCES[kind];
-      if (!bucket) return;
+      var source = VA.STUDY_FINDING_SOURCES[kind];
+      if (!source) return;
       var known = VA.GAP_KINDS[kind];
-      (attention[bucket] || []).forEach(function (text) {
-        var split = VA.splitAuthoredFinding(text);
+      (attention[source.bucket] || []).forEach(function (text) {
+        var split = source.reasonSplit
+          ? VA.splitAuthoredFinding(text)
+          : wholeFinding(text);
         rows.push({
           kind: kind,
           name: split.name,

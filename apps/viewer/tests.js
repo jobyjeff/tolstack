@@ -8777,15 +8777,92 @@
         eq(VA.splitAuthoredFinding(whole).rationale, null);
       });
 
+    // ` -- ` means two different things in this projection, and until
+    // 2026-09-22 the findings table knew only one of them: in an excluded term
+    // it is the author's what/why split, and in an `edge.name` it is a NAMING
+    // convention (`name -- clarifier`). The regression shipped because no
+    // fixture's edge name carried the separator -- so this one's does.
+    //
+    // `arm_pin_to_tip` is the demo edge that is BOTH untraced and zero-width,
+    // so renaming it once puts a clarified name into both of the buckets the
+    // convention does not govern, and `demo_base_to_tip` chains it.
+    // (ISSUE_20260922_the_authored_finding_splitter_also_cuts_edge_names_
+    // where_the_same_separator_means_something_else.)
+    await test("an edge name's ` -- ` is part of the NAME: a chain row is " +
+      "shown whole while an excluded term beside it still splits", function () {
+        var CLARIFIED =
+          "arm pin to tip -- the modelled reach, not the arm's full length";
+        var TERM = "the post's own seat height -- no drawing in this repo " +
+          "gives it";
+        var topoProj = JSON.parse(JSON.stringify(TOPO));
+        var renamed = (topoProj.edges || []).filter(function (edge) {
+          return edge.id === "arm_pin_to_tip";
+        })[0];
+        ok(renamed, "the demo edge this test renames must be in the fixture");
+        ok(VA.needsAnnotation(renamed.confidence) && renamed.zero_width,
+           "it must feed BOTH name buckets, or this measures one of the two");
+        renamed.name = CLARIFIED;
+
+        var made = studyWithCheck("demo_base_to_tip", {
+          complete: false, verdict_scope: "budget", excluded_terms: [TERM],
+        });
+        var root = studySummary(topoProj, made.study);
+
+        // The two buckets that hold edge names: the whole name on the row, and
+        // NOTHING in the fold pretending to be the author's argument.
+        ["unverified_value", "no_tolerance_recorded"].forEach(function (kind) {
+          var rows = all(root, "tr.tvfind__row--" + kind);
+          eq(rows.length, 1, kind);
+          eq(all(rows[0], "summary.tvfind__name")[0].textContent, CLARIFIED,
+             kind + " renamed the edge at its clarifier");
+          eq(all(rows[0], "p.tvfind__why").length, 0,
+             kind + " filed a name's clarifier as a rationale");
+          // ...and the row still says what KIND of gap it is and what closes
+          // one, which is the half of the fold that was never the split's.
+          has(rows[0].textContent, VA.GAP_KINDS[kind].closes);
+        });
+        // The model agrees with the DOM, and says it in the shape the next
+        // caller reads.
+        VA.studyFindings(made.study, VA.topologyIndex(topoProj))
+          .filter(function (f) { return f.kind !== "excluded_from_model"; })
+          .forEach(function (f) {
+            eq(f.name, CLARIFIED);
+            eq(f.rationale, null);
+            eq(f.whole, CLARIFIED);
+          });
+        // Anti-vacuity, and the other half of the rule in the same test: the
+        // excluded term in the same study DOES still split. A fix that simply
+        // stopped splitting everything would pass every line above.
+        var term = all(root, "tr.tvfind__row--excluded_from_model")[0];
+        eq(all(term, "summary.tvfind__name")[0].textContent,
+           "the post's own seat height");
+        has(all(term, "p.tvfind__why")[0].textContent,
+            "no drawing in this repo gives it");
+      });
+
     await test("a study's findings are the gap panel's own vocabulary, kind " +
       "for kind", function () {
         // One table of words for both surfaces. A kind here that the panel
         // under it has never heard of would be a study describing a gap in a
         // vocabulary the assembly-wide list cannot group it under.
+        var buckets = VA.studyAttention(topoStudy("demo_base_to_tip"),
+                                        VA.topologyIndex(TOPO));
         Object.keys(VA.STUDY_FINDING_SOURCES).forEach(function (kind) {
           ok(VA.GAP_KINDS[kind],
              "VA.STUDY_FINDING_SOURCES names gap kind " + JSON.stringify(kind) +
              " and VA.GAP_KINDS has no words for it");
+          var source = VA.STUDY_FINDING_SOURCES[kind];
+          // The bucket has to be a list VA.studyAttention actually fills --
+          // a misspelling here is a whole kind of finding silently absent.
+          ok(Array.isArray(buckets[source.bucket]),
+             kind + " reads attention bucket " + JSON.stringify(source.bucket) +
+             " and VA.studyAttention has no such list");
+          // ...and every bucket DECIDES whether the ` -- ` convention governs
+          // it rather than inheriting a default. Which way it points is the
+          // per-kind test below; that it was decided at all is here, so a
+          // fourth kind cannot arrive with the question unanswered.
+          eq(typeof source.reasonSplit, "boolean",
+             kind + " must declare reasonSplit");
         });
         Object.keys(VA.GAP_KINDS).forEach(function (kind) {
           ok(VA.GAP_KINDS[kind].says && VA.GAP_KINDS[kind].closes &&
@@ -12445,6 +12522,16 @@
                "and this test measures nothing");
             eq(warn.length, zeroWidth.length,
                "one row per zero-width dimension, no more and no fewer");
+            // An EXACT match against `edge.name`, and since 2026-09-22
+            // (findings_splitter_scopes_to_excluded_terms) it holds by
+            // construction rather than by luck: a no-tolerance finding's name
+            // is the edge name taken whole, because
+            // VA.STUDY_FINDING_SOURCES marks this bucket `reasonSplit: false`.
+            // Before that it was luck -- the splitter cut every bucket at
+            // ` -- `, so the first zero-width edge whose name carried the
+            // separator (58 live strings do, `edge.name` among them) would
+            // have reddened this line on a projection rebuild with nothing in
+            // the diff to explain it.
             var shownRows = warn.map(function (r) {
               return all(r, "summary.tvfind__name")[0].textContent;
             });
