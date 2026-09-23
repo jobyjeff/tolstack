@@ -21,7 +21,7 @@ carry no mutation witness.
 Nothing here blocks. What I found is one class of defect repeated: **the
 geometry the whole layout rests on is argued in four files and observed by
 nothing**, and the browser sub-check named for that claim cannot fail on it.
-Three issues filed, six inline fixes made, all disclosed below.
+Three issues filed, seven inline fixes made, all disclosed below.
 
 ---
 
@@ -302,7 +302,7 @@ name (496/513, with `[real] a stack's checks are bounded by their row count…`
 among the reds) — which is why it is `low`. It is a reporting defect, and this
 repo has measured what those cost.
 
-## Fixed inline (6, none of them behaviour)
+## Fixed inline (7, none of them behaviour)
 
 Committed as `3fb39e4`. Every one is a sentence the diff's own rename or its
 own arithmetic falsified.
@@ -350,6 +350,11 @@ own arithmetic falsified.
    lost their only producer when `pathsSection`/`foldNote` went. Replaced with
    a note saying where they went and that `tests/debug_stack_check_table.mjs`'s
    remaining references are to the *old* tree, deliberately.
+7. **`views/stack.js`'s own file header** still opened "elements, paths,
+   checks, gaps, notes" and still said "a budget-scope check gets a **striped
+   header**". Both are the retired card. The section list is
+   elements / materials / results / gaps / notes, and the budget mark is an
+   amber spine on the row; the sentence now dates the change.
 
 I re-ran the doc guards (209 passed) and the fast tier (513/513) after these
 edits, and re-grepped the branch for each superseded literal — the only
